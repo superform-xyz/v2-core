@@ -179,7 +179,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         yieldSource4626AddressOpUsdce = realVaultAddresses[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY];
         vaultInstance4626OP = IERC4626(yieldSource4626AddressOpUsdce);
 
-        yieldSourceMorphoUsdcAddressEth = realVaultAddresses[ETH][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY];
+        yieldSourceMorphoUsdcAddressEth = realVaultAddresses[ETH][ERC4626_VAULT_KEY][EULER_VAULT_KEY][USDC_KEY];
         vaultInstanceMorphoEth = IERC4626(yieldSourceMorphoUsdcAddressEth);
         vm.label(yieldSourceMorphoUsdcAddressEth, "YIELD_SOURCE_MORPHO_USDC_ETH");
 
@@ -757,22 +757,6 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         assertEq(allowanceAfter, amount);
     }
 
-    /**
-     * @notice Test cross-chain transaction execution
-     */
-    function test_CrossChain_execution() public {
-        threshold = 2;
-
-        CrossChainTestVars memory vars;
-        vars.amountPerVault = 1e8 / 2;
-        vars.warpStartTime = 1_740_559_708;
-
-        _setupAccountsAndCode(vars);
-        _setupDestinationChain(vars);
-        _setupSourceChain(vars);
-        _executeAndVerifyCrossChainTx(vars);
-    }
-
     function test_MaliciousSafeLike_revert() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
         threshold = 2;
         address[] memory _owners = new address[](2);
@@ -983,7 +967,6 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
 
         deal(underlyingBase_USDC, accountBase, amount);
 
-        uint256 balanceBefore = IERC20(underlyingBase_USDC).balanceOf(accountBase);
         uint256 shareBalanceBefore = vaultInstanceMorphoBase.balanceOf(accountBase);
 
         uint256 expectedShares = vaultInstanceMorphoBase.convertToShares(amount);
@@ -1016,63 +999,72 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         executeOp(userOpData);
 
         uint256 shareBalanceAfter = vaultInstanceMorphoBase.balanceOf(accountBase);
-        uint256 balanceAfter = IERC20(underlyingBase_USDC).balanceOf(accountBase);
 
         assertEq(shareBalanceAfter, shareBalanceBefore + expectedShares, "share balance not increased");
     }
 
-    function test_SafeAccount_CrossChain_Execution_3Owners_Threshold_1()
-        public
-        initializeModuleKit
-        usingAccountEnv(AccountType.SAFE)
-    {
-        threshold = 1;
+    function test_CrossChain_execution_2_threshold() public {
+        threshold = 2;
+
         CrossChainTestVars memory vars;
+        vars.amountPerVault = 1e8 / 2;
         vars.warpStartTime = 1_740_559_708;
 
-        vars.amountPerVault = 1000e6;
-
-        // setup SafeERC7579
-        _createAccountsAndCode(vars);
-
-        // setup dst chain execution data
-        vm.selectFork(FORKS[ETH]);
-
-        _createDstChainData(vars);
-
-        // setup src chain execution data
-        _createSrcChainData(vars);
-
-        _processAcrossV3Message(
-            ProcessAcrossV3MessageParams({
-                srcChainId: BASE,
-                dstChainId: ETH,
-                warpTimestamp: vars.warpStartTime,
-                executionData: executeOp(vars.srcUserOpData),
-                relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
-                errorMessage: bytes4(0),
-                errorReason: "",
-                root: bytes32(0),
-                account: vars.accountETH,
-                relayerGas: 0
-            })
+        // Create accounts first
+        _createAccountsAndCode(
+            vars, OP, underlyingOpUsdce, address(superDestinationExecutorOnOP), address(validatorOnOP)
         );
 
-        // Verify source chain: tokens should be sent via Across bridge
-        uint256 currentBaseBalance = IERC20(underlyingBase_USDC).balanceOf(vars.accountBase);
-        uint256 expectedBaseBalance = vars.userBalanceBaseUSDCBefore - vars.amountPerVault;
-
-        assertEq(
-            currentBaseBalance, expectedBaseBalance, "Source chain BASE USDC balance incorrect after cross-chain send"
+        // Then setup destination chain with account addresses available
+        _setupDestinationChain(
+            vars,
+            OP,
+            underlyingOpUsdce,
+            address(vaultInstance4626OP),
+            address(acrossV3AdapterOnOP),
+            address(superDestinationExecutorOnOP),
+            address(validatorOnOP),
+            CHAIN_10_NEXUS_FACTORY,
+            CHAIN_10_NEXUS_BOOTSTRAP
         );
 
-        // Verify destination chain: tokens should be deposited into vault
-        vm.selectFork(FORKS[ETH]);
-        uint256 currentOpShares = vaultInstanceMorphoEth.balanceOf(vars.accountETH);
+        // Setup source chain
+        _setupSourceChain(vars, OP, underlyingOpUsdce, 2, address(superSourceExecutorOnBase));
 
-        assertEq(
-            currentOpShares, vars.previewDepositAmountETH, "Destination chain OP vault shares incorrect after deposit"
+        // Execute and verify
+        _executeAndVerifyCrossChainTx(vars, OP, vaultInstance4626OP);
+    }
+
+    function test_CrossChain_execution_1_threshold() public {
+        threshold = 1;
+
+        CrossChainTestVars memory vars;
+        vars.amountPerVault = 1e8 / 2;
+        vars.warpStartTime = 1_740_559_708;
+
+        // Create accounts first
+        _createAccountsAndCode(
+            vars, ETH, underlyingETH_USDC, address(superDestinationExecutorOnETH), address(validatorOnETH)
         );
+
+        // Then setup destination chain with account addresses available
+        _setupDestinationChain(
+            vars,
+            ETH,
+            underlyingETH_USDC,
+            yieldSourceMorphoUsdcAddressEth,
+            address(acrossV3AdapterOnETH),
+            address(superDestinationExecutorOnETH),
+            address(validatorOnETH),
+            CHAIN_1_NEXUS_FACTORY,
+            CHAIN_1_NEXUS_BOOTSTRAP
+        );
+
+        // Setup source chain
+        _setupSourceChain(vars, ETH, underlyingETH_USDC, 1, address(superSourceExecutorOnBase));
+
+        // Execute and verify
+        _executeAndVerifyCrossChainTx(vars, ETH, vaultInstanceMorphoEth);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1211,108 +1203,104 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     }
 
     // -- cross chain helpers
+
     /**
-     * @notice Setup account code and salt for both chains
+     * @notice Setup destination chain environment and data
      * @param vars Test variables
+     * @param dstChainId Destination chain ID (OP or ETH)
+     * @param dstToken Destination token address
+     * @param dstVault Destination vault address
+     * @param dstAdapter Destination adapter address
+     * @param dstExecutor Destination executor address
+     * @param dstValidator Destination validator address
+     * @param nexusFactory Nexus factory address for destination chain
+     * @param nexusBootstrap Nexus bootstrap address for destination chain
      */
-    function _setupAccountsAndCode(CrossChainTestVars memory vars) internal {
-        //src account
-        vm.selectFork(FORKS[BASE]);
-        _initializeModuleKit("SAFE", keccak256("123"));
+    function _setupDestinationChain(
+        CrossChainTestVars memory vars,
+        uint64 dstChainId,
+        address dstToken,
+        address dstVault,
+        address dstAdapter,
+        address dstExecutor,
+        address dstValidator,
+        address nexusFactory,
+        address nexusBootstrap
+    )
+        internal
+    {
+        // Setup destination chain - ensure we're on the right fork with proper timing
+        SELECT_FORK_AND_WARP(dstChainId, vars.warpStartTime + 1);
 
-        address safeFactory = _getFactory("SAFE");
-        vars.initData = _getInitData();
-        vars.predictedAddress = IAccountFactory(safeFactory).getAddress(accountSalt, vars.initData);
-        vars.initCode = abi.encodePacked(
-            address(safeFactory), abi.encodeCall(IAccountFactory.createAccount, (accountSalt, vars.initData))
-        );
-        vars.instanceBase = makeAccountInstance(accountSalt, vars.predictedAddress, vars.initCode);
-        vars.accountBase = vars.instanceBase.account;
-        deal(vars.accountBase, 1 ether);
-        vars.instanceBase.installModule({
-            moduleTypeId: MODULE_TYPE_EXECUTOR,
-            module: address(superSourceExecutorOnBase),
-            data: ""
-        });
-        vars.instanceBase.installModule({
-            moduleTypeId: MODULE_TYPE_VALIDATOR,
-            module: address(sourceValidatorOnBase),
-            data: abi.encode(address(vars.predictedAddress))
-        });
-        assertEq(uint256(vars.instanceBase.accountType), uint256(AccountType.SAFE), "not safe on base");
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = _getHookAddress(dstChainId, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(dstChainId, DEPOSIT_4626_VAULT_HOOK_KEY);
 
-        //dst account
-        vm.selectFork(FORKS[OP]);
-        _initializeModuleKit("SAFE", keccak256("123"));
-        deal(safeFactory, 10 ether);
-        vm.prank(safeFactory);
-        IStakeManager(ENTRYPOINT_ADDR).addStake{ value: 10 ether }(100_000);
-        vars.instanceOp = makeAccountInstance(accountSalt, vars.predictedAddress, vars.initCode);
-        vars.accountOp = vars.instanceOp.account;
-        deal(vars.accountOp, 1 ether);
-        vars.instanceOp.installModule({
-            moduleTypeId: MODULE_TYPE_EXECUTOR,
-            module: address(superDestinationExecutorOnOP),
-            data: ""
-        });
-        vars.instanceOp.installModule({
-            moduleTypeId: MODULE_TYPE_VALIDATOR,
-            module: address(validatorOnOP),
-            data: abi.encode(address(vars.predictedAddress))
-        });
-        assertEq(uint256(vars.instanceOp.accountType), uint256(AccountType.SAFE), "not safe on op");
-    }
-    /**
-     * @notice Setup destination chain (OP) environment and data
-     * @param vars Test variables
-     */
-
-    function _setupDestinationChain(CrossChainTestVars memory vars) internal {
-        // OP IS DST
-        SELECT_FORK_AND_WARP(OP, vars.warpStartTime + 1);
-
-        // PREPARE OP DATA
-        vars.opHooksAddresses = new address[](2);
-        vars.opHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
-        vars.opHooksAddresses[1] = _getHookAddress(OP, DEPOSIT_4626_VAULT_HOOK_KEY);
-
-        vars.opHooksData = new bytes[](2);
-        vars.opHooksData[0] =
-            _createApproveHookData(underlyingOpUsdce, yieldSource4626AddressOpUsdce, vars.amountPerVault, false);
-        vars.opHooksData[1] = _createDeposit4626HookData(
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveHookData(dstToken, dstVault, vars.amountPerVault, false);
+        hooksData[1] = _createDeposit4626HookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
-            yieldSource4626AddressOpUsdce,
+            dstVault,
             vars.amountPerVault,
-            true,
+            false,
             address(0),
             0
         );
 
         vars.messageData = TargetExecutorMessage({
-            hooksAddresses: vars.opHooksAddresses,
-            hooksData: vars.opHooksData,
-            validator: address(validatorOnOP),
-            signer: address(0), // signed later in the test by the multisig
+            hooksAddresses: hooksAddresses,
+            hooksData: hooksData,
+            validator: dstValidator,
+            signer: address(0),
             signerPrivateKey: 0,
-            targetAdapter: address(acrossV3AdapterOnOP),
-            targetExecutor: address(superDestinationExecutorOnOP),
-            nexusFactory: CHAIN_10_NEXUS_FACTORY,
-            nexusBootstrap: CHAIN_10_NEXUS_BOOTSTRAP,
-            chainId: uint64(OP),
+            targetAdapter: dstAdapter,
+            targetExecutor: dstExecutor,
+            nexusFactory: nexusFactory,
+            nexusBootstrap: nexusBootstrap,
+            chainId: dstChainId,
             amount: vars.amountPerVault,
-            account: vars.accountOp,
-            tokenSent: underlyingOpUsdce
+            account: address(0), // Will be set properly after accounts are created
+            tokenSent: dstToken
         });
 
+        // Set the correct account after creation
+        if (dstChainId == ETH) {
+            vars.messageData.account = vars.accountETH;
+        } else if (dstChainId == OP) {
+            vars.messageData.account = vars.accountOp;
+        }
+
         (vars.targetExecutorMessage, vars.accountToUse) = _createTargetExecutorMessage(vars.messageData, false);
-        vars.previewDepositAmountOP = vaultInstance4626OP.previewDeposit(vars.amountPerVault);
+
+        // Store chain-specific data for verification
+        if (dstChainId == ETH) {
+            vars.ethHooksAddresses = hooksAddresses;
+            vars.ethHooksData = hooksData;
+            vars.previewDepositAmountETH = IERC4626(dstVault).previewDeposit(vars.amountPerVault);
+        } else if (dstChainId == OP) {
+            vars.opHooksAddresses = hooksAddresses;
+            vars.opHooksData = hooksData;
+            vars.previewDepositAmountOP = IERC4626(dstVault).previewDeposit(vars.amountPerVault);
+        }
     }
+
     /**
      * @notice Setup source chain (BASE) environment and data
      * @param vars Test variables
+     * @param dstChainId Destination chain ID (OP or ETH)
+     * @param dstToken Destination token address
+     * @param signerThreshold Number of signers required for signature
+     * @param executor Super executor contract to use
      */
-
-    function _setupSourceChain(CrossChainTestVars memory vars) internal {
+    function _setupSourceChain(
+        CrossChainTestVars memory vars,
+        uint64 dstChainId,
+        address dstToken,
+        uint256 signerThreshold,
+        address executor
+    )
+        internal
+    {
         // BASE IS SRC
         SELECT_FORK_AND_WARP(BASE, vars.warpStartTime + 1);
 
@@ -1326,10 +1314,10 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], vars.amountPerVault, false);
         vars.srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             underlyingBase_USDC,
-            underlyingOpUsdce,
+            dstToken,
             vars.amountPerVault,
             vars.amountPerVault,
-            OP,
+            dstChainId,
             true,
             vars.targetExecutorMessage
         );
@@ -1338,29 +1326,34 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: vars.srcHooksAddresses, hooksData: vars.srcHooksData });
 
         vars.srcUserOpData = _getExecOpsWithValidator(
-            vars.instanceBase,
-            superSourceExecutorOnBase,
-            abi.encode(vars.entryToExecute),
-            address(sourceValidatorOnBase)
+            vars.instanceBase, ISuperExecutor(executor), abi.encode(vars.entryToExecute), address(sourceValidatorOnBase)
         );
 
         // Give account tokens FIRST, then capture balance
         _getTokens(underlyingBase_USDC, address(vars.accountBase), vars.amountPerVault);
         vars.userBalanceBaseUSDCBefore = IERC20(underlyingBase_USDC).balanceOf(vars.accountBase);
 
-        _prepareMerkleRootAndSignature(vars, 2);
+        _prepareMerkleRootAndSignature(vars, signerThreshold, dstChainId, address(sourceValidatorOnBase));
     }
 
     /**
      * @notice Prepare the Merkle root and signature for validation
      * @param vars Test variables
      */
-    function _prepareMerkleRootAndSignature(CrossChainTestVars memory vars, uint256 amountSigners) internal view {
+    function _prepareMerkleRootAndSignature(
+        CrossChainTestVars memory vars,
+        uint256 amountSigners,
+        uint64 dstChainId,
+        address srcValidator
+    )
+        internal
+        view
+    {
         (vars.ctx, vars.proofDst) = _createMerkleRootWithoutSignature(
-            vars.messageData, vars.srcUserOpData.userOpHash, vars.accountToUse, OP, address(sourceValidatorOnBase)
+            vars.messageData, vars.srcUserOpData.userOpHash, vars.accountToUse, dstChainId, srcValidator
         );
 
-        vars.signature = _getSafeSignature(vars.ctx.merkleRoot, vars.accountBase, address(validator), amountSigners);
+        vars.signature = _getSafeSignature(vars.ctx.merkleRoot, vars.accountBase, srcValidator, amountSigners);
         vars.signatureData = abi.encode(
             true, vars.ctx.validUntil, vars.ctx.merkleRoot, vars.ctx.merkleProof[1], vars.proofDst, vars.signature
         );
@@ -1370,20 +1363,31 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     /**
      * @notice Execute the cross-chain transaction and verify results
      * @param vars Test variables
+     * @param dstChainId Destination chain ID (OP or ETH)
+     * @param dstVault Destination vault contract for verification
      */
-    function _executeAndVerifyCrossChainTx(CrossChainTestVars memory vars) internal {
-        // EXECUTE OP
+    function _executeAndVerifyCrossChainTx(
+        CrossChainTestVars memory vars,
+        uint64 dstChainId,
+        IERC4626 dstVault
+    )
+        internal
+    {
+        address dstAccount = dstChainId == ETH ? vars.accountETH : vars.accountOp;
+        uint256 expectedShares = dstChainId == ETH ? vars.previewDepositAmountETH : vars.previewDepositAmountOP;
+
+        // Execute cross-chain transaction
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
                 srcChainId: BASE,
-                dstChainId: OP,
+                dstChainId: dstChainId,
                 warpTimestamp: vars.warpStartTime,
                 executionData: executeOp(vars.srcUserOpData),
                 relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
                 errorMessage: bytes4(0),
                 errorReason: "",
                 root: bytes32(0),
-                account: vars.accountOp,
+                account: dstAccount,
                 relayerGas: 0
             })
         );
@@ -1397,12 +1401,10 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         );
 
         // Verify destination chain: tokens should be deposited into vault
-        vm.selectFork(FORKS[OP]);
-        uint256 currentOpShares = vaultInstance4626OP.balanceOf(vars.accountOp);
+        vm.selectFork(FORKS[dstChainId]);
+        uint256 currentShares = dstVault.balanceOf(dstAccount);
 
-        assertEq(
-            currentOpShares, vars.previewDepositAmountOP, "Destination chain OP vault shares incorrect after deposit"
-        );
+        assertEq(currentShares, expectedShares, "Destination chain vault shares incorrect after deposit");
     }
 
     // -- SAFEERC7579 helper
@@ -1675,12 +1677,26 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         });
     }
 
-    function _createAccountsAndCode(CrossChainTestVars memory vars) internal {
-        // src account
+    /**
+     * @notice Create accounts and setup code for cross-chain tests
+     * @param vars Test variables
+     * @param dstChainId Destination chain ID (OP or ETH)
+     * @param dstToken Destination token address
+     * @param dstExecutor Destination executor contract
+     * @param dstValidator Destination validator contract
+     */
+    function _createAccountsAndCode(
+        CrossChainTestVars memory vars,
+        uint64 dstChainId,
+        address dstToken,
+        address dstExecutor,
+        address dstValidator
+    )
+        internal
+    {
+        // src account (always BASE)
         vm.selectFork(FORKS[BASE]);
         _initializeModuleKit("SAFE", keccak256("123"));
-
-        vars.amountPerVault = 1000e6;
 
         address safeFactory = _getFactory("SAFE");
         vars.initData = _getInitData();
@@ -1702,103 +1718,46 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         });
         vars.instanceBase.installModule({
             moduleTypeId: MODULE_TYPE_VALIDATOR,
-            module: address(validator),
+            module: address(sourceValidatorOnBase),
             data: abi.encode(address(vars.predictedAddress))
         });
         assertEq(uint256(vars.instanceBase.accountType), uint256(AccountType.SAFE), "not safe on base");
 
-        // dst account
-        vm.selectFork(FORKS[ETH]);
+        // dst account (dynamic based on dstChainId)
+        vm.selectFork(FORKS[dstChainId]);
         _initializeModuleKit("SAFE", keccak256("123"));
 
         deal(safeFactory, 10 ether);
 
         vm.prank(safeFactory);
         IStakeManager(ENTRYPOINT_ADDR).addStake{ value: 10 ether }(100_000);
-        vars.instanceETH = makeAccountInstance(accountSalt, vars.predictedAddress, vars.initCode);
-        vars.accountETH = vars.instanceETH.account;
 
-        deal(vars.accountETH, 1 ether);
-        deal(underlyingETH_USDC, vars.accountETH, vars.amountPerVault);
+        if (dstChainId == ETH) {
+            vars.instanceETH = makeAccountInstance(accountSalt, vars.predictedAddress, vars.initCode);
+            vars.accountETH = vars.instanceETH.account;
+            deal(vars.accountETH, 1 ether);
+            deal(dstToken, vars.accountETH, vars.amountPerVault);
 
-        vars.instanceETH.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
-        vars.instanceETH.installModule({
-            moduleTypeId: MODULE_TYPE_VALIDATOR,
-            module: address(validatorOnETH),
-            data: abi.encode(address(vars.predictedAddress))
-        });
+            vars.instanceETH.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: dstExecutor, data: "" });
+            vars.instanceETH.installModule({
+                moduleTypeId: MODULE_TYPE_VALIDATOR,
+                module: dstValidator,
+                data: abi.encode(address(vars.predictedAddress))
+            });
+            assertEq(uint256(vars.instanceETH.accountType), uint256(AccountType.SAFE), "not safe on dst");
+        } else if (dstChainId == OP) {
+            vars.instanceOp = makeAccountInstance(accountSalt, vars.predictedAddress, vars.initCode);
+            vars.accountOp = vars.instanceOp.account;
+            deal(vars.accountOp, 1 ether);
+            deal(dstToken, vars.accountOp, vars.amountPerVault);
 
-        assertEq(uint256(vars.instanceETH.accountType), uint256(AccountType.SAFE), "not safe on eth");
-    }
-
-    function _createDstChainData(CrossChainTestVars memory vars) internal {
-        vars.ethHooksAddresses = new address[](2);
-        vars.ethHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        vars.ethHooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-
-        vars.ethHooksData = new bytes[](2);
-        vars.ethHooksData[0] =
-            _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, vars.amountPerVault, false);
-        vars.ethHooksData[1] = _createDeposit4626HookData(
-            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
-            yieldSourceMorphoUsdcAddressEth,
-            vars.amountPerVault,
-            false,
-            address(0),
-            0
-        );
-
-        vars.messageData = TargetExecutorMessage({
-            hooksAddresses: vars.ethHooksAddresses,
-            hooksData: vars.ethHooksData,
-            validator: address(validatorOnETH),
-            signer: address(0),
-            signerPrivateKey: 0,
-            targetAdapter: address(acrossV3AdapterOnETH),
-            targetExecutor: address(superExecutor),
-            nexusFactory: CHAIN_1_NEXUS_FACTORY,
-            nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
-            chainId: uint64(ETH),
-            amount: vars.amountPerVault,
-            account: address(0),
-            tokenSent: underlyingETH_USDC
-        });
-
-        (vars.targetExecutorMessage, vars.accountToUse) = _createTargetExecutorMessage(vars.messageData, false);
-
-        vars.previewDepositAmountETH = vaultInstanceMorphoEth.previewDeposit(vars.amountPerVault);
-    }
-
-    function _createSrcChainData(CrossChainTestVars memory vars) internal {
-        vm.selectFork(FORKS[BASE]);
-
-        vars.srcHooksAddresses = new address[](2);
-        vars.srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
-        vars.srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
-
-        vars.srcHooksData = new bytes[](2);
-        vars.srcHooksData[0] =
-            _createApproveHookData(underlyingBase_USDC, yieldSourceMorpho4626AddressBase, vars.amountPerVault, false);
-        vars.srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingBase_USDC,
-            underlyingETH_USDC,
-            vars.amountPerVault,
-            vars.amountPerVault,
-            ETH,
-            true,
-            vars.targetExecutorMessage
-        );
-
-        vars.entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: vars.srcHooksAddresses, hooksData: vars.srcHooksData });
-
-        vars.srcUserOpData = _getExecOpsWithValidator(
-            vars.instanceBase, superExecutorBase, abi.encode(vars.entryToExecute), address(validator)
-        );
-
-        deal(underlyingBase_USDC, vars.accountBase, vars.amountPerVault);
-        vars.userBalanceBaseUSDCBefore = IERC20(underlyingBase_USDC).balanceOf(vars.accountBase);
-
-        _prepareMerkleRootAndSignature(vars, 1);
+            vars.instanceOp.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: dstExecutor, data: "" });
+            vars.instanceOp.installModule({
+                moduleTypeId: MODULE_TYPE_VALIDATOR,
+                module: dstValidator,
+                data: abi.encode(address(vars.predictedAddress))
+            });
+            assertEq(uint256(vars.instanceOp.accountType), uint256(AccountType.SAFE), "not safe on dst");
+        }
     }
 }

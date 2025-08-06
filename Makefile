@@ -18,7 +18,7 @@ build :; forge build && $(MAKE) generate
 
 forge-script :; forge script $(SCRIPT) $(ARGS)
 
-forge-test :; forge test --match-path $(TEST) $(ARGS)
+forge-test :; forge test --match-test $(TEST) $(ARGS)
 
 ftest :; forge test
 
@@ -30,7 +30,7 @@ coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --report lcov
 
 coverage-genhtml :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage --ignore-errors inconsistent,corrupt --exclude 'src/vendor/*' --exclude 'test/*'
 
-test-vvv :; forge test --match-test test_SameChain_Execution_Signers_3_Threshold_1 -vvvv --jobs 10
+test-vvv :; forge test --match-test test_CrossChain_execution_1_threshold -vvvv --jobs 10
 
 test-integration :; forge test --match-test test_CrossChain_execution -vvvv --jobs 10
 
