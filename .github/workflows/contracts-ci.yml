@@ -59,9 +59,6 @@ jobs:
       - name: Print ulimits
         run: ulimit -Sa && ulimit -Ha
 
-      - name: Install Dependencies
-        run: yarn install
-
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
 
@@ -83,11 +80,11 @@ jobs:
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: pnpm install
+        run: yarn
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
-        run: pnpm install
+        run: yarn
 
       - name: "Build the contracts and print their size"
         run: "FOUNDRY_PROFILE=ci-sizes forge build --sizes"
@@ -132,11 +129,11 @@ jobs:
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: pnpm install
+        run: yarn
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
-        run: pnpm install
+        run: yarn
 
       - name: "Show the Foundry config"
         run: "forge config"
@@ -200,11 +197,11 @@ jobs:
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: pnpm install
+        run: yarn
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
-        run: pnpm install
+        run: yarn
 
       - name: "Install Tenderly CLI"
         run: curl https://raw.githubusercontent.com/Tenderly/tenderly-cli/master/scripts/install-linux.sh | sudo sh
@@ -286,11 +283,11 @@ jobs:
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: pnpm install
+        run: yarn
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
-        run: pnpm install
+        run: yarn
 
       - name: "Generate the coverage report using unit and integration tests"
         run: "make coverage"

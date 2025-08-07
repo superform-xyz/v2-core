@@ -959,7 +959,6 @@ contract EIP7702Test is BaseTest {
     {
         (address approveERC20HookAddressEth, address acrossSendFundsAndExecuteOnDstHookAddressEth) =
             _createSourceEntryHooks(_validator);
-        address adapter = _getContract(BASE, ACROSS_V3_ADAPTER_KEY);
 
         srcHooksAddresses = new address[](2);
         srcHooksAddresses[0] = approveERC20HookAddressEth;
