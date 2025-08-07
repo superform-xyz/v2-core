@@ -2,36 +2,7 @@
 pragma solidity >=0.8.30;
 
 import { DeployV2Base } from "./DeployV2Base.s.sol";
-import { ISuperDeployer } from "../src/interfaces/ISuperDeployer.sol";
 import { ConfigOtherHooks } from "./utils/ConfigOtherHooks.sol";
-
-// -- hooks for other deployments (non-early access)
-// ---- | claim
-import { FluidClaimRewardHook } from "../src/hooks/claim/fluid/FluidClaimRewardHook.sol";
-import { GearboxClaimRewardHook } from "../src/hooks/claim/gearbox/GearboxClaimRewardHook.sol";
-import { YearnClaimOneRewardHook } from "../src/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
-
-// ---- | stake
-import { ApproveAndGearboxStakeHook } from "../src/hooks/stake/gearbox/ApproveAndGearboxStakeHook.sol";
-import { GearboxStakeHook } from "../src/hooks/stake/gearbox/GearboxStakeHook.sol";
-import { GearboxUnstakeHook } from "../src/hooks/stake/gearbox/GearboxUnstakeHook.sol";
-import { FluidStakeHook } from "../src/hooks/stake/fluid/FluidStakeHook.sol";
-import { FluidUnstakeHook } from "../src/hooks/stake/fluid/FluidUnstakeHook.sol";
-import { ApproveAndFluidStakeHook } from "../src/hooks/stake/fluid/ApproveAndFluidStakeHook.sol";
-
-// ---- | loan
-import { MorphoSupplyAndBorrowHook } from "../src/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
-import { MorphoRepayHook } from "../src/hooks/loan/morpho/MorphoRepayHook.sol";
-import { MorphoRepayAndWithdrawHook } from "../src/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
-import { MorphoBorrowHook } from "../src/hooks/loan/morpho/MorphoBorrowHook.sol";
-
-// ---- | swappers/pendle
-import { PendleRouterSwapHook } from "../src/hooks/swappers/pendle/PendleRouterSwapHook.sol";
-import { PendleRouterRedeemHook } from "../src/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
-
-// ---- | swappers/spectra
-import { SpectraExchangeDepositHook } from "../src/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
-import { SpectraExchangeRedeemHook } from "../src/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
 
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { console2 } from "forge-std/console2.sol";
