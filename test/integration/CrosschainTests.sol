@@ -179,7 +179,6 @@ contract CrosschainTests is BaseTest {
     /// stack too deep
     struct BridgeDeposit4626UsedRootParams {
         uint256 amount;
-        uint256 previewRedeemAmount;
         bytes targetExecutorMessage;
         address accountToUse;
         ISuperExecutor.ExecutorEntry entry;
@@ -1954,12 +1953,11 @@ contract CrosschainTests is BaseTest {
         SELECT_FORK_AND_WARP(ETH, block.timestamp);
 
         params.amount = 1e8;
-        params.previewRedeemAmount = vaultInstanceEth.previewRedeem(vaultInstanceEth.previewDeposit(params.amount));
 
         // Setup destination chain data and get target executor message
-        (params.targetExecutorMessage, params.accountToUse) = _setupDestinationForUsedRoot(params.previewRedeemAmount);
+        (params.targetExecutorMessage, params.accountToUse) = _setupDestinationForUsedRoot(params.amount);
 
-        _getTokens(underlyingBase_USDC, params.accountToUse, params.previewRedeemAmount);
+        _getTokens(underlyingBase_USDC, params.accountToUse, params.amount);
 
         // Setup source chain execution
         _setupSourceAndExecuteUsedRoot(params);
@@ -1971,12 +1969,12 @@ contract CrosschainTests is BaseTest {
         address[] memory dstTokens = new address[](1);
         dstTokens[0] = underlyingBase_USDC;
         uint256[] memory intentAmounts = new uint256[](1);
-        intentAmounts[0] = params.previewRedeemAmount;
+        intentAmounts[0] = params.amount;
         (bytes memory accountCreationData, bytes memory executionData,,,) =
             abi.decode(params.targetExecutorMessage, (bytes, bytes, address, address[], uint256[]));
 
         uint256 tokensAmountBeforeProcessing = IERC20(underlyingBase_USDC).balanceOf(params.accountToUse);
-        assertEq(tokensAmountBeforeProcessing, params.previewRedeemAmount);
+        assertEq(tokensAmountBeforeProcessing, params.amount);
         superTargetExecutorOnBase.processBridgedExecution(
             address(this),
             params.accountToUse,
@@ -2014,7 +2012,7 @@ contract CrosschainTests is BaseTest {
 
         uint256 tokensAmountAfterBridgeMessage = IERC20(underlyingBase_USDC).balanceOf(params.accountToUse);
         // tokens should have been sent to the acount even when merkle root was marked as used
-        assertEq(tokensAmountAfterBridgeMessage, params.previewRedeemAmount);
+        assertEq(tokensAmountAfterBridgeMessage, params.amount);
     }
 
     function test_InvalidDestinationFlow() public {
@@ -2357,7 +2355,7 @@ contract CrosschainTests is BaseTest {
                 errorReason: "",
                 account: accountToUse,
                 root: bytes32(0),
-                relayerGas: 600_000
+                relayerGas: 700_000
             })
         );
         // the signatures don't match due to wrong decoding
@@ -4208,11 +4206,11 @@ contract CrosschainTests is BaseTest {
     }
 
     /// @notice Helper function to create destination message data for used root test
-    /// @param previewRedeemAmount Amount to use for destination setup
+    /// @param amount Amount to use for destination setup
     /// @param accountToUse The account address to use (if known)
     /// @return messageData The target executor message data
     function _createDestinationMessageDataForUsedRoot(
-        uint256 previewRedeemAmount,
+        uint256 amount,
         address accountToUse
     )
         internal
@@ -4225,12 +4223,11 @@ contract CrosschainTests is BaseTest {
         dstHooksAddresses[1] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         bytes[] memory dstHooksData = new bytes[](2);
-        dstHooksData[0] =
-            _createApproveHookData(underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, previewRedeemAmount, false);
+        dstHooksData[0] = _createApproveHookData(underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, amount, false);
         dstHooksData[1] = _createDeposit4626HookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSourceMorphoUsdcAddressBase,
-            previewRedeemAmount,
+            amount,
             false,
             address(0),
             0
@@ -4247,25 +4244,24 @@ contract CrosschainTests is BaseTest {
             nexusFactory: CHAIN_8453_NEXUS_FACTORY,
             nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
             chainId: uint64(BASE),
-            amount: previewRedeemAmount,
+            amount: amount,
             account: accountToUse,
             tokenSent: underlyingBase_USDC
         });
     }
 
     /// @notice Helper function to setup destination chain for used root test
-    /// @param previewRedeemAmount Amount to use for destination setup
+    /// @param amount Amount to use for destination setup
     /// @return targetExecutorMessage The encoded target executor message
     /// @return accountToUse The account address to use
-    function _setupDestinationForUsedRoot(uint256 previewRedeemAmount)
+    function _setupDestinationForUsedRoot(uint256 amount)
         internal
         returns (bytes memory targetExecutorMessage, address accountToUse)
     {
         // BASE IS DST
         SELECT_FORK_AND_WARP(BASE, block.timestamp);
 
-        TargetExecutorMessage memory messageData =
-            _createDestinationMessageDataForUsedRoot(previewRedeemAmount, accountBase);
+        TargetExecutorMessage memory messageData = _createDestinationMessageDataForUsedRoot(amount, accountBase);
         return _createTargetExecutorMessage(messageData, false);
     }
 
@@ -4276,28 +4272,18 @@ contract CrosschainTests is BaseTest {
         SELECT_FORK_AND_WARP(ETH, block.timestamp);
 
         // Set up source hooks and data
-        address[] memory srcHooksAddresses = new address[](4);
+        address[] memory srcHooksAddresses = new address[](2);
         srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        srcHooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-        srcHooksAddresses[2] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        srcHooksAddresses[3] = _getHookAddress(ETH, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(ETH, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
-        bytes[] memory srcHooksData = new bytes[](4);
-        srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceUsdcAddressEth, params.amount, false);
-        srcHooksData[1] = _createDeposit4626HookData(
-            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
-            yieldSourceUsdcAddressEth,
-            params.amount,
-            false,
-            address(0),
-            0
-        );
-        srcHooksData[2] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 0, true);
-        srcHooksData[3] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+        bytes[] memory srcHooksData = new bytes[](2);
+
+        srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], params.amount, false);
+        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             existingUnderlyingTokens[ETH][USDC_KEY],
             existingUnderlyingTokens[BASE][USDC_KEY],
-            params.previewRedeemAmount,
-            params.previewRedeemAmount,
+            params.amount,
+            params.amount,
             BASE,
             false,
             params.targetExecutorMessage
@@ -4311,7 +4297,7 @@ contract CrosschainTests is BaseTest {
 
         // Use the same message data creation logic to ensure consistency
         TargetExecutorMessage memory messageDataForSig =
-            _createDestinationMessageDataForUsedRoot(params.previewRedeemAmount, params.accountToUse);
+            _createDestinationMessageDataForUsedRoot(params.amount, params.accountToUse);
 
         params.signatureData = _createMerkleRootAndSignature(
             messageDataForSig, params.srcUserOpData.userOpHash, params.accountToUse, BASE, address(sourceValidatorOnETH)
@@ -4452,7 +4438,7 @@ contract CrosschainTests is BaseTest {
     /// @param targetAdapter Target adapter address
     /// @param targetExecutor Target executor address
     /// @param nexusFactory Nexus factory address
-    /// @param nexusBootstrap Nexus bootstrap address
+    /// @param nexusBootstrapAddr Nexus bootstrap address
     /// @param amount Amount for the operation
     /// @param tokenSent Token being sent
     /// @return The target executor message
@@ -4465,7 +4451,7 @@ contract CrosschainTests is BaseTest {
         address targetAdapter,
         address targetExecutor,
         address nexusFactory,
-        address nexusBootstrap,
+        address nexusBootstrapAddr,
         uint256 amount,
         address tokenSent
     )
@@ -4482,7 +4468,7 @@ contract CrosschainTests is BaseTest {
             targetAdapter: targetAdapter,
             targetExecutor: targetExecutor,
             nexusFactory: nexusFactory,
-            nexusBootstrap: nexusBootstrap,
+            nexusBootstrap: nexusBootstrapAddr,
             chainId: chainId,
             amount: amount,
             account: account,
