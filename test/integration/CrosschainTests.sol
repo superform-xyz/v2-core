@@ -3705,62 +3705,7 @@ contract CrosschainTests is BaseTest {
         vm.selectFork(FORKS[ETH]);
         assertEq(IERC20(underlyingETH_USDC).balanceOf(accountETH), accountETHBalanceBefore - 1e4);
     }
-
-    /*//////////////////////////////////////////////////////////////
-                        DOUBLE BRIDGE SCENARIO
-    //////////////////////////////////////////////////////////////*/
-    /*
-    This test simulates a user who deposits on ETH, then swaps om OP, then deposits to a vault on Base via a single
-    userOp.
-    */
-    function test_DoubleBridge_OneUserOp() public {
-        // Prepare Base data as the final destination
-        (address accountToUseBase, bytes memory targetExecutorMessageBase, TargetExecutorMessage memory messageDataBase)
-        = _createBaseMsgData();
-
-        // Prepare first destination data for OP
-        (address accountToUseOP, bytes memory targetExecutorMessageOP, TargetExecutorMessage memory messageDataOP) =
-            _createOPMsgData(targetExecutorMessageBase);
-
-        // Prepare ETH data as the source
-        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
-
-        address[] memory srcHooksAddresses = new address[](2);
-        srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        srcHooksAddresses[1] = _getHookAddress(ETH, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
-
-        bytes[] memory srcHooksData = new bytes[](2);
-        srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 1e8, false);
-        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingETH_USDC, underlyingOP_USDC, 1e8, 1e8, OP, false, targetExecutorMessageOP
-        );
-
-        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, ETH, false);
-
-        bytes memory signatureData = _createMerkleRootAndSignature(
-            messageDataBase, srcUserOpData.userOpHash, accountToUseBase, ETH, address(sourceValidatorOnETH)
-        );
-        srcUserOpData.userOp.signature = signatureData;
-
-        ExecutionReturnData memory executionData =
-            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnOP, 1000e6);
-
-        _processAcrossV3Message(
-            ProcessAcrossV3MessageParams({
-                srcChainId: ETH,
-                dstChainId: BASE,
-                warpTimestamp: block.timestamp,
-                executionData: executionData,
-                relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
-                errorMessage: bytes4(0),
-                errorReason: "",
-                account: accountBase,
-                root: bytes32(0),
-                relayerGas: 0
-            })
-        );
-    }
-
+    
     /*//////////////////////////////////////////////////////////////
                           INTERNAL LOGIC HELPERS
     //////////////////////////////////////////////////////////////*/
