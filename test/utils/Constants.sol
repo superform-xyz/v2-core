@@ -106,6 +106,7 @@ abstract contract Constants {
     string public constant MORPHO_REPAY_HOOK_KEY = "MorphoRepayHook";
     string public constant MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY = "MorphoRepayAndWithdrawHook";
     string public constant MARK_ROOT_AS_USED_HOOK_KEY = "MarkAsUsedHook";
+    string public constant MERKL_CLAIM_REWARD_HOOK_KEY = "MerklClaimRewardHook";
 
     // contracts
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
@@ -115,6 +116,7 @@ abstract contract Constants {
     string public constant DEBRIDGE_CANCEL_ORDER_HOOK_KEY = "DeBridgeCancelOrderHook";
     string public constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
     string public constant SUPER_SENDER_CREATOR_KEY = "SuperSenderCreator";
+    string public constant SUPER_7702_SENDER_CREATOR_KEY = "Super7702SenderCreator";
     string public constant SUPER_LEDGER_KEY = "SuperLedger";
     string public constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
     string public constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
@@ -177,6 +179,9 @@ abstract contract Constants {
     // Base USDC-WETH Market Constants
     address public constant MORPHO_IRM = 0x46415998764C29aB2a25CbeA6254146D50D22687;
     address public constant MORPHO_ORACLE = 0xD09048c8B568Dbf5f189302beA26c9edABFC4858;
+
+    // merkl
+    address public constant MERKL_DISTRIBUTOR = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
 
     // vaults
     string public constant ERC4626_VAULT_KEY = "ERC4626";

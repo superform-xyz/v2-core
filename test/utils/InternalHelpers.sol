@@ -33,15 +33,13 @@ abstract contract InternalHelpers is Test {
     {
         vm.recordLogs();
 
-        // execute 
+        // execute
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         ops[0] = userOpData.userOp;
-        superNativePaymaster.handleOps{value: val}(ops);
+        superNativePaymaster.handleOps{ value: val }(ops);
 
         VmSafe.Log[] memory logs = vm.getRecordedLogs();
-        executionData = ExecutionReturnData({
-            logs: logs
-        });
+        executionData = ExecutionReturnData({ logs: logs });
     }
 
     function executeOp(UserOpData memory userOpData) public returns (ExecutionReturnData memory) {
@@ -331,8 +329,6 @@ abstract contract InternalHelpers is Test {
     {
         hookData = abi.encodePacked(token, spender, amount, usePrevHookAmount);
     }
-
-
 
     function _createApproveAndLockVaultBankHookData(
         bytes32 yieldSourceOracleId,
@@ -876,7 +872,48 @@ abstract contract InternalHelpers is Test {
         bool usePrevHookAmount,
         address vaultBank,
         uint256 dstChainId
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(yieldSourceOracleId, spToken, amount, usePrevHookAmount, vaultBank, dstChainId);
+    }
+
+    function _createMerklClaimRewardHookData(
+        address[] memory tokens,
+        uint256[] memory amounts,
+        bytes32[][] memory proofs
+    )
+        internal
+        pure
+        returns (bytes memory data)
+    {
+        data = abi.encodePacked(uint256(tokens.length));
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            data = bytes.concat(data, bytes20(tokens[i]));
+        }
+
+        for (uint256 i = 0; i < amounts.length; i++) {
+            data = bytes.concat(data, abi.encodePacked(amounts[i]));
+        }
+
+        data = bytes.concat(data, _flattenProofs(proofs));
+    }
+
+    function _flattenProofs(bytes32[][] memory proofsToFlatten) internal pure returns (bytes memory) {
+        bytes memory flattenedProofs;
+
+        for (uint256 i = 0; i < proofsToFlatten.length; i++) {
+            flattenedProofs = bytes.concat(flattenedProofs, abi.encodePacked(uint256(proofsToFlatten[i].length))); // inner
+                // array length
+
+            for (uint256 j; j < proofsToFlatten[i].length; ++j) {
+                flattenedProofs = bytes.concat(flattenedProofs, proofsToFlatten[i][j]);
+            }
+        }
+
+        return flattenedProofs;
     }
 }

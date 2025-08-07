@@ -32,8 +32,8 @@ import { EIP712 } from "@safe7579/lib/EIP712.sol";
 import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
 import { SuperExecutor } from "../../../src/executors/SuperExecutor.sol";
-import { SuperExecutorBase } from  "../../../src/executors/SuperExecutorBase.sol";
-import { SuperValidatorBase } from  "../../../src/validators/SuperValidatorBase.sol";
+import { SuperExecutorBase } from "../../../src/executors/SuperExecutorBase.sol";
+import { SuperValidatorBase } from "../../../src/validators/SuperValidatorBase.sol";
 import { ApproveERC20Hook } from "../../../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { AcrossV3Adapter } from "../../../src/adapters/AcrossV3Adapter.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
@@ -141,12 +141,12 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     ISuperExecutor superSourceExecutorOnETH;
     ISuperDestinationExecutor superDestinationExecutorOnOP;
     ISuperDestinationExecutor superDestinationExecutorOnETH;
-    // -- 
+    // --
     address underlyingETH_USDC;
     address yieldSourceMorphoUsdcAddressEth;
     IERC4626 vaultInstanceMorphoEth;
     ISuperNativePaymaster superNativePaymaster;
-    
+
     // used to simulate a malicious mid execution module uninstall
     MockHook mockHook;
 
@@ -195,15 +195,14 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         owners[1] = owner2;
 
         underlyingETH_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
-        yieldSourceMorphoUsdcAddressEth =
-            realVaultAddresses[ETH][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY];
+        yieldSourceMorphoUsdcAddressEth = realVaultAddresses[ETH][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY];
         vaultInstanceMorphoEth = IERC4626(yieldSourceMorphoUsdcAddressEth);
         vm.label(yieldSourceMorphoUsdcAddressEth, "YIELD_SOURCE_MORPHO_USDC_ETH");
 
         superNativePaymaster = ISuperNativePaymaster(_getContract(ETH, SUPER_NATIVE_PAYMASTER_KEY));
     }
 
-    receive() external payable {}
+    receive() external payable { }
 
     /*//////////////////////////////////////////////////////////////
                                 TESTS
@@ -233,25 +232,33 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         account = instance.account;
         deal(account, 1 ether);
         assertEq(uint256(instance.accountType), uint256(AccountType.SAFE), "not safe");
-        
+
         // Start event recording for module installation
         vm.recordLogs();
-        
+
         // Install modules and check events
-        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superSourceExecutorOnETH), data: "" });
-        
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_EXECUTOR,
+            module: address(superSourceExecutorOnETH),
+            data: ""
+        });
+
         // Verify ModuleInstalled event for superSourceExecutorOnETH
         Vm.Log[] memory entries = vm.getRecordedLogs();
         assertEq(entries.length, 1, "wrong number of events emitted during first module installation");
-        
+
         // Clear logs and install next module
         vm.recordLogs();
-        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superDestinationExecutorOnETH), data: "" });
-        
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_EXECUTOR,
+            module: address(superDestinationExecutorOnETH),
+            data: ""
+        });
+
         // Verify ModuleInstalled event for superDestinationExecutorOnETH
         entries = vm.getRecordedLogs();
         assertEq(entries.length, 1, "wrong number of events emitted during second module installation");
-        
+
         // Clear logs and install validator
         vm.recordLogs();
         instance.installModule({
@@ -259,7 +266,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             module: address(sourceValidatorOnETH),
             data: abi.encode(address(predictedAddress))
         });
-        
+
         // Verify ModuleInstalled event for validator
         entries = vm.getRecordedLogs();
         assertEq(entries.length, 1, "wrong number of events emitted during validator installation");
@@ -267,61 +274,91 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         // check installed modules
         // -- check executor
         // -- check validator
-        assertTrue(SuperExecutorBase(address(superSourceExecutorOnETH)).isInitialized(account), "executor source not installed");
-        assertTrue(SuperExecutorBase(address(superDestinationExecutorOnETH)).isInitialized(account), "executor destination not installed");
+        assertTrue(
+            SuperExecutorBase(address(superSourceExecutorOnETH)).isInitialized(account), "executor source not installed"
+        );
+        assertTrue(
+            SuperExecutorBase(address(superDestinationExecutorOnETH)).isInitialized(account),
+            "executor destination not installed"
+        );
         assertTrue(SuperValidatorBase(address(sourceValidatorOnETH)).isInitialized(account), "validator not installed");
 
         // deposit & assert
         uint256 amount = 1e8;
         uint256 accountVaultBalanceBefore = vaultInstanceMorphoEth.balanceOf(account);
         assertEq(accountVaultBalanceBefore, 0, "vault shares should not exist");
-        _performDeposit(account, amount, address(sourceValidatorOnETH), address(superNativePaymaster), address(superSourceExecutorOnETH));
+        _performDeposit(
+            account,
+            amount,
+            address(sourceValidatorOnETH),
+            address(superNativePaymaster),
+            address(superSourceExecutorOnETH)
+        );
         uint256 accountVaultBalanceAfter = vaultInstanceMorphoEth.balanceOf(account);
         assertGt(accountVaultBalanceAfter, accountVaultBalanceBefore, "vault shares were not minted");
 
         // Record events during module uninstallation
         vm.recordLogs();
-        
+
         // uninstall superDestinationExecutorOnETH
         instance.uninstallModule(MODULE_TYPE_EXECUTOR, address(superDestinationExecutorOnETH), "");
-        
+
         // Verify ModuleUninstalled event
         entries = vm.getRecordedLogs();
         assertEq(entries.length, 1, "wrong number of events emitted during module uninstallation");
-        
-        assertFalse(SuperExecutorBase(address(superDestinationExecutorOnETH)).isInitialized(account), "executor destination still installed");
 
-        // assert balance of vault 
+        assertFalse(
+            SuperExecutorBase(address(superDestinationExecutorOnETH)).isInitialized(account),
+            "executor destination still installed"
+        );
+
+        // assert balance of vault
         uint256 accountVaultBalanceAfterUninstall = vaultInstanceMorphoEth.balanceOf(account);
         assertEq(accountVaultBalanceAfterUninstall, accountVaultBalanceAfter, "vault shares should be the same");
 
         // perform offramp hook
         address receiver = makeAddr("RECEIVER");
-        _performOfframp(receiver, account, address(sourceValidatorOnETH), address(superNativePaymaster), address(superSourceExecutorOnETH));
+        _performOfframp(
+            receiver,
+            account,
+            address(sourceValidatorOnETH),
+            address(superNativePaymaster),
+            address(superSourceExecutorOnETH)
+        );
 
-        // assert balance of vault 
+        // assert balance of vault
         uint256 accountVaultBalanceAfterOfframp = vaultInstanceMorphoEth.balanceOf(account);
         assertEq(accountVaultBalanceAfterOfframp, 0, "vault shares should be 0 after off ramp");
         uint256 receiverVaultBalanceAfterOfframp = vaultInstanceMorphoEth.balanceOf(receiver);
-        assertEq(receiverVaultBalanceAfterOfframp, accountVaultBalanceAfterUninstall, "vault shares should have been trasnferred");
+        assertEq(
+            receiverVaultBalanceAfterOfframp,
+            accountVaultBalanceAfterUninstall,
+            "vault shares should have been trasnferred"
+        );
 
         // Record events during module reinstallation
         vm.recordLogs();
-        
+
         // re-install removed executor
-        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superDestinationExecutorOnETH), data: "" });
-        
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_EXECUTOR,
+            module: address(superDestinationExecutorOnETH),
+            data: ""
+        });
+
         // Verify ModuleInstalled event for reinstallation
         entries = vm.getRecordedLogs();
         assertEq(entries.length, 1, "wrong number of events emitted during module reinstallation");
-        
-        assertTrue(SuperExecutorBase(address(superDestinationExecutorOnETH)).isInitialized(account), "executor destination should be reinstalled");
+
+        assertTrue(
+            SuperExecutorBase(address(superDestinationExecutorOnETH)).isInitialized(account),
+            "executor destination should be reinstalled"
+        );
         uint256 accountVaultBalanceAfterReinstall = vaultInstanceMorphoEth.balanceOf(account);
         assertEq(accountVaultBalanceAfterReinstall, 0, "vault shares should be 0 after reinstall");
     }
 
-
-     function test_SafeAccount_UninstallMidExecution_DoNotWork() public {
+    function test_SafeAccount_UninstallMidExecution_DoNotWork() public {
         vm.selectFork(FORKS[ETH]);
 
         _initializeModuleKit("SAFE", keccak256("123"));
@@ -340,28 +377,41 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         account = instance.account;
         deal(account, 1 ether);
         assertEq(uint256(instance.accountType), uint256(AccountType.SAFE), "not safe");
-        
-        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superSourceExecutorOnETH), data: "" });
-        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superDestinationExecutorOnETH), data: "" });
+
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_EXECUTOR,
+            module: address(superSourceExecutorOnETH),
+            data: ""
+        });
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_EXECUTOR,
+            module: address(superDestinationExecutorOnETH),
+            data: ""
+        });
         instance.installModule({
             moduleTypeId: MODULE_TYPE_VALIDATOR,
             module: address(validatorOnETH),
             data: abi.encode(address(predictedAddress))
         });
-        
+
         instance.installModule({
             moduleTypeId: MODULE_TYPE_VALIDATOR,
             module: address(sourceValidatorOnETH),
             data: abi.encode(address(predictedAddress))
         });
-        
+
         // Verify ModuleInstalled event for validator
 
         // check installed modules
         // -- check executor
         // -- check validator
-        assertTrue(SuperExecutorBase(address(superSourceExecutorOnETH)).isInitialized(account), "executor source not installed");
-        assertTrue(SuperExecutorBase(address(superDestinationExecutorOnETH)).isInitialized(account), "executor destination not installed");
+        assertTrue(
+            SuperExecutorBase(address(superSourceExecutorOnETH)).isInitialized(account), "executor source not installed"
+        );
+        assertTrue(
+            SuperExecutorBase(address(superDestinationExecutorOnETH)).isInitialized(account),
+            "executor destination not installed"
+        );
         assertTrue(SuperValidatorBase(address(sourceValidatorOnETH)).isInitialized(account), "validator not installed");
 
         // create malicious uninstall validator hook
@@ -372,12 +422,17 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         uint256 amount = 1e8;
         uint256 accountVaultBalanceBefore = vaultInstanceMorphoEth.balanceOf(account);
         assertEq(accountVaultBalanceBefore, 0, "vault shares should not exist");
-        _performDepositAndUninstallValidator(account, amount, address(sourceValidatorOnETH), address(superNativePaymaster), address(superSourceExecutorOnETH));
+        _performDepositAndUninstallValidator(
+            account,
+            amount,
+            address(sourceValidatorOnETH),
+            address(superNativePaymaster),
+            address(superSourceExecutorOnETH)
+        );
 
         uint256 accountVaultBalanceAfter = vaultInstanceMorphoEth.balanceOf(account);
         assertEq(accountVaultBalanceAfter, 0, "shares should not be minted - uninstall not allowed");
     }
-
 
     function test_BoundaryValues() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
         // Setup SafeERC7579
@@ -389,7 +444,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         instance = makeAccountInstance(accountSalt, predictedAddress, initCode);
         account = instance.account;
         assertEq(uint256(instance.accountType), uint256(AccountType.SAFE), "not safe");
-        
+
         // Install modules
         instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
         instance.installModule({
@@ -397,59 +452,60 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             module: address(validator),
             data: abi.encode(address(predictedAddress))
         });
-        
+
         // transfer a very large amount of tokens to the account
         uint256 veryLargeAmount = type(uint256).max - 1;
         _getTokens(address(mockERC20), account, veryLargeAmount);
         assertEq(mockERC20.balanceOf(account), veryLargeAmount, "account should have very large token balance");
-        
+
         // max uint256 approval
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(approveERC20Hook);
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createApproveHookData(address(mockERC20), address(this), veryLargeAmount, false);
-        
+
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-            
+
         UserOpData memory userOpData =
             _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
-        
+
         uint48 validUntil = uint48(block.timestamp + 100 days);
-        bytes memory sigData = _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
+        bytes memory sigData =
+            _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
         userOpData.userOp.signature = sigData;
-        
+
         executeOp(userOpData);
-        
+
         assertEq(mockERC20.allowance(address(account), address(this)), veryLargeAmount, "max allowance should be set");
-        
+
         // very small amount approval
         uint256 verySmallAmount = 1;
         hooksData[0] = _createApproveHookData(address(mockERC20), address(this), verySmallAmount, false);
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        
+
         userOpData = _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
         sigData = _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
         userOpData.userOp.signature = sigData;
-        
+
         executeOp(userOpData);
-        
+
         assertEq(mockERC20.allowance(address(account), address(this)), verySmallAmount, "min allowance should be set");
 
         // 0 approval
         uint256 zeroAmount = 0;
         hooksData[0] = _createApproveHookData(address(mockERC20), address(this), zeroAmount, false);
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        
+
         userOpData = _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
         sigData = _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
         userOpData.userOp.signature = sigData;
-        
+
         executeOp(userOpData);
-        
+
         assertEq(mockERC20.allowance(address(account), address(this)), zeroAmount, "zero allowance should be set");
     }
-    
+
     function test_UnauthorizedUninstall_Revert() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
         // Setup SafeERC7579
         bytes memory initData = _getInitData();
@@ -460,7 +516,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         instance = makeAccountInstance(accountSalt, predictedAddress, initCode);
         account = instance.account;
         assertEq(uint256(instance.accountType), uint256(AccountType.SAFE), "not safe");
-        
+
         // Install modules
         instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
         instance.installModule({
@@ -468,38 +524,41 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             module: address(validator),
             data: abi.encode(address(predictedAddress))
         });
-        
+
         // assert modules
         assertTrue(SuperExecutorBase(address(superExecutor)).isInitialized(account), "executor not installed");
         assertTrue(SuperValidatorBase(address(validator)).isInitialized(account), "validator not installed");
-        
+
         // try to uninstall the module as an attacker
         address attacker = makeAddr("ATTACKER");
         vm.prank(attacker);
-        vm.expectRevert(); 
+        vm.expectRevert();
         IERC7579Account(account).uninstallModule(MODULE_TYPE_EXECUTOR, address(superExecutor), "");
-        
+
         // assert module still installed
-        assertTrue(SuperExecutorBase(address(superExecutor)).isInitialized(account), "executor should still be installed");
-        
-        // same thing but with low level calls
-        bytes memory callData = abi.encodeCall(
-            IERC7579Account.uninstallModule,
-            (MODULE_TYPE_EXECUTOR, address(superExecutor), "")
+        assertTrue(
+            SuperExecutorBase(address(superExecutor)).isInitialized(account), "executor should still be installed"
         );
-        
+
+        // same thing but with low level calls
+        bytes memory callData =
+            abi.encodeCall(IERC7579Account.uninstallModule, (MODULE_TYPE_EXECUTOR, address(superExecutor), ""));
+
         vm.prank(attacker);
         (bool success,) = account.call(callData);
         assertFalse(success, "unauthorized call should fail");
-        
+
         // assert module still installed
-        assertTrue(SuperExecutorBase(address(superExecutor)).isInitialized(account), "executor should still be installed after failed direct call");
-        
+        assertTrue(
+            SuperExecutorBase(address(superExecutor)).isInitialized(account),
+            "executor should still be installed after failed direct call"
+        );
+
         // verify the owner can uninstall
         instance.uninstallModule(MODULE_TYPE_EXECUTOR, address(superExecutor), "");
         assertFalse(SuperExecutorBase(address(superExecutor)).isInitialized(account), "executor should be uninstalled");
     }
-    
+
     function test_ExpiredSignature_Revert() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
         // Setup SafeERC7579
         bytes memory initData = _getInitData();
@@ -510,7 +569,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         instance = makeAccountInstance(accountSalt, predictedAddress, initCode);
         account = instance.account;
         assertEq(uint256(instance.accountType), uint256(AccountType.SAFE), "not safe");
-        
+
         // Install modules
         instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
         instance.installModule({
@@ -518,55 +577,56 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             module: address(validator),
             data: abi.encode(address(predictedAddress))
         });
-        
+
         // Setup execution data with a standard ERC20 approval
         uint256 amount = 1e8;
         uint256 allowanceBefore = mockERC20.allowance(address(account), address(this));
         assertEq(allowanceBefore, 0, "initial allowance should be zero");
-        
+
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(approveERC20Hook);
-        
+
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createApproveHookData(address(mockERC20), address(this), amount, false);
-        
+
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-            
+
         // Create user operation with validator
         UserOpData memory userOpData =
             _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
-        
+
         // EDGE CASE: Create a signature with expired validUntil (1 second in the past)
         uint48 validUntil = uint48(block.timestamp - 1);
-        bytes memory sigData = _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
+        bytes memory sigData =
+            _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
         userOpData.userOp.signature = sigData;
-        
+
         // Expect the transaction to revert when submitted
         vm.recordLogs();
         instance.expect4337Revert();
         executeOp(userOpData);
-        
+
         // Verify logs contain the appropriate error
         Vm.Log[] memory entries = vm.getRecordedLogs();
         assertTrue(entries.length > 0, "should emit at least one event on failure");
-        
+
         // Allowance should remain unchanged since the transaction failed
         uint256 allowanceAfter = mockERC20.allowance(address(account), address(this));
         assertEq(allowanceAfter, 0, "allowance should remain zero after failed transaction");
-        
+
         // CONTROL: Verify the same transaction succeeds with a valid timestamp
         validUntil = uint48(block.timestamp + 100 days);
         sigData = _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
         userOpData.userOp.signature = sigData;
-        
+
         executeOp(userOpData);
-        
+
         // Now the allowance should be updated
         allowanceAfter = mockERC20.allowance(address(account), address(this));
         assertEq(allowanceAfter, amount, "allowance should be updated after successful transaction");
     }
-    
+
     function test_SameChainTx_execution() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
         // setup SafeERC7579
         bytes memory initData = _getInitData();
@@ -602,7 +662,59 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
 
         uint48 validUntil = uint48(block.timestamp + 100 days);
-        bytes memory sigData = _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
+        bytes memory sigData =
+            _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
+        userOpData.userOp.signature = sigData;
+
+        executeOp(userOpData);
+
+        uint256 allowanceAfter = mockERC20.allowance(address(account), address(this));
+        assertEq(allowanceAfter, amount);
+    }
+
+    function test_SameChainTx_execution_NativeSafeSignature()
+        public
+        initializeModuleKit
+        usingAccountEnv(AccountType.SAFE)
+    {
+        // setup SafeERC7579
+        bytes memory initData = _getInitData();
+        address predictedAddress = IAccountFactory(_getFactory("SAFE")).getAddress(accountSalt, initData);
+        bytes memory initCode = abi.encodePacked(
+            address(_getFactory("SAFE")), abi.encodeCall(IAccountFactory.createAccount, (accountSalt, initData))
+        );
+        instance = makeAccountInstance(accountSalt, predictedAddress, initCode);
+        account = instance.account;
+        assertEq(uint256(instance.accountType), uint256(AccountType.SAFE), "not safe");
+
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: abi.encode(address(predictedAddress))
+        });
+
+        // setup execution data
+        uint256 amount = 1e8;
+        uint256 allowanceBefore = mockERC20.allowance(address(account), address(this));
+        assertEq(allowanceBefore, 0);
+
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(approveERC20Hook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveHookData(address(mockERC20), address(this), amount, false);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+
+        uint48 validUntil = uint48(block.timestamp + 100 days);
+
+        // 🔥 KEY: Use native Safe signature (like Safe UI would produce) instead of chain-agnostic
+        bytes memory sigData =
+            _createNativeSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
         userOpData.userOp.signature = sigData;
 
         executeOp(userOpData);
@@ -625,10 +737,10 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         _executeAndVerifyCrossChainTx(vars);
     }
 
-    function test_MaliciousSafeLike_revert() public  initializeModuleKit usingAccountEnv(AccountType.SAFE)  {
+    function test_MaliciousSafeLike_revert() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
         address[] memory _owners = new address[](2);
-        _owners[0] = address(0x1); 
-        _owners[1] = address(0x2); 
+        _owners[0] = address(0x1);
+        _owners[1] = address(0x2);
         MaliciousSafeAccount maliciousSafeAccount = new MaliciousSafeAccount(_owners);
         vm.label(address(maliciousSafeAccount), "MaliciousSafeAccount");
 
@@ -665,14 +777,15 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
 
         uint48 validUntil = uint48(block.timestamp + 100 days);
-        bytes memory sigData = _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
+        bytes memory sigData =
+            _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
         userOpData.userOp.signature = sigData;
 
         instance.expect4337Revert();
         executeOp(userOpData);
     }
 
-    function test_MaliciousSafeLike_execution_no_harm() public  initializeModuleKit usingAccountEnv(AccountType.SAFE)  {
+    function test_MaliciousSafeLike_execution_no_harm() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
         MaliciousSafeAccount maliciousSafeAccount = new MaliciousSafeAccount(owners);
         vm.label(address(maliciousSafeAccount), "MaliciousSafeAccount");
 
@@ -709,7 +822,8 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
 
         uint48 validUntil = uint48(block.timestamp + 100 days);
-        bytes memory sigData = _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(maliciousSafeAccount));
+        bytes memory sigData =
+            _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(maliciousSafeAccount));
         userOpData.userOp.signature = sigData;
 
         executeOp(userOpData);
@@ -717,8 +831,8 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
 
     function test_EOA_UsingSafeSig() public {
         address[] memory _owners = new address[](2);
-        _owners[0] = address(0x1); 
-        _owners[1] = address(0x2); 
+        _owners[0] = address(0x1);
+        _owners[1] = address(0x2);
         MaliciousSafeAccount maliciousSafeAccount = new MaliciousSafeAccount(_owners);
         vm.label(address(maliciousSafeAccount), "MaliciousSafeAccount");
         AccountInstance memory testInstance = makeAccountInstance(keccak256(abi.encode("TEST")));
@@ -747,13 +861,13 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             _getExecOpsWithValidator(testInstance, superExecutor, abi.encode(entry), address(validator));
 
         uint48 validUntil = uint48(block.timestamp + 100 days);
-        bytes memory sigData = _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(testAccount));
+        bytes memory sigData =
+            _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(testAccount));
         userOpData.userOp.signature = sigData;
 
         testInstance.expect4337Revert();
         executeOp(userOpData);
     }
-    
 
     function test_SameChainTx_execution_MalformedHash() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
         // setup SafeERC7579
@@ -801,12 +915,18 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         assertTrue(entries.length == 1);
     }
 
-
-
     /*//////////////////////////////////////////////////////////////
                                 INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
-    function _performOfframp(address _receiver, address _account, address _validator, address _paymaster, address _executor) private {
+    function _performOfframp(
+        address _receiver,
+        address _account,
+        address _validator,
+        address _paymaster,
+        address _executor
+    )
+        private
+    {
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = _getHookAddress(ETH, OFFRAMP_TOKENS_HOOK_KEY);
 
@@ -826,10 +946,18 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         bytes memory sigData = _createSafeSigData(validUntil, _validator, userOpData.userOpHash, address(_account));
         userOpData.userOp.signature = sigData;
 
-        executeOpsThroughPaymaster(userOpData, ISuperNativePaymaster(_paymaster), 1e18); 
+        executeOpsThroughPaymaster(userOpData, ISuperNativePaymaster(_paymaster), 1e18);
     }
 
-    function _performDeposit(address _account, uint256 _amount, address _validator, address _paymaster, address _executor) private {
+    function _performDeposit(
+        address _account,
+        uint256 _amount,
+        address _validator,
+        address _paymaster,
+        address _executor
+    )
+        private
+    {
         _getTokens(underlyingETH_USDC, _account, _amount);
 
         address[] memory hookAddresses = new address[](2);
@@ -856,10 +984,18 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         bytes memory sigData = _createSafeSigData(validUntil, _validator, userOpData.userOpHash, address(_account));
         userOpData.userOp.signature = sigData;
 
-        executeOpsThroughPaymaster(userOpData, ISuperNativePaymaster(_paymaster), 1e18); 
+        executeOpsThroughPaymaster(userOpData, ISuperNativePaymaster(_paymaster), 1e18);
     }
 
-    function _performDepositAndUninstallValidator(address _account, uint256 _amount, address _validator, address _paymaster, address _executor) private {
+    function _performDepositAndUninstallValidator(
+        address _account,
+        uint256 _amount,
+        address _validator,
+        address _paymaster,
+        address _executor
+    )
+        private
+    {
         _getTokens(underlyingETH_USDC, _account, _amount);
 
         address[] memory hookAddresses = new address[](3);
@@ -879,12 +1015,14 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         );
         hooksData[2] = "";
 
-
         Execution[] memory _uninstallExecutions = new Execution[](1);
         _uninstallExecutions[0] = Execution({
             target: _account,
             value: 0,
-            callData: abi.encodeCall(IERC7579Account.uninstallModule, (MODULE_TYPE_VALIDATOR, _validator, abi.encode(address(validatorOnETH), "")))
+            callData: abi.encodeCall(
+                IERC7579Account.uninstallModule,
+                (MODULE_TYPE_VALIDATOR, _validator, abi.encode(address(validatorOnETH), ""))
+            )
         });
         mockHook.setExecutionBytes(abi.encode(_uninstallExecutions));
 
@@ -898,10 +1036,9 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         bytes memory sigData = _createSafeSigData(validUntil, _validator, userOpData.userOpHash, address(_account));
         userOpData.userOp.signature = sigData;
 
-        executeOpsThroughPaymaster(userOpData, ISuperNativePaymaster(_paymaster), 1e18); 
+        executeOpsThroughPaymaster(userOpData, ISuperNativePaymaster(_paymaster), 1e18);
     }
-    
-    
+
     // -- cross chain helpers
     /**
      * @notice Setup account code and salt for both chains
@@ -996,7 +1133,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             tokenSent: underlyingOpUsdce
         });
 
-        (vars.targetExecutorMessage, vars.accountToUse) = _createTargetExecutorMessage(vars.messageData);
+        (vars.targetExecutorMessage, vars.accountToUse) = _createTargetExecutorMessage(vars.messageData, false);
         vars.previewDepositAmountOP = vaultInstance4626OP.previewDeposit(vars.amountPerVault);
     }
     /**
@@ -1030,7 +1167,10 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: vars.srcHooksAddresses, hooksData: vars.srcHooksData });
 
         vars.srcUserOpData = _getExecOpsWithValidator(
-            vars.instanceBase, superSourceExecutorOnBase, abi.encode(vars.entryToExecute), address(sourceValidatorOnBase)
+            vars.instanceBase,
+            superSourceExecutorOnBase,
+            abi.encode(vars.entryToExecute),
+            address(sourceValidatorOnBase)
         );
 
         // Give account tokens FIRST, then capture balance
@@ -1147,7 +1287,37 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         signatureData = abi.encode(false, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
     }
 
-    function _getSafeSignature(bytes32 merkleRoot, address _account, address _validator) internal view returns (bytes memory) {
+    function _createNativeSafeSigData(
+        uint48 validUntil,
+        address _validator,
+        bytes32 userOpHash,
+        address _account
+    )
+        internal
+        view
+        returns (bytes memory signatureData)
+    {
+        bytes32[] memory leaves = new bytes32[](1);
+        leaves[0] = _createSourceValidatorLeaf(userOpHash, validUntil, false, address(_validator));
+
+        (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
+
+        // 🔥 KEY: Use native Safe signature format (like Safe UI would produce)
+        bytes memory signature = _getNativeSafeSignature(merkleRoot, _account, _validator);
+
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
+        signatureData = abi.encode(false, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
+    }
+
+    function _getSafeSignature(
+        bytes32 merkleRoot,
+        address _account,
+        address _validator
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
         SignatureData memory sigData;
         sigData.rawHash = keccak256(abi.encode(SuperValidator(_validator).namespace(), merkleRoot));
 
@@ -1165,6 +1335,43 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         );
 
         // Sign the chain-agnostic hash
+        (sigData.v1, sigData.r1, sigData.s1) = vm.sign(privateKey1, messageHash);
+        (sigData.v2, sigData.r2, sigData.s2) = vm.sign(privateKey2, messageHash);
+
+        // Verify recovery
+        sigData.recovered1 = ecrecover(messageHash, sigData.v1, sigData.r1, sigData.s1);
+        sigData.recovered2 = ecrecover(messageHash, sigData.v2, sigData.r2, sigData.s2);
+
+        return _buildAndValidateSignature(sigData);
+    }
+
+    function _getNativeSafeSignature(
+        bytes32 merkleRoot,
+        address _account,
+        address _validator
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        SignatureData memory sigData;
+
+        // Create the message hash that the validator expects: namespace + merkleRoot
+        sigData.rawHash = keccak256(abi.encode(SuperValidator(_validator).namespace(), merkleRoot));
+
+        // Use Safe's native domain separator (with actual chainid) - this is what Safe UI would use
+        sigData.domainSeparator = _getNativeSafeDomainSeparator(_account);
+
+        // Create Safe message hash using Safe's format:
+        // keccak256(abi.encode(SAFE_MSG_TYPEHASH, keccak256(message)))
+        bytes32 SAFE_MSG_TYPEHASH = 0x60b3cbf8b4a223d68d641b3b6ddf9a298e7f33710cf3d3a9d1146b5a6150fbca;
+        bytes32 safeMessageHash = keccak256(abi.encode(SAFE_MSG_TYPEHASH, keccak256(abi.encode(sigData.rawHash))));
+
+        // Create the final EIP-712 hash using Safe's native domain separator
+        bytes32 messageHash =
+            keccak256(abi.encodePacked(bytes1(0x19), bytes1(0x01), sigData.domainSeparator, safeMessageHash));
+
+        // Sign the native Safe hash
         (sigData.v1, sigData.r1, sigData.s1) = vm.sign(privateKey1, messageHash);
         (sigData.v2, sigData.r2, sigData.s2) = vm.sign(privateKey2, messageHash);
 
@@ -1195,13 +1402,23 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         );
     }
 
-    function _buildAndValidateSignature(
-        SignatureData memory sigData
-    )
-        internal
-        view
-        returns (bytes memory)
-    {
+    /// @notice Helper function to create Safe's native domain separator
+    /// @dev Uses actual chain ID - this is what Safe UI would use
+    function _getNativeSafeDomainSeparator(address _account) internal view returns (bytes32) {
+        // Safe's native domain separator typehash:
+        // keccak256("EIP712Domain(uint256 chainId,address verifyingContract)")
+        bytes32 DOMAIN_SEPARATOR_TYPEHASH = 0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218;
+
+        return keccak256(
+            abi.encode(
+                DOMAIN_SEPARATOR_TYPEHASH,
+                block.chainid, // 🔥 KEY: Use actual chain ID (not fixed like chain-agnostic)
+                _account
+            )
+        );
+    }
+
+    function _buildAndValidateSignature(SignatureData memory sigData) internal view returns (bytes memory) {
         bytes memory sig1 = abi.encodePacked(sigData.r1, sigData.s1, sigData.v1);
         bytes memory sig2 = abi.encodePacked(sigData.r2, sigData.s2, sigData.v2);
 

@@ -8,6 +8,9 @@ ifeq ($(ENVIRONMENT), local)
 	export OPTIMISM_RPC_URL := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/OPTIMISM_RPC_URL/credential)
 	export BASE_RPC_URL := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_RPC_URL/credential)
 	export ONE_INCH_API_KEY := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/OneInch/credential)
+	export SEPOLIA_RPC_URL := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/SEPOLIA_RPC_URL/credential)
+	export BASE_SEPOLIA_RPC_URL := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_SEPOLIA_RPC_URL/credential)
+	export FUJI_RPC_URL := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/FUJI_RPC_URL/credential)
 endif
 
 
@@ -29,7 +32,7 @@ coverage-genhtml :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --report l
 
 test-vvv :; forge test --match-test test_DoubleBridge_OneUserOp -vvv --jobs 10
 
-test-integration :; forge test --match-test test_SameChainTx_executionA -vvvv --jobs 10
+test-integration :; forge test --match-test test_SameChainTx_execution -vvvv --jobs 10
 
 test-gas-report-user :; forge test --match-test test_gasReport --gas-report --jobs 10
 test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report --jobs 10

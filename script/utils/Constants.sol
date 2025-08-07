@@ -3,6 +3,7 @@ pragma solidity >=0.8.30;
 
 abstract contract Constants {
     address internal constant ENTRY_POINT = 0x0000000071727De22E5E9d8BAf0edAc6f37da032; // 0.7
+    
     // chain names
     string internal constant ETHEREUM_KEY = "Ethereum";
     string internal constant BASE_KEY = "Base";
@@ -13,7 +14,6 @@ abstract contract Constants {
     string internal constant ARB_SEPOLIA_KEY = "Arbitrum_Sepolia";
     string internal constant BASE_SEPOLIA_KEY = "Base_Sepolia";
     string internal constant OP_SEPOLIA_KEY = "OP_Sepolia";
-    string internal constant POLYGON_KEY = "Polygon";
 
     // keys
     string internal constant SUPER_GOVERNOR_KEY = "SuperGovernor";
@@ -38,7 +38,6 @@ abstract contract Constants {
     uint64 internal constant MAINNET_CHAIN_ID = 1;
     uint64 internal constant BASE_CHAIN_ID = 8453;
     uint64 internal constant OPTIMISM_CHAIN_ID = 10;
-    uint64 internal constant POLYGON_CHAIN_ID = 137;
     uint64 internal constant ARBITRUM_CHAIN_ID = 42_161;
     uint64 internal constant BNB_CHAIN_ID = 56;
     // testnets
@@ -92,6 +91,13 @@ abstract contract Constants {
     address internal constant PENDLE_ROUTER_OPTIMISM = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address internal constant PENDLE_ROUTER_ARBITRUM = 0x888888888889758F76e7103c6CbF23ABbF58F946; // Standard Pendle
     address internal constant PENDLE_ROUTER_BNB = 0x888888888889758F76e7103c6CbF23ABbF58F946; // Standard Pendle router
+
+    // Merkl Distributor addresses per chain
+    address internal constant MERKL_DISTRIBUTOR_MAINNET = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
+    address internal constant MERKL_DISTRIBUTOR_BASE = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
+    address internal constant MERKL_DISTRIBUTOR_OPTIMISM = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
+    address internal constant MERKL_DISTRIBUTOR_ARBITRUM = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
+    address internal constant MERKL_DISTRIBUTOR_BNB = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
 
     // Nexus Factory addresses per chain
     address internal constant NEXUS_FACTORY_MAINNET = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
@@ -170,6 +176,7 @@ abstract contract Constants {
     string internal constant CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "ClaimCancelRedeemRequest7540Hook";
     string internal constant CANCEL_REDEEM_HOOK_KEY = "CancelRedeemHook";
     string internal constant MARK_ROOT_AS_USED_HOOK_KEY = "MarkRootAsUsedHook";
+    string internal constant MERKL_CLAIM_REWARD_HOOK_KEY = "MerklClaimRewardHook";
 
     // Mock hooks (dev environment only)
     string internal constant MOCK_DEX_KEY = "MockDex";

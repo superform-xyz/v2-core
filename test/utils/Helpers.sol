@@ -25,6 +25,8 @@ abstract contract Helpers is Test, Constants {
         TREASURY = _deployAccount(TREASURY_KEY, "TREASURY");
         SUPER_BUNDLER = _deployAccount(SUPER_BUNDLER_KEY, "SUPER_BUNDLER");
         ACROSS_RELAYER = _deployAccount(ACROSS_RELAYER_KEY, "ACROSS_RELAYER");
+        vm.label(ACROSS_RELAYER, "ACROSS_RELAYER");
+        vm.makePersistent(ACROSS_RELAYER);
     }
     
     /*//////////////////////////////////////////////////////////////

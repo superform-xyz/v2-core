@@ -2,8 +2,8 @@
 pragma solidity 0.8.30;
 
 // external
-import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
 import { SuperValidatorBase } from "./SuperValidatorBase.sol";
@@ -47,7 +47,9 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
         override
         returns (ValidationData)
     {
-        if (!_initialized[_userOp.sender]) revert NOT_INITIALIZED();
+        if (!_is7702Account(_userOp.sender.code) && !_initialized[_userOp.sender]) {
+            revert NOT_INITIALIZED();
+        }
 
         // Decode signature
         SignatureData memory sigData = _decodeSignatureData(_userOp.signature);
@@ -73,6 +75,7 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
                     dstTokens: dstProof.info.dstTokens,
                     intentAmounts: dstProof.info.intentAmounts
                 });
+
                 bytes32 dstLeaf = _createDestinationLeaf(dstData, sigData.validUntil, dstProof.info.validator);
 
                 if (!MerkleProof.verify(dstProof.proof, sigData.merkleRoot, dstLeaf)) {
@@ -99,7 +102,9 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
         override
         returns (bytes4)
     {
-        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
+        if (!_is7702Account(msg.sender.code) && !_initialized[msg.sender]) {
+            revert NOT_INITIALIZED();
+        }
 
         // Decode data
         bytes memory sigDataRaw = abi.decode(data, (bytes));
@@ -164,14 +169,18 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
         leaf = _createLeaf(abi.encode(userOpHash), sigData.validUntil, sigData.validateDstProof);
         if (!MerkleProof.verify(sigData.proofSrc, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
-        address owner = _accountOwners[sender];
-
-        if (_isSafeSigner(owner)) {
-           signer = _processEIP1271Signature(owner, sigData);
+        // For EIP-7702 accounts, the signer is the account itself (EOA with delegated code)
+        if (_is7702Account(sender.code)) {
+            signer = _processECDSASignature(sigData);
         } else {
-           signer = _processECDSASignature(sigData);
+            address owner = _accountOwners[sender];
+
+            // Support any EIP-1271 compatible smart contract, not just Safe multisigs
+            if (_isEIP1271Signer(owner)) {
+                signer = _processEIP1271Signature(owner, sigData);
+            } else {
+                signer = _processECDSASignature(sigData);
+            }
         }
     }
-
-
 }

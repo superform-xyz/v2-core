@@ -81,6 +81,14 @@ jobs:
         working-directory: ./lib/modulekit
         run: pnpm install
 
+      - name: "Install Safe7579"
+        working-directory: ./lib/safe7579
+        run: pnpm install
+
+      - name: "Install Nexus"
+        working-directory: ./lib/nexus
+        run: pnpm install
+
       - name: "Build the contracts and print their size"
         run: "FOUNDRY_PROFILE=ci-sizes forge build --sizes"
 
@@ -120,6 +128,14 @@ jobs:
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
+        run: pnpm install
+
+      - name: "Install Safe7579"
+        working-directory: ./lib/safe7579
+        run: pnpm install
+
+      - name: "Install Nexus"
+        working-directory: ./lib/nexus
         run: pnpm install
 
       - name: "Show the Foundry config"
@@ -180,6 +196,14 @@ jobs:
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
+        run: pnpm install
+
+      - name: "Install Safe7579"
+        working-directory: ./lib/safe7579
+        run: pnpm install
+
+      - name: "Install Nexus"
+        working-directory: ./lib/nexus
         run: pnpm install
 
       - name: "Install Tenderly CLI"
@@ -258,6 +282,14 @@ jobs:
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
+        run: pnpm install
+
+      - name: "Install Safe7579"
+        working-directory: ./lib/safe7579
+        run: pnpm install
+
+      - name: "Install Nexus"
+        working-directory: ./lib/nexus
         run: pnpm install
 
       - name: "Generate the coverage report using unit and integration tests"

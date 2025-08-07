@@ -3,8 +3,6 @@ pragma solidity 0.8.30;
 
 import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, Execution } from "../../src/interfaces/ISuperHook.sol";
 
-import "forge-std/console2.sol";
-
 contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     HookType public hookType;
     uint256 public outAmount;
@@ -41,11 +39,9 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     }
 
     function setExecutionBytes(bytes memory _executionBytes) external {
-        console2.log("setExecutionBytes A");
         Execution[] memory _executions = abi.decode(_executionBytes, (Execution[]));
 
         for (uint256 i; i < _executions.length; ++i) {
-        console2.log("setExecutionBytes B");
             executions.push(Execution({
                 target: _executions[i].target,
                 value: _executions[i].value,
@@ -55,12 +51,9 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     }
 
     function setExecutions(Execution[] memory _executions) external {
-        console2.log("setExecutions A");
         delete executions;
-        console2.log("setExecutions B", _executions.length);
 
         for (uint256 i; i < _executions.length; ++i) {
-        console2.log("setExecutions C");
             executions.push(Execution({
                 target: _executions[i].target,
                 value: _executions[i].value,

@@ -28,19 +28,19 @@ abstract contract ConfigCore is ConfigBase {
         configuration.debridgeDstDln[ARBITRUM_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[BNB_CHAIN_ID] = DEBRIDGE_DLN_DST;
 
-        // ===== NEXUS FACTORY ADDRESSES =====
-        configuration.nexusFactories[MAINNET_CHAIN_ID] = NEXUS_FACTORY_MAINNET;
-        configuration.nexusFactories[BASE_CHAIN_ID] = NEXUS_FACTORY_BASE;
-        configuration.nexusFactories[OPTIMISM_CHAIN_ID] = NEXUS_FACTORY_OPTIMISM;
-        configuration.nexusFactories[ARBITRUM_CHAIN_ID] = NEXUS_FACTORY_ARBITRUM;
-        configuration.nexusFactories[BNB_CHAIN_ID] = NEXUS_FACTORY_BNB;
-
         // ===== PERMIT2 ADDRESSES =====
         configuration.permit2s[MAINNET_CHAIN_ID] = PERMIT2_MAINNET;
         configuration.permit2s[BASE_CHAIN_ID] = PERMIT2_BASE;
         configuration.permit2s[OPTIMISM_CHAIN_ID] = PERMIT2_OPTIMISM;
         configuration.permit2s[ARBITRUM_CHAIN_ID] = PERMIT2_ARBITRUM;
         configuration.permit2s[BNB_CHAIN_ID] = PERMIT2_BNB;
+
+        // ===== MERKL DISTRIBUTOR ADDRESSES =====
+        configuration.merklDistributors[MAINNET_CHAIN_ID] = MERKL_DISTRIBUTOR_MAINNET;
+        configuration.merklDistributors[BASE_CHAIN_ID] = MERKL_DISTRIBUTOR_BASE;
+        configuration.merklDistributors[OPTIMISM_CHAIN_ID] = MERKL_DISTRIBUTOR_OPTIMISM;
+        configuration.merklDistributors[ARBITRUM_CHAIN_ID] = MERKL_DISTRIBUTOR_ARBITRUM;
+        configuration.merklDistributors[BNB_CHAIN_ID] = MERKL_DISTRIBUTOR_BNB;
 
         // ===== CRITICAL ROUTER ADDRESSES FOR CORE HOOKS =====
         // These are required for core hook deployments
