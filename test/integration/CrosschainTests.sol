@@ -3547,10 +3547,10 @@ contract CrosschainTests is BaseTest {
 
         // Prepare first destination data for OP
         (address accountToUseOP, bytes memory targetExecutorMessageOP, TargetExecutorMessage memory messageDataOP) =
-            _createOPMsgData();
+            _createOPMsgData(targetExecutorMessageBase);
 
         // Prepare ETH data as the source
-        vm.selectFork(FORKS[ETH]);
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
 
         address[] memory srcHooksAddresses = new address[](2);
         srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
@@ -3562,15 +3562,15 @@ contract CrosschainTests is BaseTest {
             underlyingETH_USDC, underlyingOP_USDC, 1e8, 1e8, OP, false, targetExecutorMessageOP
         );
 
-        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, ETH, true);
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, ETH, false);
 
         bytes memory signatureData = _createMerkleRootAndSignature(
-            messageData, srcUserOpData.userOpHash, accountToUseOP, ETH, address(sourceValidatorOnETH)
+            messageDataBase, srcUserOpData.userOpHash, accountToUseBase, ETH, address(sourceValidatorOnETH)
         );
         srcUserOpData.userOp.signature = signatureData;
 
         ExecutionReturnData memory executionData =
-            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnETH, 1e8);
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnOP, 1000e6);
 
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
@@ -3668,7 +3668,7 @@ contract CrosschainTests is BaseTest {
         private
         returns (address accountToUse, bytes memory targetExecutorMessage, TargetExecutorMessage memory messageData)
     {
-        vm.selectFork(FORKS[BASE]);
+        SELECT_FORK_AND_WARP(BASE, CHAIN_8453_TIMESTAMP);
         uint256 amount = 1000e6;
 
         address[] memory dstHooksAddresses = new address[](2);
@@ -3700,20 +3700,20 @@ contract CrosschainTests is BaseTest {
             tokenSent: underlyingBase_USDC
         });
 
-        (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+        (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
     }
 
-    function _createOPMsgData()
+    function _createOPMsgData(bytes memory targetExecutorMessageBase)
         private
         returns (address accountToUse, bytes memory targetExecutorMessage, TargetExecutorMessage memory messageData)
     {
-        uint256 amount = 1000e6;
+        SELECT_FORK_AND_WARP(OP, CHAIN_10_TIMESTAMP);
 
-        vm.selectFork(FORKS[OP]);
+        uint256 amount = 1000e6;
 
         address[] memory opHooksAddresses = new address[](2);
         opHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
-        opHooksAddresses[1] = _getHookAddress(OP, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+        opHooksAddresses[1] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         bytes[] memory opHooksData = new bytes[](2);
         opHooksData[0] = _createApproveHookData(underlyingOP_USDC, address(mockOdosSwapOutputMin), amount, false);
@@ -3724,11 +3724,7 @@ contract CrosschainTests is BaseTest {
             amount,
             BASE,
             false,
-            targetExecutorMessageBase,
-            bytes(""),
-            address(mockOdosSwapOutputMin),
-            0,
-            false
+            targetExecutorMessageBase
         );
 
         messageData = TargetExecutorMessage({
@@ -3747,7 +3743,7 @@ contract CrosschainTests is BaseTest {
             tokenSent: underlyingOP_USDC
         });
 
-        (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+        (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
     }
 
     function _executeDepositFromAccountOnBASE(address account, uint256 depositAmount) private returns (uint256) {
