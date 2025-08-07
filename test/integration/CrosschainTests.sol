@@ -2549,7 +2549,8 @@ contract CrosschainTests is BaseTest {
         // ETH IS SRC - First execution from ETH to OP
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME + 30 days);
 
-        UserOpData memory ethUserOpData = _prepareETHUserOpData(amountPerVault, accountToUse, messageData, targetExecutorMessage);
+        UserOpData memory ethUserOpData =
+            _prepareETHUserOpData(amountPerVault, accountToUse, messageData, targetExecutorMessage);
 
         // EXECUTE ETH - First execution should not proceed yet
         ExecutionReturnData memory ethExecutionData =
