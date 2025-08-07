@@ -2429,7 +2429,7 @@ contract CrosschainTests is BaseTest {
             dstHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
 
             bytes[] memory dstHooksData = new bytes[](1);
-            dstHooksData[0] = _createApproveHookData(underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, 123, false);
+            dstHooksData[0] = _createApproveHookData(underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, amount, false);
 
             messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
@@ -2442,7 +2442,7 @@ contract CrosschainTests is BaseTest {
                 nexusFactory: CHAIN_8453_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
                 chainId: uint64(BASE),
-                amount: amount,
+                amount: amount / 2,
                 account: address(0),
                 tokenSent: underlyingBase_USDC
             });
@@ -2459,7 +2459,7 @@ contract CrosschainTests is BaseTest {
             dstHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
 
             bytes[] memory dstHooksData = new bytes[](1);
-            dstHooksData[0] = _createApproveHookData(underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, 123, false);
+            dstHooksData[0] = _createApproveHookData(underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, amount, false);
 
             messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
@@ -2472,7 +2472,7 @@ contract CrosschainTests is BaseTest {
                 nexusFactory: CHAIN_8453_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
                 chainId: uint64(BASE),
-                amount: amount,
+                amount: amount / 2,
                 account: accountToUse,
                 tokenSent: underlyingBase_USDC
             });
@@ -2483,30 +2483,30 @@ contract CrosschainTests is BaseTest {
         // ETH is SRC
         SELECT_FORK_AND_WARP(ETH, CHAIN_1_TIMESTAMP + 1 days);
 
-        address[] memory srcHooksAddresses = new address[](6);
+        address[] memory srcHooksAddresses = new address[](5);
         srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        srcHooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        // srcHooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         srcHooksAddresses[2] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        srcHooksAddresses[3] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        srcHooksAddresses[4] = _getHookAddress(ETH, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
-        srcHooksAddresses[5] = _getHookAddress(ETH, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY);
+        srcHooksAddresses[3] = _getHookAddress(ETH, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+        srcHooksAddresses[4] = _getHookAddress(ETH, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY);
 
-        bytes[] memory srcHooksData = new bytes[](6);
+        bytes[] memory srcHooksData = new bytes[](5);
         srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, amount, false);
-        srcHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSourceMorphoUsdcAddressEth,
-            amount,
-            false,
-            address(0),
-            0
-        );
-        srcHooksData[2] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amount, true);
-        srcHooksData[3] = _createApproveHookData(underlyingETH_USDC, DEBRIDGE_DLN_ADDRESSES[BASE], amount, true);
+        // srcHooksData[1] = _createDeposit4626HookData(
+        //     _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+        //     yieldSourceMorphoUsdcAddressEth,
+        //     amount,
+        //     false,
+        //     address(0),
+        //     0
+        // );
+        srcHooksData[1] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amount, true);
+        srcHooksData[2] = _createApproveHookData(underlyingETH_USDC, DEBRIDGE_DLN_ADDRESSES[BASE], amount, true);
 
-        srcHooksData[4] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            existingUnderlyingTokens[ETH][USDC_KEY],
-            existingUnderlyingTokens[BASE][USDC_KEY],
+        srcHooksData[3] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingETH_USDC,
+            underlyingBase_USDC,
             amount / 2,
             amount / 2,
             BASE,
@@ -2518,7 +2518,7 @@ contract CrosschainTests is BaseTest {
             DebridgeOrderData({
                 usePrevHookAmount: false, //usePrevHookAmount
                 value: IDlnSource(DEBRIDGE_DLN_ADDRESSES[BASE]).globalFixedNativeFee(), //value
-                giveTokenAddress: existingUnderlyingTokens[ETH][USDC_KEY], //giveTokenAddress
+                giveTokenAddress: underlyingETH_USDC, //giveTokenAddress
                 giveAmount: amount / 2, //giveAmount
                 version: 1, //envelope.version
                 fallbackAddress: accountBase, //envelope.fallbackAddress
@@ -2527,7 +2527,7 @@ contract CrosschainTests is BaseTest {
                 allowDelayedExecution: false, //envelope.allowDelayedExecution
                 requireSuccessfulExecution: true, //envelope.requireSuccessfulExecution
                 payload: targetDebridgeExecutorMessage, //envelope.payload
-                takeTokenAddress: existingUnderlyingTokens[BASE][USDC_KEY], //takeTokenAddress
+                takeTokenAddress: underlyingBase_USDC, //takeTokenAddress
                 takeAmount: amount / 2, //takeAmount
                 takeChainId: BASE, //takeChainId
                 // receiverDst must be the Debridge Adapter on the destination chain
@@ -2540,16 +2540,19 @@ contract CrosschainTests is BaseTest {
                 referralCode: 0 //referralCode
              })
         );
-        srcHooksData[5] = debridgeData;
+        srcHooksData[4] = debridgeData;
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
 
-        UserOpData memory srcUserOpData = _getExecOpsWithValidator(
-            instanceOnETH, superExecutorOnETH, abi.encode(entry), address(sourceValidatorOnETH)
-        );
+        // UserOpData memory srcUserOpData = _getExecOpsWithValidator(
+        //     instanceOnETH, superExecutorOnETH, abi.encode(entry), address(sourceValidatorOnETH)
+        // );
+
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, ETH, true);
+        
         bytes memory signatureData = _createMerkleRootAndSignature(
-            messageData, srcUserOpData.userOpHash, accountToUse, ETH, address(sourceValidatorOnETH)
+            messageData, srcUserOpData.userOpHash, accountToUse, BASE, address(sourceValidatorOnETH)
         );
         srcUserOpData.userOp.signature = signatureData;
 
@@ -2572,7 +2575,7 @@ contract CrosschainTests is BaseTest {
             instanceOnETH, superExecutorOnETH, abi.encode(entry), address(sourceValidatorOnETH)
         );
         signatureData = _createMerkleRootAndSignature(
-            messageData, srcUserOpData.userOpHash, accountToUse, ETH, address(sourceValidatorOnETH)
+            messageData, srcUserOpData.userOpHash, accountToUse, BASE, address(sourceValidatorOnETH)
         );
         srcUserOpData.userOp.signature = signatureData;
         _processDebridgeDlnMessage(ETH, BASE, executeOp(srcUserOpData));
