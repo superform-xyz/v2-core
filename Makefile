@@ -26,11 +26,11 @@ ftest-vvv :; forge test -v --jobs 2
 
 ftest-ci :; forge test -v --jobs 2
 
-coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --report lcov
+coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
-coverage-genhtml :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage --ignore-errors inconsistent,corrupt --exclude 'src/vendor/*' --exclude 'test/*'
+coverage-genhtml :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov --match-test test_RebalanceCrossChain_4626_Mainnet_Flow -vvv && genhtml lcov.info --branch-coverage --output-dir coverage --ignore-errors inconsistent,corrupt --exclude 'src/vendor/*' --exclude 'test/*'
 
-test-vvv :; forge test --match-test test_CrossChain_execution_1_threshold -vvvv --jobs 10
+test-vvv :; forge test --match-test test_Bridge_Deposit4626_UsedRoot_Because_Frontrunning -vvvv --jobs 10
 
 test-integration :; forge test --match-test test_CrossChain_execution -vvvv --jobs 10
 
