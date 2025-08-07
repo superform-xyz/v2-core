@@ -24,8 +24,6 @@ library ChainAgnosticSafeSignatureValidation {
     /// @notice Domain name and version for cross-chain 1271 signatures
     string private constant DOMAIN_NAME = "SuperformSafe";
     string private constant DOMAIN_VERSION = "1.0.0";
-    /// @notice Magic value for EIP-1271 validation
-    bytes4 internal constant MAGIC_VALUE_EIP1271 = bytes4(0x1626ba7e);
 
     function validateChainAgnosticMultisig(
         address safe,
@@ -81,10 +79,11 @@ library ChainAgnosticSafeSignatureValidation {
         if (validSigCount < threshold) return false;
 
         // Sort recovered signers for efficient comparison
-        recoveredSigners.sort();
+        recoveredSigners.insertionSort();
 
-        // Sort owners for efficient comparison
-        owners.sort();
+        // sorting owners here instead of requiring sorted list for improved UX
+        owners.insertionSort();
+        owners.uniquifySorted();
 
         // Count valid signatures from owners using searchSorted
         uint256 validOwnerSignatures = 0;
