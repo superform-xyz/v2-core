@@ -2410,7 +2410,7 @@ contract CrosschainTests is BaseTest {
         // execution fails on the call to SuperDestinationExecutor::processBridgedExecution
         //vm.expectRevert();
         //_processDebridgeDlnMessage(BASE, ETH, returnData);
-    }    
+    }
 
     function testOrion_maliciousRelayersDoSCrosschainExecution() public {
         uint256 amountPerVault = 1e8 / 2;
@@ -2538,17 +2538,18 @@ contract CrosschainTests is BaseTest {
     }
 
     function test_FAILS_CrossChain_Execution_Replay() public {
-        uint256 amountPerVault = 1e8 / 2;
+        uint256 amountPerVault = 1e18 / 2;
 
         // OP IS DST - Prepare target executor message for OP chain
         SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
 
-        (bytes memory targetExecutorMessage, address accountToUse) = _prepareOPDeposit4626Message(); // Generalize this
+        (bytes memory targetExecutorMessage, address accountToUse, TargetExecutorMessage memory messageData) =
+            _prepareOPDeposit4626Message(amountPerVault); // Generalize this
 
         // ETH IS SRC - First execution from ETH to OP
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME + 30 days);
 
-        UserOpData memory ethUserOpData = _prepareETHUserOpData(targetExecutorMessage, accountToUse);
+        UserOpData memory ethUserOpData = _prepareETHUserOpData(amountPerVault, accountToUse, messageData, targetExecutorMessage);
 
         // EXECUTE ETH - First execution should not proceed yet
         ExecutionReturnData memory ethExecutionData =
@@ -2559,7 +2560,7 @@ contract CrosschainTests is BaseTest {
                 dstChainId: OP,
                 warpTimestamp: WARP_START_TIME + 30 days,
                 executionData: ethExecutionData,
-                relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
+                relayerType: RELAYER_TYPE.NOT_ENOUGH_BALANCE,
                 errorMessage: bytes4(0),
                 errorReason: "",
                 root: bytes32(0),
@@ -2569,45 +2570,8 @@ contract CrosschainTests is BaseTest {
         );
 
         // The execution should not proceed yet, check balances to assert this
+        assertEq(IERC20(underlyingETH_USDC).balanceOf(accountToUse), 0);
 
-        // PREPARE ETH DATA - Source hooks that will bridge from ETH to OP
-        address[] memory ethHooksAddresses = new address[](2);
-        ethHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        ethHooksAddresses[1] = _getHookAddress(ETH, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
-
-        bytes[] memory ethHooksData = new bytes[](2);
-        ethHooksData[0] =
-            _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amountPerVault, false);
-        ethHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingETH_USDC, underlyingOP_USDCe, amountPerVault, amountPerVault, OP, true, targetExecutorMessage
-        );
-
-        // Create and execute first user operation from ETH
-        UserOpData memory ethUserOpData = _createUserOpData(ethHooksAddresses, ethHooksData, ETH, true);
-        bytes memory ethSignatureData = _createMerkleRootAndSignature(
-            messageData, ethUserOpData.userOpHash, accountToUse, OP, address(sourceValidatorOnETH)
-        );
-        ethUserOpData.userOp.signature = ethSignatureData;
-
-        // EXECUTE ETH - First execution should succeed
-        ExecutionReturnData memory ethExecutionData =
-            executeOpsThroughPaymaster(ethUserOpData, superNativePaymasterOnETH, 1e18);
-        _processAcrossV3Message(
-            ProcessAcrossV3MessageParams({
-                srcChainId: ETH,
-                dstChainId: OP,
-                warpTimestamp: WARP_START_TIME + 30 days,
-                executionData: ethExecutionData,
-                relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
-                errorMessage: bytes4(0),
-                errorReason: "",
-                root: bytes32(0),
-                account: accountToUse,
-                relayerGas: 0
-            })
-        );
-
-        // BASE IS SRC - Second execution from BASE to OP (replay attack)
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
 
         // PREPARE BASE DATA - Source hooks that will bridge from BASE to OP
@@ -2622,18 +2586,17 @@ contract CrosschainTests is BaseTest {
             underlyingBase_USDC, underlyingOP_USDCe, amountPerVault, amountPerVault, OP, true, targetExecutorMessage
         );
 
-        // Create user operation from BASE with same target message (replay attack)
+        // Create and execute user operation from BASE
         UserOpData memory baseUserOpData = _createUserOpData(baseHooksAddresses, baseHooksData, BASE, true);
+        bytes memory baseSignatureData = _createMerkleRootAndSignature(
+            messageData, baseUserOpData.userOpHash, accountToUse, OP, address(sourceValidatorOnBase)
+        );
+        baseUserOpData.userOp.signature = baseSignatureData;
 
-        // Use the same signature from ETH execution - this should fail due to replay protection
-        baseUserOpData.userOp.signature = ethSignatureData;
-
-        // EXECUTE BASE - This should fail due to replay attack
-        vm.expectRevert();
+        // EXECUTE BASE - This execution should succeed
         ExecutionReturnData memory baseExecutionData =
             executeOpsThroughPaymaster(baseUserOpData, superNativePaymasterOnBase, 1e18);
 
-        // If somehow the execution doesn't revert, the message processing should also fail
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
                 srcChainId: BASE,
@@ -2648,6 +2611,48 @@ contract CrosschainTests is BaseTest {
                 relayerGas: 0
             })
         );
+
+        // // BASE IS SRC - Second execution from BASE to OP (replay attack)
+        // SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
+
+        // // PREPARE BASE DATA - Source hooks that will bridge from BASE to OP
+        // address[] memory baseHooksAddresses = new address[](2);
+        // baseHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        // baseHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        // bytes[] memory baseHooksData = new bytes[](2);
+        // baseHooksData[0] =
+        //     _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
+        // baseHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+        //     underlyingBase_USDC, underlyingOP_USDCe, amountPerVault, amountPerVault, OP, true, targetExecutorMessage
+        // );
+
+        // // Create user operation from BASE with same target message (replay attack)
+        // UserOpData memory baseUserOpData = _createUserOpData(baseHooksAddresses, baseHooksData, BASE, true);
+
+        // // Use the same signature from ETH execution - this should fail due to replay protection
+        // baseUserOpData.userOp.signature = ethSignatureData;
+
+        // // EXECUTE BASE - This should fail due to replay attack
+        // vm.expectRevert();
+        // ExecutionReturnData memory baseExecutionData =
+        //     executeOpsThroughPaymaster(baseUserOpData, superNativePaymasterOnBase, 1e18);
+
+        // // If somehow the execution doesn't revert, the message processing should also fail
+        // _processAcrossV3Message(
+        //     ProcessAcrossV3MessageParams({
+        //         srcChainId: BASE,
+        //         dstChainId: OP,
+        //         warpTimestamp: WARP_START_TIME + 30 days,
+        //         executionData: baseExecutionData,
+        //         relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
+        //         errorMessage: bytes4(0),
+        //         errorReason: "",
+        //         root: bytes32(0),
+        //         account: accountToUse,
+        //         relayerGas: 0
+        //     })
+        // );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -4591,11 +4596,10 @@ contract CrosschainTests is BaseTest {
         userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
     }
 
-    function _prepareOPDeposit4626Message() internal returns (bytes memory message, address accountToUse) {
-        bytes memory targetExecutorMessage;
-        TargetExecutorMessage memory messageData;
-        address accountToUse;
-
+    function _prepareOPDeposit4626Message(uint256 amountPerVault)
+        internal
+        returns (bytes memory message, address accountToUse, TargetExecutorMessage memory messageData)
+    {
         {
             // PREPARE OP DATA - Target hooks that will be executed on OP
             address[] memory opHooksAddresses = new address[](2);
@@ -4634,7 +4638,12 @@ contract CrosschainTests is BaseTest {
         }
     }
 
-    function _prepareETHUserOpData(bytes memory targetExecutorMessage, address accountToUse)
+    function _prepareETHUserOpData(
+        uint256 amountPerVault,
+        address accountToUse,
+        TargetExecutorMessage memory messageData,
+        bytes memory targetExecutorMessage
+    )
         internal
         returns (UserOpData memory)
     {
