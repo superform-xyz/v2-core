@@ -105,7 +105,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         view
         virtual
         returns (bytes32)
-    {   
+    {
         // Note: destinationData.initData is not included because it is not needed for the leaf.
         // If precomputed account is != than the executing account, the entire execution reverts
         // before this method is called. Check SuperDestinationExecutor for more details.
@@ -228,7 +228,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         // Use address(0) as validator (falls back to Safe's checkSignatures) + 1 byte signature
         bytes memory testSignature = abi.encodePacked(address(0), hex"00");
         bytes memory callData = abi.encodeWithSelector(IERC1271.isValidSignature.selector, bytes32(0), testSignature);
-        
+
         /// @dev note to auditors: check if this call can be grieved (but would rug the user)
         (bool success, bytes memory returnData) = addr.staticcall(callData);
 
@@ -238,7 +238,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         // 3. Call fails with no data = function doesn't exist
         return success || returnData.length > 0;
     }
-    
+
     /// @notice Checks if an address is a 7702 signer
     /// @param code The code of the address to check
     /// @return True if the address is a 7702 signer, false otherwise
