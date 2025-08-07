@@ -30,7 +30,7 @@ coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --report lcov
 
 coverage-genhtml :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage --ignore-errors inconsistent,corrupt --exclude 'src/vendor/*' --exclude 'test/*'
 
-test-vvv :; forge test --match-test test_CrossChain_execution_1_threshold -vvvv --jobs 10
+test-vvv :; forge test --match-test test_FAILS_CrossChain_Execution_Replay -vvvv --jobs 10
 
 test-integration :; forge test --match-test test_CrossChain_execution -vvvv --jobs 10
 
