@@ -22,9 +22,7 @@ forge-test :; forge test --match-test $(TEST) $(ARGS)
 
 ftest :; forge test
 
-ftest-vvv :; forge test -v --jobs 2
-
-ftest-ci :; forge test -v --jobs 2
+ftest-ci :; forge test -vvv --jobs 10
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
@@ -32,7 +30,7 @@ coverage-genhtml :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minim
 
 coverage-genhtml-fullsrc :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage --ignore-errors inconsistent,corrupt --exclude 'src/vendor/*' --exclude 'test/*'
 
-test-vvv :; forge test --match-test testOrion_maliciousRelayersDoSCrosschainExecution -vvvv --jobs 10
+test-vvv :; forge test --match-test test_RebalanceCrossChain_4626_Mainnet_Flow -vvvv --jobs 10
 
 test-integration :; forge test --match-test test_CrossChain_execution -vvvv --jobs 10
 
