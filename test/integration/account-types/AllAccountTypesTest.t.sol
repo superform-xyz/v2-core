@@ -2052,7 +2052,7 @@ contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
         uint256 _privateKey
     )
         internal
-        view
+        pure
         returns (bytes memory signatureData)
     {
         EIP7702SigVars memory vars;
