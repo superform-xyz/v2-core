@@ -742,7 +742,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Deploy Mock Contracts (only for development environment)
         if (env == 1) {
-            _deployMockContracts(chainId);
+            //_deployMockContracts(chainId);
         }
 
         // Deploy Oracles
