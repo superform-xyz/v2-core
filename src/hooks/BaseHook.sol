@@ -34,12 +34,6 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     /// @dev Typically the base token or asset being processed
     address public transient asset;
 
-    /// @notice PreExecute protection: false=callable, true=already_called
-    bool public transient preExecuteMutex;
-
-    /// @notice PostExecute protection: false=callable, true=already_called
-    bool public transient postExecuteMutex;
-
     /// @notice Execution nonce for creating unique contexts
     uint256 public transient executionNonce;
 

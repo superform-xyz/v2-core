@@ -21,9 +21,6 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    /// @notice Magic value returned when a signature is valid according to EIP-1271
-    /// @dev The value 0x1626ba7e is specified by the EIP-1271 standard
-    bytes4 public constant VALID_SIGNATURE = bytes4(0x1626ba7e);
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -55,7 +52,7 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
         SignatureData memory sigData = _decodeSignatureData(_userOp.signature);
 
         // Verify source data
-        (address signer,) = _processSignatureAndVerifyLeaf(_userOp.sender, sigData, _userOpHash);
+        (address signer,) = _createLeafAndVerifyProofAndSignature(_userOp.sender, sigData, _userOpHash);
 
         // Validate
         bool isValid = _isSignatureValid(signer, _userOp.sender, sigData.validUntil);
@@ -111,12 +108,12 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
         SignatureData memory sigData = _decodeSignatureData(sigDataRaw);
 
         // Process signature
-        (address signer,) = _processSignatureAndVerifyLeaf(msg.sender, sigData, dataHash);
+        (address signer,) = _createLeafAndVerifyProofAndSignature(msg.sender, sigData, dataHash);
 
         // Validate
         bool isValid = _isSignatureValid(signer, msg.sender, sigData.validUntil);
 
-        return isValid ? VALID_SIGNATURE : bytes4("");
+        return isValid ? EIP1271_MAGIC_VALUE : bytes4("");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -148,15 +145,15 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Processes a signature and verifies it against a merkle proof
-    /// @dev Verifies the user operation hash is part of the merkle tree and recovers the signer
-    ///      Uses the source proof (proofSrc) for verification
+    /// @notice Creates leaf and verifies source proof and signature
+    /// @dev Verifies the user operation hash is part of the merkle tree using source proof
+    ///      and processes signature for any account type (EOA, EIP-1271, EIP-7702)
     /// @param sender The sender address to validate the signature against
     /// @param sigData Signature data including merkle root, proofs, and actual signature
     /// @param userOpHash The hash of the user operation being verified
     /// @return signer The address that signed the message
     /// @return leaf The computed leaf hash used in merkle verification
-    function _processSignatureAndVerifyLeaf(
+    function _createLeafAndVerifyProofAndSignature(
         address sender,
         SignatureData memory sigData,
         bytes32 userOpHash
@@ -165,22 +162,11 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
         view
         returns (address signer, bytes32 leaf)
     {
-        // Create leaf from user operation hash and verify it's part of the merkle tree
+        // Create leaf from user operation hash and verify it's part of the merkle tree using source proof
         leaf = _createLeaf(abi.encode(userOpHash), sigData.validUntil, sigData.validateDstProof);
         if (!MerkleProof.verify(sigData.proofSrc, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
-        // For EIP-7702 accounts, the signer is the account itself (EOA with delegated code)
-        if (_is7702Account(sender.code)) {
-            signer = _processECDSASignature(sigData);
-        } else {
-            address owner = _accountOwners[sender];
-
-            // Support any EIP-1271 compatible smart contract, not just Safe multisigs
-            if (_isEIP1271Signer(owner)) {
-                signer = _processEIP1271Signature(owner, sigData);
-            } else {
-                signer = _processECDSASignature(sigData);
-            }
-        }
+        // Process signature using common method
+        signer = _processSignatureForAccountType(sender, sigData);
     }
 }

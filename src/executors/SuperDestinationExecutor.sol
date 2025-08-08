@@ -35,13 +35,10 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /// @dev Prevents replay attacks by ensuring each merkle root can only be used once per user
     mapping(address user => mapping(bytes32 merkleRoot => bool used)) public usedMerkleRoots;
 
-    /// @notice Magic value returned by ERC-1271 contracts when a signature is valid
-    /// @dev From EIP-1271 standard:
-    /// https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
-    /// @dev From `SuperDestinationValidator`:
-    /// `bytes4(keccak256("isValidDestinationSignature(address,bytes)")) = 0x5c2ec0f3`
-    bytes4 internal constant SIGNATURE_MAGIC_VALUE = bytes4(0x5c2ec0f3);
-    
+    /// @notice Magic value returned by SuperDestinationValidator when a destination signature is valid
+    /// @dev bytes4(keccak256("isValidDestinationSignature(address,bytes)")) = 0x5c2ec0f3
+    bytes4 internal constant DESTINATION_SIGNATURE_MAGIC_VALUE = bytes4(0x5c2ec0f3);
+
     /// @notice Marker for EIP-7702 initcode
     bytes2 internal constant INITCODE_EIP7702_MARKER = 0x7702;
 
@@ -108,7 +105,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     {
         uint256 dstTokensLen = dstTokens.length;
         if (dstTokensLen != intentAmounts.length) revert ARRAY_LENGTH_MISMATCH();
-        
+
         account = _validateOrCreateAccount(account, initData);
         bytes32 merkleRoot = _decodeMerkleRoot(userSignatureData);
 
@@ -123,7 +120,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
             account, abi.encode(userSignatureData, destinationData)
         );
 
-        if (validationResult != SIGNATURE_MAGIC_VALUE) revert INVALID_SIGNATURE();
+        if (validationResult != DESTINATION_SIGNATURE_MAGIC_VALUE) revert INVALID_SIGNATURE();
 
         if (!_validateBalances(account, dstTokens, intentAmounts)) return;
 
@@ -154,7 +151,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         }
         emit SuperDestinationExecutorMarkRootsAsUsed(msg.sender, roots);
     }
-    
+
     /*//////////////////////////////////////////////////////////////
                           INTERNAL
     //////////////////////////////////////////////////////////////*/

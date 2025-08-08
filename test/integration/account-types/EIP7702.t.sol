@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // -- nexus
 import { Nexus } from "@nexus/Nexus.sol";
 import { NexusAccountFactory } from "@nexus/factory/NexusAccountFactory.sol";
@@ -50,6 +51,9 @@ import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestinationExecutor.sol";
 import { ISuperLedger, ISuperLedgerData } from "../../../src/interfaces/accounting/ISuperLedger.sol";
 import { ApproveERC20Hook } from "../../../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import { Deposit4626VaultHook } from "../../../src/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import { ERC4626YieldSourceOracle } from "../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../../../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 import { AcrossV3Adapter } from "../../../src/adapters/AcrossV3Adapter.sol";
@@ -67,6 +71,7 @@ contract EIP7702Test is BaseTest {
     // generic
     uint256 latestEthFork;
     uint256 latestBaseFork;
+    uint256 latestOpFork;
     uint256 warpStartTime;
 
     // external
@@ -102,14 +107,22 @@ contract EIP7702Test is BaseTest {
     MockHook public mockHook;
     address public underlyingETH_USDC;
     address public underlyingBase_USDC;
+    address public underlyingOP_USDC;
 
     SuperDestinationValidator public superDestinationValidator_Base;
     SuperDestinationExecutor public superDestinationExecutor_Base;
 
+    address public mockVault;
+
     function setUp() public override {
-        warpStartTime = 1_753_501_381;
-        latestEthFork = vm.createFork(ETHEREUM_RPC_URL);
-        latestBaseFork = vm.createFork(BASE_RPC_URL);
+        // Use specific block numbers from after Pectra deployment where vaults are working
+        // ETH Block 23096042 - Aug-08-2025 11:27:23 AM +UTC
+        // Base Block 33931553 - Aug-08-2025 11:27:33 AM +UTC
+        // OP Block 139526853 - Aug-08-2025 11:28:03 AM +UTC
+        warpStartTime = 1_723_115_243; // Aug-08-2025 11:27:23 AM +UTC
+        latestEthFork = vm.createFork(ETHEREUM_RPC_URL, 23_096_042);
+        latestBaseFork = vm.createFork(BASE_RPC_URL, 33_931_553);
+        latestOpFork = vm.createFork(OPTIMISM_RPC_URL, 139_526_853);
 
         ENTRYPOINT = EntryPoint(payable(ENTRYPOINT_ADDR));
         vm.label(address(ENTRYPOINT), "ENTRYPOINT");
@@ -190,6 +203,8 @@ contract EIP7702Test is BaseTest {
         vm.label(underlyingBase_USDC, "underlyingBase_USDC");
         underlyingETH_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
         vm.label(underlyingETH_USDC, "underlyingETH_USDC");
+        underlyingOP_USDC = existingUnderlyingTokens[OP][USDC_KEY];
+        vm.label(underlyingOP_USDC, "underlyingOP_USDC");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -682,8 +697,178 @@ contract EIP7702Test is BaseTest {
         );
 
         _useBaseFork(10 days);
-        uint256 allowance = IERC20(underlyingBase_USDC).allowance(test.account, address(this));
-        assertEq(allowance, 1000e6, "allowance not right");
+
+        // Check vault shares were minted to the account
+        uint256 shares = IERC20(mockVault).balanceOf(test.account);
+        uint256 expectedShares = IERC4626(mockVault).previewDeposit(1000e6);
+        assertEq(shares, expectedShares, "vault shares mismatch after deposit");
+    }
+
+    /// @notice Two independent sources (ETH and OP) send Across messages to one destination (BASE)
+    ///         Ensure destination execution occurs on BASE using EIP-7702 delegated EOA
+    function test_CrossChainIntent_TwoSources_OneDestination_7702() public {
+        uint256 eoaKey = uint256(8);
+        _runTwoSourcesScenario(eoaKey, vm.addr(eoaKey));
+    }
+
+    function _runTwoSourcesScenario(uint256 eoaKey, address account) internal {
+        // ----- Destination (BASE) setup with 7702 delegated EOA and modules -----
+        (,, address dstExecutorBase, address dstValidatorBase) = _initializeBaseAccount(eoaKey);
+        address acrossV3Adapter = address(new AcrossV3Adapter(SPOKE_POOL_V3_ADDRESSES[BASE], address(dstExecutorBase)));
+        vm.label(acrossV3Adapter, "AcrossV3Adapter-TwoSources");
+
+        // Helper on BASE for log delivery
+        _useBaseFork(1 days);
+        address acrossV3Helper = address(new AcrossV3Helper());
+        vm.label(acrossV3Helper, "AcrossV3Helper-TwoSources");
+        vm.allowCheatcodes(acrossV3Helper);
+        vm.makePersistent(acrossV3Helper);
+
+        // ----- Source setups (ETH and OP) -----
+        (address executorEth, address validatorEth) = _initializeEthAccount(eoaKey);
+        (address executorOp, address validatorOp) = _initializeOpAccount(eoaKey);
+
+        // Destination execution payload (approve on BASE)
+        bytes memory destinationHookData = _getDestinationMessageInitialize(account);
+
+        // ---------- Source #1: ETH ----------
+        ExecutionReturnData memory executionDataEth = _sendAcrossFromEthTwoSources(
+            TwoSourcesCall({
+                account: account,
+                executor: executorEth,
+                validator: validatorEth,
+                dstValidatorBase: address(dstValidatorBase),
+                dstExecutorBase: address(dstExecutorBase),
+                acrossV3Adapter: acrossV3Adapter,
+                destinationHookData: destinationHookData,
+                eoaKey: eoaKey
+            })
+        );
+
+        // ---------- Source #2: OP ----------
+        ExecutionReturnData memory executionDataOp = _sendAcrossFromOpTwoSources(
+            TwoSourcesCall({
+                account: account,
+                executor: executorOp,
+                validator: validatorOp,
+                dstValidatorBase: address(dstValidatorBase),
+                dstExecutorBase: address(dstExecutorBase),
+                acrossV3Adapter: acrossV3Adapter,
+                destinationHookData: destinationHookData,
+                eoaKey: eoaKey
+            })
+        );
+
+        // ----- Deliver both Across messages to BASE -----
+        _processAcrossV3MessageWithSpecificDestinationFork(
+            uint64(ETH), uint64(BASE), warpStartTime + 1 days, executionDataEth, latestBaseFork, acrossV3Helper
+        );
+        _processAcrossV3MessageWithSpecificDestinationFork(
+            uint64(OP), uint64(BASE), warpStartTime + 1 days, executionDataOp, latestBaseFork, acrossV3Helper
+        );
+
+        // ----- Assert destination execution occurred (full deposit) -----
+        _useBaseFork(10 days);
+        uint256 usdcBal = IERC20(underlyingBase_USDC).balanceOf(account);
+        assertEq(usdcBal, 0, "USDC should be fully deposited");
+
+        // Check vault shares were minted to the account
+        uint256 shares = IERC20(mockVault).balanceOf(account);
+        uint256 expectedShares = IERC4626(mockVault).previewDeposit(1000e6);
+        assertEq(shares, expectedShares, "vault shares mismatch after deposit");
+    }
+
+    struct TwoSourcesCall {
+        address account;
+        address executor;
+        address validator;
+        address dstValidatorBase;
+        address dstExecutorBase;
+        address acrossV3Adapter;
+        bytes destinationHookData;
+        uint256 eoaKey;
+    }
+
+    function _sendAcrossFromEthTwoSources(TwoSourcesCall memory p) internal returns (ExecutionReturnData memory) {
+        _useEthFork(1 days);
+        _getTokens(underlyingETH_USDC, p.account, 1000e6);
+
+        ISuperExecutor.ExecutorEntry memory srcEntryEth =
+            _createSourceEntry(p.destinationHookData, p.validator, p.acrossV3Adapter);
+        Execution[] memory executionsEth = new Execution[](1);
+        executionsEth[0] = Execution({
+            target: address(p.executor),
+            value: 0,
+            callData: abi.encodeCall(ISuperExecutor.execute, abi.encode(srcEntryEth))
+        });
+        PackedUserOperation memory userOpEth = _createPackedUserOp(p.account, executionsEth);
+        bytes32 userOpHashEth = ENTRYPOINT.getUserOpHash(userOpEth);
+        userOpEth.signature = _createCrosschainSig(
+            CrosschainSigParams({
+                userOpHash: userOpHashEth,
+                accountToUse: p.account,
+                dstChainId: BASE,
+                srcValidator: p.validator,
+                dstValidator: p.dstValidatorBase,
+                dstExecutionData: p.destinationHookData,
+                signer: p.account,
+                signerPrivateKey: p.eoaKey,
+                dstExecutor: p.dstExecutorBase
+            })
+        );
+        vm.recordLogs();
+        _executeOps(userOpEth);
+        VmSafe.Log[] memory logsEth = vm.getRecordedLogs();
+        return ExecutionReturnData({ logs: logsEth });
+    }
+
+    function _sendAcrossFromOpTwoSources(TwoSourcesCall memory p) internal returns (ExecutionReturnData memory) {
+        _useOpFork(1 days);
+        _getTokens(underlyingOP_USDC, p.account, 1000e6);
+
+        address approveERC20HookAddressOp = address(new ApproveERC20Hook());
+        vm.label(approveERC20HookAddressOp, "ApproveERC20Hook-OP");
+        address acrossSendFundsAndExecuteOnDstHookAddressOp =
+            address(new AcrossSendFundsAndExecuteOnDstHook(SPOKE_POOL_V3_ADDRESSES[OP], p.validator));
+        vm.label(acrossSendFundsAndExecuteOnDstHookAddressOp, "AcrossSendFundsAndExecuteOnDstHook-OP");
+
+        address[] memory srcHooksAddressesOp = new address[](2);
+        srcHooksAddressesOp[0] = approveERC20HookAddressOp;
+        srcHooksAddressesOp[1] = acrossSendFundsAndExecuteOnDstHookAddressOp;
+
+        bytes[] memory srcHooksDataOp = new bytes[](2);
+        srcHooksDataOp[0] = _createApproveHookData(underlyingOP_USDC, SPOKE_POOL_V3_ADDRESSES[OP], 1000e6, false);
+        srcHooksDataOp[1] = _createAcrossV3ReceiveFundsAndExecuteHookDataAdapter(
+            p.acrossV3Adapter, underlyingOP_USDC, underlyingBase_USDC, 1000e6, 1000e6, BASE, true, p.destinationHookData
+        );
+        ISuperExecutor.ExecutorEntry memory srcEntryOp =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddressesOp, hooksData: srcHooksDataOp });
+
+        Execution[] memory executionsOp = new Execution[](1);
+        executionsOp[0] = Execution({
+            target: address(p.executor),
+            value: 0,
+            callData: abi.encodeCall(ISuperExecutor.execute, abi.encode(srcEntryOp))
+        });
+        PackedUserOperation memory userOpOp = _createPackedUserOp(p.account, executionsOp);
+        bytes32 userOpHashOp = ENTRYPOINT.getUserOpHash(userOpOp);
+        userOpOp.signature = _createCrosschainSig(
+            CrosschainSigParams({
+                userOpHash: userOpHashOp,
+                accountToUse: p.account,
+                dstChainId: BASE,
+                srcValidator: p.validator,
+                dstValidator: p.dstValidatorBase,
+                dstExecutionData: p.destinationHookData,
+                signer: p.account,
+                signerPrivateKey: p.eoaKey,
+                dstExecutor: p.dstExecutorBase
+            })
+        );
+        vm.recordLogs();
+        _executeOps(userOpOp);
+        VmSafe.Log[] memory logsOp = vm.getRecordedLogs();
+        return ExecutionReturnData({ logs: logsOp });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -696,6 +881,11 @@ contract EIP7702Test is BaseTest {
 
     function _useBaseFork(uint256 extraTime) internal {
         vm.selectFork(latestBaseFork);
+        vm.warp(warpStartTime + extraTime);
+    }
+
+    function _useOpFork(uint256 extraTime) internal {
+        vm.selectFork(latestOpFork);
         vm.warp(warpStartTime + extraTime);
     }
 
@@ -883,6 +1073,56 @@ contract EIP7702Test is BaseTest {
         return (executor, validator);
     }
 
+    function _initializeOpAccount(uint256 eoaKey) public returns (address, address) {
+        _useOpFork(0);
+        address account = vm.addr(eoaKey);
+        vm.label(account, "AccountOP");
+        vm.deal(account, 100 ether);
+
+        address executor = _createSuperExecutor();
+        address validator = _createSuperValidator();
+
+        ACCOUNT_IMPLEMENTATION = new Nexus(address(ENTRYPOINT), address(validator), abi.encode(address(0xeEeEeEeE)));
+        vm.label(address(ACCOUNT_IMPLEMENTATION), "AccountImplementationOP");
+
+        bytes memory initData = _getInitData(
+            InitData({
+                executor: address(executor),
+                validator: address(validator),
+                signer: address(account),
+                prevalidationHook: address(mockPreValidationHook),
+                bootstrap: BOOTSTRAPPER,
+                registry: REGISTRY
+            })
+        );
+
+        Execution[] memory executions = new Execution[](1);
+        executions[0] =
+            Execution({ target: account, value: 0, callData: abi.encodeCall(INexus.initializeAccount, initData) });
+
+        bytes memory userOpCalldata =
+            abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
+        uint256 nonce = _getNonce(account, MODE_VALIDATION, address(0), 0);
+
+        PackedUserOperation memory userOp = _buildPackedUserOp(address(account), nonce);
+        userOp.callData = userOpCalldata;
+        userOp.sender = address(account);
+
+        bytes32 userOpHash = ENTRYPOINT.getUserOpHash(userOp);
+        userOp.signature =
+            _createNoDestinationExecutionMerkleRootAndSignature(account, eoaKey, userOpHash, address(validator));
+
+        _doEIP7702(account);
+        assertEq(account.code.length, 23, "op account not delegated");
+
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps[0] = userOp;
+
+        ENTRYPOINT.handleOps(userOps, payable(address(0x69)));
+
+        return (executor, validator);
+    }
+
     function _executeOps(PackedUserOperation memory userOp) internal {
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = userOp;
@@ -905,18 +1145,47 @@ contract EIP7702Test is BaseTest {
     }
 
     function _createDestinationEntry() internal returns (ISuperExecutor.ExecutorEntry memory entryToExecute) {
+        // Deploy hooks on BASE so they exist at execution time
         _useBaseFork(1 days);
         address approveERC20HookAddressBase = address(new ApproveERC20Hook());
         vm.label(approveERC20HookAddressBase, "ApproveERC20Hook-Base");
+        address deposit4626HookAddressBase = address(new Deposit4626VaultHook());
+        vm.label(deposit4626HookAddressBase, "Deposit4626VaultHook-Base");
 
+        // Return to ETH fork for the rest of the flow construction
         _useEthFork(1 days);
-        address[] memory hookAddresses = new address[](1);
-        hookAddresses[0] = approveERC20HookAddressBase;
 
-        bytes[] memory hookData = new bytes[](1);
-        hookData[0] = _createApproveHookData(underlyingBase_USDC, address(this), 1000e6, false);
+        address[] memory hookAddresses = new address[](2);
+        hookAddresses[0] = approveERC20HookAddressBase;
+        hookAddresses[1] = deposit4626HookAddressBase;
+
+        bytes[] memory hookData = new bytes[](2);
+        // Deploy a simple mock ERC4626 vault for testing on BASE fork (only if not already deployed)
+        if (mockVault == address(0)) {
+            _useBaseFork(1 days);
+            mockVault = _deployMockERC4626Vault(underlyingBase_USDC);
+            _useEthFork(1 days);
+        }
+
+        // Approve the vault to pull the full intent amount
+        hookData[0] = _createApproveHookData(underlyingBase_USDC, mockVault, 1000e6, false);
+        // Deposit uses previous hook amount (allowance) as assets
+        hookData[1] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
+            mockVault,
+            1000e6,
+            true,
+            address(0),
+            0
+        );
 
         entryToExecute = ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookData });
+    }
+
+    function _deployMockERC4626Vault(address _asset) internal returns (address) {
+        Mock4626Vault vault = new Mock4626Vault(_asset, "Mock Vault", "MVAULT");
+        vm.label(address(vault), "Mock4626Vault");
+        return address(vault);
     }
 
     function _getDestinationMessageInitialize(address _account) internal returns (bytes memory) {
@@ -993,6 +1262,28 @@ contract EIP7702Test is BaseTest {
             address(new SuperDestinationExecutor(address(superLedgerConfigurationNew), address(_validator)))
         );
         vm.label(address(superDestinationExecutorNew), "NewSuperDestinationExecutor");
+        // -- configure ledger and yield source oracle for 4626 on BASE so INFLOW hooks don't revert
+        address[] memory allowedExecutors = new address[](1);
+        allowedExecutors[0] = address(superDestinationExecutorNew);
+        ISuperLedger superLedgerNew =
+            ISuperLedger(address(new SuperLedger(address(superLedgerConfigurationNew), allowedExecutors)));
+        address ledgerFeeReceiver = makeAddr("LedgerFeeReceiver-Base");
+
+        // Deploy ERC4626YieldSourceOracle on Base fork
+        address erc4626Oracle = address(new ERC4626YieldSourceOracle(address(superLedgerConfigurationNew)));
+        vm.label(erc4626Oracle, "ERC4626YieldSourceOracle-Base");
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: erc4626Oracle,
+            feePercent: 100,
+            feeRecipient: ledgerFeeReceiver,
+            ledger: address(superLedgerNew)
+        });
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        superLedgerConfigurationNew.setYieldSourceOracles(salts, configs);
 
         return address(superDestinationExecutorNew);
     }

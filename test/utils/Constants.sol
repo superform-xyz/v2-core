@@ -196,6 +196,7 @@ abstract contract Constants {
     string public constant CENTRIFUGE_USDC_VAULT_KEY = "CentrifugeUSDC";
     string public constant MORPHO_GAUNTLET_USDC_PRIME_KEY = "MorphoGauntletUSDCPrime";
     string public constant MORPHO_GAUNTLET_WETH_CORE_KEY = "MorphoGauntletWETHCore";
+    string public constant SPARK_USDC_VAULT_KEY = "SparkUSDCVault";
     string public constant AAVE_BASE_WETH = "AaveBaseWeth";
     string public constant ERC7540FullyAsync_KEY = "ERC7540FullyAsync";
     string public constant PENDLE_ETHENA_KEY = "PendleEthena";
@@ -224,6 +225,8 @@ abstract contract Constants {
     address public constant CHAIN_10_PendleSwap = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
     address public constant CHAIN_10_SpectraRouter = 0x7dcDeA738C2765398BaF66e4DbBcD2769F4C00Dc;
 
+    address public constant CHAIN_8453_SparkUSDCVault = 0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A;
+    address public constant CHAIN_8453_SuperUSDCVault = 0xe9F2a5F9f3c846f29066d7fB3564F8E6B6b2D65b;
     address public constant CHAIN_8453_MorphoGauntletUSDCPrime = 0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61;
     address public constant CHAIN_8453_MorphoGauntletWETHCore = 0x6b13c060F13Af1fdB319F52315BbbF3fb1D88844;
     address public constant CHAIN_8453_AAveBaseWETH = 0x468973e3264F2aEba0417A8f2cD0Ec397E738898;
@@ -235,7 +238,6 @@ abstract contract Constants {
 
     address public MORPHO_ORACLE_WBTC_USDC = 0xDddd770BADd886dF3864029e4B377B5F6a2B6b83;
     address public MORPHO_IRM_WBTC_USDC = 0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC;
-
 
     string public constant GEARBOX_STAKING_KEY = "GearboxStaking";
 

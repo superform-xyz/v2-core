@@ -296,11 +296,11 @@ contract CompositeHookFlowTests is BaseTest {
 
         vm.expectEmit(false, false, false, true);
         emit IVaultBankSource.SharesLocked(
-            yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, amount, uint64(block.chainid), 84_532, 0
+            yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, amount, uint64(block.chainid), BASE, 0
         );
 
         IVaultBank(vaultBankAddressETH).lockAsset(
-            yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, address(0), amount, 84_532
+            yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, address(0), amount, BASE
         );
         vm.stopPrank();
     }
@@ -312,7 +312,7 @@ contract CompositeHookFlowTests is BaseTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createMintSuperPositionsHookData(
-            yieldSourceOracleIdStaking, yieldSourceStakingAddress, amount, false, vaultBankAddressETH, 84_532
+            yieldSourceOracleIdStaking, yieldSourceStakingAddress, amount, false, vaultBankAddressETH, BASE
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -321,7 +321,7 @@ contract CompositeHookFlowTests is BaseTest {
 
         vm.expectEmit(false, false, false, true);
         emit IVaultBankSource.SharesLocked(
-            yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, amount, uint64(block.chainid), 84_532, 0
+            yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, amount, ETH, BASE, 0
         );
         executeOp(userOpData);
     }
@@ -332,11 +332,9 @@ contract CompositeHookFlowTests is BaseTest {
 
         vm.prank(accountBase);
         vm.expectEmit(false, false, false, true);
-        emit IVaultBank.SuperpositionsBurned(
-            address(0), address(vaultBankBase), address(0), amount, uint64(block.chainid), 0
-        );
+        emit IVaultBank.SuperpositionsBurned(address(0), address(vaultBankBase), address(0), amount, BASE, 0);
         IVaultBank(vaultBankAddressBase).burnSuperPosition(
-            amount, vaultBankAddressBase, 84_532, yieldSourceOracleIdStaking
+            amount, vaultBankAddressBase, BASE, yieldSourceOracleIdStaking
         );
 
         vm.selectFork(FORKS[ETH]);
@@ -344,10 +342,10 @@ contract CompositeHookFlowTests is BaseTest {
         vm.prank(accountEth);
         vm.expectEmit(false, false, false, true);
         emit IVaultBankSource.SharesUnlocked(
-            yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, amount, uint64(block.chainid), 84_532, 0
+            yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, amount, ETH, BASE, 0
         );
         IVaultBank(vaultBankAddressETH).unlockAsset(
-            accountEth, yieldSourceStakingAddress, amount, 84_532, yieldSourceOracleIdStaking, bytes("")
+            accountEth, yieldSourceStakingAddress, amount, BASE, yieldSourceOracleIdStaking, bytes("")
         );
     }
 

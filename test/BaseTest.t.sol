@@ -1454,6 +1454,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY],
             MORPHO_GAUNTLET_USDC_PRIME_KEY
         );
+        existingVaults[BASE][ERC4626_VAULT_KEY][SPARK_USDC_VAULT_KEY][USDC_KEY] = CHAIN_8453_SparkUSDCVault;
+        vm.label(existingVaults[BASE][ERC4626_VAULT_KEY][SPARK_USDC_VAULT_KEY][USDC_KEY], SPARK_USDC_VAULT_KEY);
+        
         existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY] =
             CHAIN_8453_MorphoGauntletWETHCore;
         vm.label(
