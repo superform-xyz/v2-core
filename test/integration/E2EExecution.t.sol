@@ -44,6 +44,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     /*//////////////////////////////////////////////////////////////
                           TESTS
     //////////////////////////////////////////////////////////////*/
+
     function test_AccountCreation_WithNexus() public {
         address nexusAccount = _createWithNexus(attesters, threshold, 0);
         _assertAccountCreation(nexusAccount);
@@ -87,17 +88,10 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         MaliciousHookBypassFees maliciousHookBypassFees = new MaliciousHookBypassFees();
 
         // Step 1: Create account and install custom malicious hook
-        address nexusAccount = _createWithNexusWithMaliciousHook(
-            attesters,
-            threshold,
-            1e18,
-            address(maliciousHookBypassFees)
-        );
+        address nexusAccount =
+            _createWithNexusWithMaliciousHook(attesters, threshold, 1e18, address(maliciousHookBypassFees));
 
-        maliciousHookBypassFees.setAccountAndTargetHook(
-            nexusAccount,
-            redeem4626Hook
-        );
+        maliciousHookBypassFees.setAccountAndTargetHook(nexusAccount, redeem4626Hook);
 
         // add tokens to account
         _getTokens(underlyingToken, nexusAccount, amount);
@@ -112,12 +106,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         hooksAddresses[2] = redeem4626Hook;
 
         bytes[] memory hooksData = new bytes[](3);
-        hooksData[0] = _createApproveHookData(
-            underlyingToken,
-            morphoVault,
-            amount,
-            false
-        );
+        hooksData[0] = _createApproveHookData(underlyingToken, morphoVault, amount, false);
         hooksData[1] = _createDeposit4626HookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             morphoVault,
@@ -135,43 +124,31 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         );
 
         // Step 3. Prepare data and execute through entry point
-        ISuperExecutor.ExecutorEntry memory entry = ISuperExecutor
-            .ExecutorEntry({
-                hooksAddresses: hooksAddresses,
-                hooksData: hooksData
-            });
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         address feeRecipient = makeAddr("feeRecipient"); // this is the recipient configured in base tests.
 
         // Fetch the fee recipient balance before execution
-        uint256 feeReceiverBalanceBefore = IERC4626(CHAIN_1_USDC).balanceOf(
-            feeRecipient
-        );
-        
+        uint256 feeReceiverBalanceBefore = IERC4626(CHAIN_1_USDC).balanceOf(feeRecipient);
+
         vm.recordLogs();
         _executeThroughEntrypoint(nexusAccount, entry);
         Vm.Log[] memory entries = vm.getRecordedLogs();
         console2.log("----entries length", entries.length);
         bytes memory reason;
-        for (uint i; i < entries.length; ++i) {
+        for (uint256 i; i < entries.length; ++i) {
             Vm.Log memory logEntry = entries[i];
             bytes32 topic0 = logEntry.topics[0];
             if (topic0 == keccak256("UserOperationRevertReason(bytes32,address,uint256,bytes)")) {
-                (, reason) = abi.decode(
-                    logEntry.data,
-                    (uint256, bytes)
-                );
+                (, reason) = abi.decode(logEntry.data, (uint256, bytes));
             }
         }
         assertTrue(reason.length > 0);
 
         // Ensure fee is 0
         // Assures MaliciousHookBypassFees hook is not charging outAmount in postExecute
-        assertEq(
-            IERC4626(CHAIN_1_USDC).balanceOf(feeRecipient) -
-                feeReceiverBalanceBefore,
-            0
-        );
+        assertEq(IERC4626(CHAIN_1_USDC).balanceOf(feeRecipient) - feeReceiverBalanceBefore, 0);
     }
 
     function testOrion_multipleCrossChainTransactionsCanBeSent() public {
@@ -320,10 +297,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         testData.leaves = new bytes32[](3);
         // Leaf for source operation
         testData.leaves[0] = _createSourceValidatorLeaf(
-            IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp),
-            validUntil,
-            true,
-            address(superMerkleValidator)
+            IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, true, address(superMerkleValidator)
         );
 
         // Leaf for cross-chain USDC
@@ -415,7 +389,6 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         // This demonstrates that multiple cross-chain transactions CAN be sent in the same tx
     }
 
-
     /*//////////////////////////////////////////////////////////////
                           INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
@@ -459,8 +432,6 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         // found means multiple proofs passed validation
         assertTrue(found);
     }
-
-    
 
     struct TestData {
         address[] hooksAddresses;
@@ -644,7 +615,9 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](2);
-        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(entryPoint).getUserOpHash(userOp), validUntil, true, address(superMerkleValidator));
+        leaves[0] = _createSourceValidatorLeaf(
+            IMinimalEntryPoint(entryPoint).getUserOpHash(userOp), validUntil, true, address(superMerkleValidator)
+        );
 
         leaves[1] = _createDestinationValidatorLeaf(
             dstMessage.executorCalldata,
@@ -786,7 +759,12 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingToken, morphoVault, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), morphoVault, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
+            morphoVault,
+            amount,
+            false,
+            address(0),
+            0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -907,9 +885,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         MockMaliciousHook maliciousHook = new MockMaliciousHook(accountOwner, underlyingToken);
 
         // Step 1: Create account and install custom malicious hook
-        address nexusAccount = _createWithNexusWithMaliciousHook(
-            attesters, threshold, 1e18, address(maliciousHook)
-        );
+        address nexusAccount = _createWithNexusWithMaliciousHook(attesters, threshold, 1e18, address(maliciousHook));
 
         maliciousHook.setAccount(nexusAccount);
 
@@ -932,15 +908,20 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         hooksAddresses[2] = redeem4626Hook;
 
         bytes[] memory hooksData = new bytes[](3);
-        hooksData[0] = _createApproveHookData(underlyingToken, morphoVault, amount, false);
+        hooksData[0] = _createApproveHookData(underlyingToken, CHAIN_1_EulerVault, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), morphoVault, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
+            CHAIN_1_EulerVault,
+            amount,
+            false,
+            address(0),
+            0
         );
         hooksData[2] = _createRedeem4626HookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
-            morphoVault,
+            CHAIN_1_EulerVault,
             nexusAccount,
-            IERC4626(morphoVault).convertToShares(amount),
+            IERC4626(CHAIN_1_EulerVault).convertToShares(amount),
             false
         );
 
@@ -986,13 +967,13 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         uint256 baseNonce = _prepareNonce(nexusAccount);
 
         // First userOp: Direct call to setExecutionContext (attempting to poison)
-        testData.userOps[0] = _buildPoisoningUserOp(nexusAccount, targetHook, baseNonce, "setExecutionContext(address)", nexusAccount);
+        testData.userOps[0] =
+            _buildPoisoningUserOp(nexusAccount, targetHook, baseNonce, "setExecutionContext(address)", nexusAccount);
 
         // Second userOp: Normal SuperExecutor execution with deposit and redeem hooks
         testData.userOps[1] =
             _buildNormalExecutionUserOp(testData, nexusAccount, amount, underlyingToken, morphoVault, baseNonce + 1);
 
-   
         IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(testData.userOps, payable(nexusAccount));
 
         // Verify the normal execution worked correctly
@@ -1038,8 +1019,9 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         uint256 maliciousNonce = _prepareNonceWithValidator(maliciousAccount, address(mockValidator));
 
         // First userOp: Malicious account tries to poison hooks (attacker frontrunning)
-        testData.userOps[0] = _buildPoisoningUserOp(maliciousAccount, targetHook, maliciousNonce, "setExecutionContext(address)", nexusAccount);
-
+        testData.userOps[0] = _buildPoisoningUserOp(
+            maliciousAccount, targetHook, maliciousNonce, "setExecutionContext(address)", nexusAccount
+        );
 
         // Second userOp: Legitimate user's normal SuperExecutor execution
         testData.userOps[1] =
@@ -1089,8 +1071,9 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         uint256 maliciousNonce = _prepareNonceWithValidator(maliciousAccount, address(mockValidator));
 
         // First userOp: Malicious account tries to poison hooks (attacker frontrunning)
-        testData.userOps[0] = _buildPoisoningUserOp(maliciousAccount, targetHook, maliciousNonce, "setOutAmount(uint256,address)", nexusAccount);
-
+        testData.userOps[0] = _buildPoisoningUserOp(
+            maliciousAccount, targetHook, maliciousNonce, "setOutAmount(uint256,address)", nexusAccount
+        );
 
         // Second userOp: Legitimate user's normal SuperExecutor execution
         testData.userOps[1] =
@@ -1117,11 +1100,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     {
         // Create a single execution that calls setExecutionContext on the hook directly
         Execution[] memory executions = new Execution[](1);
-        executions[0] = Execution({
-            target: targetHook,
-            value: 0,
-            callData: _buildPoisoningCalldata(fnSig, victimAcc)
-        });
+        executions[0] = Execution({ target: targetHook, value: 0, callData: _buildPoisoningCalldata(fnSig, victimAcc) });
 
         bytes memory callData = _prepareExecutionCalldata(executions);
 
@@ -1162,9 +1141,14 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         testData.hooksData = new bytes[](2);
         testData.hooksData[0] = _createApproveHookData(underlyingToken, morphoVault, amount, false);
         testData.hooksData[1] = _createDeposit4626HookData(
-            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), morphoVault, 0, true, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
+            morphoVault,
+            0,
+            true,
+            address(0),
+            0
         );
-        
+
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: testData.hooksAddresses, hooksData: testData.hooksData });
 

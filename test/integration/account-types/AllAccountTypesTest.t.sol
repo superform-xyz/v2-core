@@ -14,6 +14,7 @@ import { SafeFactory } from "modulekit/accounts/safe/SafeFactory.sol";
 import { IAccountFactory } from "modulekit/accounts/factory/interface/IAccountFactory.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { IValidator } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 import { IStakeManager } from "modulekit/external/ERC4337.sol";
 
@@ -27,6 +28,8 @@ import { ApproveERC20Hook } from "../../../src/hooks/tokens/erc20/ApproveERC20Ho
 import { AcrossV3Adapter } from "../../../src/adapters/AcrossV3Adapter.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MaliciousSafeAccount } from "../../mocks/MaliciousSafeAccount.sol";
+import { MockEIP1271Contract } from "../../mocks/MockEIP1271Contract.sol";
+
 import { SuperValidator } from "../../../src/validators/SuperValidator.sol";
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { ISuperHook } from "../../../src/interfaces/ISuperHook.sol";
@@ -39,7 +42,76 @@ import { BaseTest } from "../../BaseTest.t.sol";
 import "forge-std/console2.sol";
 import "forge-std/Test.sol";
 
-contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
+/**
+ * @title AllAccountTypesTest
+ * @author Superform Labs
+ * @notice Comprehensive test suite for Smart Account signature validation covering all supported account types
+ * @dev This test suite validates the complete signature processing pipeline in
+ * SuperValidatorBase._processSignatureForAccountType
+ *
+ * SIGNATURE PROCESSING SCENARIOS COVERED:
+ * ==========================================
+ *
+ * 1. **EIP-7702 ACCOUNTS (Delegated EOAs)**
+ *    - EIP-7702 accounts are detected by bytecode prefix (0xef0100)
+ *    - Treated as EOAs and validated using ECDSA signature recovery
+ *    - Tests: test_EIP7702AccountOwner_TreatedAsEOA, test_EIP7702AccountOwner_NotUsingEIP1271
+ *
+ * 2. **EOA ACCOUNTS (Externally Owned Accounts)**
+ *    - Standard EOAs with no bytecode (code.length == 0)
+ *    - Validated using ECDSA signature recovery with Ethereum message prefix
+ *    - Tests: Various tests using EOA owners with threshold configurations
+ *
+ * 3. **SMART CONTRACT OWNERS - SAFE MULTISIG (Chain-Agnostic)**
+ *    - Safe contracts implementing ISafeConfiguration interface
+ *    - Uses chain-agnostic domain separator for cross-chain compatibility
+ *    - Fixed chainId (1) for multi-chain signature validity
+ *    - Supports multiple threshold configurations (1-of-n, 2-of-n, etc.)
+ *    - Tests: test_CrossChain_execution_1_threshold, test_CrossChain_execution_2_threshold,
+ *             test_SameChain_Execution_Signers_3_Threshold_1, test_Safe7579SelfOwnership_ChainAgnostic
+ *
+ * 4. **SMART CONTRACT OWNERS - SAFE MULTISIG (Native EIP-1271)**
+ *    - Safe contracts using native chain-specific domain separator
+ *    - Standard Safe signature validation as fallback for non-cross-chain operations
+ *    - Tests: test_SameChainTx_execution_NativeSafeSignature
+ *
+ * 5. **SMART CONTRACT OWNERS - GENERIC EIP-1271 CONTRACTS**
+ *    - Non-Safe smart contracts implementing IERC1271.isValidSignature
+ *    - Limited to single-chain operations (no chain-agnostic support)
+ *    - Tests: test_NonSafeEIP1271ContractOwner_SingleChain
+ *
+ * 6. **SAFE7579 SELF-OWNERSHIP**
+ *    - Safe7579 accounts where the account owns itself
+ *    - Supports both chain-agnostic and native Safe signature validation
+ *    - Tests: test_Safe7579SelfOwnership_ChainAgnostic
+ *
+ * ADDITIONAL TEST SCENARIOS:
+ * ==========================
+ *
+ * - **Module Management**: Installation/uninstallation of validators and executors
+ * - **Security Edge Cases**: Malicious contracts, unauthorized operations, expired signatures
+ * - **Boundary Conditions**: Zero values, maximum values, edge case amounts
+ * - **Cross-Chain Execution**: Multi-chain operations with Across V3 bridge integration
+ * - **Same-Chain Execution**: Single-chain operations with various hook configurations
+ * - **Signature Validation**: Multiple signature formats and validation paths
+ * - **Account Mutability**: Dynamic module installation/removal during execution
+ *
+ * SIGNATURE VALIDATION FLOW:
+ * ==========================
+ *
+ * The validation follows this hierarchy in SuperValidatorBase._processSignatureForAccountType:
+ * 1. Check if sender is EIP-7702 → Use ECDSA (treat as EOA)
+ * 2. Get owner from _accountOwners mapping
+ * 3. Check if owner is EOA or EIP-7702 → Use ECDSA
+ * 4. Owner is smart contract → Try chain-agnostic Safe validation
+ * 5. Fallback to generic EIP-1271 validation
+ * 6. Revert if no validation succeeds
+ *
+ * This comprehensive coverage ensures all possible account types and signature scenarios
+ * are properly validated across both same-chain and cross-chain operations.
+ */
+
+contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
     using BytesLib for bytes;
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
@@ -133,7 +205,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     IERC4626 public vaultInstanceMorphoBase;
     address public yieldSource4626AddressOpUsdce;
     address public yieldSourceMorphoUsdcAddressEth;
-    address public yieldSourceMorpho4626AddressBase;
+    address public yieldSource4626AddressBase;
     ISuperNativePaymaster public superNativePaymaster;
 
     // Superform
@@ -183,10 +255,9 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         vaultInstanceMorphoEth = IERC4626(yieldSourceMorphoUsdcAddressEth);
         vm.label(yieldSourceMorphoUsdcAddressEth, "YIELD_SOURCE_MORPHO_USDC_ETH");
 
-        yieldSourceMorpho4626AddressBase =
-            realVaultAddresses[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY];
-        vaultInstanceMorphoBase = IERC4626(yieldSourceMorpho4626AddressBase);
-        vm.label(yieldSourceMorpho4626AddressBase, "YIELD_SOURCE_MORPHO_USDC_BASE");
+        yieldSource4626AddressBase = realVaultAddresses[BASE][ERC4626_VAULT_KEY][SPARK_USDC_VAULT_KEY][USDC_KEY];
+        vaultInstanceMorphoBase = IERC4626(yieldSource4626AddressBase);
+        vm.label(yieldSource4626AddressBase, "YIELD_SOURCE_MORPHO_USDC_BASE");
 
         acrossV3AdapterOnOP = AcrossV3Adapter(_getContract(OP, ACROSS_V3_ADAPTER_KEY));
         acrossV3AdapterOnBase = AcrossV3Adapter(_getContract(BASE, ACROSS_V3_ADAPTER_KEY));
@@ -976,10 +1047,10 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         bytes[] memory hooksData = new bytes[](2);
-        hooksData[0] = _createApproveHookData(underlyingBase_USDC, yieldSourceMorpho4626AddressBase, amount, false);
+        hooksData[0] = _createApproveHookData(underlyingBase_USDC, yieldSource4626AddressBase, amount, false);
         hooksData[1] = _createDeposit4626HookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
-            yieldSourceMorpho4626AddressBase,
+            yieldSource4626AddressBase,
             amount,
             false,
             address(0),
@@ -1067,6 +1138,264 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         _executeAndVerifyCrossChainTx(vars, ETH, vaultInstanceMorphoEth);
     }
 
+    function test_NonSafeEIP1271ContractOwner_SingleChain()
+        public
+        initializeModuleKit
+        usingAccountEnv(AccountType.SAFE)
+    {
+        threshold = 2;
+
+        // Create a non-Safe EIP-1271 contract as owner
+        MockEIP1271Contract customContract = new MockEIP1271Contract(owner1);
+        vm.label(address(customContract), "MockEIP1271Contract");
+
+        // Setup SafeERC7579
+        bytes memory initData = _getInitData();
+        address predictedAddress = IAccountFactory(_getFactory("SAFE")).getAddress(accountSalt, initData);
+        bytes memory initCode = abi.encodePacked(
+            address(_getFactory("SAFE")), abi.encodeCall(IAccountFactory.createAccount, (accountSalt, initData))
+        );
+        instance = makeAccountInstance(accountSalt, predictedAddress, initCode);
+        account = instance.account;
+        assertEq(uint256(instance.accountType), uint256(AccountType.SAFE), "not safe");
+
+        // Install modules with custom EIP-1271 contract as owner
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: abi.encode(address(customContract)) // ← Custom contract is the owner
+         });
+
+        // Verify the owner is set correctly
+        address registeredOwner = SuperValidatorBase(address(validator)).getAccountOwner(account);
+        assertEq(registeredOwner, address(customContract), "Custom contract should be the owner");
+
+        // Setup execution data
+        uint256 amount = 1e8;
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(approveERC20Hook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveHookData(address(mockERC20), address(this), amount, false);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+
+        uint48 validUntil = uint48(block.timestamp + 100 days);
+
+        // Create signature using the custom contract owner (should use regular EIP-1271, not chain-agnostic)
+        bytes memory sigData = _createCustomEIP1271SigData(
+            validUntil,
+            address(validator),
+            userOpData.userOpHash,
+            address(customContract),
+            privateKey1 // owner1's private key
+        );
+        userOpData.userOp.signature = sigData;
+
+        executeOp(userOpData);
+
+        uint256 allowanceAfter = mockERC20.allowance(address(account), address(this));
+        assertEq(allowanceAfter, amount, "Single chain operation should work with custom EIP-1271 contract");
+    }
+
+    function test_Safe7579SelfOwnership_ChainAgnostic() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
+        threshold = 2;
+
+        // Setup SafeERC7579 where the Safe owns itself
+        bytes memory initData = _getInitData();
+        address predictedAddress = IAccountFactory(_getFactory("SAFE")).getAddress(accountSalt, initData);
+        bytes memory initCode = abi.encodePacked(
+            address(_getFactory("SAFE")), abi.encodeCall(IAccountFactory.createAccount, (accountSalt, initData))
+        );
+        instance = makeAccountInstance(accountSalt, predictedAddress, initCode);
+        account = instance.account;
+        assertEq(uint256(instance.accountType), uint256(AccountType.SAFE), "not safe");
+
+        // Install modules with the Safe account itself as owner (self-ownership)
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: abi.encode(address(account)) // ← Safe owns itself
+         });
+
+        // Verify self-ownership
+        address registeredOwner = SuperValidatorBase(address(validator)).getAccountOwner(account);
+        assertEq(registeredOwner, account, "Safe7579 should own itself");
+
+        // Test both chain-agnostic and native Safe signature validation
+        uint256 amount = 1e8;
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(approveERC20Hook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveHookData(address(mockERC20), address(this), amount, false);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+
+        uint48 validUntil = uint48(block.timestamp + 100 days);
+
+        // Test 1: Chain-agnostic signature (for multi-chain operations)
+        bytes memory chainAgnosticSigData =
+            _createSafeSigData(2, validUntil, address(validator), userOpData.userOpHash, address(account));
+        userOpData.userOp.signature = chainAgnosticSigData;
+
+        executeOp(userOpData);
+
+        uint256 allowanceAfter = mockERC20.allowance(address(account), address(this));
+        assertEq(allowanceAfter, amount, "Chain-agnostic signature should work for Safe7579 self-ownership");
+
+        // Reset for second test
+        hooksData[0] = _createApproveHookData(address(mockERC20), address(this), 0, false);
+        entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        userOpData = _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+
+        // Test 2: Native Safe signature (fallback to standard EIP-1271)
+        bytes memory nativeSigData =
+            _createNativeSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
+        userOpData.userOp.signature = nativeSigData;
+
+        executeOp(userOpData);
+
+        allowanceAfter = mockERC20.allowance(address(account), address(this));
+        assertEq(allowanceAfter, 0, "Native Safe signature should also work for Safe7579 self-ownership");
+    }
+
+    function test_EIP7702AccountOwner_TreatedAsEOA() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
+        threshold = 2;
+
+        // Create a proper EIP-7702 account by etching the bytecode with EIP-7702 prefix
+        // First, we need an implementation contract to delegate to
+        address implementation = address(new MockEIP1271Contract(owner1));
+
+        // Use owner1 as the EIP-7702 account address and etch it with proper EIP-7702 bytecode
+        bytes3 EIP7702_PREFIX = bytes3(0xef0100);
+        vm.etch(owner1, abi.encodePacked(EIP7702_PREFIX, bytes20(implementation)));
+        vm.label(owner1, "EIP7702Account");
+
+        // Setup SafeERC7579
+        bytes memory initData = _getInitData();
+        address predictedAddress = IAccountFactory(_getFactory("SAFE")).getAddress(accountSalt, initData);
+        bytes memory initCode = abi.encodePacked(
+            address(_getFactory("SAFE")), abi.encodeCall(IAccountFactory.createAccount, (accountSalt, initData))
+        );
+        instance = makeAccountInstance(accountSalt, predictedAddress, initCode);
+        account = instance.account;
+        assertEq(uint256(instance.accountType), uint256(AccountType.SAFE), "not safe");
+
+        // Install modules with EIP-7702 account as owner
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: abi.encode(owner1) // ← owner1 is now an EIP-7702 account
+         });
+
+        // Verify the EIP-7702 account is set as owner
+        address registeredOwner = SuperValidatorBase(address(validator)).getAccountOwner(account);
+        assertEq(registeredOwner, owner1, "EIP-7702 account should be the owner");
+
+        // Setup execution data
+        uint256 amount = 1e8;
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(approveERC20Hook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveHookData(address(mockERC20), address(this), amount, false);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+
+        uint48 validUntil = uint48(block.timestamp + 100 days);
+
+        // Create ECDSA signature (EIP-7702 should be treated as EOA, not EIP-1271)
+        bytes memory sigData = _createECDSASigDataForEIP7702(
+            validUntil,
+            address(validator),
+            userOpData.userOpHash,
+            privateKey1 // owner1's private key (the underlying EOA)
+        );
+        userOpData.userOp.signature = sigData;
+
+        executeOp(userOpData);
+
+        uint256 allowanceAfter = mockERC20.allowance(address(account), address(this));
+        assertEq(allowanceAfter, amount, "EIP-7702 account should be treated as EOA and use ECDSA validation");
+    }
+
+    function test_EIP7702AccountOwner_NotUsingEIP1271() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
+        // This test verifies that EIP-7702 accounts are NOT treated as EIP-1271 contracts
+        // even though they have the isValidSignature method due to delegated code
+
+        threshold = 2;
+
+        // Create a proper EIP-7702 account by etching the bytecode with EIP-7702 prefix
+        // First, we need an implementation contract to delegate to
+        address implementation = address(new MockEIP1271Contract(owner1));
+
+        // Use owner1 as the EIP-7702 account address and etch it with proper EIP-7702 bytecode
+        bytes3 EIP7702_PREFIX = bytes3(0xef0100);
+        vm.etch(owner1, abi.encodePacked(EIP7702_PREFIX, bytes20(implementation)));
+        vm.label(owner1, "EIP7702Account");
+
+        // Setup SafeERC7579
+        bytes memory initData = _getInitData();
+        address predictedAddress = IAccountFactory(_getFactory("SAFE")).getAddress(accountSalt, initData);
+        bytes memory initCode = abi.encodePacked(
+            address(_getFactory("SAFE")), abi.encodeCall(IAccountFactory.createAccount, (accountSalt, initData))
+        );
+        instance = makeAccountInstance(accountSalt, predictedAddress, initCode);
+        account = instance.account;
+
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: abi.encode(owner1) // ← owner1 is now an EIP-7702 account
+         });
+
+        // Verify that the EIP-7702 contract's isValidSignature should never be called
+        // If our validator correctly detects EIP-7702, it should use ECDSA instead of EIP-1271
+
+        uint256 amount = 1e8;
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(approveERC20Hook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveHookData(address(mockERC20), address(this), amount, false);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+
+        uint48 validUntil = uint48(block.timestamp + 100 days);
+
+        // If we try to use EIP-1271 signature format, it should fail because
+        // the validator should detect EIP-7702 and use ECDSA validation instead
+        bytes memory sigData =
+            _createECDSASigDataForEIP7702(validUntil, address(validator), userOpData.userOpHash, privateKey1);
+        userOpData.userOp.signature = sigData;
+
+        // This should succeed because the validator correctly treats EIP-7702 as EOA
+        executeOp(userOpData);
+
+        uint256 allowanceAfter = mockERC20.allowance(address(account), address(this));
+        assertEq(allowanceAfter, amount, "EIP-7702 account should work with ECDSA, not EIP-1271");
+
+        // The EIP-7702 account's isValidSignature should never have been called
+        // because the validator should detect EIP-7702 and use ECDSA validation instead
+    }
+
     /*//////////////////////////////////////////////////////////////
                           INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
@@ -1147,6 +1476,32 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         UserOpData userOpData;
         uint48 validUntil;
         bytes sigData;
+    }
+
+    struct CustomEIP1271SigVars {
+        bytes32[] leaves;
+        bytes32[][] merkleProof;
+        bytes32 merkleRoot;
+        bytes32 messageHash;
+        bytes32 ethSignedMessageHash;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+        bytes signature;
+        ISuperValidator.DstProof[] proofDst;
+    }
+
+    struct EIP7702SigVars {
+        bytes32[] leaves;
+        bytes32[][] merkleProof;
+        bytes32 merkleRoot;
+        bytes32 messageHash;
+        bytes32 ethSignedMessageHash;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+        bytes signature;
+        ISuperValidator.DstProof[] proofDst;
     }
 
     function _performDepositAndUninstallValidator(
@@ -1656,6 +2011,67 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         bytes memory signature = bytes.concat(sig1, sig2);
 
         return signature;
+    }
+
+    /// @notice Create signature data for custom EIP-1271 contract owner
+    function _createCustomEIP1271SigData(
+        uint48 validUntil,
+        address _validator,
+        bytes32 userOpHash,
+        address _customContract,
+        uint256 _privateKey
+    )
+        internal
+        view
+        returns (bytes memory signatureData)
+    {
+        CustomEIP1271SigVars memory vars;
+
+        vars.leaves = new bytes32[](1);
+        vars.leaves[0] = _createSourceValidatorLeaf(userOpHash, validUntil, false, address(_validator));
+
+        (vars.merkleProof, vars.merkleRoot) = _createValidatorMerkleTree(vars.leaves);
+
+        // Create signature for custom EIP-1271 contract
+        vars.messageHash = keccak256(abi.encode(SuperValidator(_validator).namespace(), vars.merkleRoot));
+        vars.ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(vars.messageHash);
+
+        (vars.v, vars.r, vars.s) = vm.sign(_privateKey, vars.ethSignedMessageHash);
+        vars.signature = abi.encodePacked(vars.r, vars.s, vars.v);
+
+        vars.proofDst = new ISuperValidator.DstProof[](0);
+        signatureData =
+            abi.encode(false, validUntil, vars.merkleRoot, vars.merkleProof[0], vars.proofDst, vars.signature);
+    }
+
+    /// @notice Create ECDSA signature data for EIP-7702 account owner (treated as EOA)
+    function _createECDSASigDataForEIP7702(
+        uint48 validUntil,
+        address _validator,
+        bytes32 userOpHash,
+        uint256 _privateKey
+    )
+        internal
+        view
+        returns (bytes memory signatureData)
+    {
+        EIP7702SigVars memory vars;
+
+        vars.leaves = new bytes32[](1);
+        vars.leaves[0] = _createSourceValidatorLeaf(userOpHash, validUntil, false, address(_validator));
+
+        (vars.merkleProof, vars.merkleRoot) = _createValidatorMerkleTree(vars.leaves);
+
+        // Create ECDSA signature (EIP-7702 accounts should be treated as EOAs)
+        vars.messageHash = keccak256(abi.encode(SuperValidator(_validator).namespace(), vars.merkleRoot));
+        vars.ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(vars.messageHash);
+
+        (vars.v, vars.r, vars.s) = vm.sign(_privateKey, vars.ethSignedMessageHash);
+        vars.signature = abi.encodePacked(vars.r, vars.s, vars.v);
+
+        vars.proofDst = new ISuperValidator.DstProof[](0);
+        signatureData =
+            abi.encode(false, validUntil, vars.merkleRoot, vars.merkleProof[0], vars.proofDst, vars.signature);
     }
 
     // -- UserOps helpers

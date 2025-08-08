@@ -15,7 +15,8 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    bytes4 constant VALID_SIGNATURE = bytes4(0x5c2ec0f3);
+    /// @dev bytes4(keccak256("isValidDestinationSignature(address,bytes)")) = 0x5c2ec0f3
+    bytes4 constant DESTINATION_SIGNATURE_MAGIC_VALUE = bytes4(0x5c2ec0f3);
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
@@ -49,11 +50,11 @@ contract SuperDestinationValidator is SuperValidatorBase {
         (SignatureData memory sigData, DestinationData memory destinationData) =
             _decodeSignatureAndDestinationData(data, sender);
         // Process signature
-        (address signer,) = _processSignatureAndVerifyLeaf(sender, sigData, destinationData);
+        (address signer,) = _createLeafAndVerifyProofAndSignature(sender, sigData, destinationData);
 
         // Validate
         bool isValid = _isSignatureValid(signer, sender, sigData.validUntil);
-        return isValid ? VALID_SIGNATURE : bytes4("");
+        return isValid ? DESTINATION_SIGNATURE_MAGIC_VALUE : bytes4("");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -76,15 +77,15 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Processes a signature and verifies it against a merkle proof
-    /// @dev Verifies that the leaf is part of the merkle tree specified by the root
-    ///      and recovers the signer's address from the signature
+    /// @notice Creates leaf and verifies destination proof and signature
+    /// @dev Verifies destination data is part of the merkle tree using extracted proof for current chain
+    ///      and processes signature for any account type (EOA, EIP-1271, EIP-7702)
     /// @param sender The sender address to validate the signature against
     /// @param sigData Signature data including merkle root, proofs, and actual signature
     /// @param destinationData The destination execution data to create the leaf hash from
     /// @return signer The address that signed the message
     /// @return leaf The computed leaf hash used in merkle verification
-    function _processSignatureAndVerifyLeaf(
+    function _createLeafAndVerifyProofAndSignature(
         address sender,
         SignatureData memory sigData,
         DestinationData memory destinationData
@@ -93,23 +94,12 @@ contract SuperDestinationValidator is SuperValidatorBase {
         view
         returns (address signer, bytes32 leaf)
     {
-        // Create leaf from destination data and verify against merkle root using the proof
+        // Create leaf from destination data and verify against merkle root using extracted proof for current chain
         leaf = _createLeaf(abi.encode(destinationData), sigData.validUntil, false);
         if (!MerkleProof.verify(_extractProof(sigData), sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
-        // For EIP-7702 accounts, the signer is the account itself (EOA with delegated code)
-        if (_is7702Account(sender.code)) {
-            signer = _processECDSASignature(sigData);
-        } else {
-            address owner = _accountOwners[sender];
-
-            // Support any EIP-1271 compatible smart contract, not just Safe multisigs
-            if (_isEIP1271Signer(owner)) {
-                signer = _processEIP1271Signature(owner, sigData);
-            } else {
-                signer = _processECDSASignature(sigData);
-            }
-        }
+        // Process signature using common method
+        signer = _processSignatureForAccountType(sender, sigData);
     }
 
     /// @notice Extracts the proof for the current chain from the signature data
@@ -123,6 +113,23 @@ contract SuperDestinationValidator is SuperValidatorBase {
             if (sigData.proofDst[i].dstChainId == block.chainid) return sigData.proofDst[i].proof;
         }
         revert PROOF_NOT_FOUND();
+    }
+
+    /// @notice Decodes signature and destination data from raw bytes
+    /// @dev Decodes the signature data and destination data from the raw bytes
+    /// @param data Raw bytes containing signature and destination data
+    /// @param sender The sender address to validate against
+    /// @return The decoded signature data and destination data
+    function _decodeSignatureAndDestinationData(
+        bytes memory data,
+        address sender
+    )
+        private
+        view
+        returns (SignatureData memory, DestinationData memory)
+    {
+        (bytes memory sigDataRaw, bytes memory destinationDataRaw) = abi.decode(data, (bytes, bytes));
+        return (_decodeSignatureData(sigDataRaw), _decodeDestinationData(destinationDataRaw, sender));
     }
 
     /// @notice Decodes and validates raw destination data
@@ -151,17 +158,5 @@ contract SuperDestinationValidator is SuperValidatorBase {
 
         if (chainId != block.chainid) revert INVALID_CHAIN_ID();
         return DestinationData(callData, chainId, decodedSender, executor, dstTokens, intentAmounts);
-    }
-
-    function _decodeSignatureAndDestinationData(
-        bytes memory data,
-        address sender
-    )
-        private
-        view
-        returns (SignatureData memory, DestinationData memory)
-    {
-        (bytes memory sigDataRaw, bytes memory destinationDataRaw) = abi.decode(data, (bytes, bytes));
-        return (_decodeSignatureData(sigDataRaw), _decodeDestinationData(destinationDataRaw, sender));
     }
 }
