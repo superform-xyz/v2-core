@@ -26,11 +26,13 @@ ftest-vvv :; forge test -v --jobs 2
 
 ftest-ci :; forge test -v --jobs 2
 
-coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --report lcov
+coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
-coverage-genhtml :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage --ignore-errors inconsistent,corrupt --exclude 'src/vendor/*' --exclude 'test/*'
+coverage-genhtml :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage --ignore-errors inconsistent,corrupt --exclude 'src/hooks/claim/gearbox/*' --exclude 'src/hooks/claim/yearn/*' --exclude 'src/hooks/claim/fluid/*' --exclude 'src/hooks/loan/morpho/*' --exclude 'src/hooks/stake/*' --exclude 'src/hooks/swappers/spectra/*' --exclude 'src/hooks/swappers/pendle/*' --exclude 'src/hooks/vaults/super-vault/*' --exclude 'src/hooks/vaults/vault-bank/*' --exclude 'src/vendor/*' --exclude 'test/*'
 
-test-vvv :; forge test --match-test test_CrossChain_execution_1_threshold -vvvv --jobs 10
+coverage-genhtml-fullsrc :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage --ignore-errors inconsistent,corrupt --exclude 'src/vendor/*' --exclude 'test/*'
+
+test-vvv :; forge test --match-test testOrion_maliciousRelayersDoSCrosschainExecution -vvvv --jobs 10
 
 test-integration :; forge test --match-test test_CrossChain_execution -vvvv --jobs 10
 

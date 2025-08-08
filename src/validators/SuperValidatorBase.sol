@@ -31,6 +31,10 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     /// @notice Prefix for 7702 authority -> https://eip7702.io/
     bytes3 internal constant EIP7702_PREFIX = bytes3(0xef0100);
 
+    /// @notice Magic value returned when a signature is valid according to EIP-1271
+    /// @dev The value 0x1626ba7e is specified by the EIP-1271 standard
+    bytes4 internal constant EIP1271_MAGIC_VALUE = bytes4(0x1626ba7e);
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -143,13 +147,49 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         return SignatureData(validateDstProof, validUntil, merkleRoot, proofSrc, proofDst, signature);
     }
 
-    /// @notice Creates a message hash from a merkle root for signature verification
-    /// @dev In the base implementation, the message hash is simply the merkle root itself
-    ///      Derived contracts might implement more complex hashing if needed
-    /// @param merkleRoot The merkle root to use for message hash creation
-    /// @return The hash that was signed by the account owner
-    function _createMessageHash(bytes32 merkleRoot) internal pure returns (bytes32) {
-        return keccak256(abi.encode(namespace(), merkleRoot));
+    /// @notice Processes signature for any account type after merkle proof verification
+    /// @dev Common method that handles signature processing for EOA, EIP-1271 smart contracts, and EIP-7702 accounts
+    ///      This method assumes merkle proof has already been verified by the caller
+    /// @param sender The account address being operated on
+    /// @param sigData Signature data including merkle root, proofs, and actual signature
+    /// @return signer The address that signed the message
+    function _processSignatureForAccountType(
+        address sender,
+        SignatureData memory sigData
+    )
+        internal
+        view
+        returns (address signer)
+    {
+        /// @dev For EIP-7702 accounts, the signer is the account itself (EOA with delegated code)
+        if (_is7702Account(sender.code)) {
+            signer = _processECDSASignature(sigData);
+        } else {
+            address owner = _accountOwners[sender];
+
+            /// @dev Check if owner is an EOA (no code) or owner is EIP-7702 (delegated EOA) - should be treated as EOA
+            if (owner.code.length == 0 || _is7702Account(owner.code)) {
+                return _processECDSASignature(sigData);
+            }
+
+            bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
+
+            /// @dev At this point, we know owner is a smart contract (not EOA, not EIP-7702)
+            /// Only two options left: Safe or EIP-1271-compatible contract
+            /// @dev First tries Safe-specific chain-agnostic validation, then falls back to generic EIP-1271
+            if (owner.validateChainAgnosticMultisig(sigData, messageHash)) {
+                return owner;
+            }
+
+            // Generic EIP-1271 validation (works for ALL EIP-1271 contracts including Safe fallback)
+            try IERC1271(owner).isValidSignature(messageHash, sigData.signature) returns (bytes4 result) {
+                if (result == EIP1271_MAGIC_VALUE) {
+                    return owner;
+                }
+            } catch { }
+
+            revert NOT_EIP1271_SIGNER();
+        }
     }
 
     /// @notice Processes an EOA signature and returns the signer
@@ -160,6 +200,15 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
 
         signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
+    }
+
+    /// @notice Creates a message hash from a merkle root for signature verification
+    /// @dev In the base implementation, the message hash is simply the merkle root itself
+    ///      Derived contracts might implement more complex hashing if needed
+    /// @param merkleRoot The merkle root to use for message hash creation
+    /// @return The hash that was signed by the account owner
+    function _createMessageHash(bytes32 merkleRoot) internal pure returns (bytes32) {
+        return keccak256(abi.encode(namespace(), merkleRoot));
     }
 
     /// @notice Processes an EIP-1271 contract signature with chain-agnostic validation
@@ -175,15 +224,16 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         view
         returns (address)
     {
+        bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
+
         // For Safe contracts: Try chain-agnostic validation first (cross-chain compatibility)
-        if (contractSigner.validateChainAgnosticMultisig(sigData, _createMessageHash(sigData.merkleRoot))) {
+        if (contractSigner.validateChainAgnosticMultisig(sigData, messageHash)) {
             return contractSigner;
         }
 
         // Generic EIP-1271 validation (works for ALL EIP-1271 contracts including Safe fallback)
-        bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
         try IERC1271(contractSigner).isValidSignature(messageHash, sigData.signature) returns (bytes4 result) {
-            if (result == IERC1271.isValidSignature.selector) {
+            if (result == EIP1271_MAGIC_VALUE) {
                 return contractSigner;
             }
         } catch { }
@@ -215,28 +265,6 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
             return signer == sender && isValid;
         }
         return signer == _accountOwners[sender] && isValid;
-    }
-
-    /// @notice Checks if an address supports EIP-1271 signature validation
-    /// @param addr The address to check
-    /// @return True if the address supports EIP-1271, false otherwise
-    function _isEIP1271Signer(address addr) internal view returns (bool) {
-        if (addr.code.length == 0) return false; // EOA
-
-        // Try calling isValidSignature with properly formatted dummy data
-        // Safe7579 expects: [20 bytes validator address][signature data]
-        // Use address(0) as validator (falls back to Safe's checkSignatures) + 1 byte signature
-        bytes memory testSignature = abi.encodePacked(address(0), hex"00");
-        bytes memory callData = abi.encodeWithSelector(IERC1271.isValidSignature.selector, bytes32(0), testSignature);
-
-        /// @dev note to auditors: check if this call can be grieved (but would rug the user)
-        (bool success, bytes memory returnData) = addr.staticcall(callData);
-
-        // Function exists if:
-        // 1. Call succeeds (function exists and validation passed)
-        // 2. Call fails but returns data (function exists but validation failed)
-        // 3. Call fails with no data = function doesn't exist
-        return success || returnData.length > 0;
     }
 
     /// @notice Checks if an address is a 7702 signer
