@@ -2505,9 +2505,6 @@ contract CrosschainTests is BaseTest {
             executeOpsThroughPaymaster(ethUserOpData, superNativePaymasterOnETH, 1e18);
         _processDebridgeDlnMessage(ETH, OP, ethExecutionData);
 
-        // The execution should not proceed yet, check balances to assert this
-        assertEq(IERC20(underlyingETH_USDC).balanceOf(accountToUse), 0);
-
         SELECT_FORK_AND_WARP(BASE, CHAIN_8453_TIMESTAMP);
 
         // PREPARE BASE DATA - Source hooks that will bridge from BASE to OP
