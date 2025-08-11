@@ -127,11 +127,8 @@ contract CircleGatewayMinterHook is BaseHook {
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        // Extract usdc address from attestation payload
-        address usdc = _extractTokenFromAttestation(data);
-
         // Get final balance after minting
-        uint256 finalBalance = IERC20(usdc).balanceOf(account);
+        uint256 finalBalance = IERC20(asset).balanceOf(account);
 
         // Calculate the difference (minted amount)
         uint256 initialBalance = getOutAmount(account);
