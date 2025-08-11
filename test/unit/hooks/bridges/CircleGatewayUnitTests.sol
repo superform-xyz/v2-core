@@ -308,6 +308,130 @@ contract CircleGatewayUnitTests is BaseTest {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    _validateDestinationCaller TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_ValidateDestinationCaller_ValidCaller() public view {
+        // Test with valid destination caller that matches the account
+        bytes memory hookData = _createValidAttestationDataWithCaller(address(mockToken), ACCOUNT);
+
+        // This should not revert when the destination caller matches the account
+        minterHook.build(address(0), ACCOUNT, hookData);
+    }
+
+    function test_ValidateDestinationCaller_InvalidCaller() public {
+        // Test with invalid destination caller that doesn't match the account
+        address differentAccount = address(0x456);
+        bytes memory hookData = _createValidAttestationDataWithCaller(address(mockToken), differentAccount);
+
+        // This should revert when the destination caller doesn't match the account
+        vm.expectRevert(abi.encodeWithSignature("INVALID_DESTINATION_CALLER()"));
+        minterHook.build(address(0), ACCOUNT, hookData);
+    }
+
+    function test_ValidateDestinationCaller_ZeroAddressCaller() public {
+        // Test with zero address destination caller
+        bytes memory hookData = _createValidAttestationDataWithCaller(address(mockToken), address(0));
+
+        // This should revert when the destination caller is zero address but account is not
+        vm.expectRevert(abi.encodeWithSignature("INVALID_DESTINATION_CALLER()"));
+        minterHook.build(address(0), ACCOUNT, hookData);
+    }
+
+    function test_ValidateDestinationCaller_ZeroAddressAccount() public {
+        // Test with zero address account but non-zero destination caller
+        address differentAccount = address(0x456);
+        bytes memory hookData = _createValidAttestationDataWithCaller(address(mockToken), differentAccount);
+
+        // This should revert when the account is zero address but destination caller is not
+        vm.expectRevert(abi.encodeWithSignature("INVALID_DESTINATION_CALLER()"));
+        minterHook.build(address(0), address(0), hookData);
+    }
+
+    function test_ValidateDestinationCaller_BothZeroAddress() public view {
+        // Test with both zero address destination caller and account
+        bytes memory hookData = _createValidAttestationDataWithCaller(address(mockToken), address(0));
+
+        // This should not revert when both are zero address
+        minterHook.build(address(0), address(0), hookData);
+    }
+
+    function test_ValidateDestinationCaller_DifferentValidAddresses() public {
+        // Test with two different valid addresses
+        address caller1 = address(0x111);
+        address caller2 = address(0x222);
+        bytes memory hookData = _createValidAttestationDataWithCaller(address(mockToken), caller1);
+
+        // This should revert when the destination caller doesn't match the account
+        vm.expectRevert(abi.encodeWithSignature("INVALID_DESTINATION_CALLER()"));
+        minterHook.build(address(0), caller2, hookData);
+    }
+
+    function test_ValidateDestinationCaller_IntegrationWithBuild() public view {
+        // Test that _validateDestinationCaller is properly integrated with the build function
+        bytes memory hookData = _createValidAttestationDataWithCaller(address(mockToken), ACCOUNT);
+
+        // Build should succeed when destination caller matches account
+        Execution[] memory executions = minterHook.build(address(0), ACCOUNT, hookData);
+        assertEq(executions.length, 3, "Should have 3 executions");
+    }
+
+    function test_ValidateDestinationCaller_IntegrationWithPreExecute() public {
+        // Test that _validateDestinationCaller is called during preExecute
+        bytes memory hookData = _createValidAttestationDataWithCaller(address(mockToken), ACCOUNT);
+
+        // Set up execution context
+        minterHook.setExecutionContext(ACCOUNT);
+
+        // preExecute should succeed when destination caller matches account
+        vm.prank(ACCOUNT);
+        minterHook.preExecute(address(0), ACCOUNT, hookData);
+
+        // Verify the asset was set correctly
+        assertEq(minterHook.asset(), address(mockToken), "Should set asset to token address");
+    }
+
+    function test_ValidateDestinationCaller_IntegrationWithPostExecute() public {
+        // Test that _validateDestinationCaller is called during postExecute
+        bytes memory hookData = _createValidAttestationDataWithCaller(address(mockToken), ACCOUNT);
+
+        // Set up execution context
+        minterHook.setExecutionContext(ACCOUNT);
+
+        // Call preExecute first to set up initial state
+        vm.prank(ACCOUNT);
+        minterHook.preExecute(address(0), ACCOUNT, hookData);
+
+        // postExecute should succeed when destination caller matches account
+        vm.prank(ACCOUNT);
+        minterHook.postExecute(address(0), ACCOUNT, hookData);
+
+        // Verify the outAmount was set
+        assertEq(minterHook.getOutAmount(ACCOUNT), 0, "Should set outAmount to 0 (no minting occurred)");
+    }
+
+    function test_ValidateDestinationCaller_FuzzTest(uint160 callerAddress, uint160 accountAddress) public view {
+        // Fuzz test with different address combinations
+        // Bound addresses to reasonable ranges to avoid edge cases
+        callerAddress = bound(callerAddress, 1, type(uint160).max - 1);
+        accountAddress = bound(accountAddress, 1, type(uint160).max - 1);
+
+        address caller = address(callerAddress);
+        address account = address(accountAddress);
+
+        bytes memory hookData = _createValidAttestationDataWithCaller(address(mockToken), caller);
+
+        if (caller == account) {
+            // Should succeed when addresses match
+            minterHook.build(address(0), account, hookData);
+        } else {
+            // Should revert when addresses don't match
+            vm.expectRevert(abi.encodeWithSignature("INVALID_DESTINATION_CALLER()"));
+            minterHook.build(address(0), account, hookData);
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             EDGE CASE TESTS
     //////////////////////////////////////////////////////////////*/
 
@@ -1018,6 +1142,104 @@ contract CircleGatewayUnitTests is BaseTest {
         uint32 transferSpecLength = uint32(transferSpec.length);
 
         attestationPayload = abi.encodePacked(attestationMagic, maxBlockHeight, transferSpecLength, transferSpec);
+    }
+
+    /// @notice Create a mock TransferSpec with a specific destination caller for testing
+    /// @param tokenAddress The token address to include in the attestation
+    /// @param destinationCaller The destination caller to include in the transfer spec
+    /// @return transferSpec The encoded TransferSpec
+    function _createMockTransferSpecWithCaller(
+        address tokenAddress,
+        address destinationCaller
+    )
+        internal
+        pure
+        returns (bytes memory transferSpec)
+    {
+        // Create the TransferSpec header (first part)
+        bytes memory header = _encodeTransferSpecHeader(
+            TRANSFER_SPEC_VERSION,
+            TRANSFER_SPEC_SOURCE_DOMAIN,
+            TRANSFER_SPEC_DESTINATION_DOMAIN,
+            bytes32(uint256(uint160(address(0x123)))), // sourceContract
+            bytes32(uint256(uint160(address(0x456)))), // destinationContract
+            bytes32(uint256(uint160(address(0x789)))), // sourceToken
+            bytes32(uint256(uint160(tokenAddress))), // destinationToken
+            bytes32(uint256(uint160(address(0xdef)))) // sourceDepositor
+        );
+
+        // Create the TransferSpec footer (second part) with the specified destination caller
+        bytes memory footer = _encodeTransferSpecFooter(
+            bytes32(uint256(uint160(address(0x123)))), // destinationRecipient
+            bytes32(uint256(uint160(address(0xdef)))), // sourceSigner
+            bytes32(uint256(uint160(destinationCaller))), // destinationCaller - use the specified caller
+            1000e6, // value
+            keccak256("test-salt"), // salt
+            "" // hookData
+        );
+
+        // Combine header and footer
+        transferSpec = bytes.concat(header, footer);
+    }
+
+    /// @notice Create a mock attestation payload for testing with a specific destination caller
+    /// @param tokenAddress The token address to include in the attestation
+    /// @param destinationCaller The destination caller to include in the attestation
+    /// @return attestationPayload The encoded attestation payload
+    function _createMockAttestationPayloadWithCaller(
+        address tokenAddress,
+        address destinationCaller
+    )
+        internal
+        view
+        returns (bytes memory attestationPayload)
+    {
+        // Create the TransferSpec with the specified destination caller
+        bytes memory transferSpec = _createMockTransferSpecWithCaller(tokenAddress, destinationCaller);
+
+        // Create the attestation structure manually:
+        // - magic (4 bytes): 0xff6fb334
+        // - maxBlockHeight (32 bytes): uint256
+        // - transferSpecLength (4 bytes): uint32
+        // - transferSpec (variable bytes)
+
+        bytes4 attestationMagic = 0xff6fb334; // ATTESTATION_MAGIC
+        uint256 maxBlockHeight = block.number + 1000; // Valid for 1000 blocks
+        uint32 transferSpecLength = uint32(transferSpec.length);
+
+        attestationPayload = abi.encodePacked(attestationMagic, maxBlockHeight, transferSpecLength, transferSpec);
+    }
+
+    /// @notice Create complete hook data structure for CircleGatewayMinterHook with specific destination caller
+    /// @param tokenAddress The token address to include in the attestation
+    /// @param destinationCaller The destination caller to include in the attestation
+    /// @return hookData The complete hook data with proper structure
+    function _createValidAttestationDataWithCaller(
+        address tokenAddress,
+        address destinationCaller
+    )
+        internal
+        view
+        returns (bytes memory hookData)
+    {
+        // Create the attestation payload with the specified destination caller
+        bytes memory attestationPayload = _createMockAttestationPayloadWithCaller(tokenAddress, destinationCaller);
+
+        // Create a minimal valid signature (65 bytes for ECDSA)
+        bytes memory signature = new bytes(65);
+
+        // Encode the hook data:
+        // uint256 attestationPayloadLength = BytesLib.toUint256(data, 0);
+        // bytes attestationPayload = BytesLib.slice(data, 32, attestationPayloadLength);
+        // uint256 signatureLength = BytesLib.toUint256(data, 32 + attestationPayloadLength);
+        // bytes signature = BytesLib.slice(data, 64 + attestationPayloadLength, signatureLength);
+
+        hookData = abi.encodePacked(
+            uint256(attestationPayload.length), // attestationPayloadLength (32 bytes)
+            attestationPayload, // attestationPayload (variable length)
+            uint256(signature.length), // signatureLength (32 bytes)
+            signature // signature (variable length)
+        );
     }
 }
 
