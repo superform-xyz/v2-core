@@ -330,7 +330,15 @@ contract CircleGatewayUnitTests is BaseTest {
         // Test with zero address destination caller
         bytes memory hookData = _createValidAttestationDataWithCaller(address(mockToken), address(0));
 
-        // This should revert when the destination caller is zero address but account is not
+        // This should not revert when the destination caller is zero address
+        minterHook.build(address(0), ACCOUNT, hookData);
+    }
+
+    function test_ValidateDestinationCaller_CallerNotAccount() public {
+        // Test with destination caller not equal to account
+        address differentAccount = address(0x456);
+        bytes memory hookData = _createValidAttestationDataWithCaller(address(mockToken), differentAccount);
+
         vm.expectRevert(abi.encodeWithSignature("INVALID_DESTINATION_CALLER()"));
         minterHook.build(address(0), ACCOUNT, hookData);
     }
