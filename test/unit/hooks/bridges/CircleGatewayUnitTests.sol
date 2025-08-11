@@ -752,6 +752,47 @@ contract CircleGatewayUnitTests is BaseTest {
         assertEq(minterHook.getOutAmount(ACCOUNT), initialBalance, "Should record initial balance");
     }
 
+    // ========== Missing Branch Coverage Tests ==========
+
+    function test_WalletHook_PostExecute_WithPrevHookAmount_Consistency() public {
+        // Test that _postExecute correctly handles the case where usePrevHookAmount is true
+        // The _postExecute function should use the amount from data, not from prevHook
+        MockPrevHook mockPrevHook = new MockPrevHook(MINT_AMOUNT);
+
+        bytes memory hookData = abi.encodePacked(
+            address(mockToken), // token (20 bytes)
+            DEPOSIT_AMOUNT, // amount in data (32 bytes)
+            true // usePrevHookAmount (1 byte)
+        );
+
+        // Set up execution context
+        walletHook.setExecutionContext(ACCOUNT);
+
+        // Call postExecute directly
+        vm.prank(ACCOUNT);
+        walletHook.postExecute(address(mockPrevHook), ACCOUNT, hookData);
+
+        // Verify the outAmount was set to the amount from data, not from prevHook
+        // This tests the branch where _postExecute reads from data regardless of usePrevHookAmount
+        assertEq(
+            walletHook.getOutAmount(ACCOUNT), DEPOSIT_AMOUNT, "Should set outAmount to data amount, not prevHook amount"
+        );
+    }
+
+    function test_MinterHook_PreExecute_ZeroTokenAddress_FromAttestation() public {
+        // Test _preExecute when _extractTokenFromAttestation returns zero address
+        // This tests the branch where the attestation contains a zero destination token
+        bytes memory hookData = _createValidAttestationData(address(0));
+
+        // Set up execution context
+        minterHook.setExecutionContext(ACCOUNT);
+
+        // Call preExecute - this should revert with TOKEN_ADDRESS_INVALID
+        vm.prank(ACCOUNT);
+        vm.expectRevert(abi.encodeWithSignature("TOKEN_ADDRESS_INVALID()"));
+        minterHook.preExecute(address(0), ACCOUNT, hookData);
+    }
+
     // ========== Helper Functions ==========
 
     /// @notice Create valid attestation data for testing
