@@ -43,9 +43,6 @@ contract CircleGatewayMinterHook is BaseHook {
     /// @notice Error for invalid data length
     error INVALID_DATA_LENGTH();
 
-    /// @notice Error for attestation payload being too short
-    error LENGTH_MISMATCH();
-
     constructor(address gatewayMinterAddress) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
         if (gatewayMinterAddress == address(0)) revert ADDRESS_NOT_VALID();
         GATEWAY_MINTER = gatewayMinterAddress;
