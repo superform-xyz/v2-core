@@ -38,6 +38,9 @@ contract CircleGatewayMinterHook is BaseHook {
     /// @notice Circle Gateway Minter contract address
     address public immutable GATEWAY_MINTER;
 
+    /// @notice Error for invalid destination caller
+    error INVALID_DESTINATION_CALLER();
+
     /// @notice Error for usdc address not being valid
     error TOKEN_ADDRESS_INVALID();
 
@@ -56,7 +59,7 @@ contract CircleGatewayMinterHook is BaseHook {
     /// @inheritdoc BaseHook
     function _buildHookExecutions(
         address,
-        address,
+        address account,
         bytes calldata data
     )
         internal
@@ -70,6 +73,9 @@ contract CircleGatewayMinterHook is BaseHook {
         if (attestationPayload.length == 0) {
             revert INVALID_DATA_LENGTH();
         }
+
+        // Validate destination caller
+        _validateDestinationCaller(data, account);
 
         executions = new Execution[](1);
 
@@ -111,7 +117,6 @@ contract CircleGatewayMinterHook is BaseHook {
     function _preExecute(address, address account, bytes calldata data) internal override {
         // Extract usdc address from attestation payload
         address usdc = _extractTokenFromAttestation(data);
-        if (usdc == address(0)) revert TOKEN_ADDRESS_INVALID();
 
         // Store the usdc address for later use
         asset = usdc;
@@ -202,5 +207,24 @@ contract CircleGatewayMinterHook is BaseHook {
         usdc = AddressLib._bytes32ToAddress(usdcBytes32);
 
         if (usdc == address(0)) revert TOKEN_ADDRESS_INVALID();
+    }
+
+    function _validateDestinationCaller(bytes memory data, address account) internal pure {
+        // Decode attestation payload from data
+        (bytes memory attestationPayload,) = _decodeAttestationData(data);
+
+        // Validate and get attestation view
+        bytes29 attestationView = AttestationLib._validate(attestationPayload);
+
+        // Get the transfer spec from the attestation
+        bytes29 transferSpec = AttestationLib.getTransferSpec(attestationView);
+
+        // Get the destination caller from the transfer spec
+        bytes32 destinationCaller = TransferSpecLib.getDestinationCaller(transferSpec);
+
+        // Convert bytes32 to address
+        address destinationCallerAddress = AddressLib._bytes32ToAddress(destinationCaller);
+
+        if (destinationCallerAddress != account) revert INVALID_DESTINATION_CALLER();
     }
 }
