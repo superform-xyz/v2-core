@@ -793,6 +793,59 @@ contract CircleGatewayUnitTests is BaseTest {
         minterHook.preExecute(address(0), ACCOUNT, hookData);
     }
 
+    function test_MinterHook_BuildExecutions_EmptySignature_Branch() public {
+        // Test the specific branch where signature.length == 0 in _buildHookExecutions (Line 77)
+        // This creates a scenario where the signature is empty but the payload is valid
+        bytes memory attestationPayload = _createMockAttestationPayload(address(mockToken));
+        bytes memory emptySignature = new bytes(0);
+
+        bytes memory hookData = abi.encodePacked(
+            uint256(attestationPayload.length), // attestationPayloadLength (32 bytes)
+            attestationPayload, // attestationPayload (variable length)
+            uint256(emptySignature.length), // signatureLength (32 bytes) - 0
+            emptySignature // empty signature
+        );
+
+        // This should revert with INVALID_DATA_LENGTH when signature.length == 0
+        vm.expectRevert(abi.encodeWithSignature("INVALID_DATA_LENGTH()"));
+        minterHook.build(address(0), ACCOUNT, hookData);
+    }
+
+    function test_MinterHook_PreExecute_ZeroTokenAddress_Branch() public {
+        // Test the specific branch where usdc == address(0) in _preExecute (Line 121)
+        // This tests the case where _extractTokenFromAttestation returns zero address
+        bytes memory hookData = _createValidAttestationData(address(0));
+
+        // Set up execution context
+        minterHook.setExecutionContext(ACCOUNT);
+
+        // Call preExecute - this should revert with TOKEN_ADDRESS_INVALID
+        // This specifically tests the branch where usdc == address(0)
+        vm.prank(ACCOUNT);
+        vm.expectRevert(abi.encodeWithSignature("TOKEN_ADDRESS_INVALID()"));
+        minterHook.preExecute(address(0), ACCOUNT, hookData);
+    }
+
+    function test_WalletHook_PreExecute_Function() public {
+        // Test the _preExecute function in CircleGatewayWalletHook
+        // This function is currently not covered by any tests
+        bytes memory hookData = abi.encodePacked(
+            address(mockToken), // token (20 bytes)
+            DEPOSIT_AMOUNT, // amount (32 bytes)
+            false // usePrevHookAmount (1 byte)
+        );
+
+        // Set up execution context
+        walletHook.setExecutionContext(ACCOUNT);
+
+        // Call preExecute directly - this function has no logic but should not revert
+        vm.prank(ACCOUNT);
+        walletHook.preExecute(address(0), ACCOUNT, hookData);
+
+        // The function should complete successfully (it has no logic, just an empty implementation)
+        // We can verify this by checking that no revert occurred
+    }
+
     // ========== Helper Functions ==========
 
     /// @notice Create valid attestation data for testing
