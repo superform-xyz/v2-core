@@ -2494,15 +2494,6 @@ contract CrosschainTests is BaseTest {
         );
         srcUserOpData.userOp.signature = signatureData;
 
-
-        console2.log("Across sent funds and executed on dst");
-
-        // SELECT_FORK_AND_WARP(ETH, block.timestamp);
-
-        ExecutionReturnData memory executionData =
-            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnETH, amount);
-        _processDebridgeDlnMessage(ETH, BASE, executionData);
-
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
                 srcChainId: ETH,
@@ -2517,6 +2508,10 @@ contract CrosschainTests is BaseTest {
                 relayerGas: 0
             })
         );
+
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnETH, amount);
+        _processDebridgeDlnMessage(ETH, BASE, executionData);
 
         // SELECT_FORK_AND_WARP(BASE, CHAIN_8453_TIMESTAMP + 2 days);
         // uint256 allowance =
