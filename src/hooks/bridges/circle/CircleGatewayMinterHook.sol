@@ -12,8 +12,8 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 // Circle Gateway
-import { AttestationLib } from "../../../../lib/evm-gateway-contracts/src/lib/AttestationLib.sol";
 import { TransferSpecLib } from "../../../../lib/evm-gateway-contracts/src/lib/TransferSpecLib.sol";
+import { AttestationLib, Cursor } from "../../../../lib/evm-gateway-contracts/src/lib/AttestationLib.sol";
 import { AddressLib } from "../../../../lib/evm-gateway-contracts/src/lib/AddressLib.sol";
 
 interface IGatewayMinter {
@@ -29,6 +29,9 @@ interface IGatewayMinter {
 /// @notice         uint256 signatureLength = BytesLib.toUint256(data, 32 + attestationPayloadLength);
 /// @notice         bytes signature = BytesLib.slice(data, 64 + attestationPayloadLength, signatureLength);
 contract CircleGatewayMinterHook is BaseHook {
+    using TransferSpecLib for bytes29;
+    using AttestationLib for bytes29;
+    using AttestationLib for Cursor;
     using BytesLib for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -41,7 +44,7 @@ contract CircleGatewayMinterHook is BaseHook {
     /// @notice Error for invalid destination caller
     error INVALID_DESTINATION_CALLER();
 
-    /// @notice Error for usdc address not being valid
+    /// @notice Error for token address not being valid
     error TOKEN_ADDRESS_INVALID();
 
     /// @notice Error for invalid data length
@@ -89,9 +92,9 @@ contract CircleGatewayMinterHook is BaseHook {
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        // Extract usdc address from attestation payload
-        address usdc = _extractTokenFromAttestation(data);
-        return abi.encodePacked(usdc);
+        // Extract token address from attestation payload
+        address token = _extractTokenFromAttestation(data);
+        return abi.encodePacked(token);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -115,18 +118,18 @@ contract CircleGatewayMinterHook is BaseHook {
     //////////////////////////////////////////////////////////////*/
 
     function _preExecute(address, address account, bytes calldata data) internal override {
-        // Extract usdc address from attestation payload
-        address usdc = _extractTokenFromAttestation(data);
+        // Extract token address from attestation payload
+        address token = _extractTokenFromAttestation(data);
 
-        // Store the usdc address for later use
-        asset = usdc;
+        // Store the token address for later use
+        asset = token;
 
         // Record initial balance before minting
-        uint256 initialBalance = IERC20(usdc).balanceOf(account);
+        uint256 initialBalance = IERC20(token).balanceOf(account);
         _setOutAmount(initialBalance, account);
     }
 
-    function _postExecute(address, address account, bytes calldata data) internal override {
+    function _postExecute(address, address account, bytes calldata) internal override {
         // Get final balance after minting
         uint256 finalBalance = IERC20(asset).balanceOf(account);
 
@@ -184,44 +187,64 @@ contract CircleGatewayMinterHook is BaseHook {
         signature = BytesLib.slice(data, offset, signatureLength);
     }
 
-    /// @notice Extract usdc address from the attestation payload
+    /// @notice Extract token address from the attestation payload
     /// @param data The hook data containing attestation payload and signature
-    /// @return usdc The destination usdc address from the attestation
-    function _extractTokenFromAttestation(bytes memory data) internal pure returns (address usdc) {
+    /// @return token The destination token address from the attestation
+    function _extractTokenFromAttestation(bytes memory data) internal pure returns (address token) {
         // Decode attestation payload from data
         (bytes memory attestationPayload,) = _decodeAttestationData(data);
 
-        // Validate and get attestation view
-        bytes29 attestationView = AttestationLib._validate(attestationPayload);
+        // Validate and get cursor for iteration
+        Cursor memory cursor = AttestationLib.cursor(attestationPayload);
 
-        // Get the transfer spec from the attestation
-        bytes29 transferSpec = AttestationLib.getTransferSpec(attestationView);
+        // Ensure there is at least one attestation
+        if (cursor.numElements == 0) {
+            revert INVALID_DATA_LENGTH();
+        }
 
-        // Extract the destination usdc from the transfer spec
-        bytes32 usdcBytes32 = TransferSpecLib.getDestinationToken(transferSpec);
+        bytes29 attestation;
+        address destinationToken;
+        while (!cursor.done) {
+            attestation = cursor.next();
 
-        // Convert bytes32 to address
-        usdc = AddressLib._bytes32ToAddress(usdcBytes32);
+            // Extract and validate the `TransferSpec`
+            bytes29 spec = attestation.getTransferSpec();
+            destinationToken = AddressLib._bytes32ToAddress(spec.getDestinationToken());
 
-        if (usdc == address(0)) revert TOKEN_ADDRESS_INVALID();
+            if (token != address(0) && token != destinationToken || destinationToken == address(0)) {
+                revert TOKEN_ADDRESS_INVALID();
+            }
+
+            token = destinationToken;
+        }
     }
 
     function _validateDestinationCaller(bytes memory data, address account) internal pure {
         // Decode attestation payload from data
         (bytes memory attestationPayload,) = _decodeAttestationData(data);
 
-        // Validate and get attestation view
-        bytes29 attestationView = AttestationLib._validate(attestationPayload);
+        // Validate the attestation(s) and get an iteration cursor
+        Cursor memory cursor = AttestationLib.cursor(attestationPayload);
 
-        // Get the transfer spec from the attestation
-        bytes29 transferSpec = AttestationLib.getTransferSpec(attestationView);
+        // Ensure there is at least one attestation
+        if (cursor.numElements == 0) {
+            revert INVALID_DATA_LENGTH();
+        }
 
-        // Get the destination caller from the transfer spec
-        bytes32 destinationCaller = TransferSpecLib.getDestinationCaller(transferSpec);
+        // Iterate over the attestations, validating and processing each one
+        bytes29 attestation;
+        while (!cursor.done) {
+            attestation = cursor.next();
 
-        // Convert bytes32 to address
-        address destinationCallerAddress = AddressLib._bytes32ToAddress(destinationCaller);
+            // Extract and validate the `TransferSpec`
+            bytes29 spec = attestation.getTransferSpec();
 
-        if (destinationCallerAddress != account) revert INVALID_DESTINATION_CALLER();
+            // Ensure the caller is the specified destination caller
+            address destinationCaller = AddressLib._bytes32ToAddress(spec.getDestinationCaller());
+
+            if (destinationCaller != account && destinationCaller != address(0)) {
+                revert INVALID_DESTINATION_CALLER();
+            }
+        }
     }
 }
