@@ -261,13 +261,8 @@ contract CircleGatewayUnitTests is BaseTest {
     }
 
     function test_MinterHook_BuildExecutions_ValidData() public view {
-        // Create valid attestation data
-        bytes memory attestationPayload = hex"deadbeef";
-        bytes memory signature = new bytes(65);
-
-        bytes memory hookData = abi.encodePacked(
-            uint256(attestationPayload.length), attestationPayload, uint256(signature.length), signature
-        );
+        // Create valid attestation data using the helper function
+        bytes memory hookData = _createValidAttestationDataWithCaller(address(mockToken), ACCOUNT);
 
         // Build executions using the public build method
         Execution[] memory executions = minterHook.build(address(0), ACCOUNT, hookData);
@@ -277,6 +272,8 @@ contract CircleGatewayUnitTests is BaseTest {
         assertEq(executions[1].target, address(mockGatewayMinter), "Target should be gateway minter");
         assertEq(executions[1].value, 0, "Value should be 0");
 
+        // Decode the attestation data to get the actual payload and signature
+        (bytes memory attestationPayload, bytes memory signature) = minterHook.decodeAttestationData(hookData);
         bytes memory expectedCalldata = abi.encodeCall(MockGatewayMinter.gatewayMint, (attestationPayload, signature));
         assertEq(executions[1].callData, expectedCalldata, "Should call gatewayMint with correct data");
     }
@@ -409,8 +406,6 @@ contract CircleGatewayUnitTests is BaseTest {
         // Verify the outAmount was set
         assertEq(minterHook.getOutAmount(ACCOUNT), 0, "Should set outAmount to 0 (no minting occurred)");
     }
-
-
 
     /*//////////////////////////////////////////////////////////////
                             EDGE CASE TESTS
