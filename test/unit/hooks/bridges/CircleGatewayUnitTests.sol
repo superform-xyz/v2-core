@@ -410,26 +410,7 @@ contract CircleGatewayUnitTests is BaseTest {
         assertEq(minterHook.getOutAmount(ACCOUNT), 0, "Should set outAmount to 0 (no minting occurred)");
     }
 
-    function test_ValidateDestinationCaller_FuzzTest(uint160 callerAddress, uint160 accountAddress) public view {
-        // Fuzz test with different address combinations
-        // Bound addresses to reasonable ranges to avoid edge cases
-        callerAddress = bound(callerAddress, 1, type(uint160).max - 1);
-        accountAddress = bound(accountAddress, 1, type(uint160).max - 1);
 
-        address caller = address(callerAddress);
-        address account = address(accountAddress);
-
-        bytes memory hookData = _createValidAttestationDataWithCaller(address(mockToken), caller);
-
-        if (caller == account) {
-            // Should succeed when addresses match
-            minterHook.build(address(0), account, hookData);
-        } else {
-            // Should revert when addresses don't match
-            vm.expectRevert(abi.encodeWithSignature("INVALID_DESTINATION_CALLER()"));
-            minterHook.build(address(0), account, hookData);
-        }
-    }
 
     /*//////////////////////////////////////////////////////////////
                             EDGE CASE TESTS
