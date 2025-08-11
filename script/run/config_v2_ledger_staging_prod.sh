@@ -130,7 +130,7 @@ load_rpc_urls
 echo -e "${CYAN}   • Loading Fireblocks credentials...${NC}"
 export FIREBLOCKS_API_KEY=$(op read op://zry2qwhqux2w6qtjitg44xb7b4/V2_SUPERLEDGER_ACTION/credential)
 export FIREBLOCKS_API_PRIVATE_KEY_PATH=$(op read op://zry2qwhqux2w6qtjitg44xb7b4/V2_SUPERLEDGER_SECRET/notesPlain)
-export FIREBLOCKS_VAULT_ACCOUNT_IDS=28  # SuperLedger Config Vault Account
+export FIREBLOCKS_VAULT_ACCOUNT_IDS=29  # SuperLedger Config Vault Account
 
 echo -e "${GREEN}✅ Configuration loaded successfully${NC}"
 echo -e "${CYAN}   • Using Fireblocks MPC for transaction signing${NC}"
