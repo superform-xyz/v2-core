@@ -9,6 +9,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../../hooks/BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 // Circle Gateway
 import { AttestationLib } from "../../../../lib/evm-gateway-contracts/src/lib/AttestationLib.sol";
@@ -67,10 +68,6 @@ contract CircleGatewayMinterHook is BaseHook {
         (bytes memory attestationPayload, bytes memory signature) = _decodeAttestationData(data);
 
         if (attestationPayload.length == 0) {
-            revert INVALID_DATA_LENGTH();
-        }
-
-        if (signature.length == 0) {
             revert INVALID_DATA_LENGTH();
         }
 
