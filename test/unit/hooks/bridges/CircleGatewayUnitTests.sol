@@ -1,9 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
-
-// foundry
-import { Test } from "forge-std/Test.sol";
-import { console } from "forge-std/console.sol";
 
 // external
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
@@ -17,6 +13,10 @@ import { ISuperHook, ISuperHookResult } from "../../../../src/interfaces/ISuperH
 
 // Test mocks
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
+
+// Circle Gateway
+import { TransferSpecLib } from "../../../../lib/evm-gateway-contracts/src/lib/TransferSpecLib.sol";
+import { AttestationLib } from "../../../../lib/evm-gateway-contracts/src/lib/AttestationLib.sol";
 
 /// @title CircleGatewayUnitTests
 /// @author Superform Labs
@@ -36,9 +36,13 @@ contract CircleGatewayUnitTests is BaseTest {
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    address constant ACCOUNT = address(0x123);
-    uint256 constant DEPOSIT_AMOUNT = 1000e6; // 1000 USDC
-    uint256 constant MINT_AMOUNT = 500e6; // 500 USDC
+    address public constant ACCOUNT = address(0x123);
+    uint256 public constant DEPOSIT_AMOUNT = 1000e6; // 1000 USDC
+    uint256 public constant MINT_AMOUNT = 500e6; // 500 USDC
+    bytes4 public constant TRANSFER_SPEC_MAGIC = 0xca85def7;
+    uint32 public constant TRANSFER_SPEC_VERSION = 1;
+    uint32 public constant TRANSFER_SPEC_SOURCE_DOMAIN = 1;
+    uint32 public constant TRANSFER_SPEC_DESTINATION_DOMAIN = 2;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -383,6 +387,544 @@ contract CircleGatewayUnitTests is BaseTest {
         assertEq(decodedPayload.length, payloadLength, "Payload length should match");
         assertEq(decodedSignature.length, signatureLength, "Signature length should match");
     }
+
+    /*//////////////////////////////////////////////////////////////
+                            BRANCH COVERAGE TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    // ========== CircleGatewayWalletHook Branch Coverage ==========
+
+    function test_WalletHook_BuildExecutions_WithPrevHookAmount_ZeroAmount() public {
+        // Test the branch where usePrevHookAmount is true but prevHook returns 0
+        MockPrevHook mockPrevHook = new MockPrevHook(0);
+
+        bytes memory hookData = abi.encodePacked(
+            address(mockToken), // token (20 bytes)
+            DEPOSIT_AMOUNT, // amount (32 bytes, will be overridden)
+            true // usePrevHookAmount (1 byte)
+        );
+
+        vm.expectRevert(abi.encodeWithSignature("AMOUNT_NOT_VALID()"));
+        walletHook.build(address(mockPrevHook), ACCOUNT, hookData);
+    }
+
+    function test_WalletHook_BuildExecutions_WithPrevHookAmount_ZeroAddress() public {
+        // Test the branch where usePrevHookAmount is true but token is zero address
+        MockPrevHook mockPrevHook = new MockPrevHook(MINT_AMOUNT);
+
+        bytes memory hookData = abi.encodePacked(
+            address(0), // zero address token
+            DEPOSIT_AMOUNT, // amount (32 bytes, will be overridden)
+            true // usePrevHookAmount (1 byte)
+        );
+
+        vm.expectRevert(abi.encodeWithSignature("ADDRESS_NOT_VALID()"));
+        walletHook.build(address(mockPrevHook), ACCOUNT, hookData);
+    }
+
+    function test_WalletHook_PostExecute_WithPrevHookAmount() public {
+        // Test postExecute with usePrevHookAmount = true
+        MockPrevHook mockPrevHook = new MockPrevHook(MINT_AMOUNT);
+
+        bytes memory hookData = abi.encodePacked(
+            address(mockToken), // token (20 bytes)
+            DEPOSIT_AMOUNT, // amount (32 bytes, will be overridden)
+            true // usePrevHookAmount (1 byte)
+        );
+
+        // Set up execution context
+        walletHook.setExecutionContext(ACCOUNT);
+
+        // Call postExecute directly (this would normally be called by the executor)
+        vm.prank(ACCOUNT);
+        walletHook.postExecute(address(mockPrevHook), ACCOUNT, hookData);
+
+        // Verify the outAmount was set correctly
+        assertEq(walletHook.getOutAmount(ACCOUNT), DEPOSIT_AMOUNT, "Should set outAmount to data amount");
+    }
+
+    function test_WalletHook_PostExecute_WithoutPrevHookAmount() public {
+        // Test postExecute with usePrevHookAmount = false
+        bytes memory hookData = abi.encodePacked(
+            address(mockToken), // token (20 bytes)
+            DEPOSIT_AMOUNT, // amount (32 bytes)
+            false // usePrevHookAmount (1 byte)
+        );
+
+        // Set up execution context
+        walletHook.setExecutionContext(ACCOUNT);
+
+        // Call postExecute directly (this would normally be called by the executor)
+        vm.prank(ACCOUNT);
+        walletHook.postExecute(address(0), ACCOUNT, hookData);
+
+        // Verify the outAmount was set correctly
+        assertEq(walletHook.getOutAmount(ACCOUNT), DEPOSIT_AMOUNT, "Should set outAmount to data amount");
+    }
+
+    function test_WalletHook_Constructor_ZeroAddress() public {
+        // Test constructor with zero address
+        vm.expectRevert(abi.encodeWithSignature("ADDRESS_NOT_VALID()"));
+        new CircleGatewayWalletHook(address(0));
+    }
+
+    function test_WalletHook_Constructor_ValidAddress() public {
+        // Test constructor with valid address
+        CircleGatewayWalletHook newHook = new CircleGatewayWalletHook(address(0x123));
+        assertEq(newHook.GATEWAY_WALLET(), address(0x123), "Should set gateway wallet address");
+    }
+
+    // ========== CircleGatewayMinterHook Branch Coverage ==========
+
+    function test_MinterHook_BuildExecutions_EmptyPayload() public {
+        // Test the branch where attestationPayload.length == 0
+        bytes memory hookData = abi.encodePacked(
+            uint256(0), // empty payload length
+            uint256(65), // signature length
+            new bytes(65) // valid signature
+        );
+
+        vm.expectRevert(abi.encodeWithSignature("INVALID_DATA_LENGTH()"));
+        minterHook.build(address(0), ACCOUNT, hookData);
+    }
+
+    function test_MinterHook_BuildExecutions_EmptySignature() public {
+        // Test the branch where signature.length == 0
+        bytes memory hookData = abi.encodePacked(
+            uint256(4), // payload length
+            hex"deadbeef", // payload
+            uint256(0), // empty signature length
+            new bytes(0) // empty signature
+        );
+
+        vm.expectRevert(abi.encodeWithSignature("INVALID_DATA_LENGTH()"));
+        minterHook.build(address(0), ACCOUNT, hookData);
+    }
+
+    function test_MinterHook_DecodeAttestationData_SignatureTooShort() public {
+        // Test the branch where signatureLength < 65
+        bytes memory attestationPayload = hex"deadbeef"; // 4 bytes
+        bytes memory shortSignature = new bytes(64); // 64 bytes (below minimum)
+
+        bytes memory hookData = abi.encodePacked(
+            uint256(attestationPayload.length), // payload length (32 bytes)
+            attestationPayload, // payload (4 bytes)
+            uint256(shortSignature.length), // signature length (32 bytes)
+            shortSignature // short signature (64 bytes)
+        );
+
+        vm.expectRevert(abi.encodeWithSignature("INVALID_DATA_LENGTH()"));
+        minterHook.decodeAttestationData(hookData);
+    }
+
+    function test_MinterHook_DecodeAttestationData_ExactMinimumLength() public {
+        // Test the branch where data.length == 64 (exact minimum)
+        bytes memory hookData = new bytes(64);
+        // Set valid lengths in the first 64 bytes
+        assembly {
+            mstore(add(hookData, 32), 1) // payload length = 1
+            mstore(add(hookData, 64), 65) // signature length = 65
+        }
+
+        vm.expectRevert(abi.encodeWithSignature("INVALID_DATA_LENGTH()"));
+        minterHook.decodeAttestationData(hookData);
+    }
+
+    function test_MinterHook_DecodeAttestationData_InsufficientDataForSignatureLength() public {
+        // Test the branch where data.length < offset + attestationPayloadLength + 32
+        bytes memory hookData = abi.encodePacked(
+            uint256(100), // claims 100 bytes payload
+            hex"deadbeef", // only 4 bytes
+            uint256(65) // signature length (but not enough data after)
+        );
+
+        vm.expectRevert(abi.encodeWithSignature("INVALID_DATA_LENGTH()"));
+        minterHook.decodeAttestationData(hookData);
+    }
+
+    function test_MinterHook_DecodeAttestationData_InsufficientDataForSignature() public {
+        // Test the branch where data.length < offset + signatureLength
+        bytes memory attestationPayload = hex"deadbeef"; // 4 bytes
+        bytes memory signature = new bytes(65);
+
+        bytes memory hookData = abi.encodePacked(
+            uint256(attestationPayload.length), // payload length (32 bytes)
+            attestationPayload, // payload (4 bytes)
+            uint256(signature.length), // signature length (32 bytes)
+            hex"deadbeef" // only 4 bytes instead of 65
+        );
+
+        vm.expectRevert(abi.encodeWithSignature("INVALID_DATA_LENGTH()"));
+        minterHook.decodeAttestationData(hookData);
+    }
+
+    function test_MinterHook_PreExecute_ZeroTokenAddress() public {
+        // Test preExecute with invalid token address from attestation
+        // Create attestation with zero address token
+        bytes memory hookData = _createValidAttestationData(address(0));
+
+        vm.expectRevert(abi.encodeWithSignature("TOKEN_ADDRESS_INVALID()"));
+        minterHook.inspect(hookData);
+    }
+
+    function test_MinterHook_PreExecute_ValidTokenAddress() public {
+        // Test preExecute with valid token address
+        bytes memory hookData = _createValidAttestationData(address(mockToken));
+
+        // Set up execution context
+        minterHook.setExecutionContext(ACCOUNT);
+
+        // Call preExecute directly (this would normally be called by the executor)
+        vm.prank(ACCOUNT);
+        minterHook.preExecute(address(0), ACCOUNT, hookData);
+
+        // Verify the asset was set correctly
+        assertEq(minterHook.asset(), address(mockToken), "Should set asset to token address");
+
+        // Verify initial balance was recorded
+        assertEq(minterHook.getOutAmount(ACCOUNT), mockToken.balanceOf(ACCOUNT), "Should record initial balance");
+    }
+
+    function test_MinterHook_PostExecute_ValidMinting() public {
+        // Test postExecute with successful minting
+        bytes memory hookData = _createValidAttestationData(address(mockToken));
+
+        uint256 initialBalance = mockToken.balanceOf(ACCOUNT);
+
+        // Set up execution context
+        minterHook.setExecutionContext(ACCOUNT);
+
+        // Call preExecute to set up initial state
+        vm.prank(ACCOUNT);
+        minterHook.preExecute(address(0), ACCOUNT, hookData);
+
+        // Simulate minting by transferring tokens to account
+        mockToken.mint(ACCOUNT, MINT_AMOUNT);
+
+        // Call postExecute to calculate the minted amount
+        vm.prank(ACCOUNT);
+        minterHook.postExecute(address(0), ACCOUNT, hookData);
+
+        uint256 finalBalance = mockToken.balanceOf(ACCOUNT);
+        uint256 expectedMintedAmount = finalBalance - initialBalance;
+
+        // Verify the minted amount was calculated correctly
+        assertEq(minterHook.getOutAmount(ACCOUNT), expectedMintedAmount, "Should calculate minted amount correctly");
+    }
+
+    function test_MinterHook_PostExecute_NoMinting() public {
+        // Test postExecute when no minting occurred (balance didn't increase)
+        bytes memory hookData = _createValidAttestationData(address(mockToken));
+
+        uint256 initialBalance = mockToken.balanceOf(ACCOUNT);
+
+        // Set up execution context
+        minterHook.setExecutionContext(ACCOUNT);
+
+        // Call preExecute to set up initial state
+        vm.prank(ACCOUNT);
+        minterHook.preExecute(address(0), ACCOUNT, hookData);
+
+        // Don't mint any tokens, so balance should remain the same
+        uint256 finalBalance = mockToken.balanceOf(ACCOUNT);
+        uint256 expectedMintedAmount = finalBalance - initialBalance; // Should be 0
+
+        // Call postExecute to calculate the minted amount
+        vm.prank(ACCOUNT);
+        minterHook.postExecute(address(0), ACCOUNT, hookData);
+
+        // Verify the minted amount was calculated correctly (should be 0)
+        assertEq(minterHook.getOutAmount(ACCOUNT), expectedMintedAmount, "Should calculate zero minted amount");
+    }
+
+    function test_MinterHook_Constructor_ZeroAddress() public {
+        // Test constructor with zero address
+        vm.expectRevert(abi.encodeWithSignature("ADDRESS_NOT_VALID()"));
+        new CircleGatewayMinterHook(address(0));
+    }
+
+    function test_MinterHook_Constructor_ValidAddress() public {
+        // Test constructor with valid address
+        CircleGatewayMinterHook newHook = new CircleGatewayMinterHook(address(0x123));
+        assertEq(newHook.GATEWAY_MINTER(), address(0x123), "Should set gateway minter address");
+    }
+
+    function test_MinterHook_Inspect_ValidData() public view {
+        // Test the inspect function
+        bytes memory hookData = _createValidAttestationData(address(mockToken));
+
+        bytes memory result = minterHook.inspect(hookData);
+
+        // The inspect function returns abi.encodePacked(usdc), which is a 20-byte packed address
+        // We need to handle the packed bytes correctly
+        require(result.length == 20, "Expected 20 bytes for address");
+        address decodedToken;
+        assembly {
+            decodedToken := shr(96, mload(add(result, 0x20)))
+        }
+
+        assertEq(decodedToken, address(mockToken), "Should extract correct token address");
+    }
+
+    // ========== Edge Cases and Error Conditions ==========
+
+    function test_WalletHook_BuildExecutions_WithPrevHookAmount_NullPrevHook() public {
+        // Test the branch where usePrevHookAmount is true but prevHook is address(0)
+        bytes memory hookData = abi.encodePacked(
+            address(mockToken), // token (20 bytes)
+            DEPOSIT_AMOUNT, // amount (32 bytes)
+            true // usePrevHookAmount (1 byte)
+        );
+
+        // This should revert when trying to call getOutAmount on address(0)
+        vm.expectRevert();
+        walletHook.build(address(0), ACCOUNT, hookData);
+    }
+
+    function test_MinterHook_ExtractTokenFromAttestation_InvalidAttestation() public {
+        // Test _extractTokenFromAttestation with invalid attestation data
+        bytes memory invalidAttestation = hex"deadbeef"; // Valid hex but invalid attestation format
+
+        bytes memory hookData = abi.encodePacked(
+            uint256(invalidAttestation.length), // payload length
+            invalidAttestation, // invalid payload
+            uint256(65), // signature length
+            new bytes(65) // signature
+        );
+
+        // This should revert when trying to validate the attestation
+        vm.expectRevert();
+        minterHook.inspect(hookData);
+    }
+
+    function test_MinterHook_ExtractTokenFromAttestation_ZeroTokenAddress() public {
+        // Test _extractTokenFromAttestation with attestation that returns zero address
+        bytes memory hookData = _createValidAttestationData(address(0));
+
+        vm.expectRevert(abi.encodeWithSignature("TOKEN_ADDRESS_INVALID()"));
+        minterHook.inspect(hookData);
+    }
+
+    // ========== Integration Tests ==========
+
+    function test_WalletHook_FullExecutionFlow() public {
+        // Test the complete execution flow for wallet hook
+        bytes memory hookData = abi.encodePacked(
+            address(mockToken), // token (20 bytes)
+            DEPOSIT_AMOUNT, // amount (32 bytes)
+            false // usePrevHookAmount (1 byte)
+        );
+
+        // Approve tokens to the hook
+        mockToken.approve(address(walletHook), DEPOSIT_AMOUNT);
+
+        // Set up execution context
+        walletHook.setExecutionContext(ACCOUNT);
+
+        // Call preExecute and postExecute to simulate full execution
+        vm.prank(ACCOUNT);
+        walletHook.preExecute(address(0), ACCOUNT, hookData);
+
+        vm.prank(ACCOUNT);
+        walletHook.postExecute(address(0), ACCOUNT, hookData);
+
+        // Verify the outAmount was set
+        assertEq(walletHook.getOutAmount(ACCOUNT), DEPOSIT_AMOUNT, "Should set outAmount");
+    }
+
+    function test_MinterHook_FullExecutionFlow() public {
+        // Test the complete execution flow for minter hook
+        bytes memory hookData = _createValidAttestationData(address(mockToken));
+
+        uint256 initialBalance = mockToken.balanceOf(ACCOUNT);
+
+        // Set up execution context
+        minterHook.setExecutionContext(ACCOUNT);
+
+        // Call preExecute to set up initial state
+        vm.prank(ACCOUNT);
+        minterHook.preExecute(address(0), ACCOUNT, hookData);
+
+        // Verify the asset was set
+        assertEq(minterHook.asset(), address(mockToken), "Should set asset");
+
+        // Verify initial balance was recorded
+        assertEq(minterHook.getOutAmount(ACCOUNT), initialBalance, "Should record initial balance");
+    }
+
+    // ========== Helper Functions ==========
+
+    /// @notice Create valid attestation data for testing
+    /// @param tokenAddress The token address to include in the attestation (optional)
+    /// @return hookData The encoded hook data
+    function _createValidAttestationData(address tokenAddress) internal view returns (bytes memory hookData) {
+        // Create a minimal valid signature (65 bytes for ECDSA)
+        bytes memory signature = new bytes(65);
+
+        // Use the new helper function to create the complete hook data structure
+        hookData = _createMockHookData(tokenAddress, signature);
+    }
+
+    /// @notice Create valid attestation data for testing with default token address
+    /// @return hookData The encoded hook data
+    function _createValidAttestationData() internal view returns (bytes memory hookData) {
+        return _createValidAttestationData(address(0xabc)); // Default token address
+    }
+
+    /// @notice Create a mock TransferSpec with proper magic numbers for testing
+    /// @param tokenAddress The token address to include in the attestation
+    /// @return transferSpec The encoded TransferSpec
+    function _createMockTransferSpec(address tokenAddress) internal pure returns (bytes memory transferSpec) {
+        // Create the TransferSpec header (first part)
+        bytes memory header = _encodeTransferSpecHeader(
+            TRANSFER_SPEC_VERSION,
+            TRANSFER_SPEC_SOURCE_DOMAIN,
+            TRANSFER_SPEC_DESTINATION_DOMAIN,
+            bytes32(uint256(uint160(address(0x123)))), // sourceContract
+            bytes32(uint256(uint160(address(0x456)))), // destinationContract
+            bytes32(uint256(uint160(address(0x789)))), // sourceToken
+            bytes32(uint256(uint160(tokenAddress))), // destinationToken
+            bytes32(uint256(uint160(address(0xdef)))) // sourceDepositor
+        );
+
+        // Create the TransferSpec footer (second part)
+        bytes memory footer = _encodeTransferSpecFooter(
+            bytes32(uint256(uint160(address(0x123)))), // destinationRecipient
+            bytes32(uint256(uint160(address(0xdef)))), // sourceSigner
+            bytes32(0), // destinationCaller
+            1000e6, // value
+            keccak256("test-salt"), // salt
+            "" // hookData
+        );
+
+        // Combine header and footer
+        transferSpec = bytes.concat(header, footer);
+    }
+
+    /// @notice Encode the first part of a TransferSpec struct into bytes
+    /// @param version The version field
+    /// @param sourceDomain The sourceDomain field
+    /// @param destinationDomain The destinationDomain field
+    /// @param sourceContract The sourceContract field
+    /// @param destinationContract The destinationContract field
+    /// @param sourceToken The sourceToken field
+    /// @param destinationToken The destinationToken field
+    /// @param sourceDepositor The sourceDepositor field
+    /// @return The encoded bytes
+    function _encodeTransferSpecHeader(
+        uint32 version,
+        uint32 sourceDomain,
+        uint32 destinationDomain,
+        bytes32 sourceContract,
+        bytes32 destinationContract,
+        bytes32 sourceToken,
+        bytes32 destinationToken,
+        bytes32 sourceDepositor
+    )
+        private
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            TRANSFER_SPEC_MAGIC,
+            version,
+            sourceDomain,
+            destinationDomain,
+            sourceContract,
+            destinationContract,
+            sourceToken,
+            destinationToken,
+            sourceDepositor
+        );
+    }
+
+    /// @notice Encode the last part of a TransferSpec struct into bytes
+    /// @param destinationRecipient The destinationRecipient field
+    /// @param sourceSigner The sourceSigner field
+    /// @param destinationCaller The destinationCaller field
+    /// @param value The value field
+    /// @param salt The salt field
+    /// @param hookData The hookData field
+    /// @return The encoded bytes
+    function _encodeTransferSpecFooter(
+        bytes32 destinationRecipient,
+        bytes32 sourceSigner,
+        bytes32 destinationCaller,
+        uint256 value,
+        bytes32 salt,
+        bytes memory hookData
+    )
+        private
+        pure
+        returns (bytes memory)
+    {
+        if (hookData.length > type(uint32).max) {
+            revert("TransferSpecHookDataFieldTooLarge");
+        }
+
+        return abi.encodePacked(
+            destinationRecipient,
+            sourceSigner,
+            destinationCaller,
+            value,
+            salt,
+            uint32(hookData.length), // 4 bytes
+            hookData
+        );
+    }
+
+    /// @notice Create complete hook data structure for CircleGatewayMinterHook
+    /// @param tokenAddress The token address to include in the attestation
+    /// @param signature The signature for the attestation
+    /// @return hookData The complete hook data with proper structure
+    function _createMockHookData(
+        address tokenAddress,
+        bytes memory signature
+    )
+        internal
+        view
+        returns (bytes memory hookData)
+    {
+        // Create the attestation payload
+        bytes memory attestationPayload = _createMockAttestationPayload(tokenAddress);
+
+        // Encode the hook data:
+        // uint256 attestationPayloadLength = BytesLib.toUint256(data, 0);
+        // bytes attestationPayload = BytesLib.slice(data, 32, attestationPayloadLength);
+        // uint256 signatureLength = BytesLib.toUint256(data, 32 + attestationPayloadLength);
+        // bytes signature = BytesLib.slice(data, 64 + attestationPayloadLength, signatureLength);
+
+        hookData = abi.encodePacked(
+            uint256(attestationPayload.length), // attestationPayloadLength (32 bytes)
+            attestationPayload, // attestationPayload (variable length)
+            uint256(signature.length), // signatureLength (32 bytes)
+            signature // signature (variable length)
+        );
+    }
+
+    /// @notice Create a mock attestation payload for testing
+    /// @param tokenAddress The token address to include in the attestation
+    /// @return attestationPayload The encoded attestation payload
+    function _createMockAttestationPayload(address tokenAddress)
+        internal
+        view
+        returns (bytes memory attestationPayload)
+    {
+        // Create the TransferSpec
+        bytes memory transferSpec = _createMockTransferSpec(tokenAddress);
+
+        // Create the attestation structure manually:
+        // - magic (4 bytes): 0xff6fb334
+        // - maxBlockHeight (32 bytes): uint256
+        // - transferSpecLength (4 bytes): uint32
+        // - transferSpec (variable bytes)
+
+        bytes4 attestationMagic = 0xff6fb334; // ATTESTATION_MAGIC
+        uint256 maxBlockHeight = block.number + 1000; // Valid for 1000 blocks
+        uint32 transferSpecLength = uint32(transferSpec.length);
+
+        attestationPayload = abi.encodePacked(attestationMagic, maxBlockHeight, transferSpecLength, transferSpec);
+    }
 }
 
 /// @title MockPrevHook
@@ -460,5 +1002,13 @@ contract MockGatewayMinter {
         TOKEN.mint(msg.sender, MINT_AMOUNT);
 
         emit GatewayMint(attestationPayload, signature, msg.sender, MINT_AMOUNT);
+    }
+}
+
+/// @title MockAttestationLib
+/// @notice Mock implementation for testing attestation validation
+contract MockAttestationLib {
+    function _validate(bytes memory) external pure returns (bytes29) {
+        revert("Mock validation failed");
     }
 }
