@@ -1,15 +1,22 @@
 #!/bin/bash
 
 ###################################################################################
-# Update Locked Bytecode Script
+# Update Bytecode Script
 ###################################################################################
 # Description:
-#   This script updates the locked-bytecode folder with the latest compiled
-#   artifacts for core V2 contracts, hooks, and oracles that require deterministic
-#   deployment addresses.
+#   This script updates bytecode artifacts for core V2 contracts, hooks, and oracles.
+#   By default, it updates the vnet-bytecode folder for development deployments.
+#   Use the "lock" flag to update the stable locked-bytecode folder.
 #
 # Usage:
-#   ./script/update_locked_bytecode.sh
+#   ./script/run/update_locked_bytecode.sh [lock]
+#   
+#   Parameters:
+#     lock: Optional flag to update locked-bytecode folder (default: updates vnet-bytecode)
+#
+# Examples:
+#   ./script/run/update_locked_bytecode.sh         # Updates vnet-bytecode/
+#   ./script/run/update_locked_bytecode.sh lock    # Updates locked-bytecode/
 #
 # Requirements:
 #   - forge: For contract compilation
@@ -34,7 +41,17 @@ log() {
     echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] [$level] $*" >&2
 }
 
-log "INFO" "${BLUE}🔧 Updating Locked Bytecode for V2 Core Contracts${NC}"
+# Parse command line arguments
+LOCK_MODE=false
+TARGET_DIR="vnet-bytecode"
+
+if [ $# -gt 0 ] && [ "$1" = "lock" ]; then
+    LOCK_MODE=true
+    TARGET_DIR="locked-bytecode"
+fi
+
+log "INFO" "${BLUE}🔧 Updating Bytecode for V2 Core Contracts${NC}"
+log "INFO" "${YELLOW}📁 Target directory: script/${TARGET_DIR}/${NC}"
 
 # Ensure we're in the right directory
 if [ ! -f "foundry.toml" ]; then
@@ -49,8 +66,8 @@ if ! forge build; then
     exit 1
 fi
 
-# Create locked-bytecode directory if it doesn't exist
-mkdir -p script/locked-bytecode
+# Create target directory if it doesn't exist
+mkdir -p "script/${TARGET_DIR}"
 
 log "INFO" "${BLUE}📋 Copying core contract artifacts...${NC}"
 
@@ -120,7 +137,7 @@ ORACLE_CONTRACTS=(
 copy_contract() {
     local contract_name=$1
     local source_path
-    local dest_path="script/locked-bytecode/${contract_name}.json"
+    local dest_path="script/${TARGET_DIR}/${contract_name}.json"
     
     # Find the contract artifact - correct pattern for Foundry structure
     source_path="out/${contract_name}.sol/${contract_name}.json"
@@ -185,7 +202,7 @@ if [ $failed_oracles -gt 0 ]; then
 fi
 
 if [ $total_failed -eq 0 ]; then
-    log "INFO" "${GREEN}🎉 All contracts successfully updated in locked-bytecode!${NC}"
+    log "INFO" "${GREEN}🎉 All contracts successfully updated in ${TARGET_DIR}!${NC}"
     exit 0
 else
     log "ERROR" "${RED}❌ ${total_failed} contracts failed to copy. Please check the error messages above.${NC}"

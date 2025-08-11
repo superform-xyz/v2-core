@@ -120,7 +120,7 @@ else
 fi
 
 print_separator
-echo -e "${BLUE}🔧 Loading Configuration...${NC}"
+echo -e "${BLUE}🔧 Loading Configuration...${NC}f"
 
 # Load RPC URLs using centralized function
 echo -e "${CYAN}   • Loading RPC URLs...${NC}"
@@ -128,9 +128,9 @@ load_rpc_urls
 
 # Fireblocks configuration
 echo -e "${CYAN}   • Loading Fireblocks credentials...${NC}"
-export FIREBLOCKS_API_KEY=$(op read op://zry2qwhqux2w6qtjitg44xb7b4/V2_SUPERLEDGER_CONFIG_KEY/credential)
-export FIREBLOCKS_API_PRIVATE_KEY_PATH=$(op read op://zry2qwhqux2w6qtjitg44xb7b4/V2_SUPERLEDGER_CONFIG_SECRET_SSH/private_key)
-export FIREBLOCKS_VAULT_ACCOUNT_IDS=20  # SuperLedger Config Vault Account
+export FIREBLOCKS_API_KEY=$(op read op://zry2qwhqux2w6qtjitg44xb7b4/V2_SUPERLEDGER_ACTION/credential)
+export FIREBLOCKS_API_PRIVATE_KEY_PATH=$(op read op://zry2qwhqux2w6qtjitg44xb7b4/V2_SUPERLEDGER_SECRET/notesPlain)
+export FIREBLOCKS_VAULT_ACCOUNT_IDS=28  # SuperLedger Config Vault Account
 
 echo -e "${GREEN}✅ Configuration loaded successfully${NC}"
 echo -e "${CYAN}   • Using Fireblocks MPC for transaction signing${NC}"
@@ -161,11 +161,12 @@ for network_def in "${NETWORKS[@]}"; do
     # Get RPC URL for this network
     RPC_URL=$(get_rpc_url "$network_id")
     export FIREBLOCKS_RPC_URL="$RPC_URL"
+    export FIREBLOCKS_CHAIN_ID="$network_id"
     
     fireblocks-json-rpc --http -- forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'runLedgerConfigurations(uint256,uint64)' $FORGE_ENV $network_id \
         --rpc-url {} \
-        --sender 0x73009CE7cFFc6C4c5363734d1b429f0b848e0490 \
+        --sender 0x28b7599f461D104f07D78215Fa6F9B959851f93d \
         $BROADCAST_FLAG \
         --unlocked \
         --slow \

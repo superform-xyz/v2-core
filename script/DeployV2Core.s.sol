@@ -83,6 +83,19 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     uint256 private _deployed;
     uint256 private _total;
 
+    /// @notice Get the appropriate bytecode folder based on environment
+    /// @param env Environment (0 = prod, 1 = dev, 2 = staging)
+    /// @return Bytecode folder path
+    function _getBytecodeFolder(uint256 env) internal pure returns (string memory) {
+        if (env == 0 || env == 2) {
+            // Production (0) and Staging (2) environments use locked-bytecode
+            return "script/locked-bytecode/";
+        } else {
+            // Development (1) environment uses vnet-bytecode
+            return "script/vnet-bytecode/";
+        }
+    }
+
     /// @notice Sets up complete configuration for core contracts with hook support
     /// @param env Environment (0 is prod, 1 is dev, 2 is staging)
     /// @param saltNamespace Salt namespace for deployment (if empty, uses production default)
@@ -494,6 +507,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
     function _deployCoreContracts(uint64 chainId, uint256 env) internal {
         CoreContracts memory coreContracts;
+        string memory bytecodeFolder = _getBytecodeFolder(env);
 
         // Pre-populate core contracts with existing deployed addresses
         _populateCoreContractsFromStatus(chainId, coreContracts);
@@ -551,7 +565,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             SUPER_LEDGER_CONFIGURATION_KEY,
             chainId,
             __getSalt(SUPER_LEDGER_CONFIGURATION_KEY),
-            vm.getCode("script/locked-bytecode/SuperLedgerConfiguration.json")
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "SuperLedgerConfiguration.json")))
         );
 
         // Validate SuperLedgerConfiguration was deployed
@@ -564,7 +578,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             SUPER_VALIDATOR_KEY,
             chainId,
             __getSalt(SUPER_VALIDATOR_KEY),
-            vm.getCode("script/locked-bytecode/SuperValidator.json")
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "SuperValidator.json")))
         );
 
         // Validate SuperValidator was deployed
@@ -577,7 +591,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             SUPER_DESTINATION_VALIDATOR_KEY,
             chainId,
             __getSalt(SUPER_DESTINATION_VALIDATOR_KEY),
-            vm.getCode("script/locked-bytecode/SuperDestinationValidator.json")
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "SuperDestinationValidator.json")))
         );
 
         // Validate SuperDestinationValidator was deployed
@@ -592,7 +606,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             chainId,
             __getSalt(SUPER_EXECUTOR_KEY),
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/SuperExecutor.json"),
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "SuperExecutor.json"))),
                 abi.encode(coreContracts.superLedgerConfiguration)
             )
         );
@@ -611,7 +625,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             chainId,
             __getSalt(SUPER_DESTINATION_EXECUTOR_KEY),
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/SuperDestinationExecutor.json"),
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "SuperDestinationExecutor.json"))),
                 abi.encode(coreContracts.superLedgerConfiguration, coreContracts.superDestinationValidator)
             )
         );
@@ -626,7 +640,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             SUPER_SENDER_CREATOR_KEY,
             chainId,
             __getSalt(SUPER_SENDER_CREATOR_KEY),
-            vm.getCode("script/locked-bytecode/SuperSenderCreator.json")
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "SuperSenderCreator.json")))
         );
 
         // Validate SuperSenderCreator was deployed
@@ -643,7 +657,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             chainId,
             __getSalt(ACROSS_V3_ADAPTER_KEY),
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/AcrossV3Adapter.json"),
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "AcrossV3Adapter.json"))),
                 abi.encode(configuration.acrossSpokePoolV3s[chainId], coreContracts.superDestinationExecutor)
             )
         );
@@ -662,7 +676,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             chainId,
             __getSalt(DEBRIDGE_ADAPTER_KEY),
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/DebridgeAdapter.json"),
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "DebridgeAdapter.json"))),
                 abi.encode(configuration.debridgeDstDln[chainId], coreContracts.superDestinationExecutor)
             )
         );
@@ -692,7 +706,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             chainId,
             __getSalt(SUPER_LEDGER_KEY),
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/SuperLedger.json"),
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "SuperLedger.json"))),
                 abi.encode(coreContracts.superLedgerConfiguration, allowedExecutors)
             )
         );
@@ -710,7 +724,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             chainId,
             __getSalt(FLAT_FEE_LEDGER_KEY),
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/FlatFeeLedger.json"),
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "FlatFeeLedger.json"))),
                 abi.encode(coreContracts.superLedgerConfiguration, allowedExecutors)
             )
         );
@@ -727,7 +741,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             SUPER_NATIVE_PAYMASTER_KEY,
             chainId,
             __getSalt(SUPER_NATIVE_PAYMASTER_KEY),
-            abi.encodePacked(vm.getCode("script/locked-bytecode/SuperNativePaymaster.json"), abi.encode(ENTRY_POINT))
+            abi.encodePacked(
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "SuperNativePaymaster.json"))),
+                abi.encode(ENTRY_POINT)
+            )
         );
 
         // Validate SuperNativePaymaster was deployed
@@ -738,7 +755,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log(" All core contracts deployment completed successfully with full validation ");
 
         // Deploy Hooks
-        _deployHooks(chainId);
+        _deployHooks(chainId, env);
 
         // Deploy Mock Contracts (only for development environment)
         if (env == 1) {
@@ -746,7 +763,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         // Deploy Oracles
-        _deployOracles(chainId);
+        _deployOracles(chainId, env);
 
         // Setup SuperLedger configuration with oracle mappings - CONDITIONAL BASED ON ENVIRONMENT
         if (env == 1) {
@@ -891,10 +908,21 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log(" SuperLedgerConfiguration setup completed successfully from", sourceDescription, "! ");
     }
 
-    /// @notice Verify contract addresses by computing from locked bytecode and comparing with output files
+    /// @notice Local variables struct to avoid stack too deep in bytecode verification
+    struct VerificationVars {
+        address superLedgerConfig;
+        address superExecutor;
+        address superDestExecutor;
+        address[] allowedExecutors;
+        bytes ledgerConstructorArgs;
+        uint256 verified;
+        uint256 failed;
+    }
+
+    /// @notice Verify contract addresses by computing from locked/vnet bytecode and comparing with output files
     /// @dev This provides foolproof verification that deployed addresses match expected bytecode
     /// @param chainId Target chain ID
-    /// @param env Environment for determining output path
+    /// @param env Environment for determining output path and bytecode folder
     function _verifyContractAddressesFromBytecode(
         uint64 chainId,
         uint256 env
@@ -903,133 +931,161 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         view
         returns (string memory deploymentJson)
     {
-        console2.log("Verifying contract addresses from locked bytecode...");
+        string memory bytecodeFolder = _getBytecodeFolder(env);
+        console2.log("Verifying contract addresses from", bytecodeFolder, "bytecode...");
 
         // Read addresses from output files
         deploymentJson = _readCoreContractsFromOutput(chainId, env);
 
-        // Define contracts to verify with their corresponding locked bytecode paths and constructor args
+        // Initialize local variables struct
+        VerificationVars memory vars;
+
+        // Get constructor args for ledger contracts
+        vars.superLedgerConfig = vm.parseJsonAddress(deploymentJson, ".SuperLedgerConfiguration");
+        vars.superExecutor = vm.parseJsonAddress(deploymentJson, ".SuperExecutor");
+        vars.superDestExecutor = vm.parseJsonAddress(deploymentJson, ".SuperDestinationExecutor");
+
+        vars.allowedExecutors = new address[](2);
+        vars.allowedExecutors[0] = vars.superExecutor;
+        vars.allowedExecutors[1] = vars.superDestExecutor;
+
+        vars.ledgerConstructorArgs = abi.encode(vars.superLedgerConfig, vars.allowedExecutors);
+
+        // Define contracts to verify with their corresponding bytecode paths and constructor args
         ContractVerification[] memory contracts = new ContractVerification[](7);
 
         // Core contracts verification
         contracts[0] = ContractVerification({
             name: "SuperLedgerConfiguration",
             outputKey: ".SuperLedgerConfiguration",
-            bytecodePath: "script/locked-bytecode/SuperLedgerConfiguration.json",
+            bytecodePath: string(abi.encodePacked(bytecodeFolder, "SuperLedgerConfiguration.json")),
             constructorArgs: ""
         });
 
         contracts[1] = ContractVerification({
             name: "ERC4626YieldSourceOracle",
             outputKey: ".ERC4626YieldSourceOracle",
-            bytecodePath: "script/locked-bytecode/ERC4626YieldSourceOracle.json",
+            bytecodePath: string(abi.encodePacked(bytecodeFolder, "ERC4626YieldSourceOracle.json")),
             constructorArgs: ""
         });
 
         contracts[2] = ContractVerification({
             name: "ERC7540YieldSourceOracle",
             outputKey: ".ERC7540YieldSourceOracle",
-            bytecodePath: "script/locked-bytecode/ERC7540YieldSourceOracle.json",
+            bytecodePath: string(abi.encodePacked(bytecodeFolder, "ERC7540YieldSourceOracle.json")),
             constructorArgs: ""
         });
 
         contracts[3] = ContractVerification({
             name: "ERC5115YieldSourceOracle",
             outputKey: ".ERC5115YieldSourceOracle",
-            bytecodePath: "script/locked-bytecode/ERC5115YieldSourceOracle.json",
+            bytecodePath: string(abi.encodePacked(bytecodeFolder, "ERC5115YieldSourceOracle.json")),
             constructorArgs: ""
         });
 
         contracts[4] = ContractVerification({
             name: "StakingYieldSourceOracle",
             outputKey: ".StakingYieldSourceOracle",
-            bytecodePath: "script/locked-bytecode/StakingYieldSourceOracle.json",
+            bytecodePath: string(abi.encodePacked(bytecodeFolder, "StakingYieldSourceOracle.json")),
             constructorArgs: ""
         });
 
         contracts[5] = ContractVerification({
             name: "SuperLedger",
             outputKey: ".SuperLedger",
-            bytecodePath: "script/locked-bytecode/SuperLedger.json",
-            constructorArgs: ""
+            bytecodePath: string(abi.encodePacked(bytecodeFolder, "SuperLedger.json")),
+            constructorArgs: string(vars.ledgerConstructorArgs)
         });
 
         contracts[6] = ContractVerification({
             name: "FlatFeeLedger",
             outputKey: ".FlatFeeLedger",
-            bytecodePath: "script/locked-bytecode/FlatFeeLedger.json",
-            constructorArgs: ""
+            bytecodePath: string(abi.encodePacked(bytecodeFolder, "FlatFeeLedger.json")),
+            constructorArgs: string(vars.ledgerConstructorArgs)
         });
-
-        uint256 verified = 0;
-        uint256 failed = 0;
 
         // Verify each contract
         for (uint256 i = 0; i < contracts.length; i++) {
-            ContractVerification memory contractToVerify = contracts[i];
-
-            console2.log("Verifying:", contractToVerify.name);
-
-            // Get address from output file
-            address outputAddress = vm.parseJsonAddress(deploymentJson, contractToVerify.outputKey);
-            require(
-                outputAddress != address(0), string(abi.encodePacked("OUTPUT_ADDRESS_ZERO_", contractToVerify.name))
-            );
-
-            // Compute expected address from locked bytecode
-            bytes memory bytecode = vm.getCode(contractToVerify.bytecodePath);
-            require(bytecode.length > 0, string(abi.encodePacked("BYTECODE_EMPTY_", contractToVerify.name)));
-
-            // Compute address with appropriate constructor args
-            address computedAddress;
-
-            // Handle contracts with constructor args (oracles need SuperLedgerConfiguration)
-            if (
-                Strings.equal(contractToVerify.name, "ERC4626YieldSourceOracle")
-                    || Strings.equal(contractToVerify.name, "ERC7540YieldSourceOracle")
-                    || Strings.equal(contractToVerify.name, "ERC5115YieldSourceOracle")
-                    || Strings.equal(contractToVerify.name, "StakingYieldSourceOracle")
-            ) {
-                address superLedgerConfig = vm.parseJsonAddress(deploymentJson, ".SuperLedgerConfiguration");
-                bytes memory constructorArgs = abi.encode(superLedgerConfig);
-                computedAddress = DeterministicDeployerLib.computeAddress(
-                    abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
-                );
-            } else {
-                // No constructor args
-                computedAddress = DeterministicDeployerLib.computeAddress(bytecode, __getSalt(contractToVerify.name));
-            }
-
-            // Verify addresses match
-            if (outputAddress == computedAddress) {
-                console2.log("  [VERIFIED]:", contractToVerify.name);
-                console2.log("    Address:", outputAddress);
-                verified++;
-            } else {
-                console2.log("  [MISMATCH]:", contractToVerify.name);
-                console2.log("    Output file:", outputAddress);
-                console2.log("    Computed:  ", computedAddress);
-                failed++;
-            }
-
-            // Verify contract has code at the address
-            require(
-                outputAddress.code.length > 0, string(abi.encodePacked("NO_CODE_AT_ADDRESS_", contractToVerify.name))
-            );
-
-            console2.log("");
+            _verifySingleContract(contracts[i], deploymentJson, vars);
         }
 
         // Final verification summary
         console2.log("=== BYTECODE VERIFICATION SUMMARY ===");
-        console2.log("Verified:", verified);
-        console2.log("Failed:  ", failed);
+        console2.log("Verified:", vars.verified);
+        console2.log("Failed:  ", vars.failed);
         console2.log("Total:   ", contracts.length);
 
-        require(failed == 0, "BYTECODE_VERIFICATION_FAILED");
-        require(verified == contracts.length, "INCOMPLETE_VERIFICATION");
+        require(vars.failed == 0, "BYTECODE_VERIFICATION_FAILED");
+        require(vars.verified == contracts.length, "INCOMPLETE_VERIFICATION");
 
         console2.log("[SUCCESS] All contract addresses verified successfully against locked bytecode!");
+    }
+
+    /// @notice Verify a single contract's address against its bytecode
+    /// @param contractToVerify The contract verification details
+    /// @param deploymentJson The deployment JSON string
+    /// @param vars The verification variables struct (modified in place)
+    function _verifySingleContract(
+        ContractVerification memory contractToVerify,
+        string memory deploymentJson,
+        VerificationVars memory vars
+    )
+        private
+        view
+    {
+        console2.log("Verifying:", contractToVerify.name);
+
+        // Get address from output file
+        address outputAddress = vm.parseJsonAddress(deploymentJson, contractToVerify.outputKey);
+        require(outputAddress != address(0), string(abi.encodePacked("OUTPUT_ADDRESS_ZERO_", contractToVerify.name)));
+
+        // Compute expected address from locked bytecode
+        bytes memory bytecode = vm.getCode(contractToVerify.bytecodePath);
+        require(bytecode.length > 0, string(abi.encodePacked("BYTECODE_EMPTY_", contractToVerify.name)));
+
+        // Compute address with appropriate constructor args
+        address computedAddress;
+
+        // Handle contracts with constructor args
+        if (
+            Strings.equal(contractToVerify.name, "ERC4626YieldSourceOracle")
+                || Strings.equal(contractToVerify.name, "ERC7540YieldSourceOracle")
+                || Strings.equal(contractToVerify.name, "ERC5115YieldSourceOracle")
+                || Strings.equal(contractToVerify.name, "StakingYieldSourceOracle")
+        ) {
+            // Oracles need SuperLedgerConfiguration
+            bytes memory constructorArgs = abi.encode(vars.superLedgerConfig);
+            computedAddress = DeterministicDeployerLib.computeAddress(
+                abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
+            );
+        } else if (
+            Strings.equal(contractToVerify.name, "SuperLedger") || Strings.equal(contractToVerify.name, "FlatFeeLedger")
+        ) {
+            // Ledgers need SuperLedgerConfiguration and allowedExecutors
+            computedAddress = DeterministicDeployerLib.computeAddress(
+                abi.encodePacked(bytecode, vars.ledgerConstructorArgs), __getSalt(contractToVerify.name)
+            );
+        } else {
+            // No constructor args
+            computedAddress = DeterministicDeployerLib.computeAddress(bytecode, __getSalt(contractToVerify.name));
+        }
+
+        // Verify addresses match
+        if (outputAddress == computedAddress) {
+            console2.log("  [VERIFIED]:", contractToVerify.name);
+            console2.log("    Address:", outputAddress);
+            vars.verified++;
+        } else {
+            console2.log("  [MISMATCH]:", contractToVerify.name);
+            console2.log("    Output file:", outputAddress);
+            console2.log("    Computed:  ", computedAddress);
+            vars.failed++;
+        }
+
+        // Verify contract has code at the address
+        require(outputAddress.code.length > 0, string(abi.encodePacked("NO_CODE_AT_ADDRESS_", contractToVerify.name)));
+
+        console2.log("");
     }
 
     /// @notice Helper function to read core contract addresses from output files
@@ -1059,17 +1115,24 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         return vm.readFile(outputPath);
     }
 
-    function _deployHooks(uint64 chainId) private returns (HookAddresses memory hookAddresses) {
+    function _deployHooks(uint64 chainId, uint256 env) private returns (HookAddresses memory hookAddresses) {
         console2.log("Starting hook deployment with comprehensive dependency validation...");
+        string memory bytecodeFolder = _getBytecodeFolder(env);
 
         uint256 len = 31;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
         // ===== HOOKS WITHOUT DEPENDENCIES =====
-        hooks[0] = HookDeployment(APPROVE_ERC20_HOOK_KEY, vm.getCode("script/locked-bytecode/ApproveERC20Hook.json"));
-        hooks[1] = HookDeployment(TRANSFER_ERC20_HOOK_KEY, vm.getCode("script/locked-bytecode/TransferERC20Hook.json"));
-        hooks[2] = HookDeployment(BATCH_TRANSFER_HOOK_KEY, vm.getCode("script/locked-bytecode/BatchTransferHook.json"));
+        hooks[0] = HookDeployment(
+            APPROVE_ERC20_HOOK_KEY, vm.getCode(string(abi.encodePacked(bytecodeFolder, "ApproveERC20Hook.json")))
+        );
+        hooks[1] = HookDeployment(
+            TRANSFER_ERC20_HOOK_KEY, vm.getCode(string(abi.encodePacked(bytecodeFolder, "TransferERC20Hook.json")))
+        );
+        hooks[2] = HookDeployment(
+            BATCH_TRANSFER_HOOK_KEY, vm.getCode(string(abi.encodePacked(bytecodeFolder, "BatchTransferHook.json")))
+        );
 
         // ===== HOOKS WITH VALIDATED DEPENDENCIES =====
 
@@ -1079,46 +1142,57 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hooks[3] = HookDeployment(
             BATCH_TRANSFER_FROM_HOOK_KEY,
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/BatchTransferFromHook.json"),
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "BatchTransferFromHook.json"))),
                 abi.encode(configuration.permit2s[chainId])
             )
         );
 
         // Vault hooks (no external dependencies)
-        hooks[4] =
-            HookDeployment(DEPOSIT_4626_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/Deposit4626VaultHook.json"));
+        hooks[4] = HookDeployment(
+            DEPOSIT_4626_VAULT_HOOK_KEY,
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "Deposit4626VaultHook.json")))
+        );
         hooks[5] = HookDeployment(
             APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY,
-            vm.getCode("script/locked-bytecode/ApproveAndDeposit4626VaultHook.json")
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "ApproveAndDeposit4626VaultHook.json")))
         );
-        hooks[6] =
-            HookDeployment(REDEEM_4626_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/Redeem4626VaultHook.json"));
-        hooks[7] =
-            HookDeployment(DEPOSIT_5115_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/Deposit5115VaultHook.json"));
+        hooks[6] = HookDeployment(
+            REDEEM_4626_VAULT_HOOK_KEY, vm.getCode(string(abi.encodePacked(bytecodeFolder, "Redeem4626VaultHook.json")))
+        );
+        hooks[7] = HookDeployment(
+            DEPOSIT_5115_VAULT_HOOK_KEY,
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "Deposit5115VaultHook.json")))
+        );
         hooks[8] = HookDeployment(
             APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY,
-            vm.getCode("script/locked-bytecode/ApproveAndDeposit5115VaultHook.json")
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "ApproveAndDeposit5115VaultHook.json")))
         );
-        hooks[9] =
-            HookDeployment(REDEEM_5115_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/Redeem5115VaultHook.json"));
+        hooks[9] = HookDeployment(
+            REDEEM_5115_VAULT_HOOK_KEY, vm.getCode(string(abi.encodePacked(bytecodeFolder, "Redeem5115VaultHook.json")))
+        );
         hooks[10] = HookDeployment(
-            REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/RequestDeposit7540VaultHook.json")
+            REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY,
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "RequestDeposit7540VaultHook.json")))
         );
         hooks[11] = HookDeployment(
             APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY,
-            vm.getCode("script/locked-bytecode/ApproveAndRequestDeposit7540VaultHook.json")
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "ApproveAndRequestDeposit7540VaultHook.json")))
         );
         hooks[12] = HookDeployment(
             APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY,
-            vm.getCode("script/locked-bytecode/ApproveAndRequestRedeem7540VaultHook.json")
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "ApproveAndRequestRedeem7540VaultHook.json")))
         );
-        hooks[13] =
-            HookDeployment(REDEEM_7540_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/Redeem7540VaultHook.json"));
+        hooks[13] = HookDeployment(
+            REDEEM_7540_VAULT_HOOK_KEY, vm.getCode(string(abi.encodePacked(bytecodeFolder, "Redeem7540VaultHook.json")))
+        );
         hooks[14] = HookDeployment(
-            REQUEST_REDEEM_7540_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/RequestRedeem7540VaultHook.json")
+            REQUEST_REDEEM_7540_VAULT_HOOK_KEY,
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "RequestRedeem7540VaultHook.json")))
         );
-        hooks[15] =
-            HookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/Deposit7540VaultHook.json"));
+        hooks[15] = HookDeployment(
+            DEPOSIT_7540_VAULT_HOOK_KEY,
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "Deposit7540VaultHook.json")))
+        );
 
         // ===== HOOKS WITH EXTERNAL ROUTER DEPENDENCIES =====
 
@@ -1128,7 +1202,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hooks[16] = HookDeployment(
             SWAP_1INCH_HOOK_KEY,
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/Swap1InchHook.json"),
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "Swap1InchHook.json"))),
                 abi.encode(configuration.aggregationRouters[chainId])
             )
         );
@@ -1139,13 +1213,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hooks[17] = HookDeployment(
             SWAP_ODOSV2_HOOK_KEY,
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/SwapOdosV2Hook.json"), abi.encode(configuration.odosRouters[chainId])
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "SwapOdosV2Hook.json"))),
+                abi.encode(configuration.odosRouters[chainId])
             )
         );
         hooks[18] = HookDeployment(
             APPROVE_AND_SWAP_ODOSV2_HOOK_KEY,
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/ApproveAndSwapOdosV2Hook.json"),
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "ApproveAndSwapOdosV2Hook.json"))),
                 abi.encode(configuration.odosRouters[chainId])
             )
         );
@@ -1161,7 +1236,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hooks[19] = HookDeployment(
             ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/AcrossSendFundsAndExecuteOnDstHook.json"),
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "AcrossSendFundsAndExecuteOnDstHook.json"))),
                 abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator)
             )
         );
@@ -1174,43 +1249,52 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hooks[20] = HookDeployment(
             DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/DeBridgeSendOrderAndExecuteOnDstHook.json"),
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "DeBridgeSendOrderAndExecuteOnDstHook.json"))),
                 abi.encode(DEBRIDGE_DLN_SRC, superValidator)
             )
         );
         hooks[21] = HookDeployment(
             DEBRIDGE_CANCEL_ORDER_HOOK_KEY,
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/DeBridgeCancelOrderHook.json"), abi.encode(DEBRIDGE_DLN_DST)
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "DeBridgeCancelOrderHook.json"))),
+                abi.encode(DEBRIDGE_DLN_DST)
             )
         );
 
         // Protocol-specific hooks (no external dependencies)
         hooks[22] = HookDeployment(
-            ETHENA_COOLDOWN_SHARES_HOOK_KEY, vm.getCode("script/locked-bytecode/EthenaCooldownSharesHook.json")
+            ETHENA_COOLDOWN_SHARES_HOOK_KEY,
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "EthenaCooldownSharesHook.json")))
         );
-        hooks[23] = HookDeployment(ETHENA_UNSTAKE_HOOK_KEY, vm.getCode("script/locked-bytecode/EthenaUnstakeHook.json"));
+        hooks[23] = HookDeployment(
+            ETHENA_UNSTAKE_HOOK_KEY, vm.getCode(string(abi.encodePacked(bytecodeFolder, "EthenaUnstakeHook.json")))
+        );
         hooks[24] = HookDeployment(
-            CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, vm.getCode("script/locked-bytecode/CancelDepositRequest7540Hook.json")
+            CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY,
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "CancelDepositRequest7540Hook.json")))
         );
         hooks[25] = HookDeployment(
-            CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, vm.getCode("script/locked-bytecode/CancelRedeemRequest7540Hook.json")
+            CANCEL_REDEEM_REQUEST_7540_HOOK_KEY,
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "CancelRedeemRequest7540Hook.json")))
         );
         hooks[26] = HookDeployment(
             CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY,
-            vm.getCode("script/locked-bytecode/ClaimCancelDepositRequest7540Hook.json")
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "ClaimCancelDepositRequest7540Hook.json")))
         );
         hooks[27] = HookDeployment(
             CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY,
-            vm.getCode("script/locked-bytecode/ClaimCancelRedeemRequest7540Hook.json")
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "ClaimCancelRedeemRequest7540Hook.json")))
         );
-        hooks[28] = HookDeployment(OFFRAMP_TOKENS_HOOK_KEY, vm.getCode("script/locked-bytecode/OfframpTokensHook.json"));
-        hooks[29] =
-            HookDeployment(MARK_ROOT_AS_USED_HOOK_KEY, vm.getCode("script/locked-bytecode/MarkRootAsUsedHook.json"));
+        hooks[28] = HookDeployment(
+            OFFRAMP_TOKENS_HOOK_KEY, vm.getCode(string(abi.encodePacked(bytecodeFolder, "OfframpTokensHook.json")))
+        );
+        hooks[29] = HookDeployment(
+            MARK_ROOT_AS_USED_HOOK_KEY, vm.getCode(string(abi.encodePacked(bytecodeFolder, "MarkRootAsUsedHook.json")))
+        );
         hooks[30] = HookDeployment(
             MERKL_CLAIM_REWARD_HOOK_KEY,
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/MerklClaimRewardHook.json"),
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "MerklClaimRewardHook.json"))),
                 abi.encode(configuration.merklDistributors[chainId])
             )
         );
@@ -1356,8 +1440,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         return hookAddresses;
     }
 
-    function _deployOracles(uint64 chainId) private returns (address[] memory oracleAddresses) {
+    function _deployOracles(uint64 chainId, uint256 env) private returns (address[] memory oracleAddresses) {
         console2.log("Starting oracle deployment with parameter validation...");
+        string memory bytecodeFolder = _getBytecodeFolder(env);
 
         uint256 len = 7;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
@@ -1373,41 +1458,48 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         oracles[0] = OracleDeployment(
             ERC4626_YIELD_SOURCE_ORACLE_KEY,
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/ERC4626YieldSourceOracle.json"), abi.encode(superLedgerConfig)
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "ERC4626YieldSourceOracle.json"))),
+                abi.encode(superLedgerConfig)
             )
         );
         oracles[1] = OracleDeployment(
             ERC5115_YIELD_SOURCE_ORACLE_KEY,
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/ERC5115YieldSourceOracle.json"), abi.encode(superLedgerConfig)
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "ERC5115YieldSourceOracle.json"))),
+                abi.encode(superLedgerConfig)
             )
         );
         oracles[2] = OracleDeployment(
             ERC7540_YIELD_SOURCE_ORACLE_KEY,
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/ERC7540YieldSourceOracle.json"), abi.encode(superLedgerConfig)
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "ERC7540YieldSourceOracle.json"))),
+                abi.encode(superLedgerConfig)
             )
         );
         oracles[3] = OracleDeployment(
             PENDLE_PT_YIELD_SOURCE_ORACLE_KEY,
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/PendlePTYieldSourceOracle.json"), abi.encode(superLedgerConfig)
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "PendlePTYieldSourceOracle.json"))),
+                abi.encode(superLedgerConfig)
             )
         );
         oracles[4] = OracleDeployment(
             SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY,
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/SpectraPTYieldSourceOracle.json"), abi.encode(superLedgerConfig)
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "SpectraPTYieldSourceOracle.json"))),
+                abi.encode(superLedgerConfig)
             )
         );
         oracles[5] = OracleDeployment(
             STAKING_YIELD_SOURCE_ORACLE_KEY,
             abi.encodePacked(
-                vm.getCode("script/locked-bytecode/StakingYieldSourceOracle.json"), abi.encode(superLedgerConfig)
+                vm.getCode(string(abi.encodePacked(bytecodeFolder, "StakingYieldSourceOracle.json"))),
+                abi.encode(superLedgerConfig)
             )
         );
         oracles[6] = OracleDeployment(
-            SUPER_YIELD_SOURCE_ORACLE_KEY, vm.getCode("script/locked-bytecode/SuperYieldSourceOracle.json")
+            SUPER_YIELD_SOURCE_ORACLE_KEY,
+            vm.getCode(string(abi.encodePacked(bytecodeFolder, "SuperYieldSourceOracle.json")))
         );
 
         console2.log("Deploying", len, "oracles with parameter validation...");
