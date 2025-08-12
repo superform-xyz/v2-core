@@ -602,6 +602,24 @@ contract CircleGatewayUnitTests is BaseTest {
         walletHook.build(address(0), ACCOUNT, hookData);
     }
 
+    function test_WalletHook_PreExecute_DirectCall() public {
+        bytes memory hookData = abi.encodePacked(
+            address(mockToken), // token (20 bytes)
+            DEPOSIT_AMOUNT, // amount (32 bytes)
+            false // usePrevHookAmount (1 byte)
+        );
+
+        // Set up execution context
+        walletHook.setExecutionContext(ACCOUNT);
+
+        // Call preExecute directly - this function should execute without reverting
+        vm.prank(ACCOUNT);
+        walletHook.preExecute(address(0), ACCOUNT, hookData);
+
+        // The function doesn't have any state changes to verify, but we can verify it executed
+        // by checking that no revert occurred
+    }
+
     // ========== CircleGatewayMinterHook Branch Coverage ==========
 
     function test_MinterHook_BuildExecutions_EmptyPayload() public {
@@ -953,6 +971,33 @@ contract CircleGatewayUnitTests is BaseTest {
         // Call preExecute directly - this function should not revert
         vm.prank(ACCOUNT);
         walletHook.preExecute(address(0), ACCOUNT, hookData);
+    }
+
+    function test_MinterHook_ExtractTokenFromAttestation_FirstIteration() public view {
+        // This tests the first iteration where token is address(0), so the condition is false
+        // and we don't enter the nested if statement
+        bytes memory hookData = _createValidAttestationData(address(mockToken));
+
+        // This should succeed because it's the first iteration and token starts as address(0)
+        bytes memory result = minterHook.inspect(hookData);
+
+        // Verify the result is correct
+        require(result.length == 20, "Expected 20 bytes for address");
+        address decodedToken;
+        assembly {
+            decodedToken := shr(96, mload(add(result, 0x20)))
+        }
+        assertEq(decodedToken, address(mockToken), "Should extract correct token address");
+    }
+
+    function test_MinterHook_ValidateDestinationCaller_Mismatch() public {
+        // This tests when destinationCaller is not equal to account and not address(0)
+        address differentAccount = address(0x456);
+        bytes memory hookData = _createValidAttestationDataWithCaller(address(mockToken), differentAccount);
+
+        // This should revert with INVALID_DESTINATION_CALLER when destinationCaller doesn't match account
+        vm.expectRevert(abi.encodeWithSignature("INVALID_DESTINATION_CALLER()"));
+        minterHook.build(address(0), ACCOUNT, hookData);
     }
 
     /*//////////////////////////////////////////////////////////////
