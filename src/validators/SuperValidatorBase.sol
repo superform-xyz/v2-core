@@ -36,6 +36,12 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     bytes4 internal constant EIP1271_MAGIC_VALUE = bytes4(0x1626ba7e);
 
     /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+    event AccountOwnerSet(address indexed account, address indexed owner);
+    event AccountUnset(address indexed account);
+
+    /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error ZERO_ADDRESS();
@@ -64,20 +70,24 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                            EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function onInstall(bytes calldata data) external {
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
         address owner = abi.decode(data, (address));
         if (owner == address(0)) revert ZERO_ADDRESS();
         _initialized[msg.sender] = true;
+
         _accountOwners[msg.sender] = owner;
+        emit AccountOwnerSet(msg.sender, owner);
     }
 
     function onUninstall(bytes calldata) external {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _initialized[msg.sender] = false;
+
         delete _accountOwners[msg.sender];
+        emit AccountUnset(msg.sender);
     }
 
     /*//////////////////////////////////////////////////////////////
