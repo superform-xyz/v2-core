@@ -16,7 +16,11 @@ import { MockERC20 } from "../../../mocks/MockERC20.sol";
 
 // Circle Gateway
 import { TransferSpecLib, TransferSpec } from "../../../../lib/evm-gateway-contracts/src/lib/TransferSpecLib.sol";
-import { AttestationLib, Attestation, AttestationSet } from "../../../../lib/evm-gateway-contracts/src/lib/AttestationLib.sol";
+import {
+    AttestationLib,
+    Attestation,
+    AttestationSet
+} from "../../../../lib/evm-gateway-contracts/src/lib/AttestationLib.sol";
 
 /// @title CircleGatewayUnitTests
 /// @author Superform Labs
@@ -308,7 +312,7 @@ contract CircleGatewayUnitTests is BaseTest {
     }
 
     /*//////////////////////////////////////////////////////////////
-                    _validateDestinationCaller TESTS
+                        DESTINATION CALLER TESTS
     //////////////////////////////////////////////////////////////*/
 
     function test_ValidateDestinationCaller_ValidCaller() public view {
@@ -546,7 +550,7 @@ contract CircleGatewayUnitTests is BaseTest {
         // Set up execution context
         walletHook.setExecutionContext(ACCOUNT);
 
-        // Call postExecute directly (this would normally be called by the executor)
+        // Call postExecute directly
         vm.prank(ACCOUNT);
         walletHook.postExecute(address(mockPrevHook), ACCOUNT, hookData);
 
@@ -583,6 +587,19 @@ contract CircleGatewayUnitTests is BaseTest {
         // Test constructor with valid address
         CircleGatewayWalletHook newHook = new CircleGatewayWalletHook(address(0x123));
         assertEq(newHook.GATEWAY_WALLET(), address(0x123), "Should set gateway wallet address");
+    }
+
+    function test_WalletHook_BuildExecutions_WithPrevHookAmount_NullPrevHook() public {
+        // Test the branch where usePrevHookAmount is true but prevHook is address(0)
+        bytes memory hookData = abi.encodePacked(
+            address(mockToken), // token (20 bytes)
+            DEPOSIT_AMOUNT, // amount (32 bytes)
+            true // usePrevHookAmount (1 byte)
+        );
+
+        // This should revert when trying to call getOutAmount on address(0)
+        vm.expectRevert();
+        walletHook.build(address(0), ACCOUNT, hookData);
     }
 
     // ========== CircleGatewayMinterHook Branch Coverage ==========
@@ -777,19 +794,6 @@ contract CircleGatewayUnitTests is BaseTest {
     }
 
     // ========== Edge Cases and Error Conditions ==========
-
-    function test_WalletHook_BuildExecutions_WithPrevHookAmount_NullPrevHook() public {
-        // Test the branch where usePrevHookAmount is true but prevHook is address(0)
-        bytes memory hookData = abi.encodePacked(
-            address(mockToken), // token (20 bytes)
-            DEPOSIT_AMOUNT, // amount (32 bytes)
-            true // usePrevHookAmount (1 byte)
-        );
-
-        // This should revert when trying to call getOutAmount on address(0)
-        vm.expectRevert();
-        walletHook.build(address(0), ACCOUNT, hookData);
-    }
 
     function test_MinterHook_ExtractTokenFromAttestation_InvalidAttestation() public {
         // Test _extractTokenFromAttestation with invalid attestation data
@@ -1011,7 +1015,9 @@ contract CircleGatewayUnitTests is BaseTest {
         minterHook.inspect(hookData);
     }
 
-    // ========== Helper Functions ==========
+    /*//////////////////////////////////////////////////////////////
+                            HELPER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice Create valid attestation data for testing
     /// @param tokenAddress The token address to include in the attestation (optional)
@@ -1307,21 +1313,13 @@ contract CircleGatewayUnitTests is BaseTest {
         });
 
         Attestation[] memory attestations = new Attestation[](2);
-        Attestation memory attestation1 = Attestation({
-            maxBlockHeight: MAX_BLOCK_HEIGHT,
-            spec: transferSpec
-        });
+        Attestation memory attestation1 = Attestation({ maxBlockHeight: MAX_BLOCK_HEIGHT, spec: transferSpec });
         attestations[0] = attestation1;
 
-        Attestation memory attestation2 = Attestation({
-            maxBlockHeight: MAX_BLOCK_HEIGHT,
-            spec: transferSpec
-        });
+        Attestation memory attestation2 = Attestation({ maxBlockHeight: MAX_BLOCK_HEIGHT, spec: transferSpec });
         attestations[1] = attestation2;
 
-        AttestationSet memory attestationSet = AttestationSet({
-            attestations: attestations
-        });
+        AttestationSet memory attestationSet = AttestationSet({ attestations: attestations });
 
         // Create a simple mock attestation set structure
         // This simulates the Circle Gateway AttestationSet format
@@ -1380,18 +1378,10 @@ contract CircleGatewayUnitTests is BaseTest {
         });
 
         Attestation[] memory attestations = new Attestation[](2);
-        attestations[0] = Attestation({
-            maxBlockHeight: MAX_BLOCK_HEIGHT,
-            spec: transferSpec
-        });
-        attestations[1] = Attestation({
-            maxBlockHeight: MAX_BLOCK_HEIGHT,
-            spec: transferSpec2
-        });
+        attestations[0] = Attestation({ maxBlockHeight: MAX_BLOCK_HEIGHT, spec: transferSpec });
+        attestations[1] = Attestation({ maxBlockHeight: MAX_BLOCK_HEIGHT, spec: transferSpec2 });
 
-        AttestationSet memory attestationSet = AttestationSet({
-            attestations: attestations
-        });
+        AttestationSet memory attestationSet = AttestationSet({ attestations: attestations });
 
         // Create a simple mock attestation set structure with different tokens
         bytes memory attestationSetBytes = AttestationLib.encodeAttestationSet(attestationSet);
