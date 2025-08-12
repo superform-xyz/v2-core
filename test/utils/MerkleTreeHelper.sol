@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {StdCheats} from "forge-std/StdCheats.sol";
-import {Helpers} from "./Helpers.sol";
+import { StdCheats } from "forge-std/StdCheats.sol";
+import { Helpers } from "./Helpers.sol";
 
 abstract contract MerkleTreeHelper is StdCheats, Helpers {
     mapping(uint64 chainId => bytes32[]) public hookLeavesPerChain;
@@ -12,7 +12,10 @@ abstract contract MerkleTreeHelper is StdCheats, Helpers {
     /*//////////////////////////////////////////////////////////////
                                  HOOKS TREE HELPERS
     //////////////////////////////////////////////////////////////*/
-    function _createHooksTree(uint64 chainId, address[] memory hooksAddresses)
+    function _createHooksTree(
+        uint64 chainId,
+        address[] memory hooksAddresses
+    )
         internal
         returns (bytes32[][] memory proof, bytes32 root)
     {
@@ -31,8 +34,20 @@ abstract contract MerkleTreeHelper is StdCheats, Helpers {
     /*//////////////////////////////////////////////////////////////
                                  SOURCE CHAIN HELPERS
     //////////////////////////////////////////////////////////////*/
-    function _createSourceValidatorLeaf(bytes32 userOpHash, uint48 validUntil, bool validateDstProof, address validator) internal pure returns (bytes32) {
-        return keccak256(bytes.concat(keccak256(abi.encode(userOpHash, validUntil, validateDstProof, validator))));
+
+    function _createSourceValidatorLeaf(
+        bytes32 userOpHash,
+        uint48 validUntil,
+        uint64[] memory chainsWithDestinationExecution,
+        address validator
+    )
+        internal
+        pure
+        returns (bytes32)
+    {
+        return keccak256(
+            bytes.concat(keccak256(abi.encode(userOpHash, validUntil, chainsWithDestinationExecution, validator)))
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -47,11 +62,17 @@ abstract contract MerkleTreeHelper is StdCheats, Helpers {
         uint256[] memory intentAmounts,
         uint48 validUntil,
         address _validator
-    ) internal pure returns (bytes32) {
+    )
+        internal
+        pure
+        returns (bytes32)
+    {
         return keccak256(
             bytes.concat(
                 keccak256(
-                    abi.encode(executionData, dstChainId, account, executor, dstTokens, intentAmounts, validUntil, _validator)
+                    abi.encode(
+                        executionData, dstChainId, account, executor, dstTokens, intentAmounts, validUntil, _validator
+                    )
                 )
             )
         );

@@ -58,12 +58,19 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
         bool isValid = _isSignatureValid(signer, _userOp.sender, sigData.validUntil);
 
         // Verify destination data
-        if (isValid && sigData.validateDstProof) {
+        if (isValid && sigData.chainsWithDestinationExecution.length > 0) {
             uint256 dstLen = sigData.proofDst.length;
-            if (dstLen == 0) revert INVALID_DESTINATION_PROOF();
+            uint256 expectedChainsLen = sigData.chainsWithDestinationExecution.length;
+            if (dstLen == 0) revert EMPTY_DESTINATION_PROOF();
+            if (dstLen != expectedChainsLen) revert PROOF_COUNT_MISMATCH();
 
+            // Create an array to track which chains have been provided proofs for
+            bool[] memory chainProofProvided = new bool[](expectedChainsLen);
+
+            // First pass: validate all proofs and mark chains
             for (uint256 i; i < dstLen; ++i) {
                 DstProof memory dstProof = sigData.proofDst[i];
+
                 DestinationData memory dstData = DestinationData({
                     callData: dstProof.info.data,
                     chainId: dstProof.dstChainId,
@@ -76,7 +83,33 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
                 bytes32 dstLeaf = _createDestinationLeaf(dstData, sigData.validUntil, dstProof.info.validator);
 
                 if (!MerkleProof.verify(dstProof.proof, sigData.merkleRoot, dstLeaf)) {
-                    revert INVALID_DESTINATION_PROOF();
+                    revert INVALID_MERKLE_PROOF();
+                }
+
+                // Mark this chain as having a proof provided
+                bool chainFound = false;
+                for (uint256 j; j < expectedChainsLen; ++j) {
+                    if (sigData.chainsWithDestinationExecution[j] == dstProof.dstChainId) {
+                        if (chainProofProvided[j]) {
+                            // Duplicate proof for same chain
+                            revert DUPLICATE_CHAIN_PROOF();
+                        }
+                        chainProofProvided[j] = true;
+                        chainFound = true;
+                        break;
+                    }
+                }
+
+                // Proof provided for a chain not in the expected list
+                if (!chainFound) {
+                    revert UNEXPECTED_CHAIN_PROOF();
+                }
+            }
+
+            // Second pass: ensure all expected chains have proofs
+            for (uint256 i; i < expectedChainsLen; ++i) {
+                if (!chainProofProvided[i]) {
+                    revert MISSING_CHAIN_PROOF();
                 }
             }
 
@@ -124,21 +157,20 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
     ///      Double-hashing is used for added security
     /// @param data Encoded data containing the user operation hash
     /// @param validUntil Timestamp after which the signature becomes invalid
-    /// @param checkCrossChainExecution Whether to validate destination proof
+    /// @param chainsWithDestinationExecution Which chains have destination execution
     /// @return The calculated leaf hash used in merkle tree verification
     function _createLeaf(
         bytes memory data,
         uint48 validUntil,
-        bool checkCrossChainExecution
+        uint64[] memory chainsWithDestinationExecution
     )
         internal
         view
-        override
         returns (bytes32)
     {
         bytes32 userOpHash = abi.decode(data, (bytes32));
         return keccak256(
-            bytes.concat(keccak256(abi.encode(userOpHash, validUntil, checkCrossChainExecution, address(this))))
+            bytes.concat(keccak256(abi.encode(userOpHash, validUntil, chainsWithDestinationExecution, address(this))))
         );
     }
 
@@ -163,7 +195,7 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
         returns (address signer, bytes32 leaf)
     {
         // Create leaf from user operation hash and verify it's part of the merkle tree using source proof
-        leaf = _createLeaf(abi.encode(userOpHash), sigData.validUntil, sigData.validateDstProof);
+        leaf = _createLeaf(abi.encode(userOpHash), sigData.validUntil, sigData.chainsWithDestinationExecution);
         if (!MerkleProof.verify(sigData.proofSrc, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
         // Process signature using common method

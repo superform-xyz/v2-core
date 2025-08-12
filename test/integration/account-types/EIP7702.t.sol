@@ -1366,7 +1366,10 @@ contract EIP7702Test is BaseTest {
         console2.log("params.intentAmounts", ctx.intentAmounts.length);
         console2.log("params.validUntil", uint256(ctx.validUntil));
         console2.log("params.dstValidator", params.dstValidator);
-        ctx.leaves[1] = _createSourceValidatorLeaf(params.userOpHash, ctx.validUntil, true, params.srcValidator);
+        uint64[] memory chainsForLeaf = new uint64[](1);
+        chainsForLeaf[0] = params.dstChainId;
+        ctx.leaves[1] =
+            _createSourceValidatorLeaf(params.userOpHash, ctx.validUntil, chainsForLeaf, params.srcValidator);
 
         (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
 
@@ -1384,8 +1387,10 @@ contract EIP7702Test is BaseTest {
         proofDst[0] =
             ISuperValidator.DstProof({ proof: ctx.merkleProof[0], dstChainId: params.dstChainId, info: dstInfo });
 
-        sig = _createSignatureData_DestinationExecutor(
-            true, ctx.validUntil, ctx.merkleRoot, ctx.merkleProof[1], proofDst, ctx.signature
+        uint64[] memory chainsWithDestExecution = new uint64[](1);
+        chainsWithDestExecution[0] = params.dstChainId;
+        sig = _createSignatureData_DestinationExecutorWithChains(
+            chainsWithDestExecution, ctx.validUntil, ctx.merkleRoot, ctx.merkleProof[1], proofDst, ctx.signature
         );
     }
 

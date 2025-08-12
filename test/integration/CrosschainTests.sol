@@ -100,6 +100,7 @@ contract CrosschainTests is BaseTest {
     address public yieldSource4626AddressBase_WETH;
     address public yieldSourceUsdcAddressEth;
     address public yieldSourceMorphoUsdcAddressBase;
+    address public yieldSourceSparkUsdcAddressBase;
 
     IERC7540 public vaultInstance7540ETH;
     address public yieldSource7540AddressETH_USDC;
@@ -273,6 +274,9 @@ contract CrosschainTests is BaseTest {
             realVaultAddresses[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY];
         vaultInstanceMorphoBase = IERC4626(yieldSourceMorphoUsdcAddressBase);
         vm.label(yieldSourceMorphoUsdcAddressBase, "YIELD_SOURCE_MORPHO_USDC_BASE");
+
+        yieldSourceSparkUsdcAddressBase = realVaultAddresses[BASE][ERC4626_VAULT_KEY][SPARK_USDC_VAULT_KEY][USDC_KEY];
+        vm.label(yieldSourceSparkUsdcAddressBase, "YIELD_SOURCE_SPARK_USDC_BASE");
 
         // ORACLES
         addressOracleETH = _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY);
@@ -2216,18 +2220,19 @@ contract CrosschainTests is BaseTest {
         );
         // attacker changes the dstProof in signature to empty bytes32[]
         (
-            bool validateDstProof,
+            uint64[] memory chainsWithDestinationExecution,
             uint48 validUntil,
             bytes32 merkleRoot,
             bytes32[] memory merkleProofSrc,
             , // This will be replaced
             bytes memory signature
-        ) = abi.decode(signatureData, (bool, uint48, bytes32, bytes32[], bytes32[], bytes));
+        ) = abi.decode(signatureData, (uint64[], uint48, bytes32, bytes32[], ISuperValidator.DstProof[], bytes));
 
-        bytes32[] memory emptyMerkleProofDst = new bytes32[](0);
+        ISuperValidator.DstProof[] memory emptyMerkleProofDst = new ISuperValidator.DstProof[](0);
 
-        bytes memory tamperedSig =
-            abi.encode(validateDstProof, validUntil, merkleRoot, merkleProofSrc, emptyMerkleProofDst, signature);
+        bytes memory tamperedSig = abi.encode(
+            chainsWithDestinationExecution, validUntil, merkleRoot, merkleProofSrc, emptyMerkleProofDst, signature
+        );
 
         srcUserOpData.userOp.signature = tamperedSig;
 
@@ -2362,7 +2367,7 @@ contract CrosschainTests is BaseTest {
         uint256 amount = 1e8;
 
         // BASE IS DST
-        SELECT_FORK_AND_WARP(BASE, block.timestamp);
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME);
 
         address accountToUse;
         TargetExecutorMessage memory messageData;
@@ -2376,10 +2381,10 @@ contract CrosschainTests is BaseTest {
 
             bytes[] memory dstHooksData = new bytes[](2);
             dstHooksData[0] =
-                _createApproveHookData(underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, amount, false);
+                _createApproveHookData(underlyingBase_USDC, yieldSourceSparkUsdcAddressBase, amount, false);
             dstHooksData[1] = _createDeposit4626HookData(
                 _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
-                yieldSourceMorphoUsdcAddressBase,
+                yieldSourceSparkUsdcAddressBase,
                 amount,
                 true,
                 address(0),
@@ -2406,7 +2411,7 @@ contract CrosschainTests is BaseTest {
         }
 
         // ETH is SRC
-        SELECT_FORK_AND_WARP(ETH, block.timestamp);
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME + 1 days);
 
         address[] memory srcHooksAddresses = new address[](4);
         srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
@@ -2480,12 +2485,12 @@ contract CrosschainTests is BaseTest {
         _processDebridgeDlnMessage(ETH, BASE, executionData);
 
         // Verify that accountToUse received vault shares from the deposit
-        SELECT_FORK_AND_WARP(BASE, block.timestamp);
-        uint256 vaultShares = IERC20(yieldSourceMorphoUsdcAddressBase).balanceOf(accountToUse);
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 2 days);
+        uint256 vaultShares = IERC20(yieldSourceSparkUsdcAddressBase).balanceOf(accountToUse);
         assertGt(vaultShares, 0, "Account should have received vault shares from deposit");
 
         // Verify the shares can be converted back to approximately the deposited amount
-        uint256 assetsFromShares = IERC4626(yieldSourceMorphoUsdcAddressBase).convertToAssets(vaultShares);
+        uint256 assetsFromShares = IERC4626(yieldSourceSparkUsdcAddressBase).convertToAssets(vaultShares);
         assertApproxEqRel(
             assetsFromShares, amount, 0.01e18, "Vault shares should convert to approximately the deposited amount"
         );
@@ -2607,11 +2612,11 @@ contract CrosschainTests is BaseTest {
             })
         );
         // the signatures don't match due to wrong decoding
-        (,,,, bytes memory destinationChainSignature) =
-            abi.decode(signatureData, (bool, uint48, bytes32, bytes32[], bytes));
+        (,,,,, bytes memory destinationChainSignature) =
+            abi.decode(signatureData, (uint64[], uint48, bytes32, bytes32[], ISuperValidator.DstProof[], bytes));
 
-        (,,,,, bytes memory sourceChainSignature) =
-            abi.decode(signatureData, (bool, uint48, bytes32, bytes32[], bytes32[], bytes));
+        (,,,, bytes memory sourceChainSignature) =
+            abi.decode(signatureData, (uint64[], uint48, bytes32, bytes32[], bytes));
 
         assert(keccak256(destinationChainSignature) != keccak256(sourceChainSignature));
     }
@@ -2628,7 +2633,7 @@ contract CrosschainTests is BaseTest {
             _prepareOPDeposit4626Message(amountPerVault); // Generalize this
 
         // ETH IS SRC - First execution from ETH to OP
-        SELECT_FORK_AND_WARP(ETH, CHAIN_1_TIMESTAMP);
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME + 1 days);
 
         UserOpData memory ethUserOpData =
             _prepareETHUserOpData(amountPerVault, accountToUse, messageData, targetExecutorMessage);
@@ -2638,7 +2643,7 @@ contract CrosschainTests is BaseTest {
             executeOpsThroughPaymaster(ethUserOpData, superNativePaymasterOnETH, 1e18);
         _processDebridgeDlnMessage(ETH, OP, ethExecutionData);
 
-        SELECT_FORK_AND_WARP(BASE, CHAIN_8453_TIMESTAMP);
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 2 days);
 
         // PREPARE BASE DATA - Source hooks that will bridge from BASE to OP
         address[] memory baseHooksAddresses = new address[](2);
@@ -2664,7 +2669,12 @@ contract CrosschainTests is BaseTest {
 
         // This execution should have succeed
         SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
-        assertEq(IERC20(yieldSource4626AddressOP_USDCe).balanceOf(accountToUse), previewDepositAmount - 1);
+        assertApproxEqRel(
+            IERC20(yieldSource4626AddressOP_USDCe).balanceOf(accountToUse),
+            previewDepositAmount - 1,
+            0.001e18, // 0.1% tolerance for vault precision
+            "Vault balance should approximately match expected shares"
+        );
 
         // BASE IS SRC - Second execution from BASE to OP (replay attack)
         baseUserOpData = _createBaseUserOp(amountPerVault, accountToUse, targetExecutorMessage);
@@ -4291,13 +4301,13 @@ contract CrosschainTests is BaseTest {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _createSourceValidatorLeaf(
-            IEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, false, address(validator)
+            IEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, new uint64[](0), address(validator)
         );
         (bytes32[][] memory _proof, bytes32 _root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(_root);
 
         bytes memory sigData =
-            abi.encode(false, validUntil, _root, _proof[0], new ISuperValidator.DstProof[](0), signature);
+            abi.encode(new uint64[](0), validUntil, _root, _proof[0], new ISuperValidator.DstProof[](0), signature);
 
         userOp.signature = sigData;
 

@@ -116,14 +116,7 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
     /*//////////////////////////////////////////////////////////////
                                  ACCOUNT CREATION METHODS
     //////////////////////////////////////////////////////////////*/
-    function _createWithNexus(
-        address[] memory attesters,
-        uint8 threshold,
-        uint256 value
-    )
-        internal
-        returns (address)
-    {
+    function _createWithNexus(address[] memory attesters, uint8 threshold, uint256 value) internal returns (address) {
         bytes memory initData = _getNexusInitData(attesters, threshold);
 
         address computedAddress = nexusFactory.computeAccountAddress(initData, initSalt);
@@ -133,14 +126,7 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         return computedAddress;
     }
 
-    function _getNexusInitData(
-        address[] memory attesters,
-        uint8 threshold
-    )
-        internal
-        view
-        returns (bytes memory)
-    {
+    function _getNexusInitData(address[] memory attesters, uint8 threshold) internal view returns (bytes memory) {
         // create validators
         BootstrapConfig[] memory validators = new BootstrapConfig[](1);
         validators[0] = BootstrapConfig({ module: address(superMerkleValidator), data: abi.encode(signer) });
@@ -200,12 +186,17 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _createSourceValidatorLeaf(
-            IEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, false, address(superMerkleValidator)
+            IEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp),
+            validUntil,
+            new uint64[](0),
+            address(superMerkleValidator)
         );
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(root);
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
-        bytes memory sigData = abi.encode(false, validUntil, root, proof[0], proofDst, signature);
+        uint64[] memory chainsWithDestExecutionPaymaster = new uint64[](0);
+        bytes memory sigData =
+            abi.encode(chainsWithDestExecutionPaymaster, validUntil, root, proof[0], proofDst, signature);
         // -- replace signature with validator signature
         userOp.signature = sigData;
 

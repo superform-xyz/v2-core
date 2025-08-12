@@ -295,9 +295,16 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
         // Create leaves
         testData.leaves = new bytes32[](3);
+
+        uint64[] memory chainsWithDestExecution = new uint64[](2);
+        chainsWithDestExecution[0] = 10;
+        chainsWithDestExecution[1] = 11;
         // Leaf for source operation
         testData.leaves[0] = _createSourceValidatorLeaf(
-            IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, true, address(superMerkleValidator)
+            IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp),
+            validUntil,
+            chainsWithDestExecution,
+            address(superMerkleValidator)
         );
 
         // Leaf for cross-chain USDC
@@ -377,7 +384,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
                 })
             });
 
-            testData.sigData = _encodeSigData(proofDst, testData, validUntil);
+            testData.sigData = _encodeSigData(chainsWithDestExecution, proofDst, testData, validUntil);
         }
 
         // Build userops
@@ -393,6 +400,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
                           INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
     function _encodeSigData(
+        uint64[] memory chainsWithDestExecution,
         ISuperValidator.DstProof[] memory proofDst,
         TestData memory testData,
         uint48 validUntil
@@ -402,7 +410,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         returns (bytes memory)
     {
         return abi.encode(
-            true,
+            chainsWithDestExecution,
             validUntil,
             testData.root,
             testData.proof[0],
@@ -595,11 +603,13 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
         bytes32 _hash = IMinimalEntryPoint(entryPoint).getUserOpHash(userOp);
-        leaves[0] = _createSourceValidatorLeaf(_hash, validUntil, false, address(superMerkleValidator));
+        uint64[] memory chainsForLeaf = new uint64[](0);
+        leaves[0] = _createSourceValidatorLeaf(_hash, validUntil, chainsForLeaf, address(superMerkleValidator));
         (proof, root) = _createValidatorMerkleTree(leaves);
         signature = _getSignature(root);
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
-        sigData = abi.encode(false, validUntil, root, proof[0], proofDst, signature);
+        uint64[] memory chainsWithDestExecution = new uint64[](0);
+        sigData = abi.encode(chainsWithDestExecution, validUntil, root, proof[0], proofDst, signature);
     }
 
     function _getSignatureData(
@@ -615,8 +625,13 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](2);
+        uint64[] memory chainsWithDestExecution = new uint64[](1);
+        chainsWithDestExecution[0] = uint64(block.chainid);
         leaves[0] = _createSourceValidatorLeaf(
-            IMinimalEntryPoint(entryPoint).getUserOpHash(userOp), validUntil, true, address(superMerkleValidator)
+            IMinimalEntryPoint(entryPoint).getUserOpHash(userOp),
+            validUntil,
+            chainsWithDestExecution,
+            address(superMerkleValidator)
         );
 
         leaves[1] = _createDestinationValidatorLeaf(
@@ -643,7 +658,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         });
         proofDst[0] = ISuperValidator.DstProof({ proof: proof[1], dstChainId: uint64(block.chainid), info: dstInfo });
 
-        sigData = abi.encode(true, validUntil, root, proof[0], proofDst, signature);
+        sigData = abi.encode(chainsWithDestExecution, validUntil, root, proof[0], proofDst, signature);
     }
 
     function _prepareUserOpNonce(address nexusAccount, address token) internal view returns (uint256 nonce) {
