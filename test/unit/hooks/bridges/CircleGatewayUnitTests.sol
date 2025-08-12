@@ -15,8 +15,8 @@ import { ISuperHook, ISuperHookResult } from "../../../../src/interfaces/ISuperH
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 
 // Circle Gateway
-import { TransferSpecLib } from "../../../../lib/evm-gateway-contracts/src/lib/TransferSpecLib.sol";
-import { AttestationLib } from "../../../../lib/evm-gateway-contracts/src/lib/AttestationLib.sol";
+import { TransferSpecLib, TransferSpec } from "../../../../lib/evm-gateway-contracts/src/lib/TransferSpecLib.sol";
+import { AttestationLib, Attestation, AttestationSet } from "../../../../lib/evm-gateway-contracts/src/lib/AttestationLib.sol";
 
 /// @title CircleGatewayUnitTests
 /// @author Superform Labs
@@ -39,10 +39,13 @@ contract CircleGatewayUnitTests is BaseTest {
     address public constant ACCOUNT = address(0x123);
     uint256 public constant DEPOSIT_AMOUNT = 1000e6; // 1000 USDC
     uint256 public constant MINT_AMOUNT = 500e6; // 500 USDC
-    bytes4 public constant TRANSFER_SPEC_MAGIC = 0xca85def7;
+    uint256 public constant MAX_BLOCK_HEIGHT = 1000;
     uint32 public constant TRANSFER_SPEC_VERSION = 1;
     uint32 public constant TRANSFER_SPEC_SOURCE_DOMAIN = 1;
     uint32 public constant TRANSFER_SPEC_DESTINATION_DOMAIN = 2;
+    bytes4 public constant ATTESTATION_MAGIC = 0xff6fb334;
+    bytes4 public constant TRANSFER_SPEC_MAGIC = 0xca85def7;
+    bytes4 public constant ATTESTATION_SET_MAGIC = 0x1e12db71;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -326,7 +329,7 @@ contract CircleGatewayUnitTests is BaseTest {
         minterHook.build(address(0), ACCOUNT, hookData);
     }
 
-    function test_ValidateDestinationCaller_ZeroAddressCaller() public {
+    function test_ValidateDestinationCaller_ZeroAddressCaller() public view {
         // Test with zero address destination caller
         bytes memory hookData = _createValidAttestationDataWithCaller(address(mockToken), address(0));
 
@@ -764,7 +767,6 @@ contract CircleGatewayUnitTests is BaseTest {
         bytes memory result = minterHook.inspect(hookData);
 
         // The inspect function returns abi.encodePacked(usdc), which is a 20-byte packed address
-        // We need to handle the packed bytes correctly
         require(result.length == 20, "Expected 20 bytes for address");
         address decodedToken;
         assembly {
@@ -860,8 +862,6 @@ contract CircleGatewayUnitTests is BaseTest {
         assertEq(minterHook.getOutAmount(ACCOUNT), initialBalance, "Should record initial balance");
     }
 
-    // ========== Missing Branch Coverage Tests ==========
-
     function test_WalletHook_PostExecute_WithPrevHookAmount_Consistency() public {
         // Test that _postExecute correctly handles the case where usePrevHookAmount is true
         // The _postExecute function should use the amount from data, not from prevHook
@@ -946,12 +946,69 @@ contract CircleGatewayUnitTests is BaseTest {
         // Set up execution context
         walletHook.setExecutionContext(ACCOUNT);
 
-        // Call preExecute directly - this function has no logic but should not revert
+        // Call preExecute directly - this function should not revert
         vm.prank(ACCOUNT);
         walletHook.preExecute(address(0), ACCOUNT, hookData);
+    }
 
-        // The function should complete successfully (it has no logic, just an empty implementation)
-        // We can verify this by checking that no revert occurred
+    /*//////////////////////////////////////////////////////////////
+                        ATTESTATION SET TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_MinterHook_AttestationSet_SameTokenAddress() public view {
+        // Create mock attestation set data with same token addresses
+        // This simulates an AttestationSet with two attestations pointing to the same token
+        bytes memory mockAttestationSet = _createMockAttestationSetWithSameToken(address(mockToken));
+        bytes memory signature = new bytes(65); // Mock signature
+
+        // Create hook data
+        bytes memory hookData = abi.encodePacked(
+            uint256(mockAttestationSet.length), // payload length (32 bytes)
+            mockAttestationSet, // payload
+            uint256(signature.length), // signature length (32 bytes)
+            signature // signature
+        );
+
+        // Test build function - should succeed with same token addresses
+        Execution[] memory executions = minterHook.build(address(0), ACCOUNT, hookData);
+        assertEq(executions.length, 3, "Should have 3 executions");
+
+        // Test inspect function - should return the token address
+        bytes memory inspectResult = minterHook.inspect(hookData);
+
+        // The inspect function returns abi.encodePacked(usdc), which is a 20-byte packed address
+        require(inspectResult.length == 20, "Expected 20 bytes for address");
+        address decodedToken;
+        assembly {
+            decodedToken := shr(96, mload(add(inspectResult, 0x20)))
+        }
+
+        assertEq(decodedToken, address(mockToken), "Should extract correct token address");
+    }
+
+    function test_MinterHook_AttestationSet_DifferentTokenAddresses() public {
+        // Create a second mock token
+        MockERC20 mockToken2 = new MockERC20("Mock USDC 2", "USDC2", 6);
+
+        // Create mock attestation set data with different token addresses
+        // This simulates an AttestationSet with two attestations pointing to different tokens
+        bytes memory mockAttestationSet =
+            _createMockAttestationSetWithDifferentTokens(address(mockToken), address(mockToken2));
+        bytes memory signature = new bytes(65); // Mock signature
+
+        // Create hook data
+        bytes memory hookData = abi.encodePacked(
+            uint256(mockAttestationSet.length), // payload length (32 bytes)
+            mockAttestationSet, // payload
+            uint256(signature.length), // signature length (32 bytes)
+            signature // signature
+        );
+
+        // Test inspect function - should revert due to different token addresses
+        // The hook validates that all tokens in the attestation set are the same
+        // This should cause a revert when trying to process the attestation set with different tokens
+        vm.expectRevert(abi.encodeWithSignature("TOKEN_ADDRESS_INVALID()"));
+        minterHook.inspect(hookData);
     }
 
     // ========== Helper Functions ==========
@@ -1224,6 +1281,122 @@ contract CircleGatewayUnitTests is BaseTest {
             uint256(signature.length), // signatureLength (32 bytes)
             signature // signature (variable length)
         );
+    }
+
+    /// @notice Creates mock attestation set data with same token addresses
+    /// @param token The token address to use for both attestations
+    /// @return Mock attestation set bytes
+    function _createMockAttestationSetWithSameToken(address token) internal pure returns (bytes memory) {
+        bytes32 tokenBytes32 = bytes32(uint256(uint160(token)));
+
+        TransferSpec memory transferSpec = TransferSpec({
+            version: TRANSFER_SPEC_VERSION,
+            sourceDomain: TRANSFER_SPEC_SOURCE_DOMAIN,
+            destinationDomain: TRANSFER_SPEC_DESTINATION_DOMAIN,
+            sourceContract: bytes32(uint256(uint160(address(0x111)))),
+            destinationContract: bytes32(uint256(uint160(address(0x222)))),
+            sourceToken: tokenBytes32,
+            destinationToken: tokenBytes32,
+            sourceDepositor: bytes32(uint256(uint160(address(0x333)))),
+            destinationRecipient: bytes32(uint256(uint160(address(0x444)))),
+            sourceSigner: bytes32(uint256(uint160(address(0x555)))),
+            destinationCaller: bytes32(0),
+            value: MINT_AMOUNT,
+            salt: bytes32(uint256(1)),
+            hookData: new bytes(0)
+        });
+
+        Attestation[] memory attestations = new Attestation[](2);
+        Attestation memory attestation1 = Attestation({
+            maxBlockHeight: MAX_BLOCK_HEIGHT,
+            spec: transferSpec
+        });
+        attestations[0] = attestation1;
+
+        Attestation memory attestation2 = Attestation({
+            maxBlockHeight: MAX_BLOCK_HEIGHT,
+            spec: transferSpec
+        });
+        attestations[1] = attestation2;
+
+        AttestationSet memory attestationSet = AttestationSet({
+            attestations: attestations
+        });
+
+        // Create a simple mock attestation set structure
+        // This simulates the Circle Gateway AttestationSet format
+        bytes memory attestationSetBytes = AttestationLib.encodeAttestationSet(attestationSet);
+
+        return attestationSetBytes;
+    }
+
+    /// @notice Creates mock attestation set data with different token addresses
+    /// @param token1 The token address for the first attestation
+    /// @param token2 The token address for the second attestation
+    /// @return Mock attestation set bytes
+    function _createMockAttestationSetWithDifferentTokens(
+        address token1,
+        address token2
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes32 token1Bytes32 = bytes32(uint256(uint160(token1)));
+        bytes32 token2Bytes32 = bytes32(uint256(uint160(token2)));
+
+        TransferSpec memory transferSpec = TransferSpec({
+            version: TRANSFER_SPEC_VERSION,
+            sourceDomain: TRANSFER_SPEC_SOURCE_DOMAIN,
+            destinationDomain: TRANSFER_SPEC_DESTINATION_DOMAIN,
+            sourceContract: bytes32(uint256(uint160(address(0x111)))),
+            destinationContract: bytes32(uint256(uint160(address(0x222)))),
+            sourceToken: token1Bytes32,
+            destinationToken: token1Bytes32,
+            sourceDepositor: bytes32(uint256(uint160(address(0x333)))),
+            destinationRecipient: bytes32(uint256(uint160(address(0x444)))),
+            sourceSigner: bytes32(uint256(uint160(address(0x555)))),
+            destinationCaller: bytes32(0),
+            value: MINT_AMOUNT,
+            salt: bytes32(uint256(1)),
+            hookData: new bytes(0)
+        });
+
+        TransferSpec memory transferSpec2 = TransferSpec({
+            version: TRANSFER_SPEC_VERSION,
+            sourceDomain: TRANSFER_SPEC_SOURCE_DOMAIN,
+            destinationDomain: TRANSFER_SPEC_DESTINATION_DOMAIN,
+            sourceContract: bytes32(uint256(uint160(address(0x111)))),
+            destinationContract: bytes32(uint256(uint160(address(0x222)))),
+            sourceToken: token2Bytes32,
+            destinationToken: token2Bytes32,
+            sourceDepositor: bytes32(uint256(uint160(address(0x333)))),
+            destinationRecipient: bytes32(uint256(uint160(address(0x444)))),
+            sourceSigner: bytes32(uint256(uint160(address(0x555)))),
+            destinationCaller: bytes32(0),
+            value: MINT_AMOUNT,
+            salt: bytes32(uint256(2)),
+            hookData: new bytes(0)
+        });
+
+        Attestation[] memory attestations = new Attestation[](2);
+        attestations[0] = Attestation({
+            maxBlockHeight: MAX_BLOCK_HEIGHT,
+            spec: transferSpec
+        });
+        attestations[1] = Attestation({
+            maxBlockHeight: MAX_BLOCK_HEIGHT,
+            spec: transferSpec2
+        });
+
+        AttestationSet memory attestationSet = AttestationSet({
+            attestations: attestations
+        });
+
+        // Create a simple mock attestation set structure with different tokens
+        bytes memory attestationSetBytes = AttestationLib.encodeAttestationSet(attestationSet);
+
+        return attestationSetBytes;
     }
 }
 
