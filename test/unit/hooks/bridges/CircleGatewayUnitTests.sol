@@ -1343,39 +1343,9 @@ contract CircleGatewayUnitTests is BaseTest {
         bytes32 token1Bytes32 = bytes32(uint256(uint160(token1)));
         bytes32 token2Bytes32 = bytes32(uint256(uint160(token2)));
 
-        TransferSpec memory transferSpec = TransferSpec({
-            version: TRANSFER_SPEC_VERSION,
-            sourceDomain: TRANSFER_SPEC_SOURCE_DOMAIN,
-            destinationDomain: TRANSFER_SPEC_DESTINATION_DOMAIN,
-            sourceContract: bytes32(uint256(uint160(address(0x111)))),
-            destinationContract: bytes32(uint256(uint160(address(0x222)))),
-            sourceToken: token1Bytes32,
-            destinationToken: token1Bytes32,
-            sourceDepositor: bytes32(uint256(uint160(address(0x333)))),
-            destinationRecipient: bytes32(uint256(uint160(address(0x444)))),
-            sourceSigner: bytes32(uint256(uint160(address(0x555)))),
-            destinationCaller: bytes32(0),
-            value: MINT_AMOUNT,
-            salt: bytes32(uint256(1)),
-            hookData: new bytes(0)
-        });
+        TransferSpec memory transferSpec = _createTransferSpecStructWithToken(token1Bytes32);
 
-        TransferSpec memory transferSpec2 = TransferSpec({
-            version: TRANSFER_SPEC_VERSION,
-            sourceDomain: TRANSFER_SPEC_SOURCE_DOMAIN,
-            destinationDomain: TRANSFER_SPEC_DESTINATION_DOMAIN,
-            sourceContract: bytes32(uint256(uint160(address(0x111)))),
-            destinationContract: bytes32(uint256(uint160(address(0x222)))),
-            sourceToken: token2Bytes32,
-            destinationToken: token2Bytes32,
-            sourceDepositor: bytes32(uint256(uint160(address(0x333)))),
-            destinationRecipient: bytes32(uint256(uint160(address(0x444)))),
-            sourceSigner: bytes32(uint256(uint160(address(0x555)))),
-            destinationCaller: bytes32(0),
-            value: MINT_AMOUNT,
-            salt: bytes32(uint256(2)),
-            hookData: new bytes(0)
-        });
+        TransferSpec memory transferSpec2 = _createTransferSpecStructWithToken(token2Bytes32);
 
         Attestation[] memory attestations = new Attestation[](2);
         attestations[0] = Attestation({ maxBlockHeight: MAX_BLOCK_HEIGHT, spec: transferSpec });
@@ -1387,6 +1357,25 @@ contract CircleGatewayUnitTests is BaseTest {
         bytes memory attestationSetBytes = AttestationLib.encodeAttestationSet(attestationSet);
 
         return attestationSetBytes;
+    }
+
+    function _createTransferSpecStructWithToken(bytes32 token) internal pure returns (TransferSpec memory) {
+        return TransferSpec({
+            version: TRANSFER_SPEC_VERSION,
+            sourceDomain: TRANSFER_SPEC_SOURCE_DOMAIN,
+            destinationDomain: TRANSFER_SPEC_DESTINATION_DOMAIN,
+            sourceContract: bytes32(uint256(uint160(address(0x111)))),
+            destinationContract: bytes32(uint256(uint160(address(0x222)))),
+            sourceToken: token,
+            destinationToken: token,
+            sourceDepositor: bytes32(uint256(uint160(address(0x333)))),
+            destinationRecipient: bytes32(uint256(uint160(address(0x444)))),
+            sourceSigner: bytes32(uint256(uint160(address(0x555)))),
+            destinationCaller: bytes32(0),
+            value: MINT_AMOUNT,
+            salt: bytes32(uint256(1)),
+            hookData: new bytes(0)
+        });
     }
 }
 
