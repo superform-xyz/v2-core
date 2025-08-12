@@ -15,12 +15,12 @@ import { ISuperHook, ISuperHookResult } from "../../../../src/interfaces/ISuperH
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 
 // Circle Gateway
-import { TransferSpecLib, TransferSpec } from "../../../../lib/evm-gateway-contracts/src/lib/TransferSpecLib.sol";
+import { TransferSpecLib, TransferSpec } from "evm-gateway/lib/TransferSpecLib.sol";
 import {
     AttestationLib,
     Attestation,
     AttestationSet
-} from "../../../../lib/evm-gateway-contracts/src/lib/AttestationLib.sol";
+} from "evm-gateway/lib/AttestationLib.sol";
 
 /// @title CircleGatewayUnitTests
 /// @author Superform Labs
