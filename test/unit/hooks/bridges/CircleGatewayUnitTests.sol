@@ -686,7 +686,7 @@ contract CircleGatewayUnitTests is BaseTest {
         minterHook.decodeAttestationData(hookData);
     }
 
-    function test_MinterHook_PreExecute_ZeroTokenAddress() public {
+    function test_MinterHook_Inspect_ZeroTokenAddress() public {
         // Test preExecute with invalid token address from attestation
         // Create attestation with zero address token
         bytes memory hookData = _createValidAttestationData(address(0));
@@ -923,7 +923,7 @@ contract CircleGatewayUnitTests is BaseTest {
         minterHook.build(address(0), ACCOUNT, hookData);
     }
 
-    function test_MinterHook_PreExecute_ZeroTokenAddress_Branch() public {
+    function test_MinterHook_PreExecute_ZeroTokenAddress() public {
         // Test the specific branch where usdc == address(0) in _preExecute (Line 121)
         // This tests the case where _extractTokenFromAttestation returns zero address
         bytes memory hookData = _createValidAttestationData(address(0));
@@ -1011,7 +1011,7 @@ contract CircleGatewayUnitTests is BaseTest {
         // Test inspect function - should revert due to different token addresses
         // The hook validates that all tokens in the attestation set are the same
         // This should cause a revert when trying to process the attestation set with different tokens
-        vm.expectRevert(abi.encodeWithSignature("TOKEN_ADDRESS_INVALID()"));
+        vm.expectRevert(abi.encodeWithSignature("DESTINATION_TOKENS_DIFFER()"));
         minterHook.inspect(hookData);
     }
 

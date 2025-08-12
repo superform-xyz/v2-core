@@ -41,10 +41,13 @@ contract CircleGatewayMinterHook is BaseHook {
     /// @notice Circle Gateway Minter contract address
     address public immutable GATEWAY_MINTER;
 
+    /// @notice Error for multiple destination token addresses
+    error DESTINATION_TOKENS_DIFFER();
+
     /// @notice Error for invalid destination caller
     error INVALID_DESTINATION_CALLER();
 
-    /// @notice Error for token address not being valid
+    /// @notice Error for zero token address
     error TOKEN_ADDRESS_INVALID();
 
     /// @notice Error for invalid data length
@@ -211,8 +214,14 @@ contract CircleGatewayMinterHook is BaseHook {
             bytes29 spec = attestation.getTransferSpec();
             destinationToken = AddressLib._bytes32ToAddress(spec.getDestinationToken());
 
-            if (token != address(0) && token != destinationToken || destinationToken == address(0)) {
-                revert TOKEN_ADDRESS_INVALID();
+            if (destinationToken == address(0)) {
+                    revert TOKEN_ADDRESS_INVALID();
+                }
+
+            if (token != address(0)) {
+                if (token != destinationToken) {
+                    revert DESTINATION_TOKENS_DIFFER();
+                }
             }
 
             token = destinationToken;
@@ -242,8 +251,10 @@ contract CircleGatewayMinterHook is BaseHook {
             // Ensure the caller is the specified destination caller
             address destinationCaller = AddressLib._bytes32ToAddress(spec.getDestinationCaller());
 
-            if (destinationCaller != account && destinationCaller != address(0)) {
-                revert INVALID_DESTINATION_CALLER();
+            if (destinationCaller != address(0)) {
+                if (destinationCaller != account) {
+                    revert INVALID_DESTINATION_CALLER();
+                }
             }
         }
     }
