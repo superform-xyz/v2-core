@@ -36,12 +36,6 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     bytes4 internal constant EIP1271_MAGIC_VALUE = bytes4(0x1626ba7e);
 
     /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-    event AccountOwnerSet(address indexed account, address indexed owner);
-    event AccountUnset(address indexed account);
-
-    /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error ZERO_ADDRESS();
