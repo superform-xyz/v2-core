@@ -91,6 +91,21 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
         assertTrue(validator.isInitialized(account));
     }
 
+    function test_DestinationValidator_OnInstall_Emits_AccountOwnerSet() public {
+        AccountInstance memory newInstance = makeAccountInstance(keccak256(abi.encode("TEST2")));
+        address newAccount = newInstance.account;
+        address newOwner = makeAddr("newOwner");
+
+        vm.startPrank(newAccount);
+        vm.expectEmit(true, true, false, true);
+        emit SuperValidatorBase.AccountOwnerSet(newAccount, newOwner);
+        validator.onInstall(abi.encode(newOwner));
+        vm.stopPrank();
+
+        assertTrue(validator.isInitialized(newAccount));
+        assertEq(validator.getAccountOwner(newAccount), newOwner);
+    }
+
     function test_DestinationValidator_namespace() public view {
         assertEq(validator.namespace(), "SuperValidator");
     }
@@ -112,6 +127,16 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
 
     function test_DestinationValidator_OnUninstall() public {
         vm.startPrank(account);
+        validator.onUninstall("");
+        vm.stopPrank();
+
+        assertFalse(validator.isInitialized(account));
+    }
+
+    function test_DestinationValidator_OnUninstall_Emits_AccountUnset() public {
+        vm.startPrank(account);
+        vm.expectEmit(true, false, false, false);
+        emit SuperValidatorBase.AccountUnset(account);
         validator.onUninstall("");
         vm.stopPrank();
 
