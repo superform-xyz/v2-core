@@ -215,8 +215,8 @@ contract CircleGatewayMinterHook is BaseHook {
             destinationToken = AddressLib._bytes32ToAddress(spec.getDestinationToken());
 
             if (destinationToken == address(0)) {
-                    revert TOKEN_ADDRESS_INVALID();
-                }
+                revert TOKEN_ADDRESS_INVALID();
+            }
 
             if (token != address(0)) {
                 if (token != destinationToken) {
@@ -251,10 +251,8 @@ contract CircleGatewayMinterHook is BaseHook {
             // Ensure the caller is the specified destination caller
             address destinationCaller = AddressLib._bytes32ToAddress(spec.getDestinationCaller());
 
-            if (destinationCaller != address(0)) {
-                if (destinationCaller != account) {
-                    revert INVALID_DESTINATION_CALLER();
-                }
+            if (destinationCaller != account && destinationCaller != address(0)) {
+                revert INVALID_DESTINATION_CALLER();
             }
         }
     }
