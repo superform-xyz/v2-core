@@ -103,6 +103,11 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
         subType = subType_;
     }
 
+    modifier onlyLastCaller() {
+        if (msg.sender != lastCaller) revert UNAUTHORIZED_CALLER();
+        _;
+    }
+
     /*//////////////////////////////////////////////////////////////
                           EXECUTION SECURITY
     //////////////////////////////////////////////////////////////*/
@@ -186,7 +191,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     }
 
     /// @inheritdoc ISuperHook
-    function resetExecutionState(address caller) external {
+    function resetExecutionState(address caller) external onlyLastCaller {
         uint256 context = _getCurrentExecutionContext(caller);
         if (!_getPreExecuteMutex(context) || !_getPostExecuteMutex(context)) {
             revert INCOMPLETE_HOOK_EXECUTION();
