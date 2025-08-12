@@ -48,7 +48,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
 
         // Decode data
         (SignatureData memory sigData, DestinationData memory destinationData) =
-            _decodeSignatureAndDestinationData(data, sender);
+            _decodeSignatureAndDestinationData(data);
         // Process signature
         (address signer,) = _createLeafAndVerifyProofAndSignature(sender, sigData, destinationData);
 
@@ -118,34 +118,20 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /// @notice Decodes signature and destination data from raw bytes
     /// @dev Decodes the signature data and destination data from the raw bytes
     /// @param data Raw bytes containing signature and destination data
-    /// @param sender The sender address to validate against
     /// @return The decoded signature data and destination data
-    function _decodeSignatureAndDestinationData(
-        bytes memory data,
-        address sender
-    )
+    function _decodeSignatureAndDestinationData(bytes memory data)
         private
-        view
+        pure
         returns (SignatureData memory, DestinationData memory)
     {
         (bytes memory sigDataRaw, bytes memory destinationDataRaw) = abi.decode(data, (bytes, bytes));
-        return (_decodeSignatureData(sigDataRaw), _decodeDestinationData(destinationDataRaw, sender));
+        return (_decodeSignatureData(sigDataRaw), _decodeDestinationData(destinationDataRaw));
     }
 
-    /// @notice Decodes and validates raw destination data
-    /// @dev Checks that the sender and chain ID match current execution context
-    ///      to prevent replay attacks across accounts or chains
+    /// @notice Decodes raw destination data
     /// @param destinationDataRaw ABI-encoded destination data bytes
-    /// @param sender_ Expected sender address to validate against
     /// @return Structured DestinationData for further processing
-    function _decodeDestinationData(
-        bytes memory destinationDataRaw,
-        address sender_
-    )
-        private
-        view
-        returns (DestinationData memory)
-    {
+    function _decodeDestinationData(bytes memory destinationDataRaw) private pure returns (DestinationData memory) {
         (
             bytes memory callData,
             uint64 chainId,

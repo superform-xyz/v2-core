@@ -110,7 +110,6 @@ import "forge-std/Test.sol";
  * This comprehensive coverage ensures all possible account types and signature scenarios
  * are properly validated across both same-chain and cross-chain operations.
  */
-
 contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
     using BytesLib for bytes;
     using ModuleKitHelpers for *;
@@ -1191,7 +1190,6 @@ contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
             validUntil,
             address(validator),
             userOpData.userOpHash,
-            address(customContract),
             privateKey1 // owner1's private key
         );
         userOpData.userOp.signature = sigData;
@@ -1712,7 +1710,12 @@ contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
         uint64[] memory chainsWithDestExecutionCrosschain = new uint64[](1);
         chainsWithDestExecutionCrosschain[0] = dstChainId;
         vars.signatureData = abi.encode(
-            chainsWithDestExecutionCrosschain, vars.ctx.validUntil, vars.ctx.merkleRoot, vars.ctx.merkleProof[1], vars.proofDst, vars.signature
+            chainsWithDestExecutionCrosschain,
+            vars.ctx.validUntil,
+            vars.ctx.merkleRoot,
+            vars.ctx.merkleProof[1],
+            vars.proofDst,
+            vars.signature
         );
         vars.srcUserOpData.userOp.signature = vars.signatureData;
     }
@@ -1817,7 +1820,8 @@ contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
 
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
         uint64[] memory chainsWithDestExecutionAccount = new uint64[](0);
-        signatureData = abi.encode(chainsWithDestExecutionAccount, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
+        signatureData =
+            abi.encode(chainsWithDestExecutionAccount, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
     }
 
     function _createNativeSafeSigData(
@@ -1841,7 +1845,8 @@ contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
 
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
         uint64[] memory chainsWithDestExecutionAccount = new uint64[](0);
-        signatureData = abi.encode(chainsWithDestExecutionAccount, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
+        signatureData =
+            abi.encode(chainsWithDestExecutionAccount, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
     }
 
     function _getSafeSignature(
@@ -2024,11 +2029,10 @@ contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
         uint48 validUntil,
         address _validator,
         bytes32 userOpHash,
-        address _customContract,
         uint256 _privateKey
     )
         internal
-        view
+        pure
         returns (bytes memory signatureData)
     {
         CustomEIP1271SigVars memory vars;

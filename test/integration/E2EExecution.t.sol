@@ -285,40 +285,39 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             )
         });
 
-        // Nexus.execute()
-        bytes memory callData = _prepareExecutionCalldata(executions);
-        uint256 nonce = _prepareNonce(nexusAccount);
-        PackedUserOperation memory userOp = _createPackedUserOperation(nexusAccount, nonce, callData);
+        // Create local parameters struct to avoid stack too deep
+        LocalParams memory params;
+        params.callData = _prepareExecutionCalldata(executions);
+        params.nonce = _prepareNonce(nexusAccount);
+        params.validUntil = uint48(block.timestamp + 1 hours);
+        params.chainsWithDestExecution = new uint64[](2);
+        params.chainsWithDestExecution[0] = 10;
+        params.chainsWithDestExecution[1] = 11;
+        params._executor = makeAddr("executor");
 
-        // create validator merkle tree & get signature data
-        uint48 validUntil = uint48(block.timestamp + 1 hours);
+        PackedUserOperation memory userOp = _createPackedUserOperation(nexusAccount, params.nonce, params.callData);
 
         // Create leaves
         testData.leaves = new bytes32[](3);
-
-        uint64[] memory chainsWithDestExecution = new uint64[](2);
-        chainsWithDestExecution[0] = 10;
-        chainsWithDestExecution[1] = 11;
         // Leaf for source operation
         testData.leaves[0] = _createSourceValidatorLeaf(
             IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp),
-            validUntil,
-            chainsWithDestExecution,
+            params.validUntil,
+            params.chainsWithDestExecution,
             address(superMerkleValidator)
         );
 
         // Leaf for cross-chain USDC
         message.dstTokens = new address[](1);
         message.dstTokens[0] = CHAIN_1_USDC;
-        address _executor = makeAddr("executor");
         testData.leaves[1] = _createDestinationValidatorLeaf(
             hex"eeeeeeee", // executionData
             uint64(10),
             nexusAccount,
-            _executor,
+            params._executor,
             message.dstTokens,
             message.intentAmounts,
-            validUntil,
+            params.validUntil,
             address(this)
         );
 
@@ -329,10 +328,10 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             hex"dddddddd", // executionData
             uint64(11),
             nexusAccount,
-            _executor,
+            params._executor,
             message.dstTokens,
             message.intentAmounts,
-            validUntil,
+            params.validUntil,
             address(this)
         );
 
@@ -361,7 +360,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
                 dstChainId: uint64(10),
                 info: ISuperValidator.DstInfo({
                     account: nexusAccount,
-                    executor: _executor,
+                    executor: params._executor,
                     dstTokens: message.dstTokens,
                     intentAmounts: message.intentAmounts,
                     data: hex"eeeeeeee",
@@ -376,7 +375,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
                 dstChainId: uint64(11),
                 info: ISuperValidator.DstInfo({
                     account: nexusAccount,
-                    executor: _executor,
+                    executor: params._executor,
                     dstTokens: message.dstTokens,
                     intentAmounts: message.intentAmounts,
                     data: hex"dddddddd",
@@ -384,7 +383,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
                 })
             });
 
-            testData.sigData = _encodeSigData(chainsWithDestExecution, proofDst, testData, validUntil);
+            testData.sigData = _encodeSigData(params.chainsWithDestExecution, proofDst, testData, params.validUntil);
         }
 
         // Build userops
@@ -460,6 +459,14 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         address _account;
         address[] dstTokens;
         uint256[] intentAmounts;
+    }
+
+    struct LocalParams {
+        bytes callData;
+        uint256 nonce;
+        uint48 validUntil;
+        uint64[] chainsWithDestExecution;
+        address _executor;
     }
 
     function testOrion_multipleUserOpsBreakFetchedSignature() public {
@@ -894,7 +901,6 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     function test_feeBypassByCustomHook_Reverts() public {
         uint256 amount = 10_000e6;
         address underlyingToken = CHAIN_1_USDC;
-        address morphoVault = CHAIN_1_MorphoVault;
 
         address accountOwner = makeAddr("owner");
         MockMaliciousHook maliciousHook = new MockMaliciousHook(accountOwner, underlyingToken);
