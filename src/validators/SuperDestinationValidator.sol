@@ -154,9 +154,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
             address[] memory dstTokens,
             uint256[] memory intentAmounts
         ) = abi.decode(destinationDataRaw, (bytes, uint64, address, address, address[], uint256[]));
-        if (sender_ != decodedSender) revert INVALID_SENDER();
 
-        if (chainId != block.chainid) revert INVALID_CHAIN_ID();
         return DestinationData(callData, chainId, decodedSender, executor, dstTokens, intentAmounts);
     }
 }
