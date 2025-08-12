@@ -200,11 +200,6 @@ contract CircleGatewayMinterHook is BaseHook {
         // Validate and get cursor for iteration
         Cursor memory cursor = AttestationLib.cursor(attestationPayload);
 
-        // Ensure there is at least one attestation
-        if (cursor.numElements == 0) {
-            revert INVALID_DATA_LENGTH();
-        }
-
         bytes29 attestation;
         address destinationToken;
         while (!cursor.done) {

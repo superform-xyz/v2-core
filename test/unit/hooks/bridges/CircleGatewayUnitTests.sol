@@ -1000,6 +1000,26 @@ contract CircleGatewayUnitTests is BaseTest {
         minterHook.build(address(0), ACCOUNT, hookData);
     }
 
+    function test_MinterHook_ExtractTokenFromAttestation_BlankCursor() public {
+        // Create a minimal valid signature (65 bytes for ECDSA)
+        bytes memory signature = new bytes(65);
+
+        // Create an empty attestation payload that will result in cursor.numElements == 0
+        // We need to create a valid attestation structure but with no attestations
+        bytes memory emptyAttestationPayload = _createEmptyAttestationPayload();
+
+        bytes memory hookData = abi.encodePacked(
+            uint256(emptyAttestationPayload.length), // attestationPayloadLength (32 bytes)
+            emptyAttestationPayload, // empty attestation payload
+            uint256(signature.length), // signatureLength (32 bytes)
+            signature // signature (65 bytes)
+        );
+
+        // This should revert with INVALID_DATA_LENGTH when cursor.numElements == 0
+        vm.expectRevert(abi.encodeWithSignature("INVALID_DATA_LENGTH()"));
+        minterHook.build(address(0), ACCOUNT, hookData);
+    }
+
     /*//////////////////////////////////////////////////////////////
                         ATTESTATION SET TESTS
     //////////////////////////////////////////////////////////////*/
@@ -1421,6 +1441,20 @@ contract CircleGatewayUnitTests is BaseTest {
             salt: bytes32(uint256(1)),
             hookData: new bytes(0)
         });
+    }
+
+    /// @notice Create an empty attestation payload that results in cursor.numElements == 0
+    /// @return emptyAttestationPayload The encoded empty attestation payload
+    function _createEmptyAttestationPayload() internal pure returns (bytes memory emptyAttestationPayload) {
+        // Create an attestation set with no attestations
+        // This will result in cursor.numElements == 0 when processed by AttestationLib.cursor()
+
+        // Create an empty AttestationSet structure
+        // The AttestationSet format is: magic (4 bytes) + numAttestations (4 bytes) + attestations array
+        bytes4 attestationSetMagic = 0x1e12db71; // ATTESTATION_SET_MAGIC
+        uint32 numAttestations = 0; // No attestations
+
+        emptyAttestationPayload = abi.encodePacked(attestationSetMagic, numAttestations);
     }
 }
 
