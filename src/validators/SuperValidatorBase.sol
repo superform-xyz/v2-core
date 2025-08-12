@@ -138,12 +138,15 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         (
             uint64[] memory chainsWithDestinationExecution,
             uint48 validUntil,
+            uint48 validAfter,
             bytes32 merkleRoot,
             bytes32[] memory proofSrc,
             DstProof[] memory proofDst,
             bytes memory signature
-        ) = abi.decode(sigDataRaw, (uint64[], uint48, bytes32, bytes32[], DstProof[], bytes));
-        return SignatureData(chainsWithDestinationExecution, validUntil, merkleRoot, proofSrc, proofDst, signature);
+        ) = abi.decode(sigDataRaw, (uint64[], uint48, uint48, bytes32, bytes32[], DstProof[], bytes));
+        return SignatureData(
+            chainsWithDestinationExecution, validUntil, validAfter, merkleRoot, proofSrc, proofDst, signature
+        );
     }
 
     /// @notice Processes signature for any account type after merkle proof verification
@@ -245,6 +248,36 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     /// @param signer The address recovered from the signature
     /// @param sender The account address being operated on
     /// @param validUntil Timestamp after which the signature is no longer valid
+    /// @param validAfter Timestamp before which the signature is not yet valid
+    /// @return True if the signature is valid, false otherwise
+    function _isSignatureValid(
+        address signer,
+        address sender,
+        uint48 validUntil,
+        uint48 validAfter
+    )
+        internal
+        view
+        virtual
+        returns (bool)
+    {
+        /// @dev block.timestamp could vary between chains
+        // validUntil == 0 means infinite validity, validAfter must be <= validUntil (if validUntil != 0)
+        // Allow future-valid signatures - don't check validAfter against block.timestamp
+        bool isValid = (validUntil == 0 || (validUntil >= block.timestamp && validAfter <= validUntil));
+
+        if (_is7702Account(sender.code)) {
+            // in case of 7702 owner is the account itself (the EOA)
+            return signer == sender && isValid;
+        }
+        return signer == _accountOwners[sender] && isValid;
+    }
+
+    /// @notice Validates if a signature is valid based on signer and expiration time
+    /// @dev Checks that the signer matches the registered account owner and signature hasn't expired
+    /// @param signer The address recovered from the signature
+    /// @param sender The account address being operated on
+    /// @param validUntil Timestamp after which the signature is no longer valid
     /// @return True if the signature is valid, false otherwise
     function _isSignatureValid(
         address signer,
@@ -256,14 +289,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         virtual
         returns (bool)
     {
-        /// @dev block.timestamp could vary between chains
-        /// @dev validUntil = 0 means infinite validity
-        bool isValid = (validUntil == 0 || validUntil >= block.timestamp);
-        if (_is7702Account(sender.code)) {
-            // in case of 7702 owner is the account itself (the EOA)
-            return signer == sender && isValid;
-        }
-        return signer == _accountOwners[sender] && isValid;
+        return _isSignatureValid(signer, sender, validUntil, 0);
     }
 
     /// @notice Checks if an address is a 7702 signer

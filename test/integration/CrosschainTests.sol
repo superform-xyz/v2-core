@@ -4301,13 +4301,13 @@ contract CrosschainTests is BaseTest {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _createSourceValidatorLeaf(
-            IEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, new uint64[](0), address(validator)
+            IEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, 0, new uint64[](0), address(validator)
         );
         (bytes32[][] memory _proof, bytes32 _root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(_root);
 
         bytes memory sigData =
-            abi.encode(new uint64[](0), validUntil, _root, _proof[0], new ISuperValidator.DstProof[](0), signature);
+            abi.encode(new uint64[](0), validUntil, 0, _root, _proof[0], new ISuperValidator.DstProof[](0), signature);
 
         userOp.signature = sigData;
 

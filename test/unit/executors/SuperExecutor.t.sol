@@ -786,7 +786,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             ISuperValidator.DstProof({ proof: merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo });
         uint64[] memory chainsWithDestExecutionExecutor = new uint64[](0);
         signatureData =
-            abi.encode(chainsWithDestExecutionExecutor, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
+            abi.encode(chainsWithDestExecutionExecutor, validUntil, 0, merkleRoot, merkleProof[0], proofDst, signature);
     }
 
     function test_FeeToleranceIsOnePercent() public {
@@ -1005,7 +1005,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             ISuperValidator.DstProof({ proof: ctx.merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo });
         uint64[] memory chainsWithDestExecutionCtx = new uint64[](0);
         ctx.signatureData = abi.encode(
-            chainsWithDestExecutionCtx, validUntil, ctx.merkleRoot, ctx.merkleProof[0], proofDst, ctx.signature
+            chainsWithDestExecutionCtx, validUntil, 0, ctx.merkleRoot, ctx.merkleProof[0], proofDst, ctx.signature
         );
 
         vm.expectEmit(true, true, false, true);

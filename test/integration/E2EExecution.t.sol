@@ -303,6 +303,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         testData.leaves[0] = _createSourceValidatorLeaf(
             IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp),
             params.validUntil,
+            0,
             params.chainsWithDestExecution,
             address(superMerkleValidator)
         );
@@ -411,6 +412,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         return abi.encode(
             chainsWithDestExecution,
             validUntil,
+            0,
             testData.root,
             testData.proof[0],
             proofDst, // destination proof
@@ -611,12 +613,12 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         bytes32[] memory leaves = new bytes32[](1);
         bytes32 _hash = IMinimalEntryPoint(entryPoint).getUserOpHash(userOp);
         uint64[] memory chainsForLeaf = new uint64[](0);
-        leaves[0] = _createSourceValidatorLeaf(_hash, validUntil, chainsForLeaf, address(superMerkleValidator));
+        leaves[0] = _createSourceValidatorLeaf(_hash, validUntil, 0, chainsForLeaf, address(superMerkleValidator));
         (proof, root) = _createValidatorMerkleTree(leaves);
         signature = _getSignature(root);
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
         uint64[] memory chainsWithDestExecution = new uint64[](0);
-        sigData = abi.encode(chainsWithDestExecution, validUntil, root, proof[0], proofDst, signature);
+        sigData = abi.encode(chainsWithDestExecution, validUntil, 0, root, proof[0], proofDst, signature);
     }
 
     function _getSignatureData(
@@ -637,6 +639,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         leaves[0] = _createSourceValidatorLeaf(
             IMinimalEntryPoint(entryPoint).getUserOpHash(userOp),
             validUntil,
+            0,
             chainsWithDestExecution,
             address(superMerkleValidator)
         );
@@ -665,7 +668,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         });
         proofDst[0] = ISuperValidator.DstProof({ proof: proof[1], dstChainId: uint64(block.chainid), info: dstInfo });
 
-        sigData = abi.encode(chainsWithDestExecution, validUntil, root, proof[0], proofDst, signature);
+        sigData = abi.encode(chainsWithDestExecution, validUntil, 0, root, proof[0], proofDst, signature);
     }
 
     function _prepareUserOpNonce(address nexusAccount, address token) internal view returns (uint256 nonce) {

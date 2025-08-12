@@ -36,7 +36,7 @@ contract POC_IncorrectValidUntilTest is BaseTest {
         bytes32[] memory leaves = new bytes32[](1);
         bytes32 userOpHash = keccak256("test");
         uint64[] memory chainsWithDestExecution = new uint64[](0); // No destination chains
-        leaves[0] = _createSourceValidatorLeaf(userOpHash, uint48(0), chainsWithDestExecution, address(validator));
+        leaves[0] = _createSourceValidatorLeaf(userOpHash, uint48(0), 0, chainsWithDestExecution, address(validator));
 
         // Create merkle tree using _createValidatorMerkleTree
         (bytes32[][] memory proofs, bytes32 root) = _createValidatorMerkleTree(leaves);
@@ -51,6 +51,7 @@ contract POC_IncorrectValidUntilTest is BaseTest {
         bytes memory sigDataRaw = abi.encode(
             chainsWithDestExecution, // Use the same array as in leaf creation
             uint48(0), // validUntil = 0 should mean infinite validity
+            uint48(0), // validAfter = 0 (valid from the beginning)
             root, // merkleRoot
             proofs[0], // proofSrc
             proofDst, // proofDst

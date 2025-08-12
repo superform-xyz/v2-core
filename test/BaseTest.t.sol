@@ -1833,7 +1833,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
         uint64[] memory chainsForLeaf = new uint64[](1);
         chainsForLeaf[0] = dstChainId;
-        ctx.leaves[1] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, chainsForLeaf, srcValidator);
+        ctx.leaves[1] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, 0, chainsForLeaf, srcValidator);
 
         (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
 
@@ -1884,7 +1884,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
         uint64[] memory chainsForLeaf = new uint64[](1);
         chainsForLeaf[0] = dstChainId;
-        ctx.leaves[1] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, chainsForLeaf, srcValidator);
+        ctx.leaves[1] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, 0, chainsForLeaf, srcValidator);
 
         (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
 
@@ -1930,7 +1930,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
         ctx.leaves = new bytes32[](1);
         uint64[] memory chainsForLeafNoDestination = new uint64[](0);
-        ctx.leaves[0] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, chainsForLeafNoDestination, srcValidator);
+        ctx.leaves[0] =
+            _createSourceValidatorLeaf(userOpHash, ctx.validUntil, 0, chainsForLeafNoDestination, srcValidator);
 
         (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
 
@@ -1973,7 +1974,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         returns (bytes memory)
     {
         return abi.encode(
-            chainsWithDestinationExecution, validUntil, merkleRoot, merkleProofSrc, merkleProofDst, signature
+            chainsWithDestinationExecution, validUntil, 0, merkleRoot, merkleProofSrc, merkleProofDst, signature
         );
     }
 

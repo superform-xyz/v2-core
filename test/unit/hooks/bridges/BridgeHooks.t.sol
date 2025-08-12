@@ -30,7 +30,7 @@ contract MockSignatureStorage {
          *     proofDst[0] = ISuperValidator.DstProof({proof: proofs, dstChainId: uint64(block.chainid)});
          */
         bytes memory signature = hex"abcdef";
-        return abi.encode(validUntil, merkleRoot, proofSrc, proofDst, signature);
+        return abi.encode(new uint64[](0), validUntil, 0, merkleRoot, proofSrc, proofDst, signature);
     }
 }
 

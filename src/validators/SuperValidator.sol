@@ -55,7 +55,7 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
         (address signer,) = _createLeafAndVerifyProofAndSignature(_userOp.sender, sigData, _userOpHash);
 
         // Validate
-        bool isValid = _isSignatureValid(signer, _userOp.sender, sigData.validUntil);
+        bool isValid = _isSignatureValid(signer, _userOp.sender, sigData.validUntil, sigData.validAfter);
 
         // Verify destination data
         if (isValid && sigData.chainsWithDestinationExecution.length > 0) {
@@ -102,7 +102,7 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
             identifier.storeSignature(_userOp.signature);
         }
 
-        return _packValidationData(!isValid, sigData.validUntil, 0);
+        return _packValidationData(!isValid, sigData.validUntil, sigData.validAfter);
     }
 
     /// @notice Validate a signature with sender
@@ -128,7 +128,7 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
         (address signer,) = _createLeafAndVerifyProofAndSignature(msg.sender, sigData, dataHash);
 
         // Validate
-        bool isValid = _isSignatureValid(signer, msg.sender, sigData.validUntil);
+        bool isValid = _isSignatureValid(signer, msg.sender, sigData.validUntil, sigData.validAfter);
 
         return isValid ? EIP1271_MAGIC_VALUE : bytes4("");
     }
@@ -136,16 +136,19 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+
     /// @notice Creates a unique leaf hash for merkle tree verification
     /// @dev Overrides the base implementation to handle user operation hash data
     ///      Double-hashing is used for added security
     /// @param data Encoded data containing the user operation hash
     /// @param validUntil Timestamp after which the signature becomes invalid
+    /// @param validAfter Timestamp before which the signature is not yet valid
     /// @param chainsWithDestinationExecution Which chains have destination execution
     /// @return The calculated leaf hash used in merkle tree verification
     function _createLeaf(
         bytes memory data,
         uint48 validUntil,
+        uint48 validAfter,
         uint64[] memory chainsWithDestinationExecution
     )
         internal
@@ -154,7 +157,9 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
     {
         bytes32 userOpHash = abi.decode(data, (bytes32));
         return keccak256(
-            bytes.concat(keccak256(abi.encode(userOpHash, validUntil, chainsWithDestinationExecution, address(this))))
+            bytes.concat(
+                keccak256(abi.encode(userOpHash, validUntil, validAfter, chainsWithDestinationExecution, address(this)))
+            )
         );
     }
 
@@ -179,7 +184,9 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
         returns (address signer, bytes32 leaf)
     {
         // Create leaf from user operation hash and verify it's part of the merkle tree using source proof
-        leaf = _createLeaf(abi.encode(userOpHash), sigData.validUntil, sigData.chainsWithDestinationExecution);
+        leaf = _createLeaf(
+            abi.encode(userOpHash), sigData.validUntil, sigData.validAfter, sigData.chainsWithDestinationExecution
+        );
         if (!MerkleProof.verify(sigData.proofSrc, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
         // Process signature using common method

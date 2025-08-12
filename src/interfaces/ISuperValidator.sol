@@ -47,6 +47,8 @@ interface ISuperValidator {
         uint64[] chainsWithDestinationExecution;
         /// @notice Timestamp after which the signature is no longer valid
         uint48 validUntil;
+        /// @notice Timestamp before which the signature is not yet valid
+        uint48 validAfter;
         /// @notice Root of the merkle tree containing operation leaves
         bytes32 merkleRoot;
         /// @notice Merkle proof for the source chain operation

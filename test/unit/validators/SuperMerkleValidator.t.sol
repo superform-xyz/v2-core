@@ -142,7 +142,8 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](1);
         uint64[] memory chainsForLeaf = new uint64[](0);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
+        leaves[0] =
+            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -150,7 +151,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         bytes memory signature = _getSignature(root);
         uint64[] memory chainsWithDestExecutionValid = new uint64[](0);
         bytes memory _validSigData =
-            abi.encode(chainsWithDestExecutionValid, validUntil, root, proof[0], proofDst, signature);
+            abi.encode(chainsWithDestExecutionValid, validUntil, 0, root, proof[0], proofDst, signature);
 
         vm.prank(account);
         bytes4 result =
@@ -165,7 +166,8 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](1);
         uint64[] memory chainsForLeaf = new uint64[](0);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
+        leaves[0] =
+            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -174,7 +176,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         bytes memory signature = _getSignature(root);
         uint64[] memory chainsWithDestExecutionValidProof = new uint64[](0);
         bytes memory _validSigData =
-            abi.encode(chainsWithDestExecutionValidProof, validUntil, root, proof, proofDst, signature);
+            abi.encode(chainsWithDestExecutionValidProof, validUntil, 0, root, proof, proofDst, signature);
 
         vm.startPrank(account);
         vm.expectRevert(SuperValidatorBase.INVALID_PROOF.selector);
@@ -188,7 +190,8 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](1);
         uint64[] memory chainsForLeaf = new uint64[](0);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
+        leaves[0] =
+            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -197,7 +200,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         bytes memory signature = _getSignature(bytes32(0));
         uint64[] memory chainsWithDestExecutionValid = new uint64[](0);
         bytes memory _validSigData =
-            abi.encode(chainsWithDestExecutionValid, validUntil, root, proof[0], proofDst, signature);
+            abi.encode(chainsWithDestExecutionValid, validUntil, 0, root, proof[0], proofDst, signature);
 
         vm.prank(account);
         bytes4 result =
@@ -230,7 +233,8 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](1);
         uint64[] memory chainsForLeaf = new uint64[](0);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
+        leaves[0] =
+            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -249,8 +253,9 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         bytes32[] memory leaves = new bytes32[](2);
         uint64[] memory chainsForLeafWithDst = new uint64[](1);
         chainsForLeafWithDst[0] = chainId; // Use the actual chain ID
-        leaves[0] =
-            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeafWithDst, address(validator));
+        leaves[0] = _createSourceValidatorLeaf(
+            approveUserOp.userOpHash, validUntil, 0, chainsForLeafWithDst, address(validator)
+        );
         leaves[1] = _createDestinationValidatorLeaf(
             "", chainId, account, address(0), new address[](0), new uint256[](0), validUntil, address(0)
         );
@@ -272,7 +277,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         uint64[] memory chainsWithDestExecutionTransient = new uint64[](1);
         chainsWithDestExecutionTransient[0] = chainId; // Use the actual chain ID
         bytes memory sigData =
-            abi.encode(chainsWithDestExecutionTransient, validUntil, root, proof[0], proofDst, signature);
+            abi.encode(chainsWithDestExecutionTransient, validUntil, 0, root, proof[0], proofDst, signature);
         approveUserOp.userOp.signature = sigData;
 
         bytes memory retrievedSig = tester.validateAndRetrieve(approveUserOp.userOp, approveUserOp.userOpHash);
@@ -286,7 +291,8 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](1);
         uint64[] memory chainsForLeafThis = new uint64[](0);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeafThis, address(this));
+        leaves[0] =
+            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, 0, chainsForLeafThis, address(this));
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(root);
@@ -294,7 +300,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
         uint64[] memory chainsWithDestExecutionValid = new uint64[](0);
         bytes memory _validSigData =
-            abi.encode(chainsWithDestExecutionValid, validUntil, root, proof[0], proofDst, signature);
+            abi.encode(chainsWithDestExecutionValid, validUntil, 0, root, proof[0], proofDst, signature);
 
         approveUserOp.userOp.signature = _validSigData;
         vm.expectRevert(SuperValidatorBase.INVALID_PROOF.selector);
@@ -308,7 +314,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         bytes32[] memory leaves = new bytes32[](1);
         uint64[] memory chainsForLeafExtra = new uint64[](0);
         leaves[0] =
-            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeafExtra, address(validator));
+            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, 0, chainsForLeafExtra, address(validator));
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(bytes32(0));
@@ -316,7 +322,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
         uint64[] memory chainsWithDestExecutionValid = new uint64[](0);
         bytes memory _validSigData =
-            abi.encode(chainsWithDestExecutionValid, validUntil, root, proof[0], proofDst, signature);
+            abi.encode(chainsWithDestExecutionValid, validUntil, 0, root, proof[0], proofDst, signature);
 
         approveUserOp.userOp.signature = _validSigData;
         vm.prank(account);
@@ -385,10 +391,14 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         bytes32[] memory leaves = new bytes32[](4);
 
         uint64[] memory chainsForLeaf = new uint64[](0);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
+        leaves[0] =
+            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[1] =
+            _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[2] =
+            _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[3] =
+            _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -402,10 +412,14 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](4);
         uint64[] memory chainsForLeaf = new uint64[](0);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
+        leaves[0] =
+            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[1] =
+            _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[2] =
+            _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[3] =
+            _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -421,10 +435,14 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](4);
         uint64[] memory chainsForLeaf = new uint64[](0);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
+        leaves[0] =
+            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[1] =
+            _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[2] =
+            _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[3] =
+            _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -441,10 +459,14 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         bytes32[] memory leaves = new bytes32[](4);
 
         uint64[] memory chainsForLeaf = new uint64[](0);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
+        leaves[0] =
+            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[1] =
+            _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[2] =
+            _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[3] =
+            _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -461,10 +483,14 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         bytes32[] memory leaves = new bytes32[](4);
 
         uint64[] memory chainsForLeaf = new uint64[](0);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
+        leaves[0] =
+            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[1] =
+            _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[2] =
+            _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[3] =
+            _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -483,10 +509,14 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         bytes32[] memory leaves = new bytes32[](4);
 
         uint64[] memory chainsForLeaf = new uint64[](0);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
-        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
+        leaves[0] =
+            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[1] =
+            _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[2] =
+            _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
+        leaves[3] =
+            _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -495,7 +525,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         bytes memory signature = _getSignature(root);
 
         uint64[] memory chainsWithDestExecutionMulti = new uint64[](0);
-        validSigData = abi.encode(chainsWithDestExecutionMulti, validUntil, root, proof[0], proofDst, signature);
+        validSigData = abi.encode(chainsWithDestExecutionMulti, validUntil, 0, root, proof[0], proofDst, signature);
 
         approveUserOp.userOp.signature = validSigData;
         ERC7579ValidatorBase.ValidationData result =
@@ -514,7 +544,8 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         // simulate a merkle tree with 1 leaves
         bytes32[] memory leaves = new bytes32[](1);
         uint64[] memory chainsForLeaf = new uint64[](0);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
+        leaves[0] =
+            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -529,7 +560,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
 
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
         uint64[] memory chainsWithDestExecutionProofSet = new uint64[](0);
-        validSigData = abi.encode(chainsWithDestExecutionProofSet, validUntil, root, proof, proofDst, signature);
+        validSigData = abi.encode(chainsWithDestExecutionProofSet, validUntil, 0, root, proof, proofDst, signature);
 
         approveUserOp.userOp.signature = validSigData;
 
@@ -541,7 +572,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         bytes32[] memory _proof = new bytes32[](1);
         _proof[0] = keccak256(abi.encode("tampered proof"));
         uint64[] memory chainsWithDestExecutionProofPrivate = new uint64[](0);
-        validSigData = abi.encode(chainsWithDestExecutionProofPrivate, validUntil, root, _proof, proofDst, signature);
+        validSigData = abi.encode(chainsWithDestExecutionProofPrivate, validUntil, 0, root, _proof, proofDst, signature);
 
         approveUserOp.userOp.signature = validSigData;
 
@@ -557,14 +588,15 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
 
         // Create leaves using the same userOpHash for simplicity
         uint64[] memory chainsForLeaf = new uint64[](0);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeaf, address(validator));
+        leaves[0] =
+            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, 0, chainsForLeaf, address(validator));
         uint64[] memory chainsForLeafArray = new uint64[](0);
         leaves[1] =
-            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeafArray, address(validator));
+            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, 0, chainsForLeafArray, address(validator));
         leaves[2] =
-            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeafArray, address(validator));
+            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, 0, chainsForLeafArray, address(validator));
         leaves[3] =
-            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeafArray, address(validator));
+            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, 0, chainsForLeafArray, address(validator));
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(root);
@@ -576,7 +608,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
         uint64[] memory chainsWithDestExecutionRaw = new uint64[](0);
         bytes memory sigDataRaw =
-            abi.encode(chainsWithDestExecutionRaw, validUntil, root, proof[0], proofDst, signature);
+            abi.encode(chainsWithDestExecutionRaw, validUntil, 0, root, proof[0], proofDst, signature);
 
         // Test valid signature on original contract
         bytes4 result1 = validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(sigDataRaw));
@@ -623,8 +655,9 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         chainsForLeafWithDst[0] = chainId1;
         chainsForLeafWithDst[1] = chainId2;
 
-        leaves[0] =
-            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeafWithDst, address(validator));
+        leaves[0] = _createSourceValidatorLeaf(
+            approveUserOp.userOpHash, validUntil, 0, chainsForLeafWithDst, address(validator)
+        );
         leaves[1] = _createDestinationValidatorLeaf(
             "", chainId1, account, address(0), new address[](0), new uint256[](0), validUntil, address(0)
         );
@@ -647,7 +680,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         });
         proofDst[0] = ISuperValidator.DstProof({ proof: proof[1], dstChainId: chainId1, info: dstInfo });
 
-        bytes memory sigData = abi.encode(chainsForLeafWithDst, validUntil, root, proof[0], proofDst, signature);
+        bytes memory sigData = abi.encode(chainsForLeafWithDst, validUntil, 0, root, proof[0], proofDst, signature);
         approveUserOp.userOp.signature = sigData;
 
         vm.expectRevert(SuperValidatorBase.PROOF_COUNT_MISMATCH.selector);
@@ -666,8 +699,9 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         chainsForLeafWithDst[0] = chainId1;
         chainsForLeafWithDst[1] = chainId2;
 
-        leaves[0] =
-            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeafWithDst, address(validator));
+        leaves[0] = _createSourceValidatorLeaf(
+            approveUserOp.userOpHash, validUntil, 0, chainsForLeafWithDst, address(validator)
+        );
         leaves[1] = _createDestinationValidatorLeaf(
             "", chainId1, account, address(0), new address[](0), new uint256[](0), validUntil, address(0)
         );
@@ -692,7 +726,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         proofDst[1] = ISuperValidator.DstProof({ proof: proof[1], dstChainId: chainId1, info: dstInfo }); // Identical
             // proof
 
-        bytes memory sigData = abi.encode(chainsForLeafWithDst, validUntil, root, proof[0], proofDst, signature);
+        bytes memory sigData = abi.encode(chainsForLeafWithDst, validUntil, 0, root, proof[0], proofDst, signature);
         approveUserOp.userOp.signature = sigData;
 
         vm.expectRevert(SuperValidatorBase.DUPLICATE_CHAIN_PROOF.selector);
@@ -711,8 +745,9 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         chainsForLeafWithDst[0] = chainId1; // First expected chain
         chainsForLeafWithDst[1] = chainId2; // Second expected chain
 
-        leaves[0] =
-            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeafWithDst, address(validator));
+        leaves[0] = _createSourceValidatorLeaf(
+            approveUserOp.userOpHash, validUntil, 0, chainsForLeafWithDst, address(validator)
+        );
         leaves[1] = _createDestinationValidatorLeaf(
             "", chainId1, account, address(0), new address[](0), new uint256[](0), validUntil, address(0)
         );
@@ -747,7 +782,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         proofDst[1] = ISuperValidator.DstProof({ proof: proof[1], dstChainId: chainId1, info: dstInfo2 }); // Should be
             // chainId2
 
-        bytes memory sigData = abi.encode(chainsForLeafWithDst, validUntil, root, proof[0], proofDst, signature);
+        bytes memory sigData = abi.encode(chainsForLeafWithDst, validUntil, 0, root, proof[0], proofDst, signature);
         approveUserOp.userOp.signature = sigData;
 
         vm.expectRevert(SuperValidatorBase.UNEXPECTED_CHAIN_PROOF.selector);
@@ -767,8 +802,9 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         chainsForLeafWithDst[0] = chainId1;
         chainsForLeafWithDst[1] = chainId2;
 
-        leaves[0] =
-            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeafWithDst, address(validator));
+        leaves[0] = _createSourceValidatorLeaf(
+            approveUserOp.userOpHash, validUntil, 0, chainsForLeafWithDst, address(validator)
+        );
         leaves[1] = _createDestinationValidatorLeaf(
             "", chainId1, account, address(0), new address[](0), new uint256[](0), validUntil, address(0)
         );
@@ -802,7 +838,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         proofDst[1] = ISuperValidator.DstProof({ proof: proof[2], dstChainId: unexpectedChainId, info: dstInfo2 }); // Wrong
             // chain
 
-        bytes memory sigData = abi.encode(chainsForLeafWithDst, validUntil, root, proof[0], proofDst, signature);
+        bytes memory sigData = abi.encode(chainsForLeafWithDst, validUntil, 0, root, proof[0], proofDst, signature);
         approveUserOp.userOp.signature = sigData;
 
         vm.expectRevert(SuperValidatorBase.UNEXPECTED_CHAIN_PROOF.selector);
@@ -822,8 +858,9 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         chainsForLeafWithDst[1] = chainId2;
         chainsForLeafWithDst[2] = chainId1; // Duplicate chain is allowed
 
-        leaves[0] =
-            _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, chainsForLeafWithDst, address(validator));
+        leaves[0] = _createSourceValidatorLeaf(
+            approveUserOp.userOpHash, validUntil, 0, chainsForLeafWithDst, address(validator)
+        );
         leaves[1] = _createDestinationValidatorLeaf(
             "data1", chainId1, account, address(0), new address[](0), new uint256[](0), validUntil, address(0)
         );
@@ -869,7 +906,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         proofDst[2] = ISuperValidator.DstProof({ proof: proof[3], dstChainId: chainId1, info: dstInfo3 }); // Different
             // proof for same chain
 
-        bytes memory sigData = abi.encode(chainsForLeafWithDst, validUntil, root, proof[0], proofDst, signature);
+        bytes memory sigData = abi.encode(chainsForLeafWithDst, validUntil, 0, root, proof[0], proofDst, signature);
         approveUserOp.userOp.signature = sigData;
 
         // This should succeed - duplicate chains with different proof content are allowed
@@ -907,7 +944,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
     {
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
         uint64[] memory chainsWithDestExecutionProofSet = new uint64[](0);
-        validSigData = abi.encode(chainsWithDestExecutionProofSet, validUntil, root, proof, proofDst, signature);
+        validSigData = abi.encode(chainsWithDestExecutionProofSet, validUntil, 0, root, proof, proofDst, signature);
 
         userOpData.userOp.signature = validSigData;
         ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(userOpData.userOp, userOpData.userOpHash);
