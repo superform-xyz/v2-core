@@ -2358,6 +2358,139 @@ contract CrosschainTests is BaseTest {
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), user_Base_USDC_Balance_Before);
     }
 
+    function test_BridgeThroughDifferentAdapters() public {
+        uint256 amount = 1e8;
+
+        // BASE IS DST
+        SELECT_FORK_AND_WARP(BASE, block.timestamp);
+
+        address accountToUse;
+        TargetExecutorMessage memory messageData;
+        bytes memory targetExecutorMessage;
+
+        // create bridge data
+        {
+            address[] memory dstHooksAddresses = new address[](2);
+            dstHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+            dstHooksAddresses[1] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+            bytes[] memory dstHooksData = new bytes[](2);
+            dstHooksData[0] =
+                _createApproveHookData(underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, amount, false);
+            dstHooksData[1] = _createDeposit4626HookData(
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+                yieldSourceMorphoUsdcAddressBase,
+                amount,
+                true,
+                address(0),
+                0
+            );
+
+            messageData = TargetExecutorMessage({
+                hooksAddresses: dstHooksAddresses,
+                hooksData: dstHooksData,
+                validator: address(destinationValidatorOnBase),
+                signer: validatorSigners[BASE],
+                signerPrivateKey: validatorSignerPrivateKeys[BASE],
+                targetAdapter: address(acrossV3AdapterOnBase),
+                targetExecutor: address(superTargetExecutorOnBase),
+                nexusFactory: CHAIN_8453_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
+                chainId: uint64(BASE),
+                amount: amount,
+                account: address(0),
+                tokenSent: underlyingBase_USDC
+            });
+
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
+        }
+
+        // ETH is SRC
+        SELECT_FORK_AND_WARP(ETH, block.timestamp);
+
+        address[] memory srcHooksAddresses = new address[](4);
+        srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(ETH, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+        srcHooksAddresses[2] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[3] = _getHookAddress(ETH, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](4);
+        srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amount / 2, false);
+        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingETH_USDC, underlyingBase_USDC, amount / 2, amount / 2, BASE, true, targetExecutorMessage
+        );
+        srcHooksData[2] = _createApproveHookData(underlyingETH_USDC, DEBRIDGE_DLN_ADDRESSES[ETH], amount / 2, false);
+
+        bytes memory debridgeData = _createDebridgeSendFundsAndExecuteHookData(
+            DebridgeOrderData({
+                usePrevHookAmount: false, //usePrevHookAmount
+                value: IDlnSource(DEBRIDGE_DLN_ADDRESSES[ETH]).globalFixedNativeFee(), //value
+                giveTokenAddress: underlyingETH_USDC, //giveTokenAddress
+                giveAmount: amount / 2, //giveAmount
+                version: 1, //envelope.version
+                fallbackAddress: accountETH, //envelope.fallbackAddress
+                executorAddress: address(debridgeAdapterOnETH), //envelope.executorAddress
+                executionFee: uint160(0), //envelope.executionFee
+                allowDelayedExecution: false, //envelope.allowDelayedExecution
+                requireSuccessfulExecution: true, //envelope.requireSuccessfulExecution
+                payload: targetExecutorMessage, //envelope.payload
+                takeTokenAddress: underlyingBase_USDC, //takeTokenAddress
+                takeAmount: amount / 2, //takeAmount
+                takeChainId: BASE, //takeChainId
+                // receiverDst must be the Debridge Adapter on the destination chain
+                receiverDst: address(debridgeAdapterOnBase),
+                givePatchAuthoritySrc: address(0), //givePatchAuthoritySrc
+                orderAuthorityAddressDst: abi.encodePacked(accountToUse), //orderAuthorityAddressDst
+                allowedTakerDst: "", //allowedTakerDst
+                allowedCancelBeneficiarySrc: "", //allowedCancelBeneficiarySrc
+                affiliateFee: "", //affiliateFee
+                referralCode: 0 //referralCode
+             })
+        );
+        srcHooksData[3] = debridgeData;
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
+
+        UserOpData memory srcUserOpData = _getExecOpsWithValidator(
+            instanceOnETH, superExecutorOnETH, abi.encode(entry), address(sourceValidatorOnETH)
+        );
+
+        bytes memory signatureData = _createMerkleRootAndSignature(
+            messageData, srcUserOpData.userOpHash, accountToUse, BASE, address(sourceValidatorOnETH)
+        );
+        srcUserOpData.userOp.signature = signatureData;
+        ExecutionReturnData memory executionData = executeOp(srcUserOpData);
+
+        _processAcrossV3Message(
+            ProcessAcrossV3MessageParams({
+                srcChainId: ETH,
+                dstChainId: BASE,
+                warpTimestamp: block.timestamp,
+                executionData: executionData,
+                relayerType: RELAYER_TYPE.NOT_ENOUGH_BALANCE,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                account: accountToUse,
+                root: bytes32(0),
+                relayerGas: 0
+            })
+        );
+
+        _processDebridgeDlnMessage(ETH, BASE, executionData);
+
+        // Verify that accountToUse received vault shares from the deposit
+        SELECT_FORK_AND_WARP(BASE, block.timestamp);
+        uint256 vaultShares = IERC20(yieldSourceMorphoUsdcAddressBase).balanceOf(accountToUse);
+        assertGt(vaultShares, 0, "Account should have received vault shares from deposit");
+
+        // Verify the shares can be converted back to approximately the deposited amount
+        uint256 assetsFromShares = IERC4626(yieldSourceMorphoUsdcAddressBase).convertToAssets(vaultShares);
+        assertApproxEqRel(
+            assetsFromShares, amount, 0.01e18, "Vault shares should convert to approximately the deposited amount"
+        );
+    }
+
     function testOrion_maliciousRelayersDoSCrosschainExecution() public {
         uint256 amountPerVault = 1e8 / 2;
 
