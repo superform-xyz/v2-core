@@ -12,6 +12,14 @@ import "forge-std/console2.sol";
 import "forge-std/Test.sol";
 import "forge-std/Vm.sol";
 
+// Circle Gateway
+import {
+    AttestationLib,
+    Attestation,
+    AttestationSet
+} from "evm-gateway/lib/AttestationLib.sol";
+import { TransferSpecLib, TransferSpec } from "evm-gateway/lib/TransferSpecLib.sol";
+
 // Superform
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { ISuperNativePaymaster } from "../../src/interfaces/ISuperNativePaymaster.sol";
@@ -21,6 +29,13 @@ abstract contract InternalHelpers is Test {
 
     bytes1 public constant REDEEM_IBT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_IBT_FOR_ASSET));
     bytes1 public constant REDEEM_PT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_PT_FOR_ASSET));
+
+    uint32 public constant TRANSFER_SPEC_VERSION = 1;
+    uint32 public constant TRANSFER_SPEC_SOURCE_DOMAIN = 1;
+    uint32 public constant TRANSFER_SPEC_DESTINATION_DOMAIN = 2;
+    bytes4 public constant ATTESTATION_MAGIC = 0xff6fb334;
+    bytes4 public constant TRANSFER_SPEC_MAGIC = 0xca85def7;
+    bytes4 public constant ATTESTATION_SET_MAGIC = 0x1e12db71;
 
     // -- Rhinestone
     function executeOpsThroughPaymaster(
@@ -915,5 +930,89 @@ abstract contract InternalHelpers is Test {
         }
 
         return flattenedProofs;
+    }
+
+    function _createCircleGatewayMinterHookDataSingleAttestation(
+        address sourceToken,
+        address destinationToken,
+        address sourceAccount,
+        address destinationAccount,
+        uint256 value
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        bytes memory transferSpecHeader =
+            _encodeTransferSpecHeader(sourceAccount, destinationAccount, sourceToken, destinationToken);
+
+        bytes memory transferSpecFooter = _encodeTransferSpecFooter(destinationAccount, sourceAccount, value);
+
+        bytes memory transferSpec = bytes.concat(transferSpecHeader, transferSpecFooter);
+
+        uint256 maxBlockHeight = block.number + 10_000; // valid for 10_000 blocks
+
+        bytes memory attestation = abi.encodePacked(ATTESTATION_MAGIC, maxBlockHeight, transferSpec);
+
+        bytes memory signature = new bytes(65);
+
+        hookData = abi.encodePacked(uint256(attestation.length), attestation, uint256(signature.length), signature);
+    }
+
+    function _createCircleGatewayMinterHookDataAttestationSet(
+        address sourceToken,
+        address sourceToken1,
+        address destinationToken,
+        address destinationToken1,
+        address sourceAccount,
+        address destinationAccount,
+        uint256 value,
+        uint256 value1
+    ) internal pure returns (bytes memory) {
+        
+    }
+
+    function _encodeTransferSpecHeader(
+        address sourceAccount,
+        address destinationAccount,
+        address sourceToken,
+        address destinationToken
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes32 sourceAccountBytes32 = bytes32(uint256(uint160(sourceAccount)));
+        bytes32 destinationAccountBytes32 = bytes32(uint256(uint160(destinationAccount)));
+        bytes32 sourceTokenBytes32 = bytes32(uint256(uint160(sourceToken)));
+        bytes32 destinationTokenBytes32 = bytes32(uint256(uint160(destinationToken)));
+
+        return abi.encodePacked(
+            TRANSFER_SPEC_MAGIC,
+            TRANSFER_SPEC_VERSION,
+            TRANSFER_SPEC_SOURCE_DOMAIN,
+            TRANSFER_SPEC_DESTINATION_DOMAIN,
+            sourceAccountBytes32,
+            destinationAccountBytes32,
+            sourceTokenBytes32,
+            destinationTokenBytes32,
+            sourceAccountBytes32
+        );
+    }
+
+    function _encodeTransferSpecFooter(
+        address destinationCaller,
+        address sourceAccount,
+        uint256 value
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes32 destinationCallerBytes32 = bytes32(uint256(uint160(destinationCaller)));
+        bytes32 sourceAccountBytes32 = bytes32(uint256(uint160(sourceAccount)));
+
+        return
+            abi.encodePacked(destinationCallerBytes32, sourceAccountBytes32, value, keccak256("salt"), bytes32(0), "");
     }
 }
