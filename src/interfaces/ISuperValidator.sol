@@ -43,8 +43,8 @@ interface ISuperValidator {
     /// @notice Structure holding signature data used across validator implementations
     /// @dev Contains all components needed for merkle proof verification and signature validation
     struct SignatureData {
-        /// @notice Whether to validate destination proof
-        bool validateDstProof;
+        /// @notice List of chain IDs that require destination proof validation
+        uint64[] chainsWithDestinationExecution;
         /// @notice Timestamp after which the signature is no longer valid
         uint48 validUntil;
         /// @notice Root of the merkle tree containing operation leaves
@@ -56,6 +56,12 @@ interface ISuperValidator {
         /// @notice Raw ECDSA signature bytes
         bytes signature;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+    event AccountOwnerSet(address indexed account, address indexed owner);
+    event AccountUnset(address indexed account);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS

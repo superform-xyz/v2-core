@@ -154,6 +154,70 @@ contract EthenaHooksTests is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    ETHENA UNSTAKE HOOK PRE/POST EXECUTE TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_EthenaUnstakeHook_PrePostExecute() public {
+        // Setup mock 4626 vault to simulate sUSDE behavior
+        MockERC20 usde = new MockERC20("USDe", "USDE", 18);
+        Mock4626Vault sUsde = new Mock4626Vault(address(usde), "Staked USDe", "sUSDE");
+        
+        // Mint tokens to account and approve vault
+        usde.mint(address(this), amount * 2);
+        usde.approve(address(sUsde), type(uint256).max);
+        
+        // Deposit into vault to get shares
+        sUsde.deposit(amount, address(this));
+        
+        // Create data with sUsde as yield source
+        bytes memory data = _encodeUnstakeData(address(sUsde));
+        
+        // Test preExecute
+        unstakeHook.preExecute(address(0), address(this), data);
+        
+        // Verify that preExecute set the correct values
+        assertEq(address(unstakeHook.asset()), address(usde), "Asset should be USDe");
+        assertEq(unstakeHook.getOutAmount(address(this)), usde.balanceOf(address(this)), "OutAmount should be initial balance");
+        assertEq(unstakeHook.usedShares(), sUsde.balanceOf(address(this)), "Used shares should be total shares");
+        
+        // Simulate unstaking by directly transferring tokens to simulate what the hook's execution would do
+        usde.mint(address(this), amount);
+        
+        // Test postExecute
+        unstakeHook.postExecute(address(0), address(this), data);
+        
+        // Verify postExecute calculations
+        uint256 expectedOutAmount = amount; // Amount transferred
+        assertEq(unstakeHook.getOutAmount(address(this)), amount * 2 - expectedOutAmount, "OutAmount should be updated correctly");
+        
+        // Used shares should be the amount needed to withdraw the outAmount
+        uint256 expectedShares = sUsde.previewWithdraw(expectedOutAmount);
+        assertEq(unstakeHook.usedShares(), expectedShares, "Used shares calculation should match previewWithdraw");
+    }
+    
+    function test_EthenaUnstakeHook_PrePostExecute_ZeroBalance() public {
+        // Setup mock 4626 vault
+        MockERC20 usde = new MockERC20("USDe", "USDE", 18);
+        Mock4626Vault sUsde = new Mock4626Vault(address(usde), "Staked USDe", "sUSDE");
+        
+        // Create data without having any balance
+        bytes memory data = _encodeUnstakeData(address(sUsde));
+        
+        // Test preExecute with zero balance
+        unstakeHook.preExecute(address(0), address(this), data);
+        
+        // Verify that preExecute handles zero balances correctly
+        assertEq(unstakeHook.getOutAmount(address(this)), 0, "OutAmount should be zero");
+        assertEq(unstakeHook.usedShares(), 0, "Used shares should be zero");
+        
+        // Test postExecute with zero initial balance
+        unstakeHook.postExecute(address(0), address(this), data);
+        
+        // Verify postExecute handles zero initial values correctly
+        assertEq(unstakeHook.getOutAmount(address(this)), 0, "OutAmount should remain zero");
+        assertEq(unstakeHook.usedShares(), 0, "Used shares calculation with zero amount should be zero");
+    }
+
+    /*//////////////////////////////////////////////////////////////
                      GET USED ASSETS OR SHARES TESTS
     //////////////////////////////////////////////////////////////*/
 

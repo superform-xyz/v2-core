@@ -12,6 +12,14 @@ import "forge-std/console2.sol";
 import "forge-std/Test.sol";
 import "forge-std/Vm.sol";
 
+// Circle Gateway
+import {
+    AttestationLib,
+    Attestation,
+    AttestationSet
+} from "evm-gateway/lib/AttestationLib.sol";
+import { TransferSpecLib, TransferSpec } from "evm-gateway/lib/TransferSpecLib.sol";
+
 // Superform
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { ISuperNativePaymaster } from "../../src/interfaces/ISuperNativePaymaster.sol";
@@ -21,6 +29,14 @@ abstract contract InternalHelpers is Test {
 
     bytes1 public constant REDEEM_IBT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_IBT_FOR_ASSET));
     bytes1 public constant REDEEM_PT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_PT_FOR_ASSET));
+
+    uint32 public constant TRANSFER_SPEC_VERSION = 1;
+    uint256 public constant MAX_BLOCK_HEIGHT = 10_000;
+    uint32 public constant TRANSFER_SPEC_SOURCE_DOMAIN = 1;
+    uint32 public constant TRANSFER_SPEC_DESTINATION_DOMAIN = 2;
+    bytes4 public constant ATTESTATION_MAGIC = 0xff6fb334;
+    bytes4 public constant TRANSFER_SPEC_MAGIC = 0xca85def7;
+    bytes4 public constant ATTESTATION_SET_MAGIC = 0x1e12db71;
 
     // -- Rhinestone
     function executeOpsThroughPaymaster(

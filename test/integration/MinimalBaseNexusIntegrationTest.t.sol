@@ -114,14 +114,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
     /*//////////////////////////////////////////////////////////////
                                  ACCOUNT CREATION METHODS
     //////////////////////////////////////////////////////////////*/
-    function _createWithNexus(
-        address[] memory attesters,
-        uint8 threshold,
-        uint256 value
-    )
-        internal
-        returns (address)
-    {
+    function _createWithNexus(address[] memory attesters, uint8 threshold, uint256 value) internal returns (address) {
         bytes memory initData = _getNexusInitData(attesters, threshold);
 
         address computedAddress = nexusFactory.computeAccountAddress(initData, initSalt);
@@ -131,14 +124,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         return computedAddress;
     }
 
-    function _getNexusInitData(
-        address[] memory attesters,
-        uint8 threshold
-    )
-        internal
-        view
-        returns (bytes memory)
-    {
+    function _getNexusInitData(address[] memory attesters, uint8 threshold) internal view returns (bytes memory) {
         // create validators
         BootstrapConfig[] memory validators = new BootstrapConfig[](1);
         validators[0] = BootstrapConfig({ module: address(superMerkleValidator), data: abi.encode(signer) });
@@ -177,13 +163,16 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _createSourceValidatorLeaf(
-            IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, false, address(superMerkleValidator)
+            IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp),
+            validUntil,
+            new uint64[](0),
+            address(superMerkleValidator)
         );
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(root);
 
         bytes memory sigData =
-            abi.encode(false, validUntil, root, proof[0], new ISuperValidator.DstProof[](0), signature);
+            abi.encode(new uint64[](0), validUntil, root, proof[0], new ISuperValidator.DstProof[](0), signature);
         // -- replace signature with validator signature
         userOp.signature = sigData;
 
@@ -197,43 +186,66 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(userOps, payable(account));
     }
 
+    struct MaliciousHookExecution {
+        Execution[] executions;
+        bytes callData;
+        uint256 nonce;
+        PackedUserOperation userOp;
+        uint48 validUntil;
+        bytes32[] leaves;
+        bytes32[][] proof;
+        bytes32 root;
+        bytes signature;
+        uint64[] chainsWithDestExecution;
+        bytes sigData;
+        PackedUserOperation[] userOps;
+    }
+
     function _executeThroughEntrypointWithMaliciousHook(
         address account,
         ISuperExecutor.ExecutorEntry memory entry
     )
         internal
     {
-        Execution[] memory executions = new Execution[](1);
-        executions[0] = Execution({
+        MaliciousHookExecution memory vars;
+
+        vars.executions = new Execution[](1);
+        vars.executions[0] = Execution({
             target: address(superExecutorModule),
             value: 0,
             callData: abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entry))
         });
 
-        bytes memory callData = _prepareExecutionCalldata(executions);
-        uint256 nonce = _prepareNonce(account);
-        PackedUserOperation memory userOp = _createPackedUserOperation(account, nonce, callData);
+        vars.callData = _prepareExecutionCalldata(vars.executions);
+        vars.nonce = _prepareNonce(account);
+        vars.userOp = _createPackedUserOperation(account, vars.nonce, vars.callData);
 
         // create validator merkle tree & get signature data
-        uint48 validUntil = uint48(block.timestamp + 1 hours);
-        bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createSourceValidatorLeaf(
-            IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, false, address(superMerkleValidator)
+        vars.validUntil = uint48(block.timestamp + 1 hours);
+        vars.leaves = new bytes32[](1);
+        vars.leaves[0] = _createSourceValidatorLeaf(
+            IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(vars.userOp),
+            vars.validUntil,
+            new uint64[](0),
+            address(superMerkleValidator)
         );
-        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
-        bytes memory signature = _getSignature(root);
-        bytes memory sigData = abi.encode(false, validUntil, root, proof[0], proof[0], signature);
+        (vars.proof, vars.root) = _createValidatorMerkleTree(vars.leaves);
+        vars.signature = _getSignature(vars.root);
+        vars.chainsWithDestExecution = new uint64[](0);
+        vars.sigData = abi.encode(
+            vars.chainsWithDestExecution, vars.validUntil, vars.root, vars.proof[0], vars.proof[0], vars.signature
+        );
         // -- replace signature with validator signature
-        userOp.signature = sigData;
+        vars.userOp.signature = vars.sigData;
 
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = userOp;
+        vars.userOps = new PackedUserOperation[](1);
+        vars.userOps[0] = vars.userOp;
 
         // Record logs before execution for error detection
         vm.recordLogs();
 
         // Execute the user operation
-        IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(userOps, payable(account));
+        IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(vars.userOps, payable(account));
 
         // Check logs for failed UserOperations
         _checkUserOperationResults(ISuperExecutor.INSUFFICIENT_BALANCE_FOR_FEE.selector);

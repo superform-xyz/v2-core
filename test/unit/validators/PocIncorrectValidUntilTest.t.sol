@@ -35,7 +35,8 @@ contract POC_IncorrectValidUntilTest is BaseTest {
         // Create merkle tree data
         bytes32[] memory leaves = new bytes32[](1);
         bytes32 userOpHash = keccak256("test");
-        leaves[0] = keccak256(bytes.concat(keccak256(abi.encode(userOpHash, uint48(0), false, address(validator)))));
+        uint64[] memory chainsWithDestExecution = new uint64[](0); // No destination chains
+        leaves[0] = _createSourceValidatorLeaf(userOpHash, uint48(0), chainsWithDestExecution, address(validator));
 
         // Create merkle tree using _createValidatorMerkleTree
         (bytes32[][] memory proofs, bytes32 root) = _createValidatorMerkleTree(leaves);
@@ -48,7 +49,7 @@ contract POC_IncorrectValidUntilTest is BaseTest {
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
         // Pack the signature data with validUntil = 0
         bytes memory sigDataRaw = abi.encode(
-            false,
+            chainsWithDestExecution, // Use the same array as in leaf creation
             uint48(0), // validUntil = 0 should mean infinite validity
             root, // merkleRoot
             proofs[0], // proofSrc
@@ -58,9 +59,8 @@ contract POC_IncorrectValidUntilTest is BaseTest {
 
         // Try to validate the signature
         // This should return 0x1626ba7e (VALID_SIGNATURE) and now will succeed with the correct signature format
-        bytes4 result = SuperValidator(validator).isValidSignatureWithSender(
-            address(user), userOpHash, abi.encode(sigDataRaw)
-        );
+        bytes4 result =
+            SuperValidator(validator).isValidSignatureWithSender(address(user), userOpHash, abi.encode(sigDataRaw));
 
         // The validation should succeed now that we use the correct signature format
         assertEq(result, bytes4(0x1626ba7e), "Signature validation should succeed with correct format and validUntil=0");

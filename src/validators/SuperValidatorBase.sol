@@ -43,6 +43,10 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     error ALREADY_INITIALIZED();
     error INVALID_DESTINATION_PROOF(); // thrown on source
     error NOT_EIP1271_SIGNER();
+    error EMPTY_DESTINATION_PROOF();
+    error PROOF_COUNT_MISMATCH();
+    error INVALID_MERKLE_PROOF();
+    error UNEXPECTED_CHAIN_PROOF();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -64,20 +68,24 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                            EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function onInstall(bytes calldata data) external {
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
         address owner = abi.decode(data, (address));
         if (owner == address(0)) revert ZERO_ADDRESS();
         _initialized[msg.sender] = true;
+
         _accountOwners[msg.sender] = owner;
+        emit AccountOwnerSet(msg.sender, owner);
     }
 
     function onUninstall(bytes calldata) external {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _initialized[msg.sender] = false;
+
         delete _accountOwners[msg.sender];
+        emit AccountUnset(msg.sender);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -89,16 +97,6 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     function _namespace() internal pure virtual returns (string memory) {
         return "SuperValidator";
     }
-
-    function _createLeaf(
-        bytes memory data,
-        uint48 validUntil,
-        bool checkCrossChainExecution
-    )
-        internal
-        view
-        virtual
-        returns (bytes32);
 
     function _createDestinationLeaf(
         DestinationData memory destinationData,
@@ -137,14 +135,14 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     /// @return Structured SignatureData for further processing
     function _decodeSignatureData(bytes memory sigDataRaw) internal pure virtual returns (SignatureData memory) {
         (
-            bool validateDstProof,
+            uint64[] memory chainsWithDestinationExecution,
             uint48 validUntil,
             bytes32 merkleRoot,
             bytes32[] memory proofSrc,
             DstProof[] memory proofDst,
             bytes memory signature
-        ) = abi.decode(sigDataRaw, (bool, uint48, bytes32, bytes32[], DstProof[], bytes));
-        return SignatureData(validateDstProof, validUntil, merkleRoot, proofSrc, proofDst, signature);
+        ) = abi.decode(sigDataRaw, (uint64[], uint48, bytes32, bytes32[], DstProof[], bytes));
+        return SignatureData(chainsWithDestinationExecution, validUntil, merkleRoot, proofSrc, proofDst, signature);
     }
 
     /// @notice Processes signature for any account type after merkle proof verification

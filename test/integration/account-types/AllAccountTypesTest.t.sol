@@ -110,7 +110,6 @@ import "forge-std/Test.sol";
  * This comprehensive coverage ensures all possible account types and signature scenarios
  * are properly validated across both same-chain and cross-chain operations.
  */
-
 contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
     using BytesLib for bytes;
     using ModuleKitHelpers for *;
@@ -1191,7 +1190,6 @@ contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
             validUntil,
             address(validator),
             userOpData.userOpHash,
-            address(customContract),
             privateKey1 // owner1's private key
         );
         userOpData.userOp.signature = sigData;
@@ -1709,8 +1707,15 @@ contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
         );
 
         vars.signature = _getSafeSignature(vars.ctx.merkleRoot, vars.accountBase, srcValidator, amountSigners);
+        uint64[] memory chainsWithDestExecutionCrosschain = new uint64[](1);
+        chainsWithDestExecutionCrosschain[0] = dstChainId;
         vars.signatureData = abi.encode(
-            true, vars.ctx.validUntil, vars.ctx.merkleRoot, vars.ctx.merkleProof[1], vars.proofDst, vars.signature
+            chainsWithDestExecutionCrosschain,
+            vars.ctx.validUntil,
+            vars.ctx.merkleRoot,
+            vars.ctx.merkleProof[1],
+            vars.proofDst,
+            vars.signature
         );
         vars.srcUserOpData.userOp.signature = vars.signatureData;
     }
@@ -1807,13 +1812,16 @@ contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
         returns (bytes memory signatureData)
     {
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createSourceValidatorLeaf(userOpHash, validUntil, false, address(_validator));
+        uint64[] memory chainsForLeaf = new uint64[](0);
+        leaves[0] = _createSourceValidatorLeaf(userOpHash, validUntil, chainsForLeaf, address(_validator));
 
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSafeSignature(merkleRoot, _account, _validator, amountSigners);
 
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
-        signatureData = abi.encode(false, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
+        uint64[] memory chainsWithDestExecutionAccount = new uint64[](0);
+        signatureData =
+            abi.encode(chainsWithDestExecutionAccount, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
     }
 
     function _createNativeSafeSigData(
@@ -1827,7 +1835,8 @@ contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
         returns (bytes memory signatureData)
     {
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createSourceValidatorLeaf(userOpHash, validUntil, false, address(_validator));
+        uint64[] memory chainsForLeaf = new uint64[](0);
+        leaves[0] = _createSourceValidatorLeaf(userOpHash, validUntil, chainsForLeaf, address(_validator));
 
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
 
@@ -1835,7 +1844,9 @@ contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
         bytes memory signature = _getNativeSafeSignature(merkleRoot, _account, _validator);
 
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
-        signatureData = abi.encode(false, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
+        uint64[] memory chainsWithDestExecutionAccount = new uint64[](0);
+        signatureData =
+            abi.encode(chainsWithDestExecutionAccount, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
     }
 
     function _getSafeSignature(
@@ -2018,17 +2029,17 @@ contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
         uint48 validUntil,
         address _validator,
         bytes32 userOpHash,
-        address _customContract,
         uint256 _privateKey
     )
         internal
-        view
+        pure
         returns (bytes memory signatureData)
     {
         CustomEIP1271SigVars memory vars;
 
         vars.leaves = new bytes32[](1);
-        vars.leaves[0] = _createSourceValidatorLeaf(userOpHash, validUntil, false, address(_validator));
+        uint64[] memory chainsForLeaf2 = new uint64[](0);
+        vars.leaves[0] = _createSourceValidatorLeaf(userOpHash, validUntil, chainsForLeaf2, address(_validator));
 
         (vars.merkleProof, vars.merkleRoot) = _createValidatorMerkleTree(vars.leaves);
 
@@ -2041,7 +2052,7 @@ contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
 
         vars.proofDst = new ISuperValidator.DstProof[](0);
         signatureData =
-            abi.encode(false, validUntil, vars.merkleRoot, vars.merkleProof[0], vars.proofDst, vars.signature);
+            abi.encode(new uint64[](0), validUntil, vars.merkleRoot, vars.merkleProof[0], vars.proofDst, vars.signature);
     }
 
     /// @notice Create ECDSA signature data for EIP-7702 account owner (treated as EOA)
@@ -2058,7 +2069,8 @@ contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
         EIP7702SigVars memory vars;
 
         vars.leaves = new bytes32[](1);
-        vars.leaves[0] = _createSourceValidatorLeaf(userOpHash, validUntil, false, address(_validator));
+        uint64[] memory chainsForLeaf2 = new uint64[](0);
+        vars.leaves[0] = _createSourceValidatorLeaf(userOpHash, validUntil, chainsForLeaf2, address(_validator));
 
         (vars.merkleProof, vars.merkleRoot) = _createValidatorMerkleTree(vars.leaves);
 
@@ -2071,7 +2083,7 @@ contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
 
         vars.proofDst = new ISuperValidator.DstProof[](0);
         signatureData =
-            abi.encode(false, validUntil, vars.merkleRoot, vars.merkleProof[0], vars.proofDst, vars.signature);
+            abi.encode(new uint64[](0), validUntil, vars.merkleRoot, vars.merkleProof[0], vars.proofDst, vars.signature);
     }
 
     // -- UserOps helpers
