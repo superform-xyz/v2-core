@@ -1369,7 +1369,7 @@ contract EIP7702Test is BaseTest {
         uint64[] memory chainsForLeaf = new uint64[](1);
         chainsForLeaf[0] = params.dstChainId;
         ctx.leaves[1] =
-            _createSourceValidatorLeaf(params.userOpHash, ctx.validUntil, chainsForLeaf, params.srcValidator);
+            _createSourceValidatorLeaf(params.userOpHash, ctx.validUntil, 0, chainsForLeaf, params.srcValidator);
 
         (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
 

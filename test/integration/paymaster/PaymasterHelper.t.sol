@@ -188,6 +188,7 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         leaves[0] = _createSourceValidatorLeaf(
             IEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp),
             validUntil,
+            0,
             new uint64[](0),
             address(superMerkleValidator)
         );
@@ -196,7 +197,7 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
         uint64[] memory chainsWithDestExecutionPaymaster = new uint64[](0);
         bytes memory sigData =
-            abi.encode(chainsWithDestExecutionPaymaster, validUntil, root, proof[0], proofDst, signature);
+            abi.encode(chainsWithDestExecutionPaymaster, validUntil, 0, root, proof[0], proofDst, signature);
         // -- replace signature with validator signature
         userOp.signature = sigData;
 

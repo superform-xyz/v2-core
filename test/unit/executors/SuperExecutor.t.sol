@@ -716,7 +716,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         superDestinationExecutor.processBridgedExecution(
             address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData
         );
-        bytes32 merkleRoot = bytes32(BytesLib.slice(signatureData, 64, 32));
+        bytes32 merkleRoot = bytes32(BytesLib.slice(signatureData, 96, 32));
         assertTrue(superDestinationExecutor.isMerkleRootUsed(address(account), merkleRoot));
 
         //shouldn't revert anymore; it just returns
@@ -786,7 +786,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             ISuperValidator.DstProof({ proof: merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo });
         uint64[] memory chainsWithDestExecutionExecutor = new uint64[](0);
         signatureData =
-            abi.encode(chainsWithDestExecutionExecutor, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
+            abi.encode(chainsWithDestExecutionExecutor, validUntil, 0, merkleRoot, merkleProof[0], proofDst, signature);
     }
 
     function test_FeeToleranceIsOnePercent() public {
@@ -1005,7 +1005,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             ISuperValidator.DstProof({ proof: ctx.merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo });
         uint64[] memory chainsWithDestExecutionCtx = new uint64[](0);
         ctx.signatureData = abi.encode(
-            chainsWithDestExecutionCtx, validUntil, ctx.merkleRoot, ctx.merkleProof[0], proofDst, ctx.signature
+            chainsWithDestExecutionCtx, validUntil, 0, ctx.merkleRoot, ctx.merkleProof[0], proofDst, ctx.signature
         );
 
         vm.expectEmit(true, true, false, true);

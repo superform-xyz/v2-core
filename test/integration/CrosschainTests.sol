@@ -1993,7 +1993,7 @@ contract CrosschainTests is BaseTest {
 
         // now the actual bridge message arrives
         SELECT_FORK_AND_WARP(ETH, block.timestamp + 1 days);
-        bytes32 _merkleRoot = bytes32(BytesLib.slice(params.signatureData, 64, 32));
+        bytes32 _merkleRoot = bytes32(BytesLib.slice(params.signatureData, 96, 32));
         ExecutionReturnData memory _paymasterExecutionData =
             executeOpsThroughPaymaster(params.srcUserOpData, superNativePaymasterOnETH, 1e18);
         _processAcrossV3Message(
@@ -2222,16 +2222,23 @@ contract CrosschainTests is BaseTest {
         (
             uint64[] memory chainsWithDestinationExecution,
             uint48 validUntil,
+            uint48 validAfter,
             bytes32 merkleRoot,
             bytes32[] memory merkleProofSrc,
             , // This will be replaced
             bytes memory signature
-        ) = abi.decode(signatureData, (uint64[], uint48, bytes32, bytes32[], ISuperValidator.DstProof[], bytes));
+        ) = abi.decode(signatureData, (uint64[], uint48, uint48, bytes32, bytes32[], ISuperValidator.DstProof[], bytes));
 
         ISuperValidator.DstProof[] memory emptyMerkleProofDst = new ISuperValidator.DstProof[](0);
 
         bytes memory tamperedSig = abi.encode(
-            chainsWithDestinationExecution, validUntil, merkleRoot, merkleProofSrc, emptyMerkleProofDst, signature
+            chainsWithDestinationExecution,
+            validUntil,
+            validAfter,
+            merkleRoot,
+            merkleProofSrc,
+            emptyMerkleProofDst,
+            signature
         );
 
         srcUserOpData.userOp.signature = tamperedSig;
@@ -2612,11 +2619,11 @@ contract CrosschainTests is BaseTest {
             })
         );
         // the signatures don't match due to wrong decoding
-        (,,,,, bytes memory destinationChainSignature) =
-            abi.decode(signatureData, (uint64[], uint48, bytes32, bytes32[], ISuperValidator.DstProof[], bytes));
+        (,,,,,, bytes memory destinationChainSignature) =
+            abi.decode(signatureData, (uint64[], uint48, uint48, bytes32, bytes32[], ISuperValidator.DstProof[], bytes));
 
-        (,,,, bytes memory sourceChainSignature) =
-            abi.decode(signatureData, (uint64[], uint48, bytes32, bytes32[], bytes));
+        (,,,,, bytes memory sourceChainSignature) =
+            abi.decode(signatureData, (uint64[], uint48, uint48, bytes32, bytes32[], bytes));
 
         assert(keccak256(destinationChainSignature) != keccak256(sourceChainSignature));
     }
@@ -4301,13 +4308,13 @@ contract CrosschainTests is BaseTest {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _createSourceValidatorLeaf(
-            IEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, new uint64[](0), address(validator)
+            IEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, 0, new uint64[](0), address(validator)
         );
         (bytes32[][] memory _proof, bytes32 _root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(_root);
 
         bytes memory sigData =
-            abi.encode(new uint64[](0), validUntil, _root, _proof[0], new ISuperValidator.DstProof[](0), signature);
+            abi.encode(new uint64[](0), validUntil, 0, _root, _proof[0], new ISuperValidator.DstProof[](0), signature);
 
         userOp.signature = sigData;
 

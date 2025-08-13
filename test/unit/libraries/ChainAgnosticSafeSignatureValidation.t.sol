@@ -133,6 +133,7 @@ contract ChainAgnosticSafeSignatureValidationTest is Test {
             signature: signature,
             merkleRoot: bytes32(uint256(123)),
             validUntil: uint48(block.timestamp + 1 days),
+            validAfter: 0,
             chainsWithDestinationExecution: new uint64[](0),
             proofSrc: new bytes32[](0),
             proofDst: new ISuperValidator.DstProof[](0)

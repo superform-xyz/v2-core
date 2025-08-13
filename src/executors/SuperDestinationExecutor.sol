@@ -173,8 +173,9 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     }
 
     function _decodeMerkleRoot(bytes memory userSignatureData) private pure returns (bytes32) {
-        (,, bytes32 merkleRoot,,,) =
-            abi.decode(userSignatureData, (uint64[], uint48, bytes32, bytes32[], ISuperValidator.DstProof[], bytes));
+        (,,, bytes32 merkleRoot,,,) = abi.decode(
+            userSignatureData, (uint64[], uint48, uint48, bytes32, bytes32[], ISuperValidator.DstProof[], bytes)
+        );
         return merkleRoot;
     }
 
