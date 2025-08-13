@@ -1,0 +1,12 @@
+ignore:
+  - "src/hooks/claim/gearbox/**"
+  - "src/hooks/claim/yearn/**"
+  - "src/hooks/claim/fluid/**"
+  - "src/hooks/loan/morpho/**"
+  - "src/hooks/stake/**"
+  - "src/hooks/swappers/spectra/**"
+  - "src/hooks/swappers/pendle/**"
+  - "src/hooks/vaults/super-vault/**"
+  - "src/hooks/vaults/vault-bank/**"
+  - "src/vendor/**"
+  - "test/**"
