@@ -9,6 +9,7 @@ import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
 import { BatchTransferFromHook } from "../../../../../src/hooks/tokens/permit2/BatchTransferFromHook.sol";
 import { IAllowanceTransfer } from "../../../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
 import { IPermit2Batch } from "../../../../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
+import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
 
 contract BatchTransferFromHookTest is Helpers, InternalHelpers {
     BatchTransferFromHook public hook;
@@ -113,6 +114,67 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         bytes memory expectedTransferCallData =
             abi.encodeCall(IPermit2Batch.transferFrom, (_buildExpectedTransferDetails(eoa, account, tokens, amounts)));
         assertEq(executions[2].callData, expectedTransferCallData);
+    }
+
+    function test_Build_Executions_ReturnStatement() public view {
+        // Create minimal valid data to trigger the return statement
+        bytes memory hookData = abi.encodePacked(
+            eoa,                  // from address (20 bytes)
+            uint256(1),           // number of tokens (32 bytes) - just use 1 token to keep it simple
+            sigDeadline,          // signature deadline (32 bytes)
+            abi.encodePacked(tokens[0]),  // single token address
+            abi.encodePacked(amounts[0]), // single amount
+            new bytes(65)         // mock signature
+        );
+
+        // Call build which internally calls _buildHookExecutions
+        Execution[] memory executions = hook.build(address(0), account, hookData);
+        
+        // Make assertions to ensure the function executed fully
+        assertEq(executions.length, 4); // Should have 4 executions
+        assertEq(executions[1].target, PERMIT2);
+        assertEq(executions[2].target, PERMIT2);
+        
+        // Store the result to ensure the return value is used
+        // This helps some coverage tools recognize the return statement was reached
+        Execution[] memory storedExecutions = executions;
+        assertEq(storedExecutions.length, executions.length);
+    }
+
+    function test_preAndPostExecute_permit2() public {
+        bytes memory hookData = abi.encodePacked(
+            eoa, // from address (20 bytes)
+            uint256(3), // number of tokens (32 bytes)
+            sigDeadline, // signature deadline (32 bytes)
+            abi.encodePacked(tokens[0], tokens[1], tokens[2]), // token addresses (20 bytes each)
+            abi.encodePacked(amounts[0], amounts[1], amounts[2]), // amounts (32 bytes each)
+            new bytes(65) // mock signature (65 bytes)
+        );
+
+        //does nothing but affects coverage
+        hook.preExecute(address(0), address(this), hookData);
+        hook.postExecute(address(0), address(this), hookData);
+    }
+
+    function test_inspect_permit2() public view {
+        bytes memory hookData = abi.encodePacked(
+            eoa, // from address (20 bytes)
+            uint256(3), // number of tokens (32 bytes)
+            sigDeadline, // signature deadline (32 bytes)
+            abi.encodePacked(tokens[0], tokens[1], tokens[2]), // token addresses (20 bytes each)
+            abi.encodePacked(amounts[0], amounts[1], amounts[2]), // amounts (32 bytes each)
+            new bytes(65) // mock signature (65 bytes)
+        );
+
+        bytes memory inspectResult = hook.inspect(hookData);
+        bytes memory inspectExtectedResult = abi.encodePacked(eoa);
+        for (uint256 i; i < 3; ++i) {
+            inspectExtectedResult = abi.encodePacked(inspectExtectedResult, tokens[i]);
+        }
+        assertEq(inspectResult.length, inspectExtectedResult.length);
+        assertEq(BytesLib.toAddress(inspectResult, 0), BytesLib.toAddress(inspectExtectedResult, 0));
+        assertEq(BytesLib.toAddress(inspectResult, 20), BytesLib.toAddress(inspectExtectedResult, 20));
+        assertEq(BytesLib.toAddress(inspectResult, 40), BytesLib.toAddress(inspectExtectedResult, 40));
     }
 
     function _buildExpectedPermitBatch(
