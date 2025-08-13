@@ -293,7 +293,7 @@ jobs:
         run: yarn
 
       - name: "Generate the coverage report using unit and integration tests"
-        run: "make coverage-genhtml"
+        run: "make coverage"
 
       - name: "Upload coverage report to Codecov"
         uses: "codecov/codecov-action@v5"
