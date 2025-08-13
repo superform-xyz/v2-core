@@ -46,7 +46,6 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     error EMPTY_DESTINATION_PROOF();
     error PROOF_COUNT_MISMATCH();
     error INVALID_MERKLE_PROOF();
-    error DUPLICATE_CHAIN_PROOF();
     error UNEXPECTED_CHAIN_PROOF();
 
     /*//////////////////////////////////////////////////////////////

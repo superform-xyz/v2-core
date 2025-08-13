@@ -69,13 +69,6 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
             for (uint256 i; i < dstLen; ++i) {
                 DstProof memory dstProof = sigData.proofDst[i];
 
-                // Check for duplicate proofs by comparing with previous proofs
-                for (uint256 k; k < i; ++k) {
-                    if (_areProofsEqual(dstProof, sigData.proofDst[k])) {
-                        revert DUPLICATE_CHAIN_PROOF();
-                    }
-                }
-
                 // Verify proof is for the expected chain at this index
                 if (dstProof.dstChainId != sigData.chainsWithDestinationExecution[i]) {
                     revert UNEXPECTED_CHAIN_PROOF();

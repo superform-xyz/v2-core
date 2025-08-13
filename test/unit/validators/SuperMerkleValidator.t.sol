@@ -1031,51 +1031,6 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
     }
 
-    function test_ValidateUserOp_DUPLICATE_CHAIN_PROOF_IdenticalProofs() public {
-        uint48 validUntil = uint48(block.timestamp + 1 hours);
-
-        uint64 chainId1 = 1;
-        uint64 chainId2 = 8453;
-
-        // Create leaves for source and destinations
-        bytes32[] memory leaves = new bytes32[](3);
-        uint64[] memory chainsForLeafWithDst = new uint64[](2);
-        chainsForLeafWithDst[0] = chainId1;
-        chainsForLeafWithDst[1] = chainId2;
-
-        leaves[0] = _createSourceValidatorLeaf(
-            approveUserOp.userOpHash, validUntil, 0, chainsForLeafWithDst, address(validator)
-        );
-        leaves[1] = _createDestinationValidatorLeaf(
-            "", chainId1, account, address(0), new address[](0), new uint256[](0), validUntil, address(0)
-        );
-        leaves[2] = _createDestinationValidatorLeaf(
-            "", chainId2, account, address(0), new address[](0), new uint256[](0), validUntil, address(0)
-        );
-
-        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
-        bytes memory signature = _getSignature(root);
-
-        // Provide 2 identical proofs (same content)
-        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](2);
-        ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
-            data: "",
-            executor: address(0),
-            dstTokens: new address[](0),
-            intentAmounts: new uint256[](0),
-            account: account,
-            validator: address(0)
-        });
-        proofDst[0] = ISuperValidator.DstProof({ proof: proof[1], dstChainId: chainId1, info: dstInfo });
-        proofDst[1] = ISuperValidator.DstProof({ proof: proof[1], dstChainId: chainId1, info: dstInfo }); // Identical
-            // proof
-
-        bytes memory sigData = abi.encode(chainsForLeafWithDst, validUntil, 0, root, proof[0], proofDst, signature);
-        approveUserOp.userOp.signature = sigData;
-
-        vm.expectRevert(SuperValidatorBase.DUPLICATE_CHAIN_PROOF.selector);
-        validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
-    }
 
     function test_ValidateUserOp_UNEXPECTED_CHAIN_PROOF_WrongChainOrder() public {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
