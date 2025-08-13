@@ -21,9 +21,9 @@ contract CantinaIntegrationPendleRouterSwapHookTest is Test {
         vm.createSelectFork(getRpc(chainName), blockNumber);
     }
 
-    function getRpc(string memory chainName) internal pure returns (string memory) {
+    function getRpc(string memory chainName) internal view returns (string memory) {
         if (keccak256(bytes(chainName)) == keccak256("eth")) {
-            return "https://eth-mainnet.public.blastapi.io";
+            return vm.envString("ETHEREUM_RPC_URL");
         } else {
             revert(string(abi.encodePacked("BaseTest.getRpc: unsupported chain ", chainName)));
         }

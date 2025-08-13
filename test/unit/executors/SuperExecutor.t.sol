@@ -716,7 +716,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         superDestinationExecutor.processBridgedExecution(
             address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData
         );
-        bytes32 merkleRoot = bytes32(BytesLib.slice(signatureData, 64, 32));
+        bytes32 merkleRoot = bytes32(BytesLib.slice(signatureData, 96, 32));
         assertTrue(superDestinationExecutor.isMerkleRootUsed(address(account), merkleRoot));
 
         //shouldn't revert anymore; it just returns
