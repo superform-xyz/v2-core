@@ -1456,7 +1456,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
         existingVaults[BASE][ERC4626_VAULT_KEY][SPARK_USDC_VAULT_KEY][USDC_KEY] = CHAIN_8453_SparkUSDCVault;
         vm.label(existingVaults[BASE][ERC4626_VAULT_KEY][SPARK_USDC_VAULT_KEY][USDC_KEY], SPARK_USDC_VAULT_KEY);
-        
+
         existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY] =
             CHAIN_8453_MorphoGauntletWETHCore;
         vm.label(
@@ -1831,7 +1831,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             ctx.validUntil,
             messageData.validator
         );
-        ctx.leaves[1] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, true, srcValidator);
+        uint64[] memory chainsForLeaf = new uint64[](1);
+        chainsForLeaf[0] = dstChainId;
+        ctx.leaves[1] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, chainsForLeaf, srcValidator);
 
         (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
 
@@ -1880,7 +1882,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             ctx.validUntil,
             messageData.validator
         );
-        ctx.leaves[1] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, true, srcValidator);
+        uint64[] memory chainsForLeaf = new uint64[](1);
+        chainsForLeaf[0] = dstChainId;
+        ctx.leaves[1] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, chainsForLeaf, srcValidator);
 
         (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
 
@@ -1903,8 +1907,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         proofDst[0] = ISuperValidator.DstProof({ proof: ctx.merkleProof[0], dstChainId: dstChainId, info: dstInfo });
 
         console2.logBytes32(ctx.merkleRoot);
-        sig = _createSignatureData_DestinationExecutor(
-            true, ctx.validUntil, ctx.merkleRoot, ctx.merkleProof[1], proofDst, ctx.signature
+        uint64[] memory chainsWithDestinationExecution = new uint64[](1);
+        chainsWithDestinationExecution[0] = dstChainId;
+        sig = _createSignatureData_DestinationExecutorWithChains(
+            chainsWithDestinationExecution, ctx.validUntil, ctx.merkleRoot, ctx.merkleProof[1], proofDst, ctx.signature
         );
     }
 
@@ -1923,7 +1929,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         ctx.validUntil = uint48(block.timestamp + 100 days);
 
         ctx.leaves = new bytes32[](1);
-        ctx.leaves[0] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, false, srcValidator);
+        uint64[] memory chainsForLeafNoDestination = new uint64[](0);
+        ctx.leaves[0] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, chainsForLeafNoDestination, srcValidator);
 
         (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
 
@@ -1932,8 +1939,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
 
-        sig = _createSignatureData_DestinationExecutor(
-            false, ctx.validUntil, ctx.merkleRoot, ctx.merkleProof[0], proofDst, ctx.signature
+        uint64[] memory chainsWithDestExecutionNone = new uint64[](0);
+        sig = _createSignatureData_DestinationExecutorWithChains(
+            chainsWithDestExecutionNone, ctx.validUntil, ctx.merkleRoot, ctx.merkleProof[0], proofDst, ctx.signature
         );
     }
 
@@ -1950,6 +1958,23 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         returns (bytes memory)
     {
         return abi.encode(validateDstProof, validUntil, merkleRoot, merkleProofSrc, merkleProofDst, signature);
+    }
+
+    function _createSignatureData_DestinationExecutorWithChains(
+        uint64[] memory chainsWithDestinationExecution,
+        uint48 validUntil,
+        bytes32 merkleRoot,
+        bytes32[] memory merkleProofSrc,
+        ISuperValidator.DstProof[] memory merkleProofDst,
+        bytes memory signature
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encode(
+            chainsWithDestinationExecution, validUntil, merkleRoot, merkleProofSrc, merkleProofDst, signature
+        );
     }
 
     function _createCrosschainExecutionData_DestinationExecutor(

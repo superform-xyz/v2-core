@@ -790,7 +790,8 @@ contract SuperExecutor_sameChainFlow is
         returns (bytes memory signatureData)
     {
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createSourceValidatorLeaf(userOpData.userOpHash, validUntil, false, address(validator));
+        uint64[] memory chainsForLeaf = new uint64[](0);
+        leaves[0] = _createSourceValidatorLeaf(userOpData.userOpHash, validUntil, chainsForLeaf, address(validator));
 
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
 
@@ -798,7 +799,8 @@ contract SuperExecutor_sameChainFlow is
             _createSignature(SuperValidatorBase(address(validator)).namespace(), merkleRoot, signer, signerPrvKey);
 
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
-        signatureData = abi.encode(false, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
+        uint64[] memory chainsWithDestExecutionSame = new uint64[](0);
+        signatureData = abi.encode(chainsWithDestExecutionSame, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
     }
 
     function _get7702InitData() internal view returns (bytes memory) {

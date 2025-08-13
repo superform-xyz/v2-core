@@ -48,7 +48,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
 
         // Decode data
         (SignatureData memory sigData, DestinationData memory destinationData) =
-            _decodeSignatureAndDestinationData(data, sender);
+            _decodeSignatureAndDestinationData(data);
         // Process signature
         (address signer,) = _createLeafAndVerifyProofAndSignature(sender, sigData, destinationData);
 
@@ -68,7 +68,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /// @param data Encoded destination data containing execution details
     /// @param validUntil Timestamp after which the signature becomes invalid
     /// @return The calculated leaf hash used in merkle tree verification
-    function _createLeaf(bytes memory data, uint48 validUntil, bool) internal view override returns (bytes32) {
+    function _createLeafForDestination(bytes memory data, uint48 validUntil) internal view returns (bytes32) {
         DestinationData memory destinationData = abi.decode(data, (DestinationData));
 
         return _createDestinationLeaf(destinationData, validUntil, address(this));
@@ -95,7 +95,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
         returns (address signer, bytes32 leaf)
     {
         // Create leaf from destination data and verify against merkle root using extracted proof for current chain
-        leaf = _createLeaf(abi.encode(destinationData), sigData.validUntil, false);
+        leaf = _createLeafForDestination(abi.encode(destinationData), sigData.validUntil);
         if (!MerkleProof.verify(_extractProof(sigData), sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
         // Process signature using common method
@@ -118,34 +118,20 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /// @notice Decodes signature and destination data from raw bytes
     /// @dev Decodes the signature data and destination data from the raw bytes
     /// @param data Raw bytes containing signature and destination data
-    /// @param sender The sender address to validate against
     /// @return The decoded signature data and destination data
-    function _decodeSignatureAndDestinationData(
-        bytes memory data,
-        address sender
-    )
+    function _decodeSignatureAndDestinationData(bytes memory data)
         private
-        view
+        pure
         returns (SignatureData memory, DestinationData memory)
     {
         (bytes memory sigDataRaw, bytes memory destinationDataRaw) = abi.decode(data, (bytes, bytes));
-        return (_decodeSignatureData(sigDataRaw), _decodeDestinationData(destinationDataRaw, sender));
+        return (_decodeSignatureData(sigDataRaw), _decodeDestinationData(destinationDataRaw));
     }
 
-    /// @notice Decodes and validates raw destination data
-    /// @dev Checks that the sender and chain ID match current execution context
-    ///      to prevent replay attacks across accounts or chains
+    /// @notice Decodes raw destination data
     /// @param destinationDataRaw ABI-encoded destination data bytes
-    /// @param sender_ Expected sender address to validate against
     /// @return Structured DestinationData for further processing
-    function _decodeDestinationData(
-        bytes memory destinationDataRaw,
-        address sender_
-    )
-        private
-        view
-        returns (DestinationData memory)
-    {
+    function _decodeDestinationData(bytes memory destinationDataRaw) private pure returns (DestinationData memory) {
         (
             bytes memory callData,
             uint64 chainId,
