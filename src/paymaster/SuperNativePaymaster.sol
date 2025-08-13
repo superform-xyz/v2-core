@@ -160,7 +160,7 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
             abi.decode(context, (address, uint256, uint256, uint256, uint256));
 
         // add postOpGas
-        actualGasCost += postOpGas;
+        actualGasCost += (postOpGas * maxFeePerGas);
         uint256 refund = calculateRefund(maxGasLimit, maxFeePerGas, actualGasCost, nodeOperatorPremium);
         if (refund > 0) {
             uint256 deposit = entryPoint.getDepositInfo(address(this)).deposit;

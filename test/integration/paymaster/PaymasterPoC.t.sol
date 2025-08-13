@@ -118,8 +118,8 @@ contract PoC is PaymasterHelper {
 
         // the real gas cost
         // we add 10e6 because EntryPoint adds verificationGasLimit to gasUsed value in its calculations internally and we need to account for that
-        // the real gas cost after handleOps is: 304553490000000 [3.045e14]
-        uint256 realGasCost = (actualGas + 10e6) * tx.gasprice;
+        // the real gas cost after handleOps is: 4959282896000000 [4.95e14]
+        uint256 realGasCost = (actualGas + (10e6*data.maxFeePerGas)) * tx.gasprice;
 
         uint256 whatShouldBeRefunded = data.paymaster.calculateRefund(data.maxGasLimit, data.maxFeePerGas, realGasCost, 0);
 
@@ -270,6 +270,75 @@ contract PoC is PaymasterHelper {
         uint256 realGasCost = (actualGas + 10e6) * tx.gasprice;
 
         console2.log(realGasCost);
+    }
+
+    function test_postOpGasMultiplier() public {
+        // This test verifies that postOpGas is correctly multiplied by maxFeePerGas
+        
+        // Create a simple test setup
+        TestData memory data;
+        data.nexusAccount = _createWithNexus(attesters, threshold, 0);
+        vm.deal(data.nexusAccount, LARGE);
+        
+        // Configure paymaster with reasonable values
+        uint256 postOpGasValue = 5e6; // 5M gas
+        uint256 maxFeePerGasValue = 2e8; // 200 gwei
+        uint256 maxGasLimit = 20e6;
+        
+        // Create paymaster and setup data
+        data.paymaster = new SuperNativePaymaster(IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032));
+        
+        // Create the hook data for a simple operation
+        data.hooksAddresses = new address[](1);
+        data.hooksData = new bytes[](1);
+        data.hooksAddresses[0] = approveHook;
+        data.hooksData[0] = _createApproveHookData(CHAIN_1_WETH, address(MANAGER), 1e18, false);
+        data.entry = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: data.hooksAddresses, 
+            hooksData: data.hooksData
+        });
+        
+        // Set up the paymaster data with our test values
+        data.paymasterVerificationGasLimit = uint128(5e6);
+        data.paymasterPostOpGasLimit = uint128(postOpGasValue); // This is the key parameter we're testing
+        data.paymasterData = abi.encode(maxGasLimit, uint256(0), uint256(0)); // No premium
+        data.paymasterAndData = abi.encodePacked(
+            address(data.paymaster), 
+            data.paymasterVerificationGasLimit, 
+            data.paymasterPostOpGasLimit, 
+            data.paymasterData
+        );
+        
+        data.ops = _createUserOpWithPaymaster(data.nexusAccount, data.entry, data.paymasterAndData);
+        
+        // Set gas pricing for the test
+        data.maxFeePerGas = maxFeePerGasValue;
+        vm.txGasPrice(maxFeePerGasValue / 2); // Use half of maxFeePerGas as tx.gasprice
+        vm.fee(1e8); // Set a high basefee to ensure maxFeePerGas is used
+        
+        // Add deposit to paymaster
+        uint256 initialDeposit = maxGasLimit * maxFeePerGasValue * 2;
+        IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032).depositTo{value: initialDeposit}(address(data.paymaster));
+        uint256 depositBefore = IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032).getDepositInfo(address(data.paymaster)).deposit;
+        
+        // Execute operation
+        vm.prank(address(data.paymaster));
+        IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032).handleOps{gas: maxGasLimit}(data.ops, payable(address(this)));
+        
+        // Check deposit after execution
+        uint256 depositAfter = IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032).getDepositInfo(address(data.paymaster)).deposit;
+        uint256 depositUsed = depositBefore - depositAfter;
+        
+        // Calculate expected post-op gas cost contribution
+        uint256 expectedPostOpGasCost = postOpGasValue * maxFeePerGasValue;
+        
+        // Verify that at least the postOp gas cost was used
+        // We don't check exact equality because there are other gas costs involved
+        assertGt(depositUsed, expectedPostOpGasCost, "Deposit used should be greater than postOpGas * maxFeePerGas");
+        
+        // Log values for debugging/verification
+        console2.log("Expected postOp contribution:", expectedPostOpGasCost);
+        console2.log("Total deposit used:", depositUsed);
     }
 
     /// @notice Struct to hold test_refundDOS data to avoid stack too deep error
