@@ -13,7 +13,8 @@ interface INexus {
     /// appropriately.
     function execute(ModeCode mode, bytes calldata executionCalldata) external payable;
     /// @notice Initializes the smart account with a validator and custom data.
-    /// @dev This method sets up the account for operation, linking it with a validator and initializing it with specific data.
+    /// @dev This method sets up the account for operation, linking it with a validator and initializing it with
+    /// specific data.
     /// Can be called directly or via a factory.
     /// @param initData Encoded data used for the account's configuration during initialization.
     function initializeAccount(bytes calldata initData) external payable;
@@ -24,5 +25,12 @@ interface INexus {
     /// @param size The number of validator addresses to return.
     /// @return array An array of validator addresses.
     /// @return next The address to use as a cursor for the next page of results.
-    function getValidatorsPaginated(address cursor, uint256 size) external view returns (address[] memory array, address next);
+    function getValidatorsPaginated(
+        address cursor,
+        uint256 size
+    )
+        external
+        view
+        returns (address[] memory array, address next);
+    function installModule(uint256 moduleTypeId, address module, bytes calldata initData) external payable;
 }

@@ -8,6 +8,8 @@ import { INexus } from "../../src/vendor/nexus/INexus.sol";
 import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import { IMinimalEntryPoint, PackedUserOperation } from "../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { ModeLib } from "modulekit/accounts/common/lib/ModeLib.sol";
+import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
@@ -17,7 +19,6 @@ import { ISuperSignatureStorage } from "../../src/interfaces/ISuperSignatureStor
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 import { MinimalBaseNexusIntegrationTest } from "./MinimalBaseNexusIntegrationTest.t.sol";
-
 // edge case & poc mocks
 //  -- used on test_HookPoisoning_ tests to bypass validation from a malicious account
 import { MockValidator } from "../../lib/modulekit/src/module-bases/mocks/MockValidator.sol";
@@ -28,6 +29,55 @@ import { MockMaliciousHook } from "../mocks/MockMaliciousHook.sol";
 
 import "forge-std/console2.sol";
 import "forge-std/Test.sol";
+
+contract MaliciousHookResetExecution {
+    address public account;
+    address public targetHook;
+    uint256 public counter;
+
+    uint256 constant EXECUTOR_TYPE_HOOK = 2;
+    uint256 constant MODULE_TYPE_HOOK = 4;
+
+    bytes public data;
+
+    error ATTACK_FAILED();
+
+    function setAccountAndTargetHook(address _account, address _targetHook) external {
+        account = _account;
+        targetHook = _targetHook;
+    }
+
+    function setTargetCalldata(bytes memory _data) external {
+        data = _data;
+    }
+
+    function preCheck(
+        address msgSender,
+        uint256 msgValue,
+        bytes calldata msgData
+    )
+        external
+        returns (bytes memory hookData)
+    {
+        // do nothing in precheck
+    }
+
+    function postCheck(bytes calldata /*hookData*/ ) external {
+        // Call the account
+        ++counter;
+        if (counter == 4) {
+            (bool success,) = account.call(data);
+
+            if (!success) revert ATTACK_FAILED();
+        }
+    }
+
+    function isModuleType(uint256 moduleTypeID) external pure returns (bool) {
+        return moduleTypeID == MODULE_TYPE_HOOK || moduleTypeID == EXECUTOR_TYPE_HOOK;
+    }
+
+    function onInstall(bytes calldata data) external { }
+}
 
 contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     address[] public attesters;
@@ -1106,6 +1156,112 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         // Verify the normal execution worked correctly despite poisoning attempt
         uint256 finalShares = IERC4626(morphoVault).balanceOf(nexusAccount);
         assertGt(finalShares, 0, "Normal execution should have succeeded despite poisoning attempt");
+    }
+
+    function test_feeBypassByResettingExecution() public {
+        uint256 amount = 10_000e6;
+        address underlyingToken = CHAIN_1_USDC;
+        address morphoVault = CHAIN_1_MorphoVault;
+
+        MaliciousHookResetExecution maliciousHookResetExecution = new MaliciousHookResetExecution();
+
+        // Step 1: Create account and install custom malicious hook
+        address nexusAccount =
+            _createWithNexusWithMaliciousHook(attesters, threshold, 1e18, address(maliciousHookResetExecution));
+
+        maliciousHookResetExecution.setAccountAndTargetHook(nexusAccount, redeem4626Hook);
+
+        // add tokens to account
+        _getTokens(underlyingToken, nexusAccount, amount);
+
+        // Step 2: Install hook as an account executor of the account
+        vm.prank(nexusAccount);
+        INexus(nexusAccount).installModule(2, address(maliciousHookResetExecution), "");
+
+        // Configure malicious executions in the hook
+        Execution[] memory executions = new Execution[](3);
+
+        executions[0] = Execution({
+            target: address(redeem4626Hook),
+            value: 0,
+            callData: abi.encodeWithSignature(
+                "resetExecutionState(address)",
+                nexusAccount // account
+            )
+        });
+        bytes memory redeemData = _createRedeem4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
+            morphoVault,
+            nexusAccount,
+            IERC4626(morphoVault).convertToShares(amount),
+            false
+        );
+        executions[1] = Execution({
+            target: address(redeem4626Hook),
+            value: 0,
+            callData: abi.encodeWithSignature(
+                "preExecute(address,address,bytes)",
+                address(0), // prevHook
+                nexusAccount,
+                redeemData
+            )
+        });
+        executions[2] = Execution({
+            target: address(redeem4626Hook),
+            value: 0,
+            callData: abi.encodeWithSignature(
+                "postExecute(address,address,bytes)",
+                address(0), // prevHook
+                nexusAccount,
+                redeemData
+            )
+        });
+
+        bytes memory data = abi.encodeCall(
+            IERC7579Account.executeFromExecutor, (ModeLib.encodeSimpleBatch(), ExecutionLib.encodeBatch(executions))
+        );
+
+        maliciousHookResetExecution.setTargetCalldata(data);
+
+        // Step 3. Create SuperExecutor data, with:
+        // - approval
+        // - deposit
+        // - redemption, whose amount should be charged
+
+        address[] memory hooksAddresses = new address[](3);
+        hooksAddresses[0] = approveHook;
+        hooksAddresses[1] = deposit4626Hook;
+        hooksAddresses[2] = redeem4626Hook;
+
+        bytes[] memory hooksData = new bytes[](3);
+        hooksData[0] = _createApproveHookData(underlyingToken, morphoVault, amount, false);
+        hooksData[1] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
+            morphoVault,
+            amount,
+            false,
+            address(0),
+            0
+        );
+        hooksData[2] = _createRedeem4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
+            morphoVault,
+            nexusAccount,
+            IERC4626(morphoVault).convertToShares(amount),
+            false
+        );
+
+        // Step 4. Prepare data and execute through entry point
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+
+        address feeRecipient = makeAddr("feeRecipient"); // this is the recipient configured in base tests.
+
+        // Fetch the fee recipient balance before execution
+        uint256 feeReceiverBalanceBefore = IERC4626(CHAIN_1_USDC).balanceOf(feeRecipient);
+
+        _executeThroughEntrypoint(nexusAccount, entry);
+        _checkUserOperationResults(MaliciousHookResetExecution.ATTACK_FAILED.selector);
     }
 
     function _buildPoisoningUserOp(
