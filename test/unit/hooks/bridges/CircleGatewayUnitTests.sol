@@ -43,13 +43,6 @@ contract CircleGatewayUnitTests is BaseTest {
     address public constant ACCOUNT = address(0x123);
     uint256 public constant DEPOSIT_AMOUNT = 1000e6; // 1000 USDC
     uint256 public constant MINT_AMOUNT = 500e6; // 500 USDC
-    uint256 public constant MAX_BLOCK_HEIGHT = 1000;
-    uint32 public constant TRANSFER_SPEC_VERSION = 1;
-    uint32 public constant TRANSFER_SPEC_SOURCE_DOMAIN = 1;
-    uint32 public constant TRANSFER_SPEC_DESTINATION_DOMAIN = 2;
-    bytes4 public constant ATTESTATION_MAGIC = 0xff6fb334;
-    bytes4 public constant TRANSFER_SPEC_MAGIC = 0xca85def7;
-    bytes4 public constant ATTESTATION_SET_MAGIC = 0x1e12db71;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
