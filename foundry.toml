@@ -45,7 +45,8 @@ remappings = [
   "erc4337-validation/=lib/modulekit/node_modules/@rhinestone/erc4337-validation/src/",
   "forge-std/=lib/modulekit/node_modules/forge-std/src/",
   "test/mock_fiattoken/=lib/evm-gateway-contracts/test/mock_fiattoken/",
-  "rhinestone/checknsignatures/=lib/safe7579/node_modules/@rhinestone/checknsignatures/"
+  "rhinestone/checknsignatures/=lib/safe7579/node_modules/@rhinestone/checknsignatures/",
+  "evm-gateway/=lib/evm-gateway-contracts/src/"
 ]
 dynamic_test_linking = true
 gas_limit = "18446744073709551615"

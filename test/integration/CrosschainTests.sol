@@ -2388,10 +2388,10 @@ contract CrosschainTests is BaseTest {
 
             bytes[] memory dstHooksData = new bytes[](2);
             dstHooksData[0] =
-                _createApproveHookData(underlyingBase_USDC, yieldSourceSparkUsdcAddressBase, amount, false);
+                _createApproveHookData(underlyingBase_WETH, yieldSource4626AddressBase_WETH, amount, false);
             dstHooksData[1] = _createDeposit4626HookData(
                 _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
-                yieldSourceSparkUsdcAddressBase,
+                yieldSource4626AddressBase_WETH,
                 amount,
                 true,
                 address(0),
@@ -2411,7 +2411,7 @@ contract CrosschainTests is BaseTest {
                 chainId: uint64(BASE),
                 amount: amount,
                 account: address(0),
-                tokenSent: underlyingBase_USDC
+                tokenSent: underlyingBase_WETH
             });
 
             (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
@@ -2429,7 +2429,7 @@ contract CrosschainTests is BaseTest {
         bytes[] memory srcHooksData = new bytes[](4);
         srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amount / 2, false);
         srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingETH_USDC, underlyingBase_USDC, amount / 2, amount / 2, BASE, true, targetExecutorMessage
+            underlyingETH_USDC, underlyingBase_WETH, amount / 2, amount / 2, BASE, true, targetExecutorMessage
         );
         srcHooksData[2] = _createApproveHookData(underlyingETH_USDC, DEBRIDGE_DLN_ADDRESSES[ETH], amount / 2, false);
 
@@ -2446,7 +2446,7 @@ contract CrosschainTests is BaseTest {
                 allowDelayedExecution: false, //envelope.allowDelayedExecution
                 requireSuccessfulExecution: true, //envelope.requireSuccessfulExecution
                 payload: targetExecutorMessage, //envelope.payload
-                takeTokenAddress: underlyingBase_USDC, //takeTokenAddress
+                takeTokenAddress: underlyingBase_WETH, //takeTokenAddress
                 takeAmount: amount / 2, //takeAmount
                 takeChainId: BASE, //takeChainId
                 // receiverDst must be the Debridge Adapter on the destination chain
@@ -2493,11 +2493,11 @@ contract CrosschainTests is BaseTest {
 
         // Verify that accountToUse received vault shares from the deposit
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 2 days);
-        uint256 vaultShares = IERC20(yieldSourceSparkUsdcAddressBase).balanceOf(accountToUse);
+        uint256 vaultShares = IERC20(yieldSource4626AddressBase_WETH).balanceOf(accountToUse);
         assertGt(vaultShares, 0, "Account should have received vault shares from deposit");
 
         // Verify the shares can be converted back to approximately the deposited amount
-        uint256 assetsFromShares = IERC4626(yieldSourceSparkUsdcAddressBase).convertToAssets(vaultShares);
+        uint256 assetsFromShares = IERC4626(yieldSource4626AddressBase_WETH).convertToAssets(vaultShares);
         assertApproxEqRel(
             assetsFromShares, amount, 0.01e18, "Vault shares should convert to approximately the deposited amount"
         );
