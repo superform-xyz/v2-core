@@ -167,10 +167,6 @@ contract BatchTransferFromHook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getBalance(address token, address account) private view returns (uint256) {
-        return IERC20(token).balanceOf(account);
-    }
-
     function _createAllowanceTransferDetails(
         address from,
         address account,

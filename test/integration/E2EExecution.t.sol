@@ -76,7 +76,7 @@ contract MaliciousHookResetExecution {
         return moduleTypeID == MODULE_TYPE_HOOK || moduleTypeID == EXECUTOR_TYPE_HOOK;
     }
 
-    function onInstall(bytes calldata data) external { }
+    function onInstall(bytes calldata) external { }
 }
 
 contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
