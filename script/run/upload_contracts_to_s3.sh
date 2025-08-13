@@ -202,7 +202,7 @@ print_header
 
 # Source centralized network configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../utils/networks.sh"
+source "$SCRIPT_DIR/networks.sh"
 
 # Check if arguments are provided
 if [ $# -lt 1 ]; then

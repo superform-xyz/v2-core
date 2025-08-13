@@ -1,15 +1,15 @@
 #!/bin/bash
 
 ###################################################################################
-# Update Locked Bytecode Script
+# Regenerate Bytecode Script
 ###################################################################################
 # Description:
-#   This script updates the locked-bytecode folder with the latest compiled
-#   artifacts for core V2 contracts, hooks, and oracles that require deterministic
-#   deployment addresses.
+#   This script regenerates bytecode artifacts for core V2 contracts, hooks, and 
+#   oracles by copying from compiled outputs to generated-bytecode folder for 
+#   VNET deployments.
 #
 # Usage:
-#   ./script/update_locked_bytecode.sh
+#   ./script/run/regenerate_bytecode.sh
 #
 # Requirements:
 #   - forge: For contract compilation
@@ -34,7 +34,7 @@ log() {
     echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] [$level] $*" >&2
 }
 
-log "INFO" "${BLUE}🔧 Updating Locked Bytecode for V2 Core Contracts${NC}"
+log "INFO" "${BLUE}🔧 Regenerating Bytecode for V2 Core Contracts${NC}"
 
 # Ensure we're in the right directory
 if [ ! -f "foundry.toml" ]; then
@@ -49,8 +49,8 @@ if ! forge build; then
     exit 1
 fi
 
-# Create locked-bytecode directory if it doesn't exist
-mkdir -p script/locked-bytecode
+# Create generated-bytecode directory if it doesn't exist
+mkdir -p script/generated-bytecode
 
 log "INFO" "${BLUE}📋 Copying core contract artifacts...${NC}"
 
@@ -120,7 +120,7 @@ ORACLE_CONTRACTS=(
 copy_contract() {
     local contract_name=$1
     local source_path
-    local dest_path="script/locked-bytecode/${contract_name}.json"
+    local dest_path="script/generated-bytecode/${contract_name}.json"
     
     # Find the contract artifact - correct pattern for Foundry structure
     source_path="out/${contract_name}.sol/${contract_name}.json"
@@ -185,7 +185,7 @@ if [ $failed_oracles -gt 0 ]; then
 fi
 
 if [ $total_failed -eq 0 ]; then
-    log "INFO" "${GREEN}🎉 All contracts successfully updated in locked-bytecode!${NC}"
+    log "INFO" "${GREEN}🎉 All contracts successfully updated in generated-bytecode!${NC}"
     exit 0
 else
     log "ERROR" "${RED}❌ ${total_failed} contracts failed to copy. Please check the error messages above.${NC}"

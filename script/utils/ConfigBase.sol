@@ -29,7 +29,7 @@ abstract contract ConfigBase is Constants {
     bytes internal SALT_NAMESPACE;
     string internal constant MNEMONIC = "test test test test test test test test test test test junk";
     string internal constant PRODUCTION_SALT_NAMESPACE = "PROD1.0.0";
-    string internal constant STAGING_SALT_NAMESPACE = "DEPLOYPROD1.0.0";
+    string internal constant STAGING_SALT_NAMESPACE = "STAGING1.0.0";
 
     address internal constant TEST_DEPLOYER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
     address internal constant SUPERFORM_TREASURY = 0x0E24b0F342F034446Ec814281AD1a7653cBd85e9; // superform.eth
