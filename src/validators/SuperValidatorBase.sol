@@ -262,9 +262,11 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         returns (bool)
     {
         /// @dev block.timestamp could vary between chains
-        // validUntil == 0 means infinite validity, validAfter must be <= validUntil (if validUntil != 0)
-        // Allow future-valid signatures - don't check validAfter against block.timestamp
-        bool isValid = (validUntil == 0 || (validUntil >= block.timestamp && validAfter <= validUntil));
+        // validUntil == 0 means infinite validity
+        // validAfter must be <= block.timestamp (signature only valid after this time)
+        // validAfter must be <= validUntil (if validUntil != 0)
+        bool isValid = block.timestamp >= validAfter
+            && (validUntil == 0 || (validUntil >= block.timestamp && validAfter <= validUntil));
 
         if (_is7702Account(sender.code)) {
             // in case of 7702 owner is the account itself (the EOA)

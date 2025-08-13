@@ -640,6 +640,350 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
     }
 
     /*//////////////////////////////////////////////////////////////
+                            VALID_AFTER VALIDATION TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_ValidAfter_ValidSignatureWithValidAfterInPast() public {
+        // Ensure we have enough time to subtract from
+        vm.warp(block.timestamp + 2 hours);
+
+        uint48 validAfter = uint48(block.timestamp - 1 hours); // 1 hour ago
+        uint48 validUntil = uint48(block.timestamp + 1 hours); // 1 hour from now
+
+        // Create a merkle tree with validAfter in the past
+        bytes32[] memory leaves = new bytes32[](1);
+        uint64[] memory chainsForLeaf = new uint64[](0);
+        leaves[0] = _createSourceValidatorLeaf(
+            approveUserOp.userOpHash, validUntil, validAfter, chainsForLeaf, address(validator)
+        );
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+        bytes memory signature = _getSignature(root);
+
+        // Test validateUserOp
+        _testUserOpValidationWithValidAfter(validUntil, validAfter, root, proof[0], signature, approveUserOp);
+
+        // Test isValidSignatureWithSender
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
+        bytes memory _validSigData =
+            abi.encode(chainsForLeaf, validUntil, validAfter, root, proof[0], proofDst, signature);
+
+        vm.prank(account);
+        bytes4 result =
+            validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
+
+        assertEq(result, VALID_SIGNATURE, "Signature should be valid when validAfter is in the past");
+    }
+
+    function test_ValidAfter_InvalidSignatureWithValidAfterInFuture() public {
+        uint48 validAfter = uint48(block.timestamp + 2 hours); // 2 hours from now
+        uint48 validUntil = uint48(block.timestamp + 3 hours); // 3 hours from now
+
+        // Create a merkle tree with validAfter in the future
+        bytes32[] memory leaves = new bytes32[](1);
+        uint64[] memory chainsForLeaf = new uint64[](0);
+        leaves[0] = _createSourceValidatorLeaf(
+            approveUserOp.userOpHash, validUntil, validAfter, chainsForLeaf, address(validator)
+        );
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+        bytes memory signature = _getSignature(root);
+
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
+        bytes memory _validSigData =
+            abi.encode(chainsForLeaf, validUntil, validAfter, root, proof[0], proofDst, signature);
+
+        approveUserOp.userOp.signature = _validSigData;
+
+        // Test validateUserOp - should fail because block.timestamp < validAfter
+        ERC7579ValidatorBase.ValidationData result =
+            validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
+        uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
+        bool _sigFailed = rawResult & 1 == 1;
+
+        assertTrue(_sigFailed, "Signature should fail when validAfter is in the future");
+
+        // Test isValidSignatureWithSender - should return invalid
+        vm.prank(account);
+        bytes4 isValidResult =
+            validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
+
+        assertEq(
+            isValidResult,
+            bytes4(""),
+            "isValidSignatureWithSender should return invalid when validAfter is in the future"
+        );
+    }
+
+    function test_ValidAfter_InvalidSignatureWithValidAfterGreaterThanValidUntil() public {
+        uint48 validUntil = uint48(block.timestamp + 1 hours); // 1 hour from now
+        uint48 validAfter = uint48(block.timestamp + 2 hours); // 2 hours from now (after validUntil)
+
+        // Create a merkle tree with validAfter > validUntil
+        bytes32[] memory leaves = new bytes32[](1);
+        uint64[] memory chainsForLeaf = new uint64[](0);
+        leaves[0] = _createSourceValidatorLeaf(
+            approveUserOp.userOpHash, validUntil, validAfter, chainsForLeaf, address(validator)
+        );
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+        bytes memory signature = _getSignature(root);
+
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
+        bytes memory _validSigData =
+            abi.encode(chainsForLeaf, validUntil, validAfter, root, proof[0], proofDst, signature);
+
+        approveUserOp.userOp.signature = _validSigData;
+
+        // Test validateUserOp - should fail because validAfter > validUntil
+        ERC7579ValidatorBase.ValidationData result =
+            validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
+        uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
+        bool _sigFailed = rawResult & 1 == 1;
+
+        assertTrue(_sigFailed, "Signature should fail when validAfter > validUntil");
+
+        // Test isValidSignatureWithSender - should return invalid
+        vm.prank(account);
+        bytes4 isValidResult =
+            validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
+
+        assertEq(
+            isValidResult, bytes4(""), "isValidSignatureWithSender should return invalid when validAfter > validUntil"
+        );
+    }
+
+    function test_ValidAfter_EdgeCaseValidAfterEqualsValidUntilInPast() public {
+        // Ensure we have enough time to work with
+        vm.warp(block.timestamp + 2 hours);
+
+        uint48 validUntil = uint48(block.timestamp - 30 minutes); // 30 minutes ago
+        uint48 validAfter = validUntil; // Same as validUntil (both in the past)
+
+        // Create a merkle tree with validAfter == validUntil (both in past)
+        bytes32[] memory leaves = new bytes32[](1);
+        uint64[] memory chainsForLeaf = new uint64[](0);
+        leaves[0] = _createSourceValidatorLeaf(
+            approveUserOp.userOpHash, validUntil, validAfter, chainsForLeaf, address(validator)
+        );
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+        bytes memory signature = _getSignature(root);
+
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
+        bytes memory _validSigData =
+            abi.encode(chainsForLeaf, validUntil, validAfter, root, proof[0], proofDst, signature);
+
+        approveUserOp.userOp.signature = _validSigData;
+
+        // Test validateUserOp - should fail because validUntil is in the past
+        ERC7579ValidatorBase.ValidationData result =
+            validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
+        uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
+        bool _sigFailed = rawResult & 1 == 1;
+
+        assertTrue(_sigFailed, "Signature should fail when both validAfter and validUntil are in the past");
+
+        // Test isValidSignatureWithSender - should return invalid
+        vm.prank(account);
+        bytes4 isValidResult =
+            validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
+
+        assertEq(
+            isValidResult, bytes4(""), "isValidSignatureWithSender should return invalid when validUntil is in the past"
+        );
+    }
+
+    function test_ValidAfter_EdgeCaseValidAfterEqualsValidUntilInFuture() public {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+        uint48 validAfter = validUntil; // Same as validUntil (both in future)
+
+        // Create a merkle tree with validAfter == validUntil (both in future)
+        bytes32[] memory leaves = new bytes32[](1);
+        uint64[] memory chainsForLeaf = new uint64[](0);
+        leaves[0] = _createSourceValidatorLeaf(
+            approveUserOp.userOpHash, validUntil, validAfter, chainsForLeaf, address(validator)
+        );
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+        bytes memory signature = _getSignature(root);
+
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
+        bytes memory _validSigData =
+            abi.encode(chainsForLeaf, validUntil, validAfter, root, proof[0], proofDst, signature);
+
+        approveUserOp.userOp.signature = _validSigData;
+
+        // Test validateUserOp - should fail because block.timestamp < validAfter
+        ERC7579ValidatorBase.ValidationData result =
+            validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
+        uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
+        bool _sigFailed = rawResult & 1 == 1;
+
+        assertTrue(
+            _sigFailed, "Signature should fail when current time < validAfter (even when validAfter == validUntil)"
+        );
+
+        // Test isValidSignatureWithSender - should return invalid
+        vm.prank(account);
+        bytes4 isValidResult =
+            validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
+
+        assertEq(
+            isValidResult,
+            bytes4(""),
+            "isValidSignatureWithSender should return invalid when validAfter is in the future"
+        );
+    }
+
+    function test_ValidAfter_EdgeCaseValidAfterEqualsValidUntilAtCurrentTime() public {
+        uint48 validUntil = uint48(block.timestamp);
+        uint48 validAfter = validUntil; // Same as validUntil (both at current time)
+
+        // Create a merkle tree with validAfter == validUntil == current time
+        bytes32[] memory leaves = new bytes32[](1);
+        uint64[] memory chainsForLeaf = new uint64[](0);
+        leaves[0] = _createSourceValidatorLeaf(
+            approveUserOp.userOpHash, validUntil, validAfter, chainsForLeaf, address(validator)
+        );
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+        bytes memory signature = _getSignature(root);
+
+        // Test validateUserOp
+        _testUserOpValidationWithValidAfter(validUntil, validAfter, root, proof[0], signature, approveUserOp);
+
+        // Test isValidSignatureWithSender
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
+        bytes memory _validSigData =
+            abi.encode(chainsForLeaf, validUntil, validAfter, root, proof[0], proofDst, signature);
+
+        vm.prank(account);
+        bytes4 result =
+            validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
+
+        assertEq(result, VALID_SIGNATURE, "Signature should be valid when validAfter == validUntil == current time");
+    }
+
+    function test_ValidAfter_ValidSignatureWithInfiniteValidityAndValidAfter() public {
+        // Ensure we have enough time to subtract from
+        vm.warp(block.timestamp + 2 hours);
+
+        uint48 validUntil = 0; // Infinite validity
+        uint48 validAfter = uint48(block.timestamp - 1 hours); // 1 hour ago
+
+        // Create a merkle tree with infinite validity and validAfter in the past
+        bytes32[] memory leaves = new bytes32[](1);
+        uint64[] memory chainsForLeaf = new uint64[](0);
+        leaves[0] = _createSourceValidatorLeaf(
+            approveUserOp.userOpHash, validUntil, validAfter, chainsForLeaf, address(validator)
+        );
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+        bytes memory signature = _getSignature(root);
+
+        // Test validateUserOp
+        _testUserOpValidationWithValidAfter(validUntil, validAfter, root, proof[0], signature, approveUserOp);
+
+        // Test isValidSignatureWithSender
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
+        bytes memory _validSigData =
+            abi.encode(chainsForLeaf, validUntil, validAfter, root, proof[0], proofDst, signature);
+
+        vm.prank(account);
+        bytes4 result =
+            validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
+
+        assertEq(result, VALID_SIGNATURE, "Signature should be valid with infinite validity and validAfter in the past");
+    }
+
+    function test_ValidAfter_InvalidSignatureWithInfiniteValidityButFutureValidAfter() public {
+        uint48 validUntil = 0; // Infinite validity
+        uint48 validAfter = uint48(block.timestamp + 1 hours); // 1 hour from now
+
+        // Create a merkle tree with infinite validity but validAfter in the future
+        bytes32[] memory leaves = new bytes32[](1);
+        uint64[] memory chainsForLeaf = new uint64[](0);
+        leaves[0] = _createSourceValidatorLeaf(
+            approveUserOp.userOpHash, validUntil, validAfter, chainsForLeaf, address(validator)
+        );
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+        bytes memory signature = _getSignature(root);
+
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
+        bytes memory _validSigData =
+            abi.encode(chainsForLeaf, validUntil, validAfter, root, proof[0], proofDst, signature);
+
+        approveUserOp.userOp.signature = _validSigData;
+
+        // Test validateUserOp - should fail because block.timestamp < validAfter
+        ERC7579ValidatorBase.ValidationData result =
+            validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
+        uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
+        bool _sigFailed = rawResult & 1 == 1;
+
+        assertTrue(_sigFailed, "Signature should fail even with infinite validity when validAfter is in the future");
+
+        // Test isValidSignatureWithSender - should return invalid
+        vm.prank(account);
+        bytes4 isValidResult =
+            validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
+
+        assertEq(
+            isValidResult,
+            bytes4(""),
+            "isValidSignatureWithSender should return invalid when validAfter is in the future"
+        );
+    }
+
+    function test_ValidAfter_ValidSignatureBecomesValidAfterTimeProgression() public {
+        uint48 validAfter = uint48(block.timestamp + 30 minutes); // 30 minutes from now
+        uint48 validUntil = uint48(block.timestamp + 2 hours); // 2 hours from now
+
+        // Create a merkle tree with validAfter in the future
+        bytes32[] memory leaves = new bytes32[](1);
+        uint64[] memory chainsForLeaf = new uint64[](0);
+        leaves[0] = _createSourceValidatorLeaf(
+            approveUserOp.userOpHash, validUntil, validAfter, chainsForLeaf, address(validator)
+        );
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+        bytes memory signature = _getSignature(root);
+
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
+        bytes memory _validSigData =
+            abi.encode(chainsForLeaf, validUntil, validAfter, root, proof[0], proofDst, signature);
+
+        approveUserOp.userOp.signature = _validSigData;
+
+        // First test: should fail when current time < validAfter
+        ERC7579ValidatorBase.ValidationData result =
+            validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
+        uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
+        bool _sigFailed = rawResult & 1 == 1;
+
+        assertTrue(_sigFailed, "Signature should fail when current time < validAfter");
+
+        // Warp time to after validAfter but before validUntil
+        vm.warp(block.timestamp + 31 minutes);
+
+        // Second test: should succeed when validAfter <= current time < validUntil
+        result = validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
+        rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
+        _sigFailed = rawResult & 1 == 1;
+
+        assertFalse(_sigFailed, "Signature should succeed when validAfter <= current time < validUntil");
+
+        // Test isValidSignatureWithSender as well
+        vm.prank(account);
+        bytes4 isValidResult =
+            validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
+
+        assertEq(isValidResult, VALID_SIGNATURE, "isValidSignatureWithSender should be valid");
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             PROOF VALIDATION TESTS
     //////////////////////////////////////////////////////////////*/
 
@@ -954,6 +1298,35 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
 
         assertFalse(_sigFailed, "Sig should be valid");
         assertGt(_validUntil, block.timestamp, "validUntil should be valid");
+    }
+
+    function _testUserOpValidationWithValidAfter(
+        uint48 validUntil,
+        uint48 validAfter,
+        bytes32 root,
+        bytes32[] memory proof,
+        bytes memory signature,
+        UserOpData memory userOpData
+    )
+        private
+    {
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
+        uint64[] memory chainsWithDestExecutionProofSet = new uint64[](0);
+        validSigData =
+            abi.encode(chainsWithDestExecutionProofSet, validUntil, validAfter, root, proof, proofDst, signature);
+
+        userOpData.userOp.signature = validSigData;
+        ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(userOpData.userOp, userOpData.userOpHash);
+        uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
+        bool _sigFailed = rawResult & 1 == 1;
+        uint48 _validUntil = uint48((rawResult >> 160) & ((1 << 48) - 1));
+        uint48 _validAfter = uint48((rawResult >> (160 + 48)) & ((1 << 48) - 1));
+
+        assertFalse(_sigFailed, "Sig should be valid");
+        if (validUntil != 0) {
+            assertEq(_validUntil, validUntil, "validUntil should match expected");
+        }
+        assertEq(_validAfter, validAfter, "validAfter should match expected");
     }
 
     function _createDummyApproveUserOp() private returns (UserOpData memory) {
