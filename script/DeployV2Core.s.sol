@@ -935,6 +935,17 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log(" SuperLedgerConfiguration setup completed successfully from", sourceDescription, "! ");
     }
 
+    /// @notice Local variables struct to avoid stack too deep in bytecode verification
+    struct VerificationVars {
+        address superLedgerConfig;
+        address superExecutor;
+        address superDestExecutor;
+        address[] allowedExecutors;
+        bytes ledgerConstructorArgs;
+        uint256 verified;
+        uint256 failed;
+    }
+
     /// @notice Verify contract addresses by computing from environment-specific bytecode and comparing with output
     /// files
     /// @dev This provides foolproof verification that deployed addresses match expected bytecode
@@ -952,6 +963,20 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Read addresses from output files
         deploymentJson = _readCoreContractsFromOutput(chainId, env);
+
+        // Initialize local variables struct
+        VerificationVars memory vars;
+
+        // Get constructor args for ledger contracts
+        vars.superLedgerConfig = vm.parseJsonAddress(deploymentJson, ".SuperLedgerConfiguration");
+        vars.superExecutor = vm.parseJsonAddress(deploymentJson, ".SuperExecutor");
+        vars.superDestExecutor = vm.parseJsonAddress(deploymentJson, ".SuperDestinationExecutor");
+
+        vars.allowedExecutors = new address[](2);
+        vars.allowedExecutors[0] = vars.superExecutor;
+        vars.allowedExecutors[1] = vars.superDestExecutor;
+
+        vars.ledgerConstructorArgs = abi.encode(vars.superLedgerConfig, vars.allowedExecutors);
 
         // Define contracts to verify with their corresponding environment-specific bytecode paths and constructor args
         ContractVerification[] memory contracts = new ContractVerification[](7);
@@ -998,85 +1023,97 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             name: "SuperLedger",
             outputKey: ".SuperLedger",
             bytecodePath: string(abi.encodePacked(bytecodeDir, "SuperLedger.json")),
-            constructorArgs: ""
+            constructorArgs: string(vars.ledgerConstructorArgs)
         });
 
         contracts[6] = ContractVerification({
             name: "FlatFeeLedger",
             outputKey: ".FlatFeeLedger",
             bytecodePath: string(abi.encodePacked(bytecodeDir, "FlatFeeLedger.json")),
-            constructorArgs: ""
+            constructorArgs: string(vars.ledgerConstructorArgs)
         });
-
-        uint256 verified = 0;
-        uint256 failed = 0;
-
         // Verify each contract
         for (uint256 i = 0; i < contracts.length; i++) {
-            ContractVerification memory contractToVerify = contracts[i];
-
-            console2.log("Verifying:", contractToVerify.name);
-
-            // Get address from output file
-            address outputAddress = vm.parseJsonAddress(deploymentJson, contractToVerify.outputKey);
-            require(
-                outputAddress != address(0), string(abi.encodePacked("OUTPUT_ADDRESS_ZERO_", contractToVerify.name))
-            );
-
-            // Compute expected address from locked bytecode (always use locked bytecode for verification)
-            bytes memory bytecode = vm.getCode(contractToVerify.bytecodePath);
-            require(bytecode.length > 0, string(abi.encodePacked("BYTECODE_EMPTY_", contractToVerify.name)));
-
-            // Compute address with appropriate constructor args
-            address computedAddress;
-
-            // Handle contracts with constructor args (oracles need SuperLedgerConfiguration)
-            if (
-                Strings.equal(contractToVerify.name, "ERC4626YieldSourceOracle")
-                    || Strings.equal(contractToVerify.name, "ERC7540YieldSourceOracle")
-                    || Strings.equal(contractToVerify.name, "ERC5115YieldSourceOracle")
-                    || Strings.equal(contractToVerify.name, "StakingYieldSourceOracle")
-            ) {
-                address superLedgerConfig = vm.parseJsonAddress(deploymentJson, ".SuperLedgerConfiguration");
-                bytes memory constructorArgs = abi.encode(superLedgerConfig);
-                computedAddress = DeterministicDeployerLib.computeAddress(
-                    abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
-                );
-            } else {
-                // No constructor args
-                computedAddress = DeterministicDeployerLib.computeAddress(bytecode, __getSalt(contractToVerify.name));
-            }
-
-            // Verify addresses match
-            if (outputAddress == computedAddress) {
-                console2.log("  [VERIFIED]:", contractToVerify.name);
-                console2.log("    Address:", outputAddress);
-                verified++;
-            } else {
-                console2.log("  [MISMATCH]:", contractToVerify.name);
-                console2.log("    Output file:", outputAddress);
-                console2.log("    Computed:  ", computedAddress);
-                failed++;
-            }
-
-            // Verify contract has code at the address
-            require(
-                outputAddress.code.length > 0, string(abi.encodePacked("NO_CODE_AT_ADDRESS_", contractToVerify.name))
-            );
-
-            console2.log("");
+            _verifySingleContract(contracts[i], deploymentJson, vars);
         }
 
         // Final verification summary
         console2.log("=== BYTECODE VERIFICATION SUMMARY ===");
-        console2.log("Verified:", verified);
-        console2.log("Failed:  ", failed);
+        console2.log("Verified:", vars.verified);
+        console2.log("Failed:  ", vars.failed);
         console2.log("Total:   ", contracts.length);
 
-        require(failed == 0, "BYTECODE_VERIFICATION_FAILED");
-        require(verified == contracts.length, "INCOMPLETE_VERIFICATION");
+        require(vars.failed == 0, "BYTECODE_VERIFICATION_FAILED");
+        require(vars.verified == contracts.length, "INCOMPLETE_VERIFICATION");
 
         console2.log("[SUCCESS] All contract addresses verified successfully against locked bytecode!");
+    }
+
+    /// @notice Verify a single contract's address against its bytecode
+    /// @param contractToVerify The contract verification details
+    /// @param deploymentJson The deployment JSON string
+    /// @param vars The verification variables struct (modified in place)
+    function _verifySingleContract(
+        ContractVerification memory contractToVerify,
+        string memory deploymentJson,
+        VerificationVars memory vars
+    )
+        private
+        view
+    {
+        console2.log("Verifying:", contractToVerify.name);
+
+        // Get address from output file
+        address outputAddress = vm.parseJsonAddress(deploymentJson, contractToVerify.outputKey);
+        require(outputAddress != address(0), string(abi.encodePacked("OUTPUT_ADDRESS_ZERO_", contractToVerify.name)));
+
+        // Compute expected address from locked bytecode
+        bytes memory bytecode = vm.getCode(contractToVerify.bytecodePath);
+        require(bytecode.length > 0, string(abi.encodePacked("BYTECODE_EMPTY_", contractToVerify.name)));
+
+        // Compute address with appropriate constructor args
+        address computedAddress;
+
+        // Handle contracts with constructor args
+        if (
+            Strings.equal(contractToVerify.name, "ERC4626YieldSourceOracle")
+                || Strings.equal(contractToVerify.name, "ERC7540YieldSourceOracle")
+                || Strings.equal(contractToVerify.name, "ERC5115YieldSourceOracle")
+                || Strings.equal(contractToVerify.name, "StakingYieldSourceOracle")
+        ) {
+            // Oracles need SuperLedgerConfiguration
+            bytes memory constructorArgs = abi.encode(vars.superLedgerConfig);
+            computedAddress = DeterministicDeployerLib.computeAddress(
+                abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
+            );
+        } else if (
+            Strings.equal(contractToVerify.name, "SuperLedger") || Strings.equal(contractToVerify.name, "FlatFeeLedger")
+        ) {
+            // Ledgers need SuperLedgerConfiguration and allowedExecutors
+            computedAddress = DeterministicDeployerLib.computeAddress(
+                abi.encodePacked(bytecode, vars.ledgerConstructorArgs), __getSalt(contractToVerify.name)
+            );
+        } else {
+            // No constructor args
+            computedAddress = DeterministicDeployerLib.computeAddress(bytecode, __getSalt(contractToVerify.name));
+        }
+
+        // Verify addresses match
+        if (outputAddress == computedAddress) {
+            console2.log("  [VERIFIED]:", contractToVerify.name);
+            console2.log("    Address:", outputAddress);
+            vars.verified++;
+        } else {
+            console2.log("  [MISMATCH]:", contractToVerify.name);
+            console2.log("    Output file:", outputAddress);
+            console2.log("    Computed:  ", computedAddress);
+            vars.failed++;
+        }
+
+        // Verify contract has code at the address
+        require(outputAddress.code.length > 0, string(abi.encodePacked("NO_CODE_AT_ADDRESS_", contractToVerify.name)));
+
+        console2.log("");
     }
 
     /// @notice Helper function to read core contract addresses from output files
@@ -1086,7 +1123,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     /// @return JSON string containing contract addresses
     function _readCoreContractsFromOutput(uint64 chainId, uint256 env) internal view returns (string memory) {
         string memory chainName = chainNames[chainId];
-        string memory root = vm.projectRoot();
+        // Use environment variable for reliable project root, fallback to vm.projectRoot()
+        string memory root = vm.envOr("SUPERFORM_PROJECT_ROOT", vm.projectRoot());
         string memory envName = env == 0 ? "prod" : "staging";
 
         // Construct path: script/output/{env}/{chainId}/{ChainName}-latest.json

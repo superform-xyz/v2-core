@@ -947,6 +947,23 @@ update_latest_file() {
             log "WARN" "No contracts found in file for $network_slug"
         fi
         
+        # Add mock contracts for demo branch
+        if [ "$BRANCH_NAME" = "demo" ]; then
+            log "INFO" "Demo branch detected, adding mock contracts for $network_slug"
+            contracts=$(echo "$contracts" | jq '. + {
+                "MockDex": "0x4A0933f951A9768ce9AC2F272e459090a2De4c32",
+                "MockDexHook": "0x8455e14eFF2592303c13D31af23028992b07217B"
+            }')
+            
+            # Validate the updated contracts JSON
+            if ! echo "$contracts" | jq '.' >/dev/null 2>&1; then
+                log "ERROR" "Failed to add mock contracts to JSON for $network_slug"
+                exit 1
+            fi
+            
+            log "INFO" "Successfully added mock contracts for $network_slug"
+        fi
+        
         # Use the salts we generated earlier
         case "$network" in
             1)

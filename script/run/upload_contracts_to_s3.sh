@@ -85,63 +85,70 @@ get_next_counter() {
     fi
 }
 
-# Function to upload contract addresses to S3
-upload_to_s3() {
+# Function to batch upload all contract addresses to S3
+batch_upload_to_s3() {
     local environment=$1
-    local network_name=$2
-    local network_id=$3
-    local counter=$4
+    shift
+    local network_defs=("$@")
     
-    log "INFO" "Uploading contract addresses to S3 for $network_name"
+    log "INFO" "Starting batch upload for all networks"
     
     # Read existing content from S3
     local content=$(read_latest_from_s3 "$environment")
     log "DEBUG" "Initial content from S3 length: ${#content} characters"
     log "DEBUG" "Initial content preview: $(echo "$content" | head -c 100)..."
     
-    # Use environment name directly
-    local env_folder="$environment"
-    
-    # Read deployed contracts from output file
-    local contracts_file="script/output/$env_folder/$network_id/$network_name-latest.json"
-    
-    if [ ! -f "$contracts_file" ]; then
-        log "ERROR" "Contract file not found: $contracts_file"
-        return 1
-    fi
-    
-    log "INFO" "Reading contracts from: $contracts_file"
-    
-    # Read and validate contracts file
-    local contracts=$(tr -d '\r' < "$contracts_file")
-    log "DEBUG" "Raw contracts content length: ${#contracts} characters"
-    log "DEBUG" "Raw contracts preview: $(echo "$contracts" | head -c 200)..."
-    
-    if ! contracts=$(echo "$contracts" | jq -c '.' 2>/dev/null); then
-        log "ERROR" "Failed to parse JSON from contract file for $network_name"
-        log "ERROR" "Raw contracts content: '$contracts'"
-        return 1
-    fi
-    
-    log "INFO" "Successfully parsed contracts JSON for $network_name"
-    log "DEBUG" "Parsed contracts length: ${#contracts} characters"
-    
-    # Update content with new deployment info
-    log "DEBUG" "Updating content with network: $network_name, counter: $counter"
-    content=$(echo "$content" | jq \
-        --arg network "$network_name" \
-        --arg counter "$counter" \
-        --argjson contracts "$contracts" \
-        '.networks[$network] = {
-            "counter": ($counter|tonumber),
-            "vnet_id": "",
-            "contracts": $contracts
-        }') || {
-        log "ERROR" "Failed to update content with deployment info"
-        return 1
-    }
-    
-    log "DEBUG" "Content after network update length: ${#content} characters"
+    # Process each network and collect all data
+    local updated_networks=()
+    for network_def in "${network_defs[@]}"; do
+        IFS=':' read -r network_id network_name rpc_var verifier_var <<< "$network_def"
+        
+        echo -e "${CYAN}📋 Processing $network_name (Chain ID: $network_id)...${NC}"
+        
+        # Get counter for this network
+        local counter=$(get_next_counter "$environment" "$network_name")
+        
+        # Use environment name directly
+        local env_folder="$environment"
+        
+        # Read deployed contracts from output file
+        local contracts_file="script/output/$env_folder/$network_id/$network_name-latest.json"
+        
+        if [ ! -f "$contracts_file" ]; then
+            log "ERROR" "Contract file not found: $contracts_file"
+            return 1
+        fi
+        
+        log "INFO" "Reading contracts from: $contracts_file"
+        
+        # Read and validate contracts file
+        local contracts=$(tr -d '\r' < "$contracts_file")
+        
+        if ! contracts=$(echo "$contracts" | jq -c '.' 2>/dev/null); then
+            log "ERROR" "Failed to parse JSON from contract file for $network_name"
+            return 1
+        fi
+        
+        log "INFO" "Successfully parsed contracts JSON for $network_name"
+        
+        # Update content with new deployment info
+        log "DEBUG" "Updating content with network: $network_name, counter: $counter"
+        content=$(echo "$content" | jq \
+            --arg network "$network_name" \
+            --arg counter "$counter" \
+            --argjson contracts "$contracts" \
+            '.networks[$network] = {
+                "counter": ($counter|tonumber),
+                "vnet_id": "",
+                "contracts": $contracts
+            }') || {
+            log "ERROR" "Failed to update content with deployment info for $network_name"
+            return 1
+        }
+        
+        updated_networks+=("$network_name")
+        echo -e "${GREEN}   ✅ $network_name data processed successfully${NC}"
+    done
     
     # Update timestamp
     content=$(echo "$content" | jq --arg time "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" '.updated_at = $time') || {
@@ -149,15 +156,11 @@ upload_to_s3() {
         return 1
     }
     
-    log "DEBUG" "Content after timestamp update length: ${#content} characters"
-    
-    # Debug: Check content length and first few characters
-    log "DEBUG" "Content length: ${#content} characters"
-    log "DEBUG" "Content preview: $(echo "$content" | head -c 100)..."
-    
     # Display the updated content for confirmation
+    echo ""
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}Current S3 content for $environment that will be uploaded:${NC}"
+    echo -e "${CYAN}📋 Final S3 content for $environment that will be uploaded:${NC}"
+    echo -e "${CYAN}🔄 Updated networks: ${updated_networks[*]}${NC}"
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
     # Check if content is empty or just whitespace
@@ -175,13 +178,13 @@ upload_to_s3() {
     
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
-    # Ask for user confirmation
-    printf "${WHITE}Do you want to upload this content to S3? (y/n): ${NC}"
+    # Ask for user confirmation ONCE for all networks
+    printf "${WHITE}🚀 Do you want to upload ALL networks (${updated_networks[*]}) to S3? (y/n): ${NC}"
     read -r confirmation
     echo ""
     
     if [ "$confirmation" != "y" ] && [ "$confirmation" != "Y" ]; then
-        log "INFO" "Upload cancelled by user for $network_name"
+        log "INFO" "Batch upload cancelled by user"
         return 1
     fi
     
@@ -245,7 +248,7 @@ FOUND_DEPLOYMENTS=()
 
 # Check which networks have deployments
 for network_def in "${NETWORKS[@]}"; do
-    IFS=':' read -r network_id network_name <<< "$network_def"
+    IFS=':' read -r network_id network_name rpc_var verifier_var <<< "$network_def"
     
     contracts_file="script/output/$env_folder/$network_id/$network_name-latest.json"
     
@@ -264,56 +267,38 @@ if [ ${#FOUND_DEPLOYMENTS[@]} -eq 0 ]; then
 fi
 
 print_separator
-echo -e "${BLUE}📤 Processing contract uploads to S3...${NC}"
 
-# Process each found deployment
-SUCCESS_COUNT=0
+echo -e "${PURPLE}📤 Processing batch upload of all contracts to S3...${NC}"
+
 TOTAL_COUNT=${#FOUND_DEPLOYMENTS[@]}
 
-for network_def in "${FOUND_DEPLOYMENTS[@]}"; do
-    IFS=':' read -r network_id network_name <<< "$network_def"
-    
-    echo -e "${PURPLE}╭─────────────────────────────────────────────────────────────────────────────────────╮${NC}"
-    echo -e "${PURPLE}│${WHITE}                        📤 Uploading $network_name Contracts 📤                        ${PURPLE}│${NC}"
-    echo -e "${PURPLE}╰─────────────────────────────────────────────────────────────────────────────────────╯${NC}"
-    
-    # Get next counter for this network
-    COUNTER=$(get_next_counter "$ENVIRONMENT" "$network_name")
-    
-    echo -e "${CYAN}   Network: ${WHITE}$network_name${NC}"
-    echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
-    echo -e "${CYAN}   Counter: ${WHITE}$COUNTER${NC}"
-    echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
-    echo ""
-    
-    if upload_to_s3 "$ENVIRONMENT" "$network_name" "$network_id" "$COUNTER"; then
-        echo -e "${GREEN}✅ Successfully uploaded $network_name contracts to S3${NC}"
-        SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
-    else
-        echo -e "${RED}❌ Failed to upload $network_name contracts to S3${NC}"
-    fi
-    
-    echo ""
-done
+echo -e "${PURPLE}╭─────────────────────────────────────────────────────────────────────────────────────╮${NC}"
+echo -e "${PURPLE}│${WHITE}                        📤 Batch Uploading All Network Contracts 📤                 ${PURPLE}│${NC}"
+echo -e "${PURPLE}╰─────────────────────────────────────────────────────────────────────────────────────╯${NC}"
 
-print_separator
+echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
+echo -e "${CYAN}   Total Networks: ${WHITE}$TOTAL_COUNT${NC}"
+echo -e "${CYAN}   Networks: ${WHITE}$(for net in "${FOUND_DEPLOYMENTS[@]}"; do IFS=':' read -r id name _ _ <<< "$net"; echo -n "$name "; done)${NC}"
+echo ""
 
-if [ $SUCCESS_COUNT -eq $TOTAL_COUNT ]; then
+if batch_upload_to_s3 "$ENVIRONMENT" "${FOUND_DEPLOYMENTS[@]}"; then
+    print_separator
     echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║                                                                                      ║${NC}"
     echo -e "${GREEN}║${WHITE}              🎉 All Contract Uploads Completed Successfully! 🎉                    ${GREEN}║${NC}"
     echo -e "${GREEN}║                                                                                      ║${NC}"
     echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
     echo -e "${CYAN}🔗 Contract addresses uploaded to S3 bucket: $S3_BUCKET_NAME/$ENVIRONMENT/latest.json${NC}"
-    echo -e "${CYAN}📊 Successfully uploaded: $SUCCESS_COUNT/$TOTAL_COUNT networks${NC}"
+    echo -e "${CYAN}📊 Successfully uploaded: $TOTAL_COUNT/$TOTAL_COUNT networks${NC}"
 else
-    echo -e "${YELLOW}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${YELLOW}║                                                                                      ║${NC}"
-    echo -e "${YELLOW}║${WHITE}                ⚠️  Upload Completed with Some Failures ⚠️                       ${YELLOW}║${NC}"
-    echo -e "${YELLOW}║                                                                                      ║${NC}"
-    echo -e "${YELLOW}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    echo -e "${YELLOW}📊 Successfully uploaded: $SUCCESS_COUNT/$TOTAL_COUNT networks${NC}"
-    echo -e "${RED}❌ Failed uploads: $((TOTAL_COUNT - SUCCESS_COUNT)) networks${NC}"
+    print_separator
+    echo -e "${RED}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║                                                                                      ║${NC}"
+    echo -e "${RED}║${WHITE}                        ❌ Batch Upload Failed ❌                                   ${RED}║${NC}"
+    echo -e "${RED}║                                                                                      ║${NC}"
+    echo -e "${RED}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${RED}❌ Failed to upload contracts to S3${NC}"
+    exit 1
 fi
 
 print_separator

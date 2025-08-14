@@ -332,7 +332,7 @@ abstract contract DeployV2Base is Script, ConfigBase {
     /// @param contractName Name of the contract
     /// @param env Environment (1 = vnet/dev, 0/2 = prod/staging)
     /// @return bytecode Contract bytecode
-    function __getBytecode(string memory contractName, uint256 env) internal returns (bytes memory) {
+    function __getBytecode(string memory contractName, uint256 env) internal view returns (bytes memory) {
         string memory artifactPath = __getBytecodeArtifactPath(contractName, env);
         return vm.getCode(artifactPath);
     }
@@ -352,7 +352,8 @@ abstract contract DeployV2Base is Script, ConfigBase {
         if (contractCount[chainId] == 0) return;
 
         string memory chainName = chainNames[chainId];
-        string memory root = vm.projectRoot();
+        // Use environment variable for reliable project root, fallback to vm.projectRoot()
+        string memory root = vm.envOr("SUPERFORM_PROJECT_ROOT", vm.projectRoot());
         string memory chainOutputFolder = string(abi.encodePacked("/script/output/"));
 
         // For local runs, use local directory
@@ -380,7 +381,8 @@ abstract contract DeployV2Base is Script, ConfigBase {
     // Helper function to read core contract addresses for periphery deployment
     function _readCoreContracts(uint64 chainId) internal view returns (string memory) {
         string memory chainName = chainNames[chainId];
-        string memory root = vm.projectRoot();
+        // Use environment variable for reliable project root, fallback to vm.projectRoot()
+        string memory root = vm.envOr("SUPERFORM_PROJECT_ROOT", vm.projectRoot());
         string memory chainOutputFolder = string(abi.encodePacked("/script/output/"));
 
         // For local runs, use local directory
