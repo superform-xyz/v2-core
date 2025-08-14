@@ -34,6 +34,19 @@ contract MockSignatureStorage {
     }
 }
 
+contract MockDebridgeCancelOrderHook is DeBridgeCancelOrderHook {
+    constructor(address dlnDestination_) DeBridgeCancelOrderHook(dlnDestination_) {}
+
+    // Expose internal methods for testing
+    function exposed_preExecute(address from, address to, bytes calldata data) external {
+        _preExecute(from, to, data);
+    }
+
+    function exposed_postExecute(address from, address to, bytes calldata data) external {
+        _postExecute(from, to, data);
+    }
+}
+
 contract BridgeHooks is Helpers {
     AcrossSendFundsAndExecuteOnDstHook public acrossV3hook;
     DeBridgeSendOrderAndExecuteOnDstHook public deBridgehook;
@@ -356,8 +369,16 @@ contract BridgeHooks is Helpers {
         deBridgehook.postExecute(address(0), address(this), "");
     }
 
-    // DeBridge Cancel Order Hook Tests
+    function test_Debridge_DecodePrevHookAmount() public view {
+        bytes memory data = _encodeDebridgeData(true, 100, 0, address(0));
+        assertTrue(deBridgehook.decodeUsePrevHookAmount(data));
 
+        data = _encodeDebridgeData(false, 100, 0, address(0));
+        assertFalse(deBridgehook.decodeUsePrevHookAmount(data));
+    }
+
+
+    // DeBridge Cancel Order Hook Tests
     function test_CancelOrderHook_Constructor() public view {
         assertEq(address(cancelOrderHook.dlnDestination()), address(this));
         assertEq(uint256(cancelOrderHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
@@ -389,6 +410,21 @@ contract BridgeHooks is Helpers {
         bytes memory data = _encodeCancelOrderData();
         bytes memory argsEncoded = cancelOrderHook.inspect(data);
         assertGt(argsEncoded.length, 0);
+    }
+
+    function test_PreAndPostExecute_CancelOrderHook() public {
+        // does nothing; affects coverage only
+        cancelOrderHook.preExecute(address(0), address(this), "");
+        cancelOrderHook.postExecute(address(0), address(this), "");
+    }
+
+    function test_InternalExecuteMethods_CancelOrderHook() public {
+        address mockDlnDestination = address(0x123);
+        MockDebridgeCancelOrderHook mockHook = new MockDebridgeCancelOrderHook(mockDlnDestination);
+        
+        // Direct calls to internal methods via the exposed functions
+        mockHook.exposed_preExecute(address(0), address(this), "");
+        mockHook.exposed_postExecute(address(0), address(this), "");
     }
 
     /*//////////////////////////////////////////////////////////////

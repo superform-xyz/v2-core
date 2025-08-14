@@ -186,8 +186,4 @@ contract DeBridgeCancelOrderHook is BaseHook {
 
         executionFee = BytesLib.toUint256(data, offset);
     }
-
-    function _preExecute(address, address, bytes calldata) internal override { }
-
-    function _postExecute(address, address, bytes calldata) internal override { }
 }

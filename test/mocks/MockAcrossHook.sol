@@ -137,11 +137,4 @@ contract MockAcrossHook is BaseHook, ISuperHookContextAware {
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
-
-    /*//////////////////////////////////////////////////////////////
-                                 INTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata) internal override { }
-
-    function _postExecute(address, address, bytes calldata) internal override { }
 }

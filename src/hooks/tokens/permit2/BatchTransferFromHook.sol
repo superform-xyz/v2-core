@@ -158,13 +158,6 @@ contract BatchTransferFromHook is BaseHook {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 INTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata) internal override { }
-
-    function _postExecute(address, address, bytes calldata) internal override { }
-
-    /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(address token, address account) private view returns (uint256) {
