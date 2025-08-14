@@ -65,63 +65,63 @@ get_network_name() {
     esac
 }
 
-# Function to extract contract names from update_locked_bytecode.sh
-extract_contracts_from_update_script() {
+# Function to extract contract names from regenerate_bytecode.sh
+extract_contracts_from_regenerate_script() {
     local array_name=$1
-    local script_path="$SCRIPT_DIR/update_locked_bytecode.sh"
+    local script_path="$PROJECT_ROOT/script/run/regenerate_bytecode.sh"
     
     if [[ ! -f "$script_path" ]]; then
         return 1
     fi
     
-    # Extract contract names from the specified array in update_locked_bytecode.sh
+    # Extract contract names from the specified array in regenerate_bytecode.sh
     # Find the array definition and stop at the closing parenthesis
     sed -n "/${array_name}=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | tr -d '"'
 }
 
-# Function to validate locked bytecode files (sourced from update_locked_bytecode.sh)
+# Function to validate locked bytecode files (sourced from regenerate_bytecode.sh)
 validate_locked_bytecode() {
     log "INFO" "Validating locked bytecode artifacts..."
     
-    local script_path="$SCRIPT_DIR/update_locked_bytecode.sh"
+    local script_path="$PROJECT_ROOT/script/run/regenerate_bytecode.sh"
     if [[ ! -f "$script_path" ]]; then
-        echo -e "${RED}❌ Cannot find update_locked_bytecode.sh at: $script_path${NC}"
+        echo -e "${RED}❌ Cannot find regenerate_bytecode.sh at: $script_path${NC}"
         return 1
     fi
     
     local missing_files=()
     
     # Extract and check core contracts
-    log "INFO" "Checking core contracts from update_locked_bytecode.sh..."
+    log "INFO" "Checking core contracts from regenerate_bytecode.sh..."
     local core_contracts
-    core_contracts=$(extract_contracts_from_update_script "CORE_CONTRACTS")
+    core_contracts=$(extract_contracts_from_regenerate_script "CORE_CONTRACTS")
     for contract in $core_contracts; do
         [[ -z "$contract" ]] && continue
-        local file_path="script/locked-bytecode/${contract}.json"
+        local file_path="$PROJECT_ROOT/script/locked-bytecode/${contract}.json"
         if [ ! -f "$file_path" ]; then
             missing_files+=("$file_path")
         fi
     done
     
     # Extract and check hook contracts
-    log "INFO" "Checking hook contracts from update_locked_bytecode.sh..."
+    log "INFO" "Checking hook contracts from regenerate_bytecode.sh..."
     local hook_contracts
-    hook_contracts=$(extract_contracts_from_update_script "HOOK_CONTRACTS")
+    hook_contracts=$(extract_contracts_from_regenerate_script "HOOK_CONTRACTS")
     for contract in $hook_contracts; do
         [[ -z "$contract" ]] && continue
-        local file_path="script/locked-bytecode/${contract}.json"
+        local file_path="$PROJECT_ROOT/script/locked-bytecode/${contract}.json"
         if [ ! -f "$file_path" ]; then
             missing_files+=("$file_path")
         fi
     done
     
     # Extract and check oracle contracts
-    log "INFO" "Checking oracle contracts from update_locked_bytecode.sh..."
+    log "INFO" "Checking oracle contracts from regenerate_bytecode.sh..."
     local oracle_contracts
-    oracle_contracts=$(extract_contracts_from_update_script "ORACLE_CONTRACTS")
+    oracle_contracts=$(extract_contracts_from_regenerate_script "ORACLE_CONTRACTS")
     for contract in $oracle_contracts; do
         [[ -z "$contract" ]] && continue
-        local file_path="script/locked-bytecode/${contract}.json"
+        local file_path="$PROJECT_ROOT/script/locked-bytecode/${contract}.json"
         if [ ! -f "$file_path" ]; then
             missing_files+=("$file_path")
         fi
@@ -130,7 +130,7 @@ validate_locked_bytecode() {
     # Show expected total count
     local expected_total
     expected_total=$(get_expected_contract_count)
-    log "INFO" "Expected total artifacts: $expected_total (from update_locked_bytecode.sh)"
+    log "INFO" "Expected total artifacts: $expected_total (from regenerate_bytecode.sh)"
     
     if [ ${#missing_files[@]} -gt 0 ]; then
         echo -e "${RED}❌ Missing locked bytecode files:${NC}"
@@ -147,9 +147,9 @@ validate_locked_bytecode() {
 }
 
 
-# Function to get expected contract count from update_locked_bytecode.sh
+# Function to get expected contract count from regenerate_bytecode.sh
 get_expected_contract_count() {
-    local script_path="$SCRIPT_DIR/update_locked_bytecode.sh"
+    local script_path="$PROJECT_ROOT/script/run/regenerate_bytecode.sh"
     
     if [[ ! -f "$script_path" ]]; then
         echo "0"
@@ -181,26 +181,26 @@ analyze_deployment_status() {
     local needs_deployment=false
     local networks_with_missing=()
     
-    # Get expected contract count from update_locked_bytecode.sh
+    # Get expected contract count from regenerate_bytecode.sh
     local total_expected
     total_expected=$(get_expected_contract_count)
     
     if [[ $total_expected -eq 0 ]]; then
-        echo -e "${RED}❌ Unable to determine expected contract count from update_locked_bytecode.sh${NC}"
+        echo -e "${RED}❌ Unable to determine expected contract count from regenerate_bytecode.sh${NC}"
         return 2
     fi
     
-    echo -e "${CYAN}Expected total contracts per network (from update_locked_bytecode.sh): ${WHITE}$total_expected${NC}"
-    echo -e "${CYAN}  • Core contracts: ${WHITE}$(sed -n "/CORE_CONTRACTS=(/,/^)/p" "$SCRIPT_DIR/update_locked_bytecode.sh" | grep -o '"[^"]*"' | wc -l)${NC}"
-    echo -e "${CYAN}  • Hook contracts: ${WHITE}$(sed -n "/HOOK_CONTRACTS=(/,/^)/p" "$SCRIPT_DIR/update_locked_bytecode.sh" | grep -o '"[^"]*"' | wc -l)${NC}"
-    echo -e "${CYAN}  • Oracle contracts: ${WHITE}$(sed -n "/ORACLE_CONTRACTS=(/,/^)/p" "$SCRIPT_DIR/update_locked_bytecode.sh" | grep -o '"[^"]*"' | wc -l)${NC}"
+    echo -e "${CYAN}Expected total contracts per network (from regenerate_bytecode.sh): ${WHITE}$total_expected${NC}"
+    echo -e "${CYAN}  • Core contracts: ${WHITE}$(sed -n "/CORE_CONTRACTS=(/,/^)/p" "$SCRIPT_DIR/regenerate_bytecode.sh" | grep -o '"[^"]*"' | wc -l)${NC}"
+    echo -e "${CYAN}  • Hook contracts: ${WHITE}$(sed -n "/HOOK_CONTRACTS=(/,/^)/p" "$SCRIPT_DIR/regenerate_bytecode.sh" | grep -o '"[^"]*"' | wc -l)${NC}"
+    echo -e "${CYAN}  • Oracle contracts: ${WHITE}$(sed -n "/ORACLE_CONTRACTS=(/,/^)/p" "$SCRIPT_DIR/regenerate_bytecode.sh" | grep -o '"[^"]*"' | wc -l)${NC}"
     echo ""
     
-    # Analyze each network against the expected total from update_locked_bytecode.sh
+    # Analyze each network against the expected total from regenerate_bytecode.sh
     for network_id in "${!NETWORK_DEPLOYMENT_STATUS[@]}"; do
         IFS=':' read -r deployed detected_total network_name <<< "${NETWORK_DEPLOYMENT_STATUS[$network_id]}"
         
-        # Use the expected total from update_locked_bytecode.sh, not the detected total
+        # Use the expected total from regenerate_bytecode.sh, not the detected total
         if [[ $deployed -eq $total_expected ]]; then
             echo -e "${GREEN}✅ $network_name (Chain $network_id): All $deployed/$total_expected contracts deployed${NC}"
         elif [[ $deployed -lt $total_expected ]]; then
@@ -223,13 +223,13 @@ analyze_deployment_status() {
     # Determine action based on analysis
     if [[ $all_fully_deployed == true && $total_expected -gt 0 ]]; then
         echo -e "${GREEN}🎉 EXCELLENT! All contracts are already deployed on all networks!${NC}"
-        echo -e "${GREEN}   Expected: $total_expected contracts (from update_locked_bytecode.sh)${NC}"
+        echo -e "${GREEN}   Expected: $total_expected contracts (from regenerate_bytecode.sh)${NC}"
         echo -e "${GREEN}   Status: Fully deployed across all chains${NC}"
         echo -e "${GREEN}   No deployment needed - terminating with success${NC}"
         return 0  # All deployed - skip deployment
     elif [[ $needs_deployment == true ]]; then
         echo -e "${YELLOW}📋 DEPLOYMENT REQUIRED${NC}"
-        echo -e "${CYAN}   Expected total per network: $total_expected contracts (from update_locked_bytecode.sh)${NC}"
+        echo -e "${CYAN}   Expected total per network: $total_expected contracts (from regenerate_bytecode.sh)${NC}"
         echo -e "${CYAN}   The following networks have missing contracts:${NC}"
         for network in "${networks_with_missing[@]}"; do
             echo -e "${CYAN}   • $network${NC}"
@@ -239,7 +239,7 @@ analyze_deployment_status() {
         return 1  # Needs deployment - continue with confirmation
     else
         echo -e "${RED}❌ Unable to determine deployment status${NC}"
-        echo -e "${RED}   Expected: $total_expected contracts (from update_locked_bytecode.sh)${NC}"
+        echo -e "${RED}   Expected: $total_expected contracts (from regenerate_bytecode.sh)${NC}"
         return 2  # Error state
     fi
 }
@@ -287,7 +287,9 @@ print_header
 
 # Source centralized network configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../utils/networks.sh"
+# Find project root (go up from script/run/ to project root)
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+source "$SCRIPT_DIR/networks.sh"
 
 # Check if arguments are provided
 if [ $# -lt 3 ]; then
@@ -359,10 +361,10 @@ echo -e "${CYAN}   • Setting up Tenderly verification URLs...${NC}"
 load_tenderly_urls
 
 # Create output directories
-mkdir -p "script/output/$ENVIRONMENT/1"
-mkdir -p "script/output/$ENVIRONMENT/8453"
-mkdir -p "script/output/$ENVIRONMENT/56"
-mkdir -p "script/output/$ENVIRONMENT/42161"
+mkdir -p "$PROJECT_ROOT/script/output/$ENVIRONMENT/1"
+mkdir -p "$PROJECT_ROOT/script/output/$ENVIRONMENT/8453"
+mkdir -p "$PROJECT_ROOT/script/output/$ENVIRONMENT/56"
+mkdir -p "$PROJECT_ROOT/script/output/$ENVIRONMENT/42161"
 
 # Deployment parameters
 if [ "$ENVIRONMENT" = "staging" ]; then
@@ -379,6 +381,14 @@ echo -e "${GREEN}✅ Configuration loaded successfully${NC}"
 echo -e "${CYAN}   • Using Tenderly private verification mode${NC}"
 echo -e "${CYAN}   • Environment: $ENVIRONMENT${NC}"
 echo -e "${CYAN}   • Account: $ACCOUNT${NC}"
+
+# Change to project root directory for forge commands
+echo -e "${CYAN}   • Changing to project root: $PROJECT_ROOT${NC}"
+cd "$PROJECT_ROOT"
+
+# Export PROJECT_ROOT as environment variable for Solidity scripts
+export SUPERFORM_PROJECT_ROOT="$PROJECT_ROOT"
+echo -e "${CYAN}   • Exported SUPERFORM_PROJECT_ROOT: $SUPERFORM_PROJECT_ROOT${NC}"
 print_separator
 
 # ===== LOCKED BYTECODE VALIDATION =====
@@ -442,9 +452,32 @@ esac
 
 print_separator
 
-# Deploy to each network (using centralized NETWORKS configuration)
+# Deploy only to networks that need deployment (smart deployment logic)
+deployed_networks=0
+skipped_networks=0
+
 for network_def in "${NETWORKS[@]}"; do
     IFS=':' read -r network_id network_name rpc_var verifier_var <<< "$network_def"
+    
+    # Check deployment status for this network
+    if [[ -n "${NETWORK_DEPLOYMENT_STATUS[$network_id]}" ]]; then
+        IFS=':' read -r deployed total_expected network_status_name <<< "${NETWORK_DEPLOYMENT_STATUS[$network_id]}"
+        
+        # Get expected total from regenerate_bytecode.sh
+        script_expected=$(get_expected_contract_count)
+        
+        # Skip if all contracts are already deployed
+        if [[ $deployed -eq $script_expected ]]; then
+            echo -e "${GREEN}⏭️  Skipping ${network_name^^} MAINNET - All $deployed/$script_expected contracts already deployed${NC}"
+            ((skipped_networks++))
+            continue
+        fi
+        
+        # Deploy to networks with missing contracts
+        echo -e "${YELLOW}🚀 Deploying to ${network_name^^} MAINNET - $deployed/$script_expected contracts deployed ($(($script_expected - $deployed)) missing)${NC}"
+    else
+        echo -e "${YELLOW}🚀 Deploying to ${network_name^^} MAINNET - No previous deployment status found${NC}"
+    fi
     
     print_network_header "${network_name^^} MAINNET"
     echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
@@ -467,7 +500,13 @@ for network_def in "${NETWORKS[@]}"; do
         -vv
     
     echo -e "${GREEN}✅ $network_name Mainnet deployment completed successfully!${NC}"
+    ((deployed_networks++))
 done
+
+echo ""
+echo -e "${BLUE}📊 Deployment Summary:${NC}"
+echo -e "${GREEN}   • Networks deployed: $deployed_networks${NC}"
+echo -e "${YELLOW}   • Networks skipped: $skipped_networks${NC}"
 
 # Note: Legacy individual network deployments have been replaced by the centralized 
 # network loop above for better maintainability and consistency.
