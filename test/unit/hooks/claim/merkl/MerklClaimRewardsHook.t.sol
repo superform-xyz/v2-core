@@ -45,7 +45,7 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
             [keccak256(abi.encodePacked(user, address(_mockToken3), uint256(3000)))]
         ];
 
-        hook = new MerklClaimRewardHook(distributor);
+        hook = new MerklClaimRewardHook(distributor, address(this), 0);
     }
 
     function test_Constructor() public view {
@@ -55,14 +55,14 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
     function test_Build_RevertIf_DistributorZero() public {
         distributor = address(0);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new MerklClaimRewardHook(distributor);
+        new MerklClaimRewardHook(distributor, address(this), 100);
     }
 
     function test_MerklClaimRewardsHook_Build() public view {
         bytes memory data = _encodeData();
         Execution[] memory executions = hook.build(address(0), address(0), data);
 
-        assertEq(executions.length, 3);
+        assertEq(executions.length, 6);
         assertEq(executions[1].target, distributor);
         assertEq(executions[1].value, 0);
         assertGt(executions[1].callData.length, 0);
@@ -151,7 +151,7 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         assertEq(argsEncoded.length, 0); // Should be empty for no tokens
     }
 
-    function test_CalldataDecoding() public view {
+    function test_CalldataDecodingX() public {
         bytes memory data = _encodeData();
 
         Execution[] memory executions = hook.build(address(0), users[0], data);
