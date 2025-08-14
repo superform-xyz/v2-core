@@ -2,9 +2,10 @@
 pragma solidity 0.8.30;
 
 import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
-import {IEntryPoint} from "@account-abstraction/interfaces/IEntryPoint.sol";
-import {IEntryPointSimulations} from "@account-abstraction/interfaces/IEntryPointSimulations.sol";
+import {IEntryPoint} from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import {IStakeManager} from "@ERC4337/account-abstraction/contracts/interfaces/IStakeManager.sol";
 import {UserOperationLib} from "../../src/vendor/account-abstraction/UserOperationLib.sol";
+import {IEntryPointSimulations} from "modulekit/external/ERC4337.sol";
 
 import "forge-std/console2.sol";
 
@@ -33,26 +34,6 @@ contract MockEntryPoint {
         bytes targetResult;
     }
 
-    struct ReturnInfo {
-        uint256 preOpGas;
-        uint256 prefund;
-        bool sigFailed;
-        uint256 validAfter;
-        uint256 validUntil;
-    }
-
-    struct StakeInfo {
-        uint256 stake;
-        uint256 unstakeDelaySec;
-    }
-
-    struct ValidationResult {
-        ReturnInfo returnInfo;
-        StakeInfo senderInfo;
-        StakeInfo factoryInfo;
-        StakeInfo paymasterInfo;
-    }
-
     mapping(address => DepositInfo) public deposits;
     mapping(bytes32 => bool) public userOpHashes;
 
@@ -73,14 +54,25 @@ contract MockEntryPoint {
     event StakeWithdrawn(address indexed account, address withdrawAddress, uint256 amount);
     event AccountDeployed(bytes32 indexed userOpHash, address indexed sender, address factory, address paymaster);
 
-    fallback() external payable {
+    // Variables for tracking simulation calls
+    bytes32 public lastOpHash;
+    address public lastSimulationTarget;
+    bytes public lastSimulationCallData;
+    IEntryPointSimulations.ExecutionResult private simulationResult;
+    bool public validationReturnValue;
+
+    fallback() external virtual payable {
         depositAmount += msg.value;
         deposits[msg.sender].deposit += uint112(msg.value);
     }
 
-    receive() external payable {
+    receive() external virtual payable {
         depositAmount += msg.value;
         deposits[msg.sender].deposit += uint112(msg.value);
+    }
+
+    function setValidationReturnValue(bool val) external {
+        validationReturnValue = val;
     }
 
     function supportsInterface(bytes4) public pure returns (bool) {
@@ -143,37 +135,40 @@ contract MockEntryPoint {
         }
     }
 
-    function simulateHandleOp(PackedUserOperation calldata, address, bytes calldata)
-        external
-        pure
-        returns (ExecutionResult memory)
-    {
-        // Simplified simulation that always succeeds
-        return ExecutionResult({
-            preOpGas: 100_000,
-            paid: 2e6,
-            validAfter: 0,
-            validUntil: type(uint256).max,
-            targetSuccess: true,
-            targetResult: bytes("")
-        });
+    function simulateHandleOp(
+        PackedUserOperation calldata op,
+        address target,
+        bytes calldata callData
+    ) external payable returns (IEntryPointSimulations.ExecutionResult memory result) {
+        // Track the call parameters
+        lastOpHash = op.hash();
+        lastSimulationTarget = target;
+        lastSimulationCallData = callData;
+        
+        // Return the predefined simulation result
+        return simulationResult;
     }
 
-    function simulateValidation(PackedUserOperation calldata userOp) external pure returns (ValidationResult memory) {
+    function setSimulationResult(IEntryPointSimulations.ExecutionResult memory result) external {
+        simulationResult = result;
+    }
+
+    function simulateValidation(PackedUserOperation calldata userOp) external view returns (IEntryPointSimulations.ValidationResult memory) {
         uint256 preOpGas = PAYMASTER_VALIDATION_GAS + SIG_VALIDATION_GAS;
         uint256 prefund = _getRequiredPrefund(userOp);
 
-        return ValidationResult({
-            returnInfo: ReturnInfo({
+        return IEntryPointSimulations.ValidationResult({
+            returnInfo: IEntryPoint.ReturnInfo({
                 preOpGas: preOpGas,
                 prefund: prefund,
-                sigFailed: false,
-                validAfter: 0,
-                validUntil: type(uint256).max
+                accountValidationData: uint256(1),
+                paymasterValidationData: uint256(1),
+                paymasterContext: ""
             }),
-            senderInfo: StakeInfo({stake: 0, unstakeDelaySec: 0}),
-            factoryInfo: StakeInfo({stake: 0, unstakeDelaySec: 0}),
-            paymasterInfo: StakeInfo({stake: 2e6, unstakeDelaySec: 0})
+            senderInfo: IStakeManager.StakeInfo({stake: 0, unstakeDelaySec: 0}),
+            factoryInfo: IStakeManager.StakeInfo({stake: 0, unstakeDelaySec: 0}),
+            paymasterInfo: IStakeManager.StakeInfo({stake: 2e6, unstakeDelaySec: 0}),
+            aggregatorInfo: IEntryPoint.AggregatorStakeInfo({aggregator: address(0), stakeInfo: IStakeManager.StakeInfo({stake: 2e6, unstakeDelaySec: 0})})
         });
     }
 
@@ -247,5 +242,18 @@ contract MockEntryPoint {
 
     function setDeposit(address account, uint256 amount) external {
         deposits[account].deposit = uint112(amount);
+    }
+}
+
+contract MockEntryPointRejectETH is MockEntryPoint {
+    // Override the receive function to reject ETH
+    receive() external payable override {
+        // Always revert to simulate ETH transfer failure
+        revert("ETH transfer rejected");
+    }
+    
+    // Override the fallback function as well to ensure all transfers fail
+    fallback() external payable override {
+        revert("ETH transfer rejected");
     }
 }
