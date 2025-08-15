@@ -341,6 +341,109 @@ contract PoC is PaymasterHelper {
         console2.log("Total deposit used:", depositUsed);
     }
 
+    function test_postOpGasMultiplier_ExtraRefund() public {
+        TestData memory data;
+        data.nexusAccount = _createWithNexus(attesters, threshold, 0);
+        vm.deal(data.nexusAccount, LARGE);
+        
+        uint256 normalPostOpGasValue = 5e6;
+        uint256 postOpGasValue = 15e6; // 15M gas
+        uint256 maxFeePerGasValue = 2e8; // 200 gwei
+        uint256 maxGasLimit = 50e6;
+        
+        data.paymaster = new SuperNativePaymaster(IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032));
+        
+        data.hooksAddresses = new address[](1);
+        data.hooksData = new bytes[](1);
+        data.hooksAddresses[0] = approveHook;
+        data.hooksData[0] = _createApproveHookData(CHAIN_1_WETH, address(MANAGER), 1e18, false);
+        data.entry = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: data.hooksAddresses, 
+            hooksData: data.hooksData
+        });
+        
+        data.paymasterVerificationGasLimit = uint128(5e6);
+        data.paymasterPostOpGasLimit = uint128(postOpGasValue);
+        data.paymasterData = abi.encode(maxGasLimit, uint256(0), uint256(0)); 
+        data.paymasterAndData = abi.encodePacked(
+            address(data.paymaster), 
+            data.paymasterVerificationGasLimit, 
+            data.paymasterPostOpGasLimit, 
+            data.paymasterData
+        );
+        
+        data.ops = _createUserOpWithPaymaster(data.nexusAccount, data.entry, data.paymasterAndData);
+        
+        data.maxFeePerGas = maxFeePerGasValue;
+        vm.txGasPrice(maxFeePerGasValue / 2); 
+        vm.fee(1e8); 
+        
+        uint256 initialDeposit = LARGE/2;
+        IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032).depositTo{value: initialDeposit}(address(data.paymaster));
+        uint256 depositBefore = IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032).getDepositInfo(address(data.paymaster)).deposit;
+        
+        vm.prank(address(data.paymaster));
+        IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032).handleOps{gas: maxGasLimit}(data.ops, payable(address(this)));
+        
+        uint256 depositAfter = IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032).getDepositInfo(address(data.paymaster)).deposit;
+        uint256 depositUsed = depositBefore - depositAfter;
+        
+        uint256 expectedPostOpGasCost = postOpGasValue * maxFeePerGasValue;
+        assertGt(depositUsed, expectedPostOpGasCost, "Deposit used should be greater than postOpGas * maxFeePerGas");
+        
+        console2.log("Expected postOp contribution:", expectedPostOpGasCost);
+        console2.log("Total deposit used:", depositUsed);
+
+        // check if PostOp influenced the refund amount
+        uint256 expectedNormalPostOpGasCost = normalPostOpGasValue * maxFeePerGasValue;
+        assertGt(expectedPostOpGasCost, expectedNormalPostOpGasCost);
+        assertGt(depositUsed, expectedPostOpGasCost);
+    }
+
+    function test_postOpGasMultiplier_PostOpTooHigh() public {
+        TestData memory data;
+        data.nexusAccount = _createWithNexus(attesters, threshold, 0);
+        vm.deal(data.nexusAccount, LARGE);
+        
+        uint256 postOpGasValue = 15e6; // 15M gas
+        uint256 maxFeePerGasValue = 2e8; // 200 gwei
+        uint256 maxGasLimit = 20e6; // max limit remains unchanged
+        
+        data.paymaster = new SuperNativePaymaster(IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032));
+        data.hooksAddresses = new address[](1);
+        data.hooksData = new bytes[](1);
+        data.hooksAddresses[0] = approveHook;
+        data.hooksData[0] = _createApproveHookData(CHAIN_1_WETH, address(MANAGER), 1e18, false);
+        data.entry = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: data.hooksAddresses, 
+            hooksData: data.hooksData
+        });
+        
+        data.paymasterVerificationGasLimit = uint128(5e6);
+        data.paymasterPostOpGasLimit = uint128(postOpGasValue); // This is the key parameter we're testing
+        data.paymasterData = abi.encode(maxGasLimit, uint256(0), uint256(0)); // No premium
+        data.paymasterAndData = abi.encodePacked(
+            address(data.paymaster), 
+            data.paymasterVerificationGasLimit, 
+            data.paymasterPostOpGasLimit, 
+            data.paymasterData
+        );
+        
+        data.ops = _createUserOpWithPaymaster(data.nexusAccount, data.entry, data.paymasterAndData);
+        
+        data.maxFeePerGas = maxFeePerGasValue;
+        vm.txGasPrice(maxFeePerGasValue / 2); // Use half of maxFeePerGas as tx.gasprice
+        vm.fee(1e8); // Set a high basefee to ensure maxFeePerGas is used
+        
+        uint256 initialDeposit = maxGasLimit * maxFeePerGasValue * 2;
+        IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032).depositTo{value: initialDeposit}(address(data.paymaster));
+        
+        vm.startPrank(address(data.paymaster));
+        vm.expectRevert();
+        IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032).handleOps{gas: maxGasLimit}(data.ops, payable(address(this)));
+        vm.stopPrank();
+    }
+
     /// @notice Struct to hold test_refundDOS data to avoid stack too deep error
     struct RefundDOSTestData {
         address nexusAccount;

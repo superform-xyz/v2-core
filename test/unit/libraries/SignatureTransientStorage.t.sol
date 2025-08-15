@@ -120,4 +120,46 @@ contract SignatureTransientStorageTest is Test {
         // Verify
         assertEq(retrieved.length, 0, "Retrieved empty signature should have zero length");
     }
+
+    function test_StoreSignatureAcrossMultipleWords() public {
+        // Create a test signature that spans multiple 32-byte words to test the assembly loop
+        uint256 identifier = uint256(0xABCD);
+        
+        // Create signature with 96 bytes (3 words) to ensure multiple iterations in the assembly loop
+        bytes memory multiWordSignature = new bytes(96);
+        
+        // Fill with recognizable patterns for each word to verify storage/retrieval
+        for (uint i = 0; i < 32; i++) {
+            multiWordSignature[i] = bytes1(uint8(0xAA)); // First word
+        }
+        for (uint i = 32; i < 64; i++) {
+            multiWordSignature[i] = bytes1(uint8(0xBB)); // Second word
+        }
+        for (uint i = 64; i < 96; i++) {
+            multiWordSignature[i] = bytes1(uint8(0xCC)); // Third word
+        }
+        
+        // Store using helper
+        storeSignatureHelper(identifier, multiWordSignature);
+        
+        // Load the signature
+        bytes memory retrieved = identifier.loadSignature();
+        
+        // Verify signature length
+        assertEq(retrieved.length, multiWordSignature.length, "Retrieved multi-word signature length mismatch");
+        
+        // Verify content of each word
+        for (uint i = 0; i < 32; i++) {
+            assertEq(uint8(retrieved[i]), 0xAA, "First word content mismatch");
+        }
+        for (uint i = 32; i < 64; i++) {
+            assertEq(uint8(retrieved[i]), 0xBB, "Second word content mismatch");
+        }
+        for (uint i = 64; i < 96; i++) {
+            assertEq(uint8(retrieved[i]), 0xCC, "Third word content mismatch");
+        }
+        
+        // Also verify full signature matches
+        assertEq(keccak256(retrieved), keccak256(multiWordSignature), "Full multi-word signature mismatch");
+    }
 }
