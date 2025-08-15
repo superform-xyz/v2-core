@@ -2019,6 +2019,88 @@ contract CrosschainTests is BaseTest {
         assertEq(tokensAmountAfterBridgeMessage, params.amount);
     }
 
+
+    function test_DOS_ProcessBridgedExecution_WithInvalidSignatures() public {
+        BridgeDeposit4626UsedRootParams memory params;
+
+        // Initialize test parameters
+        SELECT_FORK_AND_WARP(ETH, block.timestamp);
+
+        params.amount = 1e8;
+
+        // Setup destination chain data and get target executor message
+        (params.targetExecutorMessage, params.accountToUse) = _setupDestinationForUsedRoot(params.amount);
+
+        _getTokens(underlyingBase_USDC, params.accountToUse, params.amount);
+
+        // Setup source chain execution
+        _setupSourceAndExecuteUsedRoot(params);
+        params.srcUserOpData.userOp.signature = params.signatureData;
+
+        // Frontrun the actual call
+        SELECT_FORK_AND_WARP(BASE, block.timestamp + 1 days);
+
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = underlyingBase_USDC;
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = params.amount;
+        (bytes memory accountCreationData, bytes memory executionData,,,) =
+            abi.decode(params.targetExecutorMessage, (bytes, bytes, address, address[], uint256[]));
+
+        // Replay test - different chain
+        TargetExecutorMessage memory messageDataForSig =
+            _createDestinationMessageDataForUsedRoot(params.amount, params.accountToUse);
+        params.signatureData = _createMerkleRootAndSignature(
+            messageDataForSig, params.srcUserOpData.userOpHash, params.accountToUse, ETH, address(sourceValidatorOnETH)
+        );
+        vm.expectRevert(ISuperValidator.PROOF_NOT_FOUND.selector);
+        superTargetExecutorOnBase.processBridgedExecution(
+            address(this),
+            params.accountToUse,
+            dstTokens,
+            intentAmounts,
+            accountCreationData,
+            executionData,
+            params.signatureData
+        );
+
+        // Bad signature test - updated signature but for the correct chain
+        address originalTargetExecutor = messageDataForSig.targetExecutor;
+        messageDataForSig.targetExecutor = address(0);
+        params.signatureData = _createMerkleRootAndSignature(
+            messageDataForSig, params.srcUserOpData.userOpHash, params.accountToUse, BASE, address(sourceValidatorOnETH)
+        );
+        vm.expectRevert(SuperValidatorBase.INVALID_PROOF.selector);
+        superTargetExecutorOnBase.processBridgedExecution(
+            address(this),
+            params.accountToUse,
+            dstTokens,
+            intentAmounts,
+            accountCreationData,
+            executionData,
+            params.signatureData
+        );
+
+        // Totally fake signature
+        params.signatureData = _createFakeSignatureData(keccak256(abi.encode("fake root")), 1, BASE);
+        vm.expectRevert();
+        superTargetExecutorOnBase.processBridgedExecution(
+            address(this),
+            params.accountToUse,
+            dstTokens,
+            intentAmounts,
+            accountCreationData,
+            executionData,
+            params.signatureData
+        );
+
+        // everything should still be valid
+        bool isRootUsed = ISuperDestinationExecutor(originalTargetExecutor).isMerkleRootUsed(
+            params.accountToUse, params.srcUserOpData.userOpHash
+        );
+        assertEq(isRootUsed, false);
+    }
+
     function test_InvalidDestinationFlow() public {
         SELECT_FORK_AND_WARP(ETH, block.timestamp);
 
@@ -5278,4 +5360,26 @@ contract CrosschainTests is BaseTest {
             })
         );
     }
+
+    function _createFakeSignatureData(bytes32 fakeRoot, uint256 seed, uint64 dstChain) internal view returns (bytes memory) {
+        bytes32[] memory emptyProof = new bytes32[](0);
+        
+        bytes32 r = bytes32(uint256(keccak256(abi.encode("r", seed))));
+        bytes32 s = bytes32(uint256(keccak256(abi.encode("s", seed))));
+        uint8 v = uint8(27 + (seed % 2)); // Either 27 or 28
+        
+        bytes memory signature = abi.encodePacked(r, s, v);
+        
+        uint64[] memory chainsWithDestExecutionCtx = new uint64[](1);
+        chainsWithDestExecutionCtx[0] = dstChain;
+        return abi.encode(
+            chainsWithDestExecutionCtx, 
+            uint48(block.timestamp + 1 days), // validUntil
+            fakeRoot,
+            emptyProof,
+            new ISuperValidator.DstProof[](0), // Empty proof
+            signature
+        );
+    }
+
 }
