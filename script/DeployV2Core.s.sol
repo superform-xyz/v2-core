@@ -1263,7 +1263,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hooks[30] = HookDeployment(
             MERKL_CLAIM_REWARD_HOOK_KEY,
             abi.encodePacked(
-                __getBytecode("MerklClaimRewardHook", env), abi.encode(configuration.merklDistributors[chainId], configuration.treasury, MARKLE_CLAIM_REWARD_HOOK_FEE_PERCENT)
+                __getBytecode("MerklClaimRewardHook", env), abi.encode(configuration.merklDistributors[chainId], configuration.treasury, MERKLE_CLAIM_REWARD_HOOK_FEE_PERCENT)
             )
         );
 
