@@ -83,10 +83,10 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
 
     /// @notice Verifies if this module is of the specified type
     /// @dev Part of the ERC-7579 module interface
-    /// @param typeID The module type identifier to check against
+    /// @param typeId The module type identifier to check against
     /// @return True if this module matches the specified type, false otherwise
-    function isModuleType(uint256 typeID) external pure override returns (bool) {
-        return typeID == TYPE_EXECUTOR;
+    function isModuleType(uint256 typeId) external pure override returns (bool) {
+        return typeId == TYPE_EXECUTOR;
     }
 
     /*//////////////////////////////////////////////////////////////

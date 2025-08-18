@@ -50,10 +50,10 @@ contract SwapOdosV2Hook is BaseHook, ISuperHookContextAware {
         override
         returns (Execution[] memory executions)
     {
-        uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 157);
-        bytes memory pathDefinition = BytesLib.slice(data, 189, pathDefinition_paramLength);
-        address executor = BytesLib.toAddress(data, 189 + pathDefinition_paramLength);
-        uint32 referralCode = BytesLib.toUint32(data, 189 + pathDefinition_paramLength + 20);
+        uint256 pathDefinitionLength = BytesLib.toUint256(data, 157);
+        bytes memory pathDefinition = BytesLib.slice(data, 189, pathDefinitionLength);
+        address executor = BytesLib.toAddress(data, 189 + pathDefinitionLength);
+        uint32 referralCode = BytesLib.toUint32(data, 189 + pathDefinitionLength + 20);
         address inputToken = BytesLib.toAddress(data, 0);
         uint256 inputAmount = BytesLib.toUint256(data, 20);
 
@@ -83,8 +83,8 @@ contract SwapOdosV2Hook is BaseHook, ISuperHookContextAware {
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 157);
-        address executor = BytesLib.toAddress(data, 189 + pathDefinition_paramLength);
+        uint256 pathDefinitionLength = BytesLib.toUint256(data, 157);
+        address executor = BytesLib.toAddress(data, 189 + pathDefinitionLength);
 
         return abi.encodePacked(
             BytesLib.toAddress(data, 0), //inputToken

@@ -22,8 +22,8 @@ contract MockExecutorModule is ERC7579ExecutorBase {
         return "0.0.1";
     }
 
-    function isModuleType(uint256 typeID) external pure override returns (bool) {
-        return typeID == TYPE_EXECUTOR;
+    function isModuleType(uint256 typeId) external pure override returns (bool) {
+        return typeId == TYPE_EXECUTOR;
     }
 
     /*//////////////////////////////////////////////////////////////
