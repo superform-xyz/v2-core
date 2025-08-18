@@ -95,6 +95,7 @@ contract BatchTransferFromHook is BaseHook {
         vars.noncesData =
             BytesLib.slice(data, 84 + (20 * vars.tokensLength) + (32 * vars.tokensLength), 6 * vars.tokensLength);
 
+        // EIP-2098 signatures are not supported
         vars.signature = BytesLib.slice(data, data.length - 65, 65);
 
         // Create 2 executions - one for batch permit and one for batch transfer
