@@ -167,11 +167,11 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         address currentHook;
         for (uint256 i; i < hooksLen; ++i) {
             currentHook = entry.hooksAddresses[i];
+            if (currentHook == address(0)) revert ADDRESS_NOT_VALID();
             if (i == 0) {
                 bool usePrevHookAmount = _shouldUsePreviousOutput(currentHook, entry.hooksData[i]);
                 if (usePrevHookAmount) revert FIRST_HOOK_CANNOT_USE_PREVIOUS_AMOUNT();
             }
-            if (currentHook == address(0)) revert ADDRESS_NOT_VALID();
 
             _processHook(account, ISuperHook(currentHook), prevHook, entry.hooksData[i]);
             prevHook = currentHook;
@@ -308,6 +308,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         nonReentrant
     {
         Execution[] memory executions = validateHookCompliance(address(hook), prevHook, account, hookData);
+
         // STEP 1: Validate hook compliance
         if (executions.length == 0) {
             revert MALICIOUS_HOOK_DETECTED();

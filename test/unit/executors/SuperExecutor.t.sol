@@ -7,6 +7,7 @@ import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { SuperExecutor } from "../../../src/executors/SuperExecutor.sol";
+import { SuperSenderCreator } from "../../../src/executors/helpers/SuperSenderCreator.sol";
 import { SuperDestinationExecutor } from "../../../src/executors/SuperDestinationExecutor.sol";
 import { SuperDestinationValidator } from "../../../src/validators/SuperDestinationValidator.sol";
 import { SuperValidatorBase } from "../../../src/validators/SuperValidatorBase.sol";
@@ -21,7 +22,7 @@ import { MockNexusFactory } from "../../mocks/MockNexusFactory.sol";
 import { MockLedger, MockLedgerConfiguration } from "../../mocks/MockLedger.sol";
 
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
-import { ISuperHook } from "../../../src/interfaces/ISuperHook.sol";
+import { ISuperHook, Execution } from "../../../src/interfaces/ISuperHook.sol";
 import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestinationExecutor.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 import { BytesLib } from "../../../src/vendor/BytesLib.sol";
@@ -55,6 +56,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     AccountInstance public instance;
     address public signer;
     uint256 public signerPrvKey;
+    SuperSenderCreator public senderCreator;
 
     function setUp() public {
         (signer, signerPrvKey) = makeAddrAndKey("signer");
@@ -88,6 +90,27 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             module: address(superDestinationValidator),
             data: abi.encode(signer)
         });
+
+        senderCreator = new SuperSenderCreator();
+        vm.label(address(senderCreator), "SuperSenderCreator");
+    }
+
+    // ---------------- SUPER SENDER CREATOR ------------------
+    function test_superSenderCreator_InvalidCode() public {
+        address returned = senderCreator.createSender("");
+        assertEq(returned, address(0));
+    }
+
+    function test_superSenderCreator_FailedCall() public {
+        bytes memory data = abi.encodePacked(address(this), abi.encodeWithSelector(this.superSenderCreatorCall.selector));
+        address returned = senderCreator.createSender(data);
+        assertEq(returned, address(0));
+    }
+
+    // ---------------- BASE EXECUTOR ------------------
+    function test_BaseExecutor_Deploy() public {
+        vm.expectRevert(ISuperExecutor.ADDRESS_NOT_VALID.selector);
+        superSourceExecutor = new SuperExecutor(address(0));
     }
 
     // ---------------- SOURCE EXECUTOR ------------------
@@ -141,6 +164,33 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.stopPrank();
     }
 
+    function test_SourceExecutor_Execute_WithNoHooks() public {
+        address[] memory hooksAddresses = new address[](0);
+        bytes[] memory hooksData = new bytes[](0);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+
+        vm.startPrank(account);
+        vm.expectRevert(ISuperExecutor.NO_HOOKS.selector);
+        superSourceExecutor.execute(abi.encode(entry));
+        vm.stopPrank();
+    }
+
+    function test_SourceExecutor_Execute_WithHooksMismatch() public {
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(this);
+        bytes[] memory hooksData = new bytes[](0);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+
+        vm.startPrank(account);
+        vm.expectRevert(ISuperExecutor.LENGTH_MISMATCH.selector);
+        superSourceExecutor.execute(abi.encode(entry));
+        vm.stopPrank();
+    }
+
     function test_SourceExecutor_Execute_WithHooks() public {
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = address(inflowHook);
@@ -175,6 +225,114 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         assertTrue(inflowHook.postExecuteCalled());
         assertTrue(outflowHook.preExecuteCalled());
         assertTrue(outflowHook.postExecuteCalled());
+    }
+
+    function test_SourceExecutor_Execute_WithHooks_InvalidPreviousHook() public {
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(inflowHook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
+            address(token),
+            1,
+            true,
+            address(0),
+            0
+        );
+
+        inflowHook.setUsePrevAmount(true);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+
+        vm.startPrank(account);
+        vm.expectRevert(ISuperExecutor.FIRST_HOOK_CANNOT_USE_PREVIOUS_AMOUNT.selector);
+        superSourceExecutor.execute(abi.encode(entry));
+        vm.stopPrank();
+    }
+
+    function test_SourceExecutor_Execute_WithNoExecutionHook() public {
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(inflowHook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
+            address(token),
+            1,
+            true,
+            address(0),
+            0
+        );
+
+        Execution[] memory executions = new Execution[](1);
+        executions[0] = Execution({
+            target: address(inflowHook),
+            value: 0,
+            callData: abi.encodeCall(inflowHook.preExecute, (address(0), address(0), ""))
+        });
+        // this should return an invalid case
+        inflowHook.setExecutions(executions);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+
+        vm.startPrank(account);
+        vm.expectRevert(ISuperExecutor.MALICIOUS_HOOK_DETECTED.selector);
+        superSourceExecutor.execute(abi.encode(entry));
+        vm.stopPrank();
+
+    }
+
+    function test_SourceExecutor_Execute_WithInvalidCaller() public {
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(inflowHook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
+            address(token),
+            1,
+            true,
+            address(0),
+            0
+        );
+
+        inflowHook.setOverrideLastCaller(true);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+
+        vm.startPrank(account);
+        vm.expectRevert(ISuperExecutor.INVALID_CALLER.selector);
+        superSourceExecutor.execute(abi.encode(entry));
+        vm.stopPrank();
+
+    }
+
+    function test_SourceExecutor_Execute_WithHooks_InvalidHook() public {
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(0);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
+            address(token),
+            1,
+            true,
+            address(0),
+            0
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+
+        vm.startPrank(account);
+        vm.expectRevert(ISuperExecutor.ADDRESS_NOT_VALID.selector);
+        superSourceExecutor.execute(abi.encode(entry));
+        vm.stopPrank();
+
     }
 
     function test_SourceExecutor_UpdateAccounting_Inflow() public {
@@ -739,8 +897,10 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         executorCalldata = abi.encodeWithSelector(ISuperExecutor.version.selector);
 
         validUntil = uint48(block.timestamp + 100 days);
+
         executionDataForLeaf =
             abi.encode(executorCalldata, uint64(block.chainid), account, address(superDestinationExecutor), 1);
+
         bytes32[] memory leaves = new bytes32[](1);
         address[] memory dstTokens = new address[](1);
         dstTokens[0] = address(token);
@@ -1032,4 +1192,93 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             console2.logBytes(e.hooksData[i]);
         }
     }
+
+    // ---------------- DESTINATION EXECUTOR TESTS FOR _createAccount ------------------
+    
+    function test_CreateAccount_RevertIfZeroAddress() public {
+        // Create initCode with zero address as senderCreator
+        bytes memory zeroAddressInitCode = abi.encodePacked(address(0), abi.encodePacked("test data"));
+        
+        // Create a valid signature structure
+        bytes32 merkleRoot = keccak256(abi.encode("test"));
+        bytes32 sigHash = keccak256(abi.encodePacked(
+            "\x19Ethereum Signed Message:\n32", 
+            keccak256(abi.encode(merkleRoot, block.chainid))
+        ));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrvKey, sigHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+        
+        // Prepare parameters for processBridgedExecution
+        address tokenSent = address(token);
+        address targetAccount = address(0);
+        address[] memory dstTokens = new address[](0);
+        uint256[] memory intentAmounts = new uint256[](0);
+        bytes memory initData = zeroAddressInitCode;  // This will trigger _createAccount with zero address
+        bytes memory executorCalldata = "";
+        bytes memory userSignatureData = abi.encode(
+            new bytes32[](0), // merkleProof
+            merkleRoot,
+            signature
+        );
+        
+        // Call should revert with ADDRESS_NOT_VALID when _createAccount is called internally
+        vm.expectRevert(ISuperExecutor.ADDRESS_NOT_VALID.selector);
+        superDestinationExecutor.processBridgedExecution(
+            tokenSent,
+            targetAccount,
+            dstTokens,
+            intentAmounts,
+            initData,
+            executorCalldata,
+            userSignatureData
+        );
+    }
+    
+    function test_CreateAccount_RevertIfNotContract() public {
+        // Use a regular EOA address that's not a contract
+        address nonContractAddress = makeAddr("nonContractAddress");
+        
+        // Create initCode with non-contract address as senderCreator
+        bytes memory nonContractInitCode = abi.encodePacked(nonContractAddress, abi.encodePacked("test data"));
+        
+        // Create a valid signature structure
+        bytes32 merkleRoot = keccak256(abi.encode("test"));
+        bytes32 sigHash = keccak256(abi.encodePacked(
+            "\x19Ethereum Signed Message:\n32", 
+            keccak256(abi.encode(merkleRoot, block.chainid))
+        ));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrvKey, sigHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+        
+        // Prepare parameters for processBridgedExecution
+        address tokenSent = address(token);
+        address targetAccount = address(0);
+        address[] memory dstTokens = new address[](0);
+        uint256[] memory intentAmounts = new uint256[](0);
+        bytes memory initData = nonContractInitCode;  // This will trigger _createAccount with a non-contract address
+        bytes memory executorCalldata = "";
+        bytes memory userSignatureData = abi.encode(
+            new bytes32[](0), // merkleProof
+            merkleRoot,
+            signature
+        );
+        
+        // Call should revert with SENDER_CREATOR_NOT_VALID when _createAccount is called internally
+        vm.expectRevert(ISuperDestinationExecutor.SENDER_CREATOR_NOT_VALID.selector);
+        superDestinationExecutor.processBridgedExecution(
+            tokenSent,
+            targetAccount,
+            dstTokens,
+            intentAmounts,
+            initData,
+            executorCalldata,
+            userSignatureData
+        );
+    }
+
+    
+    function superSenderCreatorCall() external pure {
+        revert("Test");
+    }
+
 }

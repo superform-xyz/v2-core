@@ -14,12 +14,27 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     bool public preExecuteMutex;
     bool public postExecuteMutex;
     address public caller;
+    bool public usePrevAmount;
+    bool public overrideLastCaller;
+
 
     error INCOMPLETE_HOOK_EXECUTION();
 
     constructor(HookType _hookType, address _asset) {
         hookType = _hookType;
         asset = _asset;
+    }
+
+    function setOverrideLastCaller(bool _overrideLastCaller) external {
+        overrideLastCaller = _overrideLastCaller;
+    }
+
+    function setUsePrevAmount(bool _usePrevAmount) external {
+        usePrevAmount = _usePrevAmount;
+    }
+
+    function decodeUsePrevHookAmount(bytes memory) external view returns (bool) {
+        return usePrevAmount;
     }
 
     function subtype() external pure returns (bytes32) {
@@ -160,6 +175,9 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     }
 
     function lastCaller() external view returns (address) {
+        if (overrideLastCaller) {
+            return caller;
+        }
         return msg.sender;
     }
 }
