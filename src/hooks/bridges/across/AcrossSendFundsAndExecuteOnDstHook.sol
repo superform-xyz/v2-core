@@ -184,11 +184,4 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
             BytesLib.toAddress(data, 188) // exclusiveRelayer
         );
     }
-
-    /*//////////////////////////////////////////////////////////////
-                                 INTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata) internal override { }
-
-    function _postExecute(address, address, bytes calldata) internal override { }
 }

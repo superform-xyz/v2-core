@@ -330,8 +330,4 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
 
         return abi.encodePacked(params.version, abi.encode(envelope));
     }
-
-    function _preExecute(address, address, bytes calldata) internal override { }
-
-    function _postExecute(address, address, bytes calldata) internal override { }
 }

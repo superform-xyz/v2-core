@@ -60,11 +60,4 @@ contract MarkRootAsUsedHook is BaseHook {
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(data.extractYieldSource());
     }
-
-    /*//////////////////////////////////////////////////////////////
-                                 INTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata) internal override { }
-
-    function _postExecute(address, address, bytes calldata) internal override { }
 }
