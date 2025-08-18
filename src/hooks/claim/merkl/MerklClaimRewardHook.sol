@@ -13,8 +13,6 @@ import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-import "forge-std/console2.sol";
-
 /// @title MerklClaimRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
@@ -92,7 +90,6 @@ contract MerklClaimRewardHook is BaseHook {
             uint208 amount;
             uint256 fee;
 
-            console2.log("------------- feePercent", feePercent);
             if (feePercent > 0) {
                 (amount, , ) = IDistributor(distributor).claimed(
                     params.users[i],
