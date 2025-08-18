@@ -946,7 +946,9 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             ISuperValidator.DstProof({ proof: merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo });
         uint64[] memory chainsWithDestExecutionExecutor = new uint64[](0);
         signatureData =
-            abi.encode(chainsWithDestExecutionExecutor, validUntil, 0, merkleRoot, merkleProof[0], proofDst, signature);
+            abi.encode(
+                chainsWithDestExecutionExecutor, validUntil, 0, merkleRoot, merkleProof[0], proofDst, signature
+            );
     }
 
     function test_FeeToleranceIsOnePercent() public {
