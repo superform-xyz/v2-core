@@ -185,32 +185,4 @@ contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
         // Process signature using common method
         signer = _processSignatureForAccountType(sender, sigData);
     }
-
-    /// @notice Compares two DstProof structs for equality using hash comparison
-    /// @dev Gas-efficient comparison using keccak256 hash of encoded struct data
-    /// @param proof1 First proof to compare
-    /// @param proof2 Second proof to compare
-    /// @return true if proofs are identical, false otherwise
-    function _areProofsEqual(DstProof memory proof1, DstProof memory proof2) private pure returns (bool) {
-        return _hashDstProof(proof1) == _hashDstProof(proof2);
-    }
-
-    /// @notice Computes a hash of a DstProof struct
-    /// @dev Uses abi.encode to avoid hash collisions with dynamic arrays
-    /// @param proof The proof to hash
-    /// @return The keccak256 hash of the encoded proof
-    function _hashDstProof(DstProof memory proof) private pure returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                proof.dstChainId,
-                proof.proof,
-                proof.info.account,
-                proof.info.executor,
-                proof.info.dstTokens,
-                proof.info.intentAmounts,
-                proof.info.validator,
-                proof.info.data
-            )
-        );
-    }
 }
