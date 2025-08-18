@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.30;
 
-import "./Constants.sol";
+import { Constants } from "./Constants.sol";
 
 /// @title ConfigBase
 /// @notice Base configuration contract containing common addresses, owner settings, and environment data structure
@@ -26,7 +26,7 @@ abstract contract ConfigBase is Constants {
     EnvironmentData public configuration;
 
     mapping(uint64 chainId => string chainName) internal chainNames;
-    bytes internal SALT_NAMESPACE;
+    bytes internal saltNamespace;
     string internal constant MNEMONIC = "test test test test test test test test test test test junk";
     string internal constant PRODUCTION_SALT_NAMESPACE = "PROD1.0.0";
     string internal constant STAGING_SALT_NAMESPACE = "STAGING1.0.0";
@@ -39,22 +39,22 @@ abstract contract ConfigBase is Constants {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Sets up base configuration including chain names and common addresses
-    /// @param env Environment (0 = prod, 1 = dev, 2 = staging)
-    /// @param saltNamespace Salt namespace for deployment (if empty, uses environment-specific default)
-    function _setBaseConfiguration(uint256 env, string memory saltNamespace) internal {
+    /// @param env_ Environment (0 = prod, 1 = dev, 2 = staging)
+    /// @param saltNamespace_ Salt namespace for deployment (if empty, uses environment-specific default)
+    function _setBaseConfiguration(uint256 env_, string memory saltNamespace_) internal {
         // Set salt namespace based on environment with different salts for prod vs staging
-        if (bytes(saltNamespace).length == 0) {
-            if (env == 0) {
+        if (bytes(saltNamespace_).length == 0) {
+            if (env_ == 0) {
                 // Production environment - use production salt
-                SALT_NAMESPACE = bytes(PRODUCTION_SALT_NAMESPACE);
-            } else if (env == 2) {
+                saltNamespace = bytes(PRODUCTION_SALT_NAMESPACE);
+            } else if (env_ == 2) {
                 // Staging environment - use staging salt
-                SALT_NAMESPACE = bytes(STAGING_SALT_NAMESPACE);
+                saltNamespace = bytes(STAGING_SALT_NAMESPACE);
             } else {
                 revert("INVALID_ENVIRONMENT");
             }
         } else {
-            SALT_NAMESPACE = bytes(saltNamespace);
+            saltNamespace = bytes(saltNamespace_);
         }
 
         // ===== MAINNET CHAIN NAMES =====
@@ -65,7 +65,7 @@ abstract contract ConfigBase is Constants {
         chainNames[BNB_CHAIN_ID] = BNB_KEY;
 
         // ===== COMMON CONFIGURATION =====
-        if (env == 0 || env == 2) {
+        if (env_ == 0 || env_ == 2) {
             // Production and Staging environments - use superform.eth treasury
             configuration.owner = 0x22BC97cFac64D6d9BCaDF5dC36e4D01Db9e929c5;
             configuration.treasury = SUPERFORM_TREASURY;

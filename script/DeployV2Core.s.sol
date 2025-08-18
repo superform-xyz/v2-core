@@ -84,11 +84,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     uint256 private _total;
 
     /// @notice Sets up complete configuration for core contracts with hook support
-    /// @param env Environment (0 is prod, 1 is dev, 2 is staging)
-    /// @param saltNamespace Salt namespace for deployment (if empty, uses production default)
-    function _setConfiguration(uint256 env, string memory saltNamespace) internal {
+    /// @param env_ Environment (0 is prod, 1 is dev, 2 is staging)
+    /// @param saltNamespace_ Salt namespace for deployment (if empty, uses production default)
+    function _setConfiguration(uint256 env_, string memory saltNamespace_) internal {
         // Set base configuration (chain names, common addresses)
-        _setBaseConfiguration(env, saltNamespace);
+        _setBaseConfiguration(env_, saltNamespace_);
 
         // Set core contract dependencies
         _setCoreConfiguration();

@@ -34,11 +34,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     }
 
     /// @notice Sets up complete configuration for other hooks deployment
-    /// @param env Environment (0/2 = production, 1 = test)
-    /// @param saltNamespace Salt namespace for deployment (if empty, uses production default)
-    function _setConfiguration(uint256 env, string memory saltNamespace) internal {
+    /// @param env_ Environment (0/2 = production, 1 = test)
+    /// @param saltNamespace_ Salt namespace for deployment (if empty, uses production default)
+    function _setConfiguration(uint256 env_, string memory saltNamespace_) internal {
         // Set base configuration (chain names, common addresses)
-        _setBaseConfiguration(env, saltNamespace);
+        _setBaseConfiguration(env_, saltNamespace_);
 
         // Set protocol router addresses for hooks
         _setOtherHooksConfiguration();

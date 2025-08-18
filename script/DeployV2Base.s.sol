@@ -3,7 +3,7 @@ pragma solidity >=0.8.30;
 
 // external
 import { Script } from "forge-std/Script.sol";
-import "forge-std/console2.sol";
+import { console2 } from "forge-std/console2.sol";
 
 // Superform
 import { DeterministicDeployerLib } from "../src/vendor/nexus/DeterministicDeployerLib.sol";
@@ -304,7 +304,7 @@ abstract contract DeployV2Base is Script, ConfigBase {
     function __getSalt(string memory name) internal view returns (bytes32) {
         // Use configurable salt namespace for deployment
         // This allows for different salt namespaces for production vs test/vnet deployments
-        return keccak256(abi.encodePacked("SuperformV2", SALT_NAMESPACE, name, "v2.0"));
+        return keccak256(abi.encodePacked("SuperformV2", saltNamespace, name, "v2.0"));
     }
 
     /// @notice Get bytecode directory based on environment

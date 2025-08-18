@@ -8,7 +8,6 @@ import { IFluidLendingStakingRewards } from "../../../vendor/fluid/IFluidLending
 
 // Superform
 import {
-    ISuperHookResultOutflow,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
     ISuperHookContextAware,

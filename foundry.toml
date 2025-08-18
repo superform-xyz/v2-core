@@ -79,4 +79,19 @@ quote_style = "double"
 tab_width = 4
 wrap_comments = true
 
+[lint]
+exclude_lints = ["mixed-case-function"]
+ignore = [
+    "src/vendor/**", 
+    "src/vendor/**/*.sol",
+    "./src/vendor/**",
+    "**/vendor/**",
+    "lib/evm-gateway-contracts/**",
+    "./lib/evm-gateway-contracts/**",
+    "test/**", 
+    "test/**/*.sol",
+    "./test/**",
+    "**/test/**"
+]
+
 

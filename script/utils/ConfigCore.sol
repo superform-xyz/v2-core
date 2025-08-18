@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.30;
 
-import "./ConfigBase.sol";
+import { ConfigBase } from "./ConfigBase.sol";
 
 /// @title ConfigCore
 /// @notice Standalone core configuration contract for core contract deployments
