@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-import {VmSafe} from "forge-std/Vm.sol";
+import { VmSafe } from "forge-std/Vm.sol";
 
 /// @notice Library for deploying contracts using Deterministic Deployer
-/// @dev forked from Wilson Cusack's https://github.com/wilsoncusack/safe-singleton-deployer-sol 
+/// @dev forked from Wilson Cusack's https://github.com/wilsoncusack/safe-singleton-deployer-sol
 library DeterministicDeployerLib {
     error DeployFailed();
 
@@ -16,7 +16,15 @@ library DeterministicDeployerLib {
         return computeAddress(creationCode, "", salt);
     }
 
-    function computeAddress(bytes memory creationCode, bytes memory args, bytes32 salt) internal pure returns (address) {
+    function computeAddress(
+        bytes memory creationCode,
+        bytes memory args,
+        bytes32 salt
+    )
+        internal
+        pure
+        returns (address)
+    {
         return VM.computeCreate2Address({
             salt: salt,
             initCodeHash: _hashInitCode(creationCode, args),
@@ -34,7 +42,12 @@ library DeterministicDeployerLib {
         return _deploy(creationCode, "", salt);
     }
 
-    function broadcastDeploy(address deployer, bytes memory creationCode, bytes memory args, bytes32 salt)
+    function broadcastDeploy(
+        address deployer,
+        bytes memory creationCode,
+        bytes memory args,
+        bytes32 salt
+    )
         internal
         returns (address)
     {
@@ -47,7 +60,12 @@ library DeterministicDeployerLib {
         return _deploy(creationCode, "", salt);
     }
 
-    function broadcastDeploy(uint256 deployerPrivateKey, bytes memory creationCode, bytes memory args, bytes32 salt)
+    function broadcastDeploy(
+        uint256 deployerPrivateKey,
+        bytes memory creationCode,
+        bytes memory args,
+        bytes32 salt
+    )
         internal
         returns (address)
     {
@@ -55,7 +73,11 @@ library DeterministicDeployerLib {
         return _deploy(creationCode, args, salt);
     }
 
-    function broadcastDeploy(uint256 deployerPrivateKey, bytes memory creationCode, bytes32 salt)
+    function broadcastDeploy(
+        uint256 deployerPrivateKey,
+        bytes memory creationCode,
+        bytes32 salt
+    )
         internal
         returns (address)
     {

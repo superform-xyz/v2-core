@@ -239,7 +239,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     /// @param prevHook The previous hook in the chain, or address(0) if first hook
     /// @param account The account that operations will be performed for
     /// @param data Hook-specific parameters and configuration data
-    function _preExecute(address prevHook, address account, bytes calldata data) internal virtual {}
+    function _preExecute(address prevHook, address account, bytes calldata data) internal virtual { }
 
     /// @notice Internal implementation of postExecute
     /// @dev Abstract function to be implemented by derived hooks
@@ -249,7 +249,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     /// @param prevHook The previous hook in the chain, or address(0) if first hook
     /// @param account The account operations were performed for
     /// @param data Hook-specific parameters and configuration data
-    function _postExecute(address prevHook, address account, bytes calldata data) internal virtual {}
+    function _postExecute(address prevHook, address account, bytes calldata data) internal virtual { }
 
     /// @notice Decodes a boolean value from a byte array at the specified offset
     /// @dev Helper function for extracting boolean values from packed data

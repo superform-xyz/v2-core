@@ -102,7 +102,8 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function test_superSenderCreator_FailedCall() public {
-        bytes memory data = abi.encodePacked(address(this), abi.encodeWithSelector(this.superSenderCreatorCall.selector));
+        bytes memory data =
+            abi.encodePacked(address(this), abi.encodeWithSelector(this.superSenderCreatorCall.selector));
         address returned = senderCreator.createSender(data);
         assertEq(returned, address(0));
     }
@@ -282,7 +283,6 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.expectRevert(ISuperExecutor.MALICIOUS_HOOK_DETECTED.selector);
         superSourceExecutor.execute(abi.encode(entry));
         vm.stopPrank();
-
     }
 
     function test_SourceExecutor_Execute_WithInvalidCaller() public {
@@ -308,7 +308,6 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.expectRevert(ISuperExecutor.INVALID_CALLER.selector);
         superSourceExecutor.execute(abi.encode(entry));
         vm.stopPrank();
-
     }
 
     function test_SourceExecutor_Execute_WithHooks_InvalidHook() public {
@@ -332,7 +331,6 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.expectRevert(ISuperExecutor.ADDRESS_NOT_VALID.selector);
         superSourceExecutor.execute(abi.encode(entry));
         vm.stopPrank();
-
     }
 
     function test_SourceExecutor_UpdateAccounting_Inflow() public {
@@ -946,9 +944,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             ISuperValidator.DstProof({ proof: merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo });
         uint64[] memory chainsWithDestExecutionExecutor = new uint64[](0);
         signatureData =
-            abi.encode(
-                chainsWithDestExecutionExecutor, validUntil, 0, merkleRoot, merkleProof[0], proofDst, signature
-            );
+            abi.encode(chainsWithDestExecutionExecutor, validUntil, 0, merkleRoot, merkleProof[0], proofDst, signature);
     }
 
     function test_FeeToleranceIsOnePercent() public {
@@ -1196,91 +1192,75 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     // ---------------- DESTINATION EXECUTOR TESTS FOR _createAccount ------------------
-    
+
     function test_CreateAccount_RevertIfZeroAddress() public {
         // Create initCode with zero address as senderCreator
         bytes memory zeroAddressInitCode = abi.encodePacked(address(0), abi.encodePacked("test data"));
-        
+
         // Create a valid signature structure
         bytes32 merkleRoot = keccak256(abi.encode("test"));
-        bytes32 sigHash = keccak256(abi.encodePacked(
-            "\x19Ethereum Signed Message:\n32", 
-            keccak256(abi.encode(merkleRoot, block.chainid))
-        ));
+        bytes32 sigHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(abi.encode(merkleRoot, block.chainid)))
+        );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrvKey, sigHash);
         bytes memory signature = abi.encodePacked(r, s, v);
-        
+
         // Prepare parameters for processBridgedExecution
         address tokenSent = address(token);
         address targetAccount = address(0);
         address[] memory dstTokens = new address[](0);
         uint256[] memory intentAmounts = new uint256[](0);
-        bytes memory initData = zeroAddressInitCode;  // This will trigger _createAccount with zero address
+        bytes memory initData = zeroAddressInitCode; // This will trigger _createAccount with zero address
         bytes memory executorCalldata = "";
         bytes memory userSignatureData = abi.encode(
             new bytes32[](0), // merkleProof
             merkleRoot,
             signature
         );
-        
+
         // Call should revert with ADDRESS_NOT_VALID when _createAccount is called internally
         vm.expectRevert(ISuperExecutor.ADDRESS_NOT_VALID.selector);
         superDestinationExecutor.processBridgedExecution(
-            tokenSent,
-            targetAccount,
-            dstTokens,
-            intentAmounts,
-            initData,
-            executorCalldata,
-            userSignatureData
+            tokenSent, targetAccount, dstTokens, intentAmounts, initData, executorCalldata, userSignatureData
         );
     }
-    
+
     function test_CreateAccount_RevertIfNotContract() public {
         // Use a regular EOA address that's not a contract
         address nonContractAddress = makeAddr("nonContractAddress");
-        
+
         // Create initCode with non-contract address as senderCreator
         bytes memory nonContractInitCode = abi.encodePacked(nonContractAddress, abi.encodePacked("test data"));
-        
+
         // Create a valid signature structure
         bytes32 merkleRoot = keccak256(abi.encode("test"));
-        bytes32 sigHash = keccak256(abi.encodePacked(
-            "\x19Ethereum Signed Message:\n32", 
-            keccak256(abi.encode(merkleRoot, block.chainid))
-        ));
+        bytes32 sigHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(abi.encode(merkleRoot, block.chainid)))
+        );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrvKey, sigHash);
         bytes memory signature = abi.encodePacked(r, s, v);
-        
+
         // Prepare parameters for processBridgedExecution
         address tokenSent = address(token);
         address targetAccount = address(0);
         address[] memory dstTokens = new address[](0);
         uint256[] memory intentAmounts = new uint256[](0);
-        bytes memory initData = nonContractInitCode;  // This will trigger _createAccount with a non-contract address
+        bytes memory initData = nonContractInitCode; // This will trigger _createAccount with a non-contract address
         bytes memory executorCalldata = "";
         bytes memory userSignatureData = abi.encode(
             new bytes32[](0), // merkleProof
             merkleRoot,
             signature
         );
-        
+
         // Call should revert with SENDER_CREATOR_NOT_VALID when _createAccount is called internally
         vm.expectRevert(ISuperDestinationExecutor.SENDER_CREATOR_NOT_VALID.selector);
         superDestinationExecutor.processBridgedExecution(
-            tokenSent,
-            targetAccount,
-            dstTokens,
-            intentAmounts,
-            initData,
-            executorCalldata,
-            userSignatureData
+            tokenSent, targetAccount, dstTokens, intentAmounts, initData, executorCalldata, userSignatureData
         );
     }
 
-    
     function superSenderCreatorCall() external pure {
         revert("Test");
     }
-
 }

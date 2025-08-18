@@ -74,5 +74,6 @@ interface ISuperVault {
         uint256 averageWithdrawPrice,
         uint256 accumulatorShares,
         uint256 accumulatorCostBasis
-    ) external;
+    )
+        external;
 }

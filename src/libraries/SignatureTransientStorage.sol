@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
-
 library SignatureTransientStorage {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -89,5 +88,4 @@ library SignatureTransientStorage {
     function _makeKey(uint256 identifier) private pure returns (bytes32) {
         return keccak256(abi.encodePacked(SIGNATURE_KEY_STORAGE, identifier));
     }
-
 }

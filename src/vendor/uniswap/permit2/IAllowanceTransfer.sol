@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {IEIP712} from "./IEIP712.sol";
+import { IEIP712 } from "./IEIP712.sol";
 
 /// @title AllowanceTransfer
 /// @notice Handles ERC20 token permissions through signature based allowance setting and ERC20 token transfers by
@@ -112,7 +112,11 @@ interface IAllowanceTransfer is IEIP712 {
     /// @notice The mapping is indexed in the above order see: allowance[ownerAddress][tokenAddress][spenderAddress]
     /// @dev The packed slot holds the allowed amount, expiration at which the allowed amount is no longer valid, and
     /// current nonce thats updated on any signature based approvals.
-    function allowance(address user, address token, address spender)
+    function allowance(
+        address user,
+        address token,
+        address spender
+    )
         external
         view
         returns (uint160 amount, uint48 expiration, uint48 nonce);

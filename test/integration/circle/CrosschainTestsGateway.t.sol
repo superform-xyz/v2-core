@@ -344,24 +344,12 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
 
         // Create TransferSpec for first source chain
         TransferSpec memory transferSpec1 = _createSuperformTransferSpec(
-            sourceChain1Setup,
-            destChainSetup,
-            amount,
-            depositorAddr,
-            recipientAddr,
-            depositorAddr,
-            recipientAddr
+            sourceChain1Setup, destChainSetup, amount, depositorAddr, recipientAddr, depositorAddr, recipientAddr
         );
 
         // Create TransferSpec for second source chain
         TransferSpec memory transferSpec2 = _createSuperformTransferSpec(
-            sourceChain2Setup,
-            destChainSetup,
-            amount,
-            depositorAddr,
-            recipientAddr,
-            depositorAddr,
-            recipientAddr
+            sourceChain2Setup, destChainSetup, amount, depositorAddr, recipientAddr, depositorAddr, recipientAddr
         );
 
         TransferSpec[] memory transferSpecs = new TransferSpec[](2);
@@ -369,9 +357,8 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         transferSpecs[1] = transferSpec2;
 
         // Encode the AttestationSet
-        (attestationSetPayload, signature) = _signAttestationSetWithTransferSpec(
-            transferSpecs, destChainSetup.minterAttestationSignerKey
-        );
+        (attestationSetPayload, signature) =
+            _signAttestationSetWithTransferSpec(transferSpecs, destChainSetup.minterAttestationSignerKey);
     }
 
     // Note: All signing methods are inherited from SignatureTestUtils via MultichainTestUtils
@@ -492,6 +479,4 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
 
         assertTrue(true, "Cross-chain transfer with vault deposit completed successfully");
     }
-
-   
 }

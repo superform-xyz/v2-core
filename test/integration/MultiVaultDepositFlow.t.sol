@@ -13,8 +13,7 @@ import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { Deposit5115VaultHook } from "../../src/hooks/vaults/5115/Deposit5115VaultHook.sol";
 import { RequestDeposit7540VaultHook } from "../../src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
 import { CancelDepositRequest7540Hook } from "../../src/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
-import { ClaimCancelDepositRequest7540Hook } from
-    "../../src/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
+import { ClaimCancelDepositRequest7540Hook } from "../../src/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
 import { ISuperNativePaymaster } from "../../src/interfaces/ISuperNativePaymaster.sol";
 import { SuperNativePaymaster } from "../../src/paymaster/SuperNativePaymaster.sol";
 import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
@@ -49,29 +48,33 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
 
         superNativePaymaster = ISuperNativePaymaster(new SuperNativePaymaster(IEntryPoint(ENTRYPOINT_ADDR)));
     }
-    receive() external payable {}
+
+    receive() external payable { }
 
     function test_ClaimCancelDepositRequest7540Hook_WrongReceiver() public {
         address receiver = address(1_271_927);
         uint256 amount = 100e6;
-        
+
         // Setup mocks and hooks
-        (RequestDeposit7540VaultHook requestHook, CancelDepositRequest7540Hook cancelHook, ClaimCancelDepositRequest7540Hook claimHook) = 
-            _setupClaimCancelDepositHooks();
-        
+        (
+            RequestDeposit7540VaultHook requestHook,
+            CancelDepositRequest7540Hook cancelHook,
+            ClaimCancelDepositRequest7540Hook claimHook
+        ) = _setupClaimCancelDepositHooks();
+
         // Execute deposit request and cancellation
         _executeDepositRequestAndCancel(requestHook, cancelHook, amount);
-        
+
         // Execute claim canceled deposit request
         _executeClaimCanceledDepositRequest(claimHook, receiver);
-        
+
         // Fulfill the cancel deposit request (simulates Centrifuge chain response)
         IInvestmentManager investmentManager = _fulfillCancelDepositRequest(amount);
-        
+
         // Verify the state after cancellation
         _verifyDepositRequestCancelled(investmentManager, amount);
     }
-    
+
     function test_MultiVault_Deposit_Flow() public {
         uint256 amount = 1e8;
         uint256 amountPerVault = amount / 2;
@@ -92,7 +95,10 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
         bytes[] memory hooksData = new bytes[](4);
         hooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSource7540AddressUSDC, amountPerVault, false);
         hooksData[1] = _createRequestDeposit7540VaultHookData(
-            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSource7540AddressUSDC, amountPerVault, true
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(this)),
+            yieldSource7540AddressUSDC,
+            amountPerVault,
+            true
         );
         hooksData[2] = _createApproveHookData(underlyingETH_sUSDe, yieldSource5115AddressSUSDe, amountPerVault, false);
         hooksData[3] = _createDeposit5115VaultHookData(
@@ -129,15 +135,14 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
     /*//////////////////////////////////////////////////////////////
                           INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
-     /// @notice Sets up hooks for the claim cancel deposit request test
+    /// @notice Sets up hooks for the claim cancel deposit request test
     /// @return requestHook The request deposit hook
     /// @return cancelHook The cancel deposit request hook
     /// @return claimHook The claim cancel deposit request hook
-    function _setupClaimCancelDepositHooks() private returns (
-        RequestDeposit7540VaultHook,
-        CancelDepositRequest7540Hook,
-        ClaimCancelDepositRequest7540Hook
-    ) {
+    function _setupClaimCancelDepositHooks()
+        private
+        returns (RequestDeposit7540VaultHook, CancelDepositRequest7540Hook, ClaimCancelDepositRequest7540Hook)
+    {
         vm.mockCall(
             0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC,
             abi.encodeWithSelector(IRoot.endorsed.selector, accountEth),
@@ -147,10 +152,10 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
         RequestDeposit7540VaultHook requestHook = new RequestDeposit7540VaultHook();
         CancelDepositRequest7540Hook cancelHook = new CancelDepositRequest7540Hook();
         ClaimCancelDepositRequest7540Hook claimHook = new ClaimCancelDepositRequest7540Hook();
-        
+
         return (requestHook, cancelHook, claimHook);
     }
-    
+
     /// @notice Executes a deposit request followed by a cancellation
     /// @param requestHook_ The request deposit hook to use
     /// @param cancelHook_ The cancel deposit request hook to use
@@ -159,7 +164,9 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
         RequestDeposit7540VaultHook requestHook_,
         CancelDepositRequest7540Hook cancelHook_,
         uint256 amount_
-    ) private {
+    )
+        private
+    {
         address[] memory hooksAddresses = new address[](3);
         hooksAddresses[0] = approveHook;
         hooksAddresses[1] = address(requestHook_);
@@ -188,14 +195,16 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
         );
         executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18);
     }
-    
+
     /// @notice Executes claiming a canceled deposit request
     /// @param claimHook_ The claim hook to use
     /// @param receiver_ The receiver address
     function _executeClaimCanceledDepositRequest(
         ClaimCancelDepositRequest7540Hook claimHook_,
         address receiver_
-    ) private {
+    )
+        private
+    {
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(claimHook_);
 
@@ -214,7 +223,7 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
         );
         executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18);
     }
-    
+
     /// @notice Fulfills the cancel deposit request, simulating a Centrifuge chain response
     /// @param amount_ The amount to fulfill
     /// @return investmentManager The investment manager instance
@@ -225,31 +234,28 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
         bytes16 trancheId = vaultInstance7540ETH.trancheId();
         IPoolManager poolManager = IPoolManager(0x91808B5E2F6d7483D41A681034D7c9DbB64B9E29);
         uint128 assetId = poolManager.assetToId(CHAIN_1_USDC);
-        
+
         vm.startPrank(rootManager);
         investmentManager.fulfillCancelDepositRequest(
             poolId, trancheId, accountEth, assetId, uint128(amount_), uint128(amount_)
         );
         vm.stopPrank();
-        
+
         return investmentManager;
     }
-    
+
     /// @notice Verifies the state after a deposit request cancellation
     /// @param investmentManager_ The investment manager to check
     /// @param amount_ The original deposit amount
-    function _verifyDepositRequestCancelled(
-        IInvestmentManager investmentManager_,
-        uint256 amount_
-    ) private view {
+    function _verifyDepositRequestCancelled(IInvestmentManager investmentManager_, uint256 amount_) private view {
         // Check that there's no pending deposit request after cancellation
         bool isPending = investmentManager_.pendingCancelDepositRequest(yieldSource7540AddressUSDC, accountEth);
         assertFalse(isPending, "request should be cancelled");
-        
+
         // Check that the cancel deposit request has been processed
         uint256 pendingRequest = investmentManager_.pendingDepositRequest(yieldSource7540AddressUSDC, accountEth);
         assertEq(pendingRequest, 0, "no pending request");
-        
+
         // Check claimable cancelled amount
         uint256 claimable = investmentManager_.claimableCancelDepositRequest(yieldSource7540AddressUSDC, accountEth);
         assertEq(claimable, amount_, "claimable cancelled amount should match the initial amount");

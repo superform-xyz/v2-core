@@ -29,7 +29,7 @@ contract MockERC20 is ERC20 {
 
     function previewWithdraw(uint256 amount) external pure returns (uint256) {
         return amount;
-    }   
+    }
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {IEIP712} from "./IEIP712.sol";
+import { IEIP712 } from "./IEIP712.sol";
 
 /// @title SignatureTransfer
 /// @notice Handles ERC20 token transfers through signature based actions
@@ -78,7 +78,8 @@ interface ISignatureTransfer is IEIP712 {
         SignatureTransferDetails calldata transferDetails,
         address owner,
         bytes calldata signature
-    ) external;
+    )
+        external;
 
     /// @notice Transfers a token using a signed permit message
     /// @notice Includes extra data provided by the caller to verify signature over
@@ -98,7 +99,8 @@ interface ISignatureTransfer is IEIP712 {
         bytes32 witness,
         string calldata witnessTypeString,
         bytes calldata signature
-    ) external;
+    )
+        external;
 
     /// @notice Transfers multiple tokens using a signed permit message
     /// @param permit The permit data signed over by the owner
@@ -110,7 +112,8 @@ interface ISignatureTransfer is IEIP712 {
         SignatureTransferDetails[] calldata transferDetails,
         address owner,
         bytes calldata signature
-    ) external;
+    )
+        external;
 
     /// @notice Transfers multiple tokens using a signed permit message
     /// @dev The witness type string must follow EIP712 ordering of nested structs and must include the TokenPermissions
@@ -129,7 +132,8 @@ interface ISignatureTransfer is IEIP712 {
         bytes32 witness,
         string calldata witnessTypeString,
         bytes calldata signature
-    ) external;
+    )
+        external;
 
     /// @notice Invalidates the bits specified in mask for the bitmap at the word position
     /// @dev The wordPos is maxed at type(uint248).max

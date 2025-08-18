@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-
 contract MockPreValidationHook {
     /// @dev The packed ERC4337 user operation (userOp) struct.
     struct PackedUserOperation {
@@ -30,14 +29,23 @@ contract MockPreValidationHook {
     function onUninstall(bytes calldata) external { }
 
     function isModuleType(uint256 moduleTypeId) external pure returns (bool) {
-        return moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC4337 || moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC1271;
+        return moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC4337
+            || moduleTypeId == MODULE_TYPE_PREVALIDATION_HOOK_ERC1271;
     }
 
     function isInitialized(address) external pure returns (bool) {
         return true;
     }
 
-    function preValidationHookERC1271(address, bytes32 hash, bytes calldata data) external pure returns (bytes32 hookHash, bytes memory hookSignature) {
+    function preValidationHookERC1271(
+        address,
+        bytes32 hash,
+        bytes calldata data
+    )
+        external
+        pure
+        returns (bytes32 hookHash, bytes memory hookSignature)
+    {
         return (hash, data);
     }
 

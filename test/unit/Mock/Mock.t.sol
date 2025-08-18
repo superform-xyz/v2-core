@@ -2,28 +2,28 @@
 pragma solidity 0.8.30;
 
 // external
-import {RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData} from "modulekit/ModuleKit.sol";
-import {ExecutionLib} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR} from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
-import {IERC7579Account} from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
-import {ExecLib} from "modulekit/accounts/kernel/lib/ExecLib.sol";
-import {ModeLib, ModeCode} from "modulekit/accounts/common/lib/ModeLib.sol";
-import {CallType, ExecType, ExecMode, ExecLib} from "modulekit/accounts/kernel/lib/ExecLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
+import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
+import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
+import { ExecLib } from "modulekit/accounts/kernel/lib/ExecLib.sol";
+import { ModeLib, ModeCode } from "modulekit/accounts/common/lib/ModeLib.sol";
+import { CallType, ExecType, ExecMode, ExecLib } from "modulekit/accounts/kernel/lib/ExecLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 import "modulekit/test/RhinestoneModuleKit.sol";
-import {ERC7579Precompiles} from "modulekit/deployment/precompiles/ERC7579Precompiles.sol";
+import { ERC7579Precompiles } from "modulekit/deployment/precompiles/ERC7579Precompiles.sol";
 import "modulekit/accounts/erc7579/ERC7579Factory.sol";
 
-import {ECDSA} from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
+import { ECDSA } from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
 
-import {Helpers} from "../../utils/Helpers.sol";
-import {OdosAPIParser} from "../../utils/parsers/OdosAPIParser.sol";
+import { Helpers } from "../../utils/Helpers.sol";
+import { OdosAPIParser } from "../../utils/parsers/OdosAPIParser.sol";
 
-import {MockSignature} from "../../mocks/MockSignature.sol";
+import { MockSignature } from "../../mocks/MockSignature.sol";
 
-import {MockExecutorModule} from "../../mocks/MockExecutorModule.sol";
-import {MockValidatorModule} from "../../mocks/MockValidatorModule.sol";
+import { MockExecutorModule } from "../../mocks/MockExecutorModule.sol";
+import { MockValidatorModule } from "../../mocks/MockValidatorModule.sol";
 
 import "forge-std/console2.sol";
 
@@ -40,7 +40,7 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles, OdosAPIParser
     uint256 eoaKey;
     address account7702;
 
-    receive() external payable {}
+    receive() external payable { }
 
     function setUp() public {
         eoaKey = uint256(8);
@@ -76,7 +76,7 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles, OdosAPIParser
 
         // simulate parameters
         MockSignature.Execution[] memory executions = new MockSignature.Execution[](1);
-        executions[0] = MockSignature.Execution({to: address(0xdead), value: 1 ether, data: "0x"});
+        executions[0] = MockSignature.Execution({ to: address(0xdead), value: 1 ether, data: "0x" });
 
         // test a valid signature
         bytes32 messageHash =
@@ -100,8 +100,8 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles, OdosAPIParser
         MockExecutorModule executor = new MockExecutorModule();
 
         AccountInstance memory instance = makeAccountInstance("MockAccount");
-        instance.installModule({moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: ""});
-        instance.installModule({moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(executor), data: ""});
+        instance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: "" });
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(executor), data: "" });
         vm.deal(instance.account, LARGE);
         vm.label(instance.account, "MockAccount");
 
@@ -119,8 +119,8 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles, OdosAPIParser
         MockExecutorModule executor = new MockExecutorModule();
 
         AccountInstance memory instance = makeAccountInstance("MockAccount");
-        instance.installModule({moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: ""});
-        instance.installModule({moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(executor), data: ""});
+        instance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: "" });
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(executor), data: "" });
         vm.deal(instance.account, LARGE);
         vm.label(instance.account, "MockAccount");
 
@@ -148,14 +148,18 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles, OdosAPIParser
         MockExecutorModule executor = new MockExecutorModule();
 
         AccountInstance memory instance = makeAccountInstance("MockAccount");
-        instance.installModule({moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: ""});
-        instance.installModule({moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(executor), data: ""});
+        instance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: "" });
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(executor), data: "" });
         vm.deal(instance.account, LARGE);
         vm.label(instance.account, "MockAccount");
 
         // Get exec user ops
-        UserOpData memory userOpData =
-            instance.getExecOps({target: address(this), value: 1 ether, callData: "", txValidator: address(validator)});
+        UserOpData memory userOpData = instance.getExecOps({
+            target: address(this),
+            value: 1 ether,
+            callData: "",
+            txValidator: address(validator)
+        });
 
         uint256 balanceBefore = address(this).balance;
         userOpData.execUserOps();
@@ -169,8 +173,8 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles, OdosAPIParser
 
         // account for 7702 test
         AccountInstance memory instance = makeAccountInstance("MockAccount");
-        instance.installModule({moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: ""});
-        instance.installModule({moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(executor), data: ""});
+        instance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: "" });
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(executor), data: "" });
         vm.deal(instance.account, LARGE);
         vm.label(instance.account, "MockAccount");
 
@@ -238,7 +242,10 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles, OdosAPIParser
         });
     }
 
-    function _getSignature(PackedUserOperation memory userOp, IEntryPoint entrypoint)
+    function _getSignature(
+        PackedUserOperation memory userOp,
+        IEntryPoint entrypoint
+    )
         internal
         view
         returns (bytes memory)
@@ -264,8 +271,8 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles, OdosAPIParser
 
         Execution[] memory executions = new Execution[](2);
         executions[0] =
-            Execution({target: account7702, value: 0, callData: abi.encodeCall(IMSA.initializeAccount, initData)});
-        executions[1] = Execution({target: address(this), value: 0, callData: vars.setValueCalldata});
+            Execution({ target: account7702, value: 0, callData: abi.encodeCall(IMSA.initializeAccount, initData) });
+        executions[1] = Execution({ target: address(this), value: 0, callData: vars.setValueCalldata });
 
         vars.userOpCalldata =
             abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleBatch(), ExecutionLib.encodeBatch(executions)));

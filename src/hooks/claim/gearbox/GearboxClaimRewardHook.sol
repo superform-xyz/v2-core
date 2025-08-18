@@ -35,7 +35,7 @@ contract GearboxClaimRewardHook is
     using HookDataDecoder for bytes;
 
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.CLAIM) { }
-    
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

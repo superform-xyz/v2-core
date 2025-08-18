@@ -96,9 +96,7 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
         executions[2] = Execution({
             target: address(PENDLE_ROUTER_V4),
             value: 0,
-            callData: abi.encodeCall(
-                IPendleRouterV4.redeemPyToToken, (account, params.yt, finalAmount, params.output)
-            )
+            callData: abi.encodeCall(IPendleRouterV4.redeemPyToToken, (account, params.yt, finalAmount, params.output))
         });
     }
 

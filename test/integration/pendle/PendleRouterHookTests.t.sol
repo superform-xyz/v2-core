@@ -18,7 +18,6 @@ import {
     SwapData
 } from "../../../src/vendor/pendle/IPendleRouterV4.sol";
 
-
 // Superform
 import { PendleRouterRedeemHook } from "../../../src/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
 import { PendleRouterSwapHook } from "../../../src/hooks/swappers/pendle/PendleRouterSwapHook.sol";
@@ -414,7 +413,8 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
         if (!ptToToken) {
             // call Odos swapAPI to get the calldata
             // note, odos swap receiver has to be pendle router
-            bytes memory odosCalldata = _createOdosSwapCalldataRequest(tokenIn, tokenMint, amount, CHAIN_1_PENDLE_ROUTER);
+            bytes memory odosCalldata =
+                _createOdosSwapCalldataRequest(tokenIn, tokenMint, amount, CHAIN_1_PENDLE_ROUTER);
 
             decodeOdosSwapCalldata(odosCalldata);
 

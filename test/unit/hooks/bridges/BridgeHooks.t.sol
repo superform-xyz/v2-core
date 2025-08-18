@@ -35,7 +35,7 @@ contract MockSignatureStorage {
 }
 
 contract MockDebridgeCancelOrderHook is DeBridgeCancelOrderHook {
-    constructor(address dlnDestination_) DeBridgeCancelOrderHook(dlnDestination_) {}
+    constructor(address dlnDestination_) DeBridgeCancelOrderHook(dlnDestination_) { }
 
     // Expose internal methods for testing
     function exposed_preExecute(address from, address to, bytes calldata data) external {
@@ -377,7 +377,6 @@ contract BridgeHooks is Helpers {
         assertFalse(deBridgehook.decodeUsePrevHookAmount(data));
     }
 
-
     // DeBridge Cancel Order Hook Tests
     function test_CancelOrderHook_Constructor() public view {
         assertEq(address(cancelOrderHook.DLN_DESTINATION()), address(this));
@@ -421,7 +420,7 @@ contract BridgeHooks is Helpers {
     function test_InternalExecuteMethods_CancelOrderHook() public {
         address mockDlnDestination = address(0x123);
         MockDebridgeCancelOrderHook mockHook = new MockDebridgeCancelOrderHook(mockDlnDestination);
-        
+
         // Direct calls to internal methods via the exposed functions
         mockHook.exposed_preExecute(address(0), address(this), "");
         mockHook.exposed_postExecute(address(0), address(this), "");

@@ -17,17 +17,12 @@ contract MockVaultBank {
     {
         IERC20(token).transferFrom(account, address(this), amount);
 
-        emit IVaultBankSource.SharesLocked(yieldSourceOracleId, account, token, amount, uint64(block.chainid), toChainId, 0);
+        emit IVaultBankSource.SharesLocked(
+            yieldSourceOracleId, account, token, amount, uint64(block.chainid), toChainId, 0
+        );
     }
 
-    function burnSuperPosition(
-        uint256 amount_,
-        address,
-        uint64,
-        bytes32
-    )
-        external
-    {   
+    function burnSuperPosition(uint256 amount_, address, uint64, bytes32) external {
         emit IVaultBank.SuperpositionsBurned(address(0), address(this), address(0), amount_, uint64(block.chainid), 0);
     }
 
@@ -43,6 +38,8 @@ contract MockVaultBank {
     {
         IERC20(token).transfer(account, amount);
 
-        emit IVaultBankSource.SharesUnlocked( yieldSourceOracleId, account, token, amount, uint64(block.chainid), fromChainId, 0);
+        emit IVaultBankSource.SharesUnlocked(
+            yieldSourceOracleId, account, token, amount, uint64(block.chainid), fromChainId, 0
+        );
     }
 }

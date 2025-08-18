@@ -17,7 +17,6 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     bool public usePrevAmount;
     bool public overrideLastCaller;
 
-
     error INCOMPLETE_HOOK_EXECUTION();
 
     constructor(HookType _hookType, address _asset) {
@@ -57,11 +56,13 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         Execution[] memory _executions = abi.decode(_executionBytes, (Execution[]));
 
         for (uint256 i; i < _executions.length; ++i) {
-            executions.push(Execution({
-                target: _executions[i].target,
-                value: _executions[i].value,
-                callData: _executions[i].callData
-            }));
+            executions.push(
+                Execution({
+                    target: _executions[i].target,
+                    value: _executions[i].value,
+                    callData: _executions[i].callData
+                })
+            );
         }
     }
 
@@ -69,11 +70,13 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         delete executions;
 
         for (uint256 i; i < _executions.length; ++i) {
-            executions.push(Execution({
-                target: _executions[i].target,
-                value: _executions[i].value,
-                callData: _executions[i].callData
-            }));
+            executions.push(
+                Execution({
+                    target: _executions[i].target,
+                    value: _executions[i].value,
+                    callData: _executions[i].callData
+                })
+            );
         }
     }
 

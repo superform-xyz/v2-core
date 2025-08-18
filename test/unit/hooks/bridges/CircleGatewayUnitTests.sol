@@ -16,11 +16,7 @@ import { MockERC20 } from "../../../mocks/MockERC20.sol";
 
 // Circle Gateway
 import { TransferSpecLib, TransferSpec } from "evm-gateway/lib/TransferSpecLib.sol";
-import {
-    AttestationLib,
-    Attestation,
-    AttestationSet
-} from "evm-gateway/lib/AttestationLib.sol";
+import { AttestationLib, Attestation, AttestationSet } from "evm-gateway/lib/AttestationLib.sol";
 
 /// @title CircleGatewayUnitTests
 /// @author Superform Labs

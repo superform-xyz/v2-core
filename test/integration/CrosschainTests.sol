@@ -2019,7 +2019,6 @@ contract CrosschainTests is BaseTest {
         assertEq(tokensAmountAfterBridgeMessage, params.amount);
     }
 
-
     function test_DOS_ProcessBridgedExecution_WithInvalidSignatures() public {
         BridgeDeposit4626UsedRootParams memory params;
 
@@ -5361,19 +5360,27 @@ contract CrosschainTests is BaseTest {
         );
     }
 
-    function _createFakeSignatureData(bytes32 fakeRoot, uint256 seed, uint64 dstChain) internal view returns (bytes memory) {
+    function _createFakeSignatureData(
+        bytes32 fakeRoot,
+        uint256 seed,
+        uint64 dstChain
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         bytes32 r = bytes32(uint256(keccak256(abi.encode("r", seed))));
         bytes32 s = bytes32(uint256(keccak256(abi.encode("s", seed))));
         uint8 v = uint8(27 + (seed % 2)); // Either 27 or 28
-        
+
         bytes memory signature = abi.encodePacked(r, s, v);
-        
+
         uint64[] memory chainsWithDestExecutionCtx = new uint64[](1);
         chainsWithDestExecutionCtx[0] = dstChain;
         return abi.encode(
-            chainsWithDestExecutionCtx, 
+            chainsWithDestExecutionCtx,
             uint48(block.timestamp + 1 days), // validUntil
             fakeRoot,
             emptyProof,
@@ -5381,5 +5388,4 @@ contract CrosschainTests is BaseTest {
             signature
         );
     }
-
 }

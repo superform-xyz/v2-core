@@ -17,7 +17,9 @@ interface IERC5115 {
         uint256 amountTokenToDeposit,
         uint256 minSharesOut,
         bool depositFromInternalBalance
-    ) external returns (uint256 amountSharesOut);
+    )
+        external
+        returns (uint256 amountSharesOut);
 
     /// @notice Redeem shares from the vault
     /// @param receiver The address to receive the tokens
@@ -32,5 +34,7 @@ interface IERC5115 {
         address tokenOut,
         uint256 minTokenOut,
         bool burnFromInternalBalance
-    ) external returns (uint256 amountTokenOut);
+    )
+        external
+        returns (uint256 amountTokenOut);
 }

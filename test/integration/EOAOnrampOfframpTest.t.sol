@@ -21,7 +21,6 @@ import { OfframpTokensHook } from "../../src/hooks/tokens/OfframpTokensHook.sol"
 import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
 
 contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
-
     ISuperNativePaymaster public superNativePaymaster;
 
     address public eoa;
@@ -109,10 +108,9 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         deal(CHAIN_1_USDC, eoa, 1e18);
         deal(CHAIN_1_WETH, eoa, 1e18);
         deal(CHAIN_1_DAI, eoa, 1e18);
-
     }
 
-    receive() external payable {}
+    receive() external payable { }
 
     /*//////////////////////////////////////////////////////////////
                           TESTS
@@ -149,7 +147,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookDataArray });
 
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
-        executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18); 
+        executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18);
 
         assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth), usdcBalanceBefore + 1e18);
         assertEq(IERC20(CHAIN_1_WETH).balanceOf(accountEth), wethBalanceBefore + 1e18);
@@ -175,14 +173,12 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
 
         UserOpData memory offrampUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(offrampEntry));
 
-        executeOpsThroughPaymaster(offrampUserOpData, superNativePaymaster, 1e18); 
+        executeOpsThroughPaymaster(offrampUserOpData, superNativePaymaster, 1e18);
 
         assertEq(IERC20(CHAIN_1_USDC).balanceOf(eoa), usdcBalanceEOABefore + 1e18);
         assertEq(IERC20(CHAIN_1_WETH).balanceOf(eoa), wethBalanceEOABefore + 1e18);
         assertEq(IERC20(CHAIN_1_DAI).balanceOf(eoa), daiBalanceEOABefore + 1e18);
     }
-
-
 
     function test_EOAOnrampOfframpWithOfframpTokensHook() public {
         TestLocalVars memory vars;
@@ -216,7 +212,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
 
         vars.userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(vars.entry));
 
-        executeOpsThroughPaymaster(vars.userOpData, superNativePaymaster, 1e18); 
+        executeOpsThroughPaymaster(vars.userOpData, superNativePaymaster, 1e18);
 
         // Verify onramp worked
         assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth), vars.usdcBalanceBefore + 1e18);
@@ -241,7 +237,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
 
         vars.offrampUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(vars.offrampEntry));
 
-        executeOpsThroughPaymaster(vars.offrampUserOpData, superNativePaymaster, 1e18); 
+        executeOpsThroughPaymaster(vars.offrampUserOpData, superNativePaymaster, 1e18);
 
         // Verify offramp worked - OfframpTokensHook transfers ALL tokens from account to EOA
         // EOA receives: initial EOA balance + entire account balance (original + onramped)

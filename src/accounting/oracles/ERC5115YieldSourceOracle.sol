@@ -90,6 +90,4 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         if (totalShares == 0) return 0;
         return (totalShares * yieldSource.exchangeRate()) / 1e18;
     }
-
-
 }

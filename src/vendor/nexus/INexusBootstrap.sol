@@ -57,7 +57,8 @@ interface INexusBootstrap {
         IERC7484 registry,
         address[] calldata attesters,
         uint8 threshold
-    ) external;
+    )
+        external;
 
     /// @notice Prepares calldata for the initNexusScoped function.
     /// @param validators The configuration array for validator modules.
@@ -69,7 +70,10 @@ interface INexusBootstrap {
         IERC7484 registry,
         address[] calldata attesters,
         uint8 threshold
-    ) external view returns (bytes memory init);
+    )
+        external
+        view
+        returns (bytes memory init);
 
     /// @notice Prepares calldata for the initNexus function.
     /// @param validators The configuration array for validator modules.
@@ -85,5 +89,8 @@ interface INexusBootstrap {
         IERC7484 registry,
         address[] calldata attesters,
         uint8 threshold
-    ) external view returns (bytes memory init);
+    )
+        external
+        view
+        returns (bytes memory init);
 }

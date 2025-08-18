@@ -107,14 +107,8 @@ contract FeeConfigChangeTests is BaseTest {
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, depositAmount, false);
-        hooksData[1] = _createDeposit4626HookData(
-            yieldSourceOracleId, 
-            yieldSourceAddress,
-            depositAmount,
-            false,
-            address(0),
-            0
-        );
+        hooksData[1] =
+            _createDeposit4626HookData(yieldSourceOracleId, yieldSourceAddress, depositAmount, false, address(0), 0);
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -254,7 +248,10 @@ contract FeeConfigChangeTests is BaseTest {
         assertEq(feeRecipientBalance, expectedFee, "Fee recipient did not receive correct shares");
     }
 
-    function _calculateExpectedFee(uint256 sharesAsAssets, uint256 userShares)
+    function _calculateExpectedFee(
+        uint256 sharesAsAssets,
+        uint256 userShares
+    )
         internal
         view
         returns (uint256 expectedFee, uint256 expectedUserAssets)
@@ -263,7 +260,10 @@ contract FeeConfigChangeTests is BaseTest {
         expectedUserAssets = sharesAsAssets - expectedFee;
     }
 
-    function _calculateExpectedFee20Percent(uint256 sharesAsAssets, uint256 userShares)
+    function _calculateExpectedFee20Percent(
+        uint256 sharesAsAssets,
+        uint256 userShares
+    )
         internal
         view
         returns (uint256 expectedFee, uint256 expectedUserAssets)

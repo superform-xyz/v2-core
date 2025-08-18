@@ -5,6 +5,7 @@ pragma solidity 0.8.30;
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { IDistributor } from "../../../vendor/merkl/IDistributor.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
@@ -27,8 +28,13 @@ contract MerklClaimRewardHook is BaseHook {
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
     error INVALID_ENCODING();
+    error FEE_NOT_VALID();
 
     address public immutable DISTRIBUTOR;
+    address public immutable FEE_RECEIVER;
+    uint256 public immutable FEE_PERCENT;
+
+    uint256 public constant BPS = 10_000;
 
     struct ClaimParams {
         address[] users;
@@ -37,9 +43,18 @@ contract MerklClaimRewardHook is BaseHook {
         bytes32[][] proofs;
     }
 
-    constructor(address _distributor) BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM) {
-        if (_distributor == address(0)) revert ADDRESS_NOT_VALID();
-        DISTRIBUTOR = _distributor;
+    constructor(
+        address distributor_,
+        address feeReceiver_,
+        uint256 feePercent_
+    )
+        BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM)
+    {
+        if (distributor_ == address(0) || feeReceiver_ == address(0)) revert ADDRESS_NOT_VALID();
+        if (feePercent_ > BPS) revert FEE_NOT_VALID();
+        DISTRIBUTOR = distributor_;
+        FEE_RECEIVER = feeReceiver_;
+        FEE_PERCENT = feePercent_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -65,12 +80,33 @@ contract MerklClaimRewardHook is BaseHook {
         // decode other params
         (params.tokens, params.amounts, params.proofs) = _decodeClaimParams(data);
 
-        executions = new Execution[](1);
+        executions = new Execution[](users.length + 1);
         executions[0] = Execution({
             target: DISTRIBUTOR,
             value: 0,
             callData: abi.encodeCall(IDistributor.claim, (params.users, params.tokens, params.amounts, params.proofs))
         });
+
+        // Known limitations:
+        // - can't verify deviations in the transfer (won't actually execute the code until the `handleOps` execution)
+        // - `FEE_RECEIVER` and `FEE_PERCENT` must be configured by the hook instead of the ledgers
+        // - won't work for tokens reverting on 0 amount transfer in case of 0 fees
+        uint256 len = users.length;
+        for (uint256 i; i < len; ++i) {
+            uint208 amount;
+            uint256 fee;
+
+            if (FEE_PERCENT > 0) {
+                (amount,,) = IDistributor(DISTRIBUTOR).claimed(params.users[i], params.tokens[i]);
+                fee = ((params.amounts[i] - amount) * FEE_PERCENT) / BPS;
+            }
+
+            executions[i + 1] = Execution({
+                target: params.tokens[i],
+                value: 0,
+                callData: abi.encodeCall(IERC20.transfer, (FEE_RECEIVER, fee))
+            });
+        }
     }
 
     /// @inheritdoc ISuperHookInspector

@@ -14,7 +14,10 @@ interface INexusFactory {
     /// @param salt Unique salt for the Smart Account creation.
     /// @return expectedAddress The expected address at which the Nexus contract will be deployed if the provided
     /// parameters are used.
-    function computeAccountAddress(bytes calldata initData, bytes32 salt)
+    function computeAccountAddress(
+        bytes calldata initData,
+        bytes32 salt
+    )
         external
         view
         returns (address payable expectedAddress);

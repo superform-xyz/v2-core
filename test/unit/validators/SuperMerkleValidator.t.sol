@@ -1038,7 +1038,6 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
     }
 
-
     function test_ValidateUserOp_UNEXPECTED_CHAIN_PROOF_WrongChainOrder() public {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
 

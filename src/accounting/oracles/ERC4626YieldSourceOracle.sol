@@ -90,6 +90,4 @@ contract ERC4626YieldSourceOracle is AbstractYieldSourceOracle {
     function getTVL(address yieldSourceAddress) public view override returns (uint256) {
         return IERC4626(yieldSourceAddress).totalAssets();
     }
-
-
 }

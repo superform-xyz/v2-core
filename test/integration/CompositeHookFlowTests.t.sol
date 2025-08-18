@@ -758,7 +758,7 @@ contract CompositeHookFlowTests is BaseTest {
                         MERKL CLAIM REWARDS TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_MerklClaimRewardsHook_ViaMockCalls() public {
+    function test_MerklClaimRewardsHook_OnETHFork() public {
         vm.selectFork(FORKS[ETH]);
 
         uint256 balanceBefore = IERC20(underlyingETH_USDC).balanceOf(accountEth);
@@ -790,6 +790,38 @@ contract CompositeHookFlowTests is BaseTest {
         uint256 balanceAfter = IERC20(underlyingETH_USDC).balanceOf(accountEth);
 
         assertEq(balanceAfter - balanceBefore, 100e6);
+    }
+
+    function test_MerklClaimRewardsHook_OnETHFork_WithFees() public {
+        vm.selectFork(FORKS[ETH]);
+
+        // create hook with 10% fee percentage
+        address merkleClaimReward = address(new MerklClaimRewardHook(MERKL_DISTRIBUTOR, address(this), 1000));
+
+        uint256 balanceBefore = IERC20(underlyingETH_USDC).balanceOf(accountEth);
+
+        address[] memory users = new address[](1);
+        users[0] = accountEth;
+        address[] memory tokens = new address[](1);
+        tokens[0] = underlyingETH_USDC;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 100e6;
+        bytes32[][] memory proofs = new bytes32[][](1);
+        proofs[0] = _updateTreeAndGetProof(users[0], tokens[0], amounts[0]);
+
+        address[] memory hooks = new address[](1);
+        hooks[0] = merkleClaimReward;
+        bytes[] memory data = new bytes[](1);
+        data[0] = _createMerklClaimRewardHookData(tokens, amounts, proofs);
+
+        ISuperExecutor.ExecutorEntry memory entryClaim =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data });
+        UserOpData memory userOpDataClaim = _getExecOps(instanceOnEth, superExecutorETH, abi.encode(entryClaim));
+
+        executeOp(userOpDataClaim);
+
+        uint256 balanceAfter = IERC20(underlyingETH_USDC).balanceOf(accountEth);
+        assertEq(balanceAfter - balanceBefore, 90e6); // 10% fee
     }
 
     /*//////////////////////////////////////////////////////////////

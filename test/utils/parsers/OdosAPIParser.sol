@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {Surl} from "@surl/Surl.sol";
-import {strings} from "@stringutils/strings.sol";
+import { Surl } from "@surl/Surl.sol";
+import { strings } from "@stringutils/strings.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "forge-std/StdUtils.sol";
 
-import {IOdosRouterV2} from "../../../src/vendor/odos/IOdosRouterV2.sol";
-import {BytesLib} from "../../../src/vendor/BytesLib.sol";
+import { IOdosRouterV2 } from "../../../src/vendor/odos/IOdosRouterV2.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 
-import {BaseAPIParser} from "./BaseAPIParser.sol";
+import { BaseAPIParser } from "./BaseAPIParser.sol";
 
 abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
     using Surl for *;
@@ -52,7 +52,11 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
         address _account,
         uint256 _chainId,
         bool _compact
-    ) internal pure returns (string memory) {
+    )
+        internal
+        pure
+        returns (string memory)
+    {
         string memory inputTokensStr = "[";
         for (uint256 i = 0; i < _inputTokens.length; i++) {
             inputTokensStr = string.concat(
@@ -112,7 +116,10 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
         address _account,
         uint256 _chainId,
         bool _compact
-    ) internal returns (string memory) {
+    )
+        internal
+        returns (string memory)
+    {
         string[] memory headers = new string[](1);
         headers[0] = "Content-Type: application/json";
 

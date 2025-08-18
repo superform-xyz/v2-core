@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {IEntryPoint} from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import {IPaymaster} from "@ERC4337/account-abstraction/contracts/interfaces/IPaymaster.sol";
-import {UserOperationLib} from "@account-abstraction/core/UserOperationLib.sol";
-import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
+import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import { IPaymaster } from "@ERC4337/account-abstraction/contracts/interfaces/IPaymaster.sol";
+import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 
 // Superform
-import {SuperNativePaymaster} from "../../../src/paymaster/SuperNativePaymaster.sol";
-import {ISuperNativePaymaster} from "../../../src/interfaces/ISuperNativePaymaster.sol";
-import {MockEntryPoint, MockEntryPointRejectETH} from "../../mocks/MockEntryPoint.sol";
-import {Helpers} from "../../utils/Helpers.sol";
-import {IEntryPointSimulations} from "modulekit/external/ERC4337.sol";
-
+import { SuperNativePaymaster } from "../../../src/paymaster/SuperNativePaymaster.sol";
+import { ISuperNativePaymaster } from "../../../src/interfaces/ISuperNativePaymaster.sol";
+import { MockEntryPoint, MockEntryPointRejectETH } from "../../mocks/MockEntryPoint.sol";
+import { Helpers } from "../../utils/Helpers.sol";
+import { IEntryPointSimulations } from "modulekit/external/ERC4337.sol";
 
 contract SuperNativePaymasterTest is Helpers {
     using UserOperationLib for PackedUserOperation;
@@ -24,7 +23,7 @@ contract SuperNativePaymasterTest is Helpers {
     uint256 public maxGasLimit;
     uint256 public nodeOperatorPremium;
 
-    receive() external payable {}
+    receive() external payable { }
 
     function setUp() public {
         mockEntryPoint = new MockEntryPoint();
@@ -77,7 +76,7 @@ contract SuperNativePaymasterTest is Helpers {
 
     function test_HandleOps() public {
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        paymaster.handleOps{value: 1 ether}(ops);
+        paymaster.handleOps{ value: 1 ether }(ops);
 
         assertEq(mockEntryPoint.depositAmount(), 1 ether);
     }
@@ -85,18 +84,17 @@ contract SuperNativePaymasterTest is Helpers {
     function test_HandleOps_RevertWhenTransferFails() public {
         // Create a mock EntryPoint that rejects ETH
         MockEntryPointRejectETH mockEntryPointRejectsETH = new MockEntryPointRejectETH();
-        
+
         // Deploy paymaster with our special mock EntryPoint
-        SuperNativePaymaster paymasterWithRejectingEntryPoint = new SuperNativePaymaster(
-            IEntryPoint(address(mockEntryPointRejectsETH))
-        );
-        
+        SuperNativePaymaster paymasterWithRejectingEntryPoint =
+            new SuperNativePaymaster(IEntryPoint(address(mockEntryPointRejectsETH)));
+
         // Add some ETH to the paymaster
         vm.deal(address(paymasterWithRejectingEntryPoint), 1 ether);
-        
+
         // Create a dummy user operation
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        
+
         // This should revert because the EntryPoint will reject ETH transfers
         vm.expectRevert(ISuperNativePaymaster.INSUFFICIENT_BALANCE.selector);
         paymasterWithRejectingEntryPoint.handleOps(ops);
@@ -104,7 +102,7 @@ contract SuperNativePaymasterTest is Helpers {
 
     function test_PostOp_WithRefund() public {
         vm.deal(address(paymaster), 2 ether);
-        mockEntryPoint.depositTo{value: 2 ether}(address(paymaster));
+        mockEntryPoint.depositTo{ value: 2 ether }(address(paymaster));
 
         bytes memory context = abi.encode(sender, maxFeePerGas, maxGasLimit, nodeOperatorPremium, uint256(0));
         uint256 actualGasCost = maxGasLimit * maxFeePerGas / 2;
@@ -139,7 +137,7 @@ contract SuperNativePaymasterTest is Helpers {
         // Transfer and deposit the exact required amount
         vm.deal(address(paymaster), addBalance);
         vm.prank(address(paymaster));
-        mockEntryPoint.depositTo{value: addBalance}(address(paymaster));
+        mockEntryPoint.depositTo{ value: addBalance }(address(paymaster));
 
         // Call handleOps which should deposit the funds to EntryPoint
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
@@ -157,8 +155,8 @@ contract SuperNativePaymasterTest is Helpers {
 
         userOp.paymasterAndData = bytes.concat(
             new bytes(52),
-            abi.encodePacked(uint256(1)), 
-            abi.encodePacked(uint256(100_000)), 
+            abi.encodePacked(uint256(1)),
+            abi.encodePacked(uint256(100_000)),
             abi.encodePacked(uint256(1))
         );
         // Initially paymaster has no balance
@@ -168,7 +166,7 @@ contract SuperNativePaymasterTest is Helpers {
         // Transfer and deposit the exact required amount
         vm.deal(address(paymaster), addBalance);
         vm.prank(address(paymaster));
-        mockEntryPoint.depositTo{value: addBalance}(address(paymaster));
+        mockEntryPoint.depositTo{ value: addBalance }(address(paymaster));
 
         // Call handleOps which should deposit the funds to EntryPoint
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
@@ -180,11 +178,10 @@ contract SuperNativePaymasterTest is Helpers {
         vm.stopPrank();
     }
 
-
     function test_SimulateHandleOp_RevertIfEmptyValue() public {
         // Create a dummy user operation
         PackedUserOperation memory op;
-        
+
         // This should revert because msg.value is 0
         vm.expectRevert(ISuperNativePaymaster.EMPTY_MESSAGE_VALUE.selector);
         paymaster.simulateHandleOp(op, address(0), "");
@@ -195,10 +192,10 @@ contract SuperNativePaymasterTest is Helpers {
         PackedUserOperation memory op;
         address target = address(0xBEEF);
         bytes memory callData = hex"CAFECAFE";
-        
+
         // Simulate handling the operation with some ETH value
-        paymaster.simulateHandleOp{value: 0.1 ether}(op, target, callData);
-        
+        paymaster.simulateHandleOp{ value: 0.1 ether }(op, target, callData);
+
         // Verify the simulation was forwarded to the entry point
         // We can only test that the call happened and the parameters were passed correctly
         assertEq(mockEntryPoint.lastSimulationTarget(), target);
@@ -208,7 +205,7 @@ contract SuperNativePaymasterTest is Helpers {
     function test_SimulateValidation_RevertIfEmptyValue() public {
         // Create a dummy user operation
         PackedUserOperation memory op;
-        
+
         // This should revert because msg.value is 0
         vm.expectRevert(ISuperNativePaymaster.EMPTY_MESSAGE_VALUE.selector);
         paymaster.simulateValidation(op);
@@ -224,13 +221,11 @@ contract SuperNativePaymasterTest is Helpers {
         // Call with value
         uint256 sendValue = 1 ether;
         vm.deal(address(this), sendValue);
-        IEntryPointSimulations.ValidationResult memory result =
-            paymaster.simulateValidation{value: sendValue}(op);
+        IEntryPointSimulations.ValidationResult memory result = paymaster.simulateValidation{ value: sendValue }(op);
 
         assertEq(result.paymasterInfo.stake, 2e6);
     }
 
-    
     function _createUserOp() internal view returns (PackedUserOperation memory) {
         PackedUserOperation memory op;
         op.sender = sender;

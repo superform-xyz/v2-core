@@ -177,7 +177,4 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
             tvls[i] = getTVL(yieldSourceAddresses[i]);
         }
     }
-
-   
-
 }

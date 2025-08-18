@@ -67,6 +67,4 @@ contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
     function getTVL(address yieldSourceAddress) public view override returns (uint256) {
         return IERC20(yieldSourceAddress).totalSupply();
     }
-
-
 }
