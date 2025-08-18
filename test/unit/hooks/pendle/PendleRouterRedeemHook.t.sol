@@ -25,7 +25,7 @@ contract PendleRouterRedeemHookTest is Helpers {
     function setUp() public {
         account = address(this);
 
-        pendleRouter = CHAIN_1_PendleRouter;
+        pendleRouter = CHAIN_1_PENDLE_ROUTER;
         tokenOut = new MockERC20("Output Token", "OUT", 18);
         vm.label(address(tokenOut), "Output Token");
 
@@ -40,7 +40,7 @@ contract PendleRouterRedeemHookTest is Helpers {
     }
 
     function test_Constructor() public view {
-        assertEq(address(hook.pendleRouterV4()), address(pendleRouter));
+        assertEq(address(hook.PENDLE_ROUTER_V4()), address(pendleRouter));
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 

@@ -1,3 +1,6 @@
+
+[![codecov](https://codecov.io/gh/superform-xyz/v2-core/graph/badge.svg?token=PZGfJXkBAg)](https://codecov.io/gh/superform-xyz/v2-core)
+
 # Overview
 
 Superform v2 is a modular DeFi protocol for yield abstraction that allows dynamic execution and flexible composition of user operations via ERC7579 modules. 

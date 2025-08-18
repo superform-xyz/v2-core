@@ -53,7 +53,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
 
     /// @notice The specific subtype identifier for this hook
     /// @dev Used to identify specialized hook types beyond the basic HookType enum
-    bytes32 public immutable subType;
+    bytes32 public immutable SUB_TYPE;
 
     /// @notice The type of hook (NONACCOUNTING, INFLOW, OUTFLOW)
     /// @dev Determines how the hook impacts accounting in the system
@@ -100,7 +100,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     /// @param subType_ The specific subtype identifier for specialized hook functionality
     constructor(ISuperHook.HookType hookType_, bytes32 subType_) {
         hookType = hookType_;
-        subType = subType_;
+        SUB_TYPE = subType_;
     }
 
     modifier onlyLastCaller() {
@@ -205,7 +205,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function subtype() external view returns (bytes32) {
-        return subType;
+        return SUB_TYPE;
     }
 
     /// @inheritdoc ISuperHookInspector

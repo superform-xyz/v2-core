@@ -40,7 +40,7 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
 
     string constant API_QUOTE_URL = "https://api.odos.xyz/sor/quote/v2";
     string constant API_ASSEMBLE_URL = "https://api.odos.xyz/sor/assemble";
-    uint256 private constant addressListStart =
+    uint256 private constant ADDRESS_LIST_START =
         80_084_422_859_880_547_211_683_076_133_703_299_733_277_748_156_566_366_325_829_078_699_459_944_778_998;
 
     /*//////////////////////////////////////////////////////////////
@@ -227,7 +227,7 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
                     newPos := add(currPos, 22)
                 }
                 default {
-                    result := sload(add(addressListStart, sub(inputPos, 2)))
+                    result := sload(add(ADDRESS_LIST_START, sub(inputPos, 2)))
                     newPos := add(currPos, 2)
                 }
             }

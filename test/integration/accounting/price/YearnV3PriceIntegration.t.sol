@@ -32,7 +32,7 @@ contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
 
         oracle = new ERC4626YieldSourceOracle(address(ledgerConfig));
 
-        yearnVault = IERC4626(CHAIN_1_YearnVault);
+        yearnVault = IERC4626(CHAIN_1_YEARN_VAULT);
         underlying = yearnVault.asset();
     }
 

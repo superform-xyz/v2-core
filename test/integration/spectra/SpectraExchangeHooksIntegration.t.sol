@@ -34,15 +34,15 @@ contract SpectraExchangeHooksIntegrationTest is MinimalBaseIntegrationTest {
         useRealSpectraRouter = useRealOdosRouter;
 
         if (useRealSpectraRouter) {
-            spectraRouter = CHAIN_1_SpectraRouter;
+            spectraRouter = CHAIN_1_SPECTRA_ROUTER;
             vm.label(spectraRouter, "Spectra Router");
             tokenIn = CHAIN_1_USDC;
             vm.label(tokenIn, "USDC");
             ptToken = CHAIN_1_SPECTRA_PT_IPOR_USDC;
             vm.label(ptToken, "PT-IPOR-USDC");
 
-            hook = new SpectraExchangeDepositHook(CHAIN_1_SpectraRouter);
-            redeemHook = new SpectraExchangeRedeemHook(CHAIN_1_SpectraRouter);
+            hook = new SpectraExchangeDepositHook(CHAIN_1_SPECTRA_ROUTER);
+            redeemHook = new SpectraExchangeRedeemHook(CHAIN_1_SPECTRA_ROUTER);
         } else {
             tokenIn = address(new MockERC20("Test Token", "TEST", 18));
             ptToken = address(new MockERC20("Test Token", "TEST", 18));

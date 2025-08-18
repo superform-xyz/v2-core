@@ -3,7 +3,6 @@ pragma solidity 0.8.30;
 
 // external
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import { IStakingVault } from "../../vendor/staking/IStakingVault.sol";
 
 // Superform
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";

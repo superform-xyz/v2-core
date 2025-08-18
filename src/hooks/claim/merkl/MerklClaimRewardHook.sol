@@ -28,7 +28,7 @@ contract MerklClaimRewardHook is BaseHook {
     //////////////////////////////////////////////////////////////*/
     error INVALID_ENCODING();
 
-    address public immutable distributor;
+    address public immutable DISTRIBUTOR;
 
     struct ClaimParams {
         address[] users;
@@ -39,7 +39,7 @@ contract MerklClaimRewardHook is BaseHook {
 
     constructor(address _distributor) BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM) {
         if (_distributor == address(0)) revert ADDRESS_NOT_VALID();
-        distributor = _distributor;
+        DISTRIBUTOR = _distributor;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -67,7 +67,7 @@ contract MerklClaimRewardHook is BaseHook {
 
         executions = new Execution[](1);
         executions[0] = Execution({
-            target: distributor,
+            target: DISTRIBUTOR,
             value: 0,
             callData: abi.encodeCall(IDistributor.claim, (params.users, params.tokens, params.amounts, params.proofs))
         });

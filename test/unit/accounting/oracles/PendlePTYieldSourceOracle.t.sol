@@ -4,7 +4,6 @@ pragma solidity 0.8.30;
 import { InternalHelpers } from "../../../utils/InternalHelpers.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
 import { PendlePTYieldSourceOracle } from "../../../../src/accounting/oracles/PendlePTYieldSourceOracle.sol";
-import { IYieldSourceOracle } from "../../../../src/interfaces/accounting/IYieldSourceOracle.sol";
 import { MockStandardizedYield } from "../../../mocks/MockStandardizedYield.sol";
 import { MockPendleMarket } from "../../../mocks/MockPendleMarket.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";

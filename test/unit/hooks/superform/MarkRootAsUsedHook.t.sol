@@ -29,7 +29,7 @@ contract MarkRootAsUsedHookTest is Helpers {
 
     function test_Constructor() public view {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
-        assertEq(uint256(hook.subType()), uint256(HookSubTypes.MISC));
+        assertEq(uint256(hook.SUB_TYPE()), uint256(HookSubTypes.MISC));
     }
     
     function test_BuildABC() public view {

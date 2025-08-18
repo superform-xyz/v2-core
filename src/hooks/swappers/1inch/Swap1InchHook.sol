@@ -29,7 +29,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    I1InchAggregationRouterV6 public immutable aggregationRouter;
+    I1InchAggregationRouterV6 public immutable AGGREGATION_ROUTER;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
     uint256 private constant PRECISION = 1e5;
 
@@ -53,7 +53,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
             revert ZERO_ADDRESS();
         }
 
-        aggregationRouter = I1InchAggregationRouterV6(aggregationRouter_);
+        AGGREGATION_ROUTER = I1InchAggregationRouterV6(aggregationRouter_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -81,7 +81,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
 
         executions = new Execution[](1);
         executions[0] = Execution({
-            target: address(aggregationRouter),
+            target: address(AGGREGATION_ROUTER),
             value: usePrevHookAmount && value > 0 ? ISuperHookResult(prevHook).getOutAmount(account) : value,
             callData: usePrevHookAmount ? updatedTxData : txData_
         });

@@ -94,7 +94,7 @@ contract BridgeHooks is Helpers {
     }
 
     function test_AcrossV3_Constructor() public view {
-        assertEq(address(acrossV3hook.spokePoolV3()), mockSpokePool);
+        assertEq(address(acrossV3hook.SPOKE_POOL_V3()), mockSpokePool);
         assertEq(uint256(acrossV3hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
@@ -300,7 +300,7 @@ contract BridgeHooks is Helpers {
     }
 
     function test_DeBridge_Constructor() public view {
-        assertEq(address(deBridgehook.dlnSource()), address(this));
+        assertEq(address(deBridgehook.DLN_SOURCE()), address(this));
         assertEq(uint256(deBridgehook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
@@ -380,7 +380,7 @@ contract BridgeHooks is Helpers {
 
     // DeBridge Cancel Order Hook Tests
     function test_CancelOrderHook_Constructor() public view {
-        assertEq(address(cancelOrderHook.dlnDestination()), address(this));
+        assertEq(address(cancelOrderHook.DLN_DESTINATION()), address(this));
         assertEq(uint256(cancelOrderHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 

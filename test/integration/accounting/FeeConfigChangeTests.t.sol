@@ -60,7 +60,7 @@ contract FeeConfigChangeTests is BaseTest {
 
         underlying = CHAIN_1_USDC;
 
-        yieldSourceAddress = CHAIN_1_MorphoVault;
+        yieldSourceAddress = CHAIN_1_MORPHO_VAULT;
         vaultInstance = IERC4626(yieldSourceAddress);
 
         configSuperLedger = new SuperLedgerConfiguration();

@@ -32,7 +32,7 @@ contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
         attesters[0] = address(MANAGER);
         threshold = 1;
 
-        pendleVault = IStandardizedYield(CHAIN_1_PendleEthena);
+        pendleVault = IStandardizedYield(CHAIN_1_PENDLE_ETHENA);
         underlying = CHAIN_1_SUSDE;
     }
 

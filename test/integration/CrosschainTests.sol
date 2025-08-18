@@ -245,15 +245,15 @@ contract CrosschainTests is BaseTest {
         underlyingETH_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
         underlyingOP_USDC = existingUnderlyingTokens[OP][USDC_KEY];
         vm.label(underlyingOP_USDC, "underlyingOP_USDC");
-        underlyingOP_USDCe = existingUnderlyingTokens[OP][USDCe_KEY];
+        underlyingOP_USDCe = existingUnderlyingTokens[OP][USDCE_KEY];
         vm.label(underlyingOP_USDCe, "underlyingOP_USDCe");
 
         yieldSource7540AddressETH_USDC =
-            realVaultAddresses[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY];
+            realVaultAddresses[ETH][ERC7540_FULLY_ASYNC_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY];
         vm.label(yieldSource7540AddressETH_USDC, YIELD_SOURCE_7540_ETH_USDC_KEY);
         vaultInstance7540ETH = IERC7540(yieldSource7540AddressETH_USDC);
 
-        yieldSource4626AddressOP_USDCe = realVaultAddresses[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY];
+        yieldSource4626AddressOP_USDCe = realVaultAddresses[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCE_KEY];
         vaultInstance4626OP = IERC4626(yieldSource4626AddressOP_USDCe);
         vm.label(yieldSource4626AddressOP_USDCe, YIELD_SOURCE_4626_OP_USDCe_KEY);
 

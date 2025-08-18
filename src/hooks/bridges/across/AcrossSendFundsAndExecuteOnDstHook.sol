@@ -37,8 +37,8 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    address public immutable spokePoolV3;
-    address private immutable _validator;
+    address public immutable SPOKE_POOL_V3;
+    address private immutable VALIDATOR;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 216;
 
     struct AcrossV3DepositAndExecuteData {
@@ -63,8 +63,8 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
 
     constructor(address spokePoolV3_, address validator_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
         if (spokePoolV3_ == address(0) || validator_ == address(0)) revert ADDRESS_NOT_VALID();
-        spokePoolV3 = spokePoolV3_;
-        _validator = validator_;
+        SPOKE_POOL_V3 = spokePoolV3_;
+        VALIDATOR = validator_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -111,7 +111,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
             acrossV3DepositAndExecuteData.inputAmount = outAmount;
             if (
                 acrossV3DepositAndExecuteData.inputToken
-                    == address(IAcrossSpokePoolV3(spokePoolV3).wrappedNativeToken())
+                    == address(IAcrossSpokePoolV3(SPOKE_POOL_V3).wrappedNativeToken())
                     && acrossV3DepositAndExecuteData.value != 0
             ) {
                 acrossV3DepositAndExecuteData.value = outAmount;
@@ -127,7 +127,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
        
         // if `destinationMessage` is present append signature to it
         if (acrossV3DepositAndExecuteData.destinationMessage.length > 0) {
-            bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(account);
+            bytes memory signature = ISuperSignatureStorage(VALIDATOR).retrieveSignatureData(account);
 
             (
                 bytes memory initData,
@@ -145,7 +145,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
         // build execution
         executions = new Execution[](1);
         executions[0] = Execution({
-            target: spokePoolV3,
+            target: SPOKE_POOL_V3,
             value: acrossV3DepositAndExecuteData.value,
             callData: abi.encodeCall(
                 IAcrossSpokePoolV3.depositV3Now,

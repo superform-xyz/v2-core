@@ -61,7 +61,7 @@ contract AbstractYieldSourceOracleTest is Helpers {
     }
 
     function test_superLedgerConfiguration() public view {
-        assertEq(oracle.superLedgerConfiguration(), mockSuperLedgerConfiguration);
+        assertEq(oracle.SUPER_LEDGER_CONFIGURATION(), mockSuperLedgerConfiguration);
     }
 
     function test_decimals() public view {

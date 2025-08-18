@@ -43,8 +43,8 @@ contract AcrossV3AdapterTest is Helpers {
         new AcrossV3Adapter(address(this), address(0));
 
         AcrossV3Adapter adp = new AcrossV3Adapter(address(0x1), address(0x2));
-        assertEq(adp.acrossSpokePool(), address(0x1));
-        assertEq(address(adp.superDestinationExecutor()), address(0x2));
+        assertEq(adp.ACROSS_SPOKE_POOL(), address(0x1));
+        assertEq(address(adp.SUPER_DESTINATION_EXECUTOR()), address(0x2));
     }
 
     function test_InvalidSender() public {
@@ -106,8 +106,8 @@ contract AcrossV3AdapterTest is Helpers {
         new DebridgeAdapter(address(this), address(0));
 
         DebridgeAdapter adp = new DebridgeAdapter(address(mockDlnDestination), address(0x2));
-        assertEq(adp.externalCallAdapter(), address(this));
-        assertEq(address(adp.superDestinationExecutor()), address(0x2));
+        assertEq(adp.EXTERNAL_CALL_ADAPTER(), address(this));
+        assertEq(address(adp.SUPER_DESTINATION_EXECUTOR()), address(0x2));
 
         mockDlnDestination = new MockDlnDestination(address(0));
         vm.expectRevert(DebridgeAdapter.ADDRESS_NOT_VALID.selector);

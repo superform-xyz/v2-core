@@ -17,8 +17,8 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         uint256 amount = BytesLib.toUint256(data, 0);
-/// @notice         address YT = BytesLib.toAddress(data, 32);
-/// @notice         address PT = BytesLib.toAddress(data, 52);
+/// @notice         address yt = BytesLib.toAddress(data, 32);
+/// @notice         address pt = BytesLib.toAddress(data, 52);
 /// @notice         address tokenOut = BytesLib.toAddress(data, 72);
 /// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 92);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
@@ -26,7 +26,7 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
-    // Offset for bool usePrevHookAmount (after packed amount, YT, tokenOut, minTokenOut)
+    // Offset for bool usePrevHookAmount (after packed amount, yt, tokenOut, minTokenOut)
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 124; // 0+32+20+20+32+20
     // Offset for abi.encoded TokenOutput struct (after packed bool)
     uint256 private constant TOKEN_OUTPUT_OFFSET = 125; // USE_PREV_HOOK_AMOUNT_POSITION + 1
@@ -34,8 +34,8 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
     // Struct for decoded parameters
     struct DecodedParams {
         uint256 amountFromData;
-        address YT;
-        address PT;
+        address yt;
+        address pt;
         address tokenOut;
         uint256 minTokenOut;
         bool usePrevHookAmount;
@@ -45,7 +45,7 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    IPendleRouterV4 public immutable pendleRouterV4;
+    IPendleRouterV4 public immutable PENDLE_ROUTER_V4;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -61,7 +61,7 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
     //////////////////////////////////////////////////////////////*/
     constructor(address pendleRouterV4_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.PTYT) {
         if (pendleRouterV4_ == address(0)) revert ADDRESS_NOT_VALID();
-        pendleRouterV4 = IPendleRouterV4(pendleRouterV4_);
+        PENDLE_ROUTER_V4 = IPendleRouterV4(pendleRouterV4_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -84,20 +84,20 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
 
         executions = new Execution[](3);
         executions[0] = Execution({
-            target: params.PT,
+            target: params.pt,
             value: 0,
-            callData: abi.encodeCall(IERC20.approve, (address(pendleRouterV4), finalAmount))
+            callData: abi.encodeCall(IERC20.approve, (address(PENDLE_ROUTER_V4), finalAmount))
         });
         executions[1] = Execution({
-            target: params.YT,
+            target: params.yt,
             value: 0,
-            callData: abi.encodeCall(IERC20.approve, (address(pendleRouterV4), finalAmount))
+            callData: abi.encodeCall(IERC20.approve, (address(PENDLE_ROUTER_V4), finalAmount))
         });
         executions[2] = Execution({
-            target: address(pendleRouterV4),
+            target: address(PENDLE_ROUTER_V4),
             value: 0,
             callData: abi.encodeCall(
-                IPendleRouterV4.redeemPyToToken, (account, params.YT, finalAmount, params.output)
+                IPendleRouterV4.redeemPyToToken, (account, params.yt, finalAmount, params.output)
             )
         });
     }
@@ -115,7 +115,7 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         DecodedParams memory params = _decodeAndValidateData(data);
-        return abi.encodePacked(params.YT, params.PT, params.tokenOut);
+        return abi.encodePacked(params.yt, params.pt, params.tokenOut);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -140,14 +140,14 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
 
         // Decode fixed-size parameters using BytesLib and packed offsets
         params.amountFromData = BytesLib.toUint256(data, 0); // Offset 0, size 32
-        params.YT = BytesLib.toAddress(data, 32); // Offset 32, size 20
-        params.PT = BytesLib.toAddress(data, 52); // Offset 52, size 20
+        params.yt = BytesLib.toAddress(data, 32); // Offset 32, size 20
+        params.pt = BytesLib.toAddress(data, 52); // Offset 52, size 20
         params.tokenOut = BytesLib.toAddress(data, 72); // Offset 72, size 20
         params.minTokenOut = BytesLib.toUint256(data, 92); // Offset 92, size 32
         params.usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION); // Offset 124, size 1
 
         // Basic validation of decoded fixed params (excluding amount check for now)
-        if (params.YT == address(0)) revert YT_NOT_VALID();
+        if (params.yt == address(0)) revert YT_NOT_VALID();
         if (params.tokenOut == address(0)) revert TOKEN_OUT_NOT_VALID();
         if (params.minTokenOut == 0) revert MIN_TOKEN_OUT_NOT_VALID();
 

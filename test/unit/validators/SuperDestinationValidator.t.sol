@@ -242,6 +242,12 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
         assertTrue(isValid, "Merkle proof should be valid");
     }
 
+    function test_IsValidDestinationSignature_NotInitialized() public {
+        vm.expectRevert(ISuperValidator.NOT_INITIALIZED.selector);
+        validator.isValidDestinationSignature(address(0x1), "");
+        vm.stopPrank();
+    }
+
     function test_IsValidDestinationSignature() public {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
 

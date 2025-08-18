@@ -91,7 +91,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     // ------------ ApproveAndSwapOdosV2Hook --------------
     function test_Constructor() public view {
         assertEq(uint256(approveAndSwapOdosHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
-        assertEq(address(approveAndSwapOdosHook.odosRouterV2()), address(odosRouter));
+        assertEq(address(approveAndSwapOdosHook.ODOS_ROUTER_V2()), address(odosRouter));
     }
 
     function test_Constructor_RevertIf_AddressZero() public {
@@ -275,7 +275,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     // ------------ SwapOdosV2Hook --------------
     function test_SwapOdosHook_Constructor() public view {
         assertEq(uint256(swapOdosHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
-        assertEq(address(swapOdosHook.odosRouterV2()), address(odosRouter));
+        assertEq(address(swapOdosHook.ODOS_ROUTER_V2()), address(odosRouter));
     }
 
     function test_SwapOdosHook_Constructor_RevertIf_AddressZero() public {

@@ -5,7 +5,6 @@ import {IEntryPoint} from "@ERC4337/account-abstraction/contracts/interfaces/IEn
 import {IPaymaster} from "@ERC4337/account-abstraction/contracts/interfaces/IPaymaster.sol";
 import {UserOperationLib} from "@account-abstraction/core/UserOperationLib.sol";
 import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
-import {AccountInstance} from "modulekit/ModuleKit.sol";
 
 // Superform
 import {SuperNativePaymaster} from "../../../src/paymaster/SuperNativePaymaster.sol";

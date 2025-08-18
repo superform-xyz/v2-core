@@ -42,8 +42,8 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
         underlyingETH_sUSDe = CHAIN_1_SUSDE;
         _getTokens(underlyingETH_sUSDe, accountEth, 1e18);
 
-        yieldSource5115AddressSUSDe = CHAIN_1_PendleEthena;
-        yieldSource7540AddressUSDC = CHAIN_1_CentrifugeUSDC;
+        yieldSource5115AddressSUSDe = CHAIN_1_PENDLE_ETHENA;
+        yieldSource7540AddressUSDC = CHAIN_1_CENTRIFUGE_USDC;
         vaultInstance5115ETH = IStandardizedYield(yieldSource5115AddressSUSDe);
         vaultInstance7540ETH = IERC7540(yieldSource7540AddressUSDC);
 

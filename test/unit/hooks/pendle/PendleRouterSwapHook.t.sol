@@ -67,7 +67,7 @@ contract PendleRouterSwapHookTest is Helpers {
     }
 
     function test_Constructor() public view {
-        assertEq(address(hook.pendleRouterV4()), address(pendleRouter));
+        assertEq(address(hook.PENDLE_ROUTER_V4()), address(pendleRouter));
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 

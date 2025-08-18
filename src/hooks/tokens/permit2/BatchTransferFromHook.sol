@@ -3,7 +3,6 @@ pragma solidity 0.8.30;
 
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IPermit2 } from "../../../vendor/uniswap/permit2/IPermit2.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";

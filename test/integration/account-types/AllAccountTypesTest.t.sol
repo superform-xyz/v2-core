@@ -243,11 +243,11 @@ contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
         validator = new SuperValidator();
 
         // -- cross-chain
-        underlyingOpUsdce = existingUnderlyingTokens[OP][USDCe_KEY];
+        underlyingOpUsdce = existingUnderlyingTokens[OP][USDCE_KEY];
         underlyingETH_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
         underlyingBase_USDC = existingUnderlyingTokens[BASE][USDC_KEY];
 
-        yieldSource4626AddressOpUsdce = realVaultAddresses[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY];
+        yieldSource4626AddressOpUsdce = realVaultAddresses[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCE_KEY];
         vaultInstance4626OP = IERC4626(yieldSource4626AddressOpUsdce);
 
         yieldSourceMorphoUsdcAddressEth = realVaultAddresses[ETH][ERC4626_VAULT_KEY][EULER_VAULT_KEY][USDC_KEY];

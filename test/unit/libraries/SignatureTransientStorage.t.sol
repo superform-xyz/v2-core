@@ -4,12 +4,30 @@ pragma solidity 0.8.30;
 import { Test } from "forge-std/Test.sol";
 import { SignatureTransientStorage } from "../../../src/libraries/SignatureTransientStorage.sol";
 
+
+contract SignatureTransientStorageTestHelper {
+    function store(uint256 id, bytes calldata data) external {
+        SignatureTransientStorage.storeSignature(id, data);
+    }
+
+    function load(uint256 id) external view returns (bytes memory) {
+        return SignatureTransientStorage.loadSignature(id);
+    }
+}
+
 /**
  * @title SignatureTransientStorageTest
  * @notice Unit tests for the SignatureTransientStorage library
  */
 contract SignatureTransientStorageTest is Test {
     using SignatureTransientStorage for uint256;
+
+    SignatureTransientStorageTestHelper public helper;
+
+    function setUp() public {
+        helper = new SignatureTransientStorageTestHelper();
+        vm.label(address(helper), "SignatureTransientStorageTestHelper");
+    }
 
     // Event to verify error handling
     event ErrorCaptured(string message);
@@ -161,5 +179,48 @@ contract SignatureTransientStorageTest is Test {
         
         // Also verify full signature matches
         assertEq(keccak256(retrieved), keccak256(multiWordSignature), "Full multi-word signature mismatch");
+    }
+
+     function test_StoreAndLoadSignatureWithHelperContract() public {
+        uint256 id = 123;
+        bytes memory signature = hex"00112233445566778899aabbccddeeff";
+
+        helper.store(id, signature);
+        bytes memory loaded = helper.load(id);
+
+        assertEq(loaded, signature);
+    }
+
+    function test_StoreMultipleSignaturesFails() public {
+        uint256 id = 456;
+        bytes memory signature = hex"deadbeef";
+
+        helper.store(id, signature);
+
+        vm.expectRevert(SignatureTransientStorage.INVALID_USER_OP.selector);
+        helper.store(id, signature);
+    }
+
+    function test_StoreEmptySignature() public {
+        uint256 id = 789;
+        bytes memory empty = "";
+
+        helper.store(id, empty);
+        bytes memory loaded = helper.load(id);
+
+        assertEq(loaded.length, 0);
+    }
+
+    function test_StoreLargeSignature() public {
+        uint256 id = 999;
+        bytes memory large = new bytes(100); // 100 bytes
+        for (uint256 i = 0; i < 100; i++) {
+            large[i] = bytes1(uint8(i));
+        }
+
+        helper.store(id, large);
+        bytes memory loaded = helper.load(id);
+
+        assertEq(loaded, large);
     }
 }

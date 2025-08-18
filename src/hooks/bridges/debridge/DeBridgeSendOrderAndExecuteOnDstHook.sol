@@ -74,16 +74,16 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    address public immutable dlnSource;
-    address private immutable _validator;
+    address public immutable DLN_SOURCE;
+    address private immutable VALIDATOR;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
 
     error AMOUNT_UNDERFLOW();
 
     constructor(address dlnSource_, address validator_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
         if (dlnSource_ == address(0) || validator_ == address(0)) revert ADDRESS_NOT_VALID();
-        dlnSource = dlnSource_;
-        _validator = validator_;
+        DLN_SOURCE = dlnSource_;
+        VALIDATOR = validator_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -100,7 +100,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         override
         returns (Execution[] memory executions)
     {
-        bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(account);
+        bytes memory signature = ISuperSignatureStorage(VALIDATOR).retrieveSignatureData(account);
         (IDlnSource.OrderCreation memory orderCreation, uint256 value, bytes memory affiliateFee, uint32 referralCode) =
             _createOrder(data, signature);
 
@@ -129,7 +129,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         // build execution
         executions = new Execution[](1);
         executions[0] = Execution({
-            target: dlnSource,
+            target: DLN_SOURCE,
             value: value,
             callData: abi.encodeCall(IDlnSource.createOrder, (orderCreation, affiliateFee, referralCode, ""))
         });

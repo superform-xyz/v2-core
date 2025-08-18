@@ -48,7 +48,7 @@ contract EthenaHooksTests is Helpers {
     }
 
     function test_EthenaCooldownSharesSubHookType_Constructor() public view {
-        assertEq(cooldownSharesHook.subType(), HookSubTypes.getHookSubType("Cooldown"));
+        assertEq(cooldownSharesHook.SUB_TYPE(), HookSubTypes.getHookSubType("Cooldown"));
     }
 
     /*//////////////////////////////////////////////////////////////

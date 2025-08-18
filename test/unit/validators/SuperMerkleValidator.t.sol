@@ -114,6 +114,13 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         vm.stopPrank();
     }
 
+    function test_SourceValidator_OnInstall_RevertIf_AddressZero() public {
+        SuperValidator newValidator = new SuperValidator();
+
+        vm.expectRevert(SuperValidatorBase.ZERO_ADDRESS.selector);
+        newValidator.onInstall(abi.encode(address(0)));
+    }
+
     function test_SourceValidator_OnUninstall() public {
         vm.startPrank(account);
         validator.onUninstall("");

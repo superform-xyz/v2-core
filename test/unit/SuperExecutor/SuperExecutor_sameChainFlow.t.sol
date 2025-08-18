@@ -106,8 +106,8 @@ contract SuperExecutor_sameChainFlow is
         underlying = CHAIN_1_USDC;
         ledgerConfig = address(new SuperLedgerConfiguration());
 
-        yieldSourceAddress = CHAIN_1_MorphoVault;
-        anotherYieldSourceAddress = CHAIN_1_YearnVault;
+        yieldSourceAddress = CHAIN_1_MORPHO_VAULT;
+        anotherYieldSourceAddress = CHAIN_1_YEARN_VAULT;
         yieldSourceOracle = address(new ERC4626YieldSourceOracle(address(ledgerConfig)));
         vaultInstance = IERC4626(yieldSourceAddress);
         instance = makeAccountInstance(keccak256(abi.encode("acc1")));

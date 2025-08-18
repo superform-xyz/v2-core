@@ -93,10 +93,10 @@ contract CompositeHookFlowTests is BaseTest {
 
         hookOutflow = new TestHook(ISuperHook.HookType.OUTFLOW, bytes32(keccak256("TEST_SUBTYPE")));
 
-        yieldSource4626AddressUSDC = CHAIN_1_GearboxVault;
+        yieldSource4626AddressUSDC = CHAIN_1_GEARBOX_VAULT;
         vaultInstance4626 = IERC4626(yieldSource4626AddressUSDC);
 
-        yieldSourceStakingAddress = CHAIN_1_GearboxStaking;
+        yieldSourceStakingAddress = CHAIN_1_GEARBOX_STAKING;
         gearboxStaking = IGearboxFarmingPool(yieldSourceStakingAddress);
 
         vaultBankETH = new MockVaultBank();
