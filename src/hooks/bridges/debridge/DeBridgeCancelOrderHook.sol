@@ -69,11 +69,11 @@ contract DeBridgeCancelOrderHook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    address public immutable dlnDestination;
+    address public immutable DLN_DESTINATION;
 
     constructor(address dlnDestination_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
         if (dlnDestination_ == address(0)) revert ADDRESS_NOT_VALID();
-        dlnDestination = dlnDestination_;
+        DLN_DESTINATION = dlnDestination_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -94,7 +94,7 @@ contract DeBridgeCancelOrderHook is BaseHook {
         // build execution
         executions = new Execution[](1);
         executions[0] = Execution({
-            target: dlnDestination,
+            target: DLN_DESTINATION,
             value: value,
             callData: abi.encodeCall(IDlnDestination.sendEvmOrderCancel, (order, account, executionFee))
         });

@@ -54,7 +54,7 @@ abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, In
             : vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY));
 
         underlyingEth_USDC = CHAIN_1_USDC;
-        yieldSourceAddressEth = CHAIN_1_MorphoVault;
+        yieldSourceAddressEth = CHAIN_1_MORPHO_VAULT;
         ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration()));
 
         yieldSourceOracle = address(new ERC4626YieldSourceOracle(address(ledgerConfig)));

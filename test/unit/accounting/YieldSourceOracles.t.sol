@@ -73,7 +73,7 @@ contract YieldSourceOraclesTest is Helpers {
         erc4626 = new Mock4626Vault(address(asset), "Mock4626", "M4626");
         erc7540 = new Mock7540Vault(IERC20(address(asset)), "Mock7540", "M7540");
         erc5115 = new Mock5115Vault(IERC20(address(asset)), "Mock5115", "M5115");
-        stakingVault = IStakingVault(CHAIN_1_FluidVault);
+        stakingVault = IStakingVault(CHAIN_1_FLUID_VAULT);
         underlying = stakingVault.stakingToken();
 
         _getTokens(address(asset), address(this), 1e18);
@@ -259,10 +259,6 @@ contract YieldSourceOraclesTest is Helpers {
         assertGt(tvls[1], 0); // Staking vault should have some TVL
     }
 
-
-
-
-
     /*//////////////////////////////////////////////////////////////
                          BALANCE CHECK TESTS
     //////////////////////////////////////////////////////////////*/
@@ -402,7 +398,7 @@ contract YieldSourceOraclesTest is Helpers {
 
         // Get asset output with fees
         uint256 assetOutputWithFees = erc4626YieldSourceOracle.getAssetOutputWithFees(
-             oracleId, address(erc4626), address(asset), user, usedShares
+            oracleId, address(erc4626), address(asset), user, usedShares
         );
 
         // No profit means no fees, so output should equal base output
@@ -631,9 +627,7 @@ contract YieldSourceOraclesTest is Helpers {
         }
     }
 
-    
     function _getYieldSourceOracleId(bytes32 id, address sender) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(id, sender));
     }
-
 }

@@ -245,15 +245,15 @@ contract CrosschainTests is BaseTest {
         underlyingETH_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
         underlyingOP_USDC = existingUnderlyingTokens[OP][USDC_KEY];
         vm.label(underlyingOP_USDC, "underlyingOP_USDC");
-        underlyingOP_USDCe = existingUnderlyingTokens[OP][USDCe_KEY];
+        underlyingOP_USDCe = existingUnderlyingTokens[OP][USDCE_KEY];
         vm.label(underlyingOP_USDCe, "underlyingOP_USDCe");
 
         yieldSource7540AddressETH_USDC =
-            realVaultAddresses[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY];
+            realVaultAddresses[ETH][ERC7540_FULLY_ASYNC_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY];
         vm.label(yieldSource7540AddressETH_USDC, YIELD_SOURCE_7540_ETH_USDC_KEY);
         vaultInstance7540ETH = IERC7540(yieldSource7540AddressETH_USDC);
 
-        yieldSource4626AddressOP_USDCe = realVaultAddresses[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY];
+        yieldSource4626AddressOP_USDCe = realVaultAddresses[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCE_KEY];
         vaultInstance4626OP = IERC4626(yieldSource4626AddressOP_USDCe);
         vm.label(yieldSource4626AddressOP_USDCe, YIELD_SOURCE_4626_OP_USDCe_KEY);
 
@@ -2018,7 +2018,6 @@ contract CrosschainTests is BaseTest {
         // tokens should have been sent to the acount even when merkle root was marked as used
         assertEq(tokensAmountAfterBridgeMessage, params.amount);
     }
-
 
     function test_DOS_ProcessBridgedExecution_WithInvalidSignatures() public {
         BridgeDeposit4626UsedRootParams memory params;
@@ -5361,19 +5360,27 @@ contract CrosschainTests is BaseTest {
         );
     }
 
-    function _createFakeSignatureData(bytes32 fakeRoot, uint256 seed, uint64 dstChain) internal view returns (bytes memory) {
+    function _createFakeSignatureData(
+        bytes32 fakeRoot,
+        uint256 seed,
+        uint64 dstChain
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         bytes32 r = bytes32(uint256(keccak256(abi.encode("r", seed))));
         bytes32 s = bytes32(uint256(keccak256(abi.encode("s", seed))));
         uint8 v = uint8(27 + (seed % 2)); // Either 27 or 28
-        
+
         bytes memory signature = abi.encodePacked(r, s, v);
-        
+
         uint64[] memory chainsWithDestExecutionCtx = new uint64[](1);
         chainsWithDestExecutionCtx[0] = dstChain;
         return abi.encode(
-            chainsWithDestExecutionCtx, 
+            chainsWithDestExecutionCtx,
             uint48(block.timestamp + 1 days), // validUntil
             fakeRoot,
             emptyProof,
@@ -5381,5 +5388,4 @@ contract CrosschainTests is BaseTest {
             signature
         );
     }
-
 }

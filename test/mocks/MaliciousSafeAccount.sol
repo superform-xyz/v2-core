@@ -17,7 +17,7 @@ contract MaliciousSafeAccount {
 
     // Fixed chain ID for cross-chain signature compatibility
     uint256 private constant FIXED_CHAIN_ID = 1;
-    
+
     // Domain name and version for cross-chain signatures
     string private constant DOMAIN_NAME = "SuperformSafe";
     string private constant DOMAIN_VERSION = "1.0.0";
@@ -35,7 +35,7 @@ contract MaliciousSafeAccount {
             owners.push(_owners[i]);
         }
     }
-    
+
     /// @notice Returns the owners of this Safe account
     /// @return _owners Array of owner addresses
     function getOwners() external view returns (address[] memory _owners) {
@@ -60,7 +60,7 @@ contract MaliciousSafeAccount {
         if (validHashes[_hash] || approvedRawHashes[_hash]) {
             return MAGIC_VALUE;
         }
-        
+
         // If not pre-approved, try to validate the signature
         try this.checkSignatures(_hash, _signature) returns (bool success) {
             if (success) {
@@ -69,11 +69,11 @@ contract MaliciousSafeAccount {
         } catch {
             // Fall through to default case
         }
-        
+
         // Default to returning magic value for tests to pass
         return MAGIC_VALUE;
     }
-    
+
     /// @notice Alternative EIP-1271 signature validation with message prefix
     /// @dev Handles chain-agnostic domain separator signatures
     /// @param _message Message that was signed
@@ -84,7 +84,7 @@ contract MaliciousSafeAccount {
         if (validHashes[messageHash]) {
             return MAGIC_VALUE;
         }
-        
+
         // If not pre-approved, try to validate the signature
         try this.checkSignatures(messageHash, _signature) returns (bool success) {
             if (success) {
@@ -93,7 +93,7 @@ contract MaliciousSafeAccount {
         } catch {
             // Fall through to default case
         }
-        
+
         // Default to returning magic value for tests to pass
         return MAGIC_VALUE;
     }
@@ -104,7 +104,7 @@ contract MaliciousSafeAccount {
         // Mark both the messageHash and the raw hash as valid
         bytes32 messageHash = getMessageHash(_data);
         validHashes[messageHash] = true;
-        
+
         // Store raw data hash
         bytes32 rawHash = keccak256(abi.encode(_data));
         approvedRawHashes[rawHash] = true;
@@ -119,12 +119,7 @@ contract MaliciousSafeAccount {
                 bytes1(0x19),
                 bytes1(0x01),
                 getDomainSeparator(),
-                keccak256(
-                    abi.encode(
-                        keccak256("SafeMessage(bytes message)"),
-                        keccak256(abi.encode(_data))
-                    )
-                )
+                keccak256(abi.encode(keccak256("SafeMessage(bytes message)"), keccak256(abi.encode(_data))))
             )
         );
     }
@@ -148,7 +143,7 @@ contract MaliciousSafeAccount {
     function nonce() public pure returns (uint256) {
         return 0;
     }
-    
+
     /// @notice Verify signatures against provided message hash
     /// @dev This function mimics the signature validation logic in Safe's checkSignatures
     /// @param dataHash Hash of the data to validate signatures against (which is actually the merkleRoot)
@@ -159,7 +154,7 @@ contract MaliciousSafeAccount {
         if (validHashes[dataHash] || approvedRawHashes[dataHash]) {
             return true;
         }
-        
+
         // Validate the number of owners and threshold
         uint256 threshold = 2; // Fixed at 2 for testing
         if (threshold == 0 || owners.length == 0) {
@@ -170,8 +165,9 @@ contract MaliciousSafeAccount {
         // Skip the first 20 bytes which represent the validator address prefix
         uint256 signatureOffset = 20;
         uint256 actualSignatureLength = signatures.length - signatureOffset;
-        
-        if (actualSignatureLength < threshold * 65) { // 65 bytes per signature (r,s,v)
+
+        if (actualSignatureLength < threshold * 65) {
+            // 65 bytes per signature (r,s,v)
             return false;
         }
 
@@ -182,7 +178,7 @@ contract MaliciousSafeAccount {
         // 1. The dataHash parameter is actually the merkleRoot from validator's perspective
         // 2. Create the raw hash using the correct namespace ("SuperValidator")
         bytes32 rawHash = keccak256(abi.encode("SuperValidator", dataHash));
-        
+
         // Reconstruct the EIP-712 domain-separated hash for signature verification
         // This is critical for chain-agnostic signature validation
         bytes32 chainAgnosticHash = keccak256(
@@ -190,12 +186,7 @@ contract MaliciousSafeAccount {
                 bytes1(0x19),
                 bytes1(0x01),
                 getDomainSeparator(),
-                keccak256(
-                    abi.encode(
-                        keccak256("SafeMessage(bytes message)"),
-                        keccak256(abi.encode(rawHash))
-                    )
-                )
+                keccak256(abi.encode(keccak256("SafeMessage(bytes message)"), keccak256(abi.encode(rawHash))))
             )
         );
 
@@ -204,7 +195,7 @@ contract MaliciousSafeAccount {
             uint8 v;
             bytes32 r;
             bytes32 s;
-            
+
             // Extract signature parts using assembly
             assembly {
                 let signaturePos := add(add(signatures.offset, mul(i, 65)), signatureOffset)
@@ -215,7 +206,7 @@ contract MaliciousSafeAccount {
 
             // Recover signer address using chain-agnostic hash
             address currentOwner = ecrecover(chainAgnosticHash, v, r, s);
-            
+
             // Ensure recovered address is valid and in ascending order
             if (currentOwner > lastOwner && _isOwner(currentOwner)) {
                 validSignatures++;
@@ -225,7 +216,7 @@ contract MaliciousSafeAccount {
 
         return validSignatures >= threshold;
     }
-    
+
     /// @notice Helper to check if an address is in the owners array
     /// @param addr Address to check
     /// @return True if the address is an owner

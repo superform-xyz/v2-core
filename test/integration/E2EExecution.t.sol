@@ -133,7 +133,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     function test_feeBypassMaliciousHook() public {
         uint256 amount = 10_000e6;
         address underlyingToken = CHAIN_1_USDC;
-        address morphoVault = CHAIN_1_MorphoVault;
+        address morphoVault = CHAIN_1_MORPHO_VAULT;
 
         MaliciousHookBypassFees maliciousHookBypassFees = new MaliciousHookBypassFees();
 
@@ -815,7 +815,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     function test_Deposit_To_Morpho_And_TransferShares(uint256 amount) public {
         amount = _bound(amount);
         address underlyingToken = CHAIN_1_USDC;
-        address morphoVault = CHAIN_1_MorphoVault;
+        address morphoVault = CHAIN_1_MORPHO_VAULT;
 
         // create account
         address nexusAccount = _createWithNexus(attesters, threshold, 1e18);
@@ -863,7 +863,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     function testOrion_feesCauseChainedOperationFailures() public {
         uint256 amount = 100e6;
         address underlyingToken = CHAIN_1_USDC;
-        address morphoVault = CHAIN_1_MorphoVault;
+        address morphoVault = CHAIN_1_MORPHO_VAULT;
 
         // 1. Create account
         address nexusAccount = _createWithNexus(attesters, threshold, 1e18);
@@ -982,10 +982,10 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         hooksAddresses[2] = redeem4626Hook;
 
         bytes[] memory hooksData = new bytes[](3);
-        hooksData[0] = _createApproveHookData(underlyingToken, CHAIN_1_EulerVault, amount, false);
+        hooksData[0] = _createApproveHookData(underlyingToken, CHAIN_1_EULER_VAULT, amount, false);
         hooksData[1] = _createDeposit4626HookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
-            CHAIN_1_EulerVault,
+            CHAIN_1_EULER_VAULT,
             amount,
             false,
             address(0),
@@ -993,9 +993,9 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         );
         hooksData[2] = _createRedeem4626HookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
-            CHAIN_1_EulerVault,
+            CHAIN_1_EULER_VAULT,
             nexusAccount,
-            IERC4626(CHAIN_1_EulerVault).convertToShares(amount),
+            IERC4626(CHAIN_1_EULER_VAULT).convertToShares(amount),
             false
         );
 
@@ -1022,7 +1022,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
         uint256 amount = 100e6;
         address underlyingToken = CHAIN_1_USDC;
-        address morphoVault = CHAIN_1_MorphoVault;
+        address morphoVault = CHAIN_1_MORPHO_VAULT;
 
         // Create account
         address nexusAccount = _createWithNexus(attesters, threshold, 1e18);
@@ -1064,7 +1064,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
         uint256 amount = 100e6;
         address underlyingToken = CHAIN_1_USDC;
-        address morphoVault = CHAIN_1_MorphoVault;
+        address morphoVault = CHAIN_1_MORPHO_VAULT;
 
         // Create legitimate account
         address nexusAccount = _createWithNexus(attesters, threshold, 1e18);
@@ -1116,7 +1116,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
         uint256 amount = 100e6;
         address underlyingToken = CHAIN_1_USDC;
-        address morphoVault = CHAIN_1_MorphoVault;
+        address morphoVault = CHAIN_1_MORPHO_VAULT;
 
         // Create legitimate account
         address nexusAccount = _createWithNexus(attesters, threshold, 1e18);
@@ -1164,7 +1164,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     function test_feeBypassByResettingExecution() public {
         uint256 amount = 10_000e6;
         address underlyingToken = CHAIN_1_USDC;
-        address morphoVault = CHAIN_1_MorphoVault;
+        address morphoVault = CHAIN_1_MORPHO_VAULT;
 
         MaliciousHookResetExecution maliciousHookResetExecution = new MaliciousHookResetExecution();
 

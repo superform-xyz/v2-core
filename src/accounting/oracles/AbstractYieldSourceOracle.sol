@@ -18,7 +18,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Immutable address of the SuperLedgerConfiguration contract
-    address public immutable superLedgerConfiguration;
+    address public immutable SUPER_LEDGER_CONFIGURATION;
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
@@ -27,7 +27,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
     /// @notice Constructor to set the SuperLedgerConfiguration address
     /// @param superLedgerConfiguration_ Address of the SuperLedgerConfiguration contract
     constructor(address superLedgerConfiguration_) {
-        superLedgerConfiguration = superLedgerConfiguration_;
+        SUPER_LEDGER_CONFIGURATION = superLedgerConfiguration_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -91,7 +91,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         // Get base asset output without fees
         uint256 assetOutput = getAssetOutput(yieldSourceAddress, assetOut, usedShares);
 
-        try ISuperLedgerConfiguration(superLedgerConfiguration).getYieldSourceOracleConfig(yieldSourceOracleId)
+        try ISuperLedgerConfiguration(SUPER_LEDGER_CONFIGURATION).getYieldSourceOracleConfig(yieldSourceOracleId)
         returns (ISuperLedgerConfiguration.YieldSourceOracleConfig memory config) {
             // Configuration found, calculate fees if applicable
             if (config.feePercent > 0 && config.ledger != address(0)) {
@@ -177,7 +177,4 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
             tvls[i] = getTVL(yieldSourceAddresses[i]);
         }
     }
-
-   
-
 }

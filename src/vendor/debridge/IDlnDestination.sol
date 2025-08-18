@@ -60,7 +60,8 @@ interface IDlnDestination {
 
     /// @dev Send cancel order in [`Order::give::chain_id`]
     ///
-    /// If the order was not filled or canceled earlier, [`Order::order_authority_address_dst`] can cancel it and get back the give part in [`Order::give::chain_id`] chain
+    /// If the order was not filled or canceled earlier, [`Order::order_authority_address_dst`] can cancel it and get
+    /// back the give part in [`Order::give::chain_id`] chain
     /// In the receive chain, the [`dln::source::claim_order_cancel`] will be called
     ///
     /// @param _order Full order for patch
@@ -74,5 +75,7 @@ interface IDlnDestination {
         Order memory _order,
         address _cancelBeneficiary,
         uint256 _executionFee
-    ) external payable;
+    )
+        external
+        payable;
 }

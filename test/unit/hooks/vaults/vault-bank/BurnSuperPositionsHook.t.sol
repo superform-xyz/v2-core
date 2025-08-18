@@ -70,14 +70,12 @@ contract BurnSuperPositionsHookTest is Helpers {
         // Check third execution - burnSuperPosition
         assertEq(executions[3].target, vaultBank, "C");
         assertEq(executions[3].value, 0, "C1");
-        expectedCallData = abi.encodeCall(
-            IVaultBank.burnSuperPosition,
-            (amount, spToken, uint64(dstChainId), yieldSourceOracleId)
-        );
+        expectedCallData =
+            abi.encodeCall(IVaultBank.burnSuperPosition, (amount, spToken, uint64(dstChainId), yieldSourceOracleId));
         assertEq(executions[3].callData, expectedCallData);
 
         // Check fourth execution - reset approval
-        assertEq(executions[4].target, spToken, "D"); 
+        assertEq(executions[4].target, spToken, "D");
         assertEq(executions[4].value, 0, "E");
         expectedCallData = abi.encodeCall(IERC20.approve, (vaultBank, 0));
         assertEq(executions[4].callData, expectedCallData, "F");
@@ -86,24 +84,23 @@ contract BurnSuperPositionsHookTest is Helpers {
     function test_Build_WithUsePrevHook() public {
         uint256 prevHookAmount = 2000;
         MockLockableHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
-        
+
         bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, true, vaultBank, dstChainId);
         Execution[] memory executions = burnSuperPositionsHook.build(mockPrevHook, address(this), data);
 
         assertEq(executions.length, 6);
-        
+
         // Check second execution to verify it uses prevHook amount instead of encoded amount
         assertEq(executions[2].target, spToken);
         assertEq(executions[2].value, 0);
         bytes memory expectedCallData = abi.encodeCall(IERC20.approve, (vaultBank, prevHookAmount));
         assertEq(executions[2].callData, expectedCallData);
-        
+
         // Check third execution - burnSuperPosition with prevHook amount
         assertEq(executions[3].target, vaultBank);
         assertEq(executions[3].value, 0);
         expectedCallData = abi.encodeCall(
-            IVaultBank.burnSuperPosition,
-            (prevHookAmount, spToken, uint64(dstChainId), yieldSourceOracleId)
+            IVaultBank.burnSuperPosition, (prevHookAmount, spToken, uint64(dstChainId), yieldSourceOracleId)
         );
         assertEq(executions[3].callData, expectedCallData);
     }
@@ -175,11 +172,13 @@ contract BurnSuperPositionsHookTest is Helpers {
     }
 
     function test_DecodeUsePrevHookAmount() public view {
-        bytes memory dataWithUsePrev = abi.encodePacked(yieldSourceOracleId, spToken, amount, true, vaultBank, dstChainId);
+        bytes memory dataWithUsePrev =
+            abi.encodePacked(yieldSourceOracleId, spToken, amount, true, vaultBank, dstChainId);
         bool usePrev = burnSuperPositionsHook.decodeUsePrevHookAmount(dataWithUsePrev);
         assertTrue(usePrev);
 
-        bytes memory dataWithoutUsePrev = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
+        bytes memory dataWithoutUsePrev =
+            abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
         usePrev = burnSuperPositionsHook.decodeUsePrevHookAmount(dataWithoutUsePrev);
         assertFalse(usePrev);
     }
@@ -187,12 +186,10 @@ contract BurnSuperPositionsHookTest is Helpers {
     function test_Inspect() public view {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
         bytes memory inspectResult = burnSuperPositionsHook.inspect(data);
-        
+
         // The inspect function should return spToken and vaultBank addresses
         assertEq(
-            inspectResult,
-            abi.encodePacked(spToken, vaultBank),
-            "Inspect should return spToken and vaultBank addresses"
+            inspectResult, abi.encodePacked(spToken, vaultBank), "Inspect should return spToken and vaultBank addresses"
         );
     }
 }

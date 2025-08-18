@@ -31,7 +31,7 @@ contract Redeem5115VaultBugTest is MinimalBaseIntegrationTest {
         underlyingETH_sUSDe = CHAIN_1_SUSDE;
         _getTokens(underlyingETH_sUSDe, accountEth, 1e18);
 
-        yieldSource5115AddressSUSDe = CHAIN_1_PendleEthena;
+        yieldSource5115AddressSUSDe = CHAIN_1_PENDLE_ETHENA;
 
         vaultInstance5115ETH = IStandardizedYield(yieldSource5115AddressSUSDe);
         address shareToken = address(vaultInstance5115ETH);

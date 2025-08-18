@@ -73,7 +73,6 @@ contract SpectraPTYieldSourceOracle is AbstractYieldSourceOracle {
         return IPrincipalToken(ptAddress).totalAssets();
     }
 
-
     function _decimals(address ptAddress) internal view returns (uint8) {
         return IERC20Metadata(ptAddress).decimals();
     }

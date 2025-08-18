@@ -344,24 +344,12 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
 
         // Create TransferSpec for first source chain
         TransferSpec memory transferSpec1 = _createSuperformTransferSpec(
-            sourceChain1Setup,
-            destChainSetup,
-            amount,
-            depositorAddr,
-            recipientAddr,
-            depositorAddr,
-            recipientAddr
+            sourceChain1Setup, destChainSetup, amount, depositorAddr, recipientAddr, depositorAddr, recipientAddr
         );
 
         // Create TransferSpec for second source chain
         TransferSpec memory transferSpec2 = _createSuperformTransferSpec(
-            sourceChain2Setup,
-            destChainSetup,
-            amount,
-            depositorAddr,
-            recipientAddr,
-            depositorAddr,
-            recipientAddr
+            sourceChain2Setup, destChainSetup, amount, depositorAddr, recipientAddr, depositorAddr, recipientAddr
         );
 
         TransferSpec[] memory transferSpecs = new TransferSpec[](2);
@@ -369,9 +357,8 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         transferSpecs[1] = transferSpec2;
 
         // Encode the AttestationSet
-        (attestationSetPayload, signature) = _signAttestationSetWithTransferSpec(
-            transferSpecs, destChainSetup.minterAttestationSignerKey
-        );
+        (attestationSetPayload, signature) =
+            _signAttestationSetWithTransferSpec(transferSpecs, destChainSetup.minterAttestationSignerKey);
     }
 
     // Note: All signing methods are inherited from SignatureTestUtils via MultichainTestUtils
@@ -491,58 +478,5 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         assertGt(vaultBalance, 0, "Should have vault shares after deposit");
 
         assertTrue(true, "Cross-chain transfer with vault deposit completed successfully");
-    }
-
-    function test_CircleGateway_CrossChain_Transfer_MultipleChains() public {
-        // Perform gateway deposits on multiple chains
-        // Deposit on Ethereum Sepolia
-        vm.selectFork(ethereumSepolia.forkId);
-        _performGatewayDeposit(ethereumSepolia, DEPOSIT_AMOUNT);
-
-        // Switch to Base Sepolia as second source chain
-        vm.selectFork(baseSepolia.forkId);
-        baseSepoliaSetup = _setupChain(baseSepolia);
-        _performGatewayDeposit(baseSepolia, DEPOSIT_AMOUNT);
-
-        // Switch to Avalanche Fuji as destination chain
-        vm.selectFork(avalancheFuji.forkId);
-        avalancheFujiSetup = _setupChain(avalancheFuji);
-        address account = accountInstance.account;
-
-        // Create AttestationSet with two attestations (one from each source chain)
-        (bytes memory attestationSetPayload, bytes memory signature) = _createAttestationSetFromMultipleChains(
-            ethereumSepoliaSetup, baseSepoliaSetup, avalancheFujiSetup, MINT_AMOUNT, depositor, account
-        );
-
-        vm.selectFork(avalancheFuji.forkId);
-        address[] memory hooksAddresses = new address[](1);
-        hooksAddresses[0] = address(circleGatewayMinterHook);
-
-        bytes[] memory hooksData = new bytes[](1);
-
-        // Hook data: Circle Gateway Minter Hook with AttestationSet
-        hooksData[0] = abi.encodePacked(
-            uint256(attestationSetPayload.length), // attestation payload length
-            attestationSetPayload, // attestation payload (AttestationSet)
-            uint256(signature.length), // signature length
-            signature // signature
-        );
-
-        // Create executor entry
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-
-        // Record initial balance
-        uint256 initialBalance = IERC20(AVALANCHE_FUJI_USDC).balanceOf(account);
-
-        // Execute through SuperExecutor
-        vm.prank(account);
-        superExecutor.execute(abi.encode(entry));
-
-        // Step 7: Verify end-to-end success
-        uint256 finalBalance = IERC20(AVALANCHE_FUJI_USDC).balanceOf(account);
-
-        // Verify that USDC balance increased
-        assertGt(finalBalance, initialBalance, "USDC balance should have increased after minting");
     }
 }

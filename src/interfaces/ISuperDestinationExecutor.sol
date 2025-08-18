@@ -115,7 +115,7 @@ interface ISuperDestinationExecutor {
         bytes memory userSignatureData
     )
         external;
-    
+
     /// @notice Marks a list of merkle roots as used by the account
     /// @dev Used to prevent replay attacks in cross-chain message verification
     ///      Each valid merkle root should only be usable once per user account

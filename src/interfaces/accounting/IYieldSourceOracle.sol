@@ -115,10 +115,6 @@ interface IYieldSourceOracle {
     /// @return tvl The total value locked in the yield source, in underlying asset terms
     function getTVL(address yieldSourceAddress) external view returns (uint256);
 
-
-
-
-
     /// @notice Batch version of getPricePerShare for multiple yield sources
     /// @dev Efficiently retrieves current prices for multiple yield sources
     /// @param yieldSourceAddresses Array of yield-bearing token addresses

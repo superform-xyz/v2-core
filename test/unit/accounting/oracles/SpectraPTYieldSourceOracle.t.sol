@@ -5,7 +5,6 @@ import { InternalHelpers } from "../../../utils/InternalHelpers.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
 
 import { SpectraPTYieldSourceOracle } from "../../../../src/accounting/oracles/SpectraPTYieldSourceOracle.sol";
-import { IYieldSourceOracle } from "../../../../src/interfaces/accounting/IYieldSourceOracle.sol";
 import { MockSpectraPrincipalToken } from "../../../mocks/MockSpectraPrincipalToken.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { SuperLedgerConfiguration } from "../../../../src/accounting/SuperLedgerConfiguration.sol";

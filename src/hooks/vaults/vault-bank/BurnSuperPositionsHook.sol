@@ -36,7 +36,7 @@ contract BurnSuperPositionsHook is BaseHook, VaultBankLockableHook, ISuperHookIn
 
     uint256 private constant AMOUNT_POSITION = 52;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 84;
-    
+
     error ID_NOT_VALID();
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.VAULT_BANK) { }
@@ -79,8 +79,11 @@ contract BurnSuperPositionsHook is BaseHook, VaultBankLockableHook, ISuperHookIn
         executions = new Execution[](4);
         executions[0] =
             Execution({ target: superPosition, value: 0, callData: abi.encodeCall(IERC20.approve, (vaultBank, 0)) });
-        executions[1] =
-            Execution({ target: superPosition, value: 0, callData: abi.encodeCall(IERC20.approve, (vaultBank, amount)) });
+        executions[1] = Execution({
+            target: superPosition,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (vaultBank, amount))
+        });
         executions[2] = Execution({
             target: vaultBank,
             value: 0,

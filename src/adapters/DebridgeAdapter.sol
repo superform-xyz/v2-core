@@ -20,8 +20,8 @@ contract DebridgeAdapter is IExternalCallExecutor {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    ISuperDestinationExecutor public immutable superDestinationExecutor;
-    address public immutable externalCallAdapter;
+    ISuperDestinationExecutor public immutable SUPER_DESTINATION_EXECUTOR;
+    address public immutable EXTERNAL_CALL_ADAPTER;
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -34,16 +34,16 @@ contract DebridgeAdapter is IExternalCallExecutor {
         if (superDestinationExecutor_ == address(0) || dlnDestination == address(0)) {
             revert ADDRESS_NOT_VALID();
         }
-        superDestinationExecutor = ISuperDestinationExecutor(superDestinationExecutor_);
+        SUPER_DESTINATION_EXECUTOR = ISuperDestinationExecutor(superDestinationExecutor_);
         address _externalCallAdapter = IDlnDestination(dlnDestination).externalCallAdapter();
         if (_externalCallAdapter == address(0)) {
             revert ADDRESS_NOT_VALID();
         }
-        externalCallAdapter = _externalCallAdapter;
+        EXTERNAL_CALL_ADAPTER = _externalCallAdapter;
     }
 
     modifier onlyExternalCallAdapter() {
-        if (msg.sender != externalCallAdapter) revert ONLY_EXTERNAL_CALL_ADAPTER();
+        if (msg.sender != EXTERNAL_CALL_ADAPTER) revert ONLY_EXTERNAL_CALL_ADAPTER();
         _;
     }
 
@@ -131,7 +131,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
         private
     {
         // Call the core executor's standardized function
-        superDestinationExecutor.processBridgedExecution(
+        SUPER_DESTINATION_EXECUTOR.processBridgedExecution(
             tokenSent,
             account,
             dstTokens,

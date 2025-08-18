@@ -87,10 +87,10 @@ contract VaultFeeTests is BaseTest {
         _getTokens(underlyingETH_USDC, accountEth, 1e16);
         _getTokens(underlyingETH_sUSDe, accountEth, 1e16);
 
-        yieldSource4626AddressUSDC = CHAIN_1_MorphoVault;
+        yieldSource4626AddressUSDC = CHAIN_1_MORPHO_VAULT;
         vaultInstance4626 = IERC4626(yieldSource4626AddressUSDC);
 
-        yieldSource7540AddressUSDC = CHAIN_1_CentrifugeUSDC;
+        yieldSource7540AddressUSDC = CHAIN_1_CENTRIFUGE_USDC;
         vaultInstance7540 = IERC7540(yieldSource7540AddressUSDC);
 
         rootManager = 0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC;
@@ -113,7 +113,7 @@ contract VaultFeeTests is BaseTest {
         assetId = poolManager.assetToId(underlyingETH_USDC);
         assertEq(assetId, uint128(242_333_941_209_166_991_950_178_742_833_476_896_417));
 
-        yieldSource5115AddressSUSDe = CHAIN_1_PendleEthena;
+        yieldSource5115AddressSUSDe = CHAIN_1_PENDLE_ETHENA;
         vaultInstance5115ETH = IStandardizedYield(yieldSource5115AddressSUSDe);
 
         config = new SuperLedgerConfiguration();

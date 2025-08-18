@@ -13,11 +13,7 @@ import "forge-std/Test.sol";
 import "forge-std/Vm.sol";
 
 // Circle Gateway
-import {
-    AttestationLib,
-    Attestation,
-    AttestationSet
-} from "evm-gateway/lib/AttestationLib.sol";
+import { AttestationLib, Attestation, AttestationSet } from "evm-gateway/lib/AttestationLib.sol";
 import { TransferSpecLib, TransferSpec } from "evm-gateway/lib/TransferSpecLib.sol";
 
 // Superform

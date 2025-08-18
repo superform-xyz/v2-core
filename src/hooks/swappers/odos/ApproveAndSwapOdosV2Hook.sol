@@ -27,7 +27,7 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @notice         address executor = BytesLib.toAddress(data, 189 + pathDefinition_paramLength);
 /// @notice         uint32 referralCode = BytesLib.toUint32(data, 189 + pathDefinition_paramLength + 20);
 contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware {
-    IOdosRouterV2 public immutable odosRouterV2;
+    IOdosRouterV2 public immutable ODOS_ROUTER_V2;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
 
@@ -42,7 +42,7 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware {
 
     constructor(address _routerV2) BaseHook(HookType.NONACCOUNTING, HookSubTypes.SWAP) {
         if (_routerV2 == address(0)) revert ADDRESS_NOT_VALID();
-        odosRouterV2 = IOdosRouterV2(_routerV2);
+        ODOS_ROUTER_V2 = IOdosRouterV2(_routerV2);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -73,7 +73,7 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware {
             params.inputAmount = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
-        params.approveSpender = address(odosRouterV2);
+        params.approveSpender = address(ODOS_ROUTER_V2);
 
         executions = new Execution[](4);
         executions[0] = Execution({
@@ -89,7 +89,7 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware {
         });
 
         executions[2] = Execution({
-            target: address(odosRouterV2),
+            target: address(ODOS_ROUTER_V2),
             value: 0,
             callData: abi.encodeCall(
                 IOdosRouterV2.swap,
@@ -122,7 +122,7 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware {
             BytesLib.toAddress(data, 0), //inputToken
             BytesLib.toAddress(data, 52), //inputReceiver
             BytesLib.toAddress(data, 72), //outputToken
-            address(odosRouterV2), //spender
+            address(ODOS_ROUTER_V2), //spender
             executor
         );
     }

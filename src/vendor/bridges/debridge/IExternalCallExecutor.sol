@@ -15,7 +15,11 @@ interface IExternalCallExecutor {
      * @return callSucceeded A boolean indicating whether the call was successful.
      * @return callResult The data returned from the call.
      */
-    function onEtherReceived(bytes32 _orderId, address _fallbackAddress, bytes memory _payload)
+    function onEtherReceived(
+        bytes32 _orderId,
+        address _fallbackAddress,
+        bytes memory _payload
+    )
         external
         payable
         returns (bool callSucceeded, bytes memory callResult);
@@ -41,5 +45,7 @@ interface IExternalCallExecutor {
         uint256 _transferredAmount,
         address _fallbackAddress,
         bytes memory _payload
-    ) external returns (bool callSucceeded, bytes memory callResult);
+    )
+        external
+        returns (bool callSucceeded, bytes memory callResult);
 }

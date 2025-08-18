@@ -38,7 +38,10 @@ interface IOkxSwapRouter {
         uint256[] calldata batchesAmount,
         RouterPath[][] calldata batches,
         PMMLib.PMMSwapRequest[] calldata extraData
-    ) external payable returns (uint256 returnAmount);
+    )
+        external
+        payable
+        returns (uint256 returnAmount);
 
     /// @notice Executes a swap using the Uniswap V3 protocol.
     /// @param receiver The address that will receive the swap funds.
@@ -49,7 +52,12 @@ interface IOkxSwapRouter {
     /// @return returnAmount The amount of tokens received after the completion of the swap.
     /// @dev This function wraps and unwraps ETH as required, ensuring the transaction only accepts non-zero `msg.value`
     /// for ETH swaps. It invokes `_uniswapV3Swap` to execute the actual swap and handles commission post-swap.
-    function uniswapV3SwapTo(uint256 receiver, uint256 amount, uint256 minReturn, uint256[] calldata pools)
+    function uniswapV3SwapTo(
+        uint256 receiver,
+        uint256 amount,
+        uint256 minReturn,
+        uint256[] calldata pools
+    )
         external
         payable
         returns (uint256 returnAmount);

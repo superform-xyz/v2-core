@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
-import {IEntryPoint} from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import {IStakeManager} from "@ERC4337/account-abstraction/contracts/interfaces/IStakeManager.sol";
-import {UserOperationLib} from "../../src/vendor/account-abstraction/UserOperationLib.sol";
-import {IEntryPointSimulations} from "modulekit/external/ERC4337.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
+import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import { IStakeManager } from "@ERC4337/account-abstraction/contracts/interfaces/IStakeManager.sol";
+import { UserOperationLib } from "../../src/vendor/account-abstraction/UserOperationLib.sol";
+import { IEntryPointSimulations } from "modulekit/external/ERC4337.sol";
 
 import "forge-std/console2.sol";
 
@@ -61,12 +61,12 @@ contract MockEntryPoint {
     IEntryPointSimulations.ExecutionResult private simulationResult;
     bool public validationReturnValue;
 
-    fallback() external virtual payable {
+    fallback() external payable virtual {
         depositAmount += msg.value;
         deposits[msg.sender].deposit += uint112(msg.value);
     }
 
-    receive() external virtual payable {
+    receive() external payable virtual {
         depositAmount += msg.value;
         deposits[msg.sender].deposit += uint112(msg.value);
     }
@@ -91,7 +91,7 @@ contract MockEntryPoint {
         withdrawAmount = amount;
         info.deposit -= uint112(amount);
 
-        (bool success,) = withdrawAddress_.call{value: amount}("");
+        (bool success,) = withdrawAddress_.call{ value: amount }("");
         require(success, "Failed to withdraw");
     }
 
@@ -130,7 +130,7 @@ contract MockEntryPoint {
 
         // Pay the beneficiary
         if (beneficiary != address(0)) {
-            (bool success,) = beneficiary.call{value: 0.01 ether}("");
+            (bool success,) = beneficiary.call{ value: 0.01 ether }("");
             require(success, "Failed to pay beneficiary");
         }
     }
@@ -139,12 +139,16 @@ contract MockEntryPoint {
         PackedUserOperation calldata op,
         address target,
         bytes calldata callData
-    ) external payable returns (IEntryPointSimulations.ExecutionResult memory result) {
+    )
+        external
+        payable
+        returns (IEntryPointSimulations.ExecutionResult memory result)
+    {
         // Track the call parameters
         lastOpHash = op.hash();
         lastSimulationTarget = target;
         lastSimulationCallData = callData;
-        
+
         // Return the predefined simulation result
         return simulationResult;
     }
@@ -153,7 +157,11 @@ contract MockEntryPoint {
         simulationResult = result;
     }
 
-    function simulateValidation(PackedUserOperation calldata userOp) external view returns (IEntryPointSimulations.ValidationResult memory) {
+    function simulateValidation(PackedUserOperation calldata userOp)
+        external
+        view
+        returns (IEntryPointSimulations.ValidationResult memory)
+    {
         uint256 preOpGas = PAYMASTER_VALIDATION_GAS + SIG_VALIDATION_GAS;
         uint256 prefund = _getRequiredPrefund(userOp);
 
@@ -165,10 +173,13 @@ contract MockEntryPoint {
                 paymasterValidationData: uint256(1),
                 paymasterContext: ""
             }),
-            senderInfo: IStakeManager.StakeInfo({stake: 0, unstakeDelaySec: 0}),
-            factoryInfo: IStakeManager.StakeInfo({stake: 0, unstakeDelaySec: 0}),
-            paymasterInfo: IStakeManager.StakeInfo({stake: 2e6, unstakeDelaySec: 0}),
-            aggregatorInfo: IEntryPoint.AggregatorStakeInfo({aggregator: address(0), stakeInfo: IStakeManager.StakeInfo({stake: 2e6, unstakeDelaySec: 0})})
+            senderInfo: IStakeManager.StakeInfo({ stake: 0, unstakeDelaySec: 0 }),
+            factoryInfo: IStakeManager.StakeInfo({ stake: 0, unstakeDelaySec: 0 }),
+            paymasterInfo: IStakeManager.StakeInfo({ stake: 2e6, unstakeDelaySec: 0 }),
+            aggregatorInfo: IEntryPoint.AggregatorStakeInfo({
+                aggregator: address(0),
+                stakeInfo: IStakeManager.StakeInfo({ stake: 2e6, unstakeDelaySec: 0 })
+            })
         });
     }
 
@@ -218,21 +229,28 @@ contract MockEntryPoint {
         uint256 amount = info.stake;
         info.stake = 0;
         emit StakeWithdrawn(msg.sender, withdrawAddress_, amount);
-        (bool success,) = withdrawAddress_.call{value: amount}("");
+        (bool success,) = withdrawAddress_.call{ value: amount }("");
         require(success, "Failed to withdraw stake");
     }
 
     // Required interface implementations
-    function getSenderAddress(bytes calldata initCode) external {}
+    function getSenderAddress(bytes calldata initCode) external { }
 
     // Stub implementations for interface compatibility
-    function handleAggregatedOps(PackedUserOperation[][] calldata opsPerAggregator, address payable beneficiary)
+    function handleAggregatedOps(
+        PackedUserOperation[][] calldata opsPerAggregator,
+        address payable beneficiary
+    )
         external
     {
         // Not implemented
     }
 
-    function innerHandleOp(bytes calldata, PackedUserOperation calldata, bytes calldata)
+    function innerHandleOp(
+        bytes calldata,
+        PackedUserOperation calldata,
+        bytes calldata
+    )
         external
         pure
         returns (uint256)
@@ -251,7 +269,7 @@ contract MockEntryPointRejectETH is MockEntryPoint {
         // Always revert to simulate ETH transfer failure
         revert("ETH transfer rejected");
     }
-    
+
     // Override the fallback function as well to ensure all transfers fail
     fallback() external payable override {
         revert("ETH transfer rejected");

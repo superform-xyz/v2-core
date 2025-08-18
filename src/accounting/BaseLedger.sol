@@ -17,7 +17,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 abstract contract BaseLedger is ISuperLedger {
     /// @notice The configuration contract that stores yield source oracle settings
     /// @dev Provides oracle addresses, fee percentages, and manager information
-    SuperLedgerConfiguration public immutable superLedgerConfiguration;
+    SuperLedgerConfiguration public immutable SUPER_LEDGER_CONFIGURATION;
 
     /// @notice Tracks the total shares each user has for each yield source
     /// @dev Used for calculating proportional cost basis when consuming partial positions
@@ -40,7 +40,7 @@ abstract contract BaseLedger is ISuperLedger {
     /// @param allowedExecutors_ Array of addresses authorized to execute accounting updates
     constructor(address superLedgerConfiguration_, address[] memory allowedExecutors_) {
         if (superLedgerConfiguration_ == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
-        superLedgerConfiguration = SuperLedgerConfiguration(superLedgerConfiguration_);
+        SUPER_LEDGER_CONFIGURATION = SuperLedgerConfiguration(superLedgerConfiguration_);
         uint256 len = allowedExecutors_.length;
         for (uint256 i; i < len; ++i) {
             allowedExecutors[allowedExecutors_[i]] = true;
@@ -265,7 +265,7 @@ abstract contract BaseLedger is ISuperLedger {
         returns (uint256 feeAmount)
     {
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            superLedgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
+            SUPER_LEDGER_CONFIGURATION.getYieldSourceOracleConfig(yieldSourceOracleId);
 
         if (config.manager == address(0)) revert MANAGER_NOT_SET();
         if (config.ledger != address(this)) revert INVALID_LEDGER();

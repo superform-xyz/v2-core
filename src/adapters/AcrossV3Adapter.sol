@@ -21,8 +21,8 @@ contract AcrossV3Adapter is IAcrossV3Receiver {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    address public immutable acrossSpokePool;
-    ISuperDestinationExecutor public immutable superDestinationExecutor;
+    address public immutable ACROSS_SPOKE_POOL;
+    ISuperDestinationExecutor public immutable SUPER_DESTINATION_EXECUTOR;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -34,8 +34,8 @@ contract AcrossV3Adapter is IAcrossV3Receiver {
         if (acrossSpokePool_ == address(0) || superDestinationExecutor_ == address(0)) {
             revert ADDRESS_NOT_VALID();
         }
-        acrossSpokePool = acrossSpokePool_;
-        superDestinationExecutor = ISuperDestinationExecutor(superDestinationExecutor_);
+        ACROSS_SPOKE_POOL = acrossSpokePool_;
+        SUPER_DESTINATION_EXECUTOR = ISuperDestinationExecutor(superDestinationExecutor_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -53,7 +53,7 @@ contract AcrossV3Adapter is IAcrossV3Receiver {
         override
     {
         // 1. Validate Sender
-        if (msg.sender != acrossSpokePool) {
+        if (msg.sender != ACROSS_SPOKE_POOL) {
             revert INVALID_SENDER();
         }
 
@@ -76,7 +76,7 @@ contract AcrossV3Adapter is IAcrossV3Receiver {
         IERC20(tokenSent).safeTransfer(account, amount);
 
         // 4. Call the core executor's standardized function
-        superDestinationExecutor.processBridgedExecution(
+        SUPER_DESTINATION_EXECUTOR.processBridgedExecution(
             tokenSent,
             account,
             dstTokens,

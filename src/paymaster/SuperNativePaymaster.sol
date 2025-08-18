@@ -25,7 +25,7 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) {}
+    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

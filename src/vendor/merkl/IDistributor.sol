@@ -39,5 +39,11 @@ interface IDistributor {
     /// @notice Returns the MerkleRoot that is currently live for the contract
     function getMerkleRoot() external view returns (bytes32);
 
-    function claimed(address user, address token) external view returns (uint208 amount, uint48 timestamp, bytes32 merkleRoot);
+    function claimed(
+        address user,
+        address token
+    )
+        external
+        view
+        returns (uint208 amount, uint48 timestamp, bytes32 merkleRoot);
 }

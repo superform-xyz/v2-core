@@ -47,7 +47,7 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         _getTokens(CHAIN_1_WBTC, accountEth, 1e8);
     }
 
-    receive() external payable {}
+    receive() external payable { }
 
     /*//////////////////////////////////////////////////////////////
                       TESTS
@@ -100,8 +100,9 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         });
 
         Id id = marketParams.id();
-        (uint256 borrowed, uint256 supplied, uint128 collateralShares) = IMorphoStaticTyping(MORPHO).position(id, accountEth);
-        
+        (uint256 borrowed, uint256 supplied, uint128 collateralShares) =
+            IMorphoStaticTyping(MORPHO).position(id, accountEth);
+
         console2.log("Morpho Position:");
         console2.log("  Borrowed:", borrowed);
         console2.log("  Supplied:", supplied);
@@ -131,7 +132,7 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
 
         // Execute the borrow operation
-        executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18); 
+        executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18);
 
         MarketParams memory marketParams = MarketParams({
             loanToken: loanToken,
@@ -180,7 +181,7 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         UserOpData memory userOpData1 = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry1));
 
         // Execute the partial repayment operation
-        executeOpsThroughPaymaster(userOpData1, superNativePaymaster, 1e18); 
+        executeOpsThroughPaymaster(userOpData1, superNativePaymaster, 1e18);
 
         uint128 collateralAfter;
         (,, collateralAfter) = morpho.position(id, accountEth);

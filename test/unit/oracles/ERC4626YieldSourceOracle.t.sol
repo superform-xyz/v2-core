@@ -4,7 +4,6 @@ pragma solidity 0.8.30;
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
 import { ERC4626YieldSourceOracle } from "../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { Helpers } from "../../utils/Helpers.sol";
 import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
 import { ISuperLedgerConfiguration } from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";

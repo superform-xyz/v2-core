@@ -61,7 +61,7 @@ contract AbstractYieldSourceOracleTest is Helpers {
     }
 
     function test_superLedgerConfiguration() public view {
-        assertEq(oracle.superLedgerConfiguration(), mockSuperLedgerConfiguration);
+        assertEq(oracle.SUPER_LEDGER_CONFIGURATION(), mockSuperLedgerConfiguration);
     }
 
     function test_decimals() public view {
@@ -141,8 +141,6 @@ contract AbstractYieldSourceOracleTest is Helpers {
         assertEq(tvls[0], 1000e18);
         assertEq(tvls[1], 1000e18);
     }
-
-
 
     function test_getTVLByOwnerOfSharesMultiple_ArrayLengthMismatch() public {
         address[] memory yieldSources = new address[](2);

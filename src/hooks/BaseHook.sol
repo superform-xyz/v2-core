@@ -53,7 +53,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
 
     /// @notice The specific subtype identifier for this hook
     /// @dev Used to identify specialized hook types beyond the basic HookType enum
-    bytes32 public immutable subType;
+    bytes32 public immutable SUB_TYPE;
 
     /// @notice The type of hook (NONACCOUNTING, INFLOW, OUTFLOW)
     /// @dev Determines how the hook impacts accounting in the system
@@ -100,7 +100,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     /// @param subType_ The specific subtype identifier for specialized hook functionality
     constructor(ISuperHook.HookType hookType_, bytes32 subType_) {
         hookType = hookType_;
-        subType = subType_;
+        SUB_TYPE = subType_;
     }
 
     modifier onlyLastCaller() {
@@ -205,7 +205,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function subtype() external view returns (bytes32) {
-        return subType;
+        return SUB_TYPE;
     }
 
     /// @inheritdoc ISuperHookInspector
@@ -239,7 +239,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     /// @param prevHook The previous hook in the chain, or address(0) if first hook
     /// @param account The account that operations will be performed for
     /// @param data Hook-specific parameters and configuration data
-    function _preExecute(address prevHook, address account, bytes calldata data) internal virtual {}
+    function _preExecute(address prevHook, address account, bytes calldata data) internal virtual { }
 
     /// @notice Internal implementation of postExecute
     /// @dev Abstract function to be implemented by derived hooks
@@ -249,7 +249,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     /// @param prevHook The previous hook in the chain, or address(0) if first hook
     /// @param account The account operations were performed for
     /// @param data Hook-specific parameters and configuration data
-    function _postExecute(address prevHook, address account, bytes calldata data) internal virtual {}
+    function _postExecute(address prevHook, address account, bytes calldata data) internal virtual { }
 
     /// @notice Decodes a boolean value from a byte array at the specified offset
     /// @dev Helper function for extracting boolean values from packed data

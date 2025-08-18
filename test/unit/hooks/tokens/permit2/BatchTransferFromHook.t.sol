@@ -119,22 +119,22 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
     function test_Build_Executions_ReturnStatement() public view {
         // Create minimal valid data to trigger the return statement
         bytes memory hookData = abi.encodePacked(
-            eoa,                  // from address (20 bytes)
-            uint256(1),           // number of tokens (32 bytes) - just use 1 token to keep it simple
-            sigDeadline,          // signature deadline (32 bytes)
-            abi.encodePacked(tokens[0]),  // single token address
+            eoa, // from address (20 bytes)
+            uint256(1), // number of tokens (32 bytes) - just use 1 token to keep it simple
+            sigDeadline, // signature deadline (32 bytes)
+            abi.encodePacked(tokens[0]), // single token address
             abi.encodePacked(amounts[0]), // single amount
-            new bytes(65)         // mock signature
+            new bytes(65) // mock signature
         );
 
         // Call build which internally calls _buildHookExecutions
         Execution[] memory executions = hook.build(address(0), account, hookData);
-        
+
         // Make assertions to ensure the function executed fully
         assertEq(executions.length, 4); // Should have 4 executions
         assertEq(executions[1].target, PERMIT2);
         assertEq(executions[2].target, PERMIT2);
-        
+
         // Store the result to ensure the return value is used
         // This helps some coverage tools recognize the return statement was reached
         Execution[] memory storedExecutions = executions;

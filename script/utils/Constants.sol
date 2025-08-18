@@ -3,7 +3,7 @@ pragma solidity >=0.8.30;
 
 abstract contract Constants {
     address internal constant ENTRY_POINT = 0x0000000071727De22E5E9d8BAf0edAc6f37da032; // 0.7
-    
+
     // chain names
     string internal constant ETHEREUM_KEY = "Ethereum";
     string internal constant BASE_KEY = "Base";
@@ -47,7 +47,7 @@ abstract contract Constants {
     uint64 internal constant OP_SEPOLIA_CHAIN_ID = 11_155_420;
 
     // merkle claim reward hook `feePercent`
-    uint256 internal constant MERKLE_CLAIM_REWARD_HOOK_FEE_PERCENT= 100; // 0.1%
+    uint256 internal constant MERKLE_CLAIM_REWARD_HOOK_FEE_PERCENT = 100; // 0.1%
 
     // Across Spoke Pool addresses per chain
     address internal constant ACROSS_SPOKE_POOL_MAINNET = 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5;

@@ -38,7 +38,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    IPendleRouterV4 public immutable pendleRouterV4;
+    IPendleRouterV4 public immutable PENDLE_ROUTER_V4;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -55,7 +55,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
 
     constructor(address pendleRouterV4_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.PTYT) {
         if (pendleRouterV4_ == address(0)) revert ADDRESS_NOT_VALID();
-        pendleRouterV4 = IPendleRouterV4(pendleRouterV4_);
+        PENDLE_ROUTER_V4 = IPendleRouterV4(pendleRouterV4_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -81,7 +81,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
 
         executions = new Execution[](1);
         executions[0] = Execution({
-            target: address(pendleRouterV4),
+            target: address(PENDLE_ROUTER_V4),
             value: usePrevHookAmount ? ISuperHookResult(prevHook).getOutAmount(account) : value,
             callData: usePrevHookAmount ? updatedTxData : txData_
         });

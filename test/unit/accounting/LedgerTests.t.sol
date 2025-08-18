@@ -1180,7 +1180,7 @@ contract LedgerTests is Helpers {
         executors[0] = address(exec);
         MockBaseLedger newLedger = new MockBaseLedger(address(config), executors);
 
-        assertEq(address(newLedger.superLedgerConfiguration()), address(config), "Config address mismatch");
+        assertEq(address(newLedger.SUPER_LEDGER_CONFIGURATION()), address(config), "Config address mismatch");
         assertTrue(newLedger.allowedExecutors(address(exec)), "Executor not set");
     }
 

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {Surl} from "@surl/Surl.sol";
-import {strings} from "@stringutils/strings.sol";
+import { Surl } from "@surl/Surl.sol";
+import { strings } from "@stringutils/strings.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "forge-std/StdUtils.sol";
 
-import {IOdosRouterV2} from "../../../src/vendor/odos/IOdosRouterV2.sol";
-import {BytesLib} from "../../../src/vendor/BytesLib.sol";
+import { IOdosRouterV2 } from "../../../src/vendor/odos/IOdosRouterV2.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 
-import {BaseAPIParser} from "./BaseAPIParser.sol";
+import { BaseAPIParser } from "./BaseAPIParser.sol";
 
 abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
     using Surl for *;
@@ -40,7 +40,7 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
 
     string constant API_QUOTE_URL = "https://api.odos.xyz/sor/quote/v2";
     string constant API_ASSEMBLE_URL = "https://api.odos.xyz/sor/assemble";
-    uint256 private constant addressListStart =
+    uint256 private constant ADDRESS_LIST_START =
         80_084_422_859_880_547_211_683_076_133_703_299_733_277_748_156_566_366_325_829_078_699_459_944_778_998;
 
     /*//////////////////////////////////////////////////////////////
@@ -52,7 +52,11 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
         address _account,
         uint256 _chainId,
         bool _compact
-    ) internal pure returns (string memory) {
+    )
+        internal
+        pure
+        returns (string memory)
+    {
         string memory inputTokensStr = "[";
         for (uint256 i = 0; i < _inputTokens.length; i++) {
             inputTokensStr = string.concat(
@@ -112,7 +116,10 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
         address _account,
         uint256 _chainId,
         bool _compact
-    ) internal returns (string memory) {
+    )
+        internal
+        returns (string memory)
+    {
         string[] memory headers = new string[](1);
         headers[0] = "Content-Type: application/json";
 
@@ -227,7 +234,7 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
                     newPos := add(currPos, 22)
                 }
                 default {
-                    result := sload(add(addressListStart, sub(inputPos, 2)))
+                    result := sload(add(ADDRESS_LIST_START, sub(inputPos, 2)))
                     newPos := add(currPos, 2)
                 }
             }

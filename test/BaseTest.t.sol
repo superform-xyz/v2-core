@@ -1359,27 +1359,27 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         vm.label(debridgeDlnSourceAddressesDstMap[BASE], "DebridgeDlnDstBASE");
 
         mapping(uint64 => address) storage pendleRouters = PENDLE_ROUTERS;
-        pendleRouters[ETH] = CHAIN_1_PendleRouter;
+        pendleRouters[ETH] = CHAIN_1_PENDLE_ROUTER;
         vm.label(pendleRouters[ETH], "PendleRouterETH");
-        pendleRouters[OP] = CHAIN_10_PendleRouter;
+        pendleRouters[OP] = CHAIN_10_PENDLE_ROUTER;
         vm.label(pendleRouters[OP], "PendleRouterOP");
-        pendleRouters[BASE] = CHAIN_8453_PendleRouter;
+        pendleRouters[BASE] = CHAIN_8453_PENDLE_ROUTER;
         vm.label(pendleRouters[BASE], "PendleRouterBASE");
 
         mapping(uint64 => address) storage spectraRouters = SPECTRA_ROUTERS;
-        spectraRouters[ETH] = CHAIN_1_SpectraRouter;
+        spectraRouters[ETH] = CHAIN_1_SPECTRA_ROUTER;
         vm.label(spectraRouters[ETH], "SpectraRouterETH");
-        spectraRouters[OP] = CHAIN_10_SpectraRouter;
+        spectraRouters[OP] = CHAIN_10_SPECTRA_ROUTER;
         vm.label(spectraRouters[OP], "SpectraRouterOP");
-        spectraRouters[BASE] = CHAIN_8453_SpectraRouter;
+        spectraRouters[BASE] = CHAIN_8453_SPECTRA_ROUTER;
         vm.label(spectraRouters[BASE], "SpectraRouterBASE");
 
         mapping(uint64 => address) storage pendleSwaps = PENDLE_SWAP;
-        pendleSwaps[ETH] = CHAIN_1_PendleSwap;
+        pendleSwaps[ETH] = CHAIN_1_PENDLE_SWAP;
         vm.label(pendleSwaps[ETH], "PendleSwapETH");
-        pendleSwaps[OP] = CHAIN_10_PendleSwap;
+        pendleSwaps[OP] = CHAIN_10_PENDLE_SWAP;
         vm.label(pendleSwaps[OP], "PendleSwapOP");
-        pendleSwaps[BASE] = CHAIN_8453_PendleSwap;
+        pendleSwaps[BASE] = CHAIN_8453_PENDLE_SWAP;
         vm.label(pendleSwaps[BASE], "PendleSwapBASE");
 
         mapping(uint64 => address) storage odosRouters = ODOS_ROUTER;
@@ -1410,7 +1410,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         existingUnderlyingTokens[OP][DAI_KEY] = CHAIN_10_DAI;
         existingUnderlyingTokens[OP][USDC_KEY] = CHAIN_10_USDC;
         existingUnderlyingTokens[OP][WETH_KEY] = CHAIN_10_WETH;
-        existingUnderlyingTokens[OP][USDCe_KEY] = CHAIN_10_USDCe;
+        existingUnderlyingTokens[OP][USDCE_KEY] = CHAIN_10_USDCE;
         existingUnderlyingTokens[ETH][GEAR_KEY] = CHAIN_1_GEAR;
         existingUnderlyingTokens[ETH][SUSDE_KEY] = CHAIN_1_SUSDE;
 
@@ -1428,52 +1428,52 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         ) storage existingVaults = realVaultAddresses;
 
         /// @dev Ethereum 4626 vault addresses
-        existingVaults[1][ERC4626_VAULT_KEY][AAVE_VAULT_KEY][USDC_KEY] = CHAIN_1_AaveVault;
+        existingVaults[1][ERC4626_VAULT_KEY][AAVE_VAULT_KEY][USDC_KEY] = CHAIN_1_AAVE_VAULT;
         vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][AAVE_VAULT_KEY][USDC_KEY], AAVE_VAULT_KEY);
-        existingVaults[1][ERC4626_VAULT_KEY][FLUID_VAULT_KEY][USDC_KEY] = CHAIN_1_FluidVault;
+        existingVaults[1][ERC4626_VAULT_KEY][FLUID_VAULT_KEY][USDC_KEY] = CHAIN_1_FLUID_VAULT;
         vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][FLUID_VAULT_KEY][USDC_KEY], FLUID_VAULT_KEY);
-        existingVaults[1][ERC4626_VAULT_KEY][EULER_VAULT_KEY][USDC_KEY] = CHAIN_1_EulerVault;
+        existingVaults[1][ERC4626_VAULT_KEY][EULER_VAULT_KEY][USDC_KEY] = CHAIN_1_EULER_VAULT;
         vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][EULER_VAULT_KEY][USDC_KEY], EULER_VAULT_KEY);
-        existingVaults[1][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY] = CHAIN_1_MorphoVault;
+        existingVaults[1][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY] = CHAIN_1_MORPHO_VAULT;
         vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY], MORPHO_VAULT_KEY);
 
         /// @dev Optimism 4626vault addresses
-        existingVaults[10][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY] = CHAIN_10_AloeUSDC;
-        vm.label(existingVaults[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY], ALOE_USDC_VAULT_KEY);
-        existingVaults[1][ERC4626_VAULT_KEY][GEARBOX_VAULT_KEY][USDC_KEY] = CHAIN_1_GearboxVault;
+        existingVaults[10][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCE_KEY] = CHAIN_10_ALOE_USDC;
+        vm.label(existingVaults[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCE_KEY], ALOE_USDC_VAULT_KEY);
+        existingVaults[1][ERC4626_VAULT_KEY][GEARBOX_VAULT_KEY][USDC_KEY] = CHAIN_1_GEARBOX_VAULT;
         vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][GEARBOX_VAULT_KEY][USDC_KEY], GEARBOX_VAULT_KEY);
 
         /// @dev Staking real gearbox staking on mainnet
-        existingVaults[ETH][STAKING_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY] = CHAIN_1_GearboxStaking;
+        existingVaults[ETH][STAKING_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY] = CHAIN_1_GEARBOX_STAKING;
         vm.label(existingVaults[ETH][STAKING_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY], "GearboxStaking");
 
         /// @dev Base 4626 vault addresses
         existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY] =
-            CHAIN_8453_MorphoGauntletUSDCPrime;
+            CHAIN_8453_MORPHO_GAUNTLET_USDC_PRIME;
         vm.label(
             existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY],
             MORPHO_GAUNTLET_USDC_PRIME_KEY
         );
-        existingVaults[BASE][ERC4626_VAULT_KEY][SPARK_USDC_VAULT_KEY][USDC_KEY] = CHAIN_8453_SparkUSDCVault;
+        existingVaults[BASE][ERC4626_VAULT_KEY][SPARK_USDC_VAULT_KEY][USDC_KEY] = CHAIN_8453_SPARK_USDC_VAULT;
         vm.label(existingVaults[BASE][ERC4626_VAULT_KEY][SPARK_USDC_VAULT_KEY][USDC_KEY], SPARK_USDC_VAULT_KEY);
 
         existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY] =
-            CHAIN_8453_MorphoGauntletWETHCore;
+            CHAIN_8453_MORPHO_GAUNTLET_WETH_CORE;
         vm.label(
             existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY],
             MORPHO_GAUNTLET_WETH_CORE_KEY
         );
-        existingVaults[BASE][ERC4626_VAULT_KEY][AAVE_BASE_WETH][WETH_KEY] = CHAIN_8453_MorphoGauntletWETHCore;
+        existingVaults[BASE][ERC4626_VAULT_KEY][AAVE_BASE_WETH][WETH_KEY] = CHAIN_8453_MORPHO_GAUNTLET_WETH_CORE;
         vm.label(existingVaults[BASE][ERC4626_VAULT_KEY][AAVE_BASE_WETH][WETH_KEY], AAVE_BASE_WETH);
 
         /// @dev 7540 real centrifuge vaults on mainnet
-        existingVaults[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY] = CHAIN_1_CentrifugeUSDC;
+        existingVaults[ETH][ERC7540_FULLY_ASYNC_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY] = CHAIN_1_CENTRIFUGE_USDC;
         vm.label(
-            existingVaults[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY], CENTRIFUGE_USDC_VAULT_KEY
+            existingVaults[ETH][ERC7540_FULLY_ASYNC_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY], CENTRIFUGE_USDC_VAULT_KEY
         );
 
         /// @dev 5115 real pendle ethena vault on mainnet
-        existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHENA_KEY][SUSDE_KEY] = CHAIN_1_PendleEthena;
+        existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHENA_KEY][SUSDE_KEY] = CHAIN_1_PENDLE_ETHENA;
         vm.label(existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHENA_KEY][SUSDE_KEY], "PendleEthena");
 
         for (uint256 i = 0; i < chainIds.length; ++i) {

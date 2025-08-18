@@ -114,6 +114,13 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         vm.stopPrank();
     }
 
+    function test_SourceValidator_OnInstall_RevertIf_AddressZero() public {
+        SuperValidator newValidator = new SuperValidator();
+
+        vm.expectRevert(SuperValidatorBase.ZERO_ADDRESS.selector);
+        newValidator.onInstall(abi.encode(address(0)));
+    }
+
     function test_SourceValidator_OnUninstall() public {
         vm.startPrank(account);
         validator.onUninstall("");
@@ -1030,7 +1037,6 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         vm.expectRevert(SuperValidatorBase.PROOF_COUNT_MISMATCH.selector);
         validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
     }
-
 
     function test_ValidateUserOp_UNEXPECTED_CHAIN_PROOF_WrongChainOrder() public {
         uint48 validUntil = uint48(block.timestamp + 1 hours);

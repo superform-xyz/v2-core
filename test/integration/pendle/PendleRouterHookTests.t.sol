@@ -18,7 +18,6 @@ import {
     SwapData
 } from "../../../src/vendor/pendle/IPendleRouterV4.sol";
 
-
 // Superform
 import { PendleRouterRedeemHook } from "../../../src/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
 import { PendleRouterSwapHook } from "../../../src/hooks/swappers/pendle/PendleRouterSwapHook.sol";
@@ -65,12 +64,12 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
 
             deal(address(eUSDe), accountEth, 10e18);
 
-            pendleRedeemHook = new PendleRouterRedeemHook(CHAIN_1_PendleRouter);
+            pendleRedeemHook = new PendleRouterRedeemHook(CHAIN_1_PENDLE_ROUTER);
 
             token = CHAIN_1_USDC;
             pendlePufETHMarket = 0x58612beB0e8a126735b19BB222cbC7fC2C162D2a;
 
-            swapHook = new PendleRouterSwapHook(CHAIN_1_PendleRouter);
+            swapHook = new PendleRouterSwapHook(CHAIN_1_PENDLE_ROUTER);
         } else {
             eUSDe = new MockERC20("Ethena USDe", "eUSDe", 18);
             yt_eUSDe = new MockERC20("YT Ethena USDe", "yt_eUSDe", 18);
@@ -212,8 +211,8 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
             });
 
             vm.startPrank(accountEth);
-            eUSDe.approve(address(IPendleRouterV4(CHAIN_1_PendleRouter)), 1e18);
-            IPendleRouterV4(CHAIN_1_PendleRouter).mintPyFromToken(
+            eUSDe.approve(address(IPendleRouterV4(CHAIN_1_PENDLE_ROUTER)), 1e18);
+            IPendleRouterV4(CHAIN_1_PENDLE_ROUTER).mintPyFromToken(
                 accountEth, // receiver
                 address(yt_eUSDe), // YT
                 0.7e18, // minPyOut
@@ -324,7 +323,7 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
         TokenInput memory input = TokenInput({
             tokenIn: _tokenIn,
             netTokenIn: _amount,
-            tokenMintSy: _tokenMintSY, //CHAIN_1_cUSDO,
+            tokenMintSy: _tokenMintSY, //CHAIN_1_CUSDO,
             pendleSwap: pendleSwap,
             swapData: SwapData({
                 extRouter: odosRouter,
@@ -414,12 +413,13 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
         if (!ptToToken) {
             // call Odos swapAPI to get the calldata
             // note, odos swap receiver has to be pendle router
-            bytes memory odosCalldata = _createOdosSwapCalldataRequest(tokenIn, tokenMint, amount, CHAIN_1_PendleRouter);
+            bytes memory odosCalldata =
+                _createOdosSwapCalldataRequest(tokenIn, tokenMint, amount, CHAIN_1_PENDLE_ROUTER);
 
             decodeOdosSwapCalldata(odosCalldata);
 
             pendleTxData = _createTokenToPtPendleTxDataWithOdos(
-                market, account, tokenIn, 1, amount, tokenMint, odosCalldata, CHAIN_1_PendleSwap, CHAIN_1_ODOS_ROUTER
+                market, account, tokenIn, 1, amount, tokenMint, odosCalldata, CHAIN_1_PENDLE_SWAP, CHAIN_1_ODOS_ROUTER
             );
         } else {
             //TODO: fill with the other

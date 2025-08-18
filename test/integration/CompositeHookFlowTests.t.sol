@@ -93,10 +93,10 @@ contract CompositeHookFlowTests is BaseTest {
 
         hookOutflow = new TestHook(ISuperHook.HookType.OUTFLOW, bytes32(keccak256("TEST_SUBTYPE")));
 
-        yieldSource4626AddressUSDC = CHAIN_1_GearboxVault;
+        yieldSource4626AddressUSDC = CHAIN_1_GEARBOX_VAULT;
         vaultInstance4626 = IERC4626(yieldSource4626AddressUSDC);
 
-        yieldSourceStakingAddress = CHAIN_1_GearboxStaking;
+        yieldSourceStakingAddress = CHAIN_1_GEARBOX_STAKING;
         gearboxStaking = IGearboxFarmingPool(yieldSourceStakingAddress);
 
         vaultBankETH = new MockVaultBank();
@@ -796,7 +796,7 @@ contract CompositeHookFlowTests is BaseTest {
         vm.selectFork(FORKS[ETH]);
 
         // create hook with 10% fee percentage
-        address merkleClaimReward = address(new MerklClaimRewardHook(MERKL_DISTRIBUTOR, address(this), 1_000));
+        address merkleClaimReward = address(new MerklClaimRewardHook(MERKL_DISTRIBUTOR, address(this), 1000));
 
         uint256 balanceBefore = IERC20(underlyingETH_USDC).balanceOf(accountEth);
 
@@ -823,7 +823,6 @@ contract CompositeHookFlowTests is BaseTest {
         uint256 balanceAfter = IERC20(underlyingETH_USDC).balanceOf(accountEth);
         assertEq(balanceAfter - balanceBefore, 90e6); // 10% fee
     }
-
 
     /*//////////////////////////////////////////////////////////////
                       HELPER FUNCTIONS FOR MUTEX TESTS

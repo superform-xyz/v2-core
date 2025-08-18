@@ -49,7 +49,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
 
     /// @notice Configuration for yield sources and accounting
     /// @dev Provides access to ledger information and fee settings
-    ISuperLedgerConfiguration public immutable ledgerConfiguration;
+    ISuperLedgerConfiguration public immutable LEDGER_CONFIGURATION;
 
     /// @notice Tolerance for fee transfer verification (numerator)
     /// @dev Used to account for tokens with transfer fees or rounding errors
@@ -64,7 +64,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     /// @param superLedgerConfiguration_ Address of the ledger configuration contract
     constructor(address superLedgerConfiguration_) {
         if (superLedgerConfiguration_ == address(0)) revert ADDRESS_NOT_VALID();
-        ledgerConfiguration = ISuperLedgerConfiguration(superLedgerConfiguration_);
+        LEDGER_CONFIGURATION = ISuperLedgerConfiguration(superLedgerConfiguration_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -196,7 +196,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
 
             // Get configuration for the yield source oracle
             ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-                ledgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
+                LEDGER_CONFIGURATION.getYieldSourceOracleConfig(yieldSourceOracleId);
             if (config.manager == address(0)) revert MANAGER_NOT_SET();
 
             uint256 _outAmount = ISuperHookResult(address(hook)).getOutAmount(account); // Amount of shares or assets

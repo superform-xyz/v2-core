@@ -21,7 +21,6 @@ import { ISuperDestinationExecutor } from "../../interfaces/ISuperDestinationExe
 contract MarkRootAsUsedHook is BaseHook {
     using HookDataDecoder for bytes;
 
-
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.MISC) { }
 
     /*//////////////////////////////////////////////////////////////

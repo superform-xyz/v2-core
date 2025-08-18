@@ -212,36 +212,6 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         return keccak256(abi.encode(namespace(), merkleRoot));
     }
 
-    /// @notice Processes an EIP-1271 contract signature with chain-agnostic validation
-    /// @dev First tries Safe-specific chain-agnostic validation, then falls back to generic EIP-1271
-    /// @param contractSigner The EIP-1271 compatible contract address
-    /// @param sigData Signature data including merkle root, proofs, and actual signature
-    /// @return The contract address if validation succeeds, address(0) if it fails
-    function _processEIP1271Signature(
-        address contractSigner,
-        SignatureData memory sigData
-    )
-        internal
-        view
-        returns (address)
-    {
-        bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
-
-        // For Safe contracts: Try chain-agnostic validation first (cross-chain compatibility)
-        if (contractSigner.validateChainAgnosticMultisig(sigData, messageHash)) {
-            return contractSigner;
-        }
-
-        // Generic EIP-1271 validation (works for ALL EIP-1271 contracts including Safe fallback)
-        try IERC1271(contractSigner).isValidSignature(messageHash, sigData.signature) returns (bytes4 result) {
-            if (result == EIP1271_MAGIC_VALUE) {
-                return contractSigner;
-            }
-        } catch { }
-
-        revert NOT_EIP1271_SIGNER();
-    }
-
     /// @notice Validates if a signature is valid based on signer and expiration time
     /// @dev Checks that the signer matches the registered account owner and signature hasn't expired
     /// @param signer The address recovered from the signature

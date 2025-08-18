@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {Surl} from "@surl/Surl.sol";
-import {strings} from "@stringutils/strings.sol";
+import { Surl } from "@surl/Surl.sol";
+import { strings } from "@stringutils/strings.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "forge-std/StdUtils.sol";
 
 import "../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
-import {BytesLib} from "../../../src/vendor/BytesLib.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 
-import {BaseAPIParser} from "./BaseAPIParser.sol";
+import { BaseAPIParser } from "./BaseAPIParser.sol";
 
 abstract contract OneInchAPIParser is StdUtils, BaseAPIParser {
     using Surl for *;
@@ -64,7 +64,10 @@ abstract contract OneInchAPIParser is StdUtils, BaseAPIParser {
         );
     }
 
-    function surlCallSwapCalldata(string memory authKey, OneInchSwapCalldataRequest memory request)
+    function surlCallSwapCalldata(
+        string memory authKey,
+        OneInchSwapCalldataRequest memory request
+    )
         internal
         returns (string memory dstAmount, string memory txData)
     {
@@ -119,7 +122,11 @@ abstract contract OneInchAPIParser is StdUtils, BaseAPIParser {
     /*//////////////////////////////////////////////////////////////
                             GET_APPROVE_CALLDATA
     //////////////////////////////////////////////////////////////*/
-    function buildGetApproveCallDataUrl(uint256 chainId, address tokenAddress, uint256 amount)
+    function buildGetApproveCallDataUrl(
+        uint256 chainId,
+        address tokenAddress,
+        uint256 amount
+    )
         internal
         pure
         returns (string memory)
@@ -136,7 +143,12 @@ abstract contract OneInchAPIParser is StdUtils, BaseAPIParser {
         );
     }
 
-    function surlCallGetApproveCallData(string memory authKey, uint256 chainId, address tokenAddress, uint256 amount)
+    function surlCallGetApproveCallData(
+        string memory authKey,
+        uint256 chainId,
+        address tokenAddress,
+        uint256 amount
+    )
         internal
         returns (string memory txData)
     {

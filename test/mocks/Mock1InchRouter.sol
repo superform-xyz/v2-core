@@ -39,12 +39,20 @@ contract Mock1InchRouter {
         uint256,
         bytes32,
         bytes32
-    ) external payable returns (uint256 returnAmount) {
+    )
+        external
+        payable
+        returns (uint256 returnAmount)
+    {
         swappedAmount = outputAmount;
         return outputAmount;
     }
 
-    function swap(IAggregationExecutor, I1InchAggregationRouterV6.SwapDescription calldata desc, bytes calldata)
+    function swap(
+        IAggregationExecutor,
+        I1InchAggregationRouterV6.SwapDescription calldata desc,
+        bytes calldata
+    )
         external
         payable
     {

@@ -177,7 +177,9 @@ interface IAcrossSpokePoolV3 {
         uint32 fillDeadline,
         uint32 exclusivityDeadline,
         bytes calldata message
-    ) external payable;
+    )
+        external
+        payable;
 
     function depositV3Now(
         address depositor,
@@ -191,7 +193,9 @@ interface IAcrossSpokePoolV3 {
         uint32 fillDeadlineOffset,
         uint32 exclusivityDeadline,
         bytes calldata message
-    ) external payable;
+    )
+        external
+        payable;
 
     function speedUpV3Deposit(
         address depositor,
@@ -200,7 +204,8 @@ interface IAcrossSpokePoolV3 {
         address updatedRecipient,
         bytes calldata updatedMessage,
         bytes calldata depositorSignature
-    ) external;
+    )
+        external;
 
     function fillV3Relay(V3RelayData calldata relayData, uint256 repaymentChainId) external;
 
@@ -211,11 +216,16 @@ interface IAcrossSpokePoolV3 {
         address updatedRecipient,
         bytes calldata updatedMessage,
         bytes calldata depositorSignature
-    ) external;
+    )
+        external;
 
     function requestV3SlowFill(V3RelayData calldata relayData) external;
 
-    function executeV3SlowRelayLeaf(V3SlowFill calldata slowFillLeaf, uint32 rootBundleId, bytes32[] calldata proof)
+    function executeV3SlowRelayLeaf(
+        V3SlowFill calldata slowFillLeaf,
+        uint32 rootBundleId,
+        bytes32[] calldata proof
+    )
         external;
 
     function wrappedNativeToken() external view returns (address);

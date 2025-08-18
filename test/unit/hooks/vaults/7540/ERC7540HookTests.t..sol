@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ApproveAndRequestDeposit7540VaultHook } from
     "../../../../../src/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
@@ -59,7 +58,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
         underlyingETH_USDC = CHAIN_1_USDC;
 
-        yieldSource7540AddressUSDC = CHAIN_1_CentrifugeUSDC;
+        yieldSource7540AddressUSDC = CHAIN_1_CENTRIFUGE_USDC;
 
         yieldSourceOracleId = bytes32(keccak256("YIELD_SOURCE_ORACLE_ID"));
         yieldSource = address(this);
@@ -797,19 +796,19 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
                         ASYNC HOOK TESTS
     //////////////////////////////////////////////////////////////*/
     function test_CancelRedeemRequestHook_AsyncHook() public view {
-        assertEq(cancelRedeemRequestHook.subType(), HookSubTypes.CANCEL_REDEEM_REQUEST);
+        assertEq(cancelRedeemRequestHook.SUB_TYPE(), HookSubTypes.CANCEL_REDEEM_REQUEST);
     }
 
     function test_CancelDepositRequestHook_AsyncHook() public view {
-        assertEq(cancelDepositRequestHook.subType(), HookSubTypes.CANCEL_DEPOSIT_REQUEST);
+        assertEq(cancelDepositRequestHook.SUB_TYPE(), HookSubTypes.CANCEL_DEPOSIT_REQUEST);
     }
 
     function test_ClaimCancelRedeemRequestHook_AsyncHook() public view {
-        assertEq(claimCancelRedeemRequestHook.subType(), HookSubTypes.CLAIM_CANCEL_REDEEM_REQUEST);
+        assertEq(claimCancelRedeemRequestHook.SUB_TYPE(), HookSubTypes.CLAIM_CANCEL_REDEEM_REQUEST);
     }
 
     function test_ClaimCancelDepositRequestHook_AsyncHook() public view {
-        assertEq(claimCancelDepositRequestHook.subType(), HookSubTypes.CLAIM_CANCEL_DEPOSIT_REQUEST);
+        assertEq(claimCancelDepositRequestHook.SUB_TYPE(), HookSubTypes.CLAIM_CANCEL_DEPOSIT_REQUEST);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -817,7 +816,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     //////////////////////////////////////////////////////////////*/
     function test_CancelRedeemHook_Constructor() public view {
         assertEq(uint256(cancelRedeemHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
-        assertEq(cancelRedeemHook.subType(), HookSubTypes.CANCEL_REDEEM);
+        assertEq(cancelRedeemHook.SUB_TYPE(), HookSubTypes.CANCEL_REDEEM);
     }
 
     function test_CancelRedeemHook_Build() public view {

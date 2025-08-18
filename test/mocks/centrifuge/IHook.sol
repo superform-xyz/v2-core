@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.30;
 
-import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
+import { IERC165 } from "@openzeppelin/contracts/interfaces/IERC165.sol";
 
 struct HookData {
     bytes16 from;
@@ -18,19 +18,35 @@ interface IHook is IERC165 {
     /// @notice Callback on standard ERC20 transfer.
     /// @dev    MUST return bytes4(keccak256("onERC20Transfer(address,address,uint256,(bytes16,bytes16))"))
     ///         if successful
-    function onERC20Transfer(address from, address to, uint256 value, HookData calldata hookdata)
+    function onERC20Transfer(
+        address from,
+        address to,
+        uint256 value,
+        HookData calldata hookdata
+    )
         external
         returns (bytes4);
 
     /// @notice Callback on authorized ERC20 transfer.
     /// @dev    MUST return bytes4(keccak256("onERC20AuthTransfer(address,address,address,uint256,(bytes16,bytes16))"))
     ///         if successful
-    function onERC20AuthTransfer(address sender, address from, address to, uint256 value, HookData calldata hookdata)
+    function onERC20AuthTransfer(
+        address sender,
+        address from,
+        address to,
+        uint256 value,
+        HookData calldata hookdata
+    )
         external
         returns (bytes4);
 
     /// @notice Check if given transfer can be performed
-    function checkERC20Transfer(address from, address to, uint256 value, HookData calldata hookData)
+    function checkERC20Transfer(
+        address from,
+        address to,
+        uint256 value,
+        HookData calldata hookData
+    )
         external
         view
         returns (bool);
