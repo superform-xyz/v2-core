@@ -47,6 +47,10 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
     /// @dev Allow fee percent change without validation when the new fee percentage is 0
     uint256 internal constant MAX_FEE_PERCENT_CHANGE = 5000;
 
+    /// @notice Maximum initial fee percentage (10% = 1000 basis points)
+    /// @dev Limits the initial fee percentage to 10%
+    uint256 internal constant MAX_INITIAL_FEE_PERCENT = 1000;
+
     /// @notice Duration of the timelock period for configuration proposals
     /// @dev After this period elapses, proposals can be accepted
     uint256 internal constant PROPOSAL_EXPIRATION_TIME = 1 weeks;
@@ -106,6 +110,9 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
                     uint256 maxFee = Math.mulDiv(existingConfig.feePercent, (10_000 + MAX_FEE_PERCENT_CHANGE), 10_000);
                     if (config.feePercent < minFee || config.feePercent > maxFee) revert INVALID_FEE_PERCENT();
                 }
+            } else if (existingConfig.feePercent == 0 && config.feePercent > 0) {
+                // Limit initial fee setting to 10%
+                if (config.feePercent > MAX_INITIAL_FEE_PERCENT) revert INVALID_FEE_PERCENT();
             }
 
             _validateYieldSourceOracleConfig(

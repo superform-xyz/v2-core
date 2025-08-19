@@ -142,13 +142,17 @@ interface ISuperLedger is ISuperLedgerData {
     /// @param amountAssets The amount of assets retrieved from shares (current value)
     /// @param usedShares The amount of shares used to obtain the assets
     /// @param feePercent The fee percentage in basis points (0-10000, where 10000 = 100%)
+    /// @param pps The price per share at the time of outflow (in asset terms)
+    /// @param decimals Decimal precision of the yield source
     /// @return feeAmount The amount of fee to be collected in the asset being withdrawn
     function previewFees(
         address user,
         address yieldSourceAddress,
         uint256 amountAssets,
         uint256 usedShares,
-        uint256 feePercent
+        uint256 feePercent,
+        uint256 pps,
+        uint256 decimals
     )
         external
         view

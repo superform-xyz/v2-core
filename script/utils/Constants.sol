@@ -82,11 +82,11 @@ abstract contract Constants {
     address internal constant ODOS_ROUTER_BNB = 0x89b8AA89FDd0507a99d334CBe3C808fAFC7d850E;
 
     // Spectra Router addresses per chain
-    address internal constant SPECTRA_ROUTER_MAINNET = 0xD733e545C65d539f588d7c3793147B497403F0d2;
-    address internal constant SPECTRA_ROUTER_BASE = 0x0FC2fbd3E8391744426C8bE5228b668481C59532;
-    address internal constant SPECTRA_ROUTER_OPTIMISM = 0x7dcDeA738C2765398BaF66e4DbBcD2769F4C00Dc;
-    address internal constant SPECTRA_ROUTER_ARBITRUM = address(0); // TODO: Research Arbitrum Spectra router address
-    address internal constant SPECTRA_ROUTER_BNB = address(0); // TODO: Research BNB Spectra router address
+    address internal constant SPECTRA_ROUTER_MAINNET = 0xDbbfc051D200438dd5847b093B22484B842de9E7;
+    address internal constant SPECTRA_ROUTER_BASE = 0xC03309DE321A4D3df734F5609B80cC731ae28e6D;
+    address internal constant SPECTRA_ROUTER_OPTIMISM = 0x8A92294ffCFe469a3DF4A85c76a0B0d2B3292119;
+    address internal constant SPECTRA_ROUTER_ARBITRUM = 0x38b9B4884a5581E96eD3882AA2f7449BC321786C; 
+    address internal constant SPECTRA_ROUTER_BNB = 0x8A92294ffCFe469a3DF4A85c76a0B0d2B3292119;
 
     // Pendle Router addresses per chain
     address internal constant PENDLE_ROUTER_MAINNET = 0x888888888889758F76e7103c6CbF23ABbF58F946;

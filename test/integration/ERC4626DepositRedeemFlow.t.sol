@@ -11,6 +11,7 @@ import { ModuleKitHelpers, UserOpData } from "modulekit/ModuleKit.sol";
 // Superform
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { Redeem4626VaultHook } from "../../src/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import { ISuperLedgerConfiguration } from "../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperLedgerData } from "../../src/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedger } from "../../src/interfaces/accounting/ISuperLedger.sol";
 import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
@@ -210,7 +211,9 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
             yieldSourceAddressEth,
             IERC4626(yieldSourceAddressEth).convertToAssets(yieldSourceBal),
             yieldSourceBal,
-            100
+            100,
+            0,
+            0
         );
 
         executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18);

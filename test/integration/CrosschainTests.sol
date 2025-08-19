@@ -3059,8 +3059,13 @@ contract CrosschainTests is BaseTest {
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
 
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
+        ISuperLedgerConfiguration configSuperLedger =
+                ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY));
+        SuperLedgerConfiguration.YieldSourceOracleConfig memory config = configSuperLedger.getYieldSourceOracleConfig(_getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER));
+        uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource7540AddressETH_USDC);
+        uint8 decimals = IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource7540AddressETH_USDC);
         uint256 expectedFee = ledger.previewFees(
-            accountETH, yieldSource7540AddressETH_USDC, assetsOut, expectedSharesAvailableToConsume, 100
+            accountETH, yieldSource7540AddressETH_USDC, assetsOut, expectedSharesAvailableToConsume, 100, pps, decimals
         );
 
         uint256 feeBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(TREASURY);
@@ -3258,7 +3263,7 @@ contract CrosschainTests is BaseTest {
 
         ISuperLedger ledger = ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY));
         uint256 expectedFee = ledger.previewFees(
-            accountOP, yieldSource4626AddressOP_USDCe, expectedAssetOutAmount, userExpectedShareDelta, 100
+            accountOP, yieldSource4626AddressOP_USDCe, expectedAssetOutAmount, userExpectedShareDelta, 100, 0, 0
         );
 
         vm.expectEmit(true, true, true, true);
@@ -4580,7 +4585,7 @@ contract CrosschainTests is BaseTest {
 
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee =
-            ledger.previewFees(accountETH, yieldSource7540AddressETH_USDC, userExpectedAssets, userShares, 100);
+            ledger.previewFees(accountETH, yieldSource7540AddressETH_USDC, userExpectedAssets, userShares, 100, 0, 0);
 
         console2.log("Expected Fees = ", expectedFee);
 
@@ -4635,7 +4640,7 @@ contract CrosschainTests is BaseTest {
 
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee =
-            ledger.previewFees(accountETH, yieldSource7540AddressETH_USDC, userExpectedAssets, redeemAmount, 100);
+            ledger.previewFees(accountETH, yieldSource7540AddressETH_USDC, userExpectedAssets, redeemAmount, 100, 0, 0);
 
         vm.expectEmit(true, true, true, true);
         emit ISuperLedgerData.AccountingOutflow(

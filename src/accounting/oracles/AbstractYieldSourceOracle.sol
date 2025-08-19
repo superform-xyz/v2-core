@@ -96,8 +96,10 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
             // Configuration found, calculate fees if applicable
             if (config.feePercent > 0 && config.ledger != address(0)) {
                 // Calculate fees using the associated ledger
+                uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSourceAddress);
+                uint8 _decimals = IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSourceAddress);
                 uint256 feeAmount = ISuperLedger(config.ledger).previewFees(
-                    user, yieldSourceAddress, assetOutput, usedShares, config.feePercent
+                    user, yieldSourceAddress, assetOutput, usedShares, config.feePercent, pps, _decimals
                 );
 
                 // Add fees to the asset output (opposite of BaseLedger which subtracted)

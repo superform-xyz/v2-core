@@ -2,7 +2,6 @@
 pragma solidity 0.8.30;
 
 // Superform
-import { SuperLedgerConfiguration } from "./SuperLedgerConfiguration.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
@@ -17,7 +16,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 abstract contract BaseLedger is ISuperLedger {
     /// @notice The configuration contract that stores yield source oracle settings
     /// @dev Provides oracle addresses, fee percentages, and manager information
-    SuperLedgerConfiguration public immutable SUPER_LEDGER_CONFIGURATION;
+    ISuperLedgerConfiguration public immutable SUPER_LEDGER_CONFIGURATION;
 
     /// @notice Tracks the total shares each user has for each yield source
     /// @dev Used for calculating proportional cost basis when consuming partial positions
@@ -40,7 +39,7 @@ abstract contract BaseLedger is ISuperLedger {
     /// @param allowedExecutors_ Array of addresses authorized to execute accounting updates
     constructor(address superLedgerConfiguration_, address[] memory allowedExecutors_) {
         if (superLedgerConfiguration_ == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
-        SUPER_LEDGER_CONFIGURATION = SuperLedgerConfiguration(superLedgerConfiguration_);
+        SUPER_LEDGER_CONFIGURATION = ISuperLedgerConfiguration(superLedgerConfiguration_);
         uint256 len = allowedExecutors_.length;
         for (uint256 i; i < len; ++i) {
             allowedExecutors[allowedExecutors_[i]] = true;
@@ -97,13 +96,22 @@ abstract contract BaseLedger is ISuperLedger {
         address yieldSourceAddress,
         uint256 amountAssets,
         uint256 usedShares,
-        uint256 feePercent
+        uint256 feePercent,
+        uint256 pps,
+        uint256 decimals
     )
         public
         view
         returns (uint256 feeAmount)
     {
-        (uint256 costBasis,) = calculateCostBasisView(user, yieldSourceAddress, usedShares);
+        (uint256 costBasis, uint256 updatedUsedShares) = calculateCostBasisView(user, yieldSourceAddress, usedShares);
+        /// @dev if a user performs a deposit outside superform, his shares were truncated in L87. Likewise we use the
+        /// truncated shares to roll back to the original asset amount that belongs to an action done through superform
+        /// core v2
+        if (usedShares != updatedUsedShares) {
+            amountAssets = Math.mulDiv(updatedUsedShares, pps, 10 ** decimals);
+        }
+        
         feeAmount = _calculateFees(costBasis, amountAssets, feePercent);
     }
 
