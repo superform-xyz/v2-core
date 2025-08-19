@@ -6,6 +6,7 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { IOdosRouterV2 } from "../../../vendor/odos/IOdosRouterV2.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -30,6 +31,7 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware {
     IOdosRouterV2 public immutable ODOS_ROUTER_V2;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
+    uint256 private constant PRECISION = 1e5;
 
     struct HookParams {
         address inputToken;
@@ -165,14 +167,29 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware {
         address inputReceiver = BytesLib.toAddress(data, 52);
         address outputToken = BytesLib.toAddress(data, 72);
         uint256 outputQuote = BytesLib.toUint256(data, 92);
-        uint256 outputMin = BytesLib.toUint256(data, 124);
+        uint256 outputAmount = BytesLib.toUint256(data, 124);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
+            uint256 _prevAmount = inputAmount;
             inputAmount = ISuperHookResult(prevHook).getOutAmount(account);
+
+            if (inputAmount > _prevAmount) {
+                uint256 percentIncrease = Math.mulDiv(inputAmount - _prevAmount, PRECISION, _prevAmount);
+                outputAmount = outputAmount + Math.mulDiv(outputAmount, percentIncrease, PRECISION);
+            } else {
+                uint256 percentDecrease = Math.mulDiv(_prevAmount - inputAmount, PRECISION, _prevAmount);
+                uint256 decreaseAmount = Math.mulDiv(outputAmount, percentDecrease, PRECISION);
+                if (decreaseAmount > outputAmount) {
+                    outputAmount = 0;
+                } else {
+                    outputAmount = outputAmount - decreaseAmount;
+                }
+            }
         }
+
         return IOdosRouterV2.swapTokenInfo(
-            inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputMin, account
+            inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputAmount, account
         );
     }
 }
