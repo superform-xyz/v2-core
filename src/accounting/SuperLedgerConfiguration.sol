@@ -47,9 +47,9 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
     /// @dev Allow fee percent change without validation when the new fee percentage is 0
     uint256 internal constant MAX_FEE_PERCENT_CHANGE = 5000;
 
-    /// @notice Maximum initial fee percentage (10% = 1000 basis points)
-    /// @dev Limits the initial fee percentage to 10%
-    uint256 internal constant MAX_INITIAL_FEE_PERCENT = 1000;
+    /// @notice Maximum initial fee percentage (25% = 2500 basis points)
+    /// @dev Limits the initial fee percentage to 25%
+    uint256 internal constant MAX_INITIAL_FEE_PERCENT = 2500;
 
     /// @notice Duration of the timelock period for configuration proposals
     /// @dev After this period elapses, proposals can be accepted

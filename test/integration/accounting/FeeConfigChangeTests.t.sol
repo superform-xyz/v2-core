@@ -121,7 +121,7 @@ contract FeeConfigChangeTests is BaseTest {
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: address(oracle),
-            feePercent: 2000, // 20%
+            feePercent: 3000, // 30%
             feeRecipient: feeRecipient,
             ledger: address(superLedger)
         });
