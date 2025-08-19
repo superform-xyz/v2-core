@@ -106,7 +106,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
             if (existingConfig.feePercent > 0) {
                 // allow fee percent change without validation when the new fee percentage is 0
                 if (config.feePercent > 0) {
-                    uint256 minFee = Math.mulDiv(existingConfig.feePercent, (10_000 - MAX_FEE_PERCENT_CHANGE), 10_000);
+                    uint256 minFee = Math.mulDiv(existingConfig.feePercent, (10_000 - MAX_FEE_PERCENT_CHANGE), 10_000, Math.Rounding.Ceil);
                     uint256 maxFee = Math.mulDiv(existingConfig.feePercent, (10_000 + MAX_FEE_PERCENT_CHANGE), 10_000);
                     if (config.feePercent < minFee || config.feePercent > maxFee) revert INVALID_FEE_PERCENT();
                 }
