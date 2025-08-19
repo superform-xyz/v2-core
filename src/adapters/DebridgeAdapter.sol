@@ -21,7 +21,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     ISuperDestinationExecutor public immutable SUPER_DESTINATION_EXECUTOR;
-    address public immutable EXTERNAL_CALL_ADAPTER;
+    address public immutable DLN_DESTINATION;
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -39,11 +39,11 @@ contract DebridgeAdapter is IExternalCallExecutor {
         if (_externalCallAdapter == address(0)) {
             revert ADDRESS_NOT_VALID();
         }
-        EXTERNAL_CALL_ADAPTER = _externalCallAdapter;
+        DLN_DESTINATION = dlnDestination;
     }
 
     modifier onlyExternalCallAdapter() {
-        if (msg.sender != EXTERNAL_CALL_ADAPTER) revert ONLY_EXTERNAL_CALL_ADAPTER();
+        if (msg.sender != IDlnDestination(DLN_DESTINATION).externalCallAdapter()) revert ONLY_EXTERNAL_CALL_ADAPTER();
         _;
     }
 

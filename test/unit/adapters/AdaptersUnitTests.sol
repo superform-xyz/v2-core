@@ -106,7 +106,7 @@ contract AcrossV3AdapterTest is Helpers {
         new DebridgeAdapter(address(this), address(0));
 
         DebridgeAdapter adp = new DebridgeAdapter(address(mockDlnDestination), address(0x2));
-        assertEq(adp.EXTERNAL_CALL_ADAPTER(), address(this));
+        assertEq(adp.DLN_DESTINATION(), address(mockDlnDestination));
         assertEq(address(adp.SUPER_DESTINATION_EXECUTOR()), address(0x2));
 
         mockDlnDestination = new MockDlnDestination(address(0));
