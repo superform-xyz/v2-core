@@ -12,6 +12,7 @@ import { UserOpData, AccountInstance, ModuleKitHelpers } from "modulekit/ModuleK
 import { BaseTest } from "../../BaseTest.t.sol";
 import { SuperLedger } from "../../../src/accounting/SuperLedger.sol";
 import { SuperExecutor } from "../../../src/executors/SuperExecutor.sol";
+import { IYieldSourceOracle } from "../../../src/interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { ISuperLedgerConfiguration } from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ERC4626YieldSourceOracle } from "../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -120,15 +121,24 @@ contract FeeConfigChangeTests is BaseTest {
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: address(oracle),
-            feePercent: 2000, // 20%
+            feePercent: 3000, // 30%
             feeRecipient: feeRecipient,
             ledger: address(superLedger)
         });
         bytes32[] memory ids = new bytes32[](1);
         ids[0] = yieldSourceOracleId;
-        vm.prank(manager);
+        vm.startPrank(manager);
+        vm.expectRevert(ISuperLedgerConfiguration.INVALID_FEE_PERCENT.selector);
         configSuperLedger.proposeYieldSourceOracleConfig(ids, configs);
 
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: address(oracle),
+            feePercent: 1000, // 10%
+            feeRecipient: feeRecipient,
+            ledger: address(superLedger)
+        });
+        configSuperLedger.proposeYieldSourceOracleConfig(ids, configs);
+        vm.stopPrank();
         // Fast forward timelock
         vm.warp(block.timestamp + 1 weeks);
         vm.prank(manager);
@@ -140,7 +150,7 @@ contract FeeConfigChangeTests is BaseTest {
         uint256 userShares = vaultInstance.balanceOf(accountEth);
         uint256 sharesAsAssets = vaultInstance.convertToAssets(userShares);
 
-        (uint256 expectedFee, uint256 expectedUserAssets) = _calculateExpectedFee20Percent(sharesAsAssets, userShares);
+        (uint256 expectedFee, uint256 expectedUserAssets) = _calculateExpectedFee10Percent(sharesAsAssets, userShares);
 
         address[] memory hooksAddressesRedeem = new address[](1);
         hooksAddressesRedeem[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
@@ -256,11 +266,15 @@ contract FeeConfigChangeTests is BaseTest {
         view
         returns (uint256 expectedFee, uint256 expectedUserAssets)
     {
-        expectedFee = superLedger.previewFees(accountEth, yieldSourceAddress, sharesAsAssets, userShares, 1200);
+        SuperLedgerConfiguration.YieldSourceOracleConfig memory config = configSuperLedger.getYieldSourceOracleConfig(yieldSourceOracleId);
+        uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSourceAddress);
+        uint8 decimals = IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSourceAddress);
+
+        expectedFee = superLedger.previewFees(accountEth, yieldSourceAddress, sharesAsAssets, userShares, 1200, pps, decimals);
         expectedUserAssets = sharesAsAssets - expectedFee;
     }
 
-    function _calculateExpectedFee20Percent(
+    function _calculateExpectedFee10Percent(
         uint256 sharesAsAssets,
         uint256 userShares
     )
@@ -268,7 +282,11 @@ contract FeeConfigChangeTests is BaseTest {
         view
         returns (uint256 expectedFee, uint256 expectedUserAssets)
     {
-        expectedFee = superLedger.previewFees(accountEth, yieldSourceAddress, sharesAsAssets, userShares, 2000);
+        SuperLedgerConfiguration.YieldSourceOracleConfig memory config = configSuperLedger.getYieldSourceOracleConfig(yieldSourceOracleId);
+        uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSourceAddress);
+        uint8 decimals = IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSourceAddress);
+
+        expectedFee = superLedger.previewFees(accountEth, yieldSourceAddress, sharesAsAssets, userShares, 1000, pps, decimals);
         expectedUserAssets = sharesAsAssets - expectedFee;
     }
 }

@@ -68,32 +68,13 @@ abstract contract Constants {
     address internal constant AGGREGATION_ROUTER_ARBITRUM = 0x111111125421cA6dc452d289314280a0f8842A65;
     address internal constant AGGREGATION_ROUTER_BNB = 0x111111125421cA6dc452d289314280a0f8842A65;
 
-    address internal constant OKX_ROUTER_MAINNET = 0x1Ef032a3c471a99CC31578c8007F256D95E89896;
-    address internal constant OKX_ROUTER_BASE = 0x6b2C0c7be2048Daa9b5527982C29f48062B34D58;
-    address internal constant OKX_ROUTER_OPTIMISM = 0xf332761c673b59B21fF6dfa8adA44d78c12dEF09;
-    address internal constant OKX_ROUTER_ARBITRUM = address(0); // TODO: Research Arbitrum OKX router address
-    address internal constant OKX_ROUTER_BNB = address(0); // TODO: Research BNB OKX router address
-
+    
     // Odos Router addresses per chain
     address internal constant ODOS_ROUTER_MAINNET = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
     address internal constant ODOS_ROUTER_BASE = 0x19cEeAd7105607Cd444F5ad10dd51356436095a1;
     address internal constant ODOS_ROUTER_OPTIMISM = 0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680;
     address internal constant ODOS_ROUTER_ARBITRUM = 0xa669e7A0d4b3e4Fa48af2dE86BD4CD7126Be4e13;
     address internal constant ODOS_ROUTER_BNB = 0x89b8AA89FDd0507a99d334CBe3C808fAFC7d850E;
-
-    // Spectra Router addresses per chain
-    address internal constant SPECTRA_ROUTER_MAINNET = 0xD733e545C65d539f588d7c3793147B497403F0d2;
-    address internal constant SPECTRA_ROUTER_BASE = 0x0FC2fbd3E8391744426C8bE5228b668481C59532;
-    address internal constant SPECTRA_ROUTER_OPTIMISM = 0x7dcDeA738C2765398BaF66e4DbBcD2769F4C00Dc;
-    address internal constant SPECTRA_ROUTER_ARBITRUM = address(0); // TODO: Research Arbitrum Spectra router address
-    address internal constant SPECTRA_ROUTER_BNB = address(0); // TODO: Research BNB Spectra router address
-
-    // Pendle Router addresses per chain
-    address internal constant PENDLE_ROUTER_MAINNET = 0x888888888889758F76e7103c6CbF23ABbF58F946;
-    address internal constant PENDLE_ROUTER_BASE = 0x888888888889758F76e7103c6CbF23ABbF58F946;
-    address internal constant PENDLE_ROUTER_OPTIMISM = 0x888888888889758F76e7103c6CbF23ABbF58F946;
-    address internal constant PENDLE_ROUTER_ARBITRUM = 0x888888888889758F76e7103c6CbF23ABbF58F946; // Standard Pendle
-    address internal constant PENDLE_ROUTER_BNB = 0x888888888889758F76e7103c6CbF23ABbF58F946; // Standard Pendle router
 
     // Merkl Distributor addresses per chain
     address internal constant MERKL_DISTRIBUTOR_MAINNET = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
@@ -102,13 +83,6 @@ abstract contract Constants {
     address internal constant MERKL_DISTRIBUTOR_ARBITRUM = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
     address internal constant MERKL_DISTRIBUTOR_BNB = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
 
-    // Nexus Factory addresses per chain
-    address internal constant NEXUS_FACTORY_MAINNET = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
-    address internal constant NEXUS_FACTORY_BASE = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
-    address internal constant NEXUS_FACTORY_OPTIMISM = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
-    address internal constant NEXUS_FACTORY_ARBITRUM = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
-    address internal constant NEXUS_FACTORY_BNB = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
-
     // Permit2 addresses per chain (Universal standard address)
     address internal constant PERMIT2_MAINNET = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     address internal constant PERMIT2_BASE = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
@@ -116,12 +90,6 @@ abstract contract Constants {
     address internal constant PERMIT2_ARBITRUM = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     address internal constant PERMIT2_BNB = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
-    // Polymer Prover addresses per chain
-    address internal constant POLYMER_PROVER_MAINNET = 0x95ccEAE71605c5d97A0AC0EA13013b058729d075;
-    address internal constant POLYMER_PROVER_BASE = 0x95ccEAE71605c5d97A0AC0EA13013b058729d075;
-    address internal constant POLYMER_PROVER_OPTIMISM = 0x95ccEAE71605c5d97A0AC0EA13013b058729d075;
-    address internal constant POLYMER_PROVER_ARBITRUM = 0x95ccEAE71605c5d97A0AC0EA13013b058729d075;
-    address internal constant POLYMER_PROVER_BNB = 0x95ccEAE71605c5d97A0AC0EA13013b058729d075;
 
     address public constant MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
 
@@ -148,7 +116,6 @@ abstract contract Constants {
     string internal constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
     string internal constant FLUID_STAKE_HOOK_KEY = "FluidStakeHook";
     string internal constant FLUID_UNSTAKE_HOOK_KEY = "FluidUnstakeHook";
-    string internal constant SWAP_OKX_HOOK_KEY = "SwapOkxHook";
     string internal constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
     string internal constant SWAP_ODOSV2_HOOK_KEY = "SwapOdosV2Hook";
     string internal constant APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY = "ApproveAndDeposit4626VaultHook";
@@ -164,15 +131,12 @@ abstract contract Constants {
     string public constant DEBRIDGE_CANCEL_ORDER_HOOK_KEY = "DeBridgeCancelOrderHook";
     string internal constant ETHENA_COOLDOWN_SHARES_HOOK_KEY = "EthenaCooldownSharesHook";
     string internal constant ETHENA_UNSTAKE_HOOK_KEY = "EthenaUnstakeHook";
-    string internal constant SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY = "SpectraExchangeDepositHook";
-    string internal constant SPECTRA_EXCHANGE_REDEEM_HOOK_KEY = "SpectraExchangeRedeemHook";
-    string internal constant PENDLE_ROUTER_SWAP_HOOK_KEY = "PendleRouterSwapHook";
+
     string internal constant MORPHO_BORROW_HOOK_KEY = "MorphoBorrowHook";
     string internal constant MORPHO_REPAY_HOOK_KEY = "MorphoRepayHook";
     string internal constant MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY = "MorphoRepayAndWithdrawHook";
     string internal constant MORPHO_BORROW_ONLY_HOOK_KEY = "MorphoBorrowHook";
     string internal constant MORPHO_SUPPLY_AND_BORROW_HOOK_KEY = "MorphoSupplyAndBorrowHook";
-    string internal constant PENDLE_ROUTER_REDEEM_HOOK_KEY = "PendleRouterRedeemHook";
     string internal constant CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "CancelDepositRequest7540Hook";
     string internal constant CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "CancelRedeemRequest7540Hook";
     string internal constant CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "ClaimCancelDepositRequest7540Hook";

@@ -90,7 +90,10 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         returns (uint256[] memory pricesPerShareQuote)
     {
         uint256 length = yieldSourceAddresses.length;
-        if (length != baseAddresses.length || length != quoteAddresses.length || length != yieldSourceOracles.length) {
+        if (
+            length != baseAddresses.length || length != quoteAddresses.length || length != yieldSourceOracles.length ||
+            length != oracles.length
+        ) {
             revert ARRAY_LENGTH_MISMATCH();
         }
 
@@ -123,7 +126,7 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         vars.length = yieldSourceAddresses.length;
         if (
             vars.length != ownersOfShares.length || vars.length != baseAddresses.length
-                || vars.length != quoteAddresses.length || vars.length != yieldSourceOracles.length
+                || vars.length != quoteAddresses.length || vars.length != yieldSourceOracles.length || vars.length != oracles.length
         ) {
             revert ARRAY_LENGTH_MISMATCH();
         }
@@ -168,7 +171,7 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         returns (uint256[] memory tvlsQuote)
     {
         uint256 length = yieldSourceAddresses.length;
-        if (length != baseAddresses.length || length != quoteAddresses.length || length != yieldSourceOracles.length) {
+        if (length != baseAddresses.length || length != quoteAddresses.length || length != yieldSourceOracles.length || length != oracles.length) {
             revert ARRAY_LENGTH_MISMATCH();
         }
 
@@ -196,6 +199,9 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         returns (uint256[] memory pricesPerShare)
     {
         uint256 length = yieldSourceAddresses.length;
+        if (length != yieldSourceOracles.length) {
+            revert ARRAY_LENGTH_MISMATCH();
+        }
         pricesPerShare = new uint256[](length);
 
         for (uint256 i; i < length; ++i) {
@@ -214,6 +220,9 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         returns (uint256[] memory userTvls)
     {
         uint256 length = yieldSourceAddresses.length;
+        if (length != yieldSourceOracles.length || length != ownersOfShares.length) {
+            revert ARRAY_LENGTH_MISMATCH();
+        }
         userTvls = new uint256[](length);
 
         for (uint256 i; i < length; ++i) {
@@ -233,6 +242,9 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         returns (uint256[] memory tvls)
     {
         uint256 length = yieldSourceAddresses.length;
+        if (length != yieldSourceOracles.length) {
+            revert ARRAY_LENGTH_MISMATCH();
+        }
         tvls = new uint256[](length);
 
         for (uint256 i; i < length; ++i) {

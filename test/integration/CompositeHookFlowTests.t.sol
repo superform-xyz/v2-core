@@ -20,6 +20,7 @@ import { SuperLedger } from "../../src/accounting/SuperLedger.sol";
 import { SuperExecutor } from "../../src/executors/SuperExecutor.sol";
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { IVaultBank, IVaultBankSource, IVaultBankDestination } from "../../src/vendor/superform/IVaultBank.sol";
+import { IYieldSourceOracle } from "../../src/interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedgerConfiguration } from "../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { MintSuperPositionsHook } from "../../src/hooks/vaults/vault-bank/MintSuperPositionsHook.sol";
 import { ERC4626YieldSourceOracle } from "../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -168,7 +169,11 @@ contract CompositeHookFlowTests is BaseTest {
         uint256 userShares = vaultInstance4626.balanceOf(accountEth);
         uint256 sharesAsAssets = vaultInstance4626.convertToAssets(userShares);
 
-        (uint256 expectedFee, uint256 expectedUserAssets) = _calculateExpectedFee4626Vault(sharesAsAssets, userShares);
+
+        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig = config.getYieldSourceOracleConfig(yieldSourceOracleId4626);
+        uint256 pps = IYieldSourceOracle(oracleConfig.yieldSourceOracle).getPricePerShare(yieldSource4626AddressUSDC);
+        uint8 decimals = IYieldSourceOracle(oracleConfig.yieldSourceOracle).decimals(yieldSource4626AddressUSDC);
+        (uint256 expectedFee, uint256 expectedUserAssets) = _calculateExpectedFee4626Vault(sharesAsAssets, userShares, pps, decimals);
 
         // Stake vault shares
         _executeGearboxStakeFlow(userShares);
@@ -208,8 +213,10 @@ contract CompositeHookFlowTests is BaseTest {
 
         uint256 userShares = vaultInstance4626.balanceOf(accountEth);
         uint256 sharesAsAssets = vaultInstance4626.convertToAssets(userShares);
-
-        (uint256 expectedFee, uint256 expectedUserAssets) = _calculateExpectedFee4626Vault(sharesAsAssets, userShares);
+        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig = config.getYieldSourceOracleConfig(yieldSourceOracleId4626);
+        uint256 pps = IYieldSourceOracle(oracleConfig.yieldSourceOracle).getPricePerShare(yieldSource4626AddressUSDC);
+        uint8 decimals = IYieldSourceOracle(oracleConfig.yieldSourceOracle).decimals(yieldSource4626AddressUSDC);
+        (uint256 expectedFee, uint256 expectedUserAssets) = _calculateExpectedFee4626Vault(sharesAsAssets, userShares, pps, decimals);
 
         // Stake vault shares
         _executeGearboxStakeFlow(userShares);
@@ -245,13 +252,15 @@ contract CompositeHookFlowTests is BaseTest {
     /// @notice Calculates the expected fee and user assets for the 4626 vault
     function _calculateExpectedFee4626Vault(
         uint256 sharesAsAssets,
-        uint256 userShares
+        uint256 userShares,
+        uint256 pps,
+        uint8 decimals
     )
         internal
         view
         returns (uint256 expectedFee, uint256 expectedUserAssets)
     {
-        expectedFee = superLedger.previewFees(accountEth, yieldSource4626AddressUSDC, sharesAsAssets, userShares, 2000);
+        expectedFee = superLedger.previewFees(accountEth, yieldSource4626AddressUSDC, sharesAsAssets, userShares, 2000, pps, decimals);
         expectedUserAssets = sharesAsAssets - expectedFee;
     }
 

@@ -1493,7 +1493,7 @@ contract LedgerTests is Helpers {
             yieldSource,
             amountAssets * 2, // Double the assets to ensure profit
             usedShares,
-            feePercent
+            feePercent, 0, 0
         );
 
         // Expected fee should be 10% of the profit
@@ -1545,7 +1545,7 @@ contract LedgerTests is Helpers {
             yieldSource,
             amountAssets, // Same as cost basis
             usedShares,
-            feePercent
+            feePercent, 0, 0
         );
 
         assertEq(previewFee, 0, "Preview fee should be 0 when there's no profit");
@@ -1597,7 +1597,7 @@ contract LedgerTests is Helpers {
             yieldSource,
             amountAssets * 2, // Double the assets to ensure profit
             usedShares,
-            feePercent
+            feePercent, 0, 0
         );
 
         assertEq(previewFee, 0, "Preview fee should be 0 when fee percent is 0");
@@ -1647,7 +1647,7 @@ contract LedgerTests is Helpers {
             yieldSource,
             amountAssets * 2, // Double the assets to ensure profit
             usedShares,
-            feePercent
+            feePercent, 0, 0
         );
 
         // Expected fee should be 50% of the profit
