@@ -83,7 +83,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     /// @param contractName Name of the contract
     /// @param env Environment (1 = vnet/dev, 0/2 = prod/staging)
     /// @return bytecode Contract bytecode
-    function __getOtherHooksBytecode(string memory contractName, uint256 env) internal returns (bytes memory) {
+    function __getOtherHooksBytecode(string memory contractName, uint256 env) internal view returns (bytes memory) {
         string memory artifactPath =
             string(abi.encodePacked(__getOtherHooksBytecodeDirectory(env), contractName, ".json"));
         return vm.getCode(artifactPath);
