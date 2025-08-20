@@ -79,9 +79,9 @@ contract CircleGatewayUnitTests is BaseTest {
         Execution[] memory executions = delegateHook.build(address(0), ACCOUNT, hookData);
 
         // Should have 2 executions: preExecute, addDelegate, postExecute
-        assertEq(executions.length, 3, "Should have 2 executions");
+        assertEq(executions.length, 3, "Should have 3 executions");
 
-        // Check first execution (index 0): preExecute
+        // Check execution (index 1): addDelegate
         assertEq(executions[1].target, address(mockGatewayWallet), "target should be gateway wallet");
         assertEq(executions[1].value, 0, "value should be 0");
         bytes memory expectedPreExecute = abi.encodeCall(IGatewayWallet.addDelegate, (address(mockToken), address(0x123)));
