@@ -10,6 +10,7 @@ import "../../../vendor/1inch/I1InchAggregationRouterV6.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
 import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title Swap1InchHook
@@ -237,21 +238,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
         if (usePrevHookAmount) {
             uint256 _prevAmount = amount;
             amount = ISuperHookResult(prevHook).getOutAmount(account);
-
-            if (amount != _prevAmount) {
-                if (amount > _prevAmount) {
-                    uint256 percentIncrease = Math.mulDiv(amount - _prevAmount, PRECISION, _prevAmount);
-                    minReturn = minReturn + Math.mulDiv(minReturn, percentIncrease, PRECISION);
-                } else {
-                    uint256 percentDecrease = Math.mulDiv(_prevAmount - amount, PRECISION, _prevAmount);
-                    uint256 decreaseAmount = Math.mulDiv(minReturn, percentDecrease, PRECISION);
-                    if (decreaseAmount > minReturn) {
-                        minReturn = 0;
-                    } else {
-                        minReturn = minReturn - decreaseAmount;
-                    }
-                }
-            }
+            minReturn = HookDataUpdater.getUpdatedOutputAmount(amount, _prevAmount, minReturn);
         }
 
         if (amount == 0) {
@@ -304,7 +291,9 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
         }
 
         if (usePrevHookAmount) {
+            uint256 _prevAmount = desc.amount;
             desc.amount = ISuperHookResult(prevHook).getOutAmount(account);
+            desc.minReturnAmount = HookDataUpdater.getUpdatedOutputAmount(desc.amount, _prevAmount, desc.minReturnAmount);
         }
 
         if (desc.amount == 0) {
@@ -346,7 +335,9 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
         }
 
         if (usePrevHookAmount) {
+            uint256 _prevAmount = inputAmount;
             inputAmount = ISuperHookResult(prevHook).getOutAmount(account);
+            outputAmount = HookDataUpdater.getUpdatedOutputAmount(inputAmount, _prevAmount, outputAmount);
         }
 
         if (inputAmount == 0) {
@@ -358,12 +349,14 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
         }
 
         if (usePrevHookAmount) {
-            // Create a copy of txData_ and update only the inputAmount field (5th parameter, position 128 bytes in)
+            // Create a copy of txData_ and update only the inputAmount field (5th parameter, position 128 bytes in) and outputAmount field (6th parameter, position 160 bytes in)
             updatedTxData = txData_;
             // inputAmount is at position: 32 (clipperExchange) + 32 (recipient) + 32 (srcToken) + 32 (dstToken) = 128
+            // outputAmount is at position: 32 (clipperExchange) + 32 (recipient) + 32 (srcToken) + 32 (dstToken) + 32 (inputAmount) = 160
             // bytes
             assembly {
                 mstore(add(updatedTxData, add(0x20, 128)), inputAmount)
+                mstore(add(updatedTxData, add(0x20, 160)), outputAmount)
             }
         }
     }
