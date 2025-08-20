@@ -2,11 +2,12 @@
 pragma solidity >=0.8.30;
 
 import { ConfigBase } from "./ConfigBase.sol";
+import { ConstantsOtherHooks } from "./ConstantsOtherHooks.sol";
 
 /// @title ConfigOtherHooks
 /// @notice Standalone protocol-specific router configuration for hooks
 /// @dev Handles router addresses for 1inch, ODOS, OKX, Spectra, Pendle and other protocol integrations
-abstract contract ConfigOtherHooks is ConfigBase {
+abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
