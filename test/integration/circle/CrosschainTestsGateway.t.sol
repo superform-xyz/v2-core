@@ -2,7 +2,6 @@
 pragma solidity >=0.8.30;
 
 // external
-import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
 import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance } from "modulekit/ModuleKit.sol";
@@ -29,8 +28,8 @@ import {
     FiatTokenV2_2,
     MasterMinter
 } from "../../../lib/evm-gateway-contracts/test/util/MultichainTestUtils.sol";
-import { TransferSpecLib, TransferSpec } from "evm-gateway/lib/TransferSpecLib.sol";
-import { AttestationLib, Attestation, AttestationSet } from "evm-gateway/lib/AttestationLib.sol";
+import { TransferSpec } from "evm-gateway/lib/TransferSpecLib.sol";
+import { Attestation, AttestationSet } from "evm-gateway/lib/AttestationLib.sol";
 
 // Test hooks
 import { CircleGatewayWalletHook } from "../../../src/hooks/bridges/circle/CircleGatewayWalletHook.sol";
@@ -577,7 +576,7 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
             baseSepoliaSetup,
             MINT_AMOUNT,
             setupParams[ethereumSepolia.chainId].account,
-            setupParams[ethereumSepolia.chainId].account, // Use the user's smart account as the recipient
+            setupParams[baseSepolia.chainId].account, // Use the user's smart account as the recipient
             setupParams[ethereumSepolia.chainId].minterAttestationSigner, //signer (need to match burn signer)
             address(0) // No specific destination caller
         );
@@ -590,7 +589,7 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
 
         // Step 3: Switch back to Base Sepolia for minting
         vm.selectFork(baseSepolia.forkId);
-
+        account = setupParams[baseSepolia.chainId].account;
         // Step 4: Sign attestation with the proper key (off-chain Circle simulation)
         (bytes memory encodedAttestation, bytes memory attestationSignature) =
             _signAttestationWithTransferSpec(transferSpec, baseSepoliaSetup.minterAttestationSignerKey);
@@ -632,7 +631,7 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         // Execute both hooks through SuperExecutor
-        vm.prank(setupParams[baseSepolia.chainId].account);
+        vm.prank(account);
         superExecutor.execute(abi.encode(entry));
 
         // Step 6: Verify end-to-end success
@@ -651,11 +650,22 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         assertGt(vaultBalance, 0, "Should have vault shares after deposit");
 
         assertTrue(true, "Cross-chain transfer with vault deposit completed successfully");
-return;
-        
+
         // Step 5: Switch back to ETH Sepolia for burning
-        vm.selectFork(ethereumSepolia.forkId);
-        uint256 feeAmount = 10000; //0.01 USDC
-        _burnFromWallet(ethereumSepoliaSetup, encodedBurnIntent, burnSignature, MINT_AMOUNT, feeAmount);
+        {
+            vm.selectFork(ethereumSepolia.forkId);
+            uint256 feeAmount = 10000; //0.01 USDC
+
+            console2.log("------- ethereumSepolia.usdc", ethereumSepolia.usdc);
+            console2.log("------- setupParams[baseSepolia.chainId].account", setupParams[baseSepolia.chainId].account);
+            console2.log("------- setupParams[ethereumSepolia.chainId].account", setupParams[ethereumSepolia.chainId].account);
+            uint256 depositorTotalBalanceBefore = ethereumSepoliaSetup.wallet.totalBalance(address(ethereumSepolia.usdc), setupParams[ethereumSepolia.chainId].account);
+            _burnFromWallet(ethereumSepoliaSetup, encodedBurnIntent, burnSignature, MINT_AMOUNT, feeAmount);
+            uint256 depositorTotalBalanceAfter = ethereumSepoliaSetup.wallet.totalBalance(address(ethereumSepolia.usdc), setupParams[ethereumSepolia.chainId].account);
+            assertEq(depositorTotalBalanceBefore - depositorTotalBalanceAfter, MINT_AMOUNT + feeAmount, "Burn amount should match");
+
+            uint256 afterFeeBalance = IERC20(ethereumSepolia.usdc).balanceOf(setupParams[ethereumSepolia.chainId].walletFeeRecipient);
+            assertEq(afterFeeBalance, feeAmount, "Fees should exist");
+        }
     }
 }
