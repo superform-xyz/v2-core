@@ -10,7 +10,7 @@ abstract contract ConstantsOtherHooks {
     address internal constant OKX_ROUTER_BNB = address(0); // TODO: Research BNB OKX router address
 
      // Spectra Router addresses per chain
-    address internal constant SPECTRA_ROUTER_MAINNET = 0xDbbfc051D200438dd5847b093B22484B842de9E7;
+    address internal constant SPECTRA_ROUTER_MAINNET = 0xC03309DE321A4D3df734F5609B80cC731ae28e6D;
     address internal constant SPECTRA_ROUTER_BASE = 0xC03309DE321A4D3df734F5609B80cC731ae28e6D;
     address internal constant SPECTRA_ROUTER_OPTIMISM = 0x8A92294ffCFe469a3DF4A85c76a0B0d2B3292119;
     address internal constant SPECTRA_ROUTER_ARBITRUM = 0x38b9B4884a5581E96eD3882AA2f7449BC321786C; 
