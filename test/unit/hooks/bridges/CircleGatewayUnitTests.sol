@@ -78,7 +78,7 @@ contract CircleGatewayUnitTests is BaseTest {
         // Build executions using the public build method
         Execution[] memory executions = delegateHook.build(address(0), ACCOUNT, hookData);
 
-        // Should have 2 executions: preExecute, addDelegate, postExecute
+        // Should have 3 executions: preExecute, addDelegate, postExecute
         assertEq(executions.length, 3, "Should have 3 executions");
 
         // Check execution (index 1): addDelegate
