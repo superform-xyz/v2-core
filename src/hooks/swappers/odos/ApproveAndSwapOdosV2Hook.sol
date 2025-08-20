@@ -11,6 +11,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
 import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ApproveAndSwapOdosV2Hook
@@ -173,21 +174,9 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware {
         if (usePrevHookAmount) {
             uint256 _prevAmount = inputAmount;
             inputAmount = ISuperHookResult(prevHook).getOutAmount(account);
-
-            if (inputAmount > _prevAmount) {
-                uint256 percentIncrease = Math.mulDiv(inputAmount - _prevAmount, PRECISION, _prevAmount);
-                outputAmount = outputAmount + Math.mulDiv(outputAmount, percentIncrease, PRECISION);
-            } else {
-                uint256 percentDecrease = Math.mulDiv(_prevAmount - inputAmount, PRECISION, _prevAmount);
-                uint256 decreaseAmount = Math.mulDiv(outputAmount, percentDecrease, PRECISION);
-                if (decreaseAmount > outputAmount) {
-                    outputAmount = 0;
-                } else {
-                    outputAmount = outputAmount - decreaseAmount;
-                }
-            }
+            outputAmount = HookDataUpdater.getUpdatedOutputAmount(inputAmount, _prevAmount, outputAmount);
         }
-
+           
         return IOdosRouterV2.swapTokenInfo(
             inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputAmount, account
         );
