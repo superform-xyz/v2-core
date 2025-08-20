@@ -148,8 +148,8 @@ generate_constructor_args() {
     local aggregation_router=""
     local odos_router=""
     local across_spoke_pool_v3=""
-    local debridge_dst_dln=""
     local merkl_distributor=""
+    local debridge_dst_dln="0xE7351Fd770A37282b91D153Ee690B63579D6dd7f"
     local entry_point="0x0000000071727De22E5E9d8BAf0edAc6f37da032"  # EntryPoint v0.7
     local debridge_dln_src="0xeF4fB24aD0916217251F553c0596F8Edc630EB66"  # Standard DeBridge DLN SRC
     local debridge_dln_dst="0xE7351Fd770A37282b91D153Ee690B63579D6dd7f"  # Standard DeBridge DLN DST
@@ -162,6 +162,7 @@ generate_constructor_args() {
             odos_router="0xcf5540fFFCdC3d510B18bFcA6d2b9987b0772559"
             across_spoke_pool_v3="0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            
             ;;
         "8453") # Base Mainnet
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
