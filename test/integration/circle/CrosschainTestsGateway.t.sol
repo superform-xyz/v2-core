@@ -37,6 +37,8 @@ import { CircleGatewayWalletHook } from "../../../src/hooks/bridges/circle/Circl
 import { CircleGatewayMinterHook } from "../../../src/hooks/bridges/circle/CircleGatewayMinterHook.sol";
 import { CircleGatewayDelegateHook } from "../../../src/hooks/bridges/circle/CircleGatewayDelegateHook.sol";
 
+import "forge-std/console2.sol";
+
 // Test utilities
 import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
 
@@ -210,12 +212,12 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         {
             // Configure minter settings
             minter.addSupportedToken(chainConfig.usdc);
-            //minter.addAttestationSigner(params.minterAttestationSigner);
+            minter.addAttestationSigner(params.minterAttestationSigner);
             minter.updateMintAuthority(chainConfig.usdc, chainConfig.usdc);
 
             // Configure wallet settings
             wallet.addSupportedToken(chainConfig.usdc);
-            wallet.addBurnSigner(params.walletBurnSigner);
+            wallet.addBurnSigner(params.minterAttestationSigner);
             wallet.updateFeeRecipient(params.walletFeeRecipient);
             wallet.updateWithdrawalDelay(WITHDRAW_DELAY);
         }
@@ -243,6 +245,7 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         circleGatewayMinterHook = new CircleGatewayMinterHook{ salt: "TEST_SALT" }(address(minter));
         circleGatewayDelegateHook = new CircleGatewayDelegateHook{ salt: "TEST_SALT" }(address(wallet));
 
+        params.account = accountInstance.account;
         setupParams[params.chainId] = params;
 
         // Return the ChainSetup struct
@@ -264,7 +267,7 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
     /// @notice Internal function to perform Circle Gateway deposit using SuperExecutor
     /// @param chainConfig The chain configuration to deposit on
     /// @param amount The amount to deposit
-    function _performGatewayDeposit(ChainConfig memory chainConfig, uint256 amount) internal {
+    function _performGatewayDeposit(ChainConfig memory chainConfig, address account, uint256 amount) internal {
         vm.selectFork(chainConfig.forkId);
 
         // Prepare hook data for Circle Gateway deposit
@@ -316,6 +319,21 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         // Execute through SuperExecutor
         vm.prank(accountInstance.account);
         superExecutor.execute(abi.encode(entry));
+    }
+
+    function _burnFromWallet(ChainSetup memory chain, bytes memory burnIntent, bytes memory burnSignature, uint256 amount, uint256 feeAmount) internal {
+        bytes[] memory allBurnAuths = new bytes[](1);
+        allBurnAuths[0] = burnIntent;
+        bytes[] memory allSignatures = new bytes[](1);
+        allSignatures[0] = burnSignature;
+
+        uint256[][] memory fees = _createFees(allBurnAuths, feeAmount);
+
+         // Get burn signer signature and execute burn
+        bytes memory burnSignerSignature =
+            _signBurnIntents(allBurnAuths, allSignatures, fees, chain.minterAttestationSignerKey);
+
+        chain.wallet.gatewayBurn(abi.encode(allBurnAuths, allSignatures, fees), burnSignerSignature);
     }
 
     /// @notice Creates a TransferSpec for Circle Gateway bridging with superform integration
@@ -408,7 +426,7 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
     /// @notice Test basic Gateway deposit functionality
     function test_gatewayDeposit() public {
         // Test deposit on Ethereum Sepolia
-        _performGatewayDeposit(ethereumSepolia, DEPOSIT_AMOUNT);
+        _performGatewayDeposit(ethereumSepolia, setupParams[ethereumSepolia.chainId].account, DEPOSIT_AMOUNT);
 
         // Verify the deposit was successful
         // Note: In a real test, you would check the Gateway balance
@@ -422,7 +440,7 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         _performGatewayDelegate(ethereumSepolia, address(this));
 
         // Test deposit on Ethereum Sepolia
-        _performGatewayDeposit(ethereumSepolia, DEPOSIT_AMOUNT);
+        _performGatewayDeposit(ethereumSepolia,  setupParams[ethereumSepolia.chainId].account, DEPOSIT_AMOUNT);
 
         // Verify the deposit was successful
         // Note: In a real test, you would check the Gateway balance
@@ -436,7 +454,7 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         /// user is prompted to deposit into gateway. These funds become available for usage on any chain
         // Deposit on Ethereum Sepolia
         vm.selectFork(ethereumSepolia.forkId);
-        _performGatewayDeposit(ethereumSepolia, DEPOSIT_AMOUNT);
+        _performGatewayDeposit(ethereumSepolia, setupParams[ethereumSepolia.chainId].account, DEPOSIT_AMOUNT);
 
         /// @dev when the user is ready to take an action on any chain, he can sign an attestation for spending
         // Step 1: Create transfer specification for ETH Sepolia -> Base Sepolia
@@ -537,9 +555,9 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         /// user is prompted to deposit into gateway. These funds become available for usage on any chain
         // Deposit on Ethereum Sepolia
         vm.selectFork(ethereumSepolia.forkId);
-        _performGatewayDeposit(ethereumSepolia, DEPOSIT_AMOUNT);
+        _performGatewayDeposit(ethereumSepolia, setupParams[ethereumSepolia.chainId].account, DEPOSIT_AMOUNT);
         _performGatewayDelegate(ethereumSepolia, setupParams[ethereumSepolia.chainId].minterAttestationSigner);
-
+        assertTrue(ethereumSepoliaSetup.wallet.isAuthorizedForBalance(ethereumSepolia.usdc, setupParams[ethereumSepolia.chainId].account, setupParams[ethereumSepolia.chainId].minterAttestationSigner));
         /// @dev when the user is ready to take an action on any chain, he can sign an attestation for spending
         // Step 1: Create transfer specification for ETH Sepolia -> Base Sepolia
         // Note: We'll need to setup base sepolia first to get the chain setup
@@ -551,13 +569,16 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
 
         address account = accountInstance.account;
 
+        console2.log('~~~account', account);
+        console2.log('~~~setupParams[ethereumSepolia.chainId].minterAttestationSigner', setupParams[ethereumSepolia.chainId].minterAttestationSigner);
+
         TransferSpec memory transferSpec = _createSuperformTransferSpec(
             ethereumSepoliaSetup,
             baseSepoliaSetup,
             MINT_AMOUNT,
-            depositor,
-            account, // Use the user's smart account as the recipient
-            depositor,
+            setupParams[ethereumSepolia.chainId].account,
+            setupParams[ethereumSepolia.chainId].account, // Use the user's smart account as the recipient
+            setupParams[ethereumSepolia.chainId].minterAttestationSigner, //signer (need to match burn signer)
             address(0) // No specific destination caller
         );
 
@@ -611,9 +632,8 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         // Execute both hooks through SuperExecutor
-        vm.prank(account);
+        vm.prank(setupParams[baseSepolia.chainId].account);
         superExecutor.execute(abi.encode(entry));
-        return;
 
         // Step 6: Verify end-to-end success
         // Check that USDC was minted to the account
@@ -631,5 +651,11 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         assertGt(vaultBalance, 0, "Should have vault shares after deposit");
 
         assertTrue(true, "Cross-chain transfer with vault deposit completed successfully");
+return;
+        
+        // Step 5: Switch back to ETH Sepolia for burning
+        vm.selectFork(ethereumSepolia.forkId);
+        uint256 feeAmount = 10000; //0.01 USDC
+        _burnFromWallet(ethereumSepoliaSetup, encodedBurnIntent, burnSignature, MINT_AMOUNT, feeAmount);
     }
 }
