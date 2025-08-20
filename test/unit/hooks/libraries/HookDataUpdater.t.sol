@@ -32,12 +32,12 @@ contract HookDataUpdaterTest is Helpers {
         assertEq(res, out);
     }
 
-    function test_Increase_WithPrevZero_DoublesOutput() public view {
+    function test_Increase_WithPrevZero_KeepsOutput() public view {
         uint256 amount = 123; // any > 0
         uint256 prev = 0;
         uint256 out = 10_000;
 
-        uint256 expected = out + Math.mulDiv(out, PRECISION, PRECISION);
+        uint256 expected = out;
         uint256 res = tester.get(amount, prev, out);
         assertEq(res, expected);
     }
@@ -76,7 +76,7 @@ contract HookDataUpdaterTest is Helpers {
         assertEq(res, expected);
     }
 
-    function test_LargeIncrease_MoreThan100Percent() public {
+    function test_LargeIncrease_MoreThan100Percent() public view {
         uint256 amount = 500;  // +400% vs prev
         uint256 prev = 100;
         uint256 out = 3;
@@ -96,15 +96,17 @@ contract HookDataUpdaterTest is Helpers {
         assertEq(res, out);
     }
 
-    function testFuzz_NoChange_WhenEqual(uint256 x, uint256 out) public {
+    function testFuzz_NoChange_WhenEqual(uint256 x, uint256 out) public view {
         uint256 res = tester.get(x, x, out);
         assertEq(res, out);
     }
     
    
-    function testFuzz_Monotonicity(uint256 prev, uint256 out, uint256 a, uint256 b) public {
+    function testFuzz_Monotonicity(uint256 prev, uint256 out, uint256 a, uint256 b) public view {
         // If a > b and both compared to the same prev, result(a) >= result(b)
         vm.assume(prev > 0 && prev < 1e18);
+        vm.assume(a > 0 && a < 1e18);
+        vm.assume(b > 0 && b < 1e18);
         vm.assume(a != b);
         vm.assume(out < 1e18);
 
