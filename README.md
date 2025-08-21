@@ -197,6 +197,12 @@ Adapters are a set of gateway contracts that handle the acceptance of relayed me
 
 SuperNativePaymaster is a specialized paymaster contract that wraps around the ERC4337 EntryPoint. It enables users to pay for operations using ERC20 tokens from any chain, on demand. It's primarily used by SuperBundler for gas sponsoring. This functionality is necessary because of the SuperBundler's unique fee collection mechanism where userOps are executed on user behalf and when required.
 
+**Key Assumptions and Responsibilities:**
+
+- **Bundler Responsibility**: The bundler is responsible for making correct gas estimation and calling `SuperNativePaymaster.handleOps` with the correct amount of native tokens required for the operation. Any extra
+tokens are returned to whoever calls the function. Bundler does not supply the entrypoint directly, thus fund
+loss is not possible.
+
 #### SuperRegistry
 
 Provides centralized address management for configuration and upgradeability.
