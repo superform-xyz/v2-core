@@ -69,5 +69,11 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         otherHooksConfiguration.pendleRouters[ARBITRUM_CHAIN_ID] = address(0); // TODO: Add Arbitrum Pendle router
             // address
         otherHooksConfiguration.pendleRouters[BNB_CHAIN_ID] = address(0); // TODO: Add BNB Pendle router address
+
+        configuration.morphos[MAINNET_CHAIN_ID] = MORPHO_MAINNET;
+        configuration.morphos[BASE_CHAIN_ID] = MORPHO_BASE;
+        configuration.morphos[OPTIMISM_CHAIN_ID] = MORPHO_OPTIMISM;
+        configuration.morphos[ARBITRUM_CHAIN_ID] = MORPHO_ARBITRUM;
+        configuration.morphos[BNB_CHAIN_ID] = MORPHO_BNB;
     }
 }

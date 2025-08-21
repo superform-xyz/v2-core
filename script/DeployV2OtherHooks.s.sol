@@ -151,18 +151,18 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         // Morpho loan hooks
         hooks[13] = HookDeployment(
             MORPHO_SUPPLY_AND_BORROW_HOOK_KEY,
-            abi.encodePacked(__getOtherHooksBytecode("MorphoSupplyAndBorrowHook", env), abi.encode(MORPHO))
+            abi.encodePacked(__getOtherHooksBytecode("MorphoSupplyAndBorrowHook", env), abi.encode(configuration.morphos[chainId]))
         );
         hooks[14] = HookDeployment(
-            MORPHO_REPAY_HOOK_KEY, abi.encodePacked(__getOtherHooksBytecode("MorphoRepayHook", env), abi.encode(MORPHO))
+            MORPHO_REPAY_HOOK_KEY, abi.encodePacked(__getOtherHooksBytecode("MorphoRepayHook", env), abi.encode(configuration.morphos[chainId]))
         );
         hooks[15] = HookDeployment(
             MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY,
-            abi.encodePacked(__getOtherHooksBytecode("MorphoRepayAndWithdrawHook", env), abi.encode(MORPHO))
+            abi.encodePacked(__getOtherHooksBytecode("MorphoRepayAndWithdrawHook", env), abi.encode(configuration.morphos[chainId]))
         );
         hooks[16] = HookDeployment(
             MORPHO_BORROW_ONLY_HOOK_KEY,
-            abi.encodePacked(__getOtherHooksBytecode("MorphoBorrowHook", env), abi.encode(MORPHO))
+            abi.encodePacked(__getOtherHooksBytecode("MorphoBorrowHook", env), abi.encode(configuration.morphos[chainId]))
         );
 
         for (uint256 i = 0; i < len; ++i) {
