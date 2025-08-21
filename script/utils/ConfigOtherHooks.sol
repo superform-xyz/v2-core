@@ -17,6 +17,7 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         mapping(uint64 chainId => address okxRouter) okxRouters;
         mapping(uint64 chainId => address spectraRouter) spectraRouters;
         mapping(uint64 chainId => address pendleRouter) pendleRouters;
+        mapping(uint64 chainId => address morpho) morphos;
     }
 
     OtherHooksData internal otherHooksConfiguration;
@@ -70,10 +71,10 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
             // address
         otherHooksConfiguration.pendleRouters[BNB_CHAIN_ID] = address(0); // TODO: Add BNB Pendle router address
 
-        configuration.morphos[MAINNET_CHAIN_ID] = MORPHO_MAINNET;
-        configuration.morphos[BASE_CHAIN_ID] = MORPHO_BASE;
-        configuration.morphos[OPTIMISM_CHAIN_ID] = MORPHO_OPTIMISM;
-        configuration.morphos[ARBITRUM_CHAIN_ID] = MORPHO_ARBITRUM;
-        configuration.morphos[BNB_CHAIN_ID] = MORPHO_BNB;
+        otherHooksConfiguration.morphos[MAINNET_CHAIN_ID] = MORPHO_MAINNET;
+        otherHooksConfiguration.morphos[BASE_CHAIN_ID] = MORPHO_BASE;
+        otherHooksConfiguration.morphos[OPTIMISM_CHAIN_ID] = MORPHO_OPTIMISM;
+        otherHooksConfiguration.morphos[ARBITRUM_CHAIN_ID] = MORPHO_ARBITRUM;
+        otherHooksConfiguration.morphos[BNB_CHAIN_ID] = MORPHO_BNB;
     }
 }

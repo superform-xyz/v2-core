@@ -21,7 +21,6 @@ abstract contract ConfigBase is Constants {
         mapping(uint64 chainId => address merklDistributor) merklDistributors;
         mapping(uint64 chainId => address routers) aggregationRouters;
         mapping(uint64 chainId => address odosRouter) odosRouters;
-        mapping(uint64 chainId => address morpho) morphos;
     }
 
     EnvironmentData public configuration;
