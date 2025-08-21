@@ -90,9 +90,6 @@ abstract contract Constants {
     address internal constant PERMIT2_ARBITRUM = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     address internal constant PERMIT2_BNB = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
-
-    address public constant MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
-
     // Hook Keys
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
     string internal constant FLUID_CLAIM_REWARD_HOOK_KEY = "FluidClaimRewardHook";
