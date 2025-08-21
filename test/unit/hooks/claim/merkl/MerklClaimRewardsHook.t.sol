@@ -151,7 +151,7 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         assertEq(argsEncoded.length, 0); // Should be empty for no tokens
     }
 
-    function test_CalldataDecodingX() public {
+    function test_CalldataDecoding() public view {
         bytes memory data = _encodeData();
 
         Execution[] memory executions = hook.build(address(0), users[0], data);
