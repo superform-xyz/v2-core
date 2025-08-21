@@ -1,0 +1,10 @@
+---
+trigger: always_on
+description: Rules for the agent to follow
+globs: 
+---
+
+# Agent Instructions
+
+Whenever you want to run solidity tests in v2-core or v2-periphery repos, always run from Makefile and never via forge directly. Example below (substitute TEST and verbosity level in ARGS)
+- `make forge-test TEST="test_CrossChain_execution_1_threshold" ARGS="-vvvv"`
