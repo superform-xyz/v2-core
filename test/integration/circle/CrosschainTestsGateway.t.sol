@@ -34,7 +34,8 @@ import { Attestation, AttestationSet } from "evm-gateway/lib/AttestationLib.sol"
 // Test hooks
 import { CircleGatewayWalletHook } from "../../../src/hooks/bridges/circle/CircleGatewayWalletHook.sol";
 import { CircleGatewayMinterHook } from "../../../src/hooks/bridges/circle/CircleGatewayMinterHook.sol";
-import { CircleGatewayDelegateHook } from "../../../src/hooks/bridges/circle/CircleGatewayDelegateHook.sol";
+import { CircleGatewayAddDelegateHook } from "../../../src/hooks/bridges/circle/CircleGatewayAddDelegateHook.sol";
+import { CircleGatewayRemoveDelegateHook } from "../../../src/hooks/bridges/circle/CircleGatewayRemoveDelegateHook.sol";
 
 import "forge-std/console2.sol";
 
@@ -92,7 +93,8 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
 
     CircleGatewayWalletHook public circleGatewayWalletHook;
     CircleGatewayMinterHook public circleGatewayMinterHook;
-    CircleGatewayDelegateHook public circleGatewayDelegateHook;
+    CircleGatewayAddDelegateHook public circleGatewayAddDelegateHook;
+    CircleGatewayRemoveDelegateHook public circleGatewayRemoveDelegateHook;
     ApproveAndDeposit4626VaultHook public approveAndDeposit4626Hook;
 
     Mock4626Vault public mockVault;
@@ -242,7 +244,8 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         approveAndDeposit4626Hook = new ApproveAndDeposit4626VaultHook{ salt: "TEST_SALT" }();
         circleGatewayWalletHook = new CircleGatewayWalletHook{ salt: "TEST_SALT" }(address(wallet));
         circleGatewayMinterHook = new CircleGatewayMinterHook{ salt: "TEST_SALT" }(address(minter));
-        circleGatewayDelegateHook = new CircleGatewayDelegateHook{ salt: "TEST_SALT" }(address(wallet));
+        circleGatewayAddDelegateHook = new CircleGatewayAddDelegateHook{ salt: "TEST_SALT" }(address(wallet));
+        circleGatewayRemoveDelegateHook = new CircleGatewayRemoveDelegateHook{ salt: "TEST_SALT" }(address(wallet));
 
         params.account = accountInstance.account;
         setupParams[params.chainId] = params;
@@ -292,10 +295,10 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         superExecutor.execute(abi.encode(entry));
     }
 
-    /// @notice Internal function to perform Circle Gateway delegate using SuperExecutor
+    /// @notice Internal function to perform Circle Gateway add delegate using SuperExecutor
     /// @param chainConfig The chain configuration to delegate on
     /// @param delegate The delegate address
-    function _performGatewayDelegate(ChainConfig memory chainConfig, address delegate) internal {
+    function _performGatewayAddDelegate(ChainConfig memory chainConfig, address delegate) internal {
         vm.selectFork(chainConfig.forkId);
 
         // Prepare hook data for Circle Gateway delegate
@@ -306,7 +309,7 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
 
         // Create hooks array for SuperExecutor
         address[] memory hooksAddresses = new address[](1);
-        hooksAddresses[0] = address(circleGatewayDelegateHook);
+        hooksAddresses[0] = address(circleGatewayAddDelegateHook);
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = hookData;
@@ -319,6 +322,36 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         vm.prank(accountInstance.account);
         superExecutor.execute(abi.encode(entry));
     }
+
+    
+    /// @notice Internal function to perform Circle Gateway remove delegate using SuperExecutor
+    /// @param chainConfig The chain configuration to delegate on
+    /// @param delegate The delegate address
+    function _performGatewayRemoveDelegate(ChainConfig memory chainConfig, address delegate) internal {
+        vm.selectFork(chainConfig.forkId);
+
+        // Prepare hook data for Circle Gateway delegate
+        bytes memory hookData = abi.encodePacked(
+            chainConfig.usdc, 
+            delegate 
+        );
+
+        // Create hooks array for SuperExecutor
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(circleGatewayRemoveDelegateHook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = hookData;
+
+        // Create executor entry
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+
+        // Execute through SuperExecutor
+        vm.prank(accountInstance.account);
+        superExecutor.execute(abi.encode(entry));
+    }
+
 
     function _burnFromWallet(ChainSetup memory chain, bytes memory burnIntent, bytes memory burnSignature, uint256 amount, uint256 feeAmount) internal {
         bytes[] memory allBurnAuths = new bytes[](1);
@@ -436,7 +469,7 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
     /// @notice Test basic Gateway delegate functionality
     function test_gatewayDelegate() public {
         // Test delegate on Ethereum Sepolia
-        _performGatewayDelegate(ethereumSepolia, address(this));
+        _performGatewayAddDelegate(ethereumSepolia, address(this));
 
         // Test deposit on Ethereum Sepolia
         _performGatewayDeposit(ethereumSepolia,  setupParams[ethereumSepolia.chainId].account, DEPOSIT_AMOUNT);
@@ -549,27 +582,24 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         assertTrue(true, "Cross-chain transfer with vault deposit completed successfully");
     }
 
-    function test_crossChainTransferWithVaultDeposit_AndDelegate() public {
+    function test_crossChainTransferWithVaultDeposit_AndAddDelegate() public {
         /// @dev the follow steps happen when user receives some USDC in his account
         /// user is prompted to deposit into gateway. These funds become available for usage on any chain
         // Deposit on Ethereum Sepolia
         vm.selectFork(ethereumSepolia.forkId);
         _performGatewayDeposit(ethereumSepolia, setupParams[ethereumSepolia.chainId].account, DEPOSIT_AMOUNT);
-        _performGatewayDelegate(ethereumSepolia, setupParams[ethereumSepolia.chainId].minterAttestationSigner);
+        _performGatewayAddDelegate(ethereumSepolia, setupParams[ethereumSepolia.chainId].minterAttestationSigner);
         assertTrue(ethereumSepoliaSetup.wallet.isAuthorizedForBalance(ethereumSepolia.usdc, setupParams[ethereumSepolia.chainId].account, setupParams[ethereumSepolia.chainId].minterAttestationSigner));
         /// @dev when the user is ready to take an action on any chain, he can sign an attestation for spending
         // Step 1: Create transfer specification for ETH Sepolia -> Base Sepolia
         // Note: We'll need to setup base sepolia first to get the chain setup
         vm.selectFork(baseSepolia.forkId);
         baseSepoliaSetup = _setupChain(baseSepolia); // Setup infrastructure on destination
-        _performGatewayDelegate(baseSepolia, setupParams[baseSepolia.chainId].minterAttestationSigner);
+        _performGatewayAddDelegate(baseSepolia, setupParams[baseSepolia.chainId].minterAttestationSigner);
 
         vm.selectFork(ethereumSepolia.forkId); // Go back to source chain
 
         address account = accountInstance.account;
-
-        console2.log('~~~account', account);
-        console2.log('~~~setupParams[ethereumSepolia.chainId].minterAttestationSigner', setupParams[ethereumSepolia.chainId].minterAttestationSigner);
 
         TransferSpec memory transferSpec = _createSuperformTransferSpec(
             ethereumSepoliaSetup,
@@ -656,9 +686,6 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
             vm.selectFork(ethereumSepolia.forkId);
             uint256 feeAmount = 10000; //0.01 USDC
 
-            console2.log("------- ethereumSepolia.usdc", ethereumSepolia.usdc);
-            console2.log("------- setupParams[baseSepolia.chainId].account", setupParams[baseSepolia.chainId].account);
-            console2.log("------- setupParams[ethereumSepolia.chainId].account", setupParams[ethereumSepolia.chainId].account);
             uint256 depositorTotalBalanceBefore = ethereumSepoliaSetup.wallet.totalBalance(address(ethereumSepolia.usdc), setupParams[ethereumSepolia.chainId].account);
             _burnFromWallet(ethereumSepoliaSetup, encodedBurnIntent, burnSignature, MINT_AMOUNT, feeAmount);
             uint256 depositorTotalBalanceAfter = ethereumSepoliaSetup.wallet.totalBalance(address(ethereumSepolia.usdc), setupParams[ethereumSepolia.chainId].account);
@@ -667,5 +694,15 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
             uint256 afterFeeBalance = IERC20(ethereumSepolia.usdc).balanceOf(setupParams[ethereumSepolia.chainId].walletFeeRecipient);
             assertEq(afterFeeBalance, feeAmount, "Fees should exist");
         }
+    }
+
+
+    function test_AddRemoveDelegate() public {
+        // Deposit on Ethereum Sepolia
+        vm.selectFork(ethereumSepolia.forkId);
+        _performGatewayAddDelegate(ethereumSepolia, setupParams[ethereumSepolia.chainId].minterAttestationSigner);
+        assertTrue(ethereumSepoliaSetup.wallet.isAuthorizedForBalance(ethereumSepolia.usdc, setupParams[ethereumSepolia.chainId].account, setupParams[ethereumSepolia.chainId].minterAttestationSigner));
+        _performGatewayRemoveDelegate(ethereumSepolia, setupParams[ethereumSepolia.chainId].minterAttestationSigner);
+        assertFalse(ethereumSepoliaSetup.wallet.isAuthorizedForBalance(ethereumSepolia.usdc, setupParams[ethereumSepolia.chainId].account, setupParams[ethereumSepolia.chainId].minterAttestationSigner));
     }
 }

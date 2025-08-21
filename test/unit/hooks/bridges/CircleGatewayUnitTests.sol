@@ -10,7 +10,8 @@ import { BaseTest } from "../../../BaseTest.t.sol";
 import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 import { CircleGatewayWalletHook } from "../../../../src/hooks/bridges/circle/CircleGatewayWalletHook.sol";
 import { CircleGatewayMinterHook } from "../../../../src/hooks/bridges/circle/CircleGatewayMinterHook.sol";
-import { CircleGatewayDelegateHook } from "../../../../src/hooks/bridges/circle/CircleGatewayDelegateHook.sol";
+import { CircleGatewayAddDelegateHook } from "../../../../src/hooks/bridges/circle/CircleGatewayAddDelegateHook.sol";
+import { CircleGatewayRemoveDelegateHook } from "../../../../src/hooks/bridges/circle/CircleGatewayRemoveDelegateHook.sol";
 import { ISuperHook, ISuperHookResult } from "../../../../src/interfaces/ISuperHook.sol";
 import { IGatewayWallet } from "../../../../src/vendor/circle/IGatewayWallet.sol";
 
@@ -31,7 +32,8 @@ contract CircleGatewayUnitTests is BaseTest {
 
     CircleGatewayWalletHook public walletHook;
     CircleGatewayMinterHook public minterHook;
-    CircleGatewayDelegateHook public delegateHook;
+    CircleGatewayAddDelegateHook public addDelegateHook;
+    CircleGatewayRemoveDelegateHook public removeDelegateHook;
     MockGatewayWallet public mockGatewayWallet;
     MockGatewayMinter public mockGatewayMinter;
     MockERC20 public mockToken;
@@ -59,7 +61,8 @@ contract CircleGatewayUnitTests is BaseTest {
         // Deploy hooks
         walletHook = new CircleGatewayWalletHook(address(mockGatewayWallet));
         minterHook = new CircleGatewayMinterHook(address(mockGatewayMinter));
-        delegateHook = new CircleGatewayDelegateHook(address(mockGatewayWallet));
+        addDelegateHook = new CircleGatewayAddDelegateHook(address(mockGatewayWallet));
+        removeDelegateHook = new CircleGatewayRemoveDelegateHook(address(mockGatewayWallet));
 
         // Setup initial balances
         mockToken.mint(ACCOUNT, DEPOSIT_AMOUNT);
@@ -68,7 +71,7 @@ contract CircleGatewayUnitTests is BaseTest {
     /*//////////////////////////////////////////////////////////////
                         CIRCLE GATEWAY WALLET TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_DelegateHook_BuildExecutions() public view {
+    function test_RemoveDelegateHook_BuildExecutions() public view {
         // Prepare hook data: token, delegate
         bytes memory hookData = abi.encodePacked(
             address(mockToken), // token (20 bytes)
@@ -76,7 +79,36 @@ contract CircleGatewayUnitTests is BaseTest {
         );
 
         // Build executions using the public build method
-        Execution[] memory executions = delegateHook.build(address(0), ACCOUNT, hookData);
+        Execution[] memory executions = removeDelegateHook.build(address(0), ACCOUNT, hookData);
+
+        // Should have 3 executions: preExecute, removeDelegate, postExecute
+        assertEq(executions.length, 3, "Should have 3 executions");
+
+        // Check execution (index 1): removeDelegate
+        assertEq(executions[1].target, address(mockGatewayWallet), "target should be gateway wallet");
+        assertEq(executions[1].value, 0, "value should be 0");
+        bytes memory expectedPreExecute = abi.encodeCall(IGatewayWallet.removeDelegate, (address(mockToken), address(0x123)));
+        assertEq(executions[1].callData, expectedPreExecute, "execution should be removeDelegate");
+    }
+
+    function test_RemoveDelegateHook_Constructor() public {
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        new CircleGatewayRemoveDelegateHook(address(0));
+
+        CircleGatewayRemoveDelegateHook _removeDelegateHook = new CircleGatewayRemoveDelegateHook(address(0x123));
+        assertEq(_removeDelegateHook.GATEWAY_WALLET(), address(0x123));
+    }
+
+
+    function test_AddDelegateHook_BuildExecutions() public view {
+        // Prepare hook data: token, delegate
+        bytes memory hookData = abi.encodePacked(
+            address(mockToken), // token (20 bytes)
+            address(0x123) // delegate (20 bytes)
+        );
+
+        // Build executions using the public build method
+        Execution[] memory executions = addDelegateHook.build(address(0), ACCOUNT, hookData);
 
         // Should have 3 executions: preExecute, addDelegate, postExecute
         assertEq(executions.length, 3, "Should have 3 executions");
@@ -88,11 +120,11 @@ contract CircleGatewayUnitTests is BaseTest {
         assertEq(executions[1].callData, expectedPreExecute, "execution should be addDelegate");
     }
 
-    function test_DelegateHook_Constructor() public {
+    function test_AddDelegateHook_Constructor() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new CircleGatewayDelegateHook(address(0));
+        new CircleGatewayAddDelegateHook(address(0));
 
-        CircleGatewayDelegateHook _delegateHook = new CircleGatewayDelegateHook(address(0x123));
+        CircleGatewayAddDelegateHook _delegateHook = new CircleGatewayAddDelegateHook(address(0x123));
         assertEq(_delegateHook.GATEWAY_WALLET(), address(0x123));
     }
 

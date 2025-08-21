@@ -11,13 +11,13 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 
 import { IGatewayWallet } from "../../../vendor/circle/IGatewayWallet.sol";
 
-/// @title CircleGatewayDelegateHook
+/// @title CircleGatewayRemoveDelegateHook
 /// @author Superform Labs
-/// @notice Hook for adding a delegate to Circle Gateway Wallet
+/// @notice Hook for removing a delegate from Circle Gateway Wallet
 /// @dev data has the following structure:
 /// @notice         address token = BytesLib.toAddress(data, 0);
 /// @notice         address delegate = BytesLib.toAddress(data, 20);
-contract CircleGatewayDelegateHook is BaseHook {
+contract CircleGatewayRemoveDelegateHook is BaseHook {
     using BytesLib for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -56,7 +56,7 @@ contract CircleGatewayDelegateHook is BaseHook {
         executions[0] = Execution({
             target: GATEWAY_WALLET,
             value: 0,
-            callData: abi.encodeCall(IGatewayWallet.addDelegate, (token, delegate))
+            callData: abi.encodeCall(IGatewayWallet.removeDelegate, (token, delegate))
         });
     }
 }
