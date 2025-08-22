@@ -13,6 +13,8 @@ import { ISuperLedgerConfiguration } from "../../../../src/interfaces/accounting
 import { ISuperLedger } from "../../../../src/interfaces/accounting/ISuperLedger.sol";
 import { SuperLedger } from "../../../../src/accounting/SuperLedger.sol";
 
+import "forge-std/console2.sol";
+
 interface iPendleMarket {
     function readTokens() external view returns (address sy, address pt, address yt);
 }
@@ -50,6 +52,7 @@ contract PendlePtYieldSourceOracleTest is InternalHelpers, Helpers {
         sy = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
         pt = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
         yt = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
+
         mockPendleMarket = new MockPendleMarket(address(sy), address(pt), address(yt));
     }
 
@@ -81,6 +84,49 @@ contract PendlePtYieldSourceOracleTest is InternalHelpers, Helpers {
 
     function test_decimals() public view {
         assertEq(oracle.decimals(address(mockPendleMarket)), 18, "Incorrect decimals");
+    }
+
+    function test_Pendle_Non18Decimals() public {
+        assetSy = new MockERC20("Mock SY", "MSY", 6);
+        assetPt = new MockERC20("Mock PT", "MPT", 6);
+        assetYt = new MockERC20("Mock YT", "MYT", 6);
+
+        sy = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
+        pt = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
+        yt = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
+        sy.setDecimals(6);
+        pt.setDecimals(6);
+        yt.setDecimals(6);
+
+        mockPendleMarket = new MockPendleMarket(address(sy), address(pt), address(yt));
+
+        uint256 _decimals = oracle.decimals(address(mockPendleMarket));
+        assertEq(_decimals, 6, "Incorrect decimals");
+    }
+
+    function test_getAssetOutput_6Decimals() public {
+        // Setup 6 decimal tokens similar to USDC
+        assetSy = new MockERC20("Mock SY", "MSY", 6);
+        assetPt = new MockERC20("Mock PT", "MPT", 6);
+        assetYt = new MockERC20("Mock YT", "MYT", 6);
+
+        sy = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
+        pt = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
+        yt = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
+        sy.setDecimals(6);
+        pt.setDecimals(6);
+        yt.setDecimals(6);
+
+        mockPendleMarket = new MockPendleMarket(address(sy), address(pt), address(yt));
+
+        uint256 rate = 1e18;
+        mockPendleMarket.setPtToAssetRate(rate);
+
+        uint256 ptIn = 1e6;
+        uint256 expectedAssetOut = 1e6; 
+
+        uint256 actualAssetOut = oracle.getAssetOutput(address(mockPendleMarket), address(0), ptIn);
+        assertEq(actualAssetOut, expectedAssetOut);
     }
 
     function test_getPricePerShare() public {

@@ -12,6 +12,7 @@ contract Mock5115Vault {
     }
 
     MockERC20 public asset;
+    uint8 public _decimals;
 
     constructor(IERC20 asset_, string memory name_, string memory symbol_) {
         if (address(asset_) == address(0)) {
@@ -19,12 +20,17 @@ contract Mock5115Vault {
         } else {
             asset = MockERC20(address(asset_));
         }
+        _decimals = uint8(asset.decimals());
     }
 
-    function assetInfo() external view returns (AssetType assetType, address asset_, uint8 decimals) {
+    function setDecimals(uint8 _decimals_) external {
+        _decimals = _decimals_;
+    }
+
+    function assetInfo() external view returns (AssetType assetType, address asset_, uint8 decimals_) {
         assetType = AssetType.ERC20;
         asset_ = address(asset);
-        decimals = uint8(asset.decimals());
+        decimals_ = uint8(asset.decimals());
     }
 
     function exchangeRate() external pure returns (uint256) {
@@ -82,5 +88,9 @@ contract Mock5115Vault {
 
     function totalSupply() external pure returns (uint256) {
         return 0;
+    }
+
+    function decimals() external view returns (uint8) {
+        return _decimals;
     }
 }
