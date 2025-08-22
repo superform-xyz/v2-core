@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import "forge-std/console2.sol";
+
 contract MockPendleMarket {
     address public syToken;
     address public ptToken;
@@ -23,6 +25,7 @@ contract MockPendleMarket {
     }
 
     function getPtToAssetRate() external view returns (uint256) {
+        console2.log("---------------------------------A");
         return ptToAssetRate;
     }
 

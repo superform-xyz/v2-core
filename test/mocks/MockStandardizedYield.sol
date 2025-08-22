@@ -21,6 +21,8 @@ contract MockStandardizedYield {
     address[] public tokensIn;
     address[] public tokensOut;
 
+    uint8 public _decimals;
+
     constructor(address syToken_, address ptToken_, address ytToken_) {
         ptToken = ptToken_;
         syToken = syToken_;
@@ -36,6 +38,12 @@ contract MockStandardizedYield {
         tokensOut.push(syToken);
         tokensOut.push(ptToken);
         tokensOut.push(ytToken);
+
+        _decimals = 18;
+    }
+
+    function setDecimals(uint8 __decimals) external {
+        _decimals = __decimals;
     }
 
     error NOT_AVAILABLE();
@@ -43,7 +51,7 @@ contract MockStandardizedYield {
     function assetInfo() external view returns (AssetType assetType, address assetAddress, uint8 assetDecimals) {
         assetType = assetTokenType;
         assetAddress = assetToken;
-        assetDecimals = 18;
+        assetDecimals = _decimals;
     }
 
     function setAssetType(uint256 _assetType) external {
@@ -82,8 +90,8 @@ contract MockStandardizedYield {
         tokensOut = _tokensOut;
     }
 
-    function decimals() external pure returns (uint8) {
-        return 18;
+    function decimals() external view returns (uint8) {
+        return _decimals;
     }
 
     function setBalanceForAccount(address acc, uint256 amount) external {
