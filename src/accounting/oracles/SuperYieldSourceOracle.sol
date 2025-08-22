@@ -2,6 +2,10 @@
 pragma solidity 0.8.30;
 
 // External
+import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
+import { IPMarket } from "@pendle/interfaces/IPMarket.sol";
+import { IStandardizedYield } from "@pendle/interfaces/IStandardizedYield.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IOracle } from "../../vendor/awesome-oracles/IOracle.sol";
 // Superform
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
@@ -28,7 +32,7 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         returns (uint256 pricePerShareQuote)
     {
         // Get price per share in base asset terms
-        uint256 baseAmount = IYieldSourceOracle(yieldSourceOracle).getPricePerShare(yieldSourceAddress);
+        uint256 baseAmount = _ppsToBaseAmount(yieldSourceAddress, yieldSourceOracle, base);
 
         // Convert to quote asset using oracle
         pricePerShareQuote = IOracle(oracle).getQuote(baseAmount, base, quote);
@@ -91,8 +95,8 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
     {
         uint256 length = yieldSourceAddresses.length;
         if (
-            length != baseAddresses.length || length != quoteAddresses.length || length != yieldSourceOracles.length ||
-            length != oracles.length
+            length != baseAddresses.length || length != quoteAddresses.length || length != yieldSourceOracles.length
+                || length != oracles.length
         ) {
             revert ARRAY_LENGTH_MISMATCH();
         }
@@ -101,8 +105,7 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
 
         for (uint256 i; i < length; ++i) {
             // Get price per share in base asset terms
-            uint256 baseAmount = IYieldSourceOracle(yieldSourceOracles[i]).getPricePerShare(yieldSourceAddresses[i]);
-
+            uint256 baseAmount = _ppsToBaseAmount(yieldSourceAddresses[i], yieldSourceOracles[i], baseAddresses[i]);
             // Convert to quote asset using oracle
             pricesPerShareQuote[i] = IOracle(oracles[i]).getQuote(baseAmount, baseAddresses[i], quoteAddresses[i]);
         }
@@ -126,7 +129,8 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         vars.length = yieldSourceAddresses.length;
         if (
             vars.length != ownersOfShares.length || vars.length != baseAddresses.length
-                || vars.length != quoteAddresses.length || vars.length != yieldSourceOracles.length || vars.length != oracles.length
+                || vars.length != quoteAddresses.length || vars.length != yieldSourceOracles.length
+                || vars.length != oracles.length
         ) {
             revert ARRAY_LENGTH_MISMATCH();
         }
@@ -171,7 +175,10 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         returns (uint256[] memory tvlsQuote)
     {
         uint256 length = yieldSourceAddresses.length;
-        if (length != baseAddresses.length || length != quoteAddresses.length || length != yieldSourceOracles.length || length != oracles.length) {
+        if (
+            length != baseAddresses.length || length != quoteAddresses.length || length != yieldSourceOracles.length
+                || length != oracles.length
+        ) {
             revert ARRAY_LENGTH_MISMATCH();
         }
 
@@ -250,5 +257,57 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         for (uint256 i; i < length; ++i) {
             tvls[i] = IYieldSourceOracle(yieldSourceOracles[i]).getTVL(yieldSourceAddresses[i]);
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        INTERNAL HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    function _safeBaseDecimals(address base) internal view returns (uint8) {
+        // Fallback to 18 if token is non-standard or reverts
+        try IERC20Metadata(base).decimals() returns (uint8 d) {
+            return d;
+        } catch {
+            return 18;
+        }
+    }
+
+    function _detectFlavor(address yieldSourceAddress) internal view returns (Flavor) {
+        // Probe 1: Pendle Market (has readTokens())
+        try IPMarket(yieldSourceAddress).readTokens() {
+            return Flavor.PendlePT;
+        } catch { }
+
+        // Probe 2: ERC-5115 (has exchangeRate())
+        try IStandardizedYield(yieldSourceAddress).exchangeRate() returns (uint256) {
+            return Flavor.ERC5115;
+        } catch { }
+
+        return Flavor.Unknown;
+    }
+
+    /// Normalize PPS to **base token units** if it was a 1e18 ratio.
+    /// Otherwise return as-is (already base-denominated).
+    function _ppsToBaseAmount(
+        address yieldSourceAddress,
+        address yieldSourceOracle,
+        address base
+    )
+        internal
+        view
+        returns (uint256 baseAmount)
+    {
+        uint256 pps = IYieldSourceOracle(yieldSourceOracle).getPricePerShare(yieldSourceAddress);
+        Flavor f = _detectFlavor(yieldSourceAddress);
+
+        if (f == Flavor.PendlePT || f == Flavor.ERC5115) {
+            // pps is a ratio (assets/share) scaled 1e18. Convert to base units:
+            // baseAmount = pps * 10^baseDecimals / 1e18
+            uint8 baseDec = _safeBaseDecimals(base);
+            return Math.mulDiv(pps, 10 ** uint256(baseDec), 1e18);
+        }
+
+        // Non-ratio adapters: treat pps as already in base units
+        return pps;
     }
 }

@@ -18,6 +18,12 @@ interface ISuperYieldSourceOracle {
         uint256 userTvlQuote;
     }
 
+    enum Flavor {
+        Unknown,
+        PendlePT,
+        ERC5115
+    }
+
     /*//////////////////////////////////////////////////////////////
                         GENERALIZED QUOTING FUNCTIONS
     //////////////////////////////////////////////////////////////*/
