@@ -316,7 +316,7 @@ contract VaultFeeTests is BaseTest {
         executors[0] = address(superExecutor50);
         SuperLedger superLedger50 = new SuperLedger(address(config50), executors);
         ERC4626YieldSourceOracle oracle4626_50 = new ERC4626YieldSourceOracle(address(superLedger50));
-        bytes32[] memory yieldSourceOracleSalts = new bytes32[](1);
+        yieldSourceOracleSalts = new bytes32[](1);
         yieldSourceOracleSalts[0] = bytes32(keccak256("4626_ORACLE_ID"));
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
@@ -341,7 +341,7 @@ contract VaultFeeTests is BaseTest {
         executors[0] = address(superExecutor50);
         SuperLedger superLedger50 = new SuperLedger(address(config50), executors);
         ERC5115YieldSourceOracle oracle5115_50 = new ERC5115YieldSourceOracle(address(superLedger50));
-        bytes32[] memory yieldSourceOracleSalts = new bytes32[](1);
+        yieldSourceOracleSalts = new bytes32[](1);
         yieldSourceOracleSalts[0] = bytes32(keccak256("5115_ORACLE_ID"));
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
@@ -366,7 +366,7 @@ contract VaultFeeTests is BaseTest {
         executors[0] = address(superExecutor50);
         SuperLedger superLedger50 = new SuperLedger(address(config50), executors);
         ERC7540YieldSourceOracle oracle7540_50 = new ERC7540YieldSourceOracle(address(superLedger50));
-        bytes32[] memory yieldSourceOracleSalts = new bytes32[](1);
+        yieldSourceOracleSalts = new bytes32[](1);
         yieldSourceOracleSalts[0] = bytes32(keccak256("7540_ORACLE_ID"));
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
@@ -401,11 +401,13 @@ contract VaultFeeTests is BaseTest {
         uint256 userShares = vaultInstance4626.balanceOf(accountEth);
         uint256 sharesAsAssets = vaultInstance4626.convertToAssets(userShares);
 
-        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig = config.getYieldSourceOracleConfig(yieldSourceOracleId4626);
+        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig =
+            config.getYieldSourceOracleConfig(yieldSourceOracleId4626);
         uint256 pps = IYieldSourceOracle(oracleConfig.yieldSourceOracle).getPricePerShare(yieldSource4626AddressUSDC);
         uint8 decimals = IYieldSourceOracle(oracleConfig.yieldSourceOracle).decimals(yieldSource4626AddressUSDC);
-        uint256 expectedFee =
-            superLedger50.previewFees(accountEth, yieldSource4626AddressUSDC, sharesAsAssets, userShares, 5000, pps, decimals);
+        uint256 expectedFee = superLedger50.previewFees(
+            accountEth, yieldSource4626AddressUSDC, sharesAsAssets, userShares, 5000, pps, decimals
+        );
         uint256 expectedUserAssets = sharesAsAssets - expectedFee;
         address[] memory hooksAddressesRedeem = new address[](1);
         hooksAddressesRedeem[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
@@ -455,11 +457,13 @@ contract VaultFeeTests is BaseTest {
         uint256 userShares = vaultInstance5115ETH.balanceOf(accountEth);
         uint256 sharesAsAssets = vaultInstance5115ETH.previewRedeem(underlyingETH_sUSDe, userShares);
 
-        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig = config.getYieldSourceOracleConfig(yieldSourceOracleId5115);
+        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig =
+            config.getYieldSourceOracleConfig(yieldSourceOracleId5115);
         uint256 pps = IYieldSourceOracle(oracleConfig.yieldSourceOracle).getPricePerShare(yieldSource5115AddressSUSDe);
         uint8 decimals = IYieldSourceOracle(oracleConfig.yieldSourceOracle).decimals(yieldSource5115AddressSUSDe);
-        uint256 expectedFee =
-            superLedger50.previewFees(accountEth, yieldSource5115AddressSUSDe, sharesAsAssets, userShares, 5000, pps, decimals);
+        uint256 expectedFee = superLedger50.previewFees(
+            accountEth, yieldSource5115AddressSUSDe, sharesAsAssets, userShares, 5000, pps, decimals
+        );
         uint256 expectedUserAssets = sharesAsAssets - expectedFee;
         address[] memory hooksAddressesRedeem = new address[](1);
         hooksAddressesRedeem[0] = _getHookAddress(ETH, REDEEM_5115_VAULT_HOOK_KEY);
@@ -525,11 +529,13 @@ contract VaultFeeTests is BaseTest {
         uint256 maxRedeemAmount = vaultInstance7540.maxRedeem(accountEth);
         uint256 sharesAsAssets = vaultInstance7540.convertToAssets(maxRedeemAmount);
 
-        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig = config.getYieldSourceOracleConfig(yieldSourceOracleSalts[2]);
+        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig =
+            config.getYieldSourceOracleConfig(yieldSourceOracleSalts[2]);
         uint256 pps = IYieldSourceOracle(oracleConfig.yieldSourceOracle).getPricePerShare(yieldSource7540AddressUSDC);
         uint8 decimals = IYieldSourceOracle(oracleConfig.yieldSourceOracle).decimals(yieldSource7540AddressUSDC);
-        uint256 expectedFee =
-            superLedger50.previewFees(accountEth, yieldSource7540AddressUSDC, sharesAsAssets, userShares, 5000, pps, decimals);
+        uint256 expectedFee = superLedger50.previewFees(
+            accountEth, yieldSource7540AddressUSDC, sharesAsAssets, userShares, 5000, pps, decimals
+        );
         uint256 expectedUserAssets = sharesAsAssets - expectedFee;
         address[] memory hooksAddressesWithdraw = new address[](1);
         hooksAddressesWithdraw[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
@@ -829,10 +835,13 @@ contract VaultFeeTests is BaseTest {
         view
         returns (uint256 expectedFee, uint256 expectedUserAssets)
     {
-        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig = config.getYieldSourceOracleConfig(yieldSourceOracleId4626);
+        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig =
+            config.getYieldSourceOracleConfig(yieldSourceOracleId4626);
         uint256 pps = IYieldSourceOracle(oracleConfig.yieldSourceOracle).getPricePerShare(yieldSource4626AddressUSDC);
         uint8 decimals = IYieldSourceOracle(oracleConfig.yieldSourceOracle).decimals(yieldSource4626AddressUSDC);
-        expectedFee = superLedger.previewFees(accountEth, yieldSource4626AddressUSDC, sharesAsAssets, userShares, 1000, pps, decimals);
+        expectedFee = superLedger.previewFees(
+            accountEth, yieldSource4626AddressUSDC, sharesAsAssets, userShares, 1000, pps, decimals
+        );
         expectedUserAssets = sharesAsAssets - expectedFee;
     }
 
@@ -844,10 +853,13 @@ contract VaultFeeTests is BaseTest {
         view
         returns (uint256 expectedFee, uint256 expectedUserAssets)
     {
-        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig = config.getYieldSourceOracleConfig(yieldSourceOracleId5115);
+        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig =
+            config.getYieldSourceOracleConfig(yieldSourceOracleId5115);
         uint256 pps = IYieldSourceOracle(oracleConfig.yieldSourceOracle).getPricePerShare(yieldSource5115AddressSUSDe);
         uint8 decimals = IYieldSourceOracle(oracleConfig.yieldSourceOracle).decimals(yieldSource5115AddressSUSDe);
-        expectedFee = superLedger.previewFees(accountEth, yieldSource5115AddressSUSDe, sharesAsAssets, userShares, 1000, pps, decimals);
+        expectedFee = superLedger.previewFees(
+            accountEth, yieldSource5115AddressSUSDe, sharesAsAssets, userShares, 1000, pps, decimals
+        );
         expectedUserAssets = sharesAsAssets - expectedFee;
     }
 
@@ -859,10 +871,13 @@ contract VaultFeeTests is BaseTest {
         view
         returns (uint256 expectedFee, uint256 expectedUserAssets)
     {
-        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig = config.getYieldSourceOracleConfig(yieldSourceOracleId7540);
+        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig =
+            config.getYieldSourceOracleConfig(yieldSourceOracleId7540);
         uint256 pps = IYieldSourceOracle(oracleConfig.yieldSourceOracle).getPricePerShare(yieldSource7540AddressUSDC);
         uint8 decimals = IYieldSourceOracle(oracleConfig.yieldSourceOracle).decimals(yieldSource7540AddressUSDC);
-        expectedFee = superLedger.previewFees(accountEth, yieldSource7540AddressUSDC, sharesAsAssets, userShares, 1000, pps, decimals);
+        expectedFee = superLedger.previewFees(
+            accountEth, yieldSource7540AddressUSDC, sharesAsAssets, userShares, 1000, pps, decimals
+        );
         expectedUserAssets = sharesAsAssets - expectedFee;
     }
 }
