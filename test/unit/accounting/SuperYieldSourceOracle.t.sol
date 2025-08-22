@@ -69,7 +69,7 @@ contract SuperYieldSourceOracleTest is Helpers {
 
     function _setupEdgeCaseTokensAndOracles() internal {
         // Create fork at specific block for real Pendle contracts
-        uint256 ethFork = vm.createFork(vm.envString("ETHEREUM_RPC_URL"), 22_579_300);
+        uint256 ethFork = vm.createFork(vm.envString("ETHEREUM_RPC_URL"), 23_198_039);
         vm.selectFork(ethFork);
 
         // Use real Pendle aUSDC market
