@@ -52,6 +52,7 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
     /// @inheritdoc AbstractYieldSourceOracle
     function getPricePerShare(address yieldSourceAddress) public view override returns (uint256) {
         uint256 exchangeRate = IStandardizedYield(yieldSourceAddress).exchangeRate();
+        // yieldSourceAddress decimals (YT) is always equal to decimals of underlying
         uint256 decimals = decimals(yieldSourceAddress);
         // Normalize to asset decimals
         return exchangeRate * (10 ** decimals) / 1e18;
