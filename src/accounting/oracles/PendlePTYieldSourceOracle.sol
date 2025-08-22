@@ -42,8 +42,8 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc IYieldSourceOracle
-    function decimals(address market) public view override returns (uint8) {
-        return IERC20Metadata(_pt(market)).decimals();
+    function decimals(address) external pure override returns (uint8) {
+        return 18;
     }
 
     /// @inheritdoc IYieldSourceOracle
@@ -57,7 +57,7 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256 sharesOut)
     {
-        uint256 pricePerShare = IPMarket(market).getPtToAssetRate(TWAP_DURATION);
+        uint256 pricePerShare = getPricePerShare(market); // Price is PT/Asset in 1e18
         if (pricePerShare == 0) return 0; // Avoid division by zero
 
         // sharesOut = assetsIn * 1e18 / pricePerShare
@@ -94,13 +94,13 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256 assetsOut)
     {
-        uint256 pricePerShare = IPMarket(market).getPtToAssetRate(TWAP_DURATION);
+        uint256 pricePerShare = getPricePerShare(market); // Price is PT/Asset in 1e18
 
         // assetsOut = sharesIn * pricePerShare / 1e(ptDecimals) / 1e(18 - assetDecimals)
         uint8 ptDecimals = IERC20Metadata(_pt(market)).decimals();
         IStandardizedYield sY = IStandardizedYield(_sy(market));
         (,, uint8 assetDecimals) = _getAssetInfo(sY);
-        
+
         // Calculate asset value in 1e18 terms first
         // assetsOut18 = sharesIn * pricePerShare / 10^ptDecimals
         uint256 assetsOut18 = (sharesIn * pricePerShare) / (10 ** uint256(ptDecimals));
@@ -119,7 +119,7 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
     /// @inheritdoc IYieldSourceOracle
     function getPricePerShare(address market) public view override returns (uint256 price) {
         // Pendle returns the rate scaled to 1e18
-        price = getAssetOutput(market, address(0), 10 ** decimals(market));
+        price = IPMarket(market).getPtToAssetRate(TWAP_DURATION);
     }
 
     /// @inheritdoc IYieldSourceOracle

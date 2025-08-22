@@ -159,7 +159,7 @@ contract MockEntryPoint {
 
     function simulateValidation(PackedUserOperation calldata userOp)
         external
-        pure
+        view
         returns (IEntryPointSimulations.ValidationResult memory)
     {
         uint256 preOpGas = PAYMASTER_VALIDATION_GAS + SIG_VALIDATION_GAS;

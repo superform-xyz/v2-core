@@ -316,7 +316,7 @@ contract VaultFeeTests is BaseTest {
         executors[0] = address(superExecutor50);
         SuperLedger superLedger50 = new SuperLedger(address(config50), executors);
         ERC4626YieldSourceOracle oracle4626_50 = new ERC4626YieldSourceOracle(address(superLedger50));
-        yieldSourceOracleSalts = new bytes32[](1);
+        bytes32[] memory yieldSourceOracleSalts = new bytes32[](1);
         yieldSourceOracleSalts[0] = bytes32(keccak256("4626_ORACLE_ID"));
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
@@ -341,7 +341,7 @@ contract VaultFeeTests is BaseTest {
         executors[0] = address(superExecutor50);
         SuperLedger superLedger50 = new SuperLedger(address(config50), executors);
         ERC5115YieldSourceOracle oracle5115_50 = new ERC5115YieldSourceOracle(address(superLedger50));
-        yieldSourceOracleSalts = new bytes32[](1);
+        bytes32[] memory yieldSourceOracleSalts = new bytes32[](1);
         yieldSourceOracleSalts[0] = bytes32(keccak256("5115_ORACLE_ID"));
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
@@ -366,7 +366,7 @@ contract VaultFeeTests is BaseTest {
         executors[0] = address(superExecutor50);
         SuperLedger superLedger50 = new SuperLedger(address(config50), executors);
         ERC7540YieldSourceOracle oracle7540_50 = new ERC7540YieldSourceOracle(address(superLedger50));
-        yieldSourceOracleSalts = new bytes32[](1);
+        bytes32[] memory yieldSourceOracleSalts = new bytes32[](1);
         yieldSourceOracleSalts[0] = bytes32(keccak256("7540_ORACLE_ID"));
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
