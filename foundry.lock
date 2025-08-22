@@ -1,0 +1,44 @@
+{
+  "lib/ExcessivelySafeCall": {
+    "rev": "81cd99ce3e69117d665d7601c330ea03b97acce0"
+  },
+  "lib/evm-gateway-contracts": {
+    "rev": "569d7cef11b70fac4eb696a98b9c5997d87b32d3"
+  },
+  "lib/forge-std": {
+    "rev": "60acb7aaadcce2d68e52986a0a66fe79f07d138f"
+  },
+  "lib/modulekit": {
+    "rev": "b71acb4999b83d1a8cc5cec52ce5ef05949fb6da"
+  },
+  "lib/nexus": {
+    "branch": {
+      "name": "deploy-v1.2.0-bootstrap-v1.2.1",
+      "rev": "ac57ac3e898cf0764b369196ea25f8ccfca1cb89"
+    }
+  },
+  "lib/openzeppelin-contracts": {
+    "rev": "5def3f7c7ef13e06bf868474f258a6e232c9ecec"
+  },
+  "lib/pendle-core-v2-public": {
+    "rev": "227b4e6db115fd9326868949cdd8b14bbfec0317"
+  },
+  "lib/pigeon": {
+    "rev": "a105539b515b83a937116f9b2520d9902b6889b7"
+  },
+  "lib/safe-smart-account": {
+    "rev": "2b12430f523a5dad8362fb91cbc00448d2ad8970"
+  },
+  "lib/safe7579": {
+    "rev": "0f643511fd03b9a36e1dd8cb31c075c96aa8a9cb"
+  },
+  "lib/solady": {
+    "rev": "ba711c9fa6a2dc7b2b7707f7fe136b5133379c03"
+  },
+  "lib/solidity-stringutils": {
+    "rev": "4b2fcc43fa0426e19ce88b1f1ec16f5903a2e461"
+  },
+  "lib/surl": {
+    "rev": "5f92a5260c8e0198ca3ee6a16255d6cda4e0887a"
+  }
+}
