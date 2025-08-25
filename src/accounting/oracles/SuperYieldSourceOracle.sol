@@ -15,6 +15,16 @@ import { ISuperYieldSourceOracle } from "../../interfaces/accounting/ISuperYield
 /// @author Superform Labs
 /// @notice Provides quoting functionality for yield sources using a SuperOracle.
 contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
+    IPMarketFactoryV3 public immutable PENDLEV3_MARKET_FACTORY;
+
+    constructor(address _pendleV3MarketFactory) {
+        if (_pendleV3MarketFactory == address(0)) {
+            revert ZERO_ADDRESS();
+        }
+
+        PENDLEV3_MARKET_FACTORY = IPMarketFactoryV3(_pendleV3MarketFactory);
+    }
+
     /*//////////////////////////////////////////////////////////////
                         GENERALIZED QUOTING FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -274,7 +284,7 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
 
     function _detectFlavor(address yieldSourceAddress) internal view returns (Flavor) {
         // Probe 1: Pendle Market (has readTokens())
-        try IPMarket(yieldSourceAddress).readTokens() {
+        try PENDLEV3_MARKET_FACTORY.isValidMarket(yieldSourceAddress) {
             return Flavor.PendlePT;
         } catch { }
 
