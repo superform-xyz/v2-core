@@ -132,7 +132,7 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         if (nodeOperatorPremium > MAX_NODE_OPERATOR_PREMIUM) {
             revert INVALID_NODE_OPERATOR_PREMIUM();
         }
-        return (abi.encode(userOp.sender, userOp.unpackMaxFeePerGas(), maxGasLimit, nodeOperatorPremium, postOpGas), 0);
+        return (abi.encode(userOp.sender, userOp.unpackMaxFeePerGas(), userOp.unpackMaxPriorityFeePerGas(), maxGasLimit, nodeOperatorPremium, postOpGas), 0);
     }
 
     /// @notice Handle the post-operation logic.
@@ -155,11 +155,12 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         virtual
         override
     {
-        (address sender, uint256 maxFeePerGas, uint256 maxGasLimit, uint256 nodeOperatorPremium, uint256 postOpGas) =
-            abi.decode(context, (address, uint256, uint256, uint256, uint256));
+        (address sender, uint256 maxFeePerGas, uint256 maxPriorityFeePerGas, uint256 maxGasLimit, uint256 nodeOperatorPremium, uint256 postOpGas) =
+            abi.decode(context, (address, uint256, uint256, uint256, uint256, uint256));
 
         // add postOpGas
-        actualGasCost += (postOpGas * maxFeePerGas);
+        uint256 price = _getPriceFee(maxFeePerGas, maxPriorityFeePerGas);
+        actualGasCost += (postOpGas * price);
         uint256 refund = calculateRefund(maxGasLimit, maxFeePerGas, actualGasCost, nodeOperatorPremium);
         if (refund > 0) {
             uint256 deposit = entryPoint.getDepositInfo(address(this)).deposit;
@@ -176,5 +177,14 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
     //////////////////////////////////////////////////////////////*/
     function _getEntryPointWithSimulations() private view returns (IEntryPointSimulations) {
         return IEntryPointSimulations(address(entryPoint));
+    }
+
+    function _getPriceFee(uint256 maxFeePerGas, uint256 maxPriorityFeePerGas) private view returns (uint256) {
+        if (maxFeePerGas == maxPriorityFeePerGas) {
+            //legacy mode (for networks that don't support basefee opcode)
+            return maxFeePerGas;
+        }
+
+        return Math.min(maxFeePerGas, maxPriorityFeePerGas + block.basefee);
     }
 }
