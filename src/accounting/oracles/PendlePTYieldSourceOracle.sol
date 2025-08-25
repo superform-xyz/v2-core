@@ -73,7 +73,7 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
         uint256 assetsIn18;
         if (assetDecimals <= PRICE_DECIMALS) {
             // Scale up if assetDecimals <= 18
-            assetsIn18 = Math.mulDiv(assetsIn, 10 ** (PRICE_DECIMALS - assetDecimals), 1);
+            assetsIn18 = assetsIn * (10 ** (PRICE_DECIMALS - assetDecimals));
         } else {
             // Scale down if assetDecimals > 18
             // Avoids underflow in 10**(PRICE_DECIMALS - assetDecimals)
@@ -110,8 +110,8 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
         // Scale from 1e18 representation (PRICE_DECIMALS) to asset's actual decimals
         if (assetDecimals >= PRICE_DECIMALS) {
             // Scale up if assetDecimals >= 18
-            assetsOut = Math.mulDiv(assetsOut18, 10 ** (assetDecimals - PRICE_DECIMALS), 1);
-        } else {
+            assetsOut = assetsOut18 * (10 ** (assetDecimals - PRICE_DECIMALS));
+        } else {    
             // Scale down if assetDecimals < 18
             // Avoids underflow in 10**(PRICE_DECIMALS - assetDecimals) which happens in the division below
             assetsOut = Math.mulDiv(assetsOut18, 1, 10 ** (PRICE_DECIMALS - assetDecimals));
