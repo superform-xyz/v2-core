@@ -164,6 +164,16 @@ Handles accounting aspects (pricing, fees) for both INFLOW and OUTFLOW operation
 
 The system uses a dedicated on-chain oracle system to compute the price per share for accounting. Specialized oracles exist for different vault standards (ERC4626, ERC5115, ERC7540, etc.) that provide accurate price data and TVL information.
 
+**⚠️ PPS Unit Semantics & Pendle Gotchas**
+
+Not all `getPricePerShare()` values are returned in underlying asset units:
+
+- **ERC-4626/ERC-7540/Spectra PT**: Returns base-asset denominated amounts (in underlying token decimals)
+- **Pendle PT**: Returns ratio from `IPMarket.getPtToAssetRate()` scaled to 1e18 (assets per 1 PT)
+- **ERC-5115**: Returns `exchangeRate()` scaled to 1e18 (assets per share)
+
+`SuperYieldSourceOracle` normalizes ratio-style PPS (1e18) to base token units only for quote functions via auto-detection. Accounting remains consistent by design. FlatFeeLedger is used for ERC-5115 and Pendle PT.
+
 ### Infrastructure
 
 #### SuperBundler
