@@ -104,7 +104,7 @@ contract SuperNativePaymasterTest is Helpers {
         vm.deal(address(paymaster), 2 ether);
         mockEntryPoint.depositTo{ value: 2 ether }(address(paymaster));
 
-        bytes memory context = abi.encode(sender, maxFeePerGas, maxGasLimit, nodeOperatorPremium, uint256(0));
+        bytes memory context = abi.encode(sender, maxFeePerGas, maxFeePerGas - 1, maxGasLimit, nodeOperatorPremium, uint256(0));
         uint256 actualGasCost = maxGasLimit * maxFeePerGas / 2;
 
         vm.deal(address(mockEntryPoint), 10 ether);

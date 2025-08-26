@@ -7,6 +7,8 @@ import { IPMarket } from "@pendle/interfaces/IPMarket.sol";
 import { PendlePYOracleLib } from "@pendle/oracles/PtYtLpOracle/PendlePYOracleLib.sol";
 import { IPPrincipalToken } from "@pendle/interfaces/IPPrincipalToken.sol";
 import { IStandardizedYield } from "@pendle/interfaces/IStandardizedYield.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+
 // Superform
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol"; // Already inherited via
@@ -75,12 +77,12 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
         } else {
             // Scale down if assetDecimals > 18
             // Avoids underflow in 10**(PRICE_DECIMALS - assetDecimals)
-            assetsIn18 = assetsIn / (10 ** (assetDecimals - PRICE_DECIMALS));
+            assetsIn18 = Math.mulDiv(assetsIn, 1, 10 ** (assetDecimals - PRICE_DECIMALS));
         }
 
         // Result is in PT decimals: sharesOut = assetsIn18 * 1e(ptDecimals) / pricePerShare
         // pricePerShare is PT/Asset in 1e18
-        sharesOut = (assetsIn18 * (10 ** uint256(ptDecimals))) / pricePerShare;
+        sharesOut = Math.mulDiv(assetsIn18, 10 ** uint256(ptDecimals), pricePerShare);
     }
 
     /// @inheritdoc IYieldSourceOracle
@@ -103,16 +105,16 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
 
         // Calculate asset value in 1e18 terms first
         // assetsOut18 = sharesIn * pricePerShare / 10^ptDecimals
-        uint256 assetsOut18 = (sharesIn * pricePerShare) / (10 ** uint256(ptDecimals));
+        uint256 assetsOut18 = Math.mulDiv(sharesIn, pricePerShare, 10 ** uint256(ptDecimals));
 
         // Scale from 1e18 representation (PRICE_DECIMALS) to asset's actual decimals
         if (assetDecimals >= PRICE_DECIMALS) {
             // Scale up if assetDecimals >= 18
             assetsOut = assetsOut18 * (10 ** (assetDecimals - PRICE_DECIMALS));
-        } else {
+        } else {    
             // Scale down if assetDecimals < 18
             // Avoids underflow in 10**(PRICE_DECIMALS - assetDecimals) which happens in the division below
-            assetsOut = assetsOut18 / (10 ** (PRICE_DECIMALS - assetDecimals));
+            assetsOut = Math.mulDiv(assetsOut18, 1, 10 ** (PRICE_DECIMALS - assetDecimals));
         }
     }
 
