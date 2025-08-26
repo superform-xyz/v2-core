@@ -1914,6 +1914,71 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
     }
 
+    function _createMerkleRootAndInvalidSignature(
+        TargetExecutorMessage memory messageData,
+        bytes32 userOpHash,
+        address accountToUse,
+        uint64 dstChainId,
+        address srcValidator
+    )
+        internal
+        view
+        returns (bytes memory sig)
+    {
+        MerkleContext memory ctx;
+
+        ctx.validUntil = uint48(block.timestamp + 100 days);
+        ctx.executionData =
+            _createCrosschainExecutionData_DestinationExecutor(messageData.hooksAddresses, messageData.hooksData);
+
+        ctx.leaves = new bytes32[](2);
+        ctx.dstTokens = new address[](1);
+        ctx.dstTokens[0] = messageData.tokenSent;
+        ctx.intentAmounts = new uint256[](1);
+        ctx.intentAmounts[0] = messageData.amount;
+
+        ctx.leaves[0] = _createDestinationValidatorLeaf(
+            ctx.executionData,
+            messageData.chainId,
+            accountToUse,
+            messageData.targetExecutor,
+            ctx.dstTokens,
+            ctx.intentAmounts,
+            ctx.validUntil,
+            messageData.validator
+        );
+        uint64[] memory chainsForLeaf = new uint64[](1);
+        chainsForLeaf[0] = dstChainId;
+        ctx.leaves[1] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, 0, chainsForLeaf, srcValidator);
+
+        (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
+
+        ctx.signature = _createSignature(
+            SuperValidatorBase(address(messageData.validator)).namespace(),
+            bytes32(0),
+            messageData.signer,
+            messageData.signerPrivateKey
+        );
+
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
+        ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
+            data: ctx.executionData,
+            executor: messageData.targetExecutor,
+            dstTokens: ctx.dstTokens,
+            intentAmounts: ctx.intentAmounts,
+            account: accountToUse,
+            validator: messageData.validator
+        });
+        proofDst[0] = ISuperValidator.DstProof({ proof: ctx.merkleProof[0], dstChainId: dstChainId, info: dstInfo });
+
+        console2.logBytes32(ctx.merkleRoot);
+        uint64[] memory chainsWithDestinationExecution = new uint64[](1);
+        chainsWithDestinationExecution[0] = dstChainId;
+        sig = _createSignatureData_DestinationExecutorWithChains(
+            chainsWithDestinationExecution, ctx.validUntil, ctx.merkleRoot, ctx.merkleProof[1], proofDst, ctx.signature
+        );
+    }
+
     function _createNoDestinationExecutionMerkleRootAndSignature(
         address signer,
         uint256 signerPrvKey,

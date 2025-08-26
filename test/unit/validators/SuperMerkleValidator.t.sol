@@ -294,7 +294,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
 
     function test_ValidateUserOp_1LeafMerkleTree_InvalidProof() public {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
-
+ 
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](1);
         uint64[] memory chainsForLeafThis = new uint64[](0);

@@ -61,6 +61,8 @@ contract Executor {
 contract Swap1InchHookTest is Helpers {
     Swap1InchHook public hook;
 
+    address public constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
     address dstToken;
     address dstReceiver;
     address srcToken;
@@ -109,9 +111,8 @@ contract Swap1InchHookTest is Helpers {
 
         // 1.  Craft a SwapDescription that *expects* native ETH in .amount
         //     (we set amount = 0 because the hook will overwrite it with prevHook.getOutAmount(address(this)))
-        address NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         I1InchAggregationRouterV6.SwapDescription memory desc = I1InchAggregationRouterV6.SwapDescription({
-            srcToken: IERC20(NATIVE), // swapping native coin
+            srcToken: IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE), // swapping native coin
             dstToken: IERC20(dstToken), // receive some ERC-20
             srcReceiver: payable(account),
             dstReceiver: payable(account),
@@ -344,6 +345,22 @@ contract Swap1InchHookTest is Helpers {
         assertEq(executions[1].target, mockRouter);
     }
 
+    function test_Build_ClipperSwap_InvalidReceiver() public {
+        address account = address(this);
+         bytes memory hookData = _buildClipperDataInvalidReceiver(1000, 100, dstReceiver, dstToken, false);
+
+        vm.expectRevert(Swap1InchHook.INVALID_RECEIVER.selector);
+        hook.build(address(0), account, hookData);
+    }
+
+    function test_Build_ClipperSwap_WithNative() public view {
+        address account = address(this);
+        bytes memory hookData = _buildClipperDataWithNative(1000, 100, dstReceiver, false);
+
+        Execution[] memory executions = hook.build(address(0), account, hookData);
+        assertEq(executions.length, 3);
+    }
+
     function test_ClipperSwap_inspect() public view {
         bytes memory data = _buildClipperData(1000, 100, dstReceiver, dstToken, false);
         bytes memory argsEncoded = hook.inspect(data);
@@ -409,6 +426,61 @@ contract Swap1InchHookTest is Helpers {
         bytes memory callData = abi.encodePacked(selector, clipperData);
         return abi.encodePacked(dstToken, dstReceiver, value, usePrev, callData);
     }
+
+    function _buildClipperDataInvalidReceiver(
+        uint256 _amount,
+        uint256 _minAmount,
+        address _dstReceiver,
+        address _dstToken,
+        bool usePrev
+    )
+        private
+        view
+        returns (bytes memory)
+    {
+        bytes memory clipperData = abi.encode(
+            address(0), // exchange
+            _dstReceiver, // receiver
+            bytes32(0), // srcToken
+            IERC20(_dstToken), // dstToken
+            _amount, // amount
+            _minAmount, // minReturnAmount
+            0, // goodUntil
+            bytes32(0), // bytes32 r,
+            bytes32(0) // bytes32 vs
+        );
+        bytes4 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
+        bytes memory callData = abi.encodePacked(selector, clipperData);
+        return abi.encodePacked(dstToken, address(this), value, usePrev, callData);
+    }
+
+    
+    function _buildClipperDataWithNative(
+        uint256 _amount,
+        uint256 _minAmount,
+        address _dstReceiver,
+        bool usePrev
+    )
+        private
+        view
+        returns (bytes memory)
+    {
+        bytes memory clipperData = abi.encode(
+            address(0), // exchange
+            _dstReceiver, // receiver
+            bytes32(0), // srcToken
+            IERC20(NATIVE), // dstToken
+            _amount, // amount
+            _minAmount, // minReturnAmount
+            0, // goodUntil
+            bytes32(0), // bytes32 r,
+            bytes32(0) // bytes32 vs
+        );
+        bytes4 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
+        bytes memory callData = abi.encodePacked(selector, clipperData);
+        return abi.encodePacked(NATIVE, _dstReceiver, value, usePrev, callData);
+    }
+
 
     function _buildInvalidSelectorData() private view returns (bytes memory) {
         bytes memory clipperData = abi.encode(

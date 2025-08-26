@@ -313,6 +313,46 @@ contract YieldSourceOraclesTest is Helpers {
         assertEq(actualTVL, expectedTVL);
     }
 
+    function test_ERC7540_getTVLByOwnerOfShares_convertToAssets() public {
+        // Mock shares balance for the user
+        uint256 mockShares = 5e18;
+        vm.mockCall(
+            erc7540.share(), 
+            abi.encodeWithSignature("balanceOf(address)", msg.sender), 
+            abi.encode(mockShares)
+        );
+        
+        // Test case 1: Mock convertToAssets to return 2x the shares (profitable scenario)
+        uint256 expectedTVL1 = 10e18; // 2x the shares
+        vm.mockCall(
+            address(erc7540), 
+            abi.encodeWithSignature("convertToAssets(uint256)", mockShares), 
+            abi.encode(expectedTVL1)
+        );
+        uint256 actualTVL1 = erc7540YieldSourceOracle.getTVLByOwnerOfShares(address(erc7540), msg.sender);
+        assertEq(actualTVL1, expectedTVL1, "Should return mocked convertToAssets value for profitable scenario");
+        
+        // Test case 2: Mock convertToAssets to return 0.5x the shares (loss scenario)
+        uint256 expectedTVL2 = 2.5e18; // 0.5x the shares
+        vm.mockCall(
+            address(erc7540), 
+            abi.encodeWithSignature("convertToAssets(uint256)", mockShares), 
+            abi.encode(expectedTVL2)
+        );
+        uint256 actualTVL2 = erc7540YieldSourceOracle.getTVLByOwnerOfShares(address(erc7540), msg.sender);
+        assertEq(actualTVL2, expectedTVL2, "Should return mocked convertToAssets value for loss scenario");
+        
+        // Test case 3: Mock convertToAssets to return exact shares (1:1 ratio)
+        uint256 expectedTVL3 = mockShares;
+        vm.mockCall(
+            address(erc7540), 
+            abi.encodeWithSignature("convertToAssets(uint256)", mockShares), 
+            abi.encode(expectedTVL3)
+        );
+        uint256 actualTVL3 = erc7540YieldSourceOracle.getTVLByOwnerOfShares(address(erc7540), msg.sender);
+        assertEq(actualTVL3, expectedTVL3, "Should return mocked convertToAssets value for 1:1 scenario");
+    }
+
     function test_ERC5115_getTVLByOwnerOfShares() public {
         IERC20(address(asset)).approve(address(erc5115), 1e18);
         erc5115.deposit(address(this), address(asset), 1e18, 0);
@@ -328,9 +368,54 @@ contract YieldSourceOraclesTest is Helpers {
         assertEq(actualTVL, shares); // For staking vaults, TVL = shares
     }
 
+    function test_ERC5115_getTVLX() public {
+        // Test case 1: Total supply is 0
+        vm.mockCall(
+            address(erc5115), 
+            abi.encodeWithSignature("totalSupply()"), 
+            abi.encode(0)
+        );
+        uint256 tvl = erc5115YieldSourceOracle.getTVL(address(erc5115));
+        assertEq(tvl, 0, "TVL should be 0 when total supply is 0");
+
+        // Test case 2: Total supply is non-zero, exchange rate is 1:1
+        vm.mockCall(
+            address(erc5115), 
+            abi.encodeWithSignature("totalSupply()"), 
+            abi.encode(1000e18)
+        );
+        vm.mockCall(
+            address(erc5115), 
+            abi.encodeWithSignature("exchangeRate(uint256,uint256)", 18, 18), 
+            abi.encode(1e18)
+        );
+        tvl = erc5115YieldSourceOracle.getTVL(address(erc5115));
+        assertEq(tvl, 1000e18, "TVL should equal total supply when exchange rate is 1:1");
+    }
+
     /*//////////////////////////////////////////////////////////////
                       GET ASSET OUTPUT WITH FEES TESTS
     //////////////////////////////////////////////////////////////*/
+    function test_CatchBranchFor_getAssetOutputWithFees() public {
+        bytes32 oracleId = bytes32("random");
+        address user = makeAddr("testUser");
+        uint256 initialShares = 1000e18;
+        uint256 usedShares = 500e18; // Half of the shares
+        uint256 assetOutput = 1100e18; // 10% profit over cost basis
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
+
+        // Mock the vault's previewRedeem to return our desired asset output
+        vm.mockCall(
+            address(erc4626), abi.encodeWithSignature("previewRedeem(uint256)", usedShares), abi.encode(assetOutput)
+        );
+
+        // Get asset output with fees
+        uint256 assetOutputWithFees = erc4626YieldSourceOracle.getAssetOutputWithFees(
+            oracleId, address(erc4626), address(asset), user, usedShares
+        );
+
+        assertEq(assetOutputWithFees, assetOutput);
+    }
 
     function test_ERC4626_getAssetOutputWithFees_WithValidConfig() public {
         bytes32 oracleId = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));

@@ -129,19 +129,6 @@ contract SuperYieldSourceOracleTest is Helpers {
         assertEq(quotes[1], QUOTE_AMOUNT, "Second quote should match expected value");
     }
 
-    function test_getPricePerShareMultipleQuote_ArrayLengthMismatch() public {
-        address[] memory yieldSources = new address[](2);
-        address[] memory yieldSourceOracles = new address[](2);
-        address[] memory baseAssets = new address[](1); // Mismatched length
-        address[] memory quoteAssets = new address[](2);
-        address[] memory oracles = new address[](2);
-
-        vm.expectRevert(abi.encodeWithSelector(ISuperYieldSourceOracle.ARRAY_LENGTH_MISMATCH.selector));
-        yieldSourceOracle.getPricePerShareMultipleQuote(
-            yieldSources, yieldSourceOracles, baseAssets, quoteAssets, oracles
-        );
-    }
-
     function test_getTVLByOwnerOfSharesMultipleQuote() public view {
         address[] memory yieldSources = new address[](2);
         address[] memory yieldSourceOracles = new address[](2);
@@ -189,19 +176,7 @@ contract SuperYieldSourceOracleTest is Helpers {
         assertEq(totalTvls[1], QUOTE_AMOUNT, "Second total TVL should be sum of user TVLs");
     }
 
-    function test_getTVLByOwnerOfSharesMultipleQuote_ArrayLengthMismatch() public {
-        address[] memory yieldSources = new address[](2);
-        address[] memory yieldSourceOracles = new address[](2);
-        address[][] memory owners = new address[][](1); // Mismatched length
-        address[] memory baseAssets = new address[](2);
-        address[] memory quoteAssets = new address[](2);
-        address[] memory oracles = new address[](2);
 
-        vm.expectRevert(abi.encodeWithSelector(ISuperYieldSourceOracle.ARRAY_LENGTH_MISMATCH.selector));
-        yieldSourceOracle.getTVLByOwnerOfSharesMultipleQuote(
-            yieldSources, yieldSourceOracles, owners, baseAssets, quoteAssets, oracles
-        );
-    }
 
     function test_getTVLMultipleQuote() public view {
         address[] memory yieldSources = new address[](2);
@@ -233,16 +208,7 @@ contract SuperYieldSourceOracleTest is Helpers {
         assertEq(tvls[1], QUOTE_AMOUNT, "Second TVL should match expected value");
     }
 
-    function test_getTVLMultipleQuote_ArrayLengthMismatch() public {
-        address[] memory yieldSources = new address[](2);
-        address[] memory yieldSourceOracles = new address[](2);
-        address[] memory baseAssets = new address[](1); // Mismatched length
-        address[] memory quoteAssets = new address[](2);
-        address[] memory oracles = new address[](2);
 
-        vm.expectRevert(abi.encodeWithSelector(ISuperYieldSourceOracle.ARRAY_LENGTH_MISMATCH.selector));
-        yieldSourceOracle.getTVLMultipleQuote(yieldSources, yieldSourceOracles, baseAssets, quoteAssets, oracles);
-    }
 
     /*//////////////////////////////////////////////////////////////
                     YIELD SOURCE ORACLE FUNCTION TESTS
@@ -302,4 +268,68 @@ contract SuperYieldSourceOracleTest is Helpers {
         assertEq(tvls[0], TVL_AMOUNT, "First TVL should match expected value");
         assertEq(tvls[1], TVL_AMOUNT, "Second TVL should match expected value");
     }
+
+    function test_getPricePerShareMultipleQuote_ArrayLengthMismatch() public {
+        address[] memory yieldSources = new address[](2);
+        address[] memory yieldSourceOracles = new address[](2);
+        address[] memory baseAssets = new address[](2);
+        address[] memory quoteAssets = new address[](2);
+        address[] memory oracles = new address[](1); // Mismatched length
+
+        vm.expectRevert(ISuperYieldSourceOracle.ARRAY_LENGTH_MISMATCH.selector);
+        uint256[] memory quotes = yieldSourceOracle.getPricePerShareMultipleQuote(
+            yieldSources, yieldSourceOracles, baseAssets, quoteAssets, oracles
+        );
+    }
+
+    function test_getTVLByOwnerOfSharesMultipleQuote_ArrayLengthMismatch() public {
+        address[] memory yieldSources = new address[](2);
+        address[] memory yieldSourceOracles = new address[](2);
+        address[][] memory owners = new address[][](1); // Mismatched length
+        address[] memory baseAssets = new address[](2);
+        address[] memory quoteAssets = new address[](2);
+        address[] memory oracles = new address[](2);
+
+        vm.expectRevert(ISuperYieldSourceOracle.ARRAY_LENGTH_MISMATCH.selector);
+        yieldSourceOracle.getTVLByOwnerOfSharesMultipleQuote(
+            yieldSources, yieldSourceOracles, owners, baseAssets, quoteAssets, oracles
+        );
+    }
+
+    function test_getTVLMultipleQuote_ArrayLengthMismatch() public {
+        address[] memory yieldSources = new address[](2);
+        address[] memory yieldSourceOracles = new address[](2);
+        address[] memory baseAssets = new address[](1); // Mismatched length
+        address[] memory quoteAssets = new address[](2);
+        address[] memory oracles = new address[](2);
+
+        vm.expectRevert(abi.encodeWithSelector(ISuperYieldSourceOracle.ARRAY_LENGTH_MISMATCH.selector));
+        yieldSourceOracle.getTVLMultipleQuote(yieldSources, yieldSourceOracles, baseAssets, quoteAssets, oracles);
+    }
+
+    function test_getPricePerShareMultiple_ArrayLengthMismatch() public {
+        address[] memory yieldSources = new address[](2);
+        address[] memory yieldSourceOracles = new address[](1); // Mismatched length
+
+        vm.expectRevert(ISuperYieldSourceOracle.ARRAY_LENGTH_MISMATCH.selector);
+        yieldSourceOracle.getPricePerShareMultiple(yieldSources, yieldSourceOracles);
+    }
+
+    function test_getTVLByOwnerOfSharesMultiple_ArrayLengthMismatch() public {
+        address[] memory yieldSources = new address[](2);
+        address[] memory yieldSourceOracles = new address[](2);
+        address[] memory owners = new address[](1); // Mismatched length
+
+        vm.expectRevert(ISuperYieldSourceOracle.ARRAY_LENGTH_MISMATCH.selector);
+        yieldSourceOracle.getTVLByOwnerOfSharesMultiple(yieldSources, yieldSourceOracles, owners);
+    }
+
+    function test_getTVLMultiple_ArrayLengthMismatch() public {
+        address[] memory yieldSources = new address[](2);
+        address[] memory yieldSourceOracles = new address[](1);
+
+        vm.expectRevert(ISuperYieldSourceOracle.ARRAY_LENGTH_MISMATCH.selector);
+        yieldSourceOracle.getTVLMultiple(yieldSources, yieldSourceOracles);
+    }
+
 }

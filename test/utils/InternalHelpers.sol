@@ -54,6 +54,26 @@ abstract contract InternalHelpers is Test {
         executionData = ExecutionReturnData({ logs: logs });
     }
 
+    function expectRevertOnExecuteOpsThroughPaymaster(
+        UserOpData memory userOpData,
+        ISuperNativePaymaster superNativePaymaster,
+        uint256 val
+    )
+        internal
+        returns (ExecutionReturnData memory executionData)
+    {
+        vm.recordLogs();
+
+        // execute
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = userOpData.userOp;
+        vm.expectRevert();
+        superNativePaymaster.handleOps{ value: val }(ops);
+
+        VmSafe.Log[] memory logs = vm.getRecordedLogs();
+        executionData = ExecutionReturnData({ logs: logs });
+    }
+
     function executeOp(UserOpData memory userOpData) public returns (ExecutionReturnData memory) {
         return userOpData.execUserOps();
     }

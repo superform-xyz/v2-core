@@ -83,11 +83,4 @@ contract BatchTransferHook is BaseHook {
 
         return result;
     }
-
-    /*//////////////////////////////////////////////////////////////
-                                 INTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override { }
-
-    function _postExecute(address, address, bytes calldata data) internal override { }
 }
