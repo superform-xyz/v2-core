@@ -228,30 +228,6 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         assertTrue(outflowHook.postExecuteCalled());
     }
 
-    function test_SourceExecutor_Execute_WithHooks_InvalidPreviousHook() public {
-        address[] memory hooksAddresses = new address[](1);
-        hooksAddresses[0] = address(inflowHook);
-
-        bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createDeposit4626HookData(
-            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
-            address(token),
-            1,
-            true,
-            address(0),
-            0
-        );
-
-        inflowHook.setUsePrevAmount(true);
-
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-
-        vm.startPrank(account);
-        vm.expectRevert(ISuperExecutor.FIRST_HOOK_CANNOT_USE_PREVIOUS_AMOUNT.selector);
-        superSourceExecutor.execute(abi.encode(entry));
-        vm.stopPrank();
-    }
 
     function test_SourceExecutor_Execute_WithNoExecutionHook() public {
         address[] memory hooksAddresses = new address[](1);

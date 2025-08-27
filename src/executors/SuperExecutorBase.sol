@@ -168,10 +168,9 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         for (uint256 i; i < hooksLen; ++i) {
             currentHook = entry.hooksAddresses[i];
             if (currentHook == address(0)) revert ADDRESS_NOT_VALID();
-            if (i == 0) {
-                bool usePrevHookAmount = _shouldUsePreviousOutput(currentHook, entry.hooksData[i]);
-                if (usePrevHookAmount) revert FIRST_HOOK_CANNOT_USE_PREVIOUS_AMOUNT();
-            }
+            // Note: We don't check for usePrevHookAmount on the first hook as SuperBundler is expected
+            // to validate this before submitting transactions. Other bundlers will simulate transactions
+            // before execution and discard any that would revert.
 
             _processHook(account, ISuperHook(currentHook), prevHook, entry.hooksData[i]);
             prevHook = currentHook;
@@ -329,13 +328,5 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         //  which requires the state to be clean
         hook.resetExecutionState(account);
         _updateAccounting(account, address(hook), hookData);
-    }
-
-    function _shouldUsePreviousOutput(address hook, bytes memory hookData) private pure returns (bool) {
-        try ISuperHookContextAware(hook).decodeUsePrevHookAmount(hookData) returns (bool usePrevHookAmount) {
-            return usePrevHookAmount;
-        } catch {
-            return false;
-        }
     }
 }
