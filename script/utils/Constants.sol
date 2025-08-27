@@ -90,6 +90,10 @@ abstract contract Constants {
     address internal constant PERMIT2_ARBITRUM = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     address internal constant PERMIT2_BNB = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
+    // Circle Gateway addresses (Universal across all chains)
+    address internal constant GATEWAY_WALLET = 0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE;
+    address internal constant GATEWAY_MINTER = 0x2222222d7164433c4C09B0b0D809a9b52C04C205;
+
     // Hook Keys
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
     string internal constant FLUID_CLAIM_REWARD_HOOK_KEY = "FluidClaimRewardHook";
@@ -141,6 +145,12 @@ abstract contract Constants {
     string internal constant CANCEL_REDEEM_HOOK_KEY = "CancelRedeemHook";
     string internal constant MARK_ROOT_AS_USED_HOOK_KEY = "MarkRootAsUsedHook";
     string internal constant MERKL_CLAIM_REWARD_HOOK_KEY = "MerklClaimRewardHook";
+
+    // Circle Gateway Hook Keys
+    string internal constant CIRCLE_GATEWAY_WALLET_HOOK_KEY = "CircleGatewayWalletHook";
+    string internal constant CIRCLE_GATEWAY_MINTER_HOOK_KEY = "CircleGatewayMinterHook";
+    string internal constant CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY = "CircleGatewayAddDelegateHook";
+    string internal constant CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY = "CircleGatewayRemoveDelegateHook";
 
     // Mock hooks (dev environment only)
     string internal constant MOCK_DEX_KEY = "MockDex";

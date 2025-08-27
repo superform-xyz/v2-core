@@ -103,6 +103,10 @@ HOOK_CONTRACTS=(
     "OfframpTokensHook"
     "MarkRootAsUsedHook"
     "MerklClaimRewardHook"
+    "CircleGatewayWalletHook"
+    "CircleGatewayMinterHook"
+    "CircleGatewayAddDelegateHook"
+    "CircleGatewayRemoveDelegateHook"
 )
 
 # Oracle contracts from accounting/oracles

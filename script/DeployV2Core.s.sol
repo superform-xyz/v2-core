@@ -61,6 +61,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address ethenaUnstakeHook;
         address markRootAsUsedHook;
         address merklClaimRewardHook;
+        address circleGatewayWalletHook;
+        address circleGatewayMinterHook;
+        address circleGatewayAddDelegateHook;
+        address circleGatewayRemoveDelegateHook;
     }
 
     struct HookDeployment {
@@ -448,6 +452,32 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         __checkContract(ETHENA_UNSTAKE_HOOK_KEY, __getSalt(ETHENA_UNSTAKE_HOOK_KEY), "", env);
         __checkContract(OFFRAMP_TOKENS_HOOK_KEY, __getSalt(OFFRAMP_TOKENS_HOOK_KEY), "", env);
         __checkContract(MARK_ROOT_AS_USED_HOOK_KEY, __getSalt(MARK_ROOT_AS_USED_HOOK_KEY), "", env);
+
+        // Circle Gateway hooks
+        __checkContract(
+            CIRCLE_GATEWAY_WALLET_HOOK_KEY,
+            __getSalt(CIRCLE_GATEWAY_WALLET_HOOK_KEY),
+            abi.encode(GATEWAY_WALLET),
+            env
+        );
+        __checkContract(
+            CIRCLE_GATEWAY_MINTER_HOOK_KEY,
+            __getSalt(CIRCLE_GATEWAY_MINTER_HOOK_KEY),
+            abi.encode(GATEWAY_MINTER),
+            env
+        );
+        __checkContract(
+            CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY,
+            __getSalt(CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY),
+            abi.encode(GATEWAY_WALLET),
+            env
+        );
+        __checkContract(
+            CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY,
+            __getSalt(CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY),
+            abi.encode(GATEWAY_WALLET),
+            env
+        );
     }
 
     /// @notice Check oracle contracts
@@ -1147,7 +1177,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     function _deployHooks(uint64 chainId, uint256 env) private returns (HookAddresses memory hookAddresses) {
         console2.log("Starting hook deployment with comprehensive dependency validation...");
 
-        uint256 len = 31;
+        uint256 len = 35;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -1272,6 +1302,28 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             )
         );
 
+        // ===== CIRCLE GATEWAY HOOKS =====
+        // Circle Gateway hooks - Validate gateway addresses
+        require(GATEWAY_WALLET != address(0), "CIRCLE_GATEWAY_WALLET_PARAM_ZERO");
+        require(GATEWAY_MINTER != address(0), "CIRCLE_GATEWAY_MINTER_PARAM_ZERO");
+
+        hooks[31] = HookDeployment(
+            CIRCLE_GATEWAY_WALLET_HOOK_KEY,
+            abi.encodePacked(__getBytecode("CircleGatewayWalletHook", env), abi.encode(GATEWAY_WALLET))
+        );
+        hooks[32] = HookDeployment(
+            CIRCLE_GATEWAY_MINTER_HOOK_KEY,
+            abi.encodePacked(__getBytecode("CircleGatewayMinterHook", env), abi.encode(GATEWAY_MINTER))
+        );
+        hooks[33] = HookDeployment(
+            CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY,
+            abi.encodePacked(__getBytecode("CircleGatewayAddDelegateHook", env), abi.encode(GATEWAY_WALLET))
+        );
+        hooks[34] = HookDeployment(
+            CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY,
+            abi.encodePacked(__getBytecode("CircleGatewayRemoveDelegateHook", env), abi.encode(GATEWAY_WALLET))
+        );
+
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying", len, "hooks with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
@@ -1347,6 +1399,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[29].name, MARK_ROOT_AS_USED_HOOK_KEY) ? addresses[29] : address(0);
         hookAddresses.merklClaimRewardHook =
             Strings.equal(hooks[30].name, MERKL_CLAIM_REWARD_HOOK_KEY) ? addresses[30] : address(0);
+        hookAddresses.circleGatewayWalletHook =
+            Strings.equal(hooks[31].name, CIRCLE_GATEWAY_WALLET_HOOK_KEY) ? addresses[31] : address(0);
+        hookAddresses.circleGatewayMinterHook =
+            Strings.equal(hooks[32].name, CIRCLE_GATEWAY_MINTER_HOOK_KEY) ? addresses[32] : address(0);
+        hookAddresses.circleGatewayAddDelegateHook =
+            Strings.equal(hooks[33].name, CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY) ? addresses[33] : address(0);
+        hookAddresses.circleGatewayRemoveDelegateHook =
+            Strings.equal(hooks[34].name, CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY) ? addresses[34] : address(0);
 
         // ===== FINAL VALIDATION OF ALL CRITICAL HOOKS =====
         require(hookAddresses.approveErc20Hook != address(0), "APPROVE_ERC20_HOOK_NOT_ASSIGNED");
@@ -1407,6 +1467,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(hookAddresses.markRootAsUsedHook != address(0), "MARK_ROOT_AS_USED_HOOK_NOT_ASSIGNED");
 
         require(hookAddresses.merklClaimRewardHook != address(0), "MERKL_CLAIM_REWARD_HOOK_NOT_ASSIGNED");
+        require(hookAddresses.circleGatewayWalletHook != address(0), "CIRCLE_GATEWAY_WALLET_HOOK_NOT_ASSIGNED");
+        require(hookAddresses.circleGatewayMinterHook != address(0), "CIRCLE_GATEWAY_MINTER_HOOK_NOT_ASSIGNED");
+        require(hookAddresses.circleGatewayAddDelegateHook != address(0), "CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_NOT_ASSIGNED");
+        require(hookAddresses.circleGatewayRemoveDelegateHook != address(0), "CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_NOT_ASSIGNED");
 
         console2.log(" All hooks deployed and validated successfully with comprehensive dependency checking! ");
 
