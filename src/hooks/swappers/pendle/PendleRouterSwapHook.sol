@@ -96,11 +96,10 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory packed) {
         bytes calldata txData_ = data[85:];
         bytes4 selector = bytes4(txData_[0:4]);
 
-        bytes memory packed;
         if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
             // skip selector
             (address receiver, address market,,, TokenInput memory input, LimitOrderData memory limit) =
@@ -173,8 +172,6 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
                 );
             }
         }
-
-        return packed;
     }
 
     /*//////////////////////////////////////////////////////////////

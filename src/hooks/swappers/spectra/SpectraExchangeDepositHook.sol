@@ -277,8 +277,6 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
             }
             commands[i] = command;
         }
-
-        return commands;
     }
 
     function _decodeTokenOut(bytes calldata data) internal pure returns (address tokenOut) {

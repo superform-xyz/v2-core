@@ -562,7 +562,7 @@ contract MorphoLoanHooksTest is Helpers {
                 MORPHO_IRM,
                 uint256(1000),
                 lltv,
-                false,
+                true,
                 true
             );
         Execution[] memory executions = supplyHook.build(mockPrevHook, address(this), data);
