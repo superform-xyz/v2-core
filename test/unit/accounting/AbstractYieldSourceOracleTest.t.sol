@@ -45,6 +45,12 @@ contract MockYieldSourceOracle is AbstractYieldSourceOracle {
     }
 }
 
+contract MockSuperLedgerConfiguration {
+    function getYieldSourceOracleConfig(bytes32) external pure {
+        revert("Config not found");
+    }
+}
+
 contract AbstractYieldSourceOracleTest is Helpers {
     MockYieldSourceOracle public oracle;
     address public mockYieldSource;
@@ -53,11 +59,30 @@ contract AbstractYieldSourceOracleTest is Helpers {
     address public mockSuperLedgerConfiguration;
 
     function setUp() public {
-        mockSuperLedgerConfiguration = address(0x789);
+        mockSuperLedgerConfiguration = address(new MockSuperLedgerConfiguration());
         oracle = new MockYieldSourceOracle(mockSuperLedgerConfiguration);
         mockYieldSource = address(0x123);
         mockAsset = address(oracle.mockAsset());
         mockOwner = address(0x456);
+    }
+
+    function test_GetAssetOutputWithFees_CatchBlock() public view {
+        // Use an invalid yieldSourceOracleId that will cause the configuration lookup to fail
+        bytes32 invalidYieldSourceOracleId = bytes32("invalid_id");
+        uint256 usedShares = 1000e18;
+        
+        // This should trigger the catch block since the configuration lookup will fail
+        uint256 result = oracle.getAssetOutputWithFees(
+            invalidYieldSourceOracleId,
+            mockYieldSource,
+            mockAsset,
+            mockOwner,
+            usedShares
+        );
+        
+        // The catch block should return the base asset output without fees
+        uint256 expectedAssetOutput = oracle.getAssetOutput(mockYieldSource, mockAsset, usedShares);
+        assertEq(result, expectedAssetOutput, "Should return asset output without fees when config lookup fails");
     }
 
     function test_superLedgerConfiguration() public view {

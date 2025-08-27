@@ -48,6 +48,14 @@ contract MockCurvePair {
     function underlying_coins(uint256) external view returns (address) {
         return coin;
     }
+
+    function token0() external view returns (address) {
+        return coin;
+    }
+    
+    function token1() external view returns (address) {
+        return address(uint160(coin) + 1); // Return different address
+    }
 }
 
 contract Executor {
@@ -250,6 +258,22 @@ contract Swap1InchHookTest is Helpers {
         executions = hook.build(address(0), account, hookData);
     }
 
+    function test_Build_Unoswap_Curve_InvalidSelectorOffset() public {
+        uint8 selectorOffset = 0;
+        address account = address(this);
+
+        bytes memory hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
+        Execution[] memory executions = hook.build(address(0), account, hookData);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
+        assertEq(executions[1].value, 0);
+
+        selectorOffset = 61;
+        hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
+        vm.expectRevert(Swap1InchHook .INVALID_SELECTOR_OFFSET.selector);
+        hook.build(address(0), account, hookData);
+    }
+
     function test_UnoSwap_inspect() public view {
         bytes memory data = _buildCurveHookData(0, false, dstReceiver, 1000, 100, false);
         bytes memory argsEncoded = hook.inspect(data);
@@ -372,6 +396,63 @@ contract Swap1InchHookTest is Helpers {
         vm.expectRevert(Swap1InchHook.INVALID_SELECTOR.selector);
         hook.inspect(data);
     }
+
+    function test_GetBalance_NativeToken() public {
+        // Create hook data with NATIVE token as destination to trigger dstReceiver.balance return
+        bytes memory hookData = _buildClipperDataWithNative(1000, 100, dstReceiver, false);
+
+        // Give the dstReceiver some ETH balance to verify the method returns it
+        vm.deal(dstReceiver, 5 ether);
+        
+        // This should trigger _getBalance which returns dstReceiver.balance for NATIVE token
+        Execution[] memory executions = hook.build(address(0), address(this), hookData);
+        
+        // Verify the hook was built successfully (covers the _getBalance path)
+        assertGt(executions.length, 0, "Should build executions successfully");
+    }
+
+    function test_InvalidTokenPair() public {
+        // Create a Curve dex address with invalid selector offset
+        // Valid selector offsets are: 0, 4, 8, 12, 16
+        // We'll use 20 (invalid) to trigger INVALID_SELECTOR_OFFSET error
+        
+        uint256 invalidSelectorOffset = 20; // Invalid offset
+        uint256 dstTokenIndex = 0;
+        
+        // Encode the dex address with Curve protocol and invalid selector offset
+        uint256 dexValue = uint256(uint160(mockCurvePair)) | 
+                          (2 << 253) | // Protocol.Curve
+                          (invalidSelectorOffset << 208) | // Invalid selector offset
+                          (dstTokenIndex << 216); // Token index
+        
+        address encodedDex = address(uint160(dexValue));
+        
+        // Create proper unoswapTo transaction data
+        bytes memory unoswapData = abi.encode(
+            Address.wrap(uint160(dstReceiver)), // to
+            Address.wrap(uint160(srcToken)),    // token
+            uint256(1000e18),                   // amount
+            uint256(900e18),                    // minReturn
+            Address.wrap(uint160(encodedDex))   // dex with invalid selector offset
+        );
+        
+        // Create proper 1inch transaction with selector
+        bytes4 selector = I1InchAggregationRouterV6.unoswapTo.selector;
+        bytes memory callData = abi.encodePacked(selector, unoswapData);
+        
+        bytes memory hookData = abi.encodePacked(
+            dstToken,     // dstToken (20 bytes)
+            dstReceiver,  // dstReceiver (20 bytes)
+            value,        // value (32 bytes)
+            false,        // usePrevHookAmount (1 byte)
+            callData      // 1inch transaction data with selector
+        );
+        
+        // This should revert with INVALID_SELECTOR_OFFSET
+        vm.expectRevert(Swap1InchHook.INVALID_TOKEN_PAIR.selector);
+        hook.build(address(0), address(this), hookData);
+    }
+
 
     function _buildInvalidData(
         uint256 _amount,

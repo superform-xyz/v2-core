@@ -121,6 +121,31 @@ contract Mock4626Vault is ERC4626 {
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
+    function exchangeRate() external pure returns (uint256) {
+        return 1e18;
+    }
+
+    function readTokens() external view returns (address sy, address pt, address yt) {
+        return (_asset, _asset, _asset);
+    }
+
+    function expiry() external pure returns (uint256) {
+        return 1e18;
+    }
+
+    function observe(uint32[] calldata) external pure returns (uint216[] memory, uint216[] memory) {
+        uint216[] memory logImpliedRates = new uint216[](2);
+        uint216[] memory logPYIndexes = new uint216[](2);
+        
+        // Return mock values
+        logImpliedRates[0] = uint216(1e18);
+        logImpliedRates[1] = uint216(1e18);
+        logPYIndexes[0] = uint216(1e18);
+        logPYIndexes[1] = uint216(1e18);
+        
+        return (logImpliedRates, logPYIndexes);
+    }
+
     function totalAssets() public view override returns (uint256) {
         // For simplicity, we don't include accrued yield in totalAssets
         return _totalAssets;

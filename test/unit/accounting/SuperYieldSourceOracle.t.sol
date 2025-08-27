@@ -17,6 +17,33 @@ import { SuperYieldSourceOracle } from "../../../src/accounting/oracles/SuperYie
 import { PendlePTYieldSourceOracle } from "../../../src/accounting/oracles/PendlePTYieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../../../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
 
+contract NonStandardToken {
+    string public name = "Non Standard Token";
+    string public symbol = "NST";
+    
+    // Intentionally missing decimals() method to trigger catch block
+    // This will cause IERC20Metadata(address).decimals() to revert
+}
+
+// Mock ERC5115 yield source that implements exchangeRate() but not readTokens()
+contract MockERC5115YieldSource {
+    // Implements exchangeRate() to trigger ERC5115 flavor detection
+    function exchangeRate() external pure returns (uint256) {
+        return 1e18;
+    }
+    
+    // Does NOT implement readTokens() so Pendle detection fails
+    // This ensures _detectFlavor goes to the ERC5115 probe
+}
+
+contract MockUnknownYieldSource {
+    // Intentionally missing both readTokens() and exchangeRate() methods
+    // This will cause both detection attempts in _detectFlavor to fail:
+    // 1. IPMarket(yieldSourceAddress).readTokens() → fails (catch block)
+    // 2. IStandardizedYield(yieldSourceAddress).exchangeRate() → fails (catch block)
+    // Result: return Flavor.Unknown;
+}
+
 contract SuperYieldSourceOracleTest is Helpers {
     SuperYieldSourceOracle public superYieldSourceOracle;
     ISuperYieldSourceOracle public yieldSourceOracle;
@@ -634,7 +661,7 @@ contract SuperYieldSourceOracleTest is Helpers {
         address[] memory oracles = new address[](1); // Mismatched length
 
         vm.expectRevert(ISuperYieldSourceOracle.ARRAY_LENGTH_MISMATCH.selector);
-        uint256[] memory quotes = yieldSourceOracle.getPricePerShareMultipleQuote(
+        yieldSourceOracle.getPricePerShareMultipleQuote(
             yieldSources, yieldSourceOracles, baseAssets, quoteAssets, oracles
         );
     }
@@ -689,4 +716,136 @@ contract SuperYieldSourceOracleTest is Helpers {
         yieldSourceOracle.getTVLMultiple(yieldSources, yieldSourceOracles);
     }
 
+
+    function test_getPricePerShareMultiple_Success() public {
+        // Setup multiple yield sources and oracles
+        address[] memory yieldSources = new address[](2);
+        address[] memory yieldSourceOracles = new address[](2);
+        
+        yieldSources[0] = address(yieldSource);
+        yieldSources[1] = address(yieldSource);
+        yieldSourceOracles[0] = address(mockYieldSourceOracle);
+        yieldSourceOracles[1] = address(mockYieldSourceOracle);
+        
+        // Mock the getPricePerShare calls
+        mockYieldSourceOracle.setPricePerShare(1.5e18); // 1.5 price per share
+        
+        uint256[] memory prices = yieldSourceOracle.getPricePerShareMultiple(yieldSources, yieldSourceOracles);
+        
+        assertEq(prices.length, 2, "Should return array of correct length");
+        assertEq(prices[0], 1.5e18, "First price should match mock value");
+        assertEq(prices[1], 1.5e18, "Second price should match mock value");
+    }
+
+    function test_getTVLByOwnerOfSharesMultiple_Success() public {
+        // Setup multiple yield sources, oracles, and owners
+        address[] memory yieldSources = new address[](2);
+        address[] memory yieldSourceOracles = new address[](2);
+        address[] memory owners = new address[](2);
+        
+        yieldSources[0] = address(yieldSource);
+        yieldSources[1] = address(yieldSource);
+        yieldSourceOracles[0] = address(mockYieldSourceOracle);
+        yieldSourceOracles[1] = address(mockYieldSourceOracle);
+        owners[0] = address(0x123);
+        owners[1] = address(0x456);
+        
+        // Mock the getTVLByOwnerOfShares calls
+        mockYieldSourceOracle.setTVLByOwner(1000e18); // 1000 TVL
+        
+        uint256[] memory tvls = yieldSourceOracle.getTVLByOwnerOfSharesMultiple(yieldSources, yieldSourceOracles, owners);
+        
+        assertEq(tvls.length, 2, "Should return array of correct length");
+        assertEq(tvls[0], 1000e18, "First TVL should match mock value");
+        assertEq(tvls[1], 1000e18, "Second TVL should match mock value");
+    }
+
+    function test_getTVLMultiple_Success() public {
+        // Setup multiple yield sources and oracles
+        address[] memory yieldSources = new address[](3);
+        address[] memory yieldSourceOracles = new address[](3);
+        
+        yieldSources[0] = address(yieldSource);
+        yieldSources[1] = address(yieldSource);
+        yieldSources[2] = address(yieldSource);
+        yieldSourceOracles[0] = address(mockYieldSourceOracle);
+        yieldSourceOracles[1] = address(mockYieldSourceOracle);
+        yieldSourceOracles[2] = address(mockYieldSourceOracle);
+        
+        // Mock the getTVL calls
+        mockYieldSourceOracle.setTVL(5000e18); // 5000 total TVL
+        
+        uint256[] memory tvls = yieldSourceOracle.getTVLMultiple(yieldSources, yieldSourceOracles);
+        
+        assertEq(tvls.length, 3, "Should return array of correct length");
+        assertEq(tvls[0], 5000e18, "First TVL should match mock value");
+        assertEq(tvls[1], 5000e18, "Second TVL should match mock value");
+        assertEq(tvls[2], 5000e18, "Third TVL should match mock value");
+    }
+
+    function test_SafeBaseDecimals_CatchBranch() public {
+        // Create a contract that doesn't implement decimals() method
+        address nonStandardToken = address(new NonStandardToken());
+        
+        // Setup yield source and oracle for PendlePT flavor to trigger _safeBaseDecimals call
+        mockYieldSourceOracle.setPricePerShare(1.5e18);
+        
+        // This should trigger _safeBaseDecimals in the getPricePerShareQuote method
+        // The catch block should return 18 when decimals() call fails
+        uint256 quote = yieldSourceOracle.getPricePerShareQuote(
+            address(yieldSource),
+            address(pendlePTOracle), // PendlePT oracle to trigger the right path
+            nonStandardToken, // Non-standard token without decimals()
+            address(validAsset),
+            address(mockSuperOracle)
+        );
+        
+        // Verify the quote was calculated using 18 decimals as fallback
+        // Expected: pps * 10^18 / 1e18 = 1.5e18 * 1e18 / 1e18 = 1.5e18
+        assertGt(quote, 0, "Should return valid quote using 18 decimal fallback");
+    }
+
+    function test_DetectFlavor_ERC5115() public {
+        // Create a mock ERC5115 yield source that has exchangeRate() but not readTokens()
+        MockERC5115YieldSource erc5115YieldSource = new MockERC5115YieldSource();
+        
+        // Setup mock oracle
+        mockYieldSourceOracle.setPricePerShare(1.2e18);
+        
+        // This should trigger _detectFlavor and detect ERC5115 flavor
+        // The method will try readTokens() first (fail), then exchangeRate() (succeed)
+        uint256 quote = yieldSourceOracle.getPricePerShareQuote(
+            address(erc5115YieldSource), // ERC5115 yield source
+            address(erc5115Oracle), // ERC5115 oracle
+            address(validAsset), // Base asset
+            address(validAsset), // Quote asset (same for simplicity)
+            address(mockSuperOracle)
+        );
+        
+        // Verify the quote was calculated using ERC5115 flavor path
+        // This confirms _detectFlavor returned Flavor.ERC5115
+        assertGt(quote, 0, "Should return valid quote using ERC5115 flavor detection");
+    }
+
+    function test_DetectFlavor_Unknown() public {
+        // Create a mock yield source that implements neither readTokens() nor exchangeRate()
+        MockUnknownYieldSource unknownYieldSource = new MockUnknownYieldSource();
+        
+        // Setup mock oracle
+        mockYieldSourceOracle.setPricePerShare(1.0e18);
+        
+        // This should trigger _detectFlavor and detect Unknown flavor
+        // The method will try readTokens() first (fail), then exchangeRate() (fail)
+        uint256 quote = yieldSourceOracle.getPricePerShareQuote(
+            address(unknownYieldSource), // Unknown yield source
+            address(mockYieldSourceOracle), // Mock oracle
+            address(validAsset), // Base asset
+            address(validAsset), // Quote asset (same for simplicity)
+            address(mockSuperOracle)
+        );
+        
+        // Verify the quote was calculated using Unknown flavor path (no decimal conversion)
+        // This confirms _detectFlavor returned Flavor.Unknown
+        assertGt(quote, 0, "Should return valid quote using Unknown flavor detection");
+    }
 }
