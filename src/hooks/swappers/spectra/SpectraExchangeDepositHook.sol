@@ -138,10 +138,10 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
     }
+    
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-
     struct ValidateTxDataParams {
         bytes4 selector;
         bytes[] updatedInputs;
