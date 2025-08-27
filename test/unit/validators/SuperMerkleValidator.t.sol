@@ -230,14 +230,14 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
     function test_ValidateUserOp_1LeafMerkleTree_NotInitializedChecks() public {
         // Create a new validator instance to test with uninitialized account
         SuperValidator newValidator = new SuperValidator();
-        
+
         // Create a user operation with an uninitialized sender (not a 7702 account)
         address uninitializedSender = makeAddr("uninitializedAccount");
-        
+
         // Create a dummy user operation with the uninitialized sender
         PackedUserOperation memory userOp = approveUserOp.userOp;
         userOp.sender = uninitializedSender;
-        
+
         // Expect the specific NOT_INITIALIZED error
         vm.expectRevert(ISuperValidator.NOT_INITIALIZED.selector);
         newValidator.validateUserOp(userOp, approveUserOp.userOpHash);
@@ -277,24 +277,20 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         bytes32[] memory tamperedProof = new bytes32[](1);
         tamperedProof[0] = keccak256("invalid_proof_data"); // This won't match the actual proof
 
-        proofDst[0] = ISuperValidator.DstProof({ 
-            proof: tamperedProof, 
-            dstChainId: chainId, 
-            info: dstInfo 
-        });
+        proofDst[0] = ISuperValidator.DstProof({ proof: tamperedProof, dstChainId: chainId, info: dstInfo });
 
         uint64[] memory chainsWithDestExecutionTransient = new uint64[](1);
         chainsWithDestExecutionTransient[0] = chainId;
         bytes memory sigData =
             abi.encode(chainsWithDestExecutionTransient, validUntil, 0, root, proof[0], proofDst, signature);
-        
+
         approveUserOp.userOp.signature = sigData;
 
         // Expect the specific INVALID_MERKLE_PROOF error
         vm.expectRevert(SuperValidatorBase.INVALID_MERKLE_PROOF.selector);
         validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
     }
-    
+
     function test_ValidateUserOp_1LeafMerkleTree_NotInitialized() public {
         vm.startPrank(makeAddr("account"));
         vm.expectRevert();
@@ -362,7 +358,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
 
     function test_ValidateUserOp_1LeafMerkleTree_InvalidProof() public {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
- 
+
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](1);
         uint64[] memory chainsForLeafThis = new uint64[](0);

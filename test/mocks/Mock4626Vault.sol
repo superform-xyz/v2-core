@@ -136,13 +136,13 @@ contract Mock4626Vault is ERC4626 {
     function observe(uint32[] calldata) external pure returns (uint216[] memory, uint216[] memory) {
         uint216[] memory logImpliedRates = new uint216[](2);
         uint216[] memory logPYIndexes = new uint216[](2);
-        
+
         // Return mock values
         logImpliedRates[0] = uint216(1e18);
         logImpliedRates[1] = uint216(1e18);
         logPYIndexes[0] = uint216(1e18);
         logPYIndexes[1] = uint216(1e18);
-        
+
         return (logImpliedRates, logPYIndexes);
     }
 

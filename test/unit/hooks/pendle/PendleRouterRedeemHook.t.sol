@@ -231,10 +231,10 @@ contract PendleRouterRedeemHookTest is Helpers {
 
         // Give the account some ETH balance to test the native token balance check
         vm.deal(account, 3 ether);
-        
+
         // This should trigger _getBalance with tokenOut == address(0), returning receiver.balance
         hook.preExecute(address(0), account, data);
-        
+
         // Verify that the hook captured the native token balance
         assertEq(hook.getOutAmount(address(this)), 3 ether);
     }

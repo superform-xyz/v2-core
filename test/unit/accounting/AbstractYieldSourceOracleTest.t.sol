@@ -70,16 +70,11 @@ contract AbstractYieldSourceOracleTest is Helpers {
         // Use an invalid yieldSourceOracleId that will cause the configuration lookup to fail
         bytes32 invalidYieldSourceOracleId = bytes32("invalid_id");
         uint256 usedShares = 1000e18;
-        
+
         // This should trigger the catch block since the configuration lookup will fail
-        uint256 result = oracle.getAssetOutputWithFees(
-            invalidYieldSourceOracleId,
-            mockYieldSource,
-            mockAsset,
-            mockOwner,
-            usedShares
-        );
-        
+        uint256 result =
+            oracle.getAssetOutputWithFees(invalidYieldSourceOracleId, mockYieldSource, mockAsset, mockOwner, usedShares);
+
         // The catch block should return the base asset output without fees
         uint256 expectedAssetOutput = oracle.getAssetOutput(mockYieldSource, mockAsset, usedShares);
         assertEq(result, expectedAssetOutput, "Should return asset output without fees when config lookup fails");

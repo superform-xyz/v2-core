@@ -51,7 +51,7 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
     function test_Constructor() public view {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
-    
+
     function test_MerklClaimReward_InvalidConstructorParms() public {
         vm.expectRevert(MerklClaimRewardHook.FEE_NOT_VALID.selector);
         new MerklClaimRewardHook(distributor, address(this), 1e18);

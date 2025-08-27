@@ -210,7 +210,10 @@ contract AcrossV3AdapterTest is Helpers {
         bytes memory,
         bytes memory,
         bytes memory
-    ) external pure {
+    )
+        external
+        pure
+    {
         revert("A");
     }
 }

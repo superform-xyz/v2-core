@@ -64,7 +64,7 @@ contract SwapOdosV2Hook is BaseHook, ISuperHookContextAware {
         if (usePrevHookAmount) {
             inputAmount = ISuperHookResult(prevHook).getOutAmount(account);
         }
-        
+
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(ODOS_ROUTER_V2),

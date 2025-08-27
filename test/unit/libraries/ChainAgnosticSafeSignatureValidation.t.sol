@@ -143,7 +143,7 @@ contract ChainAgnosticSafeSignatureValidationTest is Test {
     function test_ValidateChainAgnosticMultisig_CatchBranch_GetThresholdFails() public {
         // Create a mock that only fails getThreshold() but not getOwners()
         MockSafeAccountPartialRevert partialRevertSafe = new MockSafeAccountPartialRevert();
-        
+
         bytes32 rawHash = keccak256(abi.encode("test message", block.timestamp));
 
         uint256[] memory signingKeys = new uint256[](2);
@@ -156,7 +156,6 @@ contract ChainAgnosticSafeSignatureValidationTest is Test {
         bool isValid = address(partialRevertSafe).validateChainAgnosticMultisig(sigData, rawHash);
         assertFalse(isValid, "Should return false when getThreshold() reverts (catch branch)");
     }
-
 
     /// @dev Helper function to create chain-agnostic hash
     function _createChainAgnosticHash(address safe, bytes32 rawHash) private pure returns (bytes32) {
@@ -439,27 +438,31 @@ contract ChainAgnosticSafeSignatureValidationTest is Test {
         // In Safe contract signatures, v = 0 indicates a contract signature
         // r contains the contract address, s contains the signature data offset
         address contractSigner = owner1; // Use owner1 as the contract address
-        
+
         // Create contract signature format: v=0, r=contractAddress, s=dataOffset
         bytes32 r = bytes32(uint256(uint160(contractSigner))); // Contract address in r
         bytes32 s = bytes32(uint256(65)); // Offset to signature data (after the 65-byte signature)
         uint8 v = 0; // Contract signature indicator
-        
+
         // Create the signature with contract signature format
         // First signature is contract signature, second is regular ECDSA
         (uint8 v2, bytes32 r2, bytes32 s2) = vm.sign(PRIVATE_KEY_2, chainAgnosticHash);
-        
+
         bytes memory signatures = abi.encodePacked(
-            r, s, v,    // Contract signature (v=0)
-            r2, s2, v2  // Regular ECDSA signature
+            r,
+            s,
+            v, // Contract signature (v=0)
+            r2,
+            s2,
+            v2 // Regular ECDSA signature
         );
-        
+
         ISuperValidator.SignatureData memory sigData = _createSignatureData(signatures);
 
         // This should trigger the contract signature branch (v == 0) in recoverNSignatures
         // The function will call CheckSignatures.isValidContractSignature
         bool isValid = address(mockSafe).validateChainAgnosticMultisig(sigData, rawHash);
-        
+
         // Contract signature validation will likely fail since we don't have a proper contract
         // but the important part is that we covered the v == 0 branch
         assertFalse(isValid, "Contract signature should fail without proper contract setup");

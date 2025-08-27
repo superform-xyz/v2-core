@@ -132,7 +132,6 @@ contract ERC4626VaultHooksTest is Helpers {
         );
     }
 
-
     /*//////////////////////////////////////////////////////////////
                         ZERO AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
@@ -318,17 +317,16 @@ contract ERC4626VaultHooksTest is Helpers {
         assertGt(argsEncoded.length, 0);
     }
 
-
     /*//////////////////////////////////////////////////////////////
                         HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     function asset() external view returns (address) {
         return address(token);
     }
+
     function balanceOf(address account) external view returns (uint256) {
         return 100;
     }
-
 
     function _encodeApproveAndDepositData() internal view returns (bytes memory) {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false);

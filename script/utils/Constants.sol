@@ -68,7 +68,6 @@ abstract contract Constants {
     address internal constant AGGREGATION_ROUTER_ARBITRUM = 0x111111125421cA6dc452d289314280a0f8842A65;
     address internal constant AGGREGATION_ROUTER_BNB = 0x111111125421cA6dc452d289314280a0f8842A65;
 
-    
     // Odos Router addresses per chain
     address internal constant ODOS_ROUTER_MAINNET = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
     address internal constant ODOS_ROUTER_BASE = 0x19cEeAd7105607Cd444F5ad10dd51356436095a1;

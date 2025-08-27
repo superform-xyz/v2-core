@@ -4,16 +4,13 @@ pragma solidity 0.8.30;
 import { Helpers } from "../../../utils/Helpers.sol";
 import { HookDataUpdater } from "../../../../src/libraries/HookDataUpdater.sol";
 
-
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-
 
 contract HookDataUpdaterHarness {
     function get(uint256 amount, uint256 prev, uint256 out) external pure returns (uint256) {
         return HookDataUpdater.getUpdatedOutputAmount(amount, prev, out);
     }
 }
-
 
 contract HookDataUpdaterTest is Helpers {
     HookDataUpdaterHarness internal tester;
@@ -24,8 +21,8 @@ contract HookDataUpdaterTest is Helpers {
     }
 
     function test_NoChange_WhenAmountsEqual() public view {
-        uint256 amount = 1_000;
-        uint256 prev = 1_000;
+        uint256 amount = 1000;
+        uint256 prev = 1000;
         uint256 out = 42_000;
 
         uint256 res = tester.get(amount, prev, out);
@@ -42,18 +39,18 @@ contract HookDataUpdaterTest is Helpers {
         assertEq(res, expected);
     }
 
-     function test_Decrease_WithPrevZero_ZerosOutput() public view {
-        uint256 amount = 0; 
-        uint256 prev = 1;     
+    function test_Decrease_WithPrevZero_ZerosOutput() public view {
+        uint256 amount = 0;
+        uint256 prev = 1;
         uint256 out = 10_000;
-        uint256 expected = 0;  // 100% decrease
+        uint256 expected = 0; // 100% decrease
 
         uint256 res = tester.get(amount, prev, out);
         assertEq(res, expected);
     }
 
     function test_Increase_Percentage_ComputedWithMulDiv() public view {
-        uint256 amount = 150;  // +50% vs prev
+        uint256 amount = 150; // +50% vs prev
         uint256 prev = 100;
         uint256 out = 20_000;
 
@@ -62,9 +59,9 @@ contract HookDataUpdaterTest is Helpers {
         uint256 res = tester.get(amount, prev, out);
         assertEq(res, expected);
     }
-    
+
     function test_Decrease_Percentage_ComputedWithMulDiv() public view {
-        uint256 amount = 60;   // -40% vs prev
+        uint256 amount = 60; // -40% vs prev
         uint256 prev = 100;
         uint256 out = 20_000;
 
@@ -77,7 +74,7 @@ contract HookDataUpdaterTest is Helpers {
     }
 
     function test_LargeIncrease_MoreThan100Percent() public view {
-        uint256 amount = 500;  // +400% vs prev
+        uint256 amount = 500; // +400% vs prev
         uint256 prev = 100;
         uint256 out = 3;
 
@@ -100,8 +97,7 @@ contract HookDataUpdaterTest is Helpers {
         uint256 res = tester.get(x, x, out);
         assertEq(res, out);
     }
-    
-   
+
     function testFuzz_Monotonicity(uint256 prev, uint256 out, uint256 a, uint256 b) public view {
         // If a > b and both compared to the same prev, result(a) >= result(b)
         vm.assume(prev > 0 && prev < 1e18);
@@ -119,5 +115,4 @@ contract HookDataUpdaterTest is Helpers {
             assertLe(ra, rb, "Lower amount should not lead to higher output");
         }
     }
-
 }

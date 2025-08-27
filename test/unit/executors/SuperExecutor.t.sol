@@ -228,7 +228,6 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         assertTrue(outflowHook.postExecuteCalled());
     }
 
-
     function test_SourceExecutor_Execute_WithNoExecutionHook() public {
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(inflowHook);

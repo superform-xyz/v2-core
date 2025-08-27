@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../v2-periphery"
+		},
+		{
+			"path": "../../../nexus"
+		}
+	],
+	"settings": {}
+}

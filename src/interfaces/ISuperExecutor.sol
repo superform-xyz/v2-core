@@ -83,7 +83,6 @@ interface ISuperExecutor {
     /// @dev Used to prevent operations with problematic yield source oracle IDs
     error INVALID_YIELD_SOURCE_ORACLE_ID();
 
-
     /// @notice Thrown when `hook.setExecutionContext` is called with an invalid caller
     error INVALID_CALLER();
 

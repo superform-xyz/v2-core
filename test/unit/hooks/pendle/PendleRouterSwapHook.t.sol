@@ -883,7 +883,7 @@ contract PendleRouterSwapHookTest is Helpers {
             order: flashOrders[0],
             signature: "",
             makingAmount: 0 // Invalid making amount for flash fill
-        });
+         });
 
         LimitOrderData memory limit = LimitOrderData({
             limitRouter: address(this),
@@ -1007,13 +1007,13 @@ contract PendleRouterSwapHookTest is Helpers {
         // Create data with an invalid selector that's neither swapExactTokenForPt nor swapExactPtForToken
         bytes4 invalidSelector = bytes4(0xdeadbeef);
         bytes memory invalidTxData = abi.encodePacked(invalidSelector, bytes(abi.encode(address(this), address(this))));
-        
+
         bytes memory data = abi.encodePacked(
             bytes32(bytes("")), // placeholder
-            market,             // yieldSource
-            bytes1(uint8(0)),   // usePrevHookAmount
-            uint256(0),         // value
-            invalidTxData       // txData with invalid selector
+            market, // yieldSource
+            bytes1(uint8(0)), // usePrevHookAmount
+            uint256(0), // value
+            invalidTxData // txData with invalid selector
         );
 
         // This should trigger the else branch in _decodeTokenOutAndReceiver via _getBalance
@@ -1048,12 +1048,11 @@ contract PendleRouterSwapHookTest is Helpers {
 
         // Give the receiver some ETH balance to test the native token balance check
         vm.deal(receiver, 5 ether);
-        
+
         // This should trigger _getBalance with tokenOut == address(0), returning receiver.balance
         hook.preExecute(address(0), receiver, data);
-        
+
         // Verify that the hook captured the native token balance
         assertEq(hook.getOutAmount(address(this)), 5 ether);
     }
-
 }

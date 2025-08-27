@@ -161,12 +161,8 @@ contract SpectraExchangeHooksTests is Helpers {
         uint256 deadline = block.timestamp + 3600; // 1 hour from now
 
         // Use the execute(bytes,bytes[],uint256) selector to trigger the else if branch
-        bytes memory txData = abi.encodeWithSelector(
-            bytes4(keccak256("execute(bytes,bytes[],uint256)")), 
-            commandsData, 
-            inputs, 
-            deadline
-        );
+        bytes memory txData =
+            abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[],uint256)")), commandsData, inputs, deadline);
 
         bytes memory data = abi.encodePacked(
             bytes32(bytes("")), // yieldSourceOracleId
@@ -190,11 +186,8 @@ contract SpectraExchangeHooksTests is Helpers {
         inputs[0] = abi.encode(address(token), 1e18, account, account, 1);
 
         // Use an invalid selector that doesn't match expected execute functions
-        bytes memory txData = abi.encodeWithSelector(
-            bytes4(keccak256("invalidFunction(bytes,bytes[])")), 
-            commandsData, 
-            inputs
-        );
+        bytes memory txData =
+            abi.encodeWithSelector(bytes4(keccak256("invalidFunction(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
             bytes32(bytes("")), // yieldSourceOracleId
@@ -264,11 +257,7 @@ contract SpectraExchangeHooksTests is Helpers {
         inputs[0] = abi.encode(address(token), 1e18, account, account, 1);
         inputs[1] = abi.encode(address(token), 1e18); // TRANSFER_FROM input
 
-        bytes memory txData = abi.encodeWithSelector(
-            bytes4(keccak256("execute(bytes,bytes[])")), 
-            commandsData, 
-            inputs
-        );
+        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
             bytes32(bytes("")), // yieldSourceOracleId
@@ -628,12 +617,8 @@ contract SpectraExchangeHooksTests is Helpers {
         uint256 deadline = block.timestamp + 3600;
 
         // Use execute(bytes,bytes[],uint256) selector to trigger the else if branch in _decodeTokenOut
-        bytes memory txData = abi.encodeWithSelector(
-            bytes4(keccak256("execute(bytes,bytes[],uint256)")), 
-            commandsData, 
-            inputs,
-            deadline
-        );
+        bytes memory txData =
+            abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[],uint256)")), commandsData, inputs, deadline);
 
         bytes memory data = abi.encodePacked(
             bytes32(bytes("")), // yieldSourceOracleId
@@ -656,10 +641,7 @@ contract SpectraExchangeHooksTests is Helpers {
         inputs[0] = abi.encode(address(token), 1e18, account, account, 1);
 
         // Use an invalid selector to trigger the else branch in _decodeTokenOut
-        bytes memory txData = abi.encodeWithSelector(
-            bytes4(keccak256("invalidSelector(bytes)")), 
-            commandsData
-        );
+        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("invalidSelector(bytes)")), commandsData);
 
         bytes memory data = abi.encodePacked(
             bytes32(bytes("")), // yieldSourceOracleId
@@ -681,11 +663,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(address(token), 1e18, account); // IBT deposit input format
 
-        bytes memory txData = abi.encodeWithSelector(
-            bytes4(keccak256("execute(bytes,bytes[])")), 
-            commandsData, 
-            inputs
-        );
+        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
             bytes32(bytes("")), // yieldSourceOracleId
@@ -713,21 +691,21 @@ contract SpectraExchangeHooksTests is Helpers {
         // Construct the data according to the expected format
         bytes memory data = abi.encodePacked(
             bytes32(0), // placeholder (32 bytes)
-            asset,      // asset (20 bytes) - position 32
-            pt,         // pt (20 bytes) - position 52  
-            recipient,  // recipient (20 bytes) - position 72
-            minAssets,  // minAssets (32 bytes) - position 92
+            asset, // asset (20 bytes) - position 32
+            pt, // pt (20 bytes) - position 52
+            recipient, // recipient (20 bytes) - position 72
+            minAssets, // minAssets (32 bytes) - position 92
             sharesToBurn, // sharesToBurn (32 bytes) - position 124
             usePrevHookAmount, // usePrevHookAmount (1 byte) - position 156
-            command     // command (1 byte) - position 157
+            command // command (1 byte) - position 157
         );
 
         // Call inspect method
         bytes memory result = redeemHook.inspect(data);
-        
+
         // Expected result should be abi.encodePacked(asset, pt, recipient)
         bytes memory expected = abi.encodePacked(asset, pt, recipient);
-        
+
         // Verify the result matches expected
         assertEq(result, expected, "Inspect should return encoded asset, pt, and recipient");
         assertEq(result.length, 60, "Result should be 60 bytes (20 + 20 + 20)");
@@ -743,45 +721,42 @@ contract SpectraExchangeHooksTests is Helpers {
         // Construct the data according to the expected format
         bytes memory data = abi.encodePacked(
             bytes32(0), // placeholder (32 bytes)
-            asset,      // asset (20 bytes) - position 32
+            asset, // asset (20 bytes) - position 32
             address(0), // pt (20 bytes) - position 52 (not used for IBT redeem)
-            recipient,  // recipient (20 bytes) - position 72
+            recipient, // recipient (20 bytes) - position 72
             uint256(0), // minAssets (32 bytes) - position 92 (not used for IBT redeem)
             sharesToBurn, // sharesToBurn (32 bytes) - position 124
             usePrevHookAmount, // usePrevHookAmount (1 byte) - position 156
-            command     // command (1 byte) - position 157
+            command // command (1 byte) - position 157
         );
 
         // Call build method which will internally call _createRedeemIbtForAssetCallData
         Execution[] memory executions = redeemHook.build(address(0), account, data);
-        
+
         // Verify execution was created
         assertEq(executions.length, 3, "Should create 3 executions (1 + pre + post)");
         assertEq(executions[1].target, address(router), "Target should be router");
         assertEq(executions[1].value, 0, "Value should be 0");
-        
+
         bytes4 selector = bytes4(BytesLib.slice(executions[1].callData, 0, 4));
         assertEq(selector, redeemHook.SELECTOR(), "Should use correct selector");
-        
+
         // Decode and verify the call data structure
-        (bytes memory commandsData, bytes[] memory inputs) = abi.decode(
-            BytesLib.slice(executions[1].callData, 4, executions[1].callData.length - 4), 
-            (bytes, bytes[])
-        );
-        
+        (bytes memory commandsData, bytes[] memory inputs) =
+            abi.decode(BytesLib.slice(executions[1].callData, 4, executions[1].callData.length - 4), (bytes, bytes[]));
+
         assertEq(commandsData.length, 1, "Should have one command");
         assertEq(commandsData[0], command, "Should use REDEEM_IBT_FOR_ASSET command");
         assertEq(inputs.length, 1, "Should have one input");
-        
+
         // Decode the input parameters
-        (address decodedAsset, uint256 decodedShares, address decodedRecipient) = 
+        (address decodedAsset, uint256 decodedShares, address decodedRecipient) =
             abi.decode(inputs[0], (address, uint256, address));
-            
+
         assertEq(decodedAsset, asset, "Asset should match");
         assertEq(decodedShares, sharesToBurn, "Shares to burn should match");
         assertEq(decodedRecipient, recipient, "Recipient should match");
     }
-
 
     function _getYieldSourceOracleId(bytes32 id, address sender) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(id, sender));

@@ -266,11 +266,13 @@ contract FeeConfigChangeTests is BaseTest {
         view
         returns (uint256 expectedFee, uint256 expectedUserAssets)
     {
-        SuperLedgerConfiguration.YieldSourceOracleConfig memory config = configSuperLedger.getYieldSourceOracleConfig(yieldSourceOracleId);
+        SuperLedgerConfiguration.YieldSourceOracleConfig memory config =
+            configSuperLedger.getYieldSourceOracleConfig(yieldSourceOracleId);
         uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSourceAddress);
         uint8 decimals = IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSourceAddress);
 
-        expectedFee = superLedger.previewFees(accountEth, yieldSourceAddress, sharesAsAssets, userShares, 1200, pps, decimals);
+        expectedFee =
+            superLedger.previewFees(accountEth, yieldSourceAddress, sharesAsAssets, userShares, 1200, pps, decimals);
         expectedUserAssets = sharesAsAssets - expectedFee;
     }
 
@@ -282,11 +284,13 @@ contract FeeConfigChangeTests is BaseTest {
         view
         returns (uint256 expectedFee, uint256 expectedUserAssets)
     {
-        SuperLedgerConfiguration.YieldSourceOracleConfig memory config = configSuperLedger.getYieldSourceOracleConfig(yieldSourceOracleId);
+        SuperLedgerConfiguration.YieldSourceOracleConfig memory config =
+            configSuperLedger.getYieldSourceOracleConfig(yieldSourceOracleId);
         uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSourceAddress);
         uint8 decimals = IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSourceAddress);
 
-        expectedFee = superLedger.previewFees(accountEth, yieldSourceAddress, sharesAsAssets, userShares, 1000, pps, decimals);
+        expectedFee =
+            superLedger.previewFees(accountEth, yieldSourceAddress, sharesAsAssets, userShares, 1000, pps, decimals);
         expectedUserAssets = sharesAsAssets - expectedFee;
     }
 }

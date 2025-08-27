@@ -176,7 +176,7 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware {
             inputAmount = ISuperHookResult(prevHook).getOutAmount(account);
             outputAmount = HookDataUpdater.getUpdatedOutputAmount(inputAmount, _prevAmount, outputAmount);
         }
-           
+
         return IOdosRouterV2.swapTokenInfo(
             inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputAmount, account
         );
