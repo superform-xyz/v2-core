@@ -51,6 +51,11 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
     function test_Constructor() public view {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
+    
+    function test_MerklClaimReward_InvalidConstructorParms() public {
+        vm.expectRevert(MerklClaimRewardHook.FEE_NOT_VALID.selector);
+        new MerklClaimRewardHook(distributor, address(this), 1e18);
+    }
 
     function test_Build_RevertIf_DistributorZero() public {
         distributor = address(0);
@@ -299,8 +304,6 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         bytes32[][] memory proofsSingle = new bytes32[][](1);
         proofsSingle[0] = new bytes32[](1);
         proofsSingle[0][0] = keccak256(abi.encodePacked(makeAddr("user"), tokensSingle[0], uint256(1000)));
-
-        bytes memory data = _createMerklClaimRewardHookData(tokensSingle, amountsSingle, proofsSingle);
 
         // Create invalid data by adding extra bytes in the middle to cause cursor mismatch
         // This will make the cursor calculation wrong but won't cause out-of-bounds errors

@@ -218,6 +218,27 @@ contract PendleRouterRedeemHookTest is Helpers {
         assertFalse(usePrevHookAmount);
     }
 
+    function test_GetBalance_NativeTokenY() public {
+        // Create redeem data with tokenOut as address(0) (native token)
+        bytes memory data = _createRedeemData(
+            amount,
+            address(ytToken),
+            address(ptToken),
+            address(0), // Native token (address(0))
+            minTokenOut,
+            false
+        );
+
+        // Give the account some ETH balance to test the native token balance check
+        vm.deal(account, 3 ether);
+        
+        // This should trigger _getBalance with tokenOut == address(0), returning receiver.balance
+        hook.preExecute(address(0), account, data);
+        
+        // Verify that the hook captured the native token balance
+        assertEq(hook.getOutAmount(address(this)), 3 ether);
+    }
+
     function _createRedeemData(
         uint256 amount_,
         address yt_,

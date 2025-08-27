@@ -128,6 +128,29 @@ contract CircleGatewayUnitTests is BaseTest {
         assertEq(_delegateHook.GATEWAY_WALLET(), address(0x123));
     }
 
+    function test_AddDelegateHook_BuildExecutions_InvalidDelegate() public {
+         // Prepare hook data: token, amount, usePrevHookAmount=false
+        bytes memory hookData = abi.encodePacked(
+            address(mockToken), // token (20 bytes)
+            address(0) // delegate (20 bytes)
+        );
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        addDelegateHook.build(address(0), ACCOUNT, hookData);
+    }
+
+    function test_RemoveDelegateHook_BuildExecutions_InvalidDelegate() public {
+         // Prepare hook data: token, amount, usePrevHookAmount=false
+        bytes memory hookData = abi.encodePacked(
+            address(mockToken), // token (20 bytes)
+            address(0) // delegate (20 bytes)
+        );
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        removeDelegateHook.build(address(0), ACCOUNT, hookData);
+    }
+
+
     function test_WalletHook_BuildExecutions_WithFixedAmount() public view {
         // Prepare hook data: token, amount, usePrevHookAmount=false
         bytes memory hookData = abi.encodePacked(

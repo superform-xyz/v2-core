@@ -15,11 +15,7 @@ library HookDataUpdater {
             } else {
                 uint256 percentDecrease = Math.mulDiv(_prevAmount - amount, PRECISION, _prevAmount);
                 uint256 decreaseAmount = Math.mulDiv(outputAmount, percentDecrease, PRECISION);
-                if (decreaseAmount > outputAmount) {
-                    outputAmount = 0;
-                } else {
-                    outputAmount = outputAmount - decreaseAmount;
-                }
+                outputAmount = outputAmount - decreaseAmount;
             }
         }
         return outputAmount;

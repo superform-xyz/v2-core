@@ -1061,6 +1061,66 @@ contract CrosschainTests is BaseTest {
         );
     }
 
+    function test_Bridge_To_ETH_TamperedSig() public {
+        uint256 amountPerVault = 1e8 / 2;
+
+        // ETH IS DST
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+
+        // PREPARE ETH DATA
+        bytes memory targetExecutorMessage;
+        address accountToUse;
+        TargetExecutorMessage memory messageData;
+        {
+            address[] memory dstHookAddresses = new address[](0);
+            bytes[] memory dstHookData = new bytes[](0);
+
+            messageData = TargetExecutorMessage({
+                hooksAddresses: dstHookAddresses,
+                hooksData: dstHookData,
+                validator: address(destinationValidatorOnETH),
+                signer: validatorSigner,
+                signerPrivateKey: validatorSignerPrivateKey,
+                targetAdapter: address(acrossV3AdapterOnETH),
+                targetExecutor: address(superTargetExecutorOnETH),
+                nexusFactory: CHAIN_1_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
+                chainId: uint64(ETH),
+                amount: amountPerVault,
+                account: address(0),
+                tokenSent: underlyingETH_USDC
+            });
+
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
+        }
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
+
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
+        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingBase_USDC, underlyingETH_USDC, amountPerVault, amountPerVault, ETH, true, targetExecutorMessage
+        );
+
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+
+        bytes memory signatureData = _createMerkleRootAndInvalidSignature(
+            messageData, srcUserOpData.userOpHash, accountToUse, ETH, address(sourceValidatorOnBase)
+        );
+        srcUserOpData.userOp.signature = signatureData;
+
+        // EXECUTE BASE
+        ExecutionReturnData memory executionData =
+            expectRevertOnExecuteOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18);
+    }
+
     //  >>>> DEBRIDGE
     function test_ETH_Bridge_With_Debridge_And_Deposit() public {
         uint256 amountPerVault = 1e8;
@@ -1731,6 +1791,88 @@ contract CrosschainTests is BaseTest {
         SELECT_FORK_AND_WARP(ETH, CHAIN_1_TIMESTAMP + 1 days);
         _sendFundsFromOpToBase();
         _sendFundsFromEthToBase();
+    }
+
+    function test_NotEnoughBalance_NativeToken() public {
+        uint256 intentAmount = 1e50;
+        // BASE IS DST
+        SELECT_FORK_AND_WARP(BASE, CHAIN_8453_TIMESTAMP + 1 days);
+
+        bytes memory targetExecutorMessage;
+        TargetExecutorMessage memory messageData;
+        address accountToUse;
+        {
+            // PREPARE DST DATA
+            address[] memory dstHooksAddresses = new address[](0);
+            bytes[] memory dstHooksData = new bytes[](0);
+          
+            messageData = TargetExecutorMessage({
+                hooksAddresses: dstHooksAddresses,
+                hooksData: dstHooksData,
+                validator: address(destinationValidatorOnBase),
+                signer: validatorSigners[BASE],
+                signerPrivateKey: validatorSignerPrivateKeys[BASE],
+                targetAdapter: address(acrossV3AdapterOnBase),
+                targetExecutor: address(superTargetExecutorOnBase),
+                nexusFactory: CHAIN_8453_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
+                chainId: uint64(BASE),
+                amount: intentAmount,
+                account: accountBase,
+                tokenSent: address(0)
+            });
+
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
+        }
+
+        // OP IS SRC1
+        SELECT_FORK_AND_WARP(OP, CHAIN_10_TIMESTAMP + 1 days);
+        deal(underlyingOP_USDC, accountOP, intentAmount);
+
+        // PREPARE SRC1 DATA
+        address[] memory src1HooksAddresses = new address[](2);
+        src1HooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
+        src1HooksAddresses[1] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory src1HooksData = new bytes[](2);
+        src1HooksData[0] =
+            _createApproveHookData(underlyingOP_USDC, SPOKE_POOL_V3_ADDRESSES[OP], intentAmount, false);
+        src1HooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingOP_USDC,
+            underlyingBase_USDC,
+            intentAmount,
+            intentAmount,
+            BASE,
+            false,
+            targetExecutorMessage
+        );
+        vm.deal(accountToUse, intentAmount);
+
+        UserOpData memory src1UserOpData = _createUserOpData(src1HooksAddresses, src1HooksData, OP, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(
+            messageData, src1UserOpData.userOpHash, accountToUse, BASE, address(sourceValidatorOnOP)
+        );
+        src1UserOpData.userOp.signature = signatureData;
+
+        console2.log("sending from op to base");
+        // not enough balance is received
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(src1UserOpData, superNativePaymasterOnOP, 1e18);
+        _processAcrossV3Message(
+            ProcessAcrossV3MessageParams({
+                srcChainId: OP,
+                dstChainId: BASE,
+                warpTimestamp: block.timestamp,
+                executionData: executionData,
+                relayerType: RELAYER_TYPE.NOT_ENOUGH_BALANCE,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                account: accountBase,
+                root: bytes32(0),
+                relayerGas: 0
+            })
+        );
     }
 
     function test_RevertFrom_SuperDestinationExecutor() public {

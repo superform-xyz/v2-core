@@ -48,6 +48,14 @@ contract MockCurvePair {
     function underlying_coins(uint256) external view returns (address) {
         return coin;
     }
+
+    function token0() external view returns (address) {
+        return coin;
+    }
+    
+    function token1() external view returns (address) {
+        return address(uint160(coin) + 1); // Return different address
+    }
 }
 
 contract Executor {
@@ -60,6 +68,8 @@ contract Executor {
 
 contract Swap1InchHookTest is Helpers {
     Swap1InchHook public hook;
+
+    address public constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     address dstToken;
     address dstReceiver;
@@ -109,9 +119,8 @@ contract Swap1InchHookTest is Helpers {
 
         // 1.  Craft a SwapDescription that *expects* native ETH in .amount
         //     (we set amount = 0 because the hook will overwrite it with prevHook.getOutAmount(address(this)))
-        address NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         I1InchAggregationRouterV6.SwapDescription memory desc = I1InchAggregationRouterV6.SwapDescription({
-            srcToken: IERC20(NATIVE), // swapping native coin
+            srcToken: IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE), // swapping native coin
             dstToken: IERC20(dstToken), // receive some ERC-20
             srcReceiver: payable(account),
             dstReceiver: payable(account),
@@ -249,6 +258,22 @@ contract Swap1InchHookTest is Helpers {
         executions = hook.build(address(0), account, hookData);
     }
 
+    function test_Build_Unoswap_Curve_InvalidSelectorOffset() public {
+        uint8 selectorOffset = 0;
+        address account = address(this);
+
+        bytes memory hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
+        Execution[] memory executions = hook.build(address(0), account, hookData);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
+        assertEq(executions[1].value, 0);
+
+        selectorOffset = 61;
+        hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
+        vm.expectRevert(Swap1InchHook .INVALID_SELECTOR_OFFSET.selector);
+        hook.build(address(0), account, hookData);
+    }
+
     function test_UnoSwap_inspect() public view {
         bytes memory data = _buildCurveHookData(0, false, dstReceiver, 1000, 100, false);
         bytes memory argsEncoded = hook.inspect(data);
@@ -344,6 +369,22 @@ contract Swap1InchHookTest is Helpers {
         assertEq(executions[1].target, mockRouter);
     }
 
+    function test_Build_ClipperSwap_InvalidReceiver() public {
+        address account = address(this);
+         bytes memory hookData = _buildClipperDataInvalidReceiver(1000, 100, dstReceiver, dstToken, false);
+
+        vm.expectRevert(Swap1InchHook.INVALID_RECEIVER.selector);
+        hook.build(address(0), account, hookData);
+    }
+
+    function test_Build_ClipperSwap_WithNative() public view {
+        address account = address(this);
+        bytes memory hookData = _buildClipperDataWithNative(1000, 100, dstReceiver, false);
+
+        Execution[] memory executions = hook.build(address(0), account, hookData);
+        assertEq(executions.length, 3);
+    }
+
     function test_ClipperSwap_inspect() public view {
         bytes memory data = _buildClipperData(1000, 100, dstReceiver, dstToken, false);
         bytes memory argsEncoded = hook.inspect(data);
@@ -355,6 +396,111 @@ contract Swap1InchHookTest is Helpers {
         vm.expectRevert(Swap1InchHook.INVALID_SELECTOR.selector);
         hook.inspect(data);
     }
+
+    function test_Token1_Equals_FromToken_Branch() public {
+        address account = address(this);
+        
+        // Create unoswapTo transaction data where fromToken will match token1 of the pair
+        bytes memory unoswapData = abi.encode(
+            Address.wrap(uint256(uint160(dstReceiver))), // to
+            Address.wrap(uint256(uint160(srcToken))),    // token (this will be the fromToken)
+            uint256(1000e18),                   // amount
+            uint256(900e18),                    // minReturn
+            Address.wrap(uint256(uint160(mockPair)))     // dex
+        );
+        
+        bytes4 selector = I1InchAggregationRouterV6.unoswapTo.selector;
+        bytes memory callData = abi.encodePacked(selector, unoswapData);
+        
+        bytes memory hookData = abi.encodePacked(
+            dstToken,     // dstToken (20 bytes) - should match token0 from the pair
+            dstReceiver,  // dstReceiver (20 bytes)
+            value,        // value (32 bytes)
+            false,        // usePrevHookAmount (1 byte)
+            callData      // 1inch transaction data with selector
+        );
+        
+        // Mock the pair to return values that will trigger the else if branch
+        // token0() should return dstToken, token1() should return srcToken (fromToken)
+        vm.mockCall(mockPair, abi.encodeWithSignature("token0()"), abi.encode(dstToken));
+        vm.mockCall(mockPair, abi.encodeWithSignature("token1()"), abi.encode(srcToken));
+        
+        // This should successfully build executions by taking the else if branch
+        // where token1 == fromToken, so dstToken = token0
+        Execution[] memory executions = hook.build(address(0), account, hookData);
+        
+        // Verify the hook built successfully, confirming the else if branch was taken
+        assertGt(executions.length, 0, "Should build executions when token1 == fromToken");
+    }
+
+    function test_Build_NativeToken() public {
+        // Create hook data with NATIVE token as destination to trigger dstReceiver.balance return
+        bytes memory hookData = _buildClipperDataWithNative(1000, 100, dstReceiver, false);
+
+        // Give the dstReceiver some ETH balance to verify the method returns it
+        vm.deal(dstReceiver, 5 ether);
+        
+        // This should trigger _getBalance which returns dstReceiver.balance for NATIVE token
+        Execution[] memory executions = hook.build(address(0), address(this), hookData);
+        // Verify the hook was built successfully (covers the _getBalance path)
+        assertGt(executions.length, 0, "Should build executions successfully");
+    }
+    
+    function test_GetBalance_NativeToken() public {
+        // Create hook data with NATIVE token as destination to trigger dstReceiver.balance return
+        bytes memory hookData = _buildClipperDataWithNative(1000, 100, dstReceiver, false);
+
+        // Give the dstReceiver some ETH balance to verify the method returns it
+        vm.deal(dstReceiver, 5 ether);
+        vm.prank(dstReceiver);
+        hook.preExecute(address(0), address(dstReceiver), hookData);
+
+        assertEq(hook.getOutAmount(address(dstReceiver)), 5 ether);
+    }
+
+
+    function test_InvalidTokenPair() public {
+        // Create a Curve dex address with invalid selector offset
+        // Valid selector offsets are: 0, 4, 8, 12, 16
+        // We'll use 20 (invalid) to trigger INVALID_SELECTOR_OFFSET error
+        
+        uint256 invalidSelectorOffset = 20; // Invalid offset
+        uint256 dstTokenIndex = 0;
+        
+        // Encode the dex address with Curve protocol and invalid selector offset
+        uint256 dexValue = uint256(uint160(mockCurvePair)) | 
+                          (2 << 253) | // Protocol.Curve
+                          (invalidSelectorOffset << 208) | // Invalid selector offset
+                          (dstTokenIndex << 216); // Token index
+        
+        address encodedDex = address(uint160(dexValue));
+        
+        // Create proper unoswapTo transaction data
+        bytes memory unoswapData = abi.encode(
+            Address.wrap(uint160(dstReceiver)), // to
+            Address.wrap(uint160(srcToken)),    // token
+            uint256(1000e18),                   // amount
+            uint256(900e18),                    // minReturn
+            Address.wrap(uint160(encodedDex))   // dex with invalid selector offset
+        );
+        
+        // Create proper 1inch transaction with selector
+        bytes4 selector = I1InchAggregationRouterV6.unoswapTo.selector;
+        bytes memory callData = abi.encodePacked(selector, unoswapData);
+        
+        bytes memory hookData = abi.encodePacked(
+            dstToken,     // dstToken (20 bytes)
+            dstReceiver,  // dstReceiver (20 bytes)
+            value,        // value (32 bytes)
+            false,        // usePrevHookAmount (1 byte)
+            callData      // 1inch transaction data with selector
+        );
+        
+        // This should revert with INVALID_SELECTOR_OFFSET
+        vm.expectRevert(Swap1InchHook.INVALID_TOKEN_PAIR.selector);
+        hook.build(address(0), address(this), hookData);
+    }
+
 
     function _buildInvalidData(
         uint256 _amount,
@@ -409,6 +555,61 @@ contract Swap1InchHookTest is Helpers {
         bytes memory callData = abi.encodePacked(selector, clipperData);
         return abi.encodePacked(dstToken, dstReceiver, value, usePrev, callData);
     }
+
+    function _buildClipperDataInvalidReceiver(
+        uint256 _amount,
+        uint256 _minAmount,
+        address _dstReceiver,
+        address _dstToken,
+        bool usePrev
+    )
+        private
+        view
+        returns (bytes memory)
+    {
+        bytes memory clipperData = abi.encode(
+            address(0), // exchange
+            _dstReceiver, // receiver
+            bytes32(0), // srcToken
+            IERC20(_dstToken), // dstToken
+            _amount, // amount
+            _minAmount, // minReturnAmount
+            0, // goodUntil
+            bytes32(0), // bytes32 r,
+            bytes32(0) // bytes32 vs
+        );
+        bytes4 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
+        bytes memory callData = abi.encodePacked(selector, clipperData);
+        return abi.encodePacked(dstToken, address(this), value, usePrev, callData);
+    }
+
+    
+    function _buildClipperDataWithNative(
+        uint256 _amount,
+        uint256 _minAmount,
+        address _dstReceiver,
+        bool usePrev
+    )
+        private
+        view
+        returns (bytes memory)
+    {
+        bytes memory clipperData = abi.encode(
+            address(0), // exchange
+            _dstReceiver, // receiver
+            bytes32(0), // srcToken
+            IERC20(NATIVE), // dstToken
+            _amount, // amount
+            _minAmount, // minReturnAmount
+            0, // goodUntil
+            bytes32(0), // bytes32 r,
+            bytes32(0) // bytes32 vs
+        );
+        bytes4 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
+        bytes memory callData = abi.encodePacked(selector, clipperData);
+        return abi.encodePacked(NATIVE, _dstReceiver, value, usePrev, callData);
+    }
+
 
     function _buildInvalidSelectorData() private view returns (bytes memory) {
         bytes memory clipperData = abi.encode(

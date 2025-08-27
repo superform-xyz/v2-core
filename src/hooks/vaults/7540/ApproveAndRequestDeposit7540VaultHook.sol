@@ -12,7 +12,6 @@ import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
     ISuperHookContextAware,
-    ISuperHookAsyncCancelations,
     ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
 import { BaseHook } from "../../BaseHook.sol";
@@ -31,7 +30,6 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract ApproveAndRequestDeposit7540VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
-    ISuperHookAsyncCancelations,
     ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
@@ -79,11 +77,6 @@ contract ApproveAndRequestDeposit7540VaultHook is
         });
         executions[3] =
             Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
-    }
-
-    /// @inheritdoc ISuperHookAsyncCancelations
-    function isAsyncCancelHook() external pure returns (CancelationType) {
-        return CancelationType.NONE;
     }
 
     /*//////////////////////////////////////////////////////////////

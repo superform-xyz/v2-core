@@ -406,12 +406,52 @@ contract ApproveAndSwapOdosHookTest is Helpers {
         assertGt(argsEncoded.length, 0);
     }
 
+    function test_NativeSwapOdosHook() public view {
+        bytes memory data = _buildNativeSwapOdosData(false);
+        Execution[] memory executions = swapOdosHook.build(address(prevHook), account, data);
+        assertEq(executions.length, 3);
+    }
+
+    function test_PreExecuteNativeSwapOdosHook() public {
+        bytes memory data = _buildNativeSwapOdosData(false);
+        vm.deal(account, inputAmount);
+        swapOdosHook.preExecute(address(prevHook), account, data);
+        assertEq(swapOdosHook.getOutAmount(account), inputAmount);
+    }
+
+
+    function test_PreExecuteNativeApproveAndSwapOdosHook() public {
+        bytes memory data = _buildNativeSwapOdosData(false);
+        vm.deal(account, inputAmount);
+        approveAndSwapOdosHook.preExecute(address(prevHook), account, data);
+        assertEq(approveAndSwapOdosHook.getOutAmount(account), inputAmount);
+    }
+
+
     function _buildSwapOdosData(bool usePrevious) internal view returns (bytes memory) {
         bytes memory data = bytes.concat(
             bytes20(inputToken),
             bytes32(inputAmount),
             bytes20(inputReceiver),
             bytes20(outputToken),
+            bytes32(outputQuote),
+            bytes32(outputMin),
+            usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
+            bytes32(pathDefinition.length),
+            pathDefinition,
+            bytes20(executor),
+            bytes4(referralCode)
+        );
+
+        return data;
+    }
+
+    function _buildNativeSwapOdosData(bool usePrevious) internal view returns (bytes memory) {
+        bytes memory data = bytes.concat(
+            bytes20(inputToken),
+            bytes32(inputAmount),
+            bytes20(inputReceiver),
+            bytes20(address(0)),
             bytes32(outputQuote),
             bytes32(outputMin),
             usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),

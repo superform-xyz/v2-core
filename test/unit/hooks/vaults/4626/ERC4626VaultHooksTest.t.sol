@@ -92,6 +92,14 @@ contract ERC4626VaultHooksTest is Helpers {
         assertGt(executions[1].callData.length, 0);
     }
 
+    function test_RedeemHook_Build_OwnerAddressZero() public {
+        bytes memory data = _encodeRedeemDataWithAddress0Owner();
+
+        redeemHook.preExecute(address(0), address(this), data);
+        uint256 usedShares = BaseHook(address(redeemHook)).usedShares();
+        assertEq(usedShares, 100);
+    }
+
     /*//////////////////////////////////////////////////////////////
                         ZERO ADDRESS TESTS
     //////////////////////////////////////////////////////////////*/
@@ -123,6 +131,7 @@ contract ERC4626VaultHooksTest is Helpers {
             address(0), address(this), abi.encodePacked(yieldSourceOracleId, address(0), address(this), shares, false)
         );
     }
+
 
     /*//////////////////////////////////////////////////////////////
                         ZERO AMOUNT TESTS
@@ -309,9 +318,18 @@ contract ERC4626VaultHooksTest is Helpers {
         assertGt(argsEncoded.length, 0);
     }
 
+
     /*//////////////////////////////////////////////////////////////
                         HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    function asset() external view returns (address) {
+        return address(token);
+    }
+    function balanceOf(address account) external view returns (uint256) {
+        return 100;
+    }
+
+
     function _encodeApproveAndDepositData() internal view returns (bytes memory) {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false);
     }
@@ -322,5 +340,9 @@ contract ERC4626VaultHooksTest is Helpers {
 
     function _encodeRedeemData() internal view returns (bytes memory) {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), shares, false);
+    }
+
+    function _encodeRedeemDataWithAddress0Owner() internal view returns (bytes memory) {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, address(0), shares, false);
     }
 }

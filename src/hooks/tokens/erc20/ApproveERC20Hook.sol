@@ -77,8 +77,6 @@ contract ApproveERC20Hook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override { }
-
     function _postExecute(address, address account, bytes calldata data) internal override {
         address token = BytesLib.toAddress(data, 0);
         address spender = BytesLib.toAddress(data, 20);

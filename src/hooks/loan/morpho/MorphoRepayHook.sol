@@ -150,6 +150,4 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
         morphoInterface.accrueInterest(marketParams);
     }
-
-    function _postExecute(address, address, bytes calldata) internal override { }
 }

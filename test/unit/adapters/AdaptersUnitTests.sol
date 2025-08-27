@@ -131,7 +131,12 @@ contract AcrossV3AdapterTest is Helpers {
     }
 
     function test_Debridge_InvalidEthRecipient() public {
-        bytes memory _data = _buildDebridgeDestinationData(address(0x1));
+        bytes memory initData = new bytes(0);
+        bytes memory executorCalldata = new bytes(0);
+        address[] memory dstTokens = new address[](0);
+        uint256[] memory intentAmounts = new uint256[](1);
+        bytes memory sigData = new bytes(0);
+        bytes memory _data = abi.encode(initData, executorCalldata, address(this), dstTokens, intentAmounts, sigData);
         vm.expectRevert();
         debridgeAdapter.onEtherReceived(bytes32(0), address(0), _data);
     }
@@ -195,5 +200,17 @@ contract AcrossV3AdapterTest is Helpers {
         uint256[] memory intentAmounts = new uint256[](0);
         bytes memory sigData = new bytes(0);
         return abi.encode(initData, executorCalldata, account, dstTokens, intentAmounts, sigData);
+    }
+
+    function processBridgedExecution(
+        address,
+        address,
+        address[] memory,
+        uint256[] memory,
+        bytes memory,
+        bytes memory,
+        bytes memory
+    ) external pure {
+        revert("A");
     }
 }

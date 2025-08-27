@@ -138,23 +138,20 @@ contract BatchTransferFromHook is BaseHook {
         bytes memory transferCallData = abi.encodeCall(IPermit2Batch.transferFrom, (vars.transferDetails));
 
         executions[1] = Execution({ target: PERMIT_2, value: 0, callData: transferCallData });
-
-        return executions;
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory packed) {
         uint256 tokensLength = BytesLib.toUint256(data, 20);
         bytes memory tokensData = BytesLib.slice(data, 84, 20 * tokensLength);
         address[] memory tokens = new address[](tokensLength);
         for (uint256 i; i < tokensLength; i++) {
             tokens[i] = BytesLib.toAddress(tokensData, i * 20);
         }
-        bytes memory packed = abi.encodePacked(BytesLib.toAddress(data, 0)); //from
+        packed = abi.encodePacked(BytesLib.toAddress(data, 0)); //from
         for (uint256 i; i < tokensLength; ++i) {
             packed = abi.encodePacked(packed, tokens[i]);
         }
-        return packed;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -183,6 +180,5 @@ contract BatchTransferFromHook is BaseHook {
                 amount: amount.toUint160()
             });
         }
-        return details;
     }
 }

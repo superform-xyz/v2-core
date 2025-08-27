@@ -98,11 +98,9 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory packed) {
         bytes calldata txData_ = data[73:];
         bytes4 selector = bytes4(txData_[:4]);
-
-        bytes memory packed;
 
         if (selector == I1InchAggregationRouterV6.unoswapTo.selector) {
             (Address to, Address token,,, Address dex) =
@@ -126,8 +124,6 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
         } else {
             revert INVALID_SELECTOR();
         }
-
-        return packed;
     }
 
     /*//////////////////////////////////////////////////////////////

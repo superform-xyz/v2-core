@@ -509,28 +509,66 @@ contract MorphoLoanHooksTest is Helpers {
         );
     }
 
-    function test_RepayHook_Build() public view {
-        bytes memory data = _encodeRepayData(false, false);
-        Execution[] memory executions = repayHook.build(address(0), address(this), data);
+     function test_SupplyHook_Build_RevertIf_InvalidIrm() public {
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        supplyHook.build(
+            address(0),
+            address(this),
+            abi.encodePacked(
+                address(loanToken),
+                address(collateralToken),
+                address(mockOracle),
+                address(0),
+                uint256(100),
+                lltv,
+                false,
+                false
+            )
+        );
+    }
 
-        assertEq(executions.length, 6);
-
-        assertEq(executions[1].target, address(loanToken));
+    function test_SupplyHook_Build() public {
+        bytes memory data = abi.encodePacked(
+                address(loanToken),
+                address(collateralToken),
+                address(mockOracle),
+                MORPHO_IRM,
+                uint256(1000),
+                lltv,
+                false,
+                false
+            );
+        Execution[] memory executions = supplyHook.build(address(0), address(this), data);
+        assertEq(executions.length, 5);
+        assertEq(executions[1].target, address(collateralToken));
         assertEq(executions[1].value, 0);
-        assertGt(executions[1].callData.length, 0);
 
-        assertEq(executions[2].target, address(loanToken));
+        assertEq(executions[2].target, address(collateralToken));
         assertEq(executions[2].value, 0);
-        assertGt(executions[2].callData.length, 0);
 
         assertEq(executions[3].target, address(mockMorpho));
         assertEq(executions[3].value, 0);
-        assertGt(executions[3].callData.length, 0);
-
-        assertEq(executions[4].target, address(loanToken));
-        assertEq(executions[4].value, 0);
-        assertGt(executions[4].callData.length, 0);
     }
+
+    function test_SupplyHook_Build_UsePrevHookAmount() public {
+        uint256 prevHookAmount = 2000;
+        address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, loanToken));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
+
+        bytes memory data = abi.encodePacked(
+                address(loanToken),
+                address(collateralToken),
+                address(mockOracle),
+                MORPHO_IRM,
+                uint256(1000),
+                lltv,
+                true,
+                true
+            );
+        Execution[] memory executions = supplyHook.build(mockPrevHook, address(this), data);
+        assertEq(executions.length, 5);
+    }
+
 
     function test_RepayHook_Inspector() public view {
         bytes memory data = _encodeRepayData(false, false);

@@ -108,6 +108,13 @@ contract LedgerTests is Helpers {
         mockBaseLedger = new MockBaseLedger(address(config), executors);
     }
 
+    function test_WrongConstructorArgument() public {
+        address[] memory executors = new address[](1);
+        executors[0] = address(0x1);
+        vm.expectRevert(ISuperLedgerConfiguration.ZERO_ADDRESS_NOT_ALLOWED.selector);
+        new FlatFeeLedger(address(0), executors);
+    }
+
     function testOutflowWithZeroFeeSkipsAccounting() public {
         uint256 INITIAL_SHARES = 100 ether; // Amount of shares to deposit initially
         uint256 PPS = 1 ether; // Mock Price Per Share (1 token = 1 share)
@@ -326,6 +333,29 @@ contract LedgerTests is Helpers {
         assertEq(storedConfig.ledger, ledger);
     }
 
+    function test_SetYieldSourceOracles_WithInvalidLength() public {
+        bytes32 oracleId = bytes32(keccak256("test"));
+        address oracle = address(0x123);
+        uint256 feePercent = 1000; // 10%
+        address feeRecipient = address(this);
+        address ledger = address(superLedger);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+
+        bytes32[] memory salts = new bytes32[](2);
+        salts[0] = oracleId;
+        vm.expectRevert(ISuperLedgerConfiguration.LENGTH_MISMATCH.selector);
+        config.setYieldSourceOracles(salts, configs);
+
+    }
+
     function test_SetYieldSourceOracles_ZeroLength_Revert() public {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](0);
@@ -338,7 +368,7 @@ contract LedgerTests is Helpers {
         // First set initial config
         bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
-        uint256 feePercent = 1000; // 10%
+        uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
         address ledger = address(superLedger);
 
@@ -356,7 +386,7 @@ contract LedgerTests is Helpers {
 
         // Now propose new config
         address newOracle = address(0x789);
-        uint256 newFeePercent = 1500; // 15%
+        uint256 newFeePercent = 1500;
         address newFeeRecipient = address(0xabc);
         address newLedger = address(flatFeeLedger);
         oracleId = _getYieldSourceOracleId(oracleId, address(this));
@@ -382,6 +412,14 @@ contract LedgerTests is Helpers {
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](0);
         bytes32[] memory yieldSourceOracleIds = new bytes32[](0);
         vm.expectRevert(ISuperLedgerConfiguration.ZERO_LENGTH.selector);
+        config.proposeYieldSourceOracleConfig(yieldSourceOracleIds, configs);
+    }
+
+    function test_ProposeConfig_LengthMismatch_Revert() public {
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        bytes32[] memory yieldSourceOracleIds = new bytes32[](2);
+        vm.expectRevert(ISuperLedgerConfiguration.LENGTH_MISMATCH.selector);
         config.proposeYieldSourceOracleConfig(yieldSourceOracleIds, configs);
     }
 
@@ -717,14 +755,14 @@ contract LedgerTests is Helpers {
 
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
-        bytes32[] memory salts = new bytes32[](1);
-        salts[0] = oracleId;
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
             ledger: ledger
         });
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = oracleId;
         config.setYieldSourceOracles(salts, configs);
 
         // Propose new config
@@ -844,8 +882,8 @@ contract LedgerTests is Helpers {
         bytes32[] memory salts = new bytes32[](1);
         salts[0] = oracleId;
         config.setYieldSourceOracles(salts, configs);
-        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
         vm.expectEmit(true, true, true, false);
         emit ISuperLedgerConfiguration.ManagerRoleTransferStarted(oracleId, address(this), newManager);
         config.transferManagerRole(oracleId, newManager);
@@ -1918,6 +1956,59 @@ contract LedgerTests is Helpers {
         config.acceptYieldSourceOracleConfigProposal(ids);
     }
 
+    
+    function test_CancelConfigProposal_NotManager() public {
+        bytes32 oracleId = bytes32(keccak256("test"));
+        vm.prank(address(0x999));
+        vm.expectRevert(ISuperLedgerConfiguration.NOT_MANAGER.selector);
+        config.cancelYieldSourceOracleConfigProposal(oracleId);
+    }
+
+    function test_CancelConfigProposal_NoPendingProposal() public {
+ // First set initial config
+        bytes32 oracleId = bytes32(keccak256("test"));
+        address oracle = address(0x123);
+        uint256 feePercent = 1000; // 10%
+        address feeRecipient = address(0x456);
+        address ledger = address(superLedger);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = oracleId;
+        config.setYieldSourceOracles(salts, configs);
+
+        // Now propose new config
+        address newOracle = address(0x789);
+        uint256 newFeePercent = 1500; // 15%
+        address newFeeRecipient = address(0xabc);
+        address newLedger = address(flatFeeLedger);
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
+
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: newOracle,
+            feePercent: newFeePercent,
+            feeRecipient: newFeeRecipient,
+            ledger: newLedger
+        });
+
+        // Create proposal
+        bytes32[] memory yieldSourceOracleIds = new bytes32[](1);
+        yieldSourceOracleIds[0] = oracleId;
+        config.proposeYieldSourceOracleConfig(yieldSourceOracleIds, configs);
+        config.cancelYieldSourceOracleConfigProposal(oracleId);
+        
+        // Cancel the proposal
+        vm.expectRevert(ISuperLedgerConfiguration.NO_PENDING_PROPOSAL.selector);
+        config.cancelYieldSourceOracleConfigProposal(oracleId);
+    }
+
     function test_YieldSourceOracleConfigSet_EventFields() public {
         bytes32 oracleId = bytes32(keccak256("testFieldOrder"));
         address oracle = address(0xABCD);
@@ -2152,6 +2243,159 @@ contract LedgerTests is Helpers {
         assertEq(finalConfig.feeRecipient, secondProposal.feeRecipient);
         assertEq(finalConfig.manager, address(this));
         assertEq(finalConfig.ledger, secondProposal.ledger);
+    }
+
+    function test_previewFees_UsedSharesNotEqualToUpdatedShares() public {
+        address user = makeAddr("user");
+        address yieldSource = makeAddr("yieldSource");
+        bytes32 yieldSourceOracleId = bytes32(keccak256("TEST_ORACLE_ID"));
+        
+        // Setup oracle configuration
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: address(mockOracle),
+            feePercent: 1000, // 10%
+            feeRecipient: address(this),
+            ledger: address(mockBaseLedger)
+        });
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = yieldSourceOracleId;
+        config.setYieldSourceOracles(salts, configs);
+        
+        // Set price per share
+        mockOracle.setPricePerShare(1 ether); // 1:1 ratio initially
+        
+        // First, deposit 50 ether shares for the user (inflow)
+        vm.prank(address(exec));
+        mockBaseLedger.updateAccounting(
+            user,
+            yieldSource,
+            _getYieldSourceOracleId(yieldSourceOracleId, address(this)),
+            true, // isInflow
+            50 ether, // amountSharesOrAssets (shares for inflow)
+            0 // usedShares (not used for inflow)
+        );
+        
+        // Verify user has 50 ether shares
+        uint256 userShares = mockBaseLedger.usersAccumulatorShares(user, yieldSource);
+        uint256 userCostBasis = mockBaseLedger.usersAccumulatorCostBasis(user, yieldSource);
+        assertEq(userShares, 50 ether, "User should have 50 ether shares");
+        assertEq(userCostBasis, 50 ether, "User cost basis should be 50 ether");
+        
+        // Now increase the price per share to create profit
+        mockOracle.setPricePerShare(1.2 ether); // 20% increase
+        
+        // Test parameters - try to use more shares than user has
+        uint256 usedShares = 100 ether; // More than user has (50 ether)
+        uint256 amountAssets = 120 ether; // Initial amount assets (would be for 100 shares at 1.2 price)
+        uint256 feePercent = 1000; // 10%
+        uint256 pps = 1.2 ether; // Price per share
+        uint8 decimals = 18;
+        
+        // Call previewFees - this should trigger the condition where usedShares != updatedUsedShares
+        uint256 feeAmount = mockBaseLedger.previewFees(
+            user,
+            yieldSource,
+            amountAssets,
+            usedShares,
+            feePercent,
+            pps,
+            decimals
+        );
+        
+        // Expected calculation:
+        // updatedUsedShares = 50 ether (capped to what user has)
+        // recalculated amountAssets = (50 ether * 1.2 ether) / 1e18 = 60 ether
+        // costBasis = 50 ether (all of user's cost basis since using all shares)
+        // profit = 60 ether - 50 ether = 10 ether
+        // fee = (10 ether * 1000) / 10000 = 1 ether
+        
+        uint256 expectedFee = 1 ether;
+        assertEq(feeAmount, expectedFee, "Fee should be calculated with recalculated amountAssets");
+        
+        console.log("Test covers the condition: usedShares != updatedUsedShares");
+        console.log("Original usedShares: %s", usedShares);
+        console.log("User's actual shares: %s", userShares);
+        console.log("Fee calculated: %s", feeAmount);
+    }
+
+    function test_updateAccounting_InvalidPrice_Revert() public {
+        address user = makeAddr("user");
+        address yieldSource = makeAddr("yieldSource");
+        bytes32 yieldSourceOracleId = bytes32(keccak256("TEST_ORACLE_ID"));
+        
+        // Setup oracle configuration
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: address(mockOracle),
+            feePercent: 1000,
+            feeRecipient: address(this),
+            ledger: address(mockBaseLedger)
+        });
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = yieldSourceOracleId;
+        config.setYieldSourceOracles(salts, configs);
+        
+        // Set price per share to 0 to trigger the revert
+        mockOracle.setPricePerShare(0);
+        
+        // Try to update accounting - should revert with INVALID_PRICE
+        vm.prank(address(exec));
+        vm.expectRevert(ISuperLedgerData.INVALID_PRICE.selector);
+        mockBaseLedger.updateAccounting(
+            user,
+            yieldSource,
+            _getYieldSourceOracleId(yieldSourceOracleId, address(this)),
+            true, // isInflow
+            50 ether,
+            0
+        );
+    }
+
+    function test_updateAccounting_ManagerNotSet_Revert() public {
+        address user = makeAddr("user");
+        address yieldSource = makeAddr("yieldSource");
+        bytes32 yieldSourceOracleId = bytes32(keccak256("TEST_ORACLE_ID"));
+        
+        // Setup oracle configuration with zero manager (this will happen if we manipulate storage)
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: address(mockOracle),
+            feePercent: 1000,
+            feeRecipient: address(this),
+            ledger: address(mockBaseLedger)
+        });
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = yieldSourceOracleId;
+        config.setYieldSourceOracles(salts, configs);
+        
+        // Get the full oracle ID
+        bytes32 fullOracleId = _getYieldSourceOracleId(yieldSourceOracleId, address(this));
+        
+        // Manually set the manager to zero address in storage to trigger the condition
+        // The manager is stored in the config struct, we need to find the correct storage slot
+        bytes32 configSlot = keccak256(abi.encode(fullOracleId, uint256(0))); // configs mapping is at slot 0
+        // Manager is the 4th field in the struct (after oracle, feePercent, feeRecipient)
+        bytes32 managerSlot = bytes32(uint256(configSlot) + 3);
+        vm.store(address(config), managerSlot, bytes32(0));
+        
+        // Set valid price per share
+        mockOracle.setPricePerShare(1 ether);
+        
+        // Try to update accounting - should revert with MANAGER_NOT_SET
+        vm.prank(address(exec));
+        vm.expectRevert(ISuperLedgerData.MANAGER_NOT_SET.selector);
+        mockBaseLedger.updateAccounting(
+            user,
+            yieldSource,
+            fullOracleId,
+            true, // isInflow
+            50 ether,
+            0
+        );
     }
 
     function _getYieldSourceOracleId(bytes32 id, address sender) internal pure returns (bytes32) {

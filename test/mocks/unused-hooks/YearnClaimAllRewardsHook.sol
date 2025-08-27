@@ -37,10 +37,4 @@ contract YearnClaimAllRewardsHook is BaseHook, BaseClaimRewardHook {
         return _build(yieldSource, abi.encodeCall(IYearnStakingRewardsMulti.getReward, ()));
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                 INTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata) internal override { }
-
-    function _postExecute(address, address, bytes calldata) internal override { }
 }

@@ -760,4 +760,300 @@ contract PendleRouterSwapHookTest is Helpers {
         vm.expectRevert(PendleRouterSwapHook.MAKING_AMOUNT_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
+
+    function test_ValidateFillOrders_WithBothNormalAndFlashFills() public view {
+        TokenInput memory input = TokenInput({
+            tokenIn: address(inputToken),
+            netTokenIn: inputAmount,
+            tokenMintSy: address(inputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+        });
+
+        ApproxParams memory guessPtOut =
+            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+
+        // Create valid normal orders
+        Order[] memory normalOrders = new Order[](2);
+        normalOrders[0] = Order({
+            salt: 0,
+            expiry: block.timestamp + 1 hours,
+            nonce: 0,
+            orderType: OrderType.PT_FOR_SY,
+            token: address(inputToken),
+            YT: address(ytToken),
+            maker: address(this),
+            receiver: receiver,
+            makingAmount: 1000,
+            lnImpliedRate: 0,
+            failSafeRate: 0,
+            permit: ""
+        });
+        normalOrders[1] = Order({
+            salt: 1,
+            expiry: block.timestamp + 2 hours,
+            nonce: 1,
+            orderType: OrderType.SY_FOR_PT,
+            token: address(outputToken),
+            YT: address(ytToken),
+            maker: address(this),
+            receiver: receiver,
+            makingAmount: 2000,
+            lnImpliedRate: 0,
+            failSafeRate: 0,
+            permit: ""
+        });
+
+        FillOrderParams[] memory normalFills = new FillOrderParams[](2);
+        normalFills[0] = FillOrderParams({ order: normalOrders[0], signature: "", makingAmount: 1000 });
+        normalFills[1] = FillOrderParams({ order: normalOrders[1], signature: "", makingAmount: 2000 });
+
+        // Create valid flash orders
+        Order[] memory flashOrders = new Order[](1);
+        flashOrders[0] = Order({
+            salt: 2,
+            expiry: block.timestamp + 3 hours,
+            nonce: 2,
+            orderType: OrderType.PT_FOR_SY,
+            token: address(ptToken),
+            YT: address(ytToken),
+            maker: address(this),
+            receiver: receiver,
+            makingAmount: 1500,
+            lnImpliedRate: 0,
+            failSafeRate: 0,
+            permit: ""
+        });
+
+        FillOrderParams[] memory flashFills = new FillOrderParams[](1);
+        flashFills[0] = FillOrderParams({ order: flashOrders[0], signature: "", makingAmount: 1500 });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(this),
+            epsSkipMarket: 0,
+            normalFills: normalFills,
+            flashFills: flashFills,
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
+        );
+
+        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+
+        // This should successfully build executions, validating both normal and flash fills
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(pendleRouter));
+        assertEq(executions[1].value, 0);
+    }
+
+    function test_ValidateFillOrders_RevertIf_FlashFillMakingAmountZero() public {
+        TokenInput memory input = TokenInput({
+            tokenIn: address(inputToken),
+            netTokenIn: inputAmount,
+            tokenMintSy: address(inputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+        });
+
+        ApproxParams memory guessPtOut =
+            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+
+        // Create valid flash order but with zero makingAmount in fill
+        Order[] memory flashOrders = new Order[](1);
+        flashOrders[0] = Order({
+            salt: 0,
+            expiry: block.timestamp + 1 hours,
+            nonce: 0,
+            orderType: OrderType.PT_FOR_SY,
+            token: address(ptToken),
+            YT: address(ytToken),
+            maker: address(this),
+            receiver: receiver,
+            makingAmount: 1000,
+            lnImpliedRate: 0,
+            failSafeRate: 0,
+            permit: ""
+        });
+
+        FillOrderParams[] memory flashFills = new FillOrderParams[](1);
+        flashFills[0] = FillOrderParams({
+            order: flashOrders[0],
+            signature: "",
+            makingAmount: 0 // Invalid making amount for flash fill
+        });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(this),
+            epsSkipMarket: 0,
+            normalFills: new FillOrderParams[](0),
+            flashFills: flashFills,
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
+        );
+
+        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+
+        vm.expectRevert(PendleRouterSwapHook.MAKING_AMOUNT_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_ValidateFillOrders_RevertIf_FlashFillOrderExpired() public {
+        TokenInput memory input = TokenInput({
+            tokenIn: address(inputToken),
+            netTokenIn: inputAmount,
+            tokenMintSy: address(inputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+        });
+
+        ApproxParams memory guessPtOut =
+            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+
+        // Create expired flash order
+        Order[] memory flashOrders = new Order[](1);
+        flashOrders[0] = Order({
+            salt: 0,
+            expiry: block.timestamp - 1, // Expired order
+            nonce: 0,
+            orderType: OrderType.PT_FOR_SY,
+            token: address(ptToken),
+            YT: address(ytToken),
+            maker: address(this),
+            receiver: receiver,
+            makingAmount: 1000,
+            lnImpliedRate: 0,
+            failSafeRate: 0,
+            permit: ""
+        });
+
+        FillOrderParams[] memory flashFills = new FillOrderParams[](1);
+        flashFills[0] = FillOrderParams({ order: flashOrders[0], signature: "", makingAmount: 1000 });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(this),
+            epsSkipMarket: 0,
+            normalFills: new FillOrderParams[](0),
+            flashFills: flashFills,
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
+        );
+
+        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+
+        vm.expectRevert(PendleRouterSwapHook.ORDER_EXPIRED.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_ValidateFillOrders_RevertIf_FlashFillInvalidReceiver() public {
+        TokenInput memory input = TokenInput({
+            tokenIn: address(inputToken),
+            netTokenIn: inputAmount,
+            tokenMintSy: address(inputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+        });
+
+        ApproxParams memory guessPtOut =
+            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+
+        // Create flash order with invalid receiver
+        Order[] memory flashOrders = new Order[](1);
+        flashOrders[0] = Order({
+            salt: 0,
+            expiry: block.timestamp + 1 hours,
+            nonce: 0,
+            orderType: OrderType.PT_FOR_SY,
+            token: address(ptToken),
+            YT: address(ytToken),
+            maker: address(this),
+            receiver: address(0), // Invalid receiver
+            makingAmount: 1000,
+            lnImpliedRate: 0,
+            failSafeRate: 0,
+            permit: ""
+        });
+
+        FillOrderParams[] memory flashFills = new FillOrderParams[](1);
+        flashFills[0] = FillOrderParams({ order: flashOrders[0], signature: "", makingAmount: 1000 });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(this),
+            epsSkipMarket: 0,
+            normalFills: new FillOrderParams[](0),
+            flashFills: flashFills,
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
+        );
+
+        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_DecodeTokenOutAndReceiver_RevertIf_InvalidSwapType() public {
+        // Create data with an invalid selector that's neither swapExactTokenForPt nor swapExactPtForToken
+        bytes4 invalidSelector = bytes4(0xdeadbeef);
+        bytes memory invalidTxData = abi.encodePacked(invalidSelector, bytes(abi.encode(address(this), address(this))));
+        
+        bytes memory data = abi.encodePacked(
+            bytes32(bytes("")), // placeholder
+            market,             // yieldSource
+            bytes1(uint8(0)),   // usePrevHookAmount
+            uint256(0),         // value
+            invalidTxData       // txData with invalid selector
+        );
+
+        // This should trigger the else branch in _decodeTokenOutAndReceiver via _getBalance
+        // which is called during preExecute
+        vm.expectRevert(PendleRouterSwapHook.INVALID_SWAP_TYPE.selector);
+        hook.preExecute(address(0), address(this), data);
+    }
+
+    function test_GetBalance_NativeTokenX() public {
+        // Create a swapExactPtForToken transaction where tokenOut is address(0) (native token)
+        TokenOutput memory output = TokenOutput({
+            tokenOut: address(0), // Native token (address(0))
+            minTokenOut: 950,
+            tokenRedeemSy: address(outputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+        });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(0),
+            epsSkipMarket: 0,
+            normalFills: new FillOrderParams[](0),
+            flashFills: new FillOrderParams[](0),
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
+        );
+
+        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+
+        // Give the receiver some ETH balance to test the native token balance check
+        vm.deal(receiver, 5 ether);
+        
+        // This should trigger _getBalance with tokenOut == address(0), returning receiver.balance
+        hook.preExecute(address(0), receiver, data);
+        
+        // Verify that the hook captured the native token balance
+        assertEq(hook.getOutAmount(address(this)), 5 ether);
+    }
+
 }

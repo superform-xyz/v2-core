@@ -12,6 +12,8 @@ import { SuperLedgerConfiguration } from "../../../../src/accounting/SuperLedger
 import { ISuperLedgerConfiguration } from "../../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperLedger } from "../../../../src/interfaces/accounting/ISuperLedger.sol";
 import { SuperLedger } from "../../../../src/accounting/SuperLedger.sol";
+import { MockHighDecimalSY } from "../../../mocks/MockHighDecimalSY.sol";
+import { MockHighDecimalMarket } from "../../../mocks/MockHighDecimalMarket.sol";
 
 interface iPendleMarket {
     function readTokens() external view returns (address sy, address pt, address yt);
@@ -77,6 +79,36 @@ contract PendlePtYieldSourceOracleTest is InternalHelpers, Helpers {
 
         uint256 assetsOut = tempOracle.getAssetOutput(market, address(0), ptIn);
         assertEq(assetsOut, costBasis, "assetsOut != costBasis");
+    }
+
+    function test_GetShareOutput_AssetDecimalsGreaterThan18() public {
+        // Create a mock asset with 24 decimals
+        MockERC20 highDecimalAsset = new MockERC20("High Decimal Asset", "HDA", 24);
+        
+        // Create a mock SY that supports 24 decimals
+        MockHighDecimalSY mockSy = new MockHighDecimalSY(address(highDecimalAsset), 24);
+        
+        // Create a mock market that uses our custom SY
+        MockHighDecimalMarket mockMarket = new MockHighDecimalMarket(
+            address(mockSy), 
+            address(assetPt), 
+            address(assetYt)
+        );
+        
+        // Set a mock price per share (1e18)
+        mockMarket.setPtToAssetRate(1e18);
+        
+        // Test with assetsIn that has 24 decimals
+        uint256 assetsIn = 1000 * 10**24; // 1000 tokens with 24 decimals
+        
+        // This should trigger the line: assetsIn18 = Math.mulDiv(assetsIn, 1, 10 ** (assetDecimals - PRICE_DECIMALS));
+        // Where assetDecimals (24) > PRICE_DECIMALS (18)
+        uint256 sharesOut = oracle.getShareOutput(address(mockMarket), address(highDecimalAsset), assetsIn);
+        
+        // Verify the result is reasonable
+        // assetsIn18 should be: 1000 * 10^24 / 10^(24-18) = 1000 * 10^24 / 10^6 = 1000 * 10^18
+        // sharesOut should be: 1000 * 10^18 * 10^18 / 1e18 = 1000 * 10^18
+        assertEq(sharesOut, 1000 * 10**18, "Should correctly scale down high decimal assets");
     }
 
     function test_decimals() public view {
