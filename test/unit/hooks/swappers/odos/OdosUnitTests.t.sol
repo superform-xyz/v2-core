@@ -412,6 +412,22 @@ contract ApproveAndSwapOdosHookTest is Helpers {
         assertEq(executions.length, 3);
     }
 
+    function test_PreExecuteNativeSwapOdosHook() public {
+        bytes memory data = _buildNativeSwapOdosData(false);
+        vm.deal(account, inputAmount);
+        swapOdosHook.preExecute(address(prevHook), account, data);
+        assertEq(swapOdosHook.getOutAmount(account), inputAmount);
+    }
+
+
+    function test_PreExecuteNativeApproveAndSwapOdosHook() public {
+        bytes memory data = _buildNativeSwapOdosData(false);
+        vm.deal(account, inputAmount);
+        approveAndSwapOdosHook.preExecute(address(prevHook), account, data);
+        assertEq(approveAndSwapOdosHook.getOutAmount(account), inputAmount);
+    }
+
+
     function _buildSwapOdosData(bool usePrevious) internal view returns (bytes memory) {
         bytes memory data = bytes.concat(
             bytes20(inputToken),

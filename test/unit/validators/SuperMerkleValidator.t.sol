@@ -227,6 +227,74 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         assertTrue(isValid, "Merkle proof for leaf 0 should be valid");
     }
 
+    function test_ValidateUserOp_1LeafMerkleTree_NotInitializedChecks() public {
+        // Create a new validator instance to test with uninitialized account
+        SuperValidator newValidator = new SuperValidator();
+        
+        // Create a user operation with an uninitialized sender (not a 7702 account)
+        address uninitializedSender = makeAddr("uninitializedAccount");
+        
+        // Create a dummy user operation with the uninitialized sender
+        PackedUserOperation memory userOp = approveUserOp.userOp;
+        userOp.sender = uninitializedSender;
+        
+        // Expect the specific NOT_INITIALIZED error
+        vm.expectRevert(ISuperValidator.NOT_INITIALIZED.selector);
+        newValidator.validateUserOp(userOp, approveUserOp.userOpHash);
+    }
+
+    function test_ValidateUserOp_InvalidMerkleProof_DestinationProof() public {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+        uint64 chainId = 137; // Polygon
+
+        // Create a merkle tree with source and destination leaves
+        bytes32[] memory leaves = new bytes32[](2);
+        uint64[] memory chainsForLeafWithDst = new uint64[](1);
+        chainsForLeafWithDst[0] = chainId;
+
+        leaves[0] = _createSourceValidatorLeaf(
+            approveUserOp.userOpHash, validUntil, 0, chainsForLeafWithDst, address(validator)
+        );
+        leaves[1] = _createDestinationValidatorLeaf(
+            "", chainId, account, address(0), new address[](0), new uint256[](0), validUntil, address(0)
+        );
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+        bytes memory signature = _getSignature(root);
+
+        // Create destination proof with INVALID/TAMPERED proof
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
+        ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
+            data: "",
+            executor: address(0),
+            dstTokens: new address[](0),
+            intentAmounts: new uint256[](0),
+            account: account,
+            validator: address(0)
+        });
+
+        // Create a tampered/invalid proof that won't match the merkle root
+        bytes32[] memory tamperedProof = new bytes32[](1);
+        tamperedProof[0] = keccak256("invalid_proof_data"); // This won't match the actual proof
+
+        proofDst[0] = ISuperValidator.DstProof({ 
+            proof: tamperedProof, 
+            dstChainId: chainId, 
+            info: dstInfo 
+        });
+
+        uint64[] memory chainsWithDestExecutionTransient = new uint64[](1);
+        chainsWithDestExecutionTransient[0] = chainId;
+        bytes memory sigData =
+            abi.encode(chainsWithDestExecutionTransient, validUntil, 0, root, proof[0], proofDst, signature);
+        
+        approveUserOp.userOp.signature = sigData;
+
+        // Expect the specific INVALID_MERKLE_PROOF error
+        vm.expectRevert(SuperValidatorBase.INVALID_MERKLE_PROOF.selector);
+        validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
+    }
+    
     function test_ValidateUserOp_1LeafMerkleTree_NotInitialized() public {
         vm.startPrank(makeAddr("account"));
         vm.expectRevert();

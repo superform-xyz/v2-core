@@ -106,7 +106,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         uint256 dstTokensLen = dstTokens.length;
         if (dstTokensLen != intentAmounts.length) revert ARRAY_LENGTH_MISMATCH();
 
-        account = _validateOrCreateAccount(account, initData);
+        _validateOrCreateAccount(account, initData);
         bytes32 merkleRoot = _decodeMerkleRoot(userSignatureData);
 
         // --- Signature Validation ---
@@ -161,15 +161,13 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         return executorCalldata.length <= EMPTY_EXECUTION_LENGTH;
     }
 
-    function _validateOrCreateAccount(address account, bytes memory initData) internal returns (address) {
+    function _validateOrCreateAccount(address account, bytes memory initData) internal {
         if (initData.length > 0 && account.code.length == 0) {
             address computedAddress = _createAccount(initData);
             if (account != computedAddress) revert INVALID_ACCOUNT();
         }
 
         if (account == address(0) || account.code.length == 0) revert ACCOUNT_NOT_CREATED();
-
-        return account;
     }
 
     function _decodeMerkleRoot(bytes memory userSignatureData) private pure returns (bytes32) {

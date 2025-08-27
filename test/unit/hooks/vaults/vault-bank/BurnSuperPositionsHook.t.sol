@@ -105,6 +105,15 @@ contract BurnSuperPositionsHookTest is Helpers {
         assertEq(executions[3].callData, expectedCallData);
     }
 
+    function test_VB_PreExecute() public {
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, true, vaultBank, dstChainId);
+        burnSuperPositionsHook.preExecute(address(this), address(this), data);
+
+        assertEq(burnSuperPositionsHook.vaultBank(), vaultBank);
+        assertEq(burnSuperPositionsHook.dstChainId(), dstChainId);
+        assertEq(burnSuperPositionsHook.spToken(), spToken);
+    }
+
     /*//////////////////////////////////////////////////////////////
                          ERROR TESTS
     //////////////////////////////////////////////////////////////*/

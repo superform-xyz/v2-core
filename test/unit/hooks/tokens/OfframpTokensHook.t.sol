@@ -124,7 +124,7 @@ contract OfframpTokensHookTest is Helpers {
         // Then abi encoded (address[] tokens)
         bytes memory tokensData = abi.encode(tokens);
         bytes memory data = abi.encodePacked(
-            abi.encodePacked(to), // First 20 bytes: to address
+            to, // First 20 bytes: to address
             tokensData // Then the encoded tokens
         );
 

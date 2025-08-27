@@ -117,8 +117,6 @@ contract MerklClaimRewardHook is BaseHook {
         for (uint256 i; i < length; i++) {
             addressData = bytes.concat(addressData, bytes20(tokens[i]));
         }
-
-        return addressData;
     }
 
     /*//////////////////////////////////////////////////////////////

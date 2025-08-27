@@ -112,11 +112,6 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-
-    function _preExecute(address, address, bytes calldata) internal override {
-        // No pre-execution logic needed
-    }
-
     function _postExecute(address, address account, bytes calldata data) internal override {
         uint256 amount = BytesLib.toUint256(data, AMOUNT_POSITION);
         // Set the deposited amount as output

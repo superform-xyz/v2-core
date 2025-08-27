@@ -186,6 +186,12 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         assertGt(argsEncoded.length, 0);
     }
 
+    function test_ApproveAndRequestRedeemHook_InspectorTests() public view {
+        bytes memory data = _encodeApproveAndRequestRedeemData(false, 1000, false);
+        bytes memory argsEncoded = approveAndReqRedeemHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
     function test_withdrawHook_InspectorTests() public view {
         bytes memory data = _encodeData(false);
         bytes memory argsEncoded = withdrawHook.inspect(data);
@@ -233,6 +239,30 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     function test_ApproveAndRequestRedeemHook_Build() public view {
         bytes memory data = _encodeApproveAndRequestRedeemData(false, 1000, false);
         Execution[] memory executions = approveAndReqRedeemHook.build(address(0), address(this), data);
+        assertEq(executions.length, 6);
+        assertEq(executions[1].target, token);
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
+
+        assertEq(executions[2].target, token);
+        assertEq(executions[2].value, 0);
+        assertGt(executions[2].callData.length, 0);
+
+        assertEq(executions[3].target, yieldSource);
+        assertEq(executions[3].value, 0);
+        assertGt(executions[3].callData.length, 0);
+
+        assertEq(executions[4].target, token);
+        assertEq(executions[4].value, 0);
+        assertGt(executions[4].callData.length, 0);
+    }
+
+    function test_ApproveAndRequestRedeemHook_Build_WithPrevHookAmount() public {
+        address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
+
+        bytes memory data = _encodeApproveAndRequestRedeemData(true, 1000, false);
+        Execution[] memory executions = approveAndReqRedeemHook.build(mockPrevHook, address(this), data);
         assertEq(executions.length, 6);
         assertEq(executions[1].target, token);
         assertEq(executions[1].value, 0);

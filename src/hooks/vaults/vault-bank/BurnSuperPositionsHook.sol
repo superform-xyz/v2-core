@@ -132,16 +132,10 @@ contract BurnSuperPositionsHook is BaseHook, VaultBankLockableHook, ISuperHookIn
         spToken = data.extractYieldSource();
     }
 
-    function _postExecute(address, address, bytes calldata) internal override { }
-
     /*//////////////////////////////////////////////////////////////
                           PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
         return BytesLib.toUint256(data, AMOUNT_POSITION);
-    }
-
-    function _getBalance(address account, address spToken) private view returns (uint256) {
-        return IERC20(spToken).balanceOf(account);
     }
 }

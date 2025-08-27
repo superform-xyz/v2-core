@@ -90,7 +90,7 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory packed) {
         bytes calldata txData_ = data[TX_DATA_POSITION:];
         ValidateTxDataParams memory params;
         params.selector = bytes4(txData_[0:4]);
@@ -108,7 +108,7 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
         params.commands = _validateCommands(params.commandsData, params.inputsLength);
         params.commandsLength = params.commands.length;
 
-        bytes memory packed = abi.encodePacked(data.extractYieldSource());
+        packed = abi.encodePacked(data.extractYieldSource());
 
         for (uint256 i; i < params.commandsLength; ++i) {
             uint256 command = params.commands[i];
@@ -126,8 +126,6 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
                 packed = abi.encodePacked(packed, params.transferToken);
             }
         }
-
-        return packed;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -321,9 +319,5 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
         }
 
         return IERC20(tokenOut).balanceOf(account);
-    }
-
-    function _decodeAmount(bytes memory data) private pure returns (uint256) {
-        return BytesLib.toUint256(data, TX_DATA_POSITION);
     }
 }

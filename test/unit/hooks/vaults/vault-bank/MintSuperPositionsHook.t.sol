@@ -84,6 +84,20 @@ contract MintSuperPositionsHookTest is Helpers {
         assertEq(executions[4].callData, expectedCallData, "F");
     }
 
+    function test_MintVB_inspect() public view {
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
+        bytes memory inspectData = mintSuperPositionsHook.inspect(data);
+
+        assertEq(inspectData.length, 40);
+    }
+
+    function test_MintVB_DecodeAmount() public view {
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, uint256(1000), false, vaultBank, dstChainId);
+        uint256 _amount = mintSuperPositionsHook.decodeAmount(data);
+
+        assertEq(_amount, 1000);
+    }
+
     /*//////////////////////////////////////////////////////////////
                         ERROR TESTS
     //////////////////////////////////////////////////////////////*/
