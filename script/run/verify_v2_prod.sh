@@ -47,13 +47,13 @@ export BSC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BSC_RPC_URL/credent
 export ARBITRUM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ARBITRUM_RPC_URL/credential)
 
 # Tenderly verification URLs for each network
-export ETH_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/1"
-export BASE_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/8453"
-export BSC_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/56"
-export ARBITRUM_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/42161"
+export ETH_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/1/public"
+export BASE_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/8453/public"
+export BSC_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/56/public"
+export ARBITRUM_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/42161/public"
 
 echo -e "${GREEN}✅ Tenderly configuration loaded${NC}"
-echo -e "${CYAN}   • Using Tenderly private verification mode${NC}"
+echo -e "${CYAN}   • Using Tenderly public verification mode${NC}"
 print_separator
 
 # Network configurations
@@ -153,6 +153,8 @@ generate_constructor_args() {
     local entry_point="0x0000000071727De22E5E9d8BAf0edAc6f37da032"  # EntryPoint v0.7
     local debridge_dln_src="0xeF4fB24aD0916217251F553c0596F8Edc630EB66"  # Standard DeBridge DLN SRC
     local debridge_dln_dst="0xE7351Fd770A37282b91D153Ee690B63579D6dd7f"  # Standard DeBridge DLN DST
+    local gateway_wallet="0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE"  # Circle Gateway Wallet
+    local gateway_minter="0x2222222d7164433c4C09B0b0D809a9b52C04C205"  # Circle Gateway Minter
     
     # Network-specific configurations
     case $chain_id in
@@ -236,6 +238,12 @@ generate_constructor_args() {
         "MerklClaimRewardHook")
             echo "$(cast abi-encode "constructor(address)" "$merkl_distributor")"
             ;;
+        "CircleGatewayWalletHook"|"CircleGatewayAddDelegateHook"|"CircleGatewayRemoveDelegateHook")
+            echo "$(cast abi-encode "constructor(address)" "$gateway_wallet")"
+            ;;
+        "CircleGatewayMinterHook")
+            echo "$(cast abi-encode "constructor(address)" "$gateway_minter")"
+            ;;
         
         # Oracles with constructor args
         "ERC4626YieldSourceOracle"|"ERC5115YieldSourceOracle"|"ERC7540YieldSourceOracle"|"PendlePTYieldSourceOracle"|"SpectraPTYieldSourceOracle"|"StakingYieldSourceOracle")
@@ -307,6 +315,12 @@ get_contract_source() {
         
         # Hooks - Claim
         "MerklClaimRewardHook") echo "src/core/hooks/claim/merkl/MerklClaimRewardHook.sol" ;;
+        
+        # Hooks - Circle Gateway
+        "CircleGatewayWalletHook") echo "src/hooks/bridges/circle/CircleGatewayWalletHook.sol" ;;
+        "CircleGatewayMinterHook") echo "src/hooks/bridges/circle/CircleGatewayMinterHook.sol" ;;
+        "CircleGatewayAddDelegateHook") echo "src/hooks/bridges/circle/CircleGatewayAddDelegateHook.sol" ;;
+        "CircleGatewayRemoveDelegateHook") echo "src/hooks/bridges/circle/CircleGatewayRemoveDelegateHook.sol" ;;
         
         # Oracles
         "ERC4626YieldSourceOracle") echo "src/core/accounting/oracles/ERC4626YieldSourceOracle.sol" ;;
