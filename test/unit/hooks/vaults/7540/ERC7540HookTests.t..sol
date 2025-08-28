@@ -281,7 +281,6 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         assertGt(executions[4].callData.length, 0);
     }
 
-
     function test_DepositHook_Build() public view {
         bytes memory data = _encodeData(false);
         Execution[] memory executions = depositHook.build(address(0), address(this), data);
@@ -594,7 +593,6 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         vm.expectRevert();
         approveAndReqRedeemHook.build(address(0), address(this), data);
     }
-
 
     // --- ZERO AMOUNT TESTS ---
 
@@ -952,12 +950,9 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     }
 
     function test_RequestRedeemHook_IsAsyncCancelHook() public view {
-        assertEq(
-            uint256(reqRedeemHook.isAsyncCancelHook()), uint256(ISuperHookAsyncCancelations.CancelationType.NONE)
-        );
+        assertEq(uint256(reqRedeemHook.isAsyncCancelHook()), uint256(ISuperHookAsyncCancelations.CancelationType.NONE));
     }
 
-    
     function test_RequestDepositHook_IsAsyncCancelHook() public view {
         assertEq(
             uint256(requestDepositHook.isAsyncCancelHook()), uint256(ISuperHookAsyncCancelations.CancelationType.NONE)

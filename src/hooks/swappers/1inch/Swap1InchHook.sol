@@ -289,7 +289,8 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
         if (usePrevHookAmount) {
             uint256 _prevAmount = desc.amount;
             desc.amount = ISuperHookResult(prevHook).getOutAmount(account);
-            desc.minReturnAmount = HookDataUpdater.getUpdatedOutputAmount(desc.amount, _prevAmount, desc.minReturnAmount);
+            desc.minReturnAmount =
+                HookDataUpdater.getUpdatedOutputAmount(desc.amount, _prevAmount, desc.minReturnAmount);
         }
 
         if (desc.amount == 0) {
@@ -345,10 +346,12 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
         }
 
         if (usePrevHookAmount) {
-            // Create a copy of txData_ and update only the inputAmount field (5th parameter, position 128 bytes in) and outputAmount field (6th parameter, position 160 bytes in)
+            // Create a copy of txData_ and update only the inputAmount field (5th parameter, position 128 bytes in) and
+            // outputAmount field (6th parameter, position 160 bytes in)
             updatedTxData = txData_;
             // inputAmount is at position: 32 (clipperExchange) + 32 (recipient) + 32 (srcToken) + 32 (dstToken) = 128
-            // outputAmount is at position: 32 (clipperExchange) + 32 (recipient) + 32 (srcToken) + 32 (dstToken) + 32 (inputAmount) = 160
+            // outputAmount is at position: 32 (clipperExchange) + 32 (recipient) + 32 (srcToken) + 32 (dstToken) + 32
+            // (inputAmount) = 160
             // bytes
             assembly {
                 mstore(add(updatedTxData, add(0x20, 128)), inputAmount)

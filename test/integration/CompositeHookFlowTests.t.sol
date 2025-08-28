@@ -169,11 +169,12 @@ contract CompositeHookFlowTests is BaseTest {
         uint256 userShares = vaultInstance4626.balanceOf(accountEth);
         uint256 sharesAsAssets = vaultInstance4626.convertToAssets(userShares);
 
-
-        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig = config.getYieldSourceOracleConfig(yieldSourceOracleId4626);
+        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig =
+            config.getYieldSourceOracleConfig(yieldSourceOracleId4626);
         uint256 pps = IYieldSourceOracle(oracleConfig.yieldSourceOracle).getPricePerShare(yieldSource4626AddressUSDC);
         uint8 decimals = IYieldSourceOracle(oracleConfig.yieldSourceOracle).decimals(yieldSource4626AddressUSDC);
-        (uint256 expectedFee, uint256 expectedUserAssets) = _calculateExpectedFee4626Vault(sharesAsAssets, userShares, pps, decimals);
+        (uint256 expectedFee, uint256 expectedUserAssets) =
+            _calculateExpectedFee4626Vault(sharesAsAssets, userShares, pps, decimals);
 
         // Stake vault shares
         _executeGearboxStakeFlow(userShares);
@@ -213,10 +214,12 @@ contract CompositeHookFlowTests is BaseTest {
 
         uint256 userShares = vaultInstance4626.balanceOf(accountEth);
         uint256 sharesAsAssets = vaultInstance4626.convertToAssets(userShares);
-        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig = config.getYieldSourceOracleConfig(yieldSourceOracleId4626);
+        SuperLedgerConfiguration.YieldSourceOracleConfig memory oracleConfig =
+            config.getYieldSourceOracleConfig(yieldSourceOracleId4626);
         uint256 pps = IYieldSourceOracle(oracleConfig.yieldSourceOracle).getPricePerShare(yieldSource4626AddressUSDC);
         uint8 decimals = IYieldSourceOracle(oracleConfig.yieldSourceOracle).decimals(yieldSource4626AddressUSDC);
-        (uint256 expectedFee, uint256 expectedUserAssets) = _calculateExpectedFee4626Vault(sharesAsAssets, userShares, pps, decimals);
+        (uint256 expectedFee, uint256 expectedUserAssets) =
+            _calculateExpectedFee4626Vault(sharesAsAssets, userShares, pps, decimals);
 
         // Stake vault shares
         _executeGearboxStakeFlow(userShares);
@@ -260,7 +263,9 @@ contract CompositeHookFlowTests is BaseTest {
         view
         returns (uint256 expectedFee, uint256 expectedUserAssets)
     {
-        expectedFee = superLedger.previewFees(accountEth, yieldSource4626AddressUSDC, sharesAsAssets, userShares, 2000, pps, decimals);
+        expectedFee = superLedger.previewFees(
+            accountEth, yieldSource4626AddressUSDC, sharesAsAssets, userShares, 2000, pps, decimals
+        );
         expectedUserAssets = sharesAsAssets - expectedFee;
     }
 

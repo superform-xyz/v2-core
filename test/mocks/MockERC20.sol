@@ -38,7 +38,7 @@ contract MockERC20 is ERC20 {
     function doCacheIndexSameBlock() external pure returns (bool) {
         return true;
     }
-    
+
     function pyIndexLastUpdatedBlock() external pure returns (uint256) {
         return 1e18;
     }
@@ -46,7 +46,7 @@ contract MockERC20 is ERC20 {
     function exchangeRate() external pure returns (uint256) {
         return 1e18;
     }
-    
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

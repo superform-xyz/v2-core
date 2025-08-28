@@ -11,7 +11,8 @@ import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 import { CircleGatewayWalletHook } from "../../../../src/hooks/bridges/circle/CircleGatewayWalletHook.sol";
 import { CircleGatewayMinterHook } from "../../../../src/hooks/bridges/circle/CircleGatewayMinterHook.sol";
 import { CircleGatewayAddDelegateHook } from "../../../../src/hooks/bridges/circle/CircleGatewayAddDelegateHook.sol";
-import { CircleGatewayRemoveDelegateHook } from "../../../../src/hooks/bridges/circle/CircleGatewayRemoveDelegateHook.sol";
+import { CircleGatewayRemoveDelegateHook } from
+    "../../../../src/hooks/bridges/circle/CircleGatewayRemoveDelegateHook.sol";
 import { ISuperHook, ISuperHookResult } from "../../../../src/interfaces/ISuperHook.sol";
 import { IGatewayWallet } from "../../../../src/vendor/circle/IGatewayWallet.sol";
 
@@ -87,7 +88,8 @@ contract CircleGatewayUnitTests is BaseTest {
         // Check execution (index 1): removeDelegate
         assertEq(executions[1].target, address(mockGatewayWallet), "target should be gateway wallet");
         assertEq(executions[1].value, 0, "value should be 0");
-        bytes memory expectedPreExecute = abi.encodeCall(IGatewayWallet.removeDelegate, (address(mockToken), address(0x123)));
+        bytes memory expectedPreExecute =
+            abi.encodeCall(IGatewayWallet.removeDelegate, (address(mockToken), address(0x123)));
         assertEq(executions[1].callData, expectedPreExecute, "execution should be removeDelegate");
     }
 
@@ -98,7 +100,6 @@ contract CircleGatewayUnitTests is BaseTest {
         CircleGatewayRemoveDelegateHook _removeDelegateHook = new CircleGatewayRemoveDelegateHook(address(0x123));
         assertEq(_removeDelegateHook.GATEWAY_WALLET(), address(0x123));
     }
-
 
     function test_AddDelegateHook_BuildExecutions() public view {
         // Prepare hook data: token, delegate
@@ -116,7 +117,8 @@ contract CircleGatewayUnitTests is BaseTest {
         // Check execution (index 1): addDelegate
         assertEq(executions[1].target, address(mockGatewayWallet), "target should be gateway wallet");
         assertEq(executions[1].value, 0, "value should be 0");
-        bytes memory expectedPreExecute = abi.encodeCall(IGatewayWallet.addDelegate, (address(mockToken), address(0x123)));
+        bytes memory expectedPreExecute =
+            abi.encodeCall(IGatewayWallet.addDelegate, (address(mockToken), address(0x123)));
         assertEq(executions[1].callData, expectedPreExecute, "execution should be addDelegate");
     }
 
@@ -129,7 +131,7 @@ contract CircleGatewayUnitTests is BaseTest {
     }
 
     function test_AddDelegateHook_BuildExecutions_InvalidDelegate() public {
-         // Prepare hook data: token, amount, usePrevHookAmount=false
+        // Prepare hook data: token, amount, usePrevHookAmount=false
         bytes memory hookData = abi.encodePacked(
             address(mockToken), // token (20 bytes)
             address(0) // delegate (20 bytes)
@@ -140,7 +142,7 @@ contract CircleGatewayUnitTests is BaseTest {
     }
 
     function test_RemoveDelegateHook_BuildExecutions_InvalidDelegate() public {
-         // Prepare hook data: token, amount, usePrevHookAmount=false
+        // Prepare hook data: token, amount, usePrevHookAmount=false
         bytes memory hookData = abi.encodePacked(
             address(mockToken), // token (20 bytes)
             address(0) // delegate (20 bytes)
@@ -149,7 +151,6 @@ contract CircleGatewayUnitTests is BaseTest {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         removeDelegateHook.build(address(0), ACCOUNT, hookData);
     }
-
 
     function test_WalletHook_BuildExecutions_WithFixedAmount() public view {
         // Prepare hook data: token, amount, usePrevHookAmount=false

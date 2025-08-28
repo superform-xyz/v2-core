@@ -509,7 +509,7 @@ contract MorphoLoanHooksTest is Helpers {
         );
     }
 
-     function test_SupplyHook_Build_RevertIf_InvalidIrm() public {
+    function test_SupplyHook_Build_RevertIf_InvalidIrm() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         supplyHook.build(
             address(0),
@@ -529,15 +529,15 @@ contract MorphoLoanHooksTest is Helpers {
 
     function test_SupplyHook_Build() public {
         bytes memory data = abi.encodePacked(
-                address(loanToken),
-                address(collateralToken),
-                address(mockOracle),
-                MORPHO_IRM,
-                uint256(1000),
-                lltv,
-                false,
-                false
-            );
+            address(loanToken),
+            address(collateralToken),
+            address(mockOracle),
+            MORPHO_IRM,
+            uint256(1000),
+            lltv,
+            false,
+            false
+        );
         Execution[] memory executions = supplyHook.build(address(0), address(this), data);
         assertEq(executions.length, 5);
         assertEq(executions[1].target, address(collateralToken));
@@ -556,19 +556,18 @@ contract MorphoLoanHooksTest is Helpers {
         MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = abi.encodePacked(
-                address(loanToken),
-                address(collateralToken),
-                address(mockOracle),
-                MORPHO_IRM,
-                uint256(1000),
-                lltv,
-                true,
-                true
-            );
+            address(loanToken),
+            address(collateralToken),
+            address(mockOracle),
+            MORPHO_IRM,
+            uint256(1000),
+            lltv,
+            true,
+            true
+        );
         Execution[] memory executions = supplyHook.build(mockPrevHook, address(this), data);
         assertEq(executions.length, 5);
     }
-
 
     function test_RepayHook_Inspector() public view {
         bytes memory data = _encodeRepayData(false, false);

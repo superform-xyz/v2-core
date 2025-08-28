@@ -111,7 +111,7 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
         if (assetDecimals >= PRICE_DECIMALS) {
             // Scale up if assetDecimals >= 18
             assetsOut = assetsOut18 * (10 ** (assetDecimals - PRICE_DECIMALS));
-        } else {    
+        } else {
             // Scale down if assetDecimals < 18
             // Avoids underflow in 10**(PRICE_DECIMALS - assetDecimals) which happens in the division below
             assetsOut = Math.mulDiv(assetsOut18, 1, 10 ** (PRICE_DECIMALS - assetDecimals));

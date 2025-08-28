@@ -455,16 +455,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Circle Gateway hooks
         __checkContract(
-            CIRCLE_GATEWAY_WALLET_HOOK_KEY,
-            __getSalt(CIRCLE_GATEWAY_WALLET_HOOK_KEY),
-            abi.encode(GATEWAY_WALLET),
-            env
+            CIRCLE_GATEWAY_WALLET_HOOK_KEY, __getSalt(CIRCLE_GATEWAY_WALLET_HOOK_KEY), abi.encode(GATEWAY_WALLET), env
         );
         __checkContract(
-            CIRCLE_GATEWAY_MINTER_HOOK_KEY,
-            __getSalt(CIRCLE_GATEWAY_MINTER_HOOK_KEY),
-            abi.encode(GATEWAY_MINTER),
-            env
+            CIRCLE_GATEWAY_MINTER_HOOK_KEY, __getSalt(CIRCLE_GATEWAY_MINTER_HOOK_KEY), abi.encode(GATEWAY_MINTER), env
         );
         __checkContract(
             CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY,
@@ -1469,8 +1463,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(hookAddresses.merklClaimRewardHook != address(0), "MERKL_CLAIM_REWARD_HOOK_NOT_ASSIGNED");
         require(hookAddresses.circleGatewayWalletHook != address(0), "CIRCLE_GATEWAY_WALLET_HOOK_NOT_ASSIGNED");
         require(hookAddresses.circleGatewayMinterHook != address(0), "CIRCLE_GATEWAY_MINTER_HOOK_NOT_ASSIGNED");
-        require(hookAddresses.circleGatewayAddDelegateHook != address(0), "CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_NOT_ASSIGNED");
-        require(hookAddresses.circleGatewayRemoveDelegateHook != address(0), "CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_NOT_ASSIGNED");
+        require(
+            hookAddresses.circleGatewayAddDelegateHook != address(0), "CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_NOT_ASSIGNED"
+        );
+        require(
+            hookAddresses.circleGatewayRemoveDelegateHook != address(0),
+            "CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_NOT_ASSIGNED"
+        );
 
         console2.log(" All hooks deployed and validated successfully with comprehensive dependency checking! ");
 

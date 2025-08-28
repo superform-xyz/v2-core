@@ -1805,7 +1805,7 @@ contract CrosschainTests is BaseTest {
             // PREPARE DST DATA
             address[] memory dstHooksAddresses = new address[](0);
             bytes[] memory dstHooksData = new bytes[](0);
-          
+
             messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
                 hooksData: dstHooksData,
@@ -1835,16 +1835,9 @@ contract CrosschainTests is BaseTest {
         src1HooksAddresses[1] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         bytes[] memory src1HooksData = new bytes[](2);
-        src1HooksData[0] =
-            _createApproveHookData(underlyingOP_USDC, SPOKE_POOL_V3_ADDRESSES[OP], intentAmount, false);
+        src1HooksData[0] = _createApproveHookData(underlyingOP_USDC, SPOKE_POOL_V3_ADDRESSES[OP], intentAmount, false);
         src1HooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingOP_USDC,
-            underlyingBase_USDC,
-            intentAmount,
-            intentAmount,
-            BASE,
-            false,
-            targetExecutorMessage
+            underlyingOP_USDC, underlyingBase_USDC, intentAmount, intentAmount, BASE, false, targetExecutorMessage
         );
         vm.deal(accountToUse, intentAmount);
 
@@ -3202,8 +3195,10 @@ contract CrosschainTests is BaseTest {
 
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         ISuperLedgerConfiguration configSuperLedger =
-                ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY));
-        SuperLedgerConfiguration.YieldSourceOracleConfig memory config = configSuperLedger.getYieldSourceOracleConfig(_getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER));
+            ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY));
+        SuperLedgerConfiguration.YieldSourceOracleConfig memory config = configSuperLedger.getYieldSourceOracleConfig(
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER)
+        );
         uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource7540AddressETH_USDC);
         uint8 decimals = IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource7540AddressETH_USDC);
         uint256 expectedFee = ledger.previewFees(

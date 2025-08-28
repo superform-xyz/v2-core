@@ -6,7 +6,15 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 library HookDataUpdater {
     uint256 private constant PRECISION = 1e5;
 
-    function getUpdatedOutputAmount(uint256 amount, uint256 _prevAmount, uint256 outputAmount) internal pure returns (uint256) {
+    function getUpdatedOutputAmount(
+        uint256 amount,
+        uint256 _prevAmount,
+        uint256 outputAmount
+    )
+        internal
+        pure
+        returns (uint256)
+    {
         if (_prevAmount == 0) return outputAmount;
         if (amount != _prevAmount) {
             if (amount > _prevAmount) {

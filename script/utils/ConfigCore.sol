@@ -55,6 +55,5 @@ abstract contract ConfigCore is ConfigBase {
         configuration.odosRouters[OPTIMISM_CHAIN_ID] = ODOS_ROUTER_OPTIMISM;
         configuration.odosRouters[ARBITRUM_CHAIN_ID] = ODOS_ROUTER_ARBITRUM;
         configuration.odosRouters[BNB_CHAIN_ID] = ODOS_ROUTER_BNB;
-
     }
 }

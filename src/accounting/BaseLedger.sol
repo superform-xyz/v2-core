@@ -111,7 +111,7 @@ abstract contract BaseLedger is ISuperLedger {
         if (usedShares != updatedUsedShares) {
             amountAssets = Math.mulDiv(updatedUsedShares, pps, 10 ** decimals);
         }
-        
+
         feeAmount = _calculateFees(costBasis, amountAssets, feePercent);
     }
 

@@ -132,7 +132,17 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         if (nodeOperatorPremium > MAX_NODE_OPERATOR_PREMIUM) {
             revert INVALID_NODE_OPERATOR_PREMIUM();
         }
-        return (abi.encode(userOp.sender, userOp.unpackMaxFeePerGas(), userOp.unpackMaxPriorityFeePerGas(), maxGasLimit, nodeOperatorPremium, postOpGas), 0);
+        return (
+            abi.encode(
+                userOp.sender,
+                userOp.unpackMaxFeePerGas(),
+                userOp.unpackMaxPriorityFeePerGas(),
+                maxGasLimit,
+                nodeOperatorPremium,
+                postOpGas
+            ),
+            0
+        );
     }
 
     /// @notice Handle the post-operation logic.
@@ -155,8 +165,14 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         virtual
         override
     {
-        (address sender, uint256 maxFeePerGas, uint256 maxPriorityFeePerGas, uint256 maxGasLimit, uint256 nodeOperatorPremium, uint256 postOpGas) =
-            abi.decode(context, (address, uint256, uint256, uint256, uint256, uint256));
+        (
+            address sender,
+            uint256 maxFeePerGas,
+            uint256 maxPriorityFeePerGas,
+            uint256 maxGasLimit,
+            uint256 nodeOperatorPremium,
+            uint256 postOpGas
+        ) = abi.decode(context, (address, uint256, uint256, uint256, uint256, uint256));
 
         // add postOpGas
         uint256 price = _getPriceFee(maxFeePerGas, maxPriorityFeePerGas);

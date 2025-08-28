@@ -36,5 +36,4 @@ contract YearnClaimAllRewardsHook is BaseHook, BaseClaimRewardHook {
 
         return _build(yieldSource, abi.encodeCall(IYearnStakingRewardsMulti.getReward, ()));
     }
-
 }

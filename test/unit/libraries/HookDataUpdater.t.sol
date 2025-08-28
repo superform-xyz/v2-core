@@ -8,7 +8,14 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 contract HookDataUpdaterTest is Test {
     using HookDataUpdater for uint256;
 
-    function testFuzz_DecreaseAmountGreaterThanOutputAmount(uint256 prevAmount, uint256 amount, uint256 outputAmount) public pure {
+    function testFuzz_DecreaseAmountGreaterThanOutputAmount(
+        uint256 prevAmount,
+        uint256 amount,
+        uint256 outputAmount
+    )
+        public
+        pure
+    {
         prevAmount = bound(prevAmount, 1, type(uint128).max); // avoid div by 0
         amount = bound(amount, 0, prevAmount); // ensure valid decrease
         outputAmount = bound(outputAmount, 0, 1e30); // some large number
