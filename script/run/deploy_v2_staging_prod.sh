@@ -334,7 +334,7 @@ if [ "$MODE" = "simulate" ]; then
 elif [ "$MODE" = "deploy" ]; then
     echo -e "${GREEN}🚀 Running in deployment mode for $ENVIRONMENT...${NC}"
     echo -e "${CYAN}   - Broadcasting to network${NC}"
-    echo -e "${CYAN}   - Tenderly private verification enabled${NC}"
+    echo -e "${CYAN}   - Tenderly public verification enabled${NC}"
     BROADCAST_FLAG="--broadcast"
     VERIFY_FLAG="--verify"
 else
@@ -378,7 +378,7 @@ elif [ "$ENVIRONMENT" = "prod" ]; then
 fi 
 
 echo -e "${GREEN}✅ Configuration loaded successfully${NC}"
-echo -e "${CYAN}   • Using Tenderly private verification mode${NC}"
+echo -e "${CYAN}   • Using Tenderly public verification mode${NC}"
 echo -e "${CYAN}   • Environment: $ENVIRONMENT${NC}"
 echo -e "${CYAN}   • Account: $ACCOUNT${NC}"
 
@@ -484,7 +484,7 @@ for network_def in "${NETWORKS[@]}"; do
     echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
     echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
     echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-    echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
+    echo -e "${CYAN}   Verification: ${WHITE}Tenderly Public${NC}"
     echo -e "${YELLOW}   Executing forge script...${NC}"
     
     forge script script/DeployV2Core.s.sol:DeployV2Core \

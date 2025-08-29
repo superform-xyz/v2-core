@@ -112,7 +112,7 @@ batch_upload_to_s3() {
         local env_folder="$environment"
         
         # Read deployed contracts from output file
-        local contracts_file="script/output/$env_folder/$network_id/$network_name-latest.json"
+        local contracts_file="$PROJECT_ROOT/script/output/$env_folder/$network_id/$network_name-latest.json"
         
         if [ ! -f "$contracts_file" ]; then
             log "ERROR" "Contract file not found: $contracts_file"
@@ -205,6 +205,7 @@ print_header
 
 # Source centralized network configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 source "$SCRIPT_DIR/networks.sh"
 
 # Check if arguments are provided
@@ -250,7 +251,7 @@ FOUND_DEPLOYMENTS=()
 for network_def in "${NETWORKS[@]}"; do
     IFS=':' read -r network_id network_name rpc_var verifier_var <<< "$network_def"
     
-    contracts_file="script/output/$env_folder/$network_id/$network_name-latest.json"
+    contracts_file="$PROJECT_ROOT/script/output/$env_folder/$network_id/$network_name-latest.json"
     
     if [ -f "$contracts_file" ]; then
         echo -e "${GREEN}   ✅ Found deployment: $network_name (Chain ID: $network_id)${NC}"
