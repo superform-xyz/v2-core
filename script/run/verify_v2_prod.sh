@@ -34,73 +34,97 @@ print_network_header() {
 
 print_header
 
-# Tenderly configuration for verification
-echo -e "${BLUE}🔧 Loading Tenderly Configuration...${NC}"
-export TENDERLY_ACCESS_TOKEN=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY_V2/credential)
-export TENDERLY_ACCOUNT="superform"
-export TENDERLY_PROJECT="v2"
+# Script directory and project root setup
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Production RPC URLs
-export ETH_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHEREUM_RPC_URL/credential)
-export BASE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_RPC_URL/credential)
-export BSC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BSC_RPC_URL/credential)
-export ARBITRUM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ARBITRUM_RPC_URL/credential)
+# Check if arguments are provided
+if [ $# -lt 1 ]; then
+    echo -e "${RED}❌ Error: Missing required argument${NC}"
+    echo -e "${YELLOW}Usage: $0 <environment>${NC}"
+    echo -e "${CYAN}  environment: staging or prod${NC}"
+    echo -e "${CYAN}Examples:${NC}"
+    echo -e "${CYAN}  $0 staging${NC}"
+    echo -e "${CYAN}  $0 prod${NC}"
+    exit 1
+fi
 
-# Tenderly verification URLs for each network
-export ETH_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/1/public"
-export BASE_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/8453/public"
-export BSC_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/56/public"
-export ARBITRUM_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/42161/public"
+ENVIRONMENT=$1
 
-echo -e "${GREEN}✅ Tenderly configuration loaded${NC}"
-echo -e "${CYAN}   • Using Tenderly public verification mode${NC}"
+# Validate environment and source appropriate network configuration
+if [ "$ENVIRONMENT" = "staging" ]; then
+    echo -e "${CYAN}🌐 Loading staging network configuration...${NC}"
+    source "$SCRIPT_DIR/networks-staging.sh"
+elif [ "$ENVIRONMENT" = "prod" ]; then
+    echo -e "${CYAN}🌐 Loading production network configuration...${NC}"
+    source "$SCRIPT_DIR/networks-production.sh"
+else
+    echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"
+    echo -e "${YELLOW}Environment must be either 'staging' or 'prod'${NC}"
+    exit 1
+fi
+
+echo -e "${CYAN}✅ Network configuration loaded for $ENVIRONMENT environment${NC}"
+print_network_info
+
+print_separator
+echo -e "${BLUE}🔧 Loading Configuration...${NC}"
+
+# Load RPC URLs using network-specific function
+echo -e "${CYAN}   • Loading RPC URLs...${NC}"
+if ! load_rpc_urls; then
+    echo -e "${RED}❌ Failed to load some RPC URLs from credential manager${NC}"
+    echo -e "${YELLOW}⚠️  This may cause connectivity issues during verification${NC}"
+    echo -e "${YELLOW}   Please ensure all required RPC URLs are configured in 1Password${NC}"
+    exit 1
+fi
+
+# Load Etherscan V2 API key for verification
+echo -e "${CYAN}   • Loading Etherscan V2 API credentials...${NC}"
+if ! load_etherscan_api_key; then
+    echo -e "${RED}❌ Failed to load Etherscan V2 API key${NC}"
+    echo -e "${RED}   Contract verification will not work without this credential${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Configuration loaded successfully${NC}"
+echo -e "${CYAN}   • Using Etherscan V2 verification${NC}"
+echo -e "${CYAN}   • Environment: $ENVIRONMENT${NC}"
+
 print_separator
 
-# Network configurations
-declare -A NETWORKS=(
-    ["1"]="ETH_MAINNET"
-    ["8453"]="BASE_MAINNET"
-    ["56"]="BSC_MAINNET" 
-    ["42161"]="ARBITRUM_MAINNET"
-)
-
-declare -A RPC_URLS=(
-    ["1"]="$ETH_MAINNET"
-    ["8453"]="$BASE_MAINNET"
-    ["56"]="$BSC_MAINNET"
-    ["42161"]="$ARBITRUM_MAINNET"
-)
-
-declare -A VERIFIER_URLS=(
-    ["1"]="$ETH_VERIFIER_URL"
-    ["8453"]="$BASE_VERIFIER_URL"
-    ["56"]="$BSC_VERIFIER_URL"
-    ["42161"]="$ARBITRUM_VERIFIER_URL"
-)
-
-declare -A NETWORK_NAMES=(
-    ["1"]="Ethereum Mainnet"
-    ["8453"]="Base Mainnet"
-    ["56"]="BSC Mainnet"
-    ["42161"]="Arbitrum Mainnet"
-)
+# Dynamic network configurations will be built from loaded network files
 
 # Function to load contract addresses from JSON
 load_contract_addresses() {
     local chain_id=$1
     local network_name=""
     
+    # Get network name from the loaded configuration
+    network_name=$(get_network_name "$chain_id")
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ Unknown network ID: $chain_id${NC}"
+        return 1
+    fi
+    
+    # Convert network name to file suffix format
     case $chain_id in
-        "1") network_name="Ethereum-latest" ;;
-        "8453") network_name="BASE-latest" ;;
-        "56") network_name="BNB-latest" ;;
-        "42161") network_name="ARBITRUM-latest" ;;
+        "1") network_suffix="Ethereum-latest" ;;
+        "8453") network_suffix="Base-latest" ;;
+        "56") network_suffix="BNB-latest" ;;
+        "42161") network_suffix="Arbitrum-latest" ;;
+        "10") network_suffix="Optimism-latest" ;;
+        "137") network_suffix="Polygon-latest" ;;
+        "130") network_suffix="Unichain-latest" ;;
+        *) network_suffix="${network_name}-latest" ;;
     esac
     
-    local json_file="script/output/prod/$chain_id/$network_name.json"
+    local json_file="script/output/$ENVIRONMENT/$chain_id/$network_suffix.json"
     
     if [ ! -f "$json_file" ]; then
         echo -e "${RED}❌ JSON file not found: $json_file${NC}"
+        echo -e "${RED}   Expected path: $json_file${NC}"
+        echo -e "${YELLOW}   Make sure contracts have been deployed to this network first${NC}"
         return 1
     fi
     
@@ -112,16 +136,24 @@ load_contract_addresses() {
 get_contract_address() {
     local chain_id=$1
     local contract_name=$2
-    local network_name=""
+    local network_suffix=""
     
+    # Convert network name to file suffix format (same as load_contract_addresses)
     case $chain_id in
-        "1") network_name="Ethereum-latest" ;;
-        "8453") network_name="BASE-latest" ;;
-        "56") network_name="BNB-latest" ;;
-        "42161") network_name="ARBITRUM-latest" ;;
+        "1") network_suffix="Ethereum-latest" ;;
+        "8453") network_suffix="Base-latest" ;;
+        "56") network_suffix="BNB-latest" ;;
+        "42161") network_suffix="Arbitrum-latest" ;;
+        "10") network_suffix="Optimism-latest" ;;
+        "137") network_suffix="Polygon-latest" ;;
+        "130") network_suffix="Unichain-latest" ;;
+        *) 
+            local network_name=$(get_network_name "$chain_id")
+            network_suffix="${network_name}-latest"
+            ;;
     esac
     
-    local json_file="script/output/prod/$chain_id/$network_name.json"
+    local json_file="script/output/$ENVIRONMENT/$chain_id/$network_suffix.json"
     
     if [ -f "$json_file" ]; then
         local address=$(jq -r ".$contract_name // empty" "$json_file")
@@ -343,17 +375,18 @@ verify_contract() {
     local constructor_args=$4
     local source_file=$5
     local rpc_url=$6
-    local verifier_url=$7
     
     echo -e "${YELLOW}   🔍 Verifying $contract_name...${NC}"
     echo -e "${CYAN}      Address: $contract_address${NC}"
     echo -e "${CYAN}      Source: $source_file${NC}"
+    echo -e "${CYAN}      Chain ID: $chain_id${NC}"
     
     forge verify-contract "$contract_address" "$source_file:$contract_name" \
         --constructor-args "$constructor_args" \
         --rpc-url "$rpc_url" \
-        --verifier-url "$verifier_url" \
-        --etherscan-api-key "$TENDERLY_ACCESS_TOKEN" 
+        --chain "$chain_id" \
+        --etherscan-api-key "$ETHERSCANV2_API_KEY_TEST" \
+        --verifier etherscan
             
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}   ✅ $contract_name verified successfully${NC}"
@@ -367,14 +400,24 @@ verify_contract() {
 # Function to verify all contracts for a network
 verify_network() {
     local chain_id=$1
-    local network_name=${NETWORK_NAMES[$chain_id]}
-    local rpc_url=${RPC_URLS[$chain_id]}
-    local verifier_url=${VERIFIER_URLS[$chain_id]}
+    
+    # Get network name and RPC URL from loaded configuration
+    local network_name=$(get_network_name "$chain_id")
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ Unknown network ID: $chain_id${NC}"
+        return 1
+    fi
+    
+    local rpc_url=$(get_rpc_url "$chain_id")
+    if [ -z "$rpc_url" ]; then
+        echo -e "${RED}❌ RPC URL not found for chain $chain_id${NC}"
+        return 1
+    fi
     
     print_network_header "$network_name"
     echo -e "${CYAN}   Chain ID: ${WHITE}$chain_id${NC}"
     echo -e "${CYAN}   RPC URL: ${WHITE}$rpc_url${NC}"
-    echo -e "${CYAN}   Verifier URL: ${WHITE}$verifier_url${NC}"
+    echo -e "${CYAN}   Verification: ${WHITE}Etherscan V2${NC}"
     
     if ! load_contract_addresses "$chain_id"; then
         echo -e "${RED}   ❌ Failed to load contract addresses for chain $chain_id${NC}"
@@ -383,16 +426,25 @@ verify_network() {
     
     echo -e "${CYAN}   📋 Starting contract verification...${NC}"
     
-    # Get all contract names from the JSON file
+    # Get network suffix for JSON file
     local network_suffix=""
     case $chain_id in
         "1") network_suffix="Ethereum-latest" ;;
-        "8453") network_suffix="BASE-latest" ;;
-        "56") network_suffix="BNB-latest" ;;  
-        "42161") network_suffix="ARBITRUM-latest" ;;
+        "8453") network_suffix="Base-latest" ;;
+        "56") network_suffix="BNB-latest" ;;
+        "42161") network_suffix="Arbitrum-latest" ;;
+        "10") network_suffix="Optimism-latest" ;;
+        "137") network_suffix="Polygon-latest" ;;
+        "130") network_suffix="Unichain-latest" ;;
+        *) network_suffix="${network_name}-latest" ;;
     esac
     
-    local json_file="script/output/prod/$chain_id/$network_suffix.json"
+    local json_file="script/output/$ENVIRONMENT/$chain_id/$network_suffix.json"
+    
+    if [ ! -f "$json_file" ]; then
+        echo -e "${RED}   ❌ Contract addresses file not found: $json_file${NC}"
+        return 1
+    fi
     
     # Extract contract names from JSON
     local contract_names=($(jq -r 'keys[]' "$json_file"))
@@ -408,7 +460,7 @@ verify_network() {
         local constructor_args=$(generate_constructor_args "$contract_name" "$chain_id")
         local source_file=$(get_contract_source "$contract_name")
         
-        verify_contract "$chain_id" "$contract_name" "$contract_address" "$constructor_args" "$source_file" "$rpc_url" "$verifier_url"
+        verify_contract "$chain_id" "$contract_name" "$contract_address" "$constructor_args" "$source_file" "$rpc_url"
     done
     
     echo -e "${GREEN}✅ Network $network_name verification completed${NC}"
@@ -416,18 +468,49 @@ verify_network() {
 
 # Main verification loop
 main() {
-    local chains=("1" "8453" "56" "42161")
+    # Get chain IDs from the loaded network configuration
+    local chains=()
+    for network_def in "${NETWORKS[@]}"; do
+        IFS=':' read -r network_id _ _ <<< "$network_def"
+        chains+=("$network_id")
+    done
+    
+    echo -e "${BLUE}🔍 Starting verification for ${#chains[@]} networks in $ENVIRONMENT environment...${NC}"
+    echo ""
+    
+    local successful_networks=0
+    local failed_networks=0
     
     for chain_id in "${chains[@]}"; do
-        verify_network "$chain_id"
+        if verify_network "$chain_id"; then
+            ((successful_networks++))
+        else
+            ((failed_networks++))
+        fi
         print_separator
     done
     
-    echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║                                                                                      ║${NC}"
-    echo -e "${GREEN}║${WHITE}                🎉 All V2 Core Production Contract Verification Completed! 🎉         ${GREEN}║${NC}"
-    echo -e "${GREEN}║                                                                                      ║${NC}"
-    echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${BLUE}📊 Verification Summary:${NC}"
+    echo -e "${GREEN}   • Networks verified successfully: $successful_networks${NC}"
+    if [ $failed_networks -gt 0 ]; then
+        echo -e "${RED}   • Networks with verification failures: $failed_networks${NC}"
+    fi
+    echo ""
+    
+    if [ $failed_networks -eq 0 ]; then
+        echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${GREEN}║                                                                                      ║${NC}"
+        echo -e "${GREEN}║${WHITE}            🎉 All V2 Core $ENVIRONMENT Contract Verification Completed! 🎉             ${GREEN}║${NC}"
+        echo -e "${GREEN}║                                                                                      ║${NC}"
+        echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    else
+        echo -e "${YELLOW}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${YELLOW}║                                                                                      ║${NC}"
+        echo -e "${YELLOW}║${WHITE}               ⚠️  V2 Core $ENVIRONMENT Verification Completed with Issues ⚠️               ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║                                                                                      ║${NC}"
+        echo -e "${YELLOW}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+        exit 1
+    fi
 }
 
 # Run the main function

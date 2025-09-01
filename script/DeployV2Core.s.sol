@@ -10,7 +10,7 @@ import { ISuperLedgerConfiguration } from "../src/interfaces/accounting/ISuperLe
 import { MockDex } from "../test/mocks/MockDex.sol";
 import { MockDexHook } from "../test/mocks/MockDexHook.sol";
 
-import { Strings } from "lib/openzeppelin-contracts/contracts/utils/Strings.sol";
+import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { console2 } from "forge-std/console2.sol";
 import { DeterministicDeployerLib } from "../src/vendor/nexus/DeterministicDeployerLib.sol";
 
@@ -84,6 +84,20 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         string constructorArgs;
     }
 
+    struct ContractAvailability {
+        bool acrossV3Adapter;
+        bool debridgeAdapter;
+        bool deBridgeSendOrderHook;
+        bool deBridgeCancelOrderHook;
+        bool swap1InchHook;
+        bool swapOdosHooks;
+        bool merklClaimRewardHook;
+        uint256 expectedAdapters;
+        uint256 expectedHooks;
+        uint256 expectedTotal;
+        string[] skippedContracts;
+    }
+
     uint256 private _deployed;
     uint256 private _total;
 
@@ -96,6 +110,107 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Set core contract dependencies
         _setCoreConfiguration();
+    }
+
+    /// @notice Determines which contracts are available for deployment on a specific chain
+    /// @param chainId The target chain ID
+    /// @return availability ContractAvailability struct with availability flags and expected counts
+    function _getContractAvailability(uint64 chainId)
+        internal
+        view
+        returns (ContractAvailability memory availability)
+    {
+        // Initialize all skipped contracts array
+        string[] memory potentialSkips = new string[](8);
+        uint256 skipCount = 0;
+
+        // Core contracts (always expected): 10 contracts
+        // SuperLedgerConfiguration, SuperValidator, SuperDestinationValidator, SuperExecutor,
+        // SuperDestinationExecutor, SuperSenderCreator, SuperLedger, FlatFeeLedger, SuperNativePaymaster
+        uint256 expectedCore = 10;
+
+        // Check Adapter availability
+        uint256 expectedAdapters = 0;
+
+        // AcrossV3Adapter
+        if (configuration.acrossSpokePoolV3s[chainId] != address(0)) {
+            availability.acrossV3Adapter = true;
+            expectedAdapters++;
+        } else {
+            potentialSkips[skipCount++] = "AcrossV3Adapter";
+        }
+
+        // DebridgeAdapter
+        if (configuration.debridgeDstDln[chainId] != address(0)) {
+            availability.debridgeAdapter = true;
+            expectedAdapters++;
+        } else {
+            potentialSkips[skipCount++] = "DebridgeAdapter";
+        }
+
+        availability.expectedAdapters = expectedAdapters;
+
+        // Check Hook availability
+        uint256 expectedHooks = 26; // Base hooks without external dependencies (excluding Across hook)
+
+        // Hooks that depend on external configurations
+        if (configuration.acrossSpokePoolV3s[chainId] != address(0)) {
+            expectedHooks += 1; // AcrossSendFundsAndExecuteOnDstHook
+        } else {
+            potentialSkips[skipCount++] = "AcrossSendFundsAndExecuteOnDstHook";
+        }
+
+        if (configuration.aggregationRouters[chainId] != address(0)) {
+            availability.swap1InchHook = true;
+            expectedHooks += 1; // Swap1InchHook
+        } else {
+            potentialSkips[skipCount++] = "Swap1InchHook";
+        }
+
+        if (configuration.odosRouters[chainId] != address(0)) {
+            availability.swapOdosHooks = true;
+            expectedHooks += 2; // SwapOdosV2Hook + ApproveAndSwapOdosV2Hook
+        } else {
+            potentialSkips[skipCount++] = "SwapOdosV2Hook";
+            potentialSkips[skipCount++] = "ApproveAndSwapOdosV2Hook";
+        }
+
+        if (DEBRIDGE_DLN_SRC != address(0)) {
+            availability.deBridgeSendOrderHook = true;
+            expectedHooks += 1; // DeBridgeSendOrderAndExecuteOnDstHook
+        } else {
+            potentialSkips[skipCount++] = "DeBridgeSendOrderAndExecuteOnDstHook";
+        }
+
+        if (DEBRIDGE_DLN_DST != address(0)) {
+            availability.deBridgeCancelOrderHook = true;
+            expectedHooks += 1; // DeBridgeCancelOrderHook
+        } else {
+            potentialSkips[skipCount++] = "DeBridgeCancelOrderHook";
+        }
+
+        if (configuration.merklDistributors[chainId] != address(0)) {
+            availability.merklClaimRewardHook = true;
+            expectedHooks += 1; // MerklClaimRewardHook
+        } else {
+            potentialSkips[skipCount++] = "MerklClaimRewardHook";
+        }
+
+        availability.expectedHooks = expectedHooks;
+
+        // Oracles (always expected): 7 contracts
+        uint256 expectedOracles = 7;
+
+        // Total expected contracts
+        availability.expectedTotal = expectedCore + expectedAdapters + expectedHooks + expectedOracles;
+
+        // Create properly sized skipped contracts array
+        availability.skippedContracts = new string[](skipCount);
+        for (uint256 i = 0; i < skipCount; i++) {
+            availability.skippedContracts[i] = potentialSkips[i];
+        }
+
+        return availability;
     }
 
     // this is used by deploy_v2_staging_prod for env 0 and 2
@@ -155,11 +270,34 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log("Environment:", env);
         console2.log("");
 
+        // Get contract availability for this chain
+        ContractAvailability memory availability = _getContractAvailability(chainId);
+
+        // Log availability analysis
+        console2.log("=== Contract Availability Analysis ===");
+        console2.log("Expected total contracts:", availability.expectedTotal);
+        console2.log("  Core contracts: 10");
+        console2.log("  Adapters:", availability.expectedAdapters);
+        console2.log("  Hooks:", availability.expectedHooks);
+        console2.log("  Oracles: 7");
+
+        if (availability.skippedContracts.length > 0) {
+            console2.log("");
+            console2.log("=== Contracts SKIPPED due to missing configurations ===");
+            for (uint256 i = 0; i < availability.skippedContracts.length; i++) {
+                console2.log("  SKIPPED:", availability.skippedContracts[i]);
+            }
+        }
+        console2.log("");
+
         // Reset counters
         deployed = 0;
         total = 0;
 
-        _checkCoreContracts(chainId, env);
+        _checkCoreContracts(chainId, env, availability);
+
+        // Override total with the correct expected count for this chain
+        total = availability.expectedTotal;
 
         // Log comprehensive deployment summary
         _logDeploymentSummary(chainId);
@@ -173,7 +311,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     /// @notice Check core contract addresses
     /// @param chainId The target chain ID
     /// @param env Environment (1 = vnet/dev, 0/2 = prod/staging)
-    function _checkCoreContracts(uint64 chainId, uint256 env) internal {
+    /// @param availability Contract availability for this chain
+    function _checkCoreContracts(uint64 chainId, uint256 env, ContractAvailability memory availability) internal {
         console2.log("=== Core Contracts ===");
 
         // SuperLedgerConfiguration (no constructor args)
@@ -212,10 +351,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // SuperSenderCreator (no constructor args)
         __checkContract(SUPER_SENDER_CREATOR_KEY, __getSalt(SUPER_SENDER_CREATOR_KEY), "", env);
 
-        _checkAdapterContracts(chainId, superDestExecutor, env);
+        _checkAdapterContracts(chainId, superDestExecutor, env, availability);
         _checkLedgerContracts(superLedgerConfig, superExecutor, superDestExecutor, env);
         _checkPaymasterContracts(env);
-        _checkHookContracts(chainId, superValidator, env);
+        _checkHookContracts(chainId, superValidator, env, availability);
         _checkOracleContracts(superLedgerConfig, env);
     }
 
@@ -223,29 +362,44 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     /// @param chainId The target chain ID
     /// @param superDestExecutor Address of the SuperDestinationExecutor
     /// @param env Environment (1 = vnet/dev, 0/2 = prod/staging)
-    function _checkAdapterContracts(uint64 chainId, address superDestExecutor, uint256 env) internal {
+    /// @param availability Contract availability for this chain
+    function _checkAdapterContracts(
+        uint64 chainId,
+        address superDestExecutor,
+        uint256 env,
+        ContractAvailability memory availability
+    )
+        internal
+    {
+        console2.log("");
+        console2.log("=== Adapters ===");
+
         // AcrossV3Adapter (requires acrossSpokePoolV3 and superDestinationExecutor)
-        if (configuration.acrossSpokePoolV3s[chainId] != address(0) && superDestExecutor != address(0)) {
+        if (availability.acrossV3Adapter && superDestExecutor != address(0)) {
             __checkContract(
                 ACROSS_V3_ADAPTER_KEY,
                 __getSalt(ACROSS_V3_ADAPTER_KEY),
                 abi.encode(configuration.acrossSpokePoolV3s[chainId], superDestExecutor),
                 env
             );
+        } else if (!availability.acrossV3Adapter) {
+            console2.log("SKIPPED AcrossV3Adapter: Across Spoke Pool not configured for chain", chainId);
         } else {
-            revert("ACROSS_V3_ADAPTER_CHECK_FAILED_MISSING_DEPENDENCIES");
+            revert("ACROSS_V3_ADAPTER_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
         }
 
         // DebridgeAdapter (requires debridgeDstDln and superDestinationExecutor)
-        if (configuration.debridgeDstDln[chainId] != address(0) && superDestExecutor != address(0)) {
+        if (availability.debridgeAdapter && superDestExecutor != address(0)) {
             __checkContract(
                 DEBRIDGE_ADAPTER_KEY,
                 __getSalt(DEBRIDGE_ADAPTER_KEY),
                 abi.encode(configuration.debridgeDstDln[chainId], superDestExecutor),
                 env
             );
+        } else if (!availability.debridgeAdapter) {
+            console2.log("SKIPPED DebridgeAdapter: DeBridge DLN not configured for chain", chainId);
         } else {
-            revert("DEBRIDGE_ADAPTER_CHECK_FAILED_MISSING_DEPENDENCIES");
+            revert("DEBRIDGE_ADAPTER_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
         }
     }
 
@@ -306,7 +460,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     /// @param chainId The target chain ID
     /// @param superValidator Address of the SuperValidator
     /// @param env Environment (1 = vnet/dev, 0/2 = prod/staging)
-    function _checkHookContracts(uint64 chainId, address superValidator, uint256 env) internal {
+    /// @param availability Contract availability for this chain
+    function _checkHookContracts(
+        uint64 chainId,
+        address superValidator,
+        uint256 env,
+        ContractAvailability memory availability
+    )
+        internal
+    {
         console2.log("");
         console2.log("=== Hooks ===");
 
@@ -368,7 +530,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         );
 
         // Swap hooks with router dependencies
-        if (configuration.aggregationRouters[chainId] != address(0)) {
+        if (availability.swap1InchHook) {
             __checkContract(
                 SWAP_1INCH_HOOK_KEY,
                 __getSalt(SWAP_1INCH_HOOK_KEY),
@@ -376,10 +538,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 env
             );
         } else {
-            revert("SWAP_1INCH_HOOK_CHECK_FAILED_MISSING_AGGREGATION_ROUTER");
+            console2.log("SKIPPED Swap1InchHook: 1inch Aggregation Router not configured for chain", chainId);
         }
 
-        if (configuration.odosRouters[chainId] != address(0)) {
+        if (availability.swapOdosHooks) {
             __checkContract(
                 SWAP_ODOSV2_HOOK_KEY,
                 __getSalt(SWAP_ODOSV2_HOOK_KEY),
@@ -393,38 +555,41 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 env
             );
         } else {
-            revert("SWAP_ODOS_HOOKS_CHECK_FAILED_MISSING_ODOS_ROUTER");
+            console2.log(
+                "SKIPPED SwapOdosV2Hook & ApproveAndSwapOdosV2Hook: ODOS Router not configured for chain", chainId
+            );
         }
 
         // Bridge hooks
-        if (configuration.acrossSpokePoolV3s[chainId] != address(0) && superValidator != address(0)) {
+        if (availability.acrossV3Adapter && superValidator != address(0)) {
             __checkContract(
                 ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
                 __getSalt(ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY),
                 abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator),
                 env
             );
+        } else if (!availability.acrossV3Adapter) {
+            console2.log(
+                "SKIPPED AcrossSendFundsAndExecuteOnDstHook: Across Spoke Pool not configured for chain", chainId
+            );
         } else {
-            revert("ACROSS_HOOK_CHECK_FAILED_MISSING_DEPENDENCIES");
+            revert("ACROSS_HOOK_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
         }
 
-        if (DEBRIDGE_DLN_SRC != address(0) && superValidator != address(0)) {
+        if (availability.deBridgeSendOrderHook && superValidator != address(0)) {
             __checkContract(
                 DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
                 __getSalt(DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY),
                 abi.encode(DEBRIDGE_DLN_SRC, superValidator),
                 env
             );
+        } else if (!availability.deBridgeSendOrderHook) {
+            console2.log("SKIPPED DeBridgeSendOrderAndExecuteOnDstHook: DeBridge DLN SRC not configured");
         } else {
-            __checkContract(
-                DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
-                __getSalt(DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY),
-                "",
-                env
-            );
+            revert("DEBRIDGE_SEND_HOOK_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
         }
 
-        if (DEBRIDGE_DLN_DST != address(0)) {
+        if (availability.deBridgeCancelOrderHook) {
             __checkContract(
                 DEBRIDGE_CANCEL_ORDER_HOOK_KEY,
                 __getSalt(DEBRIDGE_CANCEL_ORDER_HOOK_KEY),
@@ -432,11 +597,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 env
             );
         } else {
-            revert("DEBRIDGE_CANCEL_HOOK_CHECK_FAILED_MISSING_DLN_DST");
+            console2.log("SKIPPED DeBridgeCancelOrderHook: DeBridge DLN DST not configured");
         }
 
         // Merkl claim reward hook
-        if (configuration.merklDistributors[chainId] != address(0)) {
+        if (availability.merklClaimRewardHook) {
             __checkContract(
                 MERKL_CLAIM_REWARD_HOOK_KEY,
                 __getSalt(MERKL_CLAIM_REWARD_HOOK_KEY),
@@ -444,7 +609,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 env
             );
         } else {
-            revert("MERKL_CLAIM_REWARD_HOOK_CHECK_FAILED_MISSING_MERKL_DISTRIBUTOR");
+            console2.log("SKIPPED MerklClaimRewardHook: Merkl Distributor not configured for chain", chainId);
         }
 
         // Protocol-specific hooks
@@ -570,6 +735,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     function _deployCoreContracts(uint64 chainId, uint256 env) internal {
         CoreContracts memory coreContracts;
 
+        // Get contract availability for this chain
+        ContractAvailability memory availability = _getContractAvailability(chainId);
+
         // Pre-populate core contracts with existing deployed addresses
         _populateCoreContractsFromStatus(chainId, coreContracts);
 
@@ -577,40 +745,58 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Validate critical dependencies before deployment
         console2.log("Validating deployment dependencies for chain:", chainId);
 
-        // Validate treasury and owner addresses
+        // Validate treasury address
         require(configuration.treasury != address(0), "TREASURY_ADDRESS_ZERO");
-        require(configuration.owner != address(0), "OWNER_ADDRESS_ZERO");
         console2.log(" Treasury:", configuration.treasury);
-        console2.log(" Owner:", configuration.owner);
 
         // Check Permit2 (required for BatchTransferFromHook)
         require(configuration.permit2s[chainId] != address(0), "PERMIT2_ADDRESS_ZERO");
         require(configuration.permit2s[chainId].code.length > 0, "PERMIT2_NOT_DEPLOYED");
         console2.log(" Permit2:", configuration.permit2s[chainId]);
 
-        // Check Across Spoke Pool (required for AcrossV3Adapter)
-        require(configuration.acrossSpokePoolV3s[chainId] != address(0), "ACROSS_SPOKE_POOL_ADDRESS_ZERO");
-        require(configuration.acrossSpokePoolV3s[chainId].code.length > 0, "ACROSS_SPOKE_POOL_NOT_DEPLOYED");
-        console2.log(" Across Spoke Pool V3:", configuration.acrossSpokePoolV3s[chainId]);
+        // Only validate Across if it's available on this chain
+        if (availability.acrossV3Adapter) {
+            require(configuration.acrossSpokePoolV3s[chainId] != address(0), "ACROSS_SPOKE_POOL_ADDRESS_ZERO");
+            require(configuration.acrossSpokePoolV3s[chainId].code.length > 0, "ACROSS_SPOKE_POOL_NOT_DEPLOYED");
+            console2.log(" Across Spoke Pool V3:", configuration.acrossSpokePoolV3s[chainId]);
+        } else {
+            console2.log(" SKIPPED Across Spoke Pool V3 validation: Not available on chain", chainId);
+        }
 
-        // Check DeBridge DLN (required for DebridgeAdapter)
-        require(configuration.debridgeDstDln[chainId] != address(0), "DEBRIDGE_DLN_ADDRESS_ZERO");
-        require(configuration.debridgeDstDln[chainId].code.length > 0, "DEBRIDGE_DLN_NOT_DEPLOYED");
-        console2.log(" DeBridge DLN DST:", configuration.debridgeDstDln[chainId]);
+        // Only validate DeBridge if it's available on this chain
+        if (availability.debridgeAdapter) {
+            require(configuration.debridgeDstDln[chainId] != address(0), "DEBRIDGE_DLN_ADDRESS_ZERO");
+            require(configuration.debridgeDstDln[chainId].code.length > 0, "DEBRIDGE_DLN_NOT_DEPLOYED");
+            console2.log(" DeBridge DLN DST:", configuration.debridgeDstDln[chainId]);
+        } else {
+            console2.log(" SKIPPED DeBridge DLN DST validation: Not available on chain", chainId);
+        }
 
-        // Check critical router addresses for hooks
-        require(configuration.aggregationRouters[chainId] != address(0), "AGGREGATION_ROUTER_ADDRESS_ZERO");
-        require(configuration.aggregationRouters[chainId].code.length > 0, "AGGREGATION_ROUTER_NOT_DEPLOYED");
-        console2.log(" 1inch Aggregation Router:", configuration.aggregationRouters[chainId]);
+        // Only validate routers if hooks are available
+        if (availability.swap1InchHook) {
+            require(configuration.aggregationRouters[chainId] != address(0), "AGGREGATION_ROUTER_ADDRESS_ZERO");
+            require(configuration.aggregationRouters[chainId].code.length > 0, "AGGREGATION_ROUTER_NOT_DEPLOYED");
+            console2.log(" 1inch Aggregation Router:", configuration.aggregationRouters[chainId]);
+        } else {
+            console2.log(" SKIPPED 1inch Aggregation Router validation: Not available on chain", chainId);
+        }
 
-        require(configuration.odosRouters[chainId] != address(0), "ODOS_ROUTER_ADDRESS_ZERO");
-        require(configuration.odosRouters[chainId].code.length > 0, "ODOS_ROUTER_NOT_DEPLOYED");
-        console2.log(" ODOS Router:", configuration.odosRouters[chainId]);
+        if (availability.swapOdosHooks) {
+            require(configuration.odosRouters[chainId] != address(0), "ODOS_ROUTER_ADDRESS_ZERO");
+            require(configuration.odosRouters[chainId].code.length > 0, "ODOS_ROUTER_NOT_DEPLOYED");
+            console2.log(" ODOS Router:", configuration.odosRouters[chainId]);
+        } else {
+            console2.log(" SKIPPED ODOS Router validation: Not available on chain", chainId);
+        }
 
-        // Check Merkl distributor
-        require(configuration.merklDistributors[chainId] != address(0), "MERKL_DISTRIBUTOR_ADDRESS_ZERO");
-        require(configuration.merklDistributors[chainId].code.length > 0, "MERKL_DISTRIBUTOR_NOT_DEPLOYED");
-        console2.log(" Merkl Distributor:", configuration.merklDistributors[chainId]);
+        // Only validate Merkl if it's available
+        if (availability.merklClaimRewardHook) {
+            require(configuration.merklDistributors[chainId] != address(0), "MERKL_DISTRIBUTOR_ADDRESS_ZERO");
+            require(configuration.merklDistributors[chainId].code.length > 0, "MERKL_DISTRIBUTOR_NOT_DEPLOYED");
+            console2.log(" Merkl Distributor:", configuration.merklDistributors[chainId]);
+        } else {
+            console2.log(" SKIPPED Merkl Distributor validation: Not available on chain", chainId);
+        }
 
         // Validate EntryPoint address
         require(ENTRY_POINT != address(0), "ENTRY_POINT_ADDRESS_ZERO");
@@ -703,43 +889,51 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(coreContracts.superSenderCreator.code.length > 0, "SUPER_SENDER_CREATOR_NO_CODE");
         console2.log(" SuperSenderCreator deployed and validated");
 
-        // Deploy AcrossV3Adapter - VALIDATED CONSTRUCTOR PARAMETERS
-        require(configuration.acrossSpokePoolV3s[chainId] != address(0), "ACROSS_ADAPTER_SPOKE_POOL_PARAM_ZERO");
-        require(coreContracts.superDestinationExecutor != address(0), "ACROSS_ADAPTER_DEST_EXECUTOR_PARAM_ZERO");
+        // Deploy AcrossV3Adapter only if available on this chain
+        if (availability.acrossV3Adapter) {
+            require(configuration.acrossSpokePoolV3s[chainId] != address(0), "ACROSS_ADAPTER_SPOKE_POOL_PARAM_ZERO");
+            require(coreContracts.superDestinationExecutor != address(0), "ACROSS_ADAPTER_DEST_EXECUTOR_PARAM_ZERO");
 
-        coreContracts.acrossV3Adapter = __deployContractIfNeeded(
-            ACROSS_V3_ADAPTER_KEY,
-            chainId,
-            __getSalt(ACROSS_V3_ADAPTER_KEY),
-            abi.encodePacked(
-                __getBytecode("AcrossV3Adapter", env),
-                abi.encode(configuration.acrossSpokePoolV3s[chainId], coreContracts.superDestinationExecutor)
-            )
-        );
+            coreContracts.acrossV3Adapter = __deployContractIfNeeded(
+                ACROSS_V3_ADAPTER_KEY,
+                chainId,
+                __getSalt(ACROSS_V3_ADAPTER_KEY),
+                abi.encodePacked(
+                    __getBytecode("AcrossV3Adapter", env),
+                    abi.encode(configuration.acrossSpokePoolV3s[chainId], coreContracts.superDestinationExecutor)
+                )
+            );
 
-        // Validate AcrossV3Adapter was deployed
-        require(coreContracts.acrossV3Adapter != address(0), "ACROSS_V3_ADAPTER_DEPLOYMENT_FAILED");
-        require(coreContracts.acrossV3Adapter.code.length > 0, "ACROSS_V3_ADAPTER_NO_CODE");
-        console2.log(" AcrossV3Adapter deployed and validated");
+            // Validate AcrossV3Adapter was deployed
+            require(coreContracts.acrossV3Adapter != address(0), "ACROSS_V3_ADAPTER_DEPLOYMENT_FAILED");
+            require(coreContracts.acrossV3Adapter.code.length > 0, "ACROSS_V3_ADAPTER_NO_CODE");
+            console2.log(" AcrossV3Adapter deployed and validated");
+        } else {
+            console2.log(" SKIPPED AcrossV3Adapter deployment: Not available on chain", chainId);
+        }
 
-        // Deploy DebridgeAdapter - VALIDATED CONSTRUCTOR PARAMETERS
-        require(configuration.debridgeDstDln[chainId] != address(0), "DEBRIDGE_ADAPTER_DST_DLN_PARAM_ZERO");
-        require(coreContracts.superDestinationExecutor != address(0), "DEBRIDGE_ADAPTER_DEST_EXECUTOR_PARAM_ZERO");
+        // Deploy DebridgeAdapter only if available on this chain
+        if (availability.debridgeAdapter) {
+            require(configuration.debridgeDstDln[chainId] != address(0), "DEBRIDGE_ADAPTER_DST_DLN_PARAM_ZERO");
+            require(coreContracts.superDestinationExecutor != address(0), "DEBRIDGE_ADAPTER_DEST_EXECUTOR_PARAM_ZERO");
 
-        coreContracts.debridgeAdapter = __deployContractIfNeeded(
-            DEBRIDGE_ADAPTER_KEY,
-            chainId,
-            __getSalt(DEBRIDGE_ADAPTER_KEY),
-            abi.encodePacked(
-                __getBytecode("DebridgeAdapter", env),
-                abi.encode(configuration.debridgeDstDln[chainId], coreContracts.superDestinationExecutor)
-            )
-        );
+            coreContracts.debridgeAdapter = __deployContractIfNeeded(
+                DEBRIDGE_ADAPTER_KEY,
+                chainId,
+                __getSalt(DEBRIDGE_ADAPTER_KEY),
+                abi.encodePacked(
+                    __getBytecode("DebridgeAdapter", env),
+                    abi.encode(configuration.debridgeDstDln[chainId], coreContracts.superDestinationExecutor)
+                )
+            );
 
-        // Validate DebridgeAdapter was deployed
-        require(coreContracts.debridgeAdapter != address(0), "DEBRIDGE_ADAPTER_DEPLOYMENT_FAILED");
-        require(coreContracts.debridgeAdapter.code.length > 0, "DEBRIDGE_ADAPTER_NO_CODE");
-        console2.log(" DebridgeAdapter deployed and validated");
+            // Validate DebridgeAdapter was deployed
+            require(coreContracts.debridgeAdapter != address(0), "DEBRIDGE_ADAPTER_DEPLOYMENT_FAILED");
+            require(coreContracts.debridgeAdapter.code.length > 0, "DEBRIDGE_ADAPTER_NO_CODE");
+            console2.log(" DebridgeAdapter deployed and validated");
+        } else {
+            console2.log(" SKIPPED DebridgeAdapter deployment: Not available on chain", chainId);
+        }
 
         // ===== LEDGER DEPLOYMENT WITH VALIDATED EXECUTORS =====
         address[] memory allowedExecutors = new address[](2);
@@ -1171,6 +1365,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     function _deployHooks(uint64 chainId, uint256 env) private returns (HookAddresses memory hookAddresses) {
         console2.log("Starting hook deployment with comprehensive dependency validation...");
 
+        // Get contract availability for this chain
+        ContractAvailability memory availability = _getContractAvailability(chainId);
+
         uint256 len = 35;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
@@ -1215,59 +1412,90 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // ===== HOOKS WITH EXTERNAL ROUTER DEPENDENCIES =====
 
-        // 1inch Swap Hook - Validate aggregation router (already validated in core deployment)
-        require(configuration.aggregationRouters[chainId] != address(0), "SWAP_1INCH_HOOK_ROUTER_PARAM_ZERO");
-        require(configuration.aggregationRouters[chainId].code.length > 0, "SWAP_1INCH_HOOK_ROUTER_NOT_DEPLOYED");
-        hooks[16] = HookDeployment(
-            SWAP_1INCH_HOOK_KEY,
-            abi.encodePacked(__getBytecode("Swap1InchHook", env), abi.encode(configuration.aggregationRouters[chainId]))
-        );
+        // 1inch Swap Hook - Only deploy if available on this chain
+        if (availability.swap1InchHook) {
+            require(configuration.aggregationRouters[chainId] != address(0), "SWAP_1INCH_HOOK_ROUTER_PARAM_ZERO");
+            require(configuration.aggregationRouters[chainId].code.length > 0, "SWAP_1INCH_HOOK_ROUTER_NOT_DEPLOYED");
+            hooks[16] = HookDeployment(
+                SWAP_1INCH_HOOK_KEY,
+                abi.encodePacked(
+                    __getBytecode("Swap1InchHook", env), abi.encode(configuration.aggregationRouters[chainId])
+                )
+            );
+        } else {
+            console2.log(" SKIPPED Swap1InchHook deployment: Not available on chain", chainId);
+            hooks[16] = HookDeployment("", ""); // Empty deployment
+        }
 
-        // ODOS Swap Hooks - Validate ODOS router (already validated in core deployment)
-        require(configuration.odosRouters[chainId] != address(0), "SWAP_ODOS_HOOK_ROUTER_PARAM_ZERO");
-        require(configuration.odosRouters[chainId].code.length > 0, "SWAP_ODOS_HOOK_ROUTER_NOT_DEPLOYED");
-        hooks[17] = HookDeployment(
-            SWAP_ODOSV2_HOOK_KEY,
-            abi.encodePacked(__getBytecode("SwapOdosV2Hook", env), abi.encode(configuration.odosRouters[chainId]))
-        );
-        hooks[18] = HookDeployment(
-            APPROVE_AND_SWAP_ODOSV2_HOOK_KEY,
-            abi.encodePacked(
-                __getBytecode("ApproveAndSwapOdosV2Hook", env), abi.encode(configuration.odosRouters[chainId])
-            )
-        );
+        // ODOS Swap Hooks - Only deploy if available on this chain
+        if (availability.swapOdosHooks) {
+            require(configuration.odosRouters[chainId] != address(0), "SWAP_ODOS_HOOK_ROUTER_PARAM_ZERO");
+            require(configuration.odosRouters[chainId].code.length > 0, "SWAP_ODOS_HOOK_ROUTER_NOT_DEPLOYED");
+            hooks[17] = HookDeployment(
+                SWAP_ODOSV2_HOOK_KEY,
+                abi.encodePacked(__getBytecode("SwapOdosV2Hook", env), abi.encode(configuration.odosRouters[chainId]))
+            );
+            hooks[18] = HookDeployment(
+                APPROVE_AND_SWAP_ODOSV2_HOOK_KEY,
+                abi.encodePacked(
+                    __getBytecode("ApproveAndSwapOdosV2Hook", env), abi.encode(configuration.odosRouters[chainId])
+                )
+            );
+        } else {
+            console2.log(" SKIPPED ODOS Swap Hooks deployment: Not available on chain", chainId);
+            hooks[17] = HookDeployment("", ""); // Empty deployment
+            hooks[18] = HookDeployment("", ""); // Empty deployment
+        }
 
-        // Across Bridge Hook - Validate Across Spoke Pool and Merkle Validator
-        require(configuration.acrossSpokePoolV3s[chainId] != address(0), "ACROSS_HOOK_SPOKE_POOL_PARAM_ZERO");
-        require(configuration.acrossSpokePoolV3s[chainId].code.length > 0, "ACROSS_HOOK_SPOKE_POOL_NOT_DEPLOYED");
+        // Across Bridge Hook - Only deploy if available on this chain
+        if (availability.acrossV3Adapter) {
+            require(configuration.acrossSpokePoolV3s[chainId] != address(0), "ACROSS_HOOK_SPOKE_POOL_PARAM_ZERO");
+            require(configuration.acrossSpokePoolV3s[chainId].code.length > 0, "ACROSS_HOOK_SPOKE_POOL_NOT_DEPLOYED");
 
+            address superValidator = _getContract(chainId, SUPER_VALIDATOR_KEY);
+            require(superValidator != address(0), "ACROSS_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
+            require(superValidator.code.length > 0, "ACROSS_HOOK_MERKLE_VALIDATOR_NOT_DEPLOYED");
+
+            hooks[19] = HookDeployment(
+                ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
+                abi.encodePacked(
+                    __getBytecode("AcrossSendFundsAndExecuteOnDstHook", env),
+                    abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator)
+                )
+            );
+        } else {
+            console2.log(" SKIPPED AcrossSendFundsAndExecuteOnDstHook deployment: Not available on chain", chainId);
+            hooks[19] = HookDeployment("", ""); // Empty deployment
+        }
+
+        // DeBridge hooks - Only deploy if available on this chain
         address superValidator = _getContract(chainId, SUPER_VALIDATOR_KEY);
-        require(superValidator != address(0), "ACROSS_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
-        require(superValidator.code.length > 0, "ACROSS_HOOK_MERKLE_VALIDATOR_NOT_DEPLOYED");
+        require(superValidator != address(0), "DEBRIDGE_HOOKS_MERKLE_VALIDATOR_PARAM_ZERO");
 
-        hooks[19] = HookDeployment(
-            ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
-            abi.encodePacked(
-                __getBytecode("AcrossSendFundsAndExecuteOnDstHook", env),
-                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator)
-            )
-        );
+        if (availability.deBridgeSendOrderHook) {
+            require(DEBRIDGE_DLN_SRC != address(0), "DEBRIDGE_SEND_HOOK_DLN_SRC_PARAM_ZERO");
+            hooks[20] = HookDeployment(
+                DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
+                abi.encodePacked(
+                    __getBytecode("DeBridgeSendOrderAndExecuteOnDstHook", env),
+                    abi.encode(DEBRIDGE_DLN_SRC, superValidator)
+                )
+            );
+        } else {
+            console2.log(" SKIPPED DeBridgeSendOrderAndExecuteOnDstHook deployment: Not available on chain", chainId);
+            hooks[20] = HookDeployment("", ""); // Empty deployment
+        }
 
-        // DeBridge hooks - Validate constants and Merkle Validator
-        require(DEBRIDGE_DLN_SRC != address(0), "DEBRIDGE_SEND_HOOK_DLN_SRC_PARAM_ZERO");
-        require(DEBRIDGE_DLN_DST != address(0), "DEBRIDGE_CANCEL_HOOK_DLN_DST_PARAM_ZERO");
-        require(superValidator != address(0), "DEBRIDGE_SEND_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
-
-        hooks[20] = HookDeployment(
-            DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
-            abi.encodePacked(
-                __getBytecode("DeBridgeSendOrderAndExecuteOnDstHook", env), abi.encode(DEBRIDGE_DLN_SRC, superValidator)
-            )
-        );
-        hooks[21] = HookDeployment(
-            DEBRIDGE_CANCEL_ORDER_HOOK_KEY,
-            abi.encodePacked(__getBytecode("DeBridgeCancelOrderHook", env), abi.encode(DEBRIDGE_DLN_DST))
-        );
+        if (availability.deBridgeCancelOrderHook) {
+            require(DEBRIDGE_DLN_DST != address(0), "DEBRIDGE_CANCEL_HOOK_DLN_DST_PARAM_ZERO");
+            hooks[21] = HookDeployment(
+                DEBRIDGE_CANCEL_ORDER_HOOK_KEY,
+                abi.encodePacked(__getBytecode("DeBridgeCancelOrderHook", env), abi.encode(DEBRIDGE_DLN_DST))
+            );
+        } else {
+            console2.log(" SKIPPED DeBridgeCancelOrderHook deployment: Not available on chain", chainId);
+            hooks[21] = HookDeployment("", ""); // Empty deployment
+        }
 
         // Protocol-specific hooks (no external dependencies)
         hooks[22] = HookDeployment(ETHENA_COOLDOWN_SHARES_HOOK_KEY, __getBytecode("EthenaCooldownSharesHook", env));
@@ -1284,17 +1512,23 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         );
         hooks[28] = HookDeployment(OFFRAMP_TOKENS_HOOK_KEY, __getBytecode("OfframpTokensHook", env));
         hooks[29] = HookDeployment(MARK_ROOT_AS_USED_HOOK_KEY, __getBytecode("MarkRootAsUsedHook", env));
-        hooks[30] = HookDeployment(
-            MERKL_CLAIM_REWARD_HOOK_KEY,
-            abi.encodePacked(
-                __getBytecode("MerklClaimRewardHook", env),
-                abi.encode(
-                    configuration.merklDistributors[chainId],
-                    configuration.treasury,
-                    MERKLE_CLAIM_REWARD_HOOK_FEE_PERCENT
+        // Merkl Claim Reward Hook - Only deploy if available on this chain
+        if (availability.merklClaimRewardHook) {
+            hooks[30] = HookDeployment(
+                MERKL_CLAIM_REWARD_HOOK_KEY,
+                abi.encodePacked(
+                    __getBytecode("MerklClaimRewardHook", env),
+                    abi.encode(
+                        configuration.merklDistributors[chainId],
+                        configuration.treasury,
+                        MERKLE_CLAIM_REWARD_HOOK_FEE_PERCENT
+                    )
                 )
-            )
-        );
+            );
+        } else {
+            console2.log(" SKIPPED MerklClaimRewardHook deployment: Not available on chain", chainId);
+            hooks[30] = HookDeployment("", ""); // Empty deployment
+        }
 
         // ===== CIRCLE GATEWAY HOOKS =====
         // Circle Gateway hooks - Validate gateway addresses
@@ -1319,9 +1553,17 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         );
 
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
-        console2.log("Deploying", len, "hooks with parameter validation...");
+        console2.log("Deploying hooks with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
+
+            // Skip empty deployments (hooks not available on this chain)
+            if (bytes(hook.name).length == 0) {
+                console2.log("Skipping empty hook deployment at index", i);
+                addresses[i] = address(0);
+                continue;
+            }
+
             console2.log("Deploying hook:", hook.name);
 
             addresses[i] = __deployContractIfNeeded(hook.name, chainId, __getSalt(hook.name), hook.creationCode);
@@ -1431,17 +1673,26 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hookAddresses.approveAndRequestRedeem7540VaultHook != address(0),
             "APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_NOT_ASSIGNED"
         );
-        require(hookAddresses.swap1InchHook != address(0), "SWAP_1INCH_HOOK_NOT_ASSIGNED");
-        require(hookAddresses.swapOdosHook != address(0), "SWAP_ODOS_HOOK_NOT_ASSIGNED");
-        require(hookAddresses.approveAndSwapOdosHook != address(0), "APPROVE_AND_SWAP_ODOS_HOOK_NOT_ASSIGNED");
-        require(
-            hookAddresses.acrossSendFundsAndExecuteOnDstHook != address(0),
-            "ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_NOT_ASSIGNED"
-        );
-        require(
-            hookAddresses.deBridgeSendOrderAndExecuteOnDstHook != address(0),
-            "DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_NOT_ASSIGNED"
-        );
+        // Only validate hooks that should be available on this chain
+        if (availability.swap1InchHook) {
+            require(hookAddresses.swap1InchHook != address(0), "SWAP_1INCH_HOOK_NOT_ASSIGNED");
+        }
+        if (availability.swapOdosHooks) {
+            require(hookAddresses.swapOdosHook != address(0), "SWAP_ODOS_HOOK_NOT_ASSIGNED");
+            require(hookAddresses.approveAndSwapOdosHook != address(0), "APPROVE_AND_SWAP_ODOS_HOOK_NOT_ASSIGNED");
+        }
+        if (availability.acrossV3Adapter) {
+            require(
+                hookAddresses.acrossSendFundsAndExecuteOnDstHook != address(0),
+                "ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_NOT_ASSIGNED"
+            );
+        }
+        if (availability.deBridgeSendOrderHook) {
+            require(
+                hookAddresses.deBridgeSendOrderAndExecuteOnDstHook != address(0),
+                "DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_NOT_ASSIGNED"
+            );
+        }
         require(
             hookAddresses.cancelDepositRequest7540Hook != address(0), "CANCEL_DEPOSIT_REQUEST_7540_HOOK_NOT_ASSIGNED"
         );
@@ -1460,7 +1711,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         require(hookAddresses.markRootAsUsedHook != address(0), "MARK_ROOT_AS_USED_HOOK_NOT_ASSIGNED");
 
-        require(hookAddresses.merklClaimRewardHook != address(0), "MERKL_CLAIM_REWARD_HOOK_NOT_ASSIGNED");
+        if (availability.merklClaimRewardHook) {
+            require(hookAddresses.merklClaimRewardHook != address(0), "MERKL_CLAIM_REWARD_HOOK_NOT_ASSIGNED");
+        }
         require(hookAddresses.circleGatewayWalletHook != address(0), "CIRCLE_GATEWAY_WALLET_HOOK_NOT_ASSIGNED");
         require(hookAddresses.circleGatewayMinterHook != address(0), "CIRCLE_GATEWAY_MINTER_HOOK_NOT_ASSIGNED");
         require(
