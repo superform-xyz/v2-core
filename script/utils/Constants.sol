@@ -40,6 +40,8 @@ abstract contract Constants {
     uint64 internal constant OPTIMISM_CHAIN_ID = 10;
     uint64 internal constant ARBITRUM_CHAIN_ID = 42_161;
     uint64 internal constant BNB_CHAIN_ID = 56;
+    uint64 internal constant POLYGON_CHAIN_ID = 137;
+    uint64 internal constant UNICHAIN_CHAIN_ID = 130;
     // testnets
     uint64 internal constant SEPOLIA_CHAIN_ID = 11_155_111;
     uint64 internal constant ARB_SEPOLIA_CHAIN_ID = 421_613;
@@ -55,6 +57,8 @@ abstract contract Constants {
     address internal constant ACROSS_SPOKE_POOL_OPTIMISM = 0x6f26Bf09B1C792e3228e5467807a900A503c0281;
     address internal constant ACROSS_SPOKE_POOL_ARBITRUM = 0xe35e9842fceaCA96570B734083f4a58e8F7C5f2A;
     address internal constant ACROSS_SPOKE_POOL_BNB = 0x4e8E101924eDE233C13e2D8622DC8aED2872d505;
+    address internal constant ACROSS_SPOKE_POOL_POLYGON = 0x9295ee1d8C5b022Be115A2AD3c30C72E34e7F096;
+    address internal constant ACROSS_SPOKE_POOL_UNICHAIN = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
 
     // DeBridge Gate addresses per chain
     address internal constant DEBRIDGE_DLN_SRC = 0xeF4fB24aD0916217251F553c0596F8Edc630EB66;
@@ -67,6 +71,7 @@ abstract contract Constants {
     address internal constant AGGREGATION_ROUTER_OPTIMISM = 0x111111125421cA6dc452d289314280a0f8842A65;
     address internal constant AGGREGATION_ROUTER_ARBITRUM = 0x111111125421cA6dc452d289314280a0f8842A65;
     address internal constant AGGREGATION_ROUTER_BNB = 0x111111125421cA6dc452d289314280a0f8842A65;
+    address internal constant AGGREGATION_ROUTER_POLYGON = 0x111111125421cA6dc452d289314280a0f8842A65;
 
     // Odos Router addresses per chain
     address internal constant ODOS_ROUTER_MAINNET = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
@@ -74,6 +79,8 @@ abstract contract Constants {
     address internal constant ODOS_ROUTER_OPTIMISM = 0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680;
     address internal constant ODOS_ROUTER_ARBITRUM = 0xa669e7A0d4b3e4Fa48af2dE86BD4CD7126Be4e13;
     address internal constant ODOS_ROUTER_BNB = 0x89b8AA89FDd0507a99d334CBe3C808fAFC7d850E;
+    address internal constant ODOS_ROUTER_POLYGON = 0x4E3288c9ca110bCC82bf38F09A7b425c095d92Bf;
+    address internal constant ODOS_ROUTER_UNICHAIN = 0x6409722F3a1C4486A3b1FE566cBDd5e9D946A1f3;
 
     // Merkl Distributor addresses per chain
     address internal constant MERKL_DISTRIBUTOR_MAINNET = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
@@ -81,13 +88,11 @@ abstract contract Constants {
     address internal constant MERKL_DISTRIBUTOR_OPTIMISM = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
     address internal constant MERKL_DISTRIBUTOR_ARBITRUM = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
     address internal constant MERKL_DISTRIBUTOR_BNB = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
+    address internal constant MERKL_DISTRIBUTOR_POLYGON = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
+    address internal constant MERKL_DISTRIBUTOR_UNICHAIN = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
 
     // Permit2 addresses per chain (Universal standard address)
-    address internal constant PERMIT2_MAINNET = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
-    address internal constant PERMIT2_BASE = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
-    address internal constant PERMIT2_OPTIMISM = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
-    address internal constant PERMIT2_ARBITRUM = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
-    address internal constant PERMIT2_BNB = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+    address internal constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
     // Circle Gateway addresses (Universal across all chains)
     address internal constant GATEWAY_WALLET = 0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE;

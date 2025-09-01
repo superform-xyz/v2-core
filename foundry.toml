@@ -96,4 +96,5 @@ ignore = [
     "**/test/**"
 ]
 
-
+[etherscan]
+mainnet   = { key = "${ETHERSCANV2_API_KEY_TEST}" } 
