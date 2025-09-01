@@ -46,7 +46,9 @@ remappings = [
   "forge-std/=lib/modulekit/node_modules/forge-std/src/",
   "test/mock_fiattoken/=lib/evm-gateway-contracts/test/mock_fiattoken/",
   "rhinestone/checknsignatures/=lib/safe7579/node_modules/@rhinestone/checknsignatures/",
-  "evm-gateway/=lib/evm-gateway-contracts/src/"
+  "evm-gateway/=lib/evm-gateway-contracts/src/",
+  "lib/evm-gateway-contracts:src=lib/evm-gateway-contracts/src",
+  "lib/evm-gateway-contracts:test=lib/evm-gateway-contracts/test"
 ]
 dynamic_test_linking = true
 gas_limit = "18446744073709551615"
@@ -94,4 +96,5 @@ ignore = [
     "**/test/**"
 ]
 
-
+[etherscan]
+mainnet   = { key = "${ETHERSCANV2_API_KEY_TEST}" } 

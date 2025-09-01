@@ -112,7 +112,7 @@ batch_upload_to_s3() {
         local env_folder="$environment"
         
         # Read deployed contracts from output file
-        local contracts_file="script/output/$env_folder/$network_id/$network_name-latest.json"
+        local contracts_file="$PROJECT_ROOT/script/output/$env_folder/$network_id/$network_name-latest.json"
         
         if [ ! -f "$contracts_file" ]; then
             log "ERROR" "Contract file not found: $contracts_file"
@@ -205,7 +205,27 @@ print_header
 
 # Source centralized network configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/networks.sh"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Determine which networks file to use based on environment (passed as first argument)
+ENV_ARG="${1:-staging}"
+if [[ "$ENV_ARG" == "prod" ]]; then
+    NETWORKS_FILE="$SCRIPT_DIR/networks-production.sh"
+elif [[ "$ENV_ARG" == "staging" ]]; then
+    NETWORKS_FILE="$SCRIPT_DIR/networks-staging.sh"
+else
+    echo -e "${RED}❌ Error: Invalid environment '$ENV_ARG'${NC}"
+    echo -e "${YELLOW}Expected 'staging' or 'prod'${NC}"
+    exit 1
+fi
+
+# Check if networks file exists and source it
+if [[ ! -f "$NETWORKS_FILE" ]]; then
+    echo -e "${RED}❌ Error: Networks file not found: $NETWORKS_FILE${NC}"
+    exit 1
+fi
+
+source "$NETWORKS_FILE"
 
 # Check if arguments are provided
 if [ $# -lt 1 ]; then
@@ -250,7 +270,7 @@ FOUND_DEPLOYMENTS=()
 for network_def in "${NETWORKS[@]}"; do
     IFS=':' read -r network_id network_name rpc_var verifier_var <<< "$network_def"
     
-    contracts_file="script/output/$env_folder/$network_id/$network_name-latest.json"
+    contracts_file="$PROJECT_ROOT/script/output/$env_folder/$network_id/$network_name-latest.json"
     
     if [ -f "$contracts_file" ]; then
         echo -e "${GREEN}   ✅ Found deployment: $network_name (Chain ID: $network_id)${NC}"

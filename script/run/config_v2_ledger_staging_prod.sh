@@ -69,9 +69,17 @@ check_deployment_files() {
 
 print_header
 
-# Source centralized network configuration
+# Ensure we're running from the repository root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/networks.sh"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Change to repository root if not already there
+if [ "$(pwd)" != "$REPO_ROOT" ]; then
+    echo -e "${YELLOW}📁 Changing to repository root: $REPO_ROOT${NC}"
+    cd "$REPO_ROOT"
+fi
+
+# Network configuration will be sourced after environment is determined
 
 # Check if arguments are provided
 if [ $# -lt 2 ]; then
@@ -88,12 +96,21 @@ fi
 ENVIRONMENT=$1
 MODE=$2
 
-# Validate environment
-if [ "$ENVIRONMENT" != "staging" ] && [ "$ENVIRONMENT" != "prod" ]; then
+# Validate environment and source appropriate network configuration
+if [ "$ENVIRONMENT" = "staging" ]; then
+    echo -e "${CYAN}🌐 Loading staging network configuration...${NC}"
+    source "$SCRIPT_DIR/networks-staging.sh"
+elif [ "$ENVIRONMENT" = "prod" ]; then
+    echo -e "${CYAN}🌐 Loading production network configuration...${NC}"
+    source "$SCRIPT_DIR/networks-production.sh"
+else
     echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"
     echo -e "${YELLOW}Environment must be either 'staging' or 'prod'${NC}"
     exit 1
 fi
+
+echo -e "${CYAN}✅ Network configuration loaded for $ENVIRONMENT environment${NC}"
+print_network_info
 
 # Set environment variable for forge script
 if [ "$ENVIRONMENT" = "staging" ]; then
@@ -120,9 +137,9 @@ else
 fi
 
 print_separator
-echo -e "${BLUE}🔧 Loading Configuration...${NC}f"
+echo -e "${BLUE}🔧 Loading Configuration...${NC}"
 
-# Load RPC URLs using centralized function
+# Load RPC URLs using network-specific function
 echo -e "${CYAN}   • Loading RPC URLs...${NC}"
 load_rpc_urls
 
@@ -141,7 +158,7 @@ print_separator
 # Check deployment files for each network
 echo -e "${BLUE}🔍 Validating deployment files...${NC}"
 for network_def in "${NETWORKS[@]}"; do
-    IFS=':' read -r network_id network_name _ _ <<< "$network_def"
+    IFS=':' read -r network_id network_name _ <<< "$network_def"
     check_deployment_files "$ENVIRONMENT" "$network_name" "$network_id"
 done
 echo -e "${GREEN}✅ All deployment files validated${NC}"
@@ -149,7 +166,7 @@ print_separator
 
 # Configure SuperLedger on each network
 for network_def in "${NETWORKS[@]}"; do
-    IFS=':' read -r network_id network_name _ _ <<< "$network_def"
+    IFS=':' read -r network_id network_name _ <<< "$network_def"
     
     print_network_header "${network_name^^} MAINNET"
     echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
@@ -187,7 +204,7 @@ echo -e "${GREEN}╚════════════════════
 
 echo -e "${CYAN}🔧 SuperLedger configurations have been completed for:${NC}"
 for network_def in "${NETWORKS[@]}"; do
-    IFS=':' read -r network_id network_name _ _ <<< "$network_def"
+    IFS=':' read -r network_id network_name _ <<< "$network_def"
     echo -e "${CYAN}   • $network_name Mainnet (Chain ID: $network_id)${NC}"
 done
 echo -e "${CYAN}🏛️ All transactions signed via Fireblocks MPC wallet${NC}"

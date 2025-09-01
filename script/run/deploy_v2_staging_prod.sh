@@ -190,28 +190,29 @@ analyze_deployment_status() {
         return 2
     fi
     
-    echo -e "${CYAN}Expected total contracts per network (from regenerate_bytecode.sh): ${WHITE}$total_expected${NC}"
-    echo -e "${CYAN}  • Core contracts: ${WHITE}$(sed -n "/CORE_CONTRACTS=(/,/^)/p" "$SCRIPT_DIR/regenerate_bytecode.sh" | grep -o '"[^"]*"' | wc -l)${NC}"
-    echo -e "${CYAN}  • Hook contracts: ${WHITE}$(sed -n "/HOOK_CONTRACTS=(/,/^)/p" "$SCRIPT_DIR/regenerate_bytecode.sh" | grep -o '"[^"]*"' | wc -l)${NC}"
-    echo -e "${CYAN}  • Oracle contracts: ${WHITE}$(sed -n "/ORACLE_CONTRACTS=(/,/^)/p" "$SCRIPT_DIR/regenerate_bytecode.sh" | grep -o '"[^"]*"' | wc -l)${NC}"
+    echo -e "${CYAN}Expected contracts vary per network based on available configurations${NC}"
+    echo -e "${CYAN}  • Core contracts: ${WHITE}10 (always deployed)${NC}"
+    echo -e "${CYAN}  • Adapters: ${WHITE}0-2 (depends on bridge support)${NC}"
+    echo -e "${CYAN}  • Hooks: ${WHITE}27-32 (depends on router/protocol support)${NC}"
+    echo -e "${CYAN}  • Oracles: ${WHITE}7 (always deployed)${NC}"
     echo ""
     
-    # Analyze each network against the expected total from regenerate_bytecode.sh
+    # Analyze each network using their actual expected total (not regenerate_bytecode.sh)
     for network_id in "${!NETWORK_DEPLOYMENT_STATUS[@]}"; do
-        IFS=':' read -r deployed detected_total network_name <<< "${NETWORK_DEPLOYMENT_STATUS[$network_id]}"
+        IFS=':' read -r deployed actual_expected network_name <<< "${NETWORK_DEPLOYMENT_STATUS[$network_id]}"
         
-        # Use the expected total from regenerate_bytecode.sh, not the detected total
-        if [[ $deployed -eq $total_expected ]]; then
-            echo -e "${GREEN}✅ $network_name (Chain $network_id): All $deployed/$total_expected contracts deployed${NC}"
-        elif [[ $deployed -lt $total_expected ]]; then
-            local missing=$((total_expected - deployed))
-            echo -e "${YELLOW}⚠️  $network_name (Chain $network_id): $deployed/$total_expected contracts deployed (${missing} missing)${NC}"
+        # Use the actual expected total reported by the checking script
+        if [[ $deployed -eq $actual_expected ]]; then
+            echo -e "${GREEN}✅ $network_name (Chain $network_id): All $deployed/$actual_expected contracts deployed${NC}"
+        elif [[ $deployed -lt $actual_expected ]]; then
+            local missing=$((actual_expected - deployed))
+            echo -e "${YELLOW}⚠️  $network_name (Chain $network_id): $deployed/$actual_expected contracts deployed (${missing} missing)${NC}"
             all_fully_deployed=false
             needs_deployment=true
             networks_with_missing+=("$network_name")
-        elif [[ $deployed -gt $total_expected ]]; then
-            echo -e "${CYAN}ℹ️  $network_name (Chain $network_id): $deployed/$total_expected contracts deployed (${deployed} > expected ${total_expected})${NC}"
-            echo -e "${CYAN}    Note: More contracts deployed than expected - this may include additional contracts${NC}"
+        elif [[ $deployed -gt $actual_expected ]]; then
+            echo -e "${CYAN}ℹ️  $network_name (Chain $network_id): $deployed/$actual_expected contracts deployed (more than expected)${NC}"
+            echo -e "${CYAN}    Note: This may include additional contracts not tracked by availability analysis${NC}"
         else
             echo -e "${RED}❌ $network_name (Chain $network_id): Error in deployment status${NC}"
             all_fully_deployed=false
@@ -221,25 +222,25 @@ analyze_deployment_status() {
     echo ""
     
     # Determine action based on analysis
-    if [[ $all_fully_deployed == true && $total_expected -gt 0 ]]; then
+    if [[ $all_fully_deployed == true ]]; then
         echo -e "${GREEN}🎉 EXCELLENT! All contracts are already deployed on all networks!${NC}"
-        echo -e "${GREEN}   Expected: $total_expected contracts (from regenerate_bytecode.sh)${NC}"
-        echo -e "${GREEN}   Status: Fully deployed across all chains${NC}"
+        echo -e "${GREEN}   Status: Fully deployed across all chains (contracts vary per chain based on configurations)${NC}"
         echo -e "${GREEN}   No deployment needed - terminating with success${NC}"
         return 0  # All deployed - skip deployment
     elif [[ $needs_deployment == true ]]; then
         echo -e "${YELLOW}📋 DEPLOYMENT REQUIRED${NC}"
-        echo -e "${CYAN}   Expected total per network: $total_expected contracts (from regenerate_bytecode.sh)${NC}"
+        echo -e "${CYAN}   Expected contracts vary per network based on available configurations${NC}"
         echo -e "${CYAN}   The following networks have missing contracts:${NC}"
         for network in "${networks_with_missing[@]}"; do
             echo -e "${CYAN}   • $network${NC}"
         done
         echo ""
         echo -e "${WHITE}   Only missing contracts will be deployed (existing ones will be skipped)${NC}"
+        echo -e "${WHITE}   Contracts not available due to missing configurations will be automatically skipped${NC}"
         return 1  # Needs deployment - continue with confirmation
     else
         echo -e "${RED}❌ Unable to determine deployment status${NC}"
-        echo -e "${RED}   Expected: $total_expected contracts (from regenerate_bytecode.sh)${NC}"
+        echo -e "${RED}   Please check the output above for specific network issues${NC}"
         return 2  # Error state
     fi
 }
@@ -249,17 +250,36 @@ check_v2_addresses() {
     local network_id=$1
     local network_name=$2
     local rpc_url_var=$3
-    local verifier_url_var=$4
     
     echo -e "${CYAN}Checking V2 Core addresses for $network_name (Chain ID: $network_id)...${NC}"
     
+    # Check if RPC URL is set
+    if [[ -z "${!rpc_url_var}" ]]; then
+        echo -e "${RED}  ❌ ERROR: RPC URL variable $rpc_url_var is not set or empty${NC}"
+        echo -e "${RED}     This indicates a configuration problem with network credentials${NC}"
+        return 1
+    fi
+        
     # Capture the full output to parse deployment status
     local check_output
+    local forge_exit_code
+    
+    # Run forge script and capture both output and exit code
     check_output=$(forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(bool,uint256,uint64)' true $FORGE_ENV $network_id \
         --rpc-url ${!rpc_url_var} \
         --chain $network_id \
         -vv 2>&1)
+    forge_exit_code=$?
+    
+    # Check if forge command failed
+    if [[ $forge_exit_code -ne 0 ]]; then
+        echo -e "${RED}  ❌ ERROR: Forge script failed with exit code $forge_exit_code${NC}"
+        echo -e "${RED}     This likely indicates RPC connectivity issues or network problems${NC}"
+        echo -e "${YELLOW}  📋 Forge output (last 10 lines):${NC}"
+        echo "$check_output" | tail -10 | sed 's/^/     /'
+        return 1
+    fi
     
     # Display the relevant output lines
     echo "$check_output" | grep -e "Addr" -e "already deployed" -e "Code Size" -e "====" -e "====>"
@@ -268,28 +288,56 @@ check_v2_addresses() {
     local summary_line
     summary_line=$(echo "$check_output" | grep "=====> On this chain we have")
     
+    # Also extract contract availability information
+    local availability_info
+    availability_info=$(echo "$check_output" | grep -A5 "=== Contract Availability Analysis ===" || true)
+    
+    if [[ -n "$availability_info" ]]; then
+        echo -e "${CYAN}  📊 Contract Availability Analysis:${NC}"
+        echo "$availability_info" | sed 's/^/     /'
+        
+        # Check for skipped contracts
+        local skipped_info
+        skipped_info=$(echo "$check_output" | grep -A10 "=== Contracts SKIPPED due to missing configurations ===" || true)
+        if [[ -n "$skipped_info" ]]; then
+            echo -e "${YELLOW}  ⚠️  Skipped Contracts:${NC}"
+            echo "$skipped_info" | sed 's/^/     /'
+        fi
+        echo ""
+    fi
+    
     if [[ -n "$summary_line" ]]; then
         # Parse: "=====> On this chain we have X contracts already deployed out of Y"
         local deployed_count=$(echo "$summary_line" | grep -o "have [0-9]\+ contracts" | grep -o "[0-9]\+")
         local total_count=$(echo "$summary_line" | grep -o "out of [0-9]\+" | grep -o "[0-9]\+")
         
-        # Store deployment status for this network
-        NETWORK_DEPLOYMENT_STATUS["${network_id}"]="${deployed_count}:${total_count}:${network_name}"
-        
-        echo -e "${YELLOW}  📊 Status: ${deployed_count}/${total_count} contracts deployed${NC}"
+        if [[ -n "$deployed_count" && -n "$total_count" ]]; then
+            # Store deployment status for this network
+            NETWORK_DEPLOYMENT_STATUS["${network_id}"]="${deployed_count}:${total_count}:${network_name}"
+            echo -e "${GREEN}  ✅ Successfully checked: ${deployed_count}/${total_count} contracts deployed${NC}"
+            return 0
+        else
+            echo -e "${RED}  ❌ ERROR: Could not parse deployment counts from summary line${NC}"
+            echo -e "${YELLOW}     Summary line: $summary_line${NC}"
+            return 1
+        fi
     else
-        echo -e "${RED}  ❌ Could not parse deployment status${NC}"
-        NETWORK_DEPLOYMENT_STATUS["${network_id}"]="0:0:${network_name}"
+        echo -e "${RED}  ❌ ERROR: Could not find deployment summary in forge output${NC}"
+        echo -e "${RED}     This indicates the forge script didn't complete successfully${NC}"
+        echo -e "${YELLOW}  📋 Full forge output:${NC}"
+        echo "$check_output" | sed 's/^/     /'
+        return 1
     fi
 }
 
 print_header
 
-# Source centralized network configuration
+# Script directory and project root setup
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Find project root (go up from script/run/ to project root)
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-source "$SCRIPT_DIR/networks.sh"
+
+# Network configuration will be sourced after environment is determined
 
 # Check if arguments are provided
 if [ $# -lt 3 ]; then
@@ -309,12 +357,21 @@ ENVIRONMENT=$1
 MODE=$2
 ACCOUNT=$3
 
-# Validate environment
-if [ "$ENVIRONMENT" != "staging" ] && [ "$ENVIRONMENT" != "prod" ]; then
+# Validate environment and source appropriate network configuration
+if [ "$ENVIRONMENT" = "staging" ]; then
+    echo -e "${CYAN}🌐 Loading staging network configuration...${NC}"
+    source "$SCRIPT_DIR/networks-staging.sh"
+elif [ "$ENVIRONMENT" = "prod" ]; then
+    echo -e "${CYAN}🌐 Loading production network configuration...${NC}"
+    source "$SCRIPT_DIR/networks-production.sh"
+else
     echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"
     echo -e "${YELLOW}Environment must be either 'staging' or 'prod'${NC}"
     exit 1
 fi
+
+echo -e "${CYAN}✅ Network configuration loaded for $ENVIRONMENT environment${NC}"
+print_network_info
 
 # Validate account exists in foundry wallet list
 if ! cast wallet list 2>/dev/null | sed 's/ (Local)//' | grep -q "^$ACCOUNT$"; then
@@ -334,7 +391,7 @@ if [ "$MODE" = "simulate" ]; then
 elif [ "$MODE" = "deploy" ]; then
     echo -e "${GREEN}🚀 Running in deployment mode for $ENVIRONMENT...${NC}"
     echo -e "${CYAN}   - Broadcasting to network${NC}"
-    echo -e "${CYAN}   - Tenderly private verification enabled${NC}"
+    echo -e "${CYAN}   - Tenderly public verification enabled${NC}"
     BROADCAST_FLAG="--broadcast"
     VERIFY_FLAG="--verify"
 else
@@ -346,25 +403,29 @@ fi
 print_separator
 echo -e "${BLUE}🔧 Loading Configuration...${NC}"
 
-# Load RPC URLs using centralized function
+# Load RPC URLs using network-specific function
 echo -e "${CYAN}   • Loading RPC URLs...${NC}"
-load_rpc_urls
+if ! load_rpc_urls; then
+    echo -e "${RED}❌ Failed to load some RPC URLs from credential manager${NC}"
+    echo -e "${YELLOW}⚠️  This may cause connectivity issues during deployment verification${NC}"
+    echo -e "${YELLOW}   Please ensure all required RPC URLs are configured in 1Password${NC}"
+    # Continue but with warning - the address checking phase will catch specific failures
+fi
 
-# Tenderly configuration for verification
-echo -e "${CYAN}   • Loading Tenderly credentials...${NC}"
-export TENDERLY_ACCESS_TOKEN=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY_V2/credential)
-export TENDERLY_ACCOUNT="superform"
-export TENDERLY_PROJECT="v2"
+# Load Etherscan V2 API key for verification
+echo -e "${CYAN}   • Loading Etherscan V2 API credentials...${NC}"
+if ! load_etherscan_api_key; then
+    echo -e "${RED}❌ Failed to load Etherscan V2 API key${NC}"
+    echo -e "${RED}   Contract verification will not work without this credential${NC}"
+    exit 1
+fi
 
-# Load Tenderly verification URLs using centralized function
-echo -e "${CYAN}   • Setting up Tenderly verification URLs...${NC}"
-load_tenderly_urls
-
-# Create output directories
-mkdir -p "$PROJECT_ROOT/script/output/$ENVIRONMENT/1"
-mkdir -p "$PROJECT_ROOT/script/output/$ENVIRONMENT/8453"
-mkdir -p "$PROJECT_ROOT/script/output/$ENVIRONMENT/56"
-mkdir -p "$PROJECT_ROOT/script/output/$ENVIRONMENT/42161"
+# Create output directories for all networks in current environment
+for network_def in "${NETWORKS[@]}"; do
+    IFS=':' read -r network_id _ _ <<< "$network_def"
+    mkdir -p "$PROJECT_ROOT/script/output/$ENVIRONMENT/$network_id"
+done
+echo -e "${CYAN}   • Created output directories for all networks${NC}"
 
 # Deployment parameters
 if [ "$ENVIRONMENT" = "staging" ]; then
@@ -378,7 +439,7 @@ elif [ "$ENVIRONMENT" = "prod" ]; then
 fi 
 
 echo -e "${GREEN}✅ Configuration loaded successfully${NC}"
-echo -e "${CYAN}   • Using Tenderly private verification mode${NC}"
+echo -e "${CYAN}   • Using Etherscan V2 verification${NC}"
 echo -e "${CYAN}   • Environment: $ENVIRONMENT${NC}"
 echo -e "${CYAN}   • Account: $ACCOUNT${NC}"
 
@@ -405,12 +466,62 @@ echo -e "${BLUE}🔍 Checking V2 Core contract addresses...${NC}"
 echo -e "${CYAN}This will show you which contracts are already deployed and which need to be deployed.${NC}"
 echo ""
 
-# Check addresses on all networks using centralized configuration
+# Track networks with errors
+declare -a FAILED_NETWORKS=()
+declare -a SUCCESSFUL_NETWORKS=()
+
+# Check addresses on all networks using current configuration
 for network_def in "${NETWORKS[@]}"; do
-    IFS=':' read -r network_id network_name rpc_var verifier_var <<< "$network_def"
-    check_v2_addresses "$network_id" "$network_name" "$rpc_var" "$verifier_var"
+    IFS=':' read -r network_id network_name rpc_var <<< "$network_def"
+    
+    if check_v2_addresses "$network_id" "$network_name" "$rpc_var"; then
+        SUCCESSFUL_NETWORKS+=("$network_name (Chain $network_id)")
+    else
+        FAILED_NETWORKS+=("$network_name (Chain $network_id)")
+        echo -e "${RED}  ⚠️  Failed to check deployment status for $network_name${NC}"
+    fi
     echo ""
 done
+
+# Check if any networks failed
+if [[ ${#FAILED_NETWORKS[@]} -gt 0 ]]; then
+    echo -e "${RED}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║                                                                                      ║${NC}"
+    echo -e "${RED}║${WHITE}                    ❌ NETWORK CONNECTIVITY ERRORS DETECTED ❌                    ${RED}║${NC}"
+    echo -e "${RED}║                                                                                      ║${NC}"
+    echo -e "${RED}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${RED}🚨 CRITICAL ERROR: Unable to check deployment status on the following networks:${NC}"
+    for failed_network in "${FAILED_NETWORKS[@]}"; do
+        echo -e "${RED}   ❌ $failed_network${NC}"
+    done
+    echo ""
+    echo -e "${YELLOW}📋 Possible causes:${NC}"
+    echo -e "${YELLOW}   • RPC URL credentials not configured in 1Password${NC}"
+    echo -e "${YELLOW}   • Network RPC endpoints are down or unreachable${NC}"
+    echo -e "${YELLOW}   • Firewall or network connectivity issues${NC}"
+    echo -e "${YELLOW}   • Invalid or expired RPC API keys${NC}"
+    echo ""
+    echo -e "${YELLOW}🔧 Recommended actions:${NC}"
+    echo -e "${YELLOW}   1. Verify RPC URLs are configured in 1Password vault${NC}"
+    echo -e "${YELLOW}   2. Test RPC connectivity manually: curl -X POST <RPC_URL> -H 'Content-Type: application/json' -d '{\"method\":\"eth_chainId\",\"params\":[],\"id\":1,\"jsonrpc\":\"2.0\"}'${NC}"
+    echo -e "${YELLOW}   3. Check if the networks are supported in your environment${NC}"
+    echo ""
+    
+    if [[ ${#SUCCESSFUL_NETWORKS[@]} -gt 0 ]]; then
+        echo -e "${GREEN}✅ Successfully checked networks:${NC}"
+        for successful_network in "${SUCCESSFUL_NETWORKS[@]}"; do
+            echo -e "${GREEN}   ✓ $successful_network${NC}"
+        done
+        echo ""
+    fi
+    
+    echo -e "${RED}🛑 DEPLOYMENT ABORTED: Cannot proceed without verifying current deployment status${NC}"
+    echo -e "${RED}   Please resolve the network connectivity issues before attempting deployment.${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Successfully checked all networks for deployment status${NC}"
 
 print_separator
 
@@ -457,24 +568,23 @@ deployed_networks=0
 skipped_networks=0
 
 for network_def in "${NETWORKS[@]}"; do
-    IFS=':' read -r network_id network_name rpc_var verifier_var <<< "$network_def"
+    IFS=':' read -r network_id network_name rpc_var <<< "$network_def"
     
     # Check deployment status for this network
     if [[ -n "${NETWORK_DEPLOYMENT_STATUS[$network_id]}" ]]; then
         IFS=':' read -r deployed total_expected network_status_name <<< "${NETWORK_DEPLOYMENT_STATUS[$network_id]}"
         
-        # Get expected total from regenerate_bytecode.sh
-        script_expected=$(get_expected_contract_count)
+        # Use the actual expected count from the checking script
         
         # Skip if all contracts are already deployed
-        if [[ $deployed -eq $script_expected ]]; then
-            echo -e "${GREEN}⏭️  Skipping ${network_name^^} MAINNET - All $deployed/$script_expected contracts already deployed${NC}"
+        if [[ $deployed -eq $total_expected ]]; then
+            echo -e "${GREEN}⏭️  Skipping ${network_name^^} MAINNET - All $deployed/$total_expected contracts already deployed${NC}"
             ((skipped_networks++))
             continue
         fi
         
         # Deploy to networks with missing contracts
-        echo -e "${YELLOW}🚀 Deploying to ${network_name^^} MAINNET - $deployed/$script_expected contracts deployed ($(($script_expected - $deployed)) missing)${NC}"
+        echo -e "${YELLOW}🚀 Deploying to ${network_name^^} MAINNET - $deployed/$total_expected contracts deployed ($(($total_expected - $deployed)) missing)${NC}"
     else
         echo -e "${YELLOW}🚀 Deploying to ${network_name^^} MAINNET - No previous deployment status found${NC}"
     fi
@@ -484,7 +594,7 @@ for network_def in "${NETWORKS[@]}"; do
     echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
     echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
     echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-    echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
+    echo -e "${CYAN}   Verification: ${WHITE}Etherscan V2${NC}"
     echo -e "${YELLOW}   Executing forge script...${NC}"
     
     forge script script/DeployV2Core.s.sol:DeployV2Core \
@@ -492,11 +602,12 @@ for network_def in "${NETWORKS[@]}"; do
         --account $ACCOUNT \
         --rpc-url ${!rpc_var} \
         --chain $network_id \
-        --etherscan-api-key $TENDERLY_ACCESS_TOKEN \
-        --verifier-url ${!verifier_var} \
+        --etherscan-api-key $ETHERSCANV2_API_KEY_TEST \
+        --verifier etherscan \
         $BROADCAST_FLAG \
         $VERIFY_FLAG \
-        --slow \
+        --timeout 300 \
+        --resume \
         -vv
     
     echo -e "${GREEN}✅ $network_name Mainnet deployment completed successfully!${NC}"
