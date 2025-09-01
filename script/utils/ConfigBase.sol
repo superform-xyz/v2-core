@@ -62,6 +62,7 @@ abstract contract ConfigBase is Constants {
         chainNames[OPTIMISM_CHAIN_ID] = OPTIMISM_KEY;
         chainNames[ARBITRUM_CHAIN_ID] = ARBITRUM_KEY;
         chainNames[BNB_CHAIN_ID] = BNB_KEY;
+        chainNames[AVALANCHE_CHAIN_ID] = AVALANCHE_KEY;
 
         // ===== COMMON CONFIGURATION =====
         if (env_ == 0 || env_ == 2) {

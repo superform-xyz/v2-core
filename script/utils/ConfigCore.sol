@@ -21,6 +21,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.acrossSpokePoolV3s[ARBITRUM_CHAIN_ID] = ACROSS_SPOKE_POOL_ARBITRUM;
         configuration.acrossSpokePoolV3s[BNB_CHAIN_ID] = ACROSS_SPOKE_POOL_BNB;
         configuration.acrossSpokePoolV3s[POLYGON_CHAIN_ID] = ACROSS_SPOKE_POOL_POLYGON;
+        configuration.acrossSpokePoolV3s[AVALANCHE_CHAIN_ID] = address(0); // Across not available on Avalanche
         configuration.acrossSpokePoolV3s[UNICHAIN_CHAIN_ID] = ACROSS_SPOKE_POOL_UNICHAIN;
 
         // ===== DEBRIDGE DLN DESTINATION ADDRESSES =====
@@ -30,6 +31,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.debridgeDstDln[ARBITRUM_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[BNB_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[POLYGON_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[AVALANCHE_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[UNICHAIN_CHAIN_ID] = address(0);
 
         // ===== PERMIT2 ADDRESSES =====
@@ -39,6 +41,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.permit2s[ARBITRUM_CHAIN_ID] = PERMIT2;
         configuration.permit2s[BNB_CHAIN_ID] = PERMIT2;
         configuration.permit2s[POLYGON_CHAIN_ID] = PERMIT2;
+        configuration.permit2s[AVALANCHE_CHAIN_ID] = PERMIT2;
         configuration.permit2s[UNICHAIN_CHAIN_ID] = PERMIT2;
 
         // ===== MERKL DISTRIBUTOR ADDRESSES =====
@@ -48,6 +51,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.merklDistributors[ARBITRUM_CHAIN_ID] = MERKL_DISTRIBUTOR_ARBITRUM;
         configuration.merklDistributors[BNB_CHAIN_ID] = MERKL_DISTRIBUTOR_BNB;
         configuration.merklDistributors[POLYGON_CHAIN_ID] = MERKL_DISTRIBUTOR_POLYGON;
+        configuration.merklDistributors[AVALANCHE_CHAIN_ID] = MERKL_DISTRIBUTOR_AVALANCHE;
         configuration.merklDistributors[UNICHAIN_CHAIN_ID] = MERKL_DISTRIBUTOR_UNICHAIN;
 
         // ===== CRITICAL ROUTER ADDRESSES FOR CORE HOOKS =====
@@ -58,6 +62,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.aggregationRouters[ARBITRUM_CHAIN_ID] = AGGREGATION_ROUTER_ARBITRUM;
         configuration.aggregationRouters[BNB_CHAIN_ID] = AGGREGATION_ROUTER_BNB;
         configuration.aggregationRouters[POLYGON_CHAIN_ID] = AGGREGATION_ROUTER_POLYGON;
+        configuration.aggregationRouters[AVALANCHE_CHAIN_ID] = AGGREGATION_ROUTER_AVALANCHE;
         configuration.aggregationRouters[UNICHAIN_CHAIN_ID] = address(0);
 
         configuration.odosRouters[MAINNET_CHAIN_ID] = ODOS_ROUTER_MAINNET;
@@ -66,6 +71,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.odosRouters[ARBITRUM_CHAIN_ID] = ODOS_ROUTER_ARBITRUM;
         configuration.odosRouters[BNB_CHAIN_ID] = ODOS_ROUTER_BNB;
         configuration.odosRouters[POLYGON_CHAIN_ID] = ODOS_ROUTER_POLYGON;
+        configuration.odosRouters[AVALANCHE_CHAIN_ID] = ODOS_ROUTER_AVALANCHE;
         configuration.odosRouters[UNICHAIN_CHAIN_ID] = ODOS_ROUTER_UNICHAIN;
     }
 }

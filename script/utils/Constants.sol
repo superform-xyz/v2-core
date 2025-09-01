@@ -10,6 +10,7 @@ abstract contract Constants {
     string internal constant OPTIMISM_KEY = "Optimism";
     string internal constant ARBITRUM_KEY = "Arbitrum";
     string internal constant BNB_KEY = "BNB";
+    string internal constant AVALANCHE_KEY = "Avalanche";
     string internal constant SEPOLIA_KEY = "Sepolia";
     string internal constant ARB_SEPOLIA_KEY = "Arbitrum_Sepolia";
     string internal constant BASE_SEPOLIA_KEY = "Base_Sepolia";
@@ -41,6 +42,7 @@ abstract contract Constants {
     uint64 internal constant ARBITRUM_CHAIN_ID = 42_161;
     uint64 internal constant BNB_CHAIN_ID = 56;
     uint64 internal constant POLYGON_CHAIN_ID = 137;
+    uint64 internal constant AVALANCHE_CHAIN_ID = 43_114;
     uint64 internal constant UNICHAIN_CHAIN_ID = 130;
     // testnets
     uint64 internal constant SEPOLIA_CHAIN_ID = 11_155_111;
@@ -72,6 +74,7 @@ abstract contract Constants {
     address internal constant AGGREGATION_ROUTER_ARBITRUM = 0x111111125421cA6dc452d289314280a0f8842A65;
     address internal constant AGGREGATION_ROUTER_BNB = 0x111111125421cA6dc452d289314280a0f8842A65;
     address internal constant AGGREGATION_ROUTER_POLYGON = 0x111111125421cA6dc452d289314280a0f8842A65;
+    address internal constant AGGREGATION_ROUTER_AVALANCHE = 0x111111125421cA6dc452d289314280a0f8842A65;
 
     // Odos Router addresses per chain
     address internal constant ODOS_ROUTER_MAINNET = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
@@ -80,6 +83,7 @@ abstract contract Constants {
     address internal constant ODOS_ROUTER_ARBITRUM = 0xa669e7A0d4b3e4Fa48af2dE86BD4CD7126Be4e13;
     address internal constant ODOS_ROUTER_BNB = 0x89b8AA89FDd0507a99d334CBe3C808fAFC7d850E;
     address internal constant ODOS_ROUTER_POLYGON = 0x4E3288c9ca110bCC82bf38F09A7b425c095d92Bf;
+    address internal constant ODOS_ROUTER_AVALANCHE = 0x88de50B233052e4Fb783d4F6db78Cc34fEa3e9FC;
     address internal constant ODOS_ROUTER_UNICHAIN = 0x6409722F3a1C4486A3b1FE566cBDd5e9D946A1f3;
 
     // Merkl Distributor addresses per chain
@@ -89,6 +93,7 @@ abstract contract Constants {
     address internal constant MERKL_DISTRIBUTOR_ARBITRUM = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
     address internal constant MERKL_DISTRIBUTOR_BNB = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
     address internal constant MERKL_DISTRIBUTOR_POLYGON = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
+    address internal constant MERKL_DISTRIBUTOR_AVALANCHE = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
     address internal constant MERKL_DISTRIBUTOR_UNICHAIN = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
 
     // Permit2 addresses per chain (Universal standard address)
