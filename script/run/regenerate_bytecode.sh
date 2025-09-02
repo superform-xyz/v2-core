@@ -84,7 +84,6 @@ HOOK_CONTRACTS=(
     "Redeem5115VaultHook"
     "RequestDeposit7540VaultHook"
     "ApproveAndRequestDeposit7540VaultHook"
-    "ApproveAndRequestRedeem7540VaultHook"
     "Redeem7540VaultHook"
     "RequestRedeem7540VaultHook"
     "Deposit7540VaultHook"

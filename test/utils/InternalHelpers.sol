@@ -523,19 +523,6 @@ abstract contract InternalHelpers is Test {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
 
-    function _createApproveAndRequestRedeem7540VaultHookData(
-        bytes32 yieldSourceOracleId,
-        address yieldSource,
-        uint256 shares,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, shares, usePrevHookAmount);
-    }
-
     function _createDeposit5115VaultHookData(
         bytes32 yieldSourceOracleId,
         address yieldSource,
