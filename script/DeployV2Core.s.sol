@@ -44,7 +44,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address deposit7540VaultHook;
         address requestDeposit7540VaultHook;
         address approveAndRequestDeposit7540VaultHook;
-        address approveAndRequestRedeem7540VaultHook;
         address redeem7540VaultHook;
         address requestRedeem7540VaultHook;
         address acrossSendFundsAndExecuteOnDstHook;
@@ -508,12 +507,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         __checkContract(
             APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY,
             __getSalt(APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY),
-            "",
-            env
-        );
-        __checkContract(
-            APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY,
-            __getSalt(APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY),
             "",
             env
         );
@@ -1368,7 +1361,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId);
 
-        uint256 len = 35;
+        uint256 len = 34;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -1403,12 +1396,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hooks[11] = HookDeployment(
             APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, __getBytecode("ApproveAndRequestDeposit7540VaultHook", env)
         );
-        hooks[12] = HookDeployment(
-            APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY, __getBytecode("ApproveAndRequestRedeem7540VaultHook", env)
-        );
-        hooks[13] = HookDeployment(REDEEM_7540_VAULT_HOOK_KEY, __getBytecode("Redeem7540VaultHook", env));
-        hooks[14] = HookDeployment(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, __getBytecode("RequestRedeem7540VaultHook", env));
-        hooks[15] = HookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, __getBytecode("Deposit7540VaultHook", env));
+        hooks[12] = HookDeployment(REDEEM_7540_VAULT_HOOK_KEY, __getBytecode("Redeem7540VaultHook", env));
+        hooks[13] = HookDeployment(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, __getBytecode("RequestRedeem7540VaultHook", env));
+        hooks[14] = HookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, __getBytecode("Deposit7540VaultHook", env));
 
         // ===== HOOKS WITH EXTERNAL ROUTER DEPENDENCIES =====
 
@@ -1416,7 +1406,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         if (availability.swap1InchHook) {
             require(configuration.aggregationRouters[chainId] != address(0), "SWAP_1INCH_HOOK_ROUTER_PARAM_ZERO");
             require(configuration.aggregationRouters[chainId].code.length > 0, "SWAP_1INCH_HOOK_ROUTER_NOT_DEPLOYED");
-            hooks[16] = HookDeployment(
+            hooks[15] = HookDeployment(
                 SWAP_1INCH_HOOK_KEY,
                 abi.encodePacked(
                     __getBytecode("Swap1InchHook", env), abi.encode(configuration.aggregationRouters[chainId])
@@ -1424,18 +1414,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log(" SKIPPED Swap1InchHook deployment: Not available on chain", chainId);
-            hooks[16] = HookDeployment("", ""); // Empty deployment
+            hooks[15] = HookDeployment("", ""); // Empty deployment
         }
 
         // ODOS Swap Hooks - Only deploy if available on this chain
         if (availability.swapOdosHooks) {
             require(configuration.odosRouters[chainId] != address(0), "SWAP_ODOS_HOOK_ROUTER_PARAM_ZERO");
             require(configuration.odosRouters[chainId].code.length > 0, "SWAP_ODOS_HOOK_ROUTER_NOT_DEPLOYED");
-            hooks[17] = HookDeployment(
+            hooks[16] = HookDeployment(
                 SWAP_ODOSV2_HOOK_KEY,
                 abi.encodePacked(__getBytecode("SwapOdosV2Hook", env), abi.encode(configuration.odosRouters[chainId]))
             );
-            hooks[18] = HookDeployment(
+            hooks[17] = HookDeployment(
                 APPROVE_AND_SWAP_ODOSV2_HOOK_KEY,
                 abi.encodePacked(
                     __getBytecode("ApproveAndSwapOdosV2Hook", env), abi.encode(configuration.odosRouters[chainId])
@@ -1443,8 +1433,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log(" SKIPPED ODOS Swap Hooks deployment: Not available on chain", chainId);
+            hooks[16] = HookDeployment("", ""); // Empty deployment
             hooks[17] = HookDeployment("", ""); // Empty deployment
-            hooks[18] = HookDeployment("", ""); // Empty deployment
         }
 
         // Across Bridge Hook - Only deploy if available on this chain
@@ -1456,7 +1446,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             require(superValidator != address(0), "ACROSS_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
             require(superValidator.code.length > 0, "ACROSS_HOOK_MERKLE_VALIDATOR_NOT_DEPLOYED");
 
-            hooks[19] = HookDeployment(
+            hooks[18] = HookDeployment(
                 ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
                 abi.encodePacked(
                     __getBytecode("AcrossSendFundsAndExecuteOnDstHook", env),
@@ -1465,7 +1455,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log(" SKIPPED AcrossSendFundsAndExecuteOnDstHook deployment: Not available on chain", chainId);
-            hooks[19] = HookDeployment("", ""); // Empty deployment
+            hooks[18] = HookDeployment("", ""); // Empty deployment
         }
 
         // DeBridge hooks - Only deploy if available on this chain
@@ -1474,7 +1464,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         if (availability.deBridgeSendOrderHook) {
             require(DEBRIDGE_DLN_SRC != address(0), "DEBRIDGE_SEND_HOOK_DLN_SRC_PARAM_ZERO");
-            hooks[20] = HookDeployment(
+            hooks[19] = HookDeployment(
                 DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
                 abi.encodePacked(
                     __getBytecode("DeBridgeSendOrderAndExecuteOnDstHook", env),
@@ -1483,38 +1473,38 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log(" SKIPPED DeBridgeSendOrderAndExecuteOnDstHook deployment: Not available on chain", chainId);
-            hooks[20] = HookDeployment("", ""); // Empty deployment
+            hooks[19] = HookDeployment("", ""); // Empty deployment
         }
 
         if (availability.deBridgeCancelOrderHook) {
             require(DEBRIDGE_DLN_DST != address(0), "DEBRIDGE_CANCEL_HOOK_DLN_DST_PARAM_ZERO");
-            hooks[21] = HookDeployment(
+            hooks[20] = HookDeployment(
                 DEBRIDGE_CANCEL_ORDER_HOOK_KEY,
                 abi.encodePacked(__getBytecode("DeBridgeCancelOrderHook", env), abi.encode(DEBRIDGE_DLN_DST))
             );
         } else {
             console2.log(" SKIPPED DeBridgeCancelOrderHook deployment: Not available on chain", chainId);
-            hooks[21] = HookDeployment("", ""); // Empty deployment
+            hooks[20] = HookDeployment("", ""); // Empty deployment
         }
 
         // Protocol-specific hooks (no external dependencies)
-        hooks[22] = HookDeployment(ETHENA_COOLDOWN_SHARES_HOOK_KEY, __getBytecode("EthenaCooldownSharesHook", env));
-        hooks[23] = HookDeployment(ETHENA_UNSTAKE_HOOK_KEY, __getBytecode("EthenaUnstakeHook", env));
-        hooks[24] =
+        hooks[21] = HookDeployment(ETHENA_COOLDOWN_SHARES_HOOK_KEY, __getBytecode("EthenaCooldownSharesHook", env));
+        hooks[22] = HookDeployment(ETHENA_UNSTAKE_HOOK_KEY, __getBytecode("EthenaUnstakeHook", env));
+        hooks[23] =
             HookDeployment(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, __getBytecode("CancelDepositRequest7540Hook", env));
-        hooks[25] =
+        hooks[24] =
             HookDeployment(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, __getBytecode("CancelRedeemRequest7540Hook", env));
-        hooks[26] = HookDeployment(
+        hooks[25] = HookDeployment(
             CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, __getBytecode("ClaimCancelDepositRequest7540Hook", env)
         );
-        hooks[27] = HookDeployment(
+        hooks[26] = HookDeployment(
             CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, __getBytecode("ClaimCancelRedeemRequest7540Hook", env)
         );
-        hooks[28] = HookDeployment(OFFRAMP_TOKENS_HOOK_KEY, __getBytecode("OfframpTokensHook", env));
-        hooks[29] = HookDeployment(MARK_ROOT_AS_USED_HOOK_KEY, __getBytecode("MarkRootAsUsedHook", env));
+        hooks[27] = HookDeployment(OFFRAMP_TOKENS_HOOK_KEY, __getBytecode("OfframpTokensHook", env));
+        hooks[28] = HookDeployment(MARK_ROOT_AS_USED_HOOK_KEY, __getBytecode("MarkRootAsUsedHook", env));
         // Merkl Claim Reward Hook - Only deploy if available on this chain
         if (availability.merklClaimRewardHook) {
-            hooks[30] = HookDeployment(
+            hooks[29] = HookDeployment(
                 MERKL_CLAIM_REWARD_HOOK_KEY,
                 abi.encodePacked(
                     __getBytecode("MerklClaimRewardHook", env),
@@ -1527,7 +1517,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log(" SKIPPED MerklClaimRewardHook deployment: Not available on chain", chainId);
-            hooks[30] = HookDeployment("", ""); // Empty deployment
+            hooks[29] = HookDeployment("", ""); // Empty deployment
         }
 
         // ===== CIRCLE GATEWAY HOOKS =====
@@ -1535,19 +1525,19 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(GATEWAY_WALLET != address(0), "CIRCLE_GATEWAY_WALLET_PARAM_ZERO");
         require(GATEWAY_MINTER != address(0), "CIRCLE_GATEWAY_MINTER_PARAM_ZERO");
 
-        hooks[31] = HookDeployment(
+        hooks[30] = HookDeployment(
             CIRCLE_GATEWAY_WALLET_HOOK_KEY,
             abi.encodePacked(__getBytecode("CircleGatewayWalletHook", env), abi.encode(GATEWAY_WALLET))
         );
-        hooks[32] = HookDeployment(
+        hooks[31] = HookDeployment(
             CIRCLE_GATEWAY_MINTER_HOOK_KEY,
             abi.encodePacked(__getBytecode("CircleGatewayMinterHook", env), abi.encode(GATEWAY_MINTER))
         );
-        hooks[33] = HookDeployment(
+        hooks[32] = HookDeployment(
             CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY,
             abi.encodePacked(__getBytecode("CircleGatewayAddDelegateHook", env), abi.encode(GATEWAY_WALLET))
         );
-        hooks[34] = HookDeployment(
+        hooks[33] = HookDeployment(
             CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY,
             abi.encodePacked(__getBytecode("CircleGatewayRemoveDelegateHook", env), abi.encode(GATEWAY_WALLET))
         );
@@ -1599,8 +1589,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[10].name, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[10] : address(0);
         hookAddresses.approveAndRequestDeposit7540VaultHook =
             Strings.equal(hooks[11].name, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[11] : address(0);
-        hookAddresses.approveAndRequestRedeem7540VaultHook =
-            Strings.equal(hooks[12].name, APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY) ? addresses[12] : address(0);
         hookAddresses.redeem7540VaultHook =
             Strings.equal(hooks[13].name, REDEEM_7540_VAULT_HOOK_KEY) ? addresses[13] : address(0);
         hookAddresses.requestRedeem7540VaultHook =
@@ -1669,10 +1657,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         );
         require(hookAddresses.requestRedeem7540VaultHook != address(0), "REQUEST_REDEEM_7540_VAULT_HOOK_NOT_ASSIGNED");
         require(hookAddresses.deposit7540VaultHook != address(0), "DEPOSIT_7540_VAULT_HOOK_NOT_ASSIGNED");
-        require(
-            hookAddresses.approveAndRequestRedeem7540VaultHook != address(0),
-            "APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_NOT_ASSIGNED"
-        );
         // Only validate hooks that should be available on this chain
         if (availability.swap1InchHook) {
             require(hookAddresses.swap1InchHook != address(0), "SWAP_1INCH_HOOK_NOT_ASSIGNED");

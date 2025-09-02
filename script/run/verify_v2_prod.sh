@@ -322,7 +322,6 @@ get_contract_source() {
         "Redeem5115VaultHook") echo "src/core/hooks/vaults/5115/Redeem5115VaultHook.sol" ;;
         "RequestDeposit7540VaultHook") echo "src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol" ;;
         "ApproveAndRequestDeposit7540VaultHook") echo "src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol" ;;
-        "ApproveAndRequestRedeem7540VaultHook") echo "src/core/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol" ;;
         "Deposit7540VaultHook") echo "src/core/hooks/vaults/7540/Deposit7540VaultHook.sol" ;;
         "Redeem7540VaultHook") echo "src/core/hooks/vaults/7540/Redeem7540VaultHook.sol" ;;
         "RequestRedeem7540VaultHook") echo "src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol" ;;
