@@ -400,7 +400,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
-        bytes memory data = _encodeRedeemData(false);
+        bytes memory data = _encodeRedeemData(true);
         Execution[] memory executions = redeemHook.build(mockPrevHook, address(this), data);
 
         assertEq(executions.length, 3);
