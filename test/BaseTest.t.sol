@@ -2045,10 +2045,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     {
         ISuperExecutor.ExecutorEntry memory entryToExecute =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        console2.log(
-            "length of execution ",
-            (abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute))).length
-        );
         return abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
     }
 
