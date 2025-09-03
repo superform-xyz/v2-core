@@ -33,7 +33,7 @@ contract BatchTransferHookTest is Helpers {
 
         // Set up recipient and hook
         to = address(this);
-        hook = new BatchTransferHook();
+        hook = new BatchTransferHook(NATIVE_TOKEN);
     }
 
     function test_Constructor() public view {
