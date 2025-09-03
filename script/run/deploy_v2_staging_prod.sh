@@ -607,7 +607,6 @@ for network_def in "${NETWORKS[@]}"; do
         $BROADCAST_FLAG \
         $VERIFY_FLAG \
         --timeout 300 \
-        --resume \
         -vv
     
     echo -e "${GREEN}✅ $network_name Mainnet deployment completed successfully!${NC}"
