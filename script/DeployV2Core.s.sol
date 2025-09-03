@@ -1368,13 +1368,17 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // ===== HOOKS WITHOUT DEPENDENCIES =====
         hooks[0] = HookDeployment(APPROVE_ERC20_HOOK_KEY, __getBytecode("ApproveERC20Hook", env));
         hooks[1] = HookDeployment(TRANSFER_ERC20_HOOK_KEY, __getBytecode("TransferERC20Hook", env));
-        hooks[2] = HookDeployment(BATCH_TRANSFER_HOOK_KEY, __getBytecode("BatchTransferHook", env));
 
         // ===== HOOKS WITH VALIDATED DEPENDENCIES =====
 
         // BatchTransferFromHook - Requires Permit2 (already validated in core deployment)
         require(configuration.permit2s[chainId] != address(0), "BATCH_TRANSFER_FROM_HOOK_PERMIT2_PARAM_ZERO");
         require(configuration.permit2s[chainId].code.length > 0, "BATCH_TRANSFER_FROM_HOOK_PERMIT2_NOT_DEPLOYED");
+
+        hooks[2] = HookDeployment(
+            BATCH_TRANSFER_HOOK_KEY, 
+            abi.encodePacked(__getBytecode("BatchTransferHook", env), abi.encode(configuration.nativeTokens[chainId]))
+        );
         hooks[3] = HookDeployment(
             BATCH_TRANSFER_FROM_HOOK_KEY,
             abi.encodePacked(__getBytecode("BatchTransferFromHook", env), abi.encode(configuration.permit2s[chainId]))
@@ -1437,12 +1441,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[17] = HookDeployment("", ""); // Empty deployment
         }
 
+        address superValidator;
         // Across Bridge Hook - Only deploy if available on this chain
         if (availability.acrossV3Adapter) {
             require(configuration.acrossSpokePoolV3s[chainId] != address(0), "ACROSS_HOOK_SPOKE_POOL_PARAM_ZERO");
             require(configuration.acrossSpokePoolV3s[chainId].code.length > 0, "ACROSS_HOOK_SPOKE_POOL_NOT_DEPLOYED");
 
-            address superValidator = _getContract(chainId, SUPER_VALIDATOR_KEY);
+            superValidator = _getContract(chainId, SUPER_VALIDATOR_KEY);
             require(superValidator != address(0), "ACROSS_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
             require(superValidator.code.length > 0, "ACROSS_HOOK_MERKLE_VALIDATOR_NOT_DEPLOYED");
 
@@ -1459,7 +1464,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         // DeBridge hooks - Only deploy if available on this chain
-        address superValidator = _getContract(chainId, SUPER_VALIDATOR_KEY);
+        superValidator = _getContract(chainId, SUPER_VALIDATOR_KEY);
         require(superValidator != address(0), "DEBRIDGE_HOOKS_MERKLE_VALIDATOR_PARAM_ZERO");
 
         if (availability.deBridgeSendOrderHook) {
@@ -1590,47 +1595,47 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hookAddresses.approveAndRequestDeposit7540VaultHook =
             Strings.equal(hooks[11].name, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[11] : address(0);
         hookAddresses.redeem7540VaultHook =
-            Strings.equal(hooks[13].name, REDEEM_7540_VAULT_HOOK_KEY) ? addresses[13] : address(0);
+            Strings.equal(hooks[12].name, REDEEM_7540_VAULT_HOOK_KEY) ? addresses[12] : address(0);
         hookAddresses.requestRedeem7540VaultHook =
-            Strings.equal(hooks[14].name, REQUEST_REDEEM_7540_VAULT_HOOK_KEY) ? addresses[14] : address(0);
+            Strings.equal(hooks[13].name, REQUEST_REDEEM_7540_VAULT_HOOK_KEY) ? addresses[13] : address(0);
         hookAddresses.deposit7540VaultHook =
-            Strings.equal(hooks[15].name, DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[15] : address(0);
-        hookAddresses.swap1InchHook = Strings.equal(hooks[16].name, SWAP_1INCH_HOOK_KEY) ? addresses[16] : address(0);
-        hookAddresses.swapOdosHook = Strings.equal(hooks[17].name, SWAP_ODOSV2_HOOK_KEY) ? addresses[17] : address(0);
+            Strings.equal(hooks[14].name, DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[14] : address(0);
+        hookAddresses.swap1InchHook = Strings.equal(hooks[15].name, SWAP_1INCH_HOOK_KEY) ? addresses[15] : address(0);
+        hookAddresses.swapOdosHook = Strings.equal(hooks[16].name, SWAP_ODOSV2_HOOK_KEY) ? addresses[16] : address(0);
         hookAddresses.approveAndSwapOdosHook =
-            Strings.equal(hooks[18].name, APPROVE_AND_SWAP_ODOSV2_HOOK_KEY) ? addresses[18] : address(0);
+            Strings.equal(hooks[17].name, APPROVE_AND_SWAP_ODOSV2_HOOK_KEY) ? addresses[17] : address(0);
         hookAddresses.acrossSendFundsAndExecuteOnDstHook =
-            Strings.equal(hooks[19].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[19] : address(0);
+            Strings.equal(hooks[18].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[18] : address(0);
         hookAddresses.deBridgeSendOrderAndExecuteOnDstHook =
-            Strings.equal(hooks[20].name, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[20] : address(0);
+            Strings.equal(hooks[19].name, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[19] : address(0);
         hookAddresses.deBridgeCancelOrderHook =
-            Strings.equal(hooks[21].name, DEBRIDGE_CANCEL_ORDER_HOOK_KEY) ? addresses[21] : address(0);
+            Strings.equal(hooks[20].name, DEBRIDGE_CANCEL_ORDER_HOOK_KEY) ? addresses[20] : address(0);
         hookAddresses.ethenaCooldownSharesHook =
-            Strings.equal(hooks[22].name, ETHENA_COOLDOWN_SHARES_HOOK_KEY) ? addresses[22] : address(0);
+            Strings.equal(hooks[21].name, ETHENA_COOLDOWN_SHARES_HOOK_KEY) ? addresses[21] : address(0);
         hookAddresses.ethenaUnstakeHook =
-            Strings.equal(hooks[23].name, ETHENA_UNSTAKE_HOOK_KEY) ? addresses[23] : address(0);
+            Strings.equal(hooks[22].name, ETHENA_UNSTAKE_HOOK_KEY) ? addresses[22] : address(0);
         hookAddresses.cancelDepositRequest7540Hook =
-            Strings.equal(hooks[24].name, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[24] : address(0);
+            Strings.equal(hooks[23].name, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[23] : address(0);
         hookAddresses.cancelRedeemRequest7540Hook =
-            Strings.equal(hooks[25].name, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[25] : address(0);
+            Strings.equal(hooks[24].name, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[24] : address(0);
         hookAddresses.claimCancelDepositRequest7540Hook =
-            Strings.equal(hooks[26].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[26] : address(0);
+            Strings.equal(hooks[25].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[25] : address(0);
         hookAddresses.claimCancelRedeemRequest7540Hook =
-            Strings.equal(hooks[27].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[27] : address(0);
+            Strings.equal(hooks[26].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[26] : address(0);
         hookAddresses.offrampTokensHook =
-            Strings.equal(hooks[28].name, OFFRAMP_TOKENS_HOOK_KEY) ? addresses[28] : address(0);
+            Strings.equal(hooks[27].name, OFFRAMP_TOKENS_HOOK_KEY) ? addresses[27] : address(0);
         hookAddresses.markRootAsUsedHook =
-            Strings.equal(hooks[29].name, MARK_ROOT_AS_USED_HOOK_KEY) ? addresses[29] : address(0);
+            Strings.equal(hooks[28].name, MARK_ROOT_AS_USED_HOOK_KEY) ? addresses[28] : address(0);
         hookAddresses.merklClaimRewardHook =
-            Strings.equal(hooks[30].name, MERKL_CLAIM_REWARD_HOOK_KEY) ? addresses[30] : address(0);
+            Strings.equal(hooks[29].name, MERKL_CLAIM_REWARD_HOOK_KEY) ? addresses[29] : address(0);
         hookAddresses.circleGatewayWalletHook =
-            Strings.equal(hooks[31].name, CIRCLE_GATEWAY_WALLET_HOOK_KEY) ? addresses[31] : address(0);
+            Strings.equal(hooks[30].name, CIRCLE_GATEWAY_WALLET_HOOK_KEY) ? addresses[30] : address(0);
         hookAddresses.circleGatewayMinterHook =
-            Strings.equal(hooks[32].name, CIRCLE_GATEWAY_MINTER_HOOK_KEY) ? addresses[32] : address(0);
+            Strings.equal(hooks[31].name, CIRCLE_GATEWAY_MINTER_HOOK_KEY) ? addresses[31] : address(0);
         hookAddresses.circleGatewayAddDelegateHook =
-            Strings.equal(hooks[33].name, CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY) ? addresses[33] : address(0);
+            Strings.equal(hooks[32].name, CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY) ? addresses[32] : address(0);
         hookAddresses.circleGatewayRemoveDelegateHook =
-            Strings.equal(hooks[34].name, CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY) ? addresses[34] : address(0);
+            Strings.equal(hooks[33].name, CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY) ? addresses[33] : address(0);
 
         // ===== FINAL VALIDATION OF ALL CRITICAL HOOKS =====
         require(hookAddresses.approveErc20Hook != address(0), "APPROVE_ERC20_HOOK_NOT_ASSIGNED");

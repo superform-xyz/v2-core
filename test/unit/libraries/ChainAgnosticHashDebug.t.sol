@@ -165,15 +165,16 @@ contract ChainAgnosticHashDebugTest is Test {
         address recovered1 = ecrecover(dataHash, v, r, s);
         console.log("Direct ECDSA recovery:", recovered1);
         
+        bytes32 ethSignHash;
         // Method 2: eth_sign recovery (what Solidity uses for v > 30)
         if (v > 30) {
-            bytes32 ethSignHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash));
+            ethSignHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash));
             address recovered2 = ecrecover(ethSignHash, v - 4, r, s);
             console.log("eth_sign recovery (v-4):", recovered2);
         }
         
         // Method 3: Standard eth_sign recovery
-        bytes32 ethSignHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash));
+        ethSignHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash));
         address recovered3 = ecrecover(ethSignHash, v, r, s);
         console.log("eth_sign recovery (v):", recovered3);
     }
