@@ -1,5 +1,15 @@
 #!/bin/bash
 
+# ===== CHAIN FILTER CONFIGURATION =====
+# Specify which chains to verify (comment out to verify all chains)
+# Leave empty array to verify all chains from network configuration
+CHAINS_TO_VERIFY=(
+    "80094"  # Berachain
+    "146"    # Sonic
+    "100"    # Gnosis
+    "480"    # Worldchain
+)
+
 # Colors for better visual output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -559,14 +569,40 @@ verify_network() {
 
 # Main verification loop
 main() {
-    # Get chain IDs from the loaded network configuration
+    # Get chain IDs from the loaded network configuration or use filter
     local chains=()
-    for network_def in "${NETWORKS[@]}"; do
-        IFS=':' read -r network_id _ _ <<< "$network_def"
-        chains+=("$network_id")
-    done
+    
+    if [ ${#CHAINS_TO_VERIFY[@]} -eq 0 ]; then
+        # No filter specified, use all chains from network configuration
+        echo -e "${CYAN}📋 No chain filter specified, verifying all configured networks...${NC}"
+        for network_def in "${NETWORKS[@]}"; do
+            IFS=':' read -r network_id _ _ <<< "$network_def"
+            chains+=("$network_id")
+        done
+    else
+        # Use filtered chains
+        echo -e "${CYAN}📋 Chain filter active, verifying only specified chains...${NC}"
+        for chain_id in "${CHAINS_TO_VERIFY[@]}"; do
+            # Verify the chain exists in network configuration
+            local found=false
+            for network_def in "${NETWORKS[@]}"; do
+                IFS=':' read -r network_id _ _ <<< "$network_def"
+                if [ "$network_id" = "$chain_id" ]; then
+                    chains+=("$chain_id")
+                    found=true
+                    break
+                fi
+            done
+            if [ "$found" = false ]; then
+                echo -e "${YELLOW}⚠️  Warning: Chain $chain_id not found in network configuration, skipping...${NC}"
+            fi
+        done
+    fi
     
     echo -e "${BLUE}🔍 Starting verification for ${#chains[@]} networks in $ENVIRONMENT environment...${NC}"
+    if [ ${#CHAINS_TO_VERIFY[@]} -gt 0 ]; then
+        echo -e "${CYAN}   Filtered chains: ${CHAINS_TO_VERIFY[*]}${NC}"
+    fi
     echo ""
     
     local successful_networks=0
