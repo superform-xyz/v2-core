@@ -987,7 +987,7 @@ contract CrosschainTests is BaseTest {
         vm.label(baseAccountCreated, "BASE Nexus Account");
     }
 
-    function test_Bridge_To_ETH_And_Create_Nexus_Account() public {
+    function test_Bridge_To_ETH_And_Create_Nexus_Account_NoHooks() public {
         uint256 amountPerVault = 1e8 / 2;
 
         // ETH IS DST
@@ -1019,6 +1019,7 @@ contract CrosschainTests is BaseTest {
 
             (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
         }
+        console2.log(" ETH[DST] underlyingETH_USDC account balance before", IERC20(underlyingETH_USDC).balanceOf(accountToUse));
 
         // BASE IS SRC
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
@@ -1042,6 +1043,9 @@ contract CrosschainTests is BaseTest {
         );
         srcUserOpData.userOp.signature = signatureData;
 
+        console2.log("[SRC] Account", srcUserOpData.userOp.sender);
+        console2.log("[DST] Account  ", accountToUse);
+
         // EXECUTE BASE
         ExecutionReturnData memory executionData =
             executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18);
@@ -1059,6 +1063,114 @@ contract CrosschainTests is BaseTest {
                 relayerGas: 0
             })
         );
+
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME + 1);
+        uint256 finalBalance = IERC20(underlyingETH_USDC).balanceOf(accountToUse);
+
+        console2.log(" ETH[DST] underlyingETH_USDC account balance after", finalBalance);
+        assertGt(finalBalance, 0);
+        assertEq(finalBalance, amountPerVault, "final balance not right");
+    }
+
+    function test_Bridge_To_ETH_And_Create_Nexus_Account_AndPerformDeposit() public {
+        uint256 amountPerVault = 1e8 / 2;
+
+
+        // ETH IS DST
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+
+        // PREPARE ETH DATA
+        bytes memory targetExecutorMessage;
+        address accountToUse;
+        TargetExecutorMessage memory messageData;
+        {
+
+            address[] memory dstHookAddresses = new address[](2);
+            dstHookAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+            dstHookAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+            bytes[] memory dstHookData = new bytes[](2);
+            dstHookData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceUsdcAddressEth, amountPerVault, false);
+            dstHookData[1] = _createDeposit4626HookData(
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+                yieldSourceUsdcAddressEth,
+                amountPerVault,
+                false,
+                address(0),
+                0
+            );
+
+            messageData = TargetExecutorMessage({
+                hooksAddresses: dstHookAddresses,
+                hooksData: dstHookData,
+                validator: address(destinationValidatorOnETH),
+                signer: validatorSigner,
+                signerPrivateKey: validatorSignerPrivateKey,
+                targetAdapter: address(acrossV3AdapterOnETH),
+                targetExecutor: address(superTargetExecutorOnETH),
+                nexusFactory: CHAIN_1_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
+                chainId: uint64(ETH),
+                amount: amountPerVault,
+                account: address(0),
+                tokenSent: underlyingETH_USDC
+            });
+
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
+        }
+        console2.log(" ETH[DST] underlyingETH_USDC account balance before (should be 0)", IERC20(underlyingETH_USDC).balanceOf(accountToUse));
+        console2.log(" ETH[DST] Vault balance for dst account before (should be 0)", IERC4626(yieldSourceUsdcAddressEth).balanceOf(accountToUse));
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
+
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
+        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingBase_USDC, underlyingETH_USDC, amountPerVault, amountPerVault, ETH, true, targetExecutorMessage
+        );
+
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(
+            messageData, srcUserOpData.userOpHash, accountToUse, ETH, address(sourceValidatorOnBase)
+        );
+        srcUserOpData.userOp.signature = signatureData;
+
+        console2.log("[SRC] Account", srcUserOpData.userOp.sender);
+        console2.log("[DST] Account  ", accountToUse);
+
+        // EXECUTE BASE
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18);
+        _processAcrossV3Message(
+            ProcessAcrossV3MessageParams({
+                srcChainId: BASE,
+                dstChainId: ETH,
+                warpTimestamp: WARP_START_TIME + 30 days,
+                executionData: executionData,
+                relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                root: bytes32(0),
+                account: accountToUse,
+                relayerGas: 0
+            })
+        );
+
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME + 1);
+        uint256 finalBalance = IERC20(underlyingETH_USDC).balanceOf(accountToUse);
+
+        console2.log(" ETH[DST] underlyingETH_USDC account balance after (should still be 0)", finalBalance);
+        console2.log(" ETH[DST] Vault balance for dst account after (should be > 0)", IERC4626(yieldSourceUsdcAddressEth).balanceOf(accountToUse));
+        assertEq(finalBalance, 0);
+        assertGt(IERC4626(yieldSourceUsdcAddressEth).balanceOf(accountToUse), 0, "should have funds");
     }
 
     function test_Bridge_To_ETH_TamperedSig() public {
