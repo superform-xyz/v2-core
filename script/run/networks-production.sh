@@ -279,7 +279,7 @@ load_rpc_urls() {
 # Load Etherscan V2 API key for verification
 load_etherscan_api_key() {
     echo "Loading Etherscan V2 API key for production verification..."
-    if ! export ETHERSCANV2_API_KEY_TEST=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHERSCANV2_API_KEY_TEST/credential 2>/dev/null); then
+    if ! export ETHERSCANV2_API_KEY_TEST=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHERSCANV2_API_KEY_TEST_V2/credential 2>/dev/null); then
         echo "❌ Failed to load ETHERSCANV2_API_KEY_TEST from 1Password"
         echo "   Contract verification will not work without this credential"
         return 1
