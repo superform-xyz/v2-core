@@ -13,6 +13,12 @@ NETWORKS=(
     "10:Optimism:OPTIMISM_MAINNET"
     "137:Polygon:POLYGON_MAINNET"
     "130:Unichain:UNICHAIN_MAINNET"
+    "59144:Linea:LINEA_MAINNET"
+    "43114:Avalanche:AVALANCHE_MAINNET"
+    "80094:Berachain:BERACHAIN_MAINNET"
+    "146:Sonic:SONIC_MAINNET"
+    "100:Gnosis:GNOSIS_MAINNET"
+    "480:Worldchain:WORLDCHAIN_MAINNET"
 )
 
 # Network name mapping function
@@ -39,6 +45,24 @@ get_network_name() {
             ;;
         130)
             echo "Unichain"
+            ;;
+        59144)
+            echo "Linea"
+            ;;
+        43114)
+            echo "Avalanche"
+            ;;
+        80094)
+            echo "Berachain"
+            ;;
+        146)
+            echo "Sonic"
+            ;;
+        100)
+            echo "Gnosis"
+            ;;
+        480)
+            echo "Worldchain"
             ;;
         *)
             echo "ERROR: Unknown production network ID: $network_id" >&2
@@ -72,6 +96,24 @@ get_rpc_var() {
         130)
             echo "UNICHAIN_MAINNET"
             ;;
+        59144)
+            echo "LINEA_MAINNET"
+            ;;
+        43114)
+            echo "AVALANCHE_MAINNET"
+            ;;
+        80094)
+            echo "BERACHAIN_MAINNET"
+            ;;
+        146)
+            echo "SONIC_MAINNET"
+            ;;
+        100)
+            echo "GNOSIS_MAINNET"
+            ;;
+        480)
+            echo "WORLDCHAIN_MAINNET"
+            ;;
         *)
             echo "ERROR: Unknown production network ID for RPC: $network_id" >&2
             return 1
@@ -103,6 +145,24 @@ get_rpc_url() {
             ;;
         130)
             echo "$UNICHAIN_MAINNET"
+            ;;
+        59144)
+            echo "$LINEA_MAINNET"
+            ;;
+        43114)
+            echo "$AVALANCHE_MAINNET"
+            ;;
+        80094)
+            echo "$BERACHAIN_MAINNET"
+            ;;
+        146)
+            echo "$SONIC_MAINNET"
+            ;;
+        100)
+            echo "$GNOSIS_MAINNET"
+            ;;
+        480)
+            echo "$WORLDCHAIN_MAINNET"
             ;;
         *)
             echo "ERROR: Unknown production network ID for RPC: $network_id" >&2
@@ -174,6 +234,36 @@ load_rpc_urls() {
         failed_rpcs+=("UNICHAIN_RPC_URL")
     fi
     
+    echo "  • Loading Linea RPC..."
+    if ! export LINEA_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/LINEA_RPC_URL/credential 2>/dev/null); then
+        failed_rpcs+=("LINEA_RPC_URL")
+    fi
+    
+    echo "  • Loading Avalanche RPC..."
+    if ! export AVALANCHE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/AVALANCHE_RPC_URL/credential 2>/dev/null); then
+        failed_rpcs+=("AVALANCHE_RPC_URL")
+    fi
+    
+    echo "  • Loading Berachain RPC..."
+    if ! export BERACHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BERACHAIN_RPC_URL/credential 2>/dev/null); then
+        failed_rpcs+=("BERACHAIN_RPC_URL")
+    fi
+    
+    echo "  • Loading Sonic RPC..."
+    if ! export SONIC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/SONIC_RPC_URL/credential 2>/dev/null); then
+        failed_rpcs+=("SONIC_RPC_URL")
+    fi
+    
+    echo "  • Loading Gnosis RPC..."
+    if ! export GNOSIS_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/GNOSIS_RPC_URL/credential 2>/dev/null); then
+        failed_rpcs+=("GNOSIS_RPC_URL")
+    fi
+    
+    echo "  • Loading Worldchain RPC..."
+    if ! export WORLDCHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/WORLDCHAIN_RPC_URL/credential 2>/dev/null); then
+        failed_rpcs+=("WORLDCHAIN_RPC_URL")
+    fi
+    
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then
         echo "❌ Failed to load the following RPC URLs from 1Password:"
         for failed_rpc in "${failed_rpcs[@]}"; do
@@ -183,7 +273,7 @@ load_rpc_urls() {
         return 1
     fi
     
-    echo "✅ Production RPC URLs loaded successfully (all 7 networks)"
+    echo "✅ Production RPC URLs loaded successfully (all 13 networks)"
 }
 
 # Load Etherscan V2 API key for verification

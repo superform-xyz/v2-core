@@ -262,7 +262,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     /// @dev Meant to be called by Fireblocks MPC wallet via separate script
     /// @param env Environment (0 = prod, 2 = staging)
     /// @param chainId Target chain ID
-    function runLedgerConfigurations(uint256 env, uint64 chainId) public broadcast(env) {
+    function runLedgerConfigurations(uint256 env, uint64 chainId) public {
         runLedgerConfigurations(env, chainId, "");
     }
 
@@ -272,18 +272,40 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
     /// @param chainId Target chain ID
     /// @param saltNamespace Salt namespace for configuration
-    function runLedgerConfigurations(uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {
+    function runLedgerConfigurations(uint256 env, uint64 chainId, string memory saltNamespace) public {
+        runLedgerConfigurations(env, chainId, saltNamespace, "");
+    }
+
+    /// @notice Public function to configure SuperLedger after deployment with salt namespace and branch name
+    /// @dev This function reads contract addresses from output files and configures the ledger
+    /// @dev Meant to be called by Fireblocks MPC wallet via separate script
+    /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
+    /// @param chainId Target chain ID
+    /// @param saltNamespace Salt namespace for configuration
+    /// @param branchName Branch name for env=1 (VNET) to read contracts from specific branch folder
+    function runLedgerConfigurations(
+        uint256 env,
+        uint64 chainId,
+        string memory saltNamespace,
+        string memory branchName
+    )
+        public
+        broadcast(env)
+    {
         console2.log("====== FOOLPROOF LEDGER CONFIGURATION ======");
         console2.log("Environment:", env == 0 ? "Production" : (env == 1 ? "VNET" : "Staging"));
         console2.log("Chain ID:", chainId);
         console2.log("Salt Namespace:", saltNamespace);
+        if (env == 1 && bytes(branchName).length > 0) {
+            console2.log("Branch Name:", branchName);
+        }
         console2.log("");
 
         // Set configuration to get correct environment settings
         _setConfiguration(env, saltNamespace);
 
         // Configure SuperLedger with bytecode verification
-        _setupSuperLedgerConfiguration(chainId, true, env);
+        _setupSuperLedgerConfiguration(chainId, env, branchName);
 
         console2.log("====== LEDGER CONFIGURATION COMPLETED SUCCESSFULLY ======");
     }
@@ -1049,12 +1071,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     /// @notice Internal function to setup SuperLedger configuration
     /// @dev Can read from deployed contracts or output files based on useFiles parameter
     /// @param chainId Target chain ID
-    /// @param useFiles Whether to read contract addresses from output files (true) or deployed contracts (false)
     /// @param env Environment for determining output path (only used if useFiles is true)
-    function _setupSuperLedgerConfiguration(uint64 chainId, bool useFiles, uint256 env) private {
-        string memory sourceDescription = useFiles ? "output files" : "deployed contracts";
-        console2.log("Setting up SuperLedgerConfiguration from", sourceDescription, "with comprehensive validation...");
+    function _setupSuperLedgerConfiguration(uint64 chainId, uint256 env) private {
+        _setupSuperLedgerConfiguration(chainId, env, "");
+    }
 
+    function _setupSuperLedgerConfiguration(uint64 chainId, uint256 env, string memory branchName) private {
         // ===== GET CONTRACT ADDRESSES BASED ON SOURCE =====
         address superLedgerConfig;
         address erc4626Oracle;
@@ -1064,27 +1086,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address superLedger;
         address flatFeeLedger;
 
-        if (useFiles) {
-            // Read contract addresses from deployment output files
-            string memory deploymentJson = _verifyContractAddressesFromBytecode(chainId, env);
+        // Read contract addresses from deployment output files
+        string memory deploymentJson = _verifyContractAddressesFromBytecode(chainId, env, branchName);
 
-            superLedgerConfig = vm.parseJsonAddress(deploymentJson, ".SuperLedgerConfiguration");
-            erc4626Oracle = vm.parseJsonAddress(deploymentJson, ".ERC4626YieldSourceOracle");
-            erc7540Oracle = vm.parseJsonAddress(deploymentJson, ".ERC7540YieldSourceOracle");
-            erc5115Oracle = vm.parseJsonAddress(deploymentJson, ".ERC5115YieldSourceOracle");
-            stakingOracle = vm.parseJsonAddress(deploymentJson, ".StakingYieldSourceOracle");
-            superLedger = vm.parseJsonAddress(deploymentJson, ".SuperLedger");
-            flatFeeLedger = vm.parseJsonAddress(deploymentJson, ".FlatFeeLedger");
-        } else {
-            // Read contract addresses from deployed contracts registry
-            superLedgerConfig = _getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY);
-            erc4626Oracle = _getContract(chainId, ERC4626_YIELD_SOURCE_ORACLE_KEY);
-            erc7540Oracle = _getContract(chainId, ERC7540_YIELD_SOURCE_ORACLE_KEY);
-            erc5115Oracle = _getContract(chainId, ERC5115_YIELD_SOURCE_ORACLE_KEY);
-            stakingOracle = _getContract(chainId, STAKING_YIELD_SOURCE_ORACLE_KEY);
-            superLedger = _getContract(chainId, SUPER_LEDGER_KEY);
-            flatFeeLedger = _getContract(chainId, FLAT_FEE_LEDGER_KEY);
-        }
+        superLedgerConfig = vm.parseJsonAddress(deploymentJson, ".SuperLedgerConfiguration");
+        erc4626Oracle = vm.parseJsonAddress(deploymentJson, ".ERC4626YieldSourceOracle");
+        erc7540Oracle = vm.parseJsonAddress(deploymentJson, ".ERC7540YieldSourceOracle");
+        erc5115Oracle = vm.parseJsonAddress(deploymentJson, ".ERC5115YieldSourceOracle");
+        stakingOracle = vm.parseJsonAddress(deploymentJson, ".StakingYieldSourceOracle");
+        superLedger = vm.parseJsonAddress(deploymentJson, ".SuperLedger");
+        flatFeeLedger = vm.parseJsonAddress(deploymentJson, ".FlatFeeLedger");
 
         // ===== VALIDATE ALL REQUIRED CONTRACTS =====
         require(superLedgerConfig != address(0), "SETUP_SUPER_LEDGER_CONFIG_ZERO");
@@ -1111,7 +1122,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Validate treasury address is set
         require(configuration.treasury != address(0), "SETUP_TREASURY_ZERO");
 
-        console2.log(" All required contracts validated from", sourceDescription);
         console2.log("  SuperLedgerConfiguration:", superLedgerConfig);
         console2.log("  ERC4626 Oracle:", erc4626Oracle);
         console2.log("  ERC7540 Oracle:", erc7540Oracle);
@@ -1174,8 +1184,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Execute the configuration setup
         ISuperLedgerConfiguration(superLedgerConfig).setYieldSourceOracles(salts, configs);
-
-        console2.log(" SuperLedgerConfiguration setup completed successfully from", sourceDescription, "! ");
     }
 
     /// @notice Local variables struct to avoid stack too deep in bytecode verification
@@ -1202,10 +1210,22 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         view
         returns (string memory deploymentJson)
     {
+        return _verifyContractAddressesFromBytecode(chainId, env, "");
+    }
+
+    function _verifyContractAddressesFromBytecode(
+        uint64 chainId,
+        uint256 env,
+        string memory branchName
+    )
+        private
+        view
+        returns (string memory deploymentJson)
+    {
         console2.log("Verifying contract addresses from environment-specific bytecode...");
 
         // Read addresses from output files
-        deploymentJson = _readCoreContractsFromOutput(chainId, env);
+        deploymentJson = _readCoreContractsFromOutput(chainId, env, branchName);
 
         // Initialize local variables struct
         VerificationVars memory vars;
@@ -1364,10 +1384,31 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     /// @param env Environment (0 = prod, 2 = staging)
     /// @return JSON string containing contract addresses
     function _readCoreContractsFromOutput(uint64 chainId, uint256 env) internal view returns (string memory) {
+        return _readCoreContractsFromOutput(chainId, env, "");
+    }
+
+    function _readCoreContractsFromOutput(
+        uint64 chainId,
+        uint256 env,
+        string memory branchName
+    )
+        internal
+        view
+        returns (string memory)
+    {
         string memory chainName = chainNames[chainId];
         // Use environment variable for reliable project root, fallback to vm.projectRoot()
         string memory root = vm.envOr("SUPERFORM_PROJECT_ROOT", vm.projectRoot());
-        string memory envName = env == 0 ? "prod" : "staging";
+
+        string memory envName;
+        if (env == 0) {
+            envName = "prod";
+        } else if (env == 1) {
+            require(bytes(branchName).length > 0, "BRANCH_NAME_REQUIRED_FOR_ENV_1");
+            envName = branchName;
+        } else {
+            envName = "staging"; // env=2
+        }
 
         // Construct path: script/output/{env}/{chainId}/{ChainName}-latest.json
         string memory outputPath = string(

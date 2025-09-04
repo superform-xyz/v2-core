@@ -1577,7 +1577,7 @@ if [ "$BRANCH_NAME" != "demo" ] || ([ "$BRANCH_NAME" = "demo" ] && [ "$REDEPLOY_
         
         log "INFO" "Configuring SuperLedger on $network_slug..."
         if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
-            --sig 'runLedgerConfigurations(uint256,uint64,string)' $FORGE_ENV $network "$salt" \
+            --sig 'runLedgerConfigurations(uint256,uint64,string,string)' $FORGE_ENV $network "$salt" "$BRANCH_NAME" \
             --rpc-url "$admin_rpc" \
             --chain $network \
             --broadcast \
