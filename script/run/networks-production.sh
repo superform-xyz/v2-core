@@ -13,7 +13,6 @@ NETWORKS=(
     "10:Optimism:OPTIMISM_MAINNET"
     "137:Polygon:POLYGON_MAINNET"
     "130:Unichain:UNICHAIN_MAINNET"
-    "59144:Linea:LINEA_MAINNET"
     "43114:Avalanche:AVALANCHE_MAINNET"
     "80094:Berachain:BERACHAIN_MAINNET"
     "146:Sonic:SONIC_MAINNET"
@@ -45,9 +44,6 @@ get_network_name() {
             ;;
         130)
             echo "Unichain"
-            ;;
-        59144)
-            echo "Linea"
             ;;
         43114)
             echo "Avalanche"
@@ -96,9 +92,6 @@ get_rpc_var() {
         130)
             echo "UNICHAIN_MAINNET"
             ;;
-        59144)
-            echo "LINEA_MAINNET"
-            ;;
         43114)
             echo "AVALANCHE_MAINNET"
             ;;
@@ -145,9 +138,6 @@ get_rpc_url() {
             ;;
         130)
             echo "$UNICHAIN_MAINNET"
-            ;;
-        59144)
-            echo "$LINEA_MAINNET"
             ;;
         43114)
             echo "$AVALANCHE_MAINNET"
@@ -234,11 +224,6 @@ load_rpc_urls() {
         failed_rpcs+=("UNICHAIN_RPC_URL")
     fi
     
-    echo "  • Loading Linea RPC..."
-    if ! export LINEA_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/LINEA_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("LINEA_RPC_URL")
-    fi
-    
     echo "  • Loading Avalanche RPC..."
     if ! export AVALANCHE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/AVALANCHE_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("AVALANCHE_RPC_URL")
@@ -279,7 +264,7 @@ load_rpc_urls() {
 # Load Etherscan V2 API key for verification
 load_etherscan_api_key() {
     echo "Loading Etherscan V2 API key for production verification..."
-    if ! export ETHERSCANV2_API_KEY_TEST=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHERSCANV2_API_KEY_TEST_V2/credential 2>/dev/null); then
+    if ! export ETHERSCANV2_API_KEY_TEST=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHERSCANV2_API_KEY_TEST_V3/credential 2>/dev/null); then
         echo "❌ Failed to load ETHERSCANV2_API_KEY_TEST from 1Password"
         echo "   Contract verification will not work without this credential"
         return 1

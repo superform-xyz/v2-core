@@ -116,6 +116,11 @@ load_contract_addresses() {
         "10") network_suffix="Optimism-latest" ;;
         "137") network_suffix="Polygon-latest" ;;
         "130") network_suffix="Unichain-latest" ;;
+        "43114") network_suffix="Avalanche-latest" ;;
+        "80094") network_suffix="Berachain-latest" ;;
+        "146") network_suffix="Sonic-latest" ;;
+        "100") network_suffix="Gnosis-latest" ;;
+        "480") network_suffix="Worldchain-latest" ;;
         *) network_suffix="${network_name}-latest" ;;
     esac
     
@@ -147,6 +152,12 @@ get_contract_address() {
         "10") network_suffix="Optimism-latest" ;;
         "137") network_suffix="Polygon-latest" ;;
         "130") network_suffix="Unichain-latest" ;;
+        "59144") network_suffix="Linea-latest" ;;
+        "43114") network_suffix="Avalanche-latest" ;;
+        "80094") network_suffix="Berachain-latest" ;;
+        "146") network_suffix="Sonic-latest" ;;
+        "100") network_suffix="Gnosis-latest" ;;
+        "480") network_suffix="Worldchain-latest" ;;
         *) 
             local network_name=$(get_network_name "$chain_id")
             network_suffix="${network_name}-latest"
@@ -197,7 +208,6 @@ generate_constructor_args() {
             across_spoke_pool_v3="0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
-            
             ;;
         "8453") # Base Mainnet
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
@@ -220,6 +230,70 @@ generate_constructor_args() {
             aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
             odos_router="0xa32EE1C40594249eb3183c10792BcF573D4Da47C"
             across_spoke_pool_v3="0xe35e9842fceaCA96570B734083f4a58e8F7C5f2A"
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
+        "10") # Optimism Mainnet
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            odos_router="0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680"
+            across_spoke_pool_v3="0x6f26Bf09B1C792e3228e5467807a900A503c0281"
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
+        "137") # Polygon Mainnet
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            odos_router="0x4E3288c9ca110bCC82bf38F09A7b425c095d92Bf"
+            across_spoke_pool_v3="0x9295ee1d8C5b022Be115A2AD3c30C72E34e7F096"
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0x0000000000000000000000000000000000001010"  # Polygon native token
+            ;;
+        "130") # Unichain Mainnet
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            odos_router="0x6409722F3a1C4486A3b1FE566cBDd5e9D946A1f3"
+            across_spoke_pool_v3="0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64"
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
+        "43114") # Avalanche Mainnet
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            odos_router="0x88de50B233052e4Fb783d4F6db78Cc34fEa3e9FC"
+            across_spoke_pool_v3=""  # Not available
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
+        "80094") # Berachain Mainnet
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router=""  # Not deployed
+            odos_router=""  # Not deployed
+            across_spoke_pool_v3=""  # Not deployed
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
+        "146") # Sonic Mainnet
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            odos_router="0xaC041Df48dF9791B0654f1Dbbf2CC8450C5f2e9D"
+            across_spoke_pool_v3=""  # Not deployed
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
+        "100") # Gnosis Mainnet
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            odos_router=""  # Not deployed
+            across_spoke_pool_v3=""  # Not deployed
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
+        "480") # Worldchain Mainnet
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router=""  # Not deployed
+            odos_router=""  # Not deployed
+            across_spoke_pool_v3="0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
@@ -276,7 +350,9 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address)" "$debridge_dln_dst")"
             ;;
         "MerklClaimRewardHook")
-            echo "$(cast abi-encode "constructor(address,address,uint256)" "$merkl_distributor" "0x0E24b0F342F034446Ec814281AD1a7653cBd85e9" "100")"
+            # Get treasury address from environment or use default
+            local treasury="${TREASURY_ADDRESS:-0x0E24b0F342F034446Ec814281AD1a7653cBd85e9}"
+            echo "$(cast abi-encode "constructor(address,address,uint256)" "$merkl_distributor" "$treasury" "100")"
             ;;
         "CircleGatewayWalletHook"|"CircleGatewayAddDelegateHook"|"CircleGatewayRemoveDelegateHook")
             echo "$(cast abi-encode "constructor(address)" "$gateway_wallet")"
@@ -445,6 +521,12 @@ verify_network() {
         "10") network_suffix="Optimism-latest" ;;
         "137") network_suffix="Polygon-latest" ;;
         "130") network_suffix="Unichain-latest" ;;
+        "59144") network_suffix="Linea-latest" ;;
+        "43114") network_suffix="Avalanche-latest" ;;
+        "80094") network_suffix="Berachain-latest" ;;
+        "146") network_suffix="Sonic-latest" ;;
+        "100") network_suffix="Gnosis-latest" ;;
+        "480") network_suffix="Worldchain-latest" ;;
         *) network_suffix="${network_name}-latest" ;;
     esac
     
