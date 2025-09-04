@@ -55,7 +55,11 @@
         "SuperYieldSourceOracle": "0x98F0682ef39dE9cd6028D91090Be6EdAE129f52D",
         "Swap1InchHook": "0x1303d5f3e3D9e4a81945cB0C2e309E1940d2425C",
         "SwapOdosV2Hook": "0x10E1a5587036E62c19F172DD0259984D81f558c0",
-        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4"
+        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E"
       }
     },
     "Base": {
@@ -113,7 +117,11 @@
         "SuperYieldSourceOracle": "0x98F0682ef39dE9cd6028D91090Be6EdAE129f52D",
         "Swap1InchHook": "0x1303d5f3e3D9e4a81945cB0C2e309E1940d2425C",
         "SwapOdosV2Hook": "0xED10D4407b7e59B04A40F4E36Df4583c68C5334F",
-        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4"
+        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E"
       }
     },
     "BNB": {
@@ -171,7 +179,11 @@
         "SuperYieldSourceOracle": "0x98F0682ef39dE9cd6028D91090Be6EdAE129f52D",
         "Swap1InchHook": "0x1303d5f3e3D9e4a81945cB0C2e309E1940d2425C",
         "SwapOdosV2Hook": "0x3C5fBfBEb5606b5c67A2C6f65BE4A38149f48a90",
-        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4"
+        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E"
       }
     },
     "Arbitrum": {
@@ -229,7 +241,11 @@
         "SuperYieldSourceOracle": "0x98F0682ef39dE9cd6028D91090Be6EdAE129f52D",
         "Swap1InchHook": "0x1303d5f3e3D9e4a81945cB0C2e309E1940d2425C",
         "SwapOdosV2Hook": "0xf09106eAA87a5d81DAcFC91F6F564131c57495bE",
-        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4"
+        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E"
       }
     },
     "Optimism": {
@@ -287,7 +303,11 @@
         "SuperYieldSourceOracle": "0x98F0682ef39dE9cd6028D91090Be6EdAE129f52D",
         "Swap1InchHook": "0x1303d5f3e3D9e4a81945cB0C2e309E1940d2425C",
         "SwapOdosV2Hook": "0xB712038062bBd8b45445Bc4aD7DcE8f829c02154",
-        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4"
+        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E"
       }
     },
     "Polygon": {
@@ -345,7 +365,11 @@
         "SuperYieldSourceOracle": "0x98F0682ef39dE9cd6028D91090Be6EdAE129f52D",
         "Swap1InchHook": "0x1303d5f3e3D9e4a81945cB0C2e309E1940d2425C",
         "SwapOdosV2Hook": "0x94A5Aaa604bBf85A6d8983f2959D50e0637Ce6C6",
-        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4"
+        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E"
       }
     },
     "Unichain": {
@@ -400,7 +424,11 @@
         "SuperYieldSourceOracle": "0x98F0682ef39dE9cd6028D91090Be6EdAE129f52D",
         "Swap1InchHook": "0x1303d5f3e3D9e4a81945cB0C2e309E1940d2425C",
         "SwapOdosV2Hook": "0x7F9c924B2FDb19F45903210b54E7615df8E6bB13",
-        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4"
+        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E"
       }
     },
     "Avalanche": {
@@ -456,7 +484,11 @@
         "SuperYieldSourceOracle": "0x98F0682ef39dE9cd6028D91090Be6EdAE129f52D",
         "Swap1InchHook": "0x1303d5f3e3D9e4a81945cB0C2e309E1940d2425C",
         "SwapOdosV2Hook": "0xB1B5E159C3Be62e72ad1D052F08eE13a94216c81",
-        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4"
+        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E"
       }
     },
     "Berachain": {
@@ -509,7 +541,11 @@
         "SuperSenderCreator": "0xBC6FB94D2f10A3B4349F592FFA80C4B7C97C1799",
         "SuperValidator": "0xB46b4773C5F53FF941533F5dfEFFD0713f5f9f8E",
         "SuperYieldSourceOracle": "0x98F0682ef39dE9cd6028D91090Be6EdAE129f52D",
-        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4"
+        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E"
       }
     },
     "Sonic": {
@@ -565,7 +601,11 @@
         "SuperYieldSourceOracle": "0x98F0682ef39dE9cd6028D91090Be6EdAE129f52D",
         "Swap1InchHook": "0x1303d5f3e3D9e4a81945cB0C2e309E1940d2425C",
         "SwapOdosV2Hook": "0x96fFac7BB5cAcEf9244Fe1aA00C167129afd9527",
-        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4"
+        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E"
       }
     },
     "Gnosis": {
@@ -619,7 +659,11 @@
         "SuperValidator": "0xB46b4773C5F53FF941533F5dfEFFD0713f5f9f8E",
         "SuperYieldSourceOracle": "0x98F0682ef39dE9cd6028D91090Be6EdAE129f52D",
         "Swap1InchHook": "0x1303d5f3e3D9e4a81945cB0C2e309E1940d2425C",
-        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4"
+        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E"
       }
     },
     "Worldchain": {
@@ -671,9 +715,13 @@
         "SuperSenderCreator": "0xBC6FB94D2f10A3B4349F592FFA80C4B7C97C1799",
         "SuperValidator": "0xB46b4773C5F53FF941533F5dfEFFD0713f5f9f8E",
         "SuperYieldSourceOracle": "0x98F0682ef39dE9cd6028D91090Be6EdAE129f52D",
-        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4"
+        "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E"
       }
     }
   },
-  "updated_at": "2025-09-04T14:38:11Z"
+  "updated_at": "2025-09-04T18:13:31Z"
 }
