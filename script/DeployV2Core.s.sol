@@ -174,14 +174,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             potentialSkips[skipCount++] = "ApproveAndSwapOdosV2Hook";
         }
 
-        if (DEBRIDGE_DLN_SRC != address(0)) {
+        if (configuration.debridgeSrcDln[chainId] != address(0)) {
             availability.deBridgeSendOrderHook = true;
             expectedHooks += 1; // DeBridgeSendOrderAndExecuteOnDstHook
         } else {
             potentialSkips[skipCount++] = "DeBridgeSendOrderAndExecuteOnDstHook";
         }
 
-        if (DEBRIDGE_DLN_DST != address(0)) {
+        if (configuration.debridgeDstDln[chainId] != address(0)) {
             availability.deBridgeCancelOrderHook = true;
             expectedHooks += 1; // DeBridgeCancelOrderHook
         } else {
@@ -628,7 +628,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             __checkContract(
                 DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
                 __getSalt(DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY),
-                abi.encode(DEBRIDGE_DLN_SRC, superValidator),
+                abi.encode(configuration.debridgeSrcDln[chainId], superValidator),
                 env
             );
         } else if (!availability.deBridgeSendOrderHook) {
@@ -641,7 +641,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             __checkContract(
                 DEBRIDGE_CANCEL_ORDER_HOOK_KEY,
                 __getSalt(DEBRIDGE_CANCEL_ORDER_HOOK_KEY),
-                abi.encode(DEBRIDGE_DLN_DST),
+                abi.encode(configuration.debridgeDstDln[chainId]),
                 env
             );
         } else {
@@ -1540,12 +1540,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(superValidator != address(0), "DEBRIDGE_HOOKS_MERKLE_VALIDATOR_PARAM_ZERO");
 
         if (availability.deBridgeSendOrderHook) {
-            require(DEBRIDGE_DLN_SRC != address(0), "DEBRIDGE_SEND_HOOK_DLN_SRC_PARAM_ZERO");
+            require(configuration.debridgeSrcDln[chainId] != address(0), "DEBRIDGE_SEND_HOOK_DLN_SRC_PARAM_ZERO");
             hooks[19] = HookDeployment(
                 DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
                 abi.encodePacked(
                     __getBytecode("DeBridgeSendOrderAndExecuteOnDstHook", env),
-                    abi.encode(DEBRIDGE_DLN_SRC, superValidator)
+                    abi.encode(configuration.debridgeSrcDln[chainId], superValidator)
                 )
             );
         } else {
@@ -1554,10 +1554,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         if (availability.deBridgeCancelOrderHook) {
-            require(DEBRIDGE_DLN_DST != address(0), "DEBRIDGE_CANCEL_HOOK_DLN_DST_PARAM_ZERO");
+            require(configuration.debridgeDstDln[chainId] != address(0), "DEBRIDGE_CANCEL_HOOK_DLN_DST_PARAM_ZERO");
             hooks[20] = HookDeployment(
                 DEBRIDGE_CANCEL_ORDER_HOOK_KEY,
-                abi.encodePacked(__getBytecode("DeBridgeCancelOrderHook", env), abi.encode(DEBRIDGE_DLN_DST))
+                abi.encodePacked(
+                    __getBytecode("DeBridgeCancelOrderHook", env), abi.encode(configuration.debridgeDstDln[chainId])
+                )
             );
         } else {
             console2.log(" SKIPPED DeBridgeCancelOrderHook deployment: Not available on chain", chainId);

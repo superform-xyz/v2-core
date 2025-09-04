@@ -29,6 +29,21 @@ abstract contract ConfigCore is ConfigBase {
         configuration.acrossSpokePoolV3s[GNOSIS_CHAIN_ID] = address(0); // Not deployed yet
         configuration.acrossSpokePoolV3s[WORLDCHAIN_CHAIN_ID] = ACROSS_SPOKE_POOL_WORLDCHAIN;
 
+        // ===== DEBRIDGE DLN SOURCE ADDRESSES =====
+        configuration.debridgeSrcDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_SRC;
+        configuration.debridgeSrcDln[BASE_CHAIN_ID] = DEBRIDGE_DLN_SRC;
+        configuration.debridgeSrcDln[BNB_CHAIN_ID] = DEBRIDGE_DLN_SRC;
+        configuration.debridgeSrcDln[ARBITRUM_CHAIN_ID] = DEBRIDGE_DLN_SRC;
+        configuration.debridgeSrcDln[OPTIMISM_CHAIN_ID] = DEBRIDGE_DLN_SRC;
+        configuration.debridgeSrcDln[POLYGON_CHAIN_ID] = DEBRIDGE_DLN_SRC;
+        configuration.debridgeSrcDln[UNICHAIN_CHAIN_ID] = address(0);
+        configuration.debridgeSrcDln[LINEA_CHAIN_ID] = DEBRIDGE_DLN_SRC;
+        configuration.debridgeSrcDln[AVALANCHE_CHAIN_ID] = DEBRIDGE_DLN_SRC;
+        configuration.debridgeSrcDln[BERACHAIN_CHAIN_ID] = DEBRIDGE_DLN_SRC;
+        configuration.debridgeSrcDln[SONIC_CHAIN_ID] = DEBRIDGE_DLN_SRC;
+        configuration.debridgeSrcDln[GNOSIS_CHAIN_ID] = DEBRIDGE_DLN_SRC;
+        configuration.debridgeSrcDln[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed yet
+
         // ===== DEBRIDGE DLN DESTINATION ADDRESSES =====
         configuration.debridgeDstDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[BASE_CHAIN_ID] = DEBRIDGE_DLN_DST;

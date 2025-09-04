@@ -15,6 +15,7 @@ abstract contract ConfigBase is Constants {
         address treasury;
         // Core contract dependencies
         mapping(uint64 chainId => address acrossSpokePoolV3) acrossSpokePoolV3s;
+        mapping(uint64 chainId => address debridgeSrcDln) debridgeSrcDln;
         mapping(uint64 chainId => address debridgeDstDln) debridgeDstDln;
         mapping(uint64 chainId => address permit2) permit2s;
         mapping(uint64 chainId => address merklDistributor) merklDistributors;
