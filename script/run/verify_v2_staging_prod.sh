@@ -4,9 +4,6 @@
 # Specify which chains to verify (comment out to verify all chains)
 # Leave empty array to verify all chains from network configuration
 CHAINS_TO_VERIFY=(
-    "80094"  # Berachain
-    "146"    # Sonic
-    "100"    # Gnosis
     "480"    # Worldchain
 )
 
