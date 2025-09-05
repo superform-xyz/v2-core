@@ -1170,10 +1170,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         bytes32[] memory salts = new bytes32[](4);
-        salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
-        salts[1] = bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
-        salts[2] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY));
-        salts[3] = bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY));
+        salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_SALT));
+        salts[1] = bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_SALT));
+        salts[2] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_SALT));
+        salts[3] = bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_SALT));
 
         // Validate salts are not empty
         for (uint256 i = 0; i < salts.length; ++i) {
