@@ -33,7 +33,7 @@ abstract contract ConfigBase is Constants {
     string internal constant STAGING_SALT_NAMESPACE = "STAGING1.0.0";
 
     address internal constant TEST_DEPLOYER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
-    address internal constant SUPERFORM_TREASURY = 0x0E24b0F342F034446Ec814281AD1a7653cBd85e9; // superform.eth
+    address internal constant SUPERFORM_TREASURY = 0x1dbD9b26b295A33f126456Ab4e498cd308622f08;
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
