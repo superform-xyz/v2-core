@@ -2179,7 +2179,7 @@ contract CrosschainTests is BaseTest {
     }
 
     function test_RebalanceCrossChain_4626_Mainnet_Flow() public {
-        SELECT_FORK_AND_WARP(ETH, 1_743_169_271);
+        SELECT_FORK_AND_WARP(ETH, block.timestamp);
 
         uint256 amount = 1e8;
         uint256 previewRedeemAmount = vaultInstanceEth.previewRedeem(vaultInstanceEth.previewDeposit(amount));
@@ -2211,7 +2211,7 @@ contract CrosschainTests is BaseTest {
         BridgeDeposit4626UsedRootParams memory params;
 
         // Initialize test parameters
-        SELECT_FORK_AND_WARP(ETH, 1_743_169_271);
+        SELECT_FORK_AND_WARP(ETH, block.timestamp);
 
         params.amount = 1e8;
 
@@ -2280,7 +2280,7 @@ contract CrosschainTests is BaseTest {
         BridgeDeposit4626UsedRootParams memory params;
 
         // Initialize test parameters
-        SELECT_FORK_AND_WARP(ETH, 1_743_169_271);
+        SELECT_FORK_AND_WARP(ETH, block.timestamp);
 
         params.amount = 1e8;
 
@@ -2358,13 +2358,13 @@ contract CrosschainTests is BaseTest {
     }
 
     function test_InvalidDestinationFlow() public {
-        SELECT_FORK_AND_WARP(ETH, 1_743_169_271);
+        SELECT_FORK_AND_WARP(ETH, block.timestamp);
 
         uint256 amount = 1e8;
         uint256 previewRedeemAmount = vaultInstanceEth.previewRedeem(vaultInstanceEth.previewDeposit(amount));
 
         // BASE IS DST
-        SELECT_FORK_AND_WARP(BASE, 1_743_067_607);
+        SELECT_FORK_AND_WARP(BASE, block.timestamp);
 
         bytes memory targetExecutorMessage;
         TargetExecutorMessage memory messageData;
@@ -2405,7 +2405,7 @@ contract CrosschainTests is BaseTest {
         }
 
         // ETH is SRC
-        SELECT_FORK_AND_WARP(ETH, 1_743_169_271);
+        SELECT_FORK_AND_WARP(ETH, block.timestamp);
 
         address[] memory srcHooksAddresses = new address[](4);
         srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
@@ -5227,7 +5227,7 @@ contract CrosschainTests is BaseTest {
         returns (bytes memory targetExecutorMessage, address accountToUse)
     {
         // BASE IS DST
-        SELECT_FORK_AND_WARP(BASE, 1_743_067_607);
+        SELECT_FORK_AND_WARP(BASE, block.timestamp);
 
         TargetExecutorMessage memory messageData = _createDestinationMessageDataForUsedRoot(amount, accountBase);
         return _createTargetExecutorMessage(messageData, false);
@@ -5237,7 +5237,7 @@ contract CrosschainTests is BaseTest {
     /// @param params The test parameters containing amounts and target message
     function _setupSourceAndExecuteUsedRoot(BridgeDeposit4626UsedRootParams memory params) internal {
         // ETH is SRC
-        SELECT_FORK_AND_WARP(ETH, 1_743_169_271);
+        SELECT_FORK_AND_WARP(ETH, block.timestamp);
 
         // Set up source hooks and data
         address[] memory srcHooksAddresses = new address[](2);
@@ -5285,7 +5285,7 @@ contract CrosschainTests is BaseTest {
         returns (bytes memory targetExecutorMessage, address accountToUse, TargetExecutorMessage memory messageData)
     {
         // BASE IS DST
-        SELECT_FORK_AND_WARP(BASE, 1_743_067_607);
+        SELECT_FORK_AND_WARP(BASE, block.timestamp);
 
         TargetExecutorMessage memory msgData = TargetExecutorMessage({
             hooksAddresses: _createRebalanceDestinationHooksAddresses(),
@@ -5348,7 +5348,7 @@ contract CrosschainTests is BaseTest {
         returns (ExecutionReturnData memory executionData)
     {
         // ETH is SRC
-        SELECT_FORK_AND_WARP(ETH, 1_743_169_271);
+        SELECT_FORK_AND_WARP(ETH, block.timestamp);
 
         address[] memory srcHooksAddresses = new address[](4);
         srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);

@@ -115,6 +115,7 @@ Your primary responsibilities:
 - **ERC-4337 Integration**: Test contracts become beneficiaries for paymaster refunds - they need ETH reception capability
 - **Hook Data Layout**: Maintain consistent encoding patterns with comprehensive NatSpec documentation
 - **Error Handling**: Define custom errors for each hook type with descriptive names
+- **Coverage Optimization**: Use optimized structs to hold local variables in integration tests to avoid "stack too deep" errors during coverage compilation. Define structs to group related variables and reduce stack depth. This is CRITICAL for `make coverage-genhtml` to pass.
 
 **Best Practices**:
 - Always use Solidity 0.8.30 with checked arithmetic.

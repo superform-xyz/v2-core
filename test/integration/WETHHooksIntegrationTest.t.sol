@@ -26,6 +26,30 @@ contract WETHHooksIntegrationTest is MinimalBaseIntegrationTest {
     uint256 public depositAmount;
     uint256 public withdrawAmount;
 
+    /// @notice Struct to hold balance data for tests
+    struct TestBalances {
+        uint256 initialETH;
+        uint256 initialWETH;
+        uint256 finalETH;
+        uint256 finalWETH;
+    }
+
+    /// @notice Struct to hold hook execution data
+    struct HookExecutionData {
+        bytes hookData;
+        address[] hooksAddresses;
+        bytes[] hooksData;
+        ISuperExecutor.ExecutorEntry entry;
+        UserOpData userOpData;
+    }
+
+    /// @notice Struct to hold combined test data
+    struct CombinedTestData {
+        bytes depositHookData;
+        bytes withdrawHookData;
+        uint256 netWETHIncrease;
+    }
+
     function setUp() public override {
         blockNumber = ETH_BLOCK;
         super.setUp();
@@ -52,99 +76,107 @@ contract WETHHooksIntegrationTest is MinimalBaseIntegrationTest {
     function test_DepositWETHHook() public {
         console2.log("=== DepositWETHHook Test: ETH to WETH ===");
 
+        TestBalances memory balances;
+        HookExecutionData memory execData;
+
         // Check initial balances
-        uint256 initialETHBalance = accountEth.balance;
-        uint256 initialWETHBalance = IERC20(weth).balanceOf(accountEth);
+        balances.initialETH = accountEth.balance;
+        balances.initialWETH = IERC20(weth).balanceOf(accountEth);
 
         console2.log("Initial balances:");
-        console2.log("  ETH:", initialETHBalance);
-        console2.log("  WETH:", initialWETHBalance);
+        console2.log("  ETH:", balances.initialETH);
+        console2.log("  WETH:", balances.initialWETH);
 
         // Prepare hook data: amount to deposit, don't use prev hook amount
-        bytes memory hookData = abi.encodePacked(depositAmount, false);
+        execData.hookData = abi.encodePacked(depositAmount, false);
 
         // Setup hook execution
-        address[] memory hooksAddresses = new address[](1);
-        hooksAddresses[0] = address(depositWETHHook);
+        execData.hooksAddresses = new address[](1);
+        execData.hooksAddresses[0] = address(depositWETHHook);
 
-        bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = hookData;
+        execData.hooksData = new bytes[](1);
+        execData.hooksData[0] = execData.hookData;
 
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
+        execData.entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: execData.hooksAddresses, hooksData: execData.hooksData });
+        execData.userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(execData.entry));
 
         // Execute the deposit operation
-        executeOpsThroughPaymaster(userOpData, superNativePaymaster, 2e18);
+        executeOpsThroughPaymaster(execData.userOpData, superNativePaymaster, 2e18);
 
         // Check final balances
-        uint256 finalETHBalance = accountEth.balance;
-        uint256 finalWETHBalance = IERC20(weth).balanceOf(accountEth);
+        balances.finalETH = accountEth.balance;
+        balances.finalWETH = IERC20(weth).balanceOf(accountEth);
 
         console2.log("Final balances:");
-        console2.log("  ETH:", finalETHBalance);
-        console2.log("  WETH:", finalWETHBalance);
+        console2.log("  ETH:", balances.finalETH);
+        console2.log("  WETH:", balances.finalWETH);
 
         // Verify the deposit worked (allow for gas costs)
         assertLe(
-            finalETHBalance,
-            initialETHBalance - depositAmount + 0.01 ether,
+            balances.finalETH,
+            balances.initialETH - depositAmount + 0.01 ether,
             "ETH balance should decrease by approximately deposit amount"
         );
-        assertEq(finalWETHBalance, initialWETHBalance + depositAmount, "WETH balance should increase by deposit amount");
+        assertEq(
+            balances.finalWETH, balances.initialWETH + depositAmount, "WETH balance should increase by deposit amount"
+        );
     }
 
     /// @notice Test WETH to ETH conversion using WithdrawWETHHook
     function test_WithdrawWETHHook() public {
         console2.log("=== WithdrawWETHHook Test: WETH to ETH ===");
 
+        TestBalances memory balances;
+        HookExecutionData memory execData;
+
         // First, deposit some ETH to get WETH
         _depositETHToWETH(accountEth, 2 ether);
 
         // Check initial balances after deposit
-        uint256 initialETHBalance = accountEth.balance;
-        uint256 initialWETHBalance = IERC20(weth).balanceOf(accountEth);
+        balances.initialETH = accountEth.balance;
+        balances.initialWETH = IERC20(weth).balanceOf(accountEth);
 
         console2.log("Initial balances:");
-        console2.log("  ETH:", initialETHBalance);
-        console2.log("  WETH:", initialWETHBalance);
+        console2.log("  ETH:", balances.initialETH);
+        console2.log("  WETH:", balances.initialWETH);
 
         // Prepare hook data: amount to withdraw, don't use prev hook amount
-        bytes memory hookData = abi.encodePacked(withdrawAmount, false);
+        execData.hookData = abi.encodePacked(withdrawAmount, false);
 
         // Setup hook execution
-        address[] memory hooksAddresses = new address[](1);
-        hooksAddresses[0] = address(withdrawWETHHook);
+        execData.hooksAddresses = new address[](1);
+        execData.hooksAddresses[0] = address(withdrawWETHHook);
 
-        bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = hookData;
+        execData.hooksData = new bytes[](1);
+        execData.hooksData[0] = execData.hookData;
 
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
+        execData.entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: execData.hooksAddresses, hooksData: execData.hooksData });
+        execData.userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(execData.entry));
 
         // Fund the paymaster for gas fees
         vm.deal(address(superNativePaymaster), 10 ether);
 
         // Execute the withdrawal operation
-        executeOpsThroughPaymaster(userOpData, superNativePaymaster, 2e18);
+        executeOpsThroughPaymaster(execData.userOpData, superNativePaymaster, 2e18);
 
         // Check final balances
-        uint256 finalETHBalance = accountEth.balance;
-        uint256 finalWETHBalance = IERC20(weth).balanceOf(accountEth);
+        balances.finalETH = accountEth.balance;
+        balances.finalWETH = IERC20(weth).balanceOf(accountEth);
 
         console2.log("Final balances:");
-        console2.log("  ETH:", finalETHBalance);
-        console2.log("  WETH:", finalWETHBalance);
+        console2.log("  ETH:", balances.finalETH);
+        console2.log("  WETH:", balances.finalWETH);
 
         // Verify the withdrawal worked (allow for gas costs)
         assertGe(
-            finalETHBalance,
-            initialETHBalance + withdrawAmount - 0.01 ether,
+            balances.finalETH,
+            balances.initialETH + withdrawAmount - 0.01 ether,
             "ETH balance should increase by approximately withdraw amount"
         );
         assertEq(
-            finalWETHBalance, initialWETHBalance - withdrawAmount, "WETH balance should decrease by withdraw amount"
+            balances.finalWETH, balances.initialWETH - withdrawAmount, "WETH balance should decrease by withdraw amount"
         );
     }
 
@@ -152,53 +184,61 @@ contract WETHHooksIntegrationTest is MinimalBaseIntegrationTest {
     function test_DepositAndWithdrawWETH() public {
         console2.log("=== Combined DepositWETH and WithdrawWETH Test ===");
 
+        TestBalances memory balances;
+        HookExecutionData memory execData;
+        CombinedTestData memory combinedData;
+
         // Check initial balances
-        uint256 initialETHBalance = accountEth.balance;
-        uint256 initialWETHBalance = IERC20(weth).balanceOf(accountEth);
+        balances.initialETH = accountEth.balance;
+        balances.initialWETH = IERC20(weth).balanceOf(accountEth);
 
         console2.log("Initial balances:");
-        console2.log("  ETH:", initialETHBalance);
-        console2.log("  WETH:", initialWETHBalance);
+        console2.log("  ETH:", balances.initialETH);
+        console2.log("  WETH:", balances.initialWETH);
 
         // Prepare hook data
-        bytes memory depositHookData = abi.encodePacked(depositAmount, false);
-        bytes memory withdrawHookData = abi.encodePacked(withdrawAmount, false);
+        combinedData.depositHookData = abi.encodePacked(depositAmount, false);
+        combinedData.withdrawHookData = abi.encodePacked(withdrawAmount, false);
 
         // Setup hook execution with both hooks
-        address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = address(depositWETHHook);
-        hooksAddresses[1] = address(withdrawWETHHook);
+        execData.hooksAddresses = new address[](2);
+        execData.hooksAddresses[0] = address(depositWETHHook);
+        execData.hooksAddresses[1] = address(withdrawWETHHook);
 
-        bytes[] memory hooksData = new bytes[](2);
-        hooksData[0] = depositHookData;
-        hooksData[1] = withdrawHookData;
+        execData.hooksData = new bytes[](2);
+        execData.hooksData[0] = combinedData.depositHookData;
+        execData.hooksData[1] = combinedData.withdrawHookData;
 
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
+        execData.entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: execData.hooksAddresses, hooksData: execData.hooksData });
+        execData.userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(execData.entry));
 
         // Fund the paymaster for gas fees
         vm.deal(address(superNativePaymaster), 10 ether);
 
         // Execute both operations
-        executeOpsThroughPaymaster(userOpData, superNativePaymaster, 2e18);
+        executeOpsThroughPaymaster(execData.userOpData, superNativePaymaster, 2e18);
 
         // Check final balances
-        uint256 finalETHBalance = accountEth.balance;
-        uint256 finalWETHBalance = IERC20(weth).balanceOf(accountEth);
+        balances.finalETH = accountEth.balance;
+        balances.finalWETH = IERC20(weth).balanceOf(accountEth);
 
         console2.log("Final balances:");
-        console2.log("  ETH:", finalETHBalance);
-        console2.log("  WETH:", finalWETHBalance);
+        console2.log("  ETH:", balances.finalETH);
+        console2.log("  WETH:", balances.finalWETH);
 
         // Net effect: deposited more than withdrawn (allow for gas costs)
-        uint256 netWETHIncrease = depositAmount - withdrawAmount;
+        combinedData.netWETHIncrease = depositAmount - withdrawAmount;
         assertLe(
-            finalETHBalance,
-            initialETHBalance - netWETHIncrease + 0.01 ether,
+            balances.finalETH,
+            balances.initialETH - combinedData.netWETHIncrease + 0.01 ether,
             "ETH balance should decrease by approximately net amount"
         );
-        assertEq(finalWETHBalance, initialWETHBalance + netWETHIncrease, "WETH balance should increase by net amount");
+        assertEq(
+            balances.finalWETH,
+            balances.initialWETH + combinedData.netWETHIncrease,
+            "WETH balance should increase by net amount"
+        );
     }
 
     /// @notice Helper to deposit ETH to WETH directly
