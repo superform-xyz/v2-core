@@ -11,6 +11,13 @@ abstract contract Constants {
     string internal constant ARBITRUM_KEY = "Arbitrum";
     string internal constant BNB_KEY = "BNB";
     string internal constant AVALANCHE_KEY = "Avalanche";
+    string internal constant POLYGON_KEY = "Polygon";
+    string internal constant UNICHAIN_KEY = "Unichain";
+    string internal constant LINEA_KEY = "Linea";
+    string internal constant BERACHAIN_KEY = "Berachain";
+    string internal constant SONIC_KEY = "Sonic";
+    string internal constant GNOSIS_KEY = "Gnosis";
+    string internal constant WORLDCHAIN_KEY = "Worldchain";
     string internal constant SEPOLIA_KEY = "Sepolia";
     string internal constant ARB_SEPOLIA_KEY = "Arbitrum_Sepolia";
     string internal constant BASE_SEPOLIA_KEY = "Base_Sepolia";
@@ -44,6 +51,11 @@ abstract contract Constants {
     uint64 internal constant POLYGON_CHAIN_ID = 137;
     uint64 internal constant AVALANCHE_CHAIN_ID = 43_114;
     uint64 internal constant UNICHAIN_CHAIN_ID = 130;
+    uint64 internal constant LINEA_CHAIN_ID = 59_144;
+    uint64 internal constant BERACHAIN_CHAIN_ID = 80_094;
+    uint64 internal constant SONIC_CHAIN_ID = 146;
+    uint64 internal constant GNOSIS_CHAIN_ID = 100;
+    uint64 internal constant WORLDCHAIN_CHAIN_ID = 480;
     // testnets
     uint64 internal constant SEPOLIA_CHAIN_ID = 11_155_111;
     uint64 internal constant ARB_SEPOLIA_CHAIN_ID = 421_613;
@@ -61,6 +73,11 @@ abstract contract Constants {
     address internal constant ACROSS_SPOKE_POOL_BNB = 0x4e8E101924eDE233C13e2D8622DC8aED2872d505;
     address internal constant ACROSS_SPOKE_POOL_POLYGON = 0x9295ee1d8C5b022Be115A2AD3c30C72E34e7F096;
     address internal constant ACROSS_SPOKE_POOL_UNICHAIN = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
+    address internal constant ACROSS_SPOKE_POOL_LINEA = 0x7E63A5f1a8F0B4d0934B2f2327DAED3F6bb2ee75;
+    address internal constant ACROSS_SPOKE_POOL_WORLDCHAIN = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
+
+    // Note: Berachain and Worldchain Across spoke pools not found - may not be deployed yet
+    // Note: Gnosis Across spoke pool not found - may not be deployed yet
 
     // DeBridge Gate addresses per chain
     address internal constant DEBRIDGE_DLN_SRC = 0xeF4fB24aD0916217251F553c0596F8Edc630EB66;
@@ -68,13 +85,7 @@ abstract contract Constants {
 
     // 1inch Aggregation Router addresses per chain
     // https://portal.1inch.dev/documentation/contracts/aggregation-protocol/aggregation-introduction
-    address internal constant AGGREGATION_ROUTER_MAINNET = 0x111111125421cA6dc452d289314280a0f8842A65;
-    address internal constant AGGREGATION_ROUTER_BASE = 0x111111125421cA6dc452d289314280a0f8842A65;
-    address internal constant AGGREGATION_ROUTER_OPTIMISM = 0x111111125421cA6dc452d289314280a0f8842A65;
-    address internal constant AGGREGATION_ROUTER_ARBITRUM = 0x111111125421cA6dc452d289314280a0f8842A65;
-    address internal constant AGGREGATION_ROUTER_BNB = 0x111111125421cA6dc452d289314280a0f8842A65;
-    address internal constant AGGREGATION_ROUTER_POLYGON = 0x111111125421cA6dc452d289314280a0f8842A65;
-    address internal constant AGGREGATION_ROUTER_AVALANCHE = 0x111111125421cA6dc452d289314280a0f8842A65;
+    address internal constant AGGREGATION_ROUTER = 0x111111125421cA6dc452d289314280a0f8842A65;
 
     // Odos Router addresses per chain
     address internal constant ODOS_ROUTER_MAINNET = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
@@ -85,17 +96,11 @@ abstract contract Constants {
     address internal constant ODOS_ROUTER_POLYGON = 0x4E3288c9ca110bCC82bf38F09A7b425c095d92Bf;
     address internal constant ODOS_ROUTER_AVALANCHE = 0x88de50B233052e4Fb783d4F6db78Cc34fEa3e9FC;
     address internal constant ODOS_ROUTER_UNICHAIN = 0x6409722F3a1C4486A3b1FE566cBDd5e9D946A1f3;
+    address internal constant ODOS_ROUTER_SONIC = 0xaC041Df48dF9791B0654f1Dbbf2CC8450C5f2e9D;
+    address internal constant ODOS_ROUTER_LINEA = 0x2d8879046f1559E53eb052E949e9544bCB72f414;
 
     // Merkl Distributor addresses per chain
-    address internal constant MERKL_DISTRIBUTOR_MAINNET = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
-    address internal constant MERKL_DISTRIBUTOR_BASE = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
-    address internal constant MERKL_DISTRIBUTOR_OPTIMISM = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
-    address internal constant MERKL_DISTRIBUTOR_ARBITRUM = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
-    address internal constant MERKL_DISTRIBUTOR_BNB = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
-    address internal constant MERKL_DISTRIBUTOR_POLYGON = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
-    address internal constant MERKL_DISTRIBUTOR_AVALANCHE = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
-    address internal constant MERKL_DISTRIBUTOR_UNICHAIN = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
-
+    address internal constant MERKL_DISTRIBUTOR = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
     // Native tokens representation
     // https://github.com/d-xo/weird-erc20?tab=readme-ov-file#erc-20-representation-of-native-currency
     address internal constant NATIVE_TOKEN_DEFAULT = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -186,4 +191,10 @@ abstract contract Constants {
     string internal constant PENDLE_PT_YIELD_SOURCE_ORACLE_KEY = "PendlePTYieldSourceOracle";
     string internal constant SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY = "SpectraPTYieldSourceOracle";
     string internal constant STAKING_YIELD_SOURCE_ORACLE_KEY = "StakingYieldSourceOracle";
+
+    // SuperLedgerConfigs Salts
+    string internal constant ERC4626_YIELD_SOURCE_ORACLE_SALT = "ERC4626YieldSourceOracle_salt";
+    string internal constant ERC7540_YIELD_SOURCE_ORACLE_SALT = "ERC7540YieldSourceOracle_salt";
+    string internal constant ERC5115_YIELD_SOURCE_ORACLE_SALT = "ERC5115YieldSourceOracle_salt";
+    string internal constant STAKING_YIELD_SOURCE_ORACLE_SALT = "StakingYieldSourceOracle_salt";
 }

@@ -15,6 +15,7 @@ abstract contract ConfigBase is Constants {
         address treasury;
         // Core contract dependencies
         mapping(uint64 chainId => address acrossSpokePoolV3) acrossSpokePoolV3s;
+        mapping(uint64 chainId => address debridgeSrcDln) debridgeSrcDln;
         mapping(uint64 chainId => address debridgeDstDln) debridgeDstDln;
         mapping(uint64 chainId => address permit2) permit2s;
         mapping(uint64 chainId => address merklDistributor) merklDistributors;
@@ -32,7 +33,7 @@ abstract contract ConfigBase is Constants {
     string internal constant STAGING_SALT_NAMESPACE = "STAGING1.0.0";
 
     address internal constant TEST_DEPLOYER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
-    address internal constant SUPERFORM_TREASURY = 0x0E24b0F342F034446Ec814281AD1a7653cBd85e9; // superform.eth
+    address internal constant SUPERFORM_TREASURY = 0x1dbD9b26b295A33f126456Ab4e498cd308622f08;
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
@@ -60,10 +61,17 @@ abstract contract ConfigBase is Constants {
         // ===== MAINNET CHAIN NAMES =====
         chainNames[MAINNET_CHAIN_ID] = ETHEREUM_KEY;
         chainNames[BASE_CHAIN_ID] = BASE_KEY;
-        chainNames[OPTIMISM_CHAIN_ID] = OPTIMISM_KEY;
-        chainNames[ARBITRUM_CHAIN_ID] = ARBITRUM_KEY;
         chainNames[BNB_CHAIN_ID] = BNB_KEY;
+        chainNames[ARBITRUM_CHAIN_ID] = ARBITRUM_KEY;
+        chainNames[OPTIMISM_CHAIN_ID] = OPTIMISM_KEY;
+        chainNames[POLYGON_CHAIN_ID] = POLYGON_KEY;
+        chainNames[UNICHAIN_CHAIN_ID] = UNICHAIN_KEY;
+        chainNames[LINEA_CHAIN_ID] = LINEA_KEY;
         chainNames[AVALANCHE_CHAIN_ID] = AVALANCHE_KEY;
+        chainNames[BERACHAIN_CHAIN_ID] = BERACHAIN_KEY;
+        chainNames[SONIC_CHAIN_ID] = SONIC_KEY;
+        chainNames[GNOSIS_CHAIN_ID] = GNOSIS_KEY;
+        chainNames[WORLDCHAIN_CHAIN_ID] = WORLDCHAIN_KEY;
 
         // ===== COMMON CONFIGURATION =====
         if (env_ == 0 || env_ == 2) {

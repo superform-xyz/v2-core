@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# ===== CHAIN FILTER CONFIGURATION =====
+# Specify which chains to verify (comment out to verify all chains)
+# Leave empty array to verify all chains from network configuration
+CHAINS_TO_VERIFY=(
+    "480"    # Worldchain
+)
+
 # Colors for better visual output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -116,6 +123,11 @@ load_contract_addresses() {
         "10") network_suffix="Optimism-latest" ;;
         "137") network_suffix="Polygon-latest" ;;
         "130") network_suffix="Unichain-latest" ;;
+        "43114") network_suffix="Avalanche-latest" ;;
+        "80094") network_suffix="Berachain-latest" ;;
+        "146") network_suffix="Sonic-latest" ;;
+        "100") network_suffix="Gnosis-latest" ;;
+        "480") network_suffix="Worldchain-latest" ;;
         *) network_suffix="${network_name}-latest" ;;
     esac
     
@@ -147,6 +159,12 @@ get_contract_address() {
         "10") network_suffix="Optimism-latest" ;;
         "137") network_suffix="Polygon-latest" ;;
         "130") network_suffix="Unichain-latest" ;;
+        "59144") network_suffix="Linea-latest" ;;
+        "43114") network_suffix="Avalanche-latest" ;;
+        "80094") network_suffix="Berachain-latest" ;;
+        "146") network_suffix="Sonic-latest" ;;
+        "100") network_suffix="Gnosis-latest" ;;
+        "480") network_suffix="Worldchain-latest" ;;
         *) 
             local network_name=$(get_network_name "$chain_id")
             network_suffix="${network_name}-latest"
@@ -196,7 +214,7 @@ generate_constructor_args() {
             odos_router="0xcf5540fFFCdC3d510B18bFcA6d2b9987b0772559"
             across_spoke_pool_v3="0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
-            
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
         "8453") # Base Mainnet
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
@@ -204,6 +222,7 @@ generate_constructor_args() {
             odos_router="0x19cEeAd7105607Cd444F5ad10dd51356436095a1"
             across_spoke_pool_v3="0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
         "56") # BSC Mainnet
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
@@ -211,6 +230,7 @@ generate_constructor_args() {
             odos_router="0x89b8AA89FDd0507a99d334CBe3C808fAFC7d850E"
             across_spoke_pool_v3="0x4e8E101924eDE233C13e2D8622DC8aED2872d505"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
         "42161") # Arbitrum Mainnet
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
@@ -218,6 +238,71 @@ generate_constructor_args() {
             odos_router="0xa32EE1C40594249eb3183c10792BcF573D4Da47C"
             across_spoke_pool_v3="0xe35e9842fceaCA96570B734083f4a58e8F7C5f2A"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
+        "10") # Optimism Mainnet
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            odos_router="0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680"
+            across_spoke_pool_v3="0x6f26Bf09B1C792e3228e5467807a900A503c0281"
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
+        "137") # Polygon Mainnet
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            odos_router="0x4E3288c9ca110bCC82bf38F09A7b425c095d92Bf"
+            across_spoke_pool_v3="0x9295ee1d8C5b022Be115A2AD3c30C72E34e7F096"
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0x0000000000000000000000000000000000001010"  # Polygon native token
+            ;;
+        "130") # Unichain Mainnet
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            odos_router="0x6409722F3a1C4486A3b1FE566cBDd5e9D946A1f3"
+            across_spoke_pool_v3="0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64"
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
+        "43114") # Avalanche Mainnet
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            odos_router="0x88de50B233052e4Fb783d4F6db78Cc34fEa3e9FC"
+            across_spoke_pool_v3=""  # Not available
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
+        "80094") # Berachain Mainnet
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router=""  # Not deployed
+            odos_router=""  # Not deployed
+            across_spoke_pool_v3=""  # Not deployed
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
+        "146") # Sonic Mainnet
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            odos_router="0xaC041Df48dF9791B0654f1Dbbf2CC8450C5f2e9D"
+            across_spoke_pool_v3=""  # Not deployed
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
+        "100") # Gnosis Mainnet
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            odos_router=""  # Not deployed
+            across_spoke_pool_v3=""  # Not deployed
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
+        "480") # Worldchain Mainnet
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router=""  # Not deployed
+            odos_router=""  # Not deployed
+            across_spoke_pool_v3="0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64"
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
     esac
     
@@ -249,6 +334,10 @@ generate_constructor_args() {
             ;;
         
         # Hooks with constructor args
+        "BatchTransferHook")
+            # BatchTransferHook takes native token address (network-specific)
+            echo "$(cast abi-encode "constructor(address)" "$native_token")"
+            ;;
         "BatchTransferFromHook")
             echo "$(cast abi-encode "constructor(address)" "$permit2")"
             ;;
@@ -268,7 +357,9 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address)" "$debridge_dln_dst")"
             ;;
         "MerklClaimRewardHook")
-            echo "$(cast abi-encode "constructor(address)" "$merkl_distributor")"
+            # Get treasury address from environment or use default
+            local treasury="${TREASURY_ADDRESS:-0x0E24b0F342F034446Ec814281AD1a7653cBd85e9}"
+            echo "$(cast abi-encode "constructor(address,address,uint256)" "$merkl_distributor" "$treasury" "100")"
             ;;
         "CircleGatewayWalletHook"|"CircleGatewayAddDelegateHook"|"CircleGatewayRemoveDelegateHook")
             echo "$(cast abi-encode "constructor(address)" "$gateway_wallet")"
@@ -277,7 +368,7 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address)" "$gateway_minter")"
             ;;
         
-        # Oracles with constructor args
+        # Oracles with constructor args  
         "ERC4626YieldSourceOracle"|"ERC5115YieldSourceOracle"|"ERC7540YieldSourceOracle"|"PendlePTYieldSourceOracle"|"SpectraPTYieldSourceOracle"|"StakingYieldSourceOracle")
             echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
             ;;
@@ -295,57 +386,59 @@ get_contract_source() {
     
     case $contract_name in
         # Core contracts
-        "SuperExecutor") echo "src/core/executors/SuperExecutor.sol" ;;
-        "SuperDestinationExecutor") echo "src/core/executors/SuperDestinationExecutor.sol" ;;
-        "AcrossV3Adapter") echo "src/core/adapters/AcrossV3Adapter.sol" ;;
-        "DebridgeAdapter") echo "src/core/adapters/DebridgeAdapter.sol" ;;
-        "SuperLedger") echo "src/core/accounting/SuperLedger.sol" ;;
-        "FlatFeeLedger") echo "src/core/accounting/FlatFeeLedger.sol" ;;
-        "SuperLedgerConfiguration") echo "src/core/accounting/SuperLedgerConfiguration.sol" ;;
-        "SuperValidator") echo "src/core/validators/SuperValidator.sol" ;;
-        "SuperDestinationValidator") echo "src/core/validators/SuperDestinationValidator.sol" ;;
-        "SuperNativePaymaster") echo "src/core/paymaster/SuperNativePaymaster.sol" ;;
+        "SuperExecutor") echo "src/executors/SuperExecutor.sol" ;;
+        "SuperDestinationExecutor") echo "src/executors/SuperDestinationExecutor.sol" ;;
+        "AcrossV3Adapter") echo "src/adapters/AcrossV3Adapter.sol" ;;
+        "DebridgeAdapter") echo "src/adapters/DebridgeAdapter.sol" ;;
+        "SuperLedger") echo "src/accounting/SuperLedger.sol" ;;
+        "FlatFeeLedger") echo "src/accounting/FlatFeeLedger.sol" ;;
+        "SuperLedgerConfiguration") echo "src/accounting/SuperLedgerConfiguration.sol" ;;
+        "SuperValidator") echo "src/validators/SuperValidator.sol" ;;
+        "SuperDestinationValidator") echo "src/validators/SuperDestinationValidator.sol" ;;
+        "SuperNativePaymaster") echo "src/paymaster/SuperNativePaymaster.sol" ;;
+        "SuperSenderCreator") echo "src/executors/helpers/SuperSenderCreator.sol" ;;
         
         # Hooks - ERC20
-        "ApproveERC20Hook") echo "src/core/hooks/tokens/erc20/ApproveERC20Hook.sol" ;;
-        "TransferERC20Hook") echo "src/core/hooks/tokens/erc20/TransferERC20Hook.sol" ;;
-        "BatchTransferHook") echo "src/core/hooks/tokens/BatchTransferHook.sol" ;;
-        "BatchTransferFromHook") echo "src/core/hooks/tokens/permit2/BatchTransferFromHook.sol" ;;
-        "OfframpTokensHook") echo "src/core/hooks/tokens/OfframpTokensHook.sol" ;;
+        "ApproveERC20Hook") echo "src/hooks/tokens/erc20/ApproveERC20Hook.sol" ;;
+        "TransferERC20Hook") echo "src/hooks/tokens/erc20/TransferERC20Hook.sol" ;;
+        "BatchTransferHook") echo "src/hooks/tokens/BatchTransferHook.sol" ;;
+        "BatchTransferFromHook") echo "src/hooks/tokens/permit2/BatchTransferFromHook.sol" ;;
+        "OfframpTokensHook") echo "src/hooks/tokens/OfframpTokensHook.sol" ;;
         
         # Hooks - Vaults
-        "Deposit4626VaultHook") echo "src/core/hooks/vaults/4626/Deposit4626VaultHook.sol" ;;
-        "ApproveAndDeposit4626VaultHook") echo "src/core/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol" ;;
-        "Redeem4626VaultHook") echo "src/core/hooks/vaults/4626/Redeem4626VaultHook.sol" ;;
-        "Deposit5115VaultHook") echo "src/core/hooks/vaults/5115/Deposit5115VaultHook.sol" ;;
-        "ApproveAndDeposit5115VaultHook") echo "src/core/hooks/vaults/5115/ApproveAndDeposit5115VaultHook.sol" ;;
-        "Redeem5115VaultHook") echo "src/core/hooks/vaults/5115/Redeem5115VaultHook.sol" ;;
-        "RequestDeposit7540VaultHook") echo "src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol" ;;
-        "ApproveAndRequestDeposit7540VaultHook") echo "src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol" ;;
-        "Deposit7540VaultHook") echo "src/core/hooks/vaults/7540/Deposit7540VaultHook.sol" ;;
-        "Redeem7540VaultHook") echo "src/core/hooks/vaults/7540/Redeem7540VaultHook.sol" ;;
-        "RequestRedeem7540VaultHook") echo "src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol" ;;
-        "CancelDepositRequest7540Hook") echo "src/core/hooks/vaults/7540/CancelDepositRequest7540Hook.sol" ;;
-        "CancelRedeemRequest7540Hook") echo "src/core/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol" ;;
-        "ClaimCancelDepositRequest7540Hook") echo "src/core/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol" ;;
-        "ClaimCancelRedeemRequest7540Hook") echo "src/core/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol" ;;
+        "Deposit4626VaultHook") echo "src/hooks/vaults/4626/Deposit4626VaultHook.sol" ;;
+        "ApproveAndDeposit4626VaultHook") echo "src/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol" ;;
+        "Redeem4626VaultHook") echo "src/hooks/vaults/4626/Redeem4626VaultHook.sol" ;;
+        "Deposit5115VaultHook") echo "src/hooks/vaults/5115/Deposit5115VaultHook.sol" ;;
+        "ApproveAndDeposit5115VaultHook") echo "src/hooks/vaults/5115/ApproveAndDeposit5115VaultHook.sol" ;;
+        "Redeem5115VaultHook") echo "src/hooks/vaults/5115/Redeem5115VaultHook.sol" ;;
+        "RequestDeposit7540VaultHook") echo "src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol" ;;
+        "ApproveAndRequestDeposit7540VaultHook") echo "src/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol" ;;
+        "Deposit7540VaultHook") echo "src/hooks/vaults/7540/Deposit7540VaultHook.sol" ;;
+        "Redeem7540VaultHook") echo "src/hooks/vaults/7540/Redeem7540VaultHook.sol" ;;
+        "RequestRedeem7540VaultHook") echo "src/hooks/vaults/7540/RequestRedeem7540VaultHook.sol" ;;
+        "CancelDepositRequest7540Hook") echo "src/hooks/vaults/7540/CancelDepositRequest7540Hook.sol" ;;
+        "CancelRedeemRequest7540Hook") echo "src/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol" ;;
+        "ClaimCancelDepositRequest7540Hook") echo "src/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol" ;;
+        "ClaimCancelRedeemRequest7540Hook") echo "src/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol" ;;
         
         # Hooks - Swappers
-        "Swap1InchHook") echo "src/core/hooks/swappers/1inch/Swap1InchHook.sol" ;;
-        "SwapOdosV2Hook") echo "src/core/hooks/swappers/odos/SwapOdosV2Hook.sol" ;;
-        "ApproveAndSwapOdosV2Hook") echo "src/core/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol" ;;
+        "Swap1InchHook") echo "src/hooks/swappers/1inch/Swap1InchHook.sol" ;;
+        "SwapOdosV2Hook") echo "src/hooks/swappers/odos/SwapOdosV2Hook.sol" ;;
+        "ApproveAndSwapOdosV2Hook") echo "src/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol" ;;
         
         # Hooks - Bridges
-        "AcrossSendFundsAndExecuteOnDstHook") echo "src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol" ;;
-        "DeBridgeSendOrderAndExecuteOnDstHook") echo "src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol" ;;
-        "DeBridgeCancelOrderHook") echo "src/core/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol" ;;
+        "AcrossSendFundsAndExecuteOnDstHook") echo "src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol" ;;
+        "DeBridgeSendOrderAndExecuteOnDstHook") echo "src/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol" ;;
+        "DeBridgeCancelOrderHook") echo "src/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol" ;;
         
         # Hooks - Protocol Specific
-        "EthenaCooldownSharesHook") echo "src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol" ;;
-        "EthenaUnstakeHook") echo "src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol" ;;
+        "EthenaCooldownSharesHook") echo "src/hooks/vaults/ethena/EthenaCooldownSharesHook.sol" ;;
+        "EthenaUnstakeHook") echo "src/hooks/vaults/ethena/EthenaUnstakeHook.sol" ;;
+        "MarkRootAsUsedHook") echo "src/hooks/superform/MarkRootAsUsedHook.sol" ;;
         
         # Hooks - Claim
-        "MerklClaimRewardHook") echo "src/core/hooks/claim/merkl/MerklClaimRewardHook.sol" ;;
+        "MerklClaimRewardHook") echo "src/hooks/claim/merkl/MerklClaimRewardHook.sol" ;;
         
         # Hooks - Circle Gateway
         "CircleGatewayWalletHook") echo "src/hooks/bridges/circle/CircleGatewayWalletHook.sol" ;;
@@ -354,13 +447,13 @@ get_contract_source() {
         "CircleGatewayRemoveDelegateHook") echo "src/hooks/bridges/circle/CircleGatewayRemoveDelegateHook.sol" ;;
         
         # Oracles
-        "ERC4626YieldSourceOracle") echo "src/core/accounting/oracles/ERC4626YieldSourceOracle.sol" ;;
-        "ERC5115YieldSourceOracle") echo "src/core/accounting/oracles/ERC5115YieldSourceOracle.sol" ;;
-        "ERC7540YieldSourceOracle") echo "src/core/accounting/oracles/ERC7540YieldSourceOracle.sol" ;;
-        "PendlePTYieldSourceOracle") echo "src/core/accounting/oracles/PendlePTYieldSourceOracle.sol" ;;
-        "SpectraPTYieldSourceOracle") echo "src/core/accounting/oracles/SpectraPTYieldSourceOracle.sol" ;;
-        "StakingYieldSourceOracle") echo "src/core/accounting/oracles/StakingYieldSourceOracle.sol" ;;
-        "SuperYieldSourceOracle") echo "src/core/accounting/oracles/SuperYieldSourceOracle.sol" ;;
+        "ERC4626YieldSourceOracle") echo "src/accounting/oracles/ERC4626YieldSourceOracle.sol" ;;
+        "ERC5115YieldSourceOracle") echo "src/accounting/oracles/ERC5115YieldSourceOracle.sol" ;;
+        "ERC7540YieldSourceOracle") echo "src/accounting/oracles/ERC7540YieldSourceOracle.sol" ;;
+        "PendlePTYieldSourceOracle") echo "src/accounting/oracles/PendlePTYieldSourceOracle.sol" ;;
+        "SpectraPTYieldSourceOracle") echo "src/accounting/oracles/SpectraPTYieldSourceOracle.sol" ;;
+        "StakingYieldSourceOracle") echo "src/accounting/oracles/StakingYieldSourceOracle.sol" ;;
+        "SuperYieldSourceOracle") echo "src/accounting/oracles/SuperYieldSourceOracle.sol" ;;
         
         *) echo "src/core/unknown/$contract_name.sol" ;;
     esac
@@ -435,6 +528,12 @@ verify_network() {
         "10") network_suffix="Optimism-latest" ;;
         "137") network_suffix="Polygon-latest" ;;
         "130") network_suffix="Unichain-latest" ;;
+        "59144") network_suffix="Linea-latest" ;;
+        "43114") network_suffix="Avalanche-latest" ;;
+        "80094") network_suffix="Berachain-latest" ;;
+        "146") network_suffix="Sonic-latest" ;;
+        "100") network_suffix="Gnosis-latest" ;;
+        "480") network_suffix="Worldchain-latest" ;;
         *) network_suffix="${network_name}-latest" ;;
     esac
     
@@ -467,14 +566,40 @@ verify_network() {
 
 # Main verification loop
 main() {
-    # Get chain IDs from the loaded network configuration
+    # Get chain IDs from the loaded network configuration or use filter
     local chains=()
-    for network_def in "${NETWORKS[@]}"; do
-        IFS=':' read -r network_id _ _ <<< "$network_def"
-        chains+=("$network_id")
-    done
+    
+    if [ ${#CHAINS_TO_VERIFY[@]} -eq 0 ]; then
+        # No filter specified, use all chains from network configuration
+        echo -e "${CYAN}📋 No chain filter specified, verifying all configured networks...${NC}"
+        for network_def in "${NETWORKS[@]}"; do
+            IFS=':' read -r network_id _ _ <<< "$network_def"
+            chains+=("$network_id")
+        done
+    else
+        # Use filtered chains
+        echo -e "${CYAN}📋 Chain filter active, verifying only specified chains...${NC}"
+        for chain_id in "${CHAINS_TO_VERIFY[@]}"; do
+            # Verify the chain exists in network configuration
+            local found=false
+            for network_def in "${NETWORKS[@]}"; do
+                IFS=':' read -r network_id _ _ <<< "$network_def"
+                if [ "$network_id" = "$chain_id" ]; then
+                    chains+=("$chain_id")
+                    found=true
+                    break
+                fi
+            done
+            if [ "$found" = false ]; then
+                echo -e "${YELLOW}⚠️  Warning: Chain $chain_id not found in network configuration, skipping...${NC}"
+            fi
+        done
+    fi
     
     echo -e "${BLUE}🔍 Starting verification for ${#chains[@]} networks in $ENVIRONMENT environment...${NC}"
+    if [ ${#CHAINS_TO_VERIFY[@]} -gt 0 ]; then
+        echo -e "${CYAN}   Filtered chains: ${CHAINS_TO_VERIFY[*]}${NC}"
+    fi
     echo ""
     
     local successful_networks=0

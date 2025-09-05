@@ -174,14 +174,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             potentialSkips[skipCount++] = "ApproveAndSwapOdosV2Hook";
         }
 
-        if (DEBRIDGE_DLN_SRC != address(0)) {
+        if (configuration.debridgeSrcDln[chainId] != address(0)) {
             availability.deBridgeSendOrderHook = true;
             expectedHooks += 1; // DeBridgeSendOrderAndExecuteOnDstHook
         } else {
             potentialSkips[skipCount++] = "DeBridgeSendOrderAndExecuteOnDstHook";
         }
 
-        if (DEBRIDGE_DLN_DST != address(0)) {
+        if (configuration.debridgeDstDln[chainId] != address(0)) {
             availability.deBridgeCancelOrderHook = true;
             expectedHooks += 1; // DeBridgeCancelOrderHook
         } else {
@@ -240,22 +240,72 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         _writeExportedContracts(chainId);
     }
 
+    // used by tenderly vnets for checking contracts with salt namespace (for env 1)
+    // this function allows checking contract deployment status on VNETs with custom salt
+    function run(bool check, uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {
+        _setConfiguration(env, saltNamespace);
+        console2.log("V2 Core (Early Access) on chainId: ", chainId);
+
+        if (check) {
+            _checkV2CoreAddresses(chainId, env);
+        } else {
+            console2.log("Deploying V2 Core (Early Access) on chainId: ", chainId);
+            // deploy core contracts
+            _deployCoreContracts(chainId, env);
+            // Write all exported contracts for this chain
+            _writeExportedContracts(chainId);
+        }
+    }
+
     /// @notice Public function to configure SuperLedger after deployment (for production/staging)
     /// @dev This function reads contract addresses from output files and configures the ledger
     /// @dev Meant to be called by Fireblocks MPC wallet via separate script
     /// @param env Environment (0 = prod, 2 = staging)
     /// @param chainId Target chain ID
-    function runLedgerConfigurations(uint256 env, uint64 chainId) public broadcast(env) {
+    function runLedgerConfigurations(uint256 env, uint64 chainId) public {
+        runLedgerConfigurations(env, chainId, "");
+    }
+
+    /// @notice Public function to configure SuperLedger after deployment with salt namespace
+    /// @dev This function reads contract addresses from output files and configures the ledger
+    /// @dev Meant to be called by Fireblocks MPC wallet via separate script
+    /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
+    /// @param chainId Target chain ID
+    /// @param saltNamespace Salt namespace for configuration
+    function runLedgerConfigurations(uint256 env, uint64 chainId, string memory saltNamespace) public {
+        runLedgerConfigurations(env, chainId, saltNamespace, "");
+    }
+
+    /// @notice Public function to configure SuperLedger after deployment with salt namespace and branch name
+    /// @dev This function reads contract addresses from output files and configures the ledger
+    /// @dev Meant to be called by Fireblocks MPC wallet via separate script
+    /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
+    /// @param chainId Target chain ID
+    /// @param saltNamespace Salt namespace for configuration
+    /// @param branchName Branch name for env=1 (VNET) to read contracts from specific branch folder
+    function runLedgerConfigurations(
+        uint256 env,
+        uint64 chainId,
+        string memory saltNamespace,
+        string memory branchName
+    )
+        public
+        broadcast(env)
+    {
         console2.log("====== FOOLPROOF LEDGER CONFIGURATION ======");
-        console2.log("Environment:", env == 0 ? "Production" : "Staging");
+        console2.log("Environment:", env == 0 ? "Production" : (env == 1 ? "VNET" : "Staging"));
         console2.log("Chain ID:", chainId);
+        console2.log("Salt Namespace:", saltNamespace);
+        if (env == 1 && bytes(branchName).length > 0) {
+            console2.log("Branch Name:", branchName);
+        }
         console2.log("");
 
         // Set configuration to get correct environment settings
-        _setConfiguration(env, "");
+        _setConfiguration(env, saltNamespace);
 
         // Configure SuperLedger with bytecode verification
-        _setupSuperLedgerConfiguration(chainId, true, env);
+        _setupSuperLedgerConfiguration(chainId, env, branchName);
 
         console2.log("====== LEDGER CONFIGURATION COMPLETED SUCCESSFULLY ======");
     }
@@ -474,7 +524,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Basic hooks without dependencies
         __checkContract(APPROVE_ERC20_HOOK_KEY, __getSalt(APPROVE_ERC20_HOOK_KEY), "", env);
         __checkContract(TRANSFER_ERC20_HOOK_KEY, __getSalt(TRANSFER_ERC20_HOOK_KEY), "", env);
-        __checkContract(BATCH_TRANSFER_HOOK_KEY, __getSalt(BATCH_TRANSFER_HOOK_KEY), "", env);
+        __checkContract(
+            BATCH_TRANSFER_HOOK_KEY,
+            __getSalt(BATCH_TRANSFER_HOOK_KEY),
+            abi.encode(configuration.nativeTokens[chainId]),
+            env
+        );
 
         // BatchTransferFromHook with Permit2
         if (configuration.permit2s[chainId] != address(0)) {
@@ -573,7 +628,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             __checkContract(
                 DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
                 __getSalt(DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY),
-                abi.encode(DEBRIDGE_DLN_SRC, superValidator),
+                abi.encode(configuration.debridgeSrcDln[chainId], superValidator),
                 env
             );
         } else if (!availability.deBridgeSendOrderHook) {
@@ -586,7 +641,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             __checkContract(
                 DEBRIDGE_CANCEL_ORDER_HOOK_KEY,
                 __getSalt(DEBRIDGE_CANCEL_ORDER_HOOK_KEY),
-                abi.encode(DEBRIDGE_DLN_DST),
+                abi.encode(configuration.debridgeDstDln[chainId]),
                 env
             );
         } else {
@@ -598,7 +653,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             __checkContract(
                 MERKL_CLAIM_REWARD_HOOK_KEY,
                 __getSalt(MERKL_CLAIM_REWARD_HOOK_KEY),
-                abi.encode(configuration.merklDistributors[chainId]),
+                abi.encode(
+                    configuration.merklDistributors[chainId],
+                    configuration.treasury,
+                    MERKLE_CLAIM_REWARD_HOOK_FEE_PERCENT
+                ),
                 env
             );
         } else {
@@ -1004,25 +1063,20 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         _deployOracles(chainId, env);
 
         // Setup SuperLedger configuration with oracle mappings - CONDITIONAL BASED ON ENVIRONMENT
-        if (env == 1) {
-            // VNET environment - setup immediately during deployment using deployed contracts
-            _setupSuperLedgerConfiguration(chainId, false, env);
-        } else {
-            // Production/Staging environments - skip setup, will be done separately via runLedgerConfigurations
-            console2.log("Skipping SuperLedger configuration for production/staging environment");
-            console2.log("Configuration will be done separately via runLedgerConfigurations script");
-        }
+        // All environments - skip setup, will be done separately via runLedgerConfigurations
+        console2.log("Skipping SuperLedger configuration for all environments");
+        console2.log("Configuration will be done separately via runLedgerConfigurations script");
     }
 
     /// @notice Internal function to setup SuperLedger configuration
     /// @dev Can read from deployed contracts or output files based on useFiles parameter
     /// @param chainId Target chain ID
-    /// @param useFiles Whether to read contract addresses from output files (true) or deployed contracts (false)
     /// @param env Environment for determining output path (only used if useFiles is true)
-    function _setupSuperLedgerConfiguration(uint64 chainId, bool useFiles, uint256 env) private {
-        string memory sourceDescription = useFiles ? "output files" : "deployed contracts";
-        console2.log("Setting up SuperLedgerConfiguration from", sourceDescription, "with comprehensive validation...");
+    function _setupSuperLedgerConfiguration(uint64 chainId, uint256 env) private {
+        _setupSuperLedgerConfiguration(chainId, env, "");
+    }
 
+    function _setupSuperLedgerConfiguration(uint64 chainId, uint256 env, string memory branchName) private {
         // ===== GET CONTRACT ADDRESSES BASED ON SOURCE =====
         address superLedgerConfig;
         address erc4626Oracle;
@@ -1032,27 +1086,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address superLedger;
         address flatFeeLedger;
 
-        if (useFiles) {
-            // Read contract addresses from deployment output files
-            string memory deploymentJson = _verifyContractAddressesFromBytecode(chainId, env);
+        // Read contract addresses from deployment output files
+        string memory deploymentJson = _verifyContractAddressesFromBytecode(chainId, env, branchName);
 
-            superLedgerConfig = vm.parseJsonAddress(deploymentJson, ".SuperLedgerConfiguration");
-            erc4626Oracle = vm.parseJsonAddress(deploymentJson, ".ERC4626YieldSourceOracle");
-            erc7540Oracle = vm.parseJsonAddress(deploymentJson, ".ERC7540YieldSourceOracle");
-            erc5115Oracle = vm.parseJsonAddress(deploymentJson, ".ERC5115YieldSourceOracle");
-            stakingOracle = vm.parseJsonAddress(deploymentJson, ".StakingYieldSourceOracle");
-            superLedger = vm.parseJsonAddress(deploymentJson, ".SuperLedger");
-            flatFeeLedger = vm.parseJsonAddress(deploymentJson, ".FlatFeeLedger");
-        } else {
-            // Read contract addresses from deployed contracts registry
-            superLedgerConfig = _getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY);
-            erc4626Oracle = _getContract(chainId, ERC4626_YIELD_SOURCE_ORACLE_KEY);
-            erc7540Oracle = _getContract(chainId, ERC7540_YIELD_SOURCE_ORACLE_KEY);
-            erc5115Oracle = _getContract(chainId, ERC5115_YIELD_SOURCE_ORACLE_KEY);
-            stakingOracle = _getContract(chainId, STAKING_YIELD_SOURCE_ORACLE_KEY);
-            superLedger = _getContract(chainId, SUPER_LEDGER_KEY);
-            flatFeeLedger = _getContract(chainId, FLAT_FEE_LEDGER_KEY);
-        }
+        superLedgerConfig = vm.parseJsonAddress(deploymentJson, ".SuperLedgerConfiguration");
+        erc4626Oracle = vm.parseJsonAddress(deploymentJson, ".ERC4626YieldSourceOracle");
+        erc7540Oracle = vm.parseJsonAddress(deploymentJson, ".ERC7540YieldSourceOracle");
+        erc5115Oracle = vm.parseJsonAddress(deploymentJson, ".ERC5115YieldSourceOracle");
+        stakingOracle = vm.parseJsonAddress(deploymentJson, ".StakingYieldSourceOracle");
+        superLedger = vm.parseJsonAddress(deploymentJson, ".SuperLedger");
+        flatFeeLedger = vm.parseJsonAddress(deploymentJson, ".FlatFeeLedger");
 
         // ===== VALIDATE ALL REQUIRED CONTRACTS =====
         require(superLedgerConfig != address(0), "SETUP_SUPER_LEDGER_CONFIG_ZERO");
@@ -1079,7 +1122,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Validate treasury address is set
         require(configuration.treasury != address(0), "SETUP_TREASURY_ZERO");
 
-        console2.log(" All required contracts validated from", sourceDescription);
         console2.log("  SuperLedgerConfiguration:", superLedgerConfig);
         console2.log("  ERC4626 Oracle:", erc4626Oracle);
         console2.log("  ERC7540 Oracle:", erc7540Oracle);
@@ -1128,10 +1170,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         bytes32[] memory salts = new bytes32[](4);
-        salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
-        salts[1] = bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
-        salts[2] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY));
-        salts[3] = bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY));
+        salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_SALT));
+        salts[1] = bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_SALT));
+        salts[2] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_SALT));
+        salts[3] = bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_SALT));
 
         // Validate salts are not empty
         for (uint256 i = 0; i < salts.length; ++i) {
@@ -1142,8 +1184,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Execute the configuration setup
         ISuperLedgerConfiguration(superLedgerConfig).setYieldSourceOracles(salts, configs);
-
-        console2.log(" SuperLedgerConfiguration setup completed successfully from", sourceDescription, "! ");
     }
 
     /// @notice Local variables struct to avoid stack too deep in bytecode verification
@@ -1170,10 +1210,22 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         view
         returns (string memory deploymentJson)
     {
+        return _verifyContractAddressesFromBytecode(chainId, env, "");
+    }
+
+    function _verifyContractAddressesFromBytecode(
+        uint64 chainId,
+        uint256 env,
+        string memory branchName
+    )
+        private
+        view
+        returns (string memory deploymentJson)
+    {
         console2.log("Verifying contract addresses from environment-specific bytecode...");
 
         // Read addresses from output files
-        deploymentJson = _readCoreContractsFromOutput(chainId, env);
+        deploymentJson = _readCoreContractsFromOutput(chainId, env, branchName);
 
         // Initialize local variables struct
         VerificationVars memory vars;
@@ -1192,55 +1244,54 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Define contracts to verify with their corresponding environment-specific bytecode paths and constructor args
         ContractVerification[] memory contracts = new ContractVerification[](7);
 
-        // Core contracts verification - use environment-specific bytecode that was used for deployment
-        string memory bytecodeDir = __getBytecodeDirectory(env);
+        // Core contracts verification - always use locked bytecode
 
         contracts[0] = ContractVerification({
             name: "SuperLedgerConfiguration",
             outputKey: ".SuperLedgerConfiguration",
-            bytecodePath: string(abi.encodePacked(bytecodeDir, "SuperLedgerConfiguration.json")),
+            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "SuperLedgerConfiguration.json")),
             constructorArgs: ""
         });
 
         contracts[1] = ContractVerification({
             name: "ERC4626YieldSourceOracle",
             outputKey: ".ERC4626YieldSourceOracle",
-            bytecodePath: string(abi.encodePacked(bytecodeDir, "ERC4626YieldSourceOracle.json")),
+            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "ERC4626YieldSourceOracle.json")),
             constructorArgs: ""
         });
 
         contracts[2] = ContractVerification({
             name: "ERC7540YieldSourceOracle",
             outputKey: ".ERC7540YieldSourceOracle",
-            bytecodePath: string(abi.encodePacked(bytecodeDir, "ERC7540YieldSourceOracle.json")),
+            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "ERC7540YieldSourceOracle.json")),
             constructorArgs: ""
         });
 
         contracts[3] = ContractVerification({
             name: "ERC5115YieldSourceOracle",
             outputKey: ".ERC5115YieldSourceOracle",
-            bytecodePath: string(abi.encodePacked(bytecodeDir, "ERC5115YieldSourceOracle.json")),
+            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "ERC5115YieldSourceOracle.json")),
             constructorArgs: ""
         });
 
         contracts[4] = ContractVerification({
             name: "StakingYieldSourceOracle",
             outputKey: ".StakingYieldSourceOracle",
-            bytecodePath: string(abi.encodePacked(bytecodeDir, "StakingYieldSourceOracle.json")),
+            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "StakingYieldSourceOracle.json")),
             constructorArgs: ""
         });
 
         contracts[5] = ContractVerification({
             name: "SuperLedger",
             outputKey: ".SuperLedger",
-            bytecodePath: string(abi.encodePacked(bytecodeDir, "SuperLedger.json")),
+            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "SuperLedger.json")),
             constructorArgs: string(vars.ledgerConstructorArgs)
         });
 
         contracts[6] = ContractVerification({
             name: "FlatFeeLedger",
             outputKey: ".FlatFeeLedger",
-            bytecodePath: string(abi.encodePacked(bytecodeDir, "FlatFeeLedger.json")),
+            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "FlatFeeLedger.json")),
             constructorArgs: string(vars.ledgerConstructorArgs)
         });
         // Verify each contract
@@ -1333,10 +1384,31 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     /// @param env Environment (0 = prod, 2 = staging)
     /// @return JSON string containing contract addresses
     function _readCoreContractsFromOutput(uint64 chainId, uint256 env) internal view returns (string memory) {
+        return _readCoreContractsFromOutput(chainId, env, "");
+    }
+
+    function _readCoreContractsFromOutput(
+        uint64 chainId,
+        uint256 env,
+        string memory branchName
+    )
+        internal
+        view
+        returns (string memory)
+    {
         string memory chainName = chainNames[chainId];
         // Use environment variable for reliable project root, fallback to vm.projectRoot()
         string memory root = vm.envOr("SUPERFORM_PROJECT_ROOT", vm.projectRoot());
-        string memory envName = env == 0 ? "prod" : "staging";
+
+        string memory envName;
+        if (env == 0) {
+            envName = "prod";
+        } else if (env == 1) {
+            require(bytes(branchName).length > 0, "BRANCH_NAME_REQUIRED_FOR_ENV_1");
+            envName = branchName;
+        } else {
+            envName = "staging"; // env=2
+        }
 
         // Construct path: script/output/{env}/{chainId}/{ChainName}-latest.json
         string memory outputPath = string(
@@ -1376,7 +1448,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(configuration.permit2s[chainId].code.length > 0, "BATCH_TRANSFER_FROM_HOOK_PERMIT2_NOT_DEPLOYED");
 
         hooks[2] = HookDeployment(
-            BATCH_TRANSFER_HOOK_KEY, 
+            BATCH_TRANSFER_HOOK_KEY,
             abi.encodePacked(__getBytecode("BatchTransferHook", env), abi.encode(configuration.nativeTokens[chainId]))
         );
         hooks[3] = HookDeployment(
@@ -1468,12 +1540,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(superValidator != address(0), "DEBRIDGE_HOOKS_MERKLE_VALIDATOR_PARAM_ZERO");
 
         if (availability.deBridgeSendOrderHook) {
-            require(DEBRIDGE_DLN_SRC != address(0), "DEBRIDGE_SEND_HOOK_DLN_SRC_PARAM_ZERO");
+            require(configuration.debridgeSrcDln[chainId] != address(0), "DEBRIDGE_SEND_HOOK_DLN_SRC_PARAM_ZERO");
             hooks[19] = HookDeployment(
                 DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
                 abi.encodePacked(
                     __getBytecode("DeBridgeSendOrderAndExecuteOnDstHook", env),
-                    abi.encode(DEBRIDGE_DLN_SRC, superValidator)
+                    abi.encode(configuration.debridgeSrcDln[chainId], superValidator)
                 )
             );
         } else {
@@ -1482,10 +1554,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         if (availability.deBridgeCancelOrderHook) {
-            require(DEBRIDGE_DLN_DST != address(0), "DEBRIDGE_CANCEL_HOOK_DLN_DST_PARAM_ZERO");
+            require(configuration.debridgeDstDln[chainId] != address(0), "DEBRIDGE_CANCEL_HOOK_DLN_DST_PARAM_ZERO");
             hooks[20] = HookDeployment(
                 DEBRIDGE_CANCEL_ORDER_HOOK_KEY,
-                abi.encodePacked(__getBytecode("DeBridgeCancelOrderHook", env), abi.encode(DEBRIDGE_DLN_DST))
+                abi.encodePacked(
+                    __getBytecode("DeBridgeCancelOrderHook", env), abi.encode(configuration.debridgeDstDln[chainId])
+                )
             );
         } else {
             console2.log(" SKIPPED DeBridgeCancelOrderHook deployment: Not available on chain", chainId);

@@ -42,29 +42,6 @@ log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] [$level] $*" >&2
 }
 
-# Network name mapping
-get_network_name() {
-    local network_id=$1
-    case "$network_id" in
-        1)
-            echo "Ethereum"
-            ;;
-        8453)
-            echo "Base"
-            ;;
-        56)
-            echo "BNB"
-            ;;
-        42161)
-            echo "Arbitrum"
-            ;;
-        *)
-            log "ERROR" "Unknown network ID: $network_id"
-            return 1
-            ;;
-    esac
-}
-
 # Function to extract contract names from regenerate_bytecode.sh
 extract_contracts_from_regenerate_script() {
     local array_name=$1
@@ -607,7 +584,6 @@ for network_def in "${NETWORKS[@]}"; do
         $BROADCAST_FLAG \
         $VERIFY_FLAG \
         --timeout 300 \
-        --resume \
         -vv
     
     echo -e "${GREEN}✅ $network_name Mainnet deployment completed successfully!${NC}"
