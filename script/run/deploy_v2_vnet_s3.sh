@@ -698,8 +698,9 @@ has_contract_changes() {
     ')
     
     # Check for removed contracts (contracts that exist in S3 but not in new deployment)
+    # Exclude Nexus contracts and banned contracts from being considered removable
     local removed_contract_count=$(echo "$existing_contracts" | jq --argjson new_contracts "$new_contracts" '
-        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not)] | length
+        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle"))] | length
     ')
     
     # Return true if there are any new, updated, or removed contracts
@@ -742,8 +743,9 @@ show_contract_diff() {
     ' | tr '\n' ' ')
     
     # Show removed contracts (contracts that exist in S3 but not in new deployment)
+    # Exclude Nexus contracts and banned contracts from being shown as removed
     local removed_contract_names=$(echo "$existing_contracts" | jq -r --argjson new_contracts "$new_contracts" '
-        to_entries[] | select(.key as $k | $new_contracts | has($k) | not) | .key
+        to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle")) | .key
     ' | tr '\n' ' ')
     
     local changes_shown=false

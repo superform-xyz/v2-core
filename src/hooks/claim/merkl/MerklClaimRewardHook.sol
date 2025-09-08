@@ -16,10 +16,12 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title MerklClaimRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         uint256 arraysLength = BytesLib.toUint256(data, 0);
-/// @notice         address[] tokens = BytesLib.slice(data, 32, arraysLength * 20);
-/// @notice         uint256[] amounts = BytesLib.slice(data, 32 + arraysLength * 20, arraysLength * 32);
-/// @notice         bytes proofBlob = BytesLib.slice(data, 32 + arraysLength * 20 + arraysLength * 32, data.length - (32
+/// @notice         address feeReceiver = BytesLib.toAddress(data, 0);
+/// @notice         uint256 feePercent = BytesLib.toUint256(data, 20);
+/// @notice         uint256 arraysLength = BytesLib.toUint256(data, 52);
+/// @notice         address[] tokens = BytesLib.slice(data, 84, arraysLength * 20);
+/// @notice         uint256[] amounts = BytesLib.slice(data, 84 + arraysLength * 20, arraysLength * 32);
+/// @notice         bytes proofBlob = BytesLib.slice(data, 84 + arraysLength * 20 + arraysLength * 32, data.length - (84
 /// + arraysLength * 20 + arraysLength * 32));
 contract MerklClaimRewardHook is BaseHook {
     using HookDataDecoder for bytes;
@@ -31,10 +33,9 @@ contract MerklClaimRewardHook is BaseHook {
     error FEE_NOT_VALID();
 
     address public immutable DISTRIBUTOR;
-    address public immutable FEE_RECEIVER;
-    uint256 public immutable FEE_PERCENT;
 
     uint256 public constant BPS = 10_000;
+    uint256 public constant MAX_FEE_PERCENT = 5000; // 50%
 
     struct ClaimParams {
         address[] users;
@@ -44,17 +45,12 @@ contract MerklClaimRewardHook is BaseHook {
     }
 
     constructor(
-        address distributor_,
-        address feeReceiver_,
-        uint256 feePercent_
+        address distributor_
     )
         BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM)
     {
-        if (distributor_ == address(0) || feeReceiver_ == address(0)) revert ADDRESS_NOT_VALID();
-        if (feePercent_ > BPS) revert FEE_NOT_VALID();
+        if (distributor_ == address(0)) revert ADDRESS_NOT_VALID();
         DISTRIBUTOR = distributor_;
-        FEE_RECEIVER = feeReceiver_;
-        FEE_PERCENT = feePercent_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -72,6 +68,13 @@ contract MerklClaimRewardHook is BaseHook {
         returns (Execution[] memory executions)
     {
         ClaimParams memory params;
+        
+        // decode fee parameters
+        (address feeReceiver, uint256 feePercent) = _decodeFeeParams(data);
+        
+        // validate fee percent
+        if (feePercent > MAX_FEE_PERCENT) revert FEE_NOT_VALID();
+        if (feeReceiver == address(0)) revert ADDRESS_NOT_VALID();
 
         // decode users
         address[] memory users = _setUsersArray(account, data);
@@ -80,7 +83,11 @@ contract MerklClaimRewardHook is BaseHook {
         // decode other params
         (params.tokens, params.amounts, params.proofs) = _decodeClaimParams(data);
 
-        executions = new Execution[](users.length + 1);
+        // 1 for claim + tokens.length for fee transfers  
+        // (BaseHook automatically adds pre/post execute)
+        executions = new Execution[](1 + params.tokens.length);
+        
+        // claim
         executions[0] = Execution({
             target: DISTRIBUTOR,
             value: 0,
@@ -89,28 +96,32 @@ contract MerklClaimRewardHook is BaseHook {
 
         // Known limitations:
         // - can't verify deviations in the transfer (won't actually execute the code until the `handleOps` execution)
-        // - `FEE_RECEIVER` and `FEE_PERCENT` must be configured by the hook instead of the ledgers
         // - won't work for tokens reverting on 0 amount transfer in case of 0 fees
-        uint256 len = users.length;
+        uint256 len = params.tokens.length;
         for (uint256 i; i < len; ++i) {
             uint208 amount;
             uint256 fee;
 
-            if (FEE_PERCENT > 0) {
+            if (feePercent > 0) {
                 (amount,,) = IDistributor(DISTRIBUTOR).claimed(params.users[i], params.tokens[i]);
-                fee = ((params.amounts[i] - amount) * FEE_PERCENT) / BPS;
+                fee = ((params.amounts[i] - amount) * feePercent) / BPS;
             }
 
             executions[i + 1] = Execution({
                 target: params.tokens[i],
                 value: 0,
-                callData: abi.encodeCall(IERC20.transfer, (FEE_RECEIVER, fee))
+                callData: abi.encodeCall(IERC20.transfer, (feeReceiver, fee))
             });
         }
     }
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory addressData) {
+        // decode fee receiver first
+        (address feeReceiver,) = _decodeFeeParams(data);
+        addressData = bytes.concat(addressData, bytes20(feeReceiver));
+        
+        // decode tokens and append them
         (address[] memory tokens,,) = _decodeClaimParams(data);
 
         uint256 length = tokens.length;
@@ -146,8 +157,13 @@ contract MerklClaimRewardHook is BaseHook {
         proofs = _decodeProofs(data, cursorAfterAmounts);
     }
 
+    function _decodeFeeParams(bytes calldata data) internal pure returns (address feeReceiver, uint256 feePercent) {
+        feeReceiver = BytesLib.toAddress(data, 0);
+        feePercent = BytesLib.toUint256(data, 20);
+    }
+    
     function _setUsersArray(address account, bytes calldata data) internal pure returns (address[] memory users) {
-        uint256 arrayLength = BytesLib.toUint256(data, 0);
+        uint256 arrayLength = BytesLib.toUint256(data, 52);
 
         users = new address[](arrayLength);
         for (uint256 i; i < arrayLength; i++) {
@@ -160,8 +176,8 @@ contract MerklClaimRewardHook is BaseHook {
         pure
         returns (uint256 cursor, address[] memory tokens, uint256[] memory amounts)
     {
-        uint256 arrayLength = BytesLib.toUint256(data, 0);
-        cursor = 32;
+        uint256 arrayLength = BytesLib.toUint256(data, 52);
+        cursor = 84; // Start after feeReceiver (20) + feePercent (32) + arrayLength (32)
 
         tokens = new address[](arrayLength);
         for (uint256 i; i < arrayLength; i++) {
@@ -183,7 +199,7 @@ contract MerklClaimRewardHook is BaseHook {
     }
 
     function _decodeProofs(bytes calldata data, uint256 cursor) internal pure returns (bytes32[][] memory proofs) {
-        uint256 arrayLength = BytesLib.toUint256(data, 0);
+        uint256 arrayLength = BytesLib.toUint256(data, 52);
         proofs = new bytes32[][](arrayLength);
 
         for (uint256 i; i < arrayLength; ++i) {

@@ -9,7 +9,12 @@
 #   VNET deployments.
 #
 # Usage:
-#   ./script/run/regenerate_bytecode.sh
+#   ./script/run/regenerate_bytecode.sh [CONTRACT_NAME]
+#
+# Arguments:
+#   CONTRACT_NAME (optional): Name of specific contract to regenerate.
+#                            If provided, must exist in out/ folder.
+#                            If omitted, regenerates all contracts.
 #
 # Requirements:
 #   - forge: For contract compilation
@@ -34,12 +39,30 @@ log() {
     echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] [$level] $*" >&2
 }
 
-log "INFO" "${BLUE}🔧 Regenerating Bytecode for V2 Core Contracts${NC}"
+# Parse command line arguments
+CONTRACT_NAME=""
+if [ $# -gt 0 ]; then
+    CONTRACT_NAME="$1"
+    log "INFO" "${BLUE}🔧 Regenerating Bytecode for Contract: ${CONTRACT_NAME}${NC}"
+else
+    log "INFO" "${BLUE}🔧 Regenerating Bytecode for All V2 Core Contracts${NC}"
+fi
 
 # Ensure we're in the right directory
 if [ ! -f "foundry.toml" ]; then
     log "ERROR" "${RED}foundry.toml not found. Please run this script from the v2-core root directory.${NC}"
     exit 1
+fi
+
+# If specific contract is requested, validate it exists in out folder
+if [ -n "$CONTRACT_NAME" ]; then
+    CONTRACT_PATH="out/${CONTRACT_NAME}.sol/${CONTRACT_NAME}.json"
+    if [ ! -f "$CONTRACT_PATH" ]; then
+        log "ERROR" "${RED}Contract '${CONTRACT_NAME}' not found at ${CONTRACT_PATH}${NC}"
+        log "ERROR" "${RED}Please ensure the contract exists and has been compiled.${NC}"
+        exit 1
+    fi
+    log "INFO" "${GREEN}✅ Contract '${CONTRACT_NAME}' found in out folder${NC}"
 fi
 
 # Build contracts
@@ -140,57 +163,71 @@ copy_contract() {
     return 0
 }
 
-# Copy all core contracts
-log "INFO" "${BLUE}📦 Copying core contracts...${NC}"
-failed_core=0
-for contract in "${CORE_CONTRACTS[@]}"; do
-    if ! copy_contract "$contract"; then
-        failed_core=$((failed_core + 1))
+# Process contracts based on argument
+if [ -n "$CONTRACT_NAME" ]; then
+    # Single contract mode
+    log "INFO" "${BLUE}📦 Copying specific contract: ${CONTRACT_NAME}...${NC}"
+    if copy_contract "$CONTRACT_NAME"; then
+        log "INFO" "${GREEN}🎉 Contract ${CONTRACT_NAME} successfully updated in generated-bytecode!${NC}"
+        exit 0
+    else
+        log "ERROR" "${RED}❌ Failed to copy contract ${CONTRACT_NAME}${NC}"
+        exit 1
     fi
-done
-
-# Copy all hook contracts
-log "INFO" "${BLUE}🪝 Copying hook contracts...${NC}"
-failed_hooks=0
-for contract in "${HOOK_CONTRACTS[@]}"; do
-    if ! copy_contract "$contract"; then
-        failed_hooks=$((failed_hooks + 1))
-    fi
-done
-
-# Copy all oracle contracts
-log "INFO" "${BLUE}🔮 Copying oracle contracts...${NC}"
-failed_oracles=0
-for contract in "${ORACLE_CONTRACTS[@]}"; do
-    if ! copy_contract "$contract"; then
-        failed_oracles=$((failed_oracles + 1))
-    fi
-done
-
-# Summary
-total_contracts=$((${#CORE_CONTRACTS[@]} + ${#HOOK_CONTRACTS[@]} + ${#ORACLE_CONTRACTS[@]}))
-total_failed=$((failed_core + failed_hooks + failed_oracles))
-total_success=$((total_contracts - total_failed))
-
-log "INFO" "${BLUE}📊 Summary:${NC}"
-log "INFO" "${GREEN}  ✅ Successfully copied: ${total_success}/${total_contracts} contracts${NC}"
-
-if [ $failed_core -gt 0 ]; then
-    log "WARN" "${YELLOW}  ⚠️  Failed core contracts: ${failed_core}/${#CORE_CONTRACTS[@]}${NC}"
-fi
-
-if [ $failed_hooks -gt 0 ]; then
-    log "WARN" "${YELLOW}  ⚠️  Failed hook contracts: ${failed_hooks}/${#HOOK_CONTRACTS[@]}${NC}"
-fi
-
-if [ $failed_oracles -gt 0 ]; then
-    log "WARN" "${YELLOW}  ⚠️  Failed oracle contracts: ${failed_oracles}/${#ORACLE_CONTRACTS[@]}${NC}"
-fi
-
-if [ $total_failed -eq 0 ]; then
-    log "INFO" "${GREEN}🎉 All contracts successfully updated in generated-bytecode!${NC}"
-    exit 0
 else
-    log "ERROR" "${RED}❌ ${total_failed} contracts failed to copy. Please check the error messages above.${NC}"
-    exit 1
+    # All contracts mode (original behavior)
+    # Copy all core contracts
+    log "INFO" "${BLUE}📦 Copying core contracts...${NC}"
+    failed_core=0
+    for contract in "${CORE_CONTRACTS[@]}"; do
+        if ! copy_contract "$contract"; then
+            failed_core=$((failed_core + 1))
+        fi
+    done
+
+    # Copy all hook contracts
+    log "INFO" "${BLUE}🪝 Copying hook contracts...${NC}"
+    failed_hooks=0
+    for contract in "${HOOK_CONTRACTS[@]}"; do
+        if ! copy_contract "$contract"; then
+            failed_hooks=$((failed_hooks + 1))
+        fi
+    done
+
+    # Copy all oracle contracts
+    log "INFO" "${BLUE}🔮 Copying oracle contracts...${NC}"
+    failed_oracles=0
+    for contract in "${ORACLE_CONTRACTS[@]}"; do
+        if ! copy_contract "$contract"; then
+            failed_oracles=$((failed_oracles + 1))
+        fi
+    done
+
+    # Summary for all contracts mode
+    total_contracts=$((${#CORE_CONTRACTS[@]} + ${#HOOK_CONTRACTS[@]} + ${#ORACLE_CONTRACTS[@]}))
+    total_failed=$((failed_core + failed_hooks + failed_oracles))
+    total_success=$((total_contracts - total_failed))
+
+    log "INFO" "${BLUE}📊 Summary:${NC}"
+    log "INFO" "${GREEN}  ✅ Successfully copied: ${total_success}/${total_contracts} contracts${NC}"
+
+    if [ $failed_core -gt 0 ]; then
+        log "WARN" "${YELLOW}  ⚠️  Failed core contracts: ${failed_core}/${#CORE_CONTRACTS[@]}${NC}"
+    fi
+
+    if [ $failed_hooks -gt 0 ]; then
+        log "WARN" "${YELLOW}  ⚠️  Failed hook contracts: ${failed_hooks}/${#HOOK_CONTRACTS[@]}${NC}"
+    fi
+
+    if [ $failed_oracles -gt 0 ]; then
+        log "WARN" "${YELLOW}  ⚠️  Failed oracle contracts: ${failed_oracles}/${#ORACLE_CONTRACTS[@]}${NC}"
+    fi
+
+    if [ $total_failed -eq 0 ]; then
+        log "INFO" "${GREEN}🎉 All contracts successfully updated in generated-bytecode!${NC}"
+        exit 0
+    else
+        log "ERROR" "${RED}❌ ${total_failed} contracts failed to copy. Please check the error messages above.${NC}"
+        exit 1
+    fi
 fi 
