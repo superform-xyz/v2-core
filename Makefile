@@ -20,6 +20,8 @@ forge-script :; forge script $(SCRIPT) $(ARGS)
 
 forge-test :; forge test --match-test $(TEST) $(ARGS)
 
+forge-test-contract :; forge test --match-contract $(TEST-CONTRACT) $(ARGS)
+
 ftest :; forge test
 
 ftest-ci :; forge test -vvv --jobs 10
