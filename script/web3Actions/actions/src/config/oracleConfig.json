@@ -1,0 +1,22 @@
+{
+  "fireblocksSender": "0x28b7599f461D104f07D78215Fa6F9B959851f93d",
+  "yieldSourceOracles": {
+    "ERC4626YieldSourceOracle": {
+      "salts": ["ERC4626YieldSourceOracle_v1.0.0"],
+      "description": "ERC-4626 compatible vault yield tracking"
+    },
+    "ERC7540YieldSourceOracle": {
+      "salts": ["ERC7540YieldSourceOracle_v1.0.0"], 
+      "description": "ERC-7540 async vault yield tracking"
+    },
+    "ERC5115YieldSourceOracle": {
+      "salts": ["ERC5115YieldSourceOracle_v1.0.0"],
+      "description": "ERC-5115 SuperVault yield tracking"
+    },
+    "StakingYieldSourceOracle": {
+      "salts": ["StakingYieldSourceOracle_v1.0.0"],
+      "description": "Native staking yield tracking"
+    }
+  },
+  "superLedgerConfiguration": "0x2e2D71289CBA19f831856f85DEC7f194B0165e69"
+}

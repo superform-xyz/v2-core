@@ -1,0 +1,33 @@
+{
+  "name": "@superform/web3-actions",
+  "version": "1.0.0",
+  "description": "Tenderly Web3 Actions for Superform v2 monitoring and automation",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "npx ts-node tests/trackLedgerConfigurationEvents.ts",
+    "deploy": "tenderly actions deploy",
+    "deploy:dry-run": "tenderly actions deploy --dry-run"
+  },
+  "keywords": [
+    "tenderly",
+    "web3-actions",
+    "superform",
+    "defi",
+    "monitoring"
+  ],
+  "author": "Superform Labs",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@tenderly/actions": "0.2.148",
+    "ethers": "6"
+  },
+  "devDependencies": {
+    "@tenderly/actions-test": "0.2.148",
+    "@types/node": "24.3.1",
+    "ts-node": "^10.9.2",
+    "typescript": "5.9.2"
+  },
+  "packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"
+}

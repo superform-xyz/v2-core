@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Production Network Configuration for V2 Core Deployment
 # This file contains all production network definitions (full mainnet deployment)

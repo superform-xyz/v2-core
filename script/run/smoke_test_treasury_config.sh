@@ -1,4 +1,4 @@
-#!/opt/homebrew/bin/bash
+#!/usr/bin/env bash
 
 # Treasury Configuration Smoke Test Runner
 # This script runs treasury configuration smoke tests across all production networks
