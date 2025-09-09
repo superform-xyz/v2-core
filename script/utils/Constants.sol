@@ -193,8 +193,8 @@ abstract contract Constants {
     string internal constant STAKING_YIELD_SOURCE_ORACLE_KEY = "StakingYieldSourceOracle";
 
     // SuperLedgerConfigs Salts
-    string internal constant ERC4626_YIELD_SOURCE_ORACLE_SALT = "ERC4626YieldSourceOracle_salt";
-    string internal constant ERC7540_YIELD_SOURCE_ORACLE_SALT = "ERC7540YieldSourceOracle_salt";
-    string internal constant ERC5115_YIELD_SOURCE_ORACLE_SALT = "ERC5115YieldSourceOracle_salt";
-    string internal constant STAKING_YIELD_SOURCE_ORACLE_SALT = "StakingYieldSourceOracle_salt";
+    string internal constant ERC4626_YIELD_SOURCE_ORACLE_SALT = "ERC4626YieldSourceOracle_v1.0.0";
+    string internal constant ERC7540_YIELD_SOURCE_ORACLE_SALT = "ERC7540YieldSourceOracle_v1.0.0";
+    string internal constant ERC5115_YIELD_SOURCE_ORACLE_SALT = "ERC5115YieldSourceOracle_v1.0.0";
+    string internal constant STAKING_YIELD_SOURCE_ORACLE_SALT = "StakingYieldSourceOracle_v1.0.0";
 }
