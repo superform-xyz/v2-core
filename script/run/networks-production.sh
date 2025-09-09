@@ -258,7 +258,7 @@ load_rpc_urls() {
         return 1
     fi
     
-    echo "✅ Production RPC URLs loaded successfully (all 13 networks)"
+    echo "✅ Production RPC URLs loaded successfully"
 }
 
 # Load Etherscan V2 API key for verification
