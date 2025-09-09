@@ -197,9 +197,16 @@ main() {
     
     # Load RPC URLs if not in dry run mode
     if [[ "$DRY_RUN" != "true" ]]; then
-        log "INFO" "Loading RPC URLs from credential manager..."
-        if ! load_rpc_urls; then
-            log "ERROR" "Failed to load RPC URLs. Some tests may fail."
+        if [[ "${CI:-}" == "true" ]]; then
+            log "INFO" "Loading RPC URLs from environment variables (CI mode)..."
+            if ! load_rpc_urls_ci; then
+                log "ERROR" "Failed to load RPC URLs from environment. Some tests may fail."
+            fi
+        else
+            log "INFO" "Loading RPC URLs from credential manager..."
+            if ! load_rpc_urls; then
+                log "ERROR" "Failed to load RPC URLs. Some tests may fail."
+            fi
         fi
         echo ""
     fi

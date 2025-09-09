@@ -9,12 +9,21 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  OPTIMISM_RPC_URL: ${{ secrets.OPTIMISM_RPC_URL }}
-  ETHEREUM_RPC_URL: ${{ secrets.ETHEREUM_RPC_URL }}
-  BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
   SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
   BASE_SEPOLIA_RPC_URL: ${{ secrets.BASE_SEPOLIA_RPC_URL }}
   FUJI_RPC_URL: ${{ secrets.FUJI_RPC_URL }}
+  OPTIMISM_RPC_URL: ${{ secrets.OPTIMISM_RPC_URL_PROTOCOL }}
+  ETHEREUM_RPC_URL: ${{ secrets.ETHEREUM_RPC_URL_PROTOCOL }}
+  BASE_RPC_URL: ${{ secrets.BASE_RPC_URL_PROTOCOL }}
+  BSC_RPC_URL: ${{ secrets.BSC_RPC_URL_PROTOCOL }}
+  ARBITRUM_RPC_URL: ${{ secrets.ARBITRUM_RPC_URL_PROTOCOL }}
+  POLYGON_RPC_URL: ${{ secrets.POLYGON_RPC_URL_PROTOCOL }}
+  UNICHAIN_RPC_URL: ${{ secrets.UNICHAIN_RPC_URL_PROTOCOL }}
+  AVALANCHE_RPC_URL: ${{ secrets.AVALANCHE_RPC_URL_PROTOCOL }}
+  BERACHAIN_RPC_URL: ${{ secrets.BERACHAIN_RPC_URL_PROTOCOL }}
+  SONIC_RPC_URL: ${{ secrets.SONIC_RPC_URL_PROTOCOL }}
+  GNOSIS_RPC_URL: ${{ secrets.GNOSIS_RPC_URL_PROTOCOL }}
+  WORLDCHAIN_RPC_URL: ${{ secrets.WORLDCHAIN_RPC_URL_PROTOCOL }}
   TENDERLY_ACCESS_KEY: ${{ secrets.TENDERLY_ACCESS_KEY }}
   TENDERLY_PROJECT_SLUG: "v2"
   TENDERLY_ACCOUNT_ID: "superform"
@@ -306,3 +315,74 @@ jobs:
         run: |
           echo "## Coverage result" >> $GITHUB_STEP_SUMMARY
           echo "✅ Uploaded to Codecov" >> $GITHUB_STEP_SUMMARY
+
+  treasury-config-smoke-test:
+    runs-on: SuperformCore3
+    needs: ["test"]
+    steps:
+      - name: "Check out the repo"
+        uses: "actions/checkout@v4"
+        with:
+          submodules: true
+
+      - name: "Install Foundry"
+        uses: "foundry-rs/foundry-toolchain@v1"
+
+      - name: "Install Foundry dependencies"
+        run: forge install
+
+      - name: "Install pnpm"
+        run: npm install -g pnpm
+
+      - name: "Install ModuleKit"
+        working-directory: ./lib/modulekit
+        run: pnpm install
+
+      - name: "Install Safe7579"
+        working-directory: ./lib/safe7579
+        run: yarn
+
+      - name: "Install Nexus"
+        working-directory: ./lib/nexus
+        run: yarn
+
+      - name: "Make smoke test script executable"
+        run: chmod +x ./script/run/smoke_test_treasury_config.sh
+
+      - name: "Run treasury configuration smoke tests"
+        id: treasury-smoke-test
+        run: |
+          echo "## Treasury Configuration Smoke Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Run the smoke test and capture output
+          set +e
+          ./script/run/smoke_test_treasury_config.sh > treasury_test_output.log 2>&1
+          EXIT_CODE=$?
+          set -e
+          
+          # Display the output
+          cat treasury_test_output.log
+          
+          # Add results to summary
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ **All networks passed treasury configuration validation**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️  **Some networks failed treasury configuration validation**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This is expected for networks where treasury configuration is not yet complete." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Detailed Results" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          tail -20 treasury_test_output.log >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          
+          # Don't fail the CI for this - it's informational
+          exit 0
+
+      - name: "Add treasury test summary"
+        run: |
+          echo "## Treasury Configuration Test" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Smoke test completed (informational)" >> $GITHUB_STEP_SUMMARY
