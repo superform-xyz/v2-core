@@ -1,4 +1,4 @@
-import { createHash } from 'crypto';
+import { keccak256, solidityPacked } from 'ethers';
 import * as config from '../config/oracleConfig.json';
 import { getNetworkName as getNetworkNameFromScript } from './networkHelpers';
 
@@ -7,20 +7,14 @@ import { getNetworkName as getNetworkNameFromScript } from './networkHelpers';
  * Computes keccak256(abi.encodePacked(salt, sender))
  */
 export function deriveWithSender(saltString: string, sender: string): string {
-  // Convert salt string to bytes32 (left-padded to 32 bytes)
-  const saltBytes = Buffer.from(saltString, 'utf8');
-  const salt = Buffer.alloc(32);
-  saltBytes.copy(salt, 0);
+  // Convert salt string to bytes32 (this matches Solidity's bytes32 conversion)
+  const saltBytes32 = '0x' + Buffer.from(saltString, 'utf8').toString('hex').padEnd(64, '0');
   
-  // Convert sender address to bytes (remove 0x prefix)
-  const senderBytes = Buffer.from(sender.slice(2), 'hex');
+  // Use ethers solidityPacked to replicate abi.encodePacked(bytes32, address)
+  const packed = solidityPacked(['bytes32', 'address'], [saltBytes32, sender]);
   
-  // Concatenate salt + sender (equivalent to abi.encodePacked)
-  const packed = Buffer.concat([salt, senderBytes]);
-  
-  // Compute keccak256
-  const hash = createHash('sha3-256').update(packed).digest();
-  return '0x' + hash.toString('hex');
+  // Compute keccak256 using ethers (matches Ethereum's keccak256)
+  return keccak256(packed);
 }
 
 /**
