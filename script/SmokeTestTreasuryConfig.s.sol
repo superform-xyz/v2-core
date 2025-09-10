@@ -102,7 +102,7 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
         console2.log("SuperLedgerConfiguration deployed at:", superLedgerConfig);
 
         // 3. Validate oracle configurations
-        results = _validateOracleConfigurations(superLedgerConfig, results, errorCount);
+        (results, errorCount) = _validateOracleConfigurations(superLedgerConfig, results, errorCount);
 
         // Resize validation errors array to actual size
         string[] memory actualErrors = new string[](errorCount);
@@ -118,7 +118,7 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
     /// @param superLedgerConfig Address of SuperLedgerConfiguration contract
     /// @param results Current validation results to update
     /// @param errorCount Current error count
-    /// @return Updated validation results
+    /// @return Updated validation results and updated error count
     function _validateOracleConfigurations(
         address superLedgerConfig,
         TreasuryValidationResults memory results,
@@ -126,7 +126,7 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
     )
         internal
         view
-        returns (TreasuryValidationResults memory)
+        returns (TreasuryValidationResults memory, uint256)
     {
         // Define oracle salts for hashing with Fireblocks sender
         bytes32[4] memory saltHashes = [
@@ -188,7 +188,7 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
             results.oraclesConfigured = false;
         }
 
-        return results;
+        return (results, errorCount);
     }
 
     /// @notice Derive oracle ID with sender address (replica of _deriveWithSender)
