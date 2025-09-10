@@ -12,8 +12,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `make coverage-genhtml` - Generate HTML coverage report (excludes vendor and test files)
 
 ### Development Workflow
-- `forge test --match-test <test_name>` - Run specific test
-- `forge script <script_name> <ARGS>` - Run forge script
 - `make forge-test TEST=<test_name>` - Run specific test via Makefile
 - `make forge-script SCRIPT=<script_name>` - Run forge script via Makefile
 

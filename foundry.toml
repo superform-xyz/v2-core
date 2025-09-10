@@ -48,7 +48,8 @@ remappings = [
   "rhinestone/checknsignatures/=lib/safe7579/node_modules/@rhinestone/checknsignatures/",
   "evm-gateway/=lib/evm-gateway-contracts/src/",
   "lib/evm-gateway-contracts:src=lib/evm-gateway-contracts/src",
-  "lib/evm-gateway-contracts:test=lib/evm-gateway-contracts/test"
+  "lib/evm-gateway-contracts:test=lib/evm-gateway-contracts/test",
+  "0x-settler/src/=lib/0x-settler/src/"
 ]
 dynamic_test_linking = true
 gas_limit = "18446744073709551615"
