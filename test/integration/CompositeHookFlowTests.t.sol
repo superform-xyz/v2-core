@@ -793,7 +793,7 @@ contract CompositeHookFlowTests is BaseTest {
         hooks[0] = _getHookAddress(ETH, MERKL_CLAIM_REWARD_HOOK_KEY);
 
         bytes[] memory data = new bytes[](1);
-        data[0] = _createMerklClaimRewardHookData(tokens, amounts, proofs);
+        data[0] = _createMerklClaimRewardHookData(address(0x1), 0, tokens, amounts, proofs); // no fee for this test
 
         ISuperExecutor.ExecutorEntry memory entryClaim =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data });
@@ -809,8 +809,8 @@ contract CompositeHookFlowTests is BaseTest {
     function test_MerklClaimRewardsHook_OnETHFork_WithFees() public {
         vm.selectFork(FORKS[ETH]);
 
-        // create hook with 10% fee percentage
-        address merkleClaimReward = address(new MerklClaimRewardHook(MERKL_DISTRIBUTOR, address(this), 1000));
+        // create hook
+        address merkleClaimReward = address(new MerklClaimRewardHook(MERKL_DISTRIBUTOR));
 
         uint256 balanceBefore = IERC20(underlyingETH_USDC).balanceOf(accountEth);
 
@@ -826,7 +826,7 @@ contract CompositeHookFlowTests is BaseTest {
         address[] memory hooks = new address[](1);
         hooks[0] = merkleClaimReward;
         bytes[] memory data = new bytes[](1);
-        data[0] = _createMerklClaimRewardHookData(tokens, amounts, proofs);
+        data[0] = _createMerklClaimRewardHookData(address(this), 1000, tokens, amounts, proofs); // 10% fee
 
         ISuperExecutor.ExecutorEntry memory entryClaim =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data });

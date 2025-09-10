@@ -698,8 +698,9 @@ has_contract_changes() {
     ')
     
     # Check for removed contracts (contracts that exist in S3 but not in new deployment)
+    # Exclude Nexus contracts and banned contracts from being considered removable
     local removed_contract_count=$(echo "$existing_contracts" | jq --argjson new_contracts "$new_contracts" '
-        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not)] | length
+        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle"))] | length
     ')
     
     # Return true if there are any new, updated, or removed contracts
@@ -742,8 +743,9 @@ show_contract_diff() {
     ' | tr '\n' ' ')
     
     # Show removed contracts (contracts that exist in S3 but not in new deployment)
+    # Exclude Nexus contracts and banned contracts from being shown as removed
     local removed_contract_names=$(echo "$existing_contracts" | jq -r --argjson new_contracts "$new_contracts" '
-        to_entries[] | select(.key as $k | $new_contracts | has($k) | not) | .key
+        to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle")) | .key
     ' | tr '\n' ' ')
     
     local changes_shown=false
@@ -1447,11 +1449,30 @@ update_latest_file() {
     
     # Update content with all network deployment info at once
     for network_slug in "Ethereum" "Base" "Optimism"; do
+        # Preserve existing banned contracts before updating
+        local existing_contracts=$(echo "$content" | jq -r ".networks[\"$network_slug\"].contracts // {}")
+        local banned_contracts=$(echo "$existing_contracts" | jq '{
+            Nexus: .Nexus,
+            NexusBootstrap: .NexusBootstrap,
+            NexusAccountFactory: .NexusAccountFactory,
+            SuperGovernor: .SuperGovernor,
+            SuperVaultAggregator: .SuperVaultAggregator,
+            ECDSAPPSOracle: .ECDSAPPSOracle
+        } | with_entries(select(.value != null))')
+        
+        local banned_count=$(echo "$banned_contracts" | jq 'length')
+        if [ "$banned_count" -gt 0 ]; then
+            log "INFO" "Preserving $banned_count banned contracts for $network_slug"
+        fi
+        
+        # Merge new contracts with preserved banned contracts
+        local merged_contracts=$(echo "${ALL_NETWORK_CONTRACTS[$network_slug]}" | jq --argjson banned "$banned_contracts" '. + $banned')
+        
         content=$(echo "$content" | jq \
             --arg slug "$network_slug" \
             --arg vnet "${ALL_NETWORK_VNET_IDS[$network_slug]}" \
             --arg counter "${ALL_NETWORK_SALTS[$network_slug]}" \
-            --argjson contracts "${ALL_NETWORK_CONTRACTS[$network_slug]}" \
+            --argjson contracts "$merged_contracts" \
             '.networks[$slug] = {
                 "counter": ($counter|tonumber),
                 "vnet_id": $vnet,
@@ -1483,12 +1504,6 @@ update_latest_file() {
     
     # Demo branch special handling - show diff and prompt for upload
     if [ "$IS_DEMO_BRANCH" = true ] && [ "$REDEPLOY_FLAG" != "redeploy" ]; then
-        log "DEBUG" "Demo branch S3 check: DEMO_HAS_DEPLOYMENT_CHANGES=$DEMO_HAS_DEPLOYMENT_CHANGES"
-        # If there were no deployment changes needed, skip S3 upload entirely
-        if [ "$DEMO_HAS_DEPLOYMENT_CHANGES" = false ]; then
-            log "INFO" "No deployment changes were needed - skipping S3 upload (contracts already up to date)"
-            return 0
-        fi
         
         log "INFO" "Demo branch detected - showing contract differences before S3 upload"
         
