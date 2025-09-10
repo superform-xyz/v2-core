@@ -1,4 +1,4 @@
-#!/opt/homebrew/bin/bash
+#!/usr/bin/env bash
 
 # Ensure this script is run with bash, not sh
 if [ -z "${BASH_VERSION}" ]; then

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # ===== CHAIN FILTER CONFIGURATION =====
 # Specify which chains to verify (comment out to verify all chains)
