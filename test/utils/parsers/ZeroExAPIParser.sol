@@ -56,6 +56,7 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser {
     /// @param sellAmount Amount of sell token (in wei)
     /// @param taker Address of the taker (smart account)
     /// @param chainId Chain ID (1 for mainnet)
+    /// @param slippageBps Slippage tolerance in basis points (0-10000, where 500 = 5%)
     /// @param zeroExApiKey 0x API key
     /// @return quoteResponse Parsed quote response containing transaction data
     function getZeroExQuote(
@@ -64,12 +65,14 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser {
         uint256 sellAmount,
         address taker,
         uint256 chainId,
+        uint256 slippageBps,
         string memory zeroExApiKey
     )
         internal
         returns (ZeroExQuoteResponse memory quoteResponse)
     {
-        return getZeroExQuoteWithSlippage(sellToken, buyToken, sellAmount, taker, chainId, "", "", zeroExApiKey);
+        return
+            getZeroExQuoteWithSlippage(sellToken, buyToken, sellAmount, taker, chainId, slippageBps, "", zeroExApiKey);
     }
 
     /// @notice Get quote with additional parameters
@@ -78,7 +81,7 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser {
     /// @param sellAmount Amount of sell token (in wei)
     /// @param taker Address of the taker (smart account)
     /// @param chainId Chain ID (1 for mainnet)
-    /// @param slippagePercentage Slippage tolerance as percentage (e.g., "0.01" for 1%)
+    /// @param slippageBps Slippage tolerance in basis points (0-10000, where 500 = 5%)
     /// @param excludeSources Comma-separated list of sources to exclude
     /// @param zeroExApiKey 0x API key
     /// @return quoteResponse Parsed quote response containing transaction data
@@ -88,7 +91,7 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser {
         uint256 sellAmount,
         address taker,
         uint256 chainId,
-        string memory slippagePercentage,
+        uint256 slippageBps,
         string memory excludeSources,
         string memory zeroExApiKey
     )
@@ -97,7 +100,7 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser {
     {
         // Build the API request URL
         string memory requestUrl =
-            _buildQuoteURL(sellToken, buyToken, sellAmount, taker, chainId, slippagePercentage, excludeSources);
+            _buildQuoteURL(sellToken, buyToken, sellAmount, taker, chainId, slippageBps, excludeSources);
 
         // Make the API request
         string memory response = _makeAPIRequest(requestUrl, zeroExApiKey);
@@ -116,7 +119,7 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser {
     /// @param sellAmount Amount of sell token (in wei)
     /// @param taker Address of the taker (smart account)
     /// @param chainId Chain ID (1 for mainnet)
-    /// @param slippagePercentage Slippage tolerance as percentage
+    /// @param slippageBps Slippage tolerance in basis points (0-10000)
     /// @param excludeSources Comma-separated list of sources to exclude
     /// @return Complete request URL
     function _buildQuoteURL(
@@ -125,7 +128,7 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser {
         uint256 sellAmount,
         address taker,
         uint256 chainId,
-        string memory slippagePercentage,
+        uint256 slippageBps,
         string memory excludeSources
     )
         internal
@@ -147,8 +150,8 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser {
             chainId.toString()
         );
 
-        if (bytes(slippagePercentage).length > 0) {
-            queryParams = string.concat(queryParams, "&slippagePercentage=", slippagePercentage);
+        if (slippageBps > 0) {
+            queryParams = string.concat(queryParams, "&slippageBps=", slippageBps.toString());
         }
 
         if (bytes(excludeSources).length > 0) {
@@ -169,6 +172,10 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser {
         internal
         returns (string memory response)
     {
+        console2.log("====0X API REQUEST URL====");
+        console2.log(requestUrl);
+        console2.log("====0X API REQUEST URL====");
+
         string[] memory headers = new string[](2);
         headers[0] = string.concat("0x-api-key: ", zeroExApiKey);
         headers[1] = "0x-version: v2";
@@ -179,6 +186,9 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser {
         }
 
         response = string(data);
+        console2.log("====FULL 0X API RESPONSE====");
+        console2.log(response);
+        console2.log("====FULL 0X API RESPONSE====");
     }
 
     /// @notice Parse JSON response from 0x API
@@ -189,46 +199,31 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser {
         pure
         returns (ZeroExQuoteResponse memory quoteResponse)
     {
-        strings.slice memory jsonSlice = response.toSlice();
         console2.log("====0X QUOTE RESPONSE====\n");
-        // Parse allowanceTarget
-        quoteResponse.allowanceTarget = _parseAddressField(jsonSlice, '"allowanceTarget":"');
 
-        // Parse blockNumber
-        quoteResponse.blockNumber = _parseStringField(jsonSlice, '"blockNumber":"');
-
+        // Use fresh slices for each field to avoid slice consumption issues
+        quoteResponse.allowanceTarget = _parseAddressField(response.toSlice(), '"allowanceTarget":"');
+        quoteResponse.blockNumber = _parseStringField(response.toSlice(), '"blockNumber":"');
         console2.log("blockNumber", quoteResponse.blockNumber);
 
-        // Parse buyAmount
-        quoteResponse.buyAmount = _parseUintField(jsonSlice, '"buyAmount":"');
-
+        quoteResponse.buyAmount = _parseUintField(response.toSlice(), '"buyAmount":"');
         console2.log("buyAmount", quoteResponse.buyAmount);
 
-        // Parse buyToken
-        quoteResponse.buyToken = _parseAddressField(jsonSlice, '"buyToken":"');
-
+        quoteResponse.buyToken = _parseAddressField(response.toSlice(), '"buyToken":"');
         console2.log("buyToken", quoteResponse.buyToken);
 
-        // Parse gas
-        quoteResponse.gas = _parseUintField(jsonSlice, '"gas":"');
+        quoteResponse.gas = _parseUintField(response.toSlice(), '"gas":"');
+        quoteResponse.gasPrice = _parseStringField(response.toSlice(), '"gasPrice":"');
 
-        // Parse gasPrice
-        quoteResponse.gasPrice = _parseStringField(jsonSlice, '"gasPrice":"');
-
-        // Parse minBuyAmount
-        quoteResponse.minBuyAmount = _parseUintField(jsonSlice, '"minBuyAmount":"');
+        quoteResponse.minBuyAmount = _parseUintField(response.toSlice(), '"minBuyAmount":"');
         console2.log("minBuyAmount", quoteResponse.minBuyAmount);
 
         // Parse transaction data from nested object using fresh slice
-        strings.slice memory freshSlice = response.toSlice();
-        string memory transactionDataHex = _parseTransactionData(freshSlice);
+        string memory transactionDataHex = _parseTransactionData(response.toSlice());
         quoteResponse.transaction = fromHex(transactionDataHex);
 
-        // Parse value
-        quoteResponse.value = _parseStringField(jsonSlice, '"value":"');
-
-        // Parse zid
-        quoteResponse.zid = _parseStringField(jsonSlice, '"zid":"');
+        quoteResponse.value = _parseStringField(response.toSlice(), '"value":"');
+        quoteResponse.zid = _parseStringField(response.toSlice(), '"zid":"');
         console2.log("====0X QUOTE RESPONSE====\n");
     }
 

@@ -60,6 +60,7 @@ contract Swap0xHookIntegrationTest is MinimalBaseIntegrationTest, ZeroExAPIParse
             sellAmount, // sellAmount
             accountEth, // taker
             1, // chainId (mainnet)
+            500, // slippage tolerance in basis points (5% slippage)
             ZEROX_API_KEY
         );
 
@@ -113,6 +114,7 @@ contract Swap0xHookIntegrationTest is MinimalBaseIntegrationTest, ZeroExAPIParse
             sellAmount, // sellAmount
             accountEth, // taker
             1, // chainId (mainnet)
+            500, // slippage tolerance in basis points (5% slippage)
             ZEROX_API_KEY
         );
 
@@ -219,6 +221,7 @@ contract Swap0xHookIntegrationTest is MinimalBaseIntegrationTest, ZeroExAPIParse
             sellAmount, // sellAmount
             accountEth, // taker
             1, // chainId (mainnet),
+            500, // slippage tolerance in basis points (5% slippage)
             ZEROX_API_KEY
         );
 

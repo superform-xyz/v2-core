@@ -328,6 +328,7 @@ contract CrosschainWithDestinationSwapTests is BaseTest {
                 adjustedWETHAmount, // sell amount (after fee reduction)
                 accountToUse, // use the actual executing account
                 1, // chainId (ETH mainnet)
+                500, // slippage tolerance in basis points (5% slippage)
                 ZEROX_API_KEY
             );
 
