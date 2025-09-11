@@ -77,6 +77,7 @@ abstract contract Constants {
     string public constant OFFRAMP_TOKENS_HOOK_KEY = "OfframpTokensHook";
     string public constant MINT_SUPERPOSITIONS_HOOK_KEY = "MintSuperPositionsHook";
     string public constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
+    string public constant SWAP_0X_HOOK_KEY = "Swap0xHook";
     string public constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
     string public constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
     string public constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
@@ -165,6 +166,9 @@ abstract contract Constants {
 
     // 1inch
     address public constant ONE_INCH_ROUTER = 0x111111125421cA6dc452d289314280a0f8842A65;
+
+    // 0x
+    address public constant ALLOWANCE_HOLDER = 0x0000000000001fF3684f28c67538d4D072C22734;
 
     // odos
     address public constant CHAIN_1_ODOS_ROUTER = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;

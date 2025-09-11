@@ -5,15 +5,14 @@ import { Surl } from "@surl/Surl.sol";
 import { strings } from "@stringutils/strings.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "forge-std/StdUtils.sol";
-import { Test } from "forge-std/Test.sol";
-
 import { BaseAPIParser } from "./BaseAPIParser.sol";
+import "forge-std/console2.sol";
 
 /// @title ZeroExAPIParser
 /// @author Superform Labs
 /// @notice Parser for 0x Protocol v2 Swap API integration
 /// @dev Based on 0x API v2 documentation: https://0x.org/docs/0x-swap-api/introduction
-abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser, Test {
+abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser {
     using Surl for *;
     using Strings for uint256;
     using Strings for address;
@@ -57,18 +56,20 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser, Test {
     /// @param sellAmount Amount of sell token (in wei)
     /// @param taker Address of the taker (smart account)
     /// @param chainId Chain ID (1 for mainnet)
+    /// @param zeroExApiKey 0x API key
     /// @return quoteResponse Parsed quote response containing transaction data
     function getZeroExQuote(
         address sellToken,
         address buyToken,
         uint256 sellAmount,
         address taker,
-        uint256 chainId
+        uint256 chainId,
+        string memory zeroExApiKey
     )
         internal
         returns (ZeroExQuoteResponse memory quoteResponse)
     {
-        return getZeroExQuoteWithSlippage(sellToken, buyToken, sellAmount, taker, chainId, "", "");
+        return getZeroExQuoteWithSlippage(sellToken, buyToken, sellAmount, taker, chainId, "", "", zeroExApiKey);
     }
 
     /// @notice Get quote with additional parameters
@@ -79,6 +80,7 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser, Test {
     /// @param chainId Chain ID (1 for mainnet)
     /// @param slippagePercentage Slippage tolerance as percentage (e.g., "0.01" for 1%)
     /// @param excludeSources Comma-separated list of sources to exclude
+    /// @param zeroExApiKey 0x API key
     /// @return quoteResponse Parsed quote response containing transaction data
     function getZeroExQuoteWithSlippage(
         address sellToken,
@@ -87,7 +89,8 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser, Test {
         address taker,
         uint256 chainId,
         string memory slippagePercentage,
-        string memory excludeSources
+        string memory excludeSources,
+        string memory zeroExApiKey
     )
         internal
         returns (ZeroExQuoteResponse memory quoteResponse)
@@ -97,7 +100,7 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser, Test {
             _buildQuoteURL(sellToken, buyToken, sellAmount, taker, chainId, slippagePercentage, excludeSources);
 
         // Make the API request
-        string memory response = _makeAPIRequest(requestUrl);
+        string memory response = _makeAPIRequest(requestUrl, zeroExApiKey);
 
         // Parse the JSON response
         quoteResponse = _parseQuoteResponse(response);
@@ -157,10 +160,17 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser, Test {
 
     /// @notice Make API request to 0x using Surl
     /// @param requestUrl The complete request URL
+    /// @param zeroExApiKey 0x API key
     /// @return response JSON response string
-    function _makeAPIRequest(string memory requestUrl) internal returns (string memory response) {
+    function _makeAPIRequest(
+        string memory requestUrl,
+        string memory zeroExApiKey
+    )
+        internal
+        returns (string memory response)
+    {
         string[] memory headers = new string[](2);
-        headers[0] = string.concat("0x-api-key: ", vm.envString("ZEROX_API_KEY"));
+        headers[0] = string.concat("0x-api-key: ", zeroExApiKey);
         headers[1] = "0x-version: v2";
 
         (uint256 status, bytes memory data) = requestUrl.get(headers);
@@ -180,18 +190,24 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser, Test {
         returns (ZeroExQuoteResponse memory quoteResponse)
     {
         strings.slice memory jsonSlice = response.toSlice();
-
+        console2.log("====0X QUOTE RESPONSE====\n");
         // Parse allowanceTarget
         quoteResponse.allowanceTarget = _parseAddressField(jsonSlice, '"allowanceTarget":"');
 
         // Parse blockNumber
         quoteResponse.blockNumber = _parseStringField(jsonSlice, '"blockNumber":"');
 
+        console2.log("blockNumber", quoteResponse.blockNumber);
+
         // Parse buyAmount
         quoteResponse.buyAmount = _parseUintField(jsonSlice, '"buyAmount":"');
 
+        console2.log("buyAmount", quoteResponse.buyAmount);
+
         // Parse buyToken
         quoteResponse.buyToken = _parseAddressField(jsonSlice, '"buyToken":"');
+
+        console2.log("buyToken", quoteResponse.buyToken);
 
         // Parse gas
         quoteResponse.gas = _parseUintField(jsonSlice, '"gas":"');
@@ -201,6 +217,7 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser, Test {
 
         // Parse minBuyAmount
         quoteResponse.minBuyAmount = _parseUintField(jsonSlice, '"minBuyAmount":"');
+        console2.log("minBuyAmount", quoteResponse.minBuyAmount);
 
         // Parse transaction data from nested object using fresh slice
         strings.slice memory freshSlice = response.toSlice();
@@ -212,6 +229,7 @@ abstract contract ZeroExAPIParser is StdUtils, BaseAPIParser, Test {
 
         // Parse zid
         quoteResponse.zid = _parseStringField(jsonSlice, '"zid":"');
+        console2.log("====0X QUOTE RESPONSE====\n");
     }
 
     /// @notice Parse transaction data from nested transaction object

@@ -13,7 +13,7 @@ import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
 import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 // 0x Settler Interfaces - Import directly from real contracts
-import { IAllowanceHolder, ALLOWANCE_HOLDER } from "0x-settler/src/allowanceholder/IAllowanceHolder.sol";
+import { IAllowanceHolder } from "0x-settler/src/allowanceholder/IAllowanceHolder.sol";
 import { ISettlerTakerSubmitted } from "0x-settler/src/interfaces/ISettlerTakerSubmitted.sol";
 import { ISettlerBase } from "0x-settler/src/interfaces/ISettlerBase.sol";
 
@@ -76,9 +76,11 @@ contract Swap0xV2Hook is BaseHook, ISuperHookContextAware {
 
     address public constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
+    IAllowanceHolder immutable ALLOWANCE_HOLDER;
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+
     error ZERO_ADDRESS();
     error INVALID_RECEIVER();
     error INVALID_SELECTOR();
@@ -89,9 +91,11 @@ contract Swap0xV2Hook is BaseHook, ISuperHookContextAware {
     error INVALID_ALLOWANCE_HOLDER_CALL();
     error NO_SETTLER_CALL_FOUND();
 
-    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.SWAP) {
-        // AllowanceHolder address is imported as a constant from real 0x contracts
-        // ALLOWANCE_HOLDER = 0x0000000000001fF3684f28c67538d4D072C22734
+    constructor(address allowanceHolder_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.SWAP) {
+        if (allowanceHolder_ == address(0)) {
+            revert ZERO_ADDRESS();
+        }
+        ALLOWANCE_HOLDER = IAllowanceHolder(allowanceHolder_);
     }
 
     /*//////////////////////////////////////////////////////////////
