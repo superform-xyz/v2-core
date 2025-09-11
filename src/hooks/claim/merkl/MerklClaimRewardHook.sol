@@ -44,11 +44,7 @@ contract MerklClaimRewardHook is BaseHook {
         bytes32[][] proofs;
     }
 
-    constructor(
-        address distributor_
-    )
-        BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM)
-    {
+    constructor(address distributor_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM) {
         if (distributor_ == address(0)) revert ADDRESS_NOT_VALID();
         DISTRIBUTOR = distributor_;
     }
@@ -68,13 +64,13 @@ contract MerklClaimRewardHook is BaseHook {
         returns (Execution[] memory executions)
     {
         ClaimParams memory params;
-        
+
         // decode fee parameters
         (address feeReceiver, uint256 feePercent) = _decodeFeeParams(data);
-        
+
         // validate fee percent
         if (feePercent > MAX_FEE_PERCENT) revert FEE_NOT_VALID();
-        if (feeReceiver == address(0)) revert ADDRESS_NOT_VALID();
+        if (feePercent != 0 && feeReceiver == address(0)) revert ADDRESS_NOT_VALID();
 
         // decode users
         address[] memory users = _setUsersArray(account, data);
@@ -83,10 +79,10 @@ contract MerklClaimRewardHook is BaseHook {
         // decode other params
         (params.tokens, params.amounts, params.proofs) = _decodeClaimParams(data);
 
-        // 1 for claim + tokens.length for fee transfers  
+        // 1 for claim + tokens.length for fee transfers
         // (BaseHook automatically adds pre/post execute)
         executions = new Execution[](1 + params.tokens.length);
-        
+
         // claim
         executions[0] = Execution({
             target: DISTRIBUTOR,
@@ -120,7 +116,7 @@ contract MerklClaimRewardHook is BaseHook {
         // decode fee receiver first
         (address feeReceiver,) = _decodeFeeParams(data);
         addressData = bytes.concat(addressData, bytes20(feeReceiver));
-        
+
         // decode tokens and append them
         (address[] memory tokens,,) = _decodeClaimParams(data);
 
@@ -161,7 +157,7 @@ contract MerklClaimRewardHook is BaseHook {
         feeReceiver = BytesLib.toAddress(data, 0);
         feePercent = BytesLib.toUint256(data, 20);
     }
-    
+
     function _setUsersArray(address account, bytes calldata data) internal pure returns (address[] memory users) {
         uint256 arrayLength = BytesLib.toUint256(data, 52);
 
