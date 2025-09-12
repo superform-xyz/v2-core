@@ -79,20 +79,18 @@ contract MerklClaimRewardHook is BaseHook {
         // decode other params
         (params.tokens, params.amounts, params.proofs) = _decodeClaimParams(data);
 
-        // 1 for claim + tokens.length for fee transfers
-        // (BaseHook automatically adds pre/post execute)
         // Known limitations:
         // - can't verify deviations in the transfer (won't actually execute the code until the `handleOps` execution)
         // - won't work for tokens reverting on 0 amount transfer in case of 0 fees
         if (feePercent > 0) {
             uint256 len = params.tokens.length;
-            executions = new Execution[](len + 1);
+            executions = new Execution[](len + 1); // 1 for claim + tokens.length for fee transfers
 
             uint208 amount;
             uint256 fee;
             for (uint256 i; i < len; ++i) {
                 (amount,,) = IDistributor(DISTRIBUTOR).claimed(params.users[i], params.tokens[i]);
-                fee = ((params.amounts[i] - amount) * feePercent) / BPS;
+                fee = ((params.amounts[i] - uint256(amount)) * feePercent) / BPS;
 
                 executions[i + 1] = Execution({
                     target: params.tokens[i],
