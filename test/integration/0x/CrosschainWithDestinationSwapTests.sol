@@ -281,14 +281,15 @@ contract CrosschainWithDestinationSwapTests is BaseTest {
         // ETH IS DST
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
 
-        // PREPARE ETH DATA - 4 hooks: approve WETH (with 5% reduction), swap WETH to USDC, approve USDC, deposit USDC
+        // PREPARE ETH DATA - 4 hooks: approve WETH (with 20% reduction), swap WETH to USDC, approve USDC, deposit USDC
         bytes memory targetExecutorMessage;
         address accountToUse;
         TargetExecutorMessage memory messageData;
-
+        uint256 feeReductionPercentage = 2000; // 20% reduction
         {
-            // Calculate the amount after 5% fee reduction for the swap
-            uint256 adjustedWETHAmount = amountPerVault - (amountPerVault * 500 / 10_000); // 5% reduction
+            // Calculate the amount after 20% fee reduction for the swap
+            uint256 adjustedWETHAmount = amountPerVault - (amountPerVault * feeReductionPercentage / 10_000); // 20%
+                // reduction
 
             (, accountToUse) = _createAccountCreationData_DestinationExecutor(
                 AccountCreationParams({
@@ -325,7 +326,7 @@ contract CrosschainWithDestinationSwapTests is BaseTest {
             ZeroExQuoteResponse memory quote = getZeroExQuote(
                 getWETHAddress(), // sell WETH
                 underlyingETH_USDC, // buy USDC
-                adjustedWETHAmount, // sell amount (after fee reduction)
+                amountPerVault,
                 accountToUse, // use the actual executing account
                 1, // chainId (ETH mainnet)
                 500, // slippage tolerance in basis points (5% slippage)
@@ -410,7 +411,7 @@ contract CrosschainWithDestinationSwapTests is BaseTest {
             amountPerVault,
             ETH,
             false, // usePrevHookAmount = false for bridge
-            500, // 5% fee reduction (500 basis points)
+            feeReductionPercentage,
             targetExecutorMessage
         );
 

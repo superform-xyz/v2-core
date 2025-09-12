@@ -11,11 +11,15 @@ import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
 import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { ZeroExTransactionPatcher } from "../../../libraries/0x/ZeroExTransactionPatcher.sol";
 
 // 0x Settler Interfaces - Import directly from real contracts
 import { IAllowanceHolder } from "0x-settler/src/allowanceholder/IAllowanceHolder.sol";
 import { ISettlerTakerSubmitted } from "0x-settler/src/interfaces/ISettlerTakerSubmitted.sol";
 import { ISettlerBase } from "0x-settler/src/interfaces/ISettlerBase.sol";
+
+// forge-std
+import { console2 } from "forge-std/console2.sol";
 
 /// @title Swap0xV2Hook
 /// @author Superform Labs
@@ -275,20 +279,18 @@ contract Swap0xV2Hook is BaseHook, ISuperHookContextAware {
             // Update input amount to previous hook's output
             state.amount = ISuperHookResult(params.prevHook).getOutAmount(params.account);
 
-            // Scale minimum output proportionally to maintain slippage tolerance
-            state.slippage.minAmountOut =
-                HookDataUpdater.getUpdatedOutputAmount(state.amount, state.prevAmount, state.slippage.minAmountOut);
-
-            // Re-encode the updated Settler call
-            state.settlerCalldata = bytes.concat(
-                ISettlerTakerSubmitted.execute.selector,
-                abi.encode(state.slippage, state.actions, state.zidAndAffiliate)
+            console2.log("state.amount", state.amount);
+            
+            // ENHANCED TRANSACTION PATCHING:
+            // Use ZeroExTransactionPatcher to patch deep into Settler actions
+            // This updates bps parameters in addition to top-level amounts
+            updatedTxData = ZeroExTransactionPatcher.patchTransactionAmounts(
+                txData,
+                state.prevAmount, // oldAmount (what 0x API quote was created with)
+                state.amount      // newAmount (actual amount from previous hook)
             );
-
-            // Re-encode the updated AllowanceHolder.exec call
-            updatedTxData = bytes.concat(
-                selector, abi.encode(state.operator, state.token, state.amount, state.target, state.settlerCalldata)
-            );
+            
+            console2.log("state.slippage.minAmountOut", state.slippage.minAmountOut);
         }
 
         // Final validation: ensure no zero amounts after potential updates
