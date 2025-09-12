@@ -73,8 +73,7 @@ contract MerklClaimRewardHook is BaseHook {
         if (feePercent != 0 && feeReceiver == address(0)) revert ADDRESS_NOT_VALID();
 
         // decode users
-        address[] memory users = _setUsersArray(account, data);
-        params.users = users;
+        params.users = _setUsersArray(account, data);
 
         // decode other params
         (params.tokens, params.amounts, params.proofs) = _decodeClaimParams(data);
@@ -90,7 +89,7 @@ contract MerklClaimRewardHook is BaseHook {
             uint256 fee;
             for (uint256 i; i < len; ++i) {
                 (amount,,) = IDistributor(DISTRIBUTOR).claimed(params.users[i], params.tokens[i]);
-                fee = ((params.amounts[i] - uint256(amount)) * feePercent) / BPS;
+                fee = 0;
 
                 executions[i + 1] = Execution({
                     target: params.tokens[i],
