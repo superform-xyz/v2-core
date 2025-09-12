@@ -594,3 +594,76 @@ This analysis reveals that a **targeted patcher focusing on bps-based protocols*
 - ✅ **PASSED**: Test passes with patcher
 - ❌ **FAILED**: Test fails, needs investigation  
 - ⏳ **PENDING**: Not yet implemented
+
+## TRANSFER_FROM Action Research & Implementation Plan
+
+### Research Findings
+
+After investigating the current patcher failure with `UNSUPPORTED_PROTOCOL(0xc1fb425e)`, I discovered that this corresponds to the `TRANSFER_FROM` action which appears in every 0x transaction.
+
+#### TRANSFER_FROM Action Structure
+
+The `TRANSFER_FROM` action (`0xc1fb425e`) has the signature:
+```solidity
+TRANSFER_FROM(address,((address,uint256),uint256,uint256),bytes)
+```
+
+**Parameters:**
+1. `address recipient` - The address receiving the transferred funds
+2. `ISignatureTransfer.PermitTransferFrom permit` struct containing:
+   - `TokenPermissions permitted` (token address, amount)
+   - `uint256 nonce` 
+   - `uint256 deadline`
+3. `bytes sig` - The signature
+
+**Key Insight**: The amount to patch is located in `permit.permitted.amount` at a fixed offset within the permit struct parameter.
+
+#### Why TRANSFER_FROM Appears in Every 0x Transaction
+
+TRANSFER_FROM handles the initial token transfer using Permit2's signature-based token transfer system. It appears as the first action in 0x transactions to move tokens from the user's account to the Settler contract before executing the actual swap actions.
+
+#### Implementation Plan
+
+**1. Add TRANSFER_FROM Support to ZeroExTransactionPatcher**
+- Add `TRANSFER_FROM` selector (`0xc1fb425e`) to the supported protocols
+- Implement patching logic for the `permit.permitted.amount` field
+- The amount is located at a fixed offset within the permit struct parameter
+
+**2. Update Patching Logic**
+- Extract the permit struct from the TRANSFER_FROM action parameters
+- Locate the amount field within the TokenPermissions (second parameter, first field)  
+- Apply proportional scaling: `newAmount = (oldAmount * newAmount) / oldAmount`
+- Reconstruct the action with the patched amount
+
+**3. Test the Implementation**
+- Run the existing BASIC protocol test to verify TRANSFER_FROM patching works
+- Confirm the test passes with the 20% fee reduction (2000 bps)
+- Update the protocol testing matrix
+
+**4. Expand Testing Framework**
+- Create test variants for the remaining 5 bps-based protocols:
+  - UNISWAPV2, UNISWAPV3, VELODROME, BALANCERV3, UNISWAPV4
+- Each test will validate that both the protocol-specific action AND the TRANSFER_FROM action are properly patched
+
+#### Technical Implementation Details
+
+The TRANSFER_FROM action needs to be patched because:
+1. It transfers the initial token amount from user to Settler contract
+2. The original permit was created for the full amount (0.01 WETH)
+3. After bridge fee reduction, only 0.008 WETH is available
+4. The permit amount needs to be updated to match the available amount
+
+**Parameter Structure Analysis:**
+```solidity
+// TRANSFER_FROM action encoding:
+// [0:4]   function selector: 0xc1fb425e
+// [4:36]  recipient address (32 bytes)
+// [36:X]  permit struct (variable length)
+//   [36:68]   token address (32 bytes)  
+//   [68:100]  amount (32 bytes) ← NEEDS PATCHING
+//   [100:132] nonce (32 bytes)
+//   [132:164] deadline (32 bytes)
+// [X:Y]   signature (variable length)
+```
+
+This analysis shows that TRANSFER_FROM support is **critical for any 0x transaction patching** and must be implemented alongside the protocol-specific action patching.
