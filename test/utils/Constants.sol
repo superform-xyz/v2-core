@@ -78,6 +78,7 @@ abstract contract Constants {
     string public constant MINT_SUPERPOSITIONS_HOOK_KEY = "MintSuperPositionsHook";
     string public constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
     string public constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
+    string public constant APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "ApproveAndAcrossSendFundsAndExecuteOnDstHook";
     string public constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
     string public constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
     string public constant GEARBOX_CLAIM_REWARD_HOOK_KEY = "GearboxClaimRewardHook";

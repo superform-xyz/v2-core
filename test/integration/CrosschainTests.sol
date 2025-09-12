@@ -1074,6 +1074,90 @@ contract CrosschainTests is BaseTest {
         assertEq(finalBalance, amountPerVault, "final balance not right");
     }
 
+    function test_Bridge_To_ETH_And_Create_Nexus_Account_WithApproveAndAcrossHook() public {
+        uint256 amountPerVault = 1e8 / 2;
+
+        // ETH IS DST
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+
+        // PREPARE ETH DATA
+        bytes memory targetExecutorMessage;
+        address accountToUse;
+        TargetExecutorMessage memory messageData;
+        {
+            address[] memory dstHookAddresses = new address[](0);
+            bytes[] memory dstHookData = new bytes[](0);
+
+            messageData = TargetExecutorMessage({
+                hooksAddresses: dstHookAddresses,
+                hooksData: dstHookData,
+                validator: address(destinationValidatorOnETH),
+                signer: validatorSigner,
+                signerPrivateKey: validatorSignerPrivateKey,
+                targetAdapter: address(acrossV3AdapterOnETH),
+                targetExecutor: address(superTargetExecutorOnETH),
+                nexusFactory: CHAIN_1_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
+                chainId: uint64(ETH),
+                amount: amountPerVault,
+                account: address(0),
+                tokenSent: underlyingETH_USDC
+            });
+
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
+        }
+        console2.log(
+            " ETH[DST] underlyingETH_USDC account balance before", IERC20(underlyingETH_USDC).balanceOf(accountToUse)
+        );
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
+
+        // PREPARE BASE DATA - Using single ApproveAndAcross hook instead of separate Approve + Across hooks
+        address[] memory srcHooksAddresses = new address[](1);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](1);
+        srcHooksData[0] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingBase_USDC, underlyingETH_USDC, amountPerVault, amountPerVault, ETH, false, targetExecutorMessage
+        );
+
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(
+            messageData, srcUserOpData.userOpHash, accountToUse, ETH, address(sourceValidatorOnBase)
+        );
+        srcUserOpData.userOp.signature = signatureData;
+
+        console2.log("[SRC] Account", srcUserOpData.userOp.sender);
+        console2.log("[DST] Account  ", accountToUse);
+
+        // EXECUTE BASE
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18);
+        _processAcrossV3Message(
+            ProcessAcrossV3MessageParams({
+                srcChainId: BASE,
+                dstChainId: ETH,
+                warpTimestamp: WARP_START_TIME + 30 days,
+                executionData: executionData,
+                relayerType: RELAYER_TYPE.NO_HOOKS,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                root: bytes32(0),
+                account: accountToUse,
+                relayerGas: 0
+            })
+        );
+
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME + 1);
+        uint256 finalBalance = IERC20(underlyingETH_USDC).balanceOf(accountToUse);
+
+        console2.log(" ETH[DST] underlyingETH_USDC account balance after", finalBalance);
+        assertGt(finalBalance, 0);
+        assertEq(finalBalance, amountPerVault, "final balance not right");
+    }
+
     function test_Bridge_To_ETH_And_Create_Nexus_Account_AndPerformDeposit() public {
         uint256 amountPerVault = 1e8 / 2;
 
