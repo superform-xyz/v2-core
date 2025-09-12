@@ -71,9 +71,20 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         hook.build(address(0), address(0), data);
     }
 
-    function test_MerklClaimRewardsHook_Build() public view {
+    function test_MerklClaimRewardsHook_Build_WithoutFee() public view {
         bytes memory data = _encodeData();
         Execution[] memory executions = hook.build(address(0), address(0), data);
+
+        assertEq(executions.length, 3); // preExecute + claim + postExecute
+        assertEq(executions[0].target, address(hook)); // preExecute
+        assertEq(executions[1].target, distributor); // claim
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
+    }
+
+    function test_MerklClaimRewardsHook_Build_WithFee() public view {
+        bytes memory data = _createMerklClaimRewardHookData(address(0x1), 10, tokens, amounts, proofs);
+        Execution[] memory executions = hook.build(address(0), user1, data);
 
         assertEq(executions.length, 6); // preExecute + claim + 3 fee transfers + postExecute
         assertEq(executions[0].target, address(hook)); // preExecute
