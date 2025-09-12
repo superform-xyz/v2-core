@@ -7,9 +7,9 @@ Superform v2 is a modular DeFi protocol for yield abstraction that allows dynami
 
 This document provides technical details, reasoning behind design choices, and discussion of potential edge cases and risks in Superform's v2 contracts. 
 
-The protocol consists of the following components:
+Core Contracts include primary business logic, interfaces, execution routines, accounting mechanisms, and validation components.
 
-- **Core Contracts**: The primary business logic, interfaces, execution routines, accounting mechanisms, and validation components
+View current deployments across Ethereum, Base, Optimism, Arbitrum, BNB, Polygon, and Unichain here: https://docs.superform.xyz/integrate-superform/deployment-addresses, 
 
 ## Repository Structure
 
