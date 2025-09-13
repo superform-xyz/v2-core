@@ -1,4 +1,7 @@
 {
+  "lib/0x-settler": {
+    "rev": "2e6ae4c3ffea98d6673042c5d3ed89e0a515ce25"
+  },
   "lib/ExcessivelySafeCall": {
     "rev": "81cd99ce3e69117d665d7601c330ea03b97acce0"
   },
@@ -40,5 +43,17 @@
   },
   "lib/surl": {
     "rev": "5f92a5260c8e0198ca3ee6a16255d6cda4e0887a"
+  },
+  "lib/v3-core": {
+    "tag": {
+      "name": "v1.0.0",
+      "rev": "e3589b192d0be27e100cd0daaf6c97204fdb1899"
+    }
+  },
+  "lib/v4-core": {
+    "tag": {
+      "name": "v4.0.0",
+      "rev": "e50237c43811bd9b526eff40f26772152a42daba"
+    }
   }
 }
