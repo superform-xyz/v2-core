@@ -224,8 +224,15 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         address token0;
         address token1;
         assembly {
-            token0 := mload(add(add(inspectResult, 0x20), 0))
-            token1 := mload(add(add(inspectResult, 0x20), 20))
+            // Load 32 bytes starting from offset 0x20 (skip length prefix)
+            let firstWord := mload(add(inspectResult, 0x20))
+            // Extract first address (first 20 bytes) by shifting right 12 bytes (96 bits)
+            token0 := shr(96, firstWord)
+            
+            // Load 32 bytes starting from offset 0x20 + 20 = 0x34
+            let secondWord := mload(add(inspectResult, 0x34))
+            // Extract second address (first 20 bytes) by shifting right 12 bytes (96 bits)
+            token1 := shr(96, secondWord)
         }
 
         // Verify correct token addresses returned
