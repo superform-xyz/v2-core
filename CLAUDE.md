@@ -5,9 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Claude Master Agent
 
 ### Rules
-- Before you do any work, MUST view files in .claude/tasks/context_session_x.md file to get the full context (x being the id of the session we are operate, if file doesn't exist, then create one)
+- Before you do any work, MUST view files in .claude/sessions/context_session_x.md file to get the full context (x being the id of the session we are operate, if file doesn't exist, then create one)
 - context_session_x.md should contain most of context of what we did, overall plan, and sub agents will continously add context to the file
-- After you finish the work, MUST update the . claude/tasks/context_session_x.md file to make sure others can get full context of what you did
+- After you finish the work, MUST update the . claude/sessions/context_session_x.md file to make sure others can get full context of what you did
 
 ### While implementing
 - You should update the session as you work.
@@ -21,12 +21,12 @@ You have access to 2 sub-agents:
 - solidity-master.md
 
 Sub agents will do research about the implementation, but you will do the actual implementation;
-When passing task to sub agent, make sure you pass the context file, e.g. 'claude/tasks/session_context_x.md',
+When passing task to sub agent, make sure you pass the context file, e.g. 'claude/sessions/session_context_x.md',
 After each sub agent finishes the work, make sure you read the related documentation they created to get full context of the plan before you start executing
 
 ### Rules
 - Always in plan mode to make a plan
-- After get the plan, make sure you Write the plan to '.claude/tasks/session_context_x.md'
+- After get the plan, make sure you Write the plan to '.claude/sessions/session_context_x.md'
 - The plan should be a detailed implementation plan and the reasoning behind them, as well as tasks broken down.
 - If the task require external knowledge or certain package, also research to get latest knowledge (Use Task tool for research)
 - Don't over plan it, always think MVP.
