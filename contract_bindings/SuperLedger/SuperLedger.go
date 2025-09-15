@@ -31,7 +31,7 @@ var (
 
 // SuperLedgerMetaData contains all meta data concerning the SuperLedger contract.
 var SuperLedgerMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"ledgerConfiguration_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"allowedExecutors_\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"allowedExecutors\",\"inputs\":[{\"name\":\"executor\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"isAllowed\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"calculateCostBasisView\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"usedShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"costBasis\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"previewFees\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amountAssets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"usedShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"feeAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"superLedgerConfiguration\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractSuperLedgerConfiguration\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"updateAccounting\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"isInflow\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"amountSharesOrAssets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"usedShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"feeAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"usersAccumulatorCostBasis\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"costBasis\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"usersAccumulatorShares\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"event\",\"name\":\"AccountingInflow\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"pps\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AccountingOutflow\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"feeAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UsedSharesCapped\",\"inputs\":[{\"name\":\"originalVal\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"cappedVal\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"FEE_NOT_SET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"HOOK_NOT_FOUND\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE_PERCENT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_LEDGER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_PRICE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MANAGER_NOT_SET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_MANAGER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS_NOT_ALLOWED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ID_NOT_ALLOWED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_LENGTH\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"ledgerConfiguration_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"allowedExecutors_\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"SUPER_LEDGER_CONFIGURATION\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperLedgerConfiguration\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"allowedExecutors\",\"inputs\":[{\"name\":\"executor\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"isAllowed\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"calculateCostBasisView\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"usedShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"costBasis\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"previewFees\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amountAssets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"usedShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"pps\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"decimals\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"feeAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"updateAccounting\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"isInflow\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"amountSharesOrAssets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"usedShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"feeAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"usersAccumulatorCostBasis\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"costBasis\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"usersAccumulatorShares\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"event\",\"name\":\"AccountingInflow\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"pps\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AccountingOutflow\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"feeAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UsedSharesCapped\",\"inputs\":[{\"name\":\"originalVal\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"cappedVal\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"FEE_NOT_SET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"HOOK_NOT_FOUND\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE_PERCENT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_LEDGER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_PRICE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MANAGER_NOT_SET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_MANAGER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS_NOT_ALLOWED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ID_NOT_ALLOWED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_LENGTH\",\"inputs\":[]}]",
 }
 
 // SuperLedgerABI is the input ABI used to generate the binding from.
@@ -180,6 +180,37 @@ func (_SuperLedger *SuperLedgerTransactorRaw) Transact(opts *bind.TransactOpts, 
 	return _SuperLedger.Contract.contract.Transact(opts, method, params...)
 }
 
+// SUPERLEDGERCONFIGURATION is a free data retrieval call binding the contract method 0x8717164a.
+//
+// Solidity: function SUPER_LEDGER_CONFIGURATION() view returns(address)
+func (_SuperLedger *SuperLedgerCaller) SUPERLEDGERCONFIGURATION(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _SuperLedger.contract.Call(opts, &out, "SUPER_LEDGER_CONFIGURATION")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// SUPERLEDGERCONFIGURATION is a free data retrieval call binding the contract method 0x8717164a.
+//
+// Solidity: function SUPER_LEDGER_CONFIGURATION() view returns(address)
+func (_SuperLedger *SuperLedgerSession) SUPERLEDGERCONFIGURATION() (common.Address, error) {
+	return _SuperLedger.Contract.SUPERLEDGERCONFIGURATION(&_SuperLedger.CallOpts)
+}
+
+// SUPERLEDGERCONFIGURATION is a free data retrieval call binding the contract method 0x8717164a.
+//
+// Solidity: function SUPER_LEDGER_CONFIGURATION() view returns(address)
+func (_SuperLedger *SuperLedgerCallerSession) SUPERLEDGERCONFIGURATION() (common.Address, error) {
+	return _SuperLedger.Contract.SUPERLEDGERCONFIGURATION(&_SuperLedger.CallOpts)
+}
+
 // AllowedExecutors is a free data retrieval call binding the contract method 0x37cb6736.
 //
 // Solidity: function allowedExecutors(address executor) view returns(bool isAllowed)
@@ -256,12 +287,12 @@ func (_SuperLedger *SuperLedgerCallerSession) CalculateCostBasisView(user common
 	return _SuperLedger.Contract.CalculateCostBasisView(&_SuperLedger.CallOpts, user, yieldSource, usedShares)
 }
 
-// PreviewFees is a free data retrieval call binding the contract method 0x49b1df7b.
+// PreviewFees is a free data retrieval call binding the contract method 0xf0512d2c.
 //
-// Solidity: function previewFees(address user, address yieldSourceAddress, uint256 amountAssets, uint256 usedShares, uint256 feePercent) view returns(uint256 feeAmount)
-func (_SuperLedger *SuperLedgerCaller) PreviewFees(opts *bind.CallOpts, user common.Address, yieldSourceAddress common.Address, amountAssets *big.Int, usedShares *big.Int, feePercent *big.Int) (*big.Int, error) {
+// Solidity: function previewFees(address user, address yieldSourceAddress, uint256 amountAssets, uint256 usedShares, uint256 feePercent, uint256 pps, uint256 decimals) view returns(uint256 feeAmount)
+func (_SuperLedger *SuperLedgerCaller) PreviewFees(opts *bind.CallOpts, user common.Address, yieldSourceAddress common.Address, amountAssets *big.Int, usedShares *big.Int, feePercent *big.Int, pps *big.Int, decimals *big.Int) (*big.Int, error) {
 	var out []interface{}
-	err := _SuperLedger.contract.Call(opts, &out, "previewFees", user, yieldSourceAddress, amountAssets, usedShares, feePercent)
+	err := _SuperLedger.contract.Call(opts, &out, "previewFees", user, yieldSourceAddress, amountAssets, usedShares, feePercent, pps, decimals)
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -273,49 +304,18 @@ func (_SuperLedger *SuperLedgerCaller) PreviewFees(opts *bind.CallOpts, user com
 
 }
 
-// PreviewFees is a free data retrieval call binding the contract method 0x49b1df7b.
+// PreviewFees is a free data retrieval call binding the contract method 0xf0512d2c.
 //
-// Solidity: function previewFees(address user, address yieldSourceAddress, uint256 amountAssets, uint256 usedShares, uint256 feePercent) view returns(uint256 feeAmount)
-func (_SuperLedger *SuperLedgerSession) PreviewFees(user common.Address, yieldSourceAddress common.Address, amountAssets *big.Int, usedShares *big.Int, feePercent *big.Int) (*big.Int, error) {
-	return _SuperLedger.Contract.PreviewFees(&_SuperLedger.CallOpts, user, yieldSourceAddress, amountAssets, usedShares, feePercent)
+// Solidity: function previewFees(address user, address yieldSourceAddress, uint256 amountAssets, uint256 usedShares, uint256 feePercent, uint256 pps, uint256 decimals) view returns(uint256 feeAmount)
+func (_SuperLedger *SuperLedgerSession) PreviewFees(user common.Address, yieldSourceAddress common.Address, amountAssets *big.Int, usedShares *big.Int, feePercent *big.Int, pps *big.Int, decimals *big.Int) (*big.Int, error) {
+	return _SuperLedger.Contract.PreviewFees(&_SuperLedger.CallOpts, user, yieldSourceAddress, amountAssets, usedShares, feePercent, pps, decimals)
 }
 
-// PreviewFees is a free data retrieval call binding the contract method 0x49b1df7b.
+// PreviewFees is a free data retrieval call binding the contract method 0xf0512d2c.
 //
-// Solidity: function previewFees(address user, address yieldSourceAddress, uint256 amountAssets, uint256 usedShares, uint256 feePercent) view returns(uint256 feeAmount)
-func (_SuperLedger *SuperLedgerCallerSession) PreviewFees(user common.Address, yieldSourceAddress common.Address, amountAssets *big.Int, usedShares *big.Int, feePercent *big.Int) (*big.Int, error) {
-	return _SuperLedger.Contract.PreviewFees(&_SuperLedger.CallOpts, user, yieldSourceAddress, amountAssets, usedShares, feePercent)
-}
-
-// SuperLedgerConfiguration is a free data retrieval call binding the contract method 0x825e9ec7.
-//
-// Solidity: function superLedgerConfiguration() view returns(address)
-func (_SuperLedger *SuperLedgerCaller) SuperLedgerConfiguration(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _SuperLedger.contract.Call(opts, &out, "superLedgerConfiguration")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// SuperLedgerConfiguration is a free data retrieval call binding the contract method 0x825e9ec7.
-//
-// Solidity: function superLedgerConfiguration() view returns(address)
-func (_SuperLedger *SuperLedgerSession) SuperLedgerConfiguration() (common.Address, error) {
-	return _SuperLedger.Contract.SuperLedgerConfiguration(&_SuperLedger.CallOpts)
-}
-
-// SuperLedgerConfiguration is a free data retrieval call binding the contract method 0x825e9ec7.
-//
-// Solidity: function superLedgerConfiguration() view returns(address)
-func (_SuperLedger *SuperLedgerCallerSession) SuperLedgerConfiguration() (common.Address, error) {
-	return _SuperLedger.Contract.SuperLedgerConfiguration(&_SuperLedger.CallOpts)
+// Solidity: function previewFees(address user, address yieldSourceAddress, uint256 amountAssets, uint256 usedShares, uint256 feePercent, uint256 pps, uint256 decimals) view returns(uint256 feeAmount)
+func (_SuperLedger *SuperLedgerCallerSession) PreviewFees(user common.Address, yieldSourceAddress common.Address, amountAssets *big.Int, usedShares *big.Int, feePercent *big.Int, pps *big.Int, decimals *big.Int) (*big.Int, error) {
+	return _SuperLedger.Contract.PreviewFees(&_SuperLedger.CallOpts, user, yieldSourceAddress, amountAssets, usedShares, feePercent, pps, decimals)
 }
 
 // UsersAccumulatorCostBasis is a free data retrieval call binding the contract method 0xe70833d3.

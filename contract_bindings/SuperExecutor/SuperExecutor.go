@@ -38,7 +38,7 @@ type Execution struct {
 
 // SuperExecutorMetaData contains all meta data concerning the SuperExecutor contract.
 var SuperExecutorMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"ledgerConfiguration_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"execute\",\"inputs\":[{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isInitialized\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isModuleType\",\"inputs\":[{\"name\":\"typeID\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"ledgerConfiguration\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperLedgerConfiguration\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"name\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"onInstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"onUninstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"validateHookCompliance\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"prevHook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"hookData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple[]\",\"internalType\":\"structExecution[]\",\"components\":[{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"version\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"event\",\"name\":\"SuperPositionMintRequested\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"spToken\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"dstChainId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FEE_NOT_TRANSFERRED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FIRST_HOOK_CANNOT_USE_PREVIOUS_AMOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_BALANCE_FOR_FEE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_CALLER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_CHAIN_ID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_YIELD_SOURCE_ORACLE_ID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MALICIOUS_HOOK_DETECTED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MANAGER_NOT_SET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ModuleAlreadyInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_HOOKS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ReentrancyGuardReentrantCall\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"ledgerConfiguration_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"LEDGER_CONFIGURATION\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperLedgerConfiguration\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"execute\",\"inputs\":[{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isInitialized\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isModuleType\",\"inputs\":[{\"name\":\"typeId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"name\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"onInstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"onUninstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"validateHookCompliance\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"prevHook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"hookData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple[]\",\"internalType\":\"structExecution[]\",\"components\":[{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"version\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"event\",\"name\":\"SuperPositionMintRequested\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"spToken\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"dstChainId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FEE_NOT_TRANSFERRED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_BALANCE_FOR_FEE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_CALLER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_CHAIN_ID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_YIELD_SOURCE_ORACLE_ID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MALICIOUS_HOOK_DETECTED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MANAGER_NOT_SET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ModuleAlreadyInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_HOOKS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ReentrancyGuardReentrantCall\",\"inputs\":[]}]",
 }
 
 // SuperExecutorABI is the input ABI used to generate the binding from.
@@ -187,6 +187,37 @@ func (_SuperExecutor *SuperExecutorTransactorRaw) Transact(opts *bind.TransactOp
 	return _SuperExecutor.Contract.contract.Transact(opts, method, params...)
 }
 
+// LEDGERCONFIGURATION is a free data retrieval call binding the contract method 0xa5310a69.
+//
+// Solidity: function LEDGER_CONFIGURATION() view returns(address)
+func (_SuperExecutor *SuperExecutorCaller) LEDGERCONFIGURATION(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _SuperExecutor.contract.Call(opts, &out, "LEDGER_CONFIGURATION")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// LEDGERCONFIGURATION is a free data retrieval call binding the contract method 0xa5310a69.
+//
+// Solidity: function LEDGER_CONFIGURATION() view returns(address)
+func (_SuperExecutor *SuperExecutorSession) LEDGERCONFIGURATION() (common.Address, error) {
+	return _SuperExecutor.Contract.LEDGERCONFIGURATION(&_SuperExecutor.CallOpts)
+}
+
+// LEDGERCONFIGURATION is a free data retrieval call binding the contract method 0xa5310a69.
+//
+// Solidity: function LEDGER_CONFIGURATION() view returns(address)
+func (_SuperExecutor *SuperExecutorCallerSession) LEDGERCONFIGURATION() (common.Address, error) {
+	return _SuperExecutor.Contract.LEDGERCONFIGURATION(&_SuperExecutor.CallOpts)
+}
+
 // IsInitialized is a free data retrieval call binding the contract method 0xd60b347f.
 //
 // Solidity: function isInitialized(address account) view returns(bool)
@@ -220,10 +251,10 @@ func (_SuperExecutor *SuperExecutorCallerSession) IsInitialized(account common.A
 
 // IsModuleType is a free data retrieval call binding the contract method 0xecd05961.
 //
-// Solidity: function isModuleType(uint256 typeID) pure returns(bool)
-func (_SuperExecutor *SuperExecutorCaller) IsModuleType(opts *bind.CallOpts, typeID *big.Int) (bool, error) {
+// Solidity: function isModuleType(uint256 typeId) pure returns(bool)
+func (_SuperExecutor *SuperExecutorCaller) IsModuleType(opts *bind.CallOpts, typeId *big.Int) (bool, error) {
 	var out []interface{}
-	err := _SuperExecutor.contract.Call(opts, &out, "isModuleType", typeID)
+	err := _SuperExecutor.contract.Call(opts, &out, "isModuleType", typeId)
 
 	if err != nil {
 		return *new(bool), err
@@ -237,47 +268,16 @@ func (_SuperExecutor *SuperExecutorCaller) IsModuleType(opts *bind.CallOpts, typ
 
 // IsModuleType is a free data retrieval call binding the contract method 0xecd05961.
 //
-// Solidity: function isModuleType(uint256 typeID) pure returns(bool)
-func (_SuperExecutor *SuperExecutorSession) IsModuleType(typeID *big.Int) (bool, error) {
-	return _SuperExecutor.Contract.IsModuleType(&_SuperExecutor.CallOpts, typeID)
+// Solidity: function isModuleType(uint256 typeId) pure returns(bool)
+func (_SuperExecutor *SuperExecutorSession) IsModuleType(typeId *big.Int) (bool, error) {
+	return _SuperExecutor.Contract.IsModuleType(&_SuperExecutor.CallOpts, typeId)
 }
 
 // IsModuleType is a free data retrieval call binding the contract method 0xecd05961.
 //
-// Solidity: function isModuleType(uint256 typeID) pure returns(bool)
-func (_SuperExecutor *SuperExecutorCallerSession) IsModuleType(typeID *big.Int) (bool, error) {
-	return _SuperExecutor.Contract.IsModuleType(&_SuperExecutor.CallOpts, typeID)
-}
-
-// LedgerConfiguration is a free data retrieval call binding the contract method 0x6740419b.
-//
-// Solidity: function ledgerConfiguration() view returns(address)
-func (_SuperExecutor *SuperExecutorCaller) LedgerConfiguration(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _SuperExecutor.contract.Call(opts, &out, "ledgerConfiguration")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// LedgerConfiguration is a free data retrieval call binding the contract method 0x6740419b.
-//
-// Solidity: function ledgerConfiguration() view returns(address)
-func (_SuperExecutor *SuperExecutorSession) LedgerConfiguration() (common.Address, error) {
-	return _SuperExecutor.Contract.LedgerConfiguration(&_SuperExecutor.CallOpts)
-}
-
-// LedgerConfiguration is a free data retrieval call binding the contract method 0x6740419b.
-//
-// Solidity: function ledgerConfiguration() view returns(address)
-func (_SuperExecutor *SuperExecutorCallerSession) LedgerConfiguration() (common.Address, error) {
-	return _SuperExecutor.Contract.LedgerConfiguration(&_SuperExecutor.CallOpts)
+// Solidity: function isModuleType(uint256 typeId) pure returns(bool)
+func (_SuperExecutor *SuperExecutorCallerSession) IsModuleType(typeId *big.Int) (bool, error) {
+	return _SuperExecutor.Contract.IsModuleType(&_SuperExecutor.CallOpts, typeId)
 }
 
 // Name is a free data retrieval call binding the contract method 0x06fdde03.

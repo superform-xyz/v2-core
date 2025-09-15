@@ -18,12 +18,12 @@ env:
   BSC_RPC_URL: ${{ secrets.BSC_RPC_URL }}
   ARBITRUM_RPC_URL: ${{ secrets.ARBITRUM_RPC_URL }}
   POLYGON_RPC_URL: ${{ secrets.POLYGON_RPC_URL }}
-  UNICHAIN_RPC_URL: ${{ secrets.UNICHAIN_RPC_URL }} # updated
+  UNICHAIN_RPC_URL: ${{ secrets.UNICHAIN_RPC_URL }} 
   AVALANCHE_RPC_URL: ${{ secrets.AVALANCHE_RPC_URL }}
-  BERACHAIN_RPC_URL: ${{ secrets.BERACHAIN_RPC_URL }} # updated
-  SONIC_RPC_URL: ${{ secrets.SONIC_RPC_URL }} # updated
-  GNOSIS_RPC_URL: ${{ secrets.GNOSIS_RPC_URL }} # updated
-  WORLDCHAIN_RPC_URL: ${{ secrets.WORLDCHAIN_RPC_URL }} # updated
+  BERACHAIN_RPC_URL: ${{ secrets.BERACHAIN_RPC_URL }} 
+  SONIC_RPC_URL: ${{ secrets.SONIC_RPC_URL }} 
+  GNOSIS_RPC_URL: ${{ secrets.GNOSIS_RPC_URL }} 
+  WORLDCHAIN_RPC_URL: ${{ secrets.WORLDCHAIN_RPC_URL }} 
   TENDERLY_ACCESS_KEY: ${{ secrets.TENDERLY_ACCESS_KEY }}
   TENDERLY_PROJECT_SLUG: "v2"
   TENDERLY_ACCOUNT_ID: "superform"
