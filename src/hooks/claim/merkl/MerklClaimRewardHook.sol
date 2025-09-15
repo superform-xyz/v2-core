@@ -97,7 +97,6 @@ contract MerklClaimRewardHook is BaseHook {
             // - won't work for tokens reverting on 0 amount transfer in case of 0 fees
             uint256 len = params.tokens.length;
             for (uint256 i; i < len; ++i) {
-                
                 uint256 fee;
                 uint208 amount;
                 if (feePercent > 0) {
