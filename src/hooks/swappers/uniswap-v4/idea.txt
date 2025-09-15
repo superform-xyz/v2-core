@@ -165,18 +165,42 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         // Validate quote deviation using on-chain oracle
         _validateQuoteDeviation(poolKey, actualAmountIn, dynamicMinAmountOut, zeroForOne);
 
-        // Create unlock call with recalculated parameters
-        bytes memory unlockData = abi.encode(
+        // Create swap data for performSwap call
+        bytes memory swapData = abi.encode(
             poolKey, actualAmountIn, dynamicMinAmountOut, dstReceiver, sqrtPriceLimitX96, zeroForOne, additionalData
         );
 
-        // Build execution for the unlock call
+        // Build execution for the performSwap call on this hook
         executions = new Execution[](1);
         executions[0] = Execution({
-            target: address(POOL_MANAGER),
+            target: address(this),
             value: 0,
-            callData: abi.encodeWithSelector(IPoolManager.unlock.selector, unlockData)
+            callData: abi.encodeWithSelector(this.performSwap.selector, swapData)
         });
+    }
+
+    /// @notice Performs the swap by pulling tokens and calling unlock
+    /// @dev This function is called by the account, pulls input tokens, and initiates the unlock call
+    /// @param swapData Encoded swap parameters (same as unlockData)
+    function performSwap(bytes calldata swapData) external {
+        (
+            PoolKey memory poolKey,
+            uint256 amountIn,
+            uint256 minAmountOut,
+            address dstReceiver,
+            uint160 sqrtPriceLimitX96,
+            bool zeroForOne,
+            bytes memory additionalData
+        ) = abi.decode(swapData, (PoolKey, uint256, uint256, address, uint160, bool, bytes));
+
+        Currency inputCurrency = zeroForOne ? poolKey.currency0 : poolKey.currency1;
+        address inputToken = Currency.unwrap(inputCurrency);
+
+        // Pull input tokens from the caller (account) to this hook
+        IERC20(inputToken).transferFrom(msg.sender, address(this), amountIn);
+
+        // Initiate the unlock call - callback will handle the swap
+        POOL_MANAGER.unlock(swapData);
     }
 
     /// @inheritdoc BaseHook
@@ -217,12 +241,16 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
             bytes memory additionalData
         ) = abi.decode(data, (PoolKey, uint256, uint256, address, uint160, bool, bytes));
 
-        // Use the provided swap direction
+        // Determine swap direction and currencies
         Currency inputCurrency = zeroForOne ? poolKey.currency0 : poolKey.currency1;
+        Currency outputCurrency = zeroForOne ? poolKey.currency1 : poolKey.currency0;
+        address inputToken = Currency.unwrap(inputCurrency);
 
-        // Take input tokens from the account and settle with Pool Manager
-        POOL_MANAGER.take(inputCurrency, address(this), amountIn);
-        POOL_MANAGER.settle();
+        // Transfer input tokens from this hook to the Pool Manager
+        IERC20(inputToken).transfer(address(POOL_MANAGER), amountIn);
+
+        // Settle the input transfer
+        POOL_MANAGER.settle(inputCurrency);
 
         // Execute the swap with dynamic parameters
         IPoolManager.SwapParams memory swapParams = IPoolManager.SwapParams({
@@ -234,13 +262,13 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         BalanceDelta swapDelta = POOL_MANAGER.swap(poolKey, swapParams, additionalData);
 
         // Extract output amount and validate against minimum
-        uint256 amountOut = uint256(int256(-swapDelta.amount1()));
+        int128 deltaOut = zeroForOne ? swapDelta.amount1() : swapDelta.amount0();
+        uint256 amountOut = uint256(-deltaOut);
         if (amountOut < minAmountOut) {
             revert INSUFFICIENT_OUTPUT_AMOUNT(amountOut, minAmountOut);
         }
 
         // Transfer output tokens to the specified receiver
-        Currency outputCurrency = zeroForOne ? poolKey.currency1 : poolKey.currency0;
         POOL_MANAGER.take(outputCurrency, dstReceiver, amountOut);
 
         return abi.encode(amountOut);
