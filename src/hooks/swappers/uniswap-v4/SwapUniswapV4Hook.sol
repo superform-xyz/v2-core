@@ -25,7 +25,6 @@ import { TickMath } from "v4-core/libraries/TickMath.sol";
 /// @author Superform Labs
 /// @notice Hook for executing swaps via Uniswap V4 with dynamic minAmountOut recalculation
 /// @dev Implements dynamic slippage protection and on-chain quote generation
-///      Solves the circular dependency issues faced with 0x Protocol by using real-time calculations
 contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
     using PoolIdLibrary for PoolKey;
     using CurrencyLibrary for Currency;
@@ -38,6 +37,9 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
     /// @notice The Uniswap V4 Pool Manager contract
     IPoolManager public immutable POOL_MANAGER;
+
+    /// @notice Temporary storage for unlock data during execution
+    bytes private pendingUnlockData;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -74,6 +76,10 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
     /// @notice Thrown when the quote calculation fails
     error QUOTE_CALCULATION_FAILED();
+
+    /// @notice Thrown when an invalid price limit is provided (e.g., 0)
+    error INVALID_PRICE_LIMIT();
+    error INVALID_OUTPUT_DELTA();
 
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
@@ -136,63 +142,43 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         override
         returns (Execution[] memory executions)
     {
-        // Decode enhanced hook data with dynamic recalculation parameters
-        (
-            PoolKey memory poolKey,
-            address dstReceiver,
-            uint160 sqrtPriceLimitX96,
-            uint256 originalAmountIn,
-            uint256 originalMinAmountOut,
-            uint256 maxSlippageDeviationBps,
-            bool zeroForOne,
-            bool usePrevHookAmount,
-            bytes memory additionalData
-        ) = _decodeHookData(data);
+        // Extract just the token and amount for the transfer
+        (address inputToken, uint256 amountIn) = _getTransferParams(prevHook, account, data);
 
-        // Get actual swap amount (potentially changed by previous hooks/bridges)
-        uint256 actualAmountIn = usePrevHookAmount ? ISuperHookResult(prevHook).getOutAmount(account) : originalAmountIn;
-
-        // Calculate dynamic minAmountOut with ratio protection
-        uint256 dynamicMinAmountOut = _calculateDynamicMinAmount(
-            RecalculationParams({
-                originalAmountIn: originalAmountIn,
-                originalMinAmountOut: originalMinAmountOut,
-                actualAmountIn: actualAmountIn,
-                maxSlippageDeviationBps: maxSlippageDeviationBps
-            })
-        );
-
-        // Validate quote deviation using on-chain oracle
-        _validateQuoteDeviation(poolKey, actualAmountIn, dynamicMinAmountOut, zeroForOne);
-
-        // Create unlock call with recalculated parameters
-        bytes memory unlockData = abi.encode(
-            poolKey, actualAmountIn, dynamicMinAmountOut, dstReceiver, sqrtPriceLimitX96, zeroForOne, additionalData
-        );
-
-        // Build execution for the unlock call
+        // Single execution: transfer tokens from account to hook
+        // Since the account is executing this, it should use transfer, not transferFrom
         executions = new Execution[](1);
         executions[0] = Execution({
-            target: address(POOL_MANAGER),
+            target: inputToken,
             value: 0,
-            callData: abi.encodeWithSelector(IPoolManager.unlock.selector, unlockData)
+            callData: abi.encodeWithSelector(IERC20.transfer.selector, address(this), amountIn)
         });
     }
 
     /// @inheritdoc BaseHook
-    function _preExecute(address, /* prevHook */ address, /* account */ bytes calldata data) internal override {
+    function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         // Store relevant context for postExecute
         asset = _getInputToken(data);
         spToken = _getOutputToken(data);
+
+        // Prepare and store unlock data for postExecute
+        pendingUnlockData = _prepareUnlockData(prevHook, account, data);
     }
 
     /// @inheritdoc BaseHook
     function _postExecute(address, /* prevHook */ address account, bytes calldata /* data */ ) internal override {
-        // Calculate and set the final output amount
-        uint256 outputBalance = IERC20(spToken).balanceOf(account);
-        _setOutAmount(outputBalance, account);
+        // Now the hook has the tokens, execute unlock
+        // The callback will come to this hook since we're msg.sender
+        bytes memory unlockResult = POOL_MANAGER.unlock(pendingUnlockData);
 
-        // Additional post-execution cleanup can be added here
+        // Clear storage
+        delete pendingUnlockData;
+
+        // Decode the output amount from unlock result
+        uint256 outputAmount = abi.decode(unlockResult, (uint256));
+
+        // Set the output amount for the next hook
+        _setOutAmount(outputAmount, account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -217,11 +203,24 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
             bytes memory additionalData
         ) = abi.decode(data, (PoolKey, uint256, uint256, address, uint160, bool, bytes));
 
-        // Use the provided swap direction
-        Currency inputCurrency = zeroForOne ? poolKey.currency0 : poolKey.currency1;
+        // Validate price limit - must be non-zero
+        if (sqrtPriceLimitX96 == 0) {
+            revert INVALID_PRICE_LIMIT();
+        }
 
-        // Take input tokens from the account and settle with Pool Manager
-        POOL_MANAGER.take(inputCurrency, address(this), amountIn);
+        // Determine swap direction and currencies
+        Currency inputCurrency = zeroForOne ? poolKey.currency0 : poolKey.currency1;
+        Currency outputCurrency = zeroForOne ? poolKey.currency1 : poolKey.currency0;
+        address inputToken = Currency.unwrap(inputCurrency);
+
+        // Sync the input currency first (required for ERC20 settlement)
+        POOL_MANAGER.sync(inputCurrency);
+
+        // Transfer input tokens from this hook to the Pool Manager
+        // The hook already has the tokens from the account via transfer in _buildHookExecutions
+        IERC20(inputToken).transfer(address(POOL_MANAGER), amountIn);
+
+        // Settle the input currency with the Pool Manager
         POOL_MANAGER.settle();
 
         // Execute the swap with dynamic parameters
@@ -234,13 +233,21 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         BalanceDelta swapDelta = POOL_MANAGER.swap(poolKey, swapParams, additionalData);
 
         // Extract output amount and validate against minimum
-        uint256 amountOut = uint256(int256(-swapDelta.amount1()));
+        int128 deltaOut = zeroForOne ? swapDelta.amount1() : swapDelta.amount0();
+
+        // Per Uniswap V4 docs, BalanceDelta signs are from the caller's perspective:
+        // positive = caller receives (owed by pool), negative = caller pays (owes to pool)
+        // For exact-input swaps (amountSpecified < 0), output delta is positive (we receive output)
+        if (deltaOut <= 0) {
+            revert INVALID_OUTPUT_DELTA();
+        }
+
+        uint256 amountOut = uint256(int256(deltaOut));
         if (amountOut < minAmountOut) {
             revert INSUFFICIENT_OUTPUT_AMOUNT(amountOut, minAmountOut);
         }
 
-        // Transfer output tokens to the specified receiver
-        Currency outputCurrency = zeroForOne ? poolKey.currency1 : poolKey.currency0;
+        // Take output tokens and send to the specified receiver
         POOL_MANAGER.take(outputCurrency, dstReceiver, amountOut);
 
         return abi.encode(amountOut);
@@ -255,9 +262,13 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
     ///      Validates that ratio change doesn't exceed maxSlippageDeviationBps
     /// @param params The recalculation parameters
     /// @return newMinAmountOut The calculated minAmountOut with ratio protection
-    function _calculateDynamicMinAmount(RecalculationParams memory params)
+    function _calculateDynamicMinAmount(
+        RecalculationParams memory params,
+        PoolKey memory poolKey,
+        bool zeroForOne
+    )
         internal
-        pure
+        view
         returns (uint256 newMinAmountOut)
     {
         // Input validation
@@ -281,6 +292,9 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         if (ratioDeviationBps > params.maxSlippageDeviationBps) {
             revert EXCESSIVE_SLIPPAGE_DEVIATION(ratioDeviationBps, params.maxSlippageDeviationBps);
         }
+
+        // Validate quote deviation using the calculated amount
+        _validateQuoteDeviation(poolKey, params.actualAmountIn, newMinAmountOut, zeroForOne);
     }
 
     /// @notice Internal function to calculate ratio deviation in basis points
@@ -406,6 +420,84 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
     /*//////////////////////////////////////////////////////////////
                            INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Extract transfer parameters without causing stack depth issues
+    /// @param prevHook The previous hook in the chain
+    /// @param account The account executing the hook
+    /// @param data The encoded hook data
+    /// @return inputToken The input token address
+    /// @return amountIn The amount to transfer
+    function _getTransferParams(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
+        view
+        returns (address inputToken, uint256 amountIn)
+    {
+        // Decode minimal data needed for transfer
+        PoolKey memory poolKey = abi.decode(data[0:160], (PoolKey));
+        bool zeroForOne = _decodeBool(data, 296);
+        bool usePrevHookAmount = _decodeBool(data, 297);
+
+        inputToken = zeroForOne ? Currency.unwrap(poolKey.currency0) : Currency.unwrap(poolKey.currency1);
+
+        if (usePrevHookAmount) {
+            amountIn = ISuperHookResult(prevHook).getOutAmount(account);
+        } else {
+            // Extract originalAmountIn from position 200-232
+            amountIn = uint256(bytes32(data[200:232]));
+        }
+    }
+
+    /// @notice Prepare unlock data for the pool manager
+    /// @param prevHook The previous hook in the chain
+    /// @param account The account executing the hook
+    /// @param data The encoded hook data
+    /// @return unlockData The encoded data for the unlock callback
+    function _prepareUnlockData(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
+        view
+        returns (bytes memory unlockData)
+    {
+        // Decode hook data
+        (
+            PoolKey memory poolKey,
+            address dstReceiver,
+            uint160 sqrtPriceLimitX96,
+            uint256 originalAmountIn,
+            uint256 originalMinAmountOut,
+            uint256 maxSlippageDeviationBps,
+            bool zeroForOne,
+            bool usePrevHookAmount,
+            bytes memory additionalData
+        ) = _decodeHookData(data);
+
+        // Calculate actual amount
+        uint256 actualAmountIn = usePrevHookAmount ? ISuperHookResult(prevHook).getOutAmount(account) : originalAmountIn;
+
+        // Calculate dynamic min amount
+        uint256 dynamicMinAmountOut = _calculateDynamicMinAmount(
+            RecalculationParams({
+                originalAmountIn: originalAmountIn,
+                originalMinAmountOut: originalMinAmountOut,
+                actualAmountIn: actualAmountIn,
+                maxSlippageDeviationBps: maxSlippageDeviationBps
+            }),
+            poolKey,
+            zeroForOne
+        );
+
+        // Encode unlock data
+        unlockData = abi.encode(
+            poolKey, actualAmountIn, dynamicMinAmountOut, dstReceiver, sqrtPriceLimitX96, zeroForOne, additionalData
+        );
+    }
 
     /// @notice Decodes the enhanced hook data structure
     /// @param data The encoded hook data

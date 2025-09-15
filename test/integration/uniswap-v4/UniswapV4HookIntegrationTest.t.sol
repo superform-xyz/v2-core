@@ -20,6 +20,9 @@ import { IPoolManager } from "v4-core/interfaces/IPoolManager.sol";
 import { PoolKey } from "v4-core/types/PoolKey.sol";
 import { Currency, CurrencyLibrary } from "v4-core/types/Currency.sol";
 import { IHooks } from "v4-core/interfaces/IHooks.sol";
+import { PoolId, PoolIdLibrary } from "v4-core/types/PoolId.sol";
+import { TickMath } from "v4-core/libraries/TickMath.sol";
+import { StateLibrary } from "v4-core/libraries/StateLibrary.sol";
 
 /// @title UniswapV4HookIntegrationTest
 /// @author Superform Labs
@@ -27,6 +30,7 @@ import { IHooks } from "v4-core/interfaces/IHooks.sol";
 /// @dev Tests dynamic minAmount recalculation, hook chaining, and integration patterns
 contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
     using CurrencyLibrary for Currency;
+    using StateLibrary for IPoolManager;
 
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
@@ -97,6 +101,69 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
     receive() external payable { }
 
     /*//////////////////////////////////////////////////////////////
+                            HELPER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Integer square root using Babylonian method
+    /// @param x The number to calculate square root of
+    /// @return The square root of x
+    function _sqrt(uint256 x) internal pure returns (uint256) {
+        if (x == 0) return 0;
+        uint256 z = (x + 1) / 2;
+        uint256 y = x;
+        while (z < y) {
+            y = z;
+            z = (x / z + z) / 2;
+        }
+        return y;
+    }
+
+    /// @notice Calculate appropriate sqrtPriceLimitX96 based on current pool price and slippage tolerance
+    /// @param poolKey The pool to get current price from
+    /// @param zeroForOne Direction of the swap
+    /// @param slippageToleranceBps Slippage tolerance in basis points (e.g., 50 = 0.5%)
+    /// @return sqrtPriceLimitX96 The calculated price limit
+    function _calculatePriceLimit(
+        PoolKey memory poolKey,
+        bool zeroForOne,
+        uint256 slippageToleranceBps
+    ) internal view returns (uint160 sqrtPriceLimitX96) {
+        PoolId poolId = PoolIdLibrary.toId(poolKey);
+        
+        // Get current pool price using StateLibrary
+        (uint160 currentSqrtPriceX96,,,) = poolManager.getSlot0(poolId);
+        
+        // Handle uninitialized pools - use a reasonable default
+        if (currentSqrtPriceX96 == 0) {
+            // For testing, use 1:1 price ratio as fallback
+            currentSqrtPriceX96 = 79228162514264337593543950336;
+        }
+        
+        // Calculate slippage factor (10000 = 100%)
+        uint256 slippageFactor = zeroForOne 
+            ? 10000 - slippageToleranceBps  // Price goes down
+            : 10000 + slippageToleranceBps; // Price goes up
+        
+        // Apply square root to slippage factor (since we're dealing with sqrt prices)
+        // Scale up for precision, then scale back down
+        uint256 sqrtSlippageFactor = _sqrt(slippageFactor * 1e18 / 10000);
+        uint256 adjustedPrice = (uint256(currentSqrtPriceX96) * sqrtSlippageFactor) / 1e9;
+        
+        // Enforce TickMath boundaries
+        if (zeroForOne) {
+            // For zeroForOne, price decreases, ensure we don't go below minimum
+            sqrtPriceLimitX96 = adjustedPrice < TickMath.MIN_SQRT_PRICE + 1
+                ? TickMath.MIN_SQRT_PRICE + 1
+                : uint160(adjustedPrice);
+        } else {
+            // For !zeroForOne, price increases, ensure we don't exceed maximum
+            sqrtPriceLimitX96 = adjustedPrice > TickMath.MAX_SQRT_PRICE - 1
+                ? TickMath.MAX_SQRT_PRICE - 1
+                : uint160(adjustedPrice);
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             CORE FUNCTIONALITY TESTS
     //////////////////////////////////////////////////////////////*/
 
@@ -105,17 +172,21 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
 
         uint256 swapAmountIn = 1000e6; // 1000 USDC
         uint256 expectedMinOut = 300_000_000_000_000_000; // ~0.3 WETH minimum
+        bool zeroForOne = true; // USDC -> WETH
+
+        // Calculate appropriate price limit with 0.5% slippage
+        uint160 priceLimit = _calculatePriceLimit(testPoolKey, zeroForOne, 50);
 
         // Generate swap calldata using the parser
         bytes memory swapCalldata = parser.generateSingleHopSwapCalldata(
             UniswapV4Parser.SingleHopParams({
                 poolKey: testPoolKey,
                 dstReceiver: accountEth,
-                sqrtPriceLimitX96: 0,
+                sqrtPriceLimitX96: priceLimit, // Use same price limit as quote
                 originalAmountIn: swapAmountIn,
                 originalMinAmountOut: expectedMinOut,
                 maxSlippageDeviationBps: 500, // 5% max deviation
-                zeroForOne: true, // USDC -> WETH
+                zeroForOne: zeroForOne,
                 additionalData: ""
             }),
             false // Don't use prev hook amount
@@ -176,16 +247,20 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         params.sellAmount = 1000e6; // 1000 USDC
         params.zeroForOne = CHAIN_1_USDC < CHAIN_1_WETH; // Derive zeroForOne based on addresses
 
-        // Get realistic minimum using HOOK'S ON-CHAIN QUOTE (best V4 "oracle")
+        // Calculate appropriate price limit with 1% slippage tolerance (100 bps)
+        uint160 priceLimit = _calculatePriceLimit(testPoolKey, params.zeroForOne, 100); // 100 bps = 1%
+        console2.log("Calculated price limit for quote and swap:", priceLimit);
+
+        // Get realistic minimum using HOOK'S ON-CHAIN QUOTE with the same price limit
         SwapUniswapV4Hook.QuoteResult memory quote = uniswapV4Hook.getQuote(
             SwapUniswapV4Hook.QuoteParams({
                 poolKey: testPoolKey,
                 zeroForOne: params.zeroForOne,
                 amountIn: params.sellAmount,
-                sqrtPriceLimitX96: 0 // No limit
+                sqrtPriceLimitX96: priceLimit // Use same price limit for quote
              })
         );
-        params.expectedMinOut = quote.amountOut * 995 / 1000; // Apply 0.5% slippage buffer on quote
+        params.expectedMinOut = quote.amountOut * 995 / 1000; // Apply 0.5% additional slippage buffer on quote
 
         // Get account address and setup
         params.account = instanceOnEth.account;
@@ -205,7 +280,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
             UniswapV4Parser.SingleHopParams({
                 poolKey: testPoolKey,
                 dstReceiver: params.account,
-                sqrtPriceLimitX96: 0,
+                sqrtPriceLimitX96: priceLimit, // Use same price limit as quote
                 originalAmountIn: params.sellAmount,
                 originalMinAmountOut: params.expectedMinOut,
                 maxSlippageDeviationBps: 500, // Keep for amount ratio protection
@@ -215,14 +290,12 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
             false // Don't use prev hook amount
         );
 
-        // Set up hook execution
-        address[] memory hookAddresses = new address[](2);
-        hookAddresses[0] = approveHook;
-        hookAddresses[1] = address(uniswapV4Hook);
+        // Set up hook execution - single hook for swap
+        address[] memory hookAddresses = new address[](1);
+        hookAddresses[0] = address(uniswapV4Hook);
 
-        bytes[] memory hookDataArray = new bytes[](2);
-        hookDataArray[0] = _createApproveHookData(CHAIN_1_USDC, address(uniswapV4Hook), params.sellAmount, false);
-        hookDataArray[1] = swapCalldata;
+        bytes[] memory hookDataArray = new bytes[](1);
+        hookDataArray[0] = swapCalldata;
 
         // Execute via SuperExecutor
         ISuperExecutor.ExecutorEntry memory entryToExecute =
