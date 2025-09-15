@@ -106,6 +106,8 @@ abstract contract Constants {
     string public constant MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY = "MorphoRepayAndWithdrawHook";
     string public constant MARK_ROOT_AS_USED_HOOK_KEY = "MarkAsUsedHook";
     string public constant MERKL_CLAIM_REWARD_HOOK_KEY = "MerklClaimRewardHook";
+    string public constant SWAP_UNISWAP_V4_HOOK_KEY = "SwapUniswapV4Hook";
+    string public constant SWAP_UNISWAP_V4_MULTI_HOP_HOOK_KEY = "SwapUniswapV4MultiHopHook";
 
     // contracts
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
