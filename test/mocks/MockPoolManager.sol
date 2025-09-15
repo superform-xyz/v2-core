@@ -4,22 +4,20 @@ pragma solidity 0.8.30;
 // External imports
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-// Superform imports
-import { 
-    IPoolManagerSuperform, 
-    PoolKey, 
-    Currency,
-    CurrencyLibrary,
-    BalanceDelta,
-    BalanceDeltaLibrary,
-    IUnlockCallback
-} from "../../src/interfaces/external/uniswap-v4/IPoolManagerSuperform.sol";
+// Real Uniswap V4 imports
+import { IPoolManager } from "v4-core/interfaces/IPoolManager.sol";
+import { IUnlockCallback } from "v4-core/interfaces/callback/IUnlockCallback.sol";
+import { PoolKey } from "v4-core/types/PoolKey.sol";
+import { PoolId } from "v4-core/types/PoolId.sol";
+import { Currency, CurrencyLibrary } from "v4-core/types/Currency.sol";
+import { BalanceDelta, BalanceDeltaLibrary } from "v4-core/types/BalanceDelta.sol";
+import { IHooks } from "v4-core/interfaces/IHooks.sol";
 
 /// @title MockPoolManager
 /// @author Superform Labs
 /// @notice Mock implementation of Uniswap V4 PoolManager for testing
 /// @dev Simulates V4 pool behavior for integration testing before mainnet launch
-contract MockPoolManager is IPoolManagerSuperform {
+contract MockPoolManager is IPoolManager {
     using CurrencyLibrary for address;
     using BalanceDeltaLibrary for BalanceDelta;
 
@@ -89,20 +87,21 @@ contract MockPoolManager is IPoolManagerSuperform {
                             POOL MANAGER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc IPoolManagerSuperform
+    // Note: This is a mock function - real IPoolManager doesn't have getSlot0
+    // In real V4, you use StateLibrary.getSlot0(poolManager, poolId)
     function getSlot0(
         bytes32 poolId
-    ) external view override returns (uint160 sqrtPriceX96, int24 tick, uint16 protocolFee, uint24 lpFee) {
+    ) external view returns (uint160 sqrtPriceX96, int24 tick, uint24 protocolFee, uint24 lpFee) {
         PoolState memory pool = pools[poolId];
         require(pool.initialized, "Pool not initialized");
         
         return (pool.sqrtPriceX96, pool.tick, pool.protocolFee, pool.lpFee);
     }
 
-    /// @inheritdoc IPoolManagerSuperform
+    /// @inheritdoc IPoolManager
     function swap(
         PoolKey memory key,
-        SwapParams memory params,
+        IPoolManager.SwapParams memory params,
         bytes calldata hookData
     ) external override returns (BalanceDelta swapDelta) {
         bytes32 poolId = keccak256(abi.encode(key));
@@ -143,7 +142,7 @@ contract MockPoolManager is IPoolManagerSuperform {
         emit MockSwap(poolId, msg.sender, params.zeroForOne, params.amountSpecified, amountIn, amountOut);
     }
 
-    /// @inheritdoc IPoolManagerSuperform
+    /// @inheritdoc IPoolManager
     function unlock(bytes calldata data) external override returns (bytes memory) {
         unlockCaller = msg.sender;
         emit MockUnlock(msg.sender, data);
@@ -164,12 +163,114 @@ contract MockPoolManager is IPoolManagerSuperform {
         IERC20(Currency.unwrap(currency)).transfer(to, amount);
     }
 
-    /// @inheritdoc IPoolManagerSuperform
-    function settle(Currency currency) external override {
+    /// @inheritdoc IPoolManager
+    function settle() external payable override returns (uint256 paid) {
+        require(unlockCaller != address(0), "Not in unlock context");
+        // Return mock amount
+        return 0;
+    }
+
+    /// @inheritdoc IPoolManager  
+    function settleFor(address recipient) external payable override returns (uint256 paid) {
+        require(unlockCaller != address(0), "Not in unlock context");
+        // Mock implementation - return 0
+        return 0;
+    }
+
+    /// @notice Legacy settle with currency parameter (for compatibility)
+    function settle(Currency currency) external {
         require(unlockCaller != address(0), "Not in unlock context");
         
         // In a real scenario, this would settle the currency balance
         // For mock purposes, we assume tokens have been transferred to this contract
+    }
+
+    /// @inheritdoc IPoolManager
+    function initialize(PoolKey memory key, uint160 sqrtPriceX96) external override returns (int24 tick) {
+        bytes32 poolId = keccak256(abi.encode(key));
+        require(!pools[poolId].initialized, "Pool already initialized");
+        
+        // Mock tick calculation
+        tick = 60; // Default tick
+        
+        pools[poolId] = PoolState({
+            sqrtPriceX96: sqrtPriceX96,
+            tick: tick,
+            protocolFee: 0,
+            lpFee: key.fee,
+            initialized: true
+        });
+        
+        mockLiquidity[poolId] = 1e24;
+        mockExchangeRates[poolId] = 3000e18; // Default USDC/WETH rate
+        
+        return tick;
+    }
+
+    /// @inheritdoc IPoolManager
+    function modifyLiquidity(
+        PoolKey memory key, 
+        IPoolManager.ModifyLiquidityParams memory params,
+        bytes calldata hookData
+    ) external override returns (BalanceDelta callerDelta, BalanceDelta feesAccrued) {
+        // Mock implementation - return zero deltas
+        callerDelta = BalanceDelta({amount0: 0, amount1: 0});
+        feesAccrued = BalanceDelta({amount0: 0, amount1: 0});
+    }
+
+    /// @inheritdoc IPoolManager
+    function donate(
+        PoolKey memory key,
+        uint256 amount0,
+        uint256 amount1,
+        bytes calldata hookData
+    ) external override returns (BalanceDelta) {
+        // Mock implementation - return zero delta
+        return BalanceDelta({amount0: 0, amount1: 0});
+    }
+
+    /// @inheritdoc IPoolManager
+    function sync(Currency currency) external override {
+        // Mock implementation - no-op
+    }
+
+    /// @inheritdoc IPoolManager
+    function clear(Currency currency, uint256 amount) external override {
+        // Mock implementation - no-op for testing
+    }
+
+    /// @inheritdoc IPoolManager
+    function mint(address to, uint256 id, uint256 amount) external override {
+        // Mock implementation - no-op for testing
+    }
+
+    /// @inheritdoc IPoolManager
+    function burn(address from, uint256 id, uint256 amount) external override {
+        // Mock implementation - no-op for testing
+    }
+
+    /// @inheritdoc IPoolManager
+    function updateDynamicLPFee(PoolKey memory key, uint24 newDynamicLPFee) external override {
+        bytes32 poolId = keccak256(abi.encode(key));
+        require(pools[poolId].initialized, "Pool not initialized");
+        pools[poolId].lpFee = newDynamicLPFee;
+    }
+
+    // Additional IPoolManager interface functions with mock implementations
+    function extsload(bytes32 slot) external view override returns (bytes32) {
+        // Mock implementation for StateLibrary compatibility
+        return bytes32(0);
+    }
+    
+    function extsload(bytes32 startSlot, uint256 nSlots) external view override returns (bytes32[] memory) {
+        // Mock implementation for StateLibrary compatibility
+        bytes32[] memory result = new bytes32[](nSlots);
+        return result;
+    }
+
+    function exttload(bytes32 slot) external view override returns (bytes32) {
+        // Mock implementation
+        return bytes32(0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -325,10 +426,32 @@ contract MockPoolManager is IPoolManagerSuperform {
         return mockExchangeRates[poolId];
     }
 
-    /// @notice Get mock liquidity for a pool
+    /// @notice Get mock liquidity for a pool (StateLibrary compatibility)
+    /// @param poolId Pool identifier (PoolId type)
+    /// @return liquidity Available liquidity
+    function getLiquidity(PoolId poolId) external view returns (uint128 liquidity) {
+        bytes32 poolIdBytes = PoolId.unwrap(poolId);
+        return uint128(mockLiquidity[poolIdBytes]);
+    }
+
+    /// @notice Get mock liquidity for a pool (legacy bytes32)
     /// @param poolId Pool identifier
     /// @return liquidity Available liquidity
     function getLiquidity(bytes32 poolId) external view returns (uint256 liquidity) {
         return mockLiquidity[poolId];
+    }
+
+    /// @notice Get slot0 data for StateLibrary compatibility
+    /// @param poolId Pool identifier (PoolId type) 
+    /// @return sqrtPriceX96 Current sqrt price
+    /// @return tick Current tick
+    /// @return protocolFee Protocol fee
+    /// @return lpFee LP fee
+    function getSlot0(PoolId poolId) external view returns (uint160 sqrtPriceX96, int24 tick, uint24 protocolFee, uint24 lpFee) {
+        bytes32 poolIdBytes = PoolId.unwrap(poolId);
+        PoolState memory pool = pools[poolIdBytes];
+        require(pool.initialized, "Pool not initialized");
+        
+        return (pool.sqrtPriceX96, pool.tick, pool.protocolFee, pool.lpFee);
     }
 }

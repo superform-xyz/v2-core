@@ -85,6 +85,9 @@ import { MockApproveAndSwapOdosHook } from "../test/mocks/unused-hooks/MockAppro
 import { ApproveAndSwapOdosV2Hook } from "../src/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol";
 import { MockSwapOdosHook } from "../test/mocks/unused-hooks/MockSwapOdosHook.sol";
 
+// --- Uniswap v4
+import { UniswapV4Parser } from "./utils/parsers/UniswapV4Parser.sol";
+
 // Stake hooks
 // --- Gearbox
 import { GearboxStakeHook } from "../src/hooks/stake/gearbox/GearboxStakeHook.sol";
@@ -244,7 +247,7 @@ struct Addresses {
     MockTargetExecutor mockTargetExecutor;
 }
 
-contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper, OdosAPIParser, InternalHelpers {
+contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper, OdosAPIParser, UniswapV4Parser, InternalHelpers {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
     using Clones for address;
