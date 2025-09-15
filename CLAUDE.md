@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Claude Master Agent
 
 ### Rules
-- Before you do any work, MUST view files in .claude/tasks/context_session_x.md file to get the full context (x being the id of the session we are operate, if file doesnt exist, then create one)
-- context_session_x.md should contain most of context of what we did, overall plan, and sub agents will continusly add context to the file
+- Before you do any work, MUST view files in .claude/tasks/context_session_x.md file to get the full context (x being the id of the session we are operate, if file doesn't exist, then create one)
+- context_session_x.md should contain most of context of what we did, overall plan, and sub agents will continously add context to the file
 - After you finish the work, MUST update the . claude/tasks/context_session_x.md file to make sure others can get full context of what you did
 
 ### While implementing
