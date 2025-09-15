@@ -158,8 +158,8 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         }
 
         // Verify correct token addresses returned
-        assertEq(token0, V4_USDC, "Token0 should be USDC");
-        assertEq(token1, V4_WETH, "Token1 should be WETH");
+        assertEq(token0, CHAIN_1_USDC, "Token0 should be USDC");
+        assertEq(token1, CHAIN_1_WETH, "Token1 should be WETH");
 
         console2.log("Inspect function test passed");
     }
@@ -174,7 +174,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
 
         SwapTestParams memory params;
         params.sellAmount = 1000e6; // 1000 USDC
-        params.zeroForOne = V4_USDC < V4_WETH; // Derive zeroForOne based on addresses
+        params.zeroForOne = CHAIN_1_USDC < CHAIN_1_WETH; // Derive zeroForOne based on addresses
 
         // Get realistic minimum using HOOK'S ON-CHAIN QUOTE (best V4 "oracle")
         SwapUniswapV4Hook.QuoteResult memory quote = uniswapV4Hook.getQuote(
@@ -189,11 +189,11 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
 
         // Get account address and setup
         params.account = instanceOnEth.account;
-        deal(V4_USDC, params.account, params.sellAmount);
+        deal(CHAIN_1_USDC, params.account, params.sellAmount);
 
         // Get initial balances
-        params.initialUSDCBalance = IERC20(V4_USDC).balanceOf(params.account);
-        params.initialWETHBalance = IERC20(V4_WETH).balanceOf(params.account);
+        params.initialUSDCBalance = IERC20(CHAIN_1_USDC).balanceOf(params.account);
+        params.initialWETHBalance = IERC20(CHAIN_1_WETH).balanceOf(params.account);
 
         console2.log("Initial USDC balance:", params.initialUSDCBalance);
         console2.log("Initial WETH balance:", params.initialWETHBalance);
@@ -221,7 +221,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         hookAddresses[1] = address(uniswapV4Hook);
 
         bytes[] memory hookDataArray = new bytes[](2);
-        hookDataArray[0] = _createApproveHookData(V4_USDC, address(uniswapV4Hook), params.sellAmount, false);
+        hookDataArray[0] = _createApproveHookData(CHAIN_1_USDC, address(uniswapV4Hook), params.sellAmount, false);
         hookDataArray[1] = swapCalldata;
 
         // Execute via SuperExecutor
@@ -234,8 +234,8 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         executeOp(opData);
 
         // Verify swap was successful
-        params.finalUSDCBalance = IERC20(V4_USDC).balanceOf(params.account);
-        params.finalWETHBalance = IERC20(V4_WETH).balanceOf(params.account);
+        params.finalUSDCBalance = IERC20(CHAIN_1_USDC).balanceOf(params.account);
+        params.finalWETHBalance = IERC20(CHAIN_1_WETH).balanceOf(params.account);
 
         console2.log("Final USDC balance:", params.finalUSDCBalance);
         console2.log("Final WETH balance:", params.finalWETHBalance);
