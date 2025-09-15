@@ -99,10 +99,8 @@ contract MerklClaimRewardHook is BaseHook {
             for (uint256 i; i < len; ++i) {
                 uint256 fee;
                 uint208 amount;
-                if (feePercent > 0) {
-                    (amount,,) = IDistributor(DISTRIBUTOR).claimed(params.users[i], params.tokens[i]);
-                    fee = ((params.amounts[i] - amount) * feePercent) / BPS;
-                }
+                (amount,,) = IDistributor(DISTRIBUTOR).claimed(params.users[i], params.tokens[i]);
+                fee = ((params.amounts[i] - amount) * feePercent) / BPS;
 
                 executions[i + 1] = Execution({
                     target: params.tokens[i],
