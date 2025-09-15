@@ -43,9 +43,9 @@ import { BaseTest } from "../../BaseTest.t.sol";
 import { console2 } from "forge-std/console2.sol";
 
 // 0x Settler Interfaces
-import { IAllowanceHolder, ALLOWANCE_HOLDER } from "../../../lib/0x-settler/src/allowanceholder/IAllowanceHolder.sol";
-import { ISettlerTakerSubmitted } from "../../../lib/0x-settler/src/interfaces/ISettlerTakerSubmitted.sol";
-import { ISettlerBase } from "../../../lib/0x-settler/src/interfaces/ISettlerBase.sol";
+import { IAllowanceHolder, ALLOWANCE_HOLDER } from "0x-settler/src/allowanceholder/IAllowanceHolder.sol";
+import { ISettlerTakerSubmitted } from "0x-settler/src/interfaces/ISettlerTakerSubmitted.sol";
+import { ISettlerBase } from "0x-settler/src/interfaces/ISettlerBase.sol";
 
 contract CrosschainWithDestinationSwapTests is BaseTest {
     // Test account must include receive() function to handle EntryPoint fee refunds

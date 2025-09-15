@@ -4,6 +4,9 @@ pragma solidity >=0.8.30;
 // external
 import { IERC20 } from "@forge-std/interfaces/IERC20.sol";
 import { UserOpData } from "modulekit/ModuleKit.sol";
+import { IAllowanceHolder, ALLOWANCE_HOLDER } from "0x-settler/src/allowanceholder/IAllowanceHolder.sol";
+import { ISettlerTakerSubmitted } from "0x-settler/src/interfaces/ISettlerTakerSubmitted.sol";
+import { ISettlerBase } from "0x-settler/src/interfaces/ISettlerBase.sol";
 
 // Superform
 import { Swap0xV2Hook } from "../../../src/hooks/swappers/0x/Swap0xV2Hook.sol";
@@ -12,11 +15,6 @@ import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol"
 import { HookSubTypes } from "../../../src/libraries/HookSubTypes.sol";
 import { ZeroExAPIParser } from "../../utils/parsers/ZeroExAPIParser.sol";
 import { BytesLib } from "../../../src/vendor/BytesLib.sol";
-
-// 0x Settler Interfaces - Import directly from real contracts
-import { IAllowanceHolder, ALLOWANCE_HOLDER } from "../../../lib/0x-settler/src/allowanceholder/IAllowanceHolder.sol";
-import { ISettlerTakerSubmitted } from "../../../lib/0x-settler/src/interfaces/ISettlerTakerSubmitted.sol";
-import { ISettlerBase } from "../../../lib/0x-settler/src/interfaces/ISettlerBase.sol";
 import { ISuperHook } from "../../../src/interfaces/ISuperHook.sol";
 
 contract Swap0xHookIntegrationTest is MinimalBaseIntegrationTest, ZeroExAPIParser {
@@ -138,7 +136,7 @@ contract Swap0xHookIntegrationTest is MinimalBaseIntegrationTest, ZeroExAPIParse
     }
 
     /// @notice Test hook type and subtype
-    function test_HookTypeAndSubtype() public {
+    function test_HookTypeAndSubtype() public view {
         assertEq(
             uint8(swap0xHook.hookType()), uint8(ISuperHook.HookType.NONACCOUNTING), "Should be non-accounting hook"
         );
@@ -146,7 +144,7 @@ contract Swap0xHookIntegrationTest is MinimalBaseIntegrationTest, ZeroExAPIParse
     }
 
     /// @notice Test decodeUsePrevHookAmount function
-    function test_DecodeUsePrevHookAmount() public {
+    function test_DecodeUsePrevHookAmount() public view {
         // Create hook data with usePrevHookAmount = true
         bytes memory hookDataTrue = abi.encodePacked(
             USDC, // dstToken

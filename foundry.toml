@@ -49,7 +49,7 @@ remappings = [
   "evm-gateway/=lib/evm-gateway-contracts/src/",
   "lib/evm-gateway-contracts:src=lib/evm-gateway-contracts/src",
   "lib/evm-gateway-contracts:test=lib/evm-gateway-contracts/test",
-  "0x-settler/src/=lib/0x-settler/src/"
+  "0x-settler/=lib/0x-settler/"
 ]
 dynamic_test_linking = true
 gas_limit = "18446744073709551615"

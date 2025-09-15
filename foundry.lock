@@ -1,4 +1,7 @@
 {
+  "lib/0x-settler": {
+    "rev": "2e6ae4c3ffea98d6673042c5d3ed89e0a515ce25"
+  },
   "lib/ExcessivelySafeCall": {
     "rev": "81cd99ce3e69117d665d7601c330ea03b97acce0"
   },

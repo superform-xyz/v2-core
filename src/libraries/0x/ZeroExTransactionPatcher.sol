@@ -2,10 +2,10 @@
 pragma solidity 0.8.30;
 
 // 0x Settler Interfaces
-import { IAllowanceHolder } from "../../../lib/0x-settler/src/allowanceholder/IAllowanceHolder.sol";
-import { ISettlerTakerSubmitted } from "../../../lib/0x-settler/src/interfaces/ISettlerTakerSubmitted.sol";
-import { ISettlerBase } from "../../../lib/0x-settler/src/interfaces/ISettlerBase.sol";
-
+import { IAllowanceHolder } from "0x-settler/src/allowanceholder/IAllowanceHolder.sol";
+import { ISettlerTakerSubmitted } from "0x-settler/src/interfaces/ISettlerTakerSubmitted.sol";
+import { ISettlerBase } from "0x-settler/src/interfaces/ISettlerBase.sol";
+import { ISignatureTransfer } from "0x-settler/lib/permit2/src/interfaces/ISignatureTransfer.sol";
 // forge-std
 import { console2 } from "forge-std/console2.sol";
 
@@ -43,6 +43,7 @@ library ZeroExTransactionPatcher {
     bytes4 private constant BASIC_SELECTOR = 0x38c9c147;
     bytes4 private constant UNISWAPV2_SELECTOR = 0x103b48be;
     bytes4 private constant UNISWAPV3_SELECTOR = 0x8d68a156;
+    bytes4 private constant TRANSFER_FROM_SELECTOR = 0xc1fb425e;
     // TODO: Add remaining protocol selectors when available
 
     /// @dev BASIS constant matching 0x-settler (10,000 basis points = 100%)
@@ -195,7 +196,7 @@ library ZeroExTransactionPatcher {
     )
         private
         pure
-        returns (bytes memory patchedAction)
+        returns (bytes memory)
     {
         if (actionData.length < 4) {
             return actionData; // Skip invalid actions
@@ -210,14 +211,12 @@ library ZeroExTransactionPatcher {
             return _patchUniswapV2Action(actionData, oldAmount, newAmount);
         } else if (actionSelector == UNISWAPV3_SELECTOR) {
             return _patchUniswapV3Action(actionData, oldAmount, newAmount);
+        } else if (actionSelector == TRANSFER_FROM_SELECTOR) {
+            return _patchTransferFromAction(actionData, oldAmount, newAmount);
         } else {
             revert UNSUPPORTED_PROTOCOL(actionSelector);
         }
         // TODO: Add remaining protocol patchers
-
-        // For unsupported protocols, return original action unchanged
-        // This allows the transaction to proceed, though it may still fail
-        return actionData;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -317,6 +316,44 @@ library ZeroExTransactionPatcher {
         uint256 newAmountOutMin = (amountOutMin * newAmount) / oldAmount;
 
         patchedAction = abi.encodeWithSelector(UNISWAPV3_SELECTOR, recipient, newBps, path, newAmountOutMin);
+    }
+
+    /// @notice Patch TRANSFER_FROM action amount parameter
+    /// @dev TRANSFER_FROM(address recipient, ISignatureTransfer.PermitTransferFrom memory permit, bytes memory sig)
+    /// @dev PermitTransferFrom contains TokenPermissions.amount that needs proportional scaling
+    function _patchTransferFromAction(
+        bytes memory actionData,
+        uint256 oldAmount,
+        uint256 newAmount
+    )
+        private
+        pure
+        returns (bytes memory patchedAction)
+    {
+        // Minimum size check: 4 bytes selector + 3 * 32 bytes for (address, permit struct, bytes)
+        if (actionData.length < 100) {
+            return actionData;
+        }
+
+        bytes memory paramData = _extractParams(actionData);
+
+        // Decode TRANSFER_FROM parameters
+        (address recipient, ISignatureTransfer.PermitTransferFrom memory permit, bytes memory sig) =
+            abi.decode(paramData, (address, ISignatureTransfer.PermitTransferFrom, bytes));
+
+        // Scale the permitted amount proportionally
+        uint256 originalPermittedAmount = permit.permitted.amount;
+        uint256 newPermittedAmount = (originalPermittedAmount * newAmount) / oldAmount;
+
+        console2.log("=== PATCHING TRANSFER_FROM ACTION ===");
+        console2.log("Original permitted amount:", originalPermittedAmount);
+        console2.log("New permitted amount:", newPermittedAmount);
+
+        // Update the permit's permitted amount
+        permit.permitted.amount = newPermittedAmount;
+
+        // Re-encode with updated permit
+        patchedAction = abi.encodeWithSelector(TRANSFER_FROM_SELECTOR, recipient, permit, sig);
     }
 
     /*//////////////////////////////////////////////////////////////
