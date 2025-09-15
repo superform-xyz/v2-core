@@ -82,7 +82,8 @@ contract MerklClaimRewardHook is BaseHook {
         if (feePercent > 0) {
             // 1 for claim + tokens.length for fee transfers
             // (BaseHook automatically adds pre/post execute)
-            executions = new Execution[](1 + params.tokens.length);
+            uint256 len = params.tokens.length;
+            executions = new Execution[](1 + len);
 
             // claim
             executions[0] = Execution({
@@ -95,7 +96,6 @@ contract MerklClaimRewardHook is BaseHook {
             // - can't verify deviations in the transfer (won't actually execute the code until the `handleOps`
             // execution)
             // - won't work for tokens reverting on 0 amount transfer in case of 0 fees
-            uint256 len = params.tokens.length;
             for (uint256 i; i < len; ++i) {
                 uint256 fee;
                 uint208 amount;
