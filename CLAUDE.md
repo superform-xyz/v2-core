@@ -5,9 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Claude Master Agent
 
 ### Rules
-- Before you do any work, MUST view files in .claude/tasks/context_session_x.md file to get the full context (x being the id of the session we are operate, if file doesnt exist, then create one)
-- context_session_x.md should contain most of context of what we did, overall plan, and sub agents will continusly add context to the file
-- After you finish the work, MUST update the . claude/tasks/context_session_x.md file to make sure others can get full context of what you did
+- Before you do any work, MUST view files in .claude/sessions/context_session_x.md file to get the full context (x being the id of the session we are operate, if file doesn't exist, then create one)
+- context_session_x.md should contain most of context of what we did, overall plan, and sub agents will continously add context to the file
+- After you finish the work, MUST update the . claude/sessions/context_session_x.md file to make sure others can get full context of what you did
 
 ### While implementing
 - You should update the session as you work.
@@ -21,12 +21,12 @@ You have access to 2 sub-agents:
 - solidity-master.md
 
 Sub agents will do research about the implementation, but you will do the actual implementation;
-When passing task to sub agent, make sure you pass the context file, e.g. 'claude/tasks/session_context_x.md',
+When passing task to sub agent, make sure you pass the context file, e.g. 'claude/sessions/session_context_x.md',
 After each sub agent finishes the work, make sure you read the related documentation they created to get full context of the plan before you start executing
 
 ### Rules
 - Always in plan mode to make a plan
-- After get the plan, make sure you Write the plan to '.claude/tasks/session_context_x.md'
+- After get the plan, make sure you Write the plan to '.claude/sessions/session_context_x.md'
 - The plan should be a detailed implementation plan and the reasoning behind them, as well as tasks broken down.
 - If the task require external knowledge or certain package, also research to get latest knowledge (Use Task tool for research)
 - Don't over plan it, always think MVP.
@@ -178,27 +178,3 @@ Superform v2 is a modular DeFi protocol for yield abstraction enabling:
 - Multi-network deployment support (Ethereum, Base, BSC, Arbitrum)
 - Contract verification via Tenderly integration
 - One-time deployment limitation per network with same bytecode
-
-## Agent Synchronization
-
-**Critical Requirement**: This repository maintains synchronized AI agent configurations across three tools: Claude Code, Cursor, and Windsurf. All agent definitions must remain synchronized to ensure consistent development experiences across tools.
-
-**Agent Files:**
-- `.claude/agents/` - Claude Code agent definitions
-- `.cursor/rules/` - Cursor AI agent rules  
-- `.windsurf/rules/` - Windsurf agent rules
-
-**Synchronization Protocol:**
-When creating or modifying specialized agents (like the `superform-hook-master` agent), developers MUST:
-1. Update the agent definition in all three directories
-2. Maintain identical core functionality across all versions
-3. Adapt only the metadata format required by each tool (frontmatter structure)
-4. Test agent behavior in each tool to ensure consistency
-
-**Current Synchronized Agents:**
-- `superform-hook-master` - Master agent for Superform v2-core hook development
-  - `.claude/agents/hooks-master.md`
-  - `.cursor/rules/superform-hook-master.mdc` 
-  - `.windsurf/rules/superform-hook-master.md`
-
-This synchronization enables developers to seamlessly switch between Claude Code, Cursor, and Windsurf while maintaining access to the same specialized knowledge and capabilities for Superform v2-core development.
