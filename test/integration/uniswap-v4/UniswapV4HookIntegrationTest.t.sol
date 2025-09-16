@@ -11,6 +11,7 @@ import "forge-std/console2.sol";
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol";
 import { SwapUniswapV4Hook } from "../../../src/hooks/swappers/uniswap-v4/SwapUniswapV4Hook.sol";
+import { NativeTransferHook } from "../../../src/hooks/tokens/NativeTransferHook.sol";
 import { ISuperNativePaymaster } from "../../../src/interfaces/ISuperNativePaymaster.sol";
 import { SuperNativePaymaster } from "../../../src/paymaster/SuperNativePaymaster.sol";
 import { UniswapV4Parser } from "../../utils/parsers/UniswapV4Parser.sol";
@@ -54,6 +55,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
     //////////////////////////////////////////////////////////////*/
 
     SwapUniswapV4Hook public uniswapV4Hook;
+    NativeTransferHook public nativeTransferHook;
     UniswapV4Parser public parser;
     ISuperNativePaymaster public superNativePaymaster;
 
@@ -61,6 +63,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
 
     // Test pool configuration
     PoolKey public testPoolKey;
+    PoolKey public nativePoolKey; // ETH/USDC pool for native token tests
 
     // V4 pool parameters
     uint24 public constant FEE_MEDIUM = 3000; // 0.3%
@@ -76,8 +79,9 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         console2.log("Using real V4 deployment");
         poolManager = IPoolManager(MAINNET_V4_POOL_MANAGER);
 
-        // Deploy UniswapV4 Hook
+        // Deploy hooks
         uniswapV4Hook = new SwapUniswapV4Hook(address(poolManager));
+        nativeTransferHook = new NativeTransferHook();
 
         console2.log("HOOK ADDRESS:", address(uniswapV4Hook));
         console2.log("USER ADDRESS:", address(instanceOnEth.account));
@@ -91,6 +95,15 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         testPoolKey = PoolKey({
             currency0: Currency.wrap(CHAIN_1_USDC), // USDC
             currency1: Currency.wrap(CHAIN_1_WETH), // WETH
+            fee: FEE_MEDIUM,
+            tickSpacing: TICK_SPACING_MEDIUM,
+            hooks: IHooks(address(0))
+        });
+
+        // Setup native pool (ETH/USDC) for native token tests
+        nativePoolKey = PoolKey({
+            currency0: CurrencyLibrary.ADDRESS_ZERO, // Native ETH
+            currency1: Currency.wrap(CHAIN_1_USDC), // USDC
             fee: FEE_MEDIUM,
             tickSpacing: TICK_SPACING_MEDIUM,
             hooks: IHooks(address(0))
@@ -127,39 +140,41 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         PoolKey memory poolKey,
         bool zeroForOne,
         uint256 slippageToleranceBps
-    ) internal view returns (uint160 sqrtPriceLimitX96) {
+    )
+        internal
+        view
+        returns (uint160 sqrtPriceLimitX96)
+    {
         PoolId poolId = PoolIdLibrary.toId(poolKey);
-        
+
         // Get current pool price using StateLibrary
         (uint160 currentSqrtPriceX96,,,) = poolManager.getSlot0(poolId);
-        
+
         // Handle uninitialized pools - use a reasonable default
         if (currentSqrtPriceX96 == 0) {
             // For testing, use 1:1 price ratio as fallback
-            currentSqrtPriceX96 = 79228162514264337593543950336;
+            currentSqrtPriceX96 = 79_228_162_514_264_337_593_543_950_336;
         }
-        
+
         // Calculate slippage factor (10000 = 100%)
-        uint256 slippageFactor = zeroForOne 
-            ? 10000 - slippageToleranceBps  // Price goes down
-            : 10000 + slippageToleranceBps; // Price goes up
-        
+        uint256 slippageFactor = zeroForOne
+            ? 10_000 - slippageToleranceBps // Price goes down
+            : 10_000 + slippageToleranceBps; // Price goes up
+
         // Apply square root to slippage factor (since we're dealing with sqrt prices)
         // Scale up for precision, then scale back down
-        uint256 sqrtSlippageFactor = _sqrt(slippageFactor * 1e18 / 10000);
+        uint256 sqrtSlippageFactor = _sqrt(slippageFactor * 1e18 / 10_000);
         uint256 adjustedPrice = (uint256(currentSqrtPriceX96) * sqrtSlippageFactor) / 1e9;
-        
+
         // Enforce TickMath boundaries
         if (zeroForOne) {
             // For zeroForOne, price decreases, ensure we don't go below minimum
-            sqrtPriceLimitX96 = adjustedPrice < TickMath.MIN_SQRT_PRICE + 1
-                ? TickMath.MIN_SQRT_PRICE + 1
-                : uint160(adjustedPrice);
+            sqrtPriceLimitX96 =
+                adjustedPrice < TickMath.MIN_SQRT_PRICE + 1 ? TickMath.MIN_SQRT_PRICE + 1 : uint160(adjustedPrice);
         } else {
             // For !zeroForOne, price increases, ensure we don't exceed maximum
-            sqrtPriceLimitX96 = adjustedPrice > TickMath.MAX_SQRT_PRICE - 1
-                ? TickMath.MAX_SQRT_PRICE - 1
-                : uint160(adjustedPrice);
+            sqrtPriceLimitX96 =
+                adjustedPrice > TickMath.MAX_SQRT_PRICE - 1 ? TickMath.MAX_SQRT_PRICE - 1 : uint160(adjustedPrice);
         }
     }
 
@@ -167,7 +182,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
                             CORE FUNCTIONALITY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_UniswapV4Hook_HookDataDecoding() external {
+    function test_UniswapV4Hook_HookDataDecoding() external view {
         console2.log("=== UniswapV4Hook Data Decoding Test ===");
 
         uint256 swapAmountIn = 1000e6; // 1000 USDC
@@ -199,7 +214,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         console2.log("Hook data decoding test passed");
     }
 
-    function test_UniswapV4Hook_InspectFunction() external {
+    function test_UniswapV4Hook_InspectFunction() external view {
         console2.log("=== UniswapV4Hook Inspect Function Test ===");
 
         bytes memory swapCalldata = parser.generateSingleHopSwapCalldata(
@@ -228,7 +243,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
             let firstWord := mload(add(inspectResult, 0x20))
             // Extract first address (first 20 bytes) by shifting right 12 bytes (96 bits)
             token0 := shr(96, firstWord)
-            
+
             // Load 32 bytes starting from offset 0x20 + 20 = 0x34
             let secondWord := mload(add(inspectResult, 0x34))
             // Extract second address (first 20 bytes) by shifting right 12 bytes (96 bits)
@@ -332,5 +347,191 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         console2.log("USDC spent:", params.initialUSDCBalance - params.finalUSDCBalance);
         console2.log("WETH received:", params.wethReceived);
         console2.log("Swap test passed successfully");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         NATIVE TOKEN SWAP TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Test ETH to USDC swap using native tokens
+    function test_UniswapV4Hook_NativeETHToUSDC() external {
+        console2.log("=== Native ETH to USDC Swap Test ===");
+
+        address account = accountEth;
+        uint256 ethAmount = 0.1 ether; // 0.1 ETH
+        bool zeroForOne = true; // ETH (token0) -> USDC (token1) in native pool
+
+        // Fund account with ETH for the swap
+        vm.deal(account, ethAmount + 1 ether); // Extra for gas
+
+        // Record initial balances
+        uint256 initialETHBalance = account.balance;
+        uint256 initialUSDCBalance = IERC20(CHAIN_1_USDC).balanceOf(account);
+
+        console2.log("Initial ETH balance:", initialETHBalance);
+        console2.log("Initial USDC balance:", initialUSDCBalance);
+
+        // Calculate appropriate price limit with 1% slippage tolerance (100 bps)
+        uint160 priceLimit = _calculatePriceLimit(nativePoolKey, zeroForOne, 100); // 100 bps = 1%
+        console2.log("Calculated price limit for quote and swap:", priceLimit);
+
+        // Get realistic minimum using HOOK'S ON-CHAIN QUOTE with the same price limit
+        SwapUniswapV4Hook.QuoteResult memory quote = uniswapV4Hook.getQuote(
+            SwapUniswapV4Hook.QuoteParams({
+                poolKey: nativePoolKey,
+                zeroForOne: zeroForOne,
+                amountIn: ethAmount,
+                sqrtPriceLimitX96: priceLimit // Use same price limit for quote
+             })
+        );
+        uint256 expectedMinUSDC = quote.amountOut * 995 / 1000; // Apply 0.5% additional slippage buffer on quote
+
+        console2.log("Expected minimum USDC out (from pool quote):", expectedMinUSDC);
+        console2.log("Quoted amountOut:", quote.amountOut);
+
+        // Generate swap calldata for native ETH to USDC
+        bytes memory swapCalldata = parser.generateSingleHopSwapCalldata(
+            UniswapV4Parser.SingleHopParams({
+                poolKey: nativePoolKey,
+                dstReceiver: account,
+                sqrtPriceLimitX96: priceLimit, // Use same price limit as quote
+                originalAmountIn: ethAmount,
+                originalMinAmountOut: expectedMinUSDC,
+                maxSlippageDeviationBps: 500, // Keep for amount ratio protection
+                zeroForOne: zeroForOne,
+                additionalData: ""
+            }),
+            false
+        );
+
+        // Execute the native swap
+        _executeNativeSwap(ethAmount, swapCalldata);
+
+        // Verify swap results
+        uint256 finalETHBalance = account.balance;
+        uint256 finalUSDCBalance = IERC20(CHAIN_1_USDC).balanceOf(account);
+
+        console2.log("Final ETH balance:", finalETHBalance);
+        console2.log("Final USDC balance:", finalUSDCBalance);
+
+        // Verify ETH was spent (allowing for gas costs)
+        assertLt(finalETHBalance, initialETHBalance - ethAmount + 0.01 ether, "ETH should be spent");
+        assertGt(finalUSDCBalance, initialUSDCBalance, "USDC balance should increase");
+
+        uint256 usdcReceived = finalUSDCBalance - initialUSDCBalance;
+        assertGe(usdcReceived, expectedMinUSDC, "Should receive at least minimum USDC");
+
+        console2.log("ETH spent:", initialETHBalance - finalETHBalance);
+        console2.log("USDC received:", usdcReceived);
+        console2.log("Native ETH to USDC swap test passed");
+    }
+
+    /// @notice Test USDC to ETH swap receiving native tokens
+    function test_UniswapV4Hook_USDCToNativeETH() external {
+        console2.log("=== USDC to Native ETH Swap Test ===");
+
+        address account = accountEth;
+        uint256 usdcAmount = 500e6; // 500 USDC
+        bool zeroForOne = false; // USDC (token1) -> ETH (token0) in native pool
+
+        // Fund account with USDC
+        deal(CHAIN_1_USDC, account, usdcAmount + 1000e6); // Extra for other operations
+
+        // Record initial balances
+        uint256 initialETHBalance = account.balance;
+        uint256 initialUSDCBalance = IERC20(CHAIN_1_USDC).balanceOf(account);
+
+        console2.log("Initial ETH balance:", initialETHBalance);
+        console2.log("Initial USDC balance:", initialUSDCBalance);
+
+        // Calculate appropriate price limit with 1% slippage tolerance (100 bps)
+        uint160 priceLimit = _calculatePriceLimit(nativePoolKey, zeroForOne, 100); // 100 bps = 1%
+        console2.log("Calculated price limit for quote and swap:", priceLimit);
+
+        // Get realistic minimum using HOOK'S ON-CHAIN QUOTE with the same price limit
+        SwapUniswapV4Hook.QuoteResult memory quote = uniswapV4Hook.getQuote(
+            SwapUniswapV4Hook.QuoteParams({
+                poolKey: nativePoolKey,
+                zeroForOne: zeroForOne,
+                amountIn: usdcAmount,
+                sqrtPriceLimitX96: priceLimit // Use same price limit for quote
+             })
+        );
+        uint256 expectedMinETH = quote.amountOut * 995 / 1000; // Apply 0.5% additional slippage buffer on quote
+
+        console2.log("Expected minimum ETH out (from pool quote):", expectedMinETH);
+        console2.log("Quoted amountOut:", quote.amountOut);
+
+        // Generate swap calldata for USDC to native ETH
+        bytes memory swapCalldata = parser.generateSingleHopSwapCalldata(
+            UniswapV4Parser.SingleHopParams({
+                poolKey: nativePoolKey,
+                dstReceiver: account,
+                sqrtPriceLimitX96: priceLimit, // Use same price limit as quote
+                originalAmountIn: usdcAmount,
+                originalMinAmountOut: expectedMinETH,
+                maxSlippageDeviationBps: 500, // Keep for amount ratio protection
+                zeroForOne: zeroForOne,
+                additionalData: ""
+            }),
+            false
+        );
+
+        // Execute the swap to native ETH
+        _executeTokenToNativeSwap(swapCalldata);
+
+        // Verify swap results
+        uint256 finalETHBalance = account.balance;
+        uint256 finalUSDCBalance = IERC20(CHAIN_1_USDC).balanceOf(account);
+
+        console2.log("Final ETH balance:", finalETHBalance);
+        console2.log("Final USDC balance:", finalUSDCBalance);
+
+        // Verify USDC was spent and ETH received
+        assertLe(finalUSDCBalance, initialUSDCBalance - usdcAmount + 1e6, "USDC should be spent");
+        assertGt(finalETHBalance, initialETHBalance, "ETH balance should increase");
+
+        uint256 ethReceived = finalETHBalance - initialETHBalance;
+        assertGe(ethReceived, expectedMinETH, "Should receive at least minimum ETH");
+
+        console2.log("USDC spent:", initialUSDCBalance - finalUSDCBalance);
+        console2.log("ETH received:", ethReceived);
+        console2.log("USDC to native ETH swap test passed");
+    }
+
+    /// @notice Helper to execute native ETH swaps using hook chaining
+    function _executeNativeSwap(uint256 ethAmount, bytes memory swapCalldata) private {
+        // Set up hook chaining: NativeTransferHook → SwapUniswapV4Hook
+        address[] memory hookAddresses = new address[](2);
+        hookAddresses[0] = address(nativeTransferHook);
+        hookAddresses[1] = address(uniswapV4Hook);
+
+        bytes[] memory hookDataArray = new bytes[](2);
+        // NativeTransferHook data: transfer ETH to SwapUniswapV4Hook
+        hookDataArray[0] = abi.encodePacked(address(uniswapV4Hook), ethAmount);
+        // SwapUniswapV4Hook data: existing swap calldata
+        hookDataArray[1] = swapCalldata;
+
+        ISuperExecutor.ExecutorEntry memory entryToExecute =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookDataArray });
+
+        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
+        executeOp(opData);
+    }
+
+    /// @notice Helper to execute token to native ETH swaps
+    function _executeTokenToNativeSwap(bytes memory swapCalldata) private {
+        // For token→ETH swaps, use single hook (no ETH input needed)
+        address[] memory hookAddresses = new address[](1);
+        hookAddresses[0] = address(uniswapV4Hook);
+
+        bytes[] memory hookDataArray = new bytes[](1);
+        hookDataArray[0] = swapCalldata;
+
+        ISuperExecutor.ExecutorEntry memory entryToExecute =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookDataArray });
+
+        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
+        executeOp(opData);
     }
 }

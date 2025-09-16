@@ -82,6 +82,43 @@ With validation that ratio deviation stays within maxSlippageDeviationBps.
 4. **Comprehensive Testing**: Unit, integration, and mainnet fork tests
 5. **Future-Ready**: Designed for seamless V4 mainnet integration when available
 
+## Native Token Support & Optimizations ✅ COMPLETED (September 2025)
+
+### Native Token Architecture Solution
+**Problem Identified**: Original approach had circular execution dependency - hook cannot be target of its own execution
+
+**Root Cause Analysis**:
+- ERC-7579 executions are built and executed before hooks are called
+- UniswapV4 uses unlock callback pattern requiring hook to receive callback
+- Account cannot directly call `poolManager.unlock()` if callback must go to hook
+
+**Solution Implemented**:
+- **Native Token Detection**: Hook detects `Currency.wrap(address(0))` for native ETH
+- **Empty Executions**: For native tokens, return `new Execution[](0)` - no transfer needed
+- **Executor Integration**: Native ETH flows via `msg.value` when executor calls hook methods
+- **V4 Settlement**: Hook uses `POOL_MANAGER.settle{value: amount}()` for native tokens
+- **Pattern**: Follows OfframpTokensHook pattern for native token handling
+
+### Security Enhancements ✅
+- **Balance Validation**: Hook validates zero balance after execution via `_validateHookBalanceCleared()`
+- **Error Handling**: Added `HOOK_BALANCE_NOT_CLEARED(token, amount)` error
+- **Native + ERC20**: Validates both input and output token balances are cleared
+
+### Transient Storage Optimization ✅
+- **Replaced Storage**: `bytes private pendingUnlockData` → `bytes32 constant PENDING_UNLOCK_DATA_SLOT`
+- **Gas Efficiency**: Uses EIP-1153 tstore/tload for temporary data during callbacks
+- **Pattern Alignment**: Follows Uniswap V4's transient storage patterns
+- **Cleanup**: Automatic clearing between transactions
+
+### Architecture Insights
+**ERC-7579 + UniswapV4 Integration Pattern**:
+1. **ERC-20 Tokens**: Standard execution builds transfer to hook
+2. **Native ETH**: Empty executions, ETH flows via msg.value from executor
+3. **V4 Settlement**: 
+   - Native: `settle{value: amount}()` (no sync allowed)
+   - ERC-20: `sync() → transfer() → settle()` pattern
+4. **Callback Flow**: Hook → PoolManager → unlockCallback → Hook
+
 ## Post-Implementation: Consolidation & Documentation ✅ COMPLETED
 
 ### Consolidation Achievements (September 2025)

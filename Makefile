@@ -32,7 +32,7 @@ coverage-genhtml :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minim
 
 coverage-genhtml-fullsrc :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage --ignore-errors inconsistent,corrupt --exclude 'src/vendor/*' --exclude 'test/*'
 
-test-vvv :; forge test --match-test test_CompareDecimalHandling_USDC_vs_Morpho -vvvv --jobs 10
+test-vvv :; forge test --match-test test_UniswapV4Hook_NativeETHToUSDC -vvvv --jobs 10
 
 test-integration :; forge test --match-test test_CrossChain_execution -vvvv --jobs 10
 
