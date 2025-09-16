@@ -4,8 +4,15 @@ pragma solidity 0.8.30;
 // External imports
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
-import "forge-std/console2.sol";
+import { UserOpData, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
+import { IPoolManager } from "v4-core/interfaces/IPoolManager.sol";
+import { PoolKey } from "v4-core/types/PoolKey.sol";
+import { Currency, CurrencyLibrary } from "v4-core/types/Currency.sol";
+import { IHooks } from "v4-core/interfaces/IHooks.sol";
+import { PoolId, PoolIdLibrary } from "v4-core/types/PoolId.sol";
+import { TickMath } from "v4-core/libraries/TickMath.sol";
+import { StateLibrary } from "v4-core/libraries/StateLibrary.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform imports
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
@@ -15,15 +22,11 @@ import { NativeTransferHook } from "../../../src/hooks/tokens/NativeTransferHook
 import { ISuperNativePaymaster } from "../../../src/interfaces/ISuperNativePaymaster.sol";
 import { SuperNativePaymaster } from "../../../src/paymaster/SuperNativePaymaster.sol";
 import { UniswapV4Parser } from "../../utils/parsers/UniswapV4Parser.sol";
+import { ISuperHook } from "../../../src/interfaces/ISuperHook.sol";
 
-// Real Uniswap V4 imports
-import { IPoolManager } from "v4-core/interfaces/IPoolManager.sol";
-import { PoolKey } from "v4-core/types/PoolKey.sol";
-import { Currency, CurrencyLibrary } from "v4-core/types/Currency.sol";
-import { IHooks } from "v4-core/interfaces/IHooks.sol";
-import { PoolId, PoolIdLibrary } from "v4-core/types/PoolId.sol";
-import { TickMath } from "v4-core/libraries/TickMath.sol";
-import { StateLibrary } from "v4-core/libraries/StateLibrary.sol";
+import { BaseHook } from "../../../src/hooks/BaseHook.sol";
+
+import "forge-std/console2.sol";
 
 /// @title UniswapV4HookIntegrationTest
 /// @author Superform Labs
@@ -32,6 +35,7 @@ import { StateLibrary } from "v4-core/libraries/StateLibrary.sol";
 contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
     using CurrencyLibrary for Currency;
     using StateLibrary for IPoolManager;
+    using ModuleKitHelpers for *;
 
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
@@ -176,6 +180,66 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
             sqrtPriceLimitX96 =
                 adjustedPrice > TickMath.MAX_SQRT_PRICE - 1 ? TickMath.MAX_SQRT_PRICE - 1 : uint160(adjustedPrice);
         }
+    }
+
+    /// @notice Helper to execute native ETH swaps using hook chaining
+    function _executeNativeSwap(uint256 ethAmount, bytes memory swapCalldata) private {
+        // Set up hook chaining: NativeTransferHook → SwapUniswapV4Hook
+        address[] memory hookAddresses = new address[](2);
+        hookAddresses[0] = address(nativeTransferHook);
+        hookAddresses[1] = address(uniswapV4Hook);
+
+        bytes[] memory hookDataArray = new bytes[](2);
+        // NativeTransferHook data: transfer ETH to SwapUniswapV4Hook
+        hookDataArray[0] = abi.encodePacked(address(uniswapV4Hook), ethAmount);
+        // SwapUniswapV4Hook data: existing swap calldata
+        hookDataArray[1] = swapCalldata;
+
+        ISuperExecutor.ExecutorEntry memory entryToExecute =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookDataArray });
+
+        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
+        executeOp(opData);
+    }
+
+    /// @notice Helper to execute token to native ETH swaps
+    function _executeTokenToNativeSwap(bytes memory swapCalldata) private {
+        // For token→ETH swaps, use single hook (no ETH input needed)
+        address[] memory hookAddresses = new address[](1);
+        hookAddresses[0] = address(uniswapV4Hook);
+
+        bytes[] memory hookDataArray = new bytes[](1);
+        hookDataArray[0] = swapCalldata;
+
+        ISuperExecutor.ExecutorEntry memory entryToExecute =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookDataArray });
+
+        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
+        executeOp(opData);
+    }
+
+    /// @notice Helper to execute token-to-token swaps
+    function _executeTokenSwap(bytes memory swapCalldata, bytes memory revertReason) private {
+        // For token swaps, use single hook
+        address[] memory hookAddresses = new address[](1);
+        hookAddresses[0] = address(uniswapV4Hook);
+
+        bytes[] memory hookDataArray = new bytes[](1);
+        hookDataArray[0] = swapCalldata;
+
+        ISuperExecutor.ExecutorEntry memory entryToExecute =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookDataArray });
+        // Expect the revert
+        if (revertReason.length == 0) {
+            instanceOnEth.expect4337Revert();
+        } else if (revertReason.length == 4) {
+            instanceOnEth.expect4337Revert(bytes4(revertReason));
+        } else {
+            instanceOnEth.expect4337Revert(revertReason);
+        }
+
+        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
+        executeOp(opData);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -499,39 +563,457 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         console2.log("USDC to native ETH swap test passed");
     }
 
-    /// @notice Helper to execute native ETH swaps using hook chaining
-    function _executeNativeSwap(uint256 ethAmount, bytes memory swapCalldata) private {
-        // Set up hook chaining: NativeTransferHook → SwapUniswapV4Hook
+    /*//////////////////////////////////////////////////////////////
+                        ERROR CONDITION TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Test INSUFFICIENT_OUTPUT_AMOUNT error by manipulating pool state
+    function test_RevertQuoteDeviationExceedsSafetyBound() public {
+        address account = instanceOnEth.account;
+        uint256 swapAmount = 1000e6; // 1000 USDC
+
+        deal(CHAIN_1_USDC, account, swapAmount);
+
+        // Set minimum output higher than what the pool can provide with restrictive price limit
+        uint256 unrealisticMinOut = 1000e18; // 1000 WETH for 1000 USDC (impossible)
+        bytes memory swapCalldata = parser.generateSingleHopSwapCalldata(
+            UniswapV4Parser.SingleHopParams({
+                poolKey: testPoolKey,
+                dstReceiver: account,
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 100, // Very restrictive limit
+                originalAmountIn: swapAmount,
+                originalMinAmountOut: unrealisticMinOut,
+                maxSlippageDeviationBps: 0, // No slippage tolerance
+                zeroForOne: true,
+                additionalData: ""
+            }),
+            false
+        );
+
+        _executeTokenSwap(
+            swapCalldata, abi.encodeWithSelector(SwapUniswapV4Hook.QUOTE_DEVIATION_EXCEEDS_SAFETY_BOUNDS.selector)
+        );
+    }
+
+    /// @notice Test UNAUTHORIZED_CALLBACK error by calling unlockCallback directly
+    function test_RevertUnauthorizedCallback() public {
+        bytes memory callbackData = abi.encode(
+            testPoolKey,
+            1000e6, // amountIn
+            950e6, // minAmountOut
+            instanceOnEth.account, // dstReceiver
+            uint160(TickMath.MIN_SQRT_PRICE + 1), // sqrtPriceLimitX96
+            true, // zeroForOne
+            "" // additionalData
+        );
+
+        vm.expectRevert(SwapUniswapV4Hook.UNAUTHORIZED_CALLBACK.selector);
+        uniswapV4Hook.unlockCallback(callbackData);
+    }
+
+    /// @notice Test INVALID_HOOK_DATA error with insufficient data length
+    function test_RevertInvalidHookData_ShortLength() public {
+        bytes memory shortData = new bytes(100); // Less than 218 bytes required
+
+        vm.expectRevert(SwapUniswapV4Hook.INVALID_HOOK_DATA.selector);
+        uniswapV4Hook.decodeUsePrevHookAmount(shortData);
+    }
+
+    /// @notice Test INVALID_HOOK_DATA error with same currency0 and currency1
+    function test_RevertInvalidHookData_SameCurrencies() public {
+        address account = instanceOnEth.account;
+
+        // Create pool key with same currencies (invalid)
+        PoolKey memory invalidPoolKey = PoolKey({
+            currency0: Currency.wrap(CHAIN_1_USDC),
+            currency1: Currency.wrap(CHAIN_1_USDC), // Same currency - should revert
+            fee: 3000,
+            tickSpacing: 60,
+            hooks: IHooks(address(0))
+        });
+
+        bytes memory invalidSwapCalldata = parser.generateSingleHopSwapCalldata(
+            UniswapV4Parser.SingleHopParams({
+                poolKey: invalidPoolKey,
+                dstReceiver: account,
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1,
+                originalAmountIn: 1000e6,
+                originalMinAmountOut: 950e6,
+                maxSlippageDeviationBps: 500,
+                zeroForOne: true,
+                additionalData: ""
+            }),
+            false
+        );
+
+        deal(CHAIN_1_USDC, account, 1000e6);
+
+        _executeTokenSwap(invalidSwapCalldata, abi.encode(SwapUniswapV4Hook.INVALID_HOOK_DATA.selector));
+    }
+
+    /// @notice Test INVALID_HOOK_DATA error with zero fee
+    function test_RevertInvalidHookData_ZeroFee() public {
+        address account = instanceOnEth.account;
+
+        // Create pool key with zero fee (invalid)
+        PoolKey memory invalidPoolKey = PoolKey({
+            currency0: Currency.wrap(CHAIN_1_USDC),
+            currency1: Currency.wrap(CHAIN_1_WETH),
+            fee: 0, // Zero fee - invalid
+            tickSpacing: 60,
+            hooks: IHooks(address(0))
+        });
+
+        bytes memory invalidSwapCalldata = parser.generateSingleHopSwapCalldata(
+            UniswapV4Parser.SingleHopParams({
+                poolKey: invalidPoolKey,
+                dstReceiver: account,
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1,
+                originalAmountIn: 1000e6,
+                originalMinAmountOut: 950e18,
+                maxSlippageDeviationBps: 500,
+                zeroForOne: true,
+                additionalData: ""
+            }),
+            false
+        );
+
+        deal(CHAIN_1_USDC, account, 1000e6);
+
+        _executeTokenSwap(invalidSwapCalldata, abi.encode(SwapUniswapV4Hook.INVALID_HOOK_DATA.selector));
+    }
+
+    /// @notice Test INVALID_PRICE_LIMIT error with zero price limit
+    function test_RevertInvalidPriceLimit() public {
+        bytes memory callbackData = abi.encode(
+            testPoolKey,
+            1000e6, // amountIn
+            950e6, // minAmountOut
+            instanceOnEth.account, // dstReceiver
+            uint160(0), // sqrtPriceLimitX96 (INVALID - zero)
+            true, // zeroForOne
+            "" // additionalData
+        );
+
+        // Mock being called from pool manager
+        vm.mockCall(MAINNET_V4_POOL_MANAGER, abi.encodeWithSelector(IPoolManager.settle.selector), "");
+
+        vm.prank(MAINNET_V4_POOL_MANAGER);
+        vm.expectRevert(SwapUniswapV4Hook.INVALID_PRICE_LIMIT.selector);
+        uniswapV4Hook.unlockCallback(callbackData);
+    }
+
+    /// @notice Test EXCESSIVE_SLIPPAGE_DEVIATION error with extreme ratio change
+    function test_RevertExcessiveSlippageDeviation() public {
+        address account = instanceOnEth.account;
+        uint256 originalAmount = 1000e6; // Original amount in calldata
+        uint256 actualAmount = 10_000e6; // 900% increase from previous hook
+
+        // Fund with the larger actual amount
+        deal(CHAIN_1_USDC, account, actualAmount);
+
+        bytes memory swapCalldata = parser.generateSingleHopSwapCalldata(
+            UniswapV4Parser.SingleHopParams({
+                poolKey: testPoolKey,
+                dstReceiver: account,
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1,
+                originalAmountIn: originalAmount,
+                originalMinAmountOut: 950e6,
+                maxSlippageDeviationBps: 500, // 5% max - will be exceeded by 900% change
+                zeroForOne: true,
+                additionalData: ""
+            }),
+            true // usePrevHookAmount - will compare actual vs original
+        );
+
+        // Create a mock previous hook that returns the large amount
+        MockPrevHook mockPrevHook = new MockPrevHook(actualAmount);
+
         address[] memory hookAddresses = new address[](2);
-        hookAddresses[0] = address(nativeTransferHook);
+        hookAddresses[0] = address(mockPrevHook);
         hookAddresses[1] = address(uniswapV4Hook);
 
         bytes[] memory hookDataArray = new bytes[](2);
-        // NativeTransferHook data: transfer ETH to SwapUniswapV4Hook
-        hookDataArray[0] = abi.encodePacked(address(uniswapV4Hook), ethAmount);
-        // SwapUniswapV4Hook data: existing swap calldata
+        hookDataArray[0] = ""; // Mock hook needs no data
+        hookDataArray[1] = swapCalldata;
+
+        ISuperExecutor.ExecutorEntry memory entryToExecute =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookDataArray });
+
+        instanceOnEth.expect4337Revert(
+            abi.encodeWithSelector(
+                SwapUniswapV4Hook.EXCESSIVE_SLIPPAGE_DEVIATION.selector,
+                9000, // 90% deviation (900% increase)
+                500 // 5% max allowed
+            )
+        );
+
+        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
+
+        executeOp(opData);
+    }
+
+    /// @notice Test invalid hook data with insufficient data length
+    function test_RevertInvalidNativeTransferUsage() public {
+        // Create hook data that's too short (less than 218 bytes required)
+        bytes memory shortData = abi.encodePacked(
+            CHAIN_1_USDC, // currency0 (20 bytes)
+            CHAIN_1_WETH // currency1 (20 bytes) - total only 40 bytes, need 218
+        );
+
+        vm.expectRevert(SwapUniswapV4Hook.INVALID_HOOK_DATA.selector);
+        uniswapV4Hook.decodeUsePrevHookAmount(shortData);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        EDGE CASE AND BOUNDARY TESTS  
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Test minimal swap amounts (boundary condition)
+    function test_MinimalAmountSwap() public {
+        address account = instanceOnEth.account;
+        uint256 minSwapAmount = 1e6; // 1 USDC
+
+        deal(CHAIN_1_USDC, account, minSwapAmount);
+
+        // Get realistic quote for minimal amount
+        SwapUniswapV4Hook.QuoteResult memory quote = uniswapV4Hook.getQuote(
+            SwapUniswapV4Hook.QuoteParams({
+                poolKey: testPoolKey,
+                zeroForOne: true,
+                amountIn: minSwapAmount,
+                sqrtPriceLimitX96: 0
+            })
+        );
+
+        bytes memory swapCalldata = parser.generateSingleHopSwapCalldata(
+            UniswapV4Parser.SingleHopParams({
+                poolKey: testPoolKey,
+                dstReceiver: account,
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1,
+                originalAmountIn: minSwapAmount,
+                originalMinAmountOut: quote.amountOut * 99 / 100, // 1% slippage
+                maxSlippageDeviationBps: 500,
+                zeroForOne: true,
+                additionalData: ""
+            }),
+            false
+        );
+
+        uint256 initialWETH = IERC20(CHAIN_1_WETH).balanceOf(account);
+        _executeTokenSwap(swapCalldata, "");
+        uint256 finalWETH = IERC20(CHAIN_1_WETH).balanceOf(account);
+
+        assertGt(finalWETH, initialWETH, "Should receive WETH from minimal swap");
+    }
+
+    /// @notice Test maximum deviation boundary (exactly at limit)
+    function test_MaxDeviationBoundary() public {
+        address account = instanceOnEth.account;
+        uint256 originalAmount = 1000e6;
+        uint256 actualAmount = 1050e6; // Exactly 5% increase
+
+        deal(CHAIN_1_USDC, account, actualAmount);
+
+        bytes memory swapCalldata = parser.generateSingleHopSwapCalldata(
+            UniswapV4Parser.SingleHopParams({
+                poolKey: testPoolKey,
+                dstReceiver: account,
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1,
+                originalAmountIn: originalAmount,
+                originalMinAmountOut: 0.2e18, // 0.2 WETH (correct output token units)
+                maxSlippageDeviationBps: 500, // 5% - exactly at boundary
+                zeroForOne: true,
+                additionalData: ""
+            }),
+            true
+        );
+
+        // Should succeed at exact boundary
+        MockPrevHook mockPrevHook = new MockPrevHook(actualAmount);
+
+        address[] memory hookAddresses = new address[](2);
+        hookAddresses[0] = address(mockPrevHook);
+        hookAddresses[1] = address(uniswapV4Hook);
+
+        bytes[] memory hookDataArray = new bytes[](2);
+        hookDataArray[0] = "";
         hookDataArray[1] = swapCalldata;
 
         ISuperExecutor.ExecutorEntry memory entryToExecute =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookDataArray });
 
         UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
-        executeOp(opData);
+        executeOp(opData); // Should not revert
     }
 
-    /// @notice Helper to execute token to native ETH swaps
-    function _executeTokenToNativeSwap(bytes memory swapCalldata) private {
-        // For token→ETH swaps, use single hook (no ETH input needed)
-        address[] memory hookAddresses = new address[](1);
-        hookAddresses[0] = address(uniswapV4Hook);
+    /// @notice Test decodeUsePrevHookAmount with various data lengths
+    function test_DecodeUsePrevHookAmount_EdgeCases() public view {
+        // Test minimum valid length (218 bytes)
+        bytes memory minValidData = new bytes(218);
+        minValidData[217] = 0x01; // Set usePrevHookAmount to true
 
-        bytes[] memory hookDataArray = new bytes[](1);
-        hookDataArray[0] = swapCalldata;
+        bool result = uniswapV4Hook.decodeUsePrevHookAmount(minValidData);
+        assertTrue(result, "Should decode true from minimum valid data");
+
+        // Test with additional data
+        bytes memory dataWithExtra = new bytes(300);
+        dataWithExtra[217] = 0x00; // Set usePrevHookAmount to false
+
+        result = uniswapV4Hook.decodeUsePrevHookAmount(dataWithExtra);
+        assertFalse(result, "Should decode false from data with extra bytes");
+    }
+
+    /// @notice Test inspect function with different token orderings
+    function test_InspectTokenExtraction() public view {
+        bytes memory testData = abi.encodePacked(
+            CHAIN_1_USDC, // currency0
+            CHAIN_1_WETH, // currency1
+            uint32(3000), // fee
+            uint32(int32(60)), // tickSpacing
+            address(0), // hooks
+            instanceOnEth.account, // dstReceiver
+            uint256(TickMath.MIN_SQRT_PRICE + 1), // sqrtPriceLimitX96
+            uint256(1000e6), // originalAmountIn
+            uint256(950e6), // originalMinAmountOut
+            uint256(500), // maxSlippageDeviationBps
+            bytes1(0x01), // zeroForOne
+            bytes1(0x00) // usePrevHookAmount
+        );
+
+        bytes memory result = uniswapV4Hook.inspect(testData);
+
+        // Should return 40 bytes (2 addresses)
+        assertEq(result.length, 40, "Should return 40 bytes");
+
+        // Extract and verify addresses
+        address extractedCurrency0;
+        address extractedCurrency1;
+        assembly {
+            extractedCurrency0 := mload(add(result, 0x14))
+            extractedCurrency1 := mload(add(result, 0x28))
+        }
+
+        assertEq(extractedCurrency0, CHAIN_1_USDC, "Should extract USDC as currency0");
+        assertEq(extractedCurrency1, CHAIN_1_WETH, "Should extract WETH as currency1");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        INTERNAL FUNCTION COVERAGE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Test getQuote function with various scenarios
+    function test_GetQuote_VariousScenarios() public view {
+        // Test normal quote
+        SwapUniswapV4Hook.QuoteResult memory quote1 = uniswapV4Hook.getQuote(
+            SwapUniswapV4Hook.QuoteParams({
+                poolKey: testPoolKey,
+                zeroForOne: true,
+                amountIn: 1000e6,
+                sqrtPriceLimitX96: 0 // No limit
+             })
+        );
+        assertGt(quote1.amountOut, 0, "Should return positive amount out");
+
+        // Test opposite direction
+        SwapUniswapV4Hook.QuoteResult memory quote2 = uniswapV4Hook.getQuote(
+            SwapUniswapV4Hook.QuoteParams({
+                poolKey: testPoolKey,
+                zeroForOne: false,
+                amountIn: 1e18,
+                sqrtPriceLimitX96: 0
+            })
+        );
+        assertGt(quote2.amountOut, 0, "Should return positive amount out for opposite direction");
+
+        // Test with price limit
+        SwapUniswapV4Hook.QuoteResult memory quote3 = uniswapV4Hook.getQuote(
+            SwapUniswapV4Hook.QuoteParams({
+                poolKey: testPoolKey,
+                zeroForOne: true,
+                amountIn: 1000e6,
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
+            })
+        );
+        assertGt(quote3.amountOut, 0, "Should return positive amount out with price limit");
+    }
+
+    /// @notice Test dynamic ratio calculations
+    function test_DynamicRatioCalculations() public {
+        address account = instanceOnEth.account;
+
+        // Test 50% decrease scenario
+        uint256 originalAmount = 1000e6;
+        uint256 actualAmount = 500e6; // 50% decrease
+
+        deal(CHAIN_1_USDC, account, actualAmount);
+
+        bytes memory swapCalldata = parser.generateSingleHopSwapCalldata(
+            UniswapV4Parser.SingleHopParams({
+                poolKey: testPoolKey,
+                dstReceiver: account,
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1,
+                originalAmountIn: originalAmount,
+                originalMinAmountOut: 0.2e18, // 0.2 WETH (correct output token units)
+                maxSlippageDeviationBps: 6000, // 60% to allow 50% decrease
+                zeroForOne: true,
+                additionalData: ""
+            }),
+            true
+        );
+
+        MockPrevHook mockPrevHook = new MockPrevHook(actualAmount);
+
+        address[] memory hookAddresses = new address[](2);
+        hookAddresses[0] = address(mockPrevHook);
+        hookAddresses[1] = address(uniswapV4Hook);
+
+        bytes[] memory hookDataArray = new bytes[](2);
+        hookDataArray[0] = "";
+        hookDataArray[1] = swapCalldata;
 
         ISuperExecutor.ExecutorEntry memory entryToExecute =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookDataArray });
 
         UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
+
+        uint256 initialWETH = IERC20(CHAIN_1_WETH).balanceOf(account);
         executeOp(opData);
+        uint256 finalWETH = IERC20(CHAIN_1_WETH).balanceOf(account);
+
+        assertGt(finalWETH, initialWETH, "Should successfully execute with 50% ratio decrease");
+        // Expected: newMinOut = 950e6 * 500e6 / 1000e6 = 475e6 worth of WETH
+    }
+}
+
+/// @notice Mock contract to simulate previous hook returning specific amounts
+contract MockPrevHook is BaseHook {
+    uint256 private _outAmount;
+
+    constructor(uint256 outAmount) BaseHook(ISuperHook.HookType.NONACCOUNTING, 0) {
+        _outAmount = outAmount;
+    }
+
+    // BaseHook implementation
+    function _buildHookExecutions(
+        address,
+        address,
+        bytes calldata
+    )
+        internal
+        pure
+        override
+        returns (Execution[] memory)
+    {
+        return new Execution[](0);
+    }
+
+    function _preExecute(address, address, bytes calldata) internal override {
+        // Set mock output amount
+        _setOutAmount(_outAmount, msg.sender);
+    }
+
+    function _postExecute(address, address, bytes calldata) internal pure override {
+        // No post-execution logic needed for mock
     }
 }

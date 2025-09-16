@@ -60,6 +60,10 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
     uint256 private transient initialBalance;
 
+    uint256 private constant MAX_QUOTE_DEVIATION_BPS = 1000; // 10% max deviation for quote validation
+
+    uint256 private constant MAX_BPS = 10_000; // 100%
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -401,7 +405,6 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
         // Calculate ratio deviation in basis points
         uint256 ratioDeviationBps = _calculateRatioDeviationBps(amountRatio);
-
         // Validate ratio deviation is within allowed bounds
         if (ratioDeviationBps > params.maxSlippageDeviationBps) {
             revert EXCESSIVE_SLIPPAGE_DEVIATION(ratioDeviationBps, params.maxSlippageDeviationBps);
@@ -418,23 +421,23 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
     function _calculateRatioDeviationBps(uint256 amountRatio) private pure returns (uint256 ratioDeviationBps) {
         if (amountRatio > 1e18) {
             // Ratio increased (more actual than original)
-            ratioDeviationBps = ((amountRatio - 1e18) * 10_000) / 1e18;
+            ratioDeviationBps = ((amountRatio - 1e18) * MAX_BPS) / 1e18;
         } else {
             // Ratio decreased (less actual than original)
-            ratioDeviationBps = ((1e18 - amountRatio) * 10_000) / 1e18;
+            ratioDeviationBps = ((1e18 - amountRatio) * MAX_BPS) / 1e18;
         }
     }
 
     /// @notice Validate quote deviation from expected output
     /// @dev Ensures on-chain quote aligns with user expectations within tolerance
     /// @param poolKey The pool key to validate against
-    /// @param amountIn The input amount
+    /// @param actualAmountIn The actualAmountIn used for the quote
     /// @param expectedMinOut The expected minimum output
     /// @param zeroForOne Whether swapping token0 for token1
     /// @return isValid True if the quote is within acceptable bounds
     function _validateQuoteDeviation(
         PoolKey memory poolKey,
-        uint256 amountIn,
+        uint256 actualAmountIn,
         uint256 expectedMinOut,
         bool zeroForOne
     )
@@ -446,17 +449,16 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
             QuoteParams({
                 poolKey: poolKey,
                 zeroForOne: zeroForOne,
-                amountIn: amountIn,
+                amountIn: actualAmountIn,
                 sqrtPriceLimitX96: 0 // No price limit for quote validation
              })
         );
-
         // Calculate deviation percentage in basis points
         uint256 deviationBps = quote.amountOut > expectedMinOut
-            ? ((quote.amountOut - expectedMinOut) * 10_000) / quote.amountOut
-            : ((expectedMinOut - quote.amountOut) * 10_000) / expectedMinOut;
+            ? ((quote.amountOut - expectedMinOut) * MAX_BPS) / quote.amountOut
+            : ((expectedMinOut - quote.amountOut) * MAX_BPS) / expectedMinOut;
 
-        isValid = deviationBps <= 1000; // 10% max deviation (more reasonable for live conditions)
+        isValid = deviationBps <= MAX_QUOTE_DEVIATION_BPS; // 10% max deviation (more reasonable for live conditions)
 
         if (!isValid) {
             revert QUOTE_DEVIATION_EXCEEDS_SAFETY_BOUNDS();
@@ -530,7 +532,6 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
         // Calculate actual amount
         uint256 actualAmountIn = usePrevHookAmount ? ISuperHookResult(prevHook).getOutAmount(account) : originalAmountIn;
-
         // Calculate dynamic min amount
         uint256 dynamicMinAmountOut = _calculateDynamicMinAmount(
             RecalculationParams({
