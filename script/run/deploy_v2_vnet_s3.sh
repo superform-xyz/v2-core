@@ -1267,7 +1267,7 @@ fi
 ###################################################################################
 
 # Always use locked bytecode for deploy_v2_vnet_s3 script - never regenerate
-log "INFO" "Using locked bytecode from script/locked-bytecode/ for all branches"
+log "INFO" "Using locked bytecode from script/locked-bytecode-dev/ for all branches"
 log "INFO" "Skipping bytecode regeneration to ensure consistency"
 
 ###################################################################################

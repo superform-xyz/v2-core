@@ -58,7 +58,7 @@ extract_contracts_from_regenerate_script() {
 
 # Function to validate locked bytecode files (sourced from regenerate_bytecode.sh)
 validate_locked_bytecode() {
-    log "INFO" "Validating locked bytecode artifacts..."
+    log "INFO" "Validating locked bytecode artifacts from $LOCKED_BYTECODE_PATH..."
     
     local script_path="$PROJECT_ROOT/script/run/regenerate_bytecode.sh"
     if [[ ! -f "$script_path" ]]; then
@@ -74,7 +74,7 @@ validate_locked_bytecode() {
     core_contracts=$(extract_contracts_from_regenerate_script "CORE_CONTRACTS")
     for contract in $core_contracts; do
         [[ -z "$contract" ]] && continue
-        local file_path="$PROJECT_ROOT/script/locked-bytecode/${contract}.json"
+        local file_path="$LOCKED_BYTECODE_PATH/${contract}.json"
         if [ ! -f "$file_path" ]; then
             missing_files+=("$file_path")
         fi
@@ -86,7 +86,7 @@ validate_locked_bytecode() {
     hook_contracts=$(extract_contracts_from_regenerate_script "HOOK_CONTRACTS")
     for contract in $hook_contracts; do
         [[ -z "$contract" ]] && continue
-        local file_path="$PROJECT_ROOT/script/locked-bytecode/${contract}.json"
+        local file_path="$LOCKED_BYTECODE_PATH/${contract}.json"
         if [ ! -f "$file_path" ]; then
             missing_files+=("$file_path")
         fi
@@ -98,7 +98,7 @@ validate_locked_bytecode() {
     oracle_contracts=$(extract_contracts_from_regenerate_script "ORACLE_CONTRACTS")
     for contract in $oracle_contracts; do
         [[ -z "$contract" ]] && continue
-        local file_path="$PROJECT_ROOT/script/locked-bytecode/${contract}.json"
+        local file_path="$LOCKED_BYTECODE_PATH/${contract}.json"
         if [ ! -f "$file_path" ]; then
             missing_files+=("$file_path")
         fi
@@ -314,6 +314,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Find project root (go up from script/run/ to project root)
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+# Initialize locked bytecode path (will be set after environment validation)
+LOCKED_BYTECODE_PATH=""
+
 # Network configuration will be sourced after environment is determined
 
 # Check if arguments are provided
@@ -334,16 +337,27 @@ ENVIRONMENT=$1
 MODE=$2
 ACCOUNT=$3
 
-# Validate environment and source appropriate network configuration
+# Validate environment and set locked bytecode path
 if [ "$ENVIRONMENT" = "staging" ]; then
     echo -e "${CYAN}🌐 Loading staging network configuration...${NC}"
+    LOCKED_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode-dev"
+    echo -e "${CYAN}📁 Using staging locked bytecode folder: locked-bytecode-dev${NC}"
     source "$SCRIPT_DIR/networks-staging.sh"
 elif [ "$ENVIRONMENT" = "prod" ]; then
     echo -e "${CYAN}🌐 Loading production network configuration...${NC}"
+    LOCKED_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode"
+    echo -e "${CYAN}📁 Using production locked bytecode folder: locked-bytecode${NC}"
     source "$SCRIPT_DIR/networks-production.sh"
 else
     echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"
     echo -e "${YELLOW}Environment must be either 'staging' or 'prod'${NC}"
+    exit 1
+fi
+
+# Validate that the locked bytecode directory exists
+if [[ ! -d "$LOCKED_BYTECODE_PATH" ]]; then
+    echo -e "${RED}❌ Error: Locked bytecode directory does not exist: $LOCKED_BYTECODE_PATH${NC}"
+    echo -e "${YELLOW}Please ensure the environment-specific locked bytecode folder exists before deployment.${NC}"
     exit 1
 fi
 
