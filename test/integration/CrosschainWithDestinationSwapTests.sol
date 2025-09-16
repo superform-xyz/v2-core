@@ -6,40 +6,49 @@ import { UserOpData, AccountInstance, ModuleKitHelpers } from "modulekit/ModuleK
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { IValidator } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
-import { IERC7540 } from "../../../src/vendor/vaults/7540/IERC7540.sol";
-import { IDlnSource } from "../../../src/vendor/bridges/debridge/IDlnSource.sol";
+import { IERC7540 } from "../../src/vendor/vaults/7540/IERC7540.sol";
+import { IDlnSource } from "../../src/vendor/bridges/debridge/IDlnSource.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import "modulekit/test/RhinestoneModuleKit.sol";
 import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
-import { BytesLib } from "../../../src/vendor/BytesLib.sol";
+import { BytesLib } from "../../src/vendor/BytesLib.sol";
 import { ModeLib, ModeCode } from "modulekit/accounts/common/lib/ModeLib.sol";
 import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import { INexus } from "../../../src/vendor/nexus/INexus.sol";
-import { INexusBootstrap } from "../../../src/vendor/nexus/INexusBootstrap.sol";
-import { IPermit2 } from "../../../src/vendor/uniswap/permit2/IPermit2.sol";
-import { IPermit2Batch } from "../../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
-import { IAllowanceTransfer } from "../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
+import { INexus } from "../../src/vendor/nexus/INexus.sol";
+import { INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
+import { IPermit2 } from "../../src/vendor/uniswap/permit2/IPermit2.sol";
+import { IPermit2Batch } from "../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
+import { IAllowanceTransfer } from "../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
 
 // Superform
-import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
-import { IYieldSourceOracle } from "../../../src/interfaces/accounting/IYieldSourceOracle.sol";
-import { ISuperNativePaymaster } from "../../../src/interfaces/ISuperNativePaymaster.sol";
-import { ISuperLedger, ISuperLedgerData } from "../../../src/interfaces/accounting/ISuperLedger.sol";
-import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestinationExecutor.sol";
-import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
-import { ISuperLedgerConfiguration } from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { SuperExecutorBase } from "../../../src/executors/SuperExecutorBase.sol";
-import { SuperExecutor } from "../../../src/executors/SuperExecutor.sol";
-import { AcrossV3Adapter } from "../../../src/adapters/AcrossV3Adapter.sol";
-import { DebridgeAdapter } from "../../../src/adapters/DebridgeAdapter.sol";
-import { SuperValidatorBase } from "../../../src/validators/SuperValidatorBase.sol";
-import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
-import { SuperLedger } from "../../../src/accounting/SuperLedger.sol";
-import { BaseLedger } from "../../../src/accounting/BaseLedger.sol";
-import { BaseHook } from "../../../src/hooks/BaseHook.sol";
-import { BaseTest } from "../../BaseTest.t.sol";
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
+import { IYieldSourceOracle } from "../../src/interfaces/accounting/IYieldSourceOracle.sol";
+import { ISuperNativePaymaster } from "../../src/interfaces/ISuperNativePaymaster.sol";
+import { ISuperLedger, ISuperLedgerData } from "../../src/interfaces/accounting/ISuperLedger.sol";
+import { ISuperDestinationExecutor } from "../../src/interfaces/ISuperDestinationExecutor.sol";
+import { ISuperValidator } from "../../src/interfaces/ISuperValidator.sol";
+import { ISuperLedgerConfiguration } from "../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { SuperExecutorBase } from "../../src/executors/SuperExecutorBase.sol";
+import { SuperExecutor } from "../../src/executors/SuperExecutor.sol";
+import { AcrossV3Adapter } from "../../src/adapters/AcrossV3Adapter.sol";
+import { DebridgeAdapter } from "../../src/adapters/DebridgeAdapter.sol";
+import { SuperValidatorBase } from "../../src/validators/SuperValidatorBase.sol";
+import { SuperLedgerConfiguration } from "../../src/accounting/SuperLedgerConfiguration.sol";
+import { SuperLedger } from "../../src/accounting/SuperLedger.sol";
+import { BaseLedger } from "../../src/accounting/BaseLedger.sol";
+import { BaseHook } from "../../src/hooks/BaseHook.sol";
+import { SwapUniswapV4Hook } from "../../src/hooks/swappers/uniswap-v4/SwapUniswapV4Hook.sol";
+import { UniswapV4Parser } from "../utils/parsers/UniswapV4Parser.sol";
+import { IPoolManager } from "v4-core/interfaces/IPoolManager.sol";
+import { PoolKey } from "v4-core/types/PoolKey.sol";
+import { Currency } from "v4-core/types/Currency.sol";
+import { IHooks } from "v4-core/interfaces/IHooks.sol";
+import { TickMath } from "v4-core/libraries/TickMath.sol";
+import { PoolId, PoolIdLibrary } from "v4-core/types/PoolId.sol";
+import { StateLibrary } from "v4-core/libraries/StateLibrary.sol";
+import { BaseTest } from "../BaseTest.t.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract CrosschainWithDestinationSwapTests is BaseTest {
@@ -48,6 +57,7 @@ contract CrosschainWithDestinationSwapTests is BaseTest {
 
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
+    using StateLibrary for IPoolManager;
 
     address public rootManager;
 
@@ -140,8 +150,10 @@ contract CrosschainWithDestinationSwapTests is BaseTest {
     ISuperNativePaymaster public superNativePaymasterOnETH;
     ISuperNativePaymaster public superNativePaymasterOnOP;
 
-    // AllowanceHolder constant
-    address public constant ALLOWANCE_HOLDER_ADDRESS = 0x0000000000001fF3684f28c67538d4D072C22734;
+    // UniswapV4 pool configuration for this test
+    PoolKey public wethUsdcPoolKey;
+    uint24 public constant FEE_MEDIUM = 3000; // 0.3%
+    int24 public constant TICK_SPACING_MEDIUM = 60;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -256,6 +268,16 @@ contract CrosschainWithDestinationSwapTests is BaseTest {
         superLedgerETH = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         superLedgerOP = ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY));
 
+        // -- UniswapV4 pool setup for this test
+        vm.selectFork(FORKS[ETH]);
+        wethUsdcPoolKey = PoolKey({
+            currency0: Currency.wrap(underlyingETH_USDC), // USDC
+            currency1: Currency.wrap(underlyingETH_WETH), // WETH
+            fee: FEE_MEDIUM,
+            tickSpacing: TICK_SPACING_MEDIUM,
+            hooks: IHooks(address(0))
+        });
+
         // BALANCES
         vm.selectFork(FORKS[BASE]);
         balance_Base_USDC_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
@@ -265,12 +287,12 @@ contract CrosschainWithDestinationSwapTests is BaseTest {
                                 TESTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Test bridge from BASE to ETH with destination 0x swap and deposit
-    /// @dev Bridge USDC from BASE to ETH, swap USDC to WETH via 0x, then deposit WETH to USDC vault (for testing)
-    /// @dev Real user flow: Bridge WETH, approve WETH (with 5% fee reduction), swap WETH to USDC, approve USDC, deposit
-    /// USDC
-    /// @dev This test demonstrates real 0x API integration in crosschain context with proper hook chaining
-    function test_Bridge_To_ETH_With_0x_Swap_And_Deposit() public {
+    /// @notice Test bridge from BASE to ETH with destination UniswapV4 swap and deposit
+    /// @dev Bridge USDC from BASE to ETH, swap WETH to USDC via UniswapV4, then deposit USDC to vault
+    /// @dev Real user flow: Bridge WETH, approve WETH (with 20% fee reduction), swap WETH to USDC via V4,
+    /// approve USDC, deposit USDC
+    /// @dev This test demonstrates real UniswapV4 integration in crosschain context with proper hook chaining
+    function test_Bridge_To_ETH_With_UniswapV4_Swap_And_Deposit() public {
         uint256 amountPerVault = 0.01 ether; // 0.01 WETH (18 decimals)
         WARP_START_TIME = block.timestamp;
         // ETH IS DST
@@ -289,7 +311,7 @@ contract CrosschainWithDestinationSwapTests is BaseTest {
             (, accountToUse) = _createAccountCreationData_DestinationExecutor(
                 AccountCreationParams({
                     senderCreatorOnDestinationChain: _getContract(ETH, SUPER_SENDER_CREATOR_KEY),
-                    validatorOnDestinationChain: address(destinationValidatorOnETH),
+                    validatorOnDestinationChain: _getContract(ETH, SUPER_DESTINATION_VALIDATOR_KEY),
                     superMerkleValidator: _getContract(ETH, SUPER_MERKLE_VALIDATOR_KEY),
                     theSigner: validatorSigner,
                     executorOnDestinationChain: _getContract(ETH, SUPER_DESTINATION_EXECUTOR_KEY),
@@ -302,7 +324,7 @@ contract CrosschainWithDestinationSwapTests is BaseTest {
 
             address[] memory dstHookAddresses = new address[](4);
             dstHookAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-            dstHookAddresses[1] = _getHookAddress(ETH, SWAP_0X_HOOK_KEY);
+            dstHookAddresses[1] = _getHookAddress(ETH, SWAP_UNISWAP_V4_HOOK_KEY);
             dstHookAddresses[2] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
             dstHookAddresses[3] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
 
@@ -312,25 +334,41 @@ contract CrosschainWithDestinationSwapTests is BaseTest {
             // Hook 1: Approve WETH (first hook after bridging receives the actual bridged amount)
             dstHookData[0] = _createApproveHookData(
                 getWETHAddress(), // WETH (received from bridge)
-                ALLOWANCE_HOLDER_ADDRESS, // Approve to 0x AllowanceHolder
+                _getHookAddress(ETH, SWAP_UNISWAP_V4_HOOK_KEY), // Approve to UniswapV4 hook
                 adjustedWETHAmount, // amount (the exact amount that will be received from bridge after fees)
                 false // usePrevHookAmount = false
             );
 
-            // Hook 2: Get real 0x API quote for WETH -> USDC swap using the actual account
-            ZeroExQuoteResponse memory quote = getZeroExQuote(
-                getWETHAddress(), // sell WETH
-                underlyingETH_USDC, // buy USDC
-                amountPerVault,
-                accountToUse, // use the actual executing account
-                1, // chainId (ETH mainnet)
-                500, // slippage tolerance in basis points (5% slippage)
-                ZEROX_API_KEY
-            );
+            // Hook 2: Generate UniswapV4 quote and calldata for WETH -> USDC swap
+            bool zeroForOne = getWETHAddress() < underlyingETH_USDC; // Determine swap direction based on token ordering
+            SwapUniswapV4Hook uniV4Hook = SwapUniswapV4Hook(payable(_getHookAddress(ETH, SWAP_UNISWAP_V4_HOOK_KEY)));
 
-            dstHookData[1] = createHookDataFromQuote(
-                quote,
-                address(0), // dstReceiver (0 = account)
+            // Calculate appropriate price limit with 1% slippage tolerance
+            uint160 priceLimit = _calculatePriceLimit(wethUsdcPoolKey, zeroForOne, 100);
+
+            // Get realistic minimum using UniswapV4 on-chain quote
+            SwapUniswapV4Hook.QuoteResult memory quote = uniV4Hook.getQuote(
+                SwapUniswapV4Hook.QuoteParams({
+                    poolKey: wethUsdcPoolKey,
+                    zeroForOne: zeroForOne,
+                    amountIn: adjustedWETHAmount,
+                    sqrtPriceLimitX96: priceLimit
+                })
+            );
+            uint256 expectedMinUSDC = quote.amountOut * 995 / 1000; // Apply 0.5% additional slippage buffer
+
+            // Generate swap calldata using the parser (inherited from BaseTest)
+            dstHookData[1] = generateSingleHopSwapCalldata(
+                UniswapV4Parser.SingleHopParams({
+                    poolKey: wethUsdcPoolKey,
+                    dstReceiver: accountToUse,
+                    sqrtPriceLimitX96: priceLimit,
+                    originalAmountIn: adjustedWETHAmount,
+                    originalMinAmountOut: expectedMinUSDC,
+                    maxSlippageDeviationBps: feeReductionPercentage, // 20% max deviation
+                    zeroForOne: zeroForOne,
+                    additionalData: ""
+                }),
                 true // usePrevHookAmount = true (use approved WETH amount from previous hook)
             );
 
@@ -355,11 +393,11 @@ contract CrosschainWithDestinationSwapTests is BaseTest {
             messageData = TargetExecutorMessage({
                 hooksAddresses: dstHookAddresses,
                 hooksData: dstHookData,
-                validator: address(destinationValidatorOnETH),
+                validator: _getContract(ETH, SUPER_DESTINATION_VALIDATOR_KEY),
                 signer: validatorSigner,
                 signerPrivateKey: validatorSignerPrivateKey,
                 targetAdapter: address(acrossV3AdapterOnETH),
-                targetExecutor: address(superTargetExecutorOnETH),
+                targetExecutor: _getContract(ETH, SUPER_DESTINATION_EXECUTOR_KEY),
                 nexusFactory: CHAIN_1_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
                 chainId: uint64(ETH),
@@ -510,5 +548,62 @@ contract CrosschainWithDestinationSwapTests is BaseTest {
     function getWETHAddress() internal pure returns (address) {
         // Try to get WETH from existing mappings first, fallback to hardcoded mainnet address
         return underlyingETH_WETH;
+    }
+
+    /// @notice Calculate appropriate sqrtPriceLimitX96 based on current pool price and slippage tolerance
+    /// @param poolKey The pool to get current price from
+    /// @param zeroForOne Direction of the swap
+    /// @param slippageToleranceBps Slippage tolerance in basis points (e.g., 50 = 0.5%)
+    /// @return sqrtPriceLimitX96 The calculated price limit
+    function _calculatePriceLimit(
+        PoolKey memory poolKey,
+        bool zeroForOne,
+        uint256 slippageToleranceBps
+    )
+        internal
+        view
+        returns (uint160 sqrtPriceLimitX96)
+    {
+        PoolId poolId = PoolIdLibrary.toId(poolKey);
+
+        // Get current pool price
+        (uint160 currentSqrtPriceX96,,,) = IPoolManager(MAINNET_V4_POOL_MANAGER).getSlot0(poolId);
+
+        // Handle uninitialized pools - use a reasonable default
+        if (currentSqrtPriceX96 == 0) {
+            currentSqrtPriceX96 = 79_228_162_514_264_337_593_543_950_336; // 1:1 price ratio
+        }
+
+        // Calculate slippage factor (10000 = 100%)
+        uint256 slippageFactor = zeroForOne
+            ? 10_000 - slippageToleranceBps // Price goes down
+            : 10_000 + slippageToleranceBps; // Price goes up
+
+        // Apply square root to slippage factor (since we're dealing with sqrt prices)
+        uint256 sqrtSlippageFactor = _sqrt(slippageFactor * 1e18 / 10_000);
+        uint256 adjustedPrice = (uint256(currentSqrtPriceX96) * sqrtSlippageFactor) / 1e9;
+
+        // Enforce TickMath boundaries
+        if (zeroForOne) {
+            sqrtPriceLimitX96 =
+                adjustedPrice < TickMath.MIN_SQRT_PRICE + 1 ? TickMath.MIN_SQRT_PRICE + 1 : uint160(adjustedPrice);
+        } else {
+            sqrtPriceLimitX96 =
+                adjustedPrice > TickMath.MAX_SQRT_PRICE - 1 ? TickMath.MAX_SQRT_PRICE - 1 : uint160(adjustedPrice);
+        }
+    }
+
+    /// @notice Integer square root using Babylonian method
+    /// @param x The number to calculate square root of
+    /// @return The square root of x
+    function _sqrt(uint256 x) internal pure returns (uint256) {
+        if (x == 0) return 0;
+        uint256 z = (x + 1) / 2;
+        uint256 y = x;
+        while (z < y) {
+            y = z;
+            z = (x / z + z) / 2;
+        }
+        return y;
     }
 }

@@ -336,6 +336,9 @@ contract BaseTest is
     mapping(uint64 chainId => address validatorSigner) public validatorSigners;
     mapping(uint64 chainId => uint256 validatorSignerPrivateKey) public validatorSignerPrivateKeys;
 
+    // Persistent MockRegistry for deterministic account creation
+    MockRegistry public mockRegistry;
+
     string public ETHEREUM_RPC_URL = vm.envString(ETHEREUM_RPC_URL_KEY); // Native token: ETH
     string public OPTIMISM_RPC_URL = vm.envString(OPTIMISM_RPC_URL_KEY); // Native token: ETH
     string public BASE_RPC_URL = vm.envString(BASE_RPC_URL_KEY); // Native token: ETH
@@ -364,6 +367,11 @@ contract BaseTest is
 
         // Setup forks
         _preDeploymentSetup();
+
+        // Deploy persistent MockRegistry for deterministic account creation
+        mockRegistry = new MockRegistry();
+        vm.label(address(mockRegistry), "MockRegistry");
+        vm.makePersistent(address(mockRegistry));
 
         Addresses[] memory A = new Addresses[](chainIds.length);
         // Deploy contracts
@@ -2115,9 +2123,8 @@ contract BaseTest is
         attesters[0] = address(MANAGER);
         uint8 threshold = 1;
 
-        MockRegistry nexusRegistry = new MockRegistry();
         bytes memory initData = INexusBootstrap(p.nexusBootstrap).getInitNexusCalldata(
-            validators, executors, hook, fallbacks, IERC7484(nexusRegistry), attesters, threshold
+            validators, executors, hook, fallbacks, IERC7484(mockRegistry), attesters, threshold
         );
 
         bytes32 initSalt = bytes32(keccak256("SIGNER_SALT"));
@@ -2212,6 +2219,49 @@ contract BaseTest is
             outputToken,
             inputAmount,
             outputAmount,
+            uint256(destinationChainId),
+            address(0),
+            uint32(10 minutes), // this can be a max of 360 minutes
+            uint32(0),
+            usePrevHookAmount,
+            data
+        );
+    }
+    /// @notice Create AcrossV3 hook data with fee reduction capability
+    /// @param inputToken Token being sent to bridge
+    /// @param outputToken Token expected on destination
+    /// @param inputAmount Amount being sent
+    /// @param outputAmount Expected amount on destination (before fee reduction)
+    /// @param destinationChainId Destination chain ID
+    /// @param usePrevHookAmount Whether to use previous hook amount
+    /// @param feeReductionPercentage Fee reduction percentage (e.g., 500 for 5%)
+    /// @param data Message data for target executor
+    /// @return hookData Encoded hook data
+
+    function _createAcrossV3ReceiveFundsAndExecuteHookDataWithFeeReduction(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount,
+        uint64 destinationChainId,
+        bool usePrevHookAmount,
+        uint256 feeReductionPercentage, // in basis points (500 = 5%)
+        bytes memory data
+    )
+        internal
+        view
+        returns (bytes memory hookData)
+    {
+        // Reduce the output amount by the fee percentage
+        uint256 adjustedOutputAmount = outputAmount - (outputAmount * feeReductionPercentage / 10_000);
+
+        hookData = abi.encodePacked(
+            uint256(0),
+            _getContract(destinationChainId, ACROSS_V3_ADAPTER_KEY),
+            inputToken,
+            outputToken,
+            inputAmount,
+            adjustedOutputAmount, // Use the fee-reduced amount
             uint256(destinationChainId),
             address(0),
             uint32(10 minutes), // this can be a max of 360 minutes
