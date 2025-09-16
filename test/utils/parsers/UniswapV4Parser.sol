@@ -108,17 +108,21 @@ contract UniswapV4Parser is BaseAPIParser {
         pure
         returns (bytes memory hookData)
     {
-        // Encode according to enhanced data structure (298+ bytes)
+        // Encode according to new BytesLib-compatible data structure (218+ bytes)
         hookData = abi.encodePacked(
-            abi.encode(params.poolKey), // 160 bytes: PoolKey
-            params.dstReceiver, // 20 bytes: dstReceiver
-            params.sqrtPriceLimitX96, // 20 bytes: sqrtPriceLimitX96
-            params.originalAmountIn, // 32 bytes: originalAmountIn
-            params.originalMinAmountOut, // 32 bytes: originalMinAmountOut
-            params.maxSlippageDeviationBps, // 32 bytes: maxSlippageDeviationBps
-            params.zeroForOne ? bytes1(0x01) : bytes1(0x00), // 1 byte: zeroForOne flag
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // 1 byte: usePrevHookAmount flag
-            params.additionalData // Additional data
+            params.poolKey.currency0, // 20 bytes (0-19): currency0
+            params.poolKey.currency1, // 20 bytes (20-39): currency1
+            uint32(params.poolKey.fee), // 4 bytes (40-43): fee (padded from uint24)
+            uint32(int32(params.poolKey.tickSpacing)), // 4 bytes (44-47): tickSpacing (padded from int24)  
+            params.poolKey.hooks, // 20 bytes (48-67): hooks address
+            params.dstReceiver, // 20 bytes (68-87): dstReceiver
+            uint256(params.sqrtPriceLimitX96), // 32 bytes (88-119): sqrtPriceLimitX96 (padded from uint160)
+            params.originalAmountIn, // 32 bytes (120-151): originalAmountIn
+            params.originalMinAmountOut, // 32 bytes (152-183): originalMinAmountOut
+            params.maxSlippageDeviationBps, // 32 bytes (184-215): maxSlippageDeviationBps
+            params.zeroForOne ? bytes1(0x01) : bytes1(0x00), // 1 byte (216): zeroForOne flag
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // 1 byte (217): usePrevHookAmount flag
+            params.additionalData // Additional data (218+)
         );
     }
 }

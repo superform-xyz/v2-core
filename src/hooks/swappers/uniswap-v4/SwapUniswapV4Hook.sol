@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 // External imports
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { BytesLib } from "../../../vendor/BytesLib.sol";
 
 // Superform imports
 import { BaseHook } from "../../BaseHook.sol";
@@ -13,6 +14,7 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 // Real Uniswap V4 imports
 import { IPoolManager } from "v4-core/interfaces/IPoolManager.sol";
 import { IUnlockCallback } from "v4-core/interfaces/callback/IUnlockCallback.sol";
+import { IHooks } from "v4-core/interfaces/IHooks.sol";
 import { PoolKey } from "v4-core/types/PoolKey.sol";
 import { PoolId, PoolIdLibrary } from "v4-core/types/PoolId.sol";
 import { Currency, CurrencyLibrary } from "v4-core/types/Currency.sol";
@@ -21,17 +23,30 @@ import { StateLibrary } from "v4-core/libraries/StateLibrary.sol";
 import { SwapMath } from "v4-core/libraries/SwapMath.sol";
 import { TickMath } from "v4-core/libraries/TickMath.sol";
 
-import { console2 } from "forge-std/console2.sol";
-
 /// @title SwapUniswapV4Hook
 /// @author Superform Labs
 /// @notice Hook for executing swaps via Uniswap V4 with dynamic minAmountOut recalculation
 /// @dev Implements dynamic slippage protection and on-chain quote generation
+/// @dev data has the following structure
+/// @notice         address currency0 = BytesLib.toAddress(data, 0);
+/// @notice         address currency1 = BytesLib.toAddress(data, 20);
+/// @notice         uint24 fee = uint24(BytesLib.toUint32(data, 40));
+/// @notice         int24 tickSpacing = int24(BytesLib.toUint32(data, 44));
+/// @notice         address hooks = BytesLib.toAddress(data, 48);
+/// @notice         address dstReceiver = BytesLib.toAddress(data, 68);
+/// @notice         uint160 sqrtPriceLimitX96 = uint160(BytesLib.toUint256(data, 88));
+/// @notice         uint256 originalAmountIn = BytesLib.toUint256(data, 120);
+/// @notice         uint256 originalMinAmountOut = BytesLib.toUint256(data, 152);
+/// @notice         uint256 maxSlippageDeviationBps = BytesLib.toUint256(data, 184);
+/// @notice         bool zeroForOne = _decodeBool(data, 216);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 217);
+/// @notice         bytes additionalData = BytesLib.slice(data, 218, data.length - 218);
 contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
     using PoolIdLibrary for PoolKey;
     using CurrencyLibrary for Currency;
     using BalanceDeltaLibrary for BalanceDelta;
     using StateLibrary for IPoolManager;
+    using BytesLib for bytes;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -176,7 +191,6 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
             // ERC-20 token
             initialBalance = IERC20(outputToken).balanceOf(account);
         }
-        console2.log("initial balance:", initialBalance);
 
         // Prepare and store unlock data in transient storage for postExecute
         bytes memory unlockData = _prepareUnlockData(prevHook, account, data);
@@ -208,13 +222,8 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
             currentBalance = IERC20(outputToken).balanceOf(account);
         }
         uint256 trueOutputAmount = currentBalance - initialBalance;
-        console2.log("current balance:", currentBalance);
-        console2.log("true output amount:", trueOutputAmount);
-        console2.log("reported output amount:", outputAmount);
-        if (outputAmount != trueOutputAmount) revert OUTPUT_AMOUNT_DIFFERENT_THAN_TRUE();
 
-        // Security check: ensure hook has zero balance after execution
-        _validateHookBalanceCleared();
+        if (outputAmount != trueOutputAmount) revert OUTPUT_AMOUNT_DIFFERENT_THAN_TRUE();
 
         // Set the output amount for the next hook
         _setOutAmount(outputAmount, account);
@@ -301,13 +310,14 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
     /// @inheritdoc BaseHook
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        // Decode hook data to extract token information
-        (PoolKey memory poolKey,,,,,,,,) = _decodeHookData(data);
+        // Decode token addresses directly using BytesLib
+        address currency0 = data.toAddress(0);
+        address currency1 = data.toAddress(20);
 
         // Return packed token addresses for inspection
         return abi.encodePacked(
-            Currency.unwrap(poolKey.currency0), // Input token
-            Currency.unwrap(poolKey.currency1) // Output token
+            currency0, // Input token
+            currency1 // Output token
         );
     }
 
@@ -315,10 +325,10 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
     /// @param data The encoded hook data
     /// @return usePrevHookAmount Whether to use the previous hook's output amount
     function decodeUsePrevHookAmount(bytes calldata data) external pure returns (bool usePrevHookAmount) {
-        if (data.length < 298) {
+        if (data.length < 218) {
             revert INVALID_HOOK_DATA();
         }
-        usePrevHookAmount = _decodeBool(data, 297);
+        usePrevHookAmount = _decodeBool(data, 217);
     }
 
     /// @notice Generate on-chain quote using pool state and real V4 math
@@ -455,23 +465,6 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         return isValid;
     }
 
-    /// @notice Validates that the hook has zero balance for both input and output tokens
-    /// @dev Critical security check to prevent fund lockup after execution
-    function _validateHookBalanceCleared() private view {
-        // Check input token balance (asset)
-        if (asset != address(0)) {
-            uint256 assetBalance = IERC20(asset).balanceOf(address(this));
-            if (assetBalance > 0) {
-                revert HOOK_BALANCE_NOT_CLEARED(asset, assetBalance);
-            }
-        } else {
-            // Native ETH balance check
-            if (address(this).balance > 0) {
-                revert HOOK_BALANCE_NOT_CLEARED(address(0), address(this).balance);
-            }
-        }
-    }
-
     /*//////////////////////////////////////////////////////////////
                            INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
@@ -491,20 +484,20 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         view
         returns (address inputToken, uint256 amountIn)
     {
-        // Decode minimal data needed for transfer
-        PoolKey memory poolKey = abi.decode(data[0:160], (PoolKey));
-        bool zeroForOne = _decodeBool(data, 296);
-        bool usePrevHookAmount = _decodeBool(data, 297);
+        // Decode minimal data needed for transfer using BytesLib
+        address currency0 = data.toAddress(0);
+        address currency1 = data.toAddress(20);
+        bool zeroForOne = _decodeBool(data, 216);
+        bool usePrevHookAmount = _decodeBool(data, 217);
 
-        // Get input currency and convert to address (native ETH = address(0))
-        Currency inputCurrency = zeroForOne ? poolKey.currency0 : poolKey.currency1;
-        inputToken = Currency.unwrap(inputCurrency);
+        // Get input token address (native ETH = address(0))
+        inputToken = zeroForOne ? currency0 : currency1;
 
         if (usePrevHookAmount) {
             amountIn = ISuperHookResult(prevHook).getOutAmount(account);
         } else {
-            // Extract originalAmountIn from position 200-232
-            amountIn = uint256(bytes32(data[200:232]));
+            // Extract originalAmountIn from new position 120-152
+            amountIn = data.toUint256(120);
         }
     }
 
@@ -582,23 +575,36 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
             bytes memory additionalData
         )
     {
-        if (data.length < 298) {
+        if (data.length < 218) {
             revert INVALID_HOOK_DATA();
         }
 
-        // Decode the structured data
-        poolKey = abi.decode(data[0:160], (PoolKey));
-        dstReceiver = address(bytes20(data[160:180]));
-        sqrtPriceLimitX96 = uint160(bytes20(data[180:200]));
-        originalAmountIn = uint256(bytes32(data[200:232]));
-        originalMinAmountOut = uint256(bytes32(data[232:264]));
-        maxSlippageDeviationBps = uint256(bytes32(data[264:296]));
-        zeroForOne = _decodeBool(data, 296);
-        usePrevHookAmount = _decodeBool(data, 297);
+        // Construct PoolKey from individual components to avoid stack too deep
+        poolKey = PoolKey({
+            currency0: Currency.wrap(data.toAddress(0)),
+            currency1: Currency.wrap(data.toAddress(20)),
+            fee: uint24(data.toUint32(40)),
+            tickSpacing: int24(int32(data.toUint32(44))),
+            hooks: IHooks(data.toAddress(48))
+        });
+
+        // Validate PoolKey components
+        if (Currency.unwrap(poolKey.currency0) == Currency.unwrap(poolKey.currency1)) revert INVALID_HOOK_DATA();
+        if (poolKey.fee == 0) revert INVALID_HOOK_DATA();
+        if (poolKey.tickSpacing == 0) revert INVALID_HOOK_DATA();
+
+        // Decode remaining fields using BytesLib
+        dstReceiver = data.toAddress(68);
+        sqrtPriceLimitX96 = uint160(data.toUint256(88));
+        originalAmountIn = data.toUint256(120);
+        originalMinAmountOut = data.toUint256(152);
+        maxSlippageDeviationBps = data.toUint256(184);
+        zeroForOne = _decodeBool(data, 216);
+        usePrevHookAmount = _decodeBool(data, 217);
 
         // Additional data is everything after the fixed structure
-        if (data.length > 298) {
-            additionalData = data[298:];
+        if (data.length > 218) {
+            additionalData = data.slice(218, data.length - 218);
         }
     }
 
@@ -606,9 +612,13 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
     /// @param data The hook data
     /// @return outputToken The output token address
     function _getOutputToken(bytes calldata data) internal pure returns (address outputToken) {
-        (PoolKey memory poolKey,,,,,, bool zeroForOne,,) = _decodeHookData(data);
-        Currency outputCurrency = zeroForOne ? poolKey.currency1 : poolKey.currency0;
-        outputToken = Currency.unwrap(outputCurrency); // Returns address(0) for native ETH
+        // Decode just the needed fields using BytesLib
+        address currency0 = data.toAddress(0);
+        address currency1 = data.toAddress(20);
+        bool zeroForOne = _decodeBool(data, 216);
+
+        // Get output token address (native ETH = address(0))
+        outputToken = zeroForOne ? currency1 : currency0;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -644,7 +654,6 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         bytes32 storageKey = PENDING_UNLOCK_DATA_SLOT;
         uint256 len;
 
-        console2.log("a");
         // Load the length first
         assembly {
             len := tload(storageKey)
@@ -652,7 +661,6 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
         // Create new bytes array of the correct length
         out = new bytes(len);
-        console2.log("b");
         // Load data from 32-byte chunks
         for (uint256 i; i < len; i += 32) {
             bytes32 word;
@@ -665,7 +673,6 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
                 mstore(add(add(out, 0x20), i), word)
             }
         }
-        console2.log("c");
     }
 
     /// @notice Clears unlock data from transient storage
