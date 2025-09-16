@@ -85,17 +85,6 @@ contract MerklClaimRewardHook is BaseHook {
             uint256 len = params.tokens.length;
             executions = new Execution[](1 + len);
 
-            // claim
-            executions[0] = Execution({
-                target: DISTRIBUTOR,
-                value: 0,
-                callData: abi.encodeCall(IDistributor.claim, (params.users, params.tokens, params.amounts, params.proofs))
-            });
-
-            // Known limitations:
-            // - can't verify deviations in the transfer (won't actually execute the code until the `handleOps`
-            // execution)
-            // - won't work for tokens reverting on 0 amount transfer in case of 0 fees
             for (uint256 i; i < len; ++i) {
                 uint256 fee;
                 uint208 amount;
@@ -110,14 +99,14 @@ contract MerklClaimRewardHook is BaseHook {
             }
         } else {
             executions = new Execution[](1);
-
-            // claim
-            executions[0] = Execution({
-                target: DISTRIBUTOR,
-                value: 0,
-                callData: abi.encodeCall(IDistributor.claim, (params.users, params.tokens, params.amounts, params.proofs))
-            });
         }
+
+        // claim
+        executions[0] = Execution({
+            target: DISTRIBUTOR,
+            value: 0,
+            callData: abi.encodeCall(IDistributor.claim, (params.users, params.tokens, params.amounts, params.proofs))
+        });
     }
 
     /// @inheritdoc ISuperHookInspector
