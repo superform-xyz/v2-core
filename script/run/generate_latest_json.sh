@@ -86,7 +86,7 @@ has_contract_changes() {
     # Check for removed contracts (contracts that exist in existing but not in new deployment)
     # Exclude Nexus contracts from being considered removable
     local removed_contract_count=$(echo "$existing_contracts" | jq --argjson new_contracts "$new_contracts" '
-        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory"))] | length
+        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "NexusProxy" and $k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory"))] | length
     ')
     
     # Return true if there are any new, updated, or removed contracts
@@ -124,7 +124,7 @@ show_contract_diff() {
     # Show removed contracts (contracts that exist in existing but not in new deployment)
     # Exclude Nexus contracts from being shown as removed
     local removed_contract_names=$(echo "$existing_contracts" | jq -r --argjson new_contracts "$new_contracts" '
-        to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory")) | .key
+        to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "NexusProxy" and $k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory")) | .key
     ' | tr '\n' ' ')
     
     local changes_shown=false
@@ -375,6 +375,7 @@ batch_generate_latest_json() {
         
         # Replace existing contracts with new contracts, but preserve Nexus contracts
         local nexus_contracts=$(echo "$existing_contracts" | jq '{
+            NexusProxy: .NexusProxy,
             Nexus: .Nexus,
             NexusBootstrap: .NexusBootstrap,
             NexusAccountFactory: .NexusAccountFactory

@@ -593,7 +593,7 @@ for network_def in "${NETWORKS[@]}"; do
         --account $ACCOUNT \
         --rpc-url ${!rpc_var} \
         --chain $network_id \
-        --etherscan-api-key $ETHERSCANV2_API_KEY_TEST \
+        --etherscan-api-key $ETHERSCANV2_API_KEY \
         --verifier etherscan \
         $BROADCAST_FLAG \
         $VERIFY_FLAG \
