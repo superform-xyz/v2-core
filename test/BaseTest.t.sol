@@ -87,6 +87,10 @@ import { MockApproveAndSwapOdosHook } from "../test/mocks/unused-hooks/MockAppro
 import { ApproveAndSwapOdosV2Hook } from "../src/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol";
 import { MockSwapOdosHook } from "../test/mocks/unused-hooks/MockSwapOdosHook.sol";
 
+// --- Uniswap v4
+import { UniswapV4Parser } from "./utils/parsers/UniswapV4Parser.sol";
+import { SwapUniswapV4Hook } from "../src/hooks/swappers/uniswap-v4/SwapUniswapV4Hook.sol";
+
 // Stake hooks
 // --- Gearbox
 import { GearboxStakeHook } from "../src/hooks/stake/gearbox/GearboxStakeHook.sol";
@@ -218,6 +222,7 @@ struct Addresses {
     SwapOdosV2Hook swapOdosHook;
     MockSwapOdosHook mockSwapOdosHook;
     MockApproveAndSwapOdosHook mockApproveAndSwapOdosHook;
+    SwapUniswapV4Hook swapUniswapV4Hook;
     GearboxStakeHook gearboxStakeHook;
     GearboxUnstakeHook gearboxUnstakeHook;
     ApproveAndGearboxStakeHook approveAndGearboxStakeHook;
@@ -247,7 +252,15 @@ struct Addresses {
     MockTargetExecutor mockTargetExecutor;
 }
 
-contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper, OdosAPIParser, InternalHelpers {
+contract BaseTest is
+    Helpers,
+    RhinestoneModuleKit,
+    SignatureHelper,
+    MerkleTreeHelper,
+    OdosAPIParser,
+    UniswapV4Parser,
+    InternalHelpers
+{
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
     using Clones for address;
@@ -326,6 +339,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     mapping(uint64 chainId => address validatorSigner) public validatorSigners;
     mapping(uint64 chainId => uint256 validatorSignerPrivateKey) public validatorSignerPrivateKeys;
 
+    // Persistent MockRegistry for deterministic account creation
+    MockRegistry public mockRegistry;
+
     string public ETHEREUM_RPC_URL = vm.envString(ETHEREUM_RPC_URL_KEY); // Native token: ETH
     string public OPTIMISM_RPC_URL = vm.envString(OPTIMISM_RPC_URL_KEY); // Native token: ETH
     string public BASE_RPC_URL = vm.envString(BASE_RPC_URL_KEY); // Native token: ETH
@@ -354,6 +370,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
         // Setup forks
         _preDeploymentSetup();
+
+        // Deploy persistent MockRegistry for deterministic account creation
+        mockRegistry = new MockRegistry();
+        vm.label(address(mockRegistry), "MockRegistry");
+        vm.makePersistent(address(mockRegistry));
 
         Addresses[] memory A = new Addresses[](chainIds.length);
         // Deploy contracts
@@ -851,6 +872,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_ODOSV2_HOOK_KEY]);
             hooksAddresses[18] = address(A[i].swapOdosHook);
 
+            A[i].swapUniswapV4Hook = new SwapUniswapV4Hook{ salt: SALT }(MAINNET_V4_POOL_MANAGER);
+            vm.label(address(A[i].swapUniswapV4Hook), SWAP_UNISWAP_V4_HOOK_KEY);
+            hookAddresses[chainIds[i]][SWAP_UNISWAP_V4_HOOK_KEY] = address(A[i].swapUniswapV4Hook);
+            hooks[chainIds[i]][SWAP_UNISWAP_V4_HOOK_KEY] = Hook(
+                SWAP_UNISWAP_V4_HOOK_KEY,
+                HookCategory.Swaps,
+                HookCategory.TokenApprovals,
+                address(A[i].swapUniswapV4Hook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_UNISWAP_V4_HOOK_KEY]);
+            hooksAddresses[19] = address(A[i].swapUniswapV4Hook);
+
             A[i].acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook{ salt: SALT }(
                 SPOKE_POOL_V3_ADDRESSES[chainIds[i]], _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY)
             );
@@ -867,7 +901,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.Bridges].push(
                 hooks[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY]
             );
-            hooksAddresses[19] = address(A[i].acrossSendFundsAndExecuteOnDstHook);
+            hooksAddresses[20] = address(A[i].acrossSendFundsAndExecuteOnDstHook);
 
             A[i].approveAndAcrossSendFundsAndExecuteOnDstHook = new ApproveAndAcrossSendFundsAndExecuteOnDstHook{
                 salt: SALT
@@ -1744,6 +1778,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         bool is7702
     )
         internal
+        view
         returns (address)
     {
         (, address account) = _createAccountCreationData_DestinationExecutor(
@@ -1767,6 +1802,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         bool is7702
     )
         internal
+        view
         returns (bytes memory, address)
     {
         bytes memory executionData =
@@ -2086,13 +2122,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
     function _createAccountCreationData_DestinationExecutor(AccountCreationParams memory p)
         internal
+        view
         virtual
         returns (bytes memory, address)
     {
         return __createNon7702NexusInitData(p);
     }
 
-    function __createNon7702NexusInitData(AccountCreationParams memory p) internal returns (bytes memory, address) {
+    function __createNon7702NexusInitData(AccountCreationParams memory p)
+        internal
+        view
+        returns (bytes memory, address)
+    {
         // create validators
         BootstrapConfig[] memory validators = new BootstrapConfig[](2);
         validators[0] = BootstrapConfig({ module: p.validatorOnDestinationChain, data: abi.encode(p.theSigner) });
@@ -2113,9 +2154,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         attesters[0] = address(MANAGER);
         uint8 threshold = 1;
 
-        MockRegistry nexusRegistry = new MockRegistry();
         bytes memory initData = INexusBootstrap(p.nexusBootstrap).getInitNexusCalldata(
-            validators, executors, hook, fallbacks, IERC7484(nexusRegistry), attesters, threshold
+            validators, executors, hook, fallbacks, IERC7484(mockRegistry), attesters, threshold
         );
 
         bytes32 initSalt = bytes32(keccak256("SIGNER_SALT"));
@@ -2210,6 +2250,49 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             outputToken,
             inputAmount,
             outputAmount,
+            uint256(destinationChainId),
+            address(0),
+            uint32(10 minutes), // this can be a max of 360 minutes
+            uint32(0),
+            usePrevHookAmount,
+            data
+        );
+    }
+    /// @notice Create AcrossV3 hook data with fee reduction capability
+    /// @param inputToken Token being sent to bridge
+    /// @param outputToken Token expected on destination
+    /// @param inputAmount Amount being sent
+    /// @param outputAmount Expected amount on destination (before fee reduction)
+    /// @param destinationChainId Destination chain ID
+    /// @param usePrevHookAmount Whether to use previous hook amount
+    /// @param feeReductionPercentage Fee reduction percentage (e.g., 500 for 5%)
+    /// @param data Message data for target executor
+    /// @return hookData Encoded hook data
+
+    function _createAcrossV3ReceiveFundsAndExecuteHookDataWithFeeReduction(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount,
+        uint64 destinationChainId,
+        bool usePrevHookAmount,
+        uint256 feeReductionPercentage, // in basis points (500 = 5%)
+        bytes memory data
+    )
+        internal
+        view
+        returns (bytes memory hookData)
+    {
+        // Reduce the output amount by the fee percentage
+        uint256 adjustedOutputAmount = outputAmount - (outputAmount * feeReductionPercentage / 10_000);
+
+        hookData = abi.encodePacked(
+            uint256(0),
+            _getContract(destinationChainId, ACROSS_V3_ADAPTER_KEY),
+            inputToken,
+            outputToken,
+            inputAmount,
+            adjustedOutputAmount, // Use the fee-reduced amount
             uint256(destinationChainId),
             address(0),
             uint32(10 minutes), // this can be a max of 360 minutes

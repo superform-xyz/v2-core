@@ -353,6 +353,9 @@ generate_constructor_args() {
         "AcrossSendFundsAndExecuteOnDstHook")
             echo "$(cast abi-encode "constructor(address,address)" "$across_spoke_pool_v3" "$super_merkle_validator")"
             ;;
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHook")
+            echo "$(cast abi-encode "constructor(address,address)" "$across_spoke_pool_v3" "$super_merkle_validator")"
+            ;;
         "DeBridgeSendOrderAndExecuteOnDstHook")
             echo "$(cast abi-encode "constructor(address,address)" "$debridge_dln_src" "$super_merkle_validator")"
             ;;
@@ -430,6 +433,7 @@ get_contract_source() {
         
         # Hooks - Bridges
         "AcrossSendFundsAndExecuteOnDstHook") echo "src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol" ;;
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHook") echo "src/hooks/bridges/across/ApproveAndAcrossSendFundsAndExecuteOnDstHook.sol" ;;
         "DeBridgeSendOrderAndExecuteOnDstHook") echo "src/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol" ;;
         "DeBridgeCancelOrderHook") echo "src/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol" ;;
         

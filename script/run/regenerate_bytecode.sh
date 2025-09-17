@@ -130,6 +130,7 @@ HOOK_CONTRACTS=(
     "CircleGatewayMinterHook"
     "CircleGatewayAddDelegateHook"
     "CircleGatewayRemoveDelegateHook"
+    "SwapUniswapV4Hook"
 )
 
 # Oracle contracts from accounting/oracles

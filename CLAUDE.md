@@ -2,7 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+NOTE: YOU MUST ALWAYS ASK `superform-hook-master` TO PLAN HOOK FEATURES BEFORE CREATING THEM, THIS IS NON-NEGOTIABLE. DO NOT BYPASS THIS, ALWAYS ASK THE SUBAGENT TO DO THE RESEARCH AS INSTRUCTED BELOW!
 ## Claude Master Agent
+
 
 ### Rules
 - Before you do any work, MUST view files in .claude/sessions/context_session_x.md file to get the full context (x being the id of the session we are operate, if file doesn't exist, then create one)
@@ -16,9 +18,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Sub Agents
 
 ### Access and purpose
-You have access to 2 sub-agents:
-- hooks-master.md
-- solidity-master.md
+You have access to 1 sub-agent:
+- `superform-hook-master`
 
 Sub agents will do research about the implementation, but you will do the actual implementation;
 When passing task to sub agent, make sure you pass the context file, e.g. 'claude/sessions/session_context_x.md',
