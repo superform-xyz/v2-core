@@ -1,50 +1,73 @@
-# Context Session 1: Bytecode Existence Check System Implementation
+# Session Context - Adding ApproveAndAcrossSendFundsAndExecuteOnDstHook to Deployment
 
 ## Task Overview
-Implement a system for Superform v2 deployment scripts that allows skipping deployment of contracts when their bytecode artifacts are not present in the appropriate bytecode folder.
+Add the new `ApproveAndAcrossSendFundsAndExecuteOnDstHook` to the Superform v2 Core deployment system using the exact same pattern as the existing `AcrossSendFundsAndExecuteOnDstHook`.
 
-## Current Context
-- Branch: deployMerklHookToProd 
-- Environment: Superform v2 core with ERC-7579 modular architecture
-- Deployment system uses environment-based bytecode folders (locked-bytecode vs locked-bytecode-dev)
-- Existing skippedContracts system for chain-specific availability
+## Requirements
+1. Add to DeployV2Core hook deployment script
+2. Configure properly in ConfigCore 
+3. Add to regenerate_bytecode.sh for bytecode regeneration
+4. Follow exact same patterns as AcrossSendFundsAndExecuteOnDstHook
 
-## Requirements Analysis
-1. Check bytecode artifact existence before deployment attempts
-2. Skip deployment with proper logging when bytecode missing
-3. Track contracts skipped due to missing bytecode vs chain unavailability
-4. Update shell scripts for enhanced reporting
-5. Leverage existing availability.skippedContracts structure
+## Implementation Plan
+Based on comprehensive analysis by superform-hook-master agent:
 
-## Research Phase - COMPLETED
+### Key Changes Required:
+1. **Constants & Structure Updates**
+   - Add hook key constant to script/utils/Constants.sol
+   - Add field to HookAddresses struct in DeployV2Core.s.sol
 
-### Architecture Analysis
-1. **Current Deployment System:**
-   - `DeployV2Base.s.sol` provides base deployment functionality
-   - `DeployV2Core.s.sol` handles main deployment logic with ContractAvailability struct
-   - Uses environment-based bytecode folders: `locked-bytecode` (prod) vs `locked-bytecode-dev` (staging)
-   - Shell script `deploy_v2_staging_prod.sh` orchestrates deployment across networks
+2. **Deployment Logic Updates**
+   - Place new hook at index 19, shift existing hooks 19+ up by 1
+   - Update array length from 34 to 35
+   - Update availability calculations to count 2 Across hooks
+   - Add contract check and deployment logic
+   - Update address mappings
 
-2. **Existing Skip Mechanisms:**
-   - `ContractAvailability` struct has `skippedContracts` array for chain-specific unavailability
-   - Tracks contracts that can't be deployed due to missing configurations (bridge support, protocol availability)
-   - Shell script validates locked bytecode files exist using `validate_locked_bytecode()` function
+3. **Bytecode Generation**
+   - Add to regenerate_bytecode.sh
 
-3. **Current Bytecode Loading:**
-   - `__getBytecodeArtifactPath()` returns path based on environment 
-   - `__getBytecode()` and `__checkContractOnChain()` use `vm.getCode()` to load bytecode
-   - No current check for bytecode existence before attempting to load
+## Implementation Summary - COMPLETED ✅
 
-4. **Deployment Flow:**
-   - Check phase: `__checkContractOnChain()` determines deployment status
-   - Deploy phase: Only missing contracts get deployed
-   - Shell script already has logic to skip networks where all contracts are deployed
+Successfully added `ApproveAndAcrossSendFundsAndExecuteOnDstHook` to the Superform v2 Core deployment system using identical patterns to `AcrossSendFundsAndExecuteOnDstHook`.
 
-### Key Findings
-- Shell script already validates that bytecode files exist before starting deployment
-- Missing: Individual contract-level bytecode existence checking during deployment
-- Need: Enhanced tracking to distinguish "missing bytecode" vs "chain unavailable" skips
-- Need: Better reporting in shell script for contracts coded but missing bytecode
+### Changes Made:
 
-## Implementation Plan Created
-Detailed plan saved to implementation document...
+1. **Constants & Structure Updates** ✅
+   - Added `APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY` constant to script/utils/Constants.sol:115
+   - Added `approveAndAcrossSendFundsAndExecuteOnDstHook` field to HookAddresses struct in DeployV2Core.s.sol:50
+
+2. **Deployment Logic Updates** ✅
+   - Updated availability calculations to count 2 Across hooks instead of 1 (DeployV2Core.s.sol:160)
+   - Updated hook list comments to include the new hook (DeployV2Core.s.sol:253)
+   - Added contract check logic for new hook (DeployV2Core.s.sol:711-724)
+   - Updated hook array length from 34 to 35 (DeployV2Core.s.sol:1531)
+   - Updated baseHooks array declaration from 34 to 35 (DeployV2Core.s.sol:245)
+
+3. **Hook Array Management** ✅
+   - Added deployment logic for new hook at index 19 (DeployV2Core.s.sol:1628-1634)
+   - Shifted all existing hooks from indices 19+ up by 1:
+     - DeBridge hooks: 19→20, 20→21
+     - All subsequent hooks: 21→22, 22→23, etc. up to 33→34
+   - Updated all corresponding address mappings to match new indices
+
+4. **Address Mappings** ✅
+   - Added address mapping for new hook at index 19 (DeployV2Core.s.sol:1782-1783)
+   - Updated all shifted hook address mappings to use correct indices
+
+5. **Bytecode Generation** ✅
+   - Added "ApproveAndAcrossSendFundsAndExecuteOnDstHook" to regenerate_bytecode.sh:121
+
+### Validation ✅
+- All changes compile successfully with `forge build`
+- Hook uses identical constructor parameters: `(spokePoolV3_, validator_)`
+- Same availability dependencies: requires `acrossSpokePoolV3s[chainId]` and `superValidator`
+- Same conditional deployment logic based on chain-specific Across configuration
+
+### Deployment Notes:
+- New hook is deployed at index 19, immediately after the original AcrossSendFundsAndExecuteOnDstHook (index 18)
+- All hooks from original index 19 onward have been systematically shifted up by 1
+- Both hooks share the same availability check and constructor parameters
+- Both hooks are skipped together if Across is not available on a chain
+
+The implementation follows the exact same patterns as the existing AcrossSendFundsAndExecuteOnDstHook, ensuring consistency with the current architecture and deployment system.

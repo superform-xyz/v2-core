@@ -118,6 +118,7 @@ HOOK_CONTRACTS=(
     "SwapOdosV2Hook"
     "ApproveAndSwapOdosV2Hook"
     "AcrossSendFundsAndExecuteOnDstHook"
+    "ApproveAndAcrossSendFundsAndExecuteOnDstHook"
     "DeBridgeSendOrderAndExecuteOnDstHook"
     "DeBridgeCancelOrderHook"
     "EthenaCooldownSharesHook"
