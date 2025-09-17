@@ -133,5 +133,20 @@ abstract contract ConfigCore is ConfigBase {
         configuration.nativeTokens[SONIC_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[GNOSIS_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[WORLDCHAIN_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
+
+        // ===== UNISWAP V4 POOL MANAGER ADDRESSES =====
+        configuration.uniswapV4PoolManagers[MAINNET_CHAIN_ID] = 0x000000000004444c5dc75cB358380D2e3dE08A90;
+        configuration.uniswapV4PoolManagers[BASE_CHAIN_ID] = 0x498581fF718922c3f8e6A244956aF099B2652b2b;
+        configuration.uniswapV4PoolManagers[BNB_CHAIN_ID] = address(0); // Not deployed
+        configuration.uniswapV4PoolManagers[ARBITRUM_CHAIN_ID] = 0x360E68faCcca8cA495c1B759Fd9EEe466db9FB32;
+        configuration.uniswapV4PoolManagers[OPTIMISM_CHAIN_ID] = 0x9a13F98Cb987694C9F086b1F5eB990EeA8264Ec3;
+        configuration.uniswapV4PoolManagers[POLYGON_CHAIN_ID] = 0x67366782805870060151383F4BbFF9daB53e5cD6;
+        configuration.uniswapV4PoolManagers[UNICHAIN_CHAIN_ID] = 0x1F98400000000000000000000000000000000004;
+        configuration.uniswapV4PoolManagers[LINEA_CHAIN_ID] = address(0); // Not deployed
+        configuration.uniswapV4PoolManagers[AVALANCHE_CHAIN_ID] = 0x06380C0e0912312B5150364B9DC4542BA0DbBc85;
+        configuration.uniswapV4PoolManagers[BERACHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.uniswapV4PoolManagers[SONIC_CHAIN_ID] = address(0); // Not deployed
+        configuration.uniswapV4PoolManagers[GNOSIS_CHAIN_ID] = address(0); // Not deployed
+        configuration.uniswapV4PoolManagers[WORLDCHAIN_CHAIN_ID] = 0xb1860D529182ac3BC1F51Fa2ABd56662b7D13f33;
     }
 }

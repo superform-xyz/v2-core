@@ -234,7 +234,7 @@ OUTPUT_BASE_DIR="script/output"
 if command -v op >/dev/null 2>&1; then
     log "INFO" "Running in local environment with 1Password CLI available"
     # For local runs with op available, get TENDERLY_ACCESS_KEY from 1Password
-    TENDERLY_ACCESS_KEY=$(op read "op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY/credential")
+    TENDERLY_ACCESS_KEY=$(op read "op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY_V2/credential")
 else
     
     # Source .env if any required variable is missing

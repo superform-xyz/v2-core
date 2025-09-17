@@ -40,5 +40,11 @@
   },
   "lib/surl": {
     "rev": "5f92a5260c8e0198ca3ee6a16255d6cda4e0887a"
+  },
+  "lib/v4-core": {
+    "tag": {
+      "name": "v4.0.0",
+      "rev": "e50237c43811bd9b526eff40f26772152a42daba"
+    }
   }
 }
