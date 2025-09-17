@@ -2,8 +2,8 @@
 pragma solidity 0.8.30;
 
 // Superform
-import {ISuperSignatureStorage} from "../interfaces/ISuperSignatureStorage.sol";
-import {SignatureTransientStorage} from "../libraries/SignatureTransientStorage.sol";
+import { ISuperSignatureStorage } from "../../../src/interfaces/ISuperSignatureStorage.sol";
+import { SignatureTransientStorage } from "../../../src/libraries/SignatureTransientStorage.sol";
 
 /// @title SuperSignatureStorageOverride
 /// @author Superform Labs
@@ -18,9 +18,7 @@ contract SuperSignatureStorageOverride is ISuperSignatureStorage {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperSignatureStorage
-    function retrieveSignatureData(
-        address account
-    ) external view returns (bytes memory) {
+    function retrieveSignatureData(address account) external view returns (bytes memory) {
         uint256 identifier = uint256(uint160(account));
 
         // Load signature data from transient storage
@@ -31,10 +29,7 @@ contract SuperSignatureStorageOverride is ISuperSignatureStorage {
     /// @dev Takes a signature and address, creates identifier and stores the signature in transient storage
     /// @param signature The signature data to store
     /// @param account The account address to associate with the signature
-    function storeSignatureData(
-        bytes calldata signature,
-        address account
-    ) external {
+    function storeSignatureData(bytes calldata signature, address account) external {
         uint256 identifier = uint256(uint160(account));
         identifier.storeSignature(signature);
     }
