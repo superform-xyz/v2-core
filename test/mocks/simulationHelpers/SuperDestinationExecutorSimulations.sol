@@ -7,7 +7,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { SuperMockExecutorBase } from "./SuperMockExecutorBase.sol";
+import { SuperExecutorBaseSimulations } from "./SuperExecutorBaseSimulations.sol";
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestinationExecutor.sol";
 import { ISuperDestinationValidator } from "../../../src/interfaces/ISuperDestinationValidator.sol";
@@ -15,12 +15,12 @@ import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 import { ISuperSenderCreator } from "../../../src/interfaces/ISuperSenderCreator.sol";
 import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 
-/// @title SuperMockDestinationExecutor
+/// @title SuperDestinationExecutorSimulations.sol
 /// @author Superform Labs
 /// @notice Mock executor for destination chains of Superform, processing bridged executions
 /// @dev This contract is not to be deployed, only the deployed bytecode is used for eth_calls
 ///      It implements ISuperDestinationExecutor for testing purposes
-contract SuperMockDestinationExecutor is SuperMockExecutorBase, ISuperDestinationExecutor {
+contract SuperDestinationExecutorSimulations is SuperExecutorBaseSimulations, ISuperDestinationExecutor {
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
@@ -57,7 +57,7 @@ contract SuperMockDestinationExecutor is SuperMockExecutorBase, ISuperDestinatio
         address ledgerConfiguration_,
         address superDestinationValidator_
     )
-        SuperMockExecutorBase(ledgerConfiguration_)
+        SuperExecutorBaseSimulations(ledgerConfiguration_)
     {
         // Validate critical contract references
         if (superDestinationValidator_ == address(0)) {

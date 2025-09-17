@@ -22,16 +22,10 @@ import {
 } from "../../../src/interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../src/libraries/HookDataDecoder.sol";
 
-/// @title SuperExecutorBase
+/// @title SuperExecutorBaseSimulations
 /// @author Superform Labs
-/// @notice Base contract for Superform executors that processes hook sequences
-/// @dev Implements the executor logic for processing hooks in sequence with these key features:
-///      1. Chain of hooks execution - Processes hooks in order, passing results between them
-///      2. Accounting integration - Updates the ledger based on hook operations
-///      3. Fee handling - Calculates and transfers fees for yield-generating operations
-///      4. Cross-chain operations - Handles locking assets for cross-chain positions
-///      5. ERC-7579 compliance - Integrates with smart account architecture
-abstract contract SuperMockExecutorBase is ERC7579ExecutorBase, ISuperExecutor, ReentrancyGuard {
+/// @notice Base contract for Superform executors used for simulations. This contract is not to be deployed
+abstract contract SuperExecutorBaseSimulations is ERC7579ExecutorBase, ISuperExecutor, ReentrancyGuard {
     using HookDataDecoder for bytes;
     using Math for uint256;
 

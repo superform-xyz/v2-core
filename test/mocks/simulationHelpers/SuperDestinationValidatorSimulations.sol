@@ -4,14 +4,12 @@ pragma solidity 0.8.30;
 // external
 import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import { SuperMockValidatorBase } from "./SuperMockValidatorBase.sol";
+import { SuperValidatorBaseSimulations } from "./SuperValidatorBaseSimulations.sol";
 
-/// @title SuperDestinationValidator
+/// @title SuperDestinationValidatorSimulations
 /// @author Superform Labs
-/// @notice Validates cross-chain operation signatures for destination chain operations
-/// @dev Handles signature verification and merkle proof validation for cross-chain messages
-///      Cannot be used for standard ERC-1271 validation (those methods revert with NOT_IMPLEMENTED)
-contract SuperMockDestinationValidator is SuperMockValidatorBase {
+/// @notice Simulation helper used for SuperDestinationValidator. This contract is not to be deployed
+contract SuperDestinationValidatorSimulations is SuperValidatorBaseSimulations {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/

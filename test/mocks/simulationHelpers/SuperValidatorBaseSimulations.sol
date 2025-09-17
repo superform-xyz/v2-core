@@ -11,10 +11,10 @@ import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import { ChainAgnosticSafeSignatureValidation } from "../../../src/libraries/ChainAgnosticSafeSignatureValidation.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 
-/// @title SuperMockValidatorBase
+/// @title SuperValidatorBaseSimulations
 /// @author Superform Labs
-/// @notice A base contract for all Superform validators
-abstract contract SuperMockValidatorBase is ERC7579ValidatorBase, ISuperValidator {
+/// @notice A base contract for all Superform validators used for simulations. This contract is not to be deployed
+abstract contract SuperValidatorBaseSimulations is ERC7579ValidatorBase, ISuperValidator {
     using ChainAgnosticSafeSignatureValidation for address;
 
     /*//////////////////////////////////////////////////////////////

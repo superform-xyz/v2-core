@@ -5,12 +5,12 @@ pragma solidity 0.8.30;
 import { ISuperSignatureStorage } from "../../../src/interfaces/ISuperSignatureStorage.sol";
 import { SignatureTransientStorage } from "../../../src/libraries/SignatureTransientStorage.sol";
 
-/// @title SuperSignatureStorageOverride
+/// @title SuperValidatorSimulations
 /// @author Superform Labs
 /// @notice Contract for signature storage operations using transient storage
 /// @dev This contract is designed to be compiled but not deployed - bytecode will be overwritten during eth_call
 ///      Provides both retrieval and storage functionality for signature data
-contract SuperSignatureStorageOverride is ISuperSignatureStorage {
+contract SuperValidatorSimulations is ISuperSignatureStorage {
     using SignatureTransientStorage for uint256;
 
     /*//////////////////////////////////////////////////////////////
