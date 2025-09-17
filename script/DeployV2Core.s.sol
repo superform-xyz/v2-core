@@ -64,6 +64,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address circleGatewayMinterHook;
         address circleGatewayAddDelegateHook;
         address circleGatewayRemoveDelegateHook;
+        address swapUniswapV4Hook;
     }
 
     struct HookDeployment {
@@ -90,6 +91,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool deBridgeCancelOrderHook;
         bool swap1InchHook;
         bool swapOdosHooks;
+        bool swapUniswapV4Hook;
         bool merklClaimRewardHook;
         uint256 expectedAdapters;
         uint256 expectedHooks;
@@ -116,7 +118,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     /// @param chainId The target chain ID
     /// @param env Environment (0 = prod uses locked-bytecode, 1/2 = dev/staging uses locked-bytecode-dev)
     /// @return availability ContractAvailability struct with availability flags and expected counts
-    function _getContractAvailability(uint64 chainId, uint256 env)
+    function _getContractAvailability(
+        uint64 chainId,
+        uint256 env
+    )
         internal
         view
         returns (ContractAvailability memory availability)
@@ -197,6 +202,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             potentialSkips[skipCount++] = "MerklClaimRewardHook";
         }
 
+        if (configuration.uniswapV4PoolManagers[chainId] != address(0)) {
+            availability.swapUniswapV4Hook = true;
+            expectedHooks += 1; // SwapUniswapV4Hook
+        } else {
+            potentialSkips[skipCount++] = "SwapUniswapV4Hook";
+        }
+
         availability.expectedHooks = expectedHooks;
 
         // Oracles (always expected): 7 contracts
@@ -214,12 +226,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Check bytecode existence and collect missing contracts
         string[] memory potentialMissing = new string[](50); // Conservative size for all possible contracts
         uint256 missingCount = 0;
-        
+
         // Core contracts (11 contracts - always check these)
         string[11] memory coreContracts = [
             "SuperExecutor",
             "SuperDestinationExecutor",
-            "SuperSenderCreator", 
+            "SuperSenderCreator",
             "AcrossV3Adapter",
             "DebridgeAdapter",
             "SuperLedger",
@@ -229,37 +241,61 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "SuperDestinationValidator",
             "SuperNativePaymaster"
         ];
-        
+
         for (uint256 i = 0; i < coreContracts.length; i++) {
             if (!__checkBytecodeExists(coreContracts[i], env)) {
                 potentialMissing[missingCount++] = coreContracts[i];
             }
         }
-        
+
         // Note: AcrossV3Adapter and DebridgeAdapter are checked above in coreContracts
         // as they are part of CORE_CONTRACTS in regenerate_bytecode.sh
-        
-        // Hook contracts - all 34 hooks from regenerate_bytecode.sh
-        string[34] memory baseHooks = [
-            "ApproveERC20Hook", "TransferERC20Hook", "BatchTransferHook", "BatchTransferFromHook",
-            "Deposit4626VaultHook", "ApproveAndDeposit4626VaultHook", "Redeem4626VaultHook",
-            "Deposit5115VaultHook", "ApproveAndDeposit5115VaultHook", "Redeem5115VaultHook", 
-            "RequestDeposit7540VaultHook", "ApproveAndRequestDeposit7540VaultHook", "Redeem7540VaultHook",
-            "RequestRedeem7540VaultHook", "Deposit7540VaultHook", "CancelDepositRequest7540Hook",
-            "CancelRedeemRequest7540Hook", "ClaimCancelDepositRequest7540Hook", "ClaimCancelRedeemRequest7540Hook",
-            "Swap1InchHook", "SwapOdosV2Hook", "ApproveAndSwapOdosV2Hook",
-            "AcrossSendFundsAndExecuteOnDstHook", "DeBridgeSendOrderAndExecuteOnDstHook", "DeBridgeCancelOrderHook",
-            "EthenaCooldownSharesHook", "EthenaUnstakeHook", "OfframpTokensHook", "MarkRootAsUsedHook",
-            "MerklClaimRewardHook", "CircleGatewayWalletHook", "CircleGatewayMinterHook",
-            "CircleGatewayAddDelegateHook", "CircleGatewayRemoveDelegateHook"
+
+        // Hook contracts - all 35 hooks from regenerate_bytecode.sh
+        string[35] memory baseHooks = [
+            "ApproveERC20Hook",
+            "TransferERC20Hook",
+            "BatchTransferHook",
+            "BatchTransferFromHook",
+            "Deposit4626VaultHook",
+            "ApproveAndDeposit4626VaultHook",
+            "Redeem4626VaultHook",
+            "Deposit5115VaultHook",
+            "ApproveAndDeposit5115VaultHook",
+            "Redeem5115VaultHook",
+            "RequestDeposit7540VaultHook",
+            "ApproveAndRequestDeposit7540VaultHook",
+            "Redeem7540VaultHook",
+            "RequestRedeem7540VaultHook",
+            "Deposit7540VaultHook",
+            "CancelDepositRequest7540Hook",
+            "CancelRedeemRequest7540Hook",
+            "ClaimCancelDepositRequest7540Hook",
+            "ClaimCancelRedeemRequest7540Hook",
+            "Swap1InchHook",
+            "SwapOdosV2Hook",
+            "ApproveAndSwapOdosV2Hook",
+            "AcrossSendFundsAndExecuteOnDstHook",
+            "DeBridgeSendOrderAndExecuteOnDstHook",
+            "DeBridgeCancelOrderHook",
+            "EthenaCooldownSharesHook",
+            "EthenaUnstakeHook",
+            "OfframpTokensHook",
+            "MarkRootAsUsedHook",
+            "MerklClaimRewardHook",
+            "CircleGatewayWalletHook",
+            "CircleGatewayMinterHook",
+            "CircleGatewayAddDelegateHook",
+            "CircleGatewayRemoveDelegateHook",
+            "SwapUniswapV4Hook"
         ];
-        
+
         for (uint256 i = 0; i < baseHooks.length; i++) {
             if (!__checkBytecodeExists(baseHooks[i], env)) {
                 potentialMissing[missingCount++] = baseHooks[i];
             }
         }
-        
+
         // Oracles (7 contracts - always check these)
         string[7] memory oracleContracts = [
             "ERC4626YieldSourceOracle",
@@ -270,13 +306,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "StakingYieldSourceOracle",
             "SuperYieldSourceOracle"
         ];
-        
+
         for (uint256 i = 0; i < oracleContracts.length; i++) {
             if (!__checkBytecodeExists(oracleContracts[i], env)) {
                 potentialMissing[missingCount++] = oracleContracts[i];
             }
         }
-        
+
         // Create properly sized missing bytecode contracts array
         availability.missingBytecodeContracts = new string[](missingCount);
         for (uint256 i = 0; i < missingCount; i++) {
@@ -767,6 +803,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             abi.encode(GATEWAY_WALLET),
             env
         );
+
+        // UniswapV4 swap hook
+        if (availability.swapUniswapV4Hook) {
+            __checkContract(
+                SWAP_UNISWAPV4_HOOK_KEY,
+                __getSalt(SWAP_UNISWAPV4_HOOK_KEY),
+                abi.encode(configuration.uniswapV4PoolManagers[chainId]),
+                env
+            );
+        } else {
+            console2.log("SKIPPED SwapUniswapV4Hook: Uniswap V4 PoolManager not configured for chain", chainId);
+        }
     }
 
     /// @notice Check oracle contracts
@@ -1511,7 +1559,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 34;
+        uint256 len = 35;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -1694,6 +1742,19 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             abi.encodePacked(__getBytecode("CircleGatewayRemoveDelegateHook", env), abi.encode(GATEWAY_WALLET))
         );
 
+        // UniswapV4 Swap Hook - Only deploy if V4 PoolManager available on this chain
+        if (availability.swapUniswapV4Hook) {
+            hooks[34] = HookDeployment(
+                SWAP_UNISWAPV4_HOOK_KEY,
+                abi.encodePacked(
+                    __getBytecode("SwapUniswapV4Hook", env), abi.encode(configuration.uniswapV4PoolManagers[chainId])
+                )
+            );
+        } else {
+            console2.log("SKIPPED SwapUniswapV4Hook: Uniswap V4 PoolManager not available on chain", chainId);
+            hooks[34] = HookDeployment("", ""); // Empty deployment
+        }
+
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying hooks with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
@@ -1783,6 +1844,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[32].name, CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY) ? addresses[32] : address(0);
         hookAddresses.circleGatewayRemoveDelegateHook =
             Strings.equal(hooks[33].name, CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY) ? addresses[33] : address(0);
+        hookAddresses.swapUniswapV4Hook =
+            Strings.equal(hooks[34].name, SWAP_UNISWAPV4_HOOK_KEY) ? addresses[34] : address(0);
 
         // ===== FINAL VALIDATION OF ALL CRITICAL HOOKS =====
         require(hookAddresses.approveErc20Hook != address(0), "APPROVE_ERC20_HOOK_NOT_ASSIGNED");

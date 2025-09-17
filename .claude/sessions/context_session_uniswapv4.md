@@ -202,3 +202,72 @@ POOL_MANAGER.sync(inputCurrency);
 IERC20(inputToken).transfer(address(POOL_MANAGER), amountIn);
 POOL_MANAGER.settle();
 ```
+
+## DEPLOYMENT PHASE: Adding UniswapV4Hook to Production Scripts ⭐ CURRENT TASK
+
+### Research Findings (December 2025)
+
+#### 1. SwapUniswapV4Hook Constructor Requirements
+```solidity
+constructor(address poolManager_) BaseHook(ISuperHook.HookType.NONACCOUNTING, HookSubTypes.SWAP) {
+    POOL_MANAGER = IPoolManager(poolManager_);
+}
+```
+**Dependency**: Requires the Uniswap V4 PoolManager address for each supported chain.
+
+#### 2. Current Deployment Pattern Analysis
+Based on examination of `script/DeployV2Core.s.sol`:
+- **Hook Array Size**: Currently `uint256 len = 34;` - **MUST** increase to 35
+- **Conditional Deployment**: Uses `_getContractAvailability()` to check if external dependencies are available
+- **Constructor Pattern**: Uses `abi.encodePacked(__getBytecode("ContractName", env), abi.encode(dependencyAddress))`
+- **Index Assignment**: Hook deployed at index 34 (new hook will be index 34, current index 33 becomes final)
+
+#### 3. Configuration Requirements Analysis
+From `script/utils/ConfigCore.sol` and `ConfigBase.sol`:
+- **New Field Needed**: `mapping(uint64 chainId => address poolManager) uniswapV4PoolManagers;`
+- **Availability Check**: New boolean field in `ContractAvailability` struct for V4 availability
+- **Configuration Pattern**: Similar to `aggregationRouters` and `odosRouters` mappings
+
+#### 4. Uniswap V4 PoolManager Deployment Addresses (Mainnet Production)
+From official Uniswap documentation (https://docs.uniswap.org/contracts/v4/deployments):
+
+**Currently Deployed (12 chains):**
+- **Ethereum (1)**: `0x000000000004444c5dc75cB358380D2e3dE08A90`
+- **Unichain (130)**: `0x1f98400000000000000000000000000000000004`
+- **Optimism (10)**: `0x9a13f98cb987694c9f086b1f5eb990eea8264ec3`
+- **Base (8453)**: `0x498581ff718922c3f8e6a244956af099b2652b2b`
+- **Arbitrum (42161)**: `0x360e68faccca8ca495c1b759fd9eee466db9fb32`
+- **Polygon (137)**: `0x67366782805870060151383f4bbff9dab53e5cd6`
+- **Blast (238)**: `0x1631559198a9e474033433b2958dabc135ab6446`
+- **Zora (7777777)**: `0x0575338e4c17006ae181b47900a84404247ca30f`
+- **World Chain (480)**: `0xb1860d529182ac3bc1f51fa2abd56662b7d13f33`
+- **Ink (57073)**: `0x360e68faccca8ca495c1b759fd9eee466db9fb32` (same as Arbitrum)
+- **Soneium Testnet (1946)**: `0x360e68faccca8ca495c1b759fd9eee466db9fb32` (same as Arbitrum/Ink)
+- **Avalanche (43114)**: `0x06380c0e0912312b5150364b9dc4542ba0dbbc85`
+
+**Not Yet Deployed (Superform supported chains):**
+- **BNB Chain (56)**: Not deployed
+- **Linea (59144)**: Not deployed  
+- **Berachain (80084)**: Not deployed
+- **Sonic (146)**: Not deployed
+- **Gnosis (100)**: Not deployed
+
+#### 5. Hook Key Definition Required
+From `script/utils/Constants.sol` - need to add:
+```solidity
+string internal constant SWAP_UNISWAPV4_HOOK_KEY = "SwapUniswapV4Hook";
+```
+
+### Implementation Requirements Summary
+
+1. **Constants Update**: Add `SWAP_UNISWAPV4_HOOK_KEY` to Constants.sol
+2. **ConfigBase Enhancement**: Add `uniswapV4PoolManagers` mapping to EnvironmentData struct  
+3. **ConfigCore Enhancement**: Set PoolManager addresses for all deployed chains, address(0) for non-deployed
+4. **DeployV2Core Updates**: 
+   - Increase array length to 35
+   - Add V4 availability check to ContractAvailability struct
+   - Add conditional V4 hook deployment logic
+   - Add V4 hook to final address assignment
+5. **Multi-Chain Support**: Handle 12 chains with V4 deployed, graceful fallback for 5 chains without deployment
+
+This research provides the complete foundation for implementing UniswapV4Hook deployment across all Superform-supported chains with proper conditional deployment based on V4 availability.
