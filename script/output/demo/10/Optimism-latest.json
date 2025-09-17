@@ -1,6 +1,7 @@
 {
   "AcrossSendFundsAndExecuteOnDstHook": "0xEfbe3C6FB4E50081a27030b3B0bB1be67f6f583c",
   "AcrossV3Adapter": "0xa94dc63E965a06cCfd2723Bf0E5b72294EDBD737",
+  "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0x2D71e9C5291D27a181F81801d1442Bc94B292657",
   "ApproveAndDeposit4626VaultHook": "0xb04268f3DDf00569bD6bd7d74B05e0CFbb11ED03",
   "ApproveAndDeposit5115VaultHook": "0x6780cAd22E3CF01175393F02003670555d6cB8F4",
   "ApproveAndRequestDeposit7540VaultHook": "0x7C4C41C8E0C6360f2a27e1997e6E323668Ab6DAa",

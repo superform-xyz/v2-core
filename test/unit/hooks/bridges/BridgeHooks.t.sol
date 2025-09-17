@@ -4,12 +4,15 @@ pragma solidity 0.8.30;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../../../../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
+import { ApproveAndAcrossSendFundsAndExecuteOnDstHook } from
+    "../../../../src/hooks/bridges/across/ApproveAndAcrossSendFundsAndExecuteOnDstHook.sol";
 import { DeBridgeSendOrderAndExecuteOnDstHook } from
     "../../../../src/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
 import { DeBridgeCancelOrderHook } from "../../../../src/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
 import { ISuperValidator } from "../../../../src/interfaces/ISuperValidator.sol";
 import { ISuperHook, ISuperHookResult } from "../../../../src/interfaces/ISuperHook.sol";
 import { IAcrossSpokePoolV3 } from "../../../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { MockHook } from "../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
@@ -49,6 +52,7 @@ contract MockDebridgeCancelOrderHook is DeBridgeCancelOrderHook {
 
 contract BridgeHooks is Helpers {
     AcrossSendFundsAndExecuteOnDstHook public acrossV3hook;
+    ApproveAndAcrossSendFundsAndExecuteOnDstHook public approveAndAcrossV3hook;
     DeBridgeSendOrderAndExecuteOnDstHook public deBridgehook;
     DeBridgeCancelOrderHook public cancelOrderHook;
     address public mockSpokePool;
@@ -83,6 +87,7 @@ contract BridgeHooks is Helpers {
         mockExclusivityPeriod = 1800;
         mockSignatureStorage = new MockSignatureStorage();
         acrossV3hook = new AcrossSendFundsAndExecuteOnDstHook(mockSpokePool, address(mockSignatureStorage));
+        approveAndAcrossV3hook = new ApproveAndAcrossSendFundsAndExecuteOnDstHook(mockSpokePool, address(mockSignatureStorage));
         deBridgehook = new DeBridgeSendOrderAndExecuteOnDstHook(address(this), address(mockSignatureStorage));
         cancelOrderHook = new DeBridgeCancelOrderHook(address(this)); // Initialize with this contract as dlnSource
 
@@ -654,5 +659,192 @@ contract BridgeHooks is Helpers {
         returns (bytes memory)
     {
         return abi.encodePacked(part1, part2);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                       APPROVE AND ACROSS V3 HOOK TESTS
+    //////////////////////////////////////////////////////////////*/
+    
+    function test_ApproveAndAcrossV3_Constructor() public view {
+        assertEq(address(approveAndAcrossV3hook.SPOKE_POOL_V3()), mockSpokePool);
+        assertEq(uint256(approveAndAcrossV3hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
+    }
+
+    function test_ApproveAndAcrossV3_Constructor_RevertIf_ZeroAddress() public {
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        new ApproveAndAcrossSendFundsAndExecuteOnDstHook(address(0), address(this));
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        new ApproveAndAcrossSendFundsAndExecuteOnDstHook(address(this), address(0));
+    }
+
+    function test_ApproveAndAcrossV3_Build_ERC20() public {
+        bytes memory data = _encodeAcrossData(false);
+
+        Execution[] memory executions = approveAndAcrossV3hook.build(address(0), mockAccount, data);
+
+        assertEq(executions.length, 6, "Should have 6 executions for ERC20 (4 hook + preExecute + postExecute)");
+        
+        // Check approval reset to 0 (index 1 after preExecute)
+        assertEq(executions[1].target, mockInputToken);
+        assertEq(executions[1].value, 0);
+        assertEq(executions[1].callData, abi.encodeCall(IERC20.approve, (mockSpokePool, 0)));
+
+        // Check approval to exact amount
+        assertEq(executions[2].target, mockInputToken);
+        assertEq(executions[2].value, 0);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (mockSpokePool, mockInputAmount)));
+
+        // Check bridge execution
+        assertEq(executions[3].target, mockSpokePool);
+        assertEq(executions[3].value, mockValue);
+
+        // Check approval cleanup
+        assertEq(executions[4].target, mockInputToken);
+        assertEq(executions[4].value, 0);
+        assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (mockSpokePool, 0)));
+    }
+
+
+    function test_ApproveAndAcrossV3_Build_WithPrevHookAmount() public {
+        uint256 prevHookAmount = 2000;
+        
+        mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, mockAccount);
+
+        vm.mockCall(
+            mockPrevHook, abi.encodeWithSelector(ISuperHookResult.getOutAmount.selector), abi.encode(prevHookAmount)
+        );
+
+        bytes memory data = _encodeAcrossData(true);
+
+        Execution[] memory executions = approveAndAcrossV3hook.build(mockPrevHook, mockAccount, data);
+
+        assertEq(executions.length, 6, "Should have 6 executions for ERC20 with prev amount (4 hook + preExecute + postExecute)");
+        
+        // Check that approval uses prev hook amount (index 2 after preExecute)
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (mockSpokePool, prevHookAmount)));
+        
+        // Verify bridge call uses updated amounts
+        uint256 finalOutputAmount = Math.mulDiv(mockOutputAmount, prevHookAmount, mockInputAmount);
+        bytes memory sigData = mockSignatureStorage.retrieveSignatureData(address(0));
+
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(mockOutputToken);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1;
+        bytes memory expectedMessage = abi.encode(
+            bytes("0x123"), bytes("0x123"), address(this), dstTokens, intentAmounts, sigData
+        );
+
+        bytes memory expectedBridgeCall = abi.encodeCall(
+            IAcrossSpokePoolV3.depositV3Now,
+            (
+                mockAccount,
+                mockRecipient,
+                mockInputToken,
+                mockOutputToken,
+                prevHookAmount,
+                finalOutputAmount,
+                mockDestinationChainId,
+                mockExclusiveRelayer,
+                mockFillDeadlineOffset,
+                mockExclusivityPeriod,
+                expectedMessage
+            )
+        );
+        
+        assertEq(executions[3].callData, expectedBridgeCall);
+    }
+
+    function test_ApproveAndAcrossV3_Build_RevertIf_AmountNotValid() public {
+        mockInputAmount = 0;
+        bytes memory data = _encodeAcrossData(false);
+
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        approveAndAcrossV3hook.build(address(0), mockAccount, data);
+    }
+
+    function test_ApproveAndAcrossV3_Build_RevertIf_RecipientNotValid() public {
+        mockRecipient = address(0);
+        bytes memory data = _encodeAcrossData(false);
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        approveAndAcrossV3hook.build(address(0), mockAccount, data);
+    }
+
+    function test_ApproveAndAcrossV3_Build_RevertIf_DataNotValid() public {
+        // Create data shorter than required 217 bytes
+        bytes memory malformedData = abi.encodePacked(
+            uint256(1 ether), // value (32 bytes)
+            address(0x1), // recipient (20 bytes)
+            address(0x2) // inputToken (20 bytes) - total 72 bytes, should fail
+        );
+
+        vm.expectRevert(ApproveAndAcrossSendFundsAndExecuteOnDstHook.DATA_NOT_VALID.selector);
+        approveAndAcrossV3hook.build(address(0), mockAccount, malformedData);
+    }
+
+    function test_ApproveAndAcrossV3_Inspector() public view {
+        bytes memory data = _encodeAcrossData(false);
+        bytes memory argsEncoded = approveAndAcrossV3hook.inspect(data);
+        
+        // Should return same result as original hook
+        bytes memory originalResult = acrossV3hook.inspect(data);
+        assertEq(argsEncoded, originalResult);
+        assertGt(argsEncoded.length, 0);
+    }
+
+    function test_ApproveAndAcrossV3_DecodeUsePrevHookAmount() public view {
+        bytes memory data = _encodeAcrossData(false);
+        assertFalse(approveAndAcrossV3hook.decodeUsePrevHookAmount(data));
+
+        data = _encodeAcrossData(true);
+        assertTrue(approveAndAcrossV3hook.decodeUsePrevHookAmount(data));
+    }
+
+    function test_ApproveAndAcrossV3_PreExecute() public {
+        approveAndAcrossV3hook.preExecute(address(0), address(this), "");
+    }
+
+    function test_ApproveAndAcrossV3_PostExecute() public {
+        approveAndAcrossV3hook.postExecute(address(0), address(this), "");
+    }
+
+
+    function test_ApproveAndAcrossV3_Build_WithMessage() public {
+        bytes memory data = _encodeAcrossData(false);
+
+        Execution[] memory executions = approveAndAcrossV3hook.build(address(0), mockAccount, data);
+
+        assertEq(executions.length, 6);
+        
+        // Verify the bridge call includes the processed message with signature (index 3 after preExecute)
+        bytes memory sigData = mockSignatureStorage.retrieveSignatureData(address(0));
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(mockOutputToken);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1;
+        bytes memory expectedMessage = abi.encode(
+            bytes("0x123"), bytes("0x123"), address(this), dstTokens, intentAmounts, sigData
+        );
+
+        bytes memory expectedBridgeCall = abi.encodeCall(
+            IAcrossSpokePoolV3.depositV3Now,
+            (
+                mockAccount,
+                mockRecipient,
+                mockInputToken,
+                mockOutputToken,
+                mockInputAmount,
+                mockOutputAmount,
+                mockDestinationChainId,
+                mockExclusiveRelayer,
+                mockFillDeadlineOffset,
+                mockExclusivityPeriod,
+                expectedMessage
+            )
+        );
+        
+        assertEq(executions[3].callData, expectedBridgeCall);
     }
 }

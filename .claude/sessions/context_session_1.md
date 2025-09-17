@@ -1,88 +1,73 @@
-# Session Context 1: Transform CrosschainWithDestinationSwapTests to Use UniswapV4 Hook
+# Session Context - Adding ApproveAndAcrossSendFundsAndExecuteOnDstHook to Deployment
 
-## Objective
-Transform CrosschainWithDestinationSwapTests.sol to use UniswapV4HookIntegrationTest.t.sol functions for quoting and preparation instead of 0x integration. Remove all 0x-related code as it was part of another unmerged PR.
+## Task Overview
+Add the new `ApproveAndAcrossSendFundsAndExecuteOnDstHook` to the Superform v2 Core deployment system using the exact same pattern as the existing `AcrossSendFundsAndExecuteOnDstHook`.
 
-## Key Changes Required
-- Replace destination hook index 1 from 0x hook to UniswapV4 hook
-- Use UniswapV4HookIntegrationTest.t.sol functions for:
-  - Quoting mechanisms
-  - Swap preparation
-  - Hook execution setup
-- Remove all 0x-related imports, functions, and logic
+## Requirements
+1. Add to DeployV2Core hook deployment script
+2. Configure properly in ConfigCore 
+3. Add to regenerate_bytecode.sh for bytecode regeneration
+4. Follow exact same patterns as AcrossSendFundsAndExecuteOnDstHook
 
-## Current State
-- User selected line 304: `dstHookAddresses[1] = _getHookAddress(ETH, SWAP_0X_HOOK_KEY);`
-- This line needs to be transformed to use UniswapV4 hook instead
-- Need to analyze both test files to understand the transformation requirements
+## Implementation Plan
+Based on comprehensive analysis by superform-hook-master agent:
 
-## Research Analysis Completed
+### Key Changes Required:
+1. **Constants & Structure Updates**
+   - Add hook key constant to script/utils/Constants.sol
+   - Add field to HookAddresses struct in DeployV2Core.s.sol
 
-### CrosschainWithDestinationSwapTests.sol Analysis
-**Current Structure:**
-- Uses 4 hooks: approve WETH, swap WETH→USDC via 0x, approve USDC, deposit USDC
-- Line 305: `dstHookAddresses[1] = _getHookAddress(ETH, SWAP_0X_HOOK_KEY);` - needs replacement
-- Lines 320-335: 0x API quote generation and hook data creation
-- Uses `ZeroExQuoteResponse`, `getZeroExQuote()`, `createHookDataFromQuote()` - all need removal
-- Test: `test_Bridge_To_ETH_With_0x_Swap_And_Deposit()` - needs transformation
+2. **Deployment Logic Updates**
+   - Place new hook at index 19, shift existing hooks 19+ up by 1
+   - Update array length from 34 to 35
+   - Update availability calculations to count 2 Across hooks
+   - Add contract check and deployment logic
+   - Update address mappings
 
-### UniswapV4HookIntegrationTest.t.sol Analysis
-**Available Functionality:**
-- SwapUniswapV4Hook with `getQuote()` function
-- UniswapV4Parser with `generateSingleHopSwapCalldata()` function
-- Helper functions: `_calculatePriceLimit()`, `_executeTokenSwap()`
-- Proper pool setup with testPoolKey (USDC/WETH pool)
-- Dynamic minAmount recalculation patterns
-- Hook chaining support with `usePrevHookAmount`
+3. **Bytecode Generation**
+   - Add to regenerate_bytecode.sh
 
-### Key Constants and Functions to Replace
-**Remove:**
-- `SWAP_0X_HOOK_KEY` (not in Constants.sol - likely in unmerged PR)
-- `ALLOWANCE_HOLDER_ADDRESS = 0x0000000000001fF3684f28c67538d4D072C22734`
-- `getZeroExQuote()` function
-- `createHookDataFromQuote()` function
-- `ZeroExQuoteResponse` struct
+## Implementation Summary - COMPLETED ✅
 
-**Replace With:**
-- `SWAP_UNISWAP_V4_HOOK_KEY` (already exists in Constants.sol)
-- SwapUniswapV4Hook instance and functions
-- UniswapV4Parser instance and calldata generation
-- Direct token transfers instead of AllowanceHolder approvals
+Successfully added `ApproveAndAcrossSendFundsAndExecuteOnDstHook` to the Superform v2 Core deployment system using identical patterns to `AcrossSendFundsAndExecuteOnDstHook`.
 
-## Implementation Strategy Identified
-1. **Hook Infrastructure Setup**: Add UniswapV4Hook and Parser instances
-2. **Pool Configuration**: Set up proper WETH/USDC V4 pool parameters  
-3. **Quote Generation Replacement**: Replace 0x API calls with on-chain V4 quotes
-4. **Hook Data Generation**: Use UniswapV4Parser instead of 0x response parsing
-5. **Approval Pattern Change**: Direct token approvals instead of AllowanceHolder pattern
-6. **Test Method Transformation**: Adapt test flow to V4 hook execution pattern
+### Changes Made:
 
-## TRANSFORMATION COMPLETED ✅
+1. **Constants & Structure Updates** ✅
+   - Added `APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY` constant to script/utils/Constants.sol:115
+   - Added `approveAndAcrossSendFundsAndExecuteOnDstHook` field to HookAddresses struct in DeployV2Core.s.sol:50
 
-### Key Changes Successfully Made
-1. **Removed 0x Dependencies**: Completely removed all 0x-related code including ALLOWANCE_HOLDER_ADDRESS constant
-2. **Updated Hook Integration**: Changed line 305 from `SWAP_0X_HOOK_KEY` to `SWAP_UNISWAP_V4_HOOK_KEY` using BaseTest's hook setup
-3. **Fixed Approval Target**: Updated hook 0 approval from ALLOWANCE_HOLDER_ADDRESS to UniswapV4 hook address
-4. **Replaced Quote Generation**: Implemented proper UniswapV4 quote generation using:
-   - SwapUniswapV4Hook.getQuote() for on-chain quotes
-   - UniswapV4Parser.generateSingleHopSwapCalldata() for calldata generation
-   - Proper price limit calculations with slippage tolerance
-5. **Added Required Imports**: Added all necessary V4 core imports (IPoolManager, PoolKey, Currency, etc.)
-6. **Pool Configuration**: Set up WETH/USDC pool configuration with proper fee and tick spacing
-7. **Helper Functions**: Added _calculatePriceLimit() and _sqrt() functions for price calculations
-8. **Updated Documentation**: Changed test method name and comments to reflect UniswapV4 usage
+2. **Deployment Logic Updates** ✅
+   - Updated availability calculations to count 2 Across hooks instead of 1 (DeployV2Core.s.sol:160)
+   - Updated hook list comments to include the new hook (DeployV2Core.s.sol:253)
+   - Added contract check logic for new hook (DeployV2Core.s.sol:711-724)
+   - Updated hook array length from 34 to 35 (DeployV2Core.s.sol:1531)
+   - Updated baseHooks array declaration from 34 to 35 (DeployV2Core.s.sol:245)
 
-### Technical Implementation Details
-- **Hook Chaining**: Preserved `usePrevHookAmount = true` pattern for proper hook chaining
-- **Fee Reduction**: Maintained 20% fee reduction logic for bridge operations  
-- **BaseTest Integration**: Leveraged existing UniswapV4Hook setup from BaseTest instead of creating local instance
-- **Parser Usage**: Used inherited UniswapV4Parser functionality from BaseTest
-- **Slippage Protection**: Implemented 1% price limit + 0.5% additional buffer + 5% max deviation protection
+3. **Hook Array Management** ✅
+   - Added deployment logic for new hook at index 19 (DeployV2Core.s.sol:1628-1634)
+   - Shifted all existing hooks from indices 19+ up by 1:
+     - DeBridge hooks: 19→20, 20→21
+     - All subsequent hooks: 21→22, 22→23, etc. up to 33→34
+   - Updated all corresponding address mappings to match new indices
 
-### Test Results
-- **Compilation**: ✅ Successful compilation with no errors
-- **Test Execution**: ✅ Test runs successfully and reaches account verification stage
-- **Hook Integration**: ✅ UniswapV4 hook properly integrated and functional
-- **Infrastructure**: ✅ All BaseTest infrastructure properly utilized
+4. **Address Mappings** ✅
+   - Added address mapping for new hook at index 19 (DeployV2Core.s.sol:1782-1783)
+   - Updated all shifted hook address mappings to use correct indices
 
-The transformation successfully removes all 0x dependencies and replaces them with production-ready UniswapV4 hook integration while maintaining all existing crosschain functionality.
+5. **Bytecode Generation** ✅
+   - Added "ApproveAndAcrossSendFundsAndExecuteOnDstHook" to regenerate_bytecode.sh:121
+
+### Validation ✅
+- All changes compile successfully with `forge build`
+- Hook uses identical constructor parameters: `(spokePoolV3_, validator_)`
+- Same availability dependencies: requires `acrossSpokePoolV3s[chainId]` and `superValidator`
+- Same conditional deployment logic based on chain-specific Across configuration
+
+### Deployment Notes:
+- New hook is deployed at index 19, immediately after the original AcrossSendFundsAndExecuteOnDstHook (index 18)
+- All hooks from original index 19 onward have been systematically shifted up by 1
+- Both hooks share the same availability check and constructor parameters
+- Both hooks are skipped together if Across is not available on a chain
+
+The implementation follows the exact same patterns as the existing AcrossSendFundsAndExecuteOnDstHook, ensuring consistency with the current architecture and deployment system.

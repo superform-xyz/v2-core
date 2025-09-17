@@ -70,6 +70,8 @@ import { RequestRedeem7540VaultHook } from "../src/hooks/vaults/7540/RequestRede
 import { Withdraw7540VaultHook } from "../src/hooks/vaults/7540/Withdraw7540VaultHook.sol";
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
+import { ApproveAndAcrossSendFundsAndExecuteOnDstHook } from
+    "../src/hooks/bridges/across/ApproveAndAcrossSendFundsAndExecuteOnDstHook.sol";
 import { DeBridgeSendOrderAndExecuteOnDstHook } from
     "../src/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
 import { DeBridgeCancelOrderHook } from "../src/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
@@ -213,6 +215,7 @@ struct Addresses {
     ClaimCancelRedeemRequest7540Hook claimCancelRedeemRequest7540Hook;
     CancelRedeemHook cancelRedeemHook;
     AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
+    ApproveAndAcrossSendFundsAndExecuteOnDstHook approveAndAcrossSendFundsAndExecuteOnDstHook;
     DeBridgeSendOrderAndExecuteOnDstHook deBridgeSendOrderAndExecuteOnDstHook;
     DeBridgeCancelOrderHook deBridgeCancelOrderHook;
     Swap1InchHook swap1InchHook;
@@ -813,7 +816,7 @@ contract BaseTest is
                 SWAP_1INCH_HOOK_KEY, HookCategory.Swaps, HookCategory.TokenApprovals, address(A[i].swap1InchHook), ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_1INCH_HOOK_KEY]);
-            hooksAddresses[15] = address(A[i].swap1InchHook);
+            hooksAddresses[14] = address(A[i].swap1InchHook);
 
             MockOdosRouterV2 odosRouter = new MockOdosRouterV2{ salt: SALT }();
             mockOdosRouters[chainIds[i]] = address(odosRouter);
@@ -899,6 +902,27 @@ contract BaseTest is
                 hooks[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY]
             );
             hooksAddresses[20] = address(A[i].acrossSendFundsAndExecuteOnDstHook);
+
+            A[i].approveAndAcrossSendFundsAndExecuteOnDstHook = new ApproveAndAcrossSendFundsAndExecuteOnDstHook{
+                salt: SALT
+            }(SPOKE_POOL_V3_ADDRESSES[chainIds[i]], _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY));
+            vm.label(
+                address(A[i].approveAndAcrossSendFundsAndExecuteOnDstHook),
+                APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY
+            );
+            hookAddresses[chainIds[i]][APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] =
+                address(A[i].approveAndAcrossSendFundsAndExecuteOnDstHook);
+            hooks[chainIds[i]][APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] = Hook(
+                APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
+                HookCategory.Bridges,
+                HookCategory.TokenApprovals,
+                address(A[i].approveAndAcrossSendFundsAndExecuteOnDstHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Bridges].push(
+                hooks[chainIds[i]][APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY]
+            );
+            hooksAddresses[20] = address(A[i].approveAndAcrossSendFundsAndExecuteOnDstHook);
 
             A[i].deBridgeSendOrderAndExecuteOnDstHook = new DeBridgeSendOrderAndExecuteOnDstHook{ salt: SALT }(
                 DEBRIDGE_DLN_ADDRESSES[chainIds[i]], _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY)
