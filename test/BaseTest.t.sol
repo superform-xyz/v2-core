@@ -1754,6 +1754,7 @@ contract BaseTest is
         bool is7702
     )
         internal
+        view
         returns (address)
     {
         (, address account) = _createAccountCreationData_DestinationExecutor(
@@ -1777,6 +1778,7 @@ contract BaseTest is
         bool is7702
     )
         internal
+        view
         returns (bytes memory, address)
     {
         bytes memory executionData =
@@ -2096,13 +2098,18 @@ contract BaseTest is
 
     function _createAccountCreationData_DestinationExecutor(AccountCreationParams memory p)
         internal
+        view
         virtual
         returns (bytes memory, address)
     {
         return __createNon7702NexusInitData(p);
     }
 
-    function __createNon7702NexusInitData(AccountCreationParams memory p) internal returns (bytes memory, address) {
+    function __createNon7702NexusInitData(AccountCreationParams memory p)
+        internal
+        view
+        returns (bytes memory, address)
+    {
         // create validators
         BootstrapConfig[] memory validators = new BootstrapConfig[](2);
         validators[0] = BootstrapConfig({ module: p.validatorOnDestinationChain, data: abi.encode(p.theSigner) });
