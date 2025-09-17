@@ -205,6 +205,37 @@ contract CrosschainTests is BaseTest {
         bytes signatureData;
     }
 
+    /// @notice Common struct to group frequently used variables to avoid stack too deep errors
+    struct TestVariables {
+        uint256 amountPerVault;
+        uint256 amountToDeposit;
+        uint256 balanceBefore;
+        uint256 balanceAfter;
+        uint256 userShares;
+        uint256 userAssets;
+        uint256 expectedAmount;
+        uint256 msgValue;
+        uint256 finalBalance;
+        address accountToUse;
+        bytes targetExecutorMessage;
+        bytes signatureData;
+    }
+
+    /// @notice Struct for bridging test parameters to avoid stack too deep
+    struct BridgeTestParams {
+        uint256 amountPerVault;
+        uint256 amountToDeposit;
+        uint256 previewDepositAmount;
+        uint256 userBalanceBefore;
+        uint256 userBalanceAfter;
+        address accountToUse;
+        bytes targetExecutorMessage;
+        TargetExecutorMessage messageData;
+        UserOpData srcUserOpData;
+        ExecutionReturnData executionData;
+        bytes signatureData;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 SETUP
     //////////////////////////////////////////////////////////////*/
@@ -1424,14 +1455,12 @@ contract CrosschainTests is BaseTest {
     }
 
     function test_bridge_To_OP_And_Deposit_Test_And_Helper() public {
-        uint256 amountPerVault = 1e8 / 2;
+        BridgeTestParams memory params;
+        params.amountPerVault = 1e8 / 2;
 
         // OP IS DST
         SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
 
-        bytes memory targetExecutorMessage;
-        TargetExecutorMessage memory messageData;
-        address accountToUse;
         {
             // PREPARE OP DATA
             address[] memory opHooksAddresses = new address[](2);
@@ -1440,17 +1469,17 @@ contract CrosschainTests is BaseTest {
 
             bytes[] memory opHooksData = new bytes[](2);
             opHooksData[0] =
-                _createApproveHookData(underlyingOP_USDCe, yieldSource4626AddressOP_USDCe, amountPerVault, false);
+                _createApproveHookData(underlyingOP_USDCe, yieldSource4626AddressOP_USDCe, params.amountPerVault, false);
             opHooksData[1] = _createDeposit4626HookData(
                 _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
                 yieldSource4626AddressOP_USDCe,
-                amountPerVault,
+                params.amountPerVault,
                 true,
                 address(0),
                 0
             );
 
-            messageData = TargetExecutorMessage({
+            params.messageData = TargetExecutorMessage({
                 hooksAddresses: opHooksAddresses,
                 hooksData: opHooksData,
                 validator: address(destinationValidatorOnOP),
@@ -1461,20 +1490,21 @@ contract CrosschainTests is BaseTest {
                 nexusFactory: CHAIN_10_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_10_NEXUS_BOOTSTRAP,
                 chainId: uint64(OP),
-                amount: amountPerVault,
+                amount: params.amountPerVault,
                 account: accountOP,
                 tokenSent: underlyingOP_USDCe
             });
 
-            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
+            (params.targetExecutorMessage, params.accountToUse) =
+                _createTargetExecutorMessage(params.messageData, false);
         }
 
-        uint256 previewDepositAmountOP = vaultInstance4626OP.previewDeposit(amountPerVault);
+        params.previewDepositAmount = vaultInstance4626OP.previewDeposit(params.amountPerVault);
 
         // BASE IS SRC
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME);
 
-        uint256 userBalanceBaseUSDCBefore = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+        params.userBalanceBefore = IERC20(underlyingBase_USDC).balanceOf(accountBase);
 
         // PREPARE BASE DATA
         address[] memory srcHooksAddressesOP = new address[](2);
@@ -1483,27 +1513,32 @@ contract CrosschainTests is BaseTest {
 
         bytes[] memory srcHooksDataOP = new bytes[](2);
         srcHooksDataOP[0] =
-            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], params.amountPerVault, false);
         srcHooksDataOP[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingBase_USDC, underlyingOP_USDCe, amountPerVault, amountPerVault, OP, true, targetExecutorMessage
+            underlyingBase_USDC,
+            underlyingOP_USDCe,
+            params.amountPerVault,
+            params.amountPerVault,
+            OP,
+            true,
+            params.targetExecutorMessage
         );
 
-        UserOpData memory srcUserOpDataOP = _createUserOpData(srcHooksAddressesOP, srcHooksDataOP, BASE, true);
+        params.srcUserOpData = _createUserOpData(srcHooksAddressesOP, srcHooksDataOP, BASE, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(
-            messageData, srcUserOpDataOP.userOpHash, accountToUse, OP, address(sourceValidatorOnBase)
+        params.signatureData = _createMerkleRootAndSignature(
+            params.messageData, params.srcUserOpData.userOpHash, params.accountToUse, OP, address(sourceValidatorOnBase)
         );
-        srcUserOpDataOP.userOp.signature = signatureData;
+        params.srcUserOpData.userOp.signature = params.signatureData;
 
         // EXECUTE OP
-        ExecutionReturnData memory executionData =
-            executeOpsThroughPaymaster(srcUserOpDataOP, superNativePaymasterOnBase, 1e18);
+        params.executionData = executeOpsThroughPaymaster(params.srcUserOpData, superNativePaymasterOnBase, 1e18);
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
                 srcChainId: BASE,
                 dstChainId: OP,
                 warpTimestamp: WARP_START_TIME,
-                executionData: executionData,
+                executionData: params.executionData,
                 relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
                 errorMessage: bytes4(0),
                 errorReason: "",
@@ -1513,10 +1548,12 @@ contract CrosschainTests is BaseTest {
             })
         );
 
-        assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), userBalanceBaseUSDCBefore - amountPerVault, "A");
+        assertEq(
+            IERC20(underlyingBase_USDC).balanceOf(accountBase), params.userBalanceBefore - params.amountPerVault, "A"
+        );
 
         vm.selectFork(FORKS[OP]);
-        assertEq(vaultInstance4626OP.balanceOf(accountOP), previewDepositAmountOP, "B");
+        assertEq(vaultInstance4626OP.balanceOf(accountOP), params.previewDepositAmount, "B");
     }
 
     function test_bridge_To_OP_NoExecution() public {
@@ -2636,21 +2673,23 @@ contract CrosschainTests is BaseTest {
     }
 
     function test_FAILS_CrossChain_Execution_Replay() public {
-        uint256 amountToDeposit = 1e18;
-        uint256 amountPerVault = amountToDeposit / 2;
+        BridgeTestParams memory params;
+        params.amountToDeposit = 1e18;
+        params.amountPerVault = params.amountToDeposit / 2;
 
         // OP IS DST - Prepare target executor message for OP chain
         SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
-        uint256 previewDepositAmount = IERC4626(yieldSource4626AddressOP_USDCe).convertToShares(amountToDeposit);
+        params.previewDepositAmount = IERC4626(yieldSource4626AddressOP_USDCe).convertToShares(params.amountToDeposit);
 
-        (bytes memory targetExecutorMessage, address accountToUse, TargetExecutorMessage memory messageData) =
-            _prepareOPDeposit4626Message(amountPerVault); // Generalize this
+        (params.targetExecutorMessage, params.accountToUse, params.messageData) =
+            _prepareOPDeposit4626Message(params.amountPerVault); // Generalize this
 
         // ETH IS SRC - First execution from ETH to OP
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME + 1 days);
 
-        UserOpData memory ethUserOpData =
-            _prepareETHUserOpData(amountPerVault, accountToUse, messageData, targetExecutorMessage);
+        UserOpData memory ethUserOpData = _prepareETHUserOpData(
+            params.amountPerVault, params.accountToUse, params.messageData, params.targetExecutorMessage
+        );
 
         // EXECUTE ETH - First execution should not proceed yet
         ExecutionReturnData memory ethExecutionData =
@@ -2666,39 +2705,40 @@ contract CrosschainTests is BaseTest {
 
         bytes[] memory baseHooksData = new bytes[](2);
         baseHooksData[0] =
-            _createApproveHookData(underlyingBase_USDC, DEBRIDGE_DLN_ADDRESSES[BASE], amountPerVault, false);
+            _createApproveHookData(underlyingBase_USDC, DEBRIDGE_DLN_ADDRESSES[BASE], params.amountPerVault, false);
 
         // Create and execute user operation from BASE
-        UserOpData memory baseUserOpData = _createBaseUserOp(amountPerVault, accountToUse, targetExecutorMessage);
-        bytes memory baseSignatureData = _createMerkleRootAndSignature(
-            messageData, baseUserOpData.userOpHash, accountToUse, OP, address(sourceValidatorOnBase)
+        params.srcUserOpData =
+            _createBaseUserOp(params.amountPerVault, params.accountToUse, params.targetExecutorMessage);
+        params.signatureData = _createMerkleRootAndSignature(
+            params.messageData, params.srcUserOpData.userOpHash, params.accountToUse, OP, address(sourceValidatorOnBase)
         );
-        baseUserOpData.userOp.signature = baseSignatureData;
+        params.srcUserOpData.userOp.signature = params.signatureData;
 
         // EXECUTE BASE - This execution should succeed
-        ExecutionReturnData memory baseExecutionData =
-            executeOpsThroughPaymaster(baseUserOpData, superNativePaymasterOnBase, 1e18);
+        params.executionData = executeOpsThroughPaymaster(params.srcUserOpData, superNativePaymasterOnBase, 1e18);
 
-        _processDebridgeDlnMessage(BASE, OP, baseExecutionData);
+        _processDebridgeDlnMessage(BASE, OP, params.executionData);
 
         // This execution should have succeed
         SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
         assertApproxEqRel(
-            IERC20(yieldSource4626AddressOP_USDCe).balanceOf(accountToUse),
-            previewDepositAmount - 1,
+            IERC20(yieldSource4626AddressOP_USDCe).balanceOf(params.accountToUse),
+            params.previewDepositAmount - 1,
             0.001e18, // 0.1% tolerance for vault precision
             "Vault balance should approximately match expected shares"
         );
 
         // BASE IS SRC - Second execution from BASE to OP (replay attack)
-        baseUserOpData = _createBaseUserOp(amountPerVault, accountToUse, targetExecutorMessage);
+        params.srcUserOpData =
+            _createBaseUserOp(params.amountPerVault, params.accountToUse, params.targetExecutorMessage);
 
         // Use the same signature from ETH execution - this should fail due to replay protection
-        baseUserOpData.userOp.signature = baseSignatureData;
+        params.srcUserOpData.userOp.signature = params.signatureData;
 
         // EXECUTE BASE - This should fail due to replay attack
         vm.expectRevert();
-        baseExecutionData = executeOpsThroughPaymaster(baseUserOpData, superNativePaymasterOnBase, 1e18);
+        params.executionData = executeOpsThroughPaymaster(params.srcUserOpData, superNativePaymasterOnBase, 1e18);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -3470,7 +3510,8 @@ contract CrosschainTests is BaseTest {
                           INTERNAL LOGIC HELPERS
     //////////////////////////////////////////////////////////////*/
     function _createAccountOnBASECrossChainFlow(bool shouldRevert) private returns (address) {
-        uint256 amountPerVault = 1e8 / 2;
+        TestVariables memory vars;
+        vars.amountPerVault = 1e8 / 2;
 
         // First prepare on ETH as the destination
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
@@ -3486,14 +3527,12 @@ contract CrosschainTests is BaseTest {
             nexusFactory: CHAIN_1_NEXUS_FACTORY,
             nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
             chainId: uint64(ETH),
-            amount: amountPerVault,
+            amount: vars.amountPerVault,
             account: address(0),
             tokenSent: underlyingETH_USDC
         });
 
-        bytes memory targetExecutorMessage;
-        address accountToUse;
-        (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
+        (vars.targetExecutorMessage, vars.accountToUse) = _createTargetExecutorMessage(messageData, false);
 
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
 
@@ -3503,17 +3542,23 @@ contract CrosschainTests is BaseTest {
 
         bytes[] memory srcHooksData = new bytes[](2);
         srcHooksData[0] =
-            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], vars.amountPerVault, false);
         srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingBase_USDC, underlyingETH_USDC, amountPerVault, amountPerVault, ETH, true, targetExecutorMessage
+            underlyingBase_USDC,
+            underlyingETH_USDC,
+            vars.amountPerVault,
+            vars.amountPerVault,
+            ETH,
+            true,
+            vars.targetExecutorMessage
         );
 
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(
-            messageData, srcUserOpData.userOpHash, accountToUse, ETH, address(sourceValidatorOnBase)
+        vars.signatureData = _createMerkleRootAndSignature(
+            messageData, srcUserOpData.userOpHash, vars.accountToUse, ETH, address(sourceValidatorOnBase)
         );
-        srcUserOpData.userOp.signature = signatureData;
+        srcUserOpData.userOp.signature = vars.signatureData;
 
         if (shouldRevert) {
             vm.expectRevert();
@@ -3532,13 +3577,13 @@ contract CrosschainTests is BaseTest {
                     errorMessage: bytes4(0),
                     errorReason: "",
                     root: bytes32(0),
-                    account: accountToUse,
+                    account: vars.accountToUse,
                     relayerGas: 0
                 })
             );
         }
 
-        return accountToUse;
+        return vars.accountToUse;
     }
 
     function _createBaseMsgData()
