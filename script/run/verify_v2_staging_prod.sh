@@ -3,9 +3,12 @@
 # ===== CHAIN FILTER CONFIGURATION =====
 # Specify which chains to verify (comment out to verify all chains)
 # Leave empty array to verify all chains from network configuration
-CHAINS_TO_VERIFY=(
-    "480"    # Worldchain
-)
+CHAINS_TO_VERIFY=()
+
+# ===== CONTRACT FILTER CONFIGURATION =====
+# Specify which contracts to verify (comment out to verify all contracts)
+# Leave empty array to verify all contracts found in deployment JSON
+CONTRACTS_TO_VERIFY=()
 
 # Colors for better visual output
 RED='\033[0;31m'
@@ -357,9 +360,7 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address)" "$debridge_dln_dst")"
             ;;
         "MerklClaimRewardHook")
-            # Get treasury address from environment or use default
-            local treasury="${TREASURY_ADDRESS:-0x0E24b0F342F034446Ec814281AD1a7653cBd85e9}"
-            echo "$(cast abi-encode "constructor(address,address,uint256)" "$merkl_distributor" "$treasury" "100")"
+            echo "$(cast abi-encode "constructor(address)" "$merkl_distributor")"
             ;;
         "CircleGatewayWalletHook"|"CircleGatewayAddDelegateHook"|"CircleGatewayRemoveDelegateHook")
             echo "$(cast abi-encode "constructor(address)" "$gateway_wallet")"
@@ -477,7 +478,7 @@ verify_contract() {
         --constructor-args "$constructor_args" \
         --rpc-url "$rpc_url" \
         --chain "$chain_id" \
-        --etherscan-api-key "$ETHERSCANV2_API_KEY_TEST" \
+        --etherscan-api-key "$ETHERSCANV2_API_KEY" \
         --verifier etherscan
             
     if [ $? -eq 0 ]; then
@@ -545,7 +546,35 @@ verify_network() {
     fi
     
     # Extract contract names from JSON
-    local contract_names=($(jq -r 'keys[]' "$json_file"))
+    local all_contract_names=($(jq -r 'keys[]' "$json_file"))
+    local contract_names=()
+    
+    # Apply contract filter if specified
+    if [ ${#CONTRACTS_TO_VERIFY[@]} -eq 0 ]; then
+        # No filter specified, use all contracts
+        contract_names=("${all_contract_names[@]}")
+        echo -e "${CYAN}   📋 No contract filter specified, verifying all deployed contracts...${NC}"
+    else
+        # Use filtered contracts
+        echo -e "${CYAN}   📋 Contract filter active, verifying only specified contracts...${NC}"
+        echo -e "${CYAN}      Filtered contracts: ${CONTRACTS_TO_VERIFY[*]}${NC}"
+        for contract_name in "${CONTRACTS_TO_VERIFY[@]}"; do
+            # Check if the contract exists in the deployed contracts
+            local found=false
+            for deployed_contract in "${all_contract_names[@]}"; do
+                if [ "$deployed_contract" = "$contract_name" ]; then
+                    contract_names+=("$contract_name")
+                    found=true
+                    break
+                fi
+            done
+            if [ "$found" = false ]; then
+                echo -e "${YELLOW}      ⚠️  Warning: Contract $contract_name not found in deployment, skipping...${NC}"
+            fi
+        done
+    fi
+    
+    echo -e "${CYAN}   📋 Verifying ${#contract_names[@]} contracts...${NC}"
     
     for contract_name in "${contract_names[@]}"; do
         local contract_address=$(get_contract_address "$chain_id" "$contract_name")
@@ -599,6 +628,9 @@ main() {
     echo -e "${BLUE}🔍 Starting verification for ${#chains[@]} networks in $ENVIRONMENT environment...${NC}"
     if [ ${#CHAINS_TO_VERIFY[@]} -gt 0 ]; then
         echo -e "${CYAN}   Filtered chains: ${CHAINS_TO_VERIFY[*]}${NC}"
+    fi
+    if [ ${#CONTRACTS_TO_VERIFY[@]} -gt 0 ]; then
+        echo -e "${CYAN}   Filtered contracts: ${CONTRACTS_TO_VERIFY[*]}${NC}"
     fi
     echo ""
     

@@ -16,8 +16,9 @@ abstract contract DeployV2Base is Script, ConfigBase {
     uint256 internal deployed;
     uint256 internal total;
 
-    // Bytecode directory - always use locked bytecode
+    // Bytecode directories - environment specific
     string internal constant BYTECODE_DIRECTORY = "script/locked-bytecode/";
+    string internal constant BYTECODE_DEV_DIRECTORY = "script/locked-bytecode-dev/";
 
     // Contract deployment status tracking
     struct ContractStatus {
@@ -128,7 +129,7 @@ abstract contract DeployV2Base is Script, ConfigBase {
     /// @param contractName Name of the contract
     /// @param salt Salt used for deployment
     /// @param args Constructor arguments (empty if none)
-    /// @param env Environment (1 = vnet/dev, 0/2 = prod/staging)
+    /// @param env Environment (0 = prod uses locked-bytecode, 1/2 = dev/staging uses locked-bytecode-dev)
     /// @return isDeployed Whether the contract is deployed
     /// @return contractAddr Address of the contract
     function __checkContract(
@@ -148,7 +149,7 @@ abstract contract DeployV2Base is Script, ConfigBase {
     /// @param salt Salt used for deployment
     /// @param args Constructor arguments (empty if none)
     /// @param chainId Chain ID to check
-    /// @param env Environment (1 = vnet/dev, 0/2 = prod/staging)
+    /// @param env Environment (0 = prod uses locked-bytecode, 1/2 = dev/staging uses locked-bytecode-dev)
     /// @return isDeployed Whether the contract is deployed
     /// @return contractAddr Address of the contract
     function __checkContractOnChain(
@@ -310,22 +311,46 @@ abstract contract DeployV2Base is Script, ConfigBase {
         return keccak256(abi.encodePacked("SuperformV2", saltNamespace, name, "v2.0"));
     }
 
-
-    /// @notice Get bytecode path - always use locked bytecode
+    /// @notice Get bytecode path based on environment
     /// @param contractName Name of the contract
-    /// @param env Environment (unused - kept for compatibility)
+    /// @param env Environment (0 = prod uses locked-bytecode, 1/2 = dev/staging uses locked-bytecode-dev)
     /// @return artifactPath Path to the contract artifact
     function __getBytecodeArtifactPath(string memory contractName, uint256 env) internal pure returns (string memory) {
-        return string(abi.encodePacked(BYTECODE_DIRECTORY, contractName, ".json"));
+        // env 0 = production (locked-bytecode)
+        // env 1 = vnet/dev (locked-bytecode-dev)
+        // env 2 = staging (locked-bytecode-dev)
+        if (env == 0) {
+            return string(abi.encodePacked(BYTECODE_DIRECTORY, contractName, ".json"));
+        } else {
+            return string(abi.encodePacked(BYTECODE_DEV_DIRECTORY, contractName, ".json"));
+        }
     }
 
     /// @notice Get bytecode from environment-specific artifacts
     /// @param contractName Name of the contract
-    /// @param env Environment (1 = vnet/dev, 0/2 = prod/staging)
+    /// @param env Environment (0 = prod uses locked-bytecode, 1/2 = dev/staging uses locked-bytecode-dev)
     /// @return bytecode Contract bytecode
     function __getBytecode(string memory contractName, uint256 env) internal view returns (bytes memory) {
         string memory artifactPath = __getBytecodeArtifactPath(contractName, env);
         return vm.getCode(artifactPath);
+    }
+
+    /// @notice Check if bytecode artifact exists for a contract
+    /// @param contractName Name of the contract
+    /// @param env Environment (0 = prod uses locked-bytecode, 1/2 = dev/staging uses locked-bytecode-dev)
+    /// @return exists Whether the bytecode artifact file exists
+    function __checkBytecodeExists(string memory contractName, uint256 env) internal view returns (bool exists) {
+        string memory artifactPath = __getBytecodeArtifactPath(contractName, env);
+        
+        // Use try/catch to safely check if bytecode artifact exists
+        // vm.getCode() will revert if the artifact file doesn't exist
+        try vm.getCode(artifactPath) returns (bytes memory) {
+            // If we get here, the file exists and contains bytecode
+            exists = true;
+        } catch {
+            // If we get here, the file doesn't exist or is invalid
+            exists = false;
+        }
     }
 
     // Add a mapping to track exported contracts per chain
