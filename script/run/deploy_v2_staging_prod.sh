@@ -56,9 +56,9 @@ extract_contracts_from_regenerate_script() {
     sed -n "/${array_name}=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | tr -d '"'
 }
 
-# Function to validate locked bytecode files (sourced from regenerate_bytecode.sh)
-validate_locked_bytecode() {
-    log "INFO" "Validating locked bytecode artifacts..."
+# Function to report bytecode availability (sourced from regenerate_bytecode.sh)
+report_bytecode_availability() {
+    log "INFO" "Analyzing bytecode availability from $LOCKED_BYTECODE_PATH..."
     
     local script_path="$PROJECT_ROOT/script/run/regenerate_bytecode.sh"
     if [[ ! -f "$script_path" ]]; then
@@ -66,7 +66,11 @@ validate_locked_bytecode() {
         return 1
     fi
     
-    local missing_files=()
+    local missing_contracts=()
+    local available_contracts=()
+    local missing_core=()
+    local missing_hooks=()
+    local missing_oracles=()
     
     # Extract and check core contracts
     log "INFO" "Checking core contracts from regenerate_bytecode.sh..."
@@ -74,9 +78,12 @@ validate_locked_bytecode() {
     core_contracts=$(extract_contracts_from_regenerate_script "CORE_CONTRACTS")
     for contract in $core_contracts; do
         [[ -z "$contract" ]] && continue
-        local file_path="$PROJECT_ROOT/script/locked-bytecode/${contract}.json"
+        local file_path="$LOCKED_BYTECODE_PATH/${contract}.json"
         if [ ! -f "$file_path" ]; then
-            missing_files+=("$file_path")
+            missing_contracts+=("$contract")
+            missing_core+=("$contract")
+        else
+            available_contracts+=("$contract")
         fi
     done
     
@@ -86,9 +93,12 @@ validate_locked_bytecode() {
     hook_contracts=$(extract_contracts_from_regenerate_script "HOOK_CONTRACTS")
     for contract in $hook_contracts; do
         [[ -z "$contract" ]] && continue
-        local file_path="$PROJECT_ROOT/script/locked-bytecode/${contract}.json"
+        local file_path="$LOCKED_BYTECODE_PATH/${contract}.json"
         if [ ! -f "$file_path" ]; then
-            missing_files+=("$file_path")
+            missing_contracts+=("$contract")
+            missing_hooks+=("$contract")
+        else
+            available_contracts+=("$contract")
         fi
     done
     
@@ -98,28 +108,58 @@ validate_locked_bytecode() {
     oracle_contracts=$(extract_contracts_from_regenerate_script "ORACLE_CONTRACTS")
     for contract in $oracle_contracts; do
         [[ -z "$contract" ]] && continue
-        local file_path="$PROJECT_ROOT/script/locked-bytecode/${contract}.json"
+        local file_path="$LOCKED_BYTECODE_PATH/${contract}.json"
         if [ ! -f "$file_path" ]; then
-            missing_files+=("$file_path")
+            missing_contracts+=("$contract")
+            missing_oracles+=("$contract")
+        else
+            available_contracts+=("$contract")
         fi
     done
     
-    # Show expected total count
+    # Show summary
     local expected_total
     expected_total=$(get_expected_contract_count)
-    log "INFO" "Expected total artifacts: $expected_total (from regenerate_bytecode.sh)"
+    echo -e "${CYAN}📊 Bytecode Availability Summary${NC}"
+    echo -e "${GREEN}   Available contracts: ${#available_contracts[@]}${NC}"
+    echo -e "${YELLOW}   Missing contracts: ${#missing_contracts[@]}${NC}"
+    echo -e "${BLUE}   Expected total: $expected_total${NC}"
+    echo ""
     
-    if [ ${#missing_files[@]} -gt 0 ]; then
-        echo -e "${RED}❌ Missing locked bytecode files:${NC}"
-        for file in "${missing_files[@]}"; do
-            echo -e "${RED}   - $file${NC}"
-        done
-        echo -e "${RED}   Missing: ${#missing_files[@]} files${NC}"
-        return 1
+    if [ ${#missing_contracts[@]} -gt 0 ]; then
+        echo -e "${YELLOW}⚠️  Contracts that will be SKIPPED due to missing bytecode:${NC}"
+        
+        if [ ${#missing_core[@]} -gt 0 ]; then
+            echo -e "${YELLOW}   Core Contracts (${#missing_core[@]}):${NC}"
+            for contract in "${missing_core[@]}"; do
+                echo -e "${YELLOW}     - $contract${NC}"
+            done
+        fi
+        
+        if [ ${#missing_hooks[@]} -gt 0 ]; then
+            echo -e "${YELLOW}   Hook Contracts (${#missing_hooks[@]}):${NC}"
+            for contract in "${missing_hooks[@]}"; do
+                echo -e "${YELLOW}     - $contract${NC}"
+            done
+        fi
+        
+        if [ ${#missing_oracles[@]} -gt 0 ]; then
+            echo -e "${YELLOW}   Oracle Contracts (${#missing_oracles[@]}):${NC}"
+            for contract in "${missing_oracles[@]}"; do
+                echo -e "${YELLOW}     - $contract${NC}"
+            done
+        fi
+        
+        echo ""
+        echo -e "${YELLOW}ℹ️  These contracts are defined in the system but will not be deployed.${NC}"
+        echo -e "${YELLOW}   To deploy them, ensure their bytecode artifacts are present in: $LOCKED_BYTECODE_PATH${NC}"
+        echo ""
+    else
+        echo -e "${GREEN}✅ All defined contracts have bytecode available${NC}"
+        echo ""
     fi
     
-    echo -e "${GREEN}✅ All required locked bytecode files are present${NC}"
-    echo -e "${GREEN}   Validated: $expected_total contract artifacts${NC}"
+    # Always return success to allow deployment to continue
     return 0
 }
 
@@ -314,6 +354,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Find project root (go up from script/run/ to project root)
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+# Initialize locked bytecode path (will be set after environment validation)
+LOCKED_BYTECODE_PATH=""
+
 # Network configuration will be sourced after environment is determined
 
 # Check if arguments are provided
@@ -334,16 +377,27 @@ ENVIRONMENT=$1
 MODE=$2
 ACCOUNT=$3
 
-# Validate environment and source appropriate network configuration
+# Validate environment and set locked bytecode path
 if [ "$ENVIRONMENT" = "staging" ]; then
     echo -e "${CYAN}🌐 Loading staging network configuration...${NC}"
+    LOCKED_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode-dev"
+    echo -e "${CYAN}📁 Using staging locked bytecode folder: locked-bytecode-dev${NC}"
     source "$SCRIPT_DIR/networks-staging.sh"
 elif [ "$ENVIRONMENT" = "prod" ]; then
     echo -e "${CYAN}🌐 Loading production network configuration...${NC}"
+    LOCKED_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode"
+    echo -e "${CYAN}📁 Using production locked bytecode folder: locked-bytecode${NC}"
     source "$SCRIPT_DIR/networks-production.sh"
 else
     echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"
     echo -e "${YELLOW}Environment must be either 'staging' or 'prod'${NC}"
+    exit 1
+fi
+
+# Validate that the locked bytecode directory exists
+if [[ ! -d "$LOCKED_BYTECODE_PATH" ]]; then
+    echo -e "${RED}❌ Error: Locked bytecode directory does not exist: $LOCKED_BYTECODE_PATH${NC}"
+    echo -e "${YELLOW}Please ensure the environment-specific locked bytecode folder exists before deployment.${NC}"
     exit 1
 fi
 
@@ -429,13 +483,11 @@ export SUPERFORM_PROJECT_ROOT="$PROJECT_ROOT"
 echo -e "${CYAN}   • Exported SUPERFORM_PROJECT_ROOT: $SUPERFORM_PROJECT_ROOT${NC}"
 print_separator
 
-# ===== LOCKED BYTECODE VALIDATION =====
-echo -e "${BLUE}🔍 Validating locked bytecode artifacts...${NC}"
-if ! validate_locked_bytecode; then
-    echo -e "${RED}❌ Locked bytecode validation failed${NC}"
-    echo -e "${YELLOW}Please ensure all required contract artifacts are present before deployment.${NC}"
-    exit 1
-fi
+# ===== BYTECODE AVAILABILITY ANALYSIS =====
+echo -e "${BLUE}🔍 Analyzing bytecode availability...${NC}"
+report_bytecode_availability
+echo -e "${GREEN}✅ Bytecode availability analysis completed${NC}"
+echo -e "${CYAN}   Deployment will proceed, skipping any contracts with missing bytecode${NC}"
 print_separator
 
 # ===== ADDRESS CHECKING PHASE =====
@@ -579,7 +631,7 @@ for network_def in "${NETWORKS[@]}"; do
         --account $ACCOUNT \
         --rpc-url ${!rpc_var} \
         --chain $network_id \
-        --etherscan-api-key $ETHERSCANV2_API_KEY_TEST \
+        --etherscan-api-key $ETHERSCANV2_API_KEY \
         --verifier etherscan \
         $BROADCAST_FLAG \
         $VERIFY_FLAG \

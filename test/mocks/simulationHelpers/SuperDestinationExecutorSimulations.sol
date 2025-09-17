@@ -1,0 +1,230 @@
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity 0.8.30;
+
+// external
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+
+// Superform
+import { SuperExecutorBaseSimulations } from "./SuperExecutorBaseSimulations.sol";
+import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
+import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestinationExecutor.sol";
+import { ISuperDestinationValidator } from "../../../src/interfaces/ISuperDestinationValidator.sol";
+import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
+import { ISuperSenderCreator } from "../../../src/interfaces/ISuperSenderCreator.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
+
+/// @title SuperDestinationExecutorSimulations.sol
+/// @author Superform Labs
+/// @notice Mock executor for destination chains of Superform, processing bridged executions
+/// @dev This contract is not to be deployed, only the deployed bytecode is used for eth_calls
+///      It implements ISuperDestinationExecutor for testing purposes
+contract SuperDestinationExecutorSimulations is SuperExecutorBaseSimulations, ISuperDestinationExecutor {
+    using SafeERC20 for IERC20;
+
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Address of the validator contract used to verify cross-chain signatures
+    /// @dev Used to validate signatures in the processBridgedExecution method
+    address public SUPER_DESTINATION_VALIDATOR;
+
+    /// @notice Tracks which merkle roots have been used by each user address
+    /// @dev Prevents replay attacks by ensuring each merkle root can only be used once per user
+    mapping(address user => mapping(bytes32 merkleRoot => bool used)) public usedMerkleRoots;
+
+    /// @notice Magic value returned by SuperDestinationValidator when a destination signature is valid
+    /// @dev bytes4(keccak256("isValidDestinationSignature(address,bytes)")) = 0x5c2ec0f3
+    bytes4 internal constant DESTINATION_SIGNATURE_MAGIC_VALUE = bytes4(0x5c2ec0f3);
+
+    /// @notice Marker for EIP-7702 initcode
+    bytes2 internal constant INITCODE_EIP7702_MARKER = 0x7702;
+
+    /// @notice Length of an empty execution data structure
+    /// @dev 228 represents the length of the ExecutorEntry object (hooksAddresses, hooksData) for empty arrays
+    ///      plus the 4 bytes of the `execute` function selector
+    ///      Used to check if actual hook execution data is present without full decoding
+    uint256 internal constant EMPTY_EXECUTION_LENGTH = 228;
+
+    /*//////////////////////////////////////////////////////////////
+                                CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Initializes the SuperDestinationExecutor with required references
+    /// @param ledgerConfiguration_ Address of the ledger configuration contract for fee calculations
+    /// @param superDestinationValidator_ Address of the validator contract used to verify cross-chain messages
+    constructor(
+        address ledgerConfiguration_,
+        address superDestinationValidator_
+    )
+        SuperExecutorBaseSimulations(ledgerConfiguration_)
+    {
+        // Validate critical contract references
+        if (superDestinationValidator_ == address(0)) {
+            revert ADDRESS_NOT_VALID();
+        }
+        SUPER_DESTINATION_VALIDATOR = superDestinationValidator_;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperExecutor
+    function name() external pure override returns (string memory) {
+        // Updated name
+        return "SuperDestinationExecutor";
+    }
+
+    /// @inheritdoc ISuperExecutor
+    function version() external pure override returns (string memory) {
+        return "0.0.1";
+    }
+
+    /// @inheritdoc ISuperDestinationExecutor
+    function isMerkleRootUsed(address user, bytes32 merkleRoot) external view returns (bool) {
+        return usedMerkleRoots[user][merkleRoot];
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          CORE EXECUTION LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISuperDestinationExecutor
+    function processBridgedExecution(
+        address,
+        address account,
+        address[] memory dstTokens,
+        uint256[] memory intentAmounts,
+        bytes memory initData,
+        bytes memory executorCalldata,
+        bytes memory userSignatureData
+    )
+        external
+        override
+    {
+        uint256 dstTokensLen = dstTokens.length;
+        if (dstTokensLen != intentAmounts.length) {
+            revert ARRAY_LENGTH_MISMATCH();
+        }
+
+        _validateOrCreateAccount(account, initData);
+        bytes32 merkleRoot = _decodeMerkleRoot(userSignatureData);
+
+        // --- Signature Validation ---
+        // DestinationData encodes executor calldata, current chain id, account, current executor, destination tokens
+        // and intent amounts
+        bytes memory destinationData =
+            abi.encode(executorCalldata, uint64(block.chainid), account, address(this), dstTokens, intentAmounts);
+
+        // The userSignatureData is passed directly from the adapter
+        bytes4 validationResult = ISuperDestinationValidator(SUPER_DESTINATION_VALIDATOR).isValidDestinationSignature(
+            account, abi.encode(userSignatureData, destinationData)
+        );
+
+        // Not checking the signature validation result for mock executor
+
+        if (!_validateBalances(account, dstTokens, intentAmounts)) return;
+
+        if (usedMerkleRoots[account][merkleRoot]) {
+            emit SuperDestinationExecutorReceivedButRootUsedAlready(account, merkleRoot);
+            return;
+        }
+
+        usedMerkleRoots[account][merkleRoot] = true;
+
+        if (_shouldSkipCalldata(executorCalldata)) {
+            emit SuperDestinationExecutorReceivedButNoHooks(account);
+            return;
+        }
+
+        Execution[] memory execs = new Execution[](1);
+        execs[0] = Execution({ target: address(this), value: 0, callData: executorCalldata });
+
+        _execute(account, execs);
+        emit SuperDestinationExecutorExecuted(account);
+    }
+
+    /// @inheritdoc ISuperDestinationExecutor
+    function markRootsAsUsed(bytes32[] memory roots) external {
+        uint256 length = roots.length;
+        for (uint256 i; i < length; ++i) {
+            usedMerkleRoots[msg.sender][roots[i]] = true;
+        }
+        emit SuperDestinationExecutorMarkRootsAsUsed(msg.sender, roots);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          INTERNAL
+    //////////////////////////////////////////////////////////////*/
+    function _shouldSkipCalldata(bytes memory executorCalldata) internal pure returns (bool) {
+        bytes4 selector = bytes4(BytesLib.slice(executorCalldata, 0, 4));
+        if (selector != ISuperExecutor.execute.selector) return true;
+        return executorCalldata.length <= EMPTY_EXECUTION_LENGTH;
+    }
+
+    function _validateOrCreateAccount(address account, bytes memory initData) internal {
+        if (initData.length > 0 && account.code.length == 0) {
+            address computedAddress = _createAccount(initData);
+            if (account != computedAddress) revert INVALID_ACCOUNT();
+        }
+
+        if (account == address(0) || account.code.length == 0) {
+            revert ACCOUNT_NOT_CREATED();
+        }
+    }
+
+    function _decodeMerkleRoot(bytes memory userSignatureData) private pure returns (bytes32) {
+        (,,, bytes32 merkleRoot,,,) = abi.decode(
+            userSignatureData, (uint64[], uint48, uint48, bytes32, bytes32[], ISuperValidator.DstProof[], bytes)
+        );
+        return merkleRoot;
+    }
+
+    function _validateBalances(
+        address account,
+        address[] memory dstTokens,
+        uint256[] memory intentAmounts
+    )
+        private
+        returns (bool)
+    {
+        uint256 len = dstTokens.length;
+        for (uint256 i; i < len; i++) {
+            address _token = dstTokens[i];
+            uint256 _intentAmount = intentAmounts[i];
+
+            if (_intentAmount == 0) {
+                emit SuperDestinationExecutorInvalidIntentAmount(account, _token, _intentAmount);
+                return false;
+            }
+
+            if (_token == address(0)) {
+                if (_intentAmount != 0 && account.balance < _intentAmount) {
+                    emit SuperDestinationExecutorReceivedButNotEnoughBalance(
+                        account, _token, _intentAmount, account.balance
+                    );
+                    return false;
+                }
+            } else {
+                uint256 _balance = IERC20(_token).balanceOf(account);
+                if (_intentAmount != 0 && _balance < _intentAmount) {
+                    emit SuperDestinationExecutorReceivedButNotEnoughBalance(account, _token, _intentAmount, _balance);
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    function _createAccount(bytes memory initCode) internal returns (address account) {
+        // SuperSenderCreator contract
+        address senderCreator = BytesLib.toAddress(initCode, 0);
+        if (senderCreator == address(0)) revert ADDRESS_NOT_VALID();
+        if (senderCreator.code.length == 0) revert SENDER_CREATOR_NOT_VALID();
+
+        // This one contains `abi.encodePacked(address, initData)`
+        bytes memory senderData = BytesLib.slice(initCode, 20, initCode.length - 20);
+
+        return ISuperSenderCreator(senderCreator).createSender(senderData);
+    }
+}
