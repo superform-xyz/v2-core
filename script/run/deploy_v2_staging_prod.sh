@@ -1,4 +1,4 @@
-#!/opt/homebrew/bin/bash
+#!/usr/bin/env bash
 
 # Colors for better visual output
 RED='\033[0;31m'

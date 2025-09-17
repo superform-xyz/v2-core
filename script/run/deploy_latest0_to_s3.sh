@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ###################################################################################
 # Deploy latest0.json to S3 for dev branch

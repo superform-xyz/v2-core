@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Production Network Configuration for V2 Core Deployment
 # This file contains all production network definitions (full mainnet deployment)
@@ -181,6 +181,110 @@ get_supported_networks() {
     done
 }
 
+# Load RPC URLs from environment variables for CI
+load_rpc_urls_ci() {
+    echo "Loading production RPC URLs from environment variables..."
+    
+    local failed_rpcs=()
+    
+    # Load core networks from environment variables
+    echo "  • Loading Ethereum RPC..."
+    if [[ -n "${ETHEREUM_RPC_URL:-}" ]]; then
+        export ETH_MAINNET="$ETHEREUM_RPC_URL"
+    else
+        failed_rpcs+=("ETHEREUM_RPC_URL")
+    fi
+    
+    echo "  • Loading Base RPC..."
+    if [[ -n "${BASE_RPC_URL:-}" ]]; then
+        export BASE_MAINNET="$BASE_RPC_URL"
+    else
+        failed_rpcs+=("BASE_RPC_URL")
+    fi
+    
+    echo "  • Loading BSC RPC..."
+    if [[ -n "${BSC_RPC_URL:-}" ]]; then
+        export BSC_MAINNET="$BSC_RPC_URL"
+    else
+        failed_rpcs+=("BSC_RPC_URL")
+    fi
+    
+    echo "  • Loading Arbitrum RPC..."
+    if [[ -n "${ARBITRUM_RPC_URL:-}" ]]; then
+        export ARBITRUM_MAINNET="$ARBITRUM_RPC_URL"
+    else
+        failed_rpcs+=("ARBITRUM_RPC_URL")
+    fi
+    
+    # Load production-only networks from environment variables
+    echo "  • Loading Optimism RPC..."
+    if [[ -n "${OPTIMISM_RPC_URL:-}" ]]; then
+        export OPTIMISM_MAINNET="$OPTIMISM_RPC_URL"
+    else
+        failed_rpcs+=("OPTIMISM_RPC_URL")
+    fi
+    
+    echo "  • Loading Polygon RPC..."
+    if [[ -n "${POLYGON_RPC_URL:-}" ]]; then
+        export POLYGON_MAINNET="$POLYGON_RPC_URL"
+    else
+        failed_rpcs+=("POLYGON_RPC_URL")
+    fi
+    
+    echo "  • Loading Unichain RPC..."
+    if [[ -n "${UNICHAIN_RPC_URL:-}" ]]; then
+        export UNICHAIN_MAINNET="$UNICHAIN_RPC_URL"
+    else
+        failed_rpcs+=("UNICHAIN_RPC_URL")
+    fi
+    
+    echo "  • Loading Avalanche RPC..."
+    if [[ -n "${AVALANCHE_RPC_URL:-}" ]]; then
+        export AVALANCHE_MAINNET="$AVALANCHE_RPC_URL"
+    else
+        failed_rpcs+=("AVALANCHE_RPC_URL")
+    fi
+    
+    echo "  • Loading Berachain RPC..."
+    if [[ -n "${BERACHAIN_RPC_URL:-}" ]]; then
+        export BERACHAIN_MAINNET="$BERACHAIN_RPC_URL"
+    else
+        failed_rpcs+=("BERACHAIN_RPC_URL")
+    fi
+    
+    echo "  • Loading Sonic RPC..."
+    if [[ -n "${SONIC_RPC_URL:-}" ]]; then
+        export SONIC_MAINNET="$SONIC_RPC_URL"
+    else
+        failed_rpcs+=("SONIC_RPC_URL")
+    fi
+    
+    echo "  • Loading Gnosis RPC..."
+    if [[ -n "${GNOSIS_RPC_URL:-}" ]]; then
+        export GNOSIS_MAINNET="$GNOSIS_RPC_URL"
+    else
+        failed_rpcs+=("GNOSIS_RPC_URL")
+    fi
+    
+    echo "  • Loading Worldchain RPC..."
+    if [[ -n "${WORLDCHAIN_RPC_URL:-}" ]]; then
+        export WORLDCHAIN_MAINNET="$WORLDCHAIN_RPC_URL"
+    else
+        failed_rpcs+=("WORLDCHAIN_RPC_URL")
+    fi
+    
+    if [[ ${#failed_rpcs[@]} -gt 0 ]]; then
+        echo "❌ Failed to load the following RPC URLs from environment:"
+        for failed_rpc in "${failed_rpcs[@]}"; do
+            echo "   • $failed_rpc"
+        done
+        echo "⚠️  Some networks may not be accessible during testing"
+        return 1
+    fi
+    
+    echo "✅ Production RPC URLs loaded successfully from environment"
+}
+
 # Load RPC URLs from credential manager for all production networks
 load_rpc_urls() {
     echo "Loading production RPC URLs from credential manager..."
@@ -258,7 +362,7 @@ load_rpc_urls() {
         return 1
     fi
     
-    echo "✅ Production RPC URLs loaded successfully (all 13 networks)"
+    echo "✅ Production RPC URLs loaded successfully"
 }
 
 # Load Etherscan V2 API key for verification

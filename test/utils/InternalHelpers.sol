@@ -908,7 +908,26 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory data)
     {
-        data = abi.encodePacked(uint256(tokens.length));
+        // Use default fee parameters for backwards compatibility
+        return _createMerklClaimRewardHookData(address(0x1), 0, tokens, amounts, proofs);
+    }
+    
+    function _createMerklClaimRewardHookData(
+        address feeReceiver,
+        uint256 feePercent,
+        address[] memory tokens,
+        uint256[] memory amounts,
+        bytes32[][] memory proofs
+    )
+        internal
+        pure
+        returns (bytes memory data)
+    {
+        // Encode feeReceiver and feePercent first
+        data = bytes.concat(bytes20(feeReceiver), abi.encodePacked(feePercent));
+        
+        // Then encode the array length
+        data = bytes.concat(data, abi.encodePacked(uint256(tokens.length)));
 
         for (uint256 i = 0; i < tokens.length; i++) {
             data = bytes.concat(data, bytes20(tokens[i]));

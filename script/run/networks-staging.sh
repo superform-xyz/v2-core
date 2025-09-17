@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Staging Network Configuration for V2 Core Deployment
 # This file contains staging network definitions (subset for testing)

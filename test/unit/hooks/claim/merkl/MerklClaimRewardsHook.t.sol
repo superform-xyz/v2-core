@@ -4,8 +4,10 @@ pragma solidity 0.8.30;
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IDistributor } from "../../../../../src/vendor/merkl/IDistributor.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
+import { BaseTest } from "../../../../BaseTest.t.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { InternalHelpers } from "../../../../utils/InternalHelpers.sol";
@@ -14,21 +16,23 @@ import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
 import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
 import { MerklClaimRewardHook } from "../../../../../src/hooks/claim/merkl/MerklClaimRewardHook.sol";
 
-contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
+contract MerklClaimRewardsHookTest is Helpers, InternalHelpers, BaseTest {
     using BytesLib for bytes;
 
     MerklClaimRewardHook public hook;
 
     address public distributor;
 
+    address public user;
     address[] public users;
     address[] public tokens;
     uint256[] public amounts;
     bytes32[][] public proofs;
 
-    function setUp() public {
+    function setUp() public override {
+        super.setUp();
         distributor = MERKL_DISTRIBUTOR;
-        address user = makeAddr("user");
+        user = makeAddr("user");
         users = [user, user, user];
 
         MockERC20 _mockToken1 = new MockERC20("Mock Token", "MTK", 18);
@@ -45,32 +49,54 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
             [keccak256(abi.encodePacked(user, address(_mockToken3), uint256(3000)))]
         ];
 
-        hook = new MerklClaimRewardHook(distributor, address(this), 0);
+        hook = new MerklClaimRewardHook(distributor);
     }
 
     function test_Constructor() public view {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
-    function test_MerklClaimReward_InvalidConstructorParms() public {
+    function test_MerklClaimReward_InvalidFeePercent() public {
+        bytes memory data = _createMerklClaimRewardHookData(address(this), 6000, tokens, amounts, proofs); // 60% > 50%
+            // max
         vm.expectRevert(MerklClaimRewardHook.FEE_NOT_VALID.selector);
-        new MerklClaimRewardHook(distributor, address(this), 1e18);
+        hook.build(address(0), address(0), data);
     }
 
     function test_Build_RevertIf_DistributorZero() public {
         distributor = address(0);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new MerklClaimRewardHook(distributor, address(this), 100);
+        new MerklClaimRewardHook(distributor);
     }
 
-    function test_MerklClaimRewardsHook_Build() public view {
+    function test_Build_RevertIf_ZeroFeeReceiver() public {
+        bytes memory data = _createMerklClaimRewardHookData(address(0), 100, tokens, amounts, proofs);
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        hook.build(address(0), address(0), data);
+    }
+
+    function test_MerklClaimRewardsHook_Build_WithoutFee() public view {
         bytes memory data = _encodeData();
         Execution[] memory executions = hook.build(address(0), address(0), data);
 
-        assertEq(executions.length, 6);
-        assertEq(executions[1].target, distributor);
+        assertEq(executions.length, 3); // preExecute + claim + postExecute
+        assertEq(executions[0].target, address(hook)); // preExecute
+        assertEq(executions[1].target, distributor); // claim
         assertEq(executions[1].value, 0);
         assertGt(executions[1].callData.length, 0);
+    }
+
+    function test_MerklClaimRewardsHook_Build_WithFee() public {
+        vm.selectFork(FORKS[BASE]);
+        bytes memory data = _createMerklClaimRewardHookData(address(0x1), 10, tokens, amounts, proofs);
+        Execution[] memory executions = hook.build(address(0), user, data);
+
+        assertEq(executions.length, 6); // preExecute + claim + 3 fee transfers + postExecute
+        assertEq(executions[0].target, address(hook)); // preExecute
+        assertEq(executions[1].target, distributor); // claim
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
+        assertEq(executions[5].target, address(hook)); // postExecute
     }
 
     function test_PreAndPostExecute() public {
@@ -90,10 +116,11 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         bytes memory argsEncoded = hook.inspect(data);
         assertGt(argsEncoded.length, 0);
 
-        // Check that tokens are encoded correctly
-        assertEq(BytesLib.toAddress(argsEncoded, 0), tokens[0]);
-        assertEq(BytesLib.toAddress(argsEncoded, 20), tokens[1]);
-        assertEq(BytesLib.toAddress(argsEncoded, 40), tokens[2]);
+        // Check that feeReceiver is first, then tokens are encoded correctly
+        assertEq(BytesLib.toAddress(argsEncoded, 0), address(0x1)); // default feeReceiver
+        assertEq(BytesLib.toAddress(argsEncoded, 20), tokens[0]);
+        assertEq(BytesLib.toAddress(argsEncoded, 40), tokens[1]);
+        assertEq(BytesLib.toAddress(argsEncoded, 60), tokens[2]);
     }
 
     function test_MerklClaimRewardsHook_Inspector_SingleToken() public {
@@ -111,10 +138,11 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         bytes memory argsEncoded = hook.inspect(data);
 
         assertGt(argsEncoded.length, 0);
-        assertEq(argsEncoded.length, 20); // Should be exactly 20 bytes for one address
+        assertEq(argsEncoded.length, 40); // Should be 40 bytes: 20 for feeReceiver + 20 for one token address
 
-        // Check that the single token is encoded correctly
-        assertEq(BytesLib.toAddress(argsEncoded, 0), singleToken[0]);
+        // Check that feeReceiver is first, then the single token
+        assertEq(BytesLib.toAddress(argsEncoded, 0), address(0x1)); // default feeReceiver
+        assertEq(BytesLib.toAddress(argsEncoded, 20), singleToken[0]);
     }
 
     // Test inspect function with two tokens to ensure return statement coverage
@@ -137,11 +165,12 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         bytes memory argsEncoded = hook.inspect(data);
 
         assertGt(argsEncoded.length, 0);
-        assertEq(argsEncoded.length, 40); // Should be exactly 40 bytes for two addresses
+        assertEq(argsEncoded.length, 60); // Should be 60 bytes: 20 for feeReceiver + 40 for two token addresses
 
-        // Check that both tokens are encoded correctly
-        assertEq(BytesLib.toAddress(argsEncoded, 0), twoTokens[0]);
-        assertEq(BytesLib.toAddress(argsEncoded, 20), twoTokens[1]);
+        // Check that feeReceiver is first, then both tokens are encoded correctly
+        assertEq(BytesLib.toAddress(argsEncoded, 0), address(0x1)); // default feeReceiver
+        assertEq(BytesLib.toAddress(argsEncoded, 20), twoTokens[0]);
+        assertEq(BytesLib.toAddress(argsEncoded, 40), twoTokens[1]);
     }
 
     // Test inspect function with empty token array to ensure return statement coverage
@@ -153,7 +182,8 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         bytes memory data = _createMerklClaimRewardHookData(emptyTokens, emptyAmounts, emptyProofs);
         bytes memory argsEncoded = hook.inspect(data);
 
-        assertEq(argsEncoded.length, 0); // Should be empty for no tokens
+        assertEq(argsEncoded.length, 20); // Should be 20 bytes for feeReceiver only (no tokens)
+        assertEq(BytesLib.toAddress(argsEncoded, 0), address(0x1)); // default feeReceiver
     }
 
     function test_CalldataDecoding() public view {
@@ -184,7 +214,8 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         proofsSingle[0] = new bytes32[](1);
         proofsSingle[0][0] = keccak256(abi.encodePacked(makeAddr("user"), address(0), uint256(1000)));
 
-        bytes memory data = _createMerklClaimRewardHookData(tokensWithZero, amountsSingle, proofsSingle);
+        bytes memory data =
+            _createMerklClaimRewardHookData(address(0x1), 0, tokensWithZero, amountsSingle, proofsSingle);
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         hook.build(address(0), address(0), data);
@@ -202,7 +233,8 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         proofsSingle[0] = new bytes32[](1);
         proofsSingle[0][0] = keccak256(abi.encodePacked(makeAddr("user"), tokensSingle[0], uint256(0)));
 
-        bytes memory data = _createMerklClaimRewardHookData(tokensSingle, amountsWithZero, proofsSingle);
+        bytes memory data =
+            _createMerklClaimRewardHookData(address(0x1), 0, tokensSingle, amountsWithZero, proofsSingle);
 
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         hook.build(address(0), address(0), data);
@@ -220,7 +252,7 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         proofsSingle[0] = new bytes32[](1);
         proofsSingle[0][0] = keccak256(abi.encodePacked(makeAddr("user"), tokensSingle[0], uint256(1000)));
 
-        bytes memory data = _createMerklClaimRewardHookData(tokensSingle, amountsSingle, proofsSingle);
+        bytes memory data = _createMerklClaimRewardHookData(address(0x1), 0, tokensSingle, amountsSingle, proofsSingle);
 
         // Create invalid data by adding extra bytes at the end to cause cursor mismatch
         bytes memory invalidData = bytes.concat(data, abi.encodePacked(uint256(999)));
@@ -240,7 +272,7 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         proofsSingle[0] = new bytes32[](1);
         proofsSingle[0][0] = keccak256(abi.encodePacked(makeAddr("user"), tokensSingle[0], uint256(1000)));
 
-        bytes memory data = _createMerklClaimRewardHookData(tokensSingle, amountsSingle, proofsSingle);
+        bytes memory data = _createMerklClaimRewardHookData(address(0x1), 0, tokensSingle, amountsSingle, proofsSingle);
 
         // Add extra data to cause cursor mismatch
         bytes memory extraData = bytes.concat(data, abi.encodePacked(uint256(999)));
@@ -265,7 +297,8 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         proofsMultiple[1] = new bytes32[](1);
         proofsMultiple[1][0] = keccak256(abi.encodePacked(makeAddr("user"), tokensWithZeros[1], uint256(2000)));
 
-        bytes memory data = _createMerklClaimRewardHookData(tokensWithZeros, amountsMultiple, proofsMultiple);
+        bytes memory data =
+            _createMerklClaimRewardHookData(address(0x1), 0, tokensWithZeros, amountsMultiple, proofsMultiple);
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         hook.build(address(0), address(0), data);
@@ -287,7 +320,8 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         proofsMultiple[1] = new bytes32[](1);
         proofsMultiple[1][0] = keccak256(abi.encodePacked(makeAddr("user"), tokensMultiple[1], uint256(0)));
 
-        bytes memory data = _createMerklClaimRewardHookData(tokensMultiple, amountsWithZeros, proofsMultiple);
+        bytes memory data =
+            _createMerklClaimRewardHookData(address(0x1), 0, tokensMultiple, amountsWithZeros, proofsMultiple);
 
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         hook.build(address(0), address(0), data);
@@ -308,6 +342,8 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         // Create invalid data by adding extra bytes in the middle to cause cursor mismatch
         // This will make the cursor calculation wrong but won't cause out-of-bounds errors
         bytes memory invalidData = bytes.concat(
+            bytes20(address(0x1)), // feeReceiver
+            abi.encodePacked(uint256(0)), // feePercent
             abi.encodePacked(uint256(1)), // array length = 1
             bytes20(tokensSingle[0]), // token address
             abi.encodePacked(amountsSingle[0]), // amount
@@ -332,7 +368,8 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         proofsSingle[0] = new bytes32[](1);
         proofsSingle[0][0] = keccak256(abi.encodePacked(makeAddr("user"), address(0), uint256(1000)));
 
-        bytes memory data = _createMerklClaimRewardHookData(tokensWithZero, amountsSingle, proofsSingle);
+        bytes memory data =
+            _createMerklClaimRewardHookData(address(0x1), 0, tokensWithZero, amountsSingle, proofsSingle);
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         hook.inspect(data);
@@ -350,7 +387,8 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         proofsSingle[0] = new bytes32[](1);
         proofsSingle[0][0] = keccak256(abi.encodePacked(makeAddr("user"), tokensSingle[0], uint256(0)));
 
-        bytes memory data = _createMerklClaimRewardHookData(tokensSingle, amountsWithZero, proofsSingle);
+        bytes memory data =
+            _createMerklClaimRewardHookData(address(0x1), 0, tokensSingle, amountsWithZero, proofsSingle);
 
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         hook.inspect(data);
@@ -368,7 +406,7 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
         proofsSingle[0] = new bytes32[](1);
         proofsSingle[0][0] = keccak256(abi.encodePacked(makeAddr("user"), tokensSingle[0], uint256(1000)));
 
-        bytes memory data = _createMerklClaimRewardHookData(tokensSingle, amountsSingle, proofsSingle);
+        bytes memory data = _createMerklClaimRewardHookData(address(0x1), 0, tokensSingle, amountsSingle, proofsSingle);
 
         // Create invalid data by adding extra bytes at the end to cause cursor mismatch
         bytes memory invalidData = bytes.concat(data, abi.encodePacked(uint256(999)));
@@ -378,16 +416,45 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers {
     }
 
     function _encodeData() internal view returns (bytes memory data) {
-        data = abi.encodePacked(uint256(users.length));
+        // Use default fee parameters - feeReceiver: 0x1, feePercent: 0
+        return _createMerklClaimRewardHookData(address(0x1), 0, tokens, amounts, proofs);
+    }
 
-        for (uint256 i = 0; i < tokens.length; i++) {
-            data = bytes.concat(data, bytes20(tokens[i]));
+    function test_Build_WithFees() public {
+        address feeReceiver = makeAddr("feeReceiver");
+        uint256 feePercent = 1000; // 10%
+
+        // Mock the distributor to return zero claimed amounts
+        vm.mockCall(
+            distributor,
+            abi.encodeCall(IDistributor.claimed, (users[0], tokens[0])),
+            abi.encode(uint208(0), uint32(0), uint208(0))
+        );
+        vm.mockCall(
+            distributor,
+            abi.encodeCall(IDistributor.claimed, (users[0], tokens[1])),
+            abi.encode(uint208(0), uint32(0), uint208(0))
+        );
+        vm.mockCall(
+            distributor,
+            abi.encodeCall(IDistributor.claimed, (users[0], tokens[2])),
+            abi.encode(uint208(0), uint32(0), uint208(0))
+        );
+
+        bytes memory data = _createMerklClaimRewardHookData(feeReceiver, feePercent, tokens, amounts, proofs);
+        Execution[] memory executions = hook.build(address(0), users[0], data);
+
+        assertEq(executions.length, 6); // preExecute + 1 claim + 3 fee transfers + postExecute
+        assertEq(executions[0].target, address(hook)); // preExecute
+        assertEq(executions[1].target, distributor); // claim
+
+        // Check fee transfers target the correct fee receiver (executions 2, 3, 4)
+        for (uint256 i = 2; i < executions.length - 1; i++) {
+            assertEq(executions[i].target, tokens[i - 2]); // token contracts
+            // Fee transfer calldata should contain the fee receiver
+            uint256 expectedFee = (amounts[i - 2] * feePercent) / 10_000;
+            bytes memory expectedCallData = abi.encodeCall(IERC20.transfer, (feeReceiver, expectedFee));
+            assertEq(keccak256(executions[i].callData), keccak256(expectedCallData));
         }
-
-        for (uint256 i = 0; i < amounts.length; i++) {
-            data = bytes.concat(data, abi.encodePacked(amounts[i]));
-        }
-
-        data = bytes.concat(data, _flattenProofs(proofs));
     }
 }
