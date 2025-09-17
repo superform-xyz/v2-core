@@ -95,6 +95,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         uint256 expectedHooks;
         uint256 expectedTotal;
         string[] skippedContracts;
+        string[] missingBytecodeContracts;
     }
 
     uint256 private _deployed;
@@ -113,8 +114,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
     /// @notice Determines which contracts are available for deployment on a specific chain
     /// @param chainId The target chain ID
+    /// @param env Environment (0 = prod uses locked-bytecode, 1/2 = dev/staging uses locked-bytecode-dev)
     /// @return availability ContractAvailability struct with availability flags and expected counts
-    function _getContractAvailability(uint64 chainId)
+    function _getContractAvailability(uint64 chainId, uint256 env)
         internal
         view
         returns (ContractAvailability memory availability)
@@ -207,6 +209,78 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.skippedContracts = new string[](skipCount);
         for (uint256 i = 0; i < skipCount; i++) {
             availability.skippedContracts[i] = potentialSkips[i];
+        }
+
+        // Check bytecode existence and collect missing contracts
+        string[] memory potentialMissing = new string[](50); // Conservative size for all possible contracts
+        uint256 missingCount = 0;
+        
+        // Core contracts (11 contracts - always check these)
+        string[11] memory coreContracts = [
+            "SuperExecutor",
+            "SuperDestinationExecutor",
+            "SuperSenderCreator", 
+            "AcrossV3Adapter",
+            "DebridgeAdapter",
+            "SuperLedger",
+            "FlatFeeLedger",
+            "SuperLedgerConfiguration",
+            "SuperValidator",
+            "SuperDestinationValidator",
+            "SuperNativePaymaster"
+        ];
+        
+        for (uint256 i = 0; i < coreContracts.length; i++) {
+            if (!__checkBytecodeExists(coreContracts[i], env)) {
+                potentialMissing[missingCount++] = coreContracts[i];
+            }
+        }
+        
+        // Note: AcrossV3Adapter and DebridgeAdapter are checked above in coreContracts
+        // as they are part of CORE_CONTRACTS in regenerate_bytecode.sh
+        
+        // Hook contracts - all 34 hooks from regenerate_bytecode.sh
+        string[34] memory baseHooks = [
+            "ApproveERC20Hook", "TransferERC20Hook", "BatchTransferHook", "BatchTransferFromHook",
+            "Deposit4626VaultHook", "ApproveAndDeposit4626VaultHook", "Redeem4626VaultHook",
+            "Deposit5115VaultHook", "ApproveAndDeposit5115VaultHook", "Redeem5115VaultHook", 
+            "RequestDeposit7540VaultHook", "ApproveAndRequestDeposit7540VaultHook", "Redeem7540VaultHook",
+            "RequestRedeem7540VaultHook", "Deposit7540VaultHook", "CancelDepositRequest7540Hook",
+            "CancelRedeemRequest7540Hook", "ClaimCancelDepositRequest7540Hook", "ClaimCancelRedeemRequest7540Hook",
+            "Swap1InchHook", "SwapOdosV2Hook", "ApproveAndSwapOdosV2Hook",
+            "AcrossSendFundsAndExecuteOnDstHook", "DeBridgeSendOrderAndExecuteOnDstHook", "DeBridgeCancelOrderHook",
+            "EthenaCooldownSharesHook", "EthenaUnstakeHook", "OfframpTokensHook", "MarkRootAsUsedHook",
+            "MerklClaimRewardHook", "CircleGatewayWalletHook", "CircleGatewayMinterHook",
+            "CircleGatewayAddDelegateHook", "CircleGatewayRemoveDelegateHook"
+        ];
+        
+        for (uint256 i = 0; i < baseHooks.length; i++) {
+            if (!__checkBytecodeExists(baseHooks[i], env)) {
+                potentialMissing[missingCount++] = baseHooks[i];
+            }
+        }
+        
+        // Oracles (7 contracts - always check these)
+        string[7] memory oracleContracts = [
+            "ERC4626YieldSourceOracle",
+            "ERC5115YieldSourceOracle",
+            "ERC7540YieldSourceOracle",
+            "PendlePTYieldSourceOracle",
+            "SpectraPTYieldSourceOracle",
+            "StakingYieldSourceOracle",
+            "SuperYieldSourceOracle"
+        ];
+        
+        for (uint256 i = 0; i < oracleContracts.length; i++) {
+            if (!__checkBytecodeExists(oracleContracts[i], env)) {
+                potentialMissing[missingCount++] = oracleContracts[i];
+            }
+        }
+        
+        // Create properly sized missing bytecode contracts array
+        availability.missingBytecodeContracts = new string[](missingCount);
+        for (uint256 i = 0; i < missingCount; i++) {
+            availability.missingBytecodeContracts[i] = potentialMissing[i];
         }
 
         return availability;
@@ -320,7 +394,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log("");
 
         // Get contract availability for this chain
-        ContractAvailability memory availability = _getContractAvailability(chainId);
+        ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
         // Log availability analysis
         console2.log("=== Contract Availability Analysis ===");
@@ -335,6 +409,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log("=== Contracts SKIPPED due to missing configurations ===");
             for (uint256 i = 0; i < availability.skippedContracts.length; i++) {
                 console2.log("  SKIPPED:", availability.skippedContracts[i]);
+            }
+        }
+
+        if (availability.missingBytecodeContracts.length > 0) {
+            console2.log("");
+            console2.log("=== Contracts SKIPPED due to missing bytecode ===");
+            for (uint256 i = 0; i < availability.missingBytecodeContracts.length; i++) {
+                console2.log("  MISSING BYTECODE:", availability.missingBytecodeContracts[i]);
             }
         }
         console2.log("");
@@ -784,7 +866,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         CoreContracts memory coreContracts;
 
         // Get contract availability for this chain
-        ContractAvailability memory availability = _getContractAvailability(chainId);
+        ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
         // Pre-populate core contracts with existing deployed addresses
         _populateCoreContractsFromStatus(chainId, coreContracts);
@@ -1427,7 +1509,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log("Starting hook deployment with comprehensive dependency validation...");
 
         // Get contract availability for this chain
-        ContractAvailability memory availability = _getContractAvailability(chainId);
+        ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
         uint256 len = 34;
         HookDeployment[] memory hooks = new HookDeployment[](len);
