@@ -56,9 +56,9 @@ extract_contracts_from_regenerate_script() {
     sed -n "/${array_name}=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | tr -d '"'
 }
 
-# Function to validate locked bytecode files (sourced from regenerate_bytecode.sh)
-validate_locked_bytecode() {
-    log "INFO" "Validating locked bytecode artifacts from $LOCKED_BYTECODE_PATH..."
+# Function to report bytecode availability (sourced from regenerate_bytecode.sh)
+report_bytecode_availability() {
+    log "INFO" "Analyzing bytecode availability from $LOCKED_BYTECODE_PATH..."
     
     local script_path="$PROJECT_ROOT/script/run/regenerate_bytecode.sh"
     if [[ ! -f "$script_path" ]]; then
@@ -66,7 +66,11 @@ validate_locked_bytecode() {
         return 1
     fi
     
-    local missing_files=()
+    local missing_contracts=()
+    local available_contracts=()
+    local missing_core=()
+    local missing_hooks=()
+    local missing_oracles=()
     
     # Extract and check core contracts
     log "INFO" "Checking core contracts from regenerate_bytecode.sh..."
@@ -76,7 +80,10 @@ validate_locked_bytecode() {
         [[ -z "$contract" ]] && continue
         local file_path="$LOCKED_BYTECODE_PATH/${contract}.json"
         if [ ! -f "$file_path" ]; then
-            missing_files+=("$file_path")
+            missing_contracts+=("$contract")
+            missing_core+=("$contract")
+        else
+            available_contracts+=("$contract")
         fi
     done
     
@@ -88,7 +95,10 @@ validate_locked_bytecode() {
         [[ -z "$contract" ]] && continue
         local file_path="$LOCKED_BYTECODE_PATH/${contract}.json"
         if [ ! -f "$file_path" ]; then
-            missing_files+=("$file_path")
+            missing_contracts+=("$contract")
+            missing_hooks+=("$contract")
+        else
+            available_contracts+=("$contract")
         fi
     done
     
@@ -100,26 +110,56 @@ validate_locked_bytecode() {
         [[ -z "$contract" ]] && continue
         local file_path="$LOCKED_BYTECODE_PATH/${contract}.json"
         if [ ! -f "$file_path" ]; then
-            missing_files+=("$file_path")
+            missing_contracts+=("$contract")
+            missing_oracles+=("$contract")
+        else
+            available_contracts+=("$contract")
         fi
     done
     
-    # Show expected total count
+    # Show summary
     local expected_total
     expected_total=$(get_expected_contract_count)
-    log "INFO" "Expected total artifacts: $expected_total (from regenerate_bytecode.sh)"
+    echo -e "${CYAN}📊 Bytecode Availability Summary${NC}"
+    echo -e "${GREEN}   Available contracts: ${#available_contracts[@]}${NC}"
+    echo -e "${YELLOW}   Missing contracts: ${#missing_contracts[@]}${NC}"
+    echo -e "${BLUE}   Expected total: $expected_total${NC}"
+    echo ""
     
-    if [ ${#missing_files[@]} -gt 0 ]; then
-        echo -e "${RED}❌ Missing locked bytecode files:${NC}"
-        for file in "${missing_files[@]}"; do
-            echo -e "${RED}   - $file${NC}"
-        done
-        echo -e "${RED}   Missing: ${#missing_files[@]} files${NC}"
-        return 1
+    if [ ${#missing_contracts[@]} -gt 0 ]; then
+        echo -e "${YELLOW}⚠️  Contracts that will be SKIPPED due to missing bytecode:${NC}"
+        
+        if [ ${#missing_core[@]} -gt 0 ]; then
+            echo -e "${YELLOW}   Core Contracts (${#missing_core[@]}):${NC}"
+            for contract in "${missing_core[@]}"; do
+                echo -e "${YELLOW}     - $contract${NC}"
+            done
+        fi
+        
+        if [ ${#missing_hooks[@]} -gt 0 ]; then
+            echo -e "${YELLOW}   Hook Contracts (${#missing_hooks[@]}):${NC}"
+            for contract in "${missing_hooks[@]}"; do
+                echo -e "${YELLOW}     - $contract${NC}"
+            done
+        fi
+        
+        if [ ${#missing_oracles[@]} -gt 0 ]; then
+            echo -e "${YELLOW}   Oracle Contracts (${#missing_oracles[@]}):${NC}"
+            for contract in "${missing_oracles[@]}"; do
+                echo -e "${YELLOW}     - $contract${NC}"
+            done
+        fi
+        
+        echo ""
+        echo -e "${YELLOW}ℹ️  These contracts are defined in the system but will not be deployed.${NC}"
+        echo -e "${YELLOW}   To deploy them, ensure their bytecode artifacts are present in: $LOCKED_BYTECODE_PATH${NC}"
+        echo ""
+    else
+        echo -e "${GREEN}✅ All defined contracts have bytecode available${NC}"
+        echo ""
     fi
     
-    echo -e "${GREEN}✅ All required locked bytecode files are present${NC}"
-    echo -e "${GREEN}   Validated: $expected_total contract artifacts${NC}"
+    # Always return success to allow deployment to continue
     return 0
 }
 
@@ -443,13 +483,11 @@ export SUPERFORM_PROJECT_ROOT="$PROJECT_ROOT"
 echo -e "${CYAN}   • Exported SUPERFORM_PROJECT_ROOT: $SUPERFORM_PROJECT_ROOT${NC}"
 print_separator
 
-# ===== LOCKED BYTECODE VALIDATION =====
-echo -e "${BLUE}🔍 Validating locked bytecode artifacts...${NC}"
-if ! validate_locked_bytecode; then
-    echo -e "${RED}❌ Locked bytecode validation failed${NC}"
-    echo -e "${YELLOW}Please ensure all required contract artifacts are present before deployment.${NC}"
-    exit 1
-fi
+# ===== BYTECODE AVAILABILITY ANALYSIS =====
+echo -e "${BLUE}🔍 Analyzing bytecode availability...${NC}"
+report_bytecode_availability
+echo -e "${GREEN}✅ Bytecode availability analysis completed${NC}"
+echo -e "${CYAN}   Deployment will proceed, skipping any contracts with missing bytecode${NC}"
 print_separator
 
 # ===== ADDRESS CHECKING PHASE =====

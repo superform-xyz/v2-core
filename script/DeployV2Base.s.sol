@@ -335,6 +335,24 @@ abstract contract DeployV2Base is Script, ConfigBase {
         return vm.getCode(artifactPath);
     }
 
+    /// @notice Check if bytecode artifact exists for a contract
+    /// @param contractName Name of the contract
+    /// @param env Environment (0 = prod uses locked-bytecode, 1/2 = dev/staging uses locked-bytecode-dev)
+    /// @return exists Whether the bytecode artifact file exists
+    function __checkBytecodeExists(string memory contractName, uint256 env) internal view returns (bool exists) {
+        string memory artifactPath = __getBytecodeArtifactPath(contractName, env);
+        
+        // Use try/catch to safely check if bytecode artifact exists
+        // vm.getCode() will revert if the artifact file doesn't exist
+        try vm.getCode(artifactPath) returns (bytes memory) {
+            // If we get here, the file exists and contains bytecode
+            exists = true;
+        } catch {
+            // If we get here, the file doesn't exist or is invalid
+            exists = false;
+        }
+    }
+
     // Add a mapping to track exported contracts per chain
     mapping(uint64 => string) private exportedContracts;
     mapping(uint64 => uint256) private contractCount;
