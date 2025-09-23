@@ -105,6 +105,8 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
     error INVALID_PREVIOUS_NATIVE_TRANSFER_HOOK_USAGE();
 
+    error INVALID_REMAINING_NATIVE_AMOUNT();
+
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -188,12 +190,13 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
         // Get initial balance (handle native ETH vs ERC-20)
         address outputToken = _getOutputToken(data);
+        address dstReceiver = data.toAddress(68);
         if (outputToken == address(0)) {
             // Native ETH
-            initialBalance = account.balance;
+            initialBalance = dstReceiver.balance;
         } else {
             // ERC-20 token
-            initialBalance = IERC20(outputToken).balanceOf(account);
+            initialBalance = IERC20(outputToken).balanceOf(dstReceiver);
         }
 
         // Prepare and store unlock data in transient storage for postExecute
@@ -217,13 +220,14 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
         // Calculate true output amount (handle native ETH vs ERC-20)
         address outputToken = _getOutputToken(data);
+        address dstReceiver = data.toAddress(68);
         uint256 currentBalance;
         if (outputToken == address(0)) {
             // Native ETH
-            currentBalance = account.balance;
+            currentBalance = dstReceiver.balance;
         } else {
             // ERC-20 token
-            currentBalance = IERC20(outputToken).balanceOf(account);
+            currentBalance = IERC20(outputToken).balanceOf(dstReceiver);
         }
         uint256 trueOutputAmount = currentBalance - initialBalance;
 
@@ -255,10 +259,14 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
             bytes memory additionalData
         ) = abi.decode(data, (PoolKey, uint256, uint256, address, uint160, bool, bytes));
 
-        // Validate price limit - must be non-zero
-        if (sqrtPriceLimitX96 == 0) {
-            revert INVALID_PRICE_LIMIT();
-        }
+        // Normalize price limit: 0 means no limit -> set to extreme bound depending on direction
+        uint160 effectivePriceLimitX96 = sqrtPriceLimitX96 == 0
+            ? (
+                zeroForOne
+                    ? TickMath.MIN_SQRT_PRICE + 1
+                    : TickMath.MAX_SQRT_PRICE - 1
+            )
+            : sqrtPriceLimitX96;
 
         // Determine swap direction and currencies
         Currency inputCurrency = zeroForOne ? poolKey.currency0 : poolKey.currency1;
@@ -267,10 +275,11 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
         // Handle native vs ERC-20 settlement differently
         if (inputCurrency.isAddressZero()) {
-            if (address(this).balance < amountIn) revert INVALID_PREVIOUS_NATIVE_TRANSFER_HOOK_USAGE();
+            if (address(this).balance != amountIn) revert INVALID_PREVIOUS_NATIVE_TRANSFER_HOOK_USAGE();
 
             // Native token: settle directly with value (no sync allowed for native)
             POOL_MANAGER.settle{ value: amountIn }();
+            if (address(this).balance != 0) revert INVALID_REMAINING_NATIVE_AMOUNT();
         } else {
             // ERC-20 token: sync → transfer → settle pattern
             POOL_MANAGER.sync(inputCurrency);
@@ -282,7 +291,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         IPoolManager.SwapParams memory swapParams = IPoolManager.SwapParams({
             zeroForOne: zeroForOne,
             amountSpecified: -int256(amountIn), // Exact input (negative for exact input)
-            sqrtPriceLimitX96: sqrtPriceLimitX96
+            sqrtPriceLimitX96: effectivePriceLimitX96
         });
 
         BalanceDelta swapDelta = POOL_MANAGER.swap(poolKey, swapParams, additionalData);
@@ -389,6 +398,8 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         view
         returns (uint256 newMinAmountOut)
     {
+
+
         // Input validation
         if (params.originalAmountIn == 0 || params.originalMinAmountOut == 0) {
             revert INVALID_ORIGINAL_AMOUNTS();
@@ -413,6 +424,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         // Validate quote deviation using the calculated amount
         _validateQuoteDeviation(poolKey, params.actualAmountIn, newMinAmountOut, zeroForOne);
     }
+
 
     /// @notice Internal function to calculate ratio deviation in basis points
     /// @dev Handles both increases and decreases from the 1:1 ratio
