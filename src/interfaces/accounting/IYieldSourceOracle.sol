@@ -78,7 +78,7 @@ interface IYieldSourceOracle {
     /// @param yieldSourceAddress The yield-bearing token address (e.g., aUSDC, cDAI)
     /// @param assetIn The underlying asset being withdrawn (e.g., USDC, DAI)
     /// @param assetsIn The amount of underlying assets to withdraw, in the asset's native units
-    /// @return shares The number of yield-bearing shares that would be received
+    /// @return assets The number of underlying assets that would be received
     function getWithdrawalShareOutput(
         address yieldSourceAddress,
         address assetIn,
