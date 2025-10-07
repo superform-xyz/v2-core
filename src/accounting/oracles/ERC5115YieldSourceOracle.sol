@@ -106,9 +106,4 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         if (totalShares == 0) return 0;
         return Math.mulDiv(totalShares, yieldSource.exchangeRate(), 1e18);
     }
-
-    
-    function _getShareOutput(address yieldSourceAddress, address assetIn, uint256 assetsIn) internal view returns (uint256) {
-        return IStandardizedYield(yieldSourceAddress).previewDeposit(assetIn, assetsIn);
-    }
 }
