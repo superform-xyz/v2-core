@@ -137,7 +137,7 @@ contract YieldSourceOraclesTest is Helpers {
     function test_ERC4626_getWithdrawalShareOutput() public view {
         uint256 assetsIn = 1e18;
         uint256 expectedShares = erc4626.previewWithdraw(assetsIn);
-        uint256 actualShares = erc4626YieldSourceOracle.getWithdrawalShareOutput(address(erc4626), address(0), assetsIn);
+        uint256 actualShares = erc4626YieldSourceOracle.quoteWithdrawalAssets(address(erc4626), address(0), assetsIn);
         assertEq(actualShares, expectedShares);
     }
 
@@ -146,7 +146,7 @@ contract YieldSourceOraclesTest is Helpers {
         // For ERC7540: convert to shares then back to assets (round trip)
         uint256 shares = erc7540.convertToShares(assetsIn);
         uint256 expectedAssets = erc7540.convertToAssets(shares);
-        uint256 actualAssets = erc7540YieldSourceOracle.getWithdrawalShareOutput(address(erc7540), address(0), assetsIn);
+        uint256 actualAssets = erc7540YieldSourceOracle.quoteWithdrawalAssets(address(erc7540), address(0), assetsIn);
         assertEq(actualAssets, expectedAssets);
     }
 
@@ -155,13 +155,13 @@ contract YieldSourceOraclesTest is Helpers {
         // For ERC5115: convert to shares then back to assets (round trip)
         uint256 shares = erc5115.previewDeposit(address(asset), assetsIn);
         uint256 expectedAssets = erc5115.previewRedeem(address(asset), shares);
-        uint256 actualAssets = erc5115YieldSourceOracle.getWithdrawalShareOutput(address(erc5115), address(0), assetsIn);
+        uint256 actualAssets = erc5115YieldSourceOracle.quoteWithdrawalAssets(address(erc5115), address(0), assetsIn);
         assertEq(actualAssets, expectedAssets);
     }
 
     function test_Staking_getWithdrawalShareOutput() public view {
         uint256 assetsIn = 1e18;
-        uint256 actualAssets = stakingYieldSourceOracle.getWithdrawalShareOutput(address(stakingVault), address(0), assetsIn);
+        uint256 actualAssets = stakingYieldSourceOracle.quoteWithdrawalAssets(address(stakingVault), address(0), assetsIn);
         assertEq(actualAssets, assetsIn); // For staking vaults, withdrawal assets = input assets
     }
 

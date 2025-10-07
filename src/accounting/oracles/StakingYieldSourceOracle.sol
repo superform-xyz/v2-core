@@ -33,7 +33,7 @@ contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getWithdrawalShareOutput(
+    function quoteWithdrawalAssets(
         address,
         address,
         uint256 assetsIn

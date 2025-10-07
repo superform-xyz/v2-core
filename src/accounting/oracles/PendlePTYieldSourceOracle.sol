@@ -77,7 +77,7 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getWithdrawalShareOutput(
+    function quoteWithdrawalAssets(
         address market,
         address,
         uint256 assetsIn

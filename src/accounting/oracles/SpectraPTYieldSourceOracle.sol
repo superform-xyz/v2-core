@@ -30,7 +30,7 @@ contract SpectraPTYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getWithdrawalShareOutput(
+    function quoteWithdrawalAssets(
         address ptAddress,
         address,
         uint256 assetsIn

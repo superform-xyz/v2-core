@@ -49,7 +49,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         returns (uint256);
 
     /// @inheritdoc IYieldSourceOracle
-    function getWithdrawalShareOutput(
+    function quoteWithdrawalAssets(
         address yieldSourceAddress,
         address assetIn,
         uint256 assetsIn

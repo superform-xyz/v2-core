@@ -79,7 +79,7 @@ interface IYieldSourceOracle {
     /// @param assetIn The underlying asset being withdrawn (e.g., USDC, DAI)
     /// @param assetsIn The amount of underlying assets to withdraw, in the asset's native units
     /// @return assets The number of underlying assets that would be received
-    function getWithdrawalShareOutput(
+    function quoteWithdrawalAssets(
         address yieldSourceAddress,
         address assetIn,
         uint256 assetsIn

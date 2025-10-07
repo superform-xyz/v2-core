@@ -37,7 +37,7 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getWithdrawalShareOutput(
+    function quoteWithdrawalAssets(
         address yieldSourceAddress,
         address assetIn,
         uint256 assetsIn

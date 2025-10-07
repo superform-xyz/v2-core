@@ -46,7 +46,7 @@ contract MockYieldSourceOracle is IYieldSourceOracle {
         return assetsIn;
     }
 
-    function getWithdrawalShareOutput(address, address, uint256 assetsIn) external pure override returns (uint256) {
+    function quoteWithdrawalAssets(address, address, uint256 assetsIn) external pure override returns (uint256) {
         return assetsIn;
     }
 
