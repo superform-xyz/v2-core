@@ -35,7 +35,23 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return IERC7540(yieldSourceAddress).convertToShares(assetsIn);
+        return _getShareOutput(yieldSourceAddress, assetsIn);
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getWithdrawalShareOutput(
+        address yieldSourceAddress,
+        address,
+        uint256 assetsIn
+    )
+        external
+        view
+        override
+        returns (uint256)
+    {
+        uint256 obtainableShares = _getShareOutput(yieldSourceAddress, assetsIn);
+        uint256 obtainableAssets = _getAssetOutput(yieldSourceAddress, obtainableShares);
+        return obtainableAssets;
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -49,7 +65,7 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return IERC7540(yieldSourceAddress).convertToAssets(sharesIn);
+        return _getAssetOutput(yieldSourceAddress, sharesIn);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -90,5 +106,13 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
     /// @inheritdoc AbstractYieldSourceOracle
     function getTVL(address yieldSourceAddress) public view override returns (uint256) {
         return IERC7540(yieldSourceAddress).totalAssets();
+    }
+
+    function _getShareOutput(address yieldSourceAddress, uint256 assetsIn) internal view returns (uint256) {
+        return IERC7540(yieldSourceAddress).convertToShares(assetsIn);
+    }
+    
+    function _getAssetOutput(address yieldSourceAddress, uint256 sharesIn) internal view returns (uint256) {
+        return IERC7540(yieldSourceAddress).convertToAssets(sharesIn);
     }
 }

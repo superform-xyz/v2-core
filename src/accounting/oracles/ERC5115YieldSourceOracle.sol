@@ -33,9 +33,25 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return IStandardizedYield(yieldSourceAddress).previewDeposit(assetIn, assetsIn);
+        return _getShareOutput(yieldSourceAddress, assetIn, assetsIn);
     }
 
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getWithdrawalShareOutput(
+        address yieldSourceAddress,
+        address assetIn,
+        uint256 assetsIn
+    )
+        external
+        view
+        override
+        returns (uint256)
+    {
+        uint256 obtainableShares = _getShareOutput(yieldSourceAddress, assetIn, assetsIn);
+        uint256 obtainableAssets = _getAssetOutput(yieldSourceAddress, assetIn, obtainableShares);
+        return obtainableAssets;
+    }
+    
     /// @inheritdoc AbstractYieldSourceOracle
     function getAssetOutput(
         address yieldSourceAddress,
@@ -47,7 +63,7 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return IStandardizedYield(yieldSourceAddress).previewRedeem(assetOut, sharesIn);
+        return _getAssetOutput(yieldSourceAddress, assetOut, sharesIn);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -90,5 +106,13 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         uint256 totalShares = yieldSource.totalSupply();
         if (totalShares == 0) return 0;
         return Math.mulDiv(totalShares, yieldSource.exchangeRate(), 1e18);
+    }
+
+    function _getAssetOutput(address yieldSourceAddress, address assetIn, uint256 assetsIn) internal view returns (uint256) {
+        return IStandardizedYield(yieldSourceAddress).previewRedeem(assetIn, assetsIn);
+    }
+    
+    function _getShareOutput(address yieldSourceAddress, address assetIn, uint256 assetsIn) internal view returns (uint256) {
+        return IStandardizedYield(yieldSourceAddress).previewDeposit(assetIn, assetsIn);
     }
 }

@@ -26,8 +26,24 @@ contract SpectraPTYieldSourceOracle is AbstractYieldSourceOracle {
     /// @inheritdoc AbstractYieldSourceOracle
     function getShareOutput(address ptAddress, address, uint256 assetsIn) external view override returns (uint256) {
         // Use convertToPrincipal to get shares (PTs) for assets
-        return IPrincipalToken(ptAddress).convertToPrincipal(assetsIn);
+        return _getShareOutput(ptAddress, assetsIn);
     }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getWithdrawalShareOutput(
+        address ptAddress,
+        address,
+        uint256 assetsIn
+    )
+        external
+        view
+        override
+        returns (uint256)
+    {
+        uint256 obtainableShares = _getShareOutput(ptAddress, assetsIn);
+        uint256 obtainableAssets = _getAssetOutput(ptAddress, obtainableShares);
+        return obtainableAssets;
+    } 
 
     /// @inheritdoc AbstractYieldSourceOracle
     function getAssetOutput(
@@ -41,7 +57,7 @@ contract SpectraPTYieldSourceOracle is AbstractYieldSourceOracle {
         returns (uint256)
     {
         // Use convertToUnderlying to get assets for shares (PTs)
-        return IPrincipalToken(ptAddress).convertToUnderlying(sharesIn);
+        return _getAssetOutput(ptAddress, sharesIn);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -79,5 +95,13 @@ contract SpectraPTYieldSourceOracle is AbstractYieldSourceOracle {
 
     function _balanceOf(address ptAddress, address owner) internal view returns (uint256) {
         return IERC20Metadata(ptAddress).balanceOf(owner);
+    }
+
+    function _getShareOutput(address ptAddress, uint256 assetsIn) internal view returns (uint256 sharesOut) {
+        return IPrincipalToken(ptAddress).convertToPrincipal(assetsIn);
+    }
+    
+    function _getAssetOutput(address ptAddress, uint256 sharesIn) internal view returns (uint256 assetsOut) {
+        return IPrincipalToken(ptAddress).convertToUnderlying(sharesIn);
     }
 }

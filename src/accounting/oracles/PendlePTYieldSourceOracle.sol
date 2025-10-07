@@ -59,30 +59,7 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256 sharesOut)
     {
-        uint256 pricePerShare = getPricePerShare(market); // Price is PT/Asset in 1e18
-        if (pricePerShare == 0) return 0; // Avoid division by zero
-
-        // sharesOut = assetsIn * 1e18 / pricePerShare
-        // Asset decimals might differ from 18, need to adjust. PT decimals also matter.
-        IStandardizedYield sY = IStandardizedYield(_sy(market));
-        (,, uint8 assetDecimals) = _getAssetInfo(sY);
-
-        uint8 ptDecimals = IERC20Metadata(_pt(market)).decimals();
-
-        // Scale assetsIn to Price Decimals (1e18) before calculating shares
-        uint256 assetsIn18;
-        if (assetDecimals <= PRICE_DECIMALS) {
-            // Scale up if assetDecimals <= 18
-            assetsIn18 = assetsIn * (10 ** (PRICE_DECIMALS - assetDecimals));
-        } else {
-            // Scale down if assetDecimals > 18
-            // Avoids underflow in 10**(PRICE_DECIMALS - assetDecimals)
-            assetsIn18 = Math.mulDiv(assetsIn, 1, 10 ** (assetDecimals - PRICE_DECIMALS));
-        }
-
-        // Result is in PT decimals: sharesOut = assetsIn18 * 1e(ptDecimals) / pricePerShare
-        // pricePerShare is PT/Asset in 1e18
-        sharesOut = Math.mulDiv(assetsIn18, 10 ** uint256(ptDecimals), pricePerShare);
+        return _getShareOutput(market, assetsIn);
     }
 
     /// @inheritdoc IYieldSourceOracle
@@ -96,26 +73,23 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256 assetsOut)
     {
-        uint256 pricePerShare = getPricePerShare(market); // Price is PT/Asset in 1e18
+        return _getAssetOutput(market, sharesIn);
+    }
 
-        // assetsOut = sharesIn * pricePerShare / 1e(ptDecimals) / 1e(18 - assetDecimals)
-        uint8 ptDecimals = IERC20Metadata(_pt(market)).decimals();
-        IStandardizedYield sY = IStandardizedYield(_sy(market));
-        (,, uint8 assetDecimals) = _getAssetInfo(sY);
-
-        // Calculate asset value in 1e18 terms first
-        // assetsOut18 = sharesIn * pricePerShare / 10^ptDecimals
-        uint256 assetsOut18 = Math.mulDiv(sharesIn, pricePerShare, 10 ** uint256(ptDecimals));
-
-        // Scale from 1e18 representation (PRICE_DECIMALS) to asset's actual decimals
-        if (assetDecimals >= PRICE_DECIMALS) {
-            // Scale up if assetDecimals >= 18
-            assetsOut = assetsOut18 * (10 ** (assetDecimals - PRICE_DECIMALS));
-        } else {
-            // Scale down if assetDecimals < 18
-            // Avoids underflow in 10**(PRICE_DECIMALS - assetDecimals) which happens in the division below
-            assetsOut = Math.mulDiv(assetsOut18, 1, 10 ** (PRICE_DECIMALS - assetDecimals));
-        }
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getWithdrawalShareOutput(
+        address market,
+        address,
+        uint256 assetsIn
+    )
+        external
+        view
+        override
+        returns (uint256)
+    {
+        uint256 obtainableShares = _getShareOutput(market, assetsIn);
+        uint256 obtainableAssets = _getAssetOutput(market, obtainableShares);
+        return obtainableAssets;
     }
 
     /// @inheritdoc IYieldSourceOracle
@@ -158,6 +132,56 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
     {
         IERC20Metadata pt = IERC20Metadata(_pt(market));
         balance = pt.balanceOf(ownerOfShares);
+    }
+
+    function _getShareOutput(address market, uint256 assetsIn) internal view returns (uint256 sharesOut) {
+        uint256 pricePerShare = getPricePerShare(market); // Price is PT/Asset in 1e18
+        if (pricePerShare == 0) return 0; // Avoid division by zero
+
+        // sharesOut = assetsIn * 1e18 / pricePerShare
+        // Asset decimals might differ from 18, need to adjust. PT decimals also matter.
+        IStandardizedYield sY = IStandardizedYield(_sy(market));
+        (,, uint8 assetDecimals) = _getAssetInfo(sY);
+
+        uint8 ptDecimals = IERC20Metadata(_pt(market)).decimals();
+
+        // Scale assetsIn to Price Decimals (1e18) before calculating shares
+        uint256 assetsIn18;
+        if (assetDecimals <= PRICE_DECIMALS) {
+            // Scale up if assetDecimals <= 18
+            assetsIn18 = assetsIn * (10 ** (PRICE_DECIMALS - assetDecimals));
+        } else {
+            // Scale down if assetDecimals > 18
+            // Avoids underflow in 10**(PRICE_DECIMALS - assetDecimals)
+            assetsIn18 = Math.mulDiv(assetsIn, 1, 10 ** (assetDecimals - PRICE_DECIMALS));
+        }
+
+        // Result is in PT decimals: sharesOut = assetsIn18 * 1e(ptDecimals) / pricePerShare
+        // pricePerShare is PT/Asset in 1e18
+        sharesOut = Math.mulDiv(assetsIn18, 10 ** uint256(ptDecimals), pricePerShare);
+    }
+
+    function _getAssetOutput(address market, uint256 sharesIn) internal view returns (uint256 assetsOut) {
+        uint256 pricePerShare = getPricePerShare(market); // Price is PT/Asset in 1e18
+
+        // assetsOut = sharesIn * pricePerShare / 1e(ptDecimals) / 1e(18 - assetDecimals)
+        uint8 ptDecimals = IERC20Metadata(_pt(market)).decimals();
+        IStandardizedYield sY = IStandardizedYield(_sy(market));
+        (,, uint8 assetDecimals) = _getAssetInfo(sY);
+
+        // Calculate asset value in 1e18 terms first
+        // assetsOut18 = sharesIn * pricePerShare / 10^ptDecimals
+        uint256 assetsOut18 = Math.mulDiv(sharesIn, pricePerShare, 10 ** uint256(ptDecimals));
+
+        // Scale from 1e18 representation (PRICE_DECIMALS) to asset's actual decimals
+        if (assetDecimals >= PRICE_DECIMALS) {
+            // Scale up if assetDecimals >= 18
+            assetsOut = assetsOut18 * (10 ** (assetDecimals - PRICE_DECIMALS));
+        } else {
+            // Scale down if assetDecimals < 18
+            // Avoids underflow in 10**(PRICE_DECIMALS - assetDecimals) which happens in the division below
+            assetsOut = Math.mulDiv(assetsOut18, 1, 10 ** (PRICE_DECIMALS - assetDecimals));
+        }    
     }
 
     function _getAssetInfo(IStandardizedYield sY) internal view returns (uint256, address, uint8) {
