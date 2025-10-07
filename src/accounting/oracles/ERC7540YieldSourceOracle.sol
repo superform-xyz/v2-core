@@ -5,6 +5,7 @@ pragma solidity 0.8.30;
 import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
 import { IERC7540 } from "../../vendor/vaults/7540/IERC7540.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
@@ -35,11 +36,11 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return _getShareOutput(yieldSourceAddress, assetsIn);
+        return IERC7540(yieldSourceAddress).convertToShares(assetsIn);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function quoteWithdrawalAssets(
+    function getWithdrawalShareOutput(
         address yieldSourceAddress,
         address,
         uint256 assetsIn
@@ -49,9 +50,8 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        uint256 obtainableShares = _getShareOutput(yieldSourceAddress, assetsIn);
-        uint256 obtainableAssets = _getAssetOutput(yieldSourceAddress, obtainableShares);
-        return obtainableAssets;
+        uint256 assetsPerShare = IERC7540(yieldSourceAddress).convertToAssets(1e18);
+        return Math.mulDiv(assetsIn, 1e18, assetsPerShare, Math.Rounding.Ceil);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -65,7 +65,7 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return _getAssetOutput(yieldSourceAddress, sharesIn);
+        return IERC7540(yieldSourceAddress).convertToAssets(sharesIn);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -108,11 +108,4 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
         return IERC7540(yieldSourceAddress).totalAssets();
     }
 
-    function _getShareOutput(address yieldSourceAddress, uint256 assetsIn) internal view returns (uint256) {
-        return IERC7540(yieldSourceAddress).convertToShares(assetsIn);
-    }
-    
-    function _getAssetOutput(address yieldSourceAddress, uint256 sharesIn) internal view returns (uint256) {
-        return IERC7540(yieldSourceAddress).convertToAssets(sharesIn);
-    }
 }

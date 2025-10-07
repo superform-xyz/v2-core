@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 // external
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
@@ -33,7 +34,7 @@ contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function quoteWithdrawalAssets(
+    function getWithdrawalShareOutput(
         address,
         address,
         uint256 assetsIn

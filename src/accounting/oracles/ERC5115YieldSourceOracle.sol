@@ -33,11 +33,11 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return _getShareOutput(yieldSourceAddress, assetIn, assetsIn);
+        return IStandardizedYield(yieldSourceAddress).previewDeposit(assetIn, assetsIn);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function quoteWithdrawalAssets(
+    function getWithdrawalShareOutput(
         address yieldSourceAddress,
         address assetIn,
         uint256 assetsIn
@@ -47,9 +47,8 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        uint256 obtainableShares = _getShareOutput(yieldSourceAddress, assetIn, assetsIn);
-        uint256 obtainableAssets = _getAssetOutput(yieldSourceAddress, assetIn, obtainableShares);
-        return obtainableAssets;
+        uint256 assetsPerShare = IStandardizedYield(yieldSourceAddress).previewRedeem(assetIn, 1e18);
+        return Math.mulDiv(assetsIn, 1e18, assetsPerShare, Math.Rounding.Ceil); 
     }
     
     /// @inheritdoc AbstractYieldSourceOracle
@@ -63,7 +62,7 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return _getAssetOutput(yieldSourceAddress, assetOut, sharesIn);
+        return IStandardizedYield(yieldSourceAddress).previewRedeem(assetOut, sharesIn);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -108,9 +107,6 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         return Math.mulDiv(totalShares, yieldSource.exchangeRate(), 1e18);
     }
 
-    function _getAssetOutput(address yieldSourceAddress, address assetIn, uint256 sharesIn) internal view returns (uint256) {
-        return IStandardizedYield(yieldSourceAddress).previewRedeem(assetIn, sharesIn);
-    }
     
     function _getShareOutput(address yieldSourceAddress, address assetIn, uint256 assetsIn) internal view returns (uint256) {
         return IStandardizedYield(yieldSourceAddress).previewDeposit(assetIn, assetsIn);

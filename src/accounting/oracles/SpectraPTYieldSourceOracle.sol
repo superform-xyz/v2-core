@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 // external
 import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import { IPrincipalToken } from "../../vendor/spectra/IPrincipalToken.sol";
 // Superform
@@ -25,12 +26,11 @@ contract SpectraPTYieldSourceOracle is AbstractYieldSourceOracle {
 
     /// @inheritdoc AbstractYieldSourceOracle
     function getShareOutput(address ptAddress, address, uint256 assetsIn) external view override returns (uint256) {
-        // Use convertToPrincipal to get shares (PTs) for assets
-        return _getShareOutput(ptAddress, assetsIn);
+        return IPrincipalToken(ptAddress).convertToPrincipal(assetsIn);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function quoteWithdrawalAssets(
+    function getWithdrawalShareOutput(
         address ptAddress,
         address,
         uint256 assetsIn
@@ -40,9 +40,9 @@ contract SpectraPTYieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        uint256 obtainableShares = _getShareOutput(ptAddress, assetsIn);
-        uint256 obtainableAssets = _getAssetOutput(ptAddress, obtainableShares);
-        return obtainableAssets;
+        uint256 underlyingPerShare = IPrincipalToken(ptAddress).convertToUnderlying(1e18);
+        if (underlyingPerShare == 0) return 0;
+        return Math.mulDiv(assetsIn, 1e18, underlyingPerShare, Math.Rounding.Ceil);
     } 
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -56,8 +56,7 @@ contract SpectraPTYieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        // Use convertToUnderlying to get assets for shares (PTs)
-        return _getAssetOutput(ptAddress, sharesIn);
+        return IPrincipalToken(ptAddress).convertToUnderlying(sharesIn);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -95,13 +94,5 @@ contract SpectraPTYieldSourceOracle is AbstractYieldSourceOracle {
 
     function _balanceOf(address ptAddress, address owner) internal view returns (uint256) {
         return IERC20Metadata(ptAddress).balanceOf(owner);
-    }
-
-    function _getShareOutput(address ptAddress, uint256 assetsIn) internal view returns (uint256 sharesOut) {
-        return IPrincipalToken(ptAddress).convertToPrincipal(assetsIn);
-    }
-    
-    function _getAssetOutput(address ptAddress, uint256 sharesIn) internal view returns (uint256 assetsOut) {
-        return IPrincipalToken(ptAddress).convertToUnderlying(sharesIn);
     }
 }

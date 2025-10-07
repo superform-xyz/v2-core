@@ -73,13 +73,13 @@ interface IYieldSourceOracle {
         view
         returns (uint256);
 
-    /// @notice Calculates the amount of underlying assets that would be obtained when withdrawing a given amount
+    /// @notice Calculates the amount of shares that would be obtained when withdrawing a given amount of assets
     /// @dev Used by oracles to simulate withdrawals and to derive the current exchange rate
     /// @param yieldSourceAddress The address of the yield-bearing token (e.g., aUSDC, cDAI)
     /// @param assetIn The address of the underlying asset to be withdrawn (e.g., USDC, DAI)
     /// @param assetsIn The amount of underlying assets to withdraw, denominated in the asset’s native units
-    /// @return assets The amount of underlying assets that would be received after withdrawal
-    function quoteWithdrawalAssets(
+    /// @return shares The amount of yield-bearing shares that would be received after withdrawal
+    function getWithdrawalShareOutput(
         address yieldSourceAddress,
         address assetIn,
         uint256 assetsIn
