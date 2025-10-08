@@ -145,7 +145,7 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
         }
 
         // Compute how many PT shares are needed: shares = assetsIn18 * 10^ptDecimals / pricePerShare
-        return Math.mulDiv(assetsIn18, 10 ** uint256(ptDecimals), pricePerShare, Math.Rounding.Ceil);
+        return Math.mulDiv(assetsIn18, 10 ** uint256(ptDecimals), pricePerShare);
     }
 
     /// @inheritdoc IYieldSourceOracle
