@@ -40,9 +40,9 @@ contract SpectraPTYieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        uint256 underlyingPerShare = IPrincipalToken(ptAddress).convertToUnderlying(1e18);
+        uint256 underlyingPerShare = IPrincipalToken(ptAddress).convertToUnderlying(10 ** _decimals(ptAddress));
         if (underlyingPerShare == 0) return 0;
-        return Math.mulDiv(assetsIn, 1e18, underlyingPerShare, Math.Rounding.Ceil);
+        return Math.mulDiv(assetsIn, 10 ** _decimals(ptAddress), underlyingPerShare, Math.Rounding.Ceil);
     } 
 
     /// @inheritdoc AbstractYieldSourceOracle
