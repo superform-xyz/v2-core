@@ -48,6 +48,7 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         returns (uint256)
     {
         uint256 assetsPerShare = IStandardizedYield(yieldSourceAddress).previewRedeem(assetIn, 1e18);
+        if (assetsPerShare == 0) return 0;
         return Math.mulDiv(assetsIn, 1e18, assetsPerShare, Math.Rounding.Ceil); 
     }
     
