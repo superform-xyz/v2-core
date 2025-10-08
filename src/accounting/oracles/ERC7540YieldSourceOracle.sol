@@ -52,7 +52,7 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
     {
         uint256 assetsPerShare = IERC7540(yieldSourceAddress).convertToAssets(1e18);
         if (assetsPerShare == 0) return 0;
-        return Math.mulDiv(assetsIn, 1e18, assetsPerShare);
+        return Math.mulDiv(assetsIn, 1e18, assetsPerShare, Math.Rounding.Ceil);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
