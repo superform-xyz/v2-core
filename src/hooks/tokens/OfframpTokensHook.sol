@@ -46,18 +46,36 @@ contract OfframpTokensHook is BaseHook {
 
         uint256 tokensLen = tokens.length;
 
-        executions = new Execution[](tokensLen);
+        // Cache balances and count non-zero ones in a single pass
+        uint256[] memory balances = new uint256[](tokensLen);
+        uint256 executionCount;
         for (uint256 i; i < tokensLen; i++) {
             address _token = tokens[i];
-            if (_token == NATIVE_TOKEN) {
-                uint256 balance = account.balance;
-                // For native token, send ETH directly to the recipient
-                executions[i] = Execution({ target: to, value: balance, callData: "" });
-            } else {
-                uint256 balance = IERC20(_token).balanceOf(account);
-                // For ERC20 tokens, use the standard transfer
-                executions[i] =
-                    Execution({ target: _token, value: 0, callData: abi.encodeCall(IERC20.transfer, (to, balance)) });
+            uint256 balance = _token == NATIVE_TOKEN ? account.balance : IERC20(_token).balanceOf(account);
+            balances[i] = balance;
+            if (balance > 0) {
+                executionCount++;
+            }
+        }
+
+        // Build executions array using cached balances
+        executions = new Execution[](executionCount);
+        uint256 executionIndex;
+        for (uint256 i; i < tokensLen; i++) {
+            uint256 balance = balances[i];
+            if (balance > 0) {
+                address _token = tokens[i];
+                if (_token == NATIVE_TOKEN) {
+                    // For native token, send ETH directly to the recipient
+                    executions[executionIndex++] = Execution({ target: to, value: balance, callData: "" });
+                } else {
+                    // For ERC20 tokens, use the standard transfer
+                    executions[executionIndex++] = Execution({
+                        target: _token,
+                        value: 0,
+                        callData: abi.encodeCall(IERC20.transfer, (to, balance))
+                    });
+                }
             }
         }
     }
