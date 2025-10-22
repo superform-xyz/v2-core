@@ -52,43 +52,33 @@ contract OfframpTokensHook is BaseHook {
         tokens.uniquifySorted();
 
         uint256 tokensLen = tokens.length;
+        uint256 executionIndex;
+        executions = new Execution[](tokensLen);
 
-        // Cache balances and count non-zero ones in a single pass
-        uint256[] memory balances = new uint256[](tokensLen);
-        uint256 executionCount;
         for (uint256 i; i < tokensLen; ++i) {
             address _token = tokens[i];
             uint256 balance = _token == NATIVE_TOKEN ? account.balance : IERC20(_token).balanceOf(account);
-            balances[i] = balance;
 
-            // consider this for transfer
-            if (balance > 0) {
-                executionCount++;
-            }
-        }
-
-        // Build executions array using cached balances
-        executions = new Execution[](executionCount);
-        uint256 executionIndex;
-        for (uint256 i; i < tokensLen; ++i) {
-            uint256 balance = balances[i];
-
-            // skip 0 balance transfers
             if (balance == 0) continue;
-
-            address _token = tokens[i];
+            
             if (_token == NATIVE_TOKEN) {
                 // For native token, send ETH directly to the recipient
-                executions[executionIndex++] = Execution({ target: to, value: balance, callData: "" });
+                executions[executionIndex] = Execution({ target: to, value: balance, callData: "" });
             } else {
                 // For ERC20 tokens, use the standard transfer
-                executions[executionIndex++] = Execution({
+                executions[executionIndex] = Execution({
                     target: _token,
                     value: 0,
                     callData: abi.encodeCall(IERC20.transfer, (to, balance))
                 });
             }
+
+            executionIndex++;
         }
+
+        assembly {
+            mstore(executions, executionIndex)
+        } 
     }
 
     /*//////////////////////////////////////////////////////////////
