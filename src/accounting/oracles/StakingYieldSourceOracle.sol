@@ -40,7 +40,7 @@ contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
         uint256 assetsIn
     )
         external
-        view
+        pure
         override
         returns (uint256)
     {
