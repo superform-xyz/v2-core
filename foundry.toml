@@ -59,6 +59,7 @@ evm_version = "prague"
 script = "src"
 src = "src"
 test = "src"
+lint_on_build = false
 
 [profile.coverage]
 script = "src"
@@ -70,6 +71,7 @@ gas_limit = "18446744073709551615"
 [profile.ci]
 fuzz = { runs = 10_000 }
 verbosity = 4
+lint_on_build = false
 
 [fmt]
 bracket_spacing = true
