@@ -299,11 +299,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             }
         }
 
-        // Oracles (7 contracts - always check these)
-        string[7] memory oracleContracts = [
+        // Oracles (6 contracts - always check these)
+        string[6] memory oracleContracts = [
             "ERC4626YieldSourceOracle",
             "ERC5115YieldSourceOracle",
-            "ERC7540YieldSourceOracle",
             "PendlePTYieldSourceOracle",
             "SpectraPTYieldSourceOracle",
             "StakingYieldSourceOracle",
@@ -858,12 +857,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 env
             );
             __checkContract(
-                ERC7540_YIELD_SOURCE_ORACLE_KEY,
-                __getSalt(ERC7540_YIELD_SOURCE_ORACLE_KEY),
-                abi.encode(superLedgerConfig),
-                env
-            );
-            __checkContract(
                 PENDLE_PT_YIELD_SOURCE_ORACLE_KEY,
                 __getSalt(PENDLE_PT_YIELD_SOURCE_ORACLE_KEY),
                 abi.encode(superLedgerConfig),
@@ -1225,7 +1218,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // ===== GET CONTRACT ADDRESSES BASED ON SOURCE =====
         address superLedgerConfig;
         address erc4626Oracle;
-        address erc7540Oracle;
         address erc5115Oracle;
         address stakingOracle;
         address superLedger;
@@ -1236,7 +1228,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         superLedgerConfig = vm.parseJsonAddress(deploymentJson, ".SuperLedgerConfiguration");
         erc4626Oracle = vm.parseJsonAddress(deploymentJson, ".ERC4626YieldSourceOracle");
-        erc7540Oracle = vm.parseJsonAddress(deploymentJson, ".ERC7540YieldSourceOracle");
         erc5115Oracle = vm.parseJsonAddress(deploymentJson, ".ERC5115YieldSourceOracle");
         stakingOracle = vm.parseJsonAddress(deploymentJson, ".StakingYieldSourceOracle");
         superLedger = vm.parseJsonAddress(deploymentJson, ".SuperLedger");
@@ -1249,8 +1240,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(erc4626Oracle != address(0), "SETUP_ERC4626_ORACLE_ZERO");
         require(erc4626Oracle.code.length > 0, "SETUP_ERC4626_ORACLE_NO_CODE");
 
-        require(erc7540Oracle != address(0), "SETUP_ERC7540_ORACLE_ZERO");
-        require(erc7540Oracle.code.length > 0, "SETUP_ERC7540_ORACLE_NO_CODE");
 
         require(erc5115Oracle != address(0), "SETUP_ERC5115_ORACLE_ZERO");
         require(erc5115Oracle.code.length > 0, "SETUP_ERC5115_ORACLE_NO_CODE");
@@ -1269,7 +1258,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         console2.log("  SuperLedgerConfiguration:", superLedgerConfig);
         console2.log("  ERC4626 Oracle:", erc4626Oracle);
-        console2.log("  ERC7540 Oracle:", erc7540Oracle);
         console2.log("  ERC5115 Oracle:", erc5115Oracle);
         console2.log("  Staking Oracle:", stakingOracle);
         console2.log("  SuperLedger:", superLedger);
@@ -1278,7 +1266,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // ===== SETUP CONFIGURATIONS WITH VALIDATED PARAMETERS =====
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](4);
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
 
         // Note: Using treasury address from configuration
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
@@ -1288,18 +1276,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             ledger: superLedger
         });
         configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracle: erc7540Oracle,
-            feePercent: 0,
-            feeRecipient: configuration.treasury,
-            ledger: superLedger
-        });
-        configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: erc5115Oracle,
             feePercent: 0,
             feeRecipient: configuration.treasury,
             ledger: flatFeeLedger
         });
-        configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+        configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: stakingOracle,
             feePercent: 0,
             feeRecipient: configuration.treasury,
@@ -1314,11 +1296,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" Configuration", i, "validated");
         }
 
-        bytes32[] memory salts = new bytes32[](4);
+        bytes32[] memory salts = new bytes32[](3);
         salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_SALT));
-        salts[1] = bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_SALT));
-        salts[2] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_SALT));
-        salts[3] = bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_SALT));
+        salts[1] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_SALT));
+        salts[2] = bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_SALT));
 
         // Validate salts are not empty
         for (uint256 i = 0; i < salts.length; ++i) {
@@ -1387,7 +1368,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         vars.ledgerConstructorArgs = abi.encode(vars.superLedgerConfig, vars.allowedExecutors);
 
         // Define contracts to verify with their corresponding environment-specific bytecode paths and constructor args
-        ContractVerification[] memory contracts = new ContractVerification[](7);
+        ContractVerification[] memory contracts = new ContractVerification[](6);
 
         // Core contracts verification - always use locked bytecode
 
@@ -1406,34 +1387,27 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         });
 
         contracts[2] = ContractVerification({
-            name: "ERC7540YieldSourceOracle",
-            outputKey: ".ERC7540YieldSourceOracle",
-            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "ERC7540YieldSourceOracle.json")),
-            constructorArgs: ""
-        });
-
-        contracts[3] = ContractVerification({
             name: "ERC5115YieldSourceOracle",
             outputKey: ".ERC5115YieldSourceOracle",
             bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "ERC5115YieldSourceOracle.json")),
             constructorArgs: ""
         });
 
-        contracts[4] = ContractVerification({
+        contracts[3] = ContractVerification({
             name: "StakingYieldSourceOracle",
             outputKey: ".StakingYieldSourceOracle",
             bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "StakingYieldSourceOracle.json")),
             constructorArgs: ""
         });
 
-        contracts[5] = ContractVerification({
+        contracts[4] = ContractVerification({
             name: "SuperLedger",
             outputKey: ".SuperLedger",
             bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "SuperLedger.json")),
             constructorArgs: string(vars.ledgerConstructorArgs)
         });
 
-        contracts[6] = ContractVerification({
+        contracts[5] = ContractVerification({
             name: "FlatFeeLedger",
             outputKey: ".FlatFeeLedger",
             bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "FlatFeeLedger.json")),
@@ -1484,7 +1458,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Handle contracts with constructor args
         if (
             Strings.equal(contractToVerify.name, "ERC4626YieldSourceOracle")
-                || Strings.equal(contractToVerify.name, "ERC7540YieldSourceOracle")
                 || Strings.equal(contractToVerify.name, "ERC5115YieldSourceOracle")
                 || Strings.equal(contractToVerify.name, "StakingYieldSourceOracle")
         ) {
@@ -1964,7 +1937,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     function _deployOracles(uint64 chainId, uint256 env) private returns (address[] memory oracleAddresses) {
         console2.log("Starting oracle deployment with parameter validation...");
 
-        uint256 len = 7;
+        uint256 len = 6;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         oracleAddresses = new address[](len);
 
@@ -1984,22 +1957,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             abi.encodePacked(__getBytecode("ERC5115YieldSourceOracle", env), abi.encode(superLedgerConfig))
         );
         oracles[2] = OracleDeployment(
-            ERC7540_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(__getBytecode("ERC7540YieldSourceOracle", env), abi.encode(superLedgerConfig))
-        );
-        oracles[3] = OracleDeployment(
             PENDLE_PT_YIELD_SOURCE_ORACLE_KEY,
             abi.encodePacked(__getBytecode("PendlePTYieldSourceOracle", env), abi.encode(superLedgerConfig))
         );
-        oracles[4] = OracleDeployment(
+        oracles[3] = OracleDeployment(
             SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY,
             abi.encodePacked(__getBytecode("SpectraPTYieldSourceOracle", env), abi.encode(superLedgerConfig))
         );
-        oracles[5] = OracleDeployment(
+        oracles[4] = OracleDeployment(
             STAKING_YIELD_SOURCE_ORACLE_KEY,
             abi.encodePacked(__getBytecode("StakingYieldSourceOracle", env), abi.encode(superLedgerConfig))
         );
-        oracles[6] = OracleDeployment(SUPER_YIELD_SOURCE_ORACLE_KEY, __getBytecode("SuperYieldSourceOracle", env));
+        oracles[5] = OracleDeployment(SUPER_YIELD_SOURCE_ORACLE_KEY, __getBytecode("SuperYieldSourceOracle", env));
 
         console2.log("Deploying", len, "oracles with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {

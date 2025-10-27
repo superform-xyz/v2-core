@@ -137,7 +137,6 @@ HOOK_CONTRACTS=(
 ORACLE_CONTRACTS=(
     "ERC4626YieldSourceOracle"
     "ERC5115YieldSourceOracle"
-    "ERC7540YieldSourceOracle"
     "PendlePTYieldSourceOracle"
     "SpectraPTYieldSourceOracle"
     "StakingYieldSourceOracle"

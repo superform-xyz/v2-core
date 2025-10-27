@@ -1568,7 +1568,7 @@ update_latest_file
 ###################################################################################
 
 # Only run SuperLedger configuration if not demo branch OR if demo branch with redeploy flag
-if [ "$BRANCH_NAME" != "demo" ] || ([ "$BRANCH_NAME" = "demo" ] && [ "$REDEPLOY_FLAG" = "redeploy" ]); then
+if [ "$BRANCH_NAME" != "demo" ] || ([ "$BRANCH_NAME" = "demo" ]); then
     log "INFO" "Running SuperLedger configurations separately..."
     
     # Configure SuperLedger for each network

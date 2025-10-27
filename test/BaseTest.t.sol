@@ -62,7 +62,6 @@ import { CancelDepositRequest7540Hook } from "../src/hooks/vaults/7540/CancelDep
 import { CancelRedeemRequest7540Hook } from "../src/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol";
 import { ClaimCancelDepositRequest7540Hook } from "../src/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
 import { ClaimCancelRedeemRequest7540Hook } from "../src/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
-import { CancelRedeemHook } from "../src/hooks/vaults/super-vault/CancelRedeemHook.sol";
 import { ApproveAndRequestDeposit7540VaultHook } from
     "../src/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
 import { Redeem7540VaultHook } from "../src/hooks/vaults/7540/Redeem7540VaultHook.sol";
@@ -213,7 +212,6 @@ struct Addresses {
     CancelRedeemRequest7540Hook cancelRedeemRequest7540Hook;
     ClaimCancelDepositRequest7540Hook claimCancelDepositRequest7540Hook;
     ClaimCancelRedeemRequest7540Hook claimCancelRedeemRequest7540Hook;
-    CancelRedeemHook cancelRedeemHook;
     AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
     ApproveAndAcrossSendFundsAndExecuteOnDstHook approveAndAcrossSendFundsAndExecuteOnDstHook;
     DeBridgeSendOrderAndExecuteOnDstHook deBridgeSendOrderAndExecuteOnDstHook;
@@ -596,7 +594,7 @@ contract BaseTest is
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            address[] memory hooksAddresses = new address[](51);
+            address[] memory hooksAddresses = new address[](50);
 
             A[i].approveErc20Hook = new ApproveERC20Hook{ salt: SALT }();
             vm.label(address(A[i].approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
@@ -1176,19 +1174,6 @@ contract BaseTest is
             );
             hooksAddresses[42] = address(A[i].claimCancelRedeemRequest7540Hook);
 
-            A[i].cancelRedeemHook = new CancelRedeemHook{ salt: SALT }();
-            vm.label(address(A[i].cancelRedeemHook), CANCEL_REDEEM_HOOK_KEY);
-            hookAddresses[chainIds[i]][CANCEL_REDEEM_HOOK_KEY] = address(A[i].cancelRedeemHook);
-            hooks[chainIds[i]][CANCEL_REDEEM_HOOK_KEY] = Hook(
-                CANCEL_REDEEM_HOOK_KEY,
-                HookCategory.VaultWithdrawals,
-                HookCategory.VaultDeposits,
-                address(A[i].cancelRedeemHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(hooks[chainIds[i]][CANCEL_REDEEM_HOOK_KEY]);
-            hooksAddresses[43] = address(A[i].cancelRedeemHook);
-
             A[i].MorphoSupplyAndBorrowHook = new MorphoSupplyAndBorrowHook{ salt: SALT }(MORPHO);
             vm.label(address(A[i].MorphoSupplyAndBorrowHook), MORPHO_BORROW_HOOK_KEY);
             hookAddresses[chainIds[i]][MORPHO_BORROW_HOOK_KEY] = address(A[i].MorphoSupplyAndBorrowHook);
@@ -1200,7 +1185,7 @@ contract BaseTest is
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Loans].push(hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY]);
-            hooksAddresses[44] = address(A[i].MorphoSupplyAndBorrowHook);
+            hooksAddresses[43] = address(A[i].MorphoSupplyAndBorrowHook);
 
             A[i].morphoRepayHook = new MorphoRepayHook{ salt: SALT }(MORPHO);
             vm.label(address(A[i].morphoRepayHook), MORPHO_REPAY_HOOK_KEY);
@@ -1208,12 +1193,12 @@ contract BaseTest is
             hooks[chainIds[i]][MORPHO_REPAY_HOOK_KEY] =
                 Hook(MORPHO_REPAY_HOOK_KEY, HookCategory.Loans, HookCategory.None, address(A[i].morphoRepayHook), "");
             hooksByCategory[chainIds[i]][HookCategory.Loans].push(hooks[chainIds[i]][MORPHO_REPAY_HOOK_KEY]);
-            hooksAddresses[45] = address(A[i].morphoRepayHook);
+            hooksAddresses[44] = address(A[i].morphoRepayHook);
 
             A[i].morphoRepayAndWithdrawHook = new MorphoRepayAndWithdrawHook{ salt: SALT }(MORPHO);
             vm.label(address(A[i].morphoRepayAndWithdrawHook), MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY);
             hookAddresses[chainIds[i]][MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY] = address(A[i].morphoRepayAndWithdrawHook);
-            hooksAddresses[46] = address(A[i].morphoRepayAndWithdrawHook);
+            hooksAddresses[45] = address(A[i].morphoRepayAndWithdrawHook);
 
             A[i].offrampTokensHook = new OfframpTokensHook{ salt: SALT }();
             vm.label(address(A[i].offrampTokensHook), OFFRAMP_TOKENS_HOOK_KEY);
@@ -1226,7 +1211,7 @@ contract BaseTest is
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][OFFRAMP_TOKENS_HOOK_KEY]);
-            hooksAddresses[47] = address(A[i].offrampTokensHook);
+            hooksAddresses[46] = address(A[i].offrampTokensHook);
 
             A[i].mintSuperPositionsHook = new MintSuperPositionsHook{ salt: SALT }();
             vm.label(address(A[i].mintSuperPositionsHook), MINT_SUPERPOSITIONS_HOOK_KEY);
@@ -1241,7 +1226,7 @@ contract BaseTest is
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
                 hooks[chainIds[i]][MINT_SUPERPOSITIONS_HOOK_KEY]
             );
-            hooksAddresses[48] = address(A[i].mintSuperPositionsHook);
+            hooksAddresses[47] = address(A[i].mintSuperPositionsHook);
 
             A[i].markRootAsUsedHook = new MarkRootAsUsedHook{ salt: SALT }();
             vm.label(address(A[i].markRootAsUsedHook), MARK_ROOT_AS_USED_HOOK_KEY);
@@ -1256,7 +1241,7 @@ contract BaseTest is
             hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(
                 hooks[chainIds[i]][MARK_ROOT_AS_USED_HOOK_KEY]
             );
-            hooksAddresses[49] = address(A[i].markRootAsUsedHook);
+            hooksAddresses[48] = address(A[i].markRootAsUsedHook);
 
             A[i].merklClaimRewardHook = new MerklClaimRewardHook{ salt: SALT }(MERKL_DISTRIBUTOR);
             vm.label(address(A[i].merklClaimRewardHook), MERKL_CLAIM_REWARD_HOOK_KEY);
@@ -1269,7 +1254,7 @@ contract BaseTest is
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][MERKL_CLAIM_REWARD_HOOK_KEY]);
-            hooksAddresses[50] = address(A[i].merklClaimRewardHook);
+            hooksAddresses[49] = address(A[i].merklClaimRewardHook);
 
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);
