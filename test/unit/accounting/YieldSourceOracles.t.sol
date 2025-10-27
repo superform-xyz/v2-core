@@ -190,7 +190,7 @@ contract YieldSourceOraclesTest is Helpers {
     function test_ERC5115_getAssetOutput() public view {
         uint256 sharesIn = 1e18;
         uint256 expectedAssets = erc5115.previewRedeem(address(asset), sharesIn);
-        uint256 actualAssets = erc5115YieldSourceOracle.getAssetOutput(address(erc5115), address(0), sharesIn);
+        uint256 actualAssets = erc5115YieldSourceOracle.getAssetOutput(address(erc5115), address(asset), sharesIn);
         assertEq(actualAssets, expectedAssets);
     }
 
