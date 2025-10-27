@@ -138,8 +138,7 @@ contract YieldSourceOraclesTest is Helpers {
     function test_ERC4626_getWithdrawalShareOutput() public view {
         uint256 assetsIn = 1e18;
         uint256 expectedShares = erc4626.previewWithdraw(assetsIn);
-        uint256 actualShares =
-            erc4626YieldSourceOracle.getWithdrawalShareOutput(address(erc4626), address(0), assetsIn);
+        uint256 actualShares = erc4626YieldSourceOracle.getWithdrawalShareOutput(address(erc4626), address(0), assetsIn);
         assertEq(actualShares, expectedShares);
     }
 
@@ -148,8 +147,7 @@ contract YieldSourceOraclesTest is Helpers {
         // For ERC7540: calculate shares needed to withdraw assetsIn
         uint256 assetsPerShare = erc7540.convertToAssets(1e18);
         uint256 expectedShares = Math.mulDiv(assetsIn, 1e18, assetsPerShare, Math.Rounding.Ceil);
-        uint256 actualShares =
-            erc7540YieldSourceOracle.getWithdrawalShareOutput(address(erc7540), address(0), assetsIn);
+        uint256 actualShares = erc7540YieldSourceOracle.getWithdrawalShareOutput(address(erc7540), address(0), assetsIn);
         assertEq(actualShares, expectedShares);
     }
 
@@ -159,7 +157,7 @@ contract YieldSourceOraclesTest is Helpers {
         uint256 assetsPerShare = erc5115.previewRedeem(address(asset), 1e18);
         uint256 expectedShares = Math.mulDiv(assetsIn, 1e18, assetsPerShare, Math.Rounding.Ceil);
         uint256 actualShares =
-            erc5115YieldSourceOracle.getWithdrawalShareOutput(address(erc5115), address(0), assetsIn);
+            erc5115YieldSourceOracle.getWithdrawalShareOutput(address(erc5115), address(asset), assetsIn);
         assertEq(actualShares, expectedShares);
     }
 
