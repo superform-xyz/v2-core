@@ -8,11 +8,11 @@ ifeq ($(ENVIRONMENT), local)
 	export OPTIMISM_RPC_URL := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/OPTIMISM_RPC_URL/credential)
 	export BASE_RPC_URL := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_RPC_URL/credential)
 	export ONE_INCH_API_KEY := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/OneInch/credential)
+	export ZEROX_API_KEY := $(shell op read op://c3lsg7wbktk5wc7mai5qxwcadq/0X_API_KEY/credential)
 	export SEPOLIA_RPC_URL := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/SEPOLIA_RPC_URL/credential)
 	export BASE_SEPOLIA_RPC_URL := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_SEPOLIA_RPC_URL/credential)
 	export FUJI_RPC_URL := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/FUJI_RPC_URL/credential)
 endif
-
 
 build :; forge build && $(MAKE) generate
 
@@ -32,7 +32,7 @@ coverage-genhtml :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minim
 
 coverage-genhtml-fullsrc :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage --ignore-errors inconsistent,corrupt --exclude 'src/vendor/*' --exclude 'test/*'
 
-test-vvv :; forge test --match-test test_CompareDecimalHandling_USDC_vs_Morpho -vvvv --jobs 10
+test-vvv :; forge test --match-test test_ZeroExSwapExecution -vvvv --jobs 10
 
 test-integration :; forge test --match-test test_CrossChain_execution -vvvv --jobs 10
 
