@@ -96,6 +96,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool merklClaimRewardHook;
         uint256 expectedAdapters;
         uint256 expectedHooks;
+        uint256 expectedOracles;
         uint256 expectedTotal;
         string[] skippedContracts;
         string[] missingBytecodeContracts;
@@ -213,11 +214,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         availability.expectedHooks = expectedHooks;
 
-        // Oracles (always expected): 7 contracts
-        uint256 expectedOracles = 7;
+        // Oracles (set based on oracleContracts array length later)
 
         // Total expected contracts
-        availability.expectedTotal = expectedCore + expectedAdapters + expectedHooks + expectedOracles;
+        // Total expected contracts calculation moved below after setting expectedOracles
 
         // Create properly sized skipped contracts array
         availability.skippedContracts = new string[](skipCount);
@@ -314,6 +314,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 potentialMissing[missingCount++] = oracleContracts[i];
             }
         }
+
+        // Set expected oracles count and calculate total
+        availability.expectedOracles = oracleContracts.length;
+        availability.expectedTotal = expectedCore + expectedAdapters + expectedHooks + availability.expectedOracles;
 
         // Create properly sized missing bytecode contracts array
         availability.missingBytecodeContracts = new string[](missingCount);
@@ -440,7 +444,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log("  Core contracts: 10");
         console2.log("  Adapters:", availability.expectedAdapters);
         console2.log("  Hooks:", availability.expectedHooks);
-        console2.log("  Oracles: 7");
+        console2.log("  Oracles:", availability.expectedOracles);
 
         if (availability.skippedContracts.length > 0) {
             console2.log("");
@@ -1239,7 +1243,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         require(erc4626Oracle != address(0), "SETUP_ERC4626_ORACLE_ZERO");
         require(erc4626Oracle.code.length > 0, "SETUP_ERC4626_ORACLE_NO_CODE");
-
 
         require(erc5115Oracle != address(0), "SETUP_ERC5115_ORACLE_ZERO");
         require(erc5115Oracle.code.length > 0, "SETUP_ERC5115_ORACLE_NO_CODE");

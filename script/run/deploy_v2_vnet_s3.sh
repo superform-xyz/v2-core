@@ -700,7 +700,7 @@ has_contract_changes() {
     # Check for removed contracts (contracts that exist in S3 but not in new deployment)
     # Exclude Nexus contracts and banned contracts from being considered removable
     local removed_contract_count=$(echo "$existing_contracts" | jq --argjson new_contracts "$new_contracts" '
-        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle"))] | length
+        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle" and $k != "MockDex" and $k != "MockDexHook"))] | length
     ')
     
     # Return true if there are any new, updated, or removed contracts
@@ -745,7 +745,7 @@ show_contract_diff() {
     # Show removed contracts (contracts that exist in S3 but not in new deployment)
     # Exclude Nexus contracts and banned contracts from being shown as removed
     local removed_contract_names=$(echo "$existing_contracts" | jq -r --argjson new_contracts "$new_contracts" '
-        to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle")) | .key
+        to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle" and $k != "MockDex" and $k != "MockDexHook")) | .key
     ' | tr '\n' ' ')
     
     local changes_shown=false
@@ -1457,7 +1457,9 @@ update_latest_file() {
             NexusAccountFactory: .NexusAccountFactory,
             SuperGovernor: .SuperGovernor,
             SuperVaultAggregator: .SuperVaultAggregator,
-            ECDSAPPSOracle: .ECDSAPPSOracle
+            ECDSAPPSOracle: .ECDSAPPSOracle,
+            MockDex: .MockDex,
+            MockDexHook: .MockDexHook
         } | with_entries(select(.value != null))')
         
         local banned_count=$(echo "$banned_contracts" | jq 'length')
@@ -1568,7 +1570,7 @@ update_latest_file
 ###################################################################################
 
 # Only run SuperLedger configuration if not demo branch OR if demo branch with redeploy flag
-if [ "$BRANCH_NAME" != "demo" ] || ([ "$BRANCH_NAME" = "demo" ]); then
+if [ "$BRANCH_NAME" != "demo" ] || ([ "$BRANCH_NAME" = "demo" ] && [ "$REDEPLOY_FLAG" = "redeploy" ]); then
     log "INFO" "Running SuperLedger configurations separately..."
     
     # Configure SuperLedger for each network

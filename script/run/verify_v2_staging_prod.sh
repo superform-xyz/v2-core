@@ -372,11 +372,6 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address)" "$gateway_minter")"
             ;;
         
-        # Oracles with constructor args  
-        "ERC4626YieldSourceOracle"|"ERC5115YieldSourceOracle"|"ERC7540YieldSourceOracle"|"PendlePTYieldSourceOracle"|"SpectraPTYieldSourceOracle"|"StakingYieldSourceOracle")
-            echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
-            ;;
-        
         # All other contracts (no constructor args)
         *)
             echo "$(cast abi-encode "constructor()")"
@@ -454,7 +449,6 @@ get_contract_source() {
         # Oracles
         "ERC4626YieldSourceOracle") echo "src/accounting/oracles/ERC4626YieldSourceOracle.sol" ;;
         "ERC5115YieldSourceOracle") echo "src/accounting/oracles/ERC5115YieldSourceOracle.sol" ;;
-        "ERC7540YieldSourceOracle") echo "src/accounting/oracles/ERC7540YieldSourceOracle.sol" ;;
         "PendlePTYieldSourceOracle") echo "src/accounting/oracles/PendlePTYieldSourceOracle.sol" ;;
         "SpectraPTYieldSourceOracle") echo "src/accounting/oracles/SpectraPTYieldSourceOracle.sol" ;;
         "StakingYieldSourceOracle") echo "src/accounting/oracles/StakingYieldSourceOracle.sol" ;;
