@@ -67,6 +67,8 @@ src = "src"
 test = "test"
 gas_limit = "18446744073709551615"
 
+[profile.coverage.lint]
+lint_on_build = false
 
 [profile.ci]
 fuzz = { runs = 10_000 }
@@ -83,6 +85,7 @@ tab_width = 4
 wrap_comments = true
 
 [lint]
+lint_on_build = false
 exclude_lints = ["mixed-case-function"]
 ignore = [
     "src/vendor/**", 
