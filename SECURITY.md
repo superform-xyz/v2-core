@@ -40,3 +40,6 @@ The protocol allows signatures with no expiration. While convenient, these signa
 
 #### 11. Multiple valid execution paths
 Once an intent is signed, there are several valid methods to execute it, even in cases where the associated bridge transaction has not completed successfully. This provides flexibility but requires careful handling by integrators to avoid unintended consequences.
+
+#### 12. Token decimals
+Superform's yield sources and oracle calculations are designed with ERC-20 tokens that use up to 18 decimals of precision in mind. Tokens with more than 18 decimals are considered non-standard and unsupported.
