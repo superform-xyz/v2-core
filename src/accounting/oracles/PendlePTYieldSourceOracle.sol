@@ -33,6 +33,7 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
 
     error INVALID_ASSET();
     error NOT_AVAILABLE_ERC20_ON_CHAIN();
+    error ASSET_DECIMALS_TOO_HIGH();
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
@@ -70,15 +71,8 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
         uint8 ptDecimals = IERC20Metadata(_pt(market)).decimals();
 
         // Scale assetsIn to Price Decimals (1e18) before calculating shares
-        uint256 assetsIn18;
-        if (assetDecimals <= PRICE_DECIMALS) {
-            // Scale up if assetDecimals <= 18
-            assetsIn18 = assetsIn * (10 ** (PRICE_DECIMALS - assetDecimals));
-        } else {
-            // Scale down if assetDecimals > 18
-            // Avoids underflow in 10**(PRICE_DECIMALS - assetDecimals)
-            assetsIn18 = Math.mulDiv(assetsIn, 1, 10 ** (assetDecimals - PRICE_DECIMALS));
-        }
+        // Asset decimals are guaranteed to be <= PRICE_DECIMALS (18) due to validation in _getAssetInfo
+        uint256 assetsIn18 = assetsIn * (10 ** (PRICE_DECIMALS - assetDecimals));
 
         // Result is in PT decimals: sharesOut = assetsIn18 * 1e(ptDecimals) / pricePerShare
         // pricePerShare is PT/Asset in 1e18
@@ -108,14 +102,8 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
         uint256 assetsOut18 = Math.mulDiv(sharesIn, pricePerShare, 10 ** uint256(ptDecimals));
 
         // Scale from 1e18 representation (PRICE_DECIMALS) to asset's actual decimals
-        if (assetDecimals >= PRICE_DECIMALS) {
-            // Scale up if assetDecimals >= 18
-            assetsOut = assetsOut18 * (10 ** (assetDecimals - PRICE_DECIMALS));
-        } else {
-            // Scale down if assetDecimals < 18
-            // Avoids underflow in 10**(PRICE_DECIMALS - assetDecimals) which happens in the division below
-            assetsOut = Math.mulDiv(assetsOut18, 1, 10 ** (PRICE_DECIMALS - assetDecimals));
-        }    
+        // Asset decimals are guaranteed to be <= PRICE_DECIMALS (18) due to validation in _getAssetInfo
+        assetsOut = Math.mulDiv(assetsOut18, 1, 10 ** (PRICE_DECIMALS - assetDecimals));    
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -137,12 +125,8 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
         uint8 ptDecimals = IERC20Metadata(_pt(market)).decimals();
 
         // First scale assetsIn into 1e18 terms
-        uint256 assetsIn18;
-        if (assetDecimals <= PRICE_DECIMALS) {
-            assetsIn18 = assetsIn * (10 ** (PRICE_DECIMALS - assetDecimals));
-        } else {
-            assetsIn18 = Math.mulDiv(assetsIn, 1, 10 ** (assetDecimals - PRICE_DECIMALS));
-        }
+        // Asset decimals are guaranteed to be <= PRICE_DECIMALS (18) due to validation in _getAssetInfo
+        uint256 assetsIn18 = assetsIn * (10 ** (PRICE_DECIMALS - assetDecimals));
 
         // Compute how many PT shares are needed: shares = assetsIn18 * 10^ptDecimals / pricePerShare
         return Math.mulDiv(assetsIn18, 10 ** uint256(ptDecimals), pricePerShare, Math.Rounding.Ceil);
@@ -192,6 +176,10 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
 
     function _getAssetInfo(IStandardizedYield sY) internal view returns (uint256, address, uint8) {
         (IStandardizedYield.AssetType assetType, address assetAddress, uint8 assetDecimals) = sY.assetInfo();
+        
+        if (assetDecimals > PRICE_DECIMALS) {
+            revert ASSET_DECIMALS_TOO_HIGH();
+        }
 
         return (uint256(assetType), assetAddress, assetDecimals);
     }

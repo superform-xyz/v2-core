@@ -98,14 +98,9 @@ contract PendlePtYieldSourceOracleTest is InternalHelpers, Helpers {
         // Test with assetsIn that has 24 decimals
         uint256 assetsIn = 1000 * 10 ** 24; // 1000 tokens with 24 decimals
 
-        // This should trigger the line: assetsIn18 = Math.mulDiv(assetsIn, 1, 10 ** (assetDecimals - PRICE_DECIMALS));
-        // Where assetDecimals (24) > PRICE_DECIMALS (18)
-        uint256 sharesOut = oracle.getShareOutput(address(mockMarket), address(highDecimalAsset), assetsIn);
-
-        // Verify the result is reasonable
-        // assetsIn18 should be: 1000 * 10^24 / 10^(24-18) = 1000 * 10^24 / 10^6 = 1000 * 10^18
-        // sharesOut should be: 1000 * 10^18 * 10^18 / 1e18 = 1000 * 10^18
-        assertEq(sharesOut, 1000 * 10 ** 18, "Should correctly scale down high decimal assets");
+        // This should now revert with ASSET_DECIMALS_TOO_HIGH since we don't support assets >18 decimals
+        vm.expectRevert(PendlePTYieldSourceOracle.ASSET_DECIMALS_TOO_HIGH.selector);
+        oracle.getShareOutput(address(mockMarket), address(highDecimalAsset), assetsIn);
     }
 
     function test_decimals() public view {
@@ -194,18 +189,15 @@ contract PendlePtYieldSourceOracleTest is InternalHelpers, Helpers {
             "Incorrect share output for 6 decimals"
         );
 
-        // Test with 24 decimals asset
+        // Test with 24 decimals asset - should now revert
         assetSy = new MockERC20("Mock SY 24", "MSY24", 24);
-        sy = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
-        mockPendleMarket = new MockPendleMarket(address(sy), address(pt), address(yt));
+        MockHighDecimalSY sy24 = new MockHighDecimalSY(address(assetSy), 24);
+        MockHighDecimalMarket mockMarket24 = new MockHighDecimalMarket(address(sy24), address(assetPt), address(assetYt));
 
         assetsIn = 1e24; // 1 full token
-        expectedShares = 1e24; // Should get 1 full share
-        assertEq(
-            oracle.getShareOutput(address(mockPendleMarket), address(0), assetsIn),
-            expectedShares,
-            "Incorrect share output for 24 decimals"
-        );
+        // Should revert because asset has >18 decimals
+        vm.expectRevert(PendlePTYieldSourceOracle.ASSET_DECIMALS_TOO_HIGH.selector);
+        oracle.getShareOutput(address(mockMarket24), address(0), assetsIn);
     }
 
     function testGetAssetOutputWithDifferentDecimals() public {
@@ -223,20 +215,20 @@ contract PendlePtYieldSourceOracleTest is InternalHelpers, Helpers {
             expectedAssets,
             "Incorrect asset output for 6 decimals"
         );
-
-        // Test with 24 decimals asset
-        assetSy = new MockERC20("Mock SY 24", "MSY24", 24);
-        sy = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
-        mockPendleMarket = new MockPendleMarket(address(sy), address(pt), address(yt));
-
-        sharesIn = 1e24; // 1 full share
-        expectedAssets = 1e24; // Should get 1 full token
-        assertEq(
-            oracle.getAssetOutput(address(mockPendleMarket), address(0), sharesIn),
-            expectedAssets,
-            "Incorrect asset output for 24 decimals"
-        );
     }
+
+    function testGetAssetOutputWithHighDecimals() public {
+        // Test with 24 decimals asset - should now revert
+        MockERC20 asset24 = new MockERC20("Mock SY 24", "MSY24", 24);
+        MockHighDecimalSY sy24 = new MockHighDecimalSY(address(asset24), 24);
+        MockHighDecimalMarket mockMarket24 = new MockHighDecimalMarket(address(sy24), address(assetPt), address(assetYt));
+
+        uint256 sharesIn = 1e24; // 1 full share
+        // Should revert because asset has >18 decimals
+        vm.expectRevert(PendlePTYieldSourceOracle.ASSET_DECIMALS_TOO_HIGH.selector);
+        oracle.getAssetOutput(address(mockMarket24), address(0), sharesIn);
+    }
+
 
     function testGetTVLWithDifferentDecimals() public {
         // Test with 6 decimals asset

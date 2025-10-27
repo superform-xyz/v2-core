@@ -76,8 +76,8 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
     {
         // Initialize results struct
         results.expectedTreasury = configuration.treasury;
-        results.oracleAddresses = new address[](4);
-        results.configuredFeeRecipients = new address[](4);
+        results.oracleAddresses = new address[](3);
+        results.configuredFeeRecipients = new address[](3);
         results.validationErrors = new string[](10); // Pre-allocate for potential errors
 
         uint256 errorCount = 0;
@@ -129,28 +129,26 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
         returns (TreasuryValidationResults memory, uint256)
     {
         // Define oracle salts for hashing with Fireblocks sender
-        bytes32[4] memory saltHashes = [
+        bytes32[3] memory saltHashes = [
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_SALT)),
-            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_SALT)),
             bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_SALT)),
             bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_SALT))
         ];
 
         // Derive oracle IDs using _deriveWithSender logic (keccak256(salt, sender))
-        bytes32[] memory oracleIds = new bytes32[](4);
-        for (uint256 i = 0; i < 4; i++) {
+        bytes32[] memory oracleIds = new bytes32[](3);
+        for (uint256 i = 0; i < 3; i++) {
             oracleIds[i] = _deriveWithSender(saltHashes[i], FIREBLOCKS_SENDER);
             console2.logBytes32(oracleIds[i]);
         }
 
-        string[4] memory oracleNames = [
+        string[3] memory oracleNames = [
             "ERC4626YieldSourceOracle",
-            "ERC7540YieldSourceOracle",
             "ERC5115YieldSourceOracle",
             "StakingYieldSourceOracle"
         ];
 
-        results.totalOracleConfigs = 4;
+        results.totalOracleConfigs = 3;
 
         // Get all oracle configurations at once using batch function
         try ISuperLedgerConfiguration(superLedgerConfig).getYieldSourceOracleConfigs(oracleIds) returns (
@@ -158,7 +156,7 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
         ) {
             uint256 validConfigs = 0;
 
-            for (uint256 i = 0; i < 4; i++) {
+            for (uint256 i = 0; i < 3; i++) {
                 // Store oracle address for logging
                 results.oracleAddresses[i] = configs[i].yieldSourceOracle;
                 results.configuredFeeRecipients[i] = configs[i].feeRecipient;
@@ -182,7 +180,7 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
             }
 
             results.validOracleConfigs = validConfigs;
-            results.oraclesConfigured = (validConfigs == 4);
+            results.oraclesConfigured = (validConfigs == 3);
         } catch {
             results.validationErrors[errorCount++] = "Failed to get oracle configurations from SuperLedgerConfiguration";
             results.oraclesConfigured = false;
@@ -262,14 +260,13 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
 
         if (results.oracleAddresses.length > 0) {
             console2.log("=== Oracle Treasury Configuration ===");
-            string[4] memory oracleNames = [
+            string[3] memory oracleNames = [
                 "ERC4626YieldSourceOracle",
-                "ERC7540YieldSourceOracle",
                 "ERC5115YieldSourceOracle",
                 "StakingYieldSourceOracle"
             ];
 
-            for (uint256 i = 0; i < 4; i++) {
+            for (uint256 i = 0; i < 3; i++) {
                 if (results.oracleAddresses[i] != address(0)) {
                     console2.log(oracleNames[i], ":");
                     console2.log("  Address:", results.oracleAddresses[i]);
