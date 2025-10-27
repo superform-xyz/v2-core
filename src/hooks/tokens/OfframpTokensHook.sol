@@ -10,6 +10,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { BaseHook } from "../BaseHook.sol";
 import { HookSubTypes } from "../../libraries/HookSubTypes.sol";
 import { ISuperHookInspector } from "../../interfaces/ISuperHook.sol";
+import { LibSort } from "solady/utils/LibSort.sol";
 
 address constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
@@ -19,6 +20,8 @@ address constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 /// @notice         address to = BytesLib.toAddress(data, 0);
 /// @notice         bytes tokensArr = BytesLib.slice(data, 20, data.length - 20);
 contract OfframpTokensHook is BaseHook {
+    using LibSort for address[];
+
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
 
     error LENGTH_MISMATCH();
@@ -44,22 +47,38 @@ contract OfframpTokensHook is BaseHook {
 
         (address[] memory tokens) = abi.decode(tokensData, (address[]));
 
-        uint256 tokensLen = tokens.length;
+        // make sure tokens are sorted and unique
+        tokens.insertionSort();
+        tokens.uniquifySorted();
 
+        uint256 tokensLen = tokens.length;
+        uint256 executionIndex;
         executions = new Execution[](tokensLen);
-        for (uint256 i; i < tokensLen; i++) {
+
+        for (uint256 i; i < tokensLen; ++i) {
             address _token = tokens[i];
+            uint256 balance = _token == NATIVE_TOKEN ? account.balance : IERC20(_token).balanceOf(account);
+
+            if (balance == 0) continue;
+            
             if (_token == NATIVE_TOKEN) {
-                uint256 balance = account.balance;
                 // For native token, send ETH directly to the recipient
-                executions[i] = Execution({ target: to, value: balance, callData: "" });
+                executions[executionIndex] = Execution({ target: to, value: balance, callData: "" });
             } else {
-                uint256 balance = IERC20(_token).balanceOf(account);
                 // For ERC20 tokens, use the standard transfer
-                executions[i] =
-                    Execution({ target: _token, value: 0, callData: abi.encodeCall(IERC20.transfer, (to, balance)) });
+                executions[executionIndex] = Execution({
+                    target: _token,
+                    value: 0,
+                    callData: abi.encodeCall(IERC20.transfer, (to, balance))
+                });
             }
+
+            executionIndex++;
         }
+
+        assembly {
+            mstore(executions, executionIndex)
+        } 
     }
 
     /*//////////////////////////////////////////////////////////////
