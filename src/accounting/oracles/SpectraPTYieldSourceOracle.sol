@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 // external
 import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import { IPrincipalToken } from "../../vendor/spectra/IPrincipalToken.sol";
 // Superform
@@ -25,9 +26,25 @@ contract SpectraPTYieldSourceOracle is AbstractYieldSourceOracle {
 
     /// @inheritdoc AbstractYieldSourceOracle
     function getShareOutput(address ptAddress, address, uint256 assetsIn) external view override returns (uint256) {
-        // Use convertToPrincipal to get shares (PTs) for assets
         return IPrincipalToken(ptAddress).convertToPrincipal(assetsIn);
     }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getWithdrawalShareOutput(
+        address ptAddress,
+        address,
+        uint256 assetsIn
+    )
+        external
+        view
+        override
+        returns (uint256)
+    {
+        uint8 _dec = _decimals(ptAddress);
+        uint256 underlyingPerShare = IPrincipalToken(ptAddress).convertToUnderlying(10 ** _dec);
+        if (underlyingPerShare == 0) return 0;
+        return Math.mulDiv(assetsIn, 10 ** _dec, underlyingPerShare, Math.Rounding.Ceil);
+    } 
 
     /// @inheritdoc AbstractYieldSourceOracle
     function getAssetOutput(
@@ -40,7 +57,6 @@ contract SpectraPTYieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        // Use convertToUnderlying to get assets for shares (PTs)
         return IPrincipalToken(ptAddress).convertToUnderlying(sharesIn);
     }
 

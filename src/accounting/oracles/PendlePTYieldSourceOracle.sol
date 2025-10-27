@@ -115,7 +115,37 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
             // Scale down if assetDecimals < 18
             // Avoids underflow in 10**(PRICE_DECIMALS - assetDecimals) which happens in the division below
             assetsOut = Math.mulDiv(assetsOut18, 1, 10 ** (PRICE_DECIMALS - assetDecimals));
+        }    
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getWithdrawalShareOutput(
+        address market,
+        address,
+        uint256 assetsIn
+    )
+        external
+        view
+        override
+        returns (uint256)
+    {
+        uint256 pricePerShare = getPricePerShare(market); // PT / Asset in 1e18
+        if (pricePerShare == 0) return 0;
+
+        IStandardizedYield sY = IStandardizedYield(_sy(market));
+        (,, uint8 assetDecimals) = _getAssetInfo(sY);
+        uint8 ptDecimals = IERC20Metadata(_pt(market)).decimals();
+
+        // First scale assetsIn into 1e18 terms
+        uint256 assetsIn18;
+        if (assetDecimals <= PRICE_DECIMALS) {
+            assetsIn18 = assetsIn * (10 ** (PRICE_DECIMALS - assetDecimals));
+        } else {
+            assetsIn18 = Math.mulDiv(assetsIn, 1, 10 ** (assetDecimals - PRICE_DECIMALS));
         }
+
+        // Compute how many PT shares are needed: shares = assetsIn18 * 10^ptDecimals / pricePerShare
+        return Math.mulDiv(assetsIn18, 10 ** uint256(ptDecimals), pricePerShare, Math.Rounding.Ceil);
     }
 
     /// @inheritdoc IYieldSourceOracle
