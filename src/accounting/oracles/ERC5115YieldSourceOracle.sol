@@ -17,8 +17,28 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc AbstractYieldSourceOracle
-    function decimals(address /*yieldSourceAddress*/ ) public pure override returns (uint8) {
+    /// exchangeRate() returns price scaled to 1e18 precision, independent of SY token or asset decimals.
+    /// This ensures correct normalization in mulDiv operations.
+    /// See https://eips.ethereum.org/EIPS/eip-5115#methods -> exchangeRate()
+    /// The name decimals() here is ambiguous because it is a function used in other areas of the code for scaling (but
+    /// it doesn't refer to the SY decimals) 
+    /// Calculation Examples in the Oracle:
+    /// - In getTVL: Math.mulDiv(totalShares, yieldSource.exchangeRate(), 1e18). Here, totalShares is in SY decimals
+    /// (D), exchangeRate is (totalAssets * 1e18) / totalShares (per EIP, with totalAssets in asset decimals A). This
+    /// simplifies to totalAssets, correctly outputting the asset amount regardless of D or A.
+    /// - In getWithdrawalShareOutput: previewRedeem(assetIn, 1e18) gets assets for 1e18 SY share units, then
+    /// mulDiv(assetsIn, 1e18, assetsPerShare, Ceil) computes the required share units. The 1e18 acts as a precision
+    /// scaler (matching EIP), not an assumption about D. For example, with a 6-decimal SY (like Pendle's SY-syrupUSDC)
+    /// and initial 1:1 rate, it correctly computes shares without issues.
+    /// - This pattern holds for other functions like getAssetOutput (direct previewRedeem without scaling assumptions).
+    function decimals(
+        address /*yieldSourceAddress*/
+    )
+        public
+        pure
+        override
+        returns (uint8)
+    {
         return 18;
     }
 
@@ -49,9 +69,9 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
     {
         uint256 assetsPerShare = IStandardizedYield(yieldSourceAddress).previewRedeem(assetIn, 1e18);
         if (assetsPerShare == 0) return 0;
-        return Math.mulDiv(assetsIn, 1e18, assetsPerShare, Math.Rounding.Ceil); 
+        return Math.mulDiv(assetsIn, 1e18, assetsPerShare, Math.Rounding.Ceil);
     }
-    
+
     /// @inheritdoc AbstractYieldSourceOracle
     function getAssetOutput(
         address yieldSourceAddress,
