@@ -64,6 +64,12 @@ abstract contract DeployV2Base is Script, ConfigBase {
         internal
         returns (address deployedAddr)
     {
+        // Check for empty bytecode
+        if (creationCode.length == 0) {
+            console2.log("[!] SKIPPED %s deployment: Bytecode not found", contractName);
+            return address(0);
+        }
+
         console2.log("[!] Deploying %s...", contractName);
 
         // Predict address first
@@ -162,6 +168,22 @@ abstract contract DeployV2Base is Script, ConfigBase {
         internal
         returns (bool isDeployed, address contractAddr)
     {
+        // First check if bytecode exists
+        if (!__checkBytecodeExists(contractName, env)) {
+            // If bytecode doesn't exist, log it and track as skipped
+            console2.log(
+                string(abi.encodePacked(contractName, " Addr: ")), 
+                "SKIPPED - Bytecode not found", 
+                " || >> Code Size: ", 
+                0
+            );
+            console2.log("");
+            
+            // Track this as a skipped contract in the deployment status
+            _saveContractStatus(chainId, contractName, false, address(0));
+            return (false, address(0));
+        }
+
         // Get bytecode from environment-specific artifacts
         string memory artifactPath = __getBytecodeArtifactPath(contractName, env);
         bytes memory bytecode = vm.getCode(artifactPath);
@@ -251,6 +273,21 @@ abstract contract DeployV2Base is Script, ConfigBase {
     /// @notice Log comprehensive deployment summary showing which contracts are deployed vs missing
     /// @dev This provides a clear overview of deployment status to guide conditional deployment
     /// @param chainId Chain ID
+    /// @notice Count the number of deployed contracts for a chain
+    /// @param chainId The chain ID to count deployed contracts for
+    /// @return deployedCount The number of deployed contracts
+    function _countDeployedContracts(uint64 chainId) internal view returns (uint256 deployedCount) {
+        string[] memory contractNames = allContractNames[chainId];
+        deployedCount = 0;
+        
+        for (uint256 i = 0; i < contractNames.length; i++) {
+            ContractStatus memory status = contractDeploymentStatus[chainId][contractNames[i]];
+            if (status.isDeployed) {
+                deployedCount++;
+            }
+        }
+    }
+
     function _logDeploymentSummary(uint64 chainId) internal view {
         console2.log("");
         console2.log("====== DEPLOYMENT STATUS SUMMARY ======");
@@ -329,8 +366,14 @@ abstract contract DeployV2Base is Script, ConfigBase {
     /// @notice Get bytecode from environment-specific artifacts
     /// @param contractName Name of the contract
     /// @param env Environment (0 = prod uses locked-bytecode, 1/2 = dev/staging uses locked-bytecode-dev)
-    /// @return bytecode Contract bytecode
+    /// @return bytecode Contract bytecode (empty if not found)
     function __getBytecode(string memory contractName, uint256 env) internal view returns (bytes memory) {
+        // Check if bytecode exists first to avoid revert
+        if (!__checkBytecodeExists(contractName, env)) {
+            // Return empty bytes if bytecode doesn't exist
+            // Caller should handle this case appropriately
+            return "";
+        }
         string memory artifactPath = __getBytecodeArtifactPath(contractName, env);
         return vm.getCode(artifactPath);
     }
