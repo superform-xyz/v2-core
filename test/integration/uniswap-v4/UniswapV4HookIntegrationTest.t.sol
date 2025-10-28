@@ -1016,12 +1016,23 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
 
         console2.log("quote.amountOut (actualAmount):", q.amountOut);
 
-        // Scale originalMinAmountOut based on ratio of originalAmount to actualAmount
-        uint256 originalMinAmountOut = (q.amountOut * originalAmount) / actualAmount;
+        // The originalMinAmountOut should be what we would expect for originalAmount
+        // Get a quote for the original amount to determine expected output
+        SwapUniswapV4Hook.QuoteResult memory originalQuote = uniswapV4Hook.getQuote(
+            SwapUniswapV4Hook.QuoteParams({
+                poolKey: testPoolKey,
+                zeroForOne: true,
+                amountIn: originalAmount,
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
+            })
+        );
+        
+        // Apply some slippage tolerance to the original quote
+        uint256 originalMinAmountOut = originalQuote.amountOut * 95 / 100; // 5% slippage tolerance
 
         console2.log("originalAmount      :", originalAmount);
         console2.log("actualAmount        :", actualAmount);
-        console2.log("scaledMinAmountOut  :", originalMinAmountOut);
+        console2.log("originalMinAmountOut:", originalMinAmountOut);
 
         // ---- build calldata ----
         bytes memory swapCalldata = parser.generateSingleHopSwapCalldata(
@@ -1030,7 +1041,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
                 dstReceiver: account,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1,
                 originalAmountIn: originalAmount,
-                originalMinAmountOut: originalMinAmountOut, // dynamically scaled
+                originalMinAmountOut: originalMinAmountOut, // based on original amount quote with slippage
                 maxSlippageDeviationBps: 6000,              // allow 60% deviation
                 zeroForOne: true,
                 additionalData: ""

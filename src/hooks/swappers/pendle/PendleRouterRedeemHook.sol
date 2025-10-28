@@ -177,8 +177,8 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
         }
     }
 
-    /// @dev Gets the balance of the output token for the receiver.
-    function _getBalance(bytes calldata data, address receiver) private view returns (uint256) {
+    /// @dev Gets the balance of the output token for the account.
+    function _getBalance(bytes calldata data, address account) private view returns (uint256) {
         // Need offset 72 (start of tokenOut) + 20 bytes = 92
         uint256 endOfTokenOutOffset = 92;
         if (data.length < endOfTokenOutOffset) revert INVALID_DATA_LENGTH();
@@ -186,9 +186,9 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
         address tokenOut = BytesLib.toAddress(data, 72);
 
         if (tokenOut == address(0)) {
-            return receiver.balance;
+            return account.balance;
         }
 
-        return IERC20(tokenOut).balanceOf(receiver);
+        return IERC20(tokenOut).balanceOf(account);
     }
 }

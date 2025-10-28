@@ -78,12 +78,19 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
         bytes memory txData_ = data[85:];
 
         bytes memory updatedTxData = _validateTxData(data[85:], account, usePrevHookAmount, prevHook, pendleMarket);
+        bytes memory finalTxData = usePrevHookAmount ? updatedTxData : txData_;
+        
+        // Extract tokenIn & compute execValue
+        (bool isTokenForPt, address tokenIn) = _extractTokenIn(finalTxData);
+        uint256 netTokenIn = usePrevHookAmount ? ISuperHookResult(prevHook).getOutAmount(account) : value;
+        
+        uint256 execValue = (isTokenForPt && tokenIn == address(0)) ? netTokenIn : 0;
 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(PENDLE_ROUTER_V4),
-            value: usePrevHookAmount ? ISuperHookResult(prevHook).getOutAmount(account) : value,
-            callData: usePrevHookAmount ? updatedTxData : txData_
+            value: execValue,
+            callData: finalTxData
         });
     }
 
@@ -302,6 +309,19 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
         } else {
             revert INVALID_SWAP_TYPE();
         }
+    }
+
+    function _extractTokenIn(bytes memory txData) private pure returns (bool isTokenForPt, address tokenIn) {
+        bytes4 selector = bytes4(BytesLib.slice(txData, 0, 4));
+        if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
+            (, , , , TokenInput memory input, ) = abi.decode(
+                BytesLib.slice(txData, 4, txData.length - 4), 
+                (address, address, uint256, ApproxParams, TokenInput, LimitOrderData)
+            );
+            return (true, input.tokenIn);
+        }
+        // PtForToken: no tokenIn → value=0 always
+        return (false, address(0));
     }
 
     function _getBalance(bytes calldata data) private view returns (uint256) {
