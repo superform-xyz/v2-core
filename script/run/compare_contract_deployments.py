@@ -21,8 +21,15 @@ def compare_contracts(main_contracts, network_contracts, network_name):
     missing_in_network = {}
     extra_in_network = {}
     
+    # Contracts to ignore (Nexus contracts that are expected to be missing in network files)
+    ignored_contracts = {'NexusProxy', 'Nexus', 'NexusBootstrap', 'NexusAccountFactory'}
+    
     # Check contracts in main file
     for contract_name, main_address in main_contracts.items():
+        # Skip ignored contracts
+        if contract_name in ignored_contracts:
+            continue
+            
         if contract_name in network_contracts:
             network_address = network_contracts[contract_name]
             if main_address == network_address:
