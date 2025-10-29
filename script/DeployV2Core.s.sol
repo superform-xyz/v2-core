@@ -1730,13 +1730,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 env,
                 abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator)
             );
-            hooks[19] = HookDeployment(
-                APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
-                abi.encodePacked(
-                    __getBytecode("ApproveAndAcrossSendFundsAndExecuteOnDstHook", env),
-                    abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator)
-                )
-            );
         } else {
             console2.log(" SKIPPED AcrossSendFundsAndExecuteOnDstHook deployment: Not available on chain", chainId);
             console2.log(
