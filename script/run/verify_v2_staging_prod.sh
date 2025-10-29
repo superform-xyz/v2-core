@@ -353,6 +353,9 @@ generate_constructor_args() {
         "AcrossSendFundsAndExecuteOnDstHook")
             echo "$(cast abi-encode "constructor(address,address)" "$across_spoke_pool_v3" "$super_merkle_validator")"
             ;;
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHook")
+            echo "$(cast abi-encode "constructor(address,address)" "$across_spoke_pool_v3" "$super_merkle_validator")"
+            ;;
         "DeBridgeSendOrderAndExecuteOnDstHook")
             echo "$(cast abi-encode "constructor(address,address)" "$debridge_dln_src" "$super_merkle_validator")"
             ;;
@@ -367,11 +370,6 @@ generate_constructor_args() {
             ;;
         "CircleGatewayMinterHook")
             echo "$(cast abi-encode "constructor(address)" "$gateway_minter")"
-            ;;
-        
-        # Oracles with constructor args  
-        "ERC4626YieldSourceOracle"|"ERC5115YieldSourceOracle"|"ERC7540YieldSourceOracle"|"PendlePTYieldSourceOracle"|"SpectraPTYieldSourceOracle"|"StakingYieldSourceOracle")
-            echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
             ;;
         
         # All other contracts (no constructor args)
@@ -430,6 +428,7 @@ get_contract_source() {
         
         # Hooks - Bridges
         "AcrossSendFundsAndExecuteOnDstHook") echo "src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol" ;;
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHook") echo "src/hooks/bridges/across/ApproveAndAcrossSendFundsAndExecuteOnDstHook.sol" ;;
         "DeBridgeSendOrderAndExecuteOnDstHook") echo "src/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol" ;;
         "DeBridgeCancelOrderHook") echo "src/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol" ;;
         
@@ -450,7 +449,6 @@ get_contract_source() {
         # Oracles
         "ERC4626YieldSourceOracle") echo "src/accounting/oracles/ERC4626YieldSourceOracle.sol" ;;
         "ERC5115YieldSourceOracle") echo "src/accounting/oracles/ERC5115YieldSourceOracle.sol" ;;
-        "ERC7540YieldSourceOracle") echo "src/accounting/oracles/ERC7540YieldSourceOracle.sol" ;;
         "PendlePTYieldSourceOracle") echo "src/accounting/oracles/PendlePTYieldSourceOracle.sol" ;;
         "SpectraPTYieldSourceOracle") echo "src/accounting/oracles/SpectraPTYieldSourceOracle.sol" ;;
         "StakingYieldSourceOracle") echo "src/accounting/oracles/StakingYieldSourceOracle.sol" ;;

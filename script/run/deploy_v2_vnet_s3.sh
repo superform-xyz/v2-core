@@ -234,7 +234,7 @@ OUTPUT_BASE_DIR="script/output"
 if command -v op >/dev/null 2>&1; then
     log "INFO" "Running in local environment with 1Password CLI available"
     # For local runs with op available, get TENDERLY_ACCESS_KEY from 1Password
-    TENDERLY_ACCESS_KEY=$(op read "op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY/credential")
+    TENDERLY_ACCESS_KEY=$(op read "op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY_V2/credential")
 else
     
     # Source .env if any required variable is missing
@@ -700,7 +700,7 @@ has_contract_changes() {
     # Check for removed contracts (contracts that exist in S3 but not in new deployment)
     # Exclude Nexus contracts and banned contracts from being considered removable
     local removed_contract_count=$(echo "$existing_contracts" | jq --argjson new_contracts "$new_contracts" '
-        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle"))] | length
+        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle" and $k != "MockDex" and $k != "MockDexHook"))] | length
     ')
     
     # Return true if there are any new, updated, or removed contracts
@@ -745,7 +745,7 @@ show_contract_diff() {
     # Show removed contracts (contracts that exist in S3 but not in new deployment)
     # Exclude Nexus contracts and banned contracts from being shown as removed
     local removed_contract_names=$(echo "$existing_contracts" | jq -r --argjson new_contracts "$new_contracts" '
-        to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle")) | .key
+        to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle" and $k != "MockDex" and $k != "MockDexHook")) | .key
     ' | tr '\n' ' ')
     
     local changes_shown=false
@@ -1457,7 +1457,9 @@ update_latest_file() {
             NexusAccountFactory: .NexusAccountFactory,
             SuperGovernor: .SuperGovernor,
             SuperVaultAggregator: .SuperVaultAggregator,
-            ECDSAPPSOracle: .ECDSAPPSOracle
+            ECDSAPPSOracle: .ECDSAPPSOracle,
+            MockDex: .MockDex,
+            MockDexHook: .MockDexHook
         } | with_entries(select(.value != null))')
         
         local banned_count=$(echo "$banned_contracts" | jq 'length')

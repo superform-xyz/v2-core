@@ -10,6 +10,7 @@ import { Mock5115Vault } from "../../mocks/Mock5115Vault.sol";
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IStakingVault } from "../../../src/vendor/staking/IStakingVault.sol";
 
 import { ERC4626YieldSourceOracle } from "../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -132,6 +133,42 @@ contract YieldSourceOraclesTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    WITHDRAWAL SHARE OUTPUT TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_ERC4626_getWithdrawalShareOutput() public view {
+        uint256 assetsIn = 1e18;
+        uint256 expectedShares = erc4626.previewWithdraw(assetsIn);
+        uint256 actualShares = erc4626YieldSourceOracle.getWithdrawalShareOutput(address(erc4626), address(0), assetsIn);
+        assertEq(actualShares, expectedShares);
+    }
+
+    function test_ERC7540_getWithdrawalShareOutput() public view {
+        uint256 assetsIn = 1e18;
+        // For ERC7540: calculate shares needed to withdraw assetsIn
+        uint256 assetsPerShare = erc7540.convertToAssets(1e18);
+        uint256 expectedShares = Math.mulDiv(assetsIn, 1e18, assetsPerShare, Math.Rounding.Ceil);
+        uint256 actualShares = erc7540YieldSourceOracle.getWithdrawalShareOutput(address(erc7540), address(0), assetsIn);
+        assertEq(actualShares, expectedShares);
+    }
+
+    function test_ERC5115_getWithdrawalShareOutput() public view {
+        uint256 assetsIn = 1e18;
+        // For ERC5115: calculate shares needed to withdraw assetsIn
+        uint256 assetsPerShare = erc5115.previewRedeem(address(asset), 1e18);
+        uint256 expectedShares = Math.mulDiv(assetsIn, 1e18, assetsPerShare, Math.Rounding.Ceil);
+        uint256 actualShares =
+            erc5115YieldSourceOracle.getWithdrawalShareOutput(address(erc5115), address(asset), assetsIn);
+        assertEq(actualShares, expectedShares);
+    }
+
+    function test_Staking_getWithdrawalShareOutput() public view {
+        uint256 assetsIn = 1e18;
+        uint256 actualShares =
+            stakingYieldSourceOracle.getWithdrawalShareOutput(address(stakingVault), address(0), assetsIn);
+        assertEq(actualShares, assetsIn); // For staking vaults, shares needed = assets (1:1 ratio)
+    }
+
+    /*//////////////////////////////////////////////////////////////
                           ASSET OUTPUT TESTS
     //////////////////////////////////////////////////////////////*/
     function test_ERC4626_getAssetOutput() public view {
@@ -151,7 +188,7 @@ contract YieldSourceOraclesTest is Helpers {
     function test_ERC5115_getAssetOutput() public view {
         uint256 sharesIn = 1e18;
         uint256 expectedAssets = erc5115.previewRedeem(address(asset), sharesIn);
-        uint256 actualAssets = erc5115YieldSourceOracle.getAssetOutput(address(erc5115), address(0), sharesIn);
+        uint256 actualAssets = erc5115YieldSourceOracle.getAssetOutput(address(erc5115), address(asset), sharesIn);
         assertEq(actualAssets, expectedAssets);
     }
 

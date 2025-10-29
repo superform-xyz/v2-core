@@ -112,6 +112,8 @@ abstract contract Constants {
 
     // Hook Keys
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
+    string internal constant APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY =
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHook";
     string internal constant FLUID_CLAIM_REWARD_HOOK_KEY = "FluidClaimRewardHook";
     string internal constant GEARBOX_CLAIM_REWARD_HOOK_KEY = "GearboxClaimRewardHook";
     string internal constant YEARN_CLAIM_ALL_REWARDS_HOOK_KEY = "YearnClaimAllRewardsHook";
@@ -135,6 +137,7 @@ abstract contract Constants {
     string internal constant FLUID_UNSTAKE_HOOK_KEY = "FluidUnstakeHook";
     string internal constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
     string internal constant SWAP_ODOSV2_HOOK_KEY = "SwapOdosV2Hook";
+    string internal constant SWAP_UNISWAPV4_HOOK_KEY = "SwapUniswapV4Hook";
     string internal constant APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY = "ApproveAndDeposit4626VaultHook";
     string internal constant APPROVE_AND_SWAP_ODOSV2_HOOK_KEY = "ApproveAndSwapOdosV2Hook";
     string internal constant APPROVE_AND_FLUID_STAKE_HOOK_KEY = "ApproveAndFluidStakeHook";
@@ -184,14 +187,12 @@ abstract contract Constants {
     // oracle keys
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";
     string internal constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";
-    string internal constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";
     string internal constant PENDLE_PT_YIELD_SOURCE_ORACLE_KEY = "PendlePTYieldSourceOracle";
     string internal constant SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY = "SpectraPTYieldSourceOracle";
     string internal constant STAKING_YIELD_SOURCE_ORACLE_KEY = "StakingYieldSourceOracle";
 
     // SuperLedgerConfigs Salts
-    string internal constant ERC4626_YIELD_SOURCE_ORACLE_SALT = "ERC4626YieldSourceOracle_v1.0.0";
-    string internal constant ERC7540_YIELD_SOURCE_ORACLE_SALT = "ERC7540YieldSourceOracle_v1.0.0";
-    string internal constant ERC5115_YIELD_SOURCE_ORACLE_SALT = "ERC5115YieldSourceOracle_v1.0.0";
-    string internal constant STAKING_YIELD_SOURCE_ORACLE_SALT = "StakingYieldSourceOracle_v1.0.0";
+    string internal constant ERC4626_YIELD_SOURCE_ORACLE_SALT = "ERC4626YieldSourceOracle_v1.0.1";
+    string internal constant ERC5115_YIELD_SOURCE_ORACLE_SALT = "ERC5115YieldSourceOracle_v1.0.1";
+    string internal constant STAKING_YIELD_SOURCE_ORACLE_SALT = "StakingYieldSourceOracle_v1.0.1";
 }

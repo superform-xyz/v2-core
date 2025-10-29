@@ -47,6 +47,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address redeem7540VaultHook;
         address requestRedeem7540VaultHook;
         address acrossSendFundsAndExecuteOnDstHook;
+        address approveAndAcrossSendFundsAndExecuteOnDstHook;
         address swap1InchHook;
         address swapOdosHook;
         address approveAndSwapOdosHook;
@@ -64,6 +65,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address circleGatewayMinterHook;
         address circleGatewayAddDelegateHook;
         address circleGatewayRemoveDelegateHook;
+        address swapUniswapV4Hook;
     }
 
     struct HookDeployment {
@@ -74,6 +76,78 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     struct OracleDeployment {
         string name;
         bytes creationCode;
+    }
+
+    /// @notice Create a HookDeployment struct, checking if bytecode exists first
+    /// @param name Contract name/key
+    /// @param contractName Contract name for bytecode lookup
+    /// @param env Environment (0=prod, 1=dev/staging)
+    /// @return HookDeployment struct (empty if bytecode doesn't exist)
+    function _createSafeHookDeployment(string memory name, string memory contractName, uint256 env)
+        internal
+        view
+        returns (HookDeployment memory)
+    {
+        if (!__checkBytecodeExists(contractName, env)) {
+            console2.log("SKIPPED %s: Bytecode not found", contractName);
+            return HookDeployment("", ""); // Empty deployment
+        }
+        return HookDeployment(name, __getBytecode(contractName, env));
+    }
+
+    /// @notice Create a HookDeployment struct with constructor args, checking if bytecode exists first
+    /// @param name Contract name/key  
+    /// @param contractName Contract name for bytecode lookup
+    /// @param env Environment (0=prod, 1=dev/staging)
+    /// @param constructorArgs ABI-encoded constructor arguments
+    /// @return HookDeployment struct (empty if bytecode doesn't exist)
+    function _createSafeHookDeploymentWithArgs(
+        string memory name,
+        string memory contractName,
+        uint256 env,
+        bytes memory constructorArgs
+    ) internal view returns (HookDeployment memory) {
+        if (!__checkBytecodeExists(contractName, env)) {
+            console2.log("SKIPPED %s: Bytecode not found", contractName);
+            return HookDeployment("", ""); // Empty deployment
+        }
+        return HookDeployment(name, abi.encodePacked(__getBytecode(contractName, env), constructorArgs));
+    }
+
+    /// @notice Create an OracleDeployment struct, checking if bytecode exists first
+    /// @param name Contract name/key
+    /// @param contractName Contract name for bytecode lookup
+    /// @param env Environment (0=prod, 1=dev/staging)
+    /// @return OracleDeployment struct (empty if bytecode doesn't exist)
+    function _createSafeOracleDeployment(string memory name, string memory contractName, uint256 env)
+        internal
+        view
+        returns (OracleDeployment memory)
+    {
+        if (!__checkBytecodeExists(contractName, env)) {
+            console2.log("SKIPPED %s: Bytecode not found", contractName);
+            return OracleDeployment("", ""); // Empty deployment
+        }
+        return OracleDeployment(name, __getBytecode(contractName, env));
+    }
+
+    /// @notice Create an OracleDeployment struct with constructor args, checking if bytecode exists first
+    /// @param name Contract name/key  
+    /// @param contractName Contract name for bytecode lookup
+    /// @param env Environment (0=prod, 1=dev/staging)
+    /// @param constructorArgs ABI-encoded constructor arguments
+    /// @return OracleDeployment struct (empty if bytecode doesn't exist)
+    function _createSafeOracleDeploymentWithArgs(
+        string memory name,
+        string memory contractName,
+        uint256 env,
+        bytes memory constructorArgs
+    ) internal view returns (OracleDeployment memory) {
+        if (!__checkBytecodeExists(contractName, env)) {
+            console2.log("SKIPPED %s: Bytecode not found", contractName);
+            return OracleDeployment("", ""); // Empty deployment
+        }
+        return OracleDeployment(name, abi.encodePacked(__getBytecode(contractName, env), constructorArgs));
     }
 
     struct ContractVerification {
@@ -90,9 +164,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool deBridgeCancelOrderHook;
         bool swap1InchHook;
         bool swapOdosHooks;
+        bool swapUniswapV4Hook;
         bool merklClaimRewardHook;
+        uint256 expectedCore;
         uint256 expectedAdapters;
         uint256 expectedHooks;
+        uint256 expectedOracles;
         uint256 expectedTotal;
         string[] skippedContracts;
         string[] missingBytecodeContracts;
@@ -116,7 +193,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     /// @param chainId The target chain ID
     /// @param env Environment (0 = prod uses locked-bytecode, 1/2 = dev/staging uses locked-bytecode-dev)
     /// @return availability ContractAvailability struct with availability flags and expected counts
-    function _getContractAvailability(uint64 chainId, uint256 env)
+    function _getContractAvailability(
+        uint64 chainId,
+        uint256 env
+    )
         internal
         view
         returns (ContractAvailability memory availability)
@@ -124,86 +204,124 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Initialize all skipped contracts array
         string[] memory potentialSkips = new string[](8);
         uint256 skipCount = 0;
-
-        // Core contracts (always expected): 10 contracts
-        // SuperLedgerConfiguration, SuperValidator, SuperDestinationValidator, SuperExecutor,
-        // SuperDestinationExecutor, SuperSenderCreator, SuperLedger, FlatFeeLedger, SuperNativePaymaster
-        uint256 expectedCore = 10;
-
-        // Check Adapter availability
-        uint256 expectedAdapters = 0;
+        // Adapter contracts (2 contracts - conditionally deployed)
+        string[2] memory adapterContracts = ["AcrossV3Adapter", "DebridgeAdapter"];
+        
+        // Start with all adapters, then decrement for missing configurations
+        uint256 expectedAdapters = adapterContracts.length;
 
         // AcrossV3Adapter
         if (configuration.acrossSpokePoolV3s[chainId] != address(0)) {
             availability.acrossV3Adapter = true;
-            expectedAdapters++;
         } else {
+            expectedAdapters -= 1; // AcrossV3Adapter
             potentialSkips[skipCount++] = "AcrossV3Adapter";
         }
 
         // DebridgeAdapter
         if (configuration.debridgeDstDln[chainId] != address(0)) {
             availability.debridgeAdapter = true;
-            expectedAdapters++;
         } else {
+            expectedAdapters -= 1; // DebridgeAdapter
             potentialSkips[skipCount++] = "DebridgeAdapter";
         }
 
         availability.expectedAdapters = expectedAdapters;
 
-        // Check Hook availability
-        uint256 expectedHooks = 26; // Base hooks without external dependencies (excluding Across hook)
+        // Hook contracts - all 36 hooks from regenerate_bytecode.sh
+        string[36] memory baseHooks = [
+            "ApproveERC20Hook",
+            "TransferERC20Hook",
+            "BatchTransferHook",
+            "BatchTransferFromHook",
+            "Deposit4626VaultHook",
+            "ApproveAndDeposit4626VaultHook",
+            "Redeem4626VaultHook",
+            "Deposit5115VaultHook",
+            "ApproveAndDeposit5115VaultHook",
+            "Redeem5115VaultHook",
+            "RequestDeposit7540VaultHook",
+            "ApproveAndRequestDeposit7540VaultHook",
+            "Redeem7540VaultHook",
+            "RequestRedeem7540VaultHook",
+            "Deposit7540VaultHook",
+            "CancelDepositRequest7540Hook",
+            "CancelRedeemRequest7540Hook",
+            "ClaimCancelDepositRequest7540Hook",
+            "ClaimCancelRedeemRequest7540Hook",
+            "Swap1InchHook",
+            "SwapOdosV2Hook",
+            "ApproveAndSwapOdosV2Hook",
+            "AcrossSendFundsAndExecuteOnDstHook",
+            "ApproveAndAcrossSendFundsAndExecuteOnDstHook",
+            "DeBridgeSendOrderAndExecuteOnDstHook",
+            "DeBridgeCancelOrderHook",
+            "EthenaCooldownSharesHook",
+            "EthenaUnstakeHook",
+            "OfframpTokensHook",
+            "MarkRootAsUsedHook",
+            "MerklClaimRewardHook",
+            "CircleGatewayWalletHook",
+            "CircleGatewayMinterHook",
+            "CircleGatewayAddDelegateHook",
+            "CircleGatewayRemoveDelegateHook",
+            "SwapUniswapV4Hook"
+        ];
 
-        // Hooks that depend on external configurations
-        if (configuration.acrossSpokePoolV3s[chainId] != address(0)) {
-            expectedHooks += 1; // AcrossSendFundsAndExecuteOnDstHook
-        } else {
+        // Start with all hooks, then decrement for missing configurations
+        uint256 expectedHooks = baseHooks.length;
+
+        // Hooks that depend on external configurations - decrement if not available
+        if (configuration.acrossSpokePoolV3s[chainId] == address(0)) {
+            expectedHooks -= 2; // AcrossSendFundsAndExecuteOnDstHook + ApproveAndAcrossSendFundsAndExecuteOnDstHook
             potentialSkips[skipCount++] = "AcrossSendFundsAndExecuteOnDstHook";
+            potentialSkips[skipCount++] = "ApproveAndAcrossSendFundsAndExecuteOnDstHook";
         }
 
         if (configuration.aggregationRouters[chainId] != address(0)) {
             availability.swap1InchHook = true;
-            expectedHooks += 1; // Swap1InchHook
         } else {
+            expectedHooks -= 1; // Swap1InchHook
             potentialSkips[skipCount++] = "Swap1InchHook";
         }
 
         if (configuration.odosRouters[chainId] != address(0)) {
             availability.swapOdosHooks = true;
-            expectedHooks += 2; // SwapOdosV2Hook + ApproveAndSwapOdosV2Hook
         } else {
+            expectedHooks -= 2; // SwapOdosV2Hook + ApproveAndSwapOdosV2Hook
             potentialSkips[skipCount++] = "SwapOdosV2Hook";
             potentialSkips[skipCount++] = "ApproveAndSwapOdosV2Hook";
         }
 
         if (configuration.debridgeSrcDln[chainId] != address(0)) {
             availability.deBridgeSendOrderHook = true;
-            expectedHooks += 1; // DeBridgeSendOrderAndExecuteOnDstHook
         } else {
+            expectedHooks -= 1; // DeBridgeSendOrderAndExecuteOnDstHook
             potentialSkips[skipCount++] = "DeBridgeSendOrderAndExecuteOnDstHook";
         }
 
         if (configuration.debridgeDstDln[chainId] != address(0)) {
             availability.deBridgeCancelOrderHook = true;
-            expectedHooks += 1; // DeBridgeCancelOrderHook
         } else {
+            expectedHooks -= 1; // DeBridgeCancelOrderHook
             potentialSkips[skipCount++] = "DeBridgeCancelOrderHook";
         }
 
         if (configuration.merklDistributors[chainId] != address(0)) {
             availability.merklClaimRewardHook = true;
-            expectedHooks += 1; // MerklClaimRewardHook
         } else {
+            expectedHooks -= 1; // MerklClaimRewardHook
             potentialSkips[skipCount++] = "MerklClaimRewardHook";
         }
 
+        if (configuration.uniswapV4PoolManagers[chainId] != address(0)) {
+            availability.swapUniswapV4Hook = true;
+        } else {
+            expectedHooks -= 1; // SwapUniswapV4Hook
+            potentialSkips[skipCount++] = "SwapUniswapV4Hook";
+        }
+
         availability.expectedHooks = expectedHooks;
-
-        // Oracles (always expected): 7 contracts
-        uint256 expectedOracles = 7;
-
-        // Total expected contracts
-        availability.expectedTotal = expectedCore + expectedAdapters + expectedHooks + expectedOracles;
 
         // Create properly sized skipped contracts array
         availability.skippedContracts = new string[](skipCount);
@@ -214,14 +332,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Check bytecode existence and collect missing contracts
         string[] memory potentialMissing = new string[](50); // Conservative size for all possible contracts
         uint256 missingCount = 0;
-        
-        // Core contracts (11 contracts - always check these)
-        string[11] memory coreContracts = [
+
+        // Pure core contracts (9 contracts - always deployed)
+        string[9] memory coreContracts = [
             "SuperExecutor",
             "SuperDestinationExecutor",
-            "SuperSenderCreator", 
-            "AcrossV3Adapter",
-            "DebridgeAdapter",
+            "SuperSenderCreator",
             "SuperLedger",
             "FlatFeeLedger",
             "SuperLedgerConfiguration",
@@ -229,59 +345,57 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "SuperDestinationValidator",
             "SuperNativePaymaster"
         ];
-        
+
         for (uint256 i = 0; i < coreContracts.length; i++) {
             if (!__checkBytecodeExists(coreContracts[i], env)) {
                 potentialMissing[missingCount++] = coreContracts[i];
             }
         }
-        
-        // Note: AcrossV3Adapter and DebridgeAdapter are checked above in coreContracts
-        // as they are part of CORE_CONTRACTS in regenerate_bytecode.sh
-        
-        // Hook contracts - all 34 hooks from regenerate_bytecode.sh
-        string[34] memory baseHooks = [
-            "ApproveERC20Hook", "TransferERC20Hook", "BatchTransferHook", "BatchTransferFromHook",
-            "Deposit4626VaultHook", "ApproveAndDeposit4626VaultHook", "Redeem4626VaultHook",
-            "Deposit5115VaultHook", "ApproveAndDeposit5115VaultHook", "Redeem5115VaultHook", 
-            "RequestDeposit7540VaultHook", "ApproveAndRequestDeposit7540VaultHook", "Redeem7540VaultHook",
-            "RequestRedeem7540VaultHook", "Deposit7540VaultHook", "CancelDepositRequest7540Hook",
-            "CancelRedeemRequest7540Hook", "ClaimCancelDepositRequest7540Hook", "ClaimCancelRedeemRequest7540Hook",
-            "Swap1InchHook", "SwapOdosV2Hook", "ApproveAndSwapOdosV2Hook",
-            "AcrossSendFundsAndExecuteOnDstHook", "DeBridgeSendOrderAndExecuteOnDstHook", "DeBridgeCancelOrderHook",
-            "EthenaCooldownSharesHook", "EthenaUnstakeHook", "OfframpTokensHook", "MarkRootAsUsedHook",
-            "MerklClaimRewardHook", "CircleGatewayWalletHook", "CircleGatewayMinterHook",
-            "CircleGatewayAddDelegateHook", "CircleGatewayRemoveDelegateHook"
-        ];
-        
+
+        // Check adapter contracts for bytecode
+        for (uint256 i = 0; i < adapterContracts.length; i++) {
+            if (!__checkBytecodeExists(adapterContracts[i], env)) {
+                potentialMissing[missingCount++] = adapterContracts[i];
+            }
+        }
+
         for (uint256 i = 0; i < baseHooks.length; i++) {
             if (!__checkBytecodeExists(baseHooks[i], env)) {
                 potentialMissing[missingCount++] = baseHooks[i];
             }
         }
-        
-        // Oracles (7 contracts - always check these)
-        string[7] memory oracleContracts = [
+
+        // Oracles (6 contracts - always check these)
+        string[6] memory oracleContracts = [
             "ERC4626YieldSourceOracle",
             "ERC5115YieldSourceOracle",
-            "ERC7540YieldSourceOracle",
             "PendlePTYieldSourceOracle",
             "SpectraPTYieldSourceOracle",
             "StakingYieldSourceOracle",
             "SuperYieldSourceOracle"
         ];
-        
+
         for (uint256 i = 0; i < oracleContracts.length; i++) {
             if (!__checkBytecodeExists(oracleContracts[i], env)) {
                 potentialMissing[missingCount++] = oracleContracts[i];
             }
         }
-        
+
         // Create properly sized missing bytecode contracts array
         availability.missingBytecodeContracts = new string[](missingCount);
         for (uint256 i = 0; i < missingCount; i++) {
             availability.missingBytecodeContracts[i] = potentialMissing[i];
         }
+
+        // Set expected counts from actual array lengths
+        availability.expectedCore = coreContracts.length; // 9 pure core contracts
+        availability.expectedOracles = oracleContracts.length; // 6 oracle contracts
+        // expectedAdapters and expectedHooks already set above based on chain configuration
+
+        // Calculate total expected contracts
+        // Total = core + adapters + hooks + oracles
+        availability.expectedTotal = availability.expectedCore + availability.expectedAdapters
+            + availability.expectedHooks + availability.expectedOracles;
 
         return availability;
     }
@@ -399,10 +513,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Log availability analysis
         console2.log("=== Contract Availability Analysis ===");
         console2.log("Expected total contracts:", availability.expectedTotal);
-        console2.log("  Core contracts: 10");
+        console2.log("  Core contracts:", availability.expectedCore);
         console2.log("  Adapters:", availability.expectedAdapters);
         console2.log("  Hooks:", availability.expectedHooks);
-        console2.log("  Oracles: 7");
+        console2.log("  Oracles:", availability.expectedOracles);
 
         if (availability.skippedContracts.length > 0) {
             console2.log("");
@@ -430,8 +544,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Override total with the correct expected count for this chain
         total = availability.expectedTotal;
 
-        // Log comprehensive deployment summary
+        // Log comprehensive deployment summary and get deployed count
         _logDeploymentSummary(chainId);
+
+        // Count deployed contracts from the status tracking
+        deployed = _countDeployedContracts(chainId);
 
         // ===== SUMMARY =====
         console2.log("");
@@ -706,6 +823,22 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             revert("ACROSS_HOOK_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
         }
 
+        if (availability.acrossV3Adapter && superValidator != address(0)) {
+            __checkContract(
+                APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
+                __getSalt(APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY),
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator),
+                env
+            );
+        } else if (!availability.acrossV3Adapter) {
+            console2.log(
+                "SKIPPED ApproveAndAcrossSendFundsAndExecuteOnDstHook: Across Spoke Pool not configured for chain",
+                chainId
+            );
+        } else {
+            revert("APPROVE_AND_ACROSS_HOOK_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
+        }
+
         if (availability.deBridgeSendOrderHook && superValidator != address(0)) {
             __checkContract(
                 DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
@@ -767,6 +900,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             abi.encode(GATEWAY_WALLET),
             env
         );
+
+        // UniswapV4 swap hook
+        if (availability.swapUniswapV4Hook) {
+            __checkContract(
+                SWAP_UNISWAPV4_HOOK_KEY,
+                __getSalt(SWAP_UNISWAPV4_HOOK_KEY),
+                abi.encode(configuration.uniswapV4PoolManagers[chainId]),
+                env
+            );
+        } else {
+            console2.log("SKIPPED SwapUniswapV4Hook: Uniswap V4 PoolManager not configured for chain", chainId);
+        }
     }
 
     /// @notice Check oracle contracts
@@ -787,12 +932,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             __checkContract(
                 ERC5115_YIELD_SOURCE_ORACLE_KEY,
                 __getSalt(ERC5115_YIELD_SOURCE_ORACLE_KEY),
-                abi.encode(superLedgerConfig),
-                env
-            );
-            __checkContract(
-                ERC7540_YIELD_SOURCE_ORACLE_KEY,
-                __getSalt(ERC7540_YIELD_SOURCE_ORACLE_KEY),
                 abi.encode(superLedgerConfig),
                 env
             );
@@ -1158,7 +1297,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // ===== GET CONTRACT ADDRESSES BASED ON SOURCE =====
         address superLedgerConfig;
         address erc4626Oracle;
-        address erc7540Oracle;
         address erc5115Oracle;
         address stakingOracle;
         address superLedger;
@@ -1169,7 +1307,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         superLedgerConfig = vm.parseJsonAddress(deploymentJson, ".SuperLedgerConfiguration");
         erc4626Oracle = vm.parseJsonAddress(deploymentJson, ".ERC4626YieldSourceOracle");
-        erc7540Oracle = vm.parseJsonAddress(deploymentJson, ".ERC7540YieldSourceOracle");
         erc5115Oracle = vm.parseJsonAddress(deploymentJson, ".ERC5115YieldSourceOracle");
         stakingOracle = vm.parseJsonAddress(deploymentJson, ".StakingYieldSourceOracle");
         superLedger = vm.parseJsonAddress(deploymentJson, ".SuperLedger");
@@ -1181,9 +1318,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         require(erc4626Oracle != address(0), "SETUP_ERC4626_ORACLE_ZERO");
         require(erc4626Oracle.code.length > 0, "SETUP_ERC4626_ORACLE_NO_CODE");
-
-        require(erc7540Oracle != address(0), "SETUP_ERC7540_ORACLE_ZERO");
-        require(erc7540Oracle.code.length > 0, "SETUP_ERC7540_ORACLE_NO_CODE");
 
         require(erc5115Oracle != address(0), "SETUP_ERC5115_ORACLE_ZERO");
         require(erc5115Oracle.code.length > 0, "SETUP_ERC5115_ORACLE_NO_CODE");
@@ -1202,7 +1336,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         console2.log("  SuperLedgerConfiguration:", superLedgerConfig);
         console2.log("  ERC4626 Oracle:", erc4626Oracle);
-        console2.log("  ERC7540 Oracle:", erc7540Oracle);
         console2.log("  ERC5115 Oracle:", erc5115Oracle);
         console2.log("  Staking Oracle:", stakingOracle);
         console2.log("  SuperLedger:", superLedger);
@@ -1211,7 +1344,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // ===== SETUP CONFIGURATIONS WITH VALIDATED PARAMETERS =====
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](4);
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
 
         // Note: Using treasury address from configuration
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
@@ -1221,18 +1354,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             ledger: superLedger
         });
         configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracle: erc7540Oracle,
-            feePercent: 0,
-            feeRecipient: configuration.treasury,
-            ledger: superLedger
-        });
-        configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: erc5115Oracle,
             feePercent: 0,
             feeRecipient: configuration.treasury,
             ledger: flatFeeLedger
         });
-        configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+        configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: stakingOracle,
             feePercent: 0,
             feeRecipient: configuration.treasury,
@@ -1247,11 +1374,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" Configuration", i, "validated");
         }
 
-        bytes32[] memory salts = new bytes32[](4);
+        bytes32[] memory salts = new bytes32[](3);
         salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_SALT));
-        salts[1] = bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_SALT));
-        salts[2] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_SALT));
-        salts[3] = bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_SALT));
+        salts[1] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_SALT));
+        salts[2] = bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_SALT));
 
         // Validate salts are not empty
         for (uint256 i = 0; i < salts.length; ++i) {
@@ -1320,7 +1446,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         vars.ledgerConstructorArgs = abi.encode(vars.superLedgerConfig, vars.allowedExecutors);
 
         // Define contracts to verify with their corresponding environment-specific bytecode paths and constructor args
-        ContractVerification[] memory contracts = new ContractVerification[](7);
+        ContractVerification[] memory contracts = new ContractVerification[](6);
 
         // Core contracts verification - always use locked bytecode
 
@@ -1339,34 +1465,27 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         });
 
         contracts[2] = ContractVerification({
-            name: "ERC7540YieldSourceOracle",
-            outputKey: ".ERC7540YieldSourceOracle",
-            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "ERC7540YieldSourceOracle.json")),
-            constructorArgs: ""
-        });
-
-        contracts[3] = ContractVerification({
             name: "ERC5115YieldSourceOracle",
             outputKey: ".ERC5115YieldSourceOracle",
             bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "ERC5115YieldSourceOracle.json")),
             constructorArgs: ""
         });
 
-        contracts[4] = ContractVerification({
+        contracts[3] = ContractVerification({
             name: "StakingYieldSourceOracle",
             outputKey: ".StakingYieldSourceOracle",
             bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "StakingYieldSourceOracle.json")),
             constructorArgs: ""
         });
 
-        contracts[5] = ContractVerification({
+        contracts[4] = ContractVerification({
             name: "SuperLedger",
             outputKey: ".SuperLedger",
             bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "SuperLedger.json")),
             constructorArgs: string(vars.ledgerConstructorArgs)
         });
 
-        contracts[6] = ContractVerification({
+        contracts[5] = ContractVerification({
             name: "FlatFeeLedger",
             outputKey: ".FlatFeeLedger",
             bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "FlatFeeLedger.json")),
@@ -1417,7 +1536,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Handle contracts with constructor args
         if (
             Strings.equal(contractToVerify.name, "ERC4626YieldSourceOracle")
-                || Strings.equal(contractToVerify.name, "ERC7540YieldSourceOracle")
                 || Strings.equal(contractToVerify.name, "ERC5115YieldSourceOracle")
                 || Strings.equal(contractToVerify.name, "StakingYieldSourceOracle")
         ) {
@@ -1511,13 +1629,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 34;
+        uint256 len = 36;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
         // ===== HOOKS WITHOUT DEPENDENCIES =====
-        hooks[0] = HookDeployment(APPROVE_ERC20_HOOK_KEY, __getBytecode("ApproveERC20Hook", env));
-        hooks[1] = HookDeployment(TRANSFER_ERC20_HOOK_KEY, __getBytecode("TransferERC20Hook", env));
+        hooks[0] = _createSafeHookDeployment(APPROVE_ERC20_HOOK_KEY, "ApproveERC20Hook", env);
+        hooks[1] = _createSafeHookDeployment(TRANSFER_ERC20_HOOK_KEY, "TransferERC20Hook", env);
 
         // ===== HOOKS WITH VALIDATED DEPENDENCIES =====
 
@@ -1525,34 +1643,31 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(configuration.permit2s[chainId] != address(0), "BATCH_TRANSFER_FROM_HOOK_PERMIT2_PARAM_ZERO");
         require(configuration.permit2s[chainId].code.length > 0, "BATCH_TRANSFER_FROM_HOOK_PERMIT2_NOT_DEPLOYED");
 
-        hooks[2] = HookDeployment(
+        hooks[2] = _createSafeHookDeploymentWithArgs(
             BATCH_TRANSFER_HOOK_KEY,
-            abi.encodePacked(__getBytecode("BatchTransferHook", env), abi.encode(configuration.nativeTokens[chainId]))
+            "BatchTransferHook",
+            env,
+            abi.encode(configuration.nativeTokens[chainId])
         );
-        hooks[3] = HookDeployment(
+        hooks[3] = _createSafeHookDeploymentWithArgs(
             BATCH_TRANSFER_FROM_HOOK_KEY,
-            abi.encodePacked(__getBytecode("BatchTransferFromHook", env), abi.encode(configuration.permit2s[chainId]))
+            "BatchTransferFromHook",
+            env,
+            abi.encode(configuration.permit2s[chainId])
         );
 
         // Vault hooks (no external dependencies)
-        hooks[4] = HookDeployment(DEPOSIT_4626_VAULT_HOOK_KEY, __getBytecode("Deposit4626VaultHook", env));
-        hooks[5] = HookDeployment(
-            APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY, __getBytecode("ApproveAndDeposit4626VaultHook", env)
-        );
-        hooks[6] = HookDeployment(REDEEM_4626_VAULT_HOOK_KEY, __getBytecode("Redeem4626VaultHook", env));
-        hooks[7] = HookDeployment(DEPOSIT_5115_VAULT_HOOK_KEY, __getBytecode("Deposit5115VaultHook", env));
-        hooks[8] = HookDeployment(
-            APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY, __getBytecode("ApproveAndDeposit5115VaultHook", env)
-        );
-        hooks[9] = HookDeployment(REDEEM_5115_VAULT_HOOK_KEY, __getBytecode("Redeem5115VaultHook", env));
-        hooks[10] =
-            HookDeployment(REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, __getBytecode("RequestDeposit7540VaultHook", env));
-        hooks[11] = HookDeployment(
-            APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, __getBytecode("ApproveAndRequestDeposit7540VaultHook", env)
-        );
-        hooks[12] = HookDeployment(REDEEM_7540_VAULT_HOOK_KEY, __getBytecode("Redeem7540VaultHook", env));
-        hooks[13] = HookDeployment(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, __getBytecode("RequestRedeem7540VaultHook", env));
-        hooks[14] = HookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, __getBytecode("Deposit7540VaultHook", env));
+        hooks[4] = _createSafeHookDeployment(DEPOSIT_4626_VAULT_HOOK_KEY, "Deposit4626VaultHook", env);
+        hooks[5] = _createSafeHookDeployment(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY, "ApproveAndDeposit4626VaultHook", env);
+        hooks[6] = _createSafeHookDeployment(REDEEM_4626_VAULT_HOOK_KEY, "Redeem4626VaultHook", env);
+        hooks[7] = _createSafeHookDeployment(DEPOSIT_5115_VAULT_HOOK_KEY, "Deposit5115VaultHook", env);
+        hooks[8] = _createSafeHookDeployment(APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY, "ApproveAndDeposit5115VaultHook", env);
+        hooks[9] = _createSafeHookDeployment(REDEEM_5115_VAULT_HOOK_KEY, "Redeem5115VaultHook", env);
+        hooks[10] = _createSafeHookDeployment(REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, "RequestDeposit7540VaultHook", env);
+        hooks[11] = _createSafeHookDeployment(APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, "ApproveAndRequestDeposit7540VaultHook", env);
+        hooks[12] = _createSafeHookDeployment(REDEEM_7540_VAULT_HOOK_KEY, "Redeem7540VaultHook", env);
+        hooks[13] = _createSafeHookDeployment(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, "RequestRedeem7540VaultHook", env);
+        hooks[14] = _createSafeHookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, "Deposit7540VaultHook", env);
 
         // ===== HOOKS WITH EXTERNAL ROUTER DEPENDENCIES =====
 
@@ -1560,11 +1675,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         if (availability.swap1InchHook) {
             require(configuration.aggregationRouters[chainId] != address(0), "SWAP_1INCH_HOOK_ROUTER_PARAM_ZERO");
             require(configuration.aggregationRouters[chainId].code.length > 0, "SWAP_1INCH_HOOK_ROUTER_NOT_DEPLOYED");
-            hooks[15] = HookDeployment(
+            hooks[15] = _createSafeHookDeploymentWithArgs(
                 SWAP_1INCH_HOOK_KEY,
-                abi.encodePacked(
-                    __getBytecode("Swap1InchHook", env), abi.encode(configuration.aggregationRouters[chainId])
-                )
+                "Swap1InchHook",
+                env,
+                abi.encode(configuration.aggregationRouters[chainId])
             );
         } else {
             console2.log(" SKIPPED Swap1InchHook deployment: Not available on chain", chainId);
@@ -1575,15 +1690,17 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         if (availability.swapOdosHooks) {
             require(configuration.odosRouters[chainId] != address(0), "SWAP_ODOS_HOOK_ROUTER_PARAM_ZERO");
             require(configuration.odosRouters[chainId].code.length > 0, "SWAP_ODOS_HOOK_ROUTER_NOT_DEPLOYED");
-            hooks[16] = HookDeployment(
+            hooks[16] = _createSafeHookDeploymentWithArgs(
                 SWAP_ODOSV2_HOOK_KEY,
-                abi.encodePacked(__getBytecode("SwapOdosV2Hook", env), abi.encode(configuration.odosRouters[chainId]))
+                "SwapOdosV2Hook",
+                env,
+                abi.encode(configuration.odosRouters[chainId])
             );
-            hooks[17] = HookDeployment(
+            hooks[17] = _createSafeHookDeploymentWithArgs(
                 APPROVE_AND_SWAP_ODOSV2_HOOK_KEY,
-                abi.encodePacked(
-                    __getBytecode("ApproveAndSwapOdosV2Hook", env), abi.encode(configuration.odosRouters[chainId])
-                )
+                "ApproveAndSwapOdosV2Hook",
+                env,
+                abi.encode(configuration.odosRouters[chainId])
             );
         } else {
             console2.log(" SKIPPED ODOS Swap Hooks deployment: Not available on chain", chainId);
@@ -1601,16 +1718,25 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             require(superValidator != address(0), "ACROSS_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
             require(superValidator.code.length > 0, "ACROSS_HOOK_MERKLE_VALIDATOR_NOT_DEPLOYED");
 
-            hooks[18] = HookDeployment(
+            hooks[18] = _createSafeHookDeploymentWithArgs(
                 ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
-                abi.encodePacked(
-                    __getBytecode("AcrossSendFundsAndExecuteOnDstHook", env),
-                    abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator)
-                )
+                "AcrossSendFundsAndExecuteOnDstHook",
+                env,
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator)
+            );
+            hooks[19] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
+                "ApproveAndAcrossSendFundsAndExecuteOnDstHook",
+                env,
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator)
             );
         } else {
             console2.log(" SKIPPED AcrossSendFundsAndExecuteOnDstHook deployment: Not available on chain", chainId);
+            console2.log(
+                " SKIPPED ApproveAndAcrossSendFundsAndExecuteOnDstHook deployment: Not available on chain", chainId
+            );
             hooks[18] = HookDeployment("", ""); // Empty deployment
+            hooks[19] = HookDeployment("", ""); // Empty deployment
         }
 
         // DeBridge hooks - Only deploy if available on this chain
@@ -1619,57 +1745,50 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         if (availability.deBridgeSendOrderHook) {
             require(configuration.debridgeSrcDln[chainId] != address(0), "DEBRIDGE_SEND_HOOK_DLN_SRC_PARAM_ZERO");
-            hooks[19] = HookDeployment(
+            hooks[20] = _createSafeHookDeploymentWithArgs(
                 DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
-                abi.encodePacked(
-                    __getBytecode("DeBridgeSendOrderAndExecuteOnDstHook", env),
-                    abi.encode(configuration.debridgeSrcDln[chainId], superValidator)
-                )
+                "DeBridgeSendOrderAndExecuteOnDstHook",
+                env,
+                abi.encode(configuration.debridgeSrcDln[chainId], superValidator)
             );
         } else {
             console2.log(" SKIPPED DeBridgeSendOrderAndExecuteOnDstHook deployment: Not available on chain", chainId);
-            hooks[19] = HookDeployment("", ""); // Empty deployment
+            hooks[20] = HookDeployment("", ""); // Empty deployment
         }
 
         if (availability.deBridgeCancelOrderHook) {
             require(configuration.debridgeDstDln[chainId] != address(0), "DEBRIDGE_CANCEL_HOOK_DLN_DST_PARAM_ZERO");
-            hooks[20] = HookDeployment(
+            hooks[21] = _createSafeHookDeploymentWithArgs(
                 DEBRIDGE_CANCEL_ORDER_HOOK_KEY,
-                abi.encodePacked(
-                    __getBytecode("DeBridgeCancelOrderHook", env), abi.encode(configuration.debridgeDstDln[chainId])
-                )
+                "DeBridgeCancelOrderHook",
+                env,
+                abi.encode(configuration.debridgeDstDln[chainId])
             );
         } else {
             console2.log(" SKIPPED DeBridgeCancelOrderHook deployment: Not available on chain", chainId);
-            hooks[20] = HookDeployment("", ""); // Empty deployment
+            hooks[21] = HookDeployment("", ""); // Empty deployment
         }
 
         // Protocol-specific hooks (no external dependencies)
-        hooks[21] = HookDeployment(ETHENA_COOLDOWN_SHARES_HOOK_KEY, __getBytecode("EthenaCooldownSharesHook", env));
-        hooks[22] = HookDeployment(ETHENA_UNSTAKE_HOOK_KEY, __getBytecode("EthenaUnstakeHook", env));
-        hooks[23] =
-            HookDeployment(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, __getBytecode("CancelDepositRequest7540Hook", env));
-        hooks[24] =
-            HookDeployment(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, __getBytecode("CancelRedeemRequest7540Hook", env));
-        hooks[25] = HookDeployment(
-            CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, __getBytecode("ClaimCancelDepositRequest7540Hook", env)
-        );
-        hooks[26] = HookDeployment(
-            CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, __getBytecode("ClaimCancelRedeemRequest7540Hook", env)
-        );
-        hooks[27] = HookDeployment(OFFRAMP_TOKENS_HOOK_KEY, __getBytecode("OfframpTokensHook", env));
-        hooks[28] = HookDeployment(MARK_ROOT_AS_USED_HOOK_KEY, __getBytecode("MarkRootAsUsedHook", env));
+        hooks[22] = _createSafeHookDeployment(ETHENA_COOLDOWN_SHARES_HOOK_KEY, "EthenaCooldownSharesHook", env);
+        hooks[23] = _createSafeHookDeployment(ETHENA_UNSTAKE_HOOK_KEY, "EthenaUnstakeHook", env);
+        hooks[24] = _createSafeHookDeployment(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, "CancelDepositRequest7540Hook", env);
+        hooks[25] = _createSafeHookDeployment(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, "CancelRedeemRequest7540Hook", env);
+        hooks[26] = _createSafeHookDeployment(CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, "ClaimCancelDepositRequest7540Hook", env);
+        hooks[27] = _createSafeHookDeployment(CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, "ClaimCancelRedeemRequest7540Hook", env);
+        hooks[28] = _createSafeHookDeployment(OFFRAMP_TOKENS_HOOK_KEY, "OfframpTokensHook", env);
+        hooks[29] = _createSafeHookDeployment(MARK_ROOT_AS_USED_HOOK_KEY, "MarkRootAsUsedHook", env);
         // Merkl Claim Reward Hook - Only deploy if available on this chain
         if (availability.merklClaimRewardHook) {
-            hooks[29] = HookDeployment(
+            hooks[30] = _createSafeHookDeploymentWithArgs(
                 MERKL_CLAIM_REWARD_HOOK_KEY,
-                abi.encodePacked(
-                    __getBytecode("MerklClaimRewardHook", env), abi.encode(configuration.merklDistributors[chainId])
-                )
+                "MerklClaimRewardHook",
+                env,
+                abi.encode(configuration.merklDistributors[chainId])
             );
         } else {
             console2.log(" SKIPPED MerklClaimRewardHook deployment: Not available on chain", chainId);
-            hooks[29] = HookDeployment("", ""); // Empty deployment
+            hooks[30] = HookDeployment("", ""); // Empty deployment
         }
 
         // ===== CIRCLE GATEWAY HOOKS =====
@@ -1677,22 +1796,43 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(GATEWAY_WALLET != address(0), "CIRCLE_GATEWAY_WALLET_PARAM_ZERO");
         require(GATEWAY_MINTER != address(0), "CIRCLE_GATEWAY_MINTER_PARAM_ZERO");
 
-        hooks[30] = HookDeployment(
+        hooks[31] = _createSafeHookDeploymentWithArgs(
             CIRCLE_GATEWAY_WALLET_HOOK_KEY,
-            abi.encodePacked(__getBytecode("CircleGatewayWalletHook", env), abi.encode(GATEWAY_WALLET))
+            "CircleGatewayWalletHook",
+            env,
+            abi.encode(GATEWAY_WALLET)
         );
-        hooks[31] = HookDeployment(
+        hooks[32] = _createSafeHookDeploymentWithArgs(
             CIRCLE_GATEWAY_MINTER_HOOK_KEY,
-            abi.encodePacked(__getBytecode("CircleGatewayMinterHook", env), abi.encode(GATEWAY_MINTER))
+            "CircleGatewayMinterHook",
+            env,
+            abi.encode(GATEWAY_MINTER)
         );
-        hooks[32] = HookDeployment(
+        hooks[33] = _createSafeHookDeploymentWithArgs(
             CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY,
-            abi.encodePacked(__getBytecode("CircleGatewayAddDelegateHook", env), abi.encode(GATEWAY_WALLET))
+            "CircleGatewayAddDelegateHook",
+            env,
+            abi.encode(GATEWAY_WALLET)
         );
-        hooks[33] = HookDeployment(
+        hooks[34] = _createSafeHookDeploymentWithArgs(
             CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY,
-            abi.encodePacked(__getBytecode("CircleGatewayRemoveDelegateHook", env), abi.encode(GATEWAY_WALLET))
+            "CircleGatewayRemoveDelegateHook",
+            env,
+            abi.encode(GATEWAY_WALLET)
         );
+
+        // UniswapV4 Swap Hook - Only deploy if V4 PoolManager available on this chain
+        if (availability.swapUniswapV4Hook) {
+            hooks[35] = _createSafeHookDeploymentWithArgs(
+                SWAP_UNISWAPV4_HOOK_KEY,
+                "SwapUniswapV4Hook",
+                env,
+                abi.encode(configuration.uniswapV4PoolManagers[chainId])
+            );
+        } else {
+            console2.log("SKIPPED SwapUniswapV4Hook: Uniswap V4 PoolManager not available on chain", chainId);
+            hooks[35] = HookDeployment("", ""); // Empty deployment
+        }
 
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying hooks with parameter validation...");
@@ -1710,8 +1850,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
             addresses[i] = __deployContractIfNeeded(hook.name, chainId, __getSalt(hook.name), hook.creationCode);
 
+            // Check if deployment was skipped due to missing bytecode
+            if (addresses[i] == address(0)) {
+                console2.log(" Hook deployment skipped (bytecode not found):", hook.name);
+                continue;
+            }
+
             // Validate each hook was deployed successfully
-            require(addresses[i] != address(0), string(abi.encodePacked("HOOK_DEPLOYMENT_FAILED_", hook.name)));
             require(addresses[i].code.length > 0, string(abi.encodePacked("HOOK_NO_CODE_", hook.name)));
             console2.log(" Hook deployed and validated:", hook.name, "at", addresses[i]);
         }
@@ -1753,36 +1898,41 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[17].name, APPROVE_AND_SWAP_ODOSV2_HOOK_KEY) ? addresses[17] : address(0);
         hookAddresses.acrossSendFundsAndExecuteOnDstHook =
             Strings.equal(hooks[18].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[18] : address(0);
+        hookAddresses.approveAndAcrossSendFundsAndExecuteOnDstHook = Strings.equal(
+            hooks[19].name, APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY
+        ) ? addresses[19] : address(0);
         hookAddresses.deBridgeSendOrderAndExecuteOnDstHook =
-            Strings.equal(hooks[19].name, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[19] : address(0);
+            Strings.equal(hooks[20].name, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[20] : address(0);
         hookAddresses.deBridgeCancelOrderHook =
-            Strings.equal(hooks[20].name, DEBRIDGE_CANCEL_ORDER_HOOK_KEY) ? addresses[20] : address(0);
+            Strings.equal(hooks[21].name, DEBRIDGE_CANCEL_ORDER_HOOK_KEY) ? addresses[21] : address(0);
         hookAddresses.ethenaCooldownSharesHook =
-            Strings.equal(hooks[21].name, ETHENA_COOLDOWN_SHARES_HOOK_KEY) ? addresses[21] : address(0);
+            Strings.equal(hooks[22].name, ETHENA_COOLDOWN_SHARES_HOOK_KEY) ? addresses[22] : address(0);
         hookAddresses.ethenaUnstakeHook =
-            Strings.equal(hooks[22].name, ETHENA_UNSTAKE_HOOK_KEY) ? addresses[22] : address(0);
+            Strings.equal(hooks[23].name, ETHENA_UNSTAKE_HOOK_KEY) ? addresses[23] : address(0);
         hookAddresses.cancelDepositRequest7540Hook =
-            Strings.equal(hooks[23].name, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[23] : address(0);
+            Strings.equal(hooks[24].name, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[24] : address(0);
         hookAddresses.cancelRedeemRequest7540Hook =
-            Strings.equal(hooks[24].name, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[24] : address(0);
+            Strings.equal(hooks[25].name, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[25] : address(0);
         hookAddresses.claimCancelDepositRequest7540Hook =
-            Strings.equal(hooks[25].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[25] : address(0);
+            Strings.equal(hooks[26].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[26] : address(0);
         hookAddresses.claimCancelRedeemRequest7540Hook =
-            Strings.equal(hooks[26].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[26] : address(0);
+            Strings.equal(hooks[27].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[27] : address(0);
         hookAddresses.offrampTokensHook =
-            Strings.equal(hooks[27].name, OFFRAMP_TOKENS_HOOK_KEY) ? addresses[27] : address(0);
+            Strings.equal(hooks[28].name, OFFRAMP_TOKENS_HOOK_KEY) ? addresses[28] : address(0);
         hookAddresses.markRootAsUsedHook =
-            Strings.equal(hooks[28].name, MARK_ROOT_AS_USED_HOOK_KEY) ? addresses[28] : address(0);
+            Strings.equal(hooks[29].name, MARK_ROOT_AS_USED_HOOK_KEY) ? addresses[29] : address(0);
         hookAddresses.merklClaimRewardHook =
-            Strings.equal(hooks[29].name, MERKL_CLAIM_REWARD_HOOK_KEY) ? addresses[29] : address(0);
+            Strings.equal(hooks[30].name, MERKL_CLAIM_REWARD_HOOK_KEY) ? addresses[30] : address(0);
         hookAddresses.circleGatewayWalletHook =
-            Strings.equal(hooks[30].name, CIRCLE_GATEWAY_WALLET_HOOK_KEY) ? addresses[30] : address(0);
+            Strings.equal(hooks[31].name, CIRCLE_GATEWAY_WALLET_HOOK_KEY) ? addresses[31] : address(0);
         hookAddresses.circleGatewayMinterHook =
-            Strings.equal(hooks[31].name, CIRCLE_GATEWAY_MINTER_HOOK_KEY) ? addresses[31] : address(0);
+            Strings.equal(hooks[32].name, CIRCLE_GATEWAY_MINTER_HOOK_KEY) ? addresses[32] : address(0);
         hookAddresses.circleGatewayAddDelegateHook =
-            Strings.equal(hooks[32].name, CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY) ? addresses[32] : address(0);
+            Strings.equal(hooks[33].name, CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY) ? addresses[33] : address(0);
         hookAddresses.circleGatewayRemoveDelegateHook =
-            Strings.equal(hooks[33].name, CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY) ? addresses[33] : address(0);
+            Strings.equal(hooks[34].name, CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY) ? addresses[34] : address(0);
+        hookAddresses.swapUniswapV4Hook =
+            Strings.equal(hooks[35].name, SWAP_UNISWAPV4_HOOK_KEY) ? addresses[34] : address(0);
 
         // ===== FINAL VALIDATION OF ALL CRITICAL HOOKS =====
         require(hookAddresses.approveErc20Hook != address(0), "APPROVE_ERC20_HOOK_NOT_ASSIGNED");
@@ -1868,7 +2018,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     function _deployOracles(uint64 chainId, uint256 env) private returns (address[] memory oracleAddresses) {
         console2.log("Starting oracle deployment with parameter validation...");
 
-        uint256 len = 7;
+        uint256 len = 6;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         oracleAddresses = new address[](len);
 
@@ -1879,44 +2029,61 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log(" Validated SuperLedgerConfiguration for oracles:", superLedgerConfig);
 
         // Deploy oracles with validated constructor parameters
-        oracles[0] = OracleDeployment(
+        oracles[0] = _createSafeOracleDeploymentWithArgs(
             ERC4626_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(__getBytecode("ERC4626YieldSourceOracle", env), abi.encode(superLedgerConfig))
+            "ERC4626YieldSourceOracle",
+            env,
+            abi.encode(superLedgerConfig)
         );
-        oracles[1] = OracleDeployment(
+        oracles[1] = _createSafeOracleDeploymentWithArgs(
             ERC5115_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(__getBytecode("ERC5115YieldSourceOracle", env), abi.encode(superLedgerConfig))
+            "ERC5115YieldSourceOracle",
+            env,
+            abi.encode(superLedgerConfig)
         );
-        oracles[2] = OracleDeployment(
-            ERC7540_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(__getBytecode("ERC7540YieldSourceOracle", env), abi.encode(superLedgerConfig))
-        );
-        oracles[3] = OracleDeployment(
+        oracles[2] = _createSafeOracleDeploymentWithArgs(
             PENDLE_PT_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(__getBytecode("PendlePTYieldSourceOracle", env), abi.encode(superLedgerConfig))
+            "PendlePTYieldSourceOracle",
+            env,
+            abi.encode(superLedgerConfig)
         );
-        oracles[4] = OracleDeployment(
+        oracles[3] = _createSafeOracleDeploymentWithArgs(
             SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(__getBytecode("SpectraPTYieldSourceOracle", env), abi.encode(superLedgerConfig))
+            "SpectraPTYieldSourceOracle",
+            env,
+            abi.encode(superLedgerConfig)
         );
-        oracles[5] = OracleDeployment(
+        oracles[4] = _createSafeOracleDeploymentWithArgs(
             STAKING_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(__getBytecode("StakingYieldSourceOracle", env), abi.encode(superLedgerConfig))
+            "StakingYieldSourceOracle",
+            env,
+            abi.encode(superLedgerConfig)
         );
-        oracles[6] = OracleDeployment(SUPER_YIELD_SOURCE_ORACLE_KEY, __getBytecode("SuperYieldSourceOracle", env));
+        oracles[5] = _createSafeOracleDeployment(SUPER_YIELD_SOURCE_ORACLE_KEY, "SuperYieldSourceOracle", env);
 
         console2.log("Deploying", len, "oracles with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
             OracleDeployment memory oracle = oracles[i];
+
+            // Skip empty deployments (oracles not available due to missing bytecode)
+            if (bytes(oracle.name).length == 0) {
+                console2.log("Skipping empty oracle deployment at index", i);
+                oracleAddresses[i] = address(0);
+                continue;
+            }
+
             console2.log("Deploying oracle:", oracle.name);
 
             oracleAddresses[i] =
                 __deployContractIfNeeded(oracle.name, chainId, __getSalt(oracle.name), oracle.creationCode);
 
+            // Check if deployment was skipped due to missing bytecode
+            if (oracleAddresses[i] == address(0)) {
+                console2.log(" Oracle deployment skipped (bytecode not found):", oracle.name);
+                continue;
+            }
+
             // Validate each oracle was deployed successfully
-            require(
-                oracleAddresses[i] != address(0), string(abi.encodePacked("ORACLE_DEPLOYMENT_FAILED_", oracle.name))
-            );
             require(oracleAddresses[i].code.length > 0, string(abi.encodePacked("ORACLE_NO_CODE_", oracle.name)));
             console2.log(" Oracle deployed and validated:", oracle.name, "at", oracleAddresses[i]);
         }

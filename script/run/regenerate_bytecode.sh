@@ -118,6 +118,7 @@ HOOK_CONTRACTS=(
     "SwapOdosV2Hook"
     "ApproveAndSwapOdosV2Hook"
     "AcrossSendFundsAndExecuteOnDstHook"
+    "ApproveAndAcrossSendFundsAndExecuteOnDstHook"
     "DeBridgeSendOrderAndExecuteOnDstHook"
     "DeBridgeCancelOrderHook"
     "EthenaCooldownSharesHook"
@@ -129,13 +130,13 @@ HOOK_CONTRACTS=(
     "CircleGatewayMinterHook"
     "CircleGatewayAddDelegateHook"
     "CircleGatewayRemoveDelegateHook"
+    "SwapUniswapV4Hook"
 )
 
 # Oracle contracts from accounting/oracles
 ORACLE_CONTRACTS=(
     "ERC4626YieldSourceOracle"
     "ERC5115YieldSourceOracle"
-    "ERC7540YieldSourceOracle"
     "PendlePTYieldSourceOracle"
     "SpectraPTYieldSourceOracle"
     "StakingYieldSourceOracle"
