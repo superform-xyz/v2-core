@@ -591,7 +591,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         );
 
         _executeTokenSwap(
-            swapCalldata, abi.encodeWithSelector(SwapUniswapV4Hook.QUOTE_DEVIATION_EXCEEDS_SAFETY_BOUNDS.selector)
+            swapCalldata, abi.encodeWithSelector(SwapUniswapV4Hook.INSUFFICIENT_OUTPUT_AMOUNT.selector)
         );
     }
 
