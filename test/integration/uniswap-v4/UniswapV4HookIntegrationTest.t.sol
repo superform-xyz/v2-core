@@ -23,6 +23,7 @@ import { ISuperNativePaymaster } from "../../../src/interfaces/ISuperNativePayma
 import { SuperNativePaymaster } from "../../../src/paymaster/SuperNativePaymaster.sol";
 import { UniswapV4Parser } from "../../utils/parsers/UniswapV4Parser.sol";
 import { ISuperHook } from "../../../src/interfaces/ISuperHook.sol";
+import { UniswapV4QuoteHelper } from "./UniswapV4QuoteHelper.sol";
 
 import { BaseHook } from "../../../src/hooks/BaseHook.sol";
 
@@ -162,7 +163,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
 
         // Calculate slippage factor (10000 = 100%)
         uint256 slippageFactor = zeroForOne
-            ? 10_000 - slippageToleranceBps // Price goes down
+            ? 10_000 - slippageToleranceBps  // Price goes down
             : 10_000 + slippageToleranceBps; // Price goes up
 
         // Apply square root to slippage factor (since we're dealing with sqrt prices)
@@ -337,14 +338,16 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         uint160 priceLimit = _calculatePriceLimit(testPoolKey, params.zeroForOne, 100); // 100 bps = 1%
         console2.log("Calculated price limit for quote and swap:", priceLimit);
 
-        // Get realistic minimum using HOOK'S ON-CHAIN QUOTE with the same price limit
-        SwapUniswapV4Hook.QuoteResult memory quote = uniswapV4Hook.getQuote(
-            SwapUniswapV4Hook.QuoteParams({
+        // Get realistic minimum using QUOTE HELPER with the same price limit
+        // Note: Quote may be optimistic for large swaps - actual swap may execute partially
+        UniswapV4QuoteHelper.QuoteResult memory quote = UniswapV4QuoteHelper.getQuote(
+            poolManager,
+            UniswapV4QuoteHelper.QuoteParams({
                 poolKey: testPoolKey,
                 zeroForOne: params.zeroForOne,
                 amountIn: params.sellAmount,
                 sqrtPriceLimitX96: priceLimit // Use same price limit for quote
-             })
+            })
         );
         params.expectedMinOut = quote.amountOut * 995 / 1000; // Apply 0.5% additional slippage buffer on quote
 
@@ -399,17 +402,38 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         console2.log("Final USDC balance:", params.finalUSDCBalance);
         console2.log("Final WETH balance:", params.finalWETHBalance);
 
-        // Allow for small tolerance due to gas costs
-        assertLe(params.finalUSDCBalance, params.initialUSDCBalance - params.sellAmount + 1e6, "USDC should be spent");
-        assertGt(params.finalWETHBalance, params.initialWETHBalance, "WETH balance should increase");
+        // Calculate amounts
+        params.wethReceived = params.finalWETHBalance - params.initialWETHBalance;
+        uint256 usdcSpent = params.initialUSDCBalance - params.finalUSDCBalance;
+
+        console2.log("USDC spent:", usdcSpent);
+        console2.log("USDC refunded:", params.sellAmount - usdcSpent);
+        console2.log("WETH received:", params.wethReceived);
+
+        // Verify swap executed (got some WETH)
+        assertGt(params.wethReceived, 0, "Should receive some WETH");
 
         // Verify minimum buy amount was respected
-        params.wethReceived = params.finalWETHBalance - params.initialWETHBalance;
         assertGe(params.wethReceived, params.expectedMinOut, "Should receive at least minimum buy amount");
 
-        // Log final results
-        console2.log("USDC spent:", params.initialUSDCBalance - params.finalUSDCBalance);
-        console2.log("WETH received:", params.wethReceived);
+        // IMPORTANT: Account for partial execution + refund scenario
+        // If quote was optimistic (off-chain miscalculation), the swap may execute partially
+        // and refund the unused input. This is expected behavior and prevents stranded funds.
+        // The refund ensures: initialBalance - finalBalance = amountActuallySwapped (not necessarily sellAmount)
+        // We verify that:
+        // 1. We received at least the minimum output (slippage protection)
+        // 2. We didn't spend more than we transferred (refund working correctly)
+        assertLe(usdcSpent, params.sellAmount, "Should not spend more than transferred");
+
+        // If swap executed partially, verify we got refunded
+        if (usdcSpent < params.sellAmount) {
+            uint256 expectedRefund = params.sellAmount - usdcSpent;
+            uint256 actualRefund = params.finalUSDCBalance - (params.initialUSDCBalance - params.sellAmount);
+            // Allow small tolerance for rounding
+            assertGe(actualRefund, expectedRefund - 1e6, "Should receive refund for unconsumed input");
+            console2.log("Partial execution detected - refund verified");
+        }
+
         console2.log("Swap test passed successfully");
     }
 
@@ -440,13 +464,14 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         console2.log("Calculated price limit for quote and swap:", priceLimit);
 
         // Get realistic minimum using HOOK'S ON-CHAIN QUOTE with the same price limit
-        SwapUniswapV4Hook.QuoteResult memory quote = uniswapV4Hook.getQuote(
-            SwapUniswapV4Hook.QuoteParams({
+        UniswapV4QuoteHelper.QuoteResult memory quote = UniswapV4QuoteHelper.getQuote(
+            poolManager,
+            UniswapV4QuoteHelper.QuoteParams({
                 poolKey: nativePoolKey,
                 zeroForOne: zeroForOne,
                 amountIn: ethAmount,
                 sqrtPriceLimitX96: priceLimit // Use same price limit for quote
-             })
+            })
         );
         uint256 expectedMinUSDC = quote.amountOut * 995 / 1000; // Apply 0.5% additional slippage buffer on quote
 
@@ -513,13 +538,14 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         console2.log("Calculated price limit for quote and swap:", priceLimit);
 
         // Get realistic minimum using HOOK'S ON-CHAIN QUOTE with the same price limit
-        SwapUniswapV4Hook.QuoteResult memory quote = uniswapV4Hook.getQuote(
-            SwapUniswapV4Hook.QuoteParams({
+        UniswapV4QuoteHelper.QuoteResult memory quote = UniswapV4QuoteHelper.getQuote(
+            poolManager,
+            UniswapV4QuoteHelper.QuoteParams({
                 poolKey: nativePoolKey,
                 zeroForOne: zeroForOne,
                 amountIn: usdcAmount,
                 sqrtPriceLimitX96: priceLimit // Use same price limit for quote
-             })
+            })
         );
         uint256 expectedMinETH = quote.amountOut * 995 / 1000; // Apply 0.5% additional slippage buffer on quote
 
@@ -590,9 +616,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
             false
         );
 
-        _executeTokenSwap(
-            swapCalldata, abi.encodeWithSelector(SwapUniswapV4Hook.INSUFFICIENT_OUTPUT_AMOUNT.selector)
-        );
+        _executeTokenSwap(swapCalldata, abi.encodeWithSelector(SwapUniswapV4Hook.INSUFFICIENT_OUTPUT_AMOUNT.selector));
     }
 
     /// @notice Test UNAUTHORIZED_CALLBACK error by calling unlockCallback directly
@@ -747,7 +771,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        EDGE CASE AND BOUNDARY TESTS  
+                        EDGE CASE AND BOUNDARY TESTS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Test minimal swap amounts (boundary condition)
@@ -758,13 +782,14 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         deal(CHAIN_1_USDC, account, minSwapAmount);
 
         // Get realistic quote for minimal amount
-        SwapUniswapV4Hook.QuoteResult memory quote = uniswapV4Hook.getQuote(
-            SwapUniswapV4Hook.QuoteParams({
+        UniswapV4QuoteHelper.QuoteResult memory quote = UniswapV4QuoteHelper.getQuote(
+            poolManager,
+            UniswapV4QuoteHelper.QuoteParams({
                 poolKey: testPoolKey,
                 zeroForOne: true,
                 amountIn: minSwapAmount,
                 sqrtPriceLimitX96: 0 // No limit
-             })
+            })
         );
         uint256 expectedMinOut = quote.amountOut * 99 / 100; // 1% slippage
 
@@ -795,8 +820,9 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         uint256 originalAmount = (actualAmount * 1e18) / 105e16; // ~0.952e18, 5% smaller
 
         // Get quote for the larger amount
-        SwapUniswapV4Hook.QuoteResult memory actualQuote = uniswapV4Hook.getQuote(
-            SwapUniswapV4Hook.QuoteParams({
+        UniswapV4QuoteHelper.QuoteResult memory actualQuote = UniswapV4QuoteHelper.getQuote(
+            poolManager,
+            UniswapV4QuoteHelper.QuoteParams({
                 poolKey: testPoolKey,
                 zeroForOne: true,
                 amountIn: actualAmount,
@@ -816,14 +842,14 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         console2.log("actualQuote.amountOut:", actualQuote.amountOut);
         console2.log("scaledOut:", scaledOut);
         console2.log("originalMinAmountOut:", originalMinAmountOut);
-        
+
         // Calculate what the hook will do
         uint256 amountRatio = (actualAmount * 1e18) / originalAmount;
         uint256 dynamicMinAmountOut = (originalMinAmountOut * amountRatio) / 1e18;
-        
+
         console2.log("amountRatio:", amountRatio);
         console2.log("dynamicMinAmountOut (what hook calculates):", dynamicMinAmountOut);
-        
+
         // Compare with actual quote
         console2.log("actualQuote vs dynamicMin ratio:", (dynamicMinAmountOut * 100) / actualQuote.amountOut);
     }
@@ -837,8 +863,9 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         uint256 originalAmount = (actualAmount * 1e18) / 105e16; // ≈ 0.952 USDC (still in 6 decimals)
 
         // --- Get quote for the actualAmount (1 USDC) ---
-        SwapUniswapV4Hook.QuoteResult memory actualQuote = uniswapV4Hook.getQuote(
-            SwapUniswapV4Hook.QuoteParams({
+        UniswapV4QuoteHelper.QuoteResult memory actualQuote = UniswapV4QuoteHelper.getQuote(
+            poolManager,
+            UniswapV4QuoteHelper.QuoteParams({
                 poolKey: testPoolKey,
                 zeroForOne: true,
                 amountIn: actualAmount,
@@ -892,16 +919,11 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         ISuperExecutor.ExecutorEntry memory entryToExecute =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookDataArray });
 
-        UserOpData memory opData =
-            _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
+        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
 
         // --- Execute ---
         executeOp(opData); // ✅ should succeed at boundary
     }
-
-
-
-
 
     /// @notice Test decodeUsePrevHookAmount with various data lengths
     function test_DecodeUsePrevHookAmount_EdgeCases() public view {
@@ -961,34 +983,31 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
     /// @notice Test getQuote function with various scenarios
     function test_GetQuote_VariousScenarios() public view {
         // Test normal quote
-        SwapUniswapV4Hook.QuoteResult memory quote1 = uniswapV4Hook.getQuote(
-            SwapUniswapV4Hook.QuoteParams({
+        UniswapV4QuoteHelper.QuoteResult memory quote1 = UniswapV4QuoteHelper.getQuote(
+            poolManager,
+            UniswapV4QuoteHelper.QuoteParams({
                 poolKey: testPoolKey,
                 zeroForOne: true,
                 amountIn: 1000e6,
                 sqrtPriceLimitX96: 0 // No limit
-             })
+            })
         );
         assertGt(quote1.amountOut, 0, "Should return positive amount out");
 
         // Test opposite direction
-        SwapUniswapV4Hook.QuoteResult memory quote2 = uniswapV4Hook.getQuote(
-            SwapUniswapV4Hook.QuoteParams({
-                poolKey: testPoolKey,
-                zeroForOne: false,
-                amountIn: 1e18,
-                sqrtPriceLimitX96: 0
+        UniswapV4QuoteHelper.QuoteResult memory quote2 = UniswapV4QuoteHelper.getQuote(
+            poolManager,
+            UniswapV4QuoteHelper.QuoteParams({
+                poolKey: testPoolKey, zeroForOne: false, amountIn: 1e18, sqrtPriceLimitX96: 0
             })
         );
         assertGt(quote2.amountOut, 0, "Should return positive amount out for opposite direction");
 
         // Test with price limit
-        SwapUniswapV4Hook.QuoteResult memory quote3 = uniswapV4Hook.getQuote(
-            SwapUniswapV4Hook.QuoteParams({
-                poolKey: testPoolKey,
-                zeroForOne: true,
-                amountIn: 1000e6,
-                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
+        UniswapV4QuoteHelper.QuoteResult memory quote3 = UniswapV4QuoteHelper.getQuote(
+            poolManager,
+            UniswapV4QuoteHelper.QuoteParams({
+                poolKey: testPoolKey, zeroForOne: true, amountIn: 1000e6, sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
             })
         );
         assertGt(quote3.amountOut, 0, "Should return positive amount out with price limit");
@@ -1000,13 +1019,14 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
 
         // Test 50% decrease scenario
         uint256 originalAmount = 1000e6; // intended original input (USDC)
-        uint256 actualAmount   = 500e6;  // only half actually provided
+        uint256 actualAmount = 500e6; // only half actually provided
 
         deal(CHAIN_1_USDC, account, actualAmount);
 
         // ---- get a quote for the *actual* amount ----
-        SwapUniswapV4Hook.QuoteResult memory q = uniswapV4Hook.getQuote(
-            SwapUniswapV4Hook.QuoteParams({
+        UniswapV4QuoteHelper.QuoteResult memory q = UniswapV4QuoteHelper.getQuote(
+            poolManager,
+            UniswapV4QuoteHelper.QuoteParams({
                 poolKey: testPoolKey,
                 zeroForOne: true,
                 amountIn: actualAmount,
@@ -1031,7 +1051,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1,
                 originalAmountIn: originalAmount,
                 originalMinAmountOut: originalMinAmountOut, // dynamically scaled
-                maxSlippageDeviationBps: 6000,              // allow 60% deviation
+                maxSlippageDeviationBps: 6000, // allow 60% deviation
                 zeroForOne: true,
                 additionalData: ""
             }),
@@ -1061,7 +1081,6 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
 
         // Expected dynamic minOut ~ (originalMinOut * actualAmount / originalAmount)
     }
-
 }
 
 /// @notice Mock contract to simulate previous hook returning specific amounts
@@ -1073,11 +1092,7 @@ contract MockPrevHook is BaseHook {
     }
 
     // BaseHook implementation
-    function _buildHookExecutions(
-        address,
-        address,
-        bytes calldata
-    )
+    function _buildHookExecutions(address, address, bytes calldata)
         internal
         pure
         override

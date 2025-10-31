@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 // External imports
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 
 // Superform imports
@@ -61,6 +62,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
     uint256 private transient initialBalance;
 
     uint256 private constant MAX_BPS = 10_000; // 100%
+    uint256 private constant MAX_ADDITIONAL_DATA_LEN = 4096; // hard cap to bound gas on user-controlled data
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -102,6 +104,8 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
     error INVALID_REMAINING_NATIVE_AMOUNT();
 
+    error EXCESSIVE_ADDITIONAL_DATA();
+
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -118,38 +122,42 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         uint256 maxSlippageDeviationBps;
     }
 
-    /// @notice Parameters for quote calculation
-    /// @param poolKey The pool key to quote against
-    /// @param zeroForOne Whether swapping token0 for token1
-    /// @param amountIn The input amount for the swap
-    /// @param sqrtPriceLimitX96 Optional price limit for the swap (0 for no limit)
-    struct QuoteParams {
-        PoolKey poolKey;
-        bool zeroForOne;
-        uint256 amountIn;
-        uint160 sqrtPriceLimitX96;
-    }
-
-    /// @notice Result of a quote calculation
-    /// @param amountOut The expected output amount
-    /// @param sqrtPriceX96After The expected price after the swap
-    struct QuoteResult {
-        uint256 amountOut;
-        uint160 sqrtPriceX96After;
-    }
-
     /// @notice Struct to hold swap execution parameters and results
     /// @param inputCurrency The input currency for the swap
     /// @param outputCurrency The output currency for the swap
     /// @param inputToken The input token address
     /// @param effectivePriceLimitX96 The effective price limit for the swap
     /// @param swapDelta The delta returned from the swap
+    /// @param poolKey The pool key for the swap
+    /// @param amountIn The input amount for the swap
+    /// @param minAmountOut The minimum output amount required
+    /// @param dstReceiver The destination receiver address
+    /// @param zeroForOne Whether swapping token0 for token1
+    /// @param delta0 The delta for currency0
+    /// @param delta1 The delta for currency1
+    /// @param currency1Token The token address for currency1
+    /// @param outDelta The output delta (delta0 or delta1 depending on swap direction)
+    /// @param amountOut The final output amount
+    /// @param excess The excess amount to refund
+    /// @param balance The balance check for refunds
     struct SwapExecutionParams {
         Currency inputCurrency;
         Currency outputCurrency;
         address inputToken;
         uint160 effectivePriceLimitX96;
         BalanceDelta swapDelta;
+        PoolKey poolKey;
+        uint256 amountIn;
+        uint256 minAmountOut;
+        address dstReceiver;
+        bool zeroForOne;
+        int128 delta0;
+        int128 delta1;
+        address currency1Token;
+        int128 outDelta;
+        uint256 amountOut;
+        uint256 excess;
+        uint256 balance;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -214,7 +222,15 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
     }
 
     /// @inheritdoc BaseHook
-    function _postExecute(address, /* prevHook */ address account, bytes calldata data) internal override {
+    function _postExecute(
+        address,
+        /* prevHook */
+        address account,
+        bytes calldata data
+    )
+        internal
+        override
+    {
         // Retrieve unlock data from transient storage
         bytes memory unlockData = _loadUnlockData();
 
@@ -275,38 +291,44 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
         // Determine swap direction and currencies
         SwapExecutionParams memory params;
+        params.poolKey = poolKey;
+        params.amountIn = amountIn;
+        params.minAmountOut = minAmountOut;
+        params.dstReceiver = dstReceiver;
+        params.zeroForOne = zeroForOne;
         params.inputCurrency = zeroForOne ? poolKey.currency0 : poolKey.currency1;
         params.outputCurrency = zeroForOne ? poolKey.currency1 : poolKey.currency0;
         params.inputToken = Currency.unwrap(params.inputCurrency);
         params.effectivePriceLimitX96 = effectivePriceLimitX96;
+        params.currency1Token = Currency.unwrap(poolKey.currency1);
 
         // STEP 1: Execute swap FIRST (before any transfers)
         // For exact-input swaps, the swap only accounts deltas - it doesn't require tokens to be present
         // This allows us to see the exact delta amounts (which may differ from amountIn due to protocol fees)
         // before transferring tokens
         IPoolManager.SwapParams memory swapParams = IPoolManager.SwapParams({
-            zeroForOne: zeroForOne,
-            amountSpecified: -int256(amountIn), // Exact input (negative for exact input)
+            zeroForOne: params.zeroForOne,
+            amountSpecified: -int256(params.amountIn), // Exact input (negative for exact input)
             sqrtPriceLimitX96: params.effectivePriceLimitX96
         });
 
-        params.swapDelta = POOL_MANAGER.swap(poolKey, swapParams, additionalData);
+        params.swapDelta = POOL_MANAGER.swap(params.poolKey, swapParams, additionalData);
 
         // STEP 2: Extract deltas for BOTH currencies (CRITICAL: handle both explicitly)
         // After swap, both currencies have deltas accounted to this hook contract
         // - Negative delta = we owe tokens (need to settle)
         // - Positive delta = we receive tokens (need to take)
-        int128 delta0 = params.swapDelta.amount0();
-        int128 delta1 = params.swapDelta.amount1();
+        params.delta0 = params.swapDelta.amount0();
+        params.delta1 = params.swapDelta.amount1();
 
         // STEP 3: Handle currency0 delta
         // IMPORTANT: For exact-input swaps with protocol fees, delta0 might be less than -amountIn
         // We must settle exactly -delta0, not amountIn, to avoid residual delta causing CurrencyNotSettled()
-        if (delta0 < 0) {
+        if (params.delta0 < 0) {
             // Negative delta: we owe currency0, need to settle
-            uint256 amountToSettle = uint256(uint128(-delta0));
+            uint256 amountToSettle = uint256(uint128(-params.delta0));
 
-            if (poolKey.currency0.isAddressZero()) {
+            if (params.poolKey.currency0.isAddressZero()) {
                 // Native token: settle with exact amount needed
                 // Excess (if any) remains in hook contract for postExecute handling
                 if (address(this).balance < amountToSettle) {
@@ -316,7 +338,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
             } else {
                 // ERC-20: Sync AFTER swap to reset the CurrencyReserves state
                 // settle() accounts balance increase from last sync, so we sync now to reset
-                POOL_MANAGER.sync(poolKey.currency0);
+                POOL_MANAGER.sync(params.poolKey.currency0);
 
                 // Transfer exactly amountToSettle tokens
                 // settle() will calculate: balanceAfter - balanceBefore = amountToSettle
@@ -325,40 +347,89 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
                 // settle() accounts +amountToSettle delta, canceling -delta0 exactly
                 POOL_MANAGER.settle();
             }
-        } else if (delta0 > 0) {
+        } else if (params.delta0 > 0) {
             // Positive delta: we receive currency0, need to take
-            uint256 amountToTake = uint256(int256(delta0));
-            POOL_MANAGER.take(poolKey.currency0, dstReceiver, amountToTake);
+            uint256 amountToTake = uint256(int256(params.delta0));
+            // Enforce minAmountOut when output is currency0 (zeroForOne == false)
+            if (!params.zeroForOne && amountToTake < params.minAmountOut) {
+                revert INSUFFICIENT_OUTPUT_AMOUNT(amountToTake, params.minAmountOut);
+            }
+            POOL_MANAGER.take(params.poolKey.currency0, params.dstReceiver, amountToTake);
         }
         // If delta0 == 0, nothing to do
 
         // STEP 4: Handle currency1 delta - this is our output
-        if (delta1 < 0) {
+        if (params.delta1 < 0) {
             // Negative delta: we owe currency1 (shouldn't happen for exact-input zeroForOne swap)
             // But handle it for completeness
-            uint256 amountToSettle = uint256(uint128(-delta1));
-            if (poolKey.currency1.isAddressZero()) {
+            uint256 amountToSettle = uint256(uint128(-params.delta1));
+            if (params.poolKey.currency1.isAddressZero()) {
                 POOL_MANAGER.settle{ value: amountToSettle }();
             } else {
-                POOL_MANAGER.sync(poolKey.currency1);
-                IERC20(Currency.unwrap(poolKey.currency1)).transfer(address(POOL_MANAGER), amountToSettle);
+                POOL_MANAGER.sync(params.poolKey.currency1);
+                IERC20(params.currency1Token).transfer(address(POOL_MANAGER), amountToSettle);
                 POOL_MANAGER.settle();
             }
-        } else if (delta1 > 0) {
+        } else if (params.delta1 > 0) {
             // Positive delta: we receive currency1, need to take (this is our output)
-            uint256 amountToTake = uint256(int256(delta1));
-            if (amountToTake < minAmountOut) {
-                revert INSUFFICIENT_OUTPUT_AMOUNT(amountToTake, minAmountOut);
+            uint256 amountToTake = uint256(int256(params.delta1));
+            if (amountToTake < params.minAmountOut) {
+                revert INSUFFICIENT_OUTPUT_AMOUNT(amountToTake, params.minAmountOut);
             }
-            POOL_MANAGER.take(poolKey.currency1, dstReceiver, amountToTake);
+            POOL_MANAGER.take(params.poolKey.currency1, params.dstReceiver, amountToTake);
         }
         // If delta1 == 0, nothing to do
 
-        // STEP 5: Return the output amount
-        // For zeroForOne: output is currency1 (delta1)
-        // For !zeroForOne: output is currency0 (delta0)
-        uint256 amountOut = zeroForOne ? uint256(int256(delta1)) : uint256(int256(delta0));
-        return abi.encode(amountOut);
+        // STEP 5: Compute and enforce min output for all outcomes (including zero output)
+        // For zeroForOne: output is currency1 (delta1); for !zeroForOne: output is currency0 (delta0)
+        params.outDelta = params.zeroForOne ? params.delta1 : params.delta0;
+        params.amountOut = params.outDelta > 0 ? uint256(uint128(params.outDelta)) : 0;
+        if (params.amountOut < params.minAmountOut) {
+            revert INSUFFICIENT_OUTPUT_AMOUNT(params.amountOut, params.minAmountOut);
+        }
+
+        // STEP 6: Handle refund of unconsumed input (if any)
+        // Edge cases that require refund:
+        // 1. Partial execution due to price limits hitting before full amount is swapped
+        // 2. Zero-output swaps (now handled by minAmountOut check, but still need refund)
+        // 3. Protocol fees causing small excess (rare, but possible)
+        // IMPORTANT: We refund based on actual hook balance remaining after settlement,
+        // not by comparing amountIn to delta, as the delta reflects what was actually swapped
+        if (params.delta0 < 0) {
+            // We owed currency0 - check for any remaining balance after settlement
+            if (params.poolKey.currency0.isAddressZero()) {
+                // Native ETH: refund any remaining balance
+                params.balance = address(this).balance;
+                if (params.balance > 0) {
+                    (bool success,) = params.dstReceiver.call{ value: params.balance }("");
+                    if (!success) revert INVALID_REMAINING_NATIVE_AMOUNT();
+                }
+            } else {
+                // ERC-20: refund any remaining balance after settlement
+                params.balance = IERC20(params.inputToken).balanceOf(address(this));
+                if (params.balance > 0) {
+                    IERC20(params.inputToken).transfer(params.dstReceiver, params.balance);
+                }
+            }
+        } else if (params.delta1 < 0) {
+            // We owed currency1 - check for any remaining balance after settlement
+            if (params.poolKey.currency1.isAddressZero()) {
+                // Native ETH: refund any remaining balance
+                params.balance = address(this).balance;
+                if (params.balance > 0) {
+                    (bool success,) = params.dstReceiver.call{ value: params.balance }("");
+                    if (!success) revert INVALID_REMAINING_NATIVE_AMOUNT();
+                }
+            } else {
+                // ERC-20: refund any remaining balance after settlement
+                params.balance = IERC20(params.currency1Token).balanceOf(address(this));
+                if (params.balance > 0) {
+                    IERC20(params.currency1Token).transfer(params.dstReceiver, params.balance);
+                }
+            }
+        }
+
+        return abi.encode(params.amountOut);
     }
 
     /// @inheritdoc BaseHook
@@ -384,42 +455,6 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         usePrevHookAmount = _decodeBool(data, 217);
     }
 
-    /// @notice Generate on-chain quote using pool state and real V4 math
-    /// @dev Uses SwapMath.computeSwapStep for accurate quote calculation
-    /// @param params The quote parameters
-    /// @return result The quote result with expected amounts
-    function getQuote(QuoteParams memory params) external view returns (QuoteResult memory result) {
-        PoolId poolId = params.poolKey.toId();
-
-        // Get current pool state using StateLibrary
-        (uint160 sqrtPriceX96,, uint24 protocolFee, uint24 lpFee) = POOL_MANAGER.getSlot0(poolId);
-
-        // Validate pool has liquidity
-        if (sqrtPriceX96 == 0) {
-            revert ZERO_LIQUIDITY();
-        }
-
-        // Get pool liquidity
-        uint128 liquidity = POOL_MANAGER.getLiquidity(poolId);
-
-        // Calculate target price (simplified - use current price if no limit)
-        uint160 sqrtPriceTargetX96 = params.sqrtPriceLimitX96 == 0
-            ? (params.zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1)
-            : params.sqrtPriceLimitX96;
-
-        // Use real V4 SwapMath for accurate quote
-        (uint160 sqrtPriceNextX96,, uint256 amountOut,) = SwapMath.computeSwapStep(
-            sqrtPriceX96,
-            sqrtPriceTargetX96,
-            liquidity,
-            -int256(params.amountIn), // Negative for exact input
-            lpFee + protocolFee
-        );
-
-        result.amountOut = amountOut;
-        result.sqrtPriceX96After = sqrtPriceNextX96;
-    }
-
     /*//////////////////////////////////////////////////////////////
                            INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
@@ -442,11 +477,12 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
             revert INVALID_ACTUAL_AMOUNT();
         }
 
-        // Calculate the ratio of actual to original amount (using 1e18 precision)
-        uint256 amountRatio = (params.actualAmountIn * 1e18) / params.originalAmountIn;
+        // Calculate new minAmountOut proportionally using precise mulDiv and enforce > 0
+        newMinAmountOut = Math.mulDiv(params.originalMinAmountOut, params.actualAmountIn, params.originalAmountIn);
+        if (newMinAmountOut == 0) revert INVALID_OUTPUT_DELTA();
 
-        // Calculate new minAmountOut proportionally
-        newMinAmountOut = (params.originalMinAmountOut * amountRatio) / 1e18;
+        // Calculate the ratio of actual to original amount (using 1e18 precision) for deviation check
+        uint256 amountRatio = (params.actualAmountIn * 1e18) / params.originalAmountIn;
 
         // Calculate ratio deviation in basis points
         uint256 ratioDeviationBps = _calculateRatioDeviationBps(amountRatio);
@@ -604,7 +640,11 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         usePrevHookAmount = _decodeBool(data, 217);
 
         // Additional data is everything after the fixed structure
-        if (data.length > 218) {
+        uint256 dataLength = data.length;
+        if (dataLength > 218) {
+            if (dataLength - 218 > MAX_ADDITIONAL_DATA_LEN) {
+                revert EXCESSIVE_ADDITIONAL_DATA();
+            }
             additionalData = data.slice(218, data.length - 218);
         }
     }

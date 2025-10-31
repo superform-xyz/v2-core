@@ -72,7 +72,6 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
 
     ChainConfig public ethereumSepolia;
     ChainConfig public baseSepolia;
-    ChainConfig public avalancheFuji;
 
     // Chain-specific gateway setups
     ChainSetup public ethereumSepoliaSetup;
@@ -135,19 +134,9 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
             name: "Base Sepolia"
         });
 
-        avalancheFuji = ChainConfig({
-            chainId: 43_113,
-            forkId: 0,
-            domain: 43_113, // Avalanche Fuji domain
-            usdc: AVALANCHE_FUJI_USDC,
-            rpcUrl: vm.envString("FUJI_RPC_URL"),
-            name: "Avalanche Fuji"
-        });
-
         // Create forks
         ethereumSepolia.forkId = vm.createFork(ethereumSepolia.rpcUrl);
         baseSepolia.forkId = vm.createFork(baseSepolia.rpcUrl);
-        avalancheFuji.forkId = vm.createFork(avalancheFuji.rpcUrl);
 
         // Setup on Ethereum Sepolia as the main chain
         vm.selectFork(ethereumSepolia.forkId);
@@ -591,11 +580,12 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         _performGatewayDeposit(ethereumSepolia, setupParams[ethereumSepolia.chainId].account, DEPOSIT_AMOUNT);
         _performGatewayAddDelegate(ethereumSepolia, setupParams[ethereumSepolia.chainId].minterAttestationSigner);
         assertTrue(
-            ethereumSepoliaSetup.wallet.isAuthorizedForBalance(
-                ethereumSepolia.usdc,
-                setupParams[ethereumSepolia.chainId].account,
-                setupParams[ethereumSepolia.chainId].minterAttestationSigner
-            )
+            ethereumSepoliaSetup.wallet
+                .isAuthorizedForBalance(
+                    ethereumSepolia.usdc,
+                    setupParams[ethereumSepolia.chainId].account,
+                    setupParams[ethereumSepolia.chainId].minterAttestationSigner
+                )
         );
         /// @dev when the user is ready to take an action on any chain, he can sign an attestation for spending
         // Step 1: Create transfer specification for ETH Sepolia -> Base Sepolia
@@ -693,13 +683,11 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
             vm.selectFork(ethereumSepolia.forkId);
             uint256 feeAmount = 10_000; //0.01 USDC
 
-            uint256 depositorTotalBalanceBefore = ethereumSepoliaSetup.wallet.totalBalance(
-                address(ethereumSepolia.usdc), setupParams[ethereumSepolia.chainId].account
-            );
+            uint256 depositorTotalBalanceBefore = ethereumSepoliaSetup.wallet
+                .totalBalance(address(ethereumSepolia.usdc), setupParams[ethereumSepolia.chainId].account);
             _burnFromWallet(ethereumSepoliaSetup, encodedBurnIntent, burnSignature, MINT_AMOUNT, feeAmount);
-            uint256 depositorTotalBalanceAfter = ethereumSepoliaSetup.wallet.totalBalance(
-                address(ethereumSepolia.usdc), setupParams[ethereumSepolia.chainId].account
-            );
+            uint256 depositorTotalBalanceAfter = ethereumSepoliaSetup.wallet
+                .totalBalance(address(ethereumSepolia.usdc), setupParams[ethereumSepolia.chainId].account);
             assertEq(
                 depositorTotalBalanceBefore - depositorTotalBalanceAfter,
                 MINT_AMOUNT + feeAmount,
@@ -717,19 +705,21 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         vm.selectFork(ethereumSepolia.forkId);
         _performGatewayAddDelegate(ethereumSepolia, setupParams[ethereumSepolia.chainId].minterAttestationSigner);
         assertTrue(
-            ethereumSepoliaSetup.wallet.isAuthorizedForBalance(
-                ethereumSepolia.usdc,
-                setupParams[ethereumSepolia.chainId].account,
-                setupParams[ethereumSepolia.chainId].minterAttestationSigner
-            )
+            ethereumSepoliaSetup.wallet
+                .isAuthorizedForBalance(
+                    ethereumSepolia.usdc,
+                    setupParams[ethereumSepolia.chainId].account,
+                    setupParams[ethereumSepolia.chainId].minterAttestationSigner
+                )
         );
         _performGatewayRemoveDelegate(ethereumSepolia, setupParams[ethereumSepolia.chainId].minterAttestationSigner);
         assertFalse(
-            ethereumSepoliaSetup.wallet.isAuthorizedForBalance(
-                ethereumSepolia.usdc,
-                setupParams[ethereumSepolia.chainId].account,
-                setupParams[ethereumSepolia.chainId].minterAttestationSigner
-            )
+            ethereumSepoliaSetup.wallet
+                .isAuthorizedForBalance(
+                    ethereumSepolia.usdc,
+                    setupParams[ethereumSepolia.chainId].account,
+                    setupParams[ethereumSepolia.chainId].minterAttestationSigner
+                )
         );
     }
 }
