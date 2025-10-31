@@ -19,8 +19,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address feeReceiver = BytesLib.toAddress(data, 0);
 /// @notice         uint256 feePercent = BytesLib.toUint256(data, 20);
 /// @notice         uint256 arraysLength = BytesLib.toUint256(data, 52);
-/// @notice         address[] tokens = BytesLib.slice(data, 84, arraysLength * 20);
-/// @notice         uint256[] amounts = BytesLib.slice(data, 84 + arraysLength * 20, arraysLength * 32);
+/// @notice         bytes tokens = BytesLib.slice(data, 84, arraysLength * 20);
+/// @notice         bytes amounts = BytesLib.slice(data, 84 + arraysLength * 20, arraysLength * 32);
 /// @notice         bytes proofBlob = BytesLib.slice(data, 84 + arraysLength * 20 + arraysLength * 32, data.length - (84
 /// + arraysLength * 20 + arraysLength * 32));
 contract MerklClaimRewardHook is BaseHook {
