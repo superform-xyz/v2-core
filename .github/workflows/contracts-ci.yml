@@ -73,6 +73,8 @@ jobs:
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
+        with:
+          version: "v1.3.6"
 
       - name: "Get forge version"
         run: forge --version
@@ -128,6 +130,8 @@ jobs:
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
+        with:
+          version: "v1.3.6"
 
       - name: "Install Foundry dependencies"
         run: forge install
@@ -197,6 +201,9 @@ jobs:
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
+        with:
+          version: "v1.3.6"
+
       - name: "Install Foundry dependencies"
         run: forge install
 
@@ -282,6 +289,8 @@ jobs:
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
+        with:
+          version: "v1.3.6"
 
       - name: "Install Foundry dependencies"
         run: forge install
@@ -327,7 +336,9 @@ jobs:
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
-
+        with:
+          version: "v1.3.6"
+          
       - name: "Install Foundry dependencies"
         run: forge install
 
