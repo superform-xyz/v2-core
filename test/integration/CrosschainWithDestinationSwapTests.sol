@@ -41,6 +41,7 @@ import { BaseLedger } from "../../src/accounting/BaseLedger.sol";
 import { BaseHook } from "../../src/hooks/BaseHook.sol";
 import { SwapUniswapV4Hook } from "../../src/hooks/swappers/uniswap-v4/SwapUniswapV4Hook.sol";
 import { UniswapV4Parser } from "../utils/parsers/UniswapV4Parser.sol";
+import { UniswapV4QuoteHelper } from "./uniswap-v4/UniswapV4QuoteHelper.sol";
 import { IPoolManager } from "v4-core/interfaces/IPoolManager.sol";
 import { PoolKey } from "v4-core/types/PoolKey.sol";
 import { Currency } from "v4-core/types/Currency.sol";
@@ -306,7 +307,7 @@ contract CrosschainWithDestinationSwapTests is BaseTest {
         {
             // Calculate the amount after 20% fee reduction for the swap
             uint256 adjustedWETHAmount = amountPerVault - (amountPerVault * feeReductionPercentage / 10_000); // 20%
-                // reduction
+            // reduction
 
             (, accountToUse) = _createAccountCreationData_DestinationExecutor(
                 AccountCreationParams({
@@ -346,9 +347,10 @@ contract CrosschainWithDestinationSwapTests is BaseTest {
             // Calculate appropriate price limit with 1% slippage tolerance
             uint160 priceLimit = _calculatePriceLimit(wethUsdcPoolKey, zeroForOne, 100);
 
-            // Get realistic minimum using UniswapV4 on-chain quote
-            SwapUniswapV4Hook.QuoteResult memory quote = uniV4Hook.getQuote(
-                SwapUniswapV4Hook.QuoteParams({
+            // Get realistic minimum using UniswapV4 quote helper
+            UniswapV4QuoteHelper.QuoteResult memory quote = UniswapV4QuoteHelper.getQuote(
+                IPoolManager(MAINNET_V4_POOL_MANAGER),
+                UniswapV4QuoteHelper.QuoteParams({
                     poolKey: wethUsdcPoolKey,
                     zeroForOne: zeroForOne,
                     amountIn: adjustedWETHAmount,
@@ -576,7 +578,7 @@ contract CrosschainWithDestinationSwapTests is BaseTest {
 
         // Calculate slippage factor (10000 = 100%)
         uint256 slippageFactor = zeroForOne
-            ? 10_000 - slippageToleranceBps // Price goes down
+            ? 10_000 - slippageToleranceBps  // Price goes down
             : 10_000 + slippageToleranceBps; // Price goes up
 
         // Apply square root to slippage factor (since we're dealing with sqrt prices)
