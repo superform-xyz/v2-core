@@ -162,7 +162,7 @@ abstract contract Constants {
     string internal constant CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "ClaimCancelRedeemRequest7540Hook";
     string internal constant CANCEL_REDEEM_HOOK_KEY = "CancelRedeemHook";
     string internal constant MARK_ROOT_AS_USED_HOOK_KEY = "MarkRootAsUsedHook";
-    string internal constant MERKL_CLAIM_REWARD_HOOK_KEY = "MerklClaimRewardHook";
+    string internal constant MERKL_CLAIM_REWARD_HOOK_KEY = "MerklClaimRewardHook_v02";
 
     // Circle Gateway Hook Keys
     string internal constant CIRCLE_GATEWAY_WALLET_HOOK_KEY = "CircleGatewayWalletHook";
