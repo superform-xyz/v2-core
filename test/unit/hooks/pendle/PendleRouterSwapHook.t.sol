@@ -1055,4 +1055,333 @@ contract PendleRouterSwapHookTest is Helpers {
         // Verify that the hook captured the native token balance
         assertEq(hook.getOutAmount(address(this)), 5 ether);
     }
+
+    function test_Build_RevertIf_ExactPtInZero() public {
+        TokenOutput memory output = TokenOutput({
+            tokenOut: address(outputToken),
+            minTokenOut: 950,
+            tokenRedeemSy: address(outputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+        });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(0),
+            epsSkipMarket: 0,
+            normalFills: new FillOrderParams[](0),
+            flashFills: new FillOrderParams[](0),
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactPtForToken.selector,
+            receiver,
+            market,
+            0, // exactPtIn = 0 (invalid)
+            output,
+            limit
+        );
+
+        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+
+        vm.expectRevert(PendleRouterSwapHook.AMOUNT_IN_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_RevertIf_ExactPtInZeroFromPrevHook() public {
+        TokenOutput memory output = TokenOutput({
+            tokenOut: address(outputToken),
+            minTokenOut: 950,
+            tokenRedeemSy: address(outputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+        });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(0),
+            epsSkipMarket: 0,
+            normalFills: new FillOrderParams[](0),
+            flashFills: new FillOrderParams[](0),
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
+        );
+
+        // Set usePrevHookAmount to true
+        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(1)), uint256(0), txData);
+
+        // Set prevHook to return 0
+        prevHook.setOutAmount(0, address(this));
+
+        vm.expectRevert(PendleRouterSwapHook.AMOUNT_IN_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_RevertIf_NetTokenInZero() public {
+        TokenInput memory input = TokenInput({
+            tokenIn: address(inputToken),
+            netTokenIn: 0, // Invalid: netTokenIn = 0
+            tokenMintSy: address(inputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+        });
+
+        ApproxParams memory guessPtOut =
+            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(0),
+            epsSkipMarket: 0,
+            normalFills: new FillOrderParams[](0),
+            flashFills: new FillOrderParams[](0),
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
+        );
+
+        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+
+        vm.expectRevert(PendleRouterSwapHook.AMOUNT_IN_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_RevertIf_NetTokenInZeroFromPrevHook() public {
+        TokenInput memory input = TokenInput({
+            tokenIn: address(inputToken),
+            netTokenIn: inputAmount,
+            tokenMintSy: address(inputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+        });
+
+        ApproxParams memory guessPtOut =
+            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(0),
+            epsSkipMarket: 0,
+            normalFills: new FillOrderParams[](0),
+            flashFills: new FillOrderParams[](0),
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
+        );
+
+        // Set usePrevHookAmount to true
+        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(1)), uint256(0), txData);
+
+        // Set prevHook to return 0
+        prevHook.setOutAmount(0, address(this));
+
+        vm.expectRevert(PendleRouterSwapHook.AMOUNT_IN_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_SwapExactPtForToken_WithPrevHookAmount() public {
+        TokenOutput memory output = TokenOutput({
+            tokenOut: address(outputToken),
+            minTokenOut: 950,
+            tokenRedeemSy: address(outputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+        });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(0),
+            epsSkipMarket: 0,
+            normalFills: new FillOrderParams[](0),
+            flashFills: new FillOrderParams[](0),
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
+        );
+
+        // Set usePrevHookAmount to true
+        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(1)), uint256(0), txData);
+
+        // Set prevHook to return a valid amount
+        prevHook.setOutAmount(3000, address(this));
+
+        // Should successfully build executions with exactPtIn updated from prevHook
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(pendleRouter));
+        assertEq(executions[1].value, 0);
+    }
+
+    function test_Build_SwapExactPtForToken_WithNormalFills() public view {
+        TokenOutput memory output = TokenOutput({
+            tokenOut: address(outputToken),
+            minTokenOut: 950,
+            tokenRedeemSy: address(outputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+        });
+
+        Order[] memory normalOrders = new Order[](1);
+        normalOrders[0] = Order({
+            salt: 0,
+            expiry: block.timestamp + 1 hours,
+            nonce: 0,
+            orderType: OrderType.SY_FOR_PT,
+            token: address(outputToken),
+            YT: address(ytToken),
+            maker: address(this),
+            receiver: receiver,
+            makingAmount: 1000,
+            lnImpliedRate: 0,
+            failSafeRate: 0,
+            permit: ""
+        });
+
+        FillOrderParams[] memory normalFills = new FillOrderParams[](1);
+        normalFills[0] = FillOrderParams({ order: normalOrders[0], signature: "", makingAmount: 1000 });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(this),
+            epsSkipMarket: 0,
+            normalFills: normalFills,
+            flashFills: new FillOrderParams[](0),
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
+        );
+
+        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+
+        // Should successfully build executions with normal fills
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(pendleRouter));
+        assertEq(executions[1].value, 0);
+    }
+
+    function test_Build_SwapExactPtForToken_WithFlashFills() public view {
+        TokenOutput memory output = TokenOutput({
+            tokenOut: address(outputToken),
+            minTokenOut: 950,
+            tokenRedeemSy: address(outputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+        });
+
+        Order[] memory flashOrders = new Order[](1);
+        flashOrders[0] = Order({
+            salt: 0,
+            expiry: block.timestamp + 2 hours,
+            nonce: 0,
+            orderType: OrderType.SY_FOR_PT,
+            token: address(outputToken),
+            YT: address(ytToken),
+            maker: address(this),
+            receiver: receiver,
+            makingAmount: 1500,
+            lnImpliedRate: 0,
+            failSafeRate: 0,
+            permit: ""
+        });
+
+        FillOrderParams[] memory flashFills = new FillOrderParams[](1);
+        flashFills[0] = FillOrderParams({ order: flashOrders[0], signature: "", makingAmount: 1500 });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(this),
+            epsSkipMarket: 0,
+            normalFills: new FillOrderParams[](0),
+            flashFills: flashFills,
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
+        );
+
+        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+
+        // Should successfully build executions with flash fills
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(pendleRouter));
+        assertEq(executions[1].value, 0);
+    }
+
+    function test_Build_SwapExactPtForToken_WithBothNormalAndFlashFills() public view {
+        TokenOutput memory output = TokenOutput({
+            tokenOut: address(outputToken),
+            minTokenOut: 950,
+            tokenRedeemSy: address(outputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+        });
+
+        // Create normal fills
+        Order[] memory normalOrders = new Order[](1);
+        normalOrders[0] = Order({
+            salt: 0,
+            expiry: block.timestamp + 1 hours,
+            nonce: 0,
+            orderType: OrderType.SY_FOR_PT,
+            token: address(outputToken),
+            YT: address(ytToken),
+            maker: address(this),
+            receiver: receiver,
+            makingAmount: 1000,
+            lnImpliedRate: 0,
+            failSafeRate: 0,
+            permit: ""
+        });
+
+        FillOrderParams[] memory normalFills = new FillOrderParams[](1);
+        normalFills[0] = FillOrderParams({ order: normalOrders[0], signature: "", makingAmount: 1000 });
+
+        // Create flash fills
+        Order[] memory flashOrders = new Order[](1);
+        flashOrders[0] = Order({
+            salt: 1,
+            expiry: block.timestamp + 2 hours,
+            nonce: 1,
+            orderType: OrderType.SY_FOR_PT,
+            token: address(ptToken),
+            YT: address(ytToken),
+            maker: address(this),
+            receiver: receiver,
+            makingAmount: 1500,
+            lnImpliedRate: 0,
+            failSafeRate: 0,
+            permit: ""
+        });
+
+        FillOrderParams[] memory flashFills = new FillOrderParams[](1);
+        flashFills[0] = FillOrderParams({ order: flashOrders[0], signature: "", makingAmount: 1500 });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(this),
+            epsSkipMarket: 0,
+            normalFills: normalFills,
+            flashFills: flashFills,
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
+        );
+
+        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+
+        // Should successfully build executions with both normal and flash fills
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(pendleRouter));
+        assertEq(executions[1].value, 0);
+    }
 }

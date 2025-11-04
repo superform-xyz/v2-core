@@ -207,6 +207,165 @@ contract PendleRouterRedeemHookTest is Helpers {
         hook.build(address(prevHook), account, data);
     }
 
+    function test_Build_RevertIf_InvalidDataLength() public {
+        // Create data with length less than TOKEN_OUTPUT_OFFSET (125 bytes)
+        // Data needs: amount(32) + yt(20) + pt(20) + tokenOut(20) + minTokenOut(32) + usePrevHookAmount(1) = 125 bytes minimum
+        // Provide only 100 bytes to trigger the error
+        bytes memory data = new bytes(100);
+
+        vm.expectRevert(PendleRouterRedeemHook.INVALID_DATA_LENGTH.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_PreExecute_RevertIf_InvalidDataLength() public {
+        // Create data with length less than endOfTokenOutOffset (92 bytes)
+        // endOfTokenOutOffset = 72 (start of tokenOut) + 20 (size of address) = 92
+        // Provide only 80 bytes to trigger the error in _getBalance
+        bytes memory data = new bytes(80);
+
+        vm.expectRevert(PendleRouterRedeemHook.INVALID_DATA_LENGTH.selector);
+        hook.preExecute(address(0), account, data);
+    }
+
+    function test_PostExecute_RevertIf_InvalidDataLength() public {
+        // Create data with length less than endOfTokenOutOffset (92 bytes)
+        // Provide only 70 bytes to trigger the error in _getBalance
+        bytes memory data = new bytes(70);
+
+        vm.expectRevert(PendleRouterRedeemHook.INVALID_DATA_LENGTH.selector);
+        hook.postExecute(address(0), account, data);
+    }
+
+    function test_Build_RevertIf_TokenOutMismatch() public {
+        // Create a TokenOutput struct with a different tokenOut than the explicit parameter
+        SwapData memory swapData =
+            SwapData({ swapType: SwapType.ODOS, extRouter: address(0), extCalldata: "", needScale: false });
+        
+        TokenOutput memory output = TokenOutput({
+            tokenOut: address(0x999), // Different from the explicit tokenOut parameter
+            minTokenOut: minTokenOut,
+            tokenRedeemSy: address(0),
+            pendleSwap: address(0),
+            swapData: swapData
+        });
+
+        bytes memory tokenOutputEncoded = abi.encode(output);
+        
+        // Pack the data with explicit tokenOut that differs from struct tokenOut
+        bytes memory data = abi.encodePacked(
+            amount,
+            address(ytToken),
+            address(ptToken),
+            address(tokenOut), // Explicit parameter
+            minTokenOut,
+            bytes1(uint8(0)),
+            tokenOutputEncoded
+        );
+
+        vm.expectRevert(PendleRouterRedeemHook.TOKEN_OUT_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_RevertIf_MinTokenOutMismatch() public {
+        // Create a TokenOutput struct with a different minTokenOut than the explicit parameter
+        SwapData memory swapData =
+            SwapData({ swapType: SwapType.ODOS, extRouter: address(0), extCalldata: "", needScale: false });
+        
+        TokenOutput memory output = TokenOutput({
+            tokenOut: address(tokenOut),
+            minTokenOut: 999, // Different from the explicit minTokenOut parameter
+            tokenRedeemSy: address(0),
+            pendleSwap: address(0),
+            swapData: swapData
+        });
+
+        bytes memory tokenOutputEncoded = abi.encode(output);
+        
+        // Pack the data with explicit minTokenOut that differs from struct minTokenOut
+        bytes memory data = abi.encodePacked(
+            amount,
+            address(ytToken),
+            address(ptToken),
+            address(tokenOut),
+            minTokenOut, // Explicit parameter
+            bytes1(uint8(0)),
+            tokenOutputEncoded
+        );
+
+        vm.expectRevert(PendleRouterRedeemHook.MIN_TOKEN_OUT_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_SuccessWithMatchingParams() public view {
+        // Create a TokenOutput struct where tokenOut and minTokenOut match the explicit parameters
+        bytes memory data = _createRedeemData(
+            amount,
+            address(ytToken),
+            address(ptToken),
+            address(tokenOut),
+            minTokenOut,
+            false
+        );
+
+        // Should successfully build executions when params match
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 5);
+        assertEq(executions[3].target, pendleRouter);
+    }
+
+    function test_Build_RevertIf_PrevHookAmountZero() public {
+        bytes memory data = _createRedeemData(
+            amount,
+            address(ytToken),
+            address(ptToken),
+            address(tokenOut),
+            minTokenOut,
+            true // usePrevHookAmount = true
+        );
+
+        // Set prevHook to return 0
+        prevHook.setOutAmount(0, address(this));
+
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_SuccessWithAmountFromData() public view {
+        // Test the else branch where usePrevHookAmount = false and amountFromData is used
+        bytes memory data = _createRedeemData(
+            amount, // Valid amount from data
+            address(ytToken),
+            address(ptToken),
+            address(tokenOut),
+            minTokenOut,
+            false // usePrevHookAmount = false
+        );
+
+        // Should successfully build executions using amount from data
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 5);
+        assertEq(executions[3].target, pendleRouter);
+    }
+
+    function test_Build_SuccessWithAmountFromPrevHook() public {
+        bytes memory data = _createRedeemData(
+            amount,
+            address(ytToken),
+            address(ptToken),
+            address(tokenOut),
+            minTokenOut,
+            true // usePrevHookAmount = true
+        );
+
+        // Set prevHook to return a valid amount
+        prevHook.setOutAmount(5000, address(this));
+
+        // Should successfully build executions using amount from prevHook
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 5);
+        assertEq(executions[3].target, pendleRouter);
+    }
+
     function test_DecodeUsePrevHookAmount() public view {
         bytes memory data =
             _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, true);
