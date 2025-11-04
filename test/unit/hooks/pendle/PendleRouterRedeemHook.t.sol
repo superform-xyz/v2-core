@@ -6,6 +6,8 @@ import { PendleRouterRedeemHook } from "../../../../src/hooks/swappers/pendle/Pe
 import { IPendleRouterV4, TokenOutput, SwapData, SwapType } from "../../../../src/vendor/pendle/IPendleRouterV4.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../mocks/MockHook.sol";
+import { MockYieldToken } from "../../../mocks/MockYieldToken.sol";
+import { MockStandardizedYield } from "../../../mocks/MockStandardizedYield.sol";
 import { ISuperHook } from "../../../../src/interfaces/ISuperHook.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
@@ -82,7 +84,7 @@ contract PendleRouterRedeemHookTest is Helpers {
         assertEq(executions[3].callData, expectedCallData);
     }
 
-    function test_Build_WithPrevHookAmount() public {
+    function test_Build_WithPrevHookAmountXQA() public {
         bytes memory data =
             _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, true);
 
@@ -237,6 +239,75 @@ contract PendleRouterRedeemHookTest is Helpers {
 
         // Verify that the hook captured the native token balance
         assertEq(hook.getOutAmount(address(this)), 3 ether);
+    }
+
+    function test_Build_RevertIf_SYCallFails() public {
+        // Create a YT token where SY() call will fail
+        MockYieldToken mockYT = new MockYieldToken("Mock YT", "MYT", 18);
+        mockYT.setSYCallShouldFail(true);
+
+        bytes memory data = _createRedeemData(
+            amount,
+            address(mockYT),
+            address(ptToken),
+            address(tokenOut),
+            minTokenOut,
+            false
+        );
+
+        vm.expectRevert(PendleRouterRedeemHook.SY_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_RevertIf_TokenOutNotListed() public {
+        // Create SY contract that doesn't list the tokenOut
+        MockStandardizedYield mockSY = new MockStandardizedYield(address(0), address(ptToken), address(0));
+        
+        // Create YT token pointing to this SY
+        MockYieldToken mockYT = new MockYieldToken("Mock YT", "MYT", 18);
+        mockYT.setSY(address(mockSY));
+
+        // Create a token that won't be in the SY's tokensOut list
+        MockERC20 invalidTokenOut = new MockERC20("Invalid Out", "INVOUT", 18);
+
+        bytes memory data = _createRedeemData(
+            amount,
+            address(mockYT),
+            address(ptToken),
+            address(invalidTokenOut),
+            minTokenOut,
+            false
+        );
+
+        vm.expectRevert(PendleRouterRedeemHook.TOKEN_OUT_NOT_LISTED.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_SuccessWithValidSYAndTokenOut() public {
+        // Create SY contract with valid token list
+        MockStandardizedYield mockSY = new MockStandardizedYield(address(tokenOut), address(ptToken), address(0));
+        
+        // Set tokenOut as valid in the SY
+        address[] memory validTokensOut = new address[](1);
+        validTokensOut[0] = address(tokenOut);
+        mockSY.setTokensOut(validTokensOut);
+        
+        // Create YT token pointing to this SY
+        MockYieldToken mockYT = new MockYieldToken("Mock YT", "MYT", 18);
+        mockYT.setSY(address(mockSY));
+
+        bytes memory data = _createRedeemData(
+            amount,
+            address(mockYT),
+            address(ptToken),
+            address(tokenOut),
+            minTokenOut,
+            false
+        );
+
+        // Should not revert
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 5);
     }
 
     function _createRedeemData(
