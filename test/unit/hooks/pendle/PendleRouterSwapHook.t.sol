@@ -244,7 +244,7 @@ contract PendleRouterSwapHookTest is Helpers {
 
     function test_PendleSwap_Build_WithPrevHookAmount() public {
         TokenInput memory input = TokenInput({
-            tokenIn: address(inputToken),
+            tokenIn: address(0),
             netTokenIn: inputAmount,
             tokenMintSy: address(inputToken),
             pendleSwap: address(this),
