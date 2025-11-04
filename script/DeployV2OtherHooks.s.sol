@@ -30,6 +30,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
     struct HookDeployment {
         string name;
+        string saltOverride; // Optional custom salt (empty = use name for salt)
         bytes creationCode;
     }
 
@@ -100,25 +101,26 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address[] memory addresses = new address[](len);
 
         // Claim hooks
-        hooks[0] = HookDeployment(FLUID_CLAIM_REWARD_HOOK_KEY, __getOtherHooksBytecode("FluidClaimRewardHook", env));
-        hooks[1] = HookDeployment(GEARBOX_CLAIM_REWARD_HOOK_KEY, __getOtherHooksBytecode("GearboxClaimRewardHook", env));
+        hooks[0] = HookDeployment(FLUID_CLAIM_REWARD_HOOK_KEY, "", __getOtherHooksBytecode("FluidClaimRewardHook", env));
+        hooks[1] = HookDeployment(GEARBOX_CLAIM_REWARD_HOOK_KEY, "", __getOtherHooksBytecode("GearboxClaimRewardHook", env));
         hooks[2] =
-            HookDeployment(YEARN_CLAIM_ONE_REWARD_HOOK_KEY, __getOtherHooksBytecode("YearnClaimOneRewardHook", env));
+            HookDeployment(YEARN_CLAIM_ONE_REWARD_HOOK_KEY, "", __getOtherHooksBytecode("YearnClaimOneRewardHook", env));
 
         // Stake hooks
-        hooks[3] = HookDeployment(FLUID_STAKE_HOOK_KEY, __getOtherHooksBytecode("FluidStakeHook", env));
+        hooks[3] = HookDeployment(FLUID_STAKE_HOOK_KEY, "", __getOtherHooksBytecode("FluidStakeHook", env));
         hooks[4] =
-            HookDeployment(APPROVE_AND_FLUID_STAKE_HOOK_KEY, __getOtherHooksBytecode("ApproveAndFluidStakeHook", env));
-        hooks[5] = HookDeployment(FLUID_UNSTAKE_HOOK_KEY, __getOtherHooksBytecode("FluidUnstakeHook", env));
-        hooks[6] = HookDeployment(GEARBOX_STAKE_HOOK_KEY, __getOtherHooksBytecode("GearboxStakeHook", env));
+            HookDeployment(APPROVE_AND_FLUID_STAKE_HOOK_KEY, "", __getOtherHooksBytecode("ApproveAndFluidStakeHook", env));
+        hooks[5] = HookDeployment(FLUID_UNSTAKE_HOOK_KEY, "", __getOtherHooksBytecode("FluidUnstakeHook", env));
+        hooks[6] = HookDeployment(GEARBOX_STAKE_HOOK_KEY, "", __getOtherHooksBytecode("GearboxStakeHook", env));
         hooks[7] = HookDeployment(
-            GEARBOX_APPROVE_AND_STAKE_HOOK_KEY, __getOtherHooksBytecode("ApproveAndGearboxStakeHook", env)
+            GEARBOX_APPROVE_AND_STAKE_HOOK_KEY, "", __getOtherHooksBytecode("ApproveAndGearboxStakeHook", env)
         );
-        hooks[8] = HookDeployment(GEARBOX_UNSTAKE_HOOK_KEY, __getOtherHooksBytecode("GearboxUnstakeHook", env));
+        hooks[8] = HookDeployment(GEARBOX_UNSTAKE_HOOK_KEY, "", __getOtherHooksBytecode("GearboxUnstakeHook", env));
 
         // Spectra swapper hooks
         hooks[9] = HookDeployment(
             SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY,
+            "",
             abi.encodePacked(
                 __getOtherHooksBytecode("SpectraExchangeDepositHook", env),
                 abi.encode(otherHooksConfiguration.spectraRouters[chainId])
@@ -126,6 +128,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         );
         hooks[10] = HookDeployment(
             SPECTRA_EXCHANGE_REDEEM_HOOK_KEY,
+            "",
             abi.encodePacked(
                 __getOtherHooksBytecode("SpectraExchangeRedeemHook", env),
                 abi.encode(otherHooksConfiguration.spectraRouters[chainId])
@@ -135,6 +138,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         // Pendle swapper hooks
         hooks[11] = HookDeployment(
             PENDLE_ROUTER_SWAP_HOOK_KEY,
+            "",
             abi.encodePacked(
                 __getOtherHooksBytecode("PendleRouterSwapHook", env),
                 abi.encode(otherHooksConfiguration.pendleRouters[chainId])
@@ -142,6 +146,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         );
         hooks[12] = HookDeployment(
             PENDLE_ROUTER_REDEEM_HOOK_KEY,
+            "",
             abi.encodePacked(
                 __getOtherHooksBytecode("PendleRouterRedeemHook", env),
                 abi.encode(otherHooksConfiguration.pendleRouters[chainId])
@@ -151,6 +156,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         // Morpho loan hooks
         hooks[13] = HookDeployment(
             MORPHO_SUPPLY_AND_BORROW_HOOK_KEY,
+            "",
             abi.encodePacked(
                 __getOtherHooksBytecode("MorphoSupplyAndBorrowHook", env),
                 abi.encode(otherHooksConfiguration.morphos[chainId])
@@ -158,12 +164,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         );
         hooks[14] = HookDeployment(
             MORPHO_REPAY_HOOK_KEY,
+            "",
             abi.encodePacked(
                 __getOtherHooksBytecode("MorphoRepayHook", env), abi.encode(otherHooksConfiguration.morphos[chainId])
             )
         );
         hooks[15] = HookDeployment(
             MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY,
+            "",
             abi.encodePacked(
                 __getOtherHooksBytecode("MorphoRepayAndWithdrawHook", env),
                 abi.encode(otherHooksConfiguration.morphos[chainId])
@@ -171,6 +179,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         );
         hooks[16] = HookDeployment(
             MORPHO_BORROW_ONLY_HOOK_KEY,
+            "",
             abi.encodePacked(
                 __getOtherHooksBytecode("MorphoBorrowHook", env), abi.encode(otherHooksConfiguration.morphos[chainId])
             )
@@ -178,7 +187,9 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
-            addresses[i] = __deployContract(hook.name, chainId, __getSalt(hook.name), hook.creationCode);
+            // Use saltOverride if provided, otherwise use name for salt
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
         }
 
         // Assign hook addresses

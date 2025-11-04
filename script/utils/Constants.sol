@@ -195,4 +195,7 @@ abstract contract Constants {
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_SALT = "ERC4626YieldSourceOracle_v1.0.1";
     string internal constant ERC5115_YIELD_SOURCE_ORACLE_SALT = "ERC5115YieldSourceOracle_v1.0.1";
     string internal constant STAKING_YIELD_SOURCE_ORACLE_SALT = "StakingYieldSourceOracle_v1.0.1";
+
+    // Hook Deployment Salts
+    string internal constant MERKL_CLAIM_REWARD_HOOK_SALT = "MerklClaimRewardHook_v02";
 }

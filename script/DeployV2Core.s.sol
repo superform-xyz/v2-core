@@ -70,6 +70,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
     struct HookDeployment {
         string name;
+        string saltOverride; // Optional custom salt (empty = use name for salt)
         bytes creationCode;
     }
 
@@ -83,20 +84,24 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     /// @param contractName Contract name for bytecode lookup
     /// @param env Environment (0=prod, 1=dev/staging)
     /// @return HookDeployment struct (empty if bytecode doesn't exist)
-    function _createSafeHookDeployment(string memory name, string memory contractName, uint256 env)
+    function _createSafeHookDeployment(
+        string memory name,
+        string memory contractName,
+        uint256 env
+    )
         internal
         view
         returns (HookDeployment memory)
     {
         if (!__checkBytecodeExists(contractName, env)) {
             console2.log("SKIPPED %s: Bytecode not found", contractName);
-            return HookDeployment("", ""); // Empty deployment
+            return HookDeployment("", "", ""); // Empty deployment
         }
-        return HookDeployment(name, __getBytecode(contractName, env));
+        return HookDeployment(name, "", __getBytecode(contractName, env));
     }
 
     /// @notice Create a HookDeployment struct with constructor args, checking if bytecode exists first
-    /// @param name Contract name/key  
+    /// @param name Contract name/key
     /// @param contractName Contract name for bytecode lookup
     /// @param env Environment (0=prod, 1=dev/staging)
     /// @param constructorArgs ABI-encoded constructor arguments
@@ -106,12 +111,41 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         string memory contractName,
         uint256 env,
         bytes memory constructorArgs
-    ) internal view returns (HookDeployment memory) {
+    )
+        internal
+        view
+        returns (HookDeployment memory)
+    {
         if (!__checkBytecodeExists(contractName, env)) {
             console2.log("SKIPPED %s: Bytecode not found", contractName);
-            return HookDeployment("", ""); // Empty deployment
+            return HookDeployment("", "", ""); // Empty deployment
         }
-        return HookDeployment(name, abi.encodePacked(__getBytecode(contractName, env), constructorArgs));
+        return HookDeployment(name, "", abi.encodePacked(__getBytecode(contractName, env), constructorArgs));
+    }
+
+    /// @notice Create a HookDeployment struct with constructor args and custom salt, checking if bytecode exists first
+    /// @param name Contract name/key (used for export)
+    /// @param contractName Contract name for bytecode lookup
+    /// @param saltOverride Custom salt for CREATE2 deployment
+    /// @param env Environment (0=prod, 1=dev/staging)
+    /// @param constructorArgs ABI-encoded constructor arguments
+    /// @return HookDeployment struct (empty if bytecode doesn't exist)
+    function _createSafeHookDeploymentWithArgsAndSalt(
+        string memory name,
+        string memory contractName,
+        string memory saltOverride,
+        uint256 env,
+        bytes memory constructorArgs
+    )
+        internal
+        view
+        returns (HookDeployment memory)
+    {
+        if (!__checkBytecodeExists(contractName, env)) {
+            console2.log("SKIPPED %s: Bytecode not found", contractName);
+            return HookDeployment("", "", ""); // Empty deployment
+        }
+        return HookDeployment(name, saltOverride, abi.encodePacked(__getBytecode(contractName, env), constructorArgs));
     }
 
     /// @notice Create an OracleDeployment struct, checking if bytecode exists first
@@ -119,7 +153,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     /// @param contractName Contract name for bytecode lookup
     /// @param env Environment (0=prod, 1=dev/staging)
     /// @return OracleDeployment struct (empty if bytecode doesn't exist)
-    function _createSafeOracleDeployment(string memory name, string memory contractName, uint256 env)
+    function _createSafeOracleDeployment(
+        string memory name,
+        string memory contractName,
+        uint256 env
+    )
         internal
         view
         returns (OracleDeployment memory)
@@ -132,7 +170,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     }
 
     /// @notice Create an OracleDeployment struct with constructor args, checking if bytecode exists first
-    /// @param name Contract name/key  
+    /// @param name Contract name/key
     /// @param contractName Contract name for bytecode lookup
     /// @param env Environment (0=prod, 1=dev/staging)
     /// @param constructorArgs ABI-encoded constructor arguments
@@ -142,7 +180,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         string memory contractName,
         uint256 env,
         bytes memory constructorArgs
-    ) internal view returns (OracleDeployment memory) {
+    )
+        internal
+        view
+        returns (OracleDeployment memory)
+    {
         if (!__checkBytecodeExists(contractName, env)) {
             console2.log("SKIPPED %s: Bytecode not found", contractName);
             return OracleDeployment("", ""); // Empty deployment
@@ -206,7 +248,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         uint256 skipCount = 0;
         // Adapter contracts (2 contracts - conditionally deployed)
         string[2] memory adapterContracts = ["AcrossV3Adapter", "DebridgeAdapter"];
-        
+
         // Start with all adapters, then decrement for missing configurations
         uint256 expectedAdapters = adapterContracts.length;
 
@@ -361,7 +403,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         for (uint256 i = 0; i < baseHooks.length; i++) {
             if (!__checkBytecodeExists(baseHooks[i], env)) {
-                potentialMissing[missingCount++] = baseHooks[i];
+                // Check if this contract was already skipped due to missing configuration
+                bool alreadySkipped = false;
+                for (uint256 j = 0; j < skipCount; j++) {
+                    if (Strings.equal(baseHooks[i], potentialSkips[j])) {
+                        alreadySkipped = true;
+                        break;
+                    }
+                }
+                // Only count as missing bytecode if it wasn't already skipped for missing config
+                if (!alreadySkipped) {
+                    potentialMissing[missingCount++] = baseHooks[i];
+                }
             }
         }
 
@@ -393,9 +446,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // expectedAdapters and expectedHooks already set above based on chain configuration
 
         // Calculate total expected contracts
-        // Total = core + adapters + hooks + oracles
+        // Total = core + adapters + hooks + oracles - contracts without bytecode
         availability.expectedTotal = availability.expectedCore + availability.expectedAdapters
             + availability.expectedHooks + availability.expectedOracles;
+
+        // Subtract contracts that don't have bytecode from the expected total
+        // These contracts are defined in the system but won't be deployed
+        availability.expectedTotal -= missingCount;
 
         return availability;
     }
@@ -867,7 +924,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         if (availability.merklClaimRewardHook) {
             __checkContract(
                 MERKL_CLAIM_REWARD_HOOK_KEY,
-                __getSalt(MERKL_CLAIM_REWARD_HOOK_KEY),
+                __getSalt(MERKL_CLAIM_REWARD_HOOK_SALT),  // Use custom salt for new deployment
                 abi.encode(configuration.merklDistributors[chainId]),
                 env
             );
@@ -1348,22 +1405,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Note: Using treasury address from configuration
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracle: erc4626Oracle,
-            feePercent: 0,
-            feeRecipient: configuration.treasury,
-            ledger: superLedger
+            yieldSourceOracle: erc4626Oracle, feePercent: 0, feeRecipient: configuration.treasury, ledger: superLedger
         });
         configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracle: erc5115Oracle,
-            feePercent: 0,
-            feeRecipient: configuration.treasury,
-            ledger: flatFeeLedger
+            yieldSourceOracle: erc5115Oracle, feePercent: 0, feeRecipient: configuration.treasury, ledger: flatFeeLedger
         });
         configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracle: stakingOracle,
-            feePercent: 0,
-            feeRecipient: configuration.treasury,
-            ledger: superLedger
+            yieldSourceOracle: stakingOracle, feePercent: 0, feeRecipient: configuration.treasury, ledger: superLedger
         });
 
         // Validate each configuration before setup
@@ -1644,27 +1692,25 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(configuration.permit2s[chainId].code.length > 0, "BATCH_TRANSFER_FROM_HOOK_PERMIT2_NOT_DEPLOYED");
 
         hooks[2] = _createSafeHookDeploymentWithArgs(
-            BATCH_TRANSFER_HOOK_KEY,
-            "BatchTransferHook",
-            env,
-            abi.encode(configuration.nativeTokens[chainId])
+            BATCH_TRANSFER_HOOK_KEY, "BatchTransferHook", env, abi.encode(configuration.nativeTokens[chainId])
         );
         hooks[3] = _createSafeHookDeploymentWithArgs(
-            BATCH_TRANSFER_FROM_HOOK_KEY,
-            "BatchTransferFromHook",
-            env,
-            abi.encode(configuration.permit2s[chainId])
+            BATCH_TRANSFER_FROM_HOOK_KEY, "BatchTransferFromHook", env, abi.encode(configuration.permit2s[chainId])
         );
 
         // Vault hooks (no external dependencies)
         hooks[4] = _createSafeHookDeployment(DEPOSIT_4626_VAULT_HOOK_KEY, "Deposit4626VaultHook", env);
-        hooks[5] = _createSafeHookDeployment(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY, "ApproveAndDeposit4626VaultHook", env);
+        hooks[5] =
+            _createSafeHookDeployment(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY, "ApproveAndDeposit4626VaultHook", env);
         hooks[6] = _createSafeHookDeployment(REDEEM_4626_VAULT_HOOK_KEY, "Redeem4626VaultHook", env);
         hooks[7] = _createSafeHookDeployment(DEPOSIT_5115_VAULT_HOOK_KEY, "Deposit5115VaultHook", env);
-        hooks[8] = _createSafeHookDeployment(APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY, "ApproveAndDeposit5115VaultHook", env);
+        hooks[8] =
+            _createSafeHookDeployment(APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY, "ApproveAndDeposit5115VaultHook", env);
         hooks[9] = _createSafeHookDeployment(REDEEM_5115_VAULT_HOOK_KEY, "Redeem5115VaultHook", env);
         hooks[10] = _createSafeHookDeployment(REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, "RequestDeposit7540VaultHook", env);
-        hooks[11] = _createSafeHookDeployment(APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, "ApproveAndRequestDeposit7540VaultHook", env);
+        hooks[11] = _createSafeHookDeployment(
+            APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, "ApproveAndRequestDeposit7540VaultHook", env
+        );
         hooks[12] = _createSafeHookDeployment(REDEEM_7540_VAULT_HOOK_KEY, "Redeem7540VaultHook", env);
         hooks[13] = _createSafeHookDeployment(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, "RequestRedeem7540VaultHook", env);
         hooks[14] = _createSafeHookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, "Deposit7540VaultHook", env);
@@ -1676,14 +1722,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             require(configuration.aggregationRouters[chainId] != address(0), "SWAP_1INCH_HOOK_ROUTER_PARAM_ZERO");
             require(configuration.aggregationRouters[chainId].code.length > 0, "SWAP_1INCH_HOOK_ROUTER_NOT_DEPLOYED");
             hooks[15] = _createSafeHookDeploymentWithArgs(
-                SWAP_1INCH_HOOK_KEY,
-                "Swap1InchHook",
-                env,
-                abi.encode(configuration.aggregationRouters[chainId])
+                SWAP_1INCH_HOOK_KEY, "Swap1InchHook", env, abi.encode(configuration.aggregationRouters[chainId])
             );
         } else {
             console2.log(" SKIPPED Swap1InchHook deployment: Not available on chain", chainId);
-            hooks[15] = HookDeployment("", ""); // Empty deployment
+            hooks[15] = HookDeployment("", "", ""); // Empty deployment
         }
 
         // ODOS Swap Hooks - Only deploy if available on this chain
@@ -1691,10 +1734,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             require(configuration.odosRouters[chainId] != address(0), "SWAP_ODOS_HOOK_ROUTER_PARAM_ZERO");
             require(configuration.odosRouters[chainId].code.length > 0, "SWAP_ODOS_HOOK_ROUTER_NOT_DEPLOYED");
             hooks[16] = _createSafeHookDeploymentWithArgs(
-                SWAP_ODOSV2_HOOK_KEY,
-                "SwapOdosV2Hook",
-                env,
-                abi.encode(configuration.odosRouters[chainId])
+                SWAP_ODOSV2_HOOK_KEY, "SwapOdosV2Hook", env, abi.encode(configuration.odosRouters[chainId])
             );
             hooks[17] = _createSafeHookDeploymentWithArgs(
                 APPROVE_AND_SWAP_ODOSV2_HOOK_KEY,
@@ -1704,8 +1744,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log(" SKIPPED ODOS Swap Hooks deployment: Not available on chain", chainId);
-            hooks[16] = HookDeployment("", ""); // Empty deployment
-            hooks[17] = HookDeployment("", ""); // Empty deployment
+            hooks[16] = HookDeployment("", "", ""); // Empty deployment
+            hooks[17] = HookDeployment("", "", ""); // Empty deployment
         }
 
         address superValidator;
@@ -1735,8 +1775,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(
                 " SKIPPED ApproveAndAcrossSendFundsAndExecuteOnDstHook deployment: Not available on chain", chainId
             );
-            hooks[18] = HookDeployment("", ""); // Empty deployment
-            hooks[19] = HookDeployment("", ""); // Empty deployment
+            hooks[18] = HookDeployment("", "", ""); // Empty deployment
+            hooks[19] = HookDeployment("", "", ""); // Empty deployment
         }
 
         // DeBridge hooks - Only deploy if available on this chain
@@ -1753,7 +1793,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log(" SKIPPED DeBridgeSendOrderAndExecuteOnDstHook deployment: Not available on chain", chainId);
-            hooks[20] = HookDeployment("", ""); // Empty deployment
+            hooks[20] = HookDeployment("", "", ""); // Empty deployment
         }
 
         if (availability.deBridgeCancelOrderHook) {
@@ -1766,7 +1806,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log(" SKIPPED DeBridgeCancelOrderHook deployment: Not available on chain", chainId);
-            hooks[21] = HookDeployment("", ""); // Empty deployment
+            hooks[21] = HookDeployment("", "", ""); // Empty deployment
         }
 
         // Protocol-specific hooks (no external dependencies)
@@ -1774,21 +1814,26 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hooks[23] = _createSafeHookDeployment(ETHENA_UNSTAKE_HOOK_KEY, "EthenaUnstakeHook", env);
         hooks[24] = _createSafeHookDeployment(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, "CancelDepositRequest7540Hook", env);
         hooks[25] = _createSafeHookDeployment(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, "CancelRedeemRequest7540Hook", env);
-        hooks[26] = _createSafeHookDeployment(CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, "ClaimCancelDepositRequest7540Hook", env);
-        hooks[27] = _createSafeHookDeployment(CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, "ClaimCancelRedeemRequest7540Hook", env);
+        hooks[26] = _createSafeHookDeployment(
+            CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, "ClaimCancelDepositRequest7540Hook", env
+        );
+        hooks[27] = _createSafeHookDeployment(
+            CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, "ClaimCancelRedeemRequest7540Hook", env
+        );
         hooks[28] = _createSafeHookDeployment(OFFRAMP_TOKENS_HOOK_KEY, "OfframpTokensHook", env);
         hooks[29] = _createSafeHookDeployment(MARK_ROOT_AS_USED_HOOK_KEY, "MarkRootAsUsedHook", env);
         // Merkl Claim Reward Hook - Only deploy if available on this chain
         if (availability.merklClaimRewardHook) {
-            hooks[30] = _createSafeHookDeploymentWithArgs(
+            hooks[30] = _createSafeHookDeploymentWithArgsAndSalt(
                 MERKL_CLAIM_REWARD_HOOK_KEY,
-                "MerklClaimRewardHook",
+                MERKL_CLAIM_REWARD_HOOK_KEY,
+                MERKL_CLAIM_REWARD_HOOK_SALT,
                 env,
                 abi.encode(configuration.merklDistributors[chainId])
             );
         } else {
             console2.log(" SKIPPED MerklClaimRewardHook deployment: Not available on chain", chainId);
-            hooks[30] = HookDeployment("", ""); // Empty deployment
+            hooks[30] = HookDeployment("", "", ""); // Empty deployment
         }
 
         // ===== CIRCLE GATEWAY HOOKS =====
@@ -1797,28 +1842,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(GATEWAY_MINTER != address(0), "CIRCLE_GATEWAY_MINTER_PARAM_ZERO");
 
         hooks[31] = _createSafeHookDeploymentWithArgs(
-            CIRCLE_GATEWAY_WALLET_HOOK_KEY,
-            "CircleGatewayWalletHook",
-            env,
-            abi.encode(GATEWAY_WALLET)
+            CIRCLE_GATEWAY_WALLET_HOOK_KEY, "CircleGatewayWalletHook", env, abi.encode(GATEWAY_WALLET)
         );
         hooks[32] = _createSafeHookDeploymentWithArgs(
-            CIRCLE_GATEWAY_MINTER_HOOK_KEY,
-            "CircleGatewayMinterHook",
-            env,
-            abi.encode(GATEWAY_MINTER)
+            CIRCLE_GATEWAY_MINTER_HOOK_KEY, "CircleGatewayMinterHook", env, abi.encode(GATEWAY_MINTER)
         );
         hooks[33] = _createSafeHookDeploymentWithArgs(
-            CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY,
-            "CircleGatewayAddDelegateHook",
-            env,
-            abi.encode(GATEWAY_WALLET)
+            CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY, "CircleGatewayAddDelegateHook", env, abi.encode(GATEWAY_WALLET)
         );
         hooks[34] = _createSafeHookDeploymentWithArgs(
-            CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY,
-            "CircleGatewayRemoveDelegateHook",
-            env,
-            abi.encode(GATEWAY_WALLET)
+            CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY, "CircleGatewayRemoveDelegateHook", env, abi.encode(GATEWAY_WALLET)
         );
 
         // UniswapV4 Swap Hook - Only deploy if V4 PoolManager available on this chain
@@ -1831,7 +1864,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log("SKIPPED SwapUniswapV4Hook: Uniswap V4 PoolManager not available on chain", chainId);
-            hooks[35] = HookDeployment("", ""); // Empty deployment
+            hooks[35] = HookDeployment("", "", ""); // Empty deployment
         }
 
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
@@ -1848,7 +1881,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
             console2.log("Deploying hook:", hook.name);
 
-            addresses[i] = __deployContractIfNeeded(hook.name, chainId, __getSalt(hook.name), hook.creationCode);
+            // Use saltOverride if provided, otherwise use name for salt
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContractIfNeeded(hook.name, chainId, __getSalt(saltName), hook.creationCode);
 
             // Check if deployment was skipped due to missing bytecode
             if (addresses[i] == address(0)) {
@@ -1900,7 +1935,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[18].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[18] : address(0);
         hookAddresses.approveAndAcrossSendFundsAndExecuteOnDstHook = Strings.equal(
             hooks[19].name, APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY
-        ) ? addresses[19] : address(0);
+        )
+            ? addresses[19]
+            : address(0);
         hookAddresses.deBridgeSendOrderAndExecuteOnDstHook =
             Strings.equal(hooks[20].name, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[20] : address(0);
         hookAddresses.deBridgeCancelOrderHook =
@@ -2030,34 +2067,19 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Deploy oracles with validated constructor parameters
         oracles[0] = _createSafeOracleDeploymentWithArgs(
-            ERC4626_YIELD_SOURCE_ORACLE_KEY,
-            "ERC4626YieldSourceOracle",
-            env,
-            abi.encode(superLedgerConfig)
+            ERC4626_YIELD_SOURCE_ORACLE_KEY, "ERC4626YieldSourceOracle", env, abi.encode(superLedgerConfig)
         );
         oracles[1] = _createSafeOracleDeploymentWithArgs(
-            ERC5115_YIELD_SOURCE_ORACLE_KEY,
-            "ERC5115YieldSourceOracle",
-            env,
-            abi.encode(superLedgerConfig)
+            ERC5115_YIELD_SOURCE_ORACLE_KEY, "ERC5115YieldSourceOracle", env, abi.encode(superLedgerConfig)
         );
         oracles[2] = _createSafeOracleDeploymentWithArgs(
-            PENDLE_PT_YIELD_SOURCE_ORACLE_KEY,
-            "PendlePTYieldSourceOracle",
-            env,
-            abi.encode(superLedgerConfig)
+            PENDLE_PT_YIELD_SOURCE_ORACLE_KEY, "PendlePTYieldSourceOracle", env, abi.encode(superLedgerConfig)
         );
         oracles[3] = _createSafeOracleDeploymentWithArgs(
-            SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY,
-            "SpectraPTYieldSourceOracle",
-            env,
-            abi.encode(superLedgerConfig)
+            SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY, "SpectraPTYieldSourceOracle", env, abi.encode(superLedgerConfig)
         );
         oracles[4] = _createSafeOracleDeploymentWithArgs(
-            STAKING_YIELD_SOURCE_ORACLE_KEY,
-            "StakingYieldSourceOracle",
-            env,
-            abi.encode(superLedgerConfig)
+            STAKING_YIELD_SOURCE_ORACLE_KEY, "StakingYieldSourceOracle", env, abi.encode(superLedgerConfig)
         );
         oracles[5] = _createSafeOracleDeployment(SUPER_YIELD_SOURCE_ORACLE_KEY, "SuperYieldSourceOracle", env);
 
