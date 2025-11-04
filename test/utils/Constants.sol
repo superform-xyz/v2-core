@@ -66,12 +66,10 @@ abstract contract Constants {
     string public constant DEPOSIT_7540_VAULT_HOOK_KEY = "Deposit7540VaultHook";
     string public constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
     string public constant REDEEM_7540_VAULT_HOOK_KEY = "Redeem7540VaultHook";
-    string public constant APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY = "ApproveAndRequestRedeem7540VaultHook";
     string public constant CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "CancelDepositRequest7540Hook";
     string public constant CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "CancelRedeemRequest7540Hook";
     string public constant CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "ClaimCancelDepositRequest7540Hook";
     string public constant CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "ClaimCancelRedeemRequest7540Hook";
-    string public constant CANCEL_REDEEM_HOOK_KEY = "CancelRedeemHook";
     string public constant APPROVE_WITH_PERMIT2_HOOK_KEY = "ApproveWithPermit2Hook";
     string public constant PERMIT_WITH_PERMIT2_HOOK_KEY = "PermitWithPermit2Hook";
     string public constant BATCH_TRANSFER_FROM_HOOK_KEY = "BatchTransferFromHook";
@@ -79,6 +77,7 @@ abstract contract Constants {
     string public constant MINT_SUPERPOSITIONS_HOOK_KEY = "MintSuperPositionsHook";
     string public constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
     string public constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
+    string public constant APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "ApproveAndAcrossSendFundsAndExecuteOnDstHook";
     string public constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
     string public constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
     string public constant GEARBOX_CLAIM_REWARD_HOOK_KEY = "GearboxClaimRewardHook";
@@ -107,6 +106,8 @@ abstract contract Constants {
     string public constant MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY = "MorphoRepayAndWithdrawHook";
     string public constant MARK_ROOT_AS_USED_HOOK_KEY = "MarkAsUsedHook";
     string public constant MERKL_CLAIM_REWARD_HOOK_KEY = "MerklClaimRewardHook";
+    string public constant SWAP_UNISWAP_V4_HOOK_KEY = "SwapUniswapV4Hook";
+    string public constant SWAP_UNISWAP_V4_MULTI_HOP_HOOK_KEY = "SwapUniswapV4MultiHopHook";
 
     // contracts
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
@@ -171,6 +172,10 @@ abstract contract Constants {
     address public constant CHAIN_1_ODOS_ROUTER = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
     address public constant CHAIN_10_ODOS_ROUTER = 0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680;
     address public constant CHAIN_8453_ODOS_ROUTER = 0x19cEeAd7105607Cd444F5ad10dd51356436095a1;
+
+    // uniswap v4
+    address public constant MAINNET_V4_POOL_MANAGER = 0x000000000004444c5dc75cB358380D2e3dE08A90;
+    address public constant MAINNET_V4_POSITION_MANAGER = 0xbD216513d74C8cf14cf4747E6AaA6420FF64ee9e;
 
     // morpho
     string public constant MORPHO_KEY = "Morpho";

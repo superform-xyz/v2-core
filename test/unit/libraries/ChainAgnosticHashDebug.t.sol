@@ -14,7 +14,7 @@ contract ChainAgnosticHashDebugTest is Test {
     string private constant DOMAIN_NAME = "SuperformSafe";
     string private constant DOMAIN_VERSION = "1.0.0";
 
-    function test_debugChainAgnosticHash() public {
+    function test_debugChainAgnosticHash() public pure {
         // Use the same values from the JS test
         address safe = 0x25fF5dA92586A0878b9D9825a30eec8bcfCAf217;
         bytes32 rawHash = 0xbf814820f81900b70b22fcb45f4d82859fd10cca99e4f137db4eb6d649037abb;
@@ -92,7 +92,7 @@ contract ChainAgnosticHashDebugTest is Test {
         console.log("Expected length: 66 bytes (1 + 1 + 32 + 32)");
     }
 
-    function test_compareWithExpectedHash() public {
+    function test_compareWithExpectedHash() public pure {
         // The hash that Solidity should produce (from production logs)
         bytes32 expectedHash = 0x01a4bda7a68f6669f85afc69998565ecf6241009c616a607bba50e3a8fae9a3c;
         
@@ -130,7 +130,7 @@ contract ChainAgnosticHashDebugTest is Test {
         assertEq(chainAgnosticHash, expectedHash, "Chain agnostic hash should match expected value");
     }
 
-    function test_signatureRecovery() public {
+    function test_signatureRecovery() public pure {
         // Test signature recovery with the actual signature from JavaScript
         bytes32 dataHash = 0x01a4bda7a68f6669f85afc69998565ecf6241009c616a607bba50e3a8fae9a3c;
         bytes memory signature = hex"1c5ec9c4d46971f0e497b552a860fd9a858794177da775d1536c23ba81a6cb704b61fa13c4bde086a96f95aa53d54a4a3cfb3b7e803f9f5b2166430144494cdf1b";
@@ -165,15 +165,16 @@ contract ChainAgnosticHashDebugTest is Test {
         address recovered1 = ecrecover(dataHash, v, r, s);
         console.log("Direct ECDSA recovery:", recovered1);
         
+        bytes32 ethSignHash;
         // Method 2: eth_sign recovery (what Solidity uses for v > 30)
         if (v > 30) {
-            bytes32 ethSignHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash));
+            ethSignHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash));
             address recovered2 = ecrecover(ethSignHash, v - 4, r, s);
             console.log("eth_sign recovery (v-4):", recovered2);
         }
         
         // Method 3: Standard eth_sign recovery
-        bytes32 ethSignHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash));
+        ethSignHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash));
         address recovered3 = ecrecover(ethSignHash, v, r, s);
         console.log("eth_sign recovery (v):", recovered3);
     }

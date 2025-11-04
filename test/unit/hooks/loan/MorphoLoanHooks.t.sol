@@ -527,7 +527,7 @@ contract MorphoLoanHooksTest is Helpers {
         );
     }
 
-    function test_SupplyHook_Build() public {
+    function test_SupplyHook_Build() public view {
         bytes memory data = abi.encodePacked(
             address(loanToken),
             address(collateralToken),

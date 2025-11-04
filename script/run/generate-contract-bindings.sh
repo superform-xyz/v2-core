@@ -18,7 +18,7 @@ find ./out -name "*.abi" | while read abi_file; do
   base_name_lower=$(echo "$base_name" | tr '[:upper:]' '[:lower:]')
   dir_name_lower=$(echo "$dir_name" | tr '[:upper:]' '[:lower:]')
 
-  if [[ "$base_name" != Super* && "$base_name" != Periphery* && "$base_name" != *Oracle ]]; then
+  if [[ "$base_name" != Super* && "$base_name" != Periphery* && "$base_name" != *Oracle && "$base_name" != *Adapter ]]; then
     continue
   fi
   

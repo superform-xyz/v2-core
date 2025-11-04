@@ -324,7 +324,7 @@ contract ERC4626VaultHooksTest is Helpers {
         return address(token);
     }
 
-    function balanceOf(address account) external view returns (uint256) {
+    function balanceOf(address account) external pure returns (uint256) {
         return 100;
     }
 

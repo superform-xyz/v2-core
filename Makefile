@@ -20,6 +20,8 @@ forge-script :; forge script $(SCRIPT) $(ARGS)
 
 forge-test :; forge test --match-test $(TEST) $(ARGS)
 
+forge-test-contract :; forge test --match-contract $(TEST-CONTRACT) $(ARGS)
+
 ftest :; forge test
 
 ftest-ci :; forge test -vvv --jobs 10
@@ -30,9 +32,9 @@ coverage-genhtml :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minim
 
 coverage-genhtml-fullsrc :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage --ignore-errors inconsistent,corrupt --exclude 'src/vendor/*' --exclude 'test/*'
 
-test-vvv :; forge test --match-test test_CompareDecimalHandling_USDC_vs_Morpho -vvvv --jobs 10
+test-vvv :; forge test --match-contract CrosschainTestsCentrifuge -vvv --jobs 10
 
-test-integration :; forge test --match-test test_CrossChain_execution -vvvv --jobs 10
+test-integration :; forge test --match-test test_BASE_to_ETH_And_7540RequestDeposit -vvv --jobs 10
 
 test-gas-report-user :; forge test --match-test test_gasReport --gas-report --jobs 10
 test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report --jobs 10
@@ -43,3 +45,4 @@ generate:
 	rm -rf contract_bindings/*
 	./script/run/retrieve-abis.sh
 	./script/run/generate-contract-bindings.sh
+	

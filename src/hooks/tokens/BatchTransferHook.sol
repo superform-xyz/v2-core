@@ -11,8 +11,6 @@ import { BaseHook } from "../BaseHook.sol";
 import { HookSubTypes } from "../../libraries/HookSubTypes.sol";
 import { ISuperHookInspector } from "../../interfaces/ISuperHook.sol";
 
-address constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-
 /// @title BatchTransferHook
 /// @author Superform Labs
 /// @dev data has the following structure
@@ -21,7 +19,13 @@ address constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 contract BatchTransferHook is BaseHook {
     error LENGTH_MISMATCH();
 
-    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) { }
+    /// @dev This is not a constant because some chains have different representations for the native token
+    ///      https://github.com/d-xo/weird-erc20?tab=readme-ov-file#erc-20-representation-of-native-currency
+    address public immutable NATIVE_TOKEN;
+
+    constructor(address _nativeToken) BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) {
+        NATIVE_TOKEN = _nativeToken;
+     }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -33,7 +37,7 @@ contract BatchTransferHook is BaseHook {
         bytes calldata data
     )
         internal
-        pure
+        view
         override
         returns (Execution[] memory executions)
     {

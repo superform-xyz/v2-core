@@ -38,3 +38,6 @@
 	path = lib/nexus
 	url = https://github.com/superform-xyz/nexus
 	branch = deploy-v1.2.0-bootstrap-v1.2.1
+[submodule "lib/v4-core"]
+	path = lib/v4-core
+	url = https://github.com/Uniswap/v4-core
