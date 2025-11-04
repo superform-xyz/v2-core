@@ -12,6 +12,7 @@ import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { IStandardizedYield } from "../../../vendor/pendle/IStandardizedYield.sol";
 
 /// @title PendleRouterRedeemHook
 /// @author Superform Labs
@@ -55,6 +56,8 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
     error TOKEN_OUT_NOT_VALID();
     error MIN_TOKEN_OUT_NOT_VALID();
     error INVALID_DATA_LENGTH(); // Added for length check
+    error SY_NOT_VALID();
+    error TOKEN_OUT_NOT_LISTED();
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -111,7 +114,7 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+    function inspect(bytes calldata data) external view override returns (bytes memory) {
         DecodedParams memory params = _decodeAndValidateData(data);
         return abi.encodePacked(params.yt, params.pt, params.tokenOut);
     }
@@ -132,7 +135,7 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Decodes hook data based on packed encoding, validates parameters, and returns them.
-    function _decodeAndValidateData(bytes calldata data) private pure returns (DecodedParams memory params) {
+    function _decodeAndValidateData(bytes calldata data) private view returns (DecodedParams memory params) {
         // Minimum length check to read up to the start of TokenOutput
         if (data.length < TOKEN_OUTPUT_OFFSET) revert INVALID_DATA_LENGTH();
 
@@ -155,6 +158,15 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
         // Validate consistency between explicitly passed params and struct params
         if (params.output.tokenOut != params.tokenOut) revert TOKEN_OUT_NOT_VALID();
         if (params.output.minTokenOut != params.minTokenOut) revert MIN_TOKEN_OUT_NOT_VALID();
+
+        // Validate tokenOut against the SY derived from YT
+        (bool ok, bytes memory ret) = params.yt.staticcall(abi.encodeWithSignature("SY()"));
+        if (!ok || ret.length < 32) revert SY_NOT_VALID();
+        if (
+            !IStandardizedYield(abi.decode(ret, (address))).isValidTokenOut(
+                params.tokenOut
+            )
+        ) revert TOKEN_OUT_NOT_LISTED();
     }
 
     /// @dev Determines the final amount to use based on the flag and previous hook.
@@ -177,8 +189,8 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
         }
     }
 
-    /// @dev Gets the balance of the output token for the receiver.
-    function _getBalance(bytes calldata data, address receiver) private view returns (uint256) {
+    /// @dev Gets the balance of the output token for the account.
+    function _getBalance(bytes calldata data, address account) private view returns (uint256) {
         // Need offset 72 (start of tokenOut) + 20 bytes = 92
         uint256 endOfTokenOutOffset = 92;
         if (data.length < endOfTokenOutOffset) revert INVALID_DATA_LENGTH();
@@ -186,9 +198,9 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
         address tokenOut = BytesLib.toAddress(data, 72);
 
         if (tokenOut == address(0)) {
-            return receiver.balance;
+            return account.balance;
         }
 
-        return IERC20(tokenOut).balanceOf(receiver);
+        return IERC20(tokenOut).balanceOf(account);
     }
 }

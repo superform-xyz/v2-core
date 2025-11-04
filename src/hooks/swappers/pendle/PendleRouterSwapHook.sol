@@ -78,12 +78,19 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
         bytes memory txData_ = data[85:];
 
         bytes memory updatedTxData = _validateTxData(data[85:], account, usePrevHookAmount, prevHook, pendleMarket);
+        bytes memory finalTxData = usePrevHookAmount ? updatedTxData : txData_;
+        
+        // Extract tokenIn & compute execValue
+        (bool isTokenForPt, address tokenIn) = _extractTokenIn(finalTxData);
+        uint256 netTokenIn = usePrevHookAmount ? ISuperHookResult(prevHook).getOutAmount(account) : value;
+        
+        uint256 execValue = (isTokenForPt && tokenIn == address(0)) ? netTokenIn : 0;
 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(PENDLE_ROUTER_V4),
-            value: usePrevHookAmount ? ISuperHookResult(prevHook).getOutAmount(account) : value,
-            callData: usePrevHookAmount ? updatedTxData : txData_
+            value: execValue,
+            callData: finalTxData
         });
     }
 
@@ -178,11 +185,11 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        _setOutAmount(_getBalance(data), account);
+        _setOutAmount(_getBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        _setOutAmount(_getBalance(data) - getOutAmount(account), account);
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -283,34 +290,41 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
         if (order.maker == address(0) || order.receiver == address(0)) revert ADDRESS_NOT_VALID();
     }
 
-    function _decodeTokenOutAndReceiver(bytes calldata data)
-        internal
-        view
-        returns (address tokenOut, address receiver)
-    {
+    function _decodeTokenOut(bytes calldata data) private view returns (address tokenOut) {
         bytes4 selector = bytes4(data[0:4]);
         if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
-            (address _receiver, address market,,,,) =
+            (, address market,,,,) =
                 abi.decode(data[4:], (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
             (, tokenOut,) = IPendleMarket(market).readTokens();
-            receiver = _receiver;
         } else if (selector == IPendleRouterV4.swapExactPtForToken.selector) {
-            (address _receiver,,, TokenOutput memory output,) =
+            (,, , TokenOutput memory output,) =
                 abi.decode(data[4:], (address, address, uint256, TokenOutput, LimitOrderData));
             tokenOut = output.tokenOut;
-            receiver = _receiver;
         } else {
             revert INVALID_SWAP_TYPE();
         }
     }
 
-    function _getBalance(bytes calldata data) private view returns (uint256) {
-        (address tokenOut, address receiver) = _decodeTokenOutAndReceiver(data[85:]);
+    function _extractTokenIn(bytes memory txData) private pure returns (bool isTokenForPt, address tokenIn) {
+        bytes4 selector = bytes4(BytesLib.slice(txData, 0, 4));
+        if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
+            (, , , , TokenInput memory input, ) = abi.decode(
+                BytesLib.slice(txData, 4, txData.length - 4), 
+                (address, address, uint256, ApproxParams, TokenInput, LimitOrderData)
+            );
+            return (true, input.tokenIn);
+        }
+        // PtForToken: no tokenIn → value=0 always
+        return (false, address(0));
+    }
+
+    function _getBalance(address account, bytes calldata data) private view returns (uint256) {
+        address tokenOut = _decodeTokenOut(data[85:]);
 
         if (tokenOut == address(0)) {
-            return receiver.balance;
+            return account.balance;
         }
 
-        return IERC20(tokenOut).balanceOf(receiver);
+        return IERC20(tokenOut).balanceOf(account);
     }
 }
