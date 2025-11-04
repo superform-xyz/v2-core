@@ -379,6 +379,15 @@ contract PendleRouterRedeemHookTest is Helpers {
         assertFalse(usePrevHookAmount);
     }
 
+    function test_DecodeUsePrevHookAmount_RevertIf_InvalidDataLength() public {
+        // Create data with length less than TOKEN_OUTPUT_OFFSET (125 bytes)
+        // Provide only 100 bytes to trigger the error in decodeUsePrevHookAmount
+        bytes memory data = new bytes(100);
+
+        vm.expectRevert(PendleRouterRedeemHook.INVALID_DATA_LENGTH.selector);
+        hook.decodeUsePrevHookAmount(data);
+    }
+
     function test_GetBalance_NativeTokenY() public {
         // Create redeem data with tokenOut as address(0) (native token)
         bytes memory data = _createRedeemData(
