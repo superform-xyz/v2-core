@@ -14,7 +14,7 @@ NETWORKS=(
     "137:Polygon:POLYGON_MAINNET"
     "130:Unichain:UNICHAIN_MAINNET"
     "43114:Avalanche:AVALANCHE_MAINNET"
-    "80094:Berachain:BERACHAIN_MAINNET"
+    # "80094:Berachain:BERACHAIN_MAINNET"  # Temporarily removed from production
     "146:Sonic:SONIC_MAINNET"
     "100:Gnosis:GNOSIS_MAINNET"
     "480:Worldchain:WORLDCHAIN_MAINNET"
@@ -48,9 +48,9 @@ get_network_name() {
         43114)
             echo "Avalanche"
             ;;
-        80094)
-            echo "Berachain"
-            ;;
+        # 80094)  # Temporarily removed from production
+        #     echo "Berachain"
+        #     ;;
         146)
             echo "Sonic"
             ;;
@@ -95,9 +95,9 @@ get_rpc_var() {
         43114)
             echo "AVALANCHE_MAINNET"
             ;;
-        80094)
-            echo "BERACHAIN_MAINNET"
-            ;;
+        # 80094)  # Temporarily removed from production
+        #     echo "BERACHAIN_MAINNET"
+        #     ;;
         146)
             echo "SONIC_MAINNET"
             ;;
@@ -142,9 +142,9 @@ get_rpc_url() {
         43114)
             echo "$AVALANCHE_MAINNET"
             ;;
-        80094)
-            echo "$BERACHAIN_MAINNET"
-            ;;
+        # 80094)  # Temporarily removed from production
+        #     echo "$BERACHAIN_MAINNET"
+        #     ;;
         146)
             echo "$SONIC_MAINNET"
             ;;
@@ -244,14 +244,14 @@ load_rpc_urls_ci() {
     else
         failed_rpcs+=("AVALANCHE_RPC_URL")
     fi
-    
-    echo "  • Loading Berachain RPC..."
-    if [[ -n "${BERACHAIN_RPC_URL:-}" ]]; then
-        export BERACHAIN_MAINNET="$BERACHAIN_RPC_URL"
-    else
-        failed_rpcs+=("BERACHAIN_RPC_URL")
-    fi
-    
+
+    # echo "  • Loading Berachain RPC..."  # Temporarily removed from production
+    # if [[ -n "${BERACHAIN_RPC_URL:-}" ]]; then
+    #     export BERACHAIN_MAINNET="$BERACHAIN_RPC_URL"
+    # else
+    #     failed_rpcs+=("BERACHAIN_RPC_URL")
+    # fi
+
     echo "  • Loading Sonic RPC..."
     if [[ -n "${SONIC_RPC_URL:-}" ]]; then
         export SONIC_MAINNET="$SONIC_RPC_URL"
@@ -332,12 +332,12 @@ load_rpc_urls() {
     if ! export AVALANCHE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/AVALANCHE_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("AVALANCHE_RPC_URL")
     fi
-    
-    echo "  • Loading Berachain RPC..."
-    if ! export BERACHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BERACHAIN_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("BERACHAIN_RPC_URL")
-    fi
-    
+
+    # echo "  • Loading Berachain RPC..."  # Temporarily removed from production
+    # if ! export BERACHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BERACHAIN_RPC_URL/credential 2>/dev/null); then
+    #     failed_rpcs+=("BERACHAIN_RPC_URL")
+    # fi
+
     echo "  • Loading Sonic RPC..."
     if ! export SONIC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/SONIC_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("SONIC_RPC_URL")
