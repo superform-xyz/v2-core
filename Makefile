@@ -28,7 +28,7 @@ ftest-ci :; forge test -vvv --jobs 10
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
-coverage-genhtml :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage --ignore-errors inconsistent,corrupt --exclude 'src/accounting/oracles/ERC7540YieldSourceOracle.sol' --exclude 'src/hooks/claim/gearbox/*' --exclude 'src/hooks/claim/yearn/*' --exclude 'src/hooks/claim/fluid/*' --exclude 'src/hooks/loan/morpho/*' --exclude 'src/hooks/stake/*' --exclude 'src/hooks/swappers/spectra/*' --exclude 'src/hooks/swappers/uniswap-v4/*' --exclude 'src/hooks/vaults/vault-bank/*' --exclude 'src/vendor/*' --exclude 'test/*'
+coverage-genhtml :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage --ignore-errors inconsistent,corrupt --exclude 'src/hooks/claim/gearbox/*' --exclude 'src/hooks/claim/yearn/*' --exclude 'src/hooks/claim/fluid/*' --exclude 'src/hooks/loan/morpho/*' --exclude 'src/hooks/stake/*' --exclude 'src/hooks/swappers/spectra/*' --exclude 'src/hooks/swappers/uniswap-v4/*' --exclude 'src/hooks/vaults/vault-bank/*' --exclude 'src/vendor/*' --exclude 'test/*'
 
 coverage-genhtml-fullsrc :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage --ignore-errors inconsistent,corrupt --exclude 'src/vendor/*' --exclude 'test/*'
 
