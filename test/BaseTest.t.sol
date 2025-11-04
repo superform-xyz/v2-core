@@ -133,7 +133,7 @@ import { MarkRootAsUsedHook } from "../src/hooks/superform/MarkRootAsUsedHook.so
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { ERC7540YieldSourceOracle } from "../src/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { ERC7540YieldSourceOracle } from "./mocks/unused-oracles/ERC7540YieldSourceOracle.sol";
 import { StakingYieldSourceOracle } from "../src/accounting/oracles/StakingYieldSourceOracle.sol";
 
 // external

@@ -3,12 +3,12 @@ pragma solidity 0.8.30;
 
 // external
 import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
-import { IERC7540 } from "../../vendor/vaults/7540/IERC7540.sol";
+import { IERC7540 } from "../../../src/vendor/vaults/7540/IERC7540.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
-import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
+import { AbstractYieldSourceOracle } from "../../../src/accounting/oracles/AbstractYieldSourceOracle.sol";
 
 /// @title ERC7540YieldSourceOracle
 /// @author Superform Labs
