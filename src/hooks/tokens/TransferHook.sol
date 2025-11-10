@@ -11,14 +11,14 @@ import { BaseHook } from "../BaseHook.sol";
 import { HookSubTypes } from "../../libraries/HookSubTypes.sol";
 import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../interfaces/ISuperHook.sol";
 
-/// @title SingleTransferHook
+/// @title TransferHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address token = BytesLib.toAddress(data, 0);
 /// @notice         address to = BytesLib.toAddress(data, 20);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 40);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
-contract SingleTransferHook is BaseHook, ISuperHookContextAware {
+contract TransferHook is BaseHook, ISuperHookContextAware {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
 
     /// @dev This is not a constant because some chains have different representations for the native token
@@ -62,7 +62,8 @@ contract SingleTransferHook is BaseHook, ISuperHookContextAware {
             executions[0] = Execution({ target: to, value: amount, callData: "" });
         } else {
             // For ERC20 tokens, use the standard transfer
-            executions[0] = Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.transfer, (to, amount)) });
+            executions[0] =
+                Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.transfer, (to, amount)) });
         }
     }
 

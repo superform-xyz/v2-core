@@ -32,7 +32,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     struct HookAddresses {
         address approveErc20Hook;
         address transferErc20Hook;
-        address singleTransferHook;
+        address transferHook;
         address batchTransferHook;
         address batchTransferFromHook;
         address offrampTokensHook;
@@ -275,7 +275,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         string[37] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
-            "SingleTransferHook",
+            "TransferHook",
             "BatchTransferHook",
             "BatchTransferFromHook",
             "Deposit4626VaultHook",
@@ -789,10 +789,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         __checkContract(APPROVE_ERC20_HOOK_KEY, __getSalt(APPROVE_ERC20_HOOK_KEY), "", env);
         __checkContract(TRANSFER_ERC20_HOOK_KEY, __getSalt(TRANSFER_ERC20_HOOK_KEY), "", env);
         __checkContract(
-            SINGLE_TRANSFER_HOOK_KEY,
-            __getSalt(SINGLE_TRANSFER_HOOK_KEY),
-            abi.encode(configuration.nativeTokens[chainId]),
-            env
+            TRANSFER_HOOK_KEY, __getSalt(TRANSFER_HOOK_KEY), abi.encode(configuration.nativeTokens[chainId]), env
         );
         __checkContract(
             BATCH_TRANSFER_HOOK_KEY,
@@ -1705,7 +1702,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hooks[0] = _createSafeHookDeployment(APPROVE_ERC20_HOOK_KEY, "ApproveERC20Hook", env);
         hooks[1] = _createSafeHookDeployment(TRANSFER_ERC20_HOOK_KEY, "TransferERC20Hook", env);
         hooks[2] = _createSafeHookDeploymentWithArgs(
-            SINGLE_TRANSFER_HOOK_KEY, "SingleTransferHook", env, abi.encode(configuration.nativeTokens[chainId])
+            TRANSFER_HOOK_KEY, "TransferHook", env, abi.encode(configuration.nativeTokens[chainId])
         );
 
         // ===== HOOKS WITH VALIDATED DEPENDENCIES =====
@@ -1924,8 +1921,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[0].name, APPROVE_ERC20_HOOK_KEY) ? addresses[0] : address(0);
         hookAddresses.transferErc20Hook =
             Strings.equal(hooks[1].name, TRANSFER_ERC20_HOOK_KEY) ? addresses[1] : address(0);
-        hookAddresses.singleTransferHook =
-            Strings.equal(hooks[2].name, SINGLE_TRANSFER_HOOK_KEY) ? addresses[2] : address(0);
+        hookAddresses.transferHook = Strings.equal(hooks[2].name, TRANSFER_HOOK_KEY) ? addresses[2] : address(0);
         hookAddresses.batchTransferHook =
             Strings.equal(hooks[3].name, BATCH_TRANSFER_HOOK_KEY) ? addresses[3] : address(0);
         hookAddresses.batchTransferFromHook =

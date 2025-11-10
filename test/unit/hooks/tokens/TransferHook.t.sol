@@ -2,7 +2,7 @@
 pragma solidity 0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { SingleTransferHook } from "../../../../../src/hooks/tokens/SingleTransferHook.sol";
+import { TransferHook } from "../../../../../src/hooks/tokens/TransferHook.sol";
 import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
@@ -10,10 +10,10 @@ import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
 import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
 
-contract SingleTransferHookTest is Helpers {
+contract TransferHookTest is Helpers {
     using BytesLib for bytes;
 
-    SingleTransferHook public hook;
+    TransferHook public hook;
     address public NATIVE_TOKEN = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     address token;
@@ -27,7 +27,7 @@ contract SingleTransferHookTest is Helpers {
         to = address(this);
         amount = 1000;
 
-        hook = new SingleTransferHook(NATIVE_TOKEN);
+        hook = new TransferHook(NATIVE_TOKEN);
     }
 
     function test_Constructor() public view {
@@ -112,7 +112,7 @@ contract SingleTransferHookTest is Helpers {
     function test_PreAndPostExecute_NativeToken() public {
         // Deal native token to the 'to' address
         vm.deal(to, amount);
-        
+
         hook.preExecute(address(0), address(this), _encodeData(NATIVE_TOKEN, false));
         assertEq(hook.getOutAmount(address(this)), amount);
 
