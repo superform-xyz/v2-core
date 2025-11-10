@@ -2,13 +2,13 @@
 pragma solidity 0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { TransferHook } from "../../../../../src/hooks/tokens/TransferHook.sol";
-import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
-import { MockERC20 } from "../../../../mocks/MockERC20.sol";
-import { MockHook } from "../../../../mocks/MockHook.sol";
-import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
-import { Helpers } from "../../../../utils/Helpers.sol";
-import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
+import { TransferHook } from "../../../../src/hooks/tokens/TransferHook.sol";
+import { ISuperHook } from "../../../../src/interfaces/ISuperHook.sol";
+import { MockERC20 } from "../../../mocks/MockERC20.sol";
+import { MockHook } from "../../../mocks/MockHook.sol";
+import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
+import { BytesLib } from "../../../../src/vendor/BytesLib.sol";
 
 contract TransferHookTest is Helpers {
     using BytesLib for bytes;
@@ -36,7 +36,7 @@ contract TransferHookTest is Helpers {
     }
 
     function test_UsePrevHookAmount() public view {
-        bytes memory data = _encodeData(token, false);
+        bytes memory data = _encodeData(token, true);
         assertTrue(hook.decodeUsePrevHookAmount(data));
 
         data = _encodeData(token, false);
