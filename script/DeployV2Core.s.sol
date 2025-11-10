@@ -1964,31 +1964,31 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hookAddresses.deBridgeCancelOrderHook =
             Strings.equal(hooks[22].name, DEBRIDGE_CANCEL_ORDER_HOOK_KEY) ? addresses[22] : address(0);
         hookAddresses.ethenaCooldownSharesHook =
-            Strings.equal(hooks[23].name, ETHENA_COOLDOWN_SHARES_HOOK_KEY) ? addresses[22] : address(0);
+            Strings.equal(hooks[23].name, ETHENA_COOLDOWN_SHARES_HOOK_KEY) ? addresses[23] : address(0);
         hookAddresses.ethenaUnstakeHook =
-            Strings.equal(hooks[24].name, ETHENA_UNSTAKE_HOOK_KEY) ? addresses[23] : address(0);
+            Strings.equal(hooks[24].name, ETHENA_UNSTAKE_HOOK_KEY) ? addresses[24] : address(0);
         hookAddresses.cancelDepositRequest7540Hook =
-            Strings.equal(hooks[25].name, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[24] : address(0);
+            Strings.equal(hooks[25].name, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[25] : address(0);
         hookAddresses.cancelRedeemRequest7540Hook =
-            Strings.equal(hooks[26].name, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[25] : address(0);
+            Strings.equal(hooks[26].name, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[26] : address(0);
         hookAddresses.claimCancelDepositRequest7540Hook =
-            Strings.equal(hooks[27].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[26] : address(0);
+            Strings.equal(hooks[27].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[27] : address(0);
         hookAddresses.claimCancelRedeemRequest7540Hook =
-            Strings.equal(hooks[28].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[27] : address(0);
+            Strings.equal(hooks[28].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[28] : address(0);
         hookAddresses.offrampTokensHook =
-            Strings.equal(hooks[29].name, OFFRAMP_TOKENS_HOOK_KEY) ? addresses[28] : address(0);
+            Strings.equal(hooks[29].name, OFFRAMP_TOKENS_HOOK_KEY) ? addresses[29] : address(0);
         hookAddresses.markRootAsUsedHook =
-            Strings.equal(hooks[30].name, MARK_ROOT_AS_USED_HOOK_KEY) ? addresses[29] : address(0);
+            Strings.equal(hooks[30].name, MARK_ROOT_AS_USED_HOOK_KEY) ? addresses[30] : address(0);
         hookAddresses.merklClaimRewardHook =
-            Strings.equal(hooks[31].name, MERKL_CLAIM_REWARD_HOOK_KEY) ? addresses[30] : address(0);
+            Strings.equal(hooks[31].name, MERKL_CLAIM_REWARD_HOOK_KEY) ? addresses[31] : address(0);
         hookAddresses.circleGatewayWalletHook =
-            Strings.equal(hooks[32].name, CIRCLE_GATEWAY_WALLET_HOOK_KEY) ? addresses[31] : address(0);
+            Strings.equal(hooks[32].name, CIRCLE_GATEWAY_WALLET_HOOK_KEY) ? addresses[32] : address(0);
         hookAddresses.circleGatewayMinterHook =
-            Strings.equal(hooks[33].name, CIRCLE_GATEWAY_MINTER_HOOK_KEY) ? addresses[32] : address(0);
+            Strings.equal(hooks[33].name, CIRCLE_GATEWAY_MINTER_HOOK_KEY) ? addresses[33] : address(0);
         hookAddresses.circleGatewayAddDelegateHook =
-            Strings.equal(hooks[34].name, CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY) ? addresses[33] : address(0);
+            Strings.equal(hooks[34].name, CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY) ? addresses[34] : address(0);
         hookAddresses.circleGatewayRemoveDelegateHook =
-            Strings.equal(hooks[35].name, CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY) ? addresses[34] : address(0);
+            Strings.equal(hooks[35].name, CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY) ? addresses[35] : address(0);
         hookAddresses.swapUniswapV4Hook =
             Strings.equal(hooks[36].name, SWAP_UNISWAPV4_HOOK_KEY) ? addresses[36] : address(0);
 
