@@ -66,6 +66,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address circleGatewayAddDelegateHook;
         address circleGatewayRemoveDelegateHook;
         address swapUniswapV4Hook;
+        address transferHook;
     }
 
     struct HookDeployment {
