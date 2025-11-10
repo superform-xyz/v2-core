@@ -2,26 +2,32 @@
 pragma solidity 0.8.30;
 
 // external
-import { BytesLib } from "../../../vendor/BytesLib.sol";
+import { BytesLib } from "../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
-import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../BaseHook.sol";
+import { HookSubTypes } from "../../libraries/HookSubTypes.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../interfaces/ISuperHook.sol";
 
-/// @title TransferERC20Hook
+/// @title SingleTransferHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address token = BytesLib.toAddress(data, 0);
 /// @notice         address to = BytesLib.toAddress(data, 20);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 40);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
-contract TransferERC20Hook is BaseHook, ISuperHookContextAware {
+contract SingleTransferHook is BaseHook, ISuperHookContextAware {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
 
-    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) { }
+    /// @dev This is not a constant because some chains have different representations for the native token
+    ///      https://github.com/d-xo/weird-erc20?tab=readme-ov-file#erc-20-representation-of-native-currency
+    address public immutable NATIVE_TOKEN;
+
+    constructor(address _nativeToken) BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) {
+        NATIVE_TOKEN = _nativeToken;
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -51,7 +57,13 @@ contract TransferERC20Hook is BaseHook, ISuperHookContextAware {
 
         // @dev no-revert-on-failure tokens are not supported
         executions = new Execution[](1);
-        executions[0] = Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.transfer, (to, amount)) });
+        if (token == NATIVE_TOKEN) {
+            // For native token, send ETH directly to the recipient
+            executions[0] = Execution({ target: to, value: amount, callData: "" });
+        } else {
+            // For ERC20 tokens, use the standard transfer
+            executions[0] = Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.transfer, (to, amount)) });
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -88,6 +100,10 @@ contract TransferERC20Hook is BaseHook, ISuperHookContextAware {
     function _getBalance(bytes memory data) private view returns (uint256) {
         address token = BytesLib.toAddress(data, 0);
         address to = BytesLib.toAddress(data, 20);
-        return IERC20(token).balanceOf(to);
+        if (token == NATIVE_TOKEN) {
+            return to.balance;
+        } else {
+            return IERC20(token).balanceOf(to);
+        }
     }
 }
