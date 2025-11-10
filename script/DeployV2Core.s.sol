@@ -779,7 +779,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Basic hooks without dependencies
         __checkContract(APPROVE_ERC20_HOOK_KEY, __getSalt(APPROVE_ERC20_HOOK_KEY), "", env);
-        __checkContract(TRANSFER_ERC20_HOOK_KEY, __getSalt(TRANSFER_ERC20_HOOK_KEY), "", env);
+        __checkContract(
+            TRANSFER_ERC20_HOOK_KEY,
+            __getSalt(TRANSFER_ERC20_HOOK_KEY),
+            abi.encode(configuration.nativeTokens[chainId]),
+            env
+        );
         __checkContract(
             BATCH_TRANSFER_HOOK_KEY,
             __getSalt(BATCH_TRANSFER_HOOK_KEY),
@@ -1683,7 +1688,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // ===== HOOKS WITHOUT DEPENDENCIES =====
         hooks[0] = _createSafeHookDeployment(APPROVE_ERC20_HOOK_KEY, "ApproveERC20Hook", env);
-        hooks[1] = _createSafeHookDeployment(TRANSFER_ERC20_HOOK_KEY, "TransferERC20Hook", env);
+        hooks[1] = _createSafeHookDeploymentWithArgs(
+            TRANSFER_ERC20_HOOK_KEY, "TransferERC20Hook", env, abi.encode(configuration.nativeTokens[chainId])
+        );
 
         // ===== HOOKS WITH VALIDATED DEPENDENCIES =====
 

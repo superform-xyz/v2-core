@@ -14,6 +14,7 @@ contract TransferERC20HookTest is Helpers {
     using BytesLib for bytes;
 
     TransferERC20Hook public hook;
+    address public NATIVE_TOKEN = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     address token;
     address to;
@@ -26,7 +27,7 @@ contract TransferERC20HookTest is Helpers {
         to = address(this);
         amount = 1000;
 
-        hook = new TransferERC20Hook();
+        hook = new TransferERC20Hook(NATIVE_TOKEN);
     }
 
     function test_Constructor() public view {
@@ -93,7 +94,53 @@ contract TransferERC20HookTest is Helpers {
         assertEq(BytesLib.toAddress(argsEncoded, 20), to);
     }
 
+    function test_Build_NativeToken() public view {
+        bytes memory data = _encodeDataNativeToken(false);
+        Execution[] memory executions = hook.build(address(0), address(0), data);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, to);
+        assertEq(executions[1].value, amount);
+        assertEq(executions[1].callData.length, 0);
+    }
+
+    function test_Build_NativeToken_WithPrevHook() public {
+        uint256 prevHookAmount = 2000;
+        address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, NATIVE_TOKEN));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
+
+        bytes memory data = _encodeDataNativeToken(true);
+        Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, to);
+        assertEq(executions[1].value, prevHookAmount);
+        assertEq(executions[1].callData.length, 0);
+    }
+
+    function test_PreAndPostExecute_NativeToken() public {
+        // Deal native token to the 'to' address
+        vm.deal(to, amount);
+        
+        hook.preExecute(address(0), address(this), _encodeDataNativeToken(false));
+        assertEq(hook.getOutAmount(address(this)), amount);
+
+        hook.postExecute(address(0), address(this), _encodeDataNativeToken(false));
+        assertEq(hook.getOutAmount(address(this)), 0);
+    }
+
+    function test_Inspector_NativeToken() public view {
+        bytes memory data = _encodeDataNativeToken(false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+
+        assertEq(BytesLib.toAddress(argsEncoded, 0), NATIVE_TOKEN);
+        assertEq(BytesLib.toAddress(argsEncoded, 20), to);
+    }
+
     function _encodeData(bool usePrev) internal view returns (bytes memory) {
         return abi.encodePacked(token, to, amount, usePrev);
+    }
+
+    function _encodeDataNativeToken(bool usePrev) internal view returns (bytes memory) {
+        return abi.encodePacked(NATIVE_TOKEN, to, amount, usePrev);
     }
 }
