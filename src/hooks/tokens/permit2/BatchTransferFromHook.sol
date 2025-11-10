@@ -114,10 +114,7 @@ contract BatchTransferFromHook is BaseHook {
             if (amount == 0) revert AMOUNT_NOT_VALID();
 
             vars.details[i] = IAllowanceTransfer.PermitDetails({
-                token: token,
-                amount: amount.toUint160(),
-                expiration: vars.sigDeadline.toUint48(),
-                nonce: nonce
+                token: token, amount: amount.toUint160(), expiration: vars.sigDeadline.toUint48(), nonce: nonce
             });
         }
 
@@ -174,10 +171,7 @@ contract BatchTransferFromHook is BaseHook {
             uint256 amount = BytesLib.toUint256(amountsData, i * 32);
 
             details[i] = IAllowanceTransfer.AllowanceTransferDetails({
-                from: from,
-                to: account,
-                token: token,
-                amount: amount.toUint160()
+                from: from, to: account, token: token, amount: amount.toUint160()
             });
         }
     }

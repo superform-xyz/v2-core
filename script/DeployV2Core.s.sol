@@ -66,6 +66,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address circleGatewayAddDelegateHook;
         address circleGatewayRemoveDelegateHook;
         address swapUniswapV4Hook;
+        address transferHook;
     }
 
     struct HookDeployment {
@@ -271,7 +272,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all 36 hooks from regenerate_bytecode.sh
-        string[36] memory baseHooks = [
+        string[37] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -307,7 +308,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "CircleGatewayMinterHook",
             "CircleGatewayAddDelegateHook",
             "CircleGatewayRemoveDelegateHook",
-            "SwapUniswapV4Hook"
+            "SwapUniswapV4Hook",
+            "TransferHook"
         ];
 
         // Start with all hooks, then decrement for missing configurations
@@ -969,6 +971,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         } else {
             console2.log("SKIPPED SwapUniswapV4Hook: Uniswap V4 PoolManager not configured for chain", chainId);
         }
+
+        // TransferHook
+        __checkContract(
+            TRANSFER_HOOK_KEY, __getSalt(TRANSFER_HOOK_KEY), abi.encode(configuration.nativeTokens[chainId]), env
+        );
     }
 
     /// @notice Check oracle contracts
@@ -1677,7 +1684,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 36;
+        uint256 len = 37;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -1867,6 +1874,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[35] = HookDeployment("", "", ""); // Empty deployment
         }
 
+        // TransferHook
+        hooks[36] = _createSafeHookDeploymentWithArgs(
+            TRANSFER_HOOK_KEY, "TransferHook", env, abi.encode(configuration.nativeTokens[chainId])
+        );
+
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying hooks with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
@@ -1970,6 +1982,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[34].name, CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY) ? addresses[34] : address(0);
         hookAddresses.swapUniswapV4Hook =
             Strings.equal(hooks[35].name, SWAP_UNISWAPV4_HOOK_KEY) ? addresses[34] : address(0);
+        hookAddresses.transferHook =
+            Strings.equal(hooks[36].name, TRANSFER_HOOK_KEY) ? addresses[36] : address(0);
+
 
         // ===== FINAL VALIDATION OF ALL CRITICAL HOOKS =====
         require(hookAddresses.approveErc20Hook != address(0), "APPROVE_ERC20_HOOK_NOT_ASSIGNED");
@@ -2046,6 +2061,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hookAddresses.circleGatewayRemoveDelegateHook != address(0),
             "CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_NOT_ASSIGNED"
         );
+        require(hookAddresses.transferHook != address(0), "TRANSFER_HOOK_NOT_ASSIGNED");
 
         console2.log(" All hooks deployed and validated successfully with comprehensive dependency checking! ");
 
