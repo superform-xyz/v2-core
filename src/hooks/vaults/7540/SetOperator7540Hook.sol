@@ -4,7 +4,7 @@ pragma solidity 0.8.30;
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IERC7540Operator } from "../../../vendor/vaults/7540/IERC7540.sol";
+import { IERC7540 } from "../../../vendor/vaults/7540/IERC7540.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -15,6 +15,7 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @author Superform Labs
 /// @notice Hook for setting operator approval on ERC-7540 vaults
 /// @dev Allows users to approve or revoke operators who can act on their behalf for vault operations
+/// @dev The following hook does not need a _postExecute or a _preExecute definition
 /// @dev data has the following structure
 /// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32));
 /// @notice         address vault = BytesLib.toAddress(data, 32);
@@ -60,7 +61,7 @@ contract SetOperator7540Hook is BaseHook {
         executions[0] = Execution({
             target: vault,
             value: 0,
-            callData: abi.encodeCall(IERC7540Operator.setOperator, (operator, approved))
+            callData: abi.encodeCall(IERC7540.setOperator, (operator, approved))
         });
     }
 

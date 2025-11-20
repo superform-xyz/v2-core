@@ -8,7 +8,7 @@ import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
 import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
 import { HookSubTypes } from "../../../../../src/libraries/HookSubTypes.sol";
-import { IERC7540Operator } from "../../../../../src/vendor/vaults/7540/IERC7540.sol";
+import { IERC7540 } from "../../../../../src/vendor/vaults/7540/IERC7540.sol";
 
 contract SetOperator7540HookTest is Helpers {
     using BytesLib for bytes;
@@ -37,7 +37,7 @@ contract SetOperator7540HookTest is Helpers {
         assertEq(executions[1].value, 0);
 
         // Verify calldata
-        bytes memory expectedCalldata = abi.encodeCall(IERC7540Operator.setOperator, (operator, true));
+        bytes memory expectedCalldata = abi.encodeCall(IERC7540.setOperator, (operator, true));
         assertEq(executions[1].callData, expectedCalldata);
     }
 
@@ -49,7 +49,7 @@ contract SetOperator7540HookTest is Helpers {
         Execution[] memory executions = hook.build(address(0), address(0), data);
 
         // Verify calldata for revocation
-        bytes memory expectedCalldata = abi.encodeCall(IERC7540Operator.setOperator, (operator, false));
+        bytes memory expectedCalldata = abi.encodeCall(IERC7540.setOperator, (operator, false));
         assertEq(executions[1].callData, expectedCalldata);
     }
 
@@ -90,6 +90,25 @@ contract SetOperator7540HookTest is Helpers {
         assertEq(data[72] != 0, approved);
     }
 
+    function test_Build_WithNonZeroPrevHook() public {
+        address vault = makeAddr("vault");
+        address operator = makeAddr("operator");
+        address prevHook = makeAddr("prevHook");
+        bytes memory data = _encodeData(vault, operator, true);
+
+        // Build with non-zero prevHook - should be ignored
+        Execution[] memory executions = hook.build(prevHook, address(0), data);
+
+        // Verify execution is identical regardless of prevHook parameter
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, vault);
+        assertEq(executions[1].value, 0);
+
+        // Verify calldata is correct
+        bytes memory expectedCalldata = abi.encodeCall(IERC7540.setOperator, (operator, true));
+        assertEq(executions[1].callData, expectedCalldata);
+    }
+
     function testFuzz_Build(address vault, address operator, bool approved) public {
         vm.assume(vault != address(0));
         vm.assume(operator != address(0));
@@ -102,7 +121,7 @@ contract SetOperator7540HookTest is Helpers {
         assertEq(executions[1].value, 0);
 
         // Verify calldata
-        bytes memory expectedCalldata = abi.encodeCall(IERC7540Operator.setOperator, (operator, approved));
+        bytes memory expectedCalldata = abi.encodeCall(IERC7540.setOperator, (operator, approved));
         assertEq(executions[1].callData, expectedCalldata);
     }
 
