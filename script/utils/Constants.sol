@@ -190,6 +190,7 @@ abstract contract Constants {
     string internal constant PENDLE_PT_YIELD_SOURCE_ORACLE_KEY = "PendlePTYieldSourceOracle";
     string internal constant SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY = "SpectraPTYieldSourceOracle";
     string internal constant STAKING_YIELD_SOURCE_ORACLE_KEY = "StakingYieldSourceOracle";
+    string internal constant SUPER_VAULT_YIELD_SOURCE_ORACLE_KEY = "SuperVaultYieldSourceOracle";
 
     // SuperLedgerConfigs Salts
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_SALT = "ERC4626YieldSourceOracle_v1.0.1";

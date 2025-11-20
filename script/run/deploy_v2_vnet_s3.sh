@@ -346,7 +346,7 @@ get_salt() {
             echo "$timestamp"
         else
             # Use fixed timestamp for demo branch
-            local fixed_salt="1756453482"
+            local fixed_salt="1763631947"
             log "INFO" "Demo branch: using fixed salt $fixed_salt"
             echo "$fixed_salt"
         fi

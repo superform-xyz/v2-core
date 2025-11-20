@@ -1010,12 +1010,20 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encode(superLedgerConfig),
                 env
             );
+            __checkContract(
+                SUPER_VAULT_YIELD_SOURCE_ORACLE_KEY, 
+                __getSalt(SUPER_VAULT_YIELD_SOURCE_ORACLE_KEY), 
+                abi.encode(superLedgerConfig),
+                env
+            );
         } else {
             revert("ORACLES_CHECK_FAILED_MISSING_SUPER_LEDGER_CONFIG");
         }
 
         // SuperYieldSourceOracle (no constructor args)
         __checkContract(SUPER_YIELD_SOURCE_ORACLE_KEY, __getSalt(SUPER_YIELD_SOURCE_ORACLE_KEY), "", env);
+
+      
     }
 
     /// @notice Populate CoreContracts struct with addresses from deployment status
@@ -2055,7 +2063,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     function _deployOracles(uint64 chainId, uint256 env) private returns (address[] memory oracleAddresses) {
         console2.log("Starting oracle deployment with parameter validation...");
 
-        uint256 len = 6;
+        uint256 len = 7;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         oracleAddresses = new address[](len);
 
@@ -2082,6 +2090,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             STAKING_YIELD_SOURCE_ORACLE_KEY, "StakingYieldSourceOracle", env, abi.encode(superLedgerConfig)
         );
         oracles[5] = _createSafeOracleDeployment(SUPER_YIELD_SOURCE_ORACLE_KEY, "SuperYieldSourceOracle", env);
+        oracles[6] = _createSafeOracleDeploymentWithArgs(
+            SUPER_VAULT_YIELD_SOURCE_ORACLE_KEY, "SuperVaultYieldSourceOracle", env, abi.encode(superLedgerConfig)
+        );
 
         console2.log("Deploying", len, "oracles with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
