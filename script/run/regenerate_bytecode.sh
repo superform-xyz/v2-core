@@ -140,7 +140,7 @@ ORACLE_CONTRACTS=(
     "PendlePTYieldSourceOracle"
     "SpectraPTYieldSourceOracle"
     "StakingYieldSourceOracle"
-    "SuperYieldSourceOracle",
+    "SuperYieldSourceOracle"
     "SuperVaultYieldSourceOracle"
 )
 
