@@ -1748,7 +1748,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[17] = _createSafeHookDeploymentWithArgs(
                 SWAP_ODOSV2_HOOK_KEY, "SwapOdosV2Hook", env, abi.encode(configuration.odosRouters[chainId])
             );
-            hooks[19] = _createSafeHookDeploymentWithArgs(
+            hooks[18] = _createSafeHookDeploymentWithArgs(
                 APPROVE_AND_SWAP_ODOSV2_HOOK_KEY,
                 "ApproveAndSwapOdosV2Hook",
                 env,
@@ -1757,7 +1757,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         } else {
             console2.log(" SKIPPED ODOS Swap Hooks deployment: Not available on chain", chainId);
             hooks[17] = HookDeployment("", "", ""); // Empty deployment
-            hooks[19] = HookDeployment("", "", ""); // Empty deployment
+            hooks[18] = HookDeployment("", "", ""); // Empty deployment
         }
 
         address superValidator;
