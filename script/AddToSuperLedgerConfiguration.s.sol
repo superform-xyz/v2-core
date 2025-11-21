@@ -12,9 +12,6 @@ import { console2 } from "forge-std/console2.sol";
  *      without needing to redeploy the entire system
  */
 contract AddToSuperLedgerConfiguration is DeployV2Core {
-    /// @notice Custom error for validation failures
-    error AddToSuperLedgerConfigurationFailed();
-
     /// @notice Add new yield source oracles to SuperLedger configuration with string salts
     /// @dev Reads SuperLedger configuration and other contracts from deployment files
     /// @dev Converts string salts to bytes32 using bytes32(bytes(saltString))
