@@ -1887,7 +1887,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         // TransferHook
-        hooks[36] = _createSafeHookDeploymentWithArgs(
+        hooks[37] = _createSafeHookDeploymentWithArgs(
             TRANSFER_HOOK_KEY, "TransferHook", env, abi.encode(configuration.nativeTokens[chainId])
         );
 
