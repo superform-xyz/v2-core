@@ -97,6 +97,7 @@ CORE_CONTRACTS=(
 HOOK_CONTRACTS=(
     "ApproveERC20Hook"
     "TransferERC20Hook"
+    "TransferHook"
     "BatchTransferHook"
     "BatchTransferFromHook"
     "Deposit4626VaultHook"
@@ -110,6 +111,7 @@ HOOK_CONTRACTS=(
     "Redeem7540VaultHook"
     "RequestRedeem7540VaultHook"
     "Deposit7540VaultHook"
+    "SetOperator7540Hook"
     "CancelDepositRequest7540Hook"
     "CancelRedeemRequest7540Hook"
     "ClaimCancelDepositRequest7540Hook"

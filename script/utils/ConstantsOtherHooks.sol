@@ -15,12 +15,7 @@ abstract contract ConstantsOtherHooks {
     address internal constant SPECTRA_ROUTER_ARBITRUM = 0x38b9B4884a5581E96eD3882AA2f7449BC321786C;
     address internal constant SPECTRA_ROUTER_BNB = 0x8A92294ffCFe469a3DF4A85c76a0B0d2B3292119;
 
-    // Pendle Router addresses per chain
-    address internal constant PENDLE_ROUTER_MAINNET = 0x888888888889758F76e7103c6CbF23ABbF58F946;
-    address internal constant PENDLE_ROUTER_BASE = 0x888888888889758F76e7103c6CbF23ABbF58F946;
-    address internal constant PENDLE_ROUTER_OPTIMISM = 0x888888888889758F76e7103c6CbF23ABbF58F946;
-    address internal constant PENDLE_ROUTER_ARBITRUM = 0x888888888889758F76e7103c6CbF23ABbF58F946; // Standard Pendle
-    address internal constant PENDLE_ROUTER_BNB = 0x888888888889758F76e7103c6CbF23ABbF58F946; // Standard Pendle router
+    // Note: Pendle Router addresses are in Constants.sol (used by DeployV2Core.s.sol)
 
     // Morpho addresses per chain
     address internal constant MORPHO_MAINNET = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
