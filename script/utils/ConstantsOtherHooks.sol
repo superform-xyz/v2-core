@@ -31,8 +31,6 @@ abstract contract ConstantsOtherHooks {
 
     // Hook Keys
     string internal constant SWAP_OKX_HOOK_KEY = "SwapOkxHook";
-    string internal constant PENDLE_ROUTER_SWAP_HOOK_KEY = "PendleRouterSwapHook";
-    string internal constant PENDLE_ROUTER_REDEEM_HOOK_KEY = "PendleRouterRedeemHook";
     string internal constant SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY = "SpectraExchangeDepositHook";
     string internal constant SPECTRA_EXCHANGE_REDEEM_HOOK_KEY = "SpectraExchangeRedeemHook";
 }

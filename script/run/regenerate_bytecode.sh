@@ -117,6 +117,8 @@ HOOK_CONTRACTS=(
     "Swap1InchHook"
     "SwapOdosV2Hook"
     "ApproveAndSwapOdosV2Hook"
+    "PendleRouterRedeemHook"
+    "PendleRouterSwapHook"
     "AcrossSendFundsAndExecuteOnDstHook"
     "ApproveAndAcrossSendFundsAndExecuteOnDstHook"
     "DeBridgeSendOrderAndExecuteOnDstHook"

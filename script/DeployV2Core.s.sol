@@ -207,6 +207,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool swap1InchHook;
         bool swapOdosHooks;
         bool swapUniswapV4Hook;
+        bool pendleRouterHooks;
         bool merklClaimRewardHook;
         uint256 expectedCore;
         uint256 expectedAdapters;
@@ -270,8 +271,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         availability.expectedAdapters = expectedAdapters;
 
-        // Hook contracts - all 36 hooks from regenerate_bytecode.sh
-        string[36] memory baseHooks = [
+        // Hook contracts - all 38 hooks from regenerate_bytecode.sh
+        string[38] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -294,6 +295,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "Swap1InchHook",
             "SwapOdosV2Hook",
             "ApproveAndSwapOdosV2Hook",
+            "PendleRouterSwapHook",
+            "PendleRouterRedeemHook",
             "AcrossSendFundsAndExecuteOnDstHook",
             "ApproveAndAcrossSendFundsAndExecuteOnDstHook",
             "DeBridgeSendOrderAndExecuteOnDstHook",
@@ -361,6 +364,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         } else {
             expectedHooks -= 1; // SwapUniswapV4Hook
             potentialSkips[skipCount++] = "SwapUniswapV4Hook";
+        }
+
+        if (configuration.pendleRouters[chainId] != address(0)) {
+            availability.pendleRouterHooks = true;
+        } else {
+            expectedHooks -= 2; // PendleRouterSwapHook + PendleRouterRedeemHook
+            potentialSkips[skipCount++] = "PendleRouterSwapHook";
+            potentialSkips[skipCount++] = "PendleRouterRedeemHook";
         }
 
         availability.expectedHooks = expectedHooks;
@@ -861,6 +872,25 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         } else {
             console2.log(
                 "SKIPPED SwapOdosV2Hook & ApproveAndSwapOdosV2Hook: ODOS Router not configured for chain", chainId
+            );
+        }
+
+        if (availability.pendleRouterHooks) {
+            __checkContract(
+                PENDLE_ROUTER_SWAP_HOOK_KEY,
+                __getSalt(PENDLE_ROUTER_SWAP_HOOK_KEY),
+                abi.encode(configuration.pendleRouters[chainId]),
+                env
+            );
+            __checkContract(
+                PENDLE_ROUTER_REDEEM_HOOK_KEY,
+                __getSalt(PENDLE_ROUTER_REDEEM_HOOK_KEY),
+                abi.encode(configuration.pendleRouters[chainId]),
+                env
+            );
+        } else {
+            console2.log(
+                "SKIPPED PendleRouterSwapHook & PendleRouterRedeemHook: Pendle Router not configured for chain", chainId
             );
         }
 
@@ -1685,7 +1715,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 36;
+        uint256 len = 38;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -1756,6 +1786,25 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[17] = HookDeployment("", "", ""); // Empty deployment
         }
 
+        // Pendle Router Hooks - Only deploy if available on this chain
+        if (availability.pendleRouterHooks) {
+            require(configuration.pendleRouters[chainId] != address(0), "PENDLE_ROUTER_HOOK_ROUTER_PARAM_ZERO");
+            require(configuration.pendleRouters[chainId].code.length > 0, "PENDLE_ROUTER_HOOK_ROUTER_NOT_DEPLOYED");
+            hooks[18] = _createSafeHookDeploymentWithArgs(
+                PENDLE_ROUTER_SWAP_HOOK_KEY, "PendleRouterSwapHook", env, abi.encode(configuration.pendleRouters[chainId])
+            );
+            hooks[19] = _createSafeHookDeploymentWithArgs(
+                PENDLE_ROUTER_REDEEM_HOOK_KEY,
+                "PendleRouterRedeemHook",
+                env,
+                abi.encode(configuration.pendleRouters[chainId])
+            );
+        } else {
+            console2.log(" SKIPPED Pendle Router Hooks deployment: Not available on chain", chainId);
+            hooks[18] = HookDeployment("", "", ""); // Empty deployment
+            hooks[19] = HookDeployment("", "", ""); // Empty deployment
+        }
+
         address superValidator;
         // Across Bridge Hook - Only deploy if available on this chain
         if (availability.acrossV3Adapter) {
@@ -1766,13 +1815,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             require(superValidator != address(0), "ACROSS_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
             require(superValidator.code.length > 0, "ACROSS_HOOK_MERKLE_VALIDATOR_NOT_DEPLOYED");
 
-            hooks[18] = _createSafeHookDeploymentWithArgs(
+            hooks[20] = _createSafeHookDeploymentWithArgs(
                 ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
                 "AcrossSendFundsAndExecuteOnDstHook",
                 env,
                 abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator)
             );
-            hooks[19] = _createSafeHookDeploymentWithArgs(
+            hooks[21] = _createSafeHookDeploymentWithArgs(
                 APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
                 "ApproveAndAcrossSendFundsAndExecuteOnDstHook",
                 env,
@@ -1783,8 +1832,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(
                 " SKIPPED ApproveAndAcrossSendFundsAndExecuteOnDstHook deployment: Not available on chain", chainId
             );
-            hooks[18] = HookDeployment("", "", ""); // Empty deployment
-            hooks[19] = HookDeployment("", "", ""); // Empty deployment
+            hooks[20] = HookDeployment("", "", ""); // Empty deployment
+            hooks[21] = HookDeployment("", "", ""); // Empty deployment
         }
 
         // DeBridge hooks - Only deploy if available on this chain
@@ -1793,7 +1842,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         if (availability.deBridgeSendOrderHook) {
             require(configuration.debridgeSrcDln[chainId] != address(0), "DEBRIDGE_SEND_HOOK_DLN_SRC_PARAM_ZERO");
-            hooks[20] = _createSafeHookDeploymentWithArgs(
+            hooks[22] = _createSafeHookDeploymentWithArgs(
                 DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
                 "DeBridgeSendOrderAndExecuteOnDstHook",
                 env,
@@ -1801,12 +1850,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log(" SKIPPED DeBridgeSendOrderAndExecuteOnDstHook deployment: Not available on chain", chainId);
-            hooks[20] = HookDeployment("", "", ""); // Empty deployment
+            hooks[22] = HookDeployment("", "", ""); // Empty deployment
         }
 
         if (availability.deBridgeCancelOrderHook) {
             require(configuration.debridgeDstDln[chainId] != address(0), "DEBRIDGE_CANCEL_HOOK_DLN_DST_PARAM_ZERO");
-            hooks[21] = _createSafeHookDeploymentWithArgs(
+            hooks[23] = _createSafeHookDeploymentWithArgs(
                 DEBRIDGE_CANCEL_ORDER_HOOK_KEY,
                 "DeBridgeCancelOrderHook",
                 env,
@@ -1814,25 +1863,25 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log(" SKIPPED DeBridgeCancelOrderHook deployment: Not available on chain", chainId);
-            hooks[21] = HookDeployment("", "", ""); // Empty deployment
+            hooks[23] = HookDeployment("", "", ""); // Empty deployment
         }
 
         // Protocol-specific hooks (no external dependencies)
-        hooks[22] = _createSafeHookDeployment(ETHENA_COOLDOWN_SHARES_HOOK_KEY, "EthenaCooldownSharesHook", env);
-        hooks[23] = _createSafeHookDeployment(ETHENA_UNSTAKE_HOOK_KEY, "EthenaUnstakeHook", env);
-        hooks[24] = _createSafeHookDeployment(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, "CancelDepositRequest7540Hook", env);
-        hooks[25] = _createSafeHookDeployment(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, "CancelRedeemRequest7540Hook", env);
-        hooks[26] = _createSafeHookDeployment(
+        hooks[24] = _createSafeHookDeployment(ETHENA_COOLDOWN_SHARES_HOOK_KEY, "EthenaCooldownSharesHook", env);
+        hooks[25] = _createSafeHookDeployment(ETHENA_UNSTAKE_HOOK_KEY, "EthenaUnstakeHook", env);
+        hooks[26] = _createSafeHookDeployment(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, "CancelDepositRequest7540Hook", env);
+        hooks[27] = _createSafeHookDeployment(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, "CancelRedeemRequest7540Hook", env);
+        hooks[28] = _createSafeHookDeployment(
             CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, "ClaimCancelDepositRequest7540Hook", env
         );
-        hooks[27] = _createSafeHookDeployment(
+        hooks[29] = _createSafeHookDeployment(
             CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, "ClaimCancelRedeemRequest7540Hook", env
         );
-        hooks[28] = _createSafeHookDeployment(OFFRAMP_TOKENS_HOOK_KEY, "OfframpTokensHook", env);
-        hooks[29] = _createSafeHookDeployment(MARK_ROOT_AS_USED_HOOK_KEY, "MarkRootAsUsedHook", env);
+        hooks[30] = _createSafeHookDeployment(OFFRAMP_TOKENS_HOOK_KEY, "OfframpTokensHook", env);
+        hooks[31] = _createSafeHookDeployment(MARK_ROOT_AS_USED_HOOK_KEY, "MarkRootAsUsedHook", env);
         // Merkl Claim Reward Hook - Only deploy if available on this chain
         if (availability.merklClaimRewardHook) {
-            hooks[30] = _createSafeHookDeploymentWithArgsAndSalt(
+            hooks[32] = _createSafeHookDeploymentWithArgsAndSalt(
                 MERKL_CLAIM_REWARD_HOOK_KEY,
                 MERKL_CLAIM_REWARD_HOOK_KEY,
                 MERKL_CLAIM_REWARD_HOOK_SALT,
@@ -1841,7 +1890,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log(" SKIPPED MerklClaimRewardHook deployment: Not available on chain", chainId);
-            hooks[30] = HookDeployment("", "", ""); // Empty deployment
+            hooks[32] = HookDeployment("", "", ""); // Empty deployment
         }
 
         // ===== CIRCLE GATEWAY HOOKS =====
@@ -1849,22 +1898,22 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(GATEWAY_WALLET != address(0), "CIRCLE_GATEWAY_WALLET_PARAM_ZERO");
         require(GATEWAY_MINTER != address(0), "CIRCLE_GATEWAY_MINTER_PARAM_ZERO");
 
-        hooks[31] = _createSafeHookDeploymentWithArgs(
+        hooks[33] = _createSafeHookDeploymentWithArgs(
             CIRCLE_GATEWAY_WALLET_HOOK_KEY, "CircleGatewayWalletHook", env, abi.encode(GATEWAY_WALLET)
         );
-        hooks[32] = _createSafeHookDeploymentWithArgs(
+        hooks[34] = _createSafeHookDeploymentWithArgs(
             CIRCLE_GATEWAY_MINTER_HOOK_KEY, "CircleGatewayMinterHook", env, abi.encode(GATEWAY_MINTER)
         );
-        hooks[33] = _createSafeHookDeploymentWithArgs(
+        hooks[35] = _createSafeHookDeploymentWithArgs(
             CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY, "CircleGatewayAddDelegateHook", env, abi.encode(GATEWAY_WALLET)
         );
-        hooks[34] = _createSafeHookDeploymentWithArgs(
+        hooks[36] = _createSafeHookDeploymentWithArgs(
             CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY, "CircleGatewayRemoveDelegateHook", env, abi.encode(GATEWAY_WALLET)
         );
 
         // UniswapV4 Swap Hook - Only deploy if V4 PoolManager available on this chain
         if (availability.swapUniswapV4Hook) {
-            hooks[35] = _createSafeHookDeploymentWithArgs(
+            hooks[37] = _createSafeHookDeploymentWithArgs(
                 SWAP_UNISWAPV4_HOOK_KEY,
                 "SwapUniswapV4Hook",
                 env,
@@ -1872,7 +1921,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log("SKIPPED SwapUniswapV4Hook: Uniswap V4 PoolManager not available on chain", chainId);
-            hooks[35] = HookDeployment("", "", ""); // Empty deployment
+            hooks[37] = HookDeployment("", "", ""); // Empty deployment
         }
 
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
