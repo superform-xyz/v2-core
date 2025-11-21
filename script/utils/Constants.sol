@@ -132,6 +132,7 @@ abstract contract Constants {
     string internal constant REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "RequestDeposit7540VaultHook";
     string internal constant REDEEM_7540_VAULT_HOOK_KEY = "Redeem7540VaultHook";
     string internal constant REQUEST_REDEEM_7540_VAULT_HOOK_KEY = "RequestRedeem7540VaultHook";
+    string internal constant SET_OPERATOR_7540_HOOK_KEY = "SetOperator7540Hook";
     string internal constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
     string internal constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
     string internal constant FLUID_STAKE_HOOK_KEY = "FluidStakeHook";
@@ -191,6 +192,7 @@ abstract contract Constants {
     string internal constant PENDLE_PT_YIELD_SOURCE_ORACLE_KEY = "PendlePTYieldSourceOracle";
     string internal constant SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY = "SpectraPTYieldSourceOracle";
     string internal constant STAKING_YIELD_SOURCE_ORACLE_KEY = "StakingYieldSourceOracle";
+    string internal constant SUPER_VAULT_YIELD_SOURCE_ORACLE_KEY = "SuperVaultYieldSourceOracle";
 
     // SuperLedgerConfigs Salts
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_SALT = "ERC4626YieldSourceOracle_v1.0.1";
