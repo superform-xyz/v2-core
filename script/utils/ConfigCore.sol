@@ -119,6 +119,21 @@ abstract contract ConfigCore is ConfigBase {
         configuration.odosRouters[GNOSIS_CHAIN_ID] = address(0); // Not deployed
         configuration.odosRouters[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
 
+        // ===== PENDLE ROUTER ADDRESSES =====
+        configuration.pendleRouters[MAINNET_CHAIN_ID] = PENDLE_ROUTER_MAINNET;
+        configuration.pendleRouters[BASE_CHAIN_ID] = PENDLE_ROUTER_BASE;
+        configuration.pendleRouters[BNB_CHAIN_ID] = PENDLE_ROUTER_BNB;
+        configuration.pendleRouters[ARBITRUM_CHAIN_ID] = PENDLE_ROUTER_ARBITRUM;
+        configuration.pendleRouters[OPTIMISM_CHAIN_ID] = PENDLE_ROUTER_OPTIMISM;
+        configuration.pendleRouters[POLYGON_CHAIN_ID] = address(0); // Not deployed
+        configuration.pendleRouters[UNICHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.pendleRouters[LINEA_CHAIN_ID] = address(0); // Not deployed
+        configuration.pendleRouters[AVALANCHE_CHAIN_ID] = address(0); // Not deployed
+        configuration.pendleRouters[BERACHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.pendleRouters[SONIC_CHAIN_ID] = address(0); // Not deployed
+        configuration.pendleRouters[GNOSIS_CHAIN_ID] = address(0); // Not deployed
+        configuration.pendleRouters[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
+
         // ===== NATIVE TOKEN ADDRESSES =====
         configuration.nativeTokens[MAINNET_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[BASE_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;

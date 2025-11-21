@@ -96,6 +96,13 @@ abstract contract Constants {
     address internal constant ODOS_ROUTER_SONIC = 0xaC041Df48dF9791B0654f1Dbbf2CC8450C5f2e9D;
     address internal constant ODOS_ROUTER_LINEA = 0x2d8879046f1559E53eb052E949e9544bCB72f414;
 
+    // Pendle Router addresses per chain
+    address internal constant PENDLE_ROUTER_MAINNET = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_BASE = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_OPTIMISM = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_ARBITRUM = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_BNB = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+
     // Merkl Distributor addresses per chain
     address internal constant MERKL_DISTRIBUTOR = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
     // Native tokens representation
@@ -140,6 +147,8 @@ abstract contract Constants {
     string internal constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
     string internal constant SWAP_ODOSV2_HOOK_KEY = "SwapOdosV2Hook";
     string internal constant SWAP_UNISWAPV4_HOOK_KEY = "SwapUniswapV4Hook";
+    string internal constant PENDLE_ROUTER_SWAP_HOOK_KEY = "PendleRouterSwapHook";
+    string internal constant PENDLE_ROUTER_REDEEM_HOOK_KEY = "PendleRouterRedeemHook";
     string internal constant APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY = "ApproveAndDeposit4626VaultHook";
     string internal constant APPROVE_AND_SWAP_ODOSV2_HOOK_KEY = "ApproveAndSwapOdosV2Hook";
     string internal constant APPROVE_AND_FLUID_STAKE_HOOK_KEY = "ApproveAndFluidStakeHook";

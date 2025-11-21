@@ -964,11 +964,45 @@ preview_demo_deployment_diff() {
     echo -e "  ${WHITE}Total contracts expected: $total_to_deploy${NC}"
     local missing_total=$((total_to_deploy - total_already_deployed))
     echo -e "  ${WHITE}Contracts needing deployment: $missing_total${NC}"
-    
+
+    # List all contracts needing deployment across all networks
+    if [ "$missing_total" -gt 0 ]; then
+        echo -e "  ${YELLOW}📋 Contracts needing deployment:${NC}"
+
+        i=0
+        for network in 1 8453 10; do
+            local network_slug=$(get_network_slug "$network")
+            local vnet_response="${VNET_RESPONSES[$i]}"
+            local admin_rpc=$(echo "$vnet_response" | cut -d'|' -f1)
+            local salt_value=$(get_salt)
+
+            # Get undeployed contracts for this network
+            local undeployed_contracts=$(forge script script/DeployV2Core.s.sol:DeployV2Core \
+                --sig 'run(bool,uint256,uint64,string)' true $FORGE_ENV $network "$salt_value" \
+                --rpc-url "$admin_rpc" \
+                --chain $network \
+                -vv 2>&1 | grep "Code Size:  0" | grep -v "SKIPPED" | sed 's/ Addr:.*//' | sed 's/^[ \t]*//' || true)
+
+            if [[ -n "$undeployed_contracts" ]]; then
+                local contract_count=$(echo "$undeployed_contracts" | grep -c . || echo "0")
+                if [ "$contract_count" -gt 0 ]; then
+                    echo -e "    ${CYAN}$network_slug:${NC}"
+                    while IFS= read -r contract; do
+                        if [[ -n "$contract" ]]; then
+                            echo -e "      ${YELLOW}•${NC} $contract"
+                        fi
+                    done <<< "$undeployed_contracts"
+                fi
+            fi
+
+            i=$((i + 1))
+        done
+    fi
+
     if [ "$REDEPLOY_FLAG" = "redeploy" ]; then
         echo -e "  ${YELLOW}🔄 Redeploy mode will create new addresses for ALL contracts${NC}"
     fi
-    
+
     echo ""
     
     # Debug output for troubleshooting
