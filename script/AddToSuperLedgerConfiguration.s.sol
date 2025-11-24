@@ -12,88 +12,13 @@ import { console2 } from "forge-std/console2.sol";
  *      without needing to redeploy the entire system
  */
 contract AddToSuperLedgerConfiguration is DeployV2Core {
-    /// @notice Add new yield source oracles to SuperLedger configuration with string salts
-    /// @dev Reads SuperLedger configuration and other contracts from deployment files
+    /// @notice Add new yield source oracles to SuperLedger configuration
+    /// @dev Main entry point used by bash script
     /// @dev Converts string salts to bytes32 using bytes32(bytes(saltString))
     /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
     /// @param chainId Target chain ID
-    /// @param saltStrings Array of salt strings to generate unique identifiers for new oracles
-    /// @param oracleAddresses Array of oracle addresses to add
-    function run(
-        uint256 env,
-        uint64 chainId,
-        string[] memory saltStrings,
-        address[] memory oracleAddresses
-    )
-        public
-        broadcast(env)
-    {
-        bytes32[] memory salts = _convertStringsToBytes32(saltStrings);
-        _addToSuperLedgerConfiguration(env, chainId, "", salts, oracleAddresses);
-    }
-
-    /// @notice Add new yield source oracles to SuperLedger configuration (legacy bytes32 version)
-    /// @dev Reads SuperLedger configuration and other contracts from deployment files
-    /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
-    /// @param chainId Target chain ID
-    /// @param salts Array of salt values to generate unique identifiers for new oracles
-    /// @param oracleAddresses Array of oracle addresses to add
-    function run(
-        uint256 env,
-        uint64 chainId,
-        bytes32[] memory salts,
-        address[] memory oracleAddresses
-    )
-        public
-        broadcast(env)
-    {
-        _addToSuperLedgerConfiguration(env, chainId, "", salts, oracleAddresses);
-    }
-
-    /// @notice Add new yield source oracles with salt namespace support (string salts)
-    /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
-    /// @param chainId Target chain ID
-    /// @param saltNamespace Salt namespace for configuration
-    /// @param saltStrings Array of salt strings to generate unique identifiers for new oracles
-    /// @param oracleAddresses Array of oracle addresses to add
-    function run(
-        uint256 env,
-        uint64 chainId,
-        string memory saltNamespace,
-        string[] memory saltStrings,
-        address[] memory oracleAddresses
-    )
-        public
-        broadcast(env)
-    {
-        bytes32[] memory salts = _convertStringsToBytes32(saltStrings);
-        _addToSuperLedgerConfiguration(env, chainId, saltNamespace, salts, oracleAddresses);
-    }
-
-    /// @notice Add new yield source oracles with salt namespace support (legacy bytes32 version)
-    /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
-    /// @param chainId Target chain ID
-    /// @param saltNamespace Salt namespace for configuration
-    /// @param salts Array of salt values to generate unique identifiers for new oracles
-    /// @param oracleAddresses Array of oracle addresses to add
-    function run(
-        uint256 env,
-        uint64 chainId,
-        string memory saltNamespace,
-        bytes32[] memory salts,
-        address[] memory oracleAddresses
-    )
-        public
-        broadcast(env)
-    {
-        _addToSuperLedgerConfiguration(env, chainId, saltNamespace, salts, oracleAddresses);
-    }
-
-    /// @notice Add new yield source oracles with branch name support for VNETs (string salts)
-    /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
-    /// @param chainId Target chain ID
-    /// @param saltNamespace Salt namespace for configuration
-    /// @param branchName Branch name for env=1 (VNET) to read contracts from specific branch folder
+    /// @param saltNamespace Salt namespace for configuration (can be empty string)
+    /// @param branchName Branch name for env=1 (VNET) to read contracts from specific branch folder (can be empty)
     /// @param saltStrings Array of salt strings to generate unique identifiers for new oracles
     /// @param oracleAddresses Array of oracle addresses to add
     function run(
@@ -108,27 +33,6 @@ contract AddToSuperLedgerConfiguration is DeployV2Core {
         broadcast(env)
     {
         bytes32[] memory salts = _convertStringsToBytes32(saltStrings);
-        _addToSuperLedgerConfiguration(env, chainId, saltNamespace, branchName, salts, oracleAddresses);
-    }
-
-    /// @notice Add new yield source oracles with branch name support for VNETs (legacy bytes32 version)
-    /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
-    /// @param chainId Target chain ID
-    /// @param saltNamespace Salt namespace for configuration
-    /// @param branchName Branch name for env=1 (VNET) to read contracts from specific branch folder
-    /// @param salts Array of salt values to generate unique identifiers for new oracles
-    /// @param oracleAddresses Array of oracle addresses to add
-    function run(
-        uint256 env,
-        uint64 chainId,
-        string memory saltNamespace,
-        string memory branchName,
-        bytes32[] memory salts,
-        address[] memory oracleAddresses
-    )
-        public
-        broadcast(env)
-    {
         _addToSuperLedgerConfiguration(env, chainId, saltNamespace, branchName, salts, oracleAddresses);
     }
 
