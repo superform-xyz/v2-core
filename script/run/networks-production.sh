@@ -142,9 +142,9 @@ get_rpc_url() {
         43114)
             echo "$AVALANCHE_MAINNET"
             ;;
-        # 80094)  # Temporarily removed from production
-        #     echo "$BERACHAIN_MAINNET"
-        #     ;;
+        80094)  
+            echo "$BERACHAIN_MAINNET"
+            ;;
         146)
             echo "$SONIC_MAINNET"
             ;;
