@@ -1,140 +1,107 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-# Colors for better visual output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-WHITE='\033[1;37m'
-NC='\033[0m' # No Color
+# add_to_super_ledger_staging_prod.sh
+# Purpose: Add new oracles to SuperLedgerConfiguration for staging/production deployments
+# Usage: sh script/run/add_to_super_ledger_staging_prod.sh <environment> [simulate]
 
-# Function to print colored header
-print_header() {
-    echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║                                                                                      ║${NC}"
-    echo -e "${CYAN}║${WHITE}     🔧 Add To SuperLedger Configuration Script (Staging/Production) 🔧           ${CYAN}║${NC}"
-    echo -e "${CYAN}║                                                                                      ║${NC}"
-    echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-}
+set -e
 
-# Function to print section separator
-print_separator() {
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-}
+# ===== CONFIGURATION =====
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+OUTPUT_DIR="$PROJECT_ROOT/script/output"
 
-# Function to print network configuration header
-print_network_header() {
-    local network=$1
-    echo -e "${PURPLE}╭─────────────────────────────────────────────────────────────────────────────────────╮${NC}"
-    echo -e "${PURPLE}│${WHITE}                 🔧 Adding Oracle to SuperLedger on ${network} Network 🔧            ${PURPLE}│${NC}"
-    echo -e "${PURPLE}╰─────────────────────────────────────────────────────────────────────────────────────╯${NC}"
-}
+# ===== LOAD SHARED UTILITIES =====
+source "$SCRIPT_DIR/oracle-utils.sh"
 
-# Logging function for consistent output
+# ===== HELPER FUNCTIONS =====
 log() {
     local level=$1
     shift
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] [$level] $*" >&2
+    echo "[$level] $*" >&2
 }
 
-# Function to check if output files exist for configuration
-check_deployment_files() {
-    local environment=$1
-    local network_name=$2
-    local network_id=$3
+# ===== USAGE =====
+usage() {
+    cat << EOF
+Usage: $0 <environment> <account> [simulate]
 
-    local contracts_file="script/output/$environment/$network_id/$network_name-latest.json"
+Add new oracles to SuperLedgerConfiguration for staging/production deployments.
+Automatically loops through all chains and checks if oracles are configured.
 
-    if [ ! -f "$contracts_file" ]; then
-        log "ERROR" "Deployment file not found: $contracts_file"
-        log "ERROR" "Please ensure the core contracts have been deployed first"
-        return 1
-    fi
+Arguments:
+    environment     "staging" or "prod"
+    account         Foundry wallet account name (e.g., "v2-deployer")
+    simulate        Optional: Run in simulation mode without broadcasting
 
-    # Validate the file contains required contracts
-    if ! jq -e '.SuperLedgerConfiguration' "$contracts_file" >/dev/null 2>&1; then
-        log "ERROR" "SuperLedgerConfiguration not found in $contracts_file"
-        return 1
-    fi
+Prerequisites:
+    1. Run extract_configurable_oracles.sh first to create the oracle list
+    2. Ensure 1Password CLI is authenticated (op signin)
+    3. Ensure wallet account is imported: cast wallet import <name> --private-key <key>
 
-    log "INFO" "Deployment file validated: $contracts_file"
-    return 0
-}
+Examples:
+    $0 staging v2-deployer                    # Add oracles for staging
+    $0 staging v2-deployer simulate           # Simulate adding oracles (no broadcast)
+    $0 prod v2-deployer                       # Add oracles for production
 
-print_header
-
-# Ensure we're running from the repository root
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-
-# Change to repository root if not already there
-if [ "$(pwd)" != "$REPO_ROOT" ]; then
-    echo -e "${YELLOW}📁 Changing to repository root: $REPO_ROOT${NC}"
-    cd "$REPO_ROOT"
-fi
-
-# Check if first argument is "simulate"
-if [ "$1" = "simulate" ]; then
-    MODE="simulate"
-    shift # Remove "simulate" from arguments
-else
-    MODE="add"
-fi
-
-# Check if arguments are provided
-if [ $# -lt 5 ]; then
-    echo -e "${RED}❌ Error: Missing required arguments${NC}"
-    echo -e "${YELLOW}Usage: $0 [simulate] <environment> <chain_id> <network_name> <account> <salts> <oracle_addresses>${NC}"
-    echo -e "${CYAN}  simulate: Optional flag to run in simulation mode (no broadcast)${NC}"
-    echo -e "${CYAN}  environment: staging or prod${NC}"
-    echo -e "${CYAN}  chain_id: Network chain ID (e.g., 1 for Ethereum, 8453 for Base)${NC}"
-    echo -e "${CYAN}  network_name: Network name (e.g., Ethereum, Base, Optimism)${NC}"
-    echo -e "${CYAN}  account: foundry account name (e.g., v2-deployer, deployer, main)${NC}"
-    echo -e "${CYAN}  salts: Comma-separated list of salts (e.g., \"SUPER_VAULT_ORACLE,ANOTHER_ORACLE\")${NC}"
-    echo -e "${CYAN}  oracle_addresses: Comma-separated list of oracle addresses${NC}"
-    echo -e "${CYAN}Available accounts: $(cast wallet list 2>/dev/null | sed 's/ (Local)//' | tr '\n' ' ' || echo 'Run \"cast wallet list\" to see available accounts')${NC}"
-    echo -e "${CYAN}Examples:${NC}"
-    echo -e "${CYAN}  # Staging - Simulate first${NC}"
-    echo -e "${CYAN}  $0 simulate staging 1 Ethereum v2-deployer \"SUPER_VAULT_ORACLE\" \"0x1234...\"${NC}"
-    echo -e "${CYAN}  # Staging - Actually execute${NC}"
-    echo -e "${CYAN}  $0 staging 1 Ethereum v2-deployer \"SUPER_VAULT_ORACLE\" \"0x1234...\"${NC}"
-    echo -e "${CYAN}  # Production - Multiple oracles${NC}"
-    echo -e "${CYAN}  $0 prod 8453 Base v2-deployer \"SUPER_VAULT_ORACLE,PENDLE_ORACLE\" \"0x1234...,0x5678...\"${NC}"
+EOF
     exit 1
+}
+
+# ===== MAIN SCRIPT =====
+
+# Check arguments
+if [ $# -lt 2 ]; then
+    usage
 fi
 
 ENVIRONMENT=$1
-CHAIN_ID=$2
-NETWORK_NAME=$3
-ACCOUNT=$4
-SALTS_INPUT=$5
-ORACLE_ADDRESSES_INPUT=$6
+ACCOUNT=$2
+SIMULATE_MODE=""
 
 # Validate environment
 if [ "$ENVIRONMENT" != "staging" ] && [ "$ENVIRONMENT" != "prod" ]; then
-    echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"
-    echo -e "${YELLOW}Environment must be 'staging' or 'prod'${NC}"
+    log "ERROR" "Invalid environment: $ENVIRONMENT"
+    log "ERROR" "Environment must be 'staging' or 'prod'"
     exit 1
 fi
 
-# Set environment variable for forge script
-if [ "$ENVIRONMENT" = "staging" ]; then
-    FORGE_ENV=2
-else
-    FORGE_ENV=0
+# Check for simulate flag
+if [ $# -ge 3 ] && [ "$3" = "simulate" ]; then
+    SIMULATE_MODE="simulate"
+    log "INFO" "Running in SIMULATE mode (no broadcast)"
 fi
 
-###################################################################################
-# Load Network Configuration
-###################################################################################
+log "INFO" "Adding oracles to SuperLedgerConfiguration for environment: $ENVIRONMENT"
+log "INFO" "Using wallet account: $ACCOUNT"
 
-# Source the appropriate network configuration file
+# Get sender address from wallet
+SENDER_ADDRESS=$(get_wallet_address "$ACCOUNT")
+if [ $? -ne 0 ] || [ -z "$SENDER_ADDRESS" ]; then
+    log "ERROR" "Failed to get address from wallet account: $ACCOUNT"
+    log "ERROR" "Please ensure the wallet is imported: cast wallet import $ACCOUNT --private-key <key>"
+    exit 1
+fi
+
+log "INFO" "Sender address: $SENDER_ADDRESS"
+
+# Set forge environment
 if [ "$ENVIRONMENT" = "staging" ]; then
-    NETWORKS_FILE="$SCRIPT_DIR/networks-staging.sh"
-else
+    FORGE_ENV=2
+    ENV_DIR="staging"
+    ENV_ID="2"
+elif [ "$ENVIRONMENT" = "prod" ]; then
+    FORGE_ENV=0
+    ENV_DIR="production"
+    ENV_ID="0"
+fi
+
+# ===== LOAD NETWORK CONFIGURATION =====
+# Map environment to network file name
+if [ "$ENVIRONMENT" = "prod" ]; then
     NETWORKS_FILE="$SCRIPT_DIR/networks-production.sh"
+else
+    NETWORKS_FILE="$SCRIPT_DIR/networks-$ENVIRONMENT.sh"
 fi
 
 if [ ! -f "$NETWORKS_FILE" ]; then
@@ -142,180 +109,193 @@ if [ ! -f "$NETWORKS_FILE" ]; then
     exit 1
 fi
 
-log "INFO" "Sourcing network configuration from: $NETWORKS_FILE"
+log "INFO" "Loading network configuration from: $NETWORKS_FILE"
 source "$NETWORKS_FILE"
 
-# Validate network is supported
-if ! is_network_supported "$CHAIN_ID"; then
-    echo -e "${RED}❌ Network with chain ID $CHAIN_ID is not supported in $ENVIRONMENT environment${NC}"
-    echo -e "${YELLOW}Supported networks:${NC}"
-    print_network_info
-    exit 1
-fi
+# The networks file provides:
+# - NETWORKS array with network definitions
+# - get_network_name() function
+# - get_rpc_var() function
+# - get_rpc_url() function (uses RPC environment variables)
+# - load_rpc_urls() function (loads RPC URLs from 1Password)
+# - is_network_supported() function
 
-# Validate account exists in foundry wallet list
-if ! cast wallet list 2>/dev/null | sed 's/ (Local)//' | grep -q "^$ACCOUNT$"; then
-    echo -e "${RED}❌ Account '$ACCOUNT' not found in foundry wallet list${NC}"
-    echo -e "${YELLOW}Available accounts:${NC}"
-    cast wallet list 2>/dev/null | sed 's/ (Local)//' | sed 's/^/  • /' || echo -e "${RED}  No accounts found. Run 'cast wallet import' to add accounts.${NC}"
-    exit 1
-fi
-echo -e "${GREEN}✅ Account '$ACCOUNT' validated${NC}"
+log "INFO" "Network configuration loaded successfully"
 
-###################################################################################
-# Authentication Setup
-###################################################################################
-
-# Load RPC URLs from 1Password
+# Load RPC URLs from 1Password using the networks file function
 log "INFO" "Loading RPC URLs from 1Password..."
 if ! load_rpc_urls; then
     log "ERROR" "Failed to load RPC URLs from 1Password"
-    log "ERROR" "Please ensure 1Password CLI is installed and authenticated"
     exit 1
 fi
-log "INFO" "Successfully loaded RPC URLs"
+log "INFO" "RPC URLs loaded successfully"
 
-# Set flags based on mode
-if [ "$MODE" = "simulate" ]; then
-    echo -e "${YELLOW}🔍 Running in simulation mode for $ENVIRONMENT...${NC}"
-    echo -e "${CYAN}   - No broadcasting to network${NC}"
-    echo -e "${CYAN}   - Configuration will be simulated only${NC}"
-    BROADCAST_FLAG=""
-else
-    echo -e "${GREEN}🚀 Running in add mode for $ENVIRONMENT...${NC}"
-    echo -e "${CYAN}   - Broadcasting to network${NC}"
-    echo -e "${CYAN}   - Oracle will be added to SuperLedger${NC}"
-    BROADCAST_FLAG="--broadcast"
-fi
+# ===== LOAD ORACLE LIST =====
+ORACLE_LIST_FILE="$OUTPUT_DIR/$ENV_DIR/new_oracles_to_add"
 
-print_separator
-echo -e "${BLUE}🔧 Configuration Details...${NC}"
-echo -e "${CYAN}   • Environment: $ENVIRONMENT${NC}"
-echo -e "${CYAN}   • Chain ID: $CHAIN_ID${NC}"
-echo -e "${CYAN}   • Network: $NETWORK_NAME${NC}"
-echo -e "${CYAN}   • Mode: $MODE${NC}"
-echo -e "${CYAN}   • Account: $ACCOUNT${NC}"
-echo -e "${CYAN}   • Salts: $SALTS_INPUT${NC}"
-echo -e "${CYAN}   • Oracle Addresses: $ORACLE_ADDRESSES_INPUT${NC}"
-print_separator
-
-# Convert comma-separated strings to arrays
-IFS=',' read -ra SALTS_ARRAY <<< "$SALTS_INPUT"
-IFS=',' read -ra ORACLE_ADDRESSES_ARRAY <<< "$ORACLE_ADDRESSES_INPUT"
-
-# Validate arrays have same length
-if [ ${#SALTS_ARRAY[@]} -ne ${#ORACLE_ADDRESSES_ARRAY[@]} ]; then
-    echo -e "${RED}❌ Error: Number of salts (${#SALTS_ARRAY[@]}) does not match number of oracle addresses (${#ORACLE_ADDRESSES_ARRAY[@]})${NC}"
+if [ ! -f "$ORACLE_LIST_FILE" ]; then
+    log "ERROR" "Oracle list file not found: $ORACLE_LIST_FILE"
+    log "ERROR" "Please run extract_configurable_oracles.sh first:"
+    log "ERROR" "  sh script/run/extract_configurable_oracles.sh $ENVIRONMENT $ENVIRONMENT $ACCOUNT"
     exit 1
 fi
 
-echo -e "${CYAN}   • Number of oracles to add: ${#SALTS_ARRAY[@]}${NC}"
+log "INFO" "Loading oracle list from: $ORACLE_LIST_FILE"
 
-# Build the Forge script arguments
-# Convert arrays to bytes32[] and address[] format for Solidity
-SALTS_ARG="["
-ADDRESSES_ARG="["
-
-for i in "${!SALTS_ARRAY[@]}"; do
-    # Convert salt string to bytes32 format
-    SALT="${SALTS_ARRAY[$i]}"
-    # Trim whitespace
-    SALT=$(echo "$SALT" | xargs)
-
-    # Convert to bytes32 (will be handled by the script)
-    if [ $i -gt 0 ]; then
-        SALTS_ARG+=","
+# Read oracles from file (skip comments and empty lines)
+ORACLES_TO_ADD=()
+while IFS= read -r line; do
+    if [[ "$line" =~ ^#.*$ ]] || [ -z "$line" ]; then
+        continue
     fi
-    SALTS_ARG+="\"$SALT\""
+    ORACLES_TO_ADD+=("$line")
+done < "$ORACLE_LIST_FILE"
 
-    # Add address
-    ADDRESS="${ORACLE_ADDRESSES_ARRAY[$i]}"
-    # Trim whitespace
-    ADDRESS=$(echo "$ADDRESS" | xargs)
+if [ ${#ORACLES_TO_ADD[@]} -eq 0 ]; then
+    log "INFO" "No oracles to add (file is empty or contains only comments)"
+    exit 0
+fi
 
-    if [ $i -gt 0 ]; then
-        ADDRESSES_ARG+=","
-    fi
-    ADDRESSES_ARG+="$ADDRESS"
+log "INFO" "Found ${#ORACLES_TO_ADD[@]} oracle(s) to add:"
+for oracle in "${ORACLES_TO_ADD[@]}"; do
+    log "INFO" "  - $oracle"
 done
 
-SALTS_ARG+="]"
-ADDRESSES_ARG+="]"
+# ===== LOOP THROUGH ALL CHAINS =====
+for network_def in "${NETWORKS[@]}"; do
+    IFS=':' read -r CHAIN_ID CHAIN_NAME RPC_VAR <<< "$network_def"
 
-echo -e "${CYAN}   • Salts Array: $SALTS_ARG${NC}"
-echo -e "${CYAN}   • Addresses Array: $ADDRESSES_ARG${NC}"
-print_separator
+    log "INFO" ""
+    log "INFO" "=========================================="
+    log "INFO" "Processing chain: $CHAIN_NAME (ID: $CHAIN_ID)"
+    log "INFO" "=========================================="
 
-# Check deployment files
-echo -e "${BLUE}🔍 Validating deployment files...${NC}"
-check_deployment_files "$ENVIRONMENT" "$NETWORK_NAME" "$CHAIN_ID"
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-echo -e "${GREEN}✅ Deployment files validated${NC}"
-print_separator
+    # Get RPC URL using the function from networks file or direct variable
+    RPC_URL=$(get_rpc_url "$CHAIN_ID" 2>/dev/null) || RPC_URL="${!RPC_VAR}"
 
-# Get RPC URL from network configuration
-RPC_URL=$(get_rpc_url "$CHAIN_ID")
+    if [ -z "$RPC_URL" ]; then
+        log "ERROR" "Failed to get RPC URL for chain $CHAIN_ID, skipping..."
+        continue
+    fi
+    log "INFO" "RPC URL configured"
 
-# Validate RPC URL is set
-if [ -z "$RPC_URL" ]; then
-    echo -e "${RED}❌ Error: RPC_URL not set for chain ID $CHAIN_ID${NC}"
-    echo -e "${YELLOW}Please set the RPC_URL environment variable or ensure 1Password CLI is configured.${NC}"
-    echo -e "${CYAN}Options:${NC}"
-    echo -e "${CYAN}  1. Use 1Password CLI: op signin${NC}"
-    echo -e "${CYAN}  2. Set specific RPC URL: export RPC_URL=\"your-rpc-url\"${NC}"
-    echo -e "${CYAN}  3. Set network-specific variable:${NC}"
-    RPC_VAR=$(get_rpc_var "$CHAIN_ID")
-    echo -e "${CYAN}     - export $RPC_VAR=\"your-rpc\"${NC}"
-    exit 1
-fi
+    # Load deployment output for this chain
+    OUTPUT_FILE="$OUTPUT_DIR/$ENV_DIR/$ENV_ID/${CHAIN_NAME}-latest.json"
+    if [ ! -f "$OUTPUT_FILE" ]; then
+        log "WARN" "Output file not found: $OUTPUT_FILE, skipping chain..."
+        continue
+    fi
 
-# Load Etherscan API key for verification
-echo -e "${CYAN}   • Loading Etherscan API key for verification...${NC}"
-if ! load_etherscan_api_key; then
-    log "WARN" "Could not load Etherscan API key - contract verification may not work"
-else
-    echo -e "${GREEN}✅ Etherscan API key loaded${NC}"
-fi
+    log "INFO" "Loading deployment output: $OUTPUT_FILE"
 
-print_network_header "${NETWORK_NAME^^}"
-echo -e "${CYAN}   Chain ID: ${WHITE}$CHAIN_ID${NC}"
-echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
-echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-echo -e "${YELLOW}   Executing forge script...${NC}"
+    # Read SuperLedgerConfiguration address
+    CONFIG_ADDRESS=$(jq -r '.SuperLedgerConfiguration' "$OUTPUT_FILE")
+    if [ -z "$CONFIG_ADDRESS" ] || [ "$CONFIG_ADDRESS" = "null" ]; then
+        log "ERROR" "SuperLedgerConfiguration address not found in output, skipping chain..."
+        continue
+    fi
+    log "INFO" "SuperLedgerConfiguration: $CONFIG_ADDRESS"
 
-# Always use the unified signature with all parameters (empty strings for optional ones)
-SALT_NS="${SALT_NAMESPACE:-}"
-BRANCH="${BRANCH_NAME:-}"
+    # Build arrays for oracles to add on this chain
+    SALTS_TO_ADD=()
+    ADDRESSES_TO_ADD=()
+    ORACLES_ADDED=()
 
-forge script script/AddToSuperLedgerConfiguration.s.sol:AddToSuperLedgerConfiguration \
-    --sig 'run(uint256,uint64,string,string,string[],address[])' $FORGE_ENV $CHAIN_ID "$SALT_NS" "$BRANCH" "$SALTS_ARG" "$ADDRESSES_ARG" \
-    --account $ACCOUNT \
-    --rpc-url "$RPC_URL" \
-    --chain $CHAIN_ID \
-    --etherscan-api-key $ETHERSCANV2_API_KEY \
-    --verifier etherscan \
-    $BROADCAST_FLAG \
-    --slow \
-    -vv
+    for oracle_name in "${ORACLES_TO_ADD[@]}"; do
+        log "INFO" "Processing oracle: $oracle_name"
 
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✅ $NETWORK_NAME configuration completed successfully!${NC}"
-else
-    echo -e "${RED}❌ Configuration failed!${NC}"
-    exit 1
-fi
+        # Get oracle address from output file
+        oracle_address=$(jq -r ".[\"$oracle_name\"]" "$OUTPUT_FILE")
+        if [ -z "$oracle_address" ] || [ "$oracle_address" = "null" ]; then
+            log "WARN" "Oracle $oracle_name not found in deployment output, skipping..."
+            continue
+        fi
+        log "INFO" "  Address: $oracle_address"
 
-print_separator
-echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║                                                                                      ║${NC}"
-echo -e "${GREEN}║${WHITE}            🎉 Oracle Addition to SuperLedger $MODE Completed! 🎉                  ${GREEN}║${NC}"
-echo -e "${GREEN}║                                                                                      ║${NC}"
-echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+        # Get oracle salt
+        oracle_salt=$(get_oracle_salt "$oracle_name")
+        log "INFO" "  Salt: $oracle_salt"
 
-echo -e "${CYAN}🔧 Added ${#SALTS_ARRAY[@]} oracle(s) to SuperLedger configuration on:${NC}"
-echo -e "${CYAN}   • $NETWORK_NAME (Chain ID: $CHAIN_ID)${NC}"
-echo -e "${CYAN}🔑 Transaction signed with account: $ACCOUNT${NC}"
-print_separator
+        # Compute oracle ID
+        oracle_id=$(compute_oracle_id "$oracle_salt" "$SENDER_ADDRESS")
+        log "INFO" "  Oracle ID: $oracle_id"
+
+        # Check if already configured
+        if check_oracle_configured "$RPC_URL" "$CONFIG_ADDRESS" "$oracle_id"; then
+            log "INFO" "  Status: Already configured, skipping"
+            continue
+        fi
+
+        # Add to arrays
+        SALTS_TO_ADD+=("$oracle_salt")
+        ADDRESSES_TO_ADD+=("$oracle_address")
+        ORACLES_ADDED+=("$oracle_name")
+        log "INFO" "  Status: Will add to configuration"
+    done
+
+    # Check if there are oracles to add
+    if [ ${#SALTS_TO_ADD[@]} -eq 0 ]; then
+        log "INFO" "All oracles already configured on chain $CHAIN_NAME, skipping..."
+        continue
+    fi
+
+    log "INFO" "Will add ${#SALTS_TO_ADD[@]} oracle(s) on chain $CHAIN_NAME:"
+    for oracle in "${ORACLES_ADDED[@]}"; do
+        log "INFO" "  - $oracle"
+    done
+
+    # Build forge script arguments
+    SALTS_ARG="["
+    for i in "${!SALTS_TO_ADD[@]}"; do
+        if [ $i -gt 0 ]; then
+            SALTS_ARG+=","
+        fi
+        SALTS_ARG+="\"${SALTS_TO_ADD[$i]}\""
+    done
+    SALTS_ARG+="]"
+
+    ADDRESSES_ARG="["
+    for i in "${!ADDRESSES_TO_ADD[@]}"; do
+        if [ $i -gt 0 ]; then
+            ADDRESSES_ARG+=","
+        fi
+        ADDRESSES_ARG+="${ADDRESSES_TO_ADD[$i]}"
+    done
+    ADDRESSES_ARG+="]"
+
+    # Determine broadcast flag
+    BROADCAST_FLAG=""
+    if [ -z "$SIMULATE_MODE" ]; then
+        BROADCAST_FLAG="--broadcast"
+    fi
+
+    log "INFO" "Executing forge script..."
+    log "INFO" "  Salts: $SALTS_ARG"
+    log "INFO" "  Addresses: $ADDRESSES_ARG"
+
+    # Execute forge script with wallet account authentication
+    # Note: Empty strings for salt namespace and branch name for staging/prod
+    forge script script/AddToSuperLedgerConfiguration.s.sol:AddToSuperLedgerConfiguration \
+        --sig 'run(uint256,uint64,string,string,string[],address[])' \
+        $FORGE_ENV \
+        $CHAIN_ID \
+        "" \
+        "" \
+        "$SALTS_ARG" \
+        "$ADDRESSES_ARG" \
+        --rpc-url "$RPC_URL" \
+        --account "$ACCOUNT" \
+        $BROADCAST_FLAG \
+        -vv
+
+    if [ $? -eq 0 ]; then
+        log "INFO" "Successfully processed chain $CHAIN_NAME"
+    else
+        log "ERROR" "Failed to process chain $CHAIN_NAME"
+    fi
+done
+
+log "INFO" ""
+log "INFO" "=========================================="
+log "INFO" "Completed processing all chains"
+log "INFO" "=========================================="

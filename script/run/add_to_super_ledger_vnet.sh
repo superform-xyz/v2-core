@@ -1,375 +1,390 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-# Colors for better visual output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-WHITE='\033[1;37m'
-NC='\033[0m' # No Color
+# add_to_super_ledger_vnet.sh
+# Purpose: Add new oracles to SuperLedgerConfiguration for vnet deployments
+# Usage: sh script/run/add_to_super_ledger_vnet.sh <branch_name> [simulate]
 
-# Function to print colored header
-print_header() {
-    echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║                                                                                      ║${NC}"
-    echo -e "${CYAN}║${WHITE}          🔧 Add To SuperLedger Configuration Script (VNET) 🔧                    ${CYAN}║${NC}"
-    echo -e "${CYAN}║                                                                                      ║${NC}"
-    echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-}
+set -e
 
-# Function to print section separator
-print_separator() {
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-}
+# ===== CONFIGURATION =====
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+OUTPUT_DIR="$PROJECT_ROOT/script/output"
 
-# Function to print network configuration header
-print_network_header() {
-    local network=$1
-    echo -e "${PURPLE}╭─────────────────────────────────────────────────────────────────────────────────────╮${NC}"
-    echo -e "${PURPLE}│${WHITE}                 🔧 Adding Oracle to SuperLedger on ${network} Network 🔧            ${PURPLE}│${NC}"
-    echo -e "${PURPLE}╰─────────────────────────────────────────────────────────────────────────────────────╯${NC}"
-}
+FORGE_ENV=1  # vnet environment
 
-# Logging function for consistent output
+# ===== LOAD SHARED UTILITIES =====
+source "$SCRIPT_DIR/oracle-utils.sh"
+source "$SCRIPT_DIR/networks-staging.sh"
+source "$SCRIPT_DIR/networks-production.sh"
+
+# ===== HELPER FUNCTIONS =====
 log() {
     local level=$1
     shift
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] [$level] $*" >&2
+    echo "[$level] $*" >&2
 }
 
-# Function to check if output files exist for configuration
-check_deployment_files() {
-    local network_name=$1
-    local network_id=$2
-    local branch_name=$3
-
-    local contracts_file="script/output/$branch_name/$network_id/$network_name-latest.json"
-
-    if [ ! -f "$contracts_file" ]; then
-        log "ERROR" "Deployment file not found: $contracts_file"
-        log "ERROR" "Please ensure the core contracts have been deployed first"
-        return 1
-    fi
-
-    # Validate the file contains required contracts
-    if ! jq -e '.SuperLedgerConfiguration' "$contracts_file" >/dev/null 2>&1; then
-        log "ERROR" "SuperLedgerConfiguration not found in $contracts_file"
-        return 1
-    fi
-
-    log "INFO" "Deployment file validated: $contracts_file"
-    return 0
-}
-
-print_header
-
-# Ensure we're running from the repository root
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-
-# Change to repository root if not already there
-if [ "$(pwd)" != "$REPO_ROOT" ]; then
-    echo -e "${YELLOW}📁 Changing to repository root: $REPO_ROOT${NC}"
-    cd "$REPO_ROOT"
-fi
-
-# Tenderly Configuration
-API_BASE_URL="https://api.tenderly.co/api/v1"
-TENDERLY_ACCOUNT="superform"
-TENDERLY_PROJECT="v2"
-
-# Hardcoded VNET networks (based on deploy_v2_vnet_s3.sh)
-declare -A VNET_NETWORKS
-VNET_NETWORKS["Ethereum"]="1"
-VNET_NETWORKS["Base"]="8453"
-VNET_NETWORKS["Optimism"]="10"
-
-# Function to generate slug for vnet
-generate_slug() {
-    local network=$1
-    local branch=$2
-    local output="${branch//\//-}-${network}"
-    # Convert to lowercase, replace spaces with hyphens, remove special chars
-    output=$(echo "$output" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g')
-    echo "$output"
-}
-
-# Function to get network name slug for Tenderly
-get_network_slug() {
-    local chain_id=$1
-    case "$chain_id" in
-        1) echo "ethereum" ;;
-        8453) echo "base" ;;
-        10) echo "optimism" ;;
-        *) echo "unknown" ;;
-    esac
-}
-
-# Function to get vnet RPC URL from Tenderly
+# Get vnet RPC URL by querying S3 latest.json and then Tenderly API
 get_vnet_rpc_url() {
     local branch_name=$1
     local chain_id=$2
     local access_key=$3
 
-    if [ -z "$access_key" ]; then
-        log "ERROR" "Tenderly access key not provided"
+    # Get network name using shared function from networks files
+    local network_name=$(get_network_name "$chain_id" 2>/dev/null)
+    if [ $? -ne 0 ] || [ -z "$network_name" ]; then
+        log "ERROR" "Unknown chain ID: $chain_id"
         return 1
     fi
 
-    local network_slug=$(get_network_slug "$chain_id")
-    local slug=$(generate_slug "$network_slug" "$branch_name")
+    log "INFO" "Fetching vnet RPC for $network_name (Chain ID: $chain_id)"
 
-    log "INFO" "Looking up vnet with slug: $slug"
-
-    # Get list of all VNETs from Tenderly
-    local vnet_list
-    vnet_list=$(curl -s -X GET \
-        "${API_BASE_URL}/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/vnets" \
-        -H "X-Access-Key: ${access_key}")
-
-    # Find vnet with matching slug
-    local vnet_id
-    vnet_id=$(echo "$vnet_list" | jq -r --arg slug "$slug" '.[] | select(.slug==$slug) | .id // empty')
-
-    if [ -z "$vnet_id" ]; then
-        log "ERROR" "No vnet found with slug: $slug"
+    # Read VNET ID from S3 latest.json
+    local vnet_latest_path="/tmp/vnet_latest_${branch_name}_$$.json"
+    if ! aws s3 cp "s3://vnet-state/$branch_name/latest.json" "$vnet_latest_path" --quiet 2>/dev/null; then
+        log "ERROR" "Failed to download latest.json from S3 for branch: $branch_name"
         return 1
     fi
 
-    log "INFO" "Found vnet with ID: $vnet_id"
+    local vnet_id=$(jq -r ".networks[\"$network_name\"].vnet_id" "$vnet_latest_path")
 
-    # Get vnet details to extract RPC URL
-    local vnet_details
-    vnet_details=$(curl -s -X GET \
-        "${API_BASE_URL}/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/vnets/${vnet_id}" \
-        -H "X-Access-Key: ${access_key}")
-
-    # Extract Admin RPC URL
-    local admin_rpc
-    admin_rpc=$(echo "$vnet_details" | jq -r '.rpcs[] | select(.name=="Admin RPC") | .url')
-
-    if [ -n "$admin_rpc" ]; then
-        log "INFO" "Successfully extracted admin RPC: $admin_rpc"
-        echo "$admin_rpc"
-        return 0
-    else
-        log "ERROR" "Could not extract Admin RPC from vnet details"
+    if [ -z "$vnet_id" ] || [ "$vnet_id" = "null" ]; then
+        log "ERROR" "Could not find VNET ID for $network_name in S3 latest.json"
         return 1
     fi
+
+    log "INFO" "Found VNET ID: $vnet_id"
+
+    # Get RPC URL from Tenderly API using VNET ID
+    local vnet_details=$(curl -s -X GET \
+        "https://api.tenderly.co/api/v1/account/superform/project/v2/vnets/$vnet_id" \
+        -H "X-Access-Key: $access_key")
+
+    if echo "$vnet_details" | grep -q "error"; then
+        log "ERROR" "Failed to fetch vnet details for VNET ID: $vnet_id"
+        log "ERROR" "Response: $vnet_details"
+        return 1
+    fi
+
+    local rpc_url=$(echo "$vnet_details" | jq -r '.rpcs[] | select(.name=="Admin RPC") | .url')
+
+    if [ -z "$rpc_url" ] || [ "$rpc_url" = "null" ]; then
+        log "ERROR" "Could not extract RPC URL from VNET details for $vnet_id"
+        return 1
+    fi
+
+    echo "$rpc_url"
 }
 
-# Check if first argument is "simulate"
-if [ "$1" = "simulate" ]; then
-    MODE="simulate"
-    shift # Remove "simulate" from arguments
+# Alias get_chain_name to get_network_name for compatibility
+get_chain_name() {
+    get_network_name "$1"
+}
+
+# ===== USAGE =====
+usage() {
+    cat << EOF
+Usage: $0 <branch_name> [simulate]
+
+Add new oracles to SuperLedgerConfiguration for vnet deployments.
+Automatically loops through all chains and checks if oracles are configured.
+
+Arguments:
+    branch_name     Branch name for vnet (e.g., "demo")
+    simulate        Optional: Run in simulation mode without broadcasting
+
+Prerequisites:
+    1. Run extract_configurable_oracles.sh first to create the oracle list
+    2. Ensure 1Password CLI is authenticated (op signin)
+
+Examples:
+    $0 demo                    # Add oracles for demo vnet
+    $0 demo simulate           # Simulate adding oracles (no broadcast)
+
+EOF
+    exit 1
+}
+
+# ===== MAIN SCRIPT =====
+
+# Check arguments
+if [ $# -lt 1 ]; then
+    usage
+fi
+
+BRANCH_NAME=$1
+SIMULATE_MODE=""
+
+# Check for simulate flag
+if [ $# -ge 2 ] && [ "$2" = "simulate" ]; then
+    SIMULATE_MODE="simulate"
+    log "INFO" "Running in SIMULATE mode (no broadcast)"
+fi
+
+log "INFO" "Adding oracles to SuperLedgerConfiguration for branch: $BRANCH_NAME"
+
+# ===== LOAD CREDENTIALS FROM 1PASSWORD =====
+log "INFO" "Loading credentials from 1Password..."
+
+# Try to read from environment variable first, then from 1Password
+if [ -n "$TENDERLY_ACCESS_KEY" ]; then
+    log "INFO" "Using TENDERLY_ACCESS_KEY from environment variable"
 else
-    MODE="add"
+    TENDERLY_ACCESS_KEY=$(op read "op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY_V2/credential" 2>/dev/null) || {
+        log "ERROR" "Failed to read TENDERLY_ACCESS_KEY from 1Password"
+        log "ERROR" "Please ensure 1Password CLI is authenticated: op signin"
+        log "ERROR" "Or set TENDERLY_ACCESS_KEY environment variable"
+        exit 1
+    }
+    log "INFO" "Successfully loaded Tenderly access key from 1Password"
 fi
 
-# Check if arguments are provided
-if [ $# -lt 4 ]; then
-    echo -e "${RED}❌ Error: Missing required arguments${NC}"
-    echo -e "${YELLOW}Usage: $0 [simulate] <chain_id> <network_name> <branch_name> <salts> <oracle_addresses>${NC}"
-    echo -e "${CYAN}  simulate: Optional flag to run in simulation mode (no broadcast)${NC}"
-    echo -e "${CYAN}  chain_id: Network chain ID (e.g., 1 for Ethereum, 8453 for Base)${NC}"
-    echo -e "${CYAN}  network_name: Network name (e.g., Ethereum, Base, Optimism)${NC}"
-    echo -e "${CYAN}  branch_name: Branch name for vnet deployments (e.g., demo, dev, local)${NC}"
-    echo -e "${CYAN}  salts: Comma-separated list of salts (e.g., \"SUPER_VAULT_ORACLE,ANOTHER_ORACLE\")${NC}"
-    echo -e "${CYAN}  oracle_addresses: Comma-separated list of oracle addresses${NC}"
-    echo -e "${CYAN}Examples:${NC}"
-    echo -e "${CYAN}  # VNET - Simulate first${NC}"
-    echo -e "${CYAN}  $0 simulate 1 Ethereum demo \"SUPER_VAULT_ORACLE\" \"0x1234...\"${NC}"
-    echo -e "${CYAN}  # VNET - Actually execute${NC}"
-    echo -e "${CYAN}  $0 1 Ethereum demo \"SUPER_VAULT_ORACLE\" \"0x1234...\"${NC}"
-    echo -e "${CYAN}  # Multiple oracles${NC}"
-    echo -e "${CYAN}  $0 8453 Base demo \"SUPER_VAULT_ORACLE,PENDLE_ORACLE\" \"0x1234...,0x5678...\"${NC}"
+# ===== LOAD ORACLE LIST =====
+ORACLE_LIST_FILE="$OUTPUT_DIR/$BRANCH_NAME/new_oracles_to_add"
+
+if [ ! -f "$ORACLE_LIST_FILE" ]; then
+    log "ERROR" "Oracle list file not found: $ORACLE_LIST_FILE"
+    log "ERROR" "Please run extract_configurable_oracles.sh first:"
+    log "ERROR" "  sh script/run/extract_configurable_oracles.sh $BRANCH_NAME"
     exit 1
 fi
 
-CHAIN_ID=$1
-NETWORK_NAME=$2
-BRANCH_NAME=$3
-SALTS_INPUT=$4
-ORACLE_ADDRESSES_INPUT=$5
+log "INFO" "Loading oracle list from: $ORACLE_LIST_FILE"
 
-# Set environment variable for forge script (always vnet)
-FORGE_ENV=1
-
-###################################################################################
-# Authentication Setup
-###################################################################################
-
-# Load Tenderly credentials from 1Password
-log "INFO" "Loading Tenderly credentials from 1Password..."
-TENDERLY_ACCESS_KEY=$(op read "op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY_V2/credential")
-if [ -z "$TENDERLY_ACCESS_KEY" ]; then
-    log "ERROR" "Failed to read Tenderly access key from 1Password"
-    log "ERROR" "Please ensure 1Password CLI is installed and authenticated"
-    exit 1
-fi
-log "INFO" "Successfully loaded Tenderly credentials"
-
-# Validate network is supported
-if [ -z "${VNET_NETWORKS[$NETWORK_NAME]}" ]; then
-    echo -e "${RED}❌ Invalid network: $NETWORK_NAME${NC}"
-    echo -e "${YELLOW}Supported VNET networks: ${!VNET_NETWORKS[@]}${NC}"
-    exit 1
-fi
-
-# Validate chain ID matches network
-if [ "${VNET_NETWORKS[$NETWORK_NAME]}" != "$CHAIN_ID" ]; then
-    echo -e "${RED}❌ Chain ID mismatch: $NETWORK_NAME should have chain ID ${VNET_NETWORKS[$NETWORK_NAME]}, not $CHAIN_ID${NC}"
-    exit 1
-fi
-
-# Set flags based on mode
-if [ "$MODE" = "simulate" ]; then
-    echo -e "${YELLOW}🔍 Running in simulation mode for vnet...${NC}"
-    echo -e "${CYAN}   - No broadcasting to network${NC}"
-    echo -e "${CYAN}   - Configuration will be simulated only${NC}"
-    BROADCAST_FLAG=""
-else
-    echo -e "${GREEN}🚀 Running in add mode for vnet...${NC}"
-    echo -e "${CYAN}   - Broadcasting to network${NC}"
-    echo -e "${CYAN}   - Oracle will be added to SuperLedger${NC}"
-    BROADCAST_FLAG="--broadcast"
-fi
-
-print_separator
-echo -e "${BLUE}🔧 Configuration Details...${NC}"
-echo -e "${CYAN}   • Environment: vnet${NC}"
-echo -e "${CYAN}   • Chain ID: $CHAIN_ID${NC}"
-echo -e "${CYAN}   • Network: $NETWORK_NAME${NC}"
-echo -e "${CYAN}   • Branch Name: $BRANCH_NAME${NC}"
-echo -e "${CYAN}   • Mode: $MODE${NC}"
-echo -e "${CYAN}   • Salts: $SALTS_INPUT${NC}"
-echo -e "${CYAN}   • Oracle Addresses: $ORACLE_ADDRESSES_INPUT${NC}"
-print_separator
-
-# Convert comma-separated strings to arrays
-IFS=',' read -ra SALTS_ARRAY <<< "$SALTS_INPUT"
-IFS=',' read -ra ORACLE_ADDRESSES_ARRAY <<< "$ORACLE_ADDRESSES_INPUT"
-
-# Validate arrays have same length
-if [ ${#SALTS_ARRAY[@]} -ne ${#ORACLE_ADDRESSES_ARRAY[@]} ]; then
-    echo -e "${RED}❌ Error: Number of salts (${#SALTS_ARRAY[@]}) does not match number of oracle addresses (${#ORACLE_ADDRESSES_ARRAY[@]})${NC}"
-    exit 1
-fi
-
-echo -e "${CYAN}   • Number of oracles to add: ${#SALTS_ARRAY[@]}${NC}"
-
-# Build the Forge script arguments
-# Convert arrays to bytes32[] and address[] format for Solidity
-SALTS_ARG="["
-ADDRESSES_ARG="["
-
-for i in "${!SALTS_ARRAY[@]}"; do
-    # Convert salt string to bytes32 format
-    SALT="${SALTS_ARRAY[$i]}"
-    # Trim whitespace
-    SALT=$(echo "$SALT" | xargs)
-
-    # Convert to bytes32 (will be handled by the script)
-    if [ $i -gt 0 ]; then
-        SALTS_ARG+=","
+# Read oracles from file (skip comments and empty lines)
+ORACLES_TO_ADD=()
+while IFS= read -r line; do
+    # Skip comments and empty lines
+    if [[ "$line" =~ ^#.*$ ]] || [ -z "$line" ]; then
+        continue
     fi
-    SALTS_ARG+="\"$SALT\""
+    # Trim whitespace and carriage returns
+    line=$(echo "$line" | tr -d '\r' | xargs)
+    ORACLES_TO_ADD+=("$line")
+done < "$ORACLE_LIST_FILE"
 
-    # Add address
-    ADDRESS="${ORACLE_ADDRESSES_ARRAY[$i]}"
-    # Trim whitespace
-    ADDRESS=$(echo "$ADDRESS" | xargs)
+if [ ${#ORACLES_TO_ADD[@]} -eq 0 ]; then
+    log "INFO" "No oracles to add (file is empty or contains only comments)"
+    exit 0
+fi
 
-    if [ $i -gt 0 ]; then
-        ADDRESSES_ARG+=","
-    fi
-    ADDRESSES_ARG+="$ADDRESS"
+log "INFO" "Found ${#ORACLES_TO_ADD[@]} oracle(s) to add:"
+for oracle in "${ORACLES_TO_ADD[@]}"; do
+    log "INFO" "  - $oracle"
 done
 
-SALTS_ARG+="]"
-ADDRESSES_ARG+="]"
+# ===== DEFINE VNET CHAINS =====
+# All chains for vnet deployments
+VNET_CHAINS=(
+    "1"       # Ethereum
+    "8453"    # Base
+    "10"      # Optimism
+)
 
-echo -e "${CYAN}   • Salts Array: $SALTS_ARG${NC}"
-echo -e "${CYAN}   • Addresses Array: $ADDRESSES_ARG${NC}"
-print_separator
+# ===== DETERMINE SALT NAMESPACE =====
+SALT_NAMESPACE="$BRANCH_NAME"
+log "INFO" "Using salt namespace: $SALT_NAMESPACE"
+log "INFO" ""
 
-# Check deployment files
-echo -e "${BLUE}🔍 Validating deployment files...${NC}"
-check_deployment_files "$NETWORK_NAME" "$CHAIN_ID" "$BRANCH_NAME"
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-echo -e "${GREEN}✅ Deployment files validated${NC}"
-print_separator
+# ===== PHASE 1: COLLECT ALL CHANGES =====
+log "INFO" "Analyzing changes across all chains..."
+log "INFO" ""
 
-# Get salt namespace from environment variable or derive from network
-if [ -z "${SALT_NAMESPACE:-}" ]; then
-    case "$CHAIN_ID" in
-        1)
-            SALT_NAMESPACE=$(grep -oP 'ETH_SALT="\K[^"]+' script/run/deploy_v2_vnet_s3.sh 2>/dev/null || echo "")
-            ;;
-        8453)
-            SALT_NAMESPACE=$(grep -oP 'BASE_SALT="\K[^"]+' script/run/deploy_v2_vnet_s3.sh 2>/dev/null || echo "")
-            ;;
-        10)
-            SALT_NAMESPACE=$(grep -oP 'OPTIMISM_SALT="\K[^"]+' script/run/deploy_v2_vnet_s3.sh 2>/dev/null || echo "")
-            ;;
-        *)
-            SALT_NAMESPACE=""
-            ;;
-    esac
+# Data structure to store changes per chain
+declare -A CHAIN_CHANGES  # chain_id -> oracle count
+declare -A CHAIN_ORACLES  # chain_id -> oracle names (comma separated)
+declare -A CHAIN_SALTS    # chain_id -> salts (comma separated)
+declare -A CHAIN_ADDRESSES # chain_id -> addresses (comma separated)
+declare -A CHAIN_RPC      # chain_id -> RPC URL
+declare -A CHAIN_CONFIG   # chain_id -> config address
 
-    # If still empty and we have a branch name, use the branch name as salt namespace
-    if [ -z "$SALT_NAMESPACE" ] && [ -n "$BRANCH_NAME" ]; then
-        SALT_NAMESPACE="$BRANCH_NAME"
-        log "INFO" "Using branch name as salt namespace: $SALT_NAMESPACE"
+TOTAL_CHANGES=0
+
+for CHAIN_ID in "${VNET_CHAINS[@]}"; do
+    CHAIN_NAME=$(get_chain_name "$CHAIN_ID")
+
+    # Get RPC URL for this chain (silently)
+    RPC_URL=$(get_vnet_rpc_url "$BRANCH_NAME" "$CHAIN_ID" "$TENDERLY_ACCESS_KEY" 2>/dev/null)
+    if [ $? -ne 0 ] || [ -z "$RPC_URL" ]; then
+        continue
     fi
+
+    # Load deployment output for this chain
+    OUTPUT_FILE="$OUTPUT_DIR/$BRANCH_NAME/$CHAIN_ID/${CHAIN_NAME}-latest.json"
+    if [ ! -f "$OUTPUT_FILE" ]; then
+        continue
+    fi
+
+    # Read SuperLedgerConfiguration address
+    CONFIG_ADDRESS=$(jq -r '.SuperLedgerConfiguration' "$OUTPUT_FILE" 2>/dev/null)
+    if [ -z "$CONFIG_ADDRESS" ] || [ "$CONFIG_ADDRESS" = "null" ]; then
+        continue
+    fi
+
+    # Get sender address
+    SENDER_ADDRESS="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+
+    # Build arrays for oracles to add on this chain
+    SALTS_TO_ADD=()
+    ADDRESSES_TO_ADD=()
+    ORACLES_ADDED=()
+
+    for oracle_name in "${ORACLES_TO_ADD[@]}"; do
+        # Get oracle address from output file
+        oracle_address=$(jq -r ".[\"$oracle_name\"]" "$OUTPUT_FILE" 2>/dev/null)
+        if [ -z "$oracle_address" ] || [ "$oracle_address" = "null" ]; then
+            continue
+        fi
+
+        # Get oracle salt
+        oracle_salt=$(get_oracle_salt "$oracle_name")
+
+        # Compute oracle ID
+        oracle_id=$(compute_oracle_id "$oracle_salt" "$SENDER_ADDRESS")
+
+        # Check if already configured (silently)
+        if check_oracle_configured "$RPC_URL" "$CONFIG_ADDRESS" "$oracle_id" 2>/dev/null; then
+            continue
+        fi
+
+        # Add to arrays
+        SALTS_TO_ADD+=("$oracle_salt")
+        ADDRESSES_TO_ADD+=("$oracle_address")
+        ORACLES_ADDED+=("$oracle_name")
+    done
+
+    # Store chain data if there are oracles to add
+    if [ ${#ORACLES_ADDED[@]} -gt 0 ]; then
+        CHAIN_CHANGES[$CHAIN_ID]=${#ORACLES_ADDED[@]}
+        CHAIN_ORACLES[$CHAIN_ID]=$(IFS=,; echo "${ORACLES_ADDED[*]}")
+        CHAIN_SALTS[$CHAIN_ID]=$(IFS=,; echo "${SALTS_TO_ADD[*]}")
+        CHAIN_ADDRESSES[$CHAIN_ID]=$(IFS=,; echo "${ADDRESSES_TO_ADD[*]}")
+        CHAIN_RPC[$CHAIN_ID]="$RPC_URL"
+        CHAIN_CONFIG[$CHAIN_ID]="$CONFIG_ADDRESS"
+        TOTAL_CHANGES=$((TOTAL_CHANGES + ${#ORACLES_ADDED[@]}))
+    fi
+done
+
+# ===== PHASE 2: DISPLAY SUMMARY =====
+log "INFO" ""
+log "INFO" "=========================================="
+log "INFO" "SUMMARY OF CHANGES"
+log "INFO" "=========================================="
+log "INFO" ""
+
+if [ $TOTAL_CHANGES -eq 0 ]; then
+    log "INFO" "No changes needed - all oracles are already configured on all chains."
+    exit 0
 fi
 
-# Get RPC URL from Tenderly vnet
-echo -e "${CYAN}🔍 Fetching vnet RPC URL from Tenderly...${NC}"
-RPC_URL=$(get_vnet_rpc_url "$BRANCH_NAME" "$CHAIN_ID" "$TENDERLY_ACCESS_KEY")
-if [ $? -ne 0 ] || [ -z "$RPC_URL" ]; then
-    echo -e "${RED}❌ Error: Failed to get vnet RPC URL from Tenderly${NC}"
-    exit 1
-fi
+log "INFO" "Total oracle configurations to add: $TOTAL_CHANGES"
+log "INFO" ""
 
-print_network_header "${NETWORK_NAME^^}"
-echo -e "${CYAN}   Chain ID: ${WHITE}$CHAIN_ID${NC}"
-echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-echo -e "${CYAN}   Environment: ${WHITE}vnet${NC}"
-echo -e "${CYAN}   Branch Name: ${WHITE}$BRANCH_NAME${NC}"
-if [ -n "$SALT_NAMESPACE" ]; then
-    echo -e "${CYAN}   Salt Namespace: ${WHITE}$SALT_NAMESPACE${NC}"
-fi
-echo -e "${YELLOW}   Executing forge script...${NC}"
+for CHAIN_ID in "${VNET_CHAINS[@]}"; do
+    if [ -n "${CHAIN_CHANGES[$CHAIN_ID]}" ]; then
+        CHAIN_NAME=$(get_chain_name "$CHAIN_ID")
+        count=${CHAIN_CHANGES[$CHAIN_ID]}
+        oracles=${CHAIN_ORACLES[$CHAIN_ID]}
 
-# Set defaults for optional parameters
-SALT_NS="${SALT_NAMESPACE:-}"
-BRANCH="${BRANCH_NAME:-}"
+        log "INFO" "$CHAIN_NAME (Chain ID: $CHAIN_ID)"
+        log "INFO" "  Oracle configurations to add: $count"
+        IFS=',' read -ra oracle_array <<< "$oracles"
+        for oracle in "${oracle_array[@]}"; do
+            log "INFO" "    - $oracle"
+        done
+        log "INFO" ""
+    fi
+done
 
-forge script script/AddToSuperLedgerConfiguration.s.sol:AddToSuperLedgerConfiguration \
-    --sig 'run(uint256,uint64,string,string,string[],address[])' $FORGE_ENV $CHAIN_ID "$SALT_NS" "$BRANCH" "$SALTS_ARG" "$ADDRESSES_ARG" \
-    --rpc-url "$RPC_URL" \
-    $BROADCAST_FLAG \
-    -vv
-
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✅ $NETWORK_NAME configuration completed successfully!${NC}"
+# ===== PHASE 3: ASK FOR CONFIRMATION =====
+if [ -z "$SIMULATE_MODE" ]; then
+    log "INFO" "=========================================="
+    log "INFO" "WARNING: You are about to BROADCAST these transactions to the blockchain!"
+    log "INFO" "=========================================="
+    log "INFO" ""
+    read -p "Do you want to continue? (yes/no): " -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
+        log "INFO" "Operation cancelled by user"
+        exit 0
+    fi
+    log "INFO" "Proceeding with broadcast..."
 else
-    echo -e "${RED}❌ Configuration failed!${NC}"
-    exit 1
+    log "INFO" "Running in SIMULATE mode - no transactions will be broadcast"
+    log "INFO" ""
+    read -p "Press Enter to continue with simulation..."
+    echo
 fi
 
-print_separator
-echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║                                                                                      ║${NC}"
-echo -e "${GREEN}║${WHITE}            🎉 Oracle Addition to SuperLedger $MODE Completed! 🎉                  ${GREEN}║${NC}"
-echo -e "${GREEN}║                                                                                      ║${NC}"
-echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+log "INFO" ""
 
-echo -e "${CYAN}🔧 Added ${#SALTS_ARRAY[@]} oracle(s) to SuperLedger configuration on:${NC}"
-echo -e "${CYAN}   • $NETWORK_NAME (Chain ID: $CHAIN_ID)${NC}"
-print_separator
+# ===== PHASE 4: EXECUTE =====
+log "INFO" "=========================================="
+log "INFO" "EXECUTING TRANSACTIONS"
+log "INFO" "=========================================="
+log "INFO" ""
+
+for CHAIN_ID in "${VNET_CHAINS[@]}"; do
+    if [ -z "${CHAIN_CHANGES[$CHAIN_ID]}" ]; then
+        continue
+    fi
+
+    CHAIN_NAME=$(get_chain_name "$CHAIN_ID")
+    log "INFO" "Processing $CHAIN_NAME (Chain ID: $CHAIN_ID)..."
+
+    # Rebuild arrays from stored data
+    IFS=',' read -ra ORACLES_ADDED <<< "${CHAIN_ORACLES[$CHAIN_ID]}"
+    IFS=',' read -ra SALTS_TO_ADD <<< "${CHAIN_SALTS[$CHAIN_ID]}"
+    IFS=',' read -ra ADDRESSES_TO_ADD <<< "${CHAIN_ADDRESSES[$CHAIN_ID]}"
+    RPC_URL="${CHAIN_RPC[$CHAIN_ID]}"
+
+    # Build forge script arguments
+    SALTS_ARG="["
+    for i in "${!SALTS_TO_ADD[@]}"; do
+        if [ $i -gt 0 ]; then
+            SALTS_ARG+=","
+        fi
+        SALTS_ARG+="\"${SALTS_TO_ADD[$i]}\""
+    done
+    SALTS_ARG+="]"
+
+    ADDRESSES_ARG="["
+    for i in "${!ADDRESSES_TO_ADD[@]}"; do
+        if [ $i -gt 0 ]; then
+            ADDRESSES_ARG+=","
+        fi
+        ADDRESSES_ARG+="${ADDRESSES_TO_ADD[$i]}"
+    done
+    ADDRESSES_ARG+="]"
+
+    # Determine broadcast flag
+    BROADCAST_FLAG=""
+    if [ -z "$SIMULATE_MODE" ]; then
+        BROADCAST_FLAG="--broadcast"
+    fi
+
+    # Execute forge script
+    forge script script/AddToSuperLedgerConfiguration.s.sol:AddToSuperLedgerConfiguration \
+        --sig 'run(uint256,uint64,string,string,string[],address[])' \
+        $FORGE_ENV \
+        $CHAIN_ID \
+        "$SALT_NAMESPACE" \
+        "$BRANCH_NAME" \
+        "$SALTS_ARG" \
+        "$ADDRESSES_ARG" \
+        --rpc-url "$RPC_URL" \
+        $BROADCAST_FLAG \
+        -vv
+
+    if [ $? -eq 0 ]; then
+        log "INFO" "✓ Successfully processed $CHAIN_NAME"
+    else
+        log "ERROR" "✗ Failed to process $CHAIN_NAME"
+    fi
+    log "INFO" ""
+done
+
+log "INFO" "=========================================="
+log "INFO" "COMPLETED"
+log "INFO" "=========================================="
