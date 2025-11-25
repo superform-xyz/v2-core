@@ -109,9 +109,9 @@ has_contract_changes() {
     ')
     
     # Check for removed contracts (contracts that exist in S3 but not in new deployment)
-    # Exclude Nexus contracts from being considered removable
+    # Exclude preserved contracts from being considered removable
     local removed_contract_count=$(echo "$existing_contracts" | jq --argjson new_contracts "$new_contracts" '
-        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory"))] | length
+        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle"))] | length
     ')
     
     # Return true if there are any new, updated, or removed contracts
@@ -147,9 +147,9 @@ show_contract_diff() {
     ' 2>/dev/null | tr '\n' ' ')
 
     # Show removed contracts (contracts that exist in S3 but not in new deployment)
-    # Exclude Nexus contracts from being shown as removed
+    # Exclude preserved contracts from being shown as removed
     local removed_contract_names=$(echo "$existing_contracts" | jq -r --argjson new_contracts "$new_contracts" '
-        to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory")) | .key
+        to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle")) | .key
     ' 2>/dev/null | tr '\n' ' ')
     
     local changes_shown=false
@@ -290,19 +290,22 @@ batch_upload_to_s3() {
             continue
         fi
         
-        # Replace existing contracts with new contracts, but preserve Nexus contracts
-        local nexus_contracts=$(echo "$existing_contracts" | jq '{
+        # Replace existing contracts with new contracts, but preserve specific contracts
+        local preserved_contracts=$(echo "$existing_contracts" | jq '{
             Nexus: .Nexus,
             NexusBootstrap: .NexusBootstrap,
-            NexusAccountFactory: .NexusAccountFactory
+            NexusAccountFactory: .NexusAccountFactory,
+            SuperGovernor: .SuperGovernor,
+            SuperVaultAggregator: .SuperVaultAggregator,
+            ECDSAPPSOracle: .ECDSAPPSOracle
         } | with_entries(select(.value != null))')
-        
-        local nexus_count=$(echo "$nexus_contracts" | jq 'length')
-        if [ "$nexus_count" -gt 0 ]; then
-            log "INFO" "Preserving $nexus_count Nexus contracts for $network_name"
+
+        local preserved_count=$(echo "$preserved_contracts" | jq 'length')
+        if [ "$preserved_count" -gt 0 ]; then
+            log "INFO" "Preserving $preserved_count contracts for $network_name (Nexus, SuperGovernor, SuperVaultAggregator, ECDSAPPSOracle)"
         fi
-        
-        local merged_contracts=$(echo "$contracts" | jq --argjson nexus "$nexus_contracts" '. + $nexus')
+
+        local merged_contracts=$(echo "$contracts" | jq --argjson preserved "$preserved_contracts" '. + $preserved')
         
         # Count contracts that will be added/updated
         local existing_contract_count=$(echo "$existing_contracts" | jq 'length')
@@ -384,7 +387,7 @@ batch_upload_to_s3() {
     # Display contract differences for confirmation
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}📋 Contract Changes that will be uploaded to S3:${NC}"
-    echo -e "${CYAN}💡 Note: Full replacement - removed contracts will be deleted (except Nexus contracts)${NC}"
+    echo -e "${CYAN}💡 Note: Full replacement - removed contracts will be deleted (except Nexus, SuperGovernor, SuperVaultAggregator, ECDSAPPSOracle)${NC}"
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
     # Show diffs for each network
@@ -449,13 +452,11 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Determine which networks file to use based on environment (passed as first argument)
 ENV_ARG="${1:-staging}"
-if [[ "$ENV_ARG" == "prod" ]]; then
-    NETWORKS_FILE="$SCRIPT_DIR/networks-production.sh"
-elif [[ "$ENV_ARG" == "staging" ]]; then
+if [[ "$ENV_ARG" == "staging" ]]; then
     NETWORKS_FILE="$SCRIPT_DIR/networks-staging.sh"
 else
     echo -e "${RED}❌ Error: Invalid environment '$ENV_ARG'${NC}"
-    echo -e "${YELLOW}Expected 'staging' or 'prod'${NC}"
+    echo -e "${YELLOW}Expected 'staging'${NC}"
     exit 1
 fi
 
@@ -471,19 +472,18 @@ source "$NETWORKS_FILE"
 if [ $# -lt 1 ]; then
     echo -e "${RED}❌ Error: Missing required argument${NC}"
     echo -e "${YELLOW}Usage: $0 <environment>${NC}"
-    echo -e "${CYAN}  environment: staging or prod${NC}"
+    echo -e "${CYAN}  environment: staging${NC}"
     echo -e "${CYAN}Examples:${NC}"
     echo -e "${CYAN}  $0 staging${NC}"
-    echo -e "${CYAN}  $0 prod${NC}"
     exit 1
 fi
 
 ENVIRONMENT=$1
 
 # Validate environment
-if [ "$ENVIRONMENT" != "staging" ] && [ "$ENVIRONMENT" != "prod" ]; then
+if [ "$ENVIRONMENT" != "staging" ]; then
     echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"
-    echo -e "${YELLOW}Environment must be either 'staging' or 'prod'${NC}"
+    echo -e "${YELLOW}Environment must be 'staging'${NC}"
     exit 1
 fi
 

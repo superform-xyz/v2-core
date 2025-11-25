@@ -13,8 +13,6 @@ OUTPUT_DIR="$PROJECT_ROOT/script/output"
 
 # ===== LOAD SHARED UTILITIES =====
 source "$SCRIPT_DIR/oracle-utils.sh"
-source "$SCRIPT_DIR/networks-staging.sh"
-source "$SCRIPT_DIR/networks-production.sh"
 
 # ===== HELPER FUNCTIONS =====
 log() {
@@ -26,15 +24,15 @@ log() {
 # ===== USAGE =====
 usage() {
     cat << EOF
-Usage: $0 <environment> <account>
+Usage: $0 <environment> [account]
 
 Extract oracles from deployment outputs that need to be added to SuperLedgerConfiguration.
 Dynamically discovers deployed oracles and checks on-chain which are already configured.
 
 Arguments:
     environment     Environment: branch name for vnet (e.g., "demo"), "staging", or "prod"
-    account         Wallet account name (e.g., "v2-deployer")
-                    Used to derive sender address for oracle ID calculation
+    account         Wallet account name (required for vnet only)
+                    For staging/prod, Fireblocks sender address is used automatically
 
 Output:
     Creates script/output/<environment>/new_oracles_to_add with list of oracle names
@@ -48,13 +46,12 @@ Ban List:
 
 Prerequisites:
     - For vnet: 1Password CLI authenticated (op signin) for Tenderly access
-    - For all environments: Wallet imported via: cast wallet import <account> --private-key <key>
     - For staging/prod: 1Password CLI authenticated for RPC URLs
 
 Examples:
+    $0 staging                      # Extract oracles for staging (uses Fireblocks sender)
+    $0 prod                         # Extract oracles for production (uses Fireblocks sender)
     $0 demo v2-deployer             # Extract oracles for demo vnet
-    $0 prod v2-deployer             # Extract oracles for production
-    $0 staging v2-deployer          # Extract oracles for staging
 
 EOF
     exit 1
@@ -63,39 +60,44 @@ EOF
 # ===== MAIN SCRIPT =====
 
 # Check arguments
-if [ $# -lt 2 ]; then
+if [ $# -lt 1 ]; then
     usage
 fi
 
 ENV_INPUT=$1
-ACCOUNT=$2
-ACCOUNT_ADDRESS=${3:-}  # Optional: direct address to avoid password prompt
+ACCOUNT=${2:-}  # Optional for staging/prod, required for vnet
 
 # Determine if this is vnet, staging, or prod
 if [ "$ENV_INPUT" = "prod" ]; then
     ENVIRONMENT="prod"
-    BASE_OUTPUT_DIR="$OUTPUT_DIR/production/0"
+    BASE_OUTPUT_DIR="$OUTPUT_DIR/production"
     FORGE_ENV=0
 
-    # For production, use hardcoded v2-deployer address
-    SENDER_ADDRESS="0x22BC97cFac64D6d9BCaDF5dC36e4D01Db9e929c5"
-    log "INFO" "Using hardcoded sender address for production: $SENDER_ADDRESS"
+    # For production, use Fireblocks sender address
+    SENDER_ADDRESS="0x28b7599f461D104f07D78215Fa6F9B959851f93d"
+    log "INFO" "Using Fireblocks sender address for production: $SENDER_ADDRESS"
 
 elif [ "$ENV_INPUT" = "staging" ]; then
     ENVIRONMENT="staging"
-    BASE_OUTPUT_DIR="$OUTPUT_DIR/staging/2"
+    BASE_OUTPUT_DIR="$OUTPUT_DIR/staging"
     FORGE_ENV=2
 
-    # For staging, use hardcoded v2-deployer address
-    SENDER_ADDRESS="0x22BC97cFac64D6d9BCaDF5dC36e4D01Db9e929c5"
-    log "INFO" "Using hardcoded sender address for staging: $SENDER_ADDRESS"
+    # For staging, use Fireblocks sender address
+    SENDER_ADDRESS="0x28b7599f461D104f07D78215Fa6F9B959851f93d"
+    log "INFO" "Using Fireblocks sender address for staging: $SENDER_ADDRESS"
 
 else
     # vnet - ENV_INPUT is the branch name
     ENVIRONMENT="vnet"
     BRANCH_NAME="$ENV_INPUT"
-    BASE_OUTPUT_DIR="$OUTPUT_DIR/$BRANCH_NAME/1"
+    BASE_OUTPUT_DIR="$OUTPUT_DIR/$BRANCH_NAME"
     FORGE_ENV=1
+
+    # For vnet, account parameter is required
+    if [ -z "$ACCOUNT" ]; then
+        log "ERROR" "Account parameter is required for vnet environments"
+        usage
+    fi
 
     # For vnet, use Foundry test mnemonic derivation (index 0)
     # This matches the Solidity script's deriveRememberKey(MNEMONIC, 0)

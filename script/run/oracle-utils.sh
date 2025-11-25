@@ -4,33 +4,43 @@
 # Shared utility functions for oracle configuration scripts
 
 # Map oracle name to salt string
+# NOTE: Salts must be <=32 bytes. Solidity uses bytes32(bytes(string)) which truncates longer strings.
+# Check character count: echo -n "string" | wc -c
 get_oracle_salt() {
     local oracle_name=$1
     case $oracle_name in
         "ERC4626YieldSourceOracle")
+            # 32 chars
             echo "ERC4626YieldSourceOracle_v1.0.1"
             ;;
         "ERC5115YieldSourceOracle")
+            # 32 chars
             echo "ERC5115YieldSourceOracle_v1.0.1"
             ;;
         "StakingYieldSourceOracle")
+            # 32 chars
             echo "StakingYieldSourceOracle_v1.0.1"
             ;;
         "SuperVaultYieldSourceOracle")
-            echo "SuperVaultYieldSourceOracle_v1.0.1"
+            # 34 chars -> truncated to 32: SuperVaultYieldSourceOracle_v1.0
+            echo "SuperVaultYieldSourceOracle_v1.0"
             ;;
         "PendlePTYieldSourceOracle")
-            echo "PendlePTYieldSourceOracle_v1.0.1"
+            # 33 chars -> truncated to 32: PendlePTYieldSourceOracle_v1.0.
+            echo "PendlePTYieldSourceOracle_v1.0."
             ;;
         "SpectraPTYieldSourceOracle")
-            echo "SpectraPTYieldSourceOracle_v1.0.1"
+            # 34 chars -> truncated to 32: SpectraPTYieldSourceOracle_v1.0
+            echo "SpectraPTYieldSourceOracle_v1.0"
             ;;
         "SuperYieldSourceOracle")
+            # 30 chars
             echo "SuperYieldSourceOracle_v1.0.1"
             ;;
         *)
-            # Default: use oracle name + version
-            echo "${oracle_name}_v1.0.1"
+            # Default: use oracle name + version, truncate to 32 chars if needed
+            local salt="${oracle_name}_v1.0.1"
+            echo "${salt:0:32}"
             ;;
     esac
 }

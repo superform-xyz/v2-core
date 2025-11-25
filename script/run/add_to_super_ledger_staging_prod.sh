@@ -11,6 +11,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 OUTPUT_DIR="$PROJECT_ROOT/script/output"
 
+# Fireblocks sender address (matches config_v2_ledger_staging_prod.sh)
+FIREBLOCKS_SENDER="0x28b7599f461D104f07D78215Fa6F9B959851f93d"
+
 # ===== LOAD SHARED UTILITIES =====
 source "$SCRIPT_DIR/oracle-utils.sh"
 
@@ -24,25 +27,25 @@ log() {
 # ===== USAGE =====
 usage() {
     cat << EOF
-Usage: $0 <environment> <account> [simulate]
+Usage: $0 <environment> [simulate]
 
 Add new oracles to SuperLedgerConfiguration for staging/production deployments.
 Automatically loops through all chains and checks if oracles are configured.
+Uses Fireblocks MPC wallet for transaction signing.
 
 Arguments:
     environment     "staging" or "prod"
-    account         Foundry wallet account name (e.g., "v2-deployer")
     simulate        Optional: Run in simulation mode without broadcasting
 
 Prerequisites:
     1. Run extract_configurable_oracles.sh first to create the oracle list
     2. Ensure 1Password CLI is authenticated (op signin)
-    3. Ensure wallet account is imported: cast wallet import <name> --private-key <key>
+    3. Fireblocks credentials configured in 1Password
 
 Examples:
-    $0 staging v2-deployer                    # Add oracles for staging
-    $0 staging v2-deployer simulate           # Simulate adding oracles (no broadcast)
-    $0 prod v2-deployer                       # Add oracles for production
+    $0 staging                    # Add oracles for staging
+    $0 staging simulate           # Simulate adding oracles (no broadcast)
+    $0 prod                       # Add oracles for production
 
 EOF
     exit 1
@@ -51,12 +54,11 @@ EOF
 # ===== MAIN SCRIPT =====
 
 # Check arguments
-if [ $# -lt 2 ]; then
+if [ $# -lt 1 ]; then
     usage
 fi
 
 ENVIRONMENT=$1
-ACCOUNT=$2
 SIMULATE_MODE=""
 
 # Validate environment
@@ -67,33 +69,22 @@ if [ "$ENVIRONMENT" != "staging" ] && [ "$ENVIRONMENT" != "prod" ]; then
 fi
 
 # Check for simulate flag
-if [ $# -ge 3 ] && [ "$3" = "simulate" ]; then
+if [ $# -ge 2 ] && [ "$2" = "simulate" ]; then
     SIMULATE_MODE="simulate"
     log "INFO" "Running in SIMULATE mode (no broadcast)"
 fi
 
 log "INFO" "Adding oracles to SuperLedgerConfiguration for environment: $ENVIRONMENT"
-log "INFO" "Using wallet account: $ACCOUNT"
-
-# Get sender address from wallet
-SENDER_ADDRESS=$(get_wallet_address "$ACCOUNT")
-if [ $? -ne 0 ] || [ -z "$SENDER_ADDRESS" ]; then
-    log "ERROR" "Failed to get address from wallet account: $ACCOUNT"
-    log "ERROR" "Please ensure the wallet is imported: cast wallet import $ACCOUNT --private-key <key>"
-    exit 1
-fi
-
-log "INFO" "Sender address: $SENDER_ADDRESS"
+log "INFO" "Using Fireblocks MPC wallet for transaction signing"
+log "INFO" "Sender address: $FIREBLOCKS_SENDER"
 
 # Set forge environment
 if [ "$ENVIRONMENT" = "staging" ]; then
     FORGE_ENV=2
     ENV_DIR="staging"
-    ENV_ID="2"
 elif [ "$ENVIRONMENT" = "prod" ]; then
     FORGE_ENV=0
     ENV_DIR="production"
-    ENV_ID="0"
 fi
 
 # ===== LOAD NETWORK CONFIGURATION =====
@@ -112,17 +103,9 @@ fi
 log "INFO" "Loading network configuration from: $NETWORKS_FILE"
 source "$NETWORKS_FILE"
 
-# The networks file provides:
-# - NETWORKS array with network definitions
-# - get_network_name() function
-# - get_rpc_var() function
-# - get_rpc_url() function (uses RPC environment variables)
-# - load_rpc_urls() function (loads RPC URLs from 1Password)
-# - is_network_supported() function
-
 log "INFO" "Network configuration loaded successfully"
 
-# Load RPC URLs from 1Password using the networks file function
+# ===== LOAD RPC URLs FROM 1PASSWORD =====
 log "INFO" "Loading RPC URLs from 1Password..."
 if ! load_rpc_urls; then
     log "ERROR" "Failed to load RPC URLs from 1Password"
@@ -130,13 +113,26 @@ if ! load_rpc_urls; then
 fi
 log "INFO" "RPC URLs loaded successfully"
 
+# ===== LOAD FIREBLOCKS CREDENTIALS =====
+log "INFO" "Loading Fireblocks credentials from 1Password..."
+export FIREBLOCKS_API_KEY=$(op read op://zry2qwhqux2w6qtjitg44xb7b4/V2_SUPERLEDGER_ACTION/credential)
+export FIREBLOCKS_API_PRIVATE_KEY_PATH=$(op read op://zry2qwhqux2w6qtjitg44xb7b4/V2_SUPERLEDGER_SECRET/notesPlain)
+export FIREBLOCKS_VAULT_ACCOUNT_IDS=29  # SuperLedger Config Vault Account
+
+if [ -z "$FIREBLOCKS_API_KEY" ]; then
+    log "ERROR" "Failed to load Fireblocks API key from 1Password"
+    exit 1
+fi
+
+log "INFO" "Fireblocks credentials loaded successfully"
+
 # ===== LOAD ORACLE LIST =====
 ORACLE_LIST_FILE="$OUTPUT_DIR/$ENV_DIR/new_oracles_to_add"
 
 if [ ! -f "$ORACLE_LIST_FILE" ]; then
     log "ERROR" "Oracle list file not found: $ORACLE_LIST_FILE"
     log "ERROR" "Please run extract_configurable_oracles.sh first:"
-    log "ERROR" "  sh script/run/extract_configurable_oracles.sh $ENVIRONMENT $ENVIRONMENT $ACCOUNT"
+    log "ERROR" "  sh script/run/extract_configurable_oracles.sh $ENVIRONMENT v2-deployer"
     exit 1
 fi
 
@@ -145,9 +141,12 @@ log "INFO" "Loading oracle list from: $ORACLE_LIST_FILE"
 # Read oracles from file (skip comments and empty lines)
 ORACLES_TO_ADD=()
 while IFS= read -r line; do
+    # Skip comments and empty lines
     if [[ "$line" =~ ^#.*$ ]] || [ -z "$line" ]; then
         continue
     fi
+    # Trim whitespace and carriage returns
+    line=$(echo "$line" | tr -d '\r' | xargs)
     ORACLES_TO_ADD+=("$line")
 done < "$ORACLE_LIST_FILE"
 
@@ -179,8 +178,12 @@ for network_def in "${NETWORKS[@]}"; do
     fi
     log "INFO" "RPC URL configured"
 
+    # Set Fireblocks RPC environment variables for this chain
+    export FIREBLOCKS_RPC_URL="$RPC_URL"
+    export FIREBLOCKS_CHAIN_ID="$CHAIN_ID"
+
     # Load deployment output for this chain
-    OUTPUT_FILE="$OUTPUT_DIR/$ENV_DIR/$ENV_ID/${CHAIN_NAME}-latest.json"
+    OUTPUT_FILE="$OUTPUT_DIR/$ENV_DIR/$CHAIN_ID/${CHAIN_NAME}-latest.json"
     if [ ! -f "$OUTPUT_FILE" ]; then
         log "WARN" "Output file not found: $OUTPUT_FILE, skipping chain..."
         continue
@@ -216,8 +219,8 @@ for network_def in "${NETWORKS[@]}"; do
         oracle_salt=$(get_oracle_salt "$oracle_name")
         log "INFO" "  Salt: $oracle_salt"
 
-        # Compute oracle ID
-        oracle_id=$(compute_oracle_id "$oracle_salt" "$SENDER_ADDRESS")
+        # Compute oracle ID using Fireblocks sender address
+        oracle_id=$(compute_oracle_id "$oracle_salt" "$FIREBLOCKS_SENDER")
         log "INFO" "  Oracle ID: $oracle_id"
 
         # Check if already configured
@@ -269,13 +272,13 @@ for network_def in "${NETWORKS[@]}"; do
         BROADCAST_FLAG="--broadcast"
     fi
 
-    log "INFO" "Executing forge script..."
+    log "INFO" "Executing forge script via Fireblocks..."
     log "INFO" "  Salts: $SALTS_ARG"
     log "INFO" "  Addresses: $ADDRESSES_ARG"
 
-    # Execute forge script with wallet account authentication
+    # Execute forge script with Fireblocks
     # Note: Empty strings for salt namespace and branch name for staging/prod
-    forge script script/AddToSuperLedgerConfiguration.s.sol:AddToSuperLedgerConfiguration \
+    fireblocks-json-rpc --http -- forge script script/AddToSuperLedgerConfiguration.s.sol:AddToSuperLedgerConfiguration \
         --sig 'run(uint256,uint64,string,string,string[],address[])' \
         $FORGE_ENV \
         $CHAIN_ID \
@@ -283,9 +286,11 @@ for network_def in "${NETWORKS[@]}"; do
         "" \
         "$SALTS_ARG" \
         "$ADDRESSES_ARG" \
-        --rpc-url "$RPC_URL" \
-        --account "$ACCOUNT" \
+        --rpc-url {} \
+        --sender "$FIREBLOCKS_SENDER" \
         $BROADCAST_FLAG \
+        --unlocked \
+        --slow \
         -vv
 
     if [ $? -eq 0 ]; then
