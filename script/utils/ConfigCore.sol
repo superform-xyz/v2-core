@@ -129,8 +129,8 @@ abstract contract ConfigCore is ConfigBase {
         configuration.pendleRouters[UNICHAIN_CHAIN_ID] = address(0); // Not deployed
         configuration.pendleRouters[LINEA_CHAIN_ID] = address(0); // Not deployed
         configuration.pendleRouters[AVALANCHE_CHAIN_ID] = address(0); // Not deployed
-        configuration.pendleRouters[BERACHAIN_CHAIN_ID] = address(0); // Not deployed
-        configuration.pendleRouters[SONIC_CHAIN_ID] = address(0); // Not deployed
+        configuration.pendleRouters[BERACHAIN_CHAIN_ID] = PENDLE_ROUTER_BERACHAIN;
+        configuration.pendleRouters[SONIC_CHAIN_ID] = PENDLE_ROUTER_SONIC;
         configuration.pendleRouters[GNOSIS_CHAIN_ID] = address(0); // Not deployed
         configuration.pendleRouters[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
 

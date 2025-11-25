@@ -249,7 +249,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         returns (ContractAvailability memory availability)
     {
         // Initialize all skipped contracts array
-        string[] memory potentialSkips = new string[](8);
+        // Max possible skips: 2 adapters + 11 hooks = 13 skipped contracts
+        string[] memory potentialSkips = new string[](15);
         uint256 skipCount = 0;
         // Adapter contracts (2 contracts - conditionally deployed)
         string[2] memory adapterContracts = ["AcrossV3Adapter", "DebridgeAdapter"];

@@ -102,6 +102,8 @@ abstract contract Constants {
     address internal constant PENDLE_ROUTER_OPTIMISM = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address internal constant PENDLE_ROUTER_ARBITRUM = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address internal constant PENDLE_ROUTER_BNB = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_BERACHAIN = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_SONIC = 0x888888888889758F76e7103c6CbF23ABbF58F946;
 
     // Merkl Distributor addresses per chain
     address internal constant MERKL_DISTRIBUTOR = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
