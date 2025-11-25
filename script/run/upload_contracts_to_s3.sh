@@ -139,18 +139,18 @@ show_contract_diff() {
     # Show new contracts (contracts that don't exist in S3)
     local new_contract_names=$(echo "$new_contracts" | jq -r --argjson existing "$existing_contracts" '
         to_entries[] | select(.key as $k | $existing | has($k) | not) | .key
-    ' 2>/dev/null | tr '\n' ' ')
+    ' 2>/dev/null | grep -v '^null$' | grep -v '^:' | tr '\n' ' ')
 
     # Show updated contracts (contracts that exist but with different addresses)
     local updated_contract_names=$(echo "$new_contracts" | jq -r --argjson existing "$existing_contracts" '
         to_entries[] | select(.key as $k | .value as $v | $existing | has($k) and (.[$k] != $v)) | .key
-    ' 2>/dev/null | tr '\n' ' ')
+    ' 2>/dev/null | grep -v '^null$' | grep -v '^:' | tr '\n' ' ')
 
     # Show removed contracts (contracts that exist in S3 but not in new deployment)
     # Exclude preserved contracts from being shown as removed
     local removed_contract_names=$(echo "$existing_contracts" | jq -r --argjson new_contracts "$new_contracts" '
         to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle")) | .key
-    ' 2>/dev/null | tr '\n' ' ')
+    ' 2>/dev/null | grep -v '^null$' | grep -v '^:' | tr '\n' ' ')
     
     local changes_shown=false
     
