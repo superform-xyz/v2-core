@@ -140,14 +140,12 @@ contract AddToSuperLedgerConfiguration is DeployV2Core {
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](oracleAddresses.length);
 
         // Create configuration for each oracle
-        // Note: Using SuperLedger as default ledger and 0% fee
-        // Adjust feePercent and ledger as needed for your specific use case
         for (uint256 i = 0; i < oracleAddresses.length; ++i) {
             configs[i] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracle: oracleAddresses[i],
-                feePercent: 0,
+                feePercent: 0, // we use 0 for the moment; same as in `DeployV2Core.s.sol`
                 feeRecipient: configuration.treasury,
-                ledger: superLedger // Default to SuperLedger, can be changed to flatFeeLedger if needed
+                ledger: superLedger
             });
 
             console2.log("Configuration", i, "created:");
@@ -174,6 +172,7 @@ contract AddToSuperLedgerConfiguration is DeployV2Core {
     function _convertStringsToBytes32(string[] memory strings) private pure returns (bytes32[] memory bytes32Array) {
         bytes32Array = new bytes32[](strings.length);
         for (uint256 i = 0; i < strings.length; ++i) {
+            require(bytes(strings[i]).length <= 32, "SALT_STRING_TOO_LONG");
             bytes32Array[i] = bytes32(bytes(strings[i]));
         }
         return bytes32Array;
