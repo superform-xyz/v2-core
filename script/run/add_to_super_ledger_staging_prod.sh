@@ -84,7 +84,7 @@ if [ "$ENVIRONMENT" = "staging" ]; then
     ENV_DIR="staging"
 elif [ "$ENVIRONMENT" = "prod" ]; then
     FORGE_ENV=0
-    ENV_DIR="production"
+    ENV_DIR="prod"
 fi
 
 # ===== LOAD NETWORK CONFIGURATION =====

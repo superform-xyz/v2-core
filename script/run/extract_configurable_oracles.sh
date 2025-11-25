@@ -70,7 +70,7 @@ ACCOUNT=${2:-}  # Optional for staging/prod, required for vnet
 # Determine if this is vnet, staging, or prod
 if [ "$ENV_INPUT" = "prod" ]; then
     ENVIRONMENT="prod"
-    BASE_OUTPUT_DIR="$OUTPUT_DIR/production"
+    BASE_OUTPUT_DIR="$OUTPUT_DIR/prod"
     FORGE_ENV=0
 
     # For production, use Fireblocks sender address
@@ -348,7 +348,7 @@ fi
 # ===== STEP 4: CREATE OUTPUT FILE =====
 # Determine output file path based on environment
 if [ "$ENVIRONMENT" = "prod" ]; then
-    OUTPUT_FILE="$OUTPUT_DIR/production/new_oracles_to_add"
+    OUTPUT_FILE="$OUTPUT_DIR/prod/new_oracles_to_add"
     ENV_DISPLAY="prod"
 elif [ "$ENVIRONMENT" = "staging" ]; then
     OUTPUT_FILE="$OUTPUT_DIR/staging/new_oracles_to_add"
