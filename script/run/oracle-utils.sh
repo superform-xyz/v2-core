@@ -3,46 +3,63 @@
 # oracle-utils.sh
 # Shared utility functions for oracle configuration scripts
 
+# Validate salt length is <= 32 bytes, matching Solidity's require check
+# Errors out if salt is too long instead of silently truncating
+validate_salt_length() {
+    local salt=$1
+    local oracle_name=$2
+    local length=${#salt}
+    if [ "$length" -gt 32 ]; then
+        echo "ERROR: SALT_STRING_TOO_LONG for $oracle_name" >&2
+        echo "ERROR: Salt '$salt' is $length bytes, max allowed is 32 bytes" >&2
+        exit 1
+    fi
+}
+
 # Map oracle name to salt string
 # NOTE: Salts must be <=32 bytes. Solidity uses bytes32(bytes(string)) which truncates longer strings.
 # Check character count: echo -n "string" | wc -c
 get_oracle_salt() {
     local oracle_name=$1
+    local salt=""
     case $oracle_name in
         "ERC4626YieldSourceOracle")
             # 32 chars
-            echo "ERC4626YieldSourceOracle_v1.0.1"
+            salt="ERC4626YieldSourceOracle_v1.0.1"
             ;;
         "ERC5115YieldSourceOracle")
             # 32 chars
-            echo "ERC5115YieldSourceOracle_v1.0.1"
+            salt="ERC5115YieldSourceOracle_v1.0.1"
             ;;
         "StakingYieldSourceOracle")
             # 32 chars
-            echo "StakingYieldSourceOracle_v1.0.1"
+            salt="StakingYieldSourceOracle_v1.0.1"
             ;;
         "SuperVaultYieldSourceOracle")
-            # 34 chars -> truncated to 32: SuperVaultYieldSourceOracle_v1.0
-            echo "SuperVaultYieldSourceOracle_v1.0"
+            # 32 chars
+            salt="SuperVaultYieldSourceOracle_v1.0"
             ;;
         "PendlePTYieldSourceOracle")
-            # 33 chars -> truncated to 32: PendlePTYieldSourceOracle_v1.0.
-            echo "PendlePTYieldSourceOracle_v1.0."
+            # 32 chars
+            salt="PendlePTYieldSourceOracle_v1.0."
             ;;
         "SpectraPTYieldSourceOracle")
-            # 34 chars -> truncated to 32: SpectraPTYieldSourceOracle_v1.0
-            echo "SpectraPTYieldSourceOracle_v1.0"
+            # 32 chars
+            salt="SpectraPTYieldSourceOracle_v1.0"
             ;;
         "SuperYieldSourceOracle")
             # 30 chars
-            echo "SuperYieldSourceOracle_v1.0.1"
+            salt="SuperYieldSourceOracle_v1.0.1"
             ;;
         *)
-            # Default: use oracle name + version, truncate to 32 chars if needed
-            local salt="${oracle_name}_v1.0.1"
-            echo "${salt:0:32}"
+            # Default: use oracle name + version
+            salt="${oracle_name}_v1.0.1"
             ;;
     esac
+
+    # Validate salt length before returning - fail if > 32 bytes (matches Solidity check)
+    validate_salt_length "$salt" "$oracle_name"
+    echo "$salt"
 }
 
 # Compute oracle ID using Solidity logic: keccak256(abi.encodePacked(salt, sender))
