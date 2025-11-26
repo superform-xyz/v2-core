@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Treasury Configuration Smoke Test Runner
-# This script runs treasury configuration smoke tests across all production networks
+# This script runs treasury configuration smoke tests across staging or production networks
 
 set -e
 
@@ -9,10 +9,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Source the production networks configuration
-source "$SCRIPT_DIR/networks-production.sh"
-
-# Default values - Production only
+# Default values
+ENVIRONMENT="prod"
+FORGE_ENV=0
 SPECIFIC_NETWORK=""
 VERBOSE=false
 DRY_RUN=false
@@ -26,9 +25,12 @@ NC='\033[0m' # No Color
 
 # Usage function
 usage() {
-    echo "Usage: $0 [OPTIONS]"
+    echo "Usage: $0 <environment> [OPTIONS]"
     echo ""
-    echo "Run treasury configuration smoke tests across production networks"
+    echo "Run treasury configuration smoke tests across staging or production networks"
+    echo ""
+    echo "ARGUMENTS:"
+    echo "  environment            Required: 'staging' or 'prod'"
     echo ""
     echo "OPTIONS:"
     echo "  -n, --network CHAIN_ID  Test specific network only (optional)"
@@ -37,9 +39,10 @@ usage() {
     echo "  -h, --help             Show this help message"
     echo ""
     echo "EXAMPLES:"
-    echo "  $0                            # Test all production networks"
-    echo "  $0 --network 1                # Test only Ethereum mainnet"
-    echo "  $0 --verbose                  # Test with verbose output"
+    echo "  $0 prod                       # Test all production networks"
+    echo "  $0 staging                    # Test all staging networks"
+    echo "  $0 prod --network 1           # Test only Ethereum mainnet (prod)"
+    echo "  $0 staging --verbose          # Test staging with verbose output"
     echo ""
     echo "SUPPORTED NETWORKS:"
     print_network_info
@@ -47,6 +50,41 @@ usage() {
 
 # Parse command line arguments
 parse_args() {
+    # First argument must be environment
+    if [[ $# -lt 1 ]]; then
+        echo "❌ Missing required argument: environment"
+        usage
+        exit 1
+    fi
+
+    # Check for help flag first
+    if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+        usage
+        exit 0
+    fi
+
+    # Parse environment
+    ENVIRONMENT="$1"
+    shift
+
+    # Validate environment and set FORGE_ENV
+    case "$ENVIRONMENT" in
+        prod)
+            FORGE_ENV=0
+            source "$SCRIPT_DIR/networks-production.sh"
+            ;;
+        staging)
+            FORGE_ENV=2
+            source "$SCRIPT_DIR/networks-staging.sh"
+            ;;
+        *)
+            echo "❌ Invalid environment: $ENVIRONMENT"
+            echo "Environment must be 'staging' or 'prod'"
+            exit 1
+            ;;
+    esac
+
+    # Parse remaining options
     while [[ $# -gt 0 ]]; do
         case $1 in
             -n|--network)
@@ -76,7 +114,7 @@ parse_args() {
     # Validate specific network if provided
     if [[ -n "$SPECIFIC_NETWORK" ]]; then
         if ! is_network_supported "$SPECIFIC_NETWORK"; then
-            echo "❌ Network $SPECIFIC_NETWORK is not supported in production"
+            echo "❌ Network $SPECIFIC_NETWORK is not supported in $ENVIRONMENT"
             echo "Supported networks:"
             get_supported_networks
             exit 1
@@ -114,20 +152,20 @@ run_network_test() {
     local network_id=$1
     local network_name=$(get_network_name "$network_id")
     local rpc_url=$(get_rpc_url "$network_id")
-    
+
     log "INFO" "Testing $network_name (Chain ID: $network_id)"
-    
+
     if [[ -z "$rpc_url" ]]; then
         log "ERROR" "No RPC URL configured for $network_name"
         return 1
     fi
-    
+
     # Build forge command
     local forge_cmd="forge script script/SmokeTestTreasuryConfig.s.sol:SmokeTestTreasuryConfig"
-    
-    # Add function signature for production
-    forge_cmd="$forge_cmd --sig \"run(uint64)\" $network_id"
-    
+
+    # Add function signature with environment and chainId
+    forge_cmd="$forge_cmd --sig \"run(uint256,uint64)\" $FORGE_ENV $network_id"
+
     # Add RPC URL
     forge_cmd="$forge_cmd --rpc-url \"$rpc_url\""
     
@@ -182,12 +220,12 @@ run_network_test() {
 # Main execution function
 main() {
     parse_args "$@"
-    
+
     # Change to project root
     cd "$PROJECT_ROOT"
-    
+
     log "INFO" "Starting Treasury Configuration Smoke Tests"
-    log "INFO" "Environment: Production"
+    log "INFO" "Environment: $(echo "$ENVIRONMENT" | sed 's/prod/Production/;s/staging/Staging/')"
     
     if [[ "$DRY_RUN" == "true" ]]; then
         log "WARNING" "DRY RUN MODE - No tests will be executed"

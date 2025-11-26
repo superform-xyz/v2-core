@@ -20,8 +20,6 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address fluidUnstakeHook;
         address spectraExchangeDepositHook;
         address spectraExchangeRedeemHook;
-        address pendleRouterSwapHook;
-        address pendleRouterRedeemHook;
         address morphoSupplyAndBorrowHook;
         address morphoRepayHook;
         address morphoRepayAndWithdrawHook;
@@ -96,7 +94,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     }
 
     function _deployHooksSet(uint64 chainId, uint256 env) private returns (OtherHookAddresses memory hookAddresses) {
-        uint256 len = 17;
+        uint256 len = 15;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -135,26 +133,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             )
         );
 
-        // Pendle swapper hooks
-        hooks[11] = HookDeployment(
-            PENDLE_ROUTER_SWAP_HOOK_KEY,
-            "",
-            abi.encodePacked(
-                __getOtherHooksBytecode("PendleRouterSwapHook", env),
-                abi.encode(otherHooksConfiguration.pendleRouters[chainId])
-            )
-        );
-        hooks[12] = HookDeployment(
-            PENDLE_ROUTER_REDEEM_HOOK_KEY,
-            "",
-            abi.encodePacked(
-                __getOtherHooksBytecode("PendleRouterRedeemHook", env),
-                abi.encode(otherHooksConfiguration.pendleRouters[chainId])
-            )
-        );
-
         // Morpho loan hooks
-        hooks[13] = HookDeployment(
+        hooks[11] = HookDeployment(
             MORPHO_SUPPLY_AND_BORROW_HOOK_KEY,
             "",
             abi.encodePacked(
@@ -162,14 +142,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
                 abi.encode(otherHooksConfiguration.morphos[chainId])
             )
         );
-        hooks[14] = HookDeployment(
+        hooks[12] = HookDeployment(
             MORPHO_REPAY_HOOK_KEY,
             "",
             abi.encodePacked(
                 __getOtherHooksBytecode("MorphoRepayHook", env), abi.encode(otherHooksConfiguration.morphos[chainId])
             )
         );
-        hooks[15] = HookDeployment(
+        hooks[13] = HookDeployment(
             MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY,
             "",
             abi.encodePacked(
@@ -177,7 +157,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
                 abi.encode(otherHooksConfiguration.morphos[chainId])
             )
         );
-        hooks[16] = HookDeployment(
+        hooks[14] = HookDeployment(
             MORPHO_BORROW_ONLY_HOOK_KEY,
             "",
             abi.encodePacked(
@@ -214,18 +194,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             Strings.equal(hooks[9].name, SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY) ? addresses[9] : address(0);
         hookAddresses.spectraExchangeRedeemHook =
             Strings.equal(hooks[10].name, SPECTRA_EXCHANGE_REDEEM_HOOK_KEY) ? addresses[10] : address(0);
-        hookAddresses.pendleRouterSwapHook =
-            Strings.equal(hooks[11].name, PENDLE_ROUTER_SWAP_HOOK_KEY) ? addresses[11] : address(0);
-        hookAddresses.pendleRouterRedeemHook =
-            Strings.equal(hooks[12].name, PENDLE_ROUTER_REDEEM_HOOK_KEY) ? addresses[12] : address(0);
         hookAddresses.morphoSupplyAndBorrowHook =
-            Strings.equal(hooks[13].name, MORPHO_SUPPLY_AND_BORROW_HOOK_KEY) ? addresses[13] : address(0);
+            Strings.equal(hooks[11].name, MORPHO_SUPPLY_AND_BORROW_HOOK_KEY) ? addresses[11] : address(0);
         hookAddresses.morphoRepayHook =
-            Strings.equal(hooks[14].name, MORPHO_REPAY_HOOK_KEY) ? addresses[14] : address(0);
+            Strings.equal(hooks[12].name, MORPHO_REPAY_HOOK_KEY) ? addresses[12] : address(0);
         hookAddresses.morphoRepayAndWithdrawHook =
-            Strings.equal(hooks[15].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[15] : address(0);
+            Strings.equal(hooks[13].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[13] : address(0);
         hookAddresses.morphoBorrowHook =
-            Strings.equal(hooks[16].name, MORPHO_BORROW_ONLY_HOOK_KEY) ? addresses[16] : address(0);
+            Strings.equal(hooks[14].name, MORPHO_BORROW_ONLY_HOOK_KEY) ? addresses[14] : address(0);
 
         // Verify no hooks were assigned address(0)
         require(hookAddresses.fluidClaimRewardHook != address(0), "fluidClaimRewardHook not assigned");
@@ -239,8 +215,6 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(hookAddresses.gearboxUnstakeHook != address(0), "gearboxUnstakeHook not assigned");
         require(hookAddresses.spectraExchangeDepositHook != address(0), "spectraExchangeDepositHook not assigned");
         require(hookAddresses.spectraExchangeRedeemHook != address(0), "spectraExchangeRedeemHook not assigned");
-        require(hookAddresses.pendleRouterSwapHook != address(0), "pendleRouterSwapHook not assigned");
-        require(hookAddresses.pendleRouterRedeemHook != address(0), "pendleRouterRedeemHook not assigned");
         require(hookAddresses.morphoSupplyAndBorrowHook != address(0), "MorphoSupplyAndBorrowHook not assigned");
         require(hookAddresses.morphoRepayHook != address(0), "morphoRepayHook not assigned");
         require(hookAddresses.morphoRepayAndWithdrawHook != address(0), "morphoRepayAndWithdrawHook not assigned");
