@@ -1,28 +1,33 @@
-
 [![codecov](https://codecov.io/gh/superform-xyz/v2-core/graph/badge.svg?token=PZGfJXkBAg)](https://codecov.io/gh/superform-xyz/v2-core)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 # Overview
 
-Superform v2 is a modular DeFi protocol for yield abstraction that allows dynamic execution and flexible composition of user operations via ERC7579 modules. 
+Superform v2 Core is a modular DeFi protocol for yield abstraction that allows dynamic execution and flexible composition of user operations via ERC7579 modules. 
 
-This document provides technical details, reasoning behind design choices, and discussion of potential edge cases and risks in Superform's v2 contracts. This repository of core contracts include primary business logic, interfaces, execution routines, accounting mechanisms, and validation components.
+Core consists of the following components:
 
-View product documentation here: https://docs.superform.xyz/, which includes current v2-core deployments across Ethereum, Base, Optimism, Arbitrum, BNB, Polygon, and Unichain.
+- **Execution Layer**: ERC7579 executors (SuperExecutor, SuperDestinationExecutor) that process hook bundles with transient storage for gas-efficient inter-hook communication.
+- **Validation Layer**: Merkle-proof validators (SuperValidator, SuperDestinationValidator) enabling single-signature authorization for batched multi-chain operations.
+- **Accounting Layer**: SuperLedger and YieldSourceOracles for trustless cost basis tracking and performance fee calculation across vault standards (ERC4626, ERC5115, ERC7540, Pendle).
+- **Infrastructure**: Bridge adapters for cross-chain messaging, SuperNativePaymaster for ERC20 gas sponsorship, and SuperBundler for batched UserOperation processing.
+
+📚 [Documentation](https://docs.superform.xyz/) | 🔒 [Audits](https://github.com/superform-xyz/v2-core/tree/dev/audits)
 
 ## Repository Structure
 
 ```
-core/                   # Core protocol contracts
-├── accounting/         # Accounting logic
-├── adapters/           # Bridge implementations
-├── executors/          # Execution logic contracts
-├── hooks/              # Protocol hooks
-├── interfaces/         # Contract interfaces
-├── libraries/          # Shared libraries
-├── paymaster/          # Native paymaster
-└── validators/         # Validation contract
 src/
-└── vendor/             # Vendor contracts (NOT IN SCOPE)
+│   ├── core/
+│   │   ├── accounting/     # SuperLedger and yield source oracles
+│   │   ├── adapters/       # Bridge adapter implementations
+│   │   ├── executors/      # SuperExecutor and SuperDestinationExecutor
+│   │   ├── hooks/          # Composable protocol hooks
+│   │   ├── interfaces/     # Core interface definitions
+│   │   ├── libraries/      # Shared utility libraries
+│   │   ├── paymaster/      # SuperNativePaymaster
+│   │   └── validators/     # SuperValidator and SuperDestinationValidator
+└── vendor/                 # Third-party contracts
 ```
 
 ## Superform Core Key Components
@@ -54,21 +59,21 @@ graph TD
     
     Accounting -->|Record balances in| Ledgers[SuperLedger]
 
-    classDef userFacing fill:#f9f,stroke:#333,stroke-width:2px;
-    classDef core fill:#bbf,stroke:#333,stroke-width:1px;
-    classDef infra fill:#bfb,stroke:#333,stroke-width:1px;
+    classDef user fill:#fff7e6,stroke:#fa8c16
+    classDef core fill:#e6f7ff,stroke:#1890ff
+    classDef infra fill:#f6ffed,stroke:#52c41a
     
-    class User,Frontend userFacing;
-    class SmartAccount,Executors,Validators,Accounting,Hooks,Registry core;
-    class Bridges,DestExecutors,DestValidators,Ledgers infra;
+    class User,Frontend user
+    class SmartAccount,Executors,Validators,Accounting,Hooks,Registry core
+    class Bridges,DestExecutors,DestValidators,Ledgers infra
 ```
 
 ### User Interaction Flow
 
 Smart accounts that interact with Superform must install four essential ERC7579 modules:
 
-- SuperExecutor / SuperDestinationExecutor: Installs hooks and executes operations.
-- SuperValidator / SuperDestinationValidator: Validates userOps against a Merkle root.
+- **SuperExecutor / SuperDestinationExecutor**: Installs hooks and executes operations.
+- **SuperValidator / SuperDestinationValidator**: Validates userOps against a Merkle root.
 
 ```mermaid
 sequenceDiagram
@@ -134,23 +139,7 @@ SuperValidatorBase is the base contract providing core validation functionality 
 
 SuperValidator and SuperDestinationValidator are used to validate operations through Merkle proof verification, ensuring only authorized operations are executed. They leverage a single owner signature over a Merkle root representing a batch of operations.
 
-SuperValidator:
-- Role: A validator contract for ERC4337 entrypoint actions. It enables users to sign once for multiple user operations using merkle proofs, enhancing the chain abstraction experience.
-- Usage: Designed for standard ERC-4337 `EntryPoint` interactions. Validates `UserOperation` hashes (`userOpHash`) provided within a Merkle proof, typically constructed by the SuperBundler. Implements `validateUserOp` and EIP-1271 `isValidSignatureWithSender`.
-
-SuperDestinationValidator:
-- Role: Validates cross-chain operation signatures for destination chain operations. It verifies merkle proofs and signatures to ensure only authorized operations are executed.
-- Usage: Specifically designed for validating operations executed *directly* on a destination chain via `SuperDestinationExecutor`, bypassing the ERC-4337 `EntryPoint`. Implements a custom `isValidDestinationSignature` method; `validateUserOp` and `isValidSignatureWithSender` are explicitly **not** implemented and will revert.
-- Merkle Leaf Contents: `keccak256(keccak256(abi.encode(callData, chainId, sender, executor, dstTokens[], intentAmounts[], validUntil, validatorAddress)))`. The leaf commits to the full context of the destination execution parameters.
-- Replay Protection:
-    - Includes `block.chainid` in the leaf and verifies it during signature validation to prevent cross-chain replay.
-    - Incorporates a `validUntil` timestamp in the leaf, checked against `block.timestamp`.
-    - Includes the `executor` address in the leaf to prevent replay across different executor modules installed on the same account.
-    - Includes the `validator` address in the leaf to prevent replay across different validator modules installed on the same account.
-    - Uses a unique namespace (`SuperValidator`) in the final signed message hash.
-- Notes:
-    - The destination account must use the same signer as the source account. If the validator is uninstalled and then reinstalled with a different configuration, the flow will no longer function correctly.
-    - Execution occurs only if the account holds a balance greater than the corresponding intentAmounts[] for each token in dstTokens[].
+SuperValidator enables users to sign once for multiple user operations using merkle proofs, enhancing the chain abstraction experience and SuperDestinationValidator validates cross-chain operation signatures for destination chain operations. 
 
 ### Accounting Layer
 
@@ -162,40 +151,12 @@ Handles accounting aspects (pricing, fees) for both INFLOW and OUTFLOW operation
 
 The system uses a dedicated on-chain oracle system to compute the price per share for accounting. Specialized oracles exist for different vault standards (ERC4626, ERC5115, ERC7540, etc.) that provide accurate price data and TVL information.
 
-**⚠️ PPS Unit Semantics & Pendle Gotchas**
-
-Not all `getPricePerShare()` values are returned in underlying asset units:
-
-- **ERC-4626/ERC-7540/Spectra PT**: Returns base-asset denominated amounts (in underlying token decimals)
-- **Pendle PT**: Returns ratio from `IPMarket.getPtToAssetRate()` scaled to 1e18 (assets per 1 PT)
-- **ERC-5115**: Returns `exchangeRate()` scaled to 1e18 (assets per share)
-
-`SuperYieldSourceOracle` normalizes ratio-style PPS (1e18) to base token units only for quote functions via auto-detection. Accounting remains consistent by design. FlatFeeLedger is used for ERC-5115 and Pendle PT.
-
 ### Infrastructure
 
 #### SuperBundler
 
 A specialized off-chain bundler that processes ERC-4337 UserOperations on a timed basis. It integrates with the validation system to ensure secure and compliant operation.
 Unlike typical bundlers that immediately forward userOps to the EntryPoint, SuperBundler collects them, simulates them in advance, and dispatches them in timed batches — allowing for gas optimization, sequencing control, and higher throughput.
-
-⚠️ Note: According to ERC-4337 recommendations, bundler operates using a private RPC endpoint. All UserOperations are simulated before submission to ensure validity and avoid wasting gas on failing transactions.
-
-Bundler Operation
-
-- Allows fee charging in ERC20 tokens with a fee payment hook (a transfer hook), which transfers fees to the
-  SuperBundler so that it can orchestrate the entire operation.
-- Allows for a single signature experience flow, where the SuperBundler builds a merkle tree of all userOps that are
-  going to be executed in all chains for a given user intent. This signature is validated in SuperMerkle Validator.
-- Allows for delayed execution of userOps (async userOps) with a single user signature. UserOps are processed when and
-  where required rather than immediately upon receipt. Reasonable deadlines apply here. Typical desired flow of usage is
-  for example with asynchronous vaults like those following ERC7540 standard.
-- Centralization Concerns:
-  - Since SuperBundler controls both the userOp and validation flow, it introduces a degree of centralization. We
-    acknowledge that this could be flagged by auditors.
-  - In later stages this system is planned to be decentralized.
-- Mitigation: Transparency around this design choice and the availability of fallback mechanisms when operations are not
-  executed through SuperBundler.
 
 #### Adapters
 
@@ -204,12 +165,6 @@ Adapters are a set of gateway contracts that handle the acceptance of relayed me
 #### SuperNativePaymaster
 
 SuperNativePaymaster is a specialized paymaster contract that wraps around the ERC4337 EntryPoint. It enables users to pay for operations using ERC20 tokens from any chain, on demand. It's primarily used by SuperBundler for gas sponsoring. This functionality is necessary because of the SuperBundler's unique fee collection mechanism where userOps are executed on user behalf and when required.
-
-**Key Assumptions and Responsibilities:**
-
-- **Bundler Responsibility**: The bundler is responsible for making correct gas estimation and calling `SuperNativePaymaster.handleOps` with the correct amount of native tokens required for the operation. Any extra
-tokens are returned to whoever calls the function. Bundler does not supply the entrypoint directly, thus fund
-loss is not possible.
 
 #### SuperRegistry
 
@@ -239,15 +194,18 @@ forge install
 ```
 
 ```bash
-cd lib/modulekit
-pnpm install
-cd ../..
+cd lib/modulekit/
+pnpm i
+```
+
+```bash
 cd lib/safe7579
-pnpm install
-cd ../..
+pnpm i
+```
+
+```bash
 cd lib/nexus
 yarn
-cd ../..
 ```
 
 Note: This requires pnpm and will not work with npm. Install it using:
@@ -275,4 +233,3 @@ Supply your node rpc directly in the makefile and then
 ```bash
 make ftest
 ```
-
