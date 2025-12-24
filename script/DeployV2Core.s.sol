@@ -438,13 +438,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             }
         }
 
-        // Oracles (6 contracts - always check these)
-        string[6] memory oracleContracts = [
+        // Oracles (7 contracts - always check these)
+        string[7] memory oracleContracts = [
             "ERC4626YieldSourceOracle",
             "ERC5115YieldSourceOracle",
             "PendlePTYieldSourceOracle",
             "SpectraPTYieldSourceOracle",
             "StakingYieldSourceOracle",
+            "SuperVaultYieldSourceOracle",
             "SuperYieldSourceOracle"
         ];
 
