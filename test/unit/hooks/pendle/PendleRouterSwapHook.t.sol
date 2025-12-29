@@ -521,36 +521,6 @@ contract PendleRouterSwapHookTest is Helpers {
         hook.build(address(prevHook), account, data);
     }
 
-    function test_Build_RevertIf_InvalidTokenInput() public {
-        TokenInput memory input = TokenInput({
-            tokenIn: address(inputToken),
-            netTokenIn: inputAmount,
-            tokenMintSy: address(0), // Invalid tokenMintSy
-            pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
-        });
-
-        ApproxParams memory guessPtOut =
-            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
-
-        LimitOrderData memory limit = LimitOrderData({
-            limitRouter: address(0),
-            epsSkipMarket: 0,
-            normalFills: new FillOrderParams[](0),
-            flashFills: new FillOrderParams[](0),
-            optData: ""
-        });
-
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
-        );
-
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
-
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
     function test_Build_RevertIf_InvalidSwapType() public {
         bytes memory data =
             abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), bytes4(0xdeadbeef));

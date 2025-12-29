@@ -117,17 +117,10 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view override returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         uint256 pathDefinitionLength = BytesLib.toUint256(data, 157);
         address executor = BytesLib.toAddress(data, 189 + pathDefinitionLength);
-
-        return abi.encodePacked(
-            BytesLib.toAddress(data, 0), //inputToken
-            BytesLib.toAddress(data, 52), //inputReceiver
-            BytesLib.toAddress(data, 72), //outputToken
-            address(ODOS_ROUTER_V2), //spender
-            executor
-        );
+        return abi.encodePacked(executor);
     }
 
     /*//////////////////////////////////////////////////////////////

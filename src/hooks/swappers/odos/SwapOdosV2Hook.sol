@@ -88,13 +88,7 @@ contract SwapOdosV2Hook is BaseHook, ISuperHookContextAware {
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         uint256 pathDefinitionLength = BytesLib.toUint256(data, 157);
         address executor = BytesLib.toAddress(data, 189 + pathDefinitionLength);
-
-        return abi.encodePacked(
-            BytesLib.toAddress(data, 0), //inputToken
-            BytesLib.toAddress(data, 52), //inputReceiver
-            BytesLib.toAddress(data, 72), //outputToken
-            executor
-        );
+        return abi.encodePacked(executor);
     }
 
     /*//////////////////////////////////////////////////////////////
