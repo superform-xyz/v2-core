@@ -167,14 +167,9 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         );
 
         bytes memory inspectResult = hook.inspect(hookData);
-        bytes memory inspectExtectedResult = abi.encodePacked(eoa);
-        for (uint256 i; i < 3; ++i) {
-            inspectExtectedResult = abi.encodePacked(inspectExtectedResult, tokens[i]);
-        }
-        assertEq(inspectResult.length, inspectExtectedResult.length);
-        assertEq(BytesLib.toAddress(inspectResult, 0), BytesLib.toAddress(inspectExtectedResult, 0));
-        assertEq(BytesLib.toAddress(inspectResult, 20), BytesLib.toAddress(inspectExtectedResult, 20));
-        assertEq(BytesLib.toAddress(inspectResult, 40), BytesLib.toAddress(inspectExtectedResult, 40));
+        // inspect now only returns the from address
+        assertEq(inspectResult.length, 20);
+        assertEq(BytesLib.toAddress(inspectResult, 0), eoa);
     }
 
     function _buildExpectedPermitBatch(

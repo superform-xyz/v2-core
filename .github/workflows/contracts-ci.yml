@@ -83,7 +83,7 @@ jobs:
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm
+        run: npm install -g pnpm@8
 
       - name: "Check pnpm version"
         run: pnpm --version
@@ -137,7 +137,7 @@ jobs:
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm
+        run: npm install -g pnpm@8
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
@@ -208,7 +208,7 @@ jobs:
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm
+        run: npm install -g pnpm@8
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
@@ -296,7 +296,7 @@ jobs:
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm
+        run: npm install -g pnpm@8
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
@@ -343,7 +343,7 @@ jobs:
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm
+        run: npm install -g pnpm@8
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit

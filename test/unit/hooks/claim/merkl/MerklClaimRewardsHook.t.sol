@@ -114,13 +114,10 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers, BaseTest {
     function test_MerklClaimRewardsHook_Inspector() public view {
         bytes memory data = _encodeData();
         bytes memory argsEncoded = hook.inspect(data);
-        assertGt(argsEncoded.length, 0);
 
-        // Check that feeReceiver is first, then tokens are encoded correctly
+        // inspect now only returns the feeReceiver address
+        assertEq(argsEncoded.length, 20);
         assertEq(BytesLib.toAddress(argsEncoded, 0), address(0x1)); // default feeReceiver
-        assertEq(BytesLib.toAddress(argsEncoded, 20), tokens[0]);
-        assertEq(BytesLib.toAddress(argsEncoded, 40), tokens[1]);
-        assertEq(BytesLib.toAddress(argsEncoded, 60), tokens[2]);
     }
 
     function test_MerklClaimRewardsHook_Inspector_SingleToken() public {
@@ -137,12 +134,9 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers, BaseTest {
         bytes memory data = _createMerklClaimRewardHookData(singleToken, singleAmount, singleProof);
         bytes memory argsEncoded = hook.inspect(data);
 
-        assertGt(argsEncoded.length, 0);
-        assertEq(argsEncoded.length, 40); // Should be 40 bytes: 20 for feeReceiver + 20 for one token address
-
-        // Check that feeReceiver is first, then the single token
+        // inspect now only returns the feeReceiver address
+        assertEq(argsEncoded.length, 20);
         assertEq(BytesLib.toAddress(argsEncoded, 0), address(0x1)); // default feeReceiver
-        assertEq(BytesLib.toAddress(argsEncoded, 20), singleToken[0]);
     }
 
     // Test inspect function with two tokens to ensure return statement coverage
@@ -164,13 +158,9 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers, BaseTest {
         bytes memory data = _createMerklClaimRewardHookData(twoTokens, twoAmounts, twoProofs);
         bytes memory argsEncoded = hook.inspect(data);
 
-        assertGt(argsEncoded.length, 0);
-        assertEq(argsEncoded.length, 60); // Should be 60 bytes: 20 for feeReceiver + 40 for two token addresses
-
-        // Check that feeReceiver is first, then both tokens are encoded correctly
+        // inspect now only returns the feeReceiver address
+        assertEq(argsEncoded.length, 20);
         assertEq(BytesLib.toAddress(argsEncoded, 0), address(0x1)); // default feeReceiver
-        assertEq(BytesLib.toAddress(argsEncoded, 20), twoTokens[0]);
-        assertEq(BytesLib.toAddress(argsEncoded, 40), twoTokens[1]);
     }
 
     // Test inspect function with empty token array to ensure return statement coverage
@@ -182,7 +172,7 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers, BaseTest {
         bytes memory data = _createMerklClaimRewardHookData(emptyTokens, emptyAmounts, emptyProofs);
         bytes memory argsEncoded = hook.inspect(data);
 
-        assertEq(argsEncoded.length, 20); // Should be 20 bytes for feeReceiver only (no tokens)
+        assertEq(argsEncoded.length, 20); // Should be 20 bytes for feeReceiver only
         assertEq(BytesLib.toAddress(argsEncoded, 0), address(0x1)); // default feeReceiver
     }
 
@@ -354,65 +344,6 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers, BaseTest {
 
         vm.expectRevert(MerklClaimRewardHook.INVALID_ENCODING.selector);
         hook.build(address(0), address(0), invalidData);
-    }
-
-    // Test inspect function with zero token address
-    function test_Inspect_RevertIf_ZeroTokenAddress() public {
-        address[] memory tokensWithZero = new address[](1);
-        tokensWithZero[0] = address(0);
-
-        uint256[] memory amountsSingle = new uint256[](1);
-        amountsSingle[0] = 1000;
-
-        bytes32[][] memory proofsSingle = new bytes32[][](1);
-        proofsSingle[0] = new bytes32[](1);
-        proofsSingle[0][0] = keccak256(abi.encodePacked(makeAddr("user"), address(0), uint256(1000)));
-
-        bytes memory data =
-            _createMerklClaimRewardHookData(address(0x1), 0, tokensWithZero, amountsSingle, proofsSingle);
-
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.inspect(data);
-    }
-
-    // Test inspect function with zero amount
-    function test_Inspect_RevertIf_ZeroAmount() public {
-        address[] memory tokensSingle = new address[](1);
-        tokensSingle[0] = address(makeAddr("token"));
-
-        uint256[] memory amountsWithZero = new uint256[](1);
-        amountsWithZero[0] = 0;
-
-        bytes32[][] memory proofsSingle = new bytes32[][](1);
-        proofsSingle[0] = new bytes32[](1);
-        proofsSingle[0][0] = keccak256(abi.encodePacked(makeAddr("user"), tokensSingle[0], uint256(0)));
-
-        bytes memory data =
-            _createMerklClaimRewardHookData(address(0x1), 0, tokensSingle, amountsWithZero, proofsSingle);
-
-        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
-        hook.inspect(data);
-    }
-
-    // Test inspect function with invalid encoding
-    function test_Inspect_RevertIf_InvalidEncoding() public {
-        address[] memory tokensSingle = new address[](1);
-        tokensSingle[0] = address(makeAddr("token"));
-
-        uint256[] memory amountsSingle = new uint256[](1);
-        amountsSingle[0] = 1000;
-
-        bytes32[][] memory proofsSingle = new bytes32[][](1);
-        proofsSingle[0] = new bytes32[](1);
-        proofsSingle[0][0] = keccak256(abi.encodePacked(makeAddr("user"), tokensSingle[0], uint256(1000)));
-
-        bytes memory data = _createMerklClaimRewardHookData(address(0x1), 0, tokensSingle, amountsSingle, proofsSingle);
-
-        // Create invalid data by adding extra bytes at the end to cause cursor mismatch
-        bytes memory invalidData = bytes.concat(data, abi.encodePacked(uint256(999)));
-
-        vm.expectRevert(MerklClaimRewardHook.INVALID_ENCODING.selector);
-        hook.inspect(invalidData);
     }
 
     function _encodeData() internal view returns (bytes memory data) {

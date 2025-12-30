@@ -22,9 +22,8 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 /// @notice     uint256 sigDeadline = BytesLib.toUint256(data, 52);
 /// @notice     bytes tokens = BytesLib.slice(data, 84, 20 * tokensLength);
 /// @notice     bytes amounts = BytesLib.slice(data, 84 + 20 * tokensLength, 32 * tokensLength);
-/// @notice     bytes nonces = BytesLib.slice(data, 84 + 20 * tokensLength + 32 * tokensLength, 48 * tokensLength);
-/// @notice     bytes signature = BytesLib.slice(data, 84 + 20 * tokensLength + 32 * tokensLength + 48 * tokensLength,
-/// 65);
+/// @notice     bytes nonces = BytesLib.slice(data, 84 + 20 * tokensLength + 32 * tokensLength, 6 * tokensLength);
+/// @notice     bytes signature = BytesLib.slice(data, data.length - 65, 65);
 contract BatchTransferFromHook is BaseHook {
     using SafeCast for uint256;
 
@@ -138,17 +137,8 @@ contract BatchTransferFromHook is BaseHook {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure override returns (bytes memory packed) {
-        uint256 tokensLength = BytesLib.toUint256(data, 20);
-        bytes memory tokensData = BytesLib.slice(data, 84, 20 * tokensLength);
-        address[] memory tokens = new address[](tokensLength);
-        for (uint256 i; i < tokensLength; i++) {
-            tokens[i] = BytesLib.toAddress(tokensData, i * 20);
-        }
-        packed = abi.encodePacked(BytesLib.toAddress(data, 0)); //from
-        for (uint256 i; i < tokensLength; ++i) {
-            packed = abi.encodePacked(packed, tokens[i]);
-        }
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+        return abi.encodePacked(BytesLib.toAddress(data, 0)); //from
     }
 
     /*//////////////////////////////////////////////////////////////

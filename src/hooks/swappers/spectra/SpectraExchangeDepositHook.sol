@@ -90,42 +90,8 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure override returns (bytes memory packed) {
-        bytes calldata txData_ = data[TX_DATA_POSITION:];
-        ValidateTxDataParams memory params;
-        params.selector = bytes4(txData_[0:4]);
-
-        if (params.selector == bytes4(keccak256("execute(bytes,bytes[])"))) {
-            (params.commandsData, params.inputs) = abi.decode(txData_[4:], (bytes, bytes[]));
-            params.inputsLength = params.inputs.length;
-            params.updatedInputs = new bytes[](params.inputsLength);
-        } else if (params.selector == bytes4(keccak256("execute(bytes,bytes[],uint256)"))) {
-            (params.commandsData, params.inputs, params.deadline) = abi.decode(txData_[4:], (bytes, bytes[], uint256));
-            params.inputsLength = params.inputs.length;
-            params.updatedInputs = new bytes[](params.inputsLength);
-        }
-
-        params.commands = _validateCommands(params.commandsData, params.inputsLength);
-        params.commandsLength = params.commands.length;
-
-        packed = abi.encodePacked(data.extractYieldSource());
-
-        for (uint256 i; i < params.commandsLength; ++i) {
-            uint256 command = params.commands[i];
-            bytes memory input = params.inputs[i];
-            if (command == SpectraCommands.DEPOSIT_ASSET_IN_PT) {
-                (params.pt, params.assets, params.ptRecipient, params.ytRecipient, params.minShares) =
-                    abi.decode(input, (address, uint256, address, address, uint256));
-
-                packed = abi.encodePacked(packed, params.pt, params.ptRecipient, params.ytRecipient);
-            } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
-                (params.ibt, params.assets, params.recipient) = abi.decode(input, (address, uint256, address));
-                packed = abi.encodePacked(packed, params.ibt, params.recipient);
-            } else if (command == SpectraCommands.TRANSFER_FROM) {
-                (params.transferToken) = abi.decode(input, (address));
-                packed = abi.encodePacked(packed, params.transferToken);
-            }
-        }
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+        return abi.encodePacked(data.extractYieldSource());
     }
 
     /*//////////////////////////////////////////////////////////////

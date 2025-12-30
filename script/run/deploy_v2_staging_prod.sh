@@ -298,8 +298,8 @@ check_v2_addresses() {
         return 1
     fi
     
-    # Display the relevant output lines
-    echo "$check_output" | grep -e "Addr" -e "already deployed" -e "Code Size" -e "====" -e "====>"
+    # Display the relevant output lines (include MISSING contracts and deployment summary)
+    echo "$check_output" | grep -e "Addr" -e "already deployed" -e "Code Size" -e "====" -e "====>" -e "MISSING" -e "Already Deployed" -e "Missing/Need Deployment" -e "Total Contracts"
     
     # Extract deployment counts from the summary line
     local summary_line

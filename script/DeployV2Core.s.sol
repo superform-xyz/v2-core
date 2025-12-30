@@ -616,14 +616,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         _checkCoreContracts(chainId, env, availability);
 
-        // Override total with the correct expected count for this chain
-        total = availability.expectedTotal;
-
         // Log comprehensive deployment summary and get deployed count
         _logDeploymentSummary(chainId);
 
-        // Count deployed contracts from the status tracking
+        // Count deployed contracts from the status tracking (use actual checked count, not expected)
         deployed = _countDeployedContracts(chainId);
+
+        // Use actual total from allContractNames instead of expectedTotal to ensure accuracy
+        string[] memory checkedContracts = _getAllContractNames(chainId);
+        total = checkedContracts.length;
 
         // ===== SUMMARY =====
         console2.log("");
