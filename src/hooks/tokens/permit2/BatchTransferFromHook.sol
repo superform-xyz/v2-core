@@ -22,9 +22,8 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 /// @notice     uint256 sigDeadline = BytesLib.toUint256(data, 52);
 /// @notice     bytes tokens = BytesLib.slice(data, 84, 20 * tokensLength);
 /// @notice     bytes amounts = BytesLib.slice(data, 84 + 20 * tokensLength, 32 * tokensLength);
-/// @notice     bytes nonces = BytesLib.slice(data, 84 + 20 * tokensLength + 32 * tokensLength, 48 * tokensLength);
-/// @notice     bytes signature = BytesLib.slice(data, 84 + 20 * tokensLength + 32 * tokensLength + 48 * tokensLength,
-/// 65);
+/// @notice     bytes nonces = BytesLib.slice(data, 84 + 20 * tokensLength + 32 * tokensLength, 6 * tokensLength);
+/// @notice     bytes signature = BytesLib.slice(data, data.length - 65, 65);
 contract BatchTransferFromHook is BaseHook {
     using SafeCast for uint256;
 
