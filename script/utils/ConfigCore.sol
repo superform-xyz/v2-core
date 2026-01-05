@@ -140,7 +140,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.nativeTokens[BNB_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[ARBITRUM_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[OPTIMISM_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
-        configuration.nativeTokens[POLYGON_CHAIN_ID] = NATIVE_TOKEN_DEFAULT; //NATIVE_TOKEN_POLYGON;
+        configuration.nativeTokens[POLYGON_CHAIN_ID] = NATIVE_TOKEN_POLYGON;
         configuration.nativeTokens[UNICHAIN_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[LINEA_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[AVALANCHE_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
