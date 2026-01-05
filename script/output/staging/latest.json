@@ -45,6 +45,7 @@
         "RequestDeposit7540VaultHook": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
         "RequestRedeem7540VaultHook": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
         "SetOperator7540Hook": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+        "SetSlippageHook": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
         "SpectraPTYieldSourceOracle": "0xBb9154D1a9c06047D4AD5721eAEd874Ee125f4E3",
         "StakingYieldSourceOracle": "0x0737eB8db2992b13a66b46E8226F36d774CA2A02",
         "SuperDestinationExecutor": "0xd0B5d200a6B136D619Dd1c7BBA30b004b4773C40",
@@ -109,6 +110,7 @@
         "RequestDeposit7540VaultHook": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
         "RequestRedeem7540VaultHook": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
         "SetOperator7540Hook": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+        "SetSlippageHook": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
         "SpectraPTYieldSourceOracle": "0xBb9154D1a9c06047D4AD5721eAEd874Ee125f4E3",
         "StakingYieldSourceOracle": "0x0737eB8db2992b13a66b46E8226F36d774CA2A02",
         "SuperDestinationExecutor": "0xd0B5d200a6B136D619Dd1c7BBA30b004b4773C40",
@@ -173,6 +175,7 @@
         "RequestDeposit7540VaultHook": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
         "RequestRedeem7540VaultHook": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
         "SetOperator7540Hook": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+        "SetSlippageHook": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
         "SpectraPTYieldSourceOracle": "0xBb9154D1a9c06047D4AD5721eAEd874Ee125f4E3",
         "StakingYieldSourceOracle": "0x0737eB8db2992b13a66b46E8226F36d774CA2A02",
         "SuperDestinationExecutor": "0xd0B5d200a6B136D619Dd1c7BBA30b004b4773C40",
@@ -236,6 +239,7 @@
         "RequestDeposit7540VaultHook": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
         "RequestRedeem7540VaultHook": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
         "SetOperator7540Hook": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+        "SetSlippageHook": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
         "SpectraPTYieldSourceOracle": "0xBb9154D1a9c06047D4AD5721eAEd874Ee125f4E3",
         "StakingYieldSourceOracle": "0x0737eB8db2992b13a66b46E8226F36d774CA2A02",
         "SuperDestinationExecutor": "0xd0B5d200a6B136D619Dd1c7BBA30b004b4773C40",
@@ -295,6 +299,7 @@
         "RequestDeposit7540VaultHook": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
         "RequestRedeem7540VaultHook": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
         "SetOperator7540Hook": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+        "SetSlippageHook": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
         "SpectraPTYieldSourceOracle": "0xBb9154D1a9c06047D4AD5721eAEd874Ee125f4E3",
         "StakingYieldSourceOracle": "0x0737eB8db2992b13a66b46E8226F36d774CA2A02",
         "SuperDestinationExecutor": "0xd0B5d200a6B136D619Dd1c7BBA30b004b4773C40",
@@ -315,5 +320,5 @@
       }
     }
   },
-  "updated_at": "2025-12-29T08:14:22Z"
+  "updated_at": "2026-01-05T09:17:15Z"
 }
