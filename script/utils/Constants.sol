@@ -142,6 +142,7 @@ abstract contract Constants {
     string internal constant REDEEM_7540_VAULT_HOOK_KEY = "Redeem7540VaultHook";
     string internal constant REQUEST_REDEEM_7540_VAULT_HOOK_KEY = "RequestRedeem7540VaultHook";
     string internal constant SET_OPERATOR_7540_HOOK_KEY = "SetOperator7540Hook";
+    string internal constant SET_SLIPPAGE_HOOK_KEY = "SetSlippageHook";
     string internal constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
     string internal constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
     string internal constant FLUID_STAKE_HOOK_KEY = "FluidStakeHook";
