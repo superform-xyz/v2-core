@@ -19,6 +19,10 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @notice         uint256 amount = BytesLib.toUint256(data, 40);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
 contract TransferHook is BaseHook, ISuperHookContextAware {
+    /// @dev Bytecode version for redeployment tracking
+    ///      New version to be deployed on polygon with 0xeee as the native token
+    uint256 public constant VERSION = 2;
+
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
 
     /// @dev This is not a constant because some chains have different representations for the native token

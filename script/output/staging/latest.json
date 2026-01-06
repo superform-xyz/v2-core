@@ -13,7 +13,7 @@
         "ApproveAndSwapOdosV2Hook": "0x103F71A3ECE8fF293d2B3997acA502BE0e3932eb",
         "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
         "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
-        "BatchTransferHook": "0x19cbbCd458F2Ac94569326F4C77e4b34d7FBb252",
+        "BatchTransferHook": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
         "CancelDepositRequest7540Hook": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
         "CancelRedeemRequest7540Hook": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
         "CircleGatewayAddDelegateHook": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
@@ -62,7 +62,7 @@
         "SwapOdosV2Hook": "0xb31767112343E2331eB81A80702B9680CcE19494",
         "SwapUniswapV4Hook": "0x08c57a93C225E598B3D596A296F971cA80cF1B84",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
-        "TransferHook": "0xFaDDA337a5c0c89Cda8950d41b6a010dEC57bdFc"
+        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea"
       }
     },
     "Base": {
@@ -78,7 +78,7 @@
         "ApproveAndSwapOdosV2Hook": "0x4440F9Dede90b5eE690B2B4C239Dc4A52076686a",
         "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
         "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
-        "BatchTransferHook": "0x19cbbCd458F2Ac94569326F4C77e4b34d7FBb252",
+        "BatchTransferHook": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
         "CancelDepositRequest7540Hook": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
         "CancelRedeemRequest7540Hook": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
         "CircleGatewayAddDelegateHook": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
@@ -127,7 +127,7 @@
         "SwapOdosV2Hook": "0x1037Dcde2e82AB70A516304490e31CA0CeF46593",
         "SwapUniswapV4Hook": "0x2F7F2eaad2734D617b3fD14A92C28929af916cF1",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
-        "TransferHook": "0xFaDDA337a5c0c89Cda8950d41b6a010dEC57bdFc"
+        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea"
       }
     },
     "BNB": {
@@ -143,7 +143,7 @@
         "ApproveAndSwapOdosV2Hook": "0x806DBE37954Bb3965E2Cf305fd2765C651e670c0",
         "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
         "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
-        "BatchTransferHook": "0x19cbbCd458F2Ac94569326F4C77e4b34d7FBb252",
+        "BatchTransferHook": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
         "CancelDepositRequest7540Hook": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
         "CancelRedeemRequest7540Hook": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
         "CircleGatewayAddDelegateHook": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
@@ -191,7 +191,7 @@
         "Swap1InchHook": "0xc785A8a40D449cbd3352853a7B2A514838e07728",
         "SwapOdosV2Hook": "0xCADBBD04a09d7F9A8d7ACEfc4a7d382233D3Bf1e",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
-        "TransferHook": "0xFaDDA337a5c0c89Cda8950d41b6a010dEC57bdFc"
+        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea"
       }
     },
     "Arbitrum": {
@@ -207,7 +207,7 @@
         "ApproveAndSwapOdosV2Hook": "0xAc4AA35452CF1ef22A60141eae7b80b945699e56",
         "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
         "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
-        "BatchTransferHook": "0x19cbbCd458F2Ac94569326F4C77e4b34d7FBb252",
+        "BatchTransferHook": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
         "CancelDepositRequest7540Hook": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
         "CancelRedeemRequest7540Hook": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
         "CircleGatewayAddDelegateHook": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
@@ -256,7 +256,7 @@
         "SwapOdosV2Hook": "0x0537eF6260a0Acf0B1Ff773803128e1C13458a5A",
         "SwapUniswapV4Hook": "0xBE4407e2fcb049Baa5C667795397b5f0BED5eE6f",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
-        "TransferHook": "0xFaDDA337a5c0c89Cda8950d41b6a010dEC57bdFc"
+        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea"
       }
     },
     "Avalanche": {
@@ -269,7 +269,7 @@
         "ApproveAndSwapOdosV2Hook": "0x418c0b3eEad48aE2C2133D6e3265829E5e46c223",
         "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
         "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
-        "BatchTransferHook": "0x19cbbCd458F2Ac94569326F4C77e4b34d7FBb252",
+        "BatchTransferHook": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
         "CancelDepositRequest7540Hook": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
         "CancelRedeemRequest7540Hook": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
         "CircleGatewayAddDelegateHook": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
@@ -316,9 +316,9 @@
         "SwapOdosV2Hook": "0xd8E2E7ff80fe3B341a75eE9a64bB4e3233915158",
         "SwapUniswapV4Hook": "0x19AEF162cc077d22375e3e072695D9e50e954C12",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
-        "TransferHook": "0xFaDDA337a5c0c89Cda8950d41b6a010dEC57bdFc"
+        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea"
       }
     }
   },
-  "updated_at": "2026-01-05T09:17:15Z"
+  "updated_at": "2026-01-05T14:06:23Z"
 }
