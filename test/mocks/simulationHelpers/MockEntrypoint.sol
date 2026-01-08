@@ -35,8 +35,17 @@ contract MockedEntrypoint {
         uint256 gasBefore = gasleft();
 
         // Execute the call on the account
-        (bool callSuccess,) = account.call(accountCallData);
-        require(callSuccess, "Account call failed");
+        (bool callSuccess, bytes memory returnData) = account.call(accountCallData);
+        if (!callSuccess) {
+            // Bubble up the actual revert reason
+            if (returnData.length > 0) {
+                assembly {
+                    revert(add(returnData, 32), mload(returnData))
+                }
+            } else {
+                revert("Account call failed");
+            }
+        }
 
         // Calculate gas consumed
         uint256 gasAfter = gasleft();
