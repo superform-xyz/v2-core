@@ -39,12 +39,15 @@
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
         "PendleRouterRedeemHook": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
         "PendleRouterSwapHook": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D",
+        "RecordPurchasePendlePTAmortizedOracleHook": "0xcB2CF8F142907C2fcC8191491AE7b2de726eD0d8",
+        "RecordRedemptionPendlePTAmortizedOracleHook": "0x4020867d5Fd3961D8D9C7C3895afc746d1acB820",
         "Redeem4626VaultHook": "0xB10b1fCE2E4B24C5A988A9932d4Cf9DB37Ba0394",
         "Redeem5115VaultHook": "0x421aE0BB3C201959D0B152a87d56BCdB2Ee1cF63",
         "Redeem7540VaultHook": "0xCa50aB0375b774B2DE12919423Dd0B8e8cAad95f",
         "RequestDeposit7540VaultHook": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
         "RequestRedeem7540VaultHook": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
         "SetOperator7540Hook": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+        "SetSlippageHook": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
         "SpectraPTYieldSourceOracle": "0xBb9154D1a9c06047D4AD5721eAEd874Ee125f4E3",
         "StakingYieldSourceOracle": "0x0737eB8db2992b13a66b46E8226F36d774CA2A02",
         "SuperDestinationExecutor": "0xd0B5d200a6B136D619Dd1c7BBA30b004b4773C40",
@@ -103,12 +106,15 @@
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
         "PendleRouterRedeemHook": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
         "PendleRouterSwapHook": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D",
+        "RecordPurchasePendlePTAmortizedOracleHook": "0xcB2CF8F142907C2fcC8191491AE7b2de726eD0d8",
+        "RecordRedemptionPendlePTAmortizedOracleHook": "0x4020867d5Fd3961D8D9C7C3895afc746d1acB820",
         "Redeem4626VaultHook": "0xB10b1fCE2E4B24C5A988A9932d4Cf9DB37Ba0394",
         "Redeem5115VaultHook": "0x421aE0BB3C201959D0B152a87d56BCdB2Ee1cF63",
         "Redeem7540VaultHook": "0xCa50aB0375b774B2DE12919423Dd0B8e8cAad95f",
         "RequestDeposit7540VaultHook": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
         "RequestRedeem7540VaultHook": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
         "SetOperator7540Hook": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+        "SetSlippageHook": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
         "SpectraPTYieldSourceOracle": "0xBb9154D1a9c06047D4AD5721eAEd874Ee125f4E3",
         "StakingYieldSourceOracle": "0x0737eB8db2992b13a66b46E8226F36d774CA2A02",
         "SuperDestinationExecutor": "0xd0B5d200a6B136D619Dd1c7BBA30b004b4773C40",
@@ -315,5 +321,5 @@
       }
     }
   },
-  "updated_at": "2025-12-29T08:14:22Z"
+  "updated_at": "2026-01-28T16:49:20Z"
 }

@@ -208,7 +208,7 @@ generate_constructor_args() {
     local debridge_dln_dst="0xE7351Fd770A37282b91D153Ee690B63579D6dd7f"  # Standard DeBridge DLN DST
     local gateway_wallet="0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE"  # Circle Gateway Wallet
     local gateway_minter="0x2222222d7164433c4C09B0b0D809a9b52C04C205"  # Circle Gateway Minter
-    local pendle_pt_amortized_oracle=""  # TODO: Add when deployed (same address across all chains)
+    local pendle_pt_amortized_oracle="0x5BDdD529B8ef20406371c3b864e0a78241d1dE0F"  # Production address (Staging: 0x1e6eC8e7a5aEe0508F43Deb35741F05E4a2e0004)
     
     # Network-specific configurations
     case $chain_id in
