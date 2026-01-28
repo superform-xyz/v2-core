@@ -13,7 +13,7 @@
         "ApproveAndSwapOdosV2Hook": "0x103F71A3ECE8fF293d2B3997acA502BE0e3932eb",
         "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
         "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
-        "BatchTransferHook": "0x19cbbCd458F2Ac94569326F4C77e4b34d7FBb252",
+        "BatchTransferHook": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
         "CancelDepositRequest7540Hook": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
         "CancelRedeemRequest7540Hook": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
         "CircleGatewayAddDelegateHook": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
@@ -34,7 +34,7 @@
         "EthenaUnstakeHook": "0xC836797f7b7f645248b73938d0bD2Ab2dc6A9337",
         "FlatFeeLedger": "0xb989FC825C8C77fbE84b69082048372d548f6FeF",
         "MarkRootAsUsedHook": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
-        "MerklClaimRewardHook": "0xCE2F951b24c8eF27EEA18B36c7cF35eF7693B93d",
+        "MerklClaimRewardHook": "0x67CcC575D4064418406AE70cC094781837D01777",
         "OfframpTokensHook": "0x45769A1252B26976896533664454b6e295b88266",
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
         "PendleRouterRedeemHook": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
@@ -45,6 +45,7 @@
         "RequestDeposit7540VaultHook": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
         "RequestRedeem7540VaultHook": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
         "SetOperator7540Hook": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+        "SetSlippageHook": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
         "SpectraPTYieldSourceOracle": "0xBb9154D1a9c06047D4AD5721eAEd874Ee125f4E3",
         "StakingYieldSourceOracle": "0x0737eB8db2992b13a66b46E8226F36d774CA2A02",
         "SuperDestinationExecutor": "0xd0B5d200a6B136D619Dd1c7BBA30b004b4773C40",
@@ -58,10 +59,10 @@
         "SuperVaultYieldSourceOracle": "0x2339E250Cc72694BFea62C594B267270d728fD2b",
         "SuperYieldSourceOracle": "0x03f1d66d67BDacD1d417d884a59733f3Af626c62",
         "Swap1InchHook": "0xc785A8a40D449cbd3352853a7B2A514838e07728",
-        "SwapOdosV2Hook": "0xb31767112343E2331eB81A80702B9680CcE19494",
+        "SwapOdosV2Hook": "0x6FD58b83e7518A1ABEFB67a7E32c3Ef316753A11",
         "SwapUniswapV4Hook": "0x08c57a93C225E598B3D596A296F971cA80cF1B84",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
-        "TransferHook": "0xFaDDA337a5c0c89Cda8950d41b6a010dEC57bdFc"
+        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea"
       }
     },
     "Base": {
@@ -77,7 +78,7 @@
         "ApproveAndSwapOdosV2Hook": "0x4440F9Dede90b5eE690B2B4C239Dc4A52076686a",
         "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
         "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
-        "BatchTransferHook": "0x19cbbCd458F2Ac94569326F4C77e4b34d7FBb252",
+        "BatchTransferHook": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
         "CancelDepositRequest7540Hook": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
         "CancelRedeemRequest7540Hook": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
         "CircleGatewayAddDelegateHook": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
@@ -98,7 +99,7 @@
         "EthenaUnstakeHook": "0xC836797f7b7f645248b73938d0bD2Ab2dc6A9337",
         "FlatFeeLedger": "0xb989FC825C8C77fbE84b69082048372d548f6FeF",
         "MarkRootAsUsedHook": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
-        "MerklClaimRewardHook": "0xCE2F951b24c8eF27EEA18B36c7cF35eF7693B93d",
+        "MerklClaimRewardHook": "0x67CcC575D4064418406AE70cC094781837D01777",
         "OfframpTokensHook": "0x45769A1252B26976896533664454b6e295b88266",
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
         "PendleRouterRedeemHook": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
@@ -109,6 +110,7 @@
         "RequestDeposit7540VaultHook": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
         "RequestRedeem7540VaultHook": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
         "SetOperator7540Hook": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+        "SetSlippageHook": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
         "SpectraPTYieldSourceOracle": "0xBb9154D1a9c06047D4AD5721eAEd874Ee125f4E3",
         "StakingYieldSourceOracle": "0x0737eB8db2992b13a66b46E8226F36d774CA2A02",
         "SuperDestinationExecutor": "0xd0B5d200a6B136D619Dd1c7BBA30b004b4773C40",
@@ -122,10 +124,10 @@
         "SuperVaultYieldSourceOracle": "0x2339E250Cc72694BFea62C594B267270d728fD2b",
         "SuperYieldSourceOracle": "0x03f1d66d67BDacD1d417d884a59733f3Af626c62",
         "Swap1InchHook": "0xc785A8a40D449cbd3352853a7B2A514838e07728",
-        "SwapOdosV2Hook": "0x1037Dcde2e82AB70A516304490e31CA0CeF46593",
+        "SwapOdosV2Hook": "0xA3a87993C802C6Ee82B1F77DF452F310Fa1a5de9",
         "SwapUniswapV4Hook": "0x2F7F2eaad2734D617b3fD14A92C28929af916cF1",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
-        "TransferHook": "0xFaDDA337a5c0c89Cda8950d41b6a010dEC57bdFc"
+        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea"
       }
     },
     "BNB": {
@@ -141,7 +143,7 @@
         "ApproveAndSwapOdosV2Hook": "0x806DBE37954Bb3965E2Cf305fd2765C651e670c0",
         "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
         "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
-        "BatchTransferHook": "0x19cbbCd458F2Ac94569326F4C77e4b34d7FBb252",
+        "BatchTransferHook": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
         "CancelDepositRequest7540Hook": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
         "CancelRedeemRequest7540Hook": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
         "CircleGatewayAddDelegateHook": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
@@ -162,7 +164,7 @@
         "EthenaUnstakeHook": "0xC836797f7b7f645248b73938d0bD2Ab2dc6A9337",
         "FlatFeeLedger": "0xb989FC825C8C77fbE84b69082048372d548f6FeF",
         "MarkRootAsUsedHook": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
-        "MerklClaimRewardHook": "0xCE2F951b24c8eF27EEA18B36c7cF35eF7693B93d",
+        "MerklClaimRewardHook": "0x67CcC575D4064418406AE70cC094781837D01777",
         "OfframpTokensHook": "0x45769A1252B26976896533664454b6e295b88266",
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
         "PendleRouterRedeemHook": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
@@ -173,6 +175,7 @@
         "RequestDeposit7540VaultHook": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
         "RequestRedeem7540VaultHook": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
         "SetOperator7540Hook": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+        "SetSlippageHook": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
         "SpectraPTYieldSourceOracle": "0xBb9154D1a9c06047D4AD5721eAEd874Ee125f4E3",
         "StakingYieldSourceOracle": "0x0737eB8db2992b13a66b46E8226F36d774CA2A02",
         "SuperDestinationExecutor": "0xd0B5d200a6B136D619Dd1c7BBA30b004b4773C40",
@@ -186,9 +189,9 @@
         "SuperVaultYieldSourceOracle": "0x2339E250Cc72694BFea62C594B267270d728fD2b",
         "SuperYieldSourceOracle": "0x03f1d66d67BDacD1d417d884a59733f3Af626c62",
         "Swap1InchHook": "0xc785A8a40D449cbd3352853a7B2A514838e07728",
-        "SwapOdosV2Hook": "0xCADBBD04a09d7F9A8d7ACEfc4a7d382233D3Bf1e",
+        "SwapOdosV2Hook": "0xB6BD55F3CF924D0B17ddCF80D990c056A072cFDc",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
-        "TransferHook": "0xFaDDA337a5c0c89Cda8950d41b6a010dEC57bdFc"
+        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea"
       }
     },
     "Arbitrum": {
@@ -204,7 +207,7 @@
         "ApproveAndSwapOdosV2Hook": "0xAc4AA35452CF1ef22A60141eae7b80b945699e56",
         "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
         "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
-        "BatchTransferHook": "0x19cbbCd458F2Ac94569326F4C77e4b34d7FBb252",
+        "BatchTransferHook": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
         "CancelDepositRequest7540Hook": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
         "CancelRedeemRequest7540Hook": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
         "CircleGatewayAddDelegateHook": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
@@ -225,7 +228,7 @@
         "EthenaUnstakeHook": "0xC836797f7b7f645248b73938d0bD2Ab2dc6A9337",
         "FlatFeeLedger": "0xb989FC825C8C77fbE84b69082048372d548f6FeF",
         "MarkRootAsUsedHook": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
-        "MerklClaimRewardHook": "0xCE2F951b24c8eF27EEA18B36c7cF35eF7693B93d",
+        "MerklClaimRewardHook": "0x67CcC575D4064418406AE70cC094781837D01777",
         "OfframpTokensHook": "0x45769A1252B26976896533664454b6e295b88266",
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
         "PendleRouterRedeemHook": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
@@ -236,6 +239,7 @@
         "RequestDeposit7540VaultHook": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
         "RequestRedeem7540VaultHook": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
         "SetOperator7540Hook": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+        "SetSlippageHook": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
         "SpectraPTYieldSourceOracle": "0xBb9154D1a9c06047D4AD5721eAEd874Ee125f4E3",
         "StakingYieldSourceOracle": "0x0737eB8db2992b13a66b46E8226F36d774CA2A02",
         "SuperDestinationExecutor": "0xd0B5d200a6B136D619Dd1c7BBA30b004b4773C40",
@@ -249,10 +253,10 @@
         "SuperVaultYieldSourceOracle": "0x2339E250Cc72694BFea62C594B267270d728fD2b",
         "SuperYieldSourceOracle": "0x03f1d66d67BDacD1d417d884a59733f3Af626c62",
         "Swap1InchHook": "0xc785A8a40D449cbd3352853a7B2A514838e07728",
-        "SwapOdosV2Hook": "0x0537eF6260a0Acf0B1Ff773803128e1C13458a5A",
+        "SwapOdosV2Hook": "0x4D6205b40aA08b07B703892dbb369646B76BE74a",
         "SwapUniswapV4Hook": "0xBE4407e2fcb049Baa5C667795397b5f0BED5eE6f",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
-        "TransferHook": "0xFaDDA337a5c0c89Cda8950d41b6a010dEC57bdFc"
+        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea"
       }
     },
     "Avalanche": {
@@ -265,7 +269,7 @@
         "ApproveAndSwapOdosV2Hook": "0x418c0b3eEad48aE2C2133D6e3265829E5e46c223",
         "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
         "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
-        "BatchTransferHook": "0x19cbbCd458F2Ac94569326F4C77e4b34d7FBb252",
+        "BatchTransferHook": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
         "CancelDepositRequest7540Hook": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
         "CancelRedeemRequest7540Hook": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
         "CircleGatewayAddDelegateHook": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
@@ -286,7 +290,7 @@
         "EthenaUnstakeHook": "0xC836797f7b7f645248b73938d0bD2Ab2dc6A9337",
         "FlatFeeLedger": "0xb989FC825C8C77fbE84b69082048372d548f6FeF",
         "MarkRootAsUsedHook": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
-        "MerklClaimRewardHook": "0xCE2F951b24c8eF27EEA18B36c7cF35eF7693B93d",
+        "MerklClaimRewardHook": "0x67CcC575D4064418406AE70cC094781837D01777",
         "OfframpTokensHook": "0x45769A1252B26976896533664454b6e295b88266",
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
         "Redeem4626VaultHook": "0xB10b1fCE2E4B24C5A988A9932d4Cf9DB37Ba0394",
@@ -295,6 +299,7 @@
         "RequestDeposit7540VaultHook": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
         "RequestRedeem7540VaultHook": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
         "SetOperator7540Hook": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+        "SetSlippageHook": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
         "SpectraPTYieldSourceOracle": "0xBb9154D1a9c06047D4AD5721eAEd874Ee125f4E3",
         "StakingYieldSourceOracle": "0x0737eB8db2992b13a66b46E8226F36d774CA2A02",
         "SuperDestinationExecutor": "0xd0B5d200a6B136D619Dd1c7BBA30b004b4773C40",
@@ -308,12 +313,12 @@
         "SuperVaultYieldSourceOracle": "0x2339E250Cc72694BFea62C594B267270d728fD2b",
         "SuperYieldSourceOracle": "0x03f1d66d67BDacD1d417d884a59733f3Af626c62",
         "Swap1InchHook": "0xc785A8a40D449cbd3352853a7B2A514838e07728",
-        "SwapOdosV2Hook": "0xd8E2E7ff80fe3B341a75eE9a64bB4e3233915158",
+        "SwapOdosV2Hook": "0x49774d860b7D3d5B9BdEBD9f8961FDb5B3CeF096",
         "SwapUniswapV4Hook": "0x19AEF162cc077d22375e3e072695D9e50e954C12",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
-        "TransferHook": "0xFaDDA337a5c0c89Cda8950d41b6a010dEC57bdFc"
+        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea"
       }
     }
   },
-  "updated_at": "2025-12-29T08:14:22Z"
+  "updated_at": "2026-01-09T08:14:24Z"
 }

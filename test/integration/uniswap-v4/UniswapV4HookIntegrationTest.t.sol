@@ -1037,7 +1037,8 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         console2.log("quote.amountOut (actualAmount):", q.amountOut);
 
         // Scale originalMinAmountOut based on ratio of originalAmount to actualAmount
-        uint256 originalMinAmountOut = (q.amountOut * originalAmount) / actualAmount;
+        // Apply 1% slippage buffer to account for pool state changes between quote and execution
+        uint256 originalMinAmountOut = (q.amountOut * originalAmount * 99) / (actualAmount * 100);
 
         console2.log("originalAmount      :", originalAmount);
         console2.log("actualAmount        :", actualAmount);
