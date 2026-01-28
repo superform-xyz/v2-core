@@ -134,6 +134,22 @@ abstract contract ConfigCore is ConfigBase {
         configuration.pendleRouters[GNOSIS_CHAIN_ID] = address(0); // Not deployed
         configuration.pendleRouters[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
 
+        // ===== PENDLE PT AMORTIZED ORACLE ADDRESSES =====
+        // TODO: Add oracle address when deployed (same address across all chains)
+        configuration.pendlePTAmortizedOracles[MAINNET_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[BASE_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[BNB_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[ARBITRUM_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[OPTIMISM_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[POLYGON_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[UNICHAIN_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[LINEA_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[AVALANCHE_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[BERACHAIN_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[SONIC_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[GNOSIS_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[WORLDCHAIN_CHAIN_ID] = address(0);
+
         // ===== NATIVE TOKEN ADDRESSES =====
         configuration.nativeTokens[MAINNET_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[BASE_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
