@@ -424,7 +424,9 @@ get_contract_source() {
         "CancelRedeemRequest7540Hook") echo "src/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol" ;;
         "ClaimCancelDepositRequest7540Hook") echo "src/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol" ;;
         "ClaimCancelRedeemRequest7540Hook") echo "src/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol" ;;
-        
+        "SetOperator7540Hook") echo "src/hooks/vaults/7540/SetOperator7540Hook.sol" ;;
+        "SetSlippageHook") echo "src/hooks/vaults/7540/SetSlippageHook.sol" ;;
+
         # Hooks - Swappers
         "Swap1InchHook") echo "src/hooks/swappers/1inch/Swap1InchHook.sol" ;;
         "SwapOdosV2Hook") echo "src/hooks/swappers/odos/SwapOdosV2Hook.sol" ;;
