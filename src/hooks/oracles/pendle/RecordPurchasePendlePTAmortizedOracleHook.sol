@@ -130,20 +130,4 @@ contract RecordPurchasePendlePTAmortizedOracleHook is BaseHook, ISuperHookContex
             BytesLib.toAddress(data, MARKET_POSITION) // market
         );
     }
-
-    /*//////////////////////////////////////////////////////////////
-                          INTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @inheritdoc BaseHook
-    /// @dev No balance tracking needed - this hook just records data
-    function _preExecute(address, address, bytes calldata) internal override {
-        // No-op: This hook only records data, no balance tracking needed
-    }
-
-    /// @inheritdoc BaseHook
-    /// @dev No output amount - this hook doesn't produce tokens
-    function _postExecute(address, address, bytes calldata) internal override {
-        // No-op: This hook doesn't produce output tokens
-    }
 }
