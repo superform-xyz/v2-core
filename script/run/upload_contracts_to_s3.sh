@@ -188,7 +188,7 @@ show_contract_diff() {
     local unchanged_contract_names=$(echo "$new_contracts" | jq -r --argjson existing "$existing_contracts" '
         to_entries[] | select(.key as $k | .value as $v | $existing | has($k) and (.[$k] == $v)) | .key
     ' 2>/dev/null | grep -v '^null$' | grep -v '^:')
-    local unchanged_count=$(echo "$unchanged_contract_names" | grep -c . 2>/dev/null || echo "0")
+    local unchanged_count=$(echo "$unchanged_contract_names" | grep -c . 2>/dev/null || true)
 
     # Count preserved contracts (in S3 but not in new deployment - will be kept)
     local preserved_count=$(echo "$existing_contracts" | jq --argjson new_contracts "$new_contracts" '
