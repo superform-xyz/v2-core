@@ -208,6 +208,7 @@ generate_constructor_args() {
     local debridge_dln_dst="0xE7351Fd770A37282b91D153Ee690B63579D6dd7f"  # Standard DeBridge DLN DST
     local gateway_wallet="0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE"  # Circle Gateway Wallet
     local gateway_minter="0x2222222d7164433c4C09B0b0D809a9b52C04C205"  # Circle Gateway Minter
+    local pendle_pt_amortized_oracle=""  # TODO: Add when deployed (same address across all chains)
     
     # Network-specific configurations
     case $chain_id in
@@ -371,7 +372,10 @@ generate_constructor_args() {
         "CircleGatewayMinterHook")
             echo "$(cast abi-encode "constructor(address)" "$gateway_minter")"
             ;;
-        
+        "RecordPurchasePendlePTAmortizedOracleHook"|"RecordRedemptionPendlePTAmortizedOracleHook")
+            echo "$(cast abi-encode "constructor(address)" "$pendle_pt_amortized_oracle")"
+            ;;
+
         # All other contracts (no constructor args)
         *)
             echo "$(cast abi-encode "constructor()")"
@@ -447,7 +451,11 @@ get_contract_source() {
         "CircleGatewayMinterHook") echo "src/hooks/bridges/circle/CircleGatewayMinterHook.sol" ;;
         "CircleGatewayAddDelegateHook") echo "src/hooks/bridges/circle/CircleGatewayAddDelegateHook.sol" ;;
         "CircleGatewayRemoveDelegateHook") echo "src/hooks/bridges/circle/CircleGatewayRemoveDelegateHook.sol" ;;
-        
+
+        # Hooks - Pendle PT Amortized Oracle
+        "RecordPurchasePendlePTAmortizedOracleHook") echo "src/hooks/oracles/pendle/RecordPurchasePendlePTAmortizedOracleHook.sol" ;;
+        "RecordRedemptionPendlePTAmortizedOracleHook") echo "src/hooks/oracles/pendle/RecordRedemptionPendlePTAmortizedOracleHook.sol" ;;
+
         # Oracles
         "ERC4626YieldSourceOracle") echo "src/accounting/oracles/ERC4626YieldSourceOracle.sol" ;;
         "ERC5115YieldSourceOracle") echo "src/accounting/oracles/ERC5115YieldSourceOracle.sol" ;;

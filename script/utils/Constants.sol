@@ -152,6 +152,10 @@ abstract contract Constants {
     string internal constant SWAP_UNISWAPV4_HOOK_KEY = "SwapUniswapV4Hook";
     string internal constant PENDLE_ROUTER_SWAP_HOOK_KEY = "PendleRouterSwapHook";
     string internal constant PENDLE_ROUTER_REDEEM_HOOK_KEY = "PendleRouterRedeemHook";
+    string internal constant RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY =
+        "RecordPurchasePendlePTAmortizedOracleHook";
+    string internal constant RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY =
+        "RecordRedemptionPendlePTAmortizedOracleHook";
     string internal constant APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY = "ApproveAndDeposit4626VaultHook";
     string internal constant APPROVE_AND_SWAP_ODOSV2_HOOK_KEY = "ApproveAndSwapOdosV2Hook";
     string internal constant APPROVE_AND_FLUID_STAKE_HOOK_KEY = "ApproveAndFluidStakeHook";
