@@ -920,6 +920,27 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         }
 
+        // Pendle PT Amortized Oracle hooks
+        if (availability.pendlePTAmortizedOracleHooks) {
+            __checkContract(
+                RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY,
+                __getSalt(RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY),
+                abi.encode(configuration.pendlePTAmortizedOracles[chainId]),
+                env
+            );
+            __checkContract(
+                RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY,
+                __getSalt(RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY),
+                abi.encode(configuration.pendlePTAmortizedOracles[chainId]),
+                env
+            );
+        } else {
+            console2.log(
+                "SKIPPED RecordPurchase & RecordRedemption PendlePTAmortizedOracle Hooks: Oracle not configured for chain",
+                chainId
+            );
+        }
+
         // Bridge hooks
         if (availability.acrossV3Adapter && superValidator != address(0)) {
             __checkContract(

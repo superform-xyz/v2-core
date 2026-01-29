@@ -135,9 +135,10 @@ abstract contract ConfigCore is ConfigBase {
         configuration.pendleRouters[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
 
         // ===== PENDLE PT AMORTIZED ORACLE ADDRESSES =====
-        // TODO: Add oracle address when deployed (same address across all chains)
-        configuration.pendlePTAmortizedOracles[MAINNET_CHAIN_ID] = address(0);
-        configuration.pendlePTAmortizedOracles[BASE_CHAIN_ID] = address(0);
+        // Staging: 0x1e6eC8e7a5aEe0508F43Deb35741F05E4a2e0004
+        // Production: 0x5BDdD529B8ef20406371c3b864e0a78241d1dE0F
+        configuration.pendlePTAmortizedOracles[MAINNET_CHAIN_ID] = 0x5BDdD529B8ef20406371c3b864e0a78241d1dE0F;
+        configuration.pendlePTAmortizedOracles[BASE_CHAIN_ID] = 0x5BDdD529B8ef20406371c3b864e0a78241d1dE0F;
         configuration.pendlePTAmortizedOracles[BNB_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOracles[ARBITRUM_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOracles[OPTIMISM_CHAIN_ID] = address(0);
