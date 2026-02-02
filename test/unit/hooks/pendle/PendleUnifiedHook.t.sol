@@ -563,6 +563,46 @@ contract PendleUnifiedHookTest is Helpers {
         assertEq(executions.length, 3);
     }
 
+    function test_Build_SwapExactTokenForPt_RevertIf_TooManyFills() public {
+        // Create 65 fill orders (exceeds MAX_FILLS = 64)
+        FillOrderParams[] memory fills = new FillOrderParams[](65);
+        for (uint256 i; i < 65; ++i) {
+            fills[i] = FillOrderParams({
+                order: Order({
+                    salt: uint256(keccak256(abi.encodePacked(i))),
+                    expiry: block.timestamp + 1 hours,
+                    nonce: 0,
+                    orderType: OrderType.SY_FOR_PT,
+                    token: address(ptToken),
+                    YT: address(ytToken),
+                    maker: address(0x123),
+                    receiver: address(0x456),
+                    makingAmount: 100,
+                    lnImpliedRate: 0,
+                    failSafeRate: 0,
+                    permit: ""
+                }),
+                signature: "",
+                makingAmount: 100
+            });
+        }
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(0x789),
+            epsSkipMarket: 0,
+            normalFills: fills,
+            flashFills: new FillOrderParams[](0),
+            optData: ""
+        });
+
+        bytes memory data = _createSwapTokenForPtDataWithLimitOrderData(
+            receiver, market, minPtOut, inputAmount, limit, false
+        );
+
+        vm.expectRevert(PendleUnifiedHook.TOO_MANY_FILLS.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
     /*//////////////////////////////////////////////////////////////
                         SY VALIDATION TESTS
     //////////////////////////////////////////////////////////////*/
@@ -1045,6 +1085,42 @@ contract PendleUnifiedHookTest is Helpers {
 
         bytes memory txData = abi.encodeWithSelector(
             IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
+        );
+
+        return abi.encodePacked(bytes32(0), market_, bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)), uint256(0), txData);
+    }
+
+    function _createSwapTokenForPtDataWithLimitOrderData(
+        address receiver_,
+        address market_,
+        uint256 minPtOut_,
+        uint256 inputAmount_,
+        LimitOrderData memory limit_,
+        bool usePrevHookAmount_
+    ) internal view returns (bytes memory) {
+        TokenInput memory input = TokenInput({
+            tokenIn: address(inputToken),
+            netTokenIn: inputAmount_,
+            tokenMintSy: address(inputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({
+                swapType: SwapType.NONE,
+                extRouter: address(0),
+                extCalldata: "",
+                needScale: false
+            })
+        });
+
+        ApproxParams memory guessPtOut = ApproxParams({
+            guessMin: 900,
+            guessMax: 1100,
+            guessOffchain: 1000,
+            maxIteration: 10,
+            eps: 1e17
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit_
         );
 
         return abi.encodePacked(bytes32(0), market_, bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)), uint256(0), txData);

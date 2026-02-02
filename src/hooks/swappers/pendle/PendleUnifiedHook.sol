@@ -48,6 +48,12 @@ contract PendleUnifiedHook is BaseHook, ISuperHookContextAware {
     IPendleRouterV4 public immutable PENDLE_ROUTER_V4;
 
     /*//////////////////////////////////////////////////////////////
+                                 CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+    /// @dev Maximum number of fill orders allowed per array to prevent gas griefing
+    uint256 private constant MAX_FILLS = 64;
+
+    /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error ORDER_EXPIRED();
@@ -64,6 +70,7 @@ contract PendleUnifiedHook is BaseHook, ISuperHookContextAware {
     error MAKING_AMOUNT_NOT_VALID();
     error TOKEN_OUT_NOT_LISTED();
     error TOKEN_REDEEM_SY_NOT_VALID();
+    error TOO_MANY_FILLS();
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -380,6 +387,7 @@ contract PendleUnifiedHook is BaseHook, ISuperHookContextAware {
 
     /// @dev Validates fill order parameters
     function _validateFillOrders(FillOrderParams[] memory fills) private view {
+        if (fills.length > MAX_FILLS) revert TOO_MANY_FILLS();
         for (uint256 i; i < fills.length; ++i) {
             if (fills[i].makingAmount == 0) revert MAKING_AMOUNT_NOT_VALID();
             _validateOrder(fills[i].order);

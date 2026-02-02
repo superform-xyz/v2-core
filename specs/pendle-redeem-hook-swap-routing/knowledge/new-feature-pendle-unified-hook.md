@@ -129,13 +129,14 @@ function test_RedeemPyToToken_SwapRouting_DETH_to_WETH() public {
 
 ## Testing Strategy
 
-### Unit Tests (49 tests)
+### Unit Tests (50 tests)
 - Constructor validation
 - All three selector builds with various parameters
 - Revert conditions: invalid receiver, market, YT, minTokenOut, amount
 - Swap routing validation: tokenRedeemSy, extRouter
 - ETH_WETH swap type with extRouter = address(0)
 - Limit order validation (normalFills, flashFills, expired, invalid maker/receiver)
+- Gas griefing prevention (TOO_MANY_FILLS with 65 fill orders)
 - Pre/post execute balance tracking
 - Native ETH handling
 
@@ -178,6 +179,19 @@ function test_RedeemPyToToken_SwapRouting_DETH_to_WETH() public {
 2. **Set `pendleSwap`** to Pendle's swap aggregator address for swap routing
 3. **Set `needScale: true`** when SY redemption may return less than expected (fees/rounding)
 
+### Security Considerations
+
+1. **Gas griefing prevention**: The hook caps `LimitOrderData` fill arrays at `MAX_FILLS = 64` to prevent attackers from crafting arrays sized to consume exact gas budgets and DoS relayers/operators.
+
+```solidity
+uint256 private constant MAX_FILLS = 64;
+
+function _validateFillOrders(FillOrderParams[] memory fills) private view {
+    if (fills.length > MAX_FILLS) revert TOO_MANY_FILLS();
+    // ... validation continues
+}
+```
+
 ### Common Errors and Fixes
 
 | Error | Cause | Fix |
@@ -185,6 +199,7 @@ function test_RedeemPyToToken_SwapRouting_DETH_to_WETH() public {
 | `TOKEN_OUT_NOT_LISTED` | Validating tokenOut instead of tokenRedeemSy | Use swap routing with valid tokenRedeemSy |
 | `INVALID_EXT_ROUTER` | extRouter=0 with non-ETH_WETH swap type | Provide extRouter or use ETH_WETH |
 | `TOKEN_REDEEM_SY_NOT_VALID` | tokenRedeemSy not in SY's valid outputs | Use token from `SY.getTokensOut()` |
+| `TOO_MANY_FILLS` | normalFills or flashFills array exceeds 64 | Limit fill orders to ≤64 per array |
 | Odos assertion fail | Using `compact: true` with `needScale: true` | Use `compact: false` in Odos API call |
 | Transfer to address(0) | Missing `pendleSwap` in TokenOutput | Set `pendleSwap` to Pendle's swap aggregator |
 
