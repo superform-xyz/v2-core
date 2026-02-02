@@ -55,6 +55,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address approveAndSwapOdosHook;
         address pendleRouterSwapHook;
         address pendleRouterRedeemHook;
+        address pendleUnifiedHook;
         address recordPurchasePendlePTAmortizedOracleHook;
         address recordRedemptionPendlePTAmortizedOracleHook;
         address cancelDepositRequest7540Hook;
@@ -280,8 +281,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         availability.expectedAdapters = expectedAdapters;
 
-        // Hook contracts - all 41 hooks from regenerate_bytecode.sh
-        string[43] memory baseHooks = [
+        // Hook contracts - all 44 hooks from regenerate_bytecode.sh
+        string[44] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -308,6 +309,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "ApproveAndSwapOdosV2Hook",
             "PendleRouterSwapHook",
             "PendleRouterRedeemHook",
+            "PendleUnifiedHook",
             "RecordPurchasePendlePTAmortizedOracleHook",
             "RecordRedemptionPendlePTAmortizedOracleHook",
             "AcrossSendFundsAndExecuteOnDstHook",
@@ -383,9 +385,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         if (configuration.pendleRouters[chainId] != address(0)) {
             availability.pendleRouterHooks = true;
         } else {
-            expectedHooks -= 2; // PendleRouterSwapHook + PendleRouterRedeemHook
+            expectedHooks -= 3; // PendleRouterSwapHook + PendleRouterRedeemHook + PendleUnifiedHook
             potentialSkips[skipCount++] = "PendleRouterSwapHook";
             potentialSkips[skipCount++] = "PendleRouterRedeemHook";
+            potentialSkips[skipCount++] = "PendleUnifiedHook";
         }
 
         if (configuration.pendlePTAmortizedOracles[chainId] != address(0)) {
@@ -916,7 +919,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log(
-                "SKIPPED PendleRouterSwapHook & PendleRouterRedeemHook: Pendle Router not configured for chain", chainId
+                "SKIPPED PendleRouterSwapHook, PendleRouterRedeemHook & PendleUnifiedHook: Pendle Router not configured for chain",
+                chainId
             );
         }
 
@@ -1767,7 +1771,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 43;
+        uint256 len = 44;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -2011,6 +2015,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             TRANSFER_HOOK_KEY, "TransferHook", env, abi.encode(configuration.nativeTokens[chainId])
         );
 
+        // PendleUnifiedHook - Only deploy if Pendle router available
+        if (availability.pendleRouterHooks) {
+            hooks[43] = _createSafeHookDeploymentWithArgs(
+                PENDLE_UNIFIED_HOOK_KEY, "PendleUnifiedHook", env, abi.encode(configuration.pendleRouters[chainId])
+            );
+        } else {
+            hooks[43] = HookDeployment("", "", ""); // Empty deployment
+        }
+
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying hooks with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
@@ -2083,6 +2096,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[20].name, PENDLE_ROUTER_SWAP_HOOK_KEY) ? addresses[20] : address(0);
         hookAddresses.pendleRouterRedeemHook =
             Strings.equal(hooks[21].name, PENDLE_ROUTER_REDEEM_HOOK_KEY) ? addresses[21] : address(0);
+        hookAddresses.pendleUnifiedHook =
+            Strings.equal(hooks[43].name, PENDLE_UNIFIED_HOOK_KEY) ? addresses[43] : address(0);
         hookAddresses.recordPurchasePendlePTAmortizedOracleHook = Strings.equal(
             hooks[22].name, RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY
         )

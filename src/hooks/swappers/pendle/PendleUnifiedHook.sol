@@ -210,8 +210,8 @@ contract PendleUnifiedHook is BaseHook, ISuperHookContextAware {
             if (!IStandardizedYield(sy).isValidTokenOut(output.tokenRedeemSy)) {
                 revert TOKEN_REDEEM_SY_NOT_VALID();
             }
-            // Validate external router is provided
-            if (output.swapData.extRouter == address(0)) {
+            // Validate external router is provided (except for ETH_WETH which uses internal wrap/unwrap)
+            if (output.swapData.swapType != SwapType.ETH_WETH && output.swapData.extRouter == address(0)) {
                 revert INVALID_EXT_ROUTER();
             }
         } else {

@@ -456,6 +456,25 @@ contract PendleUnifiedHookTest is Helpers {
         hook.build(address(prevHook), account, data);
     }
 
+    function test_Build_RedeemPyToToken_WithEthWethSwapType() public view {
+        // ETH_WETH swap type legitimately uses extRouter = address(0)
+        // because it performs internal WETH wrap/unwrap operations
+        bytes memory data = _createRedeemData(
+            market, // yieldSource is market
+            redeemAmount,
+            address(0), // tokenOut = native ETH
+            address(outputToken), // tokenRedeemSy = WETH (valid SY output)
+            minTokenOut,
+            SwapType.ETH_WETH,
+            address(0), // No external router needed for ETH_WETH
+            false
+        );
+
+        // Should NOT revert - ETH_WETH is allowed with extRouter = address(0)
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 5); // 3 hook executions + 2 wrappers
+    }
+
     /*//////////////////////////////////////////////////////////////
                             INVALID SELECTOR TEST
     //////////////////////////////////////////////////////////////*/
