@@ -122,6 +122,7 @@ HOOK_CONTRACTS=(
     "ApproveAndSwapOdosV2Hook"
     "PendleRouterRedeemHook"
     "PendleRouterSwapHook"
+    "PendleUnifiedHook"
     "RecordPurchasePendlePTAmortizedOracleHook"
     "RecordRedemptionPendlePTAmortizedOracleHook"
     "AcrossSendFundsAndExecuteOnDstHook"
