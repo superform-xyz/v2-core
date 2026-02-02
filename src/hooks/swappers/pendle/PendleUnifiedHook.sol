@@ -137,7 +137,6 @@ contract PendleUnifiedHook is BaseHook, ISuperHookContextAware {
                 data.extractYieldSource(),
                 receiver,
                 input.tokenIn,
-                input.tokenMintSy,
                 input.pendleSwap,
                 input.swapData.extRouter
             );
