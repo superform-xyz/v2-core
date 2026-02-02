@@ -4,9 +4,10 @@ pragma solidity 0.8.30;
 import { MockERC20 } from "./MockERC20.sol";
 
 /// @title MockYieldToken
-/// @notice Mock YT token that allows configuring the SY address for testing
+/// @notice Mock YT token that allows configuring the SY and PT addresses for testing
 contract MockYieldToken is MockERC20 {
     address public syAddress;
+    address public ptAddress;
     bool public syCallShouldFail;
 
     constructor(
@@ -21,6 +22,10 @@ contract MockYieldToken is MockERC20 {
         syAddress = sy_;
     }
 
+    function setPT(address pt_) external {
+        ptAddress = pt_;
+    }
+
     function setSYCallShouldFail(bool shouldFail_) external {
         syCallShouldFail = shouldFail_;
     }
@@ -28,5 +33,9 @@ contract MockYieldToken is MockERC20 {
     function SY() external view override returns (address) {
         require(!syCallShouldFail, "SY call failed");
         return syAddress;
+    }
+
+    function PT() external view returns (address) {
+        return ptAddress;
     }
 }

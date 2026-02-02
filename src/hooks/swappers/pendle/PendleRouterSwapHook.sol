@@ -24,12 +24,14 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title PendleRouterSwapHook
 /// @author Superform Labs
+/// @notice Hook for swapping tokens via Pendle Router V4
 /// @dev data has the following structure
 /// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
 /// @notice         uint256 value = BytesLib.toUint256(data, 53);
 /// @notice         bytes txData_ = BytesLib.slice(data, 85, data.length - 85);
+/// @custom:deprecated Use PendleUnifiedHook instead which supports all Pendle operations including swap routing for redemptions
 contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 

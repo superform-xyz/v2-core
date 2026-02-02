@@ -16,6 +16,7 @@ import { IStandardizedYield } from "../../../vendor/pendle/IStandardizedYield.so
 
 /// @title PendleRouterRedeemHook
 /// @author Superform Labs
+/// @notice Hook for redeeming PT+YT via Pendle Router V4
 /// @dev data has the following structure
 /// @notice         uint256 amount = BytesLib.toUint256(data, 0);
 /// @notice         address yt = BytesLib.toAddress(data, 32);
@@ -24,6 +25,7 @@ import { IStandardizedYield } from "../../../vendor/pendle/IStandardizedYield.so
 /// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 92);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
 /// @notice         bytes output = BytesLib.slice(data, 125, data.length - 125);
+/// @custom:deprecated Use PendleUnifiedHook instead which supports swap routing for tokenOut that is not directly redeemable from SY
 contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
