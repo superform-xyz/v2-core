@@ -108,6 +108,8 @@ abstract contract Constants {
     string public constant MERKL_CLAIM_REWARD_HOOK_KEY = "MerklClaimRewardHook";
     string public constant SWAP_UNISWAP_V4_HOOK_KEY = "SwapUniswapV4Hook";
     string public constant SWAP_UNISWAP_V4_MULTI_HOP_HOOK_KEY = "SwapUniswapV4MultiHopHook";
+    string public constant SWAP_UNISWAP_V3_HOOK_KEY = "SwapUniswapV3Hook";
+    string public constant APPROVE_AND_SWAP_UNISWAP_V3_HOOK_KEY = "ApproveAndSwapUniswapV3Hook";
 
     // contracts
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
@@ -172,6 +174,9 @@ abstract contract Constants {
     address public constant CHAIN_1_ODOS_ROUTER = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
     address public constant CHAIN_10_ODOS_ROUTER = 0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680;
     address public constant CHAIN_8453_ODOS_ROUTER = 0x19cEeAd7105607Cd444F5ad10dd51356436095a1;
+
+    // uniswap v3
+    address public constant MAINNET_V3_SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     // uniswap v4
     address public constant MAINNET_V4_POOL_MANAGER = 0x000000000004444c5dc75cB358380D2e3dE08A90;
