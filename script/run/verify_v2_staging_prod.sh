@@ -131,18 +131,19 @@ load_contract_addresses() {
         "146") network_suffix="Sonic-latest" ;;
         "100") network_suffix="Gnosis-latest" ;;
         "480") network_suffix="Worldchain-latest" ;;
+        "999") network_suffix="HyperEVM-latest" ;;
         *) network_suffix="${network_name}-latest" ;;
     esac
-    
+
     local json_file="script/output/$ENVIRONMENT/$chain_id/$network_suffix.json"
-    
+
     if [ ! -f "$json_file" ]; then
         echo -e "${RED}❌ JSON file not found: $json_file${NC}"
         echo -e "${RED}   Expected path: $json_file${NC}"
         echo -e "${YELLOW}   Make sure contracts have been deployed to this network first${NC}"
         return 1
     fi
-    
+
     echo -e "${CYAN}   • Loading addresses from: $json_file${NC}"
     return 0
 }
@@ -168,14 +169,15 @@ get_contract_address() {
         "146") network_suffix="Sonic-latest" ;;
         "100") network_suffix="Gnosis-latest" ;;
         "480") network_suffix="Worldchain-latest" ;;
-        *) 
+        "999") network_suffix="HyperEVM-latest" ;;
+        *)
             local network_name=$(get_network_name "$chain_id")
             network_suffix="${network_name}-latest"
             ;;
     esac
-    
+
     local json_file="script/output/$ENVIRONMENT/$chain_id/$network_suffix.json"
-    
+
     if [ -f "$json_file" ]; then
         local address=$(jq -r ".$contract_name // empty" "$json_file")
         echo "$address"
@@ -306,6 +308,14 @@ generate_constructor_args() {
             odos_router=""  # Not deployed
             across_spoke_pool_v3="0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
+        "999") # HyperEVM (Hyperliquid)
+            permit2=""  # Not deployed
+            aggregation_router=""  # Not deployed
+            odos_router=""  # Not deployed
+            across_spoke_pool_v3=""  # Not deployed
+            merkl_distributor=""  # Not deployed
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
     esac
@@ -543,11 +553,12 @@ verify_network() {
         "146") network_suffix="Sonic-latest" ;;
         "100") network_suffix="Gnosis-latest" ;;
         "480") network_suffix="Worldchain-latest" ;;
+        "999") network_suffix="HyperEVM-latest" ;;
         *) network_suffix="${network_name}-latest" ;;
     esac
-    
+
     local json_file="script/output/$ENVIRONMENT/$chain_id/$network_suffix.json"
-    
+
     if [ ! -f "$json_file" ]; then
         echo -e "${RED}   ❌ Contract addresses file not found: $json_file${NC}"
         return 1
