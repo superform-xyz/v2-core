@@ -311,7 +311,7 @@ generate_constructor_args() {
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
         "999") # HyperEVM (Hyperliquid)
-            permit2=""  # Not deployed
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
             aggregation_router=""  # Not deployed
             odos_router=""  # Not deployed
             across_spoke_pool_v3=""  # Not deployed
@@ -486,25 +486,25 @@ verify_contract() {
     local constructor_args=$4
     local source_file=$5
     local rpc_url=$6
-    
+
     echo -e "${YELLOW}   🔍 Verifying $contract_name...${NC}"
     echo -e "${CYAN}      Address: $contract_address${NC}"
     echo -e "${CYAN}      Source: $source_file${NC}"
     echo -e "${CYAN}      Chain ID: $chain_id${NC}"
-    
+
     forge verify-contract "$contract_address" "$source_file:$contract_name" \
         --constructor-args "$constructor_args" \
         --rpc-url "$rpc_url" \
         --chain "$chain_id" \
         --etherscan-api-key "$ETHERSCANV2_API_KEY" \
         --verifier etherscan
-            
+
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}   ✅ $contract_name verified successfully${NC}"
     else
         echo -e "${RED}   ❌ $contract_name verification failed${NC}"
     fi
-    
+
     echo ""
 }
 

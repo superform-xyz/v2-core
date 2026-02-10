@@ -28,7 +28,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.acrossSpokePoolV3s[SONIC_CHAIN_ID] = address(0); // Not deployed yet
         configuration.acrossSpokePoolV3s[GNOSIS_CHAIN_ID] = address(0); // Not deployed yet
         configuration.acrossSpokePoolV3s[WORLDCHAIN_CHAIN_ID] = ACROSS_SPOKE_POOL_WORLDCHAIN;
-        configuration.acrossSpokePoolV3s[HYPEREVM_CHAIN_ID] = address(0); // Not deployed yet
+        configuration.acrossSpokePoolV3s[HYPEREVM_CHAIN_ID] = ACROSS_SPOKE_POOL_HYPEREVM;
 
         // ===== DEBRIDGE DLN SOURCE ADDRESSES =====
         configuration.debridgeSrcDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_SRC;
@@ -44,7 +44,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.debridgeSrcDln[SONIC_CHAIN_ID] = DEBRIDGE_DLN_SRC;
         configuration.debridgeSrcDln[GNOSIS_CHAIN_ID] = DEBRIDGE_DLN_SRC;
         configuration.debridgeSrcDln[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed yet
-        configuration.debridgeSrcDln[HYPEREVM_CHAIN_ID] = address(0); // Not deployed yet
+        configuration.debridgeSrcDln[HYPEREVM_CHAIN_ID] = DEBRIDGE_DLN_SRC;
 
         // ===== DEBRIDGE DLN DESTINATION ADDRESSES =====
         configuration.debridgeDstDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_DST;
@@ -60,7 +60,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.debridgeDstDln[SONIC_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[GNOSIS_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed yet
-        configuration.debridgeDstDln[HYPEREVM_CHAIN_ID] = address(0); // Not deployed yet
+        configuration.debridgeDstDln[HYPEREVM_CHAIN_ID] = DEBRIDGE_DLN_DST;
 
         // ===== PERMIT2 ADDRESSES =====
         configuration.permit2s[MAINNET_CHAIN_ID] = PERMIT2;
@@ -76,7 +76,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.permit2s[SONIC_CHAIN_ID] = PERMIT2;
         configuration.permit2s[GNOSIS_CHAIN_ID] = PERMIT2;
         configuration.permit2s[WORLDCHAIN_CHAIN_ID] = PERMIT2;
-        configuration.permit2s[HYPEREVM_CHAIN_ID] = address(0); // Not deployed yet
+        configuration.permit2s[HYPEREVM_CHAIN_ID] = PERMIT2;
 
         // ===== MERKL DISTRIBUTOR ADDRESSES =====
         configuration.merklDistributors[MAINNET_CHAIN_ID] = MERKL_DISTRIBUTOR;
@@ -92,7 +92,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.merklDistributors[SONIC_CHAIN_ID] = MERKL_DISTRIBUTOR;
         configuration.merklDistributors[GNOSIS_CHAIN_ID] = MERKL_DISTRIBUTOR;
         configuration.merklDistributors[WORLDCHAIN_CHAIN_ID] = MERKL_DISTRIBUTOR;
-        configuration.merklDistributors[HYPEREVM_CHAIN_ID] = address(0); // Not deployed yet
+        configuration.merklDistributors[HYPEREVM_CHAIN_ID] = MERKL_DISTRIBUTOR;
 
         // ===== CRITICAL ROUTER ADDRESSES FOR CORE HOOKS =====
         // These are required for core hook deployments
@@ -140,7 +140,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.pendleRouters[SONIC_CHAIN_ID] = PENDLE_ROUTER_SONIC;
         configuration.pendleRouters[GNOSIS_CHAIN_ID] = address(0); // Not deployed
         configuration.pendleRouters[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
-        configuration.pendleRouters[HYPEREVM_CHAIN_ID] = address(0); // Not deployed
+        configuration.pendleRouters[HYPEREVM_CHAIN_ID] = PENDLE_ROUTER_HYPEREVM;
 
         // ===== PENDLE PT AMORTIZED ORACLE ADDRESSES =====
         // Staging: 0x029FA76517Cc4d7c481c0BF1f31066eceCcb42B5

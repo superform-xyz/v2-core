@@ -371,7 +371,7 @@ load_rpc_urls() {
     fi
 
     echo "  • Loading HyperEVM RPC..."
-    if ! export HYPEREVM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/HYPEREVM_RPC_URL/credential 2>/dev/null); then
+    if ! export HYPEREVM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/HYPEREVM_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
         failed_rpcs+=("HYPEREVM_RPC_URL")
     fi
 

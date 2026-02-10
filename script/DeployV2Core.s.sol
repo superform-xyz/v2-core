@@ -1456,6 +1456,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address erc4626Oracle;
         address erc5115Oracle;
         address stakingOracle;
+        address pendlePTOracle;
         address superLedger;
         address flatFeeLedger;
 
@@ -1466,6 +1467,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         erc4626Oracle = vm.parseJsonAddress(deploymentJson, ".ERC4626YieldSourceOracle");
         erc5115Oracle = vm.parseJsonAddress(deploymentJson, ".ERC5115YieldSourceOracle");
         stakingOracle = vm.parseJsonAddress(deploymentJson, ".StakingYieldSourceOracle");
+        pendlePTOracle = _safeParseJsonAddress(deploymentJson, ".PendlePTYieldSourceOracle");
         superLedger = vm.parseJsonAddress(deploymentJson, ".SuperLedger");
         flatFeeLedger = vm.parseJsonAddress(deploymentJson, ".FlatFeeLedger");
 
@@ -1491,17 +1493,23 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Validate treasury address is set
         require(configuration.treasury != address(0), "SETUP_TREASURY_ZERO");
 
+        // Check if PendlePT oracle is deployed (optional)
+        bool hasPendlePT = pendlePTOracle != address(0) && pendlePTOracle.code.length > 0;
+
         console2.log("  SuperLedgerConfiguration:", superLedgerConfig);
         console2.log("  ERC4626 Oracle:", erc4626Oracle);
         console2.log("  ERC5115 Oracle:", erc5115Oracle);
         console2.log("  Staking Oracle:", stakingOracle);
+        console2.log("  PendlePT Oracle:", pendlePTOracle);
+        console2.log("  PendlePT Available:", hasPendlePT);
         console2.log("  SuperLedger:", superLedger);
         console2.log("  FlatFeeLedger:", flatFeeLedger);
         console2.log("  Treasury:", configuration.treasury);
 
         // ===== SETUP CONFIGURATIONS WITH VALIDATED PARAMETERS =====
+        uint256 configCount = hasPendlePT ? 4 : 3;
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](configCount);
 
         // Note: Using treasury address from configuration
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
@@ -1513,6 +1521,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: stakingOracle, feePercent: 0, feeRecipient: configuration.treasury, ledger: superLedger
         });
+        if (hasPendlePT) {
+            configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracle: pendlePTOracle,
+                feePercent: 0,
+                feeRecipient: configuration.treasury,
+                ledger: superLedger
+            });
+        }
 
         // Validate each configuration before setup
         for (uint256 i = 0; i < configs.length; ++i) {
@@ -1522,10 +1538,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" Configuration", i, "validated");
         }
 
-        bytes32[] memory salts = new bytes32[](3);
+        bytes32[] memory salts = new bytes32[](configCount);
         salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_SALT));
         salts[1] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_SALT));
         salts[2] = bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_SALT));
+        if (hasPendlePT) {
+            salts[3] = bytes32(bytes(PENDLE_PT_YIELD_SOURCE_ORACLE_SALT));
+        }
 
         // Validate salts are not empty
         for (uint256 i = 0; i < salts.length; ++i) {
@@ -1769,6 +1788,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         return vm.readFile(outputPath);
+    }
+
+    /// @notice Safely parse an address from JSON, returning address(0) if not found
+    /// @param json The JSON string to parse
+    /// @param key The JSON key to look up
+    /// @return The parsed address, or address(0) if not found or invalid
+    function _safeParseJsonAddress(string memory json, string memory key) internal pure returns (address) {
+        try vm.parseJsonAddress(json, key) returns (address addr) {
+            return addr;
+        } catch {
+            return address(0);
+        }
     }
 
     function _deployHooks(uint64 chainId, uint256 env) private returns (HookAddresses memory hookAddresses) {
