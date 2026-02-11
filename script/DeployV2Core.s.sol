@@ -58,6 +58,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address pendleUnifiedHook;
         address recordPurchasePendlePTAmortizedOracleHook;
         address recordRedemptionPendlePTAmortizedOracleHook;
+        address recordPurchasePendlePTAmortizedOracleHookV2;
+        address recordRedemptionPendlePTAmortizedOracleHookV2;
         address cancelDepositRequest7540Hook;
         address cancelRedeemRequest7540Hook;
         address claimCancelDepositRequest7540Hook;
@@ -217,6 +219,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool swapUniswapV4Hook;
         bool pendleRouterHooks;
         bool pendlePTAmortizedOracleHooks;
+        bool pendlePTAmortizedOracleHooksV2;
         bool merklClaimRewardHook;
         uint256 expectedCore;
         uint256 expectedAdapters;
@@ -281,8 +284,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         availability.expectedAdapters = expectedAdapters;
 
-        // Hook contracts - all 44 hooks from regenerate_bytecode.sh
-        string[44] memory baseHooks = [
+        // Hook contracts - all 46 hooks from regenerate_bytecode.sh (including V2 versions)
+        string[46] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -312,6 +315,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "PendleUnifiedHook",
             "RecordPurchasePendlePTAmortizedOracleHook",
             "RecordRedemptionPendlePTAmortizedOracleHook",
+            "RecordPurchasePendlePTAmortizedOracleHookV2",
+            "RecordRedemptionPendlePTAmortizedOracleHookV2",
             "AcrossSendFundsAndExecuteOnDstHook",
             "ApproveAndAcrossSendFundsAndExecuteOnDstHook",
             "DeBridgeSendOrderAndExecuteOnDstHook",
@@ -397,6 +402,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             expectedHooks -= 2; // RecordPurchasePendlePTAmortizedOracleHook + RecordRedemptionPendlePTAmortizedOracleHook
             potentialSkips[skipCount++] = "RecordPurchasePendlePTAmortizedOracleHook";
             potentialSkips[skipCount++] = "RecordRedemptionPendlePTAmortizedOracleHook";
+        }
+
+        if (configuration.pendlePTAmortizedOraclesV2[chainId] != address(0)) {
+            availability.pendlePTAmortizedOracleHooksV2 = true;
+        } else {
+            expectedHooks -= 2; // RecordPurchasePendlePTAmortizedOracleHookV2 + RecordRedemptionPendlePTAmortizedOracleHookV2
+            potentialSkips[skipCount++] = "RecordPurchasePendlePTAmortizedOracleHookV2";
+            potentialSkips[skipCount++] = "RecordRedemptionPendlePTAmortizedOracleHookV2";
         }
 
         availability.expectedHooks = expectedHooks;
@@ -930,7 +943,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         }
 
-        // Pendle PT Amortized Oracle hooks
+        // Pendle PT Amortized Oracle hooks (V1)
         if (availability.pendlePTAmortizedOracleHooks) {
             __checkContract(
                 RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY,
@@ -946,7 +959,28 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log(
-                "SKIPPED RecordPurchase & RecordRedemption PendlePTAmortizedOracle Hooks: Oracle not configured for chain",
+                "SKIPPED RecordPurchase & RecordRedemption PendlePTAmortizedOracle Hooks (V1): Oracle not configured for chain",
+                chainId
+            );
+        }
+
+        // Pendle PT Amortized Oracle hooks (V2)
+        if (availability.pendlePTAmortizedOracleHooksV2) {
+            __checkContract(
+                RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY,
+                __getSalt(RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY),
+                abi.encode(configuration.pendlePTAmortizedOraclesV2[chainId]),
+                env
+            );
+            __checkContract(
+                RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY,
+                __getSalt(RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY),
+                abi.encode(configuration.pendlePTAmortizedOraclesV2[chainId]),
+                env
+            );
+        } else {
+            console2.log(
+                "SKIPPED RecordPurchase & RecordRedemption PendlePTAmortizedOracle Hooks (V2): Oracle V2 not configured for chain",
                 chainId
             );
         }
@@ -1808,7 +1842,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 44;
+        uint256 len = 46;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -1900,7 +1934,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[21] = HookDeployment("", "", ""); // Empty deployment
         }
 
-        // Pendle PT Amortized Oracle Hooks - Only deploy if oracle available on this chain
+        // Pendle PT Amortized Oracle Hooks (V1) - Only deploy if oracle available on this chain
         if (availability.pendlePTAmortizedOracleHooks) {
             require(
                 configuration.pendlePTAmortizedOracles[chainId] != address(0),
@@ -1923,9 +1957,37 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encode(configuration.pendlePTAmortizedOracles[chainId])
             );
         } else {
-            console2.log(" SKIPPED Pendle PT Amortized Oracle Hooks deployment: Not available on chain", chainId);
+            console2.log(" SKIPPED Pendle PT Amortized Oracle Hooks (V1) deployment: Not available on chain", chainId);
             hooks[22] = HookDeployment("", "", ""); // Empty deployment
             hooks[23] = HookDeployment("", "", ""); // Empty deployment
+        }
+
+        // Pendle PT Amortized Oracle Hooks (V2) - Only deploy if oracle V2 available on this chain
+        if (availability.pendlePTAmortizedOracleHooksV2) {
+            require(
+                configuration.pendlePTAmortizedOraclesV2[chainId] != address(0),
+                "PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_ORACLE_PARAM_ZERO"
+            );
+            require(
+                configuration.pendlePTAmortizedOraclesV2[chainId].code.length > 0,
+                "PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_ORACLE_NOT_DEPLOYED"
+            );
+            hooks[44] = _createSafeHookDeploymentWithArgs(
+                RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY,
+                "RecordPurchasePendlePTAmortizedOracleHookV2",
+                env,
+                abi.encode(configuration.pendlePTAmortizedOraclesV2[chainId])
+            );
+            hooks[45] = _createSafeHookDeploymentWithArgs(
+                RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY,
+                "RecordRedemptionPendlePTAmortizedOracleHookV2",
+                env,
+                abi.encode(configuration.pendlePTAmortizedOraclesV2[chainId])
+            );
+        } else {
+            console2.log(" SKIPPED Pendle PT Amortized Oracle Hooks (V2) deployment: Not available on chain", chainId);
+            hooks[44] = HookDeployment("", "", ""); // Empty deployment
+            hooks[45] = HookDeployment("", "", ""); // Empty deployment
         }
 
         address superValidator;
@@ -2144,6 +2206,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[23].name, RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY
         )
             ? addresses[23]
+            : address(0);
+        hookAddresses.recordPurchasePendlePTAmortizedOracleHookV2 = Strings.equal(
+            hooks[44].name, RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY
+        )
+            ? addresses[44]
+            : address(0);
+        hookAddresses.recordRedemptionPendlePTAmortizedOracleHookV2 = Strings.equal(
+            hooks[45].name, RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY
+        )
+            ? addresses[45]
             : address(0);
         hookAddresses.acrossSendFundsAndExecuteOnDstHook =
             Strings.equal(hooks[24].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[24] : address(0);

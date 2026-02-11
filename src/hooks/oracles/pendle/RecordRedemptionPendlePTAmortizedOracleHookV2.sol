@@ -11,21 +11,22 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { IPendlePTAmortizedOracle } from "../../../vendor/pendle/IPendlePTAmortizedOracle.sol";
 
-/// @title RecordRedemptionPendlePTAmortizedOracleHook
+/// @title RecordRedemptionPendlePTAmortizedOracleHookV2
 /// @author Superform Labs
-/// @notice Hook to record PT redemptions in the PendlePTAmortizedOracle
+/// @notice V2 Hook to record PT redemptions in the PendlePTAmortizedOracle
 /// @dev Called AFTER a redeem/swap hook that sells PT
 /// @dev The strategy (msg.sender during execution) will be recorded as the position holder
 /// @dev data has the following structure
 /// @notice         address market = BytesLib.toAddress(data, 0);
 /// @notice         uint256 ptSold = BytesLib.toUint256(data, 20);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
-contract RecordRedemptionPendlePTAmortizedOracleHook is BaseHook, ISuperHookContextAware {
+contract RecordRedemptionPendlePTAmortizedOracleHookV2 is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Contract version for bytecode differentiation
-    uint256 public constant VERSION = 1;
+
+    /// @notice Hook version
+    uint256 public constant VERSION = 2;
 
     uint256 private constant MARKET_POSITION = 0;
     uint256 private constant PT_SOLD_POSITION = 20;

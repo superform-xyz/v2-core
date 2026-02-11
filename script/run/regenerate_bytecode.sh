@@ -125,6 +125,8 @@ HOOK_CONTRACTS=(
     "PendleUnifiedHook"
     "RecordPurchasePendlePTAmortizedOracleHook"
     "RecordRedemptionPendlePTAmortizedOracleHook"
+    "RecordPurchasePendlePTAmortizedOracleHookV2"
+    "RecordRedemptionPendlePTAmortizedOracleHookV2"
     "AcrossSendFundsAndExecuteOnDstHook"
     "ApproveAndAcrossSendFundsAndExecuteOnDstHook"
     "DeBridgeSendOrderAndExecuteOnDstHook"
