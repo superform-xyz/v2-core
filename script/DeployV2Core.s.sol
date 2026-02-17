@@ -605,6 +605,72 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log("====== LEDGER CONFIGURATION COMPLETED SUCCESSFULLY ======");
     }
 
+    /// @notice Public function to configure ONLY SuperVaultYieldSourceOracle after initial deployment
+    /// @dev Use this when other oracles are already configured and you only need to add SuperVaultYieldSourceOracle
+    /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
+    /// @param chainId Target chain ID
+    function runSuperVaultOracleConfiguration(uint256 env, uint64 chainId) public {
+        runSuperVaultOracleConfiguration(env, chainId, "");
+    }
+
+    /// @notice Public function to configure ONLY SuperVaultYieldSourceOracle with branch name
+    /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
+    /// @param chainId Target chain ID
+    /// @param branchName Branch name for env=1 (VNET) to read contracts from specific branch folder
+    function runSuperVaultOracleConfiguration(
+        uint256 env,
+        uint64 chainId,
+        string memory branchName
+    )
+        public
+        broadcast(env)
+    {
+        console2.log("====== SUPERVAULT ORACLE CONFIGURATION ======");
+        console2.log("Environment:", env == 0 ? "Production" : (env == 1 ? "VNET" : "Staging"));
+        console2.log("Chain ID:", chainId);
+        console2.log("");
+
+        // Set configuration
+        _setConfiguration(env, "");
+
+        // Read deployment JSON
+        string memory deploymentJson = _readCoreContractsFromOutput(chainId, env, branchName);
+
+        address superLedgerConfig = vm.parseJsonAddress(deploymentJson, ".SuperLedgerConfiguration");
+        address superVaultOracle = _safeParseJsonAddress(deploymentJson, ".SuperVaultYieldSourceOracle");
+        address superLedger = vm.parseJsonAddress(deploymentJson, ".SuperLedger");
+
+        require(superLedgerConfig != address(0), "SUPER_LEDGER_CONFIG_ZERO");
+        require(superVaultOracle != address(0), "SUPER_VAULT_ORACLE_ZERO");
+        require(superVaultOracle.code.length > 0, "SUPER_VAULT_ORACLE_NO_CODE");
+        require(superLedger != address(0), "SUPER_LEDGER_ZERO");
+        require(configuration.treasury != address(0), "TREASURY_ZERO");
+
+        console2.log("  SuperLedgerConfiguration:", superLedgerConfig);
+        console2.log("  SuperVaultYieldSourceOracle:", superVaultOracle);
+        console2.log("  SuperLedger:", superLedger);
+        console2.log("  Treasury:", configuration.treasury);
+
+        // Configure only SuperVaultYieldSourceOracle
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: superVaultOracle,
+            feePercent: 0,
+            feeRecipient: configuration.treasury,
+            ledger: superLedger
+        });
+
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = bytes32(bytes(SUPERVAULT_YIELD_SOURCE_ORACLE_SALT));
+
+        console2.log("  Configuring SuperVaultYieldSourceOracle...");
+        ISuperLedgerConfiguration(superLedgerConfig).setYieldSourceOracles(salts, configs);
+
+        console2.log("====== SUPERVAULT ORACLE CONFIGURATION COMPLETED ======");
+    }
+
     /// @notice Check V2 Core contract addresses before deployment
     /// @param chainId The target chain ID
     /// @param env Environment (1 = vnet/dev, 0/2 = prod/staging)
@@ -1491,6 +1557,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address erc5115Oracle;
         address stakingOracle;
         address pendlePTOracle;
+        address superVaultOracle;
         address superLedger;
         address flatFeeLedger;
 
@@ -1502,6 +1569,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         erc5115Oracle = vm.parseJsonAddress(deploymentJson, ".ERC5115YieldSourceOracle");
         stakingOracle = vm.parseJsonAddress(deploymentJson, ".StakingYieldSourceOracle");
         pendlePTOracle = _safeParseJsonAddress(deploymentJson, ".PendlePTYieldSourceOracle");
+        superVaultOracle = _safeParseJsonAddress(deploymentJson, ".SuperVaultYieldSourceOracle");
         superLedger = vm.parseJsonAddress(deploymentJson, ".SuperLedger");
         flatFeeLedger = vm.parseJsonAddress(deploymentJson, ".FlatFeeLedger");
 
@@ -1527,8 +1595,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Validate treasury address is set
         require(configuration.treasury != address(0), "SETUP_TREASURY_ZERO");
 
-        // Check if PendlePT oracle is deployed (optional)
+        // Check if optional oracles are deployed
         bool hasPendlePT = pendlePTOracle != address(0) && pendlePTOracle.code.length > 0;
+        bool hasSuperVault = superVaultOracle != address(0) && superVaultOracle.code.length > 0;
 
         console2.log("  SuperLedgerConfiguration:", superLedgerConfig);
         console2.log("  ERC4626 Oracle:", erc4626Oracle);
@@ -1536,12 +1605,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log("  Staking Oracle:", stakingOracle);
         console2.log("  PendlePT Oracle:", pendlePTOracle);
         console2.log("  PendlePT Available:", hasPendlePT);
+        console2.log("  SuperVault Oracle:", superVaultOracle);
+        console2.log("  SuperVault Available:", hasSuperVault);
         console2.log("  SuperLedger:", superLedger);
         console2.log("  FlatFeeLedger:", flatFeeLedger);
         console2.log("  Treasury:", configuration.treasury);
 
         // ===== SETUP CONFIGURATIONS WITH VALIDATED PARAMETERS =====
-        uint256 configCount = hasPendlePT ? 4 : 3;
+        // Base: 3 oracles (ERC4626, ERC5115, Staking), plus optional PendlePT and SuperVault
+        uint256 configCount = 3 + (hasPendlePT ? 1 : 0) + (hasSuperVault ? 1 : 0);
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](configCount);
 
@@ -1555,9 +1627,23 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: stakingOracle, feePercent: 0, feeRecipient: configuration.treasury, ledger: superLedger
         });
+
+        // Track next available index for optional oracles
+        uint256 nextConfigIndex = 3;
+
         if (hasPendlePT) {
-            configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            configs[nextConfigIndex] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracle: pendlePTOracle,
+                feePercent: 0,
+                feeRecipient: configuration.treasury,
+                ledger: superLedger
+            });
+            nextConfigIndex++;
+        }
+
+        if (hasSuperVault) {
+            configs[nextConfigIndex] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracle: superVaultOracle,
                 feePercent: 0,
                 feeRecipient: configuration.treasury,
                 ledger: superLedger
@@ -1576,8 +1662,17 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_SALT));
         salts[1] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_SALT));
         salts[2] = bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_SALT));
+
+        // Track next available index for optional oracle salts
+        uint256 nextSaltIndex = 3;
+
         if (hasPendlePT) {
-            salts[3] = bytes32(bytes(PENDLE_PT_YIELD_SOURCE_ORACLE_SALT));
+            salts[nextSaltIndex] = bytes32(bytes(PENDLE_PT_YIELD_SOURCE_ORACLE_SALT));
+            nextSaltIndex++;
+        }
+
+        if (hasSuperVault) {
+            salts[nextSaltIndex] = bytes32(bytes(SUPERVAULT_YIELD_SOURCE_ORACLE_SALT));
         }
 
         // Validate salts are not empty
