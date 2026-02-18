@@ -178,7 +178,7 @@ contract UniswapV3HookIntegrationTest is MinimalBaseIntegrationTest {
         console2.log("Hook data decoding test passed");
     }
 
-    /// @notice Test inspect function returns recipient
+    /// @notice Test inspect function returns tokenOut
     function test_UniswapV3Hook_InspectFunction() external view {
         console2.log("=== UniswapV3Hook Inspect Function Test ===");
 
@@ -194,16 +194,16 @@ contract UniswapV3HookIntegrationTest is MinimalBaseIntegrationTest {
             false
         );
 
-        // Test inspect function returns recipient
+        // Test inspect function returns tokenOut
         bytes memory inspectResult = swapHook.inspect(hookData);
         assertEq(inspectResult.length, 20, "Should return 20 bytes (1 address)");
 
-        // Extract recipient address
-        address extractedRecipient;
+        // Extract tokenOut address
+        address extractedTokenOut;
         assembly {
-            extractedRecipient := mload(add(inspectResult, 20))
+            extractedTokenOut := mload(add(inspectResult, 20))
         }
-        assertEq(extractedRecipient, accountEth, "Should extract correct recipient");
+        assertEq(extractedTokenOut, CHAIN_1_WETH, "Should extract correct tokenOut");
 
         console2.log("Inspect function test passed");
     }

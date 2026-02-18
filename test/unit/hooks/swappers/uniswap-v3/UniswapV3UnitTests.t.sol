@@ -135,15 +135,15 @@ contract UniswapV3HookTest is Helpers {
         bytes memory data = _buildHookData(false);
         bytes memory inspected = swapHook.inspect(data);
 
-        // Should return recipient packed
+        // Should return tokenOut packed (20 bytes)
         assertEq(inspected.length, 20);
 
-        address decodedRecipient;
+        address decodedTokenOut;
         assembly {
-            decodedRecipient := mload(add(inspected, 20))
+            decodedTokenOut := mload(add(inspected, 20))
         }
 
-        assertEq(decodedRecipient, recipient);
+        assertEq(decodedTokenOut, tokenOut);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -232,15 +232,15 @@ contract UniswapV3HookTest is Helpers {
         bytes memory data = _buildHookData(false);
         bytes memory inspected = approveAndSwapHook.inspect(data);
 
-        // Should return recipient packed
+        // Should return tokenOut packed (20 bytes)
         assertEq(inspected.length, 20);
 
-        address decodedRecipient;
+        address decodedTokenOut;
         assembly {
-            decodedRecipient := mload(add(inspected, 20))
+            decodedTokenOut := mload(add(inspected, 20))
         }
 
-        assertEq(decodedRecipient, recipient);
+        assertEq(decodedTokenOut, tokenOut);
     }
 
     /*//////////////////////////////////////////////////////////////

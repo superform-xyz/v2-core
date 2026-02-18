@@ -153,8 +153,8 @@ contract ApproveAndSwapUniswapV3Hook is BaseHook, ISuperHookContextAware {
 
     /// @inheritdoc BaseHook
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        address recipient = data.toAddress(44);
-        return abi.encodePacked(recipient);
+        address tokenOut = data.toAddress(20);
+        return abi.encodePacked(tokenOut);
     }
 
     /*//////////////////////////////////////////////////////////////
