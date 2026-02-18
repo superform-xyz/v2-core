@@ -209,5 +209,22 @@ abstract contract ConfigCore is ConfigBase {
         configuration.uniswapV4PoolManagers[GNOSIS_CHAIN_ID] = address(0); // Not deployed
         configuration.uniswapV4PoolManagers[WORLDCHAIN_CHAIN_ID] = 0xb1860D529182ac3BC1F51Fa2ABd56662b7D13f33;
         configuration.uniswapV4PoolManagers[HYPEREVM_CHAIN_ID] = address(0); // Not deployed
+
+        // ===== UNISWAP V3 SWAP ROUTER ADDRESSES =====
+        // Using SwapRouter (exactInputSingle with deadline in struct)
+        configuration.uniswapV3SwapRouters[MAINNET_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[BASE_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[BNB_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[ARBITRUM_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[OPTIMISM_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[POLYGON_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[UNICHAIN_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[LINEA_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[AVALANCHE_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[BERACHAIN_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[SONIC_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[GNOSIS_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[WORLDCHAIN_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[HYPEREVM_CHAIN_ID] = 0x1EbDFC75FfE3ba3de61E7138a3E8706aC841Af9B;
     }
 }

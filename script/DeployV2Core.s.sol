@@ -75,6 +75,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address circleGatewayAddDelegateHook;
         address circleGatewayRemoveDelegateHook;
         address swapUniswapV4Hook;
+        address swapUniswapV3Hook;
+        address approveAndSwapUniswapV3Hook;
         address transferHook;
     }
 
@@ -217,6 +219,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool swap1InchHook;
         bool swapOdosHooks;
         bool swapUniswapV4Hook;
+        bool swapUniswapV3Hooks;
         bool pendleRouterHooks;
         bool pendlePTAmortizedOracleHooks;
         bool pendlePTAmortizedOracleHooksV2;
@@ -257,8 +260,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         returns (ContractAvailability memory availability)
     {
         // Initialize all skipped contracts array
-        // Max possible skips: 2 adapters + 16 hooks = 18 skipped contracts
-        string[] memory potentialSkips = new string[](18);
+        // Max possible skips: 2 adapters + 18 hooks = 20 skipped contracts
+        string[] memory potentialSkips = new string[](20);
         uint256 skipCount = 0;
         // Adapter contracts (2 contracts - conditionally deployed)
         string[2] memory adapterContracts = ["AcrossV3Adapter", "DebridgeAdapter"];
@@ -285,7 +288,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all 46 hooks from regenerate_bytecode.sh (including V2 versions)
-        string[46] memory baseHooks = [
+        string[48] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -331,6 +334,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "CircleGatewayAddDelegateHook",
             "CircleGatewayRemoveDelegateHook",
             "SwapUniswapV4Hook",
+            "SwapUniswapV3Hook",
+            "ApproveAndSwapUniswapV3Hook",
             "TransferHook"
         ];
 
@@ -385,6 +390,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         } else {
             expectedHooks -= 1; // SwapUniswapV4Hook
             potentialSkips[skipCount++] = "SwapUniswapV4Hook";
+        }
+
+        if (configuration.uniswapV3SwapRouters[chainId] != address(0)) {
+            availability.swapUniswapV3Hooks = true;
+        } else {
+            expectedHooks -= 2; // SwapUniswapV3Hook + ApproveAndSwapUniswapV3Hook
+            potentialSkips[skipCount++] = "SwapUniswapV3Hook";
+            potentialSkips[skipCount++] = "ApproveAndSwapUniswapV3Hook";
         }
 
         if (configuration.pendleRouters[chainId] != address(0)) {
@@ -1155,6 +1168,25 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log("SKIPPED SwapUniswapV4Hook: Uniswap V4 PoolManager not configured for chain", chainId);
+        }
+
+        // UniswapV3 swap hooks
+        if (availability.swapUniswapV3Hooks) {
+            __checkContract(
+                SWAP_UNISWAPV3_HOOK_KEY,
+                __getSalt(SWAP_UNISWAPV3_HOOK_KEY),
+                abi.encode(configuration.uniswapV3SwapRouters[chainId]),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_SWAP_UNISWAPV3_HOOK_KEY,
+                __getSalt(APPROVE_AND_SWAP_UNISWAPV3_HOOK_KEY),
+                abi.encode(configuration.uniswapV3SwapRouters[chainId]),
+                env
+            );
+        } else {
+            console2.log("SKIPPED SwapUniswapV3Hook: Uniswap V3 SwapRouter not configured for chain", chainId);
+            console2.log("SKIPPED ApproveAndSwapUniswapV3Hook: Uniswap V3 SwapRouter not configured for chain", chainId);
         }
 
         // TransferHook
@@ -1937,7 +1969,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 46;
+        uint256 len = 48;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -2204,18 +2236,39 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[41] = HookDeployment("", "", ""); // Empty deployment
         }
 
+        // UniswapV3 Swap Hooks - Only deploy if V3 SwapRouter available on this chain
+        if (availability.swapUniswapV3Hooks) {
+            hooks[42] = _createSafeHookDeploymentWithArgs(
+                SWAP_UNISWAPV3_HOOK_KEY,
+                "SwapUniswapV3Hook",
+                env,
+                abi.encode(configuration.uniswapV3SwapRouters[chainId])
+            );
+            hooks[43] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_SWAP_UNISWAPV3_HOOK_KEY,
+                "ApproveAndSwapUniswapV3Hook",
+                env,
+                abi.encode(configuration.uniswapV3SwapRouters[chainId])
+            );
+        } else {
+            console2.log("SKIPPED SwapUniswapV3Hook: Uniswap V3 SwapRouter not available on chain", chainId);
+            console2.log("SKIPPED ApproveAndSwapUniswapV3Hook: Uniswap V3 SwapRouter not available on chain", chainId);
+            hooks[42] = HookDeployment("", "", ""); // Empty deployment
+            hooks[43] = HookDeployment("", "", ""); // Empty deployment
+        }
+
         // TransferHook
-        hooks[42] = _createSafeHookDeploymentWithArgs(
+        hooks[44] = _createSafeHookDeploymentWithArgs(
             TRANSFER_HOOK_KEY, "TransferHook", env, abi.encode(configuration.nativeTokens[chainId])
         );
 
         // PendleUnifiedHook - Only deploy if Pendle router available
         if (availability.pendleRouterHooks) {
-            hooks[43] = _createSafeHookDeploymentWithArgs(
+            hooks[45] = _createSafeHookDeploymentWithArgs(
                 PENDLE_UNIFIED_HOOK_KEY, "PendleUnifiedHook", env, abi.encode(configuration.pendleRouters[chainId])
             );
         } else {
-            hooks[43] = HookDeployment("", "", ""); // Empty deployment
+            hooks[45] = HookDeployment("", "", ""); // Empty deployment
         }
 
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
@@ -2351,8 +2404,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[40].name, CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY) ? addresses[40] : address(0);
         hookAddresses.swapUniswapV4Hook =
             Strings.equal(hooks[41].name, SWAP_UNISWAPV4_HOOK_KEY) ? addresses[41] : address(0);
+        hookAddresses.swapUniswapV3Hook =
+            Strings.equal(hooks[42].name, SWAP_UNISWAPV3_HOOK_KEY) ? addresses[42] : address(0);
+        hookAddresses.approveAndSwapUniswapV3Hook =
+            Strings.equal(hooks[43].name, APPROVE_AND_SWAP_UNISWAPV3_HOOK_KEY) ? addresses[43] : address(0);
         hookAddresses.transferHook =
-            Strings.equal(hooks[42].name, TRANSFER_HOOK_KEY) ? addresses[42] : address(0);
+            Strings.equal(hooks[44].name, TRANSFER_HOOK_KEY) ? addresses[44] : address(0);
 
         // ===== FINAL VALIDATION OF ALL CRITICAL HOOKS =====
         require(hookAddresses.approveErc20Hook != address(0), "APPROVE_ERC20_HOOK_NOT_ASSIGNED");
