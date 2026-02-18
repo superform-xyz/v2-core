@@ -11,6 +11,7 @@ NETWORKS=(
     "56:BNB:BSC_MAINNET"
     "42161:Arbitrum:ARBITRUM_MAINNET"
     "43114:Avalanche:AVALANCHE_MAINNET"
+    "999:HyperEVM:HYPEREVM_MAINNET"
 )
 
 # Network name mapping function
@@ -31,6 +32,9 @@ get_network_name() {
             ;;
         43114)
             echo "Avalanche"
+            ;;
+        999)
+            echo "HyperEVM"
             ;;
         *)
             echo "ERROR: Unknown staging network ID: $network_id" >&2
@@ -58,6 +62,9 @@ get_rpc_var() {
         43114)
             echo "AVALANCHE_MAINNET"
             ;;
+        999)
+            echo "HYPEREVM_MAINNET"
+            ;;
         *)
             echo "ERROR: Unknown staging network ID for RPC: $network_id" >&2
             return 1
@@ -83,6 +90,9 @@ get_rpc_url() {
             ;;
         43114)
             echo "$AVALANCHE_MAINNET"
+            ;;
+        999)
+            echo "$HYPEREVM_MAINNET"
             ;;
         *)
             echo "ERROR: Unknown staging network ID for RPC: $network_id" >&2
@@ -141,7 +151,12 @@ load_rpc_urls() {
     if ! export AVALANCHE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/AVALANCHE_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("AVALANCHE_RPC_URL")
     fi
-    
+
+    echo "  • Loading HyperEVM RPC..."
+    if ! export HYPEREVM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/HYPEREVM_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("HYPEREVM_RPC_URL")
+    fi
+
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then
         echo "❌ Failed to load the following RPC URLs from 1Password:"
         for failed_rpc in "${failed_rpcs[@]}"; do
@@ -151,7 +166,7 @@ load_rpc_urls() {
         return 1
     fi
     
-    echo "✅ Staging RPC URLs loaded successfully (all 5 networks)"
+    echo "✅ Staging RPC URLs loaded successfully (all 6 networks)"
 }
 
 # Load Etherscan V2 API key for verification

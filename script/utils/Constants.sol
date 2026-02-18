@@ -74,8 +74,9 @@ abstract contract Constants {
     address internal constant ACROSS_SPOKE_POOL_UNICHAIN = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
     address internal constant ACROSS_SPOKE_POOL_LINEA = 0x7E63A5f1a8F0B4d0934B2f2327DAED3F6bb2ee75;
     address internal constant ACROSS_SPOKE_POOL_WORLDCHAIN = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
+    address internal constant ACROSS_SPOKE_POOL_HYPEREVM = 0x35E63eA3eb0fb7A3bc543C71FB66412e1F6B0E04;
 
-    // Note: Berachain and Worldchain Across spoke pools not found - may not be deployed yet
+    // Note: Berachain Across spoke pool not found - may not be deployed yet
     // Note: Gnosis Across spoke pool not found - may not be deployed yet
 
     // DeBridge Gate addresses per chain
@@ -106,6 +107,7 @@ abstract contract Constants {
     address internal constant PENDLE_ROUTER_BNB = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address internal constant PENDLE_ROUTER_BERACHAIN = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address internal constant PENDLE_ROUTER_SONIC = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_HYPEREVM = 0x888888888889758F76e7103c6CbF23ABbF58F946;
 
     // Merkl Distributor addresses per chain
     address internal constant MERKL_DISTRIBUTOR = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
@@ -159,6 +161,10 @@ abstract contract Constants {
         "RecordPurchasePendlePTAmortizedOracleHook";
     string internal constant RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY =
         "RecordRedemptionPendlePTAmortizedOracleHook";
+    string internal constant RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY =
+        "RecordPurchasePendlePTAmortizedOracleHookV2";
+    string internal constant RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY =
+        "RecordRedemptionPendlePTAmortizedOracleHookV2";
     string internal constant APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY = "ApproveAndDeposit4626VaultHook";
     string internal constant APPROVE_AND_SWAP_ODOSV2_HOOK_KEY = "ApproveAndSwapOdosV2Hook";
     string internal constant APPROVE_AND_FLUID_STAKE_HOOK_KEY = "ApproveAndFluidStakeHook";
@@ -218,6 +224,7 @@ abstract contract Constants {
     string internal constant ERC5115_YIELD_SOURCE_ORACLE_SALT = "ERC5115YieldSourceOracle_v1.0.1";
     string internal constant STAKING_YIELD_SOURCE_ORACLE_SALT = "StakingYieldSourceOracle_v1.0.1";
     string internal constant SUPERVAULT_YIELD_SOURCE_ORACLE_SALT = "SuperVaultYieldSourceOracle_v1.0";
+    string internal constant PENDLE_PT_YIELD_SOURCE_ORACLE_SALT = "PendlePTYieldSourceOracle_v1.0";
 
     // Hook Deployment Salts
     string internal constant MERKL_CLAIM_REWARD_HOOK_SALT = "MerklClaimRewardHook_v02";

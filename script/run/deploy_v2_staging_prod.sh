@@ -362,13 +362,17 @@ LOCKED_BYTECODE_PATH=""
 # Check if arguments are provided
 if [ $# -lt 3 ]; then
     echo -e "${RED}❌ Error: Missing required arguments${NC}"
-    echo -e "${YELLOW}Usage: $0 <environment> <mode> <account>${NC}"
+    echo -e "${YELLOW}Usage: $0 <environment> <mode> <account> [--slow] [--resume]${NC}"
     echo -e "${CYAN}  environment: staging or prod${NC}"
     echo -e "${CYAN}  mode: simulate or deploy${NC}"
     echo -e "${CYAN}  account: foundry account name (e.g., v2, deployer, main)${NC}"
+    echo -e "${CYAN}  --slow: (optional) send transactions one at a time, waiting for confirmation${NC}"
+    echo -e "${CYAN}  --resume: (optional) resume from previous broadcast (use after interruption)${NC}"
     echo -e "${CYAN}Examples:${NC}"
     echo -e "${CYAN}  $0 staging simulate v2${NC}"
     echo -e "${CYAN}  $0 prod deploy deployer${NC}"
+    echo -e "${CYAN}  $0 prod deploy deployer --slow${NC}"
+    echo -e "${CYAN}  $0 prod deploy deployer --slow --resume${NC}"
     echo -e "${CYAN}Available accounts: $(cast wallet list 2>/dev/null | sed 's/ (Local)//' | tr '\n' ' ' || echo 'Run "cast wallet list" to see available accounts')${NC}"
     exit 1
 fi
@@ -376,6 +380,31 @@ fi
 ENVIRONMENT=$1
 MODE=$2
 ACCOUNT=$3
+
+# Check for optional flags (--slow, --resume, --legacy)
+SLOW_FLAG=""
+BATCH_SIZE_FLAG=""
+RESUME_FLAG=""
+LEGACY_FLAG=""
+GAS_PRICE_FLAG=""
+for arg in "${@:4}"; do
+    case "$arg" in
+        --slow)
+            SLOW_FLAG="--slow"
+            BATCH_SIZE_FLAG="--batch-size 1"
+            echo -e "${YELLOW}🐢 Slow mode enabled: transactions will be sent one at a time (batch-size=1)${NC}"
+            ;;
+        --resume)
+            RESUME_FLAG="--resume"
+            echo -e "${YELLOW}🔄 Resume mode enabled: will continue from previous broadcast${NC}"
+            ;;
+        --legacy)
+            LEGACY_FLAG="--legacy"
+            GAS_PRICE_FLAG="--with-gas-price 1gwei"
+            echo -e "${YELLOW}📜 Legacy mode enabled: using legacy transactions with 1 gwei gas price${NC}"
+            ;;
+    esac
+done
 
 # Validate environment and set locked bytecode path
 if [ "$ENVIRONMENT" = "staging" ]; then
@@ -635,6 +664,11 @@ for network_def in "${NETWORKS[@]}"; do
         --verifier etherscan \
         $BROADCAST_FLAG \
         $VERIFY_FLAG \
+        $SLOW_FLAG \
+        $BATCH_SIZE_FLAG \
+        $RESUME_FLAG \
+        $LEGACY_FLAG \
+        $GAS_PRICE_FLAG \
         --timeout 300 \
         -vv
     

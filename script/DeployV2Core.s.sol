@@ -58,6 +58,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address pendleUnifiedHook;
         address recordPurchasePendlePTAmortizedOracleHook;
         address recordRedemptionPendlePTAmortizedOracleHook;
+        address recordPurchasePendlePTAmortizedOracleHookV2;
+        address recordRedemptionPendlePTAmortizedOracleHookV2;
         address cancelDepositRequest7540Hook;
         address cancelRedeemRequest7540Hook;
         address claimCancelDepositRequest7540Hook;
@@ -217,6 +219,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool swapUniswapV4Hook;
         bool pendleRouterHooks;
         bool pendlePTAmortizedOracleHooks;
+        bool pendlePTAmortizedOracleHooksV2;
         bool merklClaimRewardHook;
         uint256 expectedCore;
         uint256 expectedAdapters;
@@ -254,8 +257,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         returns (ContractAvailability memory availability)
     {
         // Initialize all skipped contracts array
-        // Max possible skips: 2 adapters + 11 hooks = 13 skipped contracts
-        string[] memory potentialSkips = new string[](16);
+        // Max possible skips: 2 adapters + 16 hooks = 18 skipped contracts
+        string[] memory potentialSkips = new string[](18);
         uint256 skipCount = 0;
         // Adapter contracts (2 contracts - conditionally deployed)
         string[2] memory adapterContracts = ["AcrossV3Adapter", "DebridgeAdapter"];
@@ -281,8 +284,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         availability.expectedAdapters = expectedAdapters;
 
-        // Hook contracts - all 44 hooks from regenerate_bytecode.sh
-        string[44] memory baseHooks = [
+        // Hook contracts - all 46 hooks from regenerate_bytecode.sh (including V2 versions)
+        string[46] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -312,6 +315,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "PendleUnifiedHook",
             "RecordPurchasePendlePTAmortizedOracleHook",
             "RecordRedemptionPendlePTAmortizedOracleHook",
+            "RecordPurchasePendlePTAmortizedOracleHookV2",
+            "RecordRedemptionPendlePTAmortizedOracleHookV2",
             "AcrossSendFundsAndExecuteOnDstHook",
             "ApproveAndAcrossSendFundsAndExecuteOnDstHook",
             "DeBridgeSendOrderAndExecuteOnDstHook",
@@ -397,6 +402,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             expectedHooks -= 2; // RecordPurchasePendlePTAmortizedOracleHook + RecordRedemptionPendlePTAmortizedOracleHook
             potentialSkips[skipCount++] = "RecordPurchasePendlePTAmortizedOracleHook";
             potentialSkips[skipCount++] = "RecordRedemptionPendlePTAmortizedOracleHook";
+        }
+
+        if (configuration.pendlePTAmortizedOraclesV2[chainId] != address(0)) {
+            availability.pendlePTAmortizedOracleHooksV2 = true;
+        } else {
+            expectedHooks -= 2; // RecordPurchasePendlePTAmortizedOracleHookV2 + RecordRedemptionPendlePTAmortizedOracleHookV2
+            potentialSkips[skipCount++] = "RecordPurchasePendlePTAmortizedOracleHookV2";
+            potentialSkips[skipCount++] = "RecordRedemptionPendlePTAmortizedOracleHookV2";
         }
 
         availability.expectedHooks = expectedHooks;
@@ -590,6 +603,72 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         _setupSuperLedgerConfiguration(chainId, env, branchName);
 
         console2.log("====== LEDGER CONFIGURATION COMPLETED SUCCESSFULLY ======");
+    }
+
+    /// @notice Public function to configure ONLY SuperVaultYieldSourceOracle after initial deployment
+    /// @dev Use this when other oracles are already configured and you only need to add SuperVaultYieldSourceOracle
+    /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
+    /// @param chainId Target chain ID
+    function runSuperVaultOracleConfiguration(uint256 env, uint64 chainId) public {
+        runSuperVaultOracleConfiguration(env, chainId, "");
+    }
+
+    /// @notice Public function to configure ONLY SuperVaultYieldSourceOracle with branch name
+    /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
+    /// @param chainId Target chain ID
+    /// @param branchName Branch name for env=1 (VNET) to read contracts from specific branch folder
+    function runSuperVaultOracleConfiguration(
+        uint256 env,
+        uint64 chainId,
+        string memory branchName
+    )
+        public
+        broadcast(env)
+    {
+        console2.log("====== SUPERVAULT ORACLE CONFIGURATION ======");
+        console2.log("Environment:", env == 0 ? "Production" : (env == 1 ? "VNET" : "Staging"));
+        console2.log("Chain ID:", chainId);
+        console2.log("");
+
+        // Set configuration
+        _setConfiguration(env, "");
+
+        // Read deployment JSON
+        string memory deploymentJson = _readCoreContractsFromOutput(chainId, env, branchName);
+
+        address superLedgerConfig = vm.parseJsonAddress(deploymentJson, ".SuperLedgerConfiguration");
+        address superVaultOracle = _safeParseJsonAddress(deploymentJson, ".SuperVaultYieldSourceOracle");
+        address superLedger = vm.parseJsonAddress(deploymentJson, ".SuperLedger");
+
+        require(superLedgerConfig != address(0), "SUPER_LEDGER_CONFIG_ZERO");
+        require(superVaultOracle != address(0), "SUPER_VAULT_ORACLE_ZERO");
+        require(superVaultOracle.code.length > 0, "SUPER_VAULT_ORACLE_NO_CODE");
+        require(superLedger != address(0), "SUPER_LEDGER_ZERO");
+        require(configuration.treasury != address(0), "TREASURY_ZERO");
+
+        console2.log("  SuperLedgerConfiguration:", superLedgerConfig);
+        console2.log("  SuperVaultYieldSourceOracle:", superVaultOracle);
+        console2.log("  SuperLedger:", superLedger);
+        console2.log("  Treasury:", configuration.treasury);
+
+        // Configure only SuperVaultYieldSourceOracle
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: superVaultOracle,
+            feePercent: 0,
+            feeRecipient: configuration.treasury,
+            ledger: superLedger
+        });
+
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = bytes32(bytes(SUPERVAULT_YIELD_SOURCE_ORACLE_SALT));
+
+        console2.log("  Configuring SuperVaultYieldSourceOracle...");
+        ISuperLedgerConfiguration(superLedgerConfig).setYieldSourceOracles(salts, configs);
+
+        console2.log("====== SUPERVAULT ORACLE CONFIGURATION COMPLETED ======");
     }
 
     /// @notice Check V2 Core contract addresses before deployment
@@ -930,7 +1009,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         }
 
-        // Pendle PT Amortized Oracle hooks
+        // Pendle PT Amortized Oracle hooks (V1)
         if (availability.pendlePTAmortizedOracleHooks) {
             __checkContract(
                 RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY,
@@ -946,7 +1025,28 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log(
-                "SKIPPED RecordPurchase & RecordRedemption PendlePTAmortizedOracle Hooks: Oracle not configured for chain",
+                "SKIPPED RecordPurchase & RecordRedemption PendlePTAmortizedOracle Hooks (V1): Oracle not configured for chain",
+                chainId
+            );
+        }
+
+        // Pendle PT Amortized Oracle hooks (V2)
+        if (availability.pendlePTAmortizedOracleHooksV2) {
+            __checkContract(
+                RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY,
+                __getSalt(RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY),
+                abi.encode(configuration.pendlePTAmortizedOraclesV2[chainId]),
+                env
+            );
+            __checkContract(
+                RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY,
+                __getSalt(RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY),
+                abi.encode(configuration.pendlePTAmortizedOraclesV2[chainId]),
+                env
+            );
+        } else {
+            console2.log(
+                "SKIPPED RecordPurchase & RecordRedemption PendlePTAmortizedOracle Hooks (V2): Oracle V2 not configured for chain",
                 chainId
             );
         }
@@ -1456,6 +1556,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address erc4626Oracle;
         address erc5115Oracle;
         address stakingOracle;
+        address pendlePTOracle;
+        address superVaultOracle;
         address superLedger;
         address flatFeeLedger;
 
@@ -1466,6 +1568,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         erc4626Oracle = vm.parseJsonAddress(deploymentJson, ".ERC4626YieldSourceOracle");
         erc5115Oracle = vm.parseJsonAddress(deploymentJson, ".ERC5115YieldSourceOracle");
         stakingOracle = vm.parseJsonAddress(deploymentJson, ".StakingYieldSourceOracle");
+        pendlePTOracle = _safeParseJsonAddress(deploymentJson, ".PendlePTYieldSourceOracle");
+        superVaultOracle = _safeParseJsonAddress(deploymentJson, ".SuperVaultYieldSourceOracle");
         superLedger = vm.parseJsonAddress(deploymentJson, ".SuperLedger");
         flatFeeLedger = vm.parseJsonAddress(deploymentJson, ".FlatFeeLedger");
 
@@ -1491,17 +1595,27 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Validate treasury address is set
         require(configuration.treasury != address(0), "SETUP_TREASURY_ZERO");
 
+        // Check if optional oracles are deployed
+        bool hasPendlePT = pendlePTOracle != address(0) && pendlePTOracle.code.length > 0;
+        bool hasSuperVault = superVaultOracle != address(0) && superVaultOracle.code.length > 0;
+
         console2.log("  SuperLedgerConfiguration:", superLedgerConfig);
         console2.log("  ERC4626 Oracle:", erc4626Oracle);
         console2.log("  ERC5115 Oracle:", erc5115Oracle);
         console2.log("  Staking Oracle:", stakingOracle);
+        console2.log("  PendlePT Oracle:", pendlePTOracle);
+        console2.log("  PendlePT Available:", hasPendlePT);
+        console2.log("  SuperVault Oracle:", superVaultOracle);
+        console2.log("  SuperVault Available:", hasSuperVault);
         console2.log("  SuperLedger:", superLedger);
         console2.log("  FlatFeeLedger:", flatFeeLedger);
         console2.log("  Treasury:", configuration.treasury);
 
         // ===== SETUP CONFIGURATIONS WITH VALIDATED PARAMETERS =====
+        // Base: 3 oracles (ERC4626, ERC5115, Staking), plus optional PendlePT and SuperVault
+        uint256 configCount = 3 + (hasPendlePT ? 1 : 0) + (hasSuperVault ? 1 : 0);
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](configCount);
 
         // Note: Using treasury address from configuration
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
@@ -1514,6 +1628,28 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             yieldSourceOracle: stakingOracle, feePercent: 0, feeRecipient: configuration.treasury, ledger: superLedger
         });
 
+        // Track next available index for optional oracles
+        uint256 nextConfigIndex = 3;
+
+        if (hasPendlePT) {
+            configs[nextConfigIndex] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracle: pendlePTOracle,
+                feePercent: 0,
+                feeRecipient: configuration.treasury,
+                ledger: superLedger
+            });
+            nextConfigIndex++;
+        }
+
+        if (hasSuperVault) {
+            configs[nextConfigIndex] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracle: superVaultOracle,
+                feePercent: 0,
+                feeRecipient: configuration.treasury,
+                ledger: superLedger
+            });
+        }
+
         // Validate each configuration before setup
         for (uint256 i = 0; i < configs.length; ++i) {
             require(configs[i].yieldSourceOracle != address(0), "CONFIG_YIELD_SOURCE_ORACLE_ZERO");
@@ -1522,10 +1658,22 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" Configuration", i, "validated");
         }
 
-        bytes32[] memory salts = new bytes32[](3);
+        bytes32[] memory salts = new bytes32[](configCount);
         salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_SALT));
         salts[1] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_SALT));
         salts[2] = bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_SALT));
+
+        // Track next available index for optional oracle salts
+        uint256 nextSaltIndex = 3;
+
+        if (hasPendlePT) {
+            salts[nextSaltIndex] = bytes32(bytes(PENDLE_PT_YIELD_SOURCE_ORACLE_SALT));
+            nextSaltIndex++;
+        }
+
+        if (hasSuperVault) {
+            salts[nextSaltIndex] = bytes32(bytes(SUPERVAULT_YIELD_SOURCE_ORACLE_SALT));
+        }
 
         // Validate salts are not empty
         for (uint256 i = 0; i < salts.length; ++i) {
@@ -1771,13 +1919,25 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         return vm.readFile(outputPath);
     }
 
+    /// @notice Safely parse an address from JSON, returning address(0) if not found
+    /// @param json The JSON string to parse
+    /// @param key The JSON key to look up
+    /// @return The parsed address, or address(0) if not found or invalid
+    function _safeParseJsonAddress(string memory json, string memory key) internal pure returns (address) {
+        try vm.parseJsonAddress(json, key) returns (address addr) {
+            return addr;
+        } catch {
+            return address(0);
+        }
+    }
+
     function _deployHooks(uint64 chainId, uint256 env) private returns (HookAddresses memory hookAddresses) {
         console2.log("Starting hook deployment with comprehensive dependency validation...");
 
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 44;
+        uint256 len = 46;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -1869,7 +2029,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[21] = HookDeployment("", "", ""); // Empty deployment
         }
 
-        // Pendle PT Amortized Oracle Hooks - Only deploy if oracle available on this chain
+        // Pendle PT Amortized Oracle Hooks (V1) - Only deploy if oracle available on this chain
         if (availability.pendlePTAmortizedOracleHooks) {
             require(
                 configuration.pendlePTAmortizedOracles[chainId] != address(0),
@@ -1892,9 +2052,37 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encode(configuration.pendlePTAmortizedOracles[chainId])
             );
         } else {
-            console2.log(" SKIPPED Pendle PT Amortized Oracle Hooks deployment: Not available on chain", chainId);
+            console2.log(" SKIPPED Pendle PT Amortized Oracle Hooks (V1) deployment: Not available on chain", chainId);
             hooks[22] = HookDeployment("", "", ""); // Empty deployment
             hooks[23] = HookDeployment("", "", ""); // Empty deployment
+        }
+
+        // Pendle PT Amortized Oracle Hooks (V2) - Only deploy if oracle V2 available on this chain
+        if (availability.pendlePTAmortizedOracleHooksV2) {
+            require(
+                configuration.pendlePTAmortizedOraclesV2[chainId] != address(0),
+                "PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_ORACLE_PARAM_ZERO"
+            );
+            require(
+                configuration.pendlePTAmortizedOraclesV2[chainId].code.length > 0,
+                "PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_ORACLE_NOT_DEPLOYED"
+            );
+            hooks[44] = _createSafeHookDeploymentWithArgs(
+                RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY,
+                "RecordPurchasePendlePTAmortizedOracleHookV2",
+                env,
+                abi.encode(configuration.pendlePTAmortizedOraclesV2[chainId])
+            );
+            hooks[45] = _createSafeHookDeploymentWithArgs(
+                RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY,
+                "RecordRedemptionPendlePTAmortizedOracleHookV2",
+                env,
+                abi.encode(configuration.pendlePTAmortizedOraclesV2[chainId])
+            );
+        } else {
+            console2.log(" SKIPPED Pendle PT Amortized Oracle Hooks (V2) deployment: Not available on chain", chainId);
+            hooks[44] = HookDeployment("", "", ""); // Empty deployment
+            hooks[45] = HookDeployment("", "", ""); // Empty deployment
         }
 
         address superValidator;
@@ -2113,6 +2301,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[23].name, RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY
         )
             ? addresses[23]
+            : address(0);
+        hookAddresses.recordPurchasePendlePTAmortizedOracleHookV2 = Strings.equal(
+            hooks[44].name, RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY
+        )
+            ? addresses[44]
+            : address(0);
+        hookAddresses.recordRedemptionPendlePTAmortizedOracleHookV2 = Strings.equal(
+            hooks[45].name, RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY
+        )
+            ? addresses[45]
             : address(0);
         hookAddresses.acrossSendFundsAndExecuteOnDstHook =
             Strings.equal(hooks[24].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[24] : address(0);

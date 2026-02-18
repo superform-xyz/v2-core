@@ -11,28 +11,26 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { IPendlePTAmortizedOracle } from "../../../vendor/pendle/IPendlePTAmortizedOracle.sol";
 
-/// @title RecordPurchasePendlePTAmortizedOracleHook
+/// @title RecordRedemptionPendlePTAmortizedOracleHookV2
 /// @author Superform Labs
-/// @notice Hook to record PT purchases in the PendlePTAmortizedOracle
-/// @dev Called AFTER a deposit/swap hook that outputs PT amount
+/// @notice V2 Hook to record PT redemptions in the PendlePTAmortizedOracle
+/// @dev Called AFTER a redeem/swap hook that sells PT
 /// @dev The strategy (msg.sender during execution) will be recorded as the position holder
 /// @dev data has the following structure
 /// @notice         address market = BytesLib.toAddress(data, 0);
-/// @notice         uint256 syAccountingAssetSpent = BytesLib.toUint256(data, 20);
-/// @notice         uint256 ptAmount = BytesLib.toUint256(data, 52);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
-contract RecordPurchasePendlePTAmortizedOracleHook is BaseHook, ISuperHookContextAware {
+/// @notice         uint256 ptSold = BytesLib.toUint256(data, 20);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
+contract RecordRedemptionPendlePTAmortizedOracleHookV2 is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Contract version for bytecode differentiation
+    /// @notice Hook version
     uint256 public constant VERSION = 2;
 
     uint256 private constant MARKET_POSITION = 0;
-    uint256 private constant SY_ACCOUNTING_ASSET_SPENT_POSITION = 20;
-    uint256 private constant PT_AMOUNT_POSITION = 52;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 84;
+    uint256 private constant PT_SOLD_POSITION = 20;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
 
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
@@ -46,8 +44,7 @@ contract RecordPurchasePendlePTAmortizedOracleHook is BaseHook, ISuperHookContex
     //////////////////////////////////////////////////////////////*/
 
     error MARKET_NOT_VALID();
-    error SY_SPENT_NOT_VALID();
-    error PT_AMOUNT_NOT_VALID();
+    error PT_SOLD_NOT_VALID();
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -76,27 +73,22 @@ contract RecordPurchasePendlePTAmortizedOracleHook is BaseHook, ISuperHookContex
         returns (Execution[] memory executions)
     {
         address market = BytesLib.toAddress(data, MARKET_POSITION);
-        /// @dev syAccountingAssetSpent is the amount of sy accounting asset spent on the purchase
-        ///      Usually the accounting asset can be obtained from SY token: `sy.assetInfo()`
-        ///      And SY token can be obtained from market: `market.readTokens()`
-        uint256 syAccountingAssetSpent = BytesLib.toUint256(data, SY_ACCOUNTING_ASSET_SPENT_POSITION);
-        uint256 ptAmount = BytesLib.toUint256(data, PT_AMOUNT_POSITION);
+        uint256 ptSold = BytesLib.toUint256(data, PT_SOLD_POSITION);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
-        // Get ptAmount from previous hook if enabled (typical flow: after swap hook)
+        // Get ptSold from previous hook if enabled (typical flow: after redeem hook)
         if (usePrevHookAmount) {
-            ptAmount = ISuperHookResult(prevHook).getOutAmount(account);
+            ptSold = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
         if (market == address(0)) revert MARKET_NOT_VALID();
-        if (syAccountingAssetSpent == 0) revert SY_SPENT_NOT_VALID();
-        if (ptAmount == 0) revert PT_AMOUNT_NOT_VALID();
+        if (ptSold == 0) revert PT_SOLD_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(ORACLE),
             value: 0,
-            callData: abi.encodeCall(IPendlePTAmortizedOracle.recordPurchase, (market, syAccountingAssetSpent, ptAmount))
+            callData: abi.encodeCall(IPendlePTAmortizedOracle.recordRedemption, (market, ptSold))
         });
     }
 
@@ -116,18 +108,11 @@ contract RecordPurchasePendlePTAmortizedOracleHook is BaseHook, ISuperHookContex
         return BytesLib.toAddress(data, MARKET_POSITION);
     }
 
-    /// @notice Decode the syAccountingAssetSpent amount from hook data
+    /// @notice Decode the ptSold amount from hook data
     /// @param data The hook data
-    /// @return The syAccountingAssetSpent amount
-    function decodeSySpent(bytes memory data) external pure returns (uint256) {
-        return BytesLib.toUint256(data, SY_ACCOUNTING_ASSET_SPENT_POSITION);
-    }
-
-    /// @notice Decode the ptAmount from hook data
-    /// @param data The hook data
-    /// @return The ptAmount
-    function decodePtAmount(bytes memory data) external pure returns (uint256) {
-        return BytesLib.toUint256(data, PT_AMOUNT_POSITION);
+    /// @return The ptSold amount
+    function decodePtSold(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(data, PT_SOLD_POSITION);
     }
 
     /// @inheritdoc ISuperHookInspector
