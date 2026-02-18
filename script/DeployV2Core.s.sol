@@ -2099,13 +2099,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 configuration.pendlePTAmortizedOraclesV2[chainId].code.length > 0,
                 "PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_ORACLE_NOT_DEPLOYED"
             );
-            hooks[44] = _createSafeHookDeploymentWithArgs(
+            hooks[46] = _createSafeHookDeploymentWithArgs(
                 RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY,
                 "RecordPurchasePendlePTAmortizedOracleHookV2",
                 env,
                 abi.encode(configuration.pendlePTAmortizedOraclesV2[chainId])
             );
-            hooks[45] = _createSafeHookDeploymentWithArgs(
+            hooks[47] = _createSafeHookDeploymentWithArgs(
                 RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY,
                 "RecordRedemptionPendlePTAmortizedOracleHookV2",
                 env,
@@ -2113,8 +2113,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log(" SKIPPED Pendle PT Amortized Oracle Hooks (V2) deployment: Not available on chain", chainId);
-            hooks[44] = HookDeployment("", "", ""); // Empty deployment
-            hooks[45] = HookDeployment("", "", ""); // Empty deployment
+            hooks[46] = HookDeployment("", "", ""); // Empty deployment
+            hooks[47] = HookDeployment("", "", ""); // Empty deployment
         }
 
         address superValidator;
@@ -2344,7 +2344,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hookAddresses.pendleRouterRedeemHook =
             Strings.equal(hooks[21].name, PENDLE_ROUTER_REDEEM_HOOK_KEY) ? addresses[21] : address(0);
         hookAddresses.pendleUnifiedHook =
-            Strings.equal(hooks[43].name, PENDLE_UNIFIED_HOOK_KEY) ? addresses[43] : address(0);
+            Strings.equal(hooks[45].name, PENDLE_UNIFIED_HOOK_KEY) ? addresses[45] : address(0);
         hookAddresses.recordPurchasePendlePTAmortizedOracleHook = Strings.equal(
             hooks[22].name, RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY
         )
@@ -2356,14 +2356,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             ? addresses[23]
             : address(0);
         hookAddresses.recordPurchasePendlePTAmortizedOracleHookV2 = Strings.equal(
-            hooks[44].name, RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY
+            hooks[46].name, RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY
         )
-            ? addresses[44]
+            ? addresses[46]
             : address(0);
         hookAddresses.recordRedemptionPendlePTAmortizedOracleHookV2 = Strings.equal(
-            hooks[45].name, RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY
+            hooks[47].name, RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY
         )
-            ? addresses[45]
+            ? addresses[47]
             : address(0);
         hookAddresses.acrossSendFundsAndExecuteOnDstHook =
             Strings.equal(hooks[24].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[24] : address(0);
