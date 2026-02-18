@@ -35,6 +35,14 @@ contract ApproveAndSwapUniswapV3Hook is BaseHook, ISuperHookContextAware {
     /// @notice Thrown when hook data is malformed or insufficient
     error INVALID_HOOK_DATA();
 
+    /// @notice Thrown when native ETH is used (use WETH instead)
+    error NATIVE_ETH_NOT_SUPPORTED();
+
+    /// @notice Thrown when the deadline has passed
+    /// @param deadline The provided deadline timestamp
+    /// @param currentTimestamp The current block timestamp
+    error EXPIRED_DEADLINE(uint256 deadline, uint256 currentTimestamp);
+
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -157,6 +165,7 @@ contract ApproveAndSwapUniswapV3Hook is BaseHook, ISuperHookContextAware {
     /// @param prevHook The previous hook in the chain
     /// @param account The account executing the swap
     /// @param data The encoded hook data
+    /// @dev recipient is forced to account to ensure balance tracking works correctly for hook chaining
     function _decodeSwapParams(
         address prevHook,
         address account,
@@ -177,9 +186,20 @@ contract ApproveAndSwapUniswapV3Hook is BaseHook, ISuperHookContextAware {
     {
         tokenIn = data.toAddress(0);
         tokenOut = data.toAddress(20);
+
+        // Native ETH not supported - use WETH instead
+        if (tokenIn == address(0) || tokenOut == address(0)) revert NATIVE_ETH_NOT_SUPPORTED();
+
         fee = uint24(data.toUint32(40));
-        recipient = data.toAddress(44);
+        // Force recipient to account - balance tracking in _preExecute/_postExecute
+        // requires output tokens to go to account for usePrevHookAmount to work
+        recipient = account;
         deadline = data.toUint256(64);
+
+        // Validate deadline hasn't passed
+        if (deadline < block.timestamp) revert EXPIRED_DEADLINE(deadline, block.timestamp);
+
+        // sqrtPriceLimitX96: 0 means no price limit (swap executes at any price)
         sqrtPriceLimitX96 = uint160(data.toUint256(96));
 
         uint256 originalAmountIn = data.toUint256(128);

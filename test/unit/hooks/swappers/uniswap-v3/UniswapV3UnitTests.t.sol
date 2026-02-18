@@ -680,6 +680,225 @@ contract UniswapV3HookTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                     NATIVE ETH REJECTION TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SwapHook_RevertIf_NativeETH_TokenIn() public {
+        bytes memory data = bytes.concat(
+            bytes20(address(0)), // tokenIn = native ETH
+            bytes20(tokenOut),
+            bytes4(uint32(fee)),
+            bytes20(recipient),
+            bytes32(deadline),
+            bytes32(uint256(sqrtPriceLimitX96)),
+            bytes32(originalAmountIn),
+            bytes32(originalMinAmountOut),
+            bytes1(0x00)
+        );
+
+        vm.expectRevert(SwapUniswapV3Hook.NATIVE_ETH_NOT_SUPPORTED.selector);
+        swapHook.build(address(prevHook), account, data);
+    }
+
+    function test_SwapHook_RevertIf_NativeETH_TokenOut() public {
+        bytes memory data = bytes.concat(
+            bytes20(tokenIn),
+            bytes20(address(0)), // tokenOut = native ETH
+            bytes4(uint32(fee)),
+            bytes20(recipient),
+            bytes32(deadline),
+            bytes32(uint256(sqrtPriceLimitX96)),
+            bytes32(originalAmountIn),
+            bytes32(originalMinAmountOut),
+            bytes1(0x00)
+        );
+
+        vm.expectRevert(SwapUniswapV3Hook.NATIVE_ETH_NOT_SUPPORTED.selector);
+        swapHook.build(address(prevHook), account, data);
+    }
+
+    function test_ApproveAndSwapHook_RevertIf_NativeETH_TokenIn() public {
+        bytes memory data = bytes.concat(
+            bytes20(address(0)), // tokenIn = native ETH
+            bytes20(tokenOut),
+            bytes4(uint32(fee)),
+            bytes20(recipient),
+            bytes32(deadline),
+            bytes32(uint256(sqrtPriceLimitX96)),
+            bytes32(originalAmountIn),
+            bytes32(originalMinAmountOut),
+            bytes1(0x00)
+        );
+
+        vm.expectRevert(ApproveAndSwapUniswapV3Hook.NATIVE_ETH_NOT_SUPPORTED.selector);
+        approveAndSwapHook.build(address(prevHook), account, data);
+    }
+
+    function test_ApproveAndSwapHook_RevertIf_NativeETH_TokenOut() public {
+        bytes memory data = bytes.concat(
+            bytes20(tokenIn),
+            bytes20(address(0)), // tokenOut = native ETH
+            bytes4(uint32(fee)),
+            bytes20(recipient),
+            bytes32(deadline),
+            bytes32(uint256(sqrtPriceLimitX96)),
+            bytes32(originalAmountIn),
+            bytes32(originalMinAmountOut),
+            bytes1(0x00)
+        );
+
+        vm.expectRevert(ApproveAndSwapUniswapV3Hook.NATIVE_ETH_NOT_SUPPORTED.selector);
+        approveAndSwapHook.build(address(prevHook), account, data);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                     DEADLINE VALIDATION TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SwapHook_RevertIf_ExpiredDeadline() public {
+        uint256 expiredDeadline = block.timestamp - 1;
+
+        bytes memory data = bytes.concat(
+            bytes20(tokenIn),
+            bytes20(tokenOut),
+            bytes4(uint32(fee)),
+            bytes20(recipient),
+            bytes32(expiredDeadline), // Expired deadline
+            bytes32(uint256(sqrtPriceLimitX96)),
+            bytes32(originalAmountIn),
+            bytes32(originalMinAmountOut),
+            bytes1(0x00)
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(SwapUniswapV3Hook.EXPIRED_DEADLINE.selector, expiredDeadline, block.timestamp));
+        swapHook.build(address(prevHook), account, data);
+    }
+
+    function test_ApproveAndSwapHook_RevertIf_ExpiredDeadline() public {
+        uint256 expiredDeadline = block.timestamp - 1;
+
+        bytes memory data = bytes.concat(
+            bytes20(tokenIn),
+            bytes20(tokenOut),
+            bytes4(uint32(fee)),
+            bytes20(recipient),
+            bytes32(expiredDeadline), // Expired deadline
+            bytes32(uint256(sqrtPriceLimitX96)),
+            bytes32(originalAmountIn),
+            bytes32(originalMinAmountOut),
+            bytes1(0x00)
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(ApproveAndSwapUniswapV3Hook.EXPIRED_DEADLINE.selector, expiredDeadline, block.timestamp));
+        approveAndSwapHook.build(address(prevHook), account, data);
+    }
+
+    function test_SwapHook_DeadlineAtCurrentTimestamp() public view {
+        // Deadline exactly at block.timestamp should succeed
+        uint256 exactDeadline = block.timestamp;
+
+        bytes memory data = bytes.concat(
+            bytes20(tokenIn),
+            bytes20(tokenOut),
+            bytes4(uint32(fee)),
+            bytes20(recipient),
+            bytes32(exactDeadline),
+            bytes32(uint256(sqrtPriceLimitX96)),
+            bytes32(originalAmountIn),
+            bytes32(originalMinAmountOut),
+            bytes1(0x00)
+        );
+
+        // Should not revert
+        Execution[] memory executions = swapHook.build(address(prevHook), account, data);
+        assertEq(executions.length, 3);
+    }
+
+    function test_SwapHook_ZeroSqrtPriceLimitMeansNoLimit() public view {
+        // sqrtPriceLimitX96 = 0 means no price limit, should work fine
+        bytes memory data = bytes.concat(
+            bytes20(tokenIn),
+            bytes20(tokenOut),
+            bytes4(uint32(fee)),
+            bytes20(recipient),
+            bytes32(deadline),
+            bytes32(uint256(0)), // Zero = no price limit
+            bytes32(originalAmountIn),
+            bytes32(originalMinAmountOut),
+            bytes1(0x00)
+        );
+
+        // Should not revert - 0 is valid (means no limit)
+        Execution[] memory executions = swapHook.build(address(prevHook), account, data);
+        assertEq(executions.length, 3);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                     RECIPIENT FORCED TO ACCOUNT TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SwapHook_RecipientForcedToAccount() public view {
+        // Use a different recipient in hook data
+        address differentRecipient = address(0xBEEF);
+
+        bytes memory data = bytes.concat(
+            bytes20(tokenIn),
+            bytes20(tokenOut),
+            bytes4(uint32(fee)),
+            bytes20(differentRecipient), // Different from account
+            bytes32(deadline),
+            bytes32(uint256(sqrtPriceLimitX96)),
+            bytes32(originalAmountIn),
+            bytes32(originalMinAmountOut),
+            bytes1(0x00)
+        );
+
+        Execution[] memory executions = swapHook.build(address(prevHook), account, data);
+
+        // Decode recipient from swap calldata
+        bytes memory swapCalldata = executions[1].callData;
+        address decodedRecipient;
+        assembly {
+            // recipient is at offset 4 + 32*3 = 100 (after selector + tokenIn + tokenOut + fee)
+            decodedRecipient := mload(add(swapCalldata, 132))
+        }
+
+        // Recipient should be forced to account, not differentRecipient
+        assertEq(decodedRecipient, account);
+        assertTrue(decodedRecipient != differentRecipient);
+    }
+
+    function test_ApproveAndSwapHook_RecipientForcedToAccount() public view {
+        // Use a different recipient in hook data
+        address differentRecipient = address(0xBEEF);
+
+        bytes memory data = bytes.concat(
+            bytes20(tokenIn),
+            bytes20(tokenOut),
+            bytes4(uint32(fee)),
+            bytes20(differentRecipient), // Different from account
+            bytes32(deadline),
+            bytes32(uint256(sqrtPriceLimitX96)),
+            bytes32(originalAmountIn),
+            bytes32(originalMinAmountOut),
+            bytes1(0x00)
+        );
+
+        Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
+
+        // Decode recipient from swap calldata (swap is at index 3)
+        bytes memory swapCalldata = executions[3].callData;
+        address decodedRecipient;
+        assembly {
+            decodedRecipient := mload(add(swapCalldata, 132))
+        }
+
+        // Recipient should be forced to account, not differentRecipient
+        assertEq(decodedRecipient, account);
+        assertTrue(decodedRecipient != differentRecipient);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                      FUZZ TESTS
     //////////////////////////////////////////////////////////////*/
 
