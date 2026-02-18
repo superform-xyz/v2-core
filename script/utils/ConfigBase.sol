@@ -23,6 +23,7 @@ abstract contract ConfigBase is Constants {
         mapping(uint64 chainId => address odosRouter) odosRouters;
         mapping(uint64 chainId => address pendleRouter) pendleRouters;
         mapping(uint64 chainId => address pendlePTAmortizedOracle) pendlePTAmortizedOracles;
+        mapping(uint64 chainId => address pendlePTAmortizedOracleV2) pendlePTAmortizedOraclesV2;
         mapping(uint64 chainId => address nativeToken) nativeTokens;
         mapping(uint64 chainId => address poolManager) uniswapV4PoolManagers;
     }
@@ -75,6 +76,7 @@ abstract contract ConfigBase is Constants {
         chainNames[SONIC_CHAIN_ID] = SONIC_KEY;
         chainNames[GNOSIS_CHAIN_ID] = GNOSIS_KEY;
         chainNames[WORLDCHAIN_CHAIN_ID] = WORLDCHAIN_KEY;
+        chainNames[HYPEREVM_CHAIN_ID] = HYPEREVM_KEY;
 
         // ===== COMMON CONFIGURATION =====
         if (env_ == 0 || env_ == 2) {

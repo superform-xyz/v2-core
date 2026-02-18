@@ -24,6 +24,8 @@ contract RecordRedemptionPendlePTAmortizedOracleHook is BaseHook, ISuperHookCont
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Contract version for bytecode differentiation
+    uint256 public constant VERSION = 1;
 
     uint256 private constant MARKET_POSITION = 0;
     uint256 private constant PT_SOLD_POSITION = 20;

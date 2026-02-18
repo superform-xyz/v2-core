@@ -131,18 +131,19 @@ load_contract_addresses() {
         "146") network_suffix="Sonic-latest" ;;
         "100") network_suffix="Gnosis-latest" ;;
         "480") network_suffix="Worldchain-latest" ;;
+        "999") network_suffix="HyperEVM-latest" ;;
         *) network_suffix="${network_name}-latest" ;;
     esac
-    
+
     local json_file="script/output/$ENVIRONMENT/$chain_id/$network_suffix.json"
-    
+
     if [ ! -f "$json_file" ]; then
         echo -e "${RED}❌ JSON file not found: $json_file${NC}"
         echo -e "${RED}   Expected path: $json_file${NC}"
         echo -e "${YELLOW}   Make sure contracts have been deployed to this network first${NC}"
         return 1
     fi
-    
+
     echo -e "${CYAN}   • Loading addresses from: $json_file${NC}"
     return 0
 }
@@ -168,14 +169,15 @@ get_contract_address() {
         "146") network_suffix="Sonic-latest" ;;
         "100") network_suffix="Gnosis-latest" ;;
         "480") network_suffix="Worldchain-latest" ;;
-        *) 
+        "999") network_suffix="HyperEVM-latest" ;;
+        *)
             local network_name=$(get_network_name "$chain_id")
             network_suffix="${network_name}-latest"
             ;;
     esac
-    
+
     local json_file="script/output/$ENVIRONMENT/$chain_id/$network_suffix.json"
-    
+
     if [ -f "$json_file" ]; then
         local address=$(jq -r ".$contract_name // empty" "$json_file")
         echo "$address"
@@ -208,7 +210,25 @@ generate_constructor_args() {
     local debridge_dln_dst="0xE7351Fd770A37282b91D153Ee690B63579D6dd7f"  # Standard DeBridge DLN DST
     local gateway_wallet="0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE"  # Circle Gateway Wallet
     local gateway_minter="0x2222222d7164433c4C09B0b0D809a9b52C04C205"  # Circle Gateway Minter
-    local pendle_pt_amortized_oracle="0x5BDdD529B8ef20406371c3b864e0a78241d1dE0F"  # Production address (Staging: 0x1e6eC8e7a5aEe0508F43Deb35741F05E4a2e0004)
+    # Pendle PT Amortized Oracle addresses (V1)
+    # Staging: 0xE31FD1d26A52B4a958651a8E751e9362B3880524
+    # Production: 0xD64089698f82cbCD91ba5e0422aDFa81D247eB62
+    local pendle_pt_amortized_oracle=""
+    if [ "$ENVIRONMENT" = "staging" ]; then
+        pendle_pt_amortized_oracle="0xE31FD1d26A52B4a958651a8E751e9362B3880524"
+    else
+        pendle_pt_amortized_oracle="0xD64089698f82cbCD91ba5e0422aDFa81D247eB62"
+    fi
+
+    # Pendle PT Amortized Oracle V2 addresses
+    # Staging: 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e
+    # Production: TBD
+    local pendle_pt_amortized_oracle_v2=""
+    if [ "$ENVIRONMENT" = "staging" ]; then
+        pendle_pt_amortized_oracle_v2="0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e"
+    else
+        pendle_pt_amortized_oracle_v2=""  # TBD - update after prod deployment
+    fi
     
     # Network-specific configurations
     case $chain_id in
@@ -308,6 +328,14 @@ generate_constructor_args() {
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
+        "999") # HyperEVM (Hyperliquid)
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router=""  # Not deployed
+            odos_router=""  # Not deployed
+            across_spoke_pool_v3=""  # Not deployed
+            merkl_distributor=""  # Not deployed
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
     esac
     
     # Generate constructor arguments based on contract type
@@ -374,6 +402,9 @@ generate_constructor_args() {
             ;;
         "RecordPurchasePendlePTAmortizedOracleHook"|"RecordRedemptionPendlePTAmortizedOracleHook")
             echo "$(cast abi-encode "constructor(address)" "$pendle_pt_amortized_oracle")"
+            ;;
+        "RecordPurchasePendlePTAmortizedOracleHookV2"|"RecordRedemptionPendlePTAmortizedOracleHookV2")
+            echo "$(cast abi-encode "constructor(address)" "$pendle_pt_amortized_oracle_v2")"
             ;;
 
         # All other contracts (no constructor args)
@@ -455,6 +486,8 @@ get_contract_source() {
         # Hooks - Pendle PT Amortized Oracle
         "RecordPurchasePendlePTAmortizedOracleHook") echo "src/hooks/oracles/pendle/RecordPurchasePendlePTAmortizedOracleHook.sol" ;;
         "RecordRedemptionPendlePTAmortizedOracleHook") echo "src/hooks/oracles/pendle/RecordRedemptionPendlePTAmortizedOracleHook.sol" ;;
+        "RecordPurchasePendlePTAmortizedOracleHookV2") echo "src/hooks/oracles/pendle/RecordPurchasePendlePTAmortizedOracleHookV2.sol" ;;
+        "RecordRedemptionPendlePTAmortizedOracleHookV2") echo "src/hooks/oracles/pendle/RecordRedemptionPendlePTAmortizedOracleHookV2.sol" ;;
 
         # Oracles
         "ERC4626YieldSourceOracle") echo "src/accounting/oracles/ERC4626YieldSourceOracle.sol" ;;
@@ -476,25 +509,25 @@ verify_contract() {
     local constructor_args=$4
     local source_file=$5
     local rpc_url=$6
-    
+
     echo -e "${YELLOW}   🔍 Verifying $contract_name...${NC}"
     echo -e "${CYAN}      Address: $contract_address${NC}"
     echo -e "${CYAN}      Source: $source_file${NC}"
     echo -e "${CYAN}      Chain ID: $chain_id${NC}"
-    
+
     forge verify-contract "$contract_address" "$source_file:$contract_name" \
         --constructor-args "$constructor_args" \
         --rpc-url "$rpc_url" \
         --chain "$chain_id" \
         --etherscan-api-key "$ETHERSCANV2_API_KEY" \
         --verifier etherscan
-            
+
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}   ✅ $contract_name verified successfully${NC}"
     else
         echo -e "${RED}   ❌ $contract_name verification failed${NC}"
     fi
-    
+
     echo ""
 }
 
@@ -543,11 +576,12 @@ verify_network() {
         "146") network_suffix="Sonic-latest" ;;
         "100") network_suffix="Gnosis-latest" ;;
         "480") network_suffix="Worldchain-latest" ;;
+        "999") network_suffix="HyperEVM-latest" ;;
         *) network_suffix="${network_name}-latest" ;;
     esac
-    
+
     local json_file="script/output/$ENVIRONMENT/$chain_id/$network_suffix.json"
-    
+
     if [ ! -f "$json_file" ]; then
         echo -e "${RED}   ❌ Contract addresses file not found: $json_file${NC}"
         return 1

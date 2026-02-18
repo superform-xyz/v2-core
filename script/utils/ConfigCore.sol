@@ -28,6 +28,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.acrossSpokePoolV3s[SONIC_CHAIN_ID] = address(0); // Not deployed yet
         configuration.acrossSpokePoolV3s[GNOSIS_CHAIN_ID] = address(0); // Not deployed yet
         configuration.acrossSpokePoolV3s[WORLDCHAIN_CHAIN_ID] = ACROSS_SPOKE_POOL_WORLDCHAIN;
+        configuration.acrossSpokePoolV3s[HYPEREVM_CHAIN_ID] = ACROSS_SPOKE_POOL_HYPEREVM;
 
         // ===== DEBRIDGE DLN SOURCE ADDRESSES =====
         configuration.debridgeSrcDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_SRC;
@@ -43,6 +44,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.debridgeSrcDln[SONIC_CHAIN_ID] = DEBRIDGE_DLN_SRC;
         configuration.debridgeSrcDln[GNOSIS_CHAIN_ID] = DEBRIDGE_DLN_SRC;
         configuration.debridgeSrcDln[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed yet
+        configuration.debridgeSrcDln[HYPEREVM_CHAIN_ID] = DEBRIDGE_DLN_SRC;
 
         // ===== DEBRIDGE DLN DESTINATION ADDRESSES =====
         configuration.debridgeDstDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_DST;
@@ -58,6 +60,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.debridgeDstDln[SONIC_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[GNOSIS_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed yet
+        configuration.debridgeDstDln[HYPEREVM_CHAIN_ID] = DEBRIDGE_DLN_DST;
 
         // ===== PERMIT2 ADDRESSES =====
         configuration.permit2s[MAINNET_CHAIN_ID] = PERMIT2;
@@ -73,6 +76,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.permit2s[SONIC_CHAIN_ID] = PERMIT2;
         configuration.permit2s[GNOSIS_CHAIN_ID] = PERMIT2;
         configuration.permit2s[WORLDCHAIN_CHAIN_ID] = PERMIT2;
+        configuration.permit2s[HYPEREVM_CHAIN_ID] = PERMIT2;
 
         // ===== MERKL DISTRIBUTOR ADDRESSES =====
         configuration.merklDistributors[MAINNET_CHAIN_ID] = MERKL_DISTRIBUTOR;
@@ -88,6 +92,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.merklDistributors[SONIC_CHAIN_ID] = MERKL_DISTRIBUTOR;
         configuration.merklDistributors[GNOSIS_CHAIN_ID] = MERKL_DISTRIBUTOR;
         configuration.merklDistributors[WORLDCHAIN_CHAIN_ID] = MERKL_DISTRIBUTOR;
+        configuration.merklDistributors[HYPEREVM_CHAIN_ID] = MERKL_DISTRIBUTOR;
 
         // ===== CRITICAL ROUTER ADDRESSES FOR CORE HOOKS =====
         // These are required for core hook deployments
@@ -104,6 +109,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.aggregationRouters[SONIC_CHAIN_ID] = AGGREGATION_ROUTER;
         configuration.aggregationRouters[GNOSIS_CHAIN_ID] = AGGREGATION_ROUTER;
         configuration.aggregationRouters[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.aggregationRouters[HYPEREVM_CHAIN_ID] = address(0); // Not deployed
 
         configuration.odosRouters[MAINNET_CHAIN_ID] = ODOS_ROUTER_MAINNET;
         configuration.odosRouters[BASE_CHAIN_ID] = ODOS_ROUTER_BASE;
@@ -118,6 +124,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.odosRouters[SONIC_CHAIN_ID] = ODOS_ROUTER_SONIC;
         configuration.odosRouters[GNOSIS_CHAIN_ID] = address(0); // Not deployed
         configuration.odosRouters[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.odosRouters[HYPEREVM_CHAIN_ID] = address(0); // Not deployed
 
         // ===== PENDLE ROUTER ADDRESSES =====
         configuration.pendleRouters[MAINNET_CHAIN_ID] = PENDLE_ROUTER_MAINNET;
@@ -133,12 +140,13 @@ abstract contract ConfigCore is ConfigBase {
         configuration.pendleRouters[SONIC_CHAIN_ID] = PENDLE_ROUTER_SONIC;
         configuration.pendleRouters[GNOSIS_CHAIN_ID] = address(0); // Not deployed
         configuration.pendleRouters[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.pendleRouters[HYPEREVM_CHAIN_ID] = PENDLE_ROUTER_HYPEREVM;
 
-        // ===== PENDLE PT AMORTIZED ORACLE ADDRESSES =====
-        // Staging: 0x029FA76517Cc4d7c481c0BF1f31066eceCcb42B5
+        // ===== PENDLE PT AMORTIZED ORACLE ADDRESSES (V1) =====
+        // Staging: 0xE31FD1d26A52B4a958651a8E751e9362B3880524
         // Production: 0xD64089698f82cbCD91ba5e0422aDFa81D247eB62
-        configuration.pendlePTAmortizedOracles[MAINNET_CHAIN_ID] = 0xD64089698f82cbCD91ba5e0422aDFa81D247eB62;
-        configuration.pendlePTAmortizedOracles[BASE_CHAIN_ID] = 0xD64089698f82cbCD91ba5e0422aDFa81D247eB62;
+        configuration.pendlePTAmortizedOracles[MAINNET_CHAIN_ID] = 0xE31FD1d26A52B4a958651a8E751e9362B3880524;
+        configuration.pendlePTAmortizedOracles[BASE_CHAIN_ID] = 0xE31FD1d26A52B4a958651a8E751e9362B3880524;
         configuration.pendlePTAmortizedOracles[BNB_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOracles[ARBITRUM_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOracles[OPTIMISM_CHAIN_ID] = address(0);
@@ -150,6 +158,25 @@ abstract contract ConfigCore is ConfigBase {
         configuration.pendlePTAmortizedOracles[SONIC_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOracles[GNOSIS_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOracles[WORLDCHAIN_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[HYPEREVM_CHAIN_ID] = address(0);
+
+        // ===== PENDLE PT AMORTIZED ORACLE V2 ADDRESSES =====
+        // Staging: 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e
+        // Production: TBD (update after oracle deployment)
+        configuration.pendlePTAmortizedOraclesV2[MAINNET_CHAIN_ID] = 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e;
+        configuration.pendlePTAmortizedOraclesV2[BASE_CHAIN_ID] = 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e;
+        configuration.pendlePTAmortizedOraclesV2[BNB_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[ARBITRUM_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[OPTIMISM_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[POLYGON_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[UNICHAIN_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[LINEA_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[AVALANCHE_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[BERACHAIN_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[SONIC_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[GNOSIS_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[WORLDCHAIN_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[HYPEREVM_CHAIN_ID] = address(0);
 
         // ===== NATIVE TOKEN ADDRESSES =====
         configuration.nativeTokens[MAINNET_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
@@ -165,6 +192,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.nativeTokens[SONIC_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[GNOSIS_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[WORLDCHAIN_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
+        configuration.nativeTokens[HYPEREVM_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
 
         // ===== UNISWAP V4 POOL MANAGER ADDRESSES =====
         configuration.uniswapV4PoolManagers[MAINNET_CHAIN_ID] = 0x000000000004444c5dc75cB358380D2e3dE08A90;
@@ -180,5 +208,6 @@ abstract contract ConfigCore is ConfigBase {
         configuration.uniswapV4PoolManagers[SONIC_CHAIN_ID] = address(0); // Not deployed
         configuration.uniswapV4PoolManagers[GNOSIS_CHAIN_ID] = address(0); // Not deployed
         configuration.uniswapV4PoolManagers[WORLDCHAIN_CHAIN_ID] = 0xb1860D529182ac3BC1F51Fa2ABd56662b7D13f33;
+        configuration.uniswapV4PoolManagers[HYPEREVM_CHAIN_ID] = address(0); // Not deployed
     }
 }
