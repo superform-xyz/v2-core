@@ -130,7 +130,7 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
             forkId: 0,
             domain: 84_532, // Base Sepolia domain
             usdc: BASE_SEPOLIA_USDC,
-            rpcUrl: vm.envString("BASE_SEPOLIA_RPC_URL"),
+            rpcUrl: "https://sepolia.base.org",
             name: "Base Sepolia"
         });
 
