@@ -25,10 +25,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           use_oauth: true
-          allowed_tools: |
-            Bash(gh pr view:*)
-            Bash(gh pr diff:*)
-            Bash(gh pr comment:*)
+          show_full_output: true
           prompt: |
-            Review this pull request. Use gh pr diff to see the changes, then post a review comment using gh pr comment.
+            Review this pull request and provide feedback.
 
