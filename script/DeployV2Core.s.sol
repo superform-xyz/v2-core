@@ -241,7 +241,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         _setBaseConfiguration(env_, saltNamespace_);
 
         // Set core contract dependencies
-        _setCoreConfiguration();
+        _setCoreConfiguration(env_);
     }
 
     /// @notice Determines which contracts are available for deployment on a specific chain
