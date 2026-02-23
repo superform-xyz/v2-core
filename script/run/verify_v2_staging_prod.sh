@@ -407,6 +407,49 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address)" "$pendle_pt_amortized_oracle_v2")"
             ;;
 
+        # Uniswap V3 Hooks
+        "SwapUniswapV3Hook"|"ApproveAndSwapUniswapV3Hook")
+            local uniswap_v3_router=""
+            case $chain_id in
+                "999") uniswap_v3_router="0x1EbDFC75FfE3ba3de61E7138a3E8706aC841Af9B" ;;  # HyperEVM
+                *) uniswap_v3_router="" ;;  # Not deployed on other chains
+            esac
+            echo "$(cast abi-encode "constructor(address)" "$uniswap_v3_router")"
+            ;;
+
+        # Uniswap V4 Hook
+        "SwapUniswapV4Hook")
+            local uniswap_v4_pool_manager=""
+            case $chain_id in
+                "1") uniswap_v4_pool_manager="0x000000000004444c5dc75cB358380D2e3dE08A90" ;;  # Ethereum
+                "8453") uniswap_v4_pool_manager="0x498581fF718922c3f8e6A244956aF099B2652b2b" ;;  # Base
+                "42161") uniswap_v4_pool_manager="0x360E68faCcca8cA495c1B759Fd9EEe466db9FB32" ;;  # Arbitrum
+                "10") uniswap_v4_pool_manager="0x9a13F98Cb987694C9F086b1F5eB990EeA8264Ec3" ;;  # Optimism
+                "137") uniswap_v4_pool_manager="0x67366782805870060151383F4BbFF9daB53e5cD6" ;;  # Polygon
+                "130") uniswap_v4_pool_manager="0x1F98400000000000000000000000000000000004" ;;  # Unichain
+                "43114") uniswap_v4_pool_manager="0x06380C0e0912312B5150364B9DC4542BA0DbBc85" ;;  # Avalanche
+                "480") uniswap_v4_pool_manager="0xb1860D529182ac3BC1F51Fa2ABd56662b7D13f33" ;;  # Worldchain
+                *) uniswap_v4_pool_manager="" ;;  # Not deployed
+            esac
+            echo "$(cast abi-encode "constructor(address)" "$uniswap_v4_pool_manager")"
+            ;;
+
+        # TransferHook - takes native token address
+        "TransferHook")
+            echo "$(cast abi-encode "constructor(address)" "$native_token")"
+            ;;
+
+        # Pendle Hooks - PendleUnifiedHook, PendleRouterSwapHook, PendleRouterRedeemHook
+        "PendleUnifiedHook"|"PendleRouterSwapHook"|"PendleRouterRedeemHook")
+            local pendle_router="0x888888888889758F76e7103c6CbF23ABbF58F946"  # Same for all chains
+            echo "$(cast abi-encode "constructor(address)" "$pendle_router")"
+            ;;
+
+        # SuperVaultYieldSourceOracle
+        "SuperVaultYieldSourceOracle")
+            echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
+            ;;
+
         # All other contracts (no constructor args)
         *)
             echo "$(cast abi-encode "constructor()")"
@@ -432,9 +475,10 @@ get_contract_source() {
         "SuperNativePaymaster") echo "src/paymaster/SuperNativePaymaster.sol" ;;
         "SuperSenderCreator") echo "src/executors/helpers/SuperSenderCreator.sol" ;;
         
-        # Hooks - ERC20
+        # Hooks - ERC20 and Token Transfers
         "ApproveERC20Hook") echo "src/hooks/tokens/erc20/ApproveERC20Hook.sol" ;;
         "TransferERC20Hook") echo "src/hooks/tokens/erc20/TransferERC20Hook.sol" ;;
+        "TransferHook") echo "src/hooks/tokens/TransferHook.sol" ;;
         "BatchTransferHook") echo "src/hooks/tokens/BatchTransferHook.sol" ;;
         "BatchTransferFromHook") echo "src/hooks/tokens/permit2/BatchTransferFromHook.sol" ;;
         "OfframpTokensHook") echo "src/hooks/tokens/OfframpTokensHook.sol" ;;
@@ -462,6 +506,12 @@ get_contract_source() {
         "Swap1InchHook") echo "src/hooks/swappers/1inch/Swap1InchHook.sol" ;;
         "SwapOdosV2Hook") echo "src/hooks/swappers/odos/SwapOdosV2Hook.sol" ;;
         "ApproveAndSwapOdosV2Hook") echo "src/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol" ;;
+        "SwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Hook.sol" ;;
+        "ApproveAndSwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/ApproveAndSwapUniswapV3Hook.sol" ;;
+        "SwapUniswapV4Hook") echo "src/hooks/swappers/uniswap-v4/SwapUniswapV4Hook.sol" ;;
+        "PendleUnifiedHook") echo "src/hooks/swappers/pendle/PendleUnifiedHook.sol" ;;
+        "PendleRouterSwapHook") echo "src/hooks/swappers/pendle/PendleRouterSwapHook.sol" ;;
+        "PendleRouterRedeemHook") echo "src/hooks/swappers/pendle/PendleRouterRedeemHook.sol" ;;
         
         # Hooks - Bridges
         "AcrossSendFundsAndExecuteOnDstHook") echo "src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol" ;;
@@ -496,6 +546,7 @@ get_contract_source() {
         "SpectraPTYieldSourceOracle") echo "src/accounting/oracles/SpectraPTYieldSourceOracle.sol" ;;
         "StakingYieldSourceOracle") echo "src/accounting/oracles/StakingYieldSourceOracle.sol" ;;
         "SuperYieldSourceOracle") echo "src/accounting/oracles/SuperYieldSourceOracle.sol" ;;
+        "SuperVaultYieldSourceOracle") echo "src/accounting/oracles/SuperVaultYieldSourceOracle.sol" ;;
         
         *) echo "src/core/unknown/$contract_name.sol" ;;
     esac

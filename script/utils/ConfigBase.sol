@@ -26,6 +26,7 @@ abstract contract ConfigBase is Constants {
         mapping(uint64 chainId => address pendlePTAmortizedOracleV2) pendlePTAmortizedOraclesV2;
         mapping(uint64 chainId => address nativeToken) nativeTokens;
         mapping(uint64 chainId => address poolManager) uniswapV4PoolManagers;
+        mapping(uint64 chainId => address swapRouter) uniswapV3SwapRouters;
     }
 
     EnvironmentData public configuration;
