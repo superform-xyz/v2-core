@@ -12,6 +12,8 @@ NC='\033[0m' # No Color
 
 # Associative array to store deployment status for each network
 declare -A NETWORK_DEPLOYMENT_STATUS
+# Associative array to store missing contracts for each network
+declare -A NETWORK_MISSING_CONTRACTS
 
 # Function to print colored header
 print_header() {
@@ -217,13 +219,17 @@ analyze_deployment_status() {
     # Analyze each network using their actual expected total (not regenerate_bytecode.sh)
     for network_id in "${!NETWORK_DEPLOYMENT_STATUS[@]}"; do
         IFS=':' read -r deployed actual_expected network_name <<< "${NETWORK_DEPLOYMENT_STATUS[$network_id]}"
-        
+
         # Use the actual expected total reported by the checking script
         if [[ $deployed -eq $actual_expected ]]; then
             echo -e "${GREEN}✅ $network_name (Chain $network_id): All $deployed/$actual_expected contracts deployed${NC}"
         elif [[ $deployed -lt $actual_expected ]]; then
             local missing=$((actual_expected - deployed))
             echo -e "${YELLOW}⚠️  $network_name (Chain $network_id): $deployed/$actual_expected contracts deployed (${missing} missing)${NC}"
+            # Show which contracts are missing
+            if [[ -n "${NETWORK_MISSING_CONTRACTS[$network_id]}" ]]; then
+                echo -e "${RED}   Missing contracts: ${NETWORK_MISSING_CONTRACTS[$network_id]}${NC}"
+            fi
             all_fully_deployed=false
             needs_deployment=true
             networks_with_missing+=("$network_name")
@@ -327,10 +333,18 @@ check_v2_addresses() {
         # Parse: "=====> On this chain we have X contracts already deployed out of Y"
         local deployed_count=$(echo "$summary_line" | grep -o "have [0-9]\+ contracts" | grep -o "[0-9]\+")
         local total_count=$(echo "$summary_line" | grep -o "out of [0-9]\+" | grep -o "[0-9]\+")
-        
+
         if [[ -n "$deployed_count" && -n "$total_count" ]]; then
             # Store deployment status for this network
             NETWORK_DEPLOYMENT_STATUS["${network_id}"]="${deployed_count}:${total_count}:${network_name}"
+
+            # Extract and store missing contract names
+            local missing_contracts
+            missing_contracts=$(echo "$check_output" | grep "\[MISSING\]" | sed 's/.*\[MISSING\] //' | sed 's/ needs deployment.*//' | tr '\n' ',' | sed 's/,$//')
+            if [[ -n "$missing_contracts" ]]; then
+                NETWORK_MISSING_CONTRACTS["${network_id}"]="${missing_contracts}"
+            fi
+
             echo -e "${GREEN}  ✅ Successfully checked: ${deployed_count}/${total_count} contracts deployed${NC}"
             return 0
         else

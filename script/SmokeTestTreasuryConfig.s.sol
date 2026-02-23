@@ -334,6 +334,6 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
         _setBaseConfiguration(env, "");
 
         // Set core contract dependencies
-        _setCoreConfiguration();
+        _setCoreConfiguration(env);
     }
 }

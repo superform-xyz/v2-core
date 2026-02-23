@@ -13,7 +13,8 @@ abstract contract ConfigCore is ConfigBase {
 
     /// @notice Sets up core contract dependencies
     /// @dev Configures addresses required for core contract deployment and operation
-    function _setCoreConfiguration() internal {
+    /// @param env Environment (0 = prod, 1 = dev, 2 = staging)
+    function _setCoreConfiguration(uint256 env) internal {
         // ===== ACROSS SPOKE POOL V3 ADDRESSES =====
         configuration.acrossSpokePoolV3s[MAINNET_CHAIN_ID] = ACROSS_SPOKE_POOL_MAINNET;
         configuration.acrossSpokePoolV3s[BASE_CHAIN_ID] = ACROSS_SPOKE_POOL_BASE;
@@ -145,8 +146,17 @@ abstract contract ConfigCore is ConfigBase {
         // ===== PENDLE PT AMORTIZED ORACLE ADDRESSES (V1) =====
         // Staging: 0xE31FD1d26A52B4a958651a8E751e9362B3880524
         // Production: 0xD64089698f82cbCD91ba5e0422aDFa81D247eB62
-        configuration.pendlePTAmortizedOracles[MAINNET_CHAIN_ID] = 0xE31FD1d26A52B4a958651a8E751e9362B3880524;
-        configuration.pendlePTAmortizedOracles[BASE_CHAIN_ID] = 0xE31FD1d26A52B4a958651a8E751e9362B3880524;
+        if (env == 0) {
+            // Production environment
+            configuration.pendlePTAmortizedOracles[MAINNET_CHAIN_ID] = 0xD64089698f82cbCD91ba5e0422aDFa81D247eB62;
+            configuration.pendlePTAmortizedOracles[BASE_CHAIN_ID] = 0xD64089698f82cbCD91ba5e0422aDFa81D247eB62;
+            configuration.pendlePTAmortizedOracles[HYPEREVM_CHAIN_ID] = 0xD64089698f82cbCD91ba5e0422aDFa81D247eB62;
+        } else {
+            // Staging/dev environment
+            configuration.pendlePTAmortizedOracles[MAINNET_CHAIN_ID] = 0xE31FD1d26A52B4a958651a8E751e9362B3880524;
+            configuration.pendlePTAmortizedOracles[BASE_CHAIN_ID] = 0xE31FD1d26A52B4a958651a8E751e9362B3880524;
+            configuration.pendlePTAmortizedOracles[HYPEREVM_CHAIN_ID] = 0xE31FD1d26A52B4a958651a8E751e9362B3880524;
+        }
         configuration.pendlePTAmortizedOracles[BNB_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOracles[ARBITRUM_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOracles[OPTIMISM_CHAIN_ID] = address(0);
@@ -158,13 +168,21 @@ abstract contract ConfigCore is ConfigBase {
         configuration.pendlePTAmortizedOracles[SONIC_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOracles[GNOSIS_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOracles[WORLDCHAIN_CHAIN_ID] = address(0);
-        configuration.pendlePTAmortizedOracles[HYPEREVM_CHAIN_ID] = address(0);
 
         // ===== PENDLE PT AMORTIZED ORACLE V2 ADDRESSES =====
         // Staging: 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e
-        // Production: TBD (update after oracle deployment)
-        configuration.pendlePTAmortizedOraclesV2[MAINNET_CHAIN_ID] = 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e;
-        configuration.pendlePTAmortizedOraclesV2[BASE_CHAIN_ID] = 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e;
+        // Production: 0x2185B40476510Ad27d17AF90889CE91BE9282A04
+        if (env == 0) {
+            // Production environment
+            configuration.pendlePTAmortizedOraclesV2[MAINNET_CHAIN_ID] = 0x2185B40476510Ad27d17AF90889CE91BE9282A04;
+            configuration.pendlePTAmortizedOraclesV2[BASE_CHAIN_ID] = 0x2185B40476510Ad27d17AF90889CE91BE9282A04;
+            configuration.pendlePTAmortizedOraclesV2[HYPEREVM_CHAIN_ID] = 0x2185B40476510Ad27d17AF90889CE91BE9282A04;
+        } else {
+            // Staging/dev environment
+            configuration.pendlePTAmortizedOraclesV2[MAINNET_CHAIN_ID] = 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e;
+            configuration.pendlePTAmortizedOraclesV2[BASE_CHAIN_ID] = 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e;
+            configuration.pendlePTAmortizedOraclesV2[HYPEREVM_CHAIN_ID] = 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e;
+        }
         configuration.pendlePTAmortizedOraclesV2[BNB_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOraclesV2[ARBITRUM_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOraclesV2[OPTIMISM_CHAIN_ID] = address(0);
@@ -176,7 +194,6 @@ abstract contract ConfigCore is ConfigBase {
         configuration.pendlePTAmortizedOraclesV2[SONIC_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOraclesV2[GNOSIS_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOraclesV2[WORLDCHAIN_CHAIN_ID] = address(0);
-        configuration.pendlePTAmortizedOraclesV2[HYPEREVM_CHAIN_ID] = address(0);
 
         // ===== NATIVE TOKEN ADDRESSES =====
         configuration.nativeTokens[MAINNET_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;

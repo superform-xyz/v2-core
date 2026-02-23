@@ -39,10 +39,10 @@
         "PendleRouterRedeemHook": "0xAae2DB58E2f426b910f518cCbB627545aEdaff2F",
         "PendleRouterSwapHook": "0x02A0A95C379220E9759960A8Ee923cBbC2d305cd",
         "PendleUnifiedHook": "0xF2D6a1d41804BeB856a28218eFD260e51CA1aE87",
-        "RecordPurchasePendlePTAmortizedOracleHook": "0x026213bbcC2A25Ee51F1a64D4677F0587E4874F3",
-        "RecordPurchasePendlePTAmortizedOracleHookV2": "0xE9f057bc03EB1204e56946346882a5d2dAf9A8aD",
-        "RecordRedemptionPendlePTAmortizedOracleHook": "0x38D5B967A600ba84E04AD62Ead5cc30495fC9630",
-        "RecordRedemptionPendlePTAmortizedOracleHookV2": "0xE993E2F47310Af0C528297E88028c96A26e88E51",
+        "RecordPurchasePendlePTAmortizedOracleHook": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3",
+        "RecordPurchasePendlePTAmortizedOracleHookV2": "0xA0E61eb90817E28aBbb5a40045921B69bb784431",
+        "RecordRedemptionPendlePTAmortizedOracleHook": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc",
+        "RecordRedemptionPendlePTAmortizedOracleHookV2": "0x2A4F700923324B14bd546630Fe87B1ee08C89634",
         "Redeem4626VaultHook": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69",
         "Redeem5115VaultHook": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5",
         "Redeem7540VaultHook": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
@@ -111,10 +111,10 @@
         "PendleRouterRedeemHook": "0xAae2DB58E2f426b910f518cCbB627545aEdaff2F",
         "PendleRouterSwapHook": "0x02A0A95C379220E9759960A8Ee923cBbC2d305cd",
         "PendleUnifiedHook": "0xF2D6a1d41804BeB856a28218eFD260e51CA1aE87",
-        "RecordPurchasePendlePTAmortizedOracleHook": "0x026213bbcC2A25Ee51F1a64D4677F0587E4874F3",
-        "RecordPurchasePendlePTAmortizedOracleHookV2": "0xE9f057bc03EB1204e56946346882a5d2dAf9A8aD",
-        "RecordRedemptionPendlePTAmortizedOracleHook": "0x38D5B967A600ba84E04AD62Ead5cc30495fC9630",
-        "RecordRedemptionPendlePTAmortizedOracleHookV2": "0xE993E2F47310Af0C528297E88028c96A26e88E51",
+        "RecordPurchasePendlePTAmortizedOracleHook": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3",
+        "RecordPurchasePendlePTAmortizedOracleHookV2": "0xA0E61eb90817E28aBbb5a40045921B69bb784431",
+        "RecordRedemptionPendlePTAmortizedOracleHook": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc",
+        "RecordRedemptionPendlePTAmortizedOracleHookV2": "0x2A4F700923324B14bd546630Fe87B1ee08C89634",
         "Redeem4626VaultHook": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69",
         "Redeem5115VaultHook": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5",
         "Redeem7540VaultHook": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
@@ -826,6 +826,10 @@
         "PendleRouterRedeemHook": "0xAae2DB58E2f426b910f518cCbB627545aEdaff2F",
         "PendleRouterSwapHook": "0x02A0A95C379220E9759960A8Ee923cBbC2d305cd",
         "PendleUnifiedHook": "0xF2D6a1d41804BeB856a28218eFD260e51CA1aE87",
+        "RecordPurchasePendlePTAmortizedOracleHook": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3",
+        "RecordPurchasePendlePTAmortizedOracleHookV2": "0xA0E61eb90817E28aBbb5a40045921B69bb784431",
+        "RecordRedemptionPendlePTAmortizedOracleHook": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc",
+        "RecordRedemptionPendlePTAmortizedOracleHookV2": "0x2A4F700923324B14bd546630Fe87B1ee08C89634",
         "Redeem4626VaultHook": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69",
         "Redeem5115VaultHook": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5",
         "Redeem7540VaultHook": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
@@ -847,9 +851,13 @@
         "SuperYieldSourceOracle": "0x98F0682ef39dE9cd6028D91090Be6EdAE129f52D",
         "SwapUniswapV3Hook": "0x5c6FA6540b49C14dDc003f11E043fe2020cF5e76",
         "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
-        "TransferHook": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9"
+        "TransferHook": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050"
       }
     }
   },
-  "updated_at": "2026-02-20T12:27:37Z"
+  "updated_at": "2026-02-19T12:14:11Z"
 }
