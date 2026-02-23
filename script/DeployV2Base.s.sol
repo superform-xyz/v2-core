@@ -49,6 +49,44 @@ abstract contract DeployV2Base is Script, ConfigBase {
         return contractAddresses[chainId][contractName];
     }
 
+    /*//////////////////////////////////////////////////////////////
+                          ENV VALIDATION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Validate environment and branchName combination
+    /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
+    /// @param branchName Branch name (required for vnet)
+    function _validateEnvAndBranchName(uint256 env, string calldata branchName) internal pure {
+        require(env == 0 || env == 1 || env == 2, "INVALID_ENV");
+        if (env == 1) {
+            require(bytes(branchName).length > 0, "BRANCH_NAME_REQUIRED_FOR_VNET");
+        }
+    }
+
+    /// @notice Compute the deterministic address of a contract
+    /// @param contractName Name of the contract
+    /// @param args Constructor arguments for the contract
+    /// @return contractAddr The computed address
+    function __computeContractAddress(
+        string memory contractName,
+        bytes memory args
+    )
+        internal
+        view
+        returns (address contractAddr)
+    {
+        // Get bytecode from locked artifacts
+        string memory artifactPath =
+            string(abi.encodePacked("script/locked-bytecode/", contractName, ".json"));
+        bytes memory bytecode = vm.getCode(artifactPath);
+
+        // Use the same salt generation pattern
+        bytes32 salt = keccak256(abi.encodePacked("SuperformV2", saltNamespace, contractName, "v2.0"));
+
+        // Compute address
+        contractAddr = DeterministicDeployerLib.computeAddress(bytecode, args, salt);
+    }
+
     /// @notice Deploy a contract using DeterministicDeployerLib - Nexus style
     /// @param contractName Name of the contract for logging
     /// @param chainId Chain ID for tracking
