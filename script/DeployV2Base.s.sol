@@ -66,18 +66,19 @@ abstract contract DeployV2Base is Script, ConfigBase {
     /// @notice Compute the deterministic address of a contract
     /// @param contractName Name of the contract
     /// @param args Constructor arguments for the contract
+    /// @param env Environment (0 = prod uses locked-bytecode, 1/2 = dev/staging uses locked-bytecode-dev)
     /// @return contractAddr The computed address
     function __computeContractAddress(
         string memory contractName,
-        bytes memory args
+        bytes memory args,
+        uint256 env
     )
         internal
         view
         returns (address contractAddr)
     {
-        // Get bytecode from locked artifacts
-        string memory artifactPath =
-            string(abi.encodePacked("script/locked-bytecode/", contractName, ".json"));
+        // Get bytecode from environment-specific locked artifacts
+        string memory artifactPath = __getBytecodeArtifactPath(contractName, env);
         bytes memory bytecode = vm.getCode(artifactPath);
 
         // Use the same salt generation pattern

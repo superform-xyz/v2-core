@@ -29,7 +29,7 @@ contract DeployPendlePTAmortizedOracleV2 is PendlePTAmortizedOracleV2ScriptBase 
         // Use DEPLOYER as admin - will be transferred to SUPER_GOVERNOR_ADDRESS later
         address admin = DEPLOYER;
         // Compute SuperLedgerConfiguration address from core contracts
-        address superLedgerConfiguration = __computeContractAddress(SUPER_LEDGER_CONFIGURATION_KEY, "");
+        address superLedgerConfiguration = __computeContractAddress(SUPER_LEDGER_CONFIGURATION_KEY, "", env);
         require(superLedgerConfiguration != address(0), "SUPER_LEDGER_CONFIG_NOT_SET");
         require(superLedgerConfiguration.code.length > 0, "SUPER_LEDGER_CONFIG_NOT_DEPLOYED");
 
@@ -48,7 +48,7 @@ contract DeployPendlePTAmortizedOracleV2 is PendlePTAmortizedOracleV2ScriptBase 
         // Use DEPLOYER as admin - will be transferred to SUPER_GOVERNOR_ADDRESS later
         address admin = DEPLOYER;
         // Compute SuperLedgerConfiguration address from core contracts
-        address superLedgerConfiguration = __computeContractAddress(SUPER_LEDGER_CONFIGURATION_KEY, "");
+        address superLedgerConfiguration = __computeContractAddress(SUPER_LEDGER_CONFIGURATION_KEY, "", env);
         require(superLedgerConfiguration != address(0), "SUPER_LEDGER_CONFIG_NOT_SET");
         require(superLedgerConfiguration.code.length > 0, "SUPER_LEDGER_CONFIG_NOT_DEPLOYED");
 
@@ -81,7 +81,7 @@ contract DeployPendlePTAmortizedOracleV2 is PendlePTAmortizedOracleV2ScriptBase 
         // Check with DEPLOYER as admin (initial deployment)
         address admin = DEPLOYER;
         // Compute SuperLedgerConfiguration address from core contracts
-        address superLedgerConfiguration = __computeContractAddress(SUPER_LEDGER_CONFIGURATION_KEY, "");
+        address superLedgerConfiguration = __computeContractAddress(SUPER_LEDGER_CONFIGURATION_KEY, "", env);
         require(superLedgerConfiguration != address(0), "SUPER_LEDGER_CONFIG_NOT_SET");
 
         console2.log("====== PendlePTAmortizedOracleV2 Deployment Check ======");
