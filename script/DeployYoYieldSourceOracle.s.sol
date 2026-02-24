@@ -213,8 +213,13 @@ contract DeployYoYieldSourceOracle is DeployV2Base {
 
         string memory outputPath = string(abi.encodePacked(outputFolder, chainName, "-latest.json"));
 
+        // Check if file exists - vm.writeJson with path selector requires existing file
+        if (!vm.exists(outputPath)) {
+            // Create new JSON file with just this oracle
+            vm.writeJson("{}", outputPath);
+        }
+
         // Merge YoYieldSourceOracle address into existing JSON
-        // vm.writeJson with path selector will create file if it doesn't exist or update existing
         vm.writeJson(vm.toString(oracleAddr), outputPath, ".YoYieldSourceOracle");
 
         console2.log("");

@@ -214,8 +214,13 @@ contract DeployPendlePTAmortizedOracle is PendlePTAmortizedOracleScriptBase {
 
         string memory outputPath = string(abi.encodePacked(outputFolder, chainName, "-latest.json"));
 
+        // Check if file exists - vm.writeJson with path selector requires existing file
+        if (!vm.exists(outputPath)) {
+            // Create new JSON file with just this oracle
+            vm.writeJson("{}", outputPath);
+        }
+
         // Merge PendlePTAmortizedOracle address into existing JSON
-        // vm.writeJson with path selector will create file if it doesn't exist or update existing
         vm.writeJson(vm.toString(oracleAddr), outputPath, ".PendlePTAmortizedOracle");
 
         console2.log("");
