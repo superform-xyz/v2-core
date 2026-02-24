@@ -483,17 +483,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         // Oracles (10 contracts - always check these)
+        // NOTE: Order must match _deployOracles array indices for consistency
         string[10] memory oracleContracts = [
-            "ERC4626YieldSourceOracle",
-            "ERC5115YieldSourceOracle",
-            "PendlePTYieldSourceOracle",
-            "SpectraPTYieldSourceOracle",
-            "StakingYieldSourceOracle",
-            "SuperVaultYieldSourceOracle",
-            "SuperYieldSourceOracle",
-            "YoYieldSourceOracle",
-            "PendlePTAmortizedOracle",
-            "PendlePTAmortizedOracleV2"
+            "ERC4626YieldSourceOracle",      // [0]
+            "ERC5115YieldSourceOracle",      // [1]
+            "PendlePTYieldSourceOracle",     // [2]
+            "SpectraPTYieldSourceOracle",    // [3]
+            "StakingYieldSourceOracle",      // [4]
+            "SuperYieldSourceOracle",        // [5]
+            "SuperVaultYieldSourceOracle",   // [6]
+            "YoYieldSourceOracle",           // [7]
+            "PendlePTAmortizedOracle",       // [8]
+            "PendlePTAmortizedOracleV2"      // [9]
         ];
 
         for (uint256 i = 0; i < oracleContracts.length; i++) {
@@ -2523,6 +2524,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     function _deployOracles(uint64 chainId, uint256 env) private {
         console2.log("Starting oracle deployment with parameter validation...");
 
+        // Oracle array indices - used for config updates after deployment
+        // IMPORTANT: If oracle order changes, update these indices AND the validation below
+        uint256 pendlePTAmortizedOracleIndex = 8;
+        uint256 pendlePTAmortizedOracleV2Index = 9;
+
         uint256 len = 10;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         address[] memory oracleAddresses = new address[](len);
@@ -2594,14 +2600,33 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log(" All oracles deployed and validated successfully! ");
 
         // Update configuration with deployed PendlePTAmortizedOracle addresses for hook deployment
-        // Index 8 = PendlePTAmortizedOracle, Index 9 = PendlePTAmortizedOracleV2
-        if (oracleAddresses[8] != address(0)) {
-            configuration.pendlePTAmortizedOracles[chainId] = oracleAddresses[8];
-            console2.log(" Updated configuration.pendlePTAmortizedOracles for chain", chainId, "to", oracleAddresses[8]);
+        // Validate oracle names match expected indices to catch array reordering bugs
+        require(
+            Strings.equal(oracles[pendlePTAmortizedOracleIndex].name, "PendlePTAmortizedOracle"),
+            "ORACLE_INDEX_MISMATCH: Index 8 is not PendlePTAmortizedOracle"
+        );
+        require(
+            Strings.equal(oracles[pendlePTAmortizedOracleV2Index].name, "PendlePTAmortizedOracleV2"),
+            "ORACLE_INDEX_MISMATCH: Index 9 is not PendlePTAmortizedOracleV2"
+        );
+
+        if (oracleAddresses[pendlePTAmortizedOracleIndex] != address(0)) {
+            configuration.pendlePTAmortizedOracles[chainId] = oracleAddresses[pendlePTAmortizedOracleIndex];
+            console2.log(
+                " Updated configuration.pendlePTAmortizedOracles for chain",
+                chainId,
+                "to",
+                oracleAddresses[pendlePTAmortizedOracleIndex]
+            );
         }
-        if (oracleAddresses[9] != address(0)) {
-            configuration.pendlePTAmortizedOraclesV2[chainId] = oracleAddresses[9];
-            console2.log(" Updated configuration.pendlePTAmortizedOraclesV2 for chain", chainId, "to", oracleAddresses[9]);
+        if (oracleAddresses[pendlePTAmortizedOracleV2Index] != address(0)) {
+            configuration.pendlePTAmortizedOraclesV2[chainId] = oracleAddresses[pendlePTAmortizedOracleV2Index];
+            console2.log(
+                " Updated configuration.pendlePTAmortizedOraclesV2 for chain",
+                chainId,
+                "to",
+                oracleAddresses[pendlePTAmortizedOracleV2Index]
+            );
         }
     }
 
