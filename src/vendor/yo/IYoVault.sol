@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.30;
 
 /// @title IYoVault
 /// @notice Interface for Yo Vaults with async redemption support
 /// @dev Yo Vaults use address-based accumulator pattern for pending redemptions,
-///      unlike standard ERC-7540 which uses request IDs
+///      unlike standard ERC-7540 which uses request IDs.
+///
+///      This interface includes methods used by YoYieldSourceOracle plus additional
+///      methods (totalSupply, claimableRedeemRequest) that are commonly available
+///      on ERC-7540 variants for future extensibility.
 interface IYoVault {
     /// @notice Returns the share token balance of an account
     /// @param account The address to query
@@ -50,4 +54,14 @@ interface IYoVault {
     /// @param owner The owner of the shares
     /// @return assets The amount of assets requested (may be pending)
     function requestRedeem(uint256 shares, address receiver, address owner) external returns (uint256 assets);
+
+    /// @notice Returns total supply of share tokens
+    /// @return The total number of shares in circulation
+    function totalSupply() external view returns (uint256);
+
+    /// @notice Returns claimable assets from fulfilled redeem requests
+    /// @dev Returns assets that are ready to be claimed after async redemption is fulfilled
+    /// @param owner The address to check claimable assets for
+    /// @return assets The amount of assets ready to claim
+    function claimableRedeemRequest(address owner) external view returns (uint256 assets);
 }

@@ -260,8 +260,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         returns (ContractAvailability memory availability)
     {
         // Initialize all skipped contracts array
-        // Max possible skips: 2 adapters + 18 hooks = 20 skipped contracts
-        string[] memory potentialSkips = new string[](20);
+        // Max possible skips: 2 adapters + 22 hooks = 24 skipped contracts
+        string[] memory potentialSkips = new string[](24);
         uint256 skipCount = 0;
         // Adapter contracts (2 contracts - conditionally deployed)
         string[2] memory adapterContracts = ["AcrossV3Adapter", "DebridgeAdapter"];
@@ -409,10 +409,23 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             potentialSkips[skipCount++] = "PendleUnifiedHook";
         }
 
-        // PendlePTAmortizedOracle hooks - always enabled since oracles are deployed via DeployV2Core
-        // and config is updated dynamically before hooks are deployed
-        availability.pendlePTAmortizedOracleHooks = true;
-        availability.pendlePTAmortizedOracleHooksV2 = true;
+        // PendlePTAmortizedOracle hooks - only enabled if oracle bytecode exists
+        // Oracles are deployed via DeployV2Core and config is updated dynamically before hooks are deployed
+        if (__checkBytecodeExists("PendlePTAmortizedOracle", env)) {
+            availability.pendlePTAmortizedOracleHooks = true;
+        } else {
+            expectedHooks -= 2; // RecordPurchasePendlePTAmortizedOracleHook + RecordRedemptionPendlePTAmortizedOracleHook
+            potentialSkips[skipCount++] = "RecordPurchasePendlePTAmortizedOracleHook";
+            potentialSkips[skipCount++] = "RecordRedemptionPendlePTAmortizedOracleHook";
+        }
+
+        if (__checkBytecodeExists("PendlePTAmortizedOracleV2", env)) {
+            availability.pendlePTAmortizedOracleHooksV2 = true;
+        } else {
+            expectedHooks -= 2; // RecordPurchasePendlePTAmortizedOracleHookV2 + RecordRedemptionPendlePTAmortizedOracleHookV2
+            potentialSkips[skipCount++] = "RecordPurchasePendlePTAmortizedOracleHookV2";
+            potentialSkips[skipCount++] = "RecordRedemptionPendlePTAmortizedOracleHookV2";
+        }
 
         availability.expectedHooks = expectedHooks;
 
@@ -497,7 +510,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Set expected counts from actual array lengths
         availability.expectedCore = coreContracts.length; // 9 pure core contracts
-        availability.expectedOracles = oracleContracts.length; // 6 oracle contracts
+        availability.expectedOracles = oracleContracts.length; // 10 oracle contracts
         // expectedAdapters and expectedHooks already set above based on chain configuration
 
         // Calculate total expected contracts
@@ -2494,12 +2507,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         return hookAddresses;
     }
 
-    function _deployOracles(uint64 chainId, uint256 env) private returns (address[] memory oracleAddresses) {
+    function _deployOracles(uint64 chainId, uint256 env) private {
         console2.log("Starting oracle deployment with parameter validation...");
 
         uint256 len = 10;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
-        oracleAddresses = new address[](len);
+        address[] memory oracleAddresses = new address[](len);
 
         // Validate SuperLedgerConfiguration address before using it
         address superLedgerConfig = _getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY);
@@ -2577,8 +2590,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             configuration.pendlePTAmortizedOraclesV2[chainId] = oracleAddresses[9];
             console2.log(" Updated configuration.pendlePTAmortizedOraclesV2 for chain", chainId, "to", oracleAddresses[9]);
         }
-
-        return oracleAddresses;
     }
 
     /// @notice Deploy mock contracts for development environment only

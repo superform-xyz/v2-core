@@ -19,6 +19,9 @@ contract MockYoVault is ERC20, IYoVault {
     mapping(address => uint256) public pendingAssets;
     mapping(address => uint256) public pendingShares;
 
+    // Claimable assets tracking (fulfilled but not yet claimed)
+    mapping(address => uint256) public claimableAssets;
+
     constructor(
         address asset_,
         string memory name_,
@@ -132,6 +135,12 @@ contract MockYoVault is ERC20, IYoVault {
         return _totalAssets;
     }
 
+    /// @inheritdoc ERC20
+    /// @dev Override to satisfy both ERC20 and IYoVault interfaces
+    function totalSupply() public view override(ERC20, IYoVault) returns (uint256) {
+        return super.totalSupply();
+    }
+
     /// @inheritdoc IYoVault
     function previewDeposit(uint256 assets_) external view override returns (uint256) {
         return convertToShares(assets_);
@@ -139,19 +148,37 @@ contract MockYoVault is ERC20, IYoVault {
 
     /// @inheritdoc IYoVault
     /// @notice Request async redemption of shares
-    /// @dev In mock, this simulates the async redemption by burning shares and adding to pending
+    /// @dev In mock, this simulates the async redemption by burning shares and adding to pending.
+    ///      Pending is tracked by owner (not receiver) to match pendingRedeemRequest(owner) semantics.
+    ///      The receiver parameter indicates who will receive assets when fulfilled, but the
+    ///      pending request is associated with the owner for TVL tracking purposes.
     function requestRedeem(uint256 shares, address receiver, address owner) external override returns (uint256) {
         require(balanceOf(owner) >= shares, "Insufficient shares");
         uint256 assets_ = convertToAssets(shares);
         _burn(owner, shares);
-        pendingAssets[receiver] += assets_;
-        pendingShares[receiver] += shares;
+        // Track pending by owner to match pendingRedeemRequest(owner) lookup
+        pendingAssets[owner] += assets_;
+        pendingShares[owner] += shares;
+        // Note: receiver is stored separately in real vault for fulfillment, not needed for mock
         return assets_;
+    }
+
+    /// @inheritdoc IYoVault
+    /// @notice Returns claimable assets from fulfilled redeem requests
+    function claimableRedeemRequest(address owner) external view override returns (uint256) {
+        return claimableAssets[owner];
     }
 
     /*//////////////////////////////////////////////////////////////
                             TESTING HELPERS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Set claimable assets for an address (for testing)
+    /// @param owner The address to set claimable assets for
+    /// @param assets_ The claimable assets amount
+    function setClaimableRedeemRequest(address owner, uint256 assets_) external {
+        claimableAssets[owner] = assets_;
+    }
 
     /// @notice Mint shares to an address (for testing)
     /// @param to Recipient of shares

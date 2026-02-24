@@ -47,8 +47,13 @@ contract YoYieldSourceOracle is AbstractYieldSourceOracle {
 
     /// @inheritdoc AbstractYieldSourceOracle
     /// @notice Returns shares needed to withdraw a specific amount of assets
-    /// @dev Manually calculates using convertToAssets() with vault's actual decimals
-    ///      Uses Ceil rounding to favor the vault (user pays slightly more shares)
+    /// @dev Manually calculates using convertToAssets() with vault's actual decimals.
+    ///      Uses Ceil rounding to favor the vault (user pays slightly more shares).
+    ///
+    ///      NOTE: This does not delegate to vault's previewRedeem/previewWithdraw because
+    ///      Yo vaults use async redemption via requestRedeem() and do not support synchronous
+    ///      withdrawals. The inverse calculation from convertToAssets is appropriate here
+    ///      as it matches the vault's share-to-asset pricing model without withdrawal fees.
     function getWithdrawalShareOutput(
         address yieldSourceAddress,
         address,
@@ -129,6 +134,9 @@ contract YoYieldSourceOracle is AbstractYieldSourceOracle {
         uint256 heldValue = heldShares > 0 ? vault.convertToAssets(heldShares) : 0;
 
         // Component 2: Value of pending async redemptions
+        // NOTE: pendingAssets represents a fixed asset amount locked in at the time of requestRedeem(),
+        // not a dynamic value based on current share price. This provides TVL stability during the
+        // async redemption period - the user's pending value doesn't fluctuate with vault PPS changes.
         (uint256 pendingAssets,) = vault.pendingRedeemRequest(ownerOfShares);
 
         // Total position value
