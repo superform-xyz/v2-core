@@ -1028,7 +1028,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         // Pendle PT Amortized Oracle hooks (V1)
-        if (availability.pendlePTAmortizedOracleHooks) {
+        // NOTE: Hook check requires oracle address in config. In check mode before deployment,
+        // oracle config is address(0), so we skip hook check (hooks will be deployed after oracles).
+        if (availability.pendlePTAmortizedOracleHooks && configuration.pendlePTAmortizedOracles[chainId] != address(0)) {
             __checkContract(
                 RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY,
                 __getSalt(RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY),
@@ -1041,15 +1043,21 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encode(configuration.pendlePTAmortizedOracles[chainId]),
                 env
             );
+        } else if (!availability.pendlePTAmortizedOracleHooks) {
+            console2.log(
+                "SKIPPED RecordPurchase & RecordRedemption PendlePTAmortizedOracle Hooks (V1): Oracle bytecode not available",
+                chainId
+            );
         } else {
             console2.log(
-                "SKIPPED RecordPurchase & RecordRedemption PendlePTAmortizedOracle Hooks (V1): Oracle not configured for chain",
+                "SKIPPED RecordPurchase & RecordRedemption PendlePTAmortizedOracle Hooks (V1) check: Oracle not yet deployed for chain",
                 chainId
             );
         }
 
         // Pendle PT Amortized Oracle hooks (V2)
-        if (availability.pendlePTAmortizedOracleHooksV2) {
+        // NOTE: Same as V1 - hook check requires oracle address in config.
+        if (availability.pendlePTAmortizedOracleHooksV2 && configuration.pendlePTAmortizedOraclesV2[chainId] != address(0)) {
             __checkContract(
                 RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY,
                 __getSalt(RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY),
@@ -1062,9 +1070,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encode(configuration.pendlePTAmortizedOraclesV2[chainId]),
                 env
             );
+        } else if (!availability.pendlePTAmortizedOracleHooksV2) {
+            console2.log(
+                "SKIPPED RecordPurchase & RecordRedemption PendlePTAmortizedOracle Hooks (V2): Oracle V2 bytecode not available",
+                chainId
+            );
         } else {
             console2.log(
-                "SKIPPED RecordPurchase & RecordRedemption PendlePTAmortizedOracle Hooks (V2): Oracle V2 not configured for chain",
+                "SKIPPED RecordPurchase & RecordRedemption PendlePTAmortizedOracle Hooks (V2) check: Oracle V2 not yet deployed for chain",
                 chainId
             );
         }
