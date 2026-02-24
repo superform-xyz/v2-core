@@ -144,19 +144,13 @@ abstract contract ConfigCore is ConfigBase {
         configuration.pendleRouters[HYPEREVM_CHAIN_ID] = PENDLE_ROUTER_HYPEREVM;
 
         // ===== PENDLE PT AMORTIZED ORACLE ADDRESSES (V1) =====
-        // Staging: 0xE31FD1d26A52B4a958651a8E751e9362B3880524
-        // Production: 0xD64089698f82cbCD91ba5e0422aDFa81D247eB62
-        if (env == 0) {
-            // Production environment
-            configuration.pendlePTAmortizedOracles[MAINNET_CHAIN_ID] = 0xD64089698f82cbCD91ba5e0422aDFa81D247eB62;
-            configuration.pendlePTAmortizedOracles[BASE_CHAIN_ID] = 0xD64089698f82cbCD91ba5e0422aDFa81D247eB62;
-            configuration.pendlePTAmortizedOracles[HYPEREVM_CHAIN_ID] = 0xD64089698f82cbCD91ba5e0422aDFa81D247eB62;
-        } else {
-            // Staging/dev environment
-            configuration.pendlePTAmortizedOracles[MAINNET_CHAIN_ID] = 0xE31FD1d26A52B4a958651a8E751e9362B3880524;
-            configuration.pendlePTAmortizedOracles[BASE_CHAIN_ID] = 0xE31FD1d26A52B4a958651a8E751e9362B3880524;
-            configuration.pendlePTAmortizedOracles[HYPEREVM_CHAIN_ID] = 0xE31FD1d26A52B4a958651a8E751e9362B3880524;
-        }
+        // NOTE: Set to address(0) - oracles are deployed via DeployV2Core and config is updated dynamically
+        // Legacy addresses (for reference):
+        // - Staging: 0xE31FD1d26A52B4a958651a8E751e9362B3880524
+        // - Production: 0xD64089698f82cbCD91ba5e0422aDFa81D247eB62
+        configuration.pendlePTAmortizedOracles[MAINNET_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[BASE_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[HYPEREVM_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOracles[BNB_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOracles[ARBITRUM_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOracles[OPTIMISM_CHAIN_ID] = address(0);
@@ -170,19 +164,13 @@ abstract contract ConfigCore is ConfigBase {
         configuration.pendlePTAmortizedOracles[WORLDCHAIN_CHAIN_ID] = address(0);
 
         // ===== PENDLE PT AMORTIZED ORACLE V2 ADDRESSES =====
-        // Staging: 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e
-        // Production: 0x2185B40476510Ad27d17AF90889CE91BE9282A04
-        if (env == 0) {
-            // Production environment
-            configuration.pendlePTAmortizedOraclesV2[MAINNET_CHAIN_ID] = 0x2185B40476510Ad27d17AF90889CE91BE9282A04;
-            configuration.pendlePTAmortizedOraclesV2[BASE_CHAIN_ID] = 0x2185B40476510Ad27d17AF90889CE91BE9282A04;
-            configuration.pendlePTAmortizedOraclesV2[HYPEREVM_CHAIN_ID] = 0x2185B40476510Ad27d17AF90889CE91BE9282A04;
-        } else {
-            // Staging/dev environment
-            configuration.pendlePTAmortizedOraclesV2[MAINNET_CHAIN_ID] = 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e;
-            configuration.pendlePTAmortizedOraclesV2[BASE_CHAIN_ID] = 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e;
-            configuration.pendlePTAmortizedOraclesV2[HYPEREVM_CHAIN_ID] = 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e;
-        }
+        // NOTE: Set to address(0) - oracles are deployed via DeployV2Core and config is updated dynamically
+        // Legacy addresses (for reference):
+        // - Staging: 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e
+        // - Production: 0x2185B40476510Ad27d17AF90889CE91BE9282A04
+        configuration.pendlePTAmortizedOraclesV2[MAINNET_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[BASE_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[HYPEREVM_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOraclesV2[BNB_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOraclesV2[ARBITRUM_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOraclesV2[OPTIMISM_CHAIN_ID] = address(0);

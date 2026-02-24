@@ -409,21 +409,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             potentialSkips[skipCount++] = "PendleUnifiedHook";
         }
 
-        if (configuration.pendlePTAmortizedOracles[chainId] != address(0)) {
-            availability.pendlePTAmortizedOracleHooks = true;
-        } else {
-            expectedHooks -= 2; // RecordPurchasePendlePTAmortizedOracleHook + RecordRedemptionPendlePTAmortizedOracleHook
-            potentialSkips[skipCount++] = "RecordPurchasePendlePTAmortizedOracleHook";
-            potentialSkips[skipCount++] = "RecordRedemptionPendlePTAmortizedOracleHook";
-        }
-
-        if (configuration.pendlePTAmortizedOraclesV2[chainId] != address(0)) {
-            availability.pendlePTAmortizedOracleHooksV2 = true;
-        } else {
-            expectedHooks -= 2; // RecordPurchasePendlePTAmortizedOracleHookV2 + RecordRedemptionPendlePTAmortizedOracleHookV2
-            potentialSkips[skipCount++] = "RecordPurchasePendlePTAmortizedOracleHookV2";
-            potentialSkips[skipCount++] = "RecordRedemptionPendlePTAmortizedOracleHookV2";
-        }
+        // PendlePTAmortizedOracle hooks - always enabled since oracles are deployed via DeployV2Core
+        // and config is updated dynamically before hooks are deployed
+        availability.pendlePTAmortizedOracleHooks = true;
+        availability.pendlePTAmortizedOracleHooksV2 = true;
 
         availability.expectedHooks = expectedHooks;
 
@@ -480,15 +469,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             }
         }
 
-        // Oracles (7 contracts - always check these)
-        string[7] memory oracleContracts = [
+        // Oracles (10 contracts - always check these)
+        string[10] memory oracleContracts = [
             "ERC4626YieldSourceOracle",
             "ERC5115YieldSourceOracle",
             "PendlePTYieldSourceOracle",
             "SpectraPTYieldSourceOracle",
             "StakingYieldSourceOracle",
             "SuperVaultYieldSourceOracle",
-            "SuperYieldSourceOracle"
+            "SuperYieldSourceOracle",
+            "YoYieldSourceOracle",
+            "PendlePTAmortizedOracle",
+            "PendlePTAmortizedOracleV2"
         ];
 
         for (uint256 i = 0; i < oracleContracts.length; i++) {
@@ -1235,9 +1227,28 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 env
             );
             __checkContract(
-                SUPER_VAULT_YIELD_SOURCE_ORACLE_KEY, 
-                __getSalt(SUPER_VAULT_YIELD_SOURCE_ORACLE_KEY), 
+                SUPER_VAULT_YIELD_SOURCE_ORACLE_KEY,
+                __getSalt(SUPER_VAULT_YIELD_SOURCE_ORACLE_KEY),
                 abi.encode(superLedgerConfig),
+                env
+            );
+            __checkContract(
+                YO_YIELD_SOURCE_ORACLE_KEY,
+                __getSalt(YO_YIELD_SOURCE_ORACLE_KEY),
+                abi.encode(superLedgerConfig),
+                env
+            );
+            // PendlePTAmortizedOracle and V2 (admin + superLedgerConfig)
+            __checkContract(
+                PENDLE_PT_AMORTIZED_ORACLE_KEY,
+                __getSalt(PENDLE_PT_AMORTIZED_ORACLE_KEY),
+                abi.encode(DEPLOYER, superLedgerConfig),
+                env
+            );
+            __checkContract(
+                PENDLE_PT_AMORTIZED_ORACLE_V2_KEY,
+                __getSalt(PENDLE_PT_AMORTIZED_ORACLE_V2_KEY),
+                abi.encode(DEPLOYER, superLedgerConfig),
                 env
             );
         } else {
@@ -1246,8 +1257,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // SuperYieldSourceOracle (no constructor args)
         __checkContract(SUPER_YIELD_SOURCE_ORACLE_KEY, __getSalt(SUPER_YIELD_SOURCE_ORACLE_KEY), "", env);
-
-      
     }
 
     /// @notice Populate CoreContracts struct with addresses from deployment status
@@ -1557,16 +1566,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         console2.log(" All core contracts deployment completed successfully with full validation ");
 
-        // Deploy Hooks
+        // Deploy Oracles FIRST (hooks depend on oracle addresses)
+        _deployOracles(chainId, env);
+
+        // Deploy Hooks (after oracles, since some hooks need oracle addresses)
         _deployHooks(chainId, env);
 
         // Deploy Mock Contracts (only for development environment)
         if (env == 1) {
             //_deployMockContracts(chainId);
         }
-
-        // Deploy Oracles
-        _deployOracles(chainId, env);
 
         // Setup SuperLedger configuration with oracle mappings - CONDITIONAL BASED ON ENVIRONMENT
         // All environments - skip setup, will be done separately via runLedgerConfigurations
@@ -2061,16 +2070,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[21] = HookDeployment("", "", ""); // Empty deployment
         }
 
-        // Pendle PT Amortized Oracle Hooks (V1) - Only deploy if oracle available on this chain
-        if (availability.pendlePTAmortizedOracleHooks) {
-            require(
-                configuration.pendlePTAmortizedOracles[chainId] != address(0),
-                "PENDLE_PT_AMORTIZED_ORACLE_HOOK_ORACLE_PARAM_ZERO"
-            );
-            require(
-                configuration.pendlePTAmortizedOracles[chainId].code.length > 0,
-                "PENDLE_PT_AMORTIZED_ORACLE_HOOK_ORACLE_NOT_DEPLOYED"
-            );
+        // Pendle PT Amortized Oracle Hooks (V1) - Only deploy if oracle was deployed (config updated by _deployOracles)
+        if (
+            configuration.pendlePTAmortizedOracles[chainId] != address(0)
+                && configuration.pendlePTAmortizedOracles[chainId].code.length > 0
+        ) {
             hooks[22] = _createSafeHookDeploymentWithArgs(
                 RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY,
                 "RecordPurchasePendlePTAmortizedOracleHook",
@@ -2084,21 +2088,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encode(configuration.pendlePTAmortizedOracles[chainId])
             );
         } else {
-            console2.log(" SKIPPED Pendle PT Amortized Oracle Hooks (V1) deployment: Not available on chain", chainId);
+            console2.log(" SKIPPED Pendle PT Amortized Oracle Hooks (V1): Oracle not deployed on chain", chainId);
             hooks[22] = HookDeployment("", "", ""); // Empty deployment
             hooks[23] = HookDeployment("", "", ""); // Empty deployment
         }
 
-        // Pendle PT Amortized Oracle Hooks (V2) - Only deploy if oracle V2 available on this chain
-        if (availability.pendlePTAmortizedOracleHooksV2) {
-            require(
-                configuration.pendlePTAmortizedOraclesV2[chainId] != address(0),
-                "PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_ORACLE_PARAM_ZERO"
-            );
-            require(
-                configuration.pendlePTAmortizedOraclesV2[chainId].code.length > 0,
-                "PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_ORACLE_NOT_DEPLOYED"
-            );
+        // Pendle PT Amortized Oracle Hooks (V2) - Only deploy if oracle V2 was deployed (config updated by _deployOracles)
+        if (
+            configuration.pendlePTAmortizedOraclesV2[chainId] != address(0)
+                && configuration.pendlePTAmortizedOraclesV2[chainId].code.length > 0
+        ) {
             hooks[46] = _createSafeHookDeploymentWithArgs(
                 RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY,
                 "RecordPurchasePendlePTAmortizedOracleHookV2",
@@ -2112,7 +2111,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encode(configuration.pendlePTAmortizedOraclesV2[chainId])
             );
         } else {
-            console2.log(" SKIPPED Pendle PT Amortized Oracle Hooks (V2) deployment: Not available on chain", chainId);
+            console2.log(" SKIPPED Pendle PT Amortized Oracle Hooks (V2): Oracle not deployed on chain", chainId);
             hooks[46] = HookDeployment("", "", ""); // Empty deployment
             hooks[47] = HookDeployment("", "", ""); // Empty deployment
         }
@@ -2498,7 +2497,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     function _deployOracles(uint64 chainId, uint256 env) private returns (address[] memory oracleAddresses) {
         console2.log("Starting oracle deployment with parameter validation...");
 
-        uint256 len = 7;
+        uint256 len = 10;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         oracleAddresses = new address[](len);
 
@@ -2527,6 +2526,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         oracles[5] = _createSafeOracleDeployment(SUPER_YIELD_SOURCE_ORACLE_KEY, "SuperYieldSourceOracle", env);
         oracles[6] = _createSafeOracleDeploymentWithArgs(
             SUPER_VAULT_YIELD_SOURCE_ORACLE_KEY, "SuperVaultYieldSourceOracle", env, abi.encode(superLedgerConfig)
+        );
+        oracles[7] = _createSafeOracleDeploymentWithArgs(
+            YO_YIELD_SOURCE_ORACLE_KEY, "YoYieldSourceOracle", env, abi.encode(superLedgerConfig)
+        );
+        // PendlePTAmortizedOracle and V2 (admin + superLedgerConfig)
+        oracles[8] = _createSafeOracleDeploymentWithArgs(
+            PENDLE_PT_AMORTIZED_ORACLE_KEY, "PendlePTAmortizedOracle", env, abi.encode(DEPLOYER, superLedgerConfig)
+        );
+        oracles[9] = _createSafeOracleDeploymentWithArgs(
+            PENDLE_PT_AMORTIZED_ORACLE_V2_KEY, "PendlePTAmortizedOracleV2", env, abi.encode(DEPLOYER, superLedgerConfig)
         );
 
         console2.log("Deploying", len, "oracles with parameter validation...");
@@ -2557,6 +2566,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         console2.log(" All oracles deployed and validated successfully! ");
+
+        // Update configuration with deployed PendlePTAmortizedOracle addresses for hook deployment
+        // Index 8 = PendlePTAmortizedOracle, Index 9 = PendlePTAmortizedOracleV2
+        if (oracleAddresses[8] != address(0)) {
+            configuration.pendlePTAmortizedOracles[chainId] = oracleAddresses[8];
+            console2.log(" Updated configuration.pendlePTAmortizedOracles for chain", chainId, "to", oracleAddresses[8]);
+        }
+        if (oracleAddresses[9] != address(0)) {
+            configuration.pendlePTAmortizedOraclesV2[chainId] = oracleAddresses[9];
+            console2.log(" Updated configuration.pendlePTAmortizedOraclesV2 for chain", chainId, "to", oracleAddresses[9]);
+        }
+
         return oracleAddresses;
     }
 

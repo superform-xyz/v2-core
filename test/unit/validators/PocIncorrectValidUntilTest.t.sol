@@ -12,6 +12,24 @@ import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/Mes
 import "forge-std/console2.sol";
 
 contract POC_IncorrectValidUntilTest is BaseTest {
+    // Public Ethereum mainnet RPC fallback
+    string constant PUBLIC_ETH_RPC = "https://eth.llamarpc.com";
+
+    function setUp() public override {
+        // Try env RPC first, fallback to public RPC
+        string memory rpcUrl;
+        try vm.envString("ETHEREUM_RPC_URL") returns (string memory url) {
+            rpcUrl = url;
+        } catch {
+            rpcUrl = PUBLIC_ETH_RPC;
+        }
+
+        // Override the RPC URL for this test
+        ETHEREUM_RPC_URL = rpcUrl;
+
+        super.setUp();
+    }
+
     function test_POC_IncorrectValidUntilHandling() public {
         // Select fork for testing
         vm.selectFork(FORKS[ETH]);

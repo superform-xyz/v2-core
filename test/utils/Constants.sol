@@ -244,6 +244,11 @@ abstract contract Constants {
     address public constant CHAIN_8453_PENDLE_SWAP = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
     address public constant CHAIN_8453_SPECTRA_ROUTER = 0x0FC2fbd3E8391744426C8bE5228b668481C59532;
 
+    // Yo Protocol vaults (Base)
+    address public constant CHAIN_8453_YO_ETH_VAULT = 0x3A43AEC53490CB9Fa922847385D82fe25d0E9De7;
+    address public constant CHAIN_8453_YO_BTC_VAULT = 0xbCbc8cb4D1e8ED048a6276a5E94A3e952660BcbC;
+    address public constant CHAIN_8453_YO_USD_VAULT = 0x0000000f2eB9f69274678c76222B35eEc7588a65;
+
     // staking protocols
 
     address public constant MORPHO_ORACLE_WBTC_USDC = 0xDddd770BADd886dF3864029e4B377B5F6a2B6b83;

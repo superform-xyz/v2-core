@@ -154,6 +154,9 @@ ORACLE_CONTRACTS=(
     "StakingYieldSourceOracle"
     "SuperYieldSourceOracle"
     "SuperVaultYieldSourceOracle"
+    "YoYieldSourceOracle"
+    "PendlePTAmortizedOracle"
+    "PendlePTAmortizedOracleV2"
 )
 
 # Function to copy contract artifact
