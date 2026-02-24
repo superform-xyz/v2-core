@@ -2600,33 +2600,39 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log(" All oracles deployed and validated successfully! ");
 
         // Update configuration with deployed PendlePTAmortizedOracle addresses for hook deployment
-        // Validate oracle names match expected indices to catch array reordering bugs
-        require(
-            Strings.equal(oracles[pendlePTAmortizedOracleIndex].name, "PendlePTAmortizedOracle"),
-            "ORACLE_INDEX_MISMATCH: Index 8 is not PendlePTAmortizedOracle"
-        );
-        require(
-            Strings.equal(oracles[pendlePTAmortizedOracleV2Index].name, "PendlePTAmortizedOracleV2"),
-            "ORACLE_INDEX_MISMATCH: Index 9 is not PendlePTAmortizedOracleV2"
-        );
-
-        if (oracleAddresses[pendlePTAmortizedOracleIndex] != address(0)) {
-            configuration.pendlePTAmortizedOracles[chainId] = oracleAddresses[pendlePTAmortizedOracleIndex];
-            console2.log(
-                " Updated configuration.pendlePTAmortizedOracles for chain",
-                chainId,
-                "to",
-                oracleAddresses[pendlePTAmortizedOracleIndex]
+        // Only validate and update if oracle was actually created (non-empty name means bytecode existed)
+        if (bytes(oracles[pendlePTAmortizedOracleIndex].name).length > 0) {
+            // Validate oracle name matches expected index to catch array reordering bugs
+            require(
+                Strings.equal(oracles[pendlePTAmortizedOracleIndex].name, "PendlePTAmortizedOracle"),
+                "ORACLE_INDEX_MISMATCH: Index 8 is not PendlePTAmortizedOracle"
             );
+            if (oracleAddresses[pendlePTAmortizedOracleIndex] != address(0)) {
+                configuration.pendlePTAmortizedOracles[chainId] = oracleAddresses[pendlePTAmortizedOracleIndex];
+                console2.log(
+                    " Updated configuration.pendlePTAmortizedOracles for chain",
+                    chainId,
+                    "to",
+                    oracleAddresses[pendlePTAmortizedOracleIndex]
+                );
+            }
         }
-        if (oracleAddresses[pendlePTAmortizedOracleV2Index] != address(0)) {
-            configuration.pendlePTAmortizedOraclesV2[chainId] = oracleAddresses[pendlePTAmortizedOracleV2Index];
-            console2.log(
-                " Updated configuration.pendlePTAmortizedOraclesV2 for chain",
-                chainId,
-                "to",
-                oracleAddresses[pendlePTAmortizedOracleV2Index]
+
+        if (bytes(oracles[pendlePTAmortizedOracleV2Index].name).length > 0) {
+            // Validate oracle name matches expected index to catch array reordering bugs
+            require(
+                Strings.equal(oracles[pendlePTAmortizedOracleV2Index].name, "PendlePTAmortizedOracleV2"),
+                "ORACLE_INDEX_MISMATCH: Index 9 is not PendlePTAmortizedOracleV2"
             );
+            if (oracleAddresses[pendlePTAmortizedOracleV2Index] != address(0)) {
+                configuration.pendlePTAmortizedOraclesV2[chainId] = oracleAddresses[pendlePTAmortizedOracleV2Index];
+                console2.log(
+                    " Updated configuration.pendlePTAmortizedOraclesV2 for chain",
+                    chainId,
+                    "to",
+                    oracleAddresses[pendlePTAmortizedOracleV2Index]
+                );
+            }
         }
     }
 
