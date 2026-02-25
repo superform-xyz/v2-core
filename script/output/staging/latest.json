@@ -36,6 +36,8 @@
         "MarkRootAsUsedHook": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
         "MerklClaimRewardHook": "0x67CcC575D4064418406AE70cC094781837D01777",
         "OfframpTokensHook": "0x45769A1252B26976896533664454b6e295b88266",
+        "PendlePTAmortizedOracle": "0xE31FD1d26A52B4a958651a8E751e9362B3880524",
+        "PendlePTAmortizedOracleV2": "0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e",
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
         "PendleRouterRedeemHook": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
         "PendleRouterSwapHook": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D",
@@ -67,7 +69,8 @@
         "SwapOdosV2Hook": "0x6FD58b83e7518A1ABEFB67a7E32c3Ef316753A11",
         "SwapUniswapV4Hook": "0x08c57a93C225E598B3D596A296F971cA80cF1B84",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
-        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea"
+        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
+        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
       }
     },
     "Base": {
@@ -106,6 +109,8 @@
         "MarkRootAsUsedHook": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
         "MerklClaimRewardHook": "0x67CcC575D4064418406AE70cC094781837D01777",
         "OfframpTokensHook": "0x45769A1252B26976896533664454b6e295b88266",
+        "PendlePTAmortizedOracle": "0xE31FD1d26A52B4a958651a8E751e9362B3880524",
+        "PendlePTAmortizedOracleV2": "0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e",
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
         "PendleRouterRedeemHook": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
         "PendleRouterSwapHook": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D",
@@ -137,7 +142,8 @@
         "SwapOdosV2Hook": "0xA3a87993C802C6Ee82B1F77DF452F310Fa1a5de9",
         "SwapUniswapV4Hook": "0x2F7F2eaad2734D617b3fD14A92C28929af916cF1",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
-        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea"
+        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
+        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
       }
     },
     "BNB": {
@@ -176,10 +182,16 @@
         "MarkRootAsUsedHook": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
         "MerklClaimRewardHook": "0x67CcC575D4064418406AE70cC094781837D01777",
         "OfframpTokensHook": "0x45769A1252B26976896533664454b6e295b88266",
+        "PendlePTAmortizedOracle": "0xE31FD1d26A52B4a958651a8E751e9362B3880524",
+        "PendlePTAmortizedOracleV2": "0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e",
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
         "PendleRouterRedeemHook": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
         "PendleRouterSwapHook": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D",
         "PendleUnifiedHook": "0xbc7F29336BD315A32f537dCD8e1aA9efF66b73A3",
+        "RecordPurchasePendlePTAmortizedOracleHook": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
+        "RecordPurchasePendlePTAmortizedOracleHookV2": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
+        "RecordRedemptionPendlePTAmortizedOracleHook": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
+        "RecordRedemptionPendlePTAmortizedOracleHookV2": "0x65133147a37b2d1171f1c164c4C697db34419809",
         "Redeem4626VaultHook": "0xB10b1fCE2E4B24C5A988A9932d4Cf9DB37Ba0394",
         "Redeem5115VaultHook": "0x421aE0BB3C201959D0B152a87d56BCdB2Ee1cF63",
         "Redeem7540VaultHook": "0xCa50aB0375b774B2DE12919423Dd0B8e8cAad95f",
@@ -202,7 +214,8 @@
         "Swap1InchHook": "0xc785A8a40D449cbd3352853a7B2A514838e07728",
         "SwapOdosV2Hook": "0xB6BD55F3CF924D0B17ddCF80D990c056A072cFDc",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
-        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea"
+        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
+        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
       }
     },
     "Arbitrum": {
@@ -241,10 +254,16 @@
         "MarkRootAsUsedHook": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
         "MerklClaimRewardHook": "0x67CcC575D4064418406AE70cC094781837D01777",
         "OfframpTokensHook": "0x45769A1252B26976896533664454b6e295b88266",
+        "PendlePTAmortizedOracle": "0xE31FD1d26A52B4a958651a8E751e9362B3880524",
+        "PendlePTAmortizedOracleV2": "0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e",
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
         "PendleRouterRedeemHook": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
         "PendleRouterSwapHook": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D",
         "PendleUnifiedHook": "0xbc7F29336BD315A32f537dCD8e1aA9efF66b73A3",
+        "RecordPurchasePendlePTAmortizedOracleHook": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
+        "RecordPurchasePendlePTAmortizedOracleHookV2": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
+        "RecordRedemptionPendlePTAmortizedOracleHook": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
+        "RecordRedemptionPendlePTAmortizedOracleHookV2": "0x65133147a37b2d1171f1c164c4C697db34419809",
         "Redeem4626VaultHook": "0xB10b1fCE2E4B24C5A988A9932d4Cf9DB37Ba0394",
         "Redeem5115VaultHook": "0x421aE0BB3C201959D0B152a87d56BCdB2Ee1cF63",
         "Redeem7540VaultHook": "0xCa50aB0375b774B2DE12919423Dd0B8e8cAad95f",
@@ -268,7 +287,8 @@
         "SwapOdosV2Hook": "0x4D6205b40aA08b07B703892dbb369646B76BE74a",
         "SwapUniswapV4Hook": "0xBE4407e2fcb049Baa5C667795397b5f0BED5eE6f",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
-        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea"
+        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
+        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
       }
     },
     "Avalanche": {
@@ -304,7 +324,13 @@
         "MarkRootAsUsedHook": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
         "MerklClaimRewardHook": "0x67CcC575D4064418406AE70cC094781837D01777",
         "OfframpTokensHook": "0x45769A1252B26976896533664454b6e295b88266",
+        "PendlePTAmortizedOracle": "0xE31FD1d26A52B4a958651a8E751e9362B3880524",
+        "PendlePTAmortizedOracleV2": "0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e",
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
+        "RecordPurchasePendlePTAmortizedOracleHook": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
+        "RecordPurchasePendlePTAmortizedOracleHookV2": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
+        "RecordRedemptionPendlePTAmortizedOracleHook": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
+        "RecordRedemptionPendlePTAmortizedOracleHookV2": "0x65133147a37b2d1171f1c164c4C697db34419809",
         "Redeem4626VaultHook": "0xB10b1fCE2E4B24C5A988A9932d4Cf9DB37Ba0394",
         "Redeem5115VaultHook": "0x421aE0BB3C201959D0B152a87d56BCdB2Ee1cF63",
         "Redeem7540VaultHook": "0xCa50aB0375b774B2DE12919423Dd0B8e8cAad95f",
@@ -328,7 +354,8 @@
         "SwapOdosV2Hook": "0x49774d860b7D3d5B9BdEBD9f8961FDb5B3CeF096",
         "SwapUniswapV4Hook": "0x19AEF162cc077d22375e3e072695D9e50e954C12",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
-        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea"
+        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
+        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
       }
     },
     "HyperEVM": {
@@ -367,10 +394,16 @@
         "MarkRootAsUsedHook": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
         "MerklClaimRewardHook": "0x67CcC575D4064418406AE70cC094781837D01777",
         "OfframpTokensHook": "0x45769A1252B26976896533664454b6e295b88266",
+        "PendlePTAmortizedOracle": "0xE31FD1d26A52B4a958651a8E751e9362B3880524",
+        "PendlePTAmortizedOracleV2": "0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e",
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
         "PendleRouterRedeemHook": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
         "PendleRouterSwapHook": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D",
         "PendleUnifiedHook": "0xbc7F29336BD315A32f537dCD8e1aA9efF66b73A3",
+        "RecordPurchasePendlePTAmortizedOracleHook": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
+        "RecordPurchasePendlePTAmortizedOracleHookV2": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
+        "RecordRedemptionPendlePTAmortizedOracleHook": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
+        "RecordRedemptionPendlePTAmortizedOracleHookV2": "0x65133147a37b2d1171f1c164c4C697db34419809",
         "Redeem4626VaultHook": "0xB10b1fCE2E4B24C5A988A9932d4Cf9DB37Ba0394",
         "Redeem5115VaultHook": "0x421aE0BB3C201959D0B152a87d56BCdB2Ee1cF63",
         "Redeem7540VaultHook": "0xCa50aB0375b774B2DE12919423Dd0B8e8cAad95f",
@@ -392,9 +425,10 @@
         "SuperYieldSourceOracle": "0x03f1d66d67BDacD1d417d884a59733f3Af626c62",
         "SwapUniswapV3Hook": "0xa1949567e0aa704Fa7617bF04e6dE66045b96B7e",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
-        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea"
+        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
+        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
       }
     }
   },
-  "updated_at": "2026-02-18T13:46:27Z"
+  "updated_at": "2026-02-24T10:43:57Z"
 }
