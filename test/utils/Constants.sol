@@ -244,6 +244,11 @@ abstract contract Constants {
     address public constant CHAIN_8453_PENDLE_SWAP = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
     address public constant CHAIN_8453_SPECTRA_ROUTER = 0x0FC2fbd3E8391744426C8bE5228b668481C59532;
 
+    // Spark PSM (Base)
+    address public constant CHAIN_8453_SPARK_PSM3 = 0x1601843c5E9bC251A3272907010AFa41Fa18347E;
+    address public constant CHAIN_8453_USDS = 0x820C137fa70C8691f0e44Dc420a5e53c168921Dc;
+    address public constant CHAIN_8453_SUSDS = 0x5875eEE11Cf8398102FdAd704C9E96607675467a;
+
     // Yo Protocol vaults (Base)
     address public constant CHAIN_8453_YO_ETH_VAULT = 0x3A43AEC53490CB9Fa922847385D82fe25d0E9De7;
     address public constant CHAIN_8453_YO_BTC_VAULT = 0xbCbc8cb4D1e8ED048a6276a5E94A3e952660BcbC;
