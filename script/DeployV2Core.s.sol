@@ -78,6 +78,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address swapUniswapV3Hook;
         address approveAndSwapUniswapV3Hook;
         address transferHook;
+        address swapSparkPsmExactInHook;
+        address approveAndSwapSparkPsmExactInHook;
+        address swapSparkPsmExactOutHook;
+        address approveAndSwapSparkPsmExactOutHook;
     }
 
     struct HookDeployment {
@@ -220,6 +224,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool swapOdosHooks;
         bool swapUniswapV4Hook;
         bool swapUniswapV3Hooks;
+        bool swapSparkPsmHooks;
         bool pendleRouterHooks;
         bool pendlePTAmortizedOracleHooks;
         bool pendlePTAmortizedOracleHooksV2;
@@ -261,7 +266,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     {
         // Initialize all skipped contracts array
         // Max possible skips: 2 adapters + 22 hooks = 24 skipped contracts
-        string[] memory potentialSkips = new string[](24);
+        string[] memory potentialSkips = new string[](28);
         uint256 skipCount = 0;
         // Adapter contracts (2 contracts - conditionally deployed)
         string[2] memory adapterContracts = ["AcrossV3Adapter", "DebridgeAdapter"];
@@ -288,7 +293,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all 46 hooks from regenerate_bytecode.sh (including V2 versions)
-        string[48] memory baseHooks = [
+        string[52] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -336,7 +341,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "SwapUniswapV4Hook",
             "SwapUniswapV3Hook",
             "ApproveAndSwapUniswapV3Hook",
-            "TransferHook"
+            "TransferHook",
+            "SwapSparkPSMExactInHook",
+            "ApproveAndSwapSparkPSMExactInHook",
+            "SwapSparkPSMExactOutHook",
+            "ApproveAndSwapSparkPSMExactOutHook"
         ];
 
         // Start with all hooks, then decrement for missing configurations
@@ -398,6 +407,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             expectedHooks -= 2; // SwapUniswapV3Hook + ApproveAndSwapUniswapV3Hook
             potentialSkips[skipCount++] = "SwapUniswapV3Hook";
             potentialSkips[skipCount++] = "ApproveAndSwapUniswapV3Hook";
+        }
+
+        if (configuration.sparkPsm3s[chainId] != address(0)) {
+            availability.swapSparkPsmHooks = true;
+        } else {
+            expectedHooks -= 4; // All 4 Spark PSM hooks
+            potentialSkips[skipCount++] = "SwapSparkPSMExactInHook";
+            potentialSkips[skipCount++] = "ApproveAndSwapSparkPSMExactInHook";
+            potentialSkips[skipCount++] = "SwapSparkPSMExactOutHook";
+            potentialSkips[skipCount++] = "ApproveAndSwapSparkPSMExactOutHook";
         }
 
         if (configuration.pendleRouters[chainId] != address(0)) {
@@ -1208,6 +1227,36 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log("SKIPPED ApproveAndSwapUniswapV3Hook: Uniswap V3 SwapRouter not configured for chain", chainId);
         }
 
+        // Spark PSM swap hooks
+        if (availability.swapSparkPsmHooks) {
+            __checkContract(
+                SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY,
+                __getSalt(SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY),
+                abi.encode(configuration.sparkPsm3s[chainId]),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY,
+                __getSalt(APPROVE_AND_SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY),
+                abi.encode(configuration.sparkPsm3s[chainId]),
+                env
+            );
+            __checkContract(
+                SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY,
+                __getSalt(SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY),
+                abi.encode(configuration.sparkPsm3s[chainId]),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY,
+                __getSalt(APPROVE_AND_SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY),
+                abi.encode(configuration.sparkPsm3s[chainId]),
+                env
+            );
+        } else {
+            console2.log("SKIPPED Spark PSM hooks: PSM3 not configured for chain", chainId);
+        }
+
         // TransferHook
         __checkContract(
             TRANSFER_HOOK_KEY, __getSalt(TRANSFER_HOOK_KEY), abi.encode(configuration.nativeTokens[chainId]), env
@@ -2005,7 +2054,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 48;
+        uint256 len = 52;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -2297,6 +2346,40 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[45] = HookDeployment("", "", ""); // Empty deployment
         }
 
+        // Spark PSM Hooks - Only deploy if PSM3 available on this chain
+        if (availability.swapSparkPsmHooks) {
+            hooks[48] = _createSafeHookDeploymentWithArgs(
+                SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY,
+                "SwapSparkPSMExactInHook",
+                env,
+                abi.encode(configuration.sparkPsm3s[chainId])
+            );
+            hooks[49] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY,
+                "ApproveAndSwapSparkPSMExactInHook",
+                env,
+                abi.encode(configuration.sparkPsm3s[chainId])
+            );
+            hooks[50] = _createSafeHookDeploymentWithArgs(
+                SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY,
+                "SwapSparkPSMExactOutHook",
+                env,
+                abi.encode(configuration.sparkPsm3s[chainId])
+            );
+            hooks[51] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY,
+                "ApproveAndSwapSparkPSMExactOutHook",
+                env,
+                abi.encode(configuration.sparkPsm3s[chainId])
+            );
+        } else {
+            console2.log("SKIPPED Spark PSM hooks: PSM3 not available on chain", chainId);
+            hooks[48] = HookDeployment("", "", ""); // Empty deployment
+            hooks[49] = HookDeployment("", "", ""); // Empty deployment
+            hooks[50] = HookDeployment("", "", ""); // Empty deployment
+            hooks[51] = HookDeployment("", "", ""); // Empty deployment
+        }
+
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying hooks with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
@@ -2436,6 +2519,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[43].name, APPROVE_AND_SWAP_UNISWAPV3_HOOK_KEY) ? addresses[43] : address(0);
         hookAddresses.transferHook =
             Strings.equal(hooks[44].name, TRANSFER_HOOK_KEY) ? addresses[44] : address(0);
+        hookAddresses.swapSparkPsmExactInHook =
+            Strings.equal(hooks[48].name, SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY) ? addresses[48] : address(0);
+        hookAddresses.approveAndSwapSparkPsmExactInHook = Strings.equal(
+            hooks[49].name, APPROVE_AND_SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY
+        ) ? addresses[49] : address(0);
+        hookAddresses.swapSparkPsmExactOutHook =
+            Strings.equal(hooks[50].name, SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY) ? addresses[50] : address(0);
+        hookAddresses.approveAndSwapSparkPsmExactOutHook = Strings.equal(
+            hooks[51].name, APPROVE_AND_SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY
+        ) ? addresses[51] : address(0);
 
         // ===== FINAL VALIDATION OF ALL CRITICAL HOOKS =====
         require(hookAddresses.approveErc20Hook != address(0), "APPROVE_ERC20_HOOK_NOT_ASSIGNED");
