@@ -34,8 +34,8 @@ contract CorrectBookValueSimulation is Test {
     address constant MARKET = 0x6D520a943a4Da0784917a2e71defe95248A1DaA1;
 
     function test_SimulateCorrectBookValue() public {
-        // Fork mainnet
-        vm.createSelectFork(vm.envString("ETHEREUM_RPC_URL"));
+        // Fork mainnet at a block before the market expired (Feb 26, 2026)
+        vm.createSelectFork(vm.envString("ETHEREUM_RPC_URL"), 24_530_000);
 
         IPendlePTAmortizedOracle oracle = IPendlePTAmortizedOracle(ORACLE);
 

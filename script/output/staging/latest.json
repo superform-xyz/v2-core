@@ -10,7 +10,7 @@
         "ApproveAndDeposit4626VaultHook": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4",
         "ApproveAndDeposit5115VaultHook": "0xDc997F44693d865C68d2321E41716Bdc098016ee",
         "ApproveAndRequestDeposit7540VaultHook": "0xef56121Af8553C0a534052b6305301E414E79c41",
-        "ApproveAndSwapOdosV2Hook": "0x103F71A3ECE8fF293d2B3997acA502BE0e3932eb",
+        "ApproveAndSwapOdosV2Hook": "0x914E5063eb4Ae155AFa5fedE042c71d0b3B4b28C",
         "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
         "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
         "BatchTransferHook": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
@@ -83,7 +83,9 @@
         "ApproveAndDeposit4626VaultHook": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4",
         "ApproveAndDeposit5115VaultHook": "0xDc997F44693d865C68d2321E41716Bdc098016ee",
         "ApproveAndRequestDeposit7540VaultHook": "0xef56121Af8553C0a534052b6305301E414E79c41",
-        "ApproveAndSwapOdosV2Hook": "0x4440F9Dede90b5eE690B2B4C239Dc4A52076686a",
+        "ApproveAndSwapOdosV2Hook": "0x597Dc6f1a9FbB6E0A2BeeBcF98E46E16D940101b",
+        "ApproveAndSwapSparkPSMExactInHook": "0xDa969cc8B07bAe0c117C89C9a928b507533fDCC9",
+        "ApproveAndSwapSparkPSMExactOutHook": "0xa0a600087D4d5a1539A9A8a8C1f1fA039D6FBc55",
         "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
         "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
         "BatchTransferHook": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
@@ -140,6 +142,8 @@
         "SuperYieldSourceOracle": "0x03f1d66d67BDacD1d417d884a59733f3Af626c62",
         "Swap1InchHook": "0xc785A8a40D449cbd3352853a7B2A514838e07728",
         "SwapOdosV2Hook": "0xA3a87993C802C6Ee82B1F77DF452F310Fa1a5de9",
+        "SwapSparkPSMExactInHook": "0xbCdAf81A89CB080c33ca5032AcD312103Be26328",
+        "SwapSparkPSMExactOutHook": "0x702989555d6174d8E2d5EaAd4071c12C73D22C74",
         "SwapUniswapV4Hook": "0x2F7F2eaad2734D617b3fD14A92C28929af916cF1",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
         "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
@@ -156,7 +160,7 @@
         "ApproveAndDeposit4626VaultHook": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4",
         "ApproveAndDeposit5115VaultHook": "0xDc997F44693d865C68d2321E41716Bdc098016ee",
         "ApproveAndRequestDeposit7540VaultHook": "0xef56121Af8553C0a534052b6305301E414E79c41",
-        "ApproveAndSwapOdosV2Hook": "0x806DBE37954Bb3965E2Cf305fd2765C651e670c0",
+        "ApproveAndSwapOdosV2Hook": "0xeB8c37991d77C96BA5B51A3922d770Ac141844f8",
         "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
         "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
         "BatchTransferHook": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
@@ -228,7 +232,7 @@
         "ApproveAndDeposit4626VaultHook": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4",
         "ApproveAndDeposit5115VaultHook": "0xDc997F44693d865C68d2321E41716Bdc098016ee",
         "ApproveAndRequestDeposit7540VaultHook": "0xef56121Af8553C0a534052b6305301E414E79c41",
-        "ApproveAndSwapOdosV2Hook": "0xAc4AA35452CF1ef22A60141eae7b80b945699e56",
+        "ApproveAndSwapOdosV2Hook": "0x1827bE7048F4F88039f35eFa8aF4b0992545A34C",
         "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
         "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
         "BatchTransferHook": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
@@ -298,7 +302,7 @@
         "ApproveAndDeposit4626VaultHook": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4",
         "ApproveAndDeposit5115VaultHook": "0xDc997F44693d865C68d2321E41716Bdc098016ee",
         "ApproveAndRequestDeposit7540VaultHook": "0xef56121Af8553C0a534052b6305301E414E79c41",
-        "ApproveAndSwapOdosV2Hook": "0x418c0b3eEad48aE2C2133D6e3265829E5e46c223",
+        "ApproveAndSwapOdosV2Hook": "0x9a32E76B39B23f5d9e4F17024A70E84EE508c893",
         "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
         "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
         "BatchTransferHook": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
@@ -430,5 +434,5 @@
       }
     }
   },
-  "updated_at": "2026-02-24T10:43:57Z"
+  "updated_at": "2026-03-09T16:15:24Z"
 }

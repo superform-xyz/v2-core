@@ -2529,7 +2529,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hookAddresses.approveAndSwapSparkPsmExactOutHook = Strings.equal(
             hooks[51].name, APPROVE_AND_SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY
         ) ? addresses[51] : address(0);
-
         // ===== FINAL VALIDATION OF ALL CRITICAL HOOKS =====
         require(hookAddresses.approveErc20Hook != address(0), "APPROVE_ERC20_HOOK_NOT_ASSIGNED");
         require(hookAddresses.transferErc20Hook != address(0), "TRANSFER_ERC20_HOOK_NOT_ASSIGNED");
