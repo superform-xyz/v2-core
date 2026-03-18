@@ -27,6 +27,7 @@ abstract contract ConfigBase is Constants {
         mapping(uint64 chainId => address nativeToken) nativeTokens;
         mapping(uint64 chainId => address poolManager) uniswapV4PoolManagers;
         mapping(uint64 chainId => address swapRouter) uniswapV3SwapRouters;
+        mapping(uint64 chainId => address psm3) sparkPsm3s;
     }
 
     EnvironmentData public configuration;

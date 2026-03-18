@@ -57,8 +57,8 @@ contract V1vsV2OracleComparison is Test {
     PendlePTAmortizedOracleV2 public v2Oracle;
 
     function setUp() public {
-        // Fork mainnet at a recent block
-        vm.createSelectFork(vm.envString("ETHEREUM_RPC_URL"));
+        // Fork mainnet at a block before the market expired (Feb 26, 2026)
+        vm.createSelectFork(vm.envString("ETHEREUM_RPC_URL"), 24_530_000);
 
         // Deploy V2 oracle
         v2Oracle = new PendlePTAmortizedOracleV2(address(this), SUPER_LEDGER_CONFIG);

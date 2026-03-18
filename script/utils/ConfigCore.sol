@@ -231,5 +231,22 @@ abstract contract ConfigCore is ConfigBase {
         configuration.uniswapV3SwapRouters[GNOSIS_CHAIN_ID] = address(0);
         configuration.uniswapV3SwapRouters[WORLDCHAIN_CHAIN_ID] = address(0);
         configuration.uniswapV3SwapRouters[HYPEREVM_CHAIN_ID] = 0x1EbDFC75FfE3ba3de61E7138a3E8706aC841Af9B;
+
+        // ===== SPARK PSM3 ADDRESSES =====
+        // PSM3 is only deployed on Base
+        configuration.sparkPsm3s[MAINNET_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[BASE_CHAIN_ID] = 0x1601843c5E9bC251A3272907010AFa41Fa18347E;
+        configuration.sparkPsm3s[BNB_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[ARBITRUM_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[OPTIMISM_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[POLYGON_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[UNICHAIN_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[LINEA_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[AVALANCHE_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[BERACHAIN_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[SONIC_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[GNOSIS_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[WORLDCHAIN_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[HYPEREVM_CHAIN_ID] = address(0);
     }
 }
