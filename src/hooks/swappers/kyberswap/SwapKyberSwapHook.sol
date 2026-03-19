@@ -86,9 +86,7 @@ contract SwapKyberSwapHook is BaseHook, ISuperHookContextAware {
         IMetaAggregationRouterV2.SwapExecutionParams memory params =
             abi.decode(BytesLib.slice(txData_, 4, txData_.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams));
 
-        return abi.encodePacked(
-            params.callTarget, params.approveTarget, address(params.desc.srcToken), address(params.desc.dstToken)
-        );
+        return abi.encodePacked(address(params.desc.dstToken));
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -379,16 +379,16 @@ contract KyberSwapUnitTests is Helpers {
         bytes memory data = _buildSwapData(false);
         bytes memory result = swapHook.inspect(data);
 
-        // Should return 4 packed addresses: callTarget, approveTarget, srcToken, dstToken
-        assertEq(result.length, 80); // 4 * 20 bytes
+        // Should return 1 packed address: dstToken
+        assertEq(result.length, 20); // 1 * 20 bytes
     }
 
     function test_ApproveAndSwapHook_Inspect() public view {
         bytes memory data = _buildApproveAndSwapData(false);
         bytes memory result = approveAndSwapHook.inspect(data);
 
-        // Should return 4 packed addresses: callTarget, approveTarget, srcToken, dstToken
-        assertEq(result.length, 80); // 4 * 20 bytes
+        // Should return 1 packed address: dstToken
+        assertEq(result.length, 20); // 1 * 20 bytes
     }
 
     /*//////////////////////////////////////////////////////////////
