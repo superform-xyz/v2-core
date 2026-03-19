@@ -127,6 +127,38 @@ abstract contract ConfigCore is ConfigBase {
         configuration.odosRouters[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
         configuration.odosRouters[HYPEREVM_CHAIN_ID] = address(0); // Not deployed
 
+        // ===== KYBERSWAP ROUTER AND SCALE HELPER ADDRESSES =====
+        // Same address across all supported chains
+        configuration.kyberSwapRouters[MAINNET_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[BASE_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[BNB_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[ARBITRUM_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[OPTIMISM_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[POLYGON_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[UNICHAIN_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[LINEA_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[AVALANCHE_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[BERACHAIN_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[SONIC_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[GNOSIS_CHAIN_ID] = address(0); // Not deployed
+        configuration.kyberSwapRouters[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.kyberSwapRouters[HYPEREVM_CHAIN_ID] = KYBER_ROUTER;
+
+        configuration.kyberSwapScaleHelpers[MAINNET_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[BASE_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[BNB_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[ARBITRUM_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[OPTIMISM_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[POLYGON_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[UNICHAIN_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[LINEA_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[AVALANCHE_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[BERACHAIN_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[SONIC_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[GNOSIS_CHAIN_ID] = address(0); // Not deployed
+        configuration.kyberSwapScaleHelpers[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.kyberSwapScaleHelpers[HYPEREVM_CHAIN_ID] = KYBER_SCALE_HELPER;
+
         // ===== PENDLE ROUTER ADDRESSES =====
         configuration.pendleRouters[MAINNET_CHAIN_ID] = PENDLE_ROUTER_MAINNET;
         configuration.pendleRouters[BASE_CHAIN_ID] = PENDLE_ROUTER_BASE;

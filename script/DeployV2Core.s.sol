@@ -82,6 +82,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address approveAndSwapSparkPsmExactInHook;
         address swapSparkPsmExactOutHook;
         address approveAndSwapSparkPsmExactOutHook;
+        address swapKyberSwapHook;
+        address approveAndSwapKyberSwapHook;
     }
 
     struct HookDeployment {
@@ -225,6 +227,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool swapUniswapV4Hook;
         bool swapUniswapV3Hooks;
         bool swapSparkPsmHooks;
+        bool swapKyberSwapHooks;
         bool pendleRouterHooks;
         bool pendlePTAmortizedOracleHooks;
         bool pendlePTAmortizedOracleHooksV2;
@@ -266,7 +269,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     {
         // Initialize all skipped contracts array
         // Max possible skips: 2 adapters + 22 hooks = 24 skipped contracts
-        string[] memory potentialSkips = new string[](28);
+        string[] memory potentialSkips = new string[](30);
         uint256 skipCount = 0;
         // Adapter contracts (2 contracts - conditionally deployed)
         string[2] memory adapterContracts = ["AcrossV3Adapter", "DebridgeAdapter"];
@@ -293,7 +296,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all 46 hooks from regenerate_bytecode.sh (including V2 versions)
-        string[52] memory baseHooks = [
+        string[54] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -345,7 +348,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "SwapSparkPSMExactInHook",
             "ApproveAndSwapSparkPSMExactInHook",
             "SwapSparkPSMExactOutHook",
-            "ApproveAndSwapSparkPSMExactOutHook"
+            "ApproveAndSwapSparkPSMExactOutHook",
+            "SwapKyberSwapHook",
+            "ApproveAndSwapKyberSwapHook"
         ];
 
         // Start with all hooks, then decrement for missing configurations
@@ -417,6 +422,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             potentialSkips[skipCount++] = "ApproveAndSwapSparkPSMExactInHook";
             potentialSkips[skipCount++] = "SwapSparkPSMExactOutHook";
             potentialSkips[skipCount++] = "ApproveAndSwapSparkPSMExactOutHook";
+        }
+
+        if (configuration.kyberSwapRouters[chainId] != address(0)) {
+            availability.swapKyberSwapHooks = true;
+        } else {
+            expectedHooks -= 2; // SwapKyberSwapHook + ApproveAndSwapKyberSwapHook
+            potentialSkips[skipCount++] = "SwapKyberSwapHook";
+            potentialSkips[skipCount++] = "ApproveAndSwapKyberSwapHook";
         }
 
         if (configuration.pendleRouters[chainId] != address(0)) {
@@ -1021,6 +1034,26 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         }
 
+        if (availability.swapKyberSwapHooks) {
+            __checkContract(
+                SWAP_KYBERSWAP_HOOK_KEY,
+                __getSalt(SWAP_KYBERSWAP_HOOK_KEY),
+                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId]),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY,
+                __getSalt(APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY),
+                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId]),
+                env
+            );
+        } else {
+            console2.log(
+                "SKIPPED SwapKyberSwapHook & ApproveAndSwapKyberSwapHook: KyberSwap Router not configured for chain",
+                chainId
+            );
+        }
+
         if (availability.pendleRouterHooks) {
             __checkContract(
                 PENDLE_ROUTER_SWAP_HOOK_KEY,
@@ -1257,6 +1290,23 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log("SKIPPED Spark PSM hooks: PSM3 not configured for chain", chainId);
         }
 
+        if (availability.swapKyberSwapHooks) {
+            __checkContract(
+                SWAP_KYBERSWAP_HOOK_KEY,
+                __getSalt(SWAP_KYBERSWAP_HOOK_KEY),
+                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId]),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY,
+                __getSalt(APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY),
+                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId]),
+                env
+            );
+        } else {
+            console2.log("SKIPPED KyberSwap hooks: KyberSwap Router not configured for chain", chainId);
+        }
+
         // TransferHook
         __checkContract(
             TRANSFER_HOOK_KEY, __getSalt(TRANSFER_HOOK_KEY), abi.encode(configuration.nativeTokens[chainId]), env
@@ -1430,6 +1480,17 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" ODOS Router:", configuration.odosRouters[chainId]);
         } else {
             console2.log(" SKIPPED ODOS Router validation: Not available on chain", chainId);
+        }
+
+        if (availability.swapKyberSwapHooks) {
+            require(configuration.kyberSwapRouters[chainId] != address(0), "KYBER_ROUTER_ADDRESS_ZERO");
+            require(configuration.kyberSwapRouters[chainId].code.length > 0, "KYBER_ROUTER_NOT_DEPLOYED");
+            require(configuration.kyberSwapScaleHelpers[chainId] != address(0), "KYBER_SCALE_HELPER_ADDRESS_ZERO");
+            require(configuration.kyberSwapScaleHelpers[chainId].code.length > 0, "KYBER_SCALE_HELPER_NOT_DEPLOYED");
+            console2.log(" KyberSwap Router:", configuration.kyberSwapRouters[chainId]);
+            console2.log(" KyberSwap ScaleHelper:", configuration.kyberSwapScaleHelpers[chainId]);
+        } else {
+            console2.log(" SKIPPED KyberSwap Router validation: Not available on chain", chainId);
         }
 
         // Only validate Merkl if it's available
@@ -2054,7 +2115,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 52;
+        uint256 len = 54;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -2380,6 +2441,36 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[51] = HookDeployment("", "", ""); // Empty deployment
         }
 
+        // KyberSwap Hooks - Only deploy if available on this chain
+        if (availability.swapKyberSwapHooks) {
+            require(configuration.kyberSwapRouters[chainId] != address(0), "SWAP_KYBERSWAP_HOOK_ROUTER_PARAM_ZERO");
+            require(configuration.kyberSwapRouters[chainId].code.length > 0, "SWAP_KYBERSWAP_HOOK_ROUTER_NOT_DEPLOYED");
+            require(
+                configuration.kyberSwapScaleHelpers[chainId] != address(0),
+                "SWAP_KYBERSWAP_HOOK_SCALE_HELPER_PARAM_ZERO"
+            );
+            require(
+                configuration.kyberSwapScaleHelpers[chainId].code.length > 0,
+                "SWAP_KYBERSWAP_HOOK_SCALE_HELPER_NOT_DEPLOYED"
+            );
+            hooks[52] = _createSafeHookDeploymentWithArgs(
+                SWAP_KYBERSWAP_HOOK_KEY,
+                "SwapKyberSwapHook",
+                env,
+                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId])
+            );
+            hooks[53] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY,
+                "ApproveAndSwapKyberSwapHook",
+                env,
+                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId])
+            );
+        } else {
+            console2.log(" SKIPPED KyberSwap Hooks deployment: Not available on chain", chainId);
+            hooks[52] = HookDeployment("", "", ""); // Empty deployment
+            hooks[53] = HookDeployment("", "", ""); // Empty deployment
+        }
+
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying hooks with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
@@ -2529,6 +2620,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hookAddresses.approveAndSwapSparkPsmExactOutHook = Strings.equal(
             hooks[51].name, APPROVE_AND_SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY
         ) ? addresses[51] : address(0);
+        hookAddresses.swapKyberSwapHook =
+            Strings.equal(hooks[52].name, SWAP_KYBERSWAP_HOOK_KEY) ? addresses[52] : address(0);
+        hookAddresses.approveAndSwapKyberSwapHook =
+            Strings.equal(hooks[53].name, APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY) ? addresses[53] : address(0);
         // ===== FINAL VALIDATION OF ALL CRITICAL HOOKS =====
         require(hookAddresses.approveErc20Hook != address(0), "APPROVE_ERC20_HOOK_NOT_ASSIGNED");
         require(hookAddresses.transferErc20Hook != address(0), "TRANSFER_ERC20_HOOK_NOT_ASSIGNED");
@@ -2563,6 +2658,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         if (availability.swapOdosHooks) {
             require(hookAddresses.swapOdosHook != address(0), "SWAP_ODOS_HOOK_NOT_ASSIGNED");
             require(hookAddresses.approveAndSwapOdosHook != address(0), "APPROVE_AND_SWAP_ODOS_HOOK_NOT_ASSIGNED");
+        }
+        if (availability.swapKyberSwapHooks) {
+            require(hookAddresses.swapKyberSwapHook != address(0), "SWAP_KYBERSWAP_HOOK_NOT_ASSIGNED");
+            require(
+                hookAddresses.approveAndSwapKyberSwapHook != address(0),
+                "APPROVE_AND_SWAP_KYBERSWAP_HOOK_NOT_ASSIGNED"
+            );
         }
         if (availability.acrossV3Adapter) {
             require(

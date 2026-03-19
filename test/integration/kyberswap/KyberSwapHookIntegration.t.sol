@@ -217,7 +217,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
              INSPECT WITH REAL ADDRESSES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Verify inspect returns correct addresses from real swap data
+    /// @notice Verify inspect returns only dstToken from real swap data
     function test_SwapHook_Inspect_RealAddresses() public {
         address callTarget_ = makeAddr("callTarget");
         address approveTarget_ = makeAddr("approveTarget");
@@ -228,27 +228,18 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
         bytes memory result = swapHook.inspect(hookData);
 
-        assertEq(result.length, 80, "4 packed addresses = 80 bytes");
+        assertEq(result.length, 20, "1 packed address = 20 bytes");
 
-        // Decode packed addresses
-        address decodedCallTarget;
-        address decodedApproveTarget;
-        address decodedSrcToken;
+        // Decode packed address
         address decodedDstToken;
         assembly {
-            decodedCallTarget := mload(add(result, 20))
-            decodedApproveTarget := mload(add(result, 40))
-            decodedSrcToken := mload(add(result, 60))
-            decodedDstToken := mload(add(result, 80))
+            decodedDstToken := mload(add(result, 20))
         }
 
-        assertEq(decodedCallTarget, callTarget_);
-        assertEq(decodedApproveTarget, approveTarget_);
-        assertEq(decodedSrcToken, USDC);
         assertEq(decodedDstToken, WETH);
     }
 
-    /// @notice Verify ApproveAndSwap inspect returns correct addresses
+    /// @notice Verify ApproveAndSwap inspect returns only dstToken
     function test_ApproveAndSwapHook_Inspect_RealAddresses() public {
         address callTarget_ = makeAddr("callTarget");
         address approveTarget_ = makeAddr("approveTarget");
@@ -259,22 +250,13 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
         bytes memory result = approveAndSwapHook.inspect(hookData);
 
-        assertEq(result.length, 80);
+        assertEq(result.length, 20);
 
-        address decodedCallTarget;
-        address decodedApproveTarget;
-        address decodedSrcToken;
         address decodedDstToken;
         assembly {
-            decodedCallTarget := mload(add(result, 20))
-            decodedApproveTarget := mload(add(result, 40))
-            decodedSrcToken := mload(add(result, 60))
-            decodedDstToken := mload(add(result, 80))
+            decodedDstToken := mload(add(result, 20))
         }
 
-        assertEq(decodedCallTarget, callTarget_);
-        assertEq(decodedApproveTarget, approveTarget_);
-        assertEq(decodedSrcToken, USDC);
         assertEq(decodedDstToken, DAI);
     }
 
