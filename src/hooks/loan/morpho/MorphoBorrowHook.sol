@@ -2,16 +2,14 @@
 pragma solidity 0.8.30;
 
 // external
-import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
+import { BaseHook } from "../../BaseHook.sol";
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoBorrowHook
 /// @author Superform Labs
@@ -25,42 +23,21 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 145);
 /// @notice         bool placeholder = _decodeBool(data, 177);
+/// @dev KNOWN LIMITATION: Borrow share price manipulation is possible in markets with less than
+///      1e4 assets borrowed. The off-chain bundler should refuse to route operations to thin markets.
 contract MorphoBorrowHook is BaseMorphoLoanHook {
-    using HookDataDecoder for bytes;
-
-    /*//////////////////////////////////////////////////////////////
-                               STORAGE
-    //////////////////////////////////////////////////////////////*/
-    address public morpho;
-    IMorphoBase public morphoBase;
-
-    uint256 private constant PRICE_SCALING_FACTOR = 1e36;
-    uint256 private constant PERCENTAGE_SCALING_FACTOR = 1e18;
-
-    struct BorrowHookLocalVars {
-        address loanToken;
-        address collateralToken;
-        address oracle;
-        address irm;
-        uint256 amount;
-        uint256 ltvRatio;
-        bool usePrevHookAmount;
-        uint256 lltv;
-    }
-
-    error LTV_RATIO_NOT_VALID();
-
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN) {
-        morpho = morpho_;
-        morphoBase = IMorphoBase(morpho_);
-    }
+
+    /// @param morpho_ Address of the Morpho Blue protocol
+    constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN) { }
 
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc BaseHook
     function _buildHookExecutions(
         address prevHook,
         address account,
@@ -78,12 +55,6 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         }
 
         if (vars.amount == 0) revert AMOUNT_NOT_VALID();
-        if (
-            vars.loanToken == address(0) || vars.collateralToken == address(0) || vars.oracle == address(0)
-                || vars.irm == address(0)
-        ) {
-            revert ADDRESS_NOT_VALID();
-        }
 
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
@@ -111,33 +82,13 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _decodeBorrowHookData(bytes memory data) internal pure returns (BorrowHookLocalVars memory vars) {
-        address loanToken = BytesLib.toAddress(data, 0);
-        address collateralToken = BytesLib.toAddress(data, 20);
-        address oracle = BytesLib.toAddress(data, 40);
-        address irm = BytesLib.toAddress(data, 60);
-        uint256 amount = _decodeAmount(data);
-        uint256 ltvRatio = BytesLib.toUint256(data, 112);
-        bool usePrevHookAmount = _decodeBool(data, 144);
-        uint256 lltv = BytesLib.toUint256(data, 145);
 
-        return BorrowHookLocalVars({
-            loanToken: loanToken,
-            collateralToken: collateralToken,
-            oracle: oracle,
-            irm: irm,
-            amount: amount,
-            ltvRatio: ltvRatio,
-            usePrevHookAmount: usePrevHookAmount,
-            lltv: lltv
-        });
-    }
-
+    /// @inheritdoc BaseHook
     function _preExecute(address, address account, bytes calldata data) internal override {
-        // store current balance
         _setOutAmount(getLoanTokenBalance(account, data), account);
     }
 
+    /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(getLoanTokenBalance(account, data) - getOutAmount(account), account);
     }
