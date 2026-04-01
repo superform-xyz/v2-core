@@ -289,10 +289,11 @@ contract KyberSwapUnitTests is Helpers {
     }
 
     function test_SwapHook_PreExecute_NativeOutput() public {
-        // Build data with outputToken = address(0) for native ETH output
+        // Build data with outputToken = NATIVE for native ETH output
+        address NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         bytes memory txData_ = _buildKyberTxData();
         bytes memory data = bytes.concat(
-            bytes20(address(0)), // outputToken = native ETH
+            bytes20(NATIVE), // outputToken = native ETH
             bytes32(swapValue),
             bytes32(inputAmount),
             bytes32(outputMin),
@@ -309,10 +310,11 @@ contract KyberSwapUnitTests is Helpers {
     }
 
     function test_ApproveAndSwapHook_PreExecute_NativeOutput() public {
+        address NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         bytes memory txData_ = _buildKyberTxData();
         bytes memory data = bytes.concat(
             bytes20(inputToken),
-            bytes20(address(0)), // outputToken = native ETH at offset 20
+            bytes20(NATIVE), // outputToken = native ETH at offset 20
             bytes32(inputAmount),
             bytes32(outputMin),
             bytes1(uint8(0)),

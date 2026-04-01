@@ -28,6 +28,8 @@ contract ApproveAndSwapKyberSwapHook is BaseHook, ISuperHookContextAware {
     IMetaAggregationRouterV2 public immutable KYBER_ROUTER;
     IScaleHelper public immutable SCALE_HELPER;
 
+    address public constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 104;
 
     constructor(address router_, address scaleHelper_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.SWAP) {
@@ -126,7 +128,7 @@ contract ApproveAndSwapKyberSwapHook is BaseHook, ISuperHookContextAware {
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
         address outputToken = BytesLib.toAddress(data, 20);
-        if (outputToken == address(0)) {
+        if (outputToken == NATIVE) {
             return account.balance;
         }
         return IERC20(outputToken).balanceOf(account);
