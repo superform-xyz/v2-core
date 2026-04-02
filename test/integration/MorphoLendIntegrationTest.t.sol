@@ -83,8 +83,6 @@ contract MorphoLendIntegrationTest is MinimalBaseIntegrationTest {
         address collateralToken,
         address oracle,
         address irm,
-        address onBehalf,
-        address recipient,
         uint256 _lltv,
         uint256 assets,
         uint256 shares
@@ -93,7 +91,7 @@ contract MorphoLendIntegrationTest is MinimalBaseIntegrationTest {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(loanToken, collateralToken, oracle, irm, onBehalf, recipient, _lltv, assets, shares);
+        return abi.encodePacked(loanToken, collateralToken, oracle, irm, _lltv, assets, shares);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -122,7 +120,7 @@ contract MorphoLendIntegrationTest is MinimalBaseIntegrationTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createMorphoWithdrawHookData(
-            CHAIN_1_USDC, CHAIN_1_WBTC, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, accountEth, accountEth, lltv, assets, shares
+            CHAIN_1_USDC, CHAIN_1_WBTC, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, lltv, assets, shares
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -245,7 +243,7 @@ contract MorphoLendIntegrationTest is MinimalBaseIntegrationTest {
             CHAIN_1_USDC, CHAIN_1_WBTC, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, secondLend, lltv, false
         );
         hooksData[1] = _createMorphoWithdrawHookData(
-            CHAIN_1_USDC, CHAIN_1_WBTC, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, accountEth, accountEth, lltv, 0, supplyShares
+            CHAIN_1_USDC, CHAIN_1_WBTC, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, lltv, 0, supplyShares
         );
 
         ISuperExecutor.ExecutorEntry memory entry =

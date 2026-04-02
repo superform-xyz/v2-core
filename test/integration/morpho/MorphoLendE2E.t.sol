@@ -175,9 +175,8 @@ contract MorphoLendE2E is Test, Constants {
     }
 
     /// @notice Build hook data for MorphoWithdrawHook
+    /// @dev onBehalf and recipient are always set to account by the hook itself
     function _buildWithdrawHookData(
-        address onBehalf,
-        address recipient,
         uint256 assets,
         uint256 shares
     )
@@ -190,11 +189,9 @@ contract MorphoLendE2E is Test, Constants {
             marketParams.collateralToken, // 20 bytes - offset 20
             marketParams.oracle, // 20 bytes - offset 40
             marketParams.irm, // 20 bytes - offset 60
-            onBehalf, // 20 bytes - offset 80
-            recipient, // 20 bytes - offset 100
-            marketParams.lltv, // 32 bytes - offset 120
-            assets, // 32 bytes - offset 152
-            shares // 32 bytes - offset 184
+            marketParams.lltv, // 32 bytes - offset 80
+            assets, // 32 bytes - offset 112
+            shares // 32 bytes - offset 144
         );
     }
 
@@ -248,7 +245,7 @@ contract MorphoLendE2E is Test, Constants {
 
     /// @notice Execute a withdraw hook through the real strategy
     function _executeWithdraw(uint256 assets, uint256 shares) internal {
-        bytes memory hookData = _buildWithdrawHookData(STRATEGY, STRATEGY, assets, shares);
+        bytes memory hookData = _buildWithdrawHookData(assets, shares);
 
         address[] memory hooks = new address[](1);
         hooks[0] = address(withdrawHook);
@@ -483,7 +480,7 @@ contract MorphoLendE2E is Test, Constants {
         deal(CHAIN_1_USDC, STRATEGY, secondLend);
 
         bytes memory lendData = _buildLendHookData(secondLend, false);
-        bytes memory withdrawData = _buildWithdrawHookData(STRATEGY, STRATEGY, 0, supplyShares);
+        bytes memory withdrawData = _buildWithdrawHookData(0, supplyShares);
 
         address[] memory hooks = new address[](2);
         hooks[0] = address(lendHook);

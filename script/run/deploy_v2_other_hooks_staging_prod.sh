@@ -233,6 +233,18 @@ if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
     exit 1
 fi
 
+# Ask for keystore password once upfront (avoids repeated prompts per chain)
+echo -ne "${WHITE}🔑 Enter keystore password for account '$ACCOUNT': ${NC}"
+read -rs KEYSTORE_PASSWORD
+echo ""
+# Write to a temp file (secure: only user-readable, auto-cleaned on exit)
+PASS_FILE=$(mktemp)
+chmod 600 "$PASS_FILE"
+echo "$KEYSTORE_PASSWORD" > "$PASS_FILE"
+unset KEYSTORE_PASSWORD
+trap 'rm -f "$PASS_FILE"' EXIT
+KEYSTORE_PASSWORD_FLAG="--password-file $PASS_FILE"
+
 print_separator
 
 # Deploy to each network
@@ -265,6 +277,7 @@ for network_def in "${NETWORKS[@]}"; do
     forge script script/DeployV2OtherHooks.s.sol:DeployV2OtherHooks \
         --sig 'run(uint256,uint64)' $FORGE_ENV $network_id \
         --account $ACCOUNT \
+        $KEYSTORE_PASSWORD_FLAG \
         --rpc-url ${!rpc_var} \
         --chain $network_id \
         --etherscan-api-key $ETHERSCANV2_API_KEY \

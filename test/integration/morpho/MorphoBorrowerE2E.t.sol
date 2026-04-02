@@ -222,10 +222,9 @@ contract MorphoBorrowerE2E is Test, Constants {
         );
     }
 
-    /// @notice Build hook data for MorphoWithdrawHook (withdrawCollateral uses withdraw under the hood)
+    /// @notice Build hook data for MorphoWithdrawHook
+    /// @dev onBehalf and recipient are always set to account by the hook itself
     function _buildWithdrawHookData(
-        address onBehalf,
-        address recipient,
         uint256 assets,
         uint256 shares
     )
@@ -238,8 +237,6 @@ contract MorphoBorrowerE2E is Test, Constants {
             marketParams.collateralToken,
             marketParams.oracle,
             marketParams.irm,
-            onBehalf,
-            recipient,
             marketParams.lltv,
             assets,
             shares

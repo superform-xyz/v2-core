@@ -1123,8 +1123,6 @@ contract MorphoLoanHooksTest is Helpers {
             collateralToken,
             address(mockOracle),
             address(mockIRM),
-            address(this),
-            address(this),
             lltv,
             amount,
             0
@@ -1142,8 +1140,6 @@ contract MorphoLoanHooksTest is Helpers {
             collateralToken,
             address(mockOracle),
             address(mockIRM),
-            address(this),
-            address(this),
             lltv,
             0,
             amount
@@ -1156,9 +1152,7 @@ contract MorphoLoanHooksTest is Helpers {
     }
 
     function test_WithdrawHook_Build_RevertIf_ZeroAssetsAndShares() public {
-        bytes memory data = _encodeWithdrawData(
-            loanToken, collateralToken, address(mockOracle), address(mockIRM), address(this), address(this), lltv, 0, 0
-        );
+        bytes memory data = _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, 0, 0);
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         withdrawHook.build(address(0), address(this), data);
     }
@@ -1169,8 +1163,6 @@ contract MorphoLoanHooksTest is Helpers {
             collateralToken,
             address(mockOracle),
             address(mockIRM),
-            address(this),
-            address(this),
             lltv,
             amount,
             0
@@ -1185,8 +1177,6 @@ contract MorphoLoanHooksTest is Helpers {
             collateralToken,
             address(mockOracle),
             address(mockIRM),
-            address(this),
-            address(this),
             lltv,
             amount,
             0
@@ -1201,8 +1191,6 @@ contract MorphoLoanHooksTest is Helpers {
             collateralToken,
             address(mockOracle),
             address(mockIRM),
-            address(this),
-            address(this),
             lltv,
             amount,
             0
@@ -1315,55 +1303,30 @@ contract MorphoLoanHooksTest is Helpers {
                     SECURITY FIX VALIDATION TESTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev P2-1: WithdrawHook outAmount must be keyed by account, not recipient
-    function test_WithdrawHook_PrePostExecute_RecipientDiffFromAccount() public {
-        address recipient = address(0xBEEF);
+    /// @dev P2-1: WithdrawHook outAmount tracks account's loanToken balance delta
+    function test_WithdrawHook_PrePostExecute_TracksAccountBalance() public {
         address account = address(this);
 
-        bytes memory data = _encodeWithdrawData(
-            loanToken, collateralToken, address(mockOracle), address(mockIRM), account, recipient, lltv, amount, 0
-        );
+        bytes memory data = _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, 0);
 
-        // Deal loanToken to recipient (Morpho sends to recipient on withdraw)
-        deal(loanToken, recipient, 100e18);
+        // Deal loanToken to account (Morpho sends to account on withdraw, since recipient == account)
+        deal(loanToken, account, 100e18);
 
-        // preExecute stores recipient's loanToken balance, keyed by account
+        // preExecute stores account's loanToken balance
         withdrawHook.preExecute(address(0), account, data);
         assertEq(withdrawHook.getOutAmount(account), 100e18);
 
-        // Simulate Morpho sending more loanToken to recipient
-        deal(loanToken, recipient, 200e18);
+        // Simulate Morpho sending more loanToken to account
+        deal(loanToken, account, 200e18);
 
         // postExecute computes received: 200e18 - 100e18 = 100e18
         withdrawHook.postExecute(address(0), account, data);
         assertEq(withdrawHook.getOutAmount(account), 100e18);
     }
 
-    /// @dev P2-1: Downstream hooks query getOutAmount(account), verify it returns correctly
-    function test_WithdrawHook_OutAmountKeyedByAccount_NotRecipient() public {
-        address recipient = address(0xBEEF);
-        address account = address(this);
-
-        bytes memory data = _encodeWithdrawData(
-            loanToken, collateralToken, address(mockOracle), address(mockIRM), account, recipient, lltv, amount, 0
-        );
-
-        deal(loanToken, recipient, 50e18);
-        withdrawHook.preExecute(address(0), account, data);
-        deal(loanToken, recipient, 150e18);
-        withdrawHook.postExecute(address(0), account, data);
-
-        // P2-1 fix: outAmount is keyed by account (not recipient), so getOutAmount(account) returns the delta
-        // Note: getOutAmount(recipient) shares context 0 in unit tests (no setExecutionContext),
-        // but in real execution flows each address gets a unique context via setExecutionContext
-        assertEq(withdrawHook.getOutAmount(account), 100e18);
-    }
-
     /// @dev P2-2: Both assets and shares non-zero should revert (XOR validation)
     function test_WithdrawHook_Build_RevertIf_BothAssetsAndSharesNonZero() public {
-        bytes memory data = _encodeWithdrawData(
-            loanToken, collateralToken, address(mockOracle), address(mockIRM), address(this), address(this), lltv, amount, amount
-        );
+        bytes memory data = _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, amount);
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         withdrawHook.build(address(0), address(this), data);
     }
@@ -1425,9 +1388,7 @@ contract MorphoLoanHooksTest is Helpers {
 
     /// @dev P3-3: Address validation in decode means inspect() also reverts on zero addresses
     function test_WithdrawHook_Inspector_RevertIf_InvalidAddresses() public {
-        bytes memory data = _encodeWithdrawData(
-            address(0), collateralToken, address(mockOracle), address(mockIRM), address(this), address(this), lltv, amount, 0
-        );
+        bytes memory data = _encodeWithdrawData(address(0), collateralToken, address(mockOracle), address(mockIRM), lltv, amount, 0);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         withdrawHook.inspect(data);
     }
@@ -1565,8 +1526,6 @@ contract MorphoLoanHooksTest is Helpers {
         address _collateralToken,
         address _oracle,
         address _irm,
-        address _onBehalf,
-        address _recipient,
         uint256 _lltv,
         uint256 _assets,
         uint256 _shares
@@ -1575,9 +1534,7 @@ contract MorphoLoanHooksTest is Helpers {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(
-            _loanToken, _collateralToken, _oracle, _irm, _onBehalf, _recipient, _lltv, _assets, _shares
-        );
+        return abi.encodePacked(_loanToken, _collateralToken, _oracle, _irm, _lltv, _assets, _shares);
     }
 
     function _encodeBorrowOnlyData(bool usePrevHook) internal view returns (bytes memory) {
