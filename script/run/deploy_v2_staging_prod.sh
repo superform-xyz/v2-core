@@ -631,7 +631,27 @@ case $analysis_result in
         ;;
 esac
 
+print_separator
 
+# Prompt for keystore password once upfront to avoid repeated prompts per chain
+echo -e "${WHITE}🔑 Enter keystore password for account '${ACCOUNT}' (will be used for all chain deployments):${NC}"
+read -s -p "" KEYSTORE_PASSWORD
+echo ""
+
+if [[ -z "$KEYSTORE_PASSWORD" ]]; then
+    echo -e "${RED}❌ Error: Empty password provided${NC}"
+    exit 1
+fi
+
+# Verify the password works by attempting to access the account
+if ! cast wallet address --account "$ACCOUNT" --password "$KEYSTORE_PASSWORD" &>/dev/null; then
+    echo -e "${RED}❌ Error: Invalid password for account '$ACCOUNT'${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✅ Keystore password verified successfully${NC}"
+
+# Ensure password is cleaned up on exit
+trap 'unset KEYSTORE_PASSWORD' EXIT
 
 print_separator
 
@@ -672,6 +692,7 @@ for network_def in "${NETWORKS[@]}"; do
     forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(bool,uint256,uint64)' false $FORGE_ENV $network_id \
         --account $ACCOUNT \
+        --password "$KEYSTORE_PASSWORD" \
         --rpc-url ${!rpc_var} \
         --chain $network_id \
         --etherscan-api-key $ETHERSCANV2_API_KEY \

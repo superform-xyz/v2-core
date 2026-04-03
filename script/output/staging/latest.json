@@ -42,7 +42,7 @@
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
         "PendleRouterRedeemHook": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
         "PendleRouterSwapHook": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D",
-        "PendleUnifiedHook": "0xbc7F29336BD315A32f537dCD8e1aA9efF66b73A3",
+        "PendleUnifiedHook": "0x03cFB56c9E5FeE55A5537b992EdebF9937C88dDA",
         "RecordPurchasePendlePTAmortizedOracleHook": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
         "RecordPurchasePendlePTAmortizedOracleHookV2": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
         "RecordRedemptionPendlePTAmortizedOracleHook": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
@@ -119,7 +119,7 @@
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
         "PendleRouterRedeemHook": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
         "PendleRouterSwapHook": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D",
-        "PendleUnifiedHook": "0xbc7F29336BD315A32f537dCD8e1aA9efF66b73A3",
+        "PendleUnifiedHook": "0x03cFB56c9E5FeE55A5537b992EdebF9937C88dDA",
         "RecordPurchasePendlePTAmortizedOracleHook": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
         "RecordPurchasePendlePTAmortizedOracleHookV2": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
         "RecordRedemptionPendlePTAmortizedOracleHook": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
@@ -196,7 +196,7 @@
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
         "PendleRouterRedeemHook": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
         "PendleRouterSwapHook": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D",
-        "PendleUnifiedHook": "0xbc7F29336BD315A32f537dCD8e1aA9efF66b73A3",
+        "PendleUnifiedHook": "0x03cFB56c9E5FeE55A5537b992EdebF9937C88dDA",
         "RecordPurchasePendlePTAmortizedOracleHook": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
         "RecordPurchasePendlePTAmortizedOracleHookV2": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
         "RecordRedemptionPendlePTAmortizedOracleHook": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
@@ -270,7 +270,7 @@
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
         "PendleRouterRedeemHook": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
         "PendleRouterSwapHook": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D",
-        "PendleUnifiedHook": "0xbc7F29336BD315A32f537dCD8e1aA9efF66b73A3",
+        "PendleUnifiedHook": "0x03cFB56c9E5FeE55A5537b992EdebF9937C88dDA",
         "RecordPurchasePendlePTAmortizedOracleHook": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
         "RecordPurchasePendlePTAmortizedOracleHookV2": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
         "RecordRedemptionPendlePTAmortizedOracleHook": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
@@ -414,7 +414,7 @@
         "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
         "PendleRouterRedeemHook": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
         "PendleRouterSwapHook": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D",
-        "PendleUnifiedHook": "0xbc7F29336BD315A32f537dCD8e1aA9efF66b73A3",
+        "PendleUnifiedHook": "0x03cFB56c9E5FeE55A5537b992EdebF9937C88dDA",
         "RecordPurchasePendlePTAmortizedOracleHook": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
         "RecordPurchasePendlePTAmortizedOracleHookV2": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
         "RecordRedemptionPendlePTAmortizedOracleHook": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
@@ -446,5 +446,5 @@
       }
     }
   },
-  "updated_at": "2026-03-19T09:47:22Z"
+  "updated_at": "2026-04-03T08:41:13Z"
 }

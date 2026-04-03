@@ -24,6 +24,8 @@ import { MockStandardizedYield } from "../../../mocks/MockStandardizedYield.sol"
 import { ISuperHook } from "../../../../src/interfaces/ISuperHook.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
+import { HookDataUpdater } from "../../../../src/libraries/HookDataUpdater.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 contract PendleUnifiedHookTest is Helpers {
     PendleUnifiedHook public hook;
@@ -198,6 +200,53 @@ contract PendleUnifiedHookTest is Helpers {
         hook.build(address(prevHook), account, data);
     }
 
+    function test_Build_SwapExactTokenForPt_RevertIf_InvalidMaxIteration() public {
+        ApproxParams memory guessPtOut = ApproxParams({
+            guessMin: 900,
+            guessMax: 1100,
+            guessOffchain: 1000,
+            maxIteration: 257, // Invalid: > MAX_ITERATIONS (256)
+            eps: 1e17
+        });
+
+        bytes memory data = _createSwapTokenForPtDataWithApprox(receiver, market, minPtOut, inputAmount, guessPtOut, false);
+
+        vm.expectRevert(PendleUnifiedHook.INVALID_MAX_ITERATION.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_SwapExactTokenForPt_MaxIterationBoundary() public view {
+        // maxIteration == 256 (MAX_ITERATIONS) should pass
+        ApproxParams memory guessPtOut = ApproxParams({
+            guessMin: 900,
+            guessMax: 1100,
+            guessOffchain: 1000,
+            maxIteration: 256,
+            eps: 1e17
+        });
+
+        bytes memory data = _createSwapTokenForPtDataWithApprox(receiver, market, minPtOut, inputAmount, guessPtOut, false);
+
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 3);
+    }
+
+    function test_Build_SwapExactTokenForPt_MaxEpsBoundary() public view {
+        // eps == 1e18 (MAX_EPS) should pass
+        ApproxParams memory guessPtOut = ApproxParams({
+            guessMin: 900,
+            guessMax: 1100,
+            guessOffchain: 1000,
+            maxIteration: 10,
+            eps: 1e18
+        });
+
+        bytes memory data = _createSwapTokenForPtDataWithApprox(receiver, market, minPtOut, inputAmount, guessPtOut, false);
+
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 3);
+    }
+
     /*//////////////////////////////////////////////////////////////
                         SWAP EXACT PT FOR TOKEN TESTS
     //////////////////////////////////////////////////////////////*/
@@ -258,6 +307,48 @@ contract PendleUnifiedHookTest is Helpers {
         hook.build(address(prevHook), account, data);
     }
 
+    function test_Build_SwapExactPtForToken_WithSwapRouting() public view {
+        // Valid swap routing with a real extRouter
+        address extRouter = address(0x1234567890AbcdEF1234567890aBcdef12345678);
+        bytes memory data = _createSwapPtForTokenDataWithSwapRouting(
+            receiver, market, exactPtIn, minTokenOut, SwapType.ODOS, extRouter, false
+        );
+
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(pendleRouter));
+    }
+
+    function test_Build_SwapExactPtForToken_WithEthWethSwapType() public view {
+        // ETH_WETH swap type can use extRouter = address(0)
+        bytes memory data = _createSwapPtForTokenDataWithSwapRouting(
+            receiver, market, exactPtIn, minTokenOut, SwapType.ETH_WETH, address(0), false
+        );
+
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 3);
+    }
+
+    function test_Build_SwapExactPtForToken_RevertIf_NoExtRouter_SwapRouting() public {
+        // Swap routing without external router should revert
+        bytes memory data = _createSwapPtForTokenDataWithSwapRouting(
+            receiver, market, exactPtIn, minTokenOut, SwapType.ODOS, address(0), false
+        );
+
+        vm.expectRevert(PendleUnifiedHook.INVALID_EXT_ROUTER.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_SwapExactPtForToken_RevertIf_ExtRouterNativeToken() public {
+        // NATIVE_TOKEN sentinel as extRouter should be rejected
+        bytes memory data = _createSwapPtForTokenDataWithSwapRouting(
+            receiver, market, exactPtIn, minTokenOut, SwapType.ODOS, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE, false
+        );
+
+        vm.expectRevert(PendleUnifiedHook.INVALID_EXT_ROUTER.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
     /*//////////////////////////////////////////////////////////////
                         REDEEM PY TO TOKEN TESTS
     //////////////////////////////////////////////////////////////*/
@@ -277,11 +368,16 @@ contract PendleUnifiedHookTest is Helpers {
         );
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        // 3 hook executions (approve PT, approve YT, redeemPyToToken) + 2 wrappers = 5
-        assertEq(executions.length, 5);
-        assertEq(executions[1].target, address(ptToken)); // PT approval
-        assertEq(executions[2].target, address(ytToken)); // YT approval
-        assertEq(executions[3].target, address(pendleRouter)); // redeemPyToToken
+        // 7 hook executions (approve(0) PT, approve PT, approve(0) YT, approve YT, redeemPyToToken, reset PT, reset
+        // YT) + 2 wrappers = 9
+        assertEq(executions.length, 9);
+        assertEq(executions[1].target, address(ptToken)); // approve(0) PT
+        assertEq(executions[2].target, address(ptToken)); // approve PT
+        assertEq(executions[3].target, address(ytToken)); // approve(0) YT
+        assertEq(executions[4].target, address(ytToken)); // approve YT
+        assertEq(executions[5].target, address(pendleRouter)); // redeemPyToToken
+        assertEq(executions[6].target, address(ptToken)); // reset PT approval
+        assertEq(executions[7].target, address(ytToken)); // reset YT approval
     }
 
     function test_Build_RedeemPyToToken_WithSwapRouting() public {
@@ -304,8 +400,8 @@ contract PendleUnifiedHookTest is Helpers {
         );
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 5);
-        assertEq(executions[3].target, address(pendleRouter));
+        assertEq(executions.length, 9);
+        assertEq(executions[5].target, address(pendleRouter));
     }
 
     function test_Build_RedeemPyToToken_WithPrevHookAmount() public {
@@ -323,7 +419,7 @@ contract PendleUnifiedHookTest is Helpers {
         prevHook.setOutAmount(5000, account);
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 5);
+        assertEq(executions.length, 9);
     }
 
     function test_Build_RedeemPyToToken_RevertIf_InvalidYT() public {
@@ -456,6 +552,63 @@ contract PendleUnifiedHookTest is Helpers {
         hook.build(address(prevHook), account, data);
     }
 
+    function test_Build_RedeemPyToToken_RevertIf_ExtRouterNativeToken() public {
+        // NATIVE_TOKEN sentinel as extRouter should be rejected
+        bytes memory data = _createRedeemData(
+            market,
+            redeemAmount,
+            address(inputToken),
+            address(outputToken), // Valid tokenRedeemSy
+            minTokenOut,
+            SwapType.ODOS,
+            0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE, // NATIVE_TOKEN sentinel
+            false
+        );
+
+        vm.expectRevert(PendleUnifiedHook.INVALID_EXT_ROUTER.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_RedeemPyToToken_VerifyApprovePattern() public view {
+        // Verify the full approve-to-zero pattern: approve(0)->approve(amt)->approve(0)->approve(amt)->redeem->approve(0)->approve(0)
+        bytes memory data = _createRedeemData(
+            market, redeemAmount, address(outputToken), address(outputToken), minTokenOut, SwapType.NONE, address(0), false
+        );
+
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 9); // 7 hook executions + 2 wrappers
+
+        // executions[0] = preExecute (BaseHook wrapper)
+        // executions[1] = approve(0) PT
+        assertEq(executions[1].target, address(ptToken));
+        assertEq(executions[1].callData, abi.encodeCall(IERC20.approve, (address(pendleRouter), 0)));
+
+        // executions[2] = approve(redeemAmount) PT
+        assertEq(executions[2].target, address(ptToken));
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (address(pendleRouter), redeemAmount)));
+
+        // executions[3] = approve(0) YT
+        assertEq(executions[3].target, address(ytToken));
+        assertEq(executions[3].callData, abi.encodeCall(IERC20.approve, (address(pendleRouter), 0)));
+
+        // executions[4] = approve(redeemAmount) YT
+        assertEq(executions[4].target, address(ytToken));
+        assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (address(pendleRouter), redeemAmount)));
+
+        // executions[5] = redeemPyToToken
+        assertEq(executions[5].target, address(pendleRouter));
+
+        // executions[6] = reset approve(0) PT
+        assertEq(executions[6].target, address(ptToken));
+        assertEq(executions[6].callData, abi.encodeCall(IERC20.approve, (address(pendleRouter), 0)));
+
+        // executions[7] = reset approve(0) YT
+        assertEq(executions[7].target, address(ytToken));
+        assertEq(executions[7].callData, abi.encodeCall(IERC20.approve, (address(pendleRouter), 0)));
+
+        // executions[8] = postExecute (BaseHook wrapper)
+    }
+
     function test_Build_RedeemPyToToken_WithEthWethSwapType() public view {
         // ETH_WETH swap type legitimately uses extRouter = address(0)
         // because it performs internal WETH wrap/unwrap operations
@@ -472,7 +625,7 @@ contract PendleUnifiedHookTest is Helpers {
 
         // Should NOT revert - ETH_WETH is allowed with extRouter = address(0)
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 5); // 3 hook executions + 2 wrappers
+        assertEq(executions.length, 9); // 7 hook executions + 2 wrappers
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -648,6 +801,313 @@ contract PendleUnifiedHookTest is Helpers {
         assertEq(executions.length, 3);
         // The execution value should be the explicit value
         assertEq(executions[1].value, explicitValue);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    MIN-OUT SCALING TESTS (usePrevHookAmount)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Path 1: redeemPyToToken - minTokenOut scales up when prevHookAmount > original
+    function test_MinOutScaling_Redeem_Increase() public {
+        uint256 originalAmount = redeemAmount; // 1500
+        uint256 prevHookAmount = 3000; // 2x increase
+
+        bytes memory data = _createRedeemData(
+            market, originalAmount, address(outputToken), address(outputToken), minTokenOut, SwapType.NONE, address(0), true
+        );
+
+        prevHook.setOutAmount(prevHookAmount, account);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        // Decode redeemPyToToken call (index 5: after preExecute, approve(0)PT, approvePT, approve(0)YT, approveYT)
+        bytes memory args = _removeSelector(executions[5].callData);
+        (,,, TokenOutput memory output) = abi.decode(args, (address, address, uint256, TokenOutput));
+
+        uint256 expectedMinOut = HookDataUpdater.getUpdatedOutputAmount(prevHookAmount, originalAmount, minTokenOut);
+        assertEq(output.minTokenOut, expectedMinOut, "Redeem: minTokenOut not scaled on increase");
+        assertEq(expectedMinOut, 2000, "Expected 2x scaling");
+    }
+
+    /// @dev Path 1: redeemPyToToken - minTokenOut scales down when prevHookAmount < original
+    function test_MinOutScaling_Redeem_Decrease() public {
+        uint256 originalAmount = redeemAmount; // 1500
+        uint256 prevHookAmount = 750; // 50% decrease
+
+        bytes memory data = _createRedeemData(
+            market, originalAmount, address(outputToken), address(outputToken), minTokenOut, SwapType.NONE, address(0), true
+        );
+
+        prevHook.setOutAmount(prevHookAmount, account);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[5].callData);
+        (,,, TokenOutput memory output) = abi.decode(args, (address, address, uint256, TokenOutput));
+
+        uint256 expectedMinOut = HookDataUpdater.getUpdatedOutputAmount(prevHookAmount, originalAmount, minTokenOut);
+        assertEq(output.minTokenOut, expectedMinOut, "Redeem: minTokenOut not scaled on decrease");
+        assertEq(expectedMinOut, 500, "Expected 50% scaling");
+    }
+
+    /// @dev Path 1: redeemPyToToken - minTokenOut unchanged when prevHookAmount == original
+    function test_MinOutScaling_Redeem_Equal() public {
+        uint256 originalAmount = redeemAmount; // 1500
+
+        bytes memory data = _createRedeemData(
+            market, originalAmount, address(outputToken), address(outputToken), minTokenOut, SwapType.NONE, address(0), true
+        );
+
+        prevHook.setOutAmount(originalAmount, account);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[5].callData);
+        (,,, TokenOutput memory output) = abi.decode(args, (address, address, uint256, TokenOutput));
+
+        assertEq(output.minTokenOut, minTokenOut, "Redeem: minTokenOut should be unchanged when equal");
+    }
+
+    /// @dev Path 2: swapExactTokenForPt - minPtOut scales up when prevHookAmount > original
+    function test_MinOutScaling_SwapTokenForPt_Increase() public {
+        uint256 originalAmount = inputAmount; // 1500
+        uint256 prevHookAmount = 3000; // 2x increase
+
+        bytes memory data = _createSwapTokenForPtData(receiver, market, minPtOut, originalAmount, true);
+
+        prevHook.setOutAmount(prevHookAmount, account);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        // Decode swapExactTokenForPt call (index 1: after preExecute)
+        bytes memory args = _removeSelector(executions[1].callData);
+        (,, uint256 actualMinPtOut,, TokenInput memory actualInput,) =
+            abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+
+        uint256 expectedMinPtOut = HookDataUpdater.getUpdatedOutputAmount(prevHookAmount, originalAmount, minPtOut);
+        assertEq(actualMinPtOut, expectedMinPtOut, "SwapTokenForPt: minPtOut not scaled on increase");
+        assertEq(expectedMinPtOut, 2000, "Expected 2x scaling");
+        assertEq(actualInput.netTokenIn, prevHookAmount, "SwapTokenForPt: netTokenIn should be prevHookAmount");
+    }
+
+    /// @dev Path 2: swapExactTokenForPt - minPtOut scales down when prevHookAmount < original
+    function test_MinOutScaling_SwapTokenForPt_Decrease() public {
+        uint256 originalAmount = inputAmount; // 1500
+        uint256 prevHookAmount = 750; // 50% decrease
+
+        bytes memory data = _createSwapTokenForPtData(receiver, market, minPtOut, originalAmount, true);
+
+        prevHook.setOutAmount(prevHookAmount, account);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[1].callData);
+        (,, uint256 actualMinPtOut,, TokenInput memory actualInput,) =
+            abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+
+        uint256 expectedMinPtOut = HookDataUpdater.getUpdatedOutputAmount(prevHookAmount, originalAmount, minPtOut);
+        assertEq(actualMinPtOut, expectedMinPtOut, "SwapTokenForPt: minPtOut not scaled on decrease");
+        assertEq(expectedMinPtOut, 500, "Expected 50% scaling");
+        assertEq(actualInput.netTokenIn, prevHookAmount, "SwapTokenForPt: netTokenIn should be prevHookAmount");
+    }
+
+    /// @dev Path 2: swapExactTokenForPt - minPtOut unchanged when prevHookAmount == original
+    function test_MinOutScaling_SwapTokenForPt_Equal() public {
+        uint256 originalAmount = inputAmount; // 1500
+
+        bytes memory data = _createSwapTokenForPtData(receiver, market, minPtOut, originalAmount, true);
+
+        prevHook.setOutAmount(originalAmount, account);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[1].callData);
+        (,, uint256 actualMinPtOut,, TokenInput memory actualInput,) =
+            abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+
+        assertEq(actualMinPtOut, minPtOut, "SwapTokenForPt: minPtOut should be unchanged when equal");
+        assertEq(actualInput.netTokenIn, originalAmount, "SwapTokenForPt: netTokenIn should be unchanged");
+    }
+
+    /// @dev Path 3: swapExactPtForToken - minTokenOut scales up when prevHookAmount > original
+    function test_MinOutScaling_SwapPtForToken_Increase() public {
+        uint256 originalAmount = exactPtIn; // 2000
+        uint256 prevHookAmount = 4000; // 2x increase
+
+        bytes memory data = _createSwapPtForTokenData(receiver, market, originalAmount, minTokenOut, true);
+
+        prevHook.setOutAmount(prevHookAmount, account);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        // Decode swapExactPtForToken call (index 1: after preExecute)
+        bytes memory args = _removeSelector(executions[1].callData);
+        (,,, TokenOutput memory actualOutput,) =
+            abi.decode(args, (address, address, uint256, TokenOutput, LimitOrderData));
+
+        uint256 expectedMinOut = HookDataUpdater.getUpdatedOutputAmount(prevHookAmount, originalAmount, minTokenOut);
+        assertEq(actualOutput.minTokenOut, expectedMinOut, "SwapPtForToken: minTokenOut not scaled on increase");
+        assertEq(expectedMinOut, 2000, "Expected 2x scaling");
+    }
+
+    /// @dev Path 3: swapExactPtForToken - minTokenOut scales down when prevHookAmount < original
+    function test_MinOutScaling_SwapPtForToken_Decrease() public {
+        uint256 originalAmount = exactPtIn; // 2000
+        uint256 prevHookAmount = 1000; // 50% decrease
+
+        bytes memory data = _createSwapPtForTokenData(receiver, market, originalAmount, minTokenOut, true);
+
+        prevHook.setOutAmount(prevHookAmount, account);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[1].callData);
+        (,,, TokenOutput memory actualOutput,) =
+            abi.decode(args, (address, address, uint256, TokenOutput, LimitOrderData));
+
+        uint256 expectedMinOut = HookDataUpdater.getUpdatedOutputAmount(prevHookAmount, originalAmount, minTokenOut);
+        assertEq(actualOutput.minTokenOut, expectedMinOut, "SwapPtForToken: minTokenOut not scaled on decrease");
+        assertEq(expectedMinOut, 500, "Expected 50% scaling");
+    }
+
+    /// @dev Path 3: swapExactPtForToken - minTokenOut unchanged when prevHookAmount == original
+    function test_MinOutScaling_SwapPtForToken_Equal() public {
+        uint256 originalAmount = exactPtIn; // 2000
+
+        bytes memory data = _createSwapPtForTokenData(receiver, market, originalAmount, minTokenOut, true);
+
+        prevHook.setOutAmount(originalAmount, account);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[1].callData);
+        (,,, TokenOutput memory actualOutput,) =
+            abi.decode(args, (address, address, uint256, TokenOutput, LimitOrderData));
+
+        assertEq(actualOutput.minTokenOut, minTokenOut, "SwapPtForToken: minTokenOut should be unchanged when equal");
+    }
+
+    /// @dev Defense-in-depth: verify near-zero scaling still produces non-zero min values
+    /// The HookDataUpdater formula with PRECISION=1e5 preserves at least 1 when all inputs > 0
+    function test_MinOutScaling_Redeem_NearZero() public {
+        uint256 originalAmount = redeemAmount; // 1500
+        uint256 prevHookAmount = 1; // Extreme decrease
+
+        bytes memory data = _createRedeemData(
+            market, originalAmount, address(outputToken), address(outputToken), minTokenOut, SwapType.NONE, address(0), true
+        );
+
+        prevHook.setOutAmount(prevHookAmount, account);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[5].callData);
+        (,,, TokenOutput memory output) = abi.decode(args, (address, address, uint256, TokenOutput));
+
+        // Even with extreme scaling down, the result should still be > 0
+        assertGt(output.minTokenOut, 0, "Redeem: near-zero scaling should still produce non-zero min");
+    }
+
+    function test_MinOutScaling_SwapTokenForPt_NearZero() public {
+        uint256 originalAmount = inputAmount; // 1500
+        uint256 prevHookAmount = 1; // Extreme decrease
+
+        bytes memory data = _createSwapTokenForPtData(receiver, market, minPtOut, originalAmount, true);
+
+        prevHook.setOutAmount(prevHookAmount, account);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[1].callData);
+        (,, uint256 actualMinPtOut,,,) =
+            abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+
+        assertGt(actualMinPtOut, 0, "SwapTokenForPt: near-zero scaling should still produce non-zero min");
+    }
+
+    function test_MinOutScaling_SwapPtForToken_NearZero() public {
+        uint256 originalAmount = exactPtIn; // 2000
+        uint256 prevHookAmount = 1; // Extreme decrease
+
+        bytes memory data = _createSwapPtForTokenData(receiver, market, originalAmount, minTokenOut, true);
+
+        prevHook.setOutAmount(prevHookAmount, account);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[1].callData);
+        (,,, TokenOutput memory actualOutput,) =
+            abi.decode(args, (address, address, uint256, TokenOutput, LimitOrderData));
+
+        assertGt(actualOutput.minTokenOut, 0, "SwapPtForToken: near-zero scaling should still produce non-zero min");
+    }
+
+    /// @dev Fuzz: redeemPyToToken scaling matches HookDataUpdater formula for any prevHookAmount
+    function testFuzz_MinOutScaling_Redeem(uint256 prevHookAmount) public {
+        prevHookAmount = bound(prevHookAmount, 1, type(uint128).max);
+
+        bytes memory data = _createRedeemData(
+            market, redeemAmount, address(outputToken), address(outputToken), minTokenOut, SwapType.NONE, address(0), true
+        );
+
+        prevHook.setOutAmount(prevHookAmount, account);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[5].callData);
+        (,,, TokenOutput memory output) = abi.decode(args, (address, address, uint256, TokenOutput));
+
+        uint256 expectedMinOut = HookDataUpdater.getUpdatedOutputAmount(prevHookAmount, redeemAmount, minTokenOut);
+        assertEq(output.minTokenOut, expectedMinOut, "Fuzz Redeem: minTokenOut scaling mismatch");
+    }
+
+    /// @dev Fuzz: swapExactTokenForPt scaling matches HookDataUpdater formula for any prevHookAmount
+    function testFuzz_MinOutScaling_SwapTokenForPt(uint256 prevHookAmount) public {
+        prevHookAmount = bound(prevHookAmount, 1, type(uint128).max);
+
+        bytes memory data = _createSwapTokenForPtData(receiver, market, minPtOut, inputAmount, true);
+
+        prevHook.setOutAmount(prevHookAmount, account);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[1].callData);
+        (,, uint256 actualMinPtOut,,,) =
+            abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+
+        uint256 expectedMinPtOut = HookDataUpdater.getUpdatedOutputAmount(prevHookAmount, inputAmount, minPtOut);
+        assertEq(actualMinPtOut, expectedMinPtOut, "Fuzz SwapTokenForPt: minPtOut scaling mismatch");
+    }
+
+    /// @dev Fuzz: swapExactPtForToken scaling matches HookDataUpdater formula for any prevHookAmount
+    function testFuzz_MinOutScaling_SwapPtForToken(uint256 prevHookAmount) public {
+        prevHookAmount = bound(prevHookAmount, 1, type(uint128).max);
+
+        bytes memory data = _createSwapPtForTokenData(receiver, market, exactPtIn, minTokenOut, true);
+
+        prevHook.setOutAmount(prevHookAmount, account);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[1].callData);
+        (,,, TokenOutput memory actualOutput,) =
+            abi.decode(args, (address, address, uint256, TokenOutput, LimitOrderData));
+
+        uint256 expectedMinOut = HookDataUpdater.getUpdatedOutputAmount(prevHookAmount, exactPtIn, minTokenOut);
+        assertEq(actualOutput.minTokenOut, expectedMinOut, "Fuzz SwapPtForToken: minTokenOut scaling mismatch");
+    }
+
+    /// @dev Verifies that min-out values are NOT modified when usePrevHookAmount is false
+    function test_MinOutNotScaled_WhenNotUsingPrevHookAmount() public view {
+        // Path 1: Redeem
+        bytes memory redeemData = _createRedeemData(
+            market, redeemAmount, address(outputToken), address(outputToken), minTokenOut, SwapType.NONE, address(0), false
+        );
+        Execution[] memory redeemExecs = hook.build(address(prevHook), account, redeemData);
+        bytes memory redeemArgs = _removeSelector(redeemExecs[5].callData);
+        (,,, TokenOutput memory redeemOutput) = abi.decode(redeemArgs, (address, address, uint256, TokenOutput));
+        assertEq(redeemOutput.minTokenOut, minTokenOut, "Redeem: minTokenOut should not scale without usePrevHookAmount");
+
+        // Path 2: SwapTokenForPt
+        bytes memory swapInData = _createSwapTokenForPtData(receiver, market, minPtOut, inputAmount, false);
+        Execution[] memory swapInExecs = hook.build(address(prevHook), account, swapInData);
+        bytes memory swapInArgs = _removeSelector(swapInExecs[1].callData);
+        (,, uint256 actualMinPtOut,,,) =
+            abi.decode(swapInArgs, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+        assertEq(actualMinPtOut, minPtOut, "SwapTokenForPt: minPtOut should not scale without usePrevHookAmount");
+
+        // Path 3: SwapPtForToken
+        bytes memory swapOutData = _createSwapPtForTokenData(receiver, market, exactPtIn, minTokenOut, false);
+        Execution[] memory swapOutExecs = hook.build(address(prevHook), account, swapOutData);
+        bytes memory swapOutArgs = _removeSelector(swapOutExecs[1].callData);
+        (,,, TokenOutput memory swapOutOutput,) =
+            abi.decode(swapOutArgs, (address, address, uint256, TokenOutput, LimitOrderData));
+        assertEq(swapOutOutput.minTokenOut, minTokenOut, "SwapPtForToken: minTokenOut should not scale without usePrevHookAmount");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -963,6 +1423,43 @@ contract PendleUnifiedHookTest is Helpers {
         );
 
         return abi.encodePacked(bytes32(0), yieldSource_, bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)), uint256(0), txData);
+    }
+
+    function _createSwapPtForTokenDataWithSwapRouting(
+        address receiver_,
+        address market_,
+        uint256 exactPtIn_,
+        uint256 minTokenOut_,
+        SwapType swapType_,
+        address extRouter_,
+        bool usePrevHookAmount_
+    ) internal view returns (bytes memory) {
+        TokenOutput memory output = TokenOutput({
+            tokenOut: address(outputToken),
+            minTokenOut: minTokenOut_,
+            tokenRedeemSy: address(outputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({
+                swapType: swapType_,
+                extRouter: extRouter_,
+                extCalldata: "",
+                needScale: false
+            })
+        });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(0),
+            epsSkipMarket: 0,
+            normalFills: new FillOrderParams[](0),
+            flashFills: new FillOrderParams[](0),
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactPtForToken.selector, receiver_, market_, exactPtIn_, output, limit
+        );
+
+        return abi.encodePacked(bytes32(0), market_, bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)), uint256(0), txData);
     }
 
     function _createRedeemData(
@@ -1513,5 +2010,13 @@ contract PendleUnifiedHookTest is Helpers {
         );
 
         return abi.encodePacked(bytes32(0), market_, bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)), explicitValue_, txData);
+    }
+
+    /// @dev Removes the first 4 bytes (selector) from calldata for abi.decode
+    function _removeSelector(bytes memory data) internal pure returns (bytes memory result) {
+        result = new bytes(data.length - 4);
+        for (uint256 i; i < result.length; ++i) {
+            result[i] = data[i + 4];
+        }
     }
 }
