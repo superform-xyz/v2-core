@@ -1330,6 +1330,17 @@ deploy_error_handler() {
 # Set trap to ensure S3 files are preserved on any unexpected error
 trap 'log "ERROR" "Unexpected error occurred, preserving S3 file"; exit 1' ERR
 
+###################################################################################
+# Keystore Password (prompt once, reuse for all chains)
+###################################################################################
+if [ -t 0 ]; then
+    # Interactive terminal: prompt for password once
+    read -s -p "Enter keystore password: " KEYSTORE_PASSWORD
+    echo ""
+    export FOUNDRY_PASSWORD="$KEYSTORE_PASSWORD"
+    log "INFO" "Keystore password cached for all deployments"
+fi
+
 # Deploy all networks - Core contracts only
 deploy_contracts() {
     # Deploy Core contracts on Ethereum Mainnet
@@ -1347,7 +1358,7 @@ deploy_contracts() {
         deploy_error_handler "Ethereum"
     fi
     wait
-    
+
     # Deploy Core contracts on Base Mainnet
     log "INFO" "Deploying V2 Core on Base Mainnet..."
     if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
@@ -1363,7 +1374,7 @@ deploy_contracts() {
         deploy_error_handler "Base"
     fi
     wait
-    
+
     # Deploy Core contracts on Optimism Mainnet
     log "INFO" "Deploying V2 Core on Optimism Mainnet..."
     if ! forge script script/DeployV2Core.s.sol:DeployV2Core \

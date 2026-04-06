@@ -1008,7 +1008,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             __checkContract(
                 SWAP_1INCH_HOOK_KEY,
                 __getSalt(SWAP_1INCH_HOOK_KEY),
-                abi.encode(configuration.aggregationRouters[chainId]),
+                abi.encode(configuration.aggregationRouters[chainId], configuration.nativeTokens[chainId]),
                 env
             );
         } else {
@@ -1038,13 +1038,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             __checkContract(
                 SWAP_KYBERSWAP_HOOK_KEY,
                 __getSalt(SWAP_KYBERSWAP_HOOK_KEY),
-                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId]),
+                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId], configuration.nativeTokens[chainId]),
                 env
             );
             __checkContract(
                 APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY,
                 __getSalt(APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY),
-                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId]),
+                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId], configuration.nativeTokens[chainId]),
                 env
             );
         } else {
@@ -1294,13 +1294,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             __checkContract(
                 SWAP_KYBERSWAP_HOOK_KEY,
                 __getSalt(SWAP_KYBERSWAP_HOOK_KEY),
-                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId]),
+                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId], configuration.nativeTokens[chainId]),
                 env
             );
             __checkContract(
                 APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY,
                 __getSalt(APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY),
-                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId]),
+                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId], configuration.nativeTokens[chainId]),
                 env
             );
         } else {
@@ -2162,7 +2162,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             require(configuration.aggregationRouters[chainId] != address(0), "SWAP_1INCH_HOOK_ROUTER_PARAM_ZERO");
             require(configuration.aggregationRouters[chainId].code.length > 0, "SWAP_1INCH_HOOK_ROUTER_NOT_DEPLOYED");
             hooks[17] = _createSafeHookDeploymentWithArgs(
-                SWAP_1INCH_HOOK_KEY, "Swap1InchHook", env, abi.encode(configuration.aggregationRouters[chainId])
+                SWAP_1INCH_HOOK_KEY,
+                "Swap1InchHook",
+                env,
+                abi.encode(configuration.aggregationRouters[chainId], configuration.nativeTokens[chainId])
             );
         } else {
             console2.log(" SKIPPED Swap1InchHook deployment: Not available on chain", chainId);
@@ -2457,13 +2460,21 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 SWAP_KYBERSWAP_HOOK_KEY,
                 "SwapKyberSwapHook",
                 env,
-                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId])
+                abi.encode(
+                    configuration.kyberSwapRouters[chainId],
+                    configuration.kyberSwapScaleHelpers[chainId],
+                    configuration.nativeTokens[chainId]
+                )
             );
             hooks[53] = _createSafeHookDeploymentWithArgs(
                 APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY,
                 "ApproveAndSwapKyberSwapHook",
                 env,
-                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId])
+                abi.encode(
+                    configuration.kyberSwapRouters[chainId],
+                    configuration.kyberSwapScaleHelpers[chainId],
+                    configuration.nativeTokens[chainId]
+                )
             );
         } else {
             console2.log(" SKIPPED KyberSwap Hooks deployment: Not available on chain", chainId);

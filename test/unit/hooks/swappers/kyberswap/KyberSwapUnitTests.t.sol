@@ -49,8 +49,8 @@ contract KyberSwapUnitTests is Helpers {
 
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, inputToken);
 
-        swapHook = new SwapKyberSwapHook(kyberRouter, address(0));
-        approveAndSwapHook = new ApproveAndSwapKyberSwapHook(kyberRouter, address(0));
+        swapHook = new SwapKyberSwapHook(kyberRouter, address(0), 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        approveAndSwapHook = new ApproveAndSwapKyberSwapHook(kyberRouter, address(0), 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -69,12 +69,12 @@ contract KyberSwapUnitTests is Helpers {
 
     function test_SwapHook_Constructor_RevertIf_AddressZero() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new SwapKyberSwapHook(address(0), address(0));
+        new SwapKyberSwapHook(address(0), address(0), 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     }
 
     function test_ApproveAndSwapHook_Constructor_RevertIf_AddressZero() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new ApproveAndSwapKyberSwapHook(address(0), address(0));
+        new ApproveAndSwapKyberSwapHook(address(0), address(0), 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     }
 
     /*//////////////////////////////////////////////////////////////

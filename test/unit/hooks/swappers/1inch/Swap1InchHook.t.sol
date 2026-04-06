@@ -101,7 +101,7 @@ contract Swap1InchHookTest is Helpers {
         // Create a mock router for testing
         mockRouter = makeAddr("mockRouter");
 
-        hook = new Swap1InchHook(mockRouter);
+        hook = new Swap1InchHook(mockRouter, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     }
 
     function test_Constructor() public view {
@@ -111,7 +111,7 @@ contract Swap1InchHookTest is Helpers {
 
     function test_Constructor_RevertIf_AddressZero() public {
         vm.expectRevert(Swap1InchHook.ZERO_ADDRESS.selector);
-        new Swap1InchHook(address(0));
+        new Swap1InchHook(address(0), 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     }
 
     function test_Build_GenericSwap_MsgValueZeroWhenUsePrevHookAmount() public view {
@@ -632,7 +632,7 @@ contract Swap1InchHookTest is Helpers {
         vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY));
 
         // Deploy hook
-        Swap1InchHook testHook = new Swap1InchHook(mockRouter);
+        Swap1InchHook testHook = new Swap1InchHook(mockRouter, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
         address payable destinationReceiver = payable(address(0));
         Executor executor = new Executor();

@@ -45,8 +45,8 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
         account = address(this);
 
-        swapHook = new SwapKyberSwapHook(KYBER_ROUTER, SCALE_HELPER);
-        approveAndSwapHook = new ApproveAndSwapKyberSwapHook(KYBER_ROUTER, SCALE_HELPER);
+        swapHook = new SwapKyberSwapHook(KYBER_ROUTER, SCALE_HELPER, NATIVE);
+        approveAndSwapHook = new ApproveAndSwapKyberSwapHook(KYBER_ROUTER, SCALE_HELPER, NATIVE);
     }
 
     /*//////////////////////////////////////////////////////////////
