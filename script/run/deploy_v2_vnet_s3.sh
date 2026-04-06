@@ -1333,11 +1333,10 @@ trap 'log "ERROR" "Unexpected error occurred, preserving S3 file"; exit 1' ERR
 ###################################################################################
 # Keystore Password (prompt once, reuse for all chains)
 ###################################################################################
+KEYSTORE_PASSWORD=""
 if [ -t 0 ]; then
-    # Interactive terminal: prompt for password once
     read -s -p "Enter keystore password: " KEYSTORE_PASSWORD
     echo ""
-    export FOUNDRY_PASSWORD="$KEYSTORE_PASSWORD"
     log "INFO" "Keystore password cached for all deployments"
 fi
 
@@ -1345,7 +1344,7 @@ fi
 deploy_contracts() {
     # Deploy Core contracts on Ethereum Mainnet
     log "INFO" "Deploying V2 Core on Ethereum Mainnet..."
-    if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
+    if ! echo "$KEYSTORE_PASSWORD" | forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(uint256,uint64,string)' $FORGE_ENV $ETH_CHAIN_ID "$ETH_SALT" \
         --verify \
         --verifier-url $ETH_MAINNET_VERIFIER_URL \
@@ -1361,7 +1360,7 @@ deploy_contracts() {
 
     # Deploy Core contracts on Base Mainnet
     log "INFO" "Deploying V2 Core on Base Mainnet..."
-    if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
+    if ! echo "$KEYSTORE_PASSWORD" | forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(uint256,uint64,string)' $FORGE_ENV $BASE_CHAIN_ID "$BASE_SALT" \
         --verify \
         --verifier-url $BASE_MAINNET_VERIFIER_URL \
@@ -1377,7 +1376,7 @@ deploy_contracts() {
 
     # Deploy Core contracts on Optimism Mainnet
     log "INFO" "Deploying V2 Core on Optimism Mainnet..."
-    if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
+    if ! echo "$KEYSTORE_PASSWORD" | forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(uint256,uint64,string)' $FORGE_ENV $OPTIMISM_CHAIN_ID "$OPTIMISM_SALT" \
         --verify \
         --verifier-url $OPTIMISM_MAINNET_VERIFIER_URL \
@@ -1638,7 +1637,7 @@ if [ "$BRANCH_NAME" != "demo" ] || ([ "$BRANCH_NAME" = "demo" ] && [ "$REDEPLOY_
         esac
         
         log "INFO" "Configuring SuperLedger on $network_slug..."
-        if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
+        if ! echo "$KEYSTORE_PASSWORD" | forge script script/DeployV2Core.s.sol:DeployV2Core \
             --sig 'runLedgerConfigurations(uint256,uint64,string,string)' $FORGE_ENV $network "$salt" "$BRANCH_NAME" \
             --rpc-url "$admin_rpc" \
             --chain $network \
