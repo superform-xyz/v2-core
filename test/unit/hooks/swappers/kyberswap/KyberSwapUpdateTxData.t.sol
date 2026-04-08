@@ -48,8 +48,8 @@ contract KyberSwapUpdateTxDataTest is Helpers {
 
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, inputToken);
 
-        swapHook = new SwapKyberSwapHook(kyberRouter, address(0));
-        approveAndSwapHook = new ApproveAndSwapKyberSwapHook(kyberRouter, address(0));
+        swapHook = new SwapKyberSwapHook(kyberRouter, address(0), 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        approveAndSwapHook = new ApproveAndSwapKyberSwapHook(kyberRouter, address(0), 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     }
 
     /// @notice Tests that when usePrevHookAmount=true and prevAmount doubles,
@@ -468,10 +468,10 @@ contract KyberSwapScaleHelperTest is Helpers {
         address scaleHelperFail = address(new MockScaleHelperFail());
         address scaleHelperRevert = address(new MockScaleHelperRevert());
 
-        swapHookWithScaleHelper = new SwapKyberSwapHook(kyberRouter, scaleHelperSuccess);
-        swapHookWithFailingScaleHelper = new SwapKyberSwapHook(kyberRouter, scaleHelperFail);
-        swapHookWithRevertingScaleHelper = new SwapKyberSwapHook(kyberRouter, scaleHelperRevert);
-        approveHookWithScaleHelper = new ApproveAndSwapKyberSwapHook(kyberRouter, scaleHelperSuccess);
+        swapHookWithScaleHelper = new SwapKyberSwapHook(kyberRouter, scaleHelperSuccess, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapHookWithFailingScaleHelper = new SwapKyberSwapHook(kyberRouter, scaleHelperFail, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapHookWithRevertingScaleHelper = new SwapKyberSwapHook(kyberRouter, scaleHelperRevert, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        approveHookWithScaleHelper = new ApproveAndSwapKyberSwapHook(kyberRouter, scaleHelperSuccess, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     }
 
     /// @notice When ScaleHelper succeeds, its output should be used (verified via clientData marker)

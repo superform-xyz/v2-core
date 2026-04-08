@@ -58,7 +58,7 @@ contract Swap1InchHookBugTest is Test {
         mockRouter = makeAddr("mockRouter");
         mockPair = makeAddr("mockPair");
 
-        hook = new Swap1InchHook(mockRouter);
+        hook = new Swap1InchHook(mockRouter, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     }
 
     function test_Bug_UsePrevHookAmount_UpdatesAmountAndMinReturn() public {

@@ -424,7 +424,7 @@ contract SuperExecutor_sameChainFlow is
         address executor = address(new Mock1InchRouter());
         vm.label(executor, "Mock1InchRouter");
 
-        Swap1InchHook hook = new Swap1InchHook(executor);
+        Swap1InchHook hook = new Swap1InchHook(executor, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
         vm.label(address(hook), SWAP_1INCH_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](1);
@@ -462,7 +462,7 @@ contract SuperExecutor_sameChainFlow is
         address executor = address(new Mock1InchRouter());
         vm.label(executor, "Mock1InchRouter");
 
-        Swap1InchHook hook = new Swap1InchHook(executor);
+        Swap1InchHook hook = new Swap1InchHook(executor, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
         vm.label(address(hook), SWAP_1INCH_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](1);
@@ -503,7 +503,7 @@ contract SuperExecutor_sameChainFlow is
         address executor = address(new Mock1InchRouter());
         vm.label(executor, "Mock1InchRouter");
 
-        Swap1InchHook hook = new Swap1InchHook(executor);
+        Swap1InchHook hook = new Swap1InchHook(executor, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
         vm.label(address(hook), SWAP_1INCH_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](1);

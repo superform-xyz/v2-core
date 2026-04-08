@@ -34,7 +34,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
     uint256 private constant PRECISION = 1e5;
 
-    address public constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address public immutable NATIVE;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -49,12 +49,13 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
     error PARTIAL_FILL_NOT_ALLOWED();
     error INVALID_DESTINATION_TOKEN();
 
-    constructor(address aggregationRouter_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.SWAP) {
+    constructor(address aggregationRouter_, address nativeToken_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.SWAP) {
         if (aggregationRouter_ == address(0)) {
             revert ZERO_ADDRESS();
         }
 
         AGGREGATION_ROUTER = I1InchAggregationRouterV6(aggregationRouter_);
+        NATIVE = nativeToken_;
     }
 
     /*//////////////////////////////////////////////////////////////
