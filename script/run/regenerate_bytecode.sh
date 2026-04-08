@@ -149,6 +149,7 @@ HOOK_CONTRACTS=(
     "ApproveAndSwapSparkPSMExactOutHook"
     "SwapKyberSwapHook"
     "ApproveAndSwapKyberSwapHook"
+    "MetaMorphoReallocateHook"
 )
 
 # Oracle contracts from accounting/oracles

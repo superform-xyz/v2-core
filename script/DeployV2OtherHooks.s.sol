@@ -24,6 +24,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address morphoRepayHook;
         address morphoRepayAndWithdrawHook;
         address morphoBorrowHook;
+        address metaMorphoReallocateHook;
     }
 
     struct HookDeployment {
@@ -94,7 +95,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     }
 
     function _deployHooksSet(uint64 chainId, uint256 env) private returns (OtherHookAddresses memory hookAddresses) {
-        uint256 len = 15;
+        uint256 len = 16;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -165,6 +166,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             )
         );
 
+        // MetaMorpho reallocate hook (no constructor args)
+        hooks[15] = HookDeployment(
+            META_MORPHO_REALLOCATE_HOOK_KEY, "", __getOtherHooksBytecode("MetaMorphoReallocateHook", env)
+        );
+
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
             // Use saltOverride if provided, otherwise use name for salt
@@ -202,6 +208,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             Strings.equal(hooks[13].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[13] : address(0);
         hookAddresses.morphoBorrowHook =
             Strings.equal(hooks[14].name, MORPHO_BORROW_ONLY_HOOK_KEY) ? addresses[14] : address(0);
+        hookAddresses.metaMorphoReallocateHook =
+            Strings.equal(hooks[15].name, META_MORPHO_REALLOCATE_HOOK_KEY) ? addresses[15] : address(0);
 
         // Verify no hooks were assigned address(0)
         require(hookAddresses.fluidClaimRewardHook != address(0), "fluidClaimRewardHook not assigned");
@@ -219,6 +227,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(hookAddresses.morphoRepayHook != address(0), "morphoRepayHook not assigned");
         require(hookAddresses.morphoRepayAndWithdrawHook != address(0), "morphoRepayAndWithdrawHook not assigned");
         require(hookAddresses.morphoBorrowHook != address(0), "morphoBorrowHook not assigned");
+        require(hookAddresses.metaMorphoReallocateHook != address(0), "metaMorphoReallocateHook not assigned");
 
         console2.log("All other hooks deployed and validated successfully.");
 
