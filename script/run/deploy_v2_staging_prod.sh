@@ -634,8 +634,8 @@ esac
 print_separator
 
 # Prompt for keystore password once upfront to avoid repeated prompts per chain
-echo -e "${WHITE}🔑 Enter keystore password for account '${ACCOUNT}':${NC}"
-read -s KEYSTORE_PASSWORD
+echo -e "${WHITE}🔑 Enter keystore password for account '${ACCOUNT}' (will be used for all chain deployments):${NC}"
+read -s -p "" KEYSTORE_PASSWORD
 echo ""
 
 if [[ -z "$KEYSTORE_PASSWORD" ]]; then
@@ -648,7 +648,7 @@ if ! cast wallet address --account "$ACCOUNT" --password "$KEYSTORE_PASSWORD" &>
     echo -e "${RED}❌ Error: Invalid password for account '$ACCOUNT'${NC}"
     exit 1
 fi
-echo -e "${GREEN}✅ Keystore password verified${NC}"
+echo -e "${GREEN}✅ Keystore password verified successfully${NC}"
 
 # Ensure password is cleaned up on exit
 trap 'unset KEYSTORE_PASSWORD' EXIT
