@@ -450,6 +450,24 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
             ;;
 
+        # Morpho Hooks (all take Morpho Blue address as constructor arg)
+        "MorphoSupplyAndBorrowHook"|"MorphoBorrowHook"|"MorphoRepayHook"|"MorphoRepayAndWithdrawHook"|"MorphoSupplyHook"|"MorphoWithdrawHook"|"MorphoLendHook")
+            local morpho_address=""
+            case $chain_id in
+                "1") morpho_address="0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb" ;;    # Ethereum
+                "8453") morpho_address="0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb" ;; # Base
+                "10") morpho_address="0xce95AfbB8EA029495c66020883F87aaE8864AF92" ;;    # Optimism
+                "42161") morpho_address="0x6c247b1F6182318877311737BaC0844bAa518F5e" ;; # Arbitrum
+                "56") morpho_address="0x01b0Bd309AA75547f7a37Ad7B1219A898E67a83a" ;;    # BNB
+                *) morpho_address="" ;;
+            esac
+            if [ -n "$morpho_address" ]; then
+                echo "$(cast abi-encode "constructor(address)" "$morpho_address")"
+            else
+                echo "$(cast abi-encode "constructor()")"
+            fi
+            ;;
+
         # All other contracts (no constructor args)
         *)
             echo "$(cast abi-encode "constructor()")"
@@ -538,6 +556,15 @@ get_contract_source() {
         "RecordRedemptionPendlePTAmortizedOracleHook") echo "src/hooks/oracles/pendle/RecordRedemptionPendlePTAmortizedOracleHook.sol" ;;
         "RecordPurchasePendlePTAmortizedOracleHookV2") echo "src/hooks/oracles/pendle/RecordPurchasePendlePTAmortizedOracleHookV2.sol" ;;
         "RecordRedemptionPendlePTAmortizedOracleHookV2") echo "src/hooks/oracles/pendle/RecordRedemptionPendlePTAmortizedOracleHookV2.sol" ;;
+
+        # Hooks - Morpho Loan
+        "MorphoSupplyAndBorrowHook") echo "src/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol" ;;
+        "MorphoBorrowHook") echo "src/hooks/loan/morpho/MorphoBorrowHook.sol" ;;
+        "MorphoRepayHook") echo "src/hooks/loan/morpho/MorphoRepayHook.sol" ;;
+        "MorphoRepayAndWithdrawHook") echo "src/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol" ;;
+        "MorphoSupplyHook") echo "src/hooks/loan/morpho/MorphoSupplyHook.sol" ;;
+        "MorphoWithdrawHook") echo "src/hooks/loan/morpho/MorphoWithdrawHook.sol" ;;
+        "MorphoLendHook") echo "src/hooks/loan/morpho/MorphoLendHook.sol" ;;
 
         # Oracles
         "ERC4626YieldSourceOracle") echo "src/accounting/oracles/ERC4626YieldSourceOracle.sol" ;;

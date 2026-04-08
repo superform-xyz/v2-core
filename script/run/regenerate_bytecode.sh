@@ -165,6 +165,18 @@ ORACLE_CONTRACTS=(
     "PendlePTAmortizedOracleV2"
 )
 
+# Morpho hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode-other/)
+MORPHO_HOOK_CONTRACTS=(
+    "MorphoSupplyAndBorrowHook"
+    "MorphoBorrowHook"
+    "MorphoRepayHook"
+    "MorphoRepayAndWithdrawHook"
+    "MorphoSupplyHook"
+    "MorphoWithdrawHook"
+    "MorphoLendHook"
+    "MetaMorphoReallocateHook"
+)
+
 # Function to copy contract artifact
 copy_contract() {
     local contract_name=$1
@@ -226,9 +238,25 @@ else
         fi
     done
 
+    # Copy Morpho hook contracts to generated-bytecode-other/
+    log "INFO" "${BLUE}🪝 Copying Morpho hook contracts to generated-bytecode-other/...${NC}"
+    mkdir -p script/generated-bytecode-other
+    failed_morpho=0
+    for contract in "${MORPHO_HOOK_CONTRACTS[@]}"; do
+        local_source="out/${contract}.sol/${contract}.json"
+        local_dest="script/generated-bytecode-other/${contract}.json"
+        if [ ! -f "$local_source" ]; then
+            log "ERROR" "${RED}❌ Artifact not found for contract: ${contract} at ${local_source}${NC}"
+            failed_morpho=$((failed_morpho + 1))
+        else
+            cp "$local_source" "$local_dest"
+            log "INFO" "${GREEN}✅ Copied ${contract} → generated-bytecode-other/${NC}"
+        fi
+    done
+
     # Summary for all contracts mode
-    total_contracts=$((${#CORE_CONTRACTS[@]} + ${#HOOK_CONTRACTS[@]} + ${#ORACLE_CONTRACTS[@]}))
-    total_failed=$((failed_core + failed_hooks + failed_oracles))
+    total_contracts=$((${#CORE_CONTRACTS[@]} + ${#HOOK_CONTRACTS[@]} + ${#ORACLE_CONTRACTS[@]} + ${#MORPHO_HOOK_CONTRACTS[@]}))
+    total_failed=$((failed_core + failed_hooks + failed_oracles + failed_morpho))
     total_success=$((total_contracts - total_failed))
 
     log "INFO" "${BLUE}📊 Summary:${NC}"
@@ -246,8 +274,12 @@ else
         log "WARN" "${YELLOW}  ⚠️  Failed oracle contracts: ${failed_oracles}/${#ORACLE_CONTRACTS[@]}${NC}"
     fi
 
+    if [ $failed_morpho -gt 0 ]; then
+        log "WARN" "${YELLOW}  ⚠️  Failed Morpho hook contracts: ${failed_morpho}/${#MORPHO_HOOK_CONTRACTS[@]}${NC}"
+    fi
+
     if [ $total_failed -eq 0 ]; then
-        log "INFO" "${GREEN}🎉 All contracts successfully updated in generated-bytecode!${NC}"
+        log "INFO" "${GREEN}🎉 All contracts successfully updated in generated-bytecode and generated-bytecode-other!${NC}"
         exit 0
     else
         log "ERROR" "${RED}❌ ${total_failed} contracts failed to copy. Please check the error messages above.${NC}"

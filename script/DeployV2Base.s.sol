@@ -471,6 +471,31 @@ abstract contract DeployV2Base is Script, ConfigBase {
 
         // Write to {ChainName}-latest.json
         string memory outputPath = string(abi.encodePacked(root, chainOutputFolder, chainName, "-latest.json"));
+
+        // Merge with existing file: load existing entries first, then re-apply new ones on top
+        string memory objectKey = string(abi.encodePacked("EXPORTS_", vm.toString(uint256(chainId))));
+        try vm.readFile(outputPath) returns (string memory existingJson) {
+            if (bytes(existingJson).length > 2) {
+                // Load existing entries into the serializer
+                string[] memory keys = vm.parseJsonKeys(existingJson, "$");
+                for (uint256 i = 0; i < keys.length; i++) {
+                    bytes memory addrBytes = vm.parseJson(existingJson, string(abi.encodePacked(".", keys[i])));
+                    address existingAddr = abi.decode(addrBytes, (address));
+                    vm.serializeAddress(objectKey, keys[i], existingAddr);
+                }
+                // Re-apply new contracts so they take priority over existing entries
+                string[] memory newNames = allContractNames[chainId];
+                for (uint256 i = 0; i < newNames.length; i++) {
+                    address newAddr = contractAddresses[chainId][newNames[i]];
+                    if (newAddr != address(0)) {
+                        exportedContracts[chainId] = vm.serializeAddress(objectKey, newNames[i], newAddr);
+                    }
+                }
+            }
+        } catch {
+            // File doesn't exist yet, use current exports as-is
+        }
+
         vm.writeJson(exportedContracts[chainId], outputPath);
 
         console2.log("Exported", contractCount[chainId], "contracts to:", outputPath);

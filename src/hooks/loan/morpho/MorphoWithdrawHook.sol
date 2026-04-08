@@ -4,14 +4,12 @@ pragma solidity 0.8.30;
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
 import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoWithdrawHook
@@ -21,25 +19,33 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @notice         address collateralToken = BytesLib.toAddress(data, 20);
 /// @notice         address oracle = BytesLib.toAddress(data, 40);
 /// @notice         address irm = BytesLib.toAddress(data, 60);
-/// @notice         address onBehalf = BytesLib.toAddress(data, 80);
-/// @notice         address recipient = BytesLib.toAddress(data, 100);
-/// @notice         uint256 lltv = BytesLib.toUint256(data, 120);
-/// @notice         uint256 assets = BytesLib.toUint256(data, 152);
-/// @notice         uint256 shares = BytesLib.toUint256(data, 184);
+/// @notice         uint256 lltv = BytesLib.toUint256(data, 80);
+/// @notice         uint256 assets = BytesLib.toUint256(data, 112);
+/// @notice         uint256 shares = BytesLib.toUint256(data, 144);
+/// @dev Both onBehalf and receiver are always set to account (consistent with all other Morpho hooks)
 contract MorphoWithdrawHook is BaseMorphoLoanHook {
-    using MarketParamsLib for MarketParams;
-    using HookDataDecoder for bytes;
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Minimum data length: 4 addresses (80) + 3 uint256s (96) = 176 bytes
+    uint256 private constant MIN_DATA_LENGTH = 176;
+
+    /// @notice Byte offset for lltv uint256
+    uint256 private constant WITHDRAW_LLTV_OFFSET = 80;
+
+    /// @notice Byte offset for assets uint256
+    uint256 private constant ASSETS_OFFSET = 112;
+
+    /// @notice Byte offset for shares uint256
+    uint256 private constant SHARES_OFFSET = 144;
 
     /*//////////////////////////////////////////////////////////////
-                               STORAGE
+                               STRUCTS
     //////////////////////////////////////////////////////////////*/
-    address public morpho;
-    IMorphoBase public morphoBase;
 
     struct WithdrawHookVars {
         MarketParams marketParams;
-        address onBehalf;
-        address receiver;
         uint256 assets;
         uint256 shares;
     }
@@ -47,18 +53,18 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN_REPAY) {
-        morpho = morpho_;
-        morphoBase = IMorphoBase(morpho_);
-    }
+
+    /// @param morpho_ Address of the Morpho Blue protocol
+    constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN_REPAY) { }
 
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+
     /// @inheritdoc BaseHook
     function _buildHookExecutions(
         address,
-        address,
+        address account,
         bytes calldata data
     )
         internal
@@ -68,14 +74,13 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
     {
         WithdrawHookVars memory vars = _decodeWithdrawData(data);
         if (vars.assets == 0 && vars.shares == 0) revert AMOUNT_NOT_VALID();
+        if (vars.assets != 0 && vars.shares != 0) revert AMOUNT_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: morpho,
             value: 0,
-            callData: abi.encodeCall(
-                IMorphoBase.withdraw, (vars.marketParams, vars.assets, vars.shares, vars.onBehalf, vars.receiver)
-            )
+            callData: abi.encodeCall(IMorphoBase.withdraw, (vars.marketParams, vars.assets, vars.shares, account, account))
         });
     }
 
@@ -94,27 +99,32 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override {
-        address recipient = BytesLib.toAddress(data, 100);
-        // store current balance
-        _setOutAmount(getCollateralTokenBalance(recipient, data), recipient);
+
+    /// @inheritdoc BaseHook
+    /// @dev Stores account's loanToken balance before Morpho withdraw executes
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        _setOutAmount(getLoanTokenBalance(account, data), account);
     }
 
-    function _postExecute(address, address, bytes calldata data) internal override {
-        address recipient = BytesLib.toAddress(data, 100);
-        _setOutAmount(getCollateralTokenBalance(recipient, data) - getOutAmount(recipient), recipient);
+    /// @inheritdoc BaseHook
+    /// @dev Computes loanToken received by account (post - pre) and sets as outAmount
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        _setOutAmount(getLoanTokenBalance(account, data) - getOutAmount(account), account);
     }
 
+    /// @dev Decodes the hook data for withdraw operations
+    /// @param data The calldata containing withdraw parameters
+    /// @return vars The decoded withdraw hook parameters
     function _decodeWithdrawData(bytes calldata data) internal pure returns (WithdrawHookVars memory vars) {
-        address loanToken = BytesLib.toAddress(data, 0);
-        address collateralToken = BytesLib.toAddress(data, 20);
-        address oracle = BytesLib.toAddress(data, 40);
-        address irm = BytesLib.toAddress(data, 60);
-        address onBehalf = BytesLib.toAddress(data, 80);
-        address recipient = BytesLib.toAddress(data, 100);
-        uint256 lltv = BytesLib.toUint256(data, 120);
-        uint256 assets = BytesLib.toUint256(data, 152);
-        uint256 shares = BytesLib.toUint256(data, 184);
+        if (data.length < MIN_DATA_LENGTH) revert INVALID_DATA_LENGTH();
+
+        address loanToken = BytesLib.toAddress(data, LOAN_TOKEN_OFFSET);
+        address collateralToken = BytesLib.toAddress(data, COLLATERAL_TOKEN_OFFSET);
+        address oracle = BytesLib.toAddress(data, ORACLE_OFFSET);
+        address irm = BytesLib.toAddress(data, IRM_OFFSET);
+        uint256 lltv = BytesLib.toUint256(data, WITHDRAW_LLTV_OFFSET);
+        uint256 assets = BytesLib.toUint256(data, ASSETS_OFFSET);
+        uint256 shares = BytesLib.toUint256(data, SHARES_OFFSET);
 
         if (loanToken == address(0) || collateralToken == address(0) || oracle == address(0) || irm == address(0)) {
             revert ADDRESS_NOT_VALID();
@@ -124,8 +134,6 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
 
         vars = WithdrawHookVars({
             marketParams: marketParams,
-            onBehalf: onBehalf,
-            receiver: recipient,
             assets: assets,
             shares: shares
         });

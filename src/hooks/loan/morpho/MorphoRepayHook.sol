@@ -9,11 +9,10 @@ import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
 import { IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id, Market } from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
+import { BaseHook } from "../../BaseHook.sol";
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoRepayHook
 /// @author Superform Labs
@@ -26,34 +25,37 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 112);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         bool isFullRepayment = _decodeBool(data, 145);
+/// @dev KNOWN LIMITATION (P1-2): An attacker can front-run full repayment by repaying 1 wei of shares
+///      on behalf of the borrower, causing the victim's transaction to revert. Mitigate by using
+///      private mempools or adding slippage tolerance to share amounts.
+/// @dev KNOWN LIMITATION (P1-3): Interest accrues between build() and execute(). For full repayment,
+///      the approval amount from sharesToAssets() may be slightly stale. _preExecute calls
+///      accrueInterest() before the actual repay, but the approval was set during build().
+///      The off-chain bundler should execute UserOps promptly after building.
 contract MorphoRepayHook is BaseMorphoLoanHook {
-    using MarketParamsLib for MarketParams;
-    using HookDataDecoder for bytes;
     using SharesMathLib for uint256;
+    using MarketParamsLib for MarketParams;
 
     /*//////////////////////////////////////////////////////////////
                                STORAGE
     //////////////////////////////////////////////////////////////*/
-    address public morpho;
-    IMorphoBase public morphoBase;
-    IMorphoStaticTyping public morphoStaticTyping;
 
-    uint256 private constant PRICE_SCALING_FACTOR = 1e36;
-    uint256 private constant PERCENTAGE_SCALING_FACTOR = 1e18;
+    IMorphoStaticTyping public morphoStaticTyping;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
+
+    /// @param morpho_ Address of the Morpho Blue protocol
     constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN_REPAY) {
-        morpho = morpho_;
-        morphoBase = IMorphoBase(morpho_);
-        morphoInterface = IMorpho(morpho_);
         morphoStaticTyping = IMorphoStaticTyping(morpho_);
     }
 
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc BaseHook
     function _buildHookExecutions(
         address prevHook,
         address account,
@@ -65,8 +67,6 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
         returns (Execution[] memory executions)
     {
         BuildHookLocalVars memory vars = _decodeHookData(data);
-
-        if (vars.loanToken == address(0) || vars.collateralToken == address(0)) revert ADDRESS_NOT_VALID();
 
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
@@ -129,25 +129,44 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
     /*//////////////////////////////////////////////////////////////
                             PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Derive the borrow share balance of the account
+    /// @param id The id of the market
+    /// @param account The account to derive the share balance for
+    /// @return borrowShares The borrow share balance of the account
     function deriveShareBalance(Id id, address account) public view returns (uint128 borrowShares) {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
     }
 
+    /// @notice Derive the assets owed for a share balance in a market (rounds up to favor protocol)
+    /// @param marketParams The market parameters
+    /// @param account The account to derive the assets for
+    /// @return assets The assets owed by the account
     function sharesToAssets(MarketParams memory marketParams, address account) public view returns (uint256 assets) {
         Id id = marketParams.id();
         uint256 shareBalance = deriveShareBalance(id, account);
 
-        Market memory market = morphoInterface.market(id);
+        Market memory market = IMorpho(morpho).market(id);
         assets = shareBalance.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
     }
 
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override {
+
+    /// @inheritdoc BaseHook
+    /// @dev Accrues interest before repay and stores loanToken pre-balance for outAmount tracking
+    function _preExecute(address, address account, bytes calldata data) internal override {
         BuildHookLocalVars memory vars = _decodeHookData(data);
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
-        morphoInterface.accrueInterest(marketParams);
+        IMorpho(morpho).accrueInterest(marketParams);
+        _setOutAmount(getLoanTokenBalance(account, data), account);
+    }
+
+    /// @inheritdoc BaseHook
+    /// @dev Computes loanToken consumed during repay (pre - post) and sets as outAmount
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        _setOutAmount(getOutAmount(account) - getLoanTokenBalance(account, data), account);
     }
 }
