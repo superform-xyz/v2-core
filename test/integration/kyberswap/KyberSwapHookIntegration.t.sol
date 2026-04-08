@@ -34,6 +34,8 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
     address public constant WETH = CHAIN_1_WETH;
     address public constant DAI = CHAIN_1_DAI;
 
+    address public constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
     address public account;
 
     receive() external payable { }
@@ -43,8 +45,8 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
         account = address(this);
 
-        swapHook = new SwapKyberSwapHook(KYBER_ROUTER, SCALE_HELPER);
-        approveAndSwapHook = new ApproveAndSwapKyberSwapHook(KYBER_ROUTER, SCALE_HELPER);
+        swapHook = new SwapKyberSwapHook(KYBER_ROUTER, SCALE_HELPER, NATIVE);
+        approveAndSwapHook = new ApproveAndSwapKyberSwapHook(KYBER_ROUTER, SCALE_HELPER, NATIVE);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -359,10 +361,10 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
     /// @notice Test native ETH balance tracking on fork
     function test_SwapHook_BalanceTracking_NativeETH() public {
-        bytes memory txData_ = _buildKyberSwapTxData(USDC, address(0), 1000e6, 0, KYBER_ROUTER, KYBER_ROUTER, "");
+        bytes memory txData_ = _buildKyberSwapTxData(USDC, NATIVE, 1000e6, 0, KYBER_ROUTER, KYBER_ROUTER, "");
 
-        // outputToken = address(0) for native ETH
-        bytes memory hookData = _buildSwapHookData(address(0), 0, 1000e6, 0, false, txData_);
+        // outputToken = NATIVE for native ETH
+        bytes memory hookData = _buildSwapHookData(NATIVE, 0, 1000e6, 0, false, txData_);
 
         vm.deal(account, 10 ether);
 
@@ -625,7 +627,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
     function test_SwapHook_NativeETH_ValueForwarded() public view {
         uint256 ethAmount = 1.5 ether;
         bytes memory txData_ = _buildKyberSwapTxData(
-            address(0), // ETH as src (native)
+            NATIVE, // ETH as src (native)
             USDC,
             ethAmount,
             1000e6,
@@ -651,7 +653,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         prevHookMock.setOutAmount(prevAmount, account);
 
         bytes memory txData_ =
-            _buildKyberSwapTxData(address(0), USDC, originalAmount, 1000e6, KYBER_ROUTER, KYBER_ROUTER, "");
+            _buildKyberSwapTxData(NATIVE, USDC, originalAmount, 1000e6, KYBER_ROUTER, KYBER_ROUTER, "");
 
         bytes memory hookData = _buildSwapHookData(USDC, originalAmount, originalAmount, 1000e6, true, txData_);
 

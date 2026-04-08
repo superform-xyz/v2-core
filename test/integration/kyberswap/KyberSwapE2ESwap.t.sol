@@ -52,8 +52,8 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
 
         account = address(this);
 
-        swapHook = new SwapKyberSwapHook(KYBER_ROUTER, SCALE_HELPER);
-        approveAndSwapHook = new ApproveAndSwapKyberSwapHook(KYBER_ROUTER, SCALE_HELPER);
+        swapHook = new SwapKyberSwapHook(KYBER_ROUTER, SCALE_HELPER, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        approveAndSwapHook = new ApproveAndSwapKyberSwapHook(KYBER_ROUTER, SCALE_HELPER, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
         approveAndSwapOdosHook = new ApproveAndSwapOdosV2Hook(CHAIN_1_ODOS_ROUTER);
     }
 

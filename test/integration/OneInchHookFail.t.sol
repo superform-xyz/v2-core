@@ -37,7 +37,7 @@ contract OneInchHookFail is MinimalBaseIntegrationTest {
         //stake hook
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = approveHook;
-        hooksAddresses[1] = address(new Swap1InchHook(address(oneInchRouter)));
+        hooksAddresses[1] = address(new Swap1InchHook(address(oneInchRouter), 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE));
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(address(usdc), address(oneInchRouter), amount, false);
         bytes memory unoswapData = abi.encode(
@@ -68,7 +68,7 @@ contract OneInchHookFail is MinimalBaseIntegrationTest {
         //stake hook
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = approveHook;
-        hooksAddresses[1] = address(new Swap1InchHook(address(oneInchRouter)));
+        hooksAddresses[1] = address(new Swap1InchHook(address(oneInchRouter), 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE));
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(address(usdc), address(oneInchRouter), amount, false);
         bytes memory unoswapData = abi.encode(
