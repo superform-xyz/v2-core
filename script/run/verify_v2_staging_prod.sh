@@ -132,6 +132,7 @@ load_contract_addresses() {
         "100") network_suffix="Gnosis-latest" ;;
         "480") network_suffix="Worldchain-latest" ;;
         "999") network_suffix="HyperEVM-latest" ;;
+        "14") network_suffix="Flare-latest" ;;
         *) network_suffix="${network_name}-latest" ;;
     esac
 
@@ -170,6 +171,7 @@ get_contract_address() {
         "100") network_suffix="Gnosis-latest" ;;
         "480") network_suffix="Worldchain-latest" ;;
         "999") network_suffix="HyperEVM-latest" ;;
+        "14") network_suffix="Flare-latest" ;;
         *)
             local network_name=$(get_network_name "$chain_id")
             network_suffix="${network_name}-latest"
@@ -330,6 +332,14 @@ generate_constructor_args() {
             ;;
         "999") # HyperEVM (Hyperliquid)
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router=""  # Not deployed
+            odos_router=""  # Not deployed
+            across_spoke_pool_v3=""  # Not deployed
+            merkl_distributor=""  # Not deployed
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
+        "14") # Flare
+            permit2=""  # Not deployed
             aggregation_router=""  # Not deployed
             odos_router=""  # Not deployed
             across_spoke_pool_v3=""  # Not deployed
@@ -655,6 +665,7 @@ verify_network() {
         "100") network_suffix="Gnosis-latest" ;;
         "480") network_suffix="Worldchain-latest" ;;
         "999") network_suffix="HyperEVM-latest" ;;
+        "14") network_suffix="Flare-latest" ;;
         *) network_suffix="${network_name}-latest" ;;
     esac
 

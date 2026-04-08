@@ -87,6 +87,7 @@ abstract contract ConfigBase is Constants {
         chainNames[GNOSIS_CHAIN_ID] = GNOSIS_KEY;
         chainNames[WORLDCHAIN_CHAIN_ID] = WORLDCHAIN_KEY;
         chainNames[HYPEREVM_CHAIN_ID] = HYPEREVM_KEY;
+        chainNames[FLARE_CHAIN_ID] = FLARE_KEY;
 
         // ===== COMMON CONFIGURATION =====
         if (env_ == 0 || env_ == 2) {
