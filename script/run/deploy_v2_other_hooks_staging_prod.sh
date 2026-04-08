@@ -195,6 +195,7 @@ MORPHO_HOOKS=(
     "MorphoSupplyHook"
     "MorphoWithdrawHook"
     "MorphoLendHook"
+    "MetaMorphoReallocateHook"
 )
 
 # Morpho hooks use locked-bytecode-other/ for production

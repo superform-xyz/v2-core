@@ -174,6 +174,7 @@ MORPHO_HOOK_CONTRACTS=(
     "MorphoSupplyHook"
     "MorphoWithdrawHook"
     "MorphoLendHook"
+    "MetaMorphoReallocateHook"
 )
 
 # Function to copy contract artifact
