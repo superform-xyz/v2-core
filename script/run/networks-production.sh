@@ -393,7 +393,7 @@ load_rpc_urls() {
     fi
 
     echo "  • Loading Flare RPC..."
-    if ! export FLARE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/FLARE_RPC_URL/credential 2>/dev/null); then
+    if ! export FLARE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/FLARE_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
         failed_rpcs+=("FLARE_RPC_URL")
     fi
 

@@ -15,8 +15,10 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
     /// @notice Custom error for smoke test failure
     error TreasuryConfigSmokeTestFailed();
 
-    /// @notice Fireblocks sender address used for oracle ID derivation
+    /// @notice Fireblocks sender address used for oracle ID derivation (default for most chains)
     address internal constant FIREBLOCKS_SENDER = 0x28b7599f461D104f07D78215Fa6F9B959851f93d;
+    /// @notice Fireblocks sender address for Flare (different derivation path)
+    address internal constant FIREBLOCKS_SENDER_FLARE = 0x40a4012A1a154ed58E9BB2f4C63D07f64816b719;
 
     struct TreasuryValidationResults {
         bool treasuryConfigured;
@@ -110,7 +112,7 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
         console2.log("SuperLedgerConfiguration deployed at:", superLedgerConfig);
 
         // 3. Validate oracle configurations
-        (results, errorCount) = _validateOracleConfigurations(superLedgerConfig, results, errorCount);
+        (results, errorCount) = _validateOracleConfigurations(superLedgerConfig, chainId, results, errorCount);
 
         // Resize validation errors array to actual size
         string[] memory actualErrors = new string[](errorCount);
@@ -129,6 +131,7 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
     /// @return Updated validation results and updated error count
     function _validateOracleConfigurations(
         address superLedgerConfig,
+        uint64 chainId,
         TreasuryValidationResults memory results,
         uint256 errorCount
     )
@@ -136,6 +139,10 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
         view
         returns (TreasuryValidationResults memory, uint256)
     {
+        // Select sender based on chain (Fireblocks derives different addresses per chain)
+        address sender = chainId == 14 ? FIREBLOCKS_SENDER_FLARE : FIREBLOCKS_SENDER;
+        console2.log("Using sender for oracle ID derivation:", sender);
+
         // Define oracle salts for hashing with Fireblocks sender
         bytes32[4] memory saltHashes = [
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_SALT)),
@@ -147,7 +154,7 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
         // Derive oracle IDs using _deriveWithSender logic (keccak256(salt, sender))
         bytes32[] memory oracleIds = new bytes32[](4);
         for (uint256 i = 0; i < 4; i++) {
-            oracleIds[i] = _deriveWithSender(saltHashes[i], FIREBLOCKS_SENDER);
+            oracleIds[i] = _deriveWithSender(saltHashes[i], sender);
             console2.logBytes32(oracleIds[i]);
         }
 

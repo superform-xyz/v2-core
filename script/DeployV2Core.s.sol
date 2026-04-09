@@ -232,6 +232,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool pendlePTAmortizedOracleHooks;
         bool pendlePTAmortizedOracleHooksV2;
         bool merklClaimRewardHook;
+        bool batchTransferFromHook;
         uint256 expectedCore;
         uint256 expectedAdapters;
         uint256 expectedHooks;
@@ -397,6 +398,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         } else {
             expectedHooks -= 1; // MerklClaimRewardHook
             potentialSkips[skipCount++] = "MerklClaimRewardHook";
+        }
+
+        if (configuration.permit2s[chainId] != address(0)) {
+            availability.batchTransferFromHook = true;
+        } else {
+            expectedHooks -= 1; // BatchTransferFromHook
+            potentialSkips[skipCount++] = "BatchTransferFromHook";
         }
 
         if (configuration.uniswapV4PoolManagers[chainId] != address(0)) {
@@ -956,7 +964,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         );
 
         // BatchTransferFromHook with Permit2
-        if (configuration.permit2s[chainId] != address(0)) {
+        if (availability.batchTransferFromHook) {
             __checkContract(
                 BATCH_TRANSFER_FROM_HOOK_KEY,
                 __getSalt(BATCH_TRANSFER_FROM_HOOK_KEY),
@@ -964,7 +972,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 env
             );
         } else {
-            revert("BATCH_TRANSFER_FROM_HOOK_CHECK_FAILED_MISSING_PERMIT2");
+            console2.log("SKIPPED BatchTransferFromHook: Permit2 not configured for chain", chainId);
         }
 
         // 4626 Vault hooks
@@ -1443,9 +1451,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log(" Treasury:", configuration.treasury);
 
         // Check Permit2 (required for BatchTransferFromHook)
-        require(configuration.permit2s[chainId] != address(0), "PERMIT2_ADDRESS_ZERO");
-        require(configuration.permit2s[chainId].code.length > 0, "PERMIT2_NOT_DEPLOYED");
-        console2.log(" Permit2:", configuration.permit2s[chainId]);
+        if (availability.batchTransferFromHook) {
+            require(configuration.permit2s[chainId] != address(0), "PERMIT2_ADDRESS_ZERO");
+            require(configuration.permit2s[chainId].code.length > 0, "PERMIT2_NOT_DEPLOYED");
+            console2.log(" Permit2:", configuration.permit2s[chainId]);
+        } else {
+            console2.log(" SKIPPED Permit2 validation: Not available on chain", chainId);
+        }
 
         // Only validate Across if it's available on this chain
         if (availability.acrossV3Adapter) {

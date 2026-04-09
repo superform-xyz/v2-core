@@ -81,7 +81,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.permit2s[GNOSIS_CHAIN_ID] = PERMIT2;
         configuration.permit2s[WORLDCHAIN_CHAIN_ID] = PERMIT2;
         configuration.permit2s[HYPEREVM_CHAIN_ID] = PERMIT2;
-        configuration.permit2s[FLARE_CHAIN_ID] = address(0); // Not deployed
+        configuration.permit2s[FLARE_CHAIN_ID] = PERMIT2;
 
         // ===== MERKL DISTRIBUTOR ADDRESSES =====
         configuration.merklDistributors[MAINNET_CHAIN_ID] = MERKL_DISTRIBUTOR;
