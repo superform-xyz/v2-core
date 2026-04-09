@@ -21,6 +21,9 @@ import { IMetaMorpho, MarketAllocation } from "../../../vendor/morpho/IMetaMorph
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
 /// @notice         uint8 prevHookAmountIndex = BytesLib.toUint8(data, 53);
 /// @notice         bytes allocationsData = abi.decode(BytesLib.slice(data, 54, data.length - 54), (MarketAllocation[]));
+/// @dev TRUST ASSUMPTION: This hook relies entirely on MetaMorpho's onlyAllocator modifier for
+///      access control. The hook itself is permissionless — it will attempt to call reallocate()
+///      on any metaMorphoVault address provided in the data.
 contract MetaMorphoReallocateHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 

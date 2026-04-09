@@ -24,6 +24,10 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 /// @notice         uint256 amount = BytesLib.toUint256(data, 80);
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 112);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
+/// @dev WARNING: outAmount is Morpho supply shares (not assets). Unlike ERC-4626 vault shares,
+///      Morpho shares are non-transferable internal accounting units. Downstream hooks using
+///      usePrevHookAmount will receive a share count, not a token amount. The bundler MUST NOT
+///      chain this hook into asset-denominated downstream hooks without conversion.
 contract MorphoLendHook is BaseMorphoLoanHook {
     using MarketParamsLib for MarketParams;
 
