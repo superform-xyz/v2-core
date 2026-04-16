@@ -175,6 +175,9 @@ abstract contract Constants {
     address public constant CHAIN_10_ODOS_ROUTER = 0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680;
     address public constant CHAIN_8453_ODOS_ROUTER = 0x19cEeAd7105607Cd444F5ad10dd51356436095a1;
 
+    // uniswap v2
+    address public constant MAINNET_V2_SWAP_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+
     // uniswap v3
     address public constant MAINNET_V3_SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
 

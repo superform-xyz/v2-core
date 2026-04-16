@@ -30,6 +30,7 @@ abstract contract ConfigBase is Constants {
         mapping(uint64 chainId => address psm3) sparkPsm3s;
         mapping(uint64 chainId => address kyberRouter) kyberSwapRouters;
         mapping(uint64 chainId => address kyberScaleHelper) kyberSwapScaleHelpers;
+        mapping(uint64 chainId => address swapRouter) uniswapV2SwapRouters;
     }
 
     EnvironmentData public configuration;

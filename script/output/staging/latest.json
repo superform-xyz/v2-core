@@ -504,6 +504,7 @@
         "ApproveAndDeposit4626VaultHook": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4",
         "ApproveAndDeposit5115VaultHook": "0xDc997F44693d865C68d2321E41716Bdc098016ee",
         "ApproveAndRequestDeposit7540VaultHook": "0xef56121Af8553C0a534052b6305301E414E79c41",
+        "ApproveAndSwapUniswapV2Hook": "0x0b64fcA7190c3D141eb154D4a7fE0cEF4B2bfEC6",
         "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
         "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
         "BatchTransferHook": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
@@ -551,6 +552,7 @@
         "SuperValidator": "0x5C563Ba4881e3c2710BABe76282895EfE5C8247d",
         "SuperVaultYieldSourceOracle": "0x2339E250Cc72694BFea62C594B267270d728fD2b",
         "SuperYieldSourceOracle": "0x03f1d66d67BDacD1d417d884a59733f3Af626c62",
+        "SwapUniswapV2Hook": "0x744D5164e5a206F456B49e276592116BA90199C4",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
         "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
         "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F",
@@ -561,5 +563,5 @@
       }
     }
   },
-  "updated_at": "2026-04-09T14:21:24Z"
+  "updated_at": "2026-04-16T13:54:26Z"
 }

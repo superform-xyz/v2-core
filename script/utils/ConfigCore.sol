@@ -279,6 +279,24 @@ abstract contract ConfigCore is ConfigBase {
         configuration.uniswapV3SwapRouters[HYPEREVM_CHAIN_ID] = 0x1EbDFC75FfE3ba3de61E7138a3E8706aC841Af9B;
         configuration.uniswapV3SwapRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
 
+        // ===== UNISWAP V2 SWAP ROUTER ADDRESSES =====
+        // SparkDex on Flare is a Uniswap V2 fork
+        configuration.uniswapV2SwapRouters[MAINNET_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[BASE_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[BNB_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[ARBITRUM_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[OPTIMISM_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[POLYGON_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[UNICHAIN_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[LINEA_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[AVALANCHE_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[BERACHAIN_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[SONIC_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[GNOSIS_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[WORLDCHAIN_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[HYPEREVM_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[FLARE_CHAIN_ID] = SPARKDEX_V2_ROUTER_FLARE;
+
         // ===== SPARK PSM3 ADDRESSES =====
         // PSM3 is only deployed on Base
         configuration.sparkPsm3s[MAINNET_CHAIN_ID] = address(0);
