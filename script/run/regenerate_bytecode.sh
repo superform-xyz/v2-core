@@ -91,6 +91,7 @@ CORE_CONTRACTS=(
     "SuperValidator"
     "SuperDestinationValidator"
     "SuperNativePaymaster"
+    "SuperSponsorshipPaymaster"
 )
 
 # Hook contracts from specified directories
