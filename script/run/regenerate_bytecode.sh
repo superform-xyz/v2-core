@@ -149,6 +149,8 @@ HOOK_CONTRACTS=(
     "ApproveAndSwapSparkPSMExactOutHook"
     "SwapKyberSwapHook"
     "ApproveAndSwapKyberSwapHook"
+    "RedeemFirelightVaultHook"
+    "ClaimWithdrawFirelightVaultHook"
 )
 
 # Oracle contracts from accounting/oracles

@@ -19,6 +19,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address metaMorphoReallocateHook;
     }
 
+    struct FirelightHookAddresses {
+        address redeemFirelightVaultHook;
+        address claimWithdrawFirelightVaultHook;
+    }
+
     struct HookDeployment {
         string name;
         string saltOverride; // Optional custom salt (empty = use name for salt)
@@ -46,6 +51,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         console2.log("Deploying Morpho Hooks on chainId: ", chainId);
 
         _deployMorphoHooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
+    function runFirelight(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying Firelight Hooks on chainId: ", chainId);
+
+        _deployFirelightHooks(chainId, env);
         _writeExportedContracts(chainId);
     }
 
@@ -161,6 +174,43 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(hookAddresses.metaMorphoReallocateHook != address(0), "MetaMorphoReallocateHook not assigned");
 
         console2.log("All Morpho hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    function _deployFirelightHooks(uint64 chainId, uint256 env) internal returns (FirelightHookAddresses memory) {
+        uint256 len = 2;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        // Firelight hooks have no constructor args
+        hooks[0] = HookDeployment(
+            REDEEM_FIRELIGHT_VAULT_HOOK_KEY,
+            "",
+            __getMorphoHooksBytecode("RedeemFirelightVaultHook", env)
+        );
+        hooks[1] = HookDeployment(
+            CLAIM_WITHDRAW_FIRELIGHT_VAULT_HOOK_KEY,
+            "",
+            __getMorphoHooksBytecode("ClaimWithdrawFirelightVaultHook", env)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        FirelightHookAddresses memory hookAddresses;
+        hookAddresses.redeemFirelightVaultHook = addresses[0];
+        hookAddresses.claimWithdrawFirelightVaultHook = addresses[1];
+
+        require(hookAddresses.redeemFirelightVaultHook != address(0), "RedeemFirelightVaultHook not assigned");
+        require(
+            hookAddresses.claimWithdrawFirelightVaultHook != address(0), "ClaimWithdrawFirelightVaultHook not assigned"
+        );
+
+        console2.log("All Firelight hooks deployed and validated successfully.");
 
         return hookAddresses;
     }
