@@ -99,6 +99,10 @@ contract MockEntryPoint {
         return deposits[account];
     }
 
+    function balanceOf(address account) external view returns (uint256) {
+        return deposits[account].deposit;
+    }
+
     function handleOps(PackedUserOperation[] calldata ops, address payable beneficiary) external {
         uint256 opsLen = ops.length;
         console2.log("---------------C", opsLen);

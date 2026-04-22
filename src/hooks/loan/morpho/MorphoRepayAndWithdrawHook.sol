@@ -40,7 +40,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
                                STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    IMorphoStaticTyping public morphoStaticTyping;
+    IMorphoStaticTyping public immutable morphoStaticTyping;
 
     struct BuildExecutionContext {
         MarketParams marketParams;
