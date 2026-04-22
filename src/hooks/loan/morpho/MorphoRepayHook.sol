@@ -40,7 +40,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
                                STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    IMorphoStaticTyping public morphoStaticTyping;
+    IMorphoStaticTyping public immutable morphoStaticTyping;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
