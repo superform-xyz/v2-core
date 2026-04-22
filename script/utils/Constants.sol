@@ -202,6 +202,15 @@ abstract contract Constants {
     string internal constant MORPHO_WITHDRAW_HOOK_KEY = "MorphoWithdrawHook";
     string internal constant MORPHO_LEND_HOOK_KEY = "MorphoLendHook";
     string internal constant META_MORPHO_REALLOCATE_HOOK_KEY = "MetaMorphoReallocateHook";
+
+    // Aave V4 Hook Keys
+    string internal constant AAVE_V4_SUPPLY_HOOK_KEY = "AaveV4SupplyHook";
+    string internal constant AAVE_V4_WITHDRAW_HOOK_KEY = "AaveV4WithdrawHook";
+    string internal constant AAVE_V4_BORROW_HOOK_KEY = "AaveV4BorrowHook";
+    string internal constant AAVE_V4_REPAY_HOOK_KEY = "AaveV4RepayHook";
+    string internal constant AAVE_V4_SUPPLY_AND_BORROW_HOOK_KEY = "AaveV4SupplyAndBorrowHook";
+    string internal constant AAVE_V4_REPAY_AND_WITHDRAW_HOOK_KEY = "AaveV4RepayAndWithdrawHook";
+
     string internal constant CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "CancelDepositRequest7540Hook";
     string internal constant CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "CancelRedeemRequest7540Hook";
     string internal constant CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "ClaimCancelDepositRequest7540Hook";

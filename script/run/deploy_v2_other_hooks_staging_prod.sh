@@ -174,6 +174,9 @@ print_separator
 # Morpho is only deployed on these chains - skip others
 MORPHO_SUPPORTED_CHAINS=("1" "8453" "56" "42161")
 
+# Aave V4 is only deployed on Ethereum mainnet
+AAVE_V4_SUPPORTED_CHAINS=("1")
+
 is_morpho_supported() {
     local chain_id=$1
     for supported in "${MORPHO_SUPPORTED_CHAINS[@]}"; do
@@ -183,6 +186,24 @@ is_morpho_supported() {
     done
     return 1
 }
+
+is_aave_v4_supported() {
+    local chain_id=$1
+    for supported in "${AAVE_V4_SUPPORTED_CHAINS[@]}"; do
+        if [ "$supported" = "$chain_id" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Other hooks use locked-bytecode-other/ for production
+OTHER_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode-other"
+if [ "$ENVIRONMENT" = "staging" ]; then
+    if [ -d "$PROJECT_ROOT/script/generated-bytecode-other" ]; then
+        OTHER_BYTECODE_PATH="$PROJECT_ROOT/script/generated-bytecode-other"
+    fi
+fi
 
 # Check bytecode availability for Morpho hooks
 echo -e "${BLUE}🔍 Checking Morpho hook bytecode availability...${NC}"
@@ -198,21 +219,12 @@ MORPHO_HOOKS=(
     "MetaMorphoReallocateHook"
 )
 
-# Morpho hooks use locked-bytecode-other/ for production
-MORPHO_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode-other"
-if [ "$ENVIRONMENT" = "staging" ]; then
-    # For staging, check generated-bytecode-other/ first, fall back to locked-bytecode-other/
-    if [ -d "$PROJECT_ROOT/script/generated-bytecode-other" ]; then
-        MORPHO_BYTECODE_PATH="$PROJECT_ROOT/script/generated-bytecode-other"
-    fi
-fi
-
 missing_morpho=0
 for hook in "${MORPHO_HOOKS[@]}"; do
-    if [ -f "$MORPHO_BYTECODE_PATH/${hook}.json" ]; then
+    if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
         echo -e "${GREEN}   ✅ ${hook}${NC}"
     else
-        echo -e "${YELLOW}   ⚠️  ${hook} - missing from $MORPHO_BYTECODE_PATH${NC}"
+        echo -e "${YELLOW}   ⚠️  ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
         missing_morpho=$((missing_morpho + 1))
     fi
 done
@@ -222,11 +234,38 @@ if [ $missing_morpho -gt 0 ]; then
     echo -e "${YELLOW}   Run ./script/run/regenerate_bytecode.sh to generate missing bytecode.${NC}"
 fi
 
+# Check bytecode availability for Aave V4 hooks
+echo -e "${BLUE}🔍 Checking Aave V4 hook bytecode availability...${NC}"
+
+AAVE_V4_HOOKS=(
+    "AaveV4SupplyHook"
+    "AaveV4WithdrawHook"
+    "AaveV4BorrowHook"
+    "AaveV4RepayHook"
+    "AaveV4SupplyAndBorrowHook"
+    "AaveV4RepayAndWithdrawHook"
+)
+
+missing_aavev4=0
+for hook in "${AAVE_V4_HOOKS[@]}"; do
+    if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
+        echo -e "${GREEN}   ✅ ${hook}${NC}"
+    else
+        echo -e "${YELLOW}   ⚠️  ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
+        missing_aavev4=$((missing_aavev4 + 1))
+    fi
+done
+
+if [ $missing_aavev4 -gt 0 ]; then
+    echo -e "${YELLOW}⚠️  ${missing_aavev4} Aave V4 hook(s) missing bytecode. They will be skipped during deployment.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/regenerate_bytecode.sh to generate missing bytecode.${NC}"
+fi
+
 echo ""
 print_separator
 
 # Confirmation before deployment
-echo -e "${WHITE}🤔 Deploy Morpho hooks to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
+echo -e "${WHITE}🤔 Deploy hooks (Morpho + Aave V4) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
 read -r proceed
 
 if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
@@ -255,12 +294,12 @@ for network_def in "${NETWORKS[@]}"; do
     IFS=':' read -r network_id network_name rpc_var <<< "$network_def"
 
     echo -e "${PURPLE}╭─────────────────────────────────────────────────────────────────────────────────────╮${NC}"
-    echo -e "${PURPLE}│${WHITE}                  🪝 Deploying Morpho Hooks to ${network_name} (${network_id}) 🪝                     ${PURPLE}│${NC}"
+    echo -e "${PURPLE}│${WHITE}                  🪝 Deploying Hooks to ${network_name} (${network_id}) 🪝                              ${PURPLE}│${NC}"
     echo -e "${PURPLE}╰─────────────────────────────────────────────────────────────────────────────────────╯${NC}"
 
-    # Check if Morpho is deployed on this chain
-    if ! is_morpho_supported "$network_id"; then
-        echo -e "${YELLOW}  ⏭️  Morpho not deployed on $network_name ($network_id), skipping${NC}"
+    # Check if any hooks are supported on this chain
+    if ! is_morpho_supported "$network_id" && ! is_aave_v4_supported "$network_id"; then
+        echo -e "${YELLOW}  ⏭️  No supported hooks on $network_name ($network_id), skipping${NC}"
         continue
     fi
 
@@ -293,12 +332,12 @@ for network_def in "${NETWORKS[@]}"; do
         --timeout 300 \
         -vv
 
-    echo -e "${GREEN}✅ $network_name Morpho hooks deployment completed!${NC}"
+    echo -e "${GREEN}✅ $network_name hooks deployment completed!${NC}"
     deployed_networks=$((deployed_networks + 1))
     echo ""
 done
 
 print_separator
 echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║${WHITE}          🎉 Morpho Hooks $ENVIRONMENT $MODE Completed ($deployed_networks networks) 🎉             ${GREEN}║${NC}"
+echo -e "${GREEN}║${WHITE}          🎉 Hooks $ENVIRONMENT $MODE Completed ($deployed_networks networks) 🎉                    ${GREEN}║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"

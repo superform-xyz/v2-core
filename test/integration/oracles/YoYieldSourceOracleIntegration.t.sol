@@ -34,6 +34,15 @@ contract YoYieldSourceOracleIntegration is Test, Constants {
         yoUsdVault = CHAIN_8453_YO_USD_VAULT;
     }
 
+    /// @dev Skip test if vault is paused on-chain (external dependency)
+    modifier skipIfPaused(address vault) {
+        (bool success, bytes memory data) = vault.staticcall(abi.encodeWithSignature("paused()"));
+        if (success && abi.decode(data, (bool))) {
+            vm.skip(true);
+        }
+        _;
+    }
+
     /*//////////////////////////////////////////////////////////////
                         INTERFACE VERIFICATION TESTS
     //////////////////////////////////////////////////////////////*/
@@ -344,7 +353,7 @@ contract YoYieldSourceOracleIntegration is Test, Constants {
 
     /// @notice Test TVL tracking after depositing into yoETH from a fresh address
     /// @dev This is the KEY integration test - deposit real assets and verify oracle TVL
-    function test_depositAndVerifyTVL_yoEth() public {
+    function test_depositAndVerifyTVL_yoEth() public skipIfPaused(yoEthVault) {
         // Create a fresh user address
         address user = makeAddr("freshDepositor");
 
@@ -543,7 +552,7 @@ contract YoYieldSourceOracleIntegration is Test, Constants {
     }
 
     /// @notice Test multiple deposits accumulate TVL correctly
-    function test_multipleDeposits_accumulateTVL() public {
+    function test_multipleDeposits_accumulateTVL() public skipIfPaused(yoEthVault) {
         address user = makeAddr("multiDepositor");
 
         IERC4626 vault4626 = IERC4626(yoEthVault);
@@ -583,7 +592,7 @@ contract YoYieldSourceOracleIntegration is Test, Constants {
     }
 
     /// @notice Test TVL for multiple users are independent
-    function test_multipleUsers_independentTVL() public {
+    function test_multipleUsers_independentTVL() public skipIfPaused(yoEthVault) {
         address user1 = makeAddr("user1");
         address user2 = makeAddr("user2");
 
@@ -618,7 +627,7 @@ contract YoYieldSourceOracleIntegration is Test, Constants {
     }
 
     /// @notice Test share balance and TVL relationship
-    function test_shareBalanceAndTVL_relationship() public {
+    function test_shareBalanceAndTVL_relationship() public skipIfPaused(yoEthVault) {
         address user = makeAddr("relationshipTester");
 
         IERC4626 vault4626 = IERC4626(yoEthVault);
