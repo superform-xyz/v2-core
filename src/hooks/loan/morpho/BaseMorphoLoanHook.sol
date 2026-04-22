@@ -33,6 +33,12 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     // USE_PREV_HOOK_AMOUNT_POSITION = 144 inherited from BaseLoanHook
     uint256 internal constant IS_FULL_REPAYMENT_OFFSET = 145;
 
+    /// @notice Byte offset for LLTV in borrow hook data (178-byte layout)
+    /// @dev Same numeric offset as IS_FULL_REPAYMENT_OFFSET but different semantic meaning:
+    ///      - Repay layout (146 bytes): byte 145 = isFullRepayment (bool)
+    ///      - Borrow layout (178 bytes): byte 145 = lltv (uint256, 32 bytes)
+    uint256 internal constant BORROW_LLTV_OFFSET = 145;
+
     /// @notice Minimum data length for repay hooks (146 bytes)
     uint256 internal constant REPAY_MIN_DATA_LENGTH = 146;
 
@@ -47,7 +53,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Address of the Morpho Blue protocol
-    address public morpho;
+    address public immutable morpho;
 
     /*//////////////////////////////////////////////////////////////
                                STRUCTS
@@ -156,7 +162,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
         uint256 amount = _decodeAmount(data);
         uint256 ltvRatio = BytesLib.toUint256(data, LLTV_OFFSET);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        uint256 lltv = BytesLib.toUint256(data, IS_FULL_REPAYMENT_OFFSET);
+        uint256 lltv = BytesLib.toUint256(data, BORROW_LLTV_OFFSET);
 
         return BorrowHookLocalVars({
             loanToken: loanToken,

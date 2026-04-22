@@ -91,6 +91,7 @@ CORE_CONTRACTS=(
     "SuperValidator"
     "SuperDestinationValidator"
     "SuperNativePaymaster"
+    "SuperSponsorshipPaymaster"
 )
 
 # Hook contracts from specified directories
@@ -149,6 +150,8 @@ HOOK_CONTRACTS=(
     "ApproveAndSwapSparkPSMExactOutHook"
     "SwapKyberSwapHook"
     "ApproveAndSwapKyberSwapHook"
+    "RedeemFirelightVaultHook"
+    "ClaimWithdrawFirelightVaultHook"
 )
 
 # Oracle contracts from accounting/oracles

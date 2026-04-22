@@ -28,6 +28,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address aaveV4RepayAndWithdrawHook;
     }
 
+    struct FirelightHookAddresses {
+        address redeemFirelightVaultHook;
+        address claimWithdrawFirelightVaultHook;
+    }
+
     struct HookDeployment {
         string name;
         string saltOverride; // Optional custom salt (empty = use name for salt)
@@ -54,6 +59,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    function runFirelight(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying Firelight Hooks on chainId: ", chainId);
+
+        _deployFirelightHooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
     /// @notice Deploy all applicable hooks for the given chain
     function _deployAllHooks(uint64 chainId, uint256 env) internal {
         // Morpho hooks — only on chains where Morpho is deployed
@@ -70,7 +83,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     }
 
     /// @notice Get bytecode directory based on environment
-    function __getMorphoHooksBytecodeDirectory(uint256 env) internal pure returns (string memory) {
+    function __getOtherHooksBytecodeDirectory(uint256 env) internal pure returns (string memory) {
         if (env == 1) {
             return "script/generated-bytecode-other/";
         } else {
@@ -79,17 +92,21 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     }
 
     /// @notice Get bytecode from environment-specific artifacts
-    function __getMorphoHooksBytecode(string memory contractName, uint256 env) internal view returns (bytes memory) {
+    function __getOtherHooksBytecode(string memory contractName, uint256 env) internal view returns (bytes memory) {
         string memory artifactPath =
-            string(abi.encodePacked(__getMorphoHooksBytecodeDirectory(env), contractName, ".json"));
+            string(abi.encodePacked(__getOtherHooksBytecodeDirectory(env), contractName, ".json"));
         return vm.getCode(artifactPath);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        MORPHO HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
     function _deployMorphoHooks(uint64 chainId, uint256 env) internal {
-        _deployHooksSet(chainId, env);
+        _deployMorphoHooksSet(chainId, env);
     }
 
-    function _deployHooksSet(
+    function _deployMorphoHooksSet(
         uint64 chainId,
         uint256 env
     )
@@ -106,44 +123,44 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         hooks[0] = HookDeployment(
             MORPHO_SUPPLY_AND_BORROW_HOOK_KEY,
             "",
-            abi.encodePacked(__getMorphoHooksBytecode("MorphoSupplyAndBorrowHook", env), morphoArg)
+            abi.encodePacked(__getOtherHooksBytecode("MorphoSupplyAndBorrowHook", env), morphoArg)
         );
         hooks[1] = HookDeployment(
             MORPHO_BORROW_ONLY_HOOK_KEY,
             "",
-            abi.encodePacked(__getMorphoHooksBytecode("MorphoBorrowHook", env), morphoArg)
+            abi.encodePacked(__getOtherHooksBytecode("MorphoBorrowHook", env), morphoArg)
         );
         hooks[2] = HookDeployment(
             MORPHO_REPAY_HOOK_KEY,
             "",
-            abi.encodePacked(__getMorphoHooksBytecode("MorphoRepayHook", env), morphoArg)
+            abi.encodePacked(__getOtherHooksBytecode("MorphoRepayHook", env), morphoArg)
         );
         hooks[3] = HookDeployment(
             MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY,
             "",
-            abi.encodePacked(__getMorphoHooksBytecode("MorphoRepayAndWithdrawHook", env), morphoArg)
+            abi.encodePacked(__getOtherHooksBytecode("MorphoRepayAndWithdrawHook", env), morphoArg)
         );
         hooks[4] = HookDeployment(
             MORPHO_SUPPLY_HOOK_KEY,
             "",
-            abi.encodePacked(__getMorphoHooksBytecode("MorphoSupplyHook", env), morphoArg)
+            abi.encodePacked(__getOtherHooksBytecode("MorphoSupplyHook", env), morphoArg)
         );
         hooks[5] = HookDeployment(
             MORPHO_WITHDRAW_HOOK_KEY,
             "",
-            abi.encodePacked(__getMorphoHooksBytecode("MorphoWithdrawHook", env), morphoArg)
+            abi.encodePacked(__getOtherHooksBytecode("MorphoWithdrawHook", env), morphoArg)
         );
 
         // Lender-side hook
         hooks[6] = HookDeployment(
             MORPHO_LEND_HOOK_KEY,
             "",
-            abi.encodePacked(__getMorphoHooksBytecode("MorphoLendHook", env), morphoArg)
+            abi.encodePacked(__getOtherHooksBytecode("MorphoLendHook", env), morphoArg)
         );
 
         // MetaMorpho reallocate hook (no constructor args)
         hooks[7] = HookDeployment(
-            META_MORPHO_REALLOCATE_HOOK_KEY, "", __getMorphoHooksBytecode("MetaMorphoReallocateHook", env)
+            META_MORPHO_REALLOCATE_HOOK_KEY, "", __getOtherHooksBytecode("MetaMorphoReallocateHook", env)
         );
 
         for (uint256 i = 0; i < len; ++i) {
@@ -189,22 +206,6 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
                         AAVE V4 HOOKS DEPLOYMENT
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Get bytecode directory for Aave V4 hooks based on environment
-    function __getAaveV4HooksBytecodeDirectory(uint256 env) internal pure returns (string memory) {
-        if (env == 1) {
-            return "script/generated-bytecode-other/";
-        } else {
-            return "script/locked-bytecode-other/";
-        }
-    }
-
-    /// @notice Get bytecode for Aave V4 hooks from environment-specific artifacts
-    function __getAaveV4HooksBytecode(string memory contractName, uint256 env) internal view returns (bytes memory) {
-        string memory artifactPath =
-            string(abi.encodePacked(__getAaveV4HooksBytecodeDirectory(env), contractName, ".json"));
-        return vm.getCode(artifactPath);
-    }
-
     function _deployAaveV4Hooks(uint64 chainId, uint256 env) internal {
         _deployAaveV4HooksSet(chainId, env);
     }
@@ -223,22 +224,22 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
         // Aave V4 hooks have no constructor args
         hooks[0] = HookDeployment(
-            AAVE_V4_SUPPLY_HOOK_KEY, "", __getAaveV4HooksBytecode("AaveV4SupplyHook", env)
+            AAVE_V4_SUPPLY_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4SupplyHook", env)
         );
         hooks[1] = HookDeployment(
-            AAVE_V4_WITHDRAW_HOOK_KEY, "", __getAaveV4HooksBytecode("AaveV4WithdrawHook", env)
+            AAVE_V4_WITHDRAW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4WithdrawHook", env)
         );
         hooks[2] = HookDeployment(
-            AAVE_V4_BORROW_HOOK_KEY, "", __getAaveV4HooksBytecode("AaveV4BorrowHook", env)
+            AAVE_V4_BORROW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4BorrowHook", env)
         );
         hooks[3] = HookDeployment(
-            AAVE_V4_REPAY_HOOK_KEY, "", __getAaveV4HooksBytecode("AaveV4RepayHook", env)
+            AAVE_V4_REPAY_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4RepayHook", env)
         );
         hooks[4] = HookDeployment(
-            AAVE_V4_SUPPLY_AND_BORROW_HOOK_KEY, "", __getAaveV4HooksBytecode("AaveV4SupplyAndBorrowHook", env)
+            AAVE_V4_SUPPLY_AND_BORROW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4SupplyAndBorrowHook", env)
         );
         hooks[5] = HookDeployment(
-            AAVE_V4_REPAY_AND_WITHDRAW_HOOK_KEY, "", __getAaveV4HooksBytecode("AaveV4RepayAndWithdrawHook", env)
+            AAVE_V4_REPAY_AND_WITHDRAW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4RepayAndWithdrawHook", env)
         );
 
         for (uint256 i = 0; i < len; ++i) {
@@ -263,6 +264,47 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(hookAddresses.aaveV4RepayAndWithdrawHook != address(0), "AaveV4RepayAndWithdrawHook not assigned");
 
         console2.log("All Aave V4 hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      FIRELIGHT HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    function _deployFirelightHooks(uint64 chainId, uint256 env) internal returns (FirelightHookAddresses memory) {
+        uint256 len = 2;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        // Firelight hooks have no constructor args
+        hooks[0] = HookDeployment(
+            REDEEM_FIRELIGHT_VAULT_HOOK_KEY,
+            "",
+            __getOtherHooksBytecode("RedeemFirelightVaultHook", env)
+        );
+        hooks[1] = HookDeployment(
+            CLAIM_WITHDRAW_FIRELIGHT_VAULT_HOOK_KEY,
+            "",
+            __getOtherHooksBytecode("ClaimWithdrawFirelightVaultHook", env)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        FirelightHookAddresses memory hookAddresses;
+        hookAddresses.redeemFirelightVaultHook = addresses[0];
+        hookAddresses.claimWithdrawFirelightVaultHook = addresses[1];
+
+        require(hookAddresses.redeemFirelightVaultHook != address(0), "RedeemFirelightVaultHook not assigned");
+        require(
+            hookAddresses.claimWithdrawFirelightVaultHook != address(0), "ClaimWithdrawFirelightVaultHook not assigned"
+        );
+
+        console2.log("All Firelight hooks deployed and validated successfully.");
 
         return hookAddresses;
     }

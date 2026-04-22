@@ -38,6 +38,7 @@ abstract contract Constants {
     string internal constant SUPER_POSITION_KEY = "SuperPosition";
     string internal constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
     string internal constant SUPER_NATIVE_PAYMASTER_KEY = "SuperNativePaymaster";
+    string internal constant SUPER_SPONSORSHIP_PAYMASTER_KEY = "SuperSponsorshipPaymaster";
     string internal constant SUPER_SENDER_CREATOR_KEY = "SuperSenderCreator";
 
     string internal constant SUPER_BUNDLER_ID = "SUPER_BUNDLER_ID";
@@ -224,6 +225,10 @@ abstract contract Constants {
     string internal constant CIRCLE_GATEWAY_MINTER_HOOK_KEY = "CircleGatewayMinterHook";
     string internal constant CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY = "CircleGatewayAddDelegateHook";
     string internal constant CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY = "CircleGatewayRemoveDelegateHook";
+
+    // Firelight Hook Keys
+    string internal constant REDEEM_FIRELIGHT_VAULT_HOOK_KEY = "RedeemFirelightVaultHook";
+    string internal constant CLAIM_WITHDRAW_FIRELIGHT_VAULT_HOOK_KEY = "ClaimWithdrawFirelightVaultHook";
 
     // Mock hooks (dev environment only)
     string internal constant MOCK_DEX_KEY = "MockDex";
