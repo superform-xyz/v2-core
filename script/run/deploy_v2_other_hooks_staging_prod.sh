@@ -184,6 +184,19 @@ is_morpho_supported() {
     return 1
 }
 
+# Firelight is only deployed on Flare
+FIRELIGHT_SUPPORTED_CHAINS=("14")
+
+is_firelight_supported() {
+    local chain_id=$1
+    for supported in "${FIRELIGHT_SUPPORTED_CHAINS[@]}"; do
+        if [ "$supported" = "$chain_id" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Check bytecode availability for Morpho hooks
 echo -e "${BLUE}🔍 Checking Morpho hook bytecode availability...${NC}"
 
@@ -223,10 +236,43 @@ if [ $missing_morpho -gt 0 ]; then
 fi
 
 echo ""
+
+# Check bytecode availability for Firelight hooks
+echo -e "${BLUE}🔍 Checking Firelight hook bytecode availability...${NC}"
+
+FIRELIGHT_HOOKS=(
+    "RedeemFirelightVaultHook"
+    "ClaimWithdrawFirelightVaultHook"
+)
+
+# Firelight hooks use the same bytecode paths
+FIRELIGHT_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode-other"
+if [ "$ENVIRONMENT" = "staging" ]; then
+    if [ -d "$PROJECT_ROOT/script/generated-bytecode-other" ]; then
+        FIRELIGHT_BYTECODE_PATH="$PROJECT_ROOT/script/generated-bytecode-other"
+    fi
+fi
+
+missing_firelight=0
+for hook in "${FIRELIGHT_HOOKS[@]}"; do
+    if [ -f "$FIRELIGHT_BYTECODE_PATH/${hook}.json" ]; then
+        echo -e "${GREEN}   ✅ ${hook}${NC}"
+    else
+        echo -e "${YELLOW}   ⚠️  ${hook} - missing from $FIRELIGHT_BYTECODE_PATH${NC}"
+        missing_firelight=$((missing_firelight + 1))
+    fi
+done
+
+if [ $missing_firelight -gt 0 ]; then
+    echo -e "${YELLOW}⚠️  ${missing_firelight} Firelight hook(s) missing bytecode. They will be skipped during deployment.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/regenerate_bytecode.sh to generate missing bytecode.${NC}"
+fi
+
+echo ""
 print_separator
 
 # Confirmation before deployment
-echo -e "${WHITE}🤔 Deploy Morpho hooks to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
+echo -e "${WHITE}🤔 Deploy Morpho & Firelight hooks to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
 read -r proceed
 
 if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
@@ -255,14 +301,8 @@ for network_def in "${NETWORKS[@]}"; do
     IFS=':' read -r network_id network_name rpc_var <<< "$network_def"
 
     echo -e "${PURPLE}╭─────────────────────────────────────────────────────────────────────────────────────╮${NC}"
-    echo -e "${PURPLE}│${WHITE}                  🪝 Deploying Morpho Hooks to ${network_name} (${network_id}) 🪝                     ${PURPLE}│${NC}"
+    echo -e "${PURPLE}│${WHITE}                  🪝 Deploying Other Hooks to ${network_name} (${network_id}) 🪝                      ${PURPLE}│${NC}"
     echo -e "${PURPLE}╰─────────────────────────────────────────────────────────────────────────────────────╯${NC}"
-
-    # Check if Morpho is deployed on this chain
-    if ! is_morpho_supported "$network_id"; then
-        echo -e "${YELLOW}  ⏭️  Morpho not deployed on $network_name ($network_id), skipping${NC}"
-        continue
-    fi
 
     # Check RPC URL is set
     if [[ -z "${!rpc_var:-}" ]]; then
@@ -270,35 +310,76 @@ for network_def in "${NETWORKS[@]}"; do
         continue
     fi
 
-    echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
-    echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-    echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-    echo -e "${YELLOW}   Executing forge script...${NC}"
+    has_hooks=false
 
-    forge script script/DeployV2OtherHooks.s.sol:DeployV2OtherHooks \
-        --sig 'run(uint256,uint64)' $FORGE_ENV $network_id \
-        --account $ACCOUNT \
-        $KEYSTORE_PASSWORD_FLAG \
-        --rpc-url ${!rpc_var} \
-        --chain $network_id \
-        --etherscan-api-key $ETHERSCANV2_API_KEY \
-        --verifier etherscan \
-        $BROADCAST_FLAG \
-        $VERIFY_FLAG \
-        $SLOW_FLAG \
-        $BATCH_SIZE_FLAG \
-        $RESUME_FLAG \
-        $LEGACY_FLAG \
-        $GAS_PRICE_FLAG \
-        --timeout 300 \
-        -vv
+    # Deploy Morpho hooks if supported on this chain
+    if is_morpho_supported "$network_id"; then
+        has_hooks=true
+        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
+        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
+        echo -e "${YELLOW}   Deploying Morpho hooks...${NC}"
 
-    echo -e "${GREEN}✅ $network_name Morpho hooks deployment completed!${NC}"
+        forge script script/DeployV2OtherHooks.s.sol:DeployV2OtherHooks \
+            --sig 'run(uint256,uint64)' $FORGE_ENV $network_id \
+            --account $ACCOUNT \
+            $KEYSTORE_PASSWORD_FLAG \
+            --rpc-url ${!rpc_var} \
+            --chain $network_id \
+            --etherscan-api-key $ETHERSCANV2_API_KEY \
+            --verifier etherscan \
+            $BROADCAST_FLAG \
+            $VERIFY_FLAG \
+            $SLOW_FLAG \
+            $BATCH_SIZE_FLAG \
+            $RESUME_FLAG \
+            $LEGACY_FLAG \
+            $GAS_PRICE_FLAG \
+            --timeout 300 \
+            -vv
+
+        echo -e "${GREEN}   ✅ Morpho hooks deployment completed!${NC}"
+    fi
+
+    # Deploy Firelight hooks if supported on this chain
+    if is_firelight_supported "$network_id"; then
+        has_hooks=true
+        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
+        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
+        echo -e "${YELLOW}   Deploying Firelight hooks...${NC}"
+
+        forge script script/DeployV2OtherHooks.s.sol:DeployV2OtherHooks \
+            --sig 'runFirelight(uint256,uint64)' $FORGE_ENV $network_id \
+            --account $ACCOUNT \
+            $KEYSTORE_PASSWORD_FLAG \
+            --rpc-url ${!rpc_var} \
+            --chain $network_id \
+            --etherscan-api-key $ETHERSCANV2_API_KEY \
+            --verifier etherscan \
+            $BROADCAST_FLAG \
+            $VERIFY_FLAG \
+            $SLOW_FLAG \
+            $BATCH_SIZE_FLAG \
+            $RESUME_FLAG \
+            $LEGACY_FLAG \
+            $GAS_PRICE_FLAG \
+            --timeout 300 \
+            -vv
+
+        echo -e "${GREEN}   ✅ Firelight hooks deployment completed!${NC}"
+    fi
+
+    if [ "$has_hooks" = false ]; then
+        echo -e "${YELLOW}  ⏭️  No supported hooks for $network_name ($network_id), skipping${NC}"
+        continue
+    fi
+
     deployed_networks=$((deployed_networks + 1))
     echo ""
 done
 
 print_separator
 echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║${WHITE}          🎉 Morpho Hooks $ENVIRONMENT $MODE Completed ($deployed_networks networks) 🎉             ${GREEN}║${NC}"
+echo -e "${GREEN}║${WHITE}       🎉 Other Hooks $ENVIRONMENT $MODE Completed ($deployed_networks networks) 🎉                ${GREEN}║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"

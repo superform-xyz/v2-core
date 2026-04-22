@@ -567,6 +567,10 @@ get_contract_source() {
         "RecordPurchasePendlePTAmortizedOracleHookV2") echo "src/hooks/oracles/pendle/RecordPurchasePendlePTAmortizedOracleHookV2.sol" ;;
         "RecordRedemptionPendlePTAmortizedOracleHookV2") echo "src/hooks/oracles/pendle/RecordRedemptionPendlePTAmortizedOracleHookV2.sol" ;;
 
+        # Hooks - Firelight Vault
+        "RedeemFirelightVaultHook") echo "src/hooks/vaults/firelight/RedeemFirelightVaultHook.sol" ;;
+        "ClaimWithdrawFirelightVaultHook") echo "src/hooks/vaults/firelight/ClaimWithdrawFirelightVaultHook.sol" ;;
+
         # Hooks - Morpho Loan
         "MorphoSupplyAndBorrowHook") echo "src/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol" ;;
         "MorphoBorrowHook") echo "src/hooks/loan/morpho/MorphoBorrowHook.sol" ;;
