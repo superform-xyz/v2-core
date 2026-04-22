@@ -3,12 +3,16 @@
 # ===== CHAIN FILTER CONFIGURATION =====
 # Specify which chains to verify (comment out to verify all chains)
 # Leave empty array to verify all chains from network configuration
-CHAINS_TO_VERIFY=()
+CHAINS_TO_VERIFY=(14)
 
 # ===== CONTRACT FILTER CONFIGURATION =====
 # Specify which contracts to verify (comment out to verify all contracts)
 # Leave empty array to verify all contracts found in deployment JSON
 CONTRACTS_TO_VERIFY=()
+
+# ===== RATE LIMIT CONFIGURATION =====
+# Delay in seconds between verification requests (prevents Cloudflare rate limiting)
+VERIFY_DELAY=5
 
 # Colors for better visual output
 RED='\033[0;31m'
@@ -339,7 +343,7 @@ generate_constructor_args() {
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
         "14") # Flare
-            permit2=""  # Not deployed
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
             aggregation_router=""  # Not deployed
             odos_router=""  # Not deployed
             across_spoke_pool_v3=""  # Not deployed
@@ -723,6 +727,11 @@ verify_network() {
         local source_file=$(get_contract_source "$contract_name")
         
         verify_contract "$chain_id" "$contract_name" "$contract_address" "$constructor_args" "$source_file" "$rpc_url"
+
+        # Rate limit protection: wait between verification requests
+        if [ "$VERIFY_DELAY" -gt 0 ]; then
+            sleep "$VERIFY_DELAY"
+        fi
     done
     
     echo -e "${GREEN}✅ Network $network_name verification completed${NC}"

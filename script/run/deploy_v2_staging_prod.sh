@@ -686,19 +686,31 @@ for network_def in "${NETWORKS[@]}"; do
     echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
     echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
     echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-    echo -e "${CYAN}   Verification: ${WHITE}Etherscan V2${NC}"
+    # Skip inline verification for chains with aggressive block explorer rate limiting
+    # These chains should be verified separately using verify_v2_staging_prod.sh with VERIFY_DELAY
+    local chain_verify_flag="$VERIFY_FLAG"
+    local chain_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan"
+    case $network_id in
+        14|999) # Flare, HyperEVM - aggressive Cloudflare rate limiting
+            chain_verify_flag=""
+            chain_etherscan_flags=""
+            echo -e "${CYAN}   Verification: ${WHITE}Skipped (rate-limited explorer, use verify script separately)${NC}"
+            ;;
+        *)
+            echo -e "${CYAN}   Verification: ${WHITE}Etherscan V2${NC}"
+            ;;
+    esac
     echo -e "${YELLOW}   Executing forge script...${NC}"
-    
+
     forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(bool,uint256,uint64)' false $FORGE_ENV $network_id \
         --account $ACCOUNT \
         --password "$KEYSTORE_PASSWORD" \
         --rpc-url ${!rpc_var} \
         --chain $network_id \
-        --etherscan-api-key $ETHERSCANV2_API_KEY \
-        --verifier etherscan \
+        $chain_etherscan_flags \
         $BROADCAST_FLAG \
-        $VERIFY_FLAG \
+        $chain_verify_flag \
         $SLOW_FLAG \
         $BATCH_SIZE_FLAG \
         $RESUME_FLAG \

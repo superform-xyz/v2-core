@@ -131,6 +131,9 @@ abstract contract Constants {
     address internal constant GATEWAY_WALLET = 0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE;
     address internal constant GATEWAY_MINTER = 0x2222222d7164433c4C09B0b0D809a9b52C04C205;
 
+    // SparkDex V2 Router (Uniswap V2 fork on Flare)
+    address internal constant SPARKDEX_V2_ROUTER_FLARE = 0x4a1E5A90e9943467FAd1acea1E7F0e5e88472a1e;
+
     // Hook Keys
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
     string internal constant APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY =
@@ -183,6 +186,8 @@ abstract contract Constants {
     string internal constant APPROVE_AND_SWAP_ODOSV2_HOOK_KEY = "ApproveAndSwapOdosV2Hook";
     string internal constant SWAP_KYBERSWAP_HOOK_KEY = "SwapKyberSwapHook";
     string internal constant APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY = "ApproveAndSwapKyberSwapHook";
+    string internal constant SWAP_UNISWAPV2_HOOK_KEY = "SwapUniswapV2Hook";
+    string internal constant APPROVE_AND_SWAP_UNISWAPV2_HOOK_KEY = "ApproveAndSwapUniswapV2Hook";
     string internal constant APPROVE_AND_FLUID_STAKE_HOOK_KEY = "ApproveAndFluidStakeHook";
     string internal constant APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "ApproveAndRequestDeposit7540VaultHook";
     string internal constant APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY = "ApproveAndDeposit5115VaultHook";
