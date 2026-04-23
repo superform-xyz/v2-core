@@ -134,6 +134,9 @@ abstract contract Constants {
     // SparkDex V2 Router (Uniswap V2 fork on Flare)
     address internal constant SPARKDEX_V2_ROUTER_FLARE = 0x4a1E5A90e9943467FAd1acea1E7F0e5e88472a1e;
 
+    // SparkDEX V4 / Algebra Integral Router on Flare
+    address internal constant ALGEBRA_INTEGRAL_SWAP_ROUTER_FLARE = 0x69D57B9D705eaD73a5d2f2476C30c55bD755cc2F;
+
     // Hook Keys
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
     string internal constant APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY =
@@ -167,6 +170,8 @@ abstract contract Constants {
     string internal constant SWAP_UNISWAPV4_HOOK_KEY = "SwapUniswapV4Hook";
     string internal constant SWAP_UNISWAPV3_HOOK_KEY = "SwapUniswapV3Hook";
     string internal constant APPROVE_AND_SWAP_UNISWAPV3_HOOK_KEY = "ApproveAndSwapUniswapV3Hook";
+    string internal constant SWAP_ALGEBRA_INTEGRAL_HOOK_KEY = "SwapAlgebraIntegralHook";
+    string internal constant APPROVE_AND_SWAP_ALGEBRA_INTEGRAL_HOOK_KEY = "ApproveAndSwapAlgebraIntegralHook";
     string internal constant SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY = "SwapSparkPSMExactInHook";
     string internal constant APPROVE_AND_SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY = "ApproveAndSwapSparkPSMExactInHook";
     string internal constant SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY = "SwapSparkPSMExactOutHook";

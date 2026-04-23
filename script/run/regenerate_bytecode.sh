@@ -150,13 +150,12 @@ HOOK_CONTRACTS=(
     "ApproveAndSwapSparkPSMExactOutHook"
     "SwapKyberSwapHook"
     "ApproveAndSwapKyberSwapHook"
-<<<<<<< HEAD
     "SwapUniswapV2Hook"
     "ApproveAndSwapUniswapV2Hook"
-=======
     "RedeemFirelightVaultHook"
     "ClaimWithdrawFirelightVaultHook"
->>>>>>> 79d57b007c2b3a9a0494bfcc566eb9dd2e7b3089
+    "SwapAlgebraIntegralHook"
+    "ApproveAndSwapAlgebraIntegralHook"
 )
 
 # Oracle contracts from accounting/oracles

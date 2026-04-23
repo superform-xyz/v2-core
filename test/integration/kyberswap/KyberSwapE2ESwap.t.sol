@@ -384,6 +384,18 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
         decoded = decodeOdosSwapCalldata(fromHex(txDataHex));
     }
 
+    /// @dev External wrapper for _getOdosTxData so it can be caught with try/catch
+    function getOdosTxDataExternal(
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn
+    )
+        external
+        returns (OdosDecodedSwap memory)
+    {
+        return _getOdosTxData(tokenIn, tokenOut, amountIn);
+    }
+
     /*//////////////////////////////////////////////////////////////
         E2E: DAM -> USDC via KyberSwap (real strategy token)
     //////////////////////////////////////////////////////////////*/
@@ -451,7 +463,14 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
         uint256 inputAmount = 200_000e18;
         deal(DAM, account, inputAmount);
 
-        OdosDecodedSwap memory decoded = _getOdosTxData(DAM, USDC, inputAmount);
+        OdosDecodedSwap memory decoded;
+        try this.getOdosTxDataExternal(DAM, USDC, inputAmount) returns (OdosDecodedSwap memory result) {
+            decoded = result;
+        } catch {
+            console2.log("[Odos] API call failed, skipping test");
+            vm.skip(true);
+            return;
+        }
 
         console2.log("[Odos] Expected USDC out (outputQuote):", decoded.tokenInfo.outputQuote);
         console2.log("[Odos] Min USDC out (outputMin):", decoded.tokenInfo.outputMin);
@@ -554,7 +573,14 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
         {
             deal(DAM, account, inputAmount);
 
-            OdosDecodedSwap memory decoded = _getOdosTxData(DAM, USDC, inputAmount);
+            OdosDecodedSwap memory decoded;
+            try this.getOdosTxDataExternal(DAM, USDC, inputAmount) returns (OdosDecodedSwap memory result) {
+                decoded = result;
+            } catch {
+                console2.log("[Compare] Odos API call failed, skipping test");
+                vm.skip(true);
+                return;
+            }
             odosExpectedOut = decoded.tokenInfo.outputQuote;
 
             bytes memory hookData = abi.encodePacked(

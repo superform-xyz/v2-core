@@ -21,7 +21,7 @@
 # Author: Superform Team
 ###################################################################################
 
-set -euo pipefail
+set -eo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -210,6 +210,19 @@ is_firelight_supported() {
     return 1
 }
 
+# Algebra Integral (SparkDEX V4) is only deployed on Flare
+ALGEBRA_INTEGRAL_SUPPORTED_CHAINS=("14")
+
+is_algebra_integral_supported() {
+    local chain_id=$1
+    for supported in "${ALGEBRA_INTEGRAL_SUPPORTED_CHAINS[@]}"; do
+        if [ "$supported" = "$chain_id" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Other hooks use locked-bytecode-other/ for production
 OTHER_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode-other"
 if [ "$ENVIRONMENT" = "staging" ]; then
@@ -300,10 +313,35 @@ if [ $missing_firelight -gt 0 ]; then
 fi
 
 echo ""
+
+# Check bytecode availability for Algebra Integral hooks
+echo -e "${BLUE}🔍 Checking Algebra Integral hook bytecode availability...${NC}"
+
+ALGEBRA_INTEGRAL_HOOKS=(
+    "SwapAlgebraIntegralHook"
+    "ApproveAndSwapAlgebraIntegralHook"
+)
+
+missing_algebra=0
+for hook in "${ALGEBRA_INTEGRAL_HOOKS[@]}"; do
+    if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
+        echo -e "${GREEN}   ✅ ${hook}${NC}"
+    else
+        echo -e "${YELLOW}   ⚠️  ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
+        missing_algebra=$((missing_algebra + 1))
+    fi
+done
+
+if [ $missing_algebra -gt 0 ]; then
+    echo -e "${YELLOW}⚠️  ${missing_algebra} Algebra Integral hook(s) missing bytecode. They will be skipped during deployment.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/regenerate_bytecode.sh to generate missing bytecode.${NC}"
+fi
+
+echo ""
 print_separator
 
 # Confirmation before deployment
-echo -e "${WHITE}🤔 Deploy hooks (Morpho + Aave V4 + Firelight) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
+echo -e "${WHITE}🤔 Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
 read -r proceed
 
 if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
@@ -352,7 +390,7 @@ for network_def in "${NETWORKS[@]}"; do
         echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
         echo -e "${YELLOW}   Deploying Morpho hooks...${NC}"
 
-        forge script script/DeployV2OtherHooks.s.sol:DeployV2OtherHooks \
+        if forge script script/DeployV2OtherHooks.s.sol:DeployV2OtherHooks \
             --sig 'run(uint256,uint64)' $FORGE_ENV $network_id \
             --account $ACCOUNT \
             $KEYSTORE_PASSWORD_FLAG \
@@ -368,9 +406,11 @@ for network_def in "${NETWORKS[@]}"; do
             $LEGACY_FLAG \
             $GAS_PRICE_FLAG \
             --timeout 300 \
-            -vv
-
-        echo -e "${GREEN}   ✅ Morpho hooks deployment completed!${NC}"
+            -vv; then
+            echo -e "${GREEN}   ✅ Morpho hooks deployment completed!${NC}"
+        else
+            echo -e "${RED}   ❌ Morpho hooks deployment failed on $network_name, continuing...${NC}"
+        fi
     fi
 
     # Deploy Firelight hooks if supported on this chain
@@ -381,7 +421,7 @@ for network_def in "${NETWORKS[@]}"; do
         echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
         echo -e "${YELLOW}   Deploying Firelight hooks...${NC}"
 
-        forge script script/DeployV2OtherHooks.s.sol:DeployV2OtherHooks \
+        if forge script script/DeployV2OtherHooks.s.sol:DeployV2OtherHooks \
             --sig 'runFirelight(uint256,uint64)' $FORGE_ENV $network_id \
             --account $ACCOUNT \
             $KEYSTORE_PASSWORD_FLAG \
@@ -397,9 +437,42 @@ for network_def in "${NETWORKS[@]}"; do
             $LEGACY_FLAG \
             $GAS_PRICE_FLAG \
             --timeout 300 \
-            -vv
+            -vv; then
+            echo -e "${GREEN}   ✅ Firelight hooks deployment completed!${NC}"
+        else
+            echo -e "${RED}   ❌ Firelight hooks deployment failed on $network_name, continuing...${NC}"
+        fi
+    fi
 
-        echo -e "${GREEN}   ✅ Firelight hooks deployment completed!${NC}"
+    # Deploy Algebra Integral hooks if supported on this chain
+    if is_algebra_integral_supported "$network_id"; then
+        has_hooks=true
+        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
+        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
+        echo -e "${YELLOW}   Deploying Algebra Integral hooks (SparkDEX V4)...${NC}"
+
+        if forge script script/DeployV2OtherHooks.s.sol:DeployV2OtherHooks \
+            --sig 'runAlgebraIntegral(uint256,uint64)' $FORGE_ENV $network_id \
+            --account $ACCOUNT \
+            $KEYSTORE_PASSWORD_FLAG \
+            --rpc-url ${!rpc_var} \
+            --chain $network_id \
+            --etherscan-api-key $ETHERSCANV2_API_KEY \
+            --verifier etherscan \
+            $BROADCAST_FLAG \
+            $VERIFY_FLAG \
+            $SLOW_FLAG \
+            $BATCH_SIZE_FLAG \
+            $RESUME_FLAG \
+            $LEGACY_FLAG \
+            $GAS_PRICE_FLAG \
+            --timeout 300 \
+            -vv; then
+            echo -e "${GREEN}   ✅ Algebra Integral hooks deployment completed!${NC}"
+        else
+            echo -e "${RED}   ❌ Algebra Integral hooks deployment failed on $network_name, continuing...${NC}"
+        fi
     fi
 
     if [ "$has_hooks" = false ]; then

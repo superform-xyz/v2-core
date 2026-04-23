@@ -1,0 +1,217 @@
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity 0.8.30;
+
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { BytesLib } from "../../../vendor/BytesLib.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
+import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { IAlgebraSwapRouter } from "../../../vendor/algebra-integral/IAlgebraSwapRouter.sol";
+
+/// @title SwapAlgebraIntegralHook
+/// @author Superform Labs
+/// @notice Hook for executing swaps via Algebra Integral SwapRouter.exactInputSingle
+/// @dev Assumes tokens are already approved to the router
+/// @dev data has the following structure:
+/// @notice         address tokenIn = BytesLib.toAddress(data, 0);
+/// @notice         address tokenOut = BytesLib.toAddress(data, 20);
+/// @notice         address deployer = BytesLib.toAddress(data, 40);
+/// @notice         address recipient = BytesLib.toAddress(data, 60);
+/// @notice         uint256 deadline = BytesLib.toUint256(data, 80);
+/// @notice         uint160 limitSqrtPrice = uint160(BytesLib.toUint256(data, 112));
+/// @notice         uint256 originalAmountIn = BytesLib.toUint256(data, 144);
+/// @notice         uint256 originalMinAmountOut = BytesLib.toUint256(data, 176);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 208);
+contract SwapAlgebraIntegralHook is BaseHook, ISuperHookContextAware {
+    using BytesLib for bytes;
+
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The Algebra Integral SwapRouter contract
+    IAlgebraSwapRouter public immutable SWAP_ROUTER;
+
+    /// @notice Position of usePrevHookAmount flag in hook data
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 208;
+
+    /// @notice Minimum required hook data length (208 bytes of params + 1 byte for usePrevHookAmount flag)
+    uint256 private constant MIN_HOOK_DATA_LENGTH = 209;
+
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Thrown when hook data is malformed or insufficient
+    error INVALID_HOOK_DATA();
+
+    /// @notice Thrown when native ETH is used (use WETH instead)
+    error NATIVE_ETH_NOT_SUPPORTED();
+
+    /// @notice Thrown when the deadline has passed
+    /// @param deadline The provided deadline timestamp
+    /// @param currentTimestamp The current block timestamp
+    error EXPIRED_DEADLINE(uint256 deadline, uint256 currentTimestamp);
+
+    /*//////////////////////////////////////////////////////////////
+                              CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Initialize the Algebra Integral swap hook
+    /// @param swapRouter_ The address of the Algebra Integral SwapRouter
+    constructor(address swapRouter_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.SWAP) {
+        if (swapRouter_ == address(0)) revert ADDRESS_NOT_VALID();
+        SWAP_ROUTER = IAlgebraSwapRouter(swapRouter_);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            HOOK IMPLEMENTATION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
+        view
+        override
+        returns (Execution[] memory executions)
+    {
+        if (data.length < MIN_HOOK_DATA_LENGTH) revert INVALID_HOOK_DATA();
+
+        // Decode parameters
+        (
+            address tokenIn,
+            address tokenOut,
+            address deployer,
+            address recipient,
+            uint256 deadline,
+            uint160 limitSqrtPrice,
+            uint256 amountIn,
+            uint256 amountOutMinimum
+        ) = _decodeSwapParams(prevHook, account, data);
+
+        // Build swap execution
+        executions = new Execution[](1);
+        executions[0] = Execution({
+            target: address(SWAP_ROUTER),
+            value: 0,
+            callData: abi.encodeCall(
+                IAlgebraSwapRouter.exactInputSingle,
+                (
+                    IAlgebraSwapRouter.ExactInputSingleParams({
+                        tokenIn: tokenIn,
+                        tokenOut: tokenOut,
+                        deployer: deployer,
+                        recipient: recipient,
+                        deadline: deadline,
+                        amountIn: amountIn,
+                        amountOutMinimum: amountOutMinimum,
+                        limitSqrtPrice: limitSqrtPrice
+                    })
+                )
+            )
+        });
+    }
+
+    /// @inheritdoc BaseHook
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        // Store initial balance of output token
+        address tokenOut = data.toAddress(20);
+        _setOutAmount(IERC20(tokenOut).balanceOf(account), account);
+    }
+
+    /// @inheritdoc BaseHook
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        // Calculate delta (final - initial balance)
+        address tokenOut = data.toAddress(20);
+        uint256 finalBalance = IERC20(tokenOut).balanceOf(account);
+        uint256 initialBalance = getOutAmount(account);
+        if (finalBalance < initialBalance) revert AMOUNT_NOT_VALID();
+        _setOutAmount(finalBalance - initialBalance, account);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
+        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc BaseHook
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+        address tokenOut = data.toAddress(20);
+        return abi.encodePacked(tokenOut);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Decodes swap parameters from hook data
+    /// @param prevHook The previous hook in the chain
+    /// @param account The account executing the swap
+    /// @param data The encoded hook data
+    /// @dev recipient is forced to account to ensure balance tracking works correctly for hook chaining
+    function _decodeSwapParams(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
+        view
+        returns (
+            address tokenIn,
+            address tokenOut,
+            address deployer,
+            address recipient,
+            uint256 deadline,
+            uint160 limitSqrtPrice,
+            uint256 amountIn,
+            uint256 amountOutMinimum
+        )
+    {
+        tokenIn = data.toAddress(0);
+        tokenOut = data.toAddress(20);
+
+        // Native ETH not supported - use WETH instead
+        if (tokenIn == address(0) || tokenOut == address(0)) revert NATIVE_ETH_NOT_SUPPORTED();
+        if (tokenIn == tokenOut) revert INVALID_HOOK_DATA();
+
+        deployer = data.toAddress(40);
+        // Force recipient to account - balance tracking in _preExecute/_postExecute
+        // requires output tokens to go to account for usePrevHookAmount to work
+        recipient = account;
+        deadline = data.toUint256(80);
+
+        // Validate deadline hasn't passed
+        if (deadline < block.timestamp) revert EXPIRED_DEADLINE(deadline, block.timestamp);
+
+        // limitSqrtPrice: 0 means no price limit (swap executes at any price)
+        limitSqrtPrice = uint160(data.toUint256(112));
+
+        uint256 originalAmountIn = data.toUint256(144);
+        uint256 originalMinAmountOut = data.toUint256(176);
+        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+
+        if (usePrevHookAmount) {
+            amountIn = ISuperHookResult(prevHook).getOutAmount(account);
+            amountOutMinimum = HookDataUpdater.getUpdatedOutputAmount(
+                amountIn,
+                originalAmountIn,
+                originalMinAmountOut
+            );
+        } else {
+            amountIn = originalAmountIn;
+            amountOutMinimum = originalMinAmountOut;
+        }
+
+        if (amountIn == 0) revert AMOUNT_NOT_VALID();
+    }
+}

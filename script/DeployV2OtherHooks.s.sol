@@ -33,6 +33,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address claimWithdrawFirelightVaultHook;
     }
 
+    struct AlgebraIntegralHookAddresses {
+        address swapAlgebraIntegralHook;
+        address approveAndSwapAlgebraIntegralHook;
+    }
+
     struct HookDeployment {
         string name;
         string saltOverride; // Optional custom salt (empty = use name for salt)
@@ -67,6 +72,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    function runAlgebraIntegral(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying Algebra Integral Hooks on chainId: ", chainId);
+
+        _deployAlgebraIntegralHooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
     /// @notice Deploy all applicable hooks for the given chain
     function _deployAllHooks(uint64 chainId, uint256 env) internal {
         // Morpho hooks — only on chains where Morpho is deployed
@@ -79,6 +92,18 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         if (chainId == MAINNET_CHAIN_ID) {
             console2.log("Deploying Aave V4 Hooks on chainId: ", chainId);
             _deployAaveV4Hooks(chainId, env);
+        }
+
+        // Firelight hooks — only on Flare
+        if (chainId == FLARE_CHAIN_ID) {
+            console2.log("Deploying Firelight Hooks on chainId: ", chainId);
+            _deployFirelightHooks(chainId, env);
+        }
+
+        // Algebra Integral hooks — only on chains with configured swap routers
+        if (otherHooksConfiguration.algebraSwapRouters[chainId] != address(0)) {
+            console2.log("Deploying Algebra Integral Hooks on chainId: ", chainId);
+            _deployAlgebraIntegralHooks(chainId, env);
         }
     }
 
@@ -305,6 +330,51 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         );
 
         console2.log("All Firelight hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    function _deployAlgebraIntegralHooks(
+        uint64 chainId,
+        uint256 env
+    )
+        internal
+        returns (AlgebraIntegralHookAddresses memory)
+    {
+        uint256 len = 2;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        bytes memory routerArg = abi.encode(otherHooksConfiguration.algebraSwapRouters[chainId]);
+
+        hooks[0] = HookDeployment(
+            SWAP_ALGEBRA_INTEGRAL_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("SwapAlgebraIntegralHook", env), routerArg)
+        );
+        hooks[1] = HookDeployment(
+            APPROVE_AND_SWAP_ALGEBRA_INTEGRAL_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("ApproveAndSwapAlgebraIntegralHook", env), routerArg)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        AlgebraIntegralHookAddresses memory hookAddresses;
+        hookAddresses.swapAlgebraIntegralHook = addresses[0];
+        hookAddresses.approveAndSwapAlgebraIntegralHook = addresses[1];
+
+        require(hookAddresses.swapAlgebraIntegralHook != address(0), "SwapAlgebraIntegralHook not assigned");
+        require(
+            hookAddresses.approveAndSwapAlgebraIntegralHook != address(0),
+            "ApproveAndSwapAlgebraIntegralHook not assigned"
+        );
+
+        console2.log("All Algebra Integral hooks deployed and validated successfully.");
 
         return hookAddresses;
     }
