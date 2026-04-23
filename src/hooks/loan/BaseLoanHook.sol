@@ -28,7 +28,7 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans {
                             EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHookContextAware
-    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
+    function decodeUsePrevHookAmount(bytes memory data) external pure virtual returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 

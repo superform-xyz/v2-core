@@ -174,9 +174,22 @@ print_separator
 # Morpho is only deployed on these chains - skip others
 MORPHO_SUPPORTED_CHAINS=("1" "8453" "56" "42161")
 
+# Aave V4 is only deployed on Ethereum mainnet
+AAVE_V4_SUPPORTED_CHAINS=("1")
+
 is_morpho_supported() {
     local chain_id=$1
     for supported in "${MORPHO_SUPPORTED_CHAINS[@]}"; do
+        if [ "$supported" = "$chain_id" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+is_aave_v4_supported() {
+    local chain_id=$1
+    for supported in "${AAVE_V4_SUPPORTED_CHAINS[@]}"; do
         if [ "$supported" = "$chain_id" ]; then
             return 0
         fi
@@ -210,6 +223,14 @@ is_algebra_integral_supported() {
     return 1
 }
 
+# Other hooks use locked-bytecode-other/ for production
+OTHER_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode-other"
+if [ "$ENVIRONMENT" = "staging" ]; then
+    if [ -d "$PROJECT_ROOT/script/generated-bytecode-other" ]; then
+        OTHER_BYTECODE_PATH="$PROJECT_ROOT/script/generated-bytecode-other"
+    fi
+fi
+
 # Check bytecode availability for Morpho hooks
 echo -e "${BLUE}🔍 Checking Morpho hook bytecode availability...${NC}"
 
@@ -224,27 +245,45 @@ MORPHO_HOOKS=(
     "MetaMorphoReallocateHook"
 )
 
-# Morpho hooks use locked-bytecode-other/ for production
-MORPHO_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode-other"
-if [ "$ENVIRONMENT" = "staging" ]; then
-    # For staging, check generated-bytecode-other/ first, fall back to locked-bytecode-other/
-    if [ -d "$PROJECT_ROOT/script/generated-bytecode-other" ]; then
-        MORPHO_BYTECODE_PATH="$PROJECT_ROOT/script/generated-bytecode-other"
-    fi
-fi
-
 missing_morpho=0
 for hook in "${MORPHO_HOOKS[@]}"; do
-    if [ -f "$MORPHO_BYTECODE_PATH/${hook}.json" ]; then
+    if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
         echo -e "${GREEN}   ✅ ${hook}${NC}"
     else
-        echo -e "${YELLOW}   ⚠️  ${hook} - missing from $MORPHO_BYTECODE_PATH${NC}"
+        echo -e "${YELLOW}   ⚠️  ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
         missing_morpho=$((missing_morpho + 1))
     fi
 done
 
 if [ $missing_morpho -gt 0 ]; then
     echo -e "${YELLOW}⚠️  ${missing_morpho} Morpho hook(s) missing bytecode. They will be skipped during deployment.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/regenerate_bytecode.sh to generate missing bytecode.${NC}"
+fi
+
+# Check bytecode availability for Aave V4 hooks
+echo -e "${BLUE}🔍 Checking Aave V4 hook bytecode availability...${NC}"
+
+AAVE_V4_HOOKS=(
+    "AaveV4SupplyHook"
+    "AaveV4WithdrawHook"
+    "AaveV4BorrowHook"
+    "AaveV4RepayHook"
+    "AaveV4SupplyAndBorrowHook"
+    "AaveV4RepayAndWithdrawHook"
+)
+
+missing_aavev4=0
+for hook in "${AAVE_V4_HOOKS[@]}"; do
+    if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
+        echo -e "${GREEN}   ✅ ${hook}${NC}"
+    else
+        echo -e "${YELLOW}   ⚠️  ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
+        missing_aavev4=$((missing_aavev4 + 1))
+    fi
+done
+
+if [ $missing_aavev4 -gt 0 ]; then
+    echo -e "${YELLOW}⚠️  ${missing_aavev4} Aave V4 hook(s) missing bytecode. They will be skipped during deployment.${NC}"
     echo -e "${YELLOW}   Run ./script/run/regenerate_bytecode.sh to generate missing bytecode.${NC}"
 fi
 
@@ -258,20 +297,12 @@ FIRELIGHT_HOOKS=(
     "ClaimWithdrawFirelightVaultHook"
 )
 
-# Firelight hooks use the same bytecode paths
-FIRELIGHT_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode-other"
-if [ "$ENVIRONMENT" = "staging" ]; then
-    if [ -d "$PROJECT_ROOT/script/generated-bytecode-other" ]; then
-        FIRELIGHT_BYTECODE_PATH="$PROJECT_ROOT/script/generated-bytecode-other"
-    fi
-fi
-
 missing_firelight=0
 for hook in "${FIRELIGHT_HOOKS[@]}"; do
-    if [ -f "$FIRELIGHT_BYTECODE_PATH/${hook}.json" ]; then
+    if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
         echo -e "${GREEN}   ✅ ${hook}${NC}"
     else
-        echo -e "${YELLOW}   ⚠️  ${hook} - missing from $FIRELIGHT_BYTECODE_PATH${NC}"
+        echo -e "${YELLOW}   ⚠️  ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
         missing_firelight=$((missing_firelight + 1))
     fi
 done
@@ -291,20 +322,12 @@ ALGEBRA_INTEGRAL_HOOKS=(
     "ApproveAndSwapAlgebraIntegralHook"
 )
 
-# Algebra Integral hooks use the same bytecode paths as other hooks
-ALGEBRA_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode-other"
-if [ "$ENVIRONMENT" = "staging" ]; then
-    if [ -d "$PROJECT_ROOT/script/generated-bytecode-other" ]; then
-        ALGEBRA_BYTECODE_PATH="$PROJECT_ROOT/script/generated-bytecode-other"
-    fi
-fi
-
 missing_algebra=0
 for hook in "${ALGEBRA_INTEGRAL_HOOKS[@]}"; do
-    if [ -f "$ALGEBRA_BYTECODE_PATH/${hook}.json" ]; then
+    if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
         echo -e "${GREEN}   ✅ ${hook}${NC}"
     else
-        echo -e "${YELLOW}   ⚠️  ${hook} - missing from $ALGEBRA_BYTECODE_PATH${NC}"
+        echo -e "${YELLOW}   ⚠️  ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
         missing_algebra=$((missing_algebra + 1))
     fi
 done
@@ -318,7 +341,7 @@ echo ""
 print_separator
 
 # Confirmation before deployment
-echo -e "${WHITE}🤔 Deploy Morpho & Firelight hooks to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
+echo -e "${WHITE}🤔 Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
 read -r proceed
 
 if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
@@ -349,6 +372,7 @@ for network_def in "${NETWORKS[@]}"; do
     echo -e "${PURPLE}╭─────────────────────────────────────────────────────────────────────────────────────╮${NC}"
     echo -e "${PURPLE}│${WHITE}                  🪝 Deploying Other Hooks to ${network_name} (${network_id}) 🪝                      ${PURPLE}│${NC}"
     echo -e "${PURPLE}╰─────────────────────────────────────────────────────────────────────────────────────╯${NC}"
+
 
     # Check RPC URL is set
     if [[ -z "${!rpc_var:-}" ]]; then

@@ -236,7 +236,16 @@ contract PendleUnifiedHookIntegration is MinimalBaseIntegrationTest, OdosAPIPars
 
         // Get Odos calldata for DETH → WETH swap
         // The swap receiver should be Pendle router (it handles forwarding to the final recipient)
-        bytes memory odosCalldata = _getOdosSwapCalldata(DETH, WETH, redeemAmount, CHAIN_1_PENDLE_ROUTER);
+        bytes memory odosCalldata;
+        try this.getOdosSwapCalldataExternal(DETH, WETH, redeemAmount, CHAIN_1_PENDLE_ROUTER) returns (
+            bytes memory result
+        ) {
+            odosCalldata = result;
+        } catch {
+            emit log("[Odos] API call failed, skipping test");
+            vm.skip(true);
+            return;
+        }
 
         // Build hook data with swap routing
         bytes memory hookData = _createPendleUnifiedRedeemHookDataWithSwap(
@@ -372,6 +381,19 @@ contract PendleUnifiedHookIntegration is MinimalBaseIntegrationTest, OdosAPIPars
     /// @dev Uses Odos API to get the optimal swap route
     /// @dev IMPORTANT: compact=false is required when using needScale=true with Pendle
     ///      because Pendle's _odosScaling only handles IOdosRouterV2.swap selector
+    /// @dev External wrapper for _getOdosSwapCalldata so it can be caught with try/catch
+    function getOdosSwapCalldataExternal(
+        address tokenIn,
+        address tokenOut,
+        uint256 amount,
+        address receiver
+    )
+        external
+        returns (bytes memory)
+    {
+        return _getOdosSwapCalldata(tokenIn, tokenOut, amount, receiver);
+    }
+
     function _getOdosSwapCalldata(
         address tokenIn,
         address tokenOut,

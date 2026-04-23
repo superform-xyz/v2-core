@@ -268,6 +268,16 @@ abstract contract Constants {
     address public constant CHAIN_8453_YO_BTC_VAULT = 0xbCbc8cb4D1e8ED048a6276a5E94A3e952660BcbC;
     address public constant CHAIN_8453_YO_USD_VAULT = 0x0000000f2eB9f69274678c76222B35eEc7588a65;
 
+    // aave v4
+    address public constant AAVE_V4_MAIN_SPOKE = 0x94e7A5dCbE816e498b89aB752661904E2F56c485;
+    address public constant AAVE_V4_CORE_HUB = 0xCca852Bc40e560adC3b1Cc58CA5b55638ce826c9;
+    uint256 public constant AAVE_V4_WETH_RESERVE_ID = 0;
+    uint256 public constant AAVE_V4_WSTETH_RESERVE_ID = 1;
+    uint256 public constant AAVE_V4_WBTC_RESERVE_ID = 3;
+    uint256 public constant AAVE_V4_USDC_RESERVE_ID = 7;
+    uint256 public constant AAVE_V4_USDT_RESERVE_ID = 8;
+    uint256 public constant AAVE_V4_BLOCK = 24_884_274;
+
     // staking protocols
 
     address public constant MORPHO_ORACLE_WBTC_USDC = 0xDddd770BADd886dF3864029e4B377B5F6a2B6b83;

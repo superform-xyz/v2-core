@@ -19,6 +19,15 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address metaMorphoReallocateHook;
     }
 
+    struct AaveV4HookAddresses {
+        address aaveV4SupplyHook;
+        address aaveV4WithdrawHook;
+        address aaveV4BorrowHook;
+        address aaveV4RepayHook;
+        address aaveV4SupplyAndBorrowHook;
+        address aaveV4RepayAndWithdrawHook;
+    }
+
     struct FirelightHookAddresses {
         address redeemFirelightVaultHook;
         address claimWithdrawFirelightVaultHook;
@@ -35,7 +44,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         bytes creationCode;
     }
 
-    /// @notice Sets up complete configuration for Morpho hooks deployment
+    /// @notice Sets up complete configuration for hook deployment
     /// @param env_ Environment (0/2 = production, 1 = test)
     /// @param saltNamespace_ Salt namespace for deployment (if empty, uses production default)
     function _setConfiguration(uint256 env_, string memory saltNamespace_) internal {
@@ -45,17 +54,13 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
     function run(uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
-        console2.log("Deploying Morpho Hooks on chainId: ", chainId);
-
-        _deployMorphoHooks(chainId, env);
+        _deployAllHooks(chainId, env);
         _writeExportedContracts(chainId);
     }
 
     function run(uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {
         _setConfiguration(env, saltNamespace);
-        console2.log("Deploying Morpho Hooks on chainId: ", chainId);
-
-        _deployMorphoHooks(chainId, env);
+        _deployAllHooks(chainId, env);
         _writeExportedContracts(chainId);
     }
 
@@ -75,8 +80,35 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    /// @notice Deploy all applicable hooks for the given chain
+    function _deployAllHooks(uint64 chainId, uint256 env) internal {
+        // Morpho hooks — only on chains where Morpho is deployed
+        if (otherHooksConfiguration.morphos[chainId] != address(0)) {
+            console2.log("Deploying Morpho Hooks on chainId: ", chainId);
+            _deployMorphoHooks(chainId, env);
+        }
+
+        // Aave V4 hooks — only on Ethereum mainnet (Aave V4 Hub-and-Spoke)
+        if (chainId == MAINNET_CHAIN_ID) {
+            console2.log("Deploying Aave V4 Hooks on chainId: ", chainId);
+            _deployAaveV4Hooks(chainId, env);
+        }
+
+        // Firelight hooks — only on Flare
+        if (chainId == FLARE_CHAIN_ID) {
+            console2.log("Deploying Firelight Hooks on chainId: ", chainId);
+            _deployFirelightHooks(chainId, env);
+        }
+
+        // Algebra Integral hooks — only on chains with configured swap routers
+        if (otherHooksConfiguration.algebraSwapRouters[chainId] != address(0)) {
+            console2.log("Deploying Algebra Integral Hooks on chainId: ", chainId);
+            _deployAlgebraIntegralHooks(chainId, env);
+        }
+    }
+
     /// @notice Get bytecode directory based on environment
-    function __getMorphoHooksBytecodeDirectory(uint256 env) internal pure returns (string memory) {
+    function __getOtherHooksBytecodeDirectory(uint256 env) internal pure returns (string memory) {
         if (env == 1) {
             return "script/generated-bytecode-other/";
         } else {
@@ -85,17 +117,21 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     }
 
     /// @notice Get bytecode from environment-specific artifacts
-    function __getMorphoHooksBytecode(string memory contractName, uint256 env) internal view returns (bytes memory) {
+    function __getOtherHooksBytecode(string memory contractName, uint256 env) internal view returns (bytes memory) {
         string memory artifactPath =
-            string(abi.encodePacked(__getMorphoHooksBytecodeDirectory(env), contractName, ".json"));
+            string(abi.encodePacked(__getOtherHooksBytecodeDirectory(env), contractName, ".json"));
         return vm.getCode(artifactPath);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        MORPHO HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
     function _deployMorphoHooks(uint64 chainId, uint256 env) internal {
-        _deployHooksSet(chainId, env);
+        _deployMorphoHooksSet(chainId, env);
     }
 
-    function _deployHooksSet(
+    function _deployMorphoHooksSet(
         uint64 chainId,
         uint256 env
     )
@@ -112,44 +148,44 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         hooks[0] = HookDeployment(
             MORPHO_SUPPLY_AND_BORROW_HOOK_KEY,
             "",
-            abi.encodePacked(__getMorphoHooksBytecode("MorphoSupplyAndBorrowHook", env), morphoArg)
+            abi.encodePacked(__getOtherHooksBytecode("MorphoSupplyAndBorrowHook", env), morphoArg)
         );
         hooks[1] = HookDeployment(
             MORPHO_BORROW_ONLY_HOOK_KEY,
             "",
-            abi.encodePacked(__getMorphoHooksBytecode("MorphoBorrowHook", env), morphoArg)
+            abi.encodePacked(__getOtherHooksBytecode("MorphoBorrowHook", env), morphoArg)
         );
         hooks[2] = HookDeployment(
             MORPHO_REPAY_HOOK_KEY,
             "",
-            abi.encodePacked(__getMorphoHooksBytecode("MorphoRepayHook", env), morphoArg)
+            abi.encodePacked(__getOtherHooksBytecode("MorphoRepayHook", env), morphoArg)
         );
         hooks[3] = HookDeployment(
             MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY,
             "",
-            abi.encodePacked(__getMorphoHooksBytecode("MorphoRepayAndWithdrawHook", env), morphoArg)
+            abi.encodePacked(__getOtherHooksBytecode("MorphoRepayAndWithdrawHook", env), morphoArg)
         );
         hooks[4] = HookDeployment(
             MORPHO_SUPPLY_HOOK_KEY,
             "",
-            abi.encodePacked(__getMorphoHooksBytecode("MorphoSupplyHook", env), morphoArg)
+            abi.encodePacked(__getOtherHooksBytecode("MorphoSupplyHook", env), morphoArg)
         );
         hooks[5] = HookDeployment(
             MORPHO_WITHDRAW_HOOK_KEY,
             "",
-            abi.encodePacked(__getMorphoHooksBytecode("MorphoWithdrawHook", env), morphoArg)
+            abi.encodePacked(__getOtherHooksBytecode("MorphoWithdrawHook", env), morphoArg)
         );
 
         // Lender-side hook
         hooks[6] = HookDeployment(
             MORPHO_LEND_HOOK_KEY,
             "",
-            abi.encodePacked(__getMorphoHooksBytecode("MorphoLendHook", env), morphoArg)
+            abi.encodePacked(__getOtherHooksBytecode("MorphoLendHook", env), morphoArg)
         );
 
         // MetaMorpho reallocate hook (no constructor args)
         hooks[7] = HookDeployment(
-            META_MORPHO_REALLOCATE_HOOK_KEY, "", __getMorphoHooksBytecode("MetaMorphoReallocateHook", env)
+            META_MORPHO_REALLOCATE_HOOK_KEY, "", __getOtherHooksBytecode("MetaMorphoReallocateHook", env)
         );
 
         for (uint256 i = 0; i < len; ++i) {
@@ -191,6 +227,76 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         return hookAddresses;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        AAVE V4 HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    function _deployAaveV4Hooks(uint64 chainId, uint256 env) internal {
+        _deployAaveV4HooksSet(chainId, env);
+    }
+
+    /// @notice Deploy all 6 Aave V4 hooks (no constructor args — Spoke comes from calldata)
+    function _deployAaveV4HooksSet(
+        uint64 chainId,
+        uint256 env
+    )
+        private
+        returns (AaveV4HookAddresses memory hookAddresses)
+    {
+        uint256 len = 6;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        // Aave V4 hooks have no constructor args
+        hooks[0] = HookDeployment(
+            AAVE_V4_SUPPLY_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4SupplyHook", env)
+        );
+        hooks[1] = HookDeployment(
+            AAVE_V4_WITHDRAW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4WithdrawHook", env)
+        );
+        hooks[2] = HookDeployment(
+            AAVE_V4_BORROW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4BorrowHook", env)
+        );
+        hooks[3] = HookDeployment(
+            AAVE_V4_REPAY_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4RepayHook", env)
+        );
+        hooks[4] = HookDeployment(
+            AAVE_V4_SUPPLY_AND_BORROW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4SupplyAndBorrowHook", env)
+        );
+        hooks[5] = HookDeployment(
+            AAVE_V4_REPAY_AND_WITHDRAW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4RepayAndWithdrawHook", env)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        hookAddresses.aaveV4SupplyHook = addresses[0];
+        hookAddresses.aaveV4WithdrawHook = addresses[1];
+        hookAddresses.aaveV4BorrowHook = addresses[2];
+        hookAddresses.aaveV4RepayHook = addresses[3];
+        hookAddresses.aaveV4SupplyAndBorrowHook = addresses[4];
+        hookAddresses.aaveV4RepayAndWithdrawHook = addresses[5];
+
+        // Verify no hooks were assigned address(0)
+        require(hookAddresses.aaveV4SupplyHook != address(0), "AaveV4SupplyHook not assigned");
+        require(hookAddresses.aaveV4WithdrawHook != address(0), "AaveV4WithdrawHook not assigned");
+        require(hookAddresses.aaveV4BorrowHook != address(0), "AaveV4BorrowHook not assigned");
+        require(hookAddresses.aaveV4RepayHook != address(0), "AaveV4RepayHook not assigned");
+        require(hookAddresses.aaveV4SupplyAndBorrowHook != address(0), "AaveV4SupplyAndBorrowHook not assigned");
+        require(hookAddresses.aaveV4RepayAndWithdrawHook != address(0), "AaveV4RepayAndWithdrawHook not assigned");
+
+        console2.log("All Aave V4 hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      FIRELIGHT HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
     function _deployFirelightHooks(uint64 chainId, uint256 env) internal returns (FirelightHookAddresses memory) {
         uint256 len = 2;
         HookDeployment[] memory hooks = new HookDeployment[](len);
@@ -200,12 +306,12 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         hooks[0] = HookDeployment(
             REDEEM_FIRELIGHT_VAULT_HOOK_KEY,
             "",
-            __getMorphoHooksBytecode("RedeemFirelightVaultHook", env)
+            __getOtherHooksBytecode("RedeemFirelightVaultHook", env)
         );
         hooks[1] = HookDeployment(
             CLAIM_WITHDRAW_FIRELIGHT_VAULT_HOOK_KEY,
             "",
-            __getMorphoHooksBytecode("ClaimWithdrawFirelightVaultHook", env)
+            __getOtherHooksBytecode("ClaimWithdrawFirelightVaultHook", env)
         );
 
         for (uint256 i = 0; i < len; ++i) {
@@ -244,12 +350,12 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         hooks[0] = HookDeployment(
             SWAP_ALGEBRA_INTEGRAL_HOOK_KEY,
             "",
-            abi.encodePacked(__getMorphoHooksBytecode("SwapAlgebraIntegralHook", env), routerArg)
+            abi.encodePacked(__getOtherHooksBytecode("SwapAlgebraIntegralHook", env), routerArg)
         );
         hooks[1] = HookDeployment(
             APPROVE_AND_SWAP_ALGEBRA_INTEGRAL_HOOK_KEY,
             "",
-            abi.encodePacked(__getMorphoHooksBytecode("ApproveAndSwapAlgebraIntegralHook", env), routerArg)
+            abi.encodePacked(__getOtherHooksBytecode("ApproveAndSwapAlgebraIntegralHook", env), routerArg)
         );
 
         for (uint256 i = 0; i < len; ++i) {
