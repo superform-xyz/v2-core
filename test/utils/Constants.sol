@@ -110,6 +110,17 @@ abstract contract Constants {
     string public constant SWAP_UNISWAP_V4_MULTI_HOP_HOOK_KEY = "SwapUniswapV4MultiHopHook";
     string public constant SWAP_UNISWAP_V3_HOOK_KEY = "SwapUniswapV3Hook";
     string public constant APPROVE_AND_SWAP_UNISWAP_V3_HOOK_KEY = "ApproveAndSwapUniswapV3Hook";
+    string public constant SWAP_ALGEBRA_INTEGRAL_HOOK_KEY = "SwapAlgebraIntegralHook";
+    string public constant APPROVE_AND_SWAP_ALGEBRA_INTEGRAL_HOOK_KEY = "ApproveAndSwapAlgebraIntegralHook";
+
+    // Algebra Integral / SparkDEX V4 addresses on Flare
+    address public constant FLARE_ALGEBRA_INTEGRAL_SWAP_ROUTER = 0x69D57B9D705eaD73a5d2f2476C30c55bD755cc2F;
+    address public constant FLARE_ALGEBRA_POOL_DEPLOYER = 0x59a662Ed724F19AD019307126CbEBdcF4b57d6B1;
+
+    // Flare tokens
+    address public constant FLARE_WFLR = 0x1D80c49BbBCd1C0911346656B529DF9E5c2F783d;
+    address public constant FLARE_SFLR = 0x12e605bc104e93B45e1aD99F9e555f659051c2BB;
+    address public constant FLARE_SPRK = 0x657097cC15fdEc9e383dB8628B57eA4a763F2ba0;
 
     // contracts
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
