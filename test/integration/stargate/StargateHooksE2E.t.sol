@@ -79,8 +79,8 @@ contract StargateHooksE2E is Test {
 
         vm.selectFork(ethForkId);
 
-        approveAndStargateHook = new ApproveAndStargateV2SendHook(STARGATE_USDC_POOL_ETH, address(mockValidator));
-        stargateHook = new StargateV2SendHook(STARGATE_USDC_POOL_ETH, address(mockValidator));
+        approveAndStargateHook = new ApproveAndStargateV2SendHook(address(mockValidator));
+        stargateHook = new StargateV2SendHook(address(mockValidator));
     }
 
     receive() external payable { }
@@ -105,8 +105,9 @@ contract StargateHooksE2E is Test {
         return fee.nativeFee;
     }
 
-    /// @dev Encode hook data for Stargate V2 hooks (197+ bytes)
+    /// @dev Encode hook data for Stargate V2 hooks (217+ bytes)
     function _encodeStargateHookData(
+        address oftContract,
         uint256 value,
         uint32 dstEid,
         address to,
@@ -119,16 +120,17 @@ contract StargateHooksE2E is Test {
         pure
         returns (bytes memory)
     {
-        // Fixed fields (197 bytes)
+        // Fixed fields (217 bytes)
         bytes memory fixedFields = abi.encodePacked(
-            value, // uint256 value (offset 0)
-            dstEid, // uint32 dstEid (offset 32)
-            bytes32(uint256(uint160(to))), // bytes32 to (offset 36)
-            amountLD, // uint256 amountLD (offset 68)
-            minAmountLD, // uint256 minAmountLD (offset 100)
-            nativeFee, // uint256 nativeFee (offset 132)
-            uint256(0), // uint256 lzTokenFee (offset 164)
-            usePrevHookAmount // bool usePrevHookAmount (offset 196)
+            oftContract, // address oftContract (offset 0, 20 bytes)
+            value, // uint256 value (offset 20)
+            dstEid, // uint32 dstEid (offset 52)
+            bytes32(uint256(uint160(to))), // bytes32 to (offset 56)
+            amountLD, // uint256 amountLD (offset 88)
+            minAmountLD, // uint256 minAmountLD (offset 120)
+            nativeFee, // uint256 nativeFee (offset 152)
+            uint256(0), // uint256 lzTokenFee (offset 184)
+            usePrevHookAmount // bool usePrevHookAmount (offset 216)
         );
 
         // Variable-length fields (all empty)
@@ -163,6 +165,7 @@ contract StargateHooksE2E is Test {
         vm.deal(account, nativeFee);
 
         bytes memory hookData = _encodeStargateHookData(
+            STARGATE_USDC_POOL_ETH,
             nativeFee, // value = nativeFee (sent as msg.value with the send call)
             BASE_EID,
             recipient,
@@ -207,6 +210,7 @@ contract StargateHooksE2E is Test {
         IERC20(USDC_ETH).approve(STARGATE_USDC_POOL_ETH, BRIDGE_AMOUNT);
 
         bytes memory hookData = _encodeStargateHookData(
+            STARGATE_USDC_POOL_ETH,
             nativeFee,
             BASE_EID,
             recipient,
@@ -246,6 +250,7 @@ contract StargateHooksE2E is Test {
         vm.deal(account, nativeFee);
 
         bytes memory hookData = _encodeStargateHookData(
+            STARGATE_USDC_POOL_ETH,
             nativeFee,
             BASE_EID,
             recipient,
@@ -273,6 +278,7 @@ contract StargateHooksE2E is Test {
         vm.deal(account, 0);
 
         bytes memory hookData = _encodeStargateHookData(
+            STARGATE_USDC_POOL_ETH,
             0, // value = 0 (no ETH sent for fee)
             BASE_EID,
             recipient,

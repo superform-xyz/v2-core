@@ -156,6 +156,8 @@ HOOK_CONTRACTS=(
     "ClaimWithdrawFirelightVaultHook"
     "SwapAlgebraIntegralHook"
     "ApproveAndSwapAlgebraIntegralHook"
+    "StargateV2SendHook"
+    "ApproveAndStargateV2SendHook"
 )
 
 # Oracle contracts from accounting/oracles

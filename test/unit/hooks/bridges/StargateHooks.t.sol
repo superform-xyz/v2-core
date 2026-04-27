@@ -57,8 +57,8 @@ contract StargateHooks is Helpers {
         // Mock IOFT.token() for the approve variant
         vm.mockCall(mockOft, abi.encodeWithSelector(IOFT.token.selector), abi.encode(mockInputToken));
 
-        stargateHook = new StargateV2SendHook(mockOft, address(mockSignatureStorage));
-        approveAndStargateHook = new ApproveAndStargateV2SendHook(mockOft, address(mockSignatureStorage));
+        stargateHook = new StargateV2SendHook(address(mockSignatureStorage));
+        approveAndStargateHook = new ApproveAndStargateV2SendHook(address(mockSignatureStorage));
 
         mockValue = 0.1 ether;
         mockDstEid = 30_101;
@@ -83,15 +83,12 @@ contract StargateHooks is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_StargateV2_Constructor() public view {
-        assertEq(stargateHook.OFT_CONTRACT(), mockOft);
         assertEq(uint256(stargateHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
     function test_StargateV2_Constructor_RevertIf_ZeroAddress() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new StargateV2SendHook(address(0), address(this));
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new StargateV2SendHook(address(this), address(0));
+        new StargateV2SendHook(address(0));
     }
 
     function test_StargateV2_Build() public {
@@ -195,11 +192,24 @@ contract StargateHooks is Helpers {
     }
 
     function test_StargateV2_Build_RevertIf_DataNotValid() public {
-        // Create data shorter than required 197 bytes
+        // Create data shorter than required 217 bytes
         bytes memory malformedData = abi.encodePacked(uint256(1 ether), uint32(30_101));
 
         vm.expectRevert(StargateV2SendHook.DATA_NOT_VALID.selector);
         stargateHook.build(address(0), mockAccount, malformedData);
+    }
+
+    function test_StargateV2_Build_RevertIf_OftAddressZero() public {
+        // Encode with address(0) as the OFT contract
+        bytes memory fixedFields = abi.encodePacked(
+            address(0), mockValue, mockDstEid, mockTo, mockAmountLD, mockMinAmountLD, mockNativeFee, mockLzTokenFee,
+            false
+        );
+        bytes memory variableFields = abi.encodePacked(uint256(0), uint256(0), uint256(0));
+        bytes memory data = abi.encodePacked(fixedFields, variableFields);
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        stargateHook.build(address(0), mockAccount, data);
     }
 
     function test_StargateV2_Build_WithPrevHookAmount() public {
@@ -265,8 +275,9 @@ contract StargateHooks is Helpers {
         bytes memory data = _encodeStargateData(false);
         bytes memory argsEncoded = stargateHook.inspect(data);
         assertGt(argsEncoded.length, 0);
-        // Should be 20 bytes: OFT_CONTRACT only
+        // Should be 20 bytes: OFT address from calldata
         assertEq(argsEncoded.length, 20);
+        assertEq(argsEncoded, abi.encodePacked(mockOft));
     }
 
     function test_StargateV2_DecodePrevHookAmount() public view {
@@ -427,12 +438,12 @@ contract StargateHooks is Helpers {
 
         assertEq(executions.length, 3);
 
-        // minAmountLD keeps original value because scaling condition (amountLD > 0 && minAmountLD > 0) is false
+        // minAmountLD resets to 0 because scaling condition (amountLD > 0 && minAmountLD > 0) is false
         SendParam memory expectedSendParam = SendParam({
             dstEid: mockDstEid,
             to: mockTo,
             amountLD: prevHookAmount,
-            minAmountLD: 950e18,
+            minAmountLD: 0,
             extraOptions: "",
             composeMsg: "",
             oftCmd: ""
@@ -442,25 +453,17 @@ contract StargateHooks is Helpers {
         assertEq(executions[1].callData, expectedCallData);
     }
 
-    function test_StargateV2_Inspector_ReturnsOftAddress() public view {
-        bytes memory argsEncoded = stargateHook.inspect("");
-        assertEq(argsEncoded, abi.encodePacked(mockOft));
-    }
-
     /*//////////////////////////////////////////////////////////////
                  APPROVE AND STARGATE V2 SEND HOOK TESTS
     //////////////////////////////////////////////////////////////*/
 
     function test_ApproveAndStargateV2_Constructor() public view {
-        assertEq(approveAndStargateHook.OFT_CONTRACT(), mockOft);
         assertEq(uint256(approveAndStargateHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
     function test_ApproveAndStargateV2_Constructor_RevertIf_ZeroAddress() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new ApproveAndStargateV2SendHook(address(0), address(this));
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new ApproveAndStargateV2SendHook(address(this), address(0));
+        new ApproveAndStargateV2SendHook(address(0));
     }
 
     function test_ApproveAndStargateV2_Build_ERC20() public {
@@ -540,8 +543,9 @@ contract StargateHooks is Helpers {
         bytes memory data = _encodeStargateData(false);
         bytes memory argsEncoded = approveAndStargateHook.inspect(data);
         assertGt(argsEncoded.length, 0);
-        // Should be 20 bytes: OFT_CONTRACT only
+        // Should be 20 bytes: OFT address from calldata
         assertEq(argsEncoded.length, 20);
+        assertEq(argsEncoded, abi.encodePacked(mockOft));
     }
 
     function test_ApproveAndStargateV2_DecodePrevHookAmount() public view {
@@ -562,11 +566,6 @@ contract StargateHooks is Helpers {
 
     function test_ApproveAndStargateV2_Subtype() public view {
         assertNotEq(BaseHook(address(approveAndStargateHook)).subtype(), bytes32(0));
-    }
-
-    function test_ApproveAndStargateV2_Inspector_ReturnsOftAddress() public view {
-        bytes memory argsEncoded = approveAndStargateHook.inspect("");
-        assertEq(argsEncoded, abi.encodePacked(mockOft));
     }
 
     function test_ApproveAndStargateV2_Build_NoComposeMsg() public {
@@ -821,16 +820,17 @@ contract StargateHooks is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function _encodeStargateData(bool usePrevHookAmount) internal view returns (bytes memory) {
-        // Fixed fields
+        // Fixed fields (OFT address prepended)
         bytes memory fixedFields = abi.encodePacked(
-            mockValue, // uint256 value (offset 0)
-            mockDstEid, // uint32 dstEid (offset 32)
-            mockTo, // bytes32 to (offset 36)
-            mockAmountLD, // uint256 amountLD (offset 68)
-            mockMinAmountLD, // uint256 minAmountLD (offset 100)
-            mockNativeFee, // uint256 nativeFee (offset 132)
-            mockLzTokenFee, // uint256 lzTokenFee (offset 164)
-            usePrevHookAmount // bool usePrevHookAmount (offset 196)
+            mockOft, // address oftContract (offset 0, 20 bytes)
+            mockValue, // uint256 value (offset 20)
+            mockDstEid, // uint32 dstEid (offset 52)
+            mockTo, // bytes32 to (offset 56)
+            mockAmountLD, // uint256 amountLD (offset 88)
+            mockMinAmountLD, // uint256 minAmountLD (offset 120)
+            mockNativeFee, // uint256 nativeFee (offset 152)
+            mockLzTokenFee, // uint256 lzTokenFee (offset 184)
+            usePrevHookAmount // bool usePrevHookAmount (offset 216)
         );
 
         // Variable-length fields (length-prefixed)

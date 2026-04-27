@@ -86,6 +86,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address approveAndSwapKyberSwapHook;
         address swapUniswapV2Hook;
         address approveAndSwapUniswapV2Hook;
+        address stargateV2SendHook;
+        address approveAndStargateV2SendHook;
     }
 
     struct HookDeployment {
@@ -273,7 +275,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     {
         // Initialize all skipped contracts array
         // Max possible skips: 2 adapters + 22 hooks = 24 skipped contracts
-        string[] memory potentialSkips = new string[](30);
+        string[] memory potentialSkips = new string[](32);
         uint256 skipCount = 0;
         // Adapter contracts (2 contracts - conditionally deployed)
         string[2] memory adapterContracts = ["AcrossV3Adapter", "DebridgeAdapter"];
@@ -300,7 +302,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-        string[56] memory baseHooks = [
+        string[58] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -356,7 +358,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "SwapKyberSwapHook",
             "ApproveAndSwapKyberSwapHook",
             "SwapUniswapV2Hook",
-            "ApproveAndSwapUniswapV2Hook"
+            "ApproveAndSwapUniswapV2Hook",
+            "StargateV2SendHook",
+            "ApproveAndStargateV2SendHook"
         ];
 
         // Start with all hooks, then decrement for missing configurations
@@ -1365,6 +1369,17 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log("SKIPPED UniswapV2 hooks: V2 Router not configured for chain", chainId);
         }
 
+        // Stargate V2 bridge hooks (always deployed, OFT address passed in calldata)
+        __checkContract(
+            STARGATE_V2_SEND_HOOK_KEY, __getSalt(STARGATE_V2_SEND_HOOK_KEY), abi.encode(superValidator), env
+        );
+        __checkContract(
+            APPROVE_AND_STARGATE_V2_SEND_HOOK_KEY,
+            __getSalt(APPROVE_AND_STARGATE_V2_SEND_HOOK_KEY),
+            abi.encode(superValidator),
+            env
+        );
+
         // TransferHook
         __checkContract(
             TRANSFER_HOOK_KEY, __getSalt(TRANSFER_HOOK_KEY), abi.encode(configuration.nativeTokens[chainId]), env
@@ -2185,7 +2200,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 56;
+        uint256 len = 58;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -2579,6 +2594,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[55] = HookDeployment("", "", ""); // Empty deployment
         }
 
+        // Stargate V2 Bridge hooks - always deployed (OFT address passed in calldata)
+        superValidator = _getContract(chainId, SUPER_VALIDATOR_KEY);
+        require(superValidator != address(0), "STARGATE_HOOK_VALIDATOR_PARAM_ZERO");
+        require(superValidator.code.length > 0, "STARGATE_HOOK_VALIDATOR_NOT_DEPLOYED");
+
+        hooks[56] = _createSafeHookDeploymentWithArgs(
+            STARGATE_V2_SEND_HOOK_KEY, "StargateV2SendHook", env, abi.encode(superValidator)
+        );
+        hooks[57] = _createSafeHookDeploymentWithArgs(
+            APPROVE_AND_STARGATE_V2_SEND_HOOK_KEY, "ApproveAndStargateV2SendHook", env, abi.encode(superValidator)
+        );
+
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying hooks with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
@@ -2736,6 +2763,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[54].name, SWAP_UNISWAPV2_HOOK_KEY) ? addresses[54] : address(0);
         hookAddresses.approveAndSwapUniswapV2Hook =
             Strings.equal(hooks[55].name, APPROVE_AND_SWAP_UNISWAPV2_HOOK_KEY) ? addresses[55] : address(0);
+        hookAddresses.stargateV2SendHook =
+            Strings.equal(hooks[56].name, STARGATE_V2_SEND_HOOK_KEY) ? addresses[56] : address(0);
+        hookAddresses.approveAndStargateV2SendHook =
+            Strings.equal(hooks[57].name, APPROVE_AND_STARGATE_V2_SEND_HOOK_KEY) ? addresses[57] : address(0);
         // ===== FINAL VALIDATION OF ALL CRITICAL HOOKS =====
         require(hookAddresses.approveErc20Hook != address(0), "APPROVE_ERC20_HOOK_NOT_ASSIGNED");
         require(hookAddresses.transferErc20Hook != address(0), "TRANSFER_ERC20_HOOK_NOT_ASSIGNED");
