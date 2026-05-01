@@ -264,6 +264,7 @@ abstract contract Constants {
     string internal constant YO_YIELD_SOURCE_ORACLE_KEY = "YoYieldSourceOracle";
     string internal constant PENDLE_PT_AMORTIZED_ORACLE_KEY = "PendlePTAmortizedOracle";
     string internal constant PENDLE_PT_AMORTIZED_ORACLE_V2_KEY = "PendlePTAmortizedOracleV2";
+    string internal constant FIRELIGHT_YIELD_SOURCE_ORACLE_KEY = "FirelightYieldSourceOracle";
 
     // SuperLedgerConfigs Salts
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_SALT = "ERC4626YieldSourceOracle_v1.0.1";
@@ -271,6 +272,7 @@ abstract contract Constants {
     string internal constant STAKING_YIELD_SOURCE_ORACLE_SALT = "StakingYieldSourceOracle_v1.0.1";
     string internal constant SUPERVAULT_YIELD_SOURCE_ORACLE_SALT = "SuperVaultYieldSourceOracle_v1.0";
     string internal constant PENDLE_PT_YIELD_SOURCE_ORACLE_SALT = "PendlePTYieldSourceOracle_v1.0";
+    string internal constant FIRELIGHT_YIELD_SOURCE_ORACLE_SALT = "FirelightYieldSourceOracle_v1.0";
 
     // Hook Deployment Salts
     string internal constant MERKL_CLAIM_REWARD_HOOK_SALT = "MerklClaimRewardHook_v02";

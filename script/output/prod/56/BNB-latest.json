@@ -1,6 +1,7 @@
 {
   "AcrossSendFundsAndExecuteOnDstHook": "0x03c551601e099C62812cBC3d5741ebECe1A58476",
   "AcrossV3Adapter": "0x6DAfED46E7250A2653A5d4ed16F793d19B501ff7",
+  "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0xe27DD18FDa2E8a5A5093f56e60ffD58437C0c132",
   "ApproveAndDeposit4626VaultHook": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
   "ApproveAndDeposit5115VaultHook": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
   "ApproveAndRequestDeposit7540VaultHook": "0x840B2b0553683dE46c5e6382D1a405f44773b43F",
@@ -27,6 +28,7 @@
   "ERC5115YieldSourceOracle": "0x53Ab533023db9f16e47774109D4Ba57b06A52b10",
   "EthenaCooldownSharesHook": "0x1bD7698cc3E3f4cCF5D6CBC74a611bdDEaB18aeF",
   "EthenaUnstakeHook": "0xaEBeEc6548B727fd4f3464B19D99f4676d7e7796",
+  "FirelightYieldSourceOracle": "0x211E048350c5b61704245BDABfefe95a1239dfE7",
   "FlatFeeLedger": "0xAb56d09Ad9975116fCeb14970F2fFb3bB0ad683E",
   "MarkRootAsUsedHook": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
   "MerklClaimRewardHook": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
