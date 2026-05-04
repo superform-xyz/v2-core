@@ -86,6 +86,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address approveAndSwapKyberSwapHook;
         address swapUniswapV2Hook;
         address approveAndSwapUniswapV2Hook;
+        address cancelDepositRequestWithId7540Hook;
+        address cancelRedeemRequestWithId7540Hook;
+        address claimCancelDepositRequestWithId7540Hook;
+        address claimCancelRedeemRequestWithId7540Hook;
+        address redeemWithId7540VaultHook;
+        address withdrawWithId7540VaultHook;
     }
 
     struct HookDeployment {
@@ -1022,6 +1028,38 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         );
         __checkContract(
             CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, __getSalt(CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY), "", env
+        );
+
+        // 7540 WithId hooks
+        __checkContract(
+            CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY,
+            __getSalt(CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY),
+            "",
+            env
+        );
+        __checkContract(
+            CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY,
+            __getSalt(CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY),
+            "",
+            env
+        );
+        __checkContract(
+            CLAIM_CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY,
+            __getSalt(CLAIM_CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY),
+            "",
+            env
+        );
+        __checkContract(
+            CLAIM_CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY,
+            __getSalt(CLAIM_CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY),
+            "",
+            env
+        );
+        __checkContract(
+            REDEEM_WITH_ID_7540_VAULT_HOOK_KEY, __getSalt(REDEEM_WITH_ID_7540_VAULT_HOOK_KEY), "", env
+        );
+        __checkContract(
+            WITHDRAW_WITH_ID_7540_VAULT_HOOK_KEY, __getSalt(WITHDRAW_WITH_ID_7540_VAULT_HOOK_KEY), "", env
         );
 
         // Swap hooks with router dependencies
@@ -2185,7 +2223,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 56;
+        uint256 len = 62;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -2398,6 +2436,25 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hooks[33] = _createSafeHookDeployment(
             CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, "ClaimCancelRedeemRequest7540Hook", env
         );
+
+        // ERC-7540 WithId hooks (non-zero requestId support)
+        hooks[56] = _createSafeHookDeployment(
+            CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY, "CancelDepositRequestWithId7540Hook", env
+        );
+        hooks[57] = _createSafeHookDeployment(
+            CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY, "CancelRedeemRequestWithId7540Hook", env
+        );
+        hooks[58] = _createSafeHookDeployment(
+            CLAIM_CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY, "ClaimCancelDepositRequestWithId7540Hook", env
+        );
+        hooks[59] = _createSafeHookDeployment(
+            CLAIM_CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY, "ClaimCancelRedeemRequestWithId7540Hook", env
+        );
+        hooks[60] =
+            _createSafeHookDeployment(REDEEM_WITH_ID_7540_VAULT_HOOK_KEY, "RedeemWithId7540VaultHook", env);
+        hooks[61] =
+            _createSafeHookDeployment(WITHDRAW_WITH_ID_7540_VAULT_HOOK_KEY, "WithdrawWithId7540VaultHook", env);
+
         hooks[34] = _createSafeHookDeployment(OFFRAMP_TOKENS_HOOK_KEY, "OfframpTokensHook", env);
         hooks[35] = _createSafeHookDeployment(MARK_ROOT_AS_USED_HOOK_KEY, "MarkRootAsUsedHook", env);
         // Merkl Claim Reward Hook - Only deploy if available on this chain
@@ -2736,6 +2793,25 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[54].name, SWAP_UNISWAPV2_HOOK_KEY) ? addresses[54] : address(0);
         hookAddresses.approveAndSwapUniswapV2Hook =
             Strings.equal(hooks[55].name, APPROVE_AND_SWAP_UNISWAPV2_HOOK_KEY) ? addresses[55] : address(0);
+
+        // ERC-7540 WithId hooks
+        hookAddresses.cancelDepositRequestWithId7540Hook = Strings.equal(
+            hooks[56].name, CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY
+        ) ? addresses[56] : address(0);
+        hookAddresses.cancelRedeemRequestWithId7540Hook = Strings.equal(
+            hooks[57].name, CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY
+        ) ? addresses[57] : address(0);
+        hookAddresses.claimCancelDepositRequestWithId7540Hook = Strings.equal(
+            hooks[58].name, CLAIM_CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY
+        ) ? addresses[58] : address(0);
+        hookAddresses.claimCancelRedeemRequestWithId7540Hook = Strings.equal(
+            hooks[59].name, CLAIM_CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY
+        ) ? addresses[59] : address(0);
+        hookAddresses.redeemWithId7540VaultHook =
+            Strings.equal(hooks[60].name, REDEEM_WITH_ID_7540_VAULT_HOOK_KEY) ? addresses[60] : address(0);
+        hookAddresses.withdrawWithId7540VaultHook =
+            Strings.equal(hooks[61].name, WITHDRAW_WITH_ID_7540_VAULT_HOOK_KEY) ? addresses[61] : address(0);
+
         // ===== FINAL VALIDATION OF ALL CRITICAL HOOKS =====
         require(hookAddresses.approveErc20Hook != address(0), "APPROVE_ERC20_HOOK_NOT_ASSIGNED");
         require(hookAddresses.transferErc20Hook != address(0), "TRANSFER_ERC20_HOOK_NOT_ASSIGNED");
@@ -2808,6 +2884,28 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(
             hookAddresses.claimCancelRedeemRequest7540Hook != address(0),
             "CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_NOT_ASSIGNED"
+        );
+        require(
+            hookAddresses.cancelDepositRequestWithId7540Hook != address(0),
+            "CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_NOT_ASSIGNED"
+        );
+        require(
+            hookAddresses.cancelRedeemRequestWithId7540Hook != address(0),
+            "CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_NOT_ASSIGNED"
+        );
+        require(
+            hookAddresses.claimCancelDepositRequestWithId7540Hook != address(0),
+            "CLAIM_CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_NOT_ASSIGNED"
+        );
+        require(
+            hookAddresses.claimCancelRedeemRequestWithId7540Hook != address(0),
+            "CLAIM_CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_NOT_ASSIGNED"
+        );
+        require(
+            hookAddresses.redeemWithId7540VaultHook != address(0), "REDEEM_WITH_ID_7540_VAULT_HOOK_NOT_ASSIGNED"
+        );
+        require(
+            hookAddresses.withdrawWithId7540VaultHook != address(0), "WITHDRAW_WITH_ID_7540_VAULT_HOOK_NOT_ASSIGNED"
         );
         require(hookAddresses.ethenaCooldownSharesHook != address(0), "ETHENA_COOLDOWN_SHARES_HOOK_NOT_ASSIGNED");
         require(hookAddresses.ethenaUnstakeHook != address(0), "ETHENA_UNSTAKE_HOOK_NOT_ASSIGNED");
