@@ -541,9 +541,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             }
         }
 
-        // Oracles (10 contracts - always check these)
+        // Oracles (11 contracts - always check these)
         // NOTE: Order must match _deployOracles array indices for consistency
-        string[10] memory oracleContracts = [
+        string[11] memory oracleContracts = [
             "ERC4626YieldSourceOracle",      // [0]
             "ERC5115YieldSourceOracle",      // [1]
             "PendlePTYieldSourceOracle",     // [2]
@@ -553,7 +553,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "SuperVaultYieldSourceOracle",   // [6]
             "YoYieldSourceOracle",           // [7]
             "PendlePTAmortizedOracle",       // [8]
-            "PendlePTAmortizedOracleV2"      // [9]
+            "PendlePTAmortizedOracleV2",     // [9]
+            "FirelightYieldSourceOracle"     // [10]
         ];
 
         for (uint256 i = 0; i < oracleContracts.length; i++) {
@@ -1473,6 +1474,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encode(DEPLOYER, superLedgerConfig),
                 env
             );
+            __checkContract(
+                FIRELIGHT_YIELD_SOURCE_ORACLE_KEY,
+                __getSalt(FIRELIGHT_YIELD_SOURCE_ORACLE_KEY),
+                abi.encode(superLedgerConfig),
+                env
+            );
         } else {
             revert("ORACLES_CHECK_FAILED_MISSING_SUPER_LEDGER_CONFIG");
         }
@@ -2120,6 +2127,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(contractToVerify.name, "ERC4626YieldSourceOracle")
                 || Strings.equal(contractToVerify.name, "ERC5115YieldSourceOracle")
                 || Strings.equal(contractToVerify.name, "StakingYieldSourceOracle")
+                || Strings.equal(contractToVerify.name, "FirelightYieldSourceOracle")
         ) {
             // Oracles need SuperLedgerConfiguration
             bytes memory constructorArgs = abi.encode(vars.superLedgerConfig);
@@ -2940,7 +2948,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         uint256 pendlePTAmortizedOracleIndex = 8;
         uint256 pendlePTAmortizedOracleV2Index = 9;
 
-        uint256 len = 10;
+        uint256 len = 11;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         address[] memory oracleAddresses = new address[](len);
 
@@ -2979,6 +2987,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         );
         oracles[9] = _createSafeOracleDeploymentWithArgs(
             PENDLE_PT_AMORTIZED_ORACLE_V2_KEY, "PendlePTAmortizedOracleV2", env, abi.encode(DEPLOYER, superLedgerConfig)
+        );
+        oracles[10] = _createSafeOracleDeploymentWithArgs(
+            FIRELIGHT_YIELD_SOURCE_ORACLE_KEY, "FirelightYieldSourceOracle", env, abi.encode(superLedgerConfig)
         );
 
         console2.log("Deploying", len, "oracles with parameter validation...");
