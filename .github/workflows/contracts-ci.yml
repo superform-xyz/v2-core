@@ -95,7 +95,7 @@ jobs:
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: yarn
+        run: pnpm install
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
@@ -146,7 +146,7 @@ jobs:
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: yarn
+        run: pnpm install
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
@@ -217,7 +217,7 @@ jobs:
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: yarn
+        run: pnpm install
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
@@ -305,7 +305,7 @@ jobs:
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: yarn
+        run: pnpm install
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
@@ -352,7 +352,7 @@ jobs:
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: yarn
+        run: pnpm install
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
