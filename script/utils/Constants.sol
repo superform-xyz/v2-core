@@ -226,6 +226,16 @@ abstract contract Constants {
     string internal constant CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "CancelRedeemRequest7540Hook";
     string internal constant CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "ClaimCancelDepositRequest7540Hook";
     string internal constant CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "ClaimCancelRedeemRequest7540Hook";
+
+    // ERC-7540 WithId Hook Keys (non-zero requestId support)
+    string internal constant CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY = "CancelDepositRequestWithId7540Hook";
+    string internal constant CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY = "CancelRedeemRequestWithId7540Hook";
+    string internal constant CLAIM_CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY =
+        "ClaimCancelDepositRequestWithId7540Hook";
+    string internal constant CLAIM_CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY =
+        "ClaimCancelRedeemRequestWithId7540Hook";
+    string internal constant REDEEM_WITH_ID_7540_VAULT_HOOK_KEY = "RedeemWithId7540VaultHook";
+    string internal constant WITHDRAW_WITH_ID_7540_VAULT_HOOK_KEY = "WithdrawWithId7540VaultHook";
     string internal constant CANCEL_REDEEM_HOOK_KEY = "CancelRedeemHook";
     string internal constant MARK_ROOT_AS_USED_HOOK_KEY = "MarkRootAsUsedHook";
     string internal constant MERKL_CLAIM_REWARD_HOOK_KEY = "MerklClaimRewardHook";
