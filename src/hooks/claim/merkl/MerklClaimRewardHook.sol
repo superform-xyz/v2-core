@@ -110,18 +110,9 @@ contract MerklClaimRewardHook is BaseHook {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure override returns (bytes memory addressData) {
-        // decode fee receiver first
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         (address feeReceiver,) = _decodeFeeParams(data);
-        addressData = bytes.concat(addressData, bytes20(feeReceiver));
-
-        // decode tokens and append them
-        (address[] memory tokens,,) = _decodeClaimParams(data);
-
-        uint256 length = tokens.length;
-        for (uint256 i; i < length; i++) {
-            addressData = bytes.concat(addressData, bytes20(tokens[i]));
-        }
+        return abi.encodePacked(feeReceiver);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -114,18 +114,18 @@ show_contract_diff() {
     # Show new contracts (contracts that don't exist in existing)
     local new_contract_names=$(echo "$new_contracts" | jq -r --argjson existing "$existing_contracts" '
         to_entries[] | select(.key as $k | $existing | has($k) | not) | .key
-    ' | tr '\n' ' ')
-    
+    ' 2>/dev/null | grep -v '^null$' | grep -v '^:' | tr '\n' ' ')
+
     # Show updated contracts (contracts that exist but with different addresses)
     local updated_contract_names=$(echo "$new_contracts" | jq -r --argjson existing "$existing_contracts" '
         to_entries[] | select(.key as $k | .value as $v | $existing | has($k) and (.[$k] != $v)) | .key
-    ' | tr '\n' ' ')
-    
+    ' 2>/dev/null | grep -v '^null$' | grep -v '^:' | tr '\n' ' ')
+
     # Show removed contracts (contracts that exist in existing but not in new deployment)
     # Exclude Nexus contracts from being shown as removed
     local removed_contract_names=$(echo "$existing_contracts" | jq -r --argjson new_contracts "$new_contracts" '
         to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "NexusProxy" and $k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory")) | .key
-    ' | tr '\n' ' ')
+    ' 2>/dev/null | grep -v '^null$' | grep -v '^:' | tr '\n' ' ')
     
     local changes_shown=false
     
@@ -134,7 +134,7 @@ show_contract_diff() {
         echo -e "  ${GREEN}+ ${new_count} new contracts${NC}"
         for contract in $new_contract_names; do
             if [ -n "$contract" ]; then
-                local addr=$(echo "$new_contracts" | jq -r ".$contract")
+                local addr=$(echo "$new_contracts" | jq -r ".[\"$contract\"]" 2>/dev/null || echo "unknown")
                 echo -e "    ${GREEN}+ $contract: $addr${NC}"
             fi
         done
@@ -146,8 +146,8 @@ show_contract_diff() {
         echo -e "  ${YELLOW}~ ${updated_count} updated contracts${NC}"
         for contract in $updated_contract_names; do
             if [ -n "$contract" ]; then
-                local old_addr=$(echo "$existing_contracts" | jq -r ".$contract")
-                local new_addr=$(echo "$new_contracts" | jq -r ".$contract")
+                local old_addr=$(echo "$existing_contracts" | jq -r ".[\"$contract\"]" 2>/dev/null || echo "unknown")
+                local new_addr=$(echo "$new_contracts" | jq -r ".[\"$contract\"]" 2>/dev/null || echo "unknown")
                 echo -e "    ${YELLOW}~ $contract: $old_addr → $new_addr${NC}"
             fi
         done
@@ -159,7 +159,7 @@ show_contract_diff() {
         echo -e "  ${RED}- ${removed_count} removed contracts${NC}"
         for contract in $removed_contract_names; do
             if [ -n "$contract" ]; then
-                local old_addr=$(echo "$existing_contracts" | jq -r ".$contract")
+                local old_addr=$(echo "$existing_contracts" | jq -r ".[\"$contract\"]" 2>/dev/null || echo "unknown")
                 echo -e "    ${RED}- $contract: $old_addr${NC}"
             fi
         done

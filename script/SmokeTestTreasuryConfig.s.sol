@@ -15,8 +15,10 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
     /// @notice Custom error for smoke test failure
     error TreasuryConfigSmokeTestFailed();
 
-    /// @notice Fireblocks sender address used for oracle ID derivation
+    /// @notice Fireblocks sender address used for oracle ID derivation (default for most chains)
     address internal constant FIREBLOCKS_SENDER = 0x28b7599f461D104f07D78215Fa6F9B959851f93d;
+    /// @notice Fireblocks sender address for Flare (different derivation path)
+    address internal constant FIREBLOCKS_SENDER_FLARE = 0x40a4012A1a154ed58E9BB2f4C63D07f64816b719;
 
     struct TreasuryValidationResults {
         bool treasuryConfigured;
@@ -30,22 +32,30 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
         string[] validationErrors;
     }
 
+    /// @notice Environment setting for determining output path
+    uint256 internal currentEnv;
+
     /// @notice Main entry point for treasury configuration smoke test
+    /// @param env Environment (0 = prod, 2 = staging)
     /// @param chainId Target chain ID to test
-    function run(uint64 chainId) public {
-        runTreasuryConfigSmokeTest(chainId);
+    function run(uint256 env, uint64 chainId) public {
+        runTreasuryConfigSmokeTest(env, chainId);
     }
 
     /// @notice Execute treasury configuration smoke test
+    /// @param env Environment (0 = prod, 2 = staging)
     /// @param chainId Target chain ID to test
-    function runTreasuryConfigSmokeTest(uint64 chainId) public {
+    function runTreasuryConfigSmokeTest(uint256 env, uint64 chainId) public {
+        require(env == 0 || env == 2, "Invalid environment: must be 0 (prod) or 2 (staging)");
+        currentEnv = env;
+
         console2.log("====== TREASURY CONFIGURATION SMOKE TEST ======");
-        console2.log("Environment: Production");
+        console2.log("Environment:", env == 0 ? "Production" : "Staging");
         console2.log("Chain ID:", chainId);
         console2.log("");
 
-        // Set configuration for production environment
-        _setConfiguration();
+        // Set configuration for the specified environment
+        _setConfiguration(env);
 
         // Perform treasury validation
         TreasuryValidationResults memory results = _validateTreasuryConfiguration(chainId);
@@ -76,8 +86,8 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
     {
         // Initialize results struct
         results.expectedTreasury = configuration.treasury;
-        results.oracleAddresses = new address[](3);
-        results.configuredFeeRecipients = new address[](3);
+        results.oracleAddresses = new address[](4);
+        results.configuredFeeRecipients = new address[](4);
         results.validationErrors = new string[](10); // Pre-allocate for potential errors
 
         uint256 errorCount = 0;
@@ -102,7 +112,7 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
         console2.log("SuperLedgerConfiguration deployed at:", superLedgerConfig);
 
         // 3. Validate oracle configurations
-        (results, errorCount) = _validateOracleConfigurations(superLedgerConfig, results, errorCount);
+        (results, errorCount) = _validateOracleConfigurations(superLedgerConfig, chainId, results, errorCount);
 
         // Resize validation errors array to actual size
         string[] memory actualErrors = new string[](errorCount);
@@ -121,6 +131,7 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
     /// @return Updated validation results and updated error count
     function _validateOracleConfigurations(
         address superLedgerConfig,
+        uint64 chainId,
         TreasuryValidationResults memory results,
         uint256 errorCount
     )
@@ -128,27 +139,33 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
         view
         returns (TreasuryValidationResults memory, uint256)
     {
+        // Select sender based on chain (Fireblocks derives different addresses per chain)
+        address sender = chainId == 14 ? FIREBLOCKS_SENDER_FLARE : FIREBLOCKS_SENDER;
+        console2.log("Using sender for oracle ID derivation:", sender);
+
         // Define oracle salts for hashing with Fireblocks sender
-        bytes32[3] memory saltHashes = [
+        bytes32[4] memory saltHashes = [
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_SALT)),
             bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_SALT)),
-            bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_SALT))
+            bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_SALT)),
+            bytes32(bytes(SUPERVAULT_YIELD_SOURCE_ORACLE_SALT))
         ];
 
         // Derive oracle IDs using _deriveWithSender logic (keccak256(salt, sender))
-        bytes32[] memory oracleIds = new bytes32[](3);
-        for (uint256 i = 0; i < 3; i++) {
-            oracleIds[i] = _deriveWithSender(saltHashes[i], FIREBLOCKS_SENDER);
+        bytes32[] memory oracleIds = new bytes32[](4);
+        for (uint256 i = 0; i < 4; i++) {
+            oracleIds[i] = _deriveWithSender(saltHashes[i], sender);
             console2.logBytes32(oracleIds[i]);
         }
 
-        string[3] memory oracleNames = [
+        string[4] memory oracleNames = [
             "ERC4626YieldSourceOracle",
             "ERC5115YieldSourceOracle",
-            "StakingYieldSourceOracle"
+            "StakingYieldSourceOracle",
+            "SuperVaultYieldSourceOracle"
         ];
 
-        results.totalOracleConfigs = 3;
+        results.totalOracleConfigs = 4;
 
         // Get all oracle configurations at once using batch function
         try ISuperLedgerConfiguration(superLedgerConfig).getYieldSourceOracleConfigs(oracleIds) returns (
@@ -156,7 +173,7 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
         ) {
             uint256 validConfigs = 0;
 
-            for (uint256 i = 0; i < 3; i++) {
+            for (uint256 i = 0; i < 4; i++) {
                 // Store oracle address for logging
                 results.oracleAddresses[i] = configs[i].yieldSourceOracle;
                 results.configuredFeeRecipients[i] = configs[i].feeRecipient;
@@ -180,7 +197,7 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
             }
 
             results.validOracleConfigs = validConfigs;
-            results.oraclesConfigured = (validConfigs == 3);
+            results.oraclesConfigured = (validConfigs == 4);
         } catch {
             results.validationErrors[errorCount++] = "Failed to get oracle configurations from SuperLedgerConfiguration";
             results.oraclesConfigured = false;
@@ -223,7 +240,8 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
         // Use environment variable for reliable project root, fallback to vm.projectRoot()
         string memory root = vm.envOr("SUPERFORM_PROJECT_ROOT", vm.projectRoot());
 
-        string memory envName = "prod";
+        // Determine environment folder based on currentEnv
+        string memory envName = currentEnv == 0 ? "prod" : "staging";
 
         // Construct path: script/output/{env}/{chainId}/{ChainName}-latest.json
         string memory outputPath = string(
@@ -260,13 +278,14 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
 
         if (results.oracleAddresses.length > 0) {
             console2.log("=== Oracle Treasury Configuration ===");
-            string[3] memory oracleNames = [
+            string[4] memory oracleNames = [
                 "ERC4626YieldSourceOracle",
                 "ERC5115YieldSourceOracle",
-                "StakingYieldSourceOracle"
+                "StakingYieldSourceOracle",
+                "SuperVaultYieldSourceOracle"
             ];
 
-            for (uint256 i = 0; i < 3; i++) {
+            for (uint256 i = 0; i < 4; i++) {
                 if (results.oracleAddresses[i] != address(0)) {
                     console2.log(oracleNames[i], ":");
                     console2.log("  Address:", results.oracleAddresses[i]);
@@ -315,12 +334,13 @@ contract SmokeTestTreasuryConfig is DeployV2Base, ConfigCore {
         return string(str);
     }
 
-    /// @notice Sets up configuration for the smoke test (production only)
-    function _setConfiguration() internal {
-        // Set base configuration for production
-        _setBaseConfiguration(0, "");
+    /// @notice Sets up configuration for the smoke test
+    /// @param env Environment (0 = prod, 2 = staging)
+    function _setConfiguration(uint256 env) internal {
+        // Set base configuration for the specified environment
+        _setBaseConfiguration(env, "");
 
         // Set core contract dependencies
-        _setCoreConfiguration();
+        _setCoreConfiguration(env);
     }
 }

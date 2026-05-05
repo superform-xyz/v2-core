@@ -133,7 +133,7 @@ import { MarkRootAsUsedHook } from "../src/hooks/superform/MarkRootAsUsedHook.so
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { ERC7540YieldSourceOracle } from "../src/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { ERC7540YieldSourceOracle } from "./mocks/unused-oracles/ERC7540YieldSourceOracle.sol";
 import { StakingYieldSourceOracle } from "../src/accounting/oracles/StakingYieldSourceOracle.sol";
 
 // external
@@ -807,7 +807,7 @@ contract BaseTest is
             );
             hooksAddresses[13] = address(A[i].redeem7540VaultHook);
 
-            A[i].swap1InchHook = new Swap1InchHook{ salt: SALT }(ONE_INCH_ROUTER);
+            A[i].swap1InchHook = new Swap1InchHook{ salt: SALT }(ONE_INCH_ROUTER, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
             vm.label(address(A[i].swap1InchHook), SWAP_1INCH_HOOK_KEY);
             hookAddresses[chainIds[i]][SWAP_1INCH_HOOK_KEY] = address(A[i].swap1InchHook);
             hooks[chainIds[i]][SWAP_1INCH_HOOK_KEY] = Hook(

@@ -21,8 +21,16 @@ abstract contract ConfigBase is Constants {
         mapping(uint64 chainId => address merklDistributor) merklDistributors;
         mapping(uint64 chainId => address routers) aggregationRouters;
         mapping(uint64 chainId => address odosRouter) odosRouters;
+        mapping(uint64 chainId => address pendleRouter) pendleRouters;
+        mapping(uint64 chainId => address pendlePTAmortizedOracle) pendlePTAmortizedOracles;
+        mapping(uint64 chainId => address pendlePTAmortizedOracleV2) pendlePTAmortizedOraclesV2;
         mapping(uint64 chainId => address nativeToken) nativeTokens;
         mapping(uint64 chainId => address poolManager) uniswapV4PoolManagers;
+        mapping(uint64 chainId => address swapRouter) uniswapV3SwapRouters;
+        mapping(uint64 chainId => address psm3) sparkPsm3s;
+        mapping(uint64 chainId => address kyberRouter) kyberSwapRouters;
+        mapping(uint64 chainId => address kyberScaleHelper) kyberSwapScaleHelpers;
+        mapping(uint64 chainId => address swapRouter) uniswapV2SwapRouters;
     }
 
     EnvironmentData public configuration;
@@ -35,6 +43,12 @@ abstract contract ConfigBase is Constants {
 
     address internal constant TEST_DEPLOYER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
     address internal constant SUPERFORM_TREASURY = 0x1dbD9b26b295A33f126456Ab4e498cd308622f08;
+
+    /// @notice Deployer address used for initial setup (will transfer roles to GOVERNOR later)
+    address internal constant DEPLOYER = 0x6E3dadcAf328ebB58753e89a3e589F5C5e988dF8;
+
+    /// @notice Super Governor address for production and staging
+    address internal constant SUPER_GOVERNOR_ADDRESS = 0x89226a5Fd572f380991Bb17c20c96ba91F98aD2e;
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
@@ -73,6 +87,8 @@ abstract contract ConfigBase is Constants {
         chainNames[SONIC_CHAIN_ID] = SONIC_KEY;
         chainNames[GNOSIS_CHAIN_ID] = GNOSIS_KEY;
         chainNames[WORLDCHAIN_CHAIN_ID] = WORLDCHAIN_KEY;
+        chainNames[HYPEREVM_CHAIN_ID] = HYPEREVM_KEY;
+        chainNames[FLARE_CHAIN_ID] = FLARE_KEY;
 
         // ===== COMMON CONFIGURATION =====
         if (env_ == 0 || env_ == 2) {

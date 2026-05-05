@@ -12,6 +12,8 @@ NC='\033[0m' # No Color
 
 # Associative array to store deployment status for each network
 declare -A NETWORK_DEPLOYMENT_STATUS
+# Associative array to store missing contracts for each network
+declare -A NETWORK_MISSING_CONTRACTS
 
 # Function to print colored header
 print_header() {
@@ -217,13 +219,17 @@ analyze_deployment_status() {
     # Analyze each network using their actual expected total (not regenerate_bytecode.sh)
     for network_id in "${!NETWORK_DEPLOYMENT_STATUS[@]}"; do
         IFS=':' read -r deployed actual_expected network_name <<< "${NETWORK_DEPLOYMENT_STATUS[$network_id]}"
-        
+
         # Use the actual expected total reported by the checking script
         if [[ $deployed -eq $actual_expected ]]; then
             echo -e "${GREEN}✅ $network_name (Chain $network_id): All $deployed/$actual_expected contracts deployed${NC}"
         elif [[ $deployed -lt $actual_expected ]]; then
             local missing=$((actual_expected - deployed))
             echo -e "${YELLOW}⚠️  $network_name (Chain $network_id): $deployed/$actual_expected contracts deployed (${missing} missing)${NC}"
+            # Show which contracts are missing
+            if [[ -n "${NETWORK_MISSING_CONTRACTS[$network_id]}" ]]; then
+                echo -e "${RED}   Missing contracts: ${NETWORK_MISSING_CONTRACTS[$network_id]}${NC}"
+            fi
             all_fully_deployed=false
             needs_deployment=true
             networks_with_missing+=("$network_name")
@@ -298,8 +304,8 @@ check_v2_addresses() {
         return 1
     fi
     
-    # Display the relevant output lines
-    echo "$check_output" | grep -e "Addr" -e "already deployed" -e "Code Size" -e "====" -e "====>"
+    # Display the relevant output lines (include MISSING contracts and deployment summary)
+    echo "$check_output" | grep -e "Addr" -e "already deployed" -e "Code Size" -e "====" -e "====>" -e "MISSING" -e "Already Deployed" -e "Missing/Need Deployment" -e "Total Contracts"
     
     # Extract deployment counts from the summary line
     local summary_line
@@ -327,10 +333,18 @@ check_v2_addresses() {
         # Parse: "=====> On this chain we have X contracts already deployed out of Y"
         local deployed_count=$(echo "$summary_line" | grep -o "have [0-9]\+ contracts" | grep -o "[0-9]\+")
         local total_count=$(echo "$summary_line" | grep -o "out of [0-9]\+" | grep -o "[0-9]\+")
-        
+
         if [[ -n "$deployed_count" && -n "$total_count" ]]; then
             # Store deployment status for this network
             NETWORK_DEPLOYMENT_STATUS["${network_id}"]="${deployed_count}:${total_count}:${network_name}"
+
+            # Extract and store missing contract names
+            local missing_contracts
+            missing_contracts=$(echo "$check_output" | grep "\[MISSING\]" | sed 's/.*\[MISSING\] //' | sed 's/ needs deployment.*//' | tr '\n' ',' | sed 's/,$//')
+            if [[ -n "$missing_contracts" ]]; then
+                NETWORK_MISSING_CONTRACTS["${network_id}"]="${missing_contracts}"
+            fi
+
             echo -e "${GREEN}  ✅ Successfully checked: ${deployed_count}/${total_count} contracts deployed${NC}"
             return 0
         else
@@ -362,13 +376,17 @@ LOCKED_BYTECODE_PATH=""
 # Check if arguments are provided
 if [ $# -lt 3 ]; then
     echo -e "${RED}❌ Error: Missing required arguments${NC}"
-    echo -e "${YELLOW}Usage: $0 <environment> <mode> <account>${NC}"
+    echo -e "${YELLOW}Usage: $0 <environment> <mode> <account> [--slow] [--resume]${NC}"
     echo -e "${CYAN}  environment: staging or prod${NC}"
     echo -e "${CYAN}  mode: simulate or deploy${NC}"
     echo -e "${CYAN}  account: foundry account name (e.g., v2, deployer, main)${NC}"
+    echo -e "${CYAN}  --slow: (optional) send transactions one at a time, waiting for confirmation${NC}"
+    echo -e "${CYAN}  --resume: (optional) resume from previous broadcast (use after interruption)${NC}"
     echo -e "${CYAN}Examples:${NC}"
     echo -e "${CYAN}  $0 staging simulate v2${NC}"
     echo -e "${CYAN}  $0 prod deploy deployer${NC}"
+    echo -e "${CYAN}  $0 prod deploy deployer --slow${NC}"
+    echo -e "${CYAN}  $0 prod deploy deployer --slow --resume${NC}"
     echo -e "${CYAN}Available accounts: $(cast wallet list 2>/dev/null | sed 's/ (Local)//' | tr '\n' ' ' || echo 'Run "cast wallet list" to see available accounts')${NC}"
     exit 1
 fi
@@ -376,6 +394,31 @@ fi
 ENVIRONMENT=$1
 MODE=$2
 ACCOUNT=$3
+
+# Check for optional flags (--slow, --resume, --legacy)
+SLOW_FLAG=""
+BATCH_SIZE_FLAG=""
+RESUME_FLAG=""
+LEGACY_FLAG=""
+GAS_PRICE_FLAG=""
+for arg in "${@:4}"; do
+    case "$arg" in
+        --slow)
+            SLOW_FLAG="--slow"
+            BATCH_SIZE_FLAG="--batch-size 1"
+            echo -e "${YELLOW}🐢 Slow mode enabled: transactions will be sent one at a time (batch-size=1)${NC}"
+            ;;
+        --resume)
+            RESUME_FLAG="--resume"
+            echo -e "${YELLOW}🔄 Resume mode enabled: will continue from previous broadcast${NC}"
+            ;;
+        --legacy)
+            LEGACY_FLAG="--legacy"
+            GAS_PRICE_FLAG="--with-gas-price 1gwei"
+            echo -e "${YELLOW}📜 Legacy mode enabled: using legacy transactions with 1 gwei gas price${NC}"
+            ;;
+    esac
+done
 
 # Validate environment and set locked bytecode path
 if [ "$ENVIRONMENT" = "staging" ]; then
@@ -588,7 +631,27 @@ case $analysis_result in
         ;;
 esac
 
+print_separator
 
+# Prompt for keystore password once upfront to avoid repeated prompts per chain
+echo -e "${WHITE}🔑 Enter keystore password for account '${ACCOUNT}' (will be used for all chain deployments):${NC}"
+read -s -p "" KEYSTORE_PASSWORD
+echo ""
+
+if [[ -z "$KEYSTORE_PASSWORD" ]]; then
+    echo -e "${RED}❌ Error: Empty password provided${NC}"
+    exit 1
+fi
+
+# Verify the password works by attempting to access the account
+if ! cast wallet address --account "$ACCOUNT" --password "$KEYSTORE_PASSWORD" &>/dev/null; then
+    echo -e "${RED}❌ Error: Invalid password for account '$ACCOUNT'${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✅ Keystore password verified successfully${NC}"
+
+# Ensure password is cleaned up on exit
+trap 'unset KEYSTORE_PASSWORD' EXIT
 
 print_separator
 
@@ -623,18 +686,36 @@ for network_def in "${NETWORKS[@]}"; do
     echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
     echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
     echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-    echo -e "${CYAN}   Verification: ${WHITE}Etherscan V2${NC}"
+    # Skip inline verification for chains with aggressive block explorer rate limiting
+    # These chains should be verified separately using verify_v2_staging_prod.sh with VERIFY_DELAY
+    local chain_verify_flag="$VERIFY_FLAG"
+    local chain_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan"
+    case $network_id in
+        14|999) # Flare, HyperEVM - aggressive Cloudflare rate limiting
+            chain_verify_flag=""
+            chain_etherscan_flags=""
+            echo -e "${CYAN}   Verification: ${WHITE}Skipped (rate-limited explorer, use verify script separately)${NC}"
+            ;;
+        *)
+            echo -e "${CYAN}   Verification: ${WHITE}Etherscan V2${NC}"
+            ;;
+    esac
     echo -e "${YELLOW}   Executing forge script...${NC}"
-    
+
     forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(bool,uint256,uint64)' false $FORGE_ENV $network_id \
         --account $ACCOUNT \
+        --password "$KEYSTORE_PASSWORD" \
         --rpc-url ${!rpc_var} \
         --chain $network_id \
-        --etherscan-api-key $ETHERSCANV2_API_KEY \
-        --verifier etherscan \
+        $chain_etherscan_flags \
         $BROADCAST_FLAG \
-        $VERIFY_FLAG \
+        $chain_verify_flag \
+        $SLOW_FLAG \
+        $BATCH_SIZE_FLAG \
+        $RESUME_FLAG \
+        $LEGACY_FLAG \
+        $GAS_PRICE_FLAG \
         --timeout 300 \
         -vv
     

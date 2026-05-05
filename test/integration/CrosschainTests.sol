@@ -861,6 +861,8 @@ contract CrosschainTests is BaseTest {
     }
 
     function test_CrossChainCreateAccount_OnRamp_Offramp_Fees_Flow() public {
+        // TODO: Fix flaky test - depends on useLatestFork=true which causes non-deterministic mainnet state
+        vm.skip(true);
         // create an account that will be later used to test Onramp-offramp flow
         address accountCreated = _createAccountCrossChainFlow();
         vm.label(accountCreated, "The account");

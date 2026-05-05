@@ -18,6 +18,7 @@ env:
   BSC_RPC_URL: ${{ secrets.BSC_RPC_URL }}
   ARBITRUM_RPC_URL: ${{ secrets.ARBITRUM_RPC_URL }}
   POLYGON_RPC_URL: ${{ secrets.POLYGON_RPC_URL }}
+  FLARE_RPC_URL: ${{ secrets.FLARE_RPC_URL }}
   UNICHAIN_RPC_URL: ${{ secrets.UNICHAIN_RPC_URL }} 
   AVALANCHE_RPC_URL: ${{ secrets.AVALANCHE_RPC_URL }}
   BERACHAIN_RPC_URL: ${{ secrets.BERACHAIN_RPC_URL }} 
@@ -74,7 +75,7 @@ jobs:
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
         with:
-          version: "v1.3.6"
+          version: "v1.4.4"
 
       - name: "Get forge version"
         run: forge --version
@@ -83,7 +84,7 @@ jobs:
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm
+        run: npm install -g pnpm@8
 
       - name: "Check pnpm version"
         run: pnpm --version
@@ -94,7 +95,7 @@ jobs:
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: yarn
+        run: pnpm install
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
@@ -131,13 +132,13 @@ jobs:
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
         with:
-          version: "v1.3.6"
+          version: "v1.4.4"
 
       - name: "Install Foundry dependencies"
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm
+        run: npm install -g pnpm@8
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
@@ -145,7 +146,7 @@ jobs:
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: yarn
+        run: pnpm install
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
@@ -202,13 +203,13 @@ jobs:
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
         with:
-          version: "v1.3.6"
+          version: "v1.4.4"
 
       - name: "Install Foundry dependencies"
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm
+        run: npm install -g pnpm@8
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
@@ -216,7 +217,7 @@ jobs:
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: yarn
+        run: pnpm install
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
@@ -290,13 +291,13 @@ jobs:
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
         with:
-          version: "v1.3.6"
+          version: "v1.4.4"
 
       - name: "Install Foundry dependencies"
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm
+        run: npm install -g pnpm@8
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
@@ -304,7 +305,7 @@ jobs:
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: yarn
+        run: pnpm install
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
@@ -337,13 +338,13 @@ jobs:
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
         with:
-          version: "v1.3.6"
+          version: "v1.4.4"
           
       - name: "Install Foundry dependencies"
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm
+        run: npm install -g pnpm@8
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
@@ -351,7 +352,7 @@ jobs:
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: yarn
+        run: pnpm install
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus

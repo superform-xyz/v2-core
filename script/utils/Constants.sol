@@ -18,6 +18,8 @@ abstract contract Constants {
     string internal constant SONIC_KEY = "Sonic";
     string internal constant GNOSIS_KEY = "Gnosis";
     string internal constant WORLDCHAIN_KEY = "Worldchain";
+    string internal constant HYPEREVM_KEY = "HyperEVM";
+    string internal constant FLARE_KEY = "Flare";
     string internal constant SEPOLIA_KEY = "Sepolia";
     string internal constant ARB_SEPOLIA_KEY = "Arbitrum_Sepolia";
     string internal constant BASE_SEPOLIA_KEY = "Base_Sepolia";
@@ -36,6 +38,7 @@ abstract contract Constants {
     string internal constant SUPER_POSITION_KEY = "SuperPosition";
     string internal constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
     string internal constant SUPER_NATIVE_PAYMASTER_KEY = "SuperNativePaymaster";
+    string internal constant SUPER_SPONSORSHIP_PAYMASTER_KEY = "SuperSponsorshipPaymaster";
     string internal constant SUPER_SENDER_CREATOR_KEY = "SuperSenderCreator";
 
     string internal constant SUPER_BUNDLER_ID = "SUPER_BUNDLER_ID";
@@ -56,6 +59,8 @@ abstract contract Constants {
     uint64 internal constant SONIC_CHAIN_ID = 146;
     uint64 internal constant GNOSIS_CHAIN_ID = 100;
     uint64 internal constant WORLDCHAIN_CHAIN_ID = 480;
+    uint64 internal constant HYPEREVM_CHAIN_ID = 999;
+    uint64 internal constant FLARE_CHAIN_ID = 14;
     // testnets
     uint64 internal constant SEPOLIA_CHAIN_ID = 11_155_111;
     uint64 internal constant ARB_SEPOLIA_CHAIN_ID = 421_613;
@@ -72,8 +77,9 @@ abstract contract Constants {
     address internal constant ACROSS_SPOKE_POOL_UNICHAIN = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
     address internal constant ACROSS_SPOKE_POOL_LINEA = 0x7E63A5f1a8F0B4d0934B2f2327DAED3F6bb2ee75;
     address internal constant ACROSS_SPOKE_POOL_WORLDCHAIN = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
+    address internal constant ACROSS_SPOKE_POOL_HYPEREVM = 0x35E63eA3eb0fb7A3bc543C71FB66412e1F6B0E04;
 
-    // Note: Berachain and Worldchain Across spoke pools not found - may not be deployed yet
+    // Note: Berachain Across spoke pool not found - may not be deployed yet
     // Note: Gnosis Across spoke pool not found - may not be deployed yet
 
     // DeBridge Gate addresses per chain
@@ -96,6 +102,21 @@ abstract contract Constants {
     address internal constant ODOS_ROUTER_SONIC = 0xaC041Df48dF9791B0654f1Dbbf2CC8450C5f2e9D;
     address internal constant ODOS_ROUTER_LINEA = 0x2d8879046f1559E53eb052E949e9544bCB72f414;
 
+    // KyberSwap Router and ScaleHelper addresses (same address across all chains)
+    // https://docs.kyberswap.com/kyberswap-solutions/kyberswap-aggregator/contracts
+    address internal constant KYBER_ROUTER = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
+    address internal constant KYBER_SCALE_HELPER = 0x2f577A41BeC1BE1152AeEA12e73b7391d15f655D;
+
+    // Pendle Router addresses per chain
+    address internal constant PENDLE_ROUTER_MAINNET = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_BASE = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_OPTIMISM = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_ARBITRUM = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_BNB = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_BERACHAIN = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_SONIC = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_HYPEREVM = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+
     // Merkl Distributor addresses per chain
     address internal constant MERKL_DISTRIBUTOR = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
     // Native tokens representation
@@ -110,6 +131,12 @@ abstract contract Constants {
     address internal constant GATEWAY_WALLET = 0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE;
     address internal constant GATEWAY_MINTER = 0x2222222d7164433c4C09B0b0D809a9b52C04C205;
 
+    // SparkDex V2 Router (Uniswap V2 fork on Flare)
+    address internal constant SPARKDEX_V2_ROUTER_FLARE = 0x4a1E5A90e9943467FAd1acea1E7F0e5e88472a1e;
+
+    // SparkDEX V4 / Algebra Integral Router on Flare
+    address internal constant ALGEBRA_INTEGRAL_SWAP_ROUTER_FLARE = 0x69D57B9D705eaD73a5d2f2476C30c55bD755cc2F;
+
     // Hook Keys
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
     string internal constant APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY =
@@ -120,6 +147,7 @@ abstract contract Constants {
     string internal constant YEARN_CLAIM_ONE_REWARD_HOOK_KEY = "YearnClaimOneRewardHook";
     string internal constant APPROVE_ERC20_HOOK_KEY = "ApproveERC20Hook";
     string internal constant TRANSFER_ERC20_HOOK_KEY = "TransferERC20Hook";
+    string internal constant TRANSFER_HOOK_KEY = "TransferHook";
     string internal constant BATCH_TRANSFER_HOOK_KEY = "BatchTransferHook";
     string internal constant BATCH_TRANSFER_FROM_HOOK_KEY = "BatchTransferFromHook";
     string internal constant OFFRAMP_TOKENS_HOOK_KEY = "OfframpTokensHook";
@@ -131,6 +159,8 @@ abstract contract Constants {
     string internal constant REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "RequestDeposit7540VaultHook";
     string internal constant REDEEM_7540_VAULT_HOOK_KEY = "Redeem7540VaultHook";
     string internal constant REQUEST_REDEEM_7540_VAULT_HOOK_KEY = "RequestRedeem7540VaultHook";
+    string internal constant SET_OPERATOR_7540_HOOK_KEY = "SetOperator7540Hook";
+    string internal constant SET_SLIPPAGE_HOOK_KEY = "SetSlippageHook";
     string internal constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
     string internal constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
     string internal constant FLUID_STAKE_HOOK_KEY = "FluidStakeHook";
@@ -138,8 +168,31 @@ abstract contract Constants {
     string internal constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
     string internal constant SWAP_ODOSV2_HOOK_KEY = "SwapOdosV2Hook";
     string internal constant SWAP_UNISWAPV4_HOOK_KEY = "SwapUniswapV4Hook";
+    string internal constant SWAP_UNISWAPV3_HOOK_KEY = "SwapUniswapV3Hook";
+    string internal constant APPROVE_AND_SWAP_UNISWAPV3_HOOK_KEY = "ApproveAndSwapUniswapV3Hook";
+    string internal constant SWAP_ALGEBRA_INTEGRAL_HOOK_KEY = "SwapAlgebraIntegralHook";
+    string internal constant APPROVE_AND_SWAP_ALGEBRA_INTEGRAL_HOOK_KEY = "ApproveAndSwapAlgebraIntegralHook";
+    string internal constant SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY = "SwapSparkPSMExactInHook";
+    string internal constant APPROVE_AND_SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY = "ApproveAndSwapSparkPSMExactInHook";
+    string internal constant SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY = "SwapSparkPSMExactOutHook";
+    string internal constant APPROVE_AND_SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY = "ApproveAndSwapSparkPSMExactOutHook";
+    string internal constant PENDLE_ROUTER_SWAP_HOOK_KEY = "PendleRouterSwapHook";
+    string internal constant PENDLE_ROUTER_REDEEM_HOOK_KEY = "PendleRouterRedeemHook";
+    string internal constant PENDLE_UNIFIED_HOOK_KEY = "PendleUnifiedHook";
+    string internal constant RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY =
+        "RecordPurchasePendlePTAmortizedOracleHook";
+    string internal constant RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY =
+        "RecordRedemptionPendlePTAmortizedOracleHook";
+    string internal constant RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY =
+        "RecordPurchasePendlePTAmortizedOracleHookV2";
+    string internal constant RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY =
+        "RecordRedemptionPendlePTAmortizedOracleHookV2";
     string internal constant APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY = "ApproveAndDeposit4626VaultHook";
     string internal constant APPROVE_AND_SWAP_ODOSV2_HOOK_KEY = "ApproveAndSwapOdosV2Hook";
+    string internal constant SWAP_KYBERSWAP_HOOK_KEY = "SwapKyberSwapHook";
+    string internal constant APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY = "ApproveAndSwapKyberSwapHook";
+    string internal constant SWAP_UNISWAPV2_HOOK_KEY = "SwapUniswapV2Hook";
+    string internal constant APPROVE_AND_SWAP_UNISWAPV2_HOOK_KEY = "ApproveAndSwapUniswapV2Hook";
     string internal constant APPROVE_AND_FLUID_STAKE_HOOK_KEY = "ApproveAndFluidStakeHook";
     string internal constant APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "ApproveAndRequestDeposit7540VaultHook";
     string internal constant APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY = "ApproveAndDeposit5115VaultHook";
@@ -156,10 +209,33 @@ abstract contract Constants {
     string internal constant MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY = "MorphoRepayAndWithdrawHook";
     string internal constant MORPHO_BORROW_ONLY_HOOK_KEY = "MorphoBorrowHook";
     string internal constant MORPHO_SUPPLY_AND_BORROW_HOOK_KEY = "MorphoSupplyAndBorrowHook";
+    string internal constant MORPHO_SUPPLY_HOOK_KEY = "MorphoSupplyHook";
+    string internal constant MORPHO_WITHDRAW_HOOK_KEY = "MorphoWithdrawHook";
+    string internal constant MORPHO_LEND_HOOK_KEY = "MorphoLendHook";
+    string internal constant META_MORPHO_REALLOCATE_HOOK_KEY = "MetaMorphoReallocateHook";
+
+    // Aave V4 Hook Keys
+    string internal constant AAVE_V4_SUPPLY_HOOK_KEY = "AaveV4SupplyHook";
+    string internal constant AAVE_V4_WITHDRAW_HOOK_KEY = "AaveV4WithdrawHook";
+    string internal constant AAVE_V4_BORROW_HOOK_KEY = "AaveV4BorrowHook";
+    string internal constant AAVE_V4_REPAY_HOOK_KEY = "AaveV4RepayHook";
+    string internal constant AAVE_V4_SUPPLY_AND_BORROW_HOOK_KEY = "AaveV4SupplyAndBorrowHook";
+    string internal constant AAVE_V4_REPAY_AND_WITHDRAW_HOOK_KEY = "AaveV4RepayAndWithdrawHook";
+
     string internal constant CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "CancelDepositRequest7540Hook";
     string internal constant CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "CancelRedeemRequest7540Hook";
     string internal constant CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "ClaimCancelDepositRequest7540Hook";
     string internal constant CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "ClaimCancelRedeemRequest7540Hook";
+
+    // ERC-7540 WithId Hook Keys (non-zero requestId support)
+    string internal constant CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY = "CancelDepositRequestWithId7540Hook";
+    string internal constant CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY = "CancelRedeemRequestWithId7540Hook";
+    string internal constant CLAIM_CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY =
+        "ClaimCancelDepositRequestWithId7540Hook";
+    string internal constant CLAIM_CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY =
+        "ClaimCancelRedeemRequestWithId7540Hook";
+    string internal constant REDEEM_WITH_ID_7540_VAULT_HOOK_KEY = "RedeemWithId7540VaultHook";
+    string internal constant WITHDRAW_WITH_ID_7540_VAULT_HOOK_KEY = "WithdrawWithId7540VaultHook";
     string internal constant CANCEL_REDEEM_HOOK_KEY = "CancelRedeemHook";
     string internal constant MARK_ROOT_AS_USED_HOOK_KEY = "MarkRootAsUsedHook";
     string internal constant MERKL_CLAIM_REWARD_HOOK_KEY = "MerklClaimRewardHook";
@@ -169,6 +245,10 @@ abstract contract Constants {
     string internal constant CIRCLE_GATEWAY_MINTER_HOOK_KEY = "CircleGatewayMinterHook";
     string internal constant CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY = "CircleGatewayAddDelegateHook";
     string internal constant CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY = "CircleGatewayRemoveDelegateHook";
+
+    // Firelight Hook Keys
+    string internal constant REDEEM_FIRELIGHT_VAULT_HOOK_KEY = "RedeemFirelightVaultHook";
+    string internal constant CLAIM_WITHDRAW_FIRELIGHT_VAULT_HOOK_KEY = "ClaimWithdrawFirelightVaultHook";
 
     // Mock hooks (dev environment only)
     string internal constant MOCK_DEX_KEY = "MockDex";
@@ -190,11 +270,19 @@ abstract contract Constants {
     string internal constant PENDLE_PT_YIELD_SOURCE_ORACLE_KEY = "PendlePTYieldSourceOracle";
     string internal constant SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY = "SpectraPTYieldSourceOracle";
     string internal constant STAKING_YIELD_SOURCE_ORACLE_KEY = "StakingYieldSourceOracle";
+    string internal constant SUPER_VAULT_YIELD_SOURCE_ORACLE_KEY = "SuperVaultYieldSourceOracle";
+    string internal constant YO_YIELD_SOURCE_ORACLE_KEY = "YoYieldSourceOracle";
+    string internal constant PENDLE_PT_AMORTIZED_ORACLE_KEY = "PendlePTAmortizedOracle";
+    string internal constant PENDLE_PT_AMORTIZED_ORACLE_V2_KEY = "PendlePTAmortizedOracleV2";
+    string internal constant FIRELIGHT_YIELD_SOURCE_ORACLE_KEY = "FirelightYieldSourceOracle";
 
     // SuperLedgerConfigs Salts
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_SALT = "ERC4626YieldSourceOracle_v1.0.1";
     string internal constant ERC5115_YIELD_SOURCE_ORACLE_SALT = "ERC5115YieldSourceOracle_v1.0.1";
     string internal constant STAKING_YIELD_SOURCE_ORACLE_SALT = "StakingYieldSourceOracle_v1.0.1";
+    string internal constant SUPERVAULT_YIELD_SOURCE_ORACLE_SALT = "SuperVaultYieldSourceOracle_v1.0";
+    string internal constant PENDLE_PT_YIELD_SOURCE_ORACLE_SALT = "PendlePTYieldSourceOracle_v1.0";
+    string internal constant FIRELIGHT_YIELD_SOURCE_ORACLE_SALT = "FirelightYieldSourceOracle_v1.0";
 
     // Hook Deployment Salts
     string internal constant MERKL_CLAIM_REWARD_HOOK_SALT = "MerklClaimRewardHook_v02";

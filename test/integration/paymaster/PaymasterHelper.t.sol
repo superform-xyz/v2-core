@@ -25,7 +25,7 @@ import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerCon
 import { SuperExecutor } from "../../../src/executors/SuperExecutor.sol";
 import { ERC4626YieldSourceOracle } from "../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../../../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { ERC7540YieldSourceOracle } from "../../../src/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { ERC7540YieldSourceOracle } from "../../mocks/unused-oracles/ERC7540YieldSourceOracle.sol";
 import { SuperLedger } from "../../../src/accounting/SuperLedger.sol";
 import { ERC5115Ledger } from "../../mocks/ERC5115Ledger.sol";
 import { ISuperLedgerConfiguration } from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";

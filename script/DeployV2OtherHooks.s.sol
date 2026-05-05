@@ -8,24 +8,34 @@ import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
-    struct OtherHookAddresses {
-        address fluidClaimRewardHook;
-        address gearboxClaimRewardHook;
-        address yearnClaimOneRewardHook;
-        address gearboxStakeHook;
-        address approveAndGearboxStakeHook;
-        address gearboxUnstakeHook;
-        address fluidStakeHook;
-        address approveAndFluidStakeHook;
-        address fluidUnstakeHook;
-        address spectraExchangeDepositHook;
-        address spectraExchangeRedeemHook;
-        address pendleRouterSwapHook;
-        address pendleRouterRedeemHook;
+    struct MorphoHookAddresses {
         address morphoSupplyAndBorrowHook;
+        address morphoBorrowHook;
         address morphoRepayHook;
         address morphoRepayAndWithdrawHook;
-        address morphoBorrowHook;
+        address morphoSupplyHook;
+        address morphoWithdrawHook;
+        address morphoLendHook;
+        address metaMorphoReallocateHook;
+    }
+
+    struct AaveV4HookAddresses {
+        address aaveV4SupplyHook;
+        address aaveV4WithdrawHook;
+        address aaveV4BorrowHook;
+        address aaveV4RepayHook;
+        address aaveV4SupplyAndBorrowHook;
+        address aaveV4RepayAndWithdrawHook;
+    }
+
+    struct FirelightHookAddresses {
+        address redeemFirelightVaultHook;
+        address claimWithdrawFirelightVaultHook;
+    }
+
+    struct AlgebraIntegralHookAddresses {
+        address swapAlgebraIntegralHook;
+        address approveAndSwapAlgebraIntegralHook;
     }
 
     struct HookDeployment {
@@ -34,219 +44,337 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         bytes creationCode;
     }
 
-    /// @notice Sets up complete configuration for other hooks deployment
+    /// @notice Sets up complete configuration for hook deployment
     /// @param env_ Environment (0/2 = production, 1 = test)
     /// @param saltNamespace_ Salt namespace for deployment (if empty, uses production default)
     function _setConfiguration(uint256 env_, string memory saltNamespace_) internal {
-        // Set base configuration (chain names, common addresses)
         _setBaseConfiguration(env_, saltNamespace_);
-
-        // Set protocol router addresses for hooks
         _setOtherHooksConfiguration();
     }
 
     function run(uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
-        console2.log("Deploying V2 Other Hooks on chainId: ", chainId);
-
-        // deploy other hooks
-        _deployOtherHooks(chainId, env);
-
-        // Write all exported contracts for this chain
+        _deployAllHooks(chainId, env);
         _writeExportedContracts(chainId);
     }
 
     function run(uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {
         _setConfiguration(env, saltNamespace);
-        console2.log("Deploying V2 Other Hooks on chainId: ", chainId);
-
-        // deploy other hooks
-        _deployOtherHooks(chainId, env);
-
-        // Write all exported contracts for this chain
+        _deployAllHooks(chainId, env);
         _writeExportedContracts(chainId);
     }
 
-    /// @notice Get bytecode directory for other hooks based on environment
-    /// @param env Environment (1 = vnet/dev, 0/2 = prod/staging)
-    /// @return bytecodeDir Directory path for other hooks bytecode artifacts
+    function runFirelight(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying Firelight Hooks on chainId: ", chainId);
+
+        _deployFirelightHooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
+    function runAlgebraIntegral(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying Algebra Integral Hooks on chainId: ", chainId);
+
+        _deployAlgebraIntegralHooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
+    /// @notice Deploy all applicable hooks for the given chain
+    function _deployAllHooks(uint64 chainId, uint256 env) internal {
+        // Morpho hooks — only on chains where Morpho is deployed
+        if (otherHooksConfiguration.morphos[chainId] != address(0)) {
+            console2.log("Deploying Morpho Hooks on chainId: ", chainId);
+            _deployMorphoHooks(chainId, env);
+        }
+
+        // Aave V4 hooks — only on Ethereum mainnet (Aave V4 Hub-and-Spoke)
+        if (chainId == MAINNET_CHAIN_ID) {
+            console2.log("Deploying Aave V4 Hooks on chainId: ", chainId);
+            _deployAaveV4Hooks(chainId, env);
+        }
+
+        // Firelight hooks — only on Flare
+        if (chainId == FLARE_CHAIN_ID) {
+            console2.log("Deploying Firelight Hooks on chainId: ", chainId);
+            _deployFirelightHooks(chainId, env);
+        }
+
+        // Algebra Integral hooks — only on chains with configured swap routers
+        if (otherHooksConfiguration.algebraSwapRouters[chainId] != address(0)) {
+            console2.log("Deploying Algebra Integral Hooks on chainId: ", chainId);
+            _deployAlgebraIntegralHooks(chainId, env);
+        }
+    }
+
+    /// @notice Get bytecode directory based on environment
     function __getOtherHooksBytecodeDirectory(uint256 env) internal pure returns (string memory) {
         if (env == 1) {
-            // VNET environment - use generated bytecode
             return "script/generated-bytecode-other/";
         } else {
-            // Production/Staging environment - use locked bytecode
             return "script/locked-bytecode-other/";
         }
     }
 
-    /// @notice Get bytecode from environment-specific artifacts for other hooks
-    /// @param contractName Name of the contract
-    /// @param env Environment (1 = vnet/dev, 0/2 = prod/staging)
-    /// @return bytecode Contract bytecode
+    /// @notice Get bytecode from environment-specific artifacts
     function __getOtherHooksBytecode(string memory contractName, uint256 env) internal view returns (bytes memory) {
         string memory artifactPath =
             string(abi.encodePacked(__getOtherHooksBytecodeDirectory(env), contractName, ".json"));
         return vm.getCode(artifactPath);
     }
 
-    function _deployOtherHooks(uint64 chainId, uint256 env) internal {
-        // Deploy Other Hooks
-        _deployHooksSet(chainId, env);
+    /*//////////////////////////////////////////////////////////////
+                        MORPHO HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    function _deployMorphoHooks(uint64 chainId, uint256 env) internal {
+        _deployMorphoHooksSet(chainId, env);
     }
 
-    function _deployHooksSet(uint64 chainId, uint256 env) private returns (OtherHookAddresses memory hookAddresses) {
-        uint256 len = 17;
+    function _deployMorphoHooksSet(
+        uint64 chainId,
+        uint256 env
+    )
+        private
+        returns (MorphoHookAddresses memory hookAddresses)
+    {
+        uint256 len = 8;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
-        // Claim hooks
-        hooks[0] = HookDeployment(FLUID_CLAIM_REWARD_HOOK_KEY, "", __getOtherHooksBytecode("FluidClaimRewardHook", env));
-        hooks[1] = HookDeployment(GEARBOX_CLAIM_REWARD_HOOK_KEY, "", __getOtherHooksBytecode("GearboxClaimRewardHook", env));
-        hooks[2] =
-            HookDeployment(YEARN_CLAIM_ONE_REWARD_HOOK_KEY, "", __getOtherHooksBytecode("YearnClaimOneRewardHook", env));
+        bytes memory morphoArg = abi.encode(otherHooksConfiguration.morphos[chainId]);
 
-        // Stake hooks
-        hooks[3] = HookDeployment(FLUID_STAKE_HOOK_KEY, "", __getOtherHooksBytecode("FluidStakeHook", env));
-        hooks[4] =
-            HookDeployment(APPROVE_AND_FLUID_STAKE_HOOK_KEY, "", __getOtherHooksBytecode("ApproveAndFluidStakeHook", env));
-        hooks[5] = HookDeployment(FLUID_UNSTAKE_HOOK_KEY, "", __getOtherHooksBytecode("FluidUnstakeHook", env));
-        hooks[6] = HookDeployment(GEARBOX_STAKE_HOOK_KEY, "", __getOtherHooksBytecode("GearboxStakeHook", env));
-        hooks[7] = HookDeployment(
-            GEARBOX_APPROVE_AND_STAKE_HOOK_KEY, "", __getOtherHooksBytecode("ApproveAndGearboxStakeHook", env)
-        );
-        hooks[8] = HookDeployment(GEARBOX_UNSTAKE_HOOK_KEY, "", __getOtherHooksBytecode("GearboxUnstakeHook", env));
-
-        // Spectra swapper hooks
-        hooks[9] = HookDeployment(
-            SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY,
-            "",
-            abi.encodePacked(
-                __getOtherHooksBytecode("SpectraExchangeDepositHook", env),
-                abi.encode(otherHooksConfiguration.spectraRouters[chainId])
-            )
-        );
-        hooks[10] = HookDeployment(
-            SPECTRA_EXCHANGE_REDEEM_HOOK_KEY,
-            "",
-            abi.encodePacked(
-                __getOtherHooksBytecode("SpectraExchangeRedeemHook", env),
-                abi.encode(otherHooksConfiguration.spectraRouters[chainId])
-            )
-        );
-
-        // Pendle swapper hooks
-        hooks[11] = HookDeployment(
-            PENDLE_ROUTER_SWAP_HOOK_KEY,
-            "",
-            abi.encodePacked(
-                __getOtherHooksBytecode("PendleRouterSwapHook", env),
-                abi.encode(otherHooksConfiguration.pendleRouters[chainId])
-            )
-        );
-        hooks[12] = HookDeployment(
-            PENDLE_ROUTER_REDEEM_HOOK_KEY,
-            "",
-            abi.encodePacked(
-                __getOtherHooksBytecode("PendleRouterRedeemHook", env),
-                abi.encode(otherHooksConfiguration.pendleRouters[chainId])
-            )
-        );
-
-        // Morpho loan hooks
-        hooks[13] = HookDeployment(
+        // Borrower-side hooks
+        hooks[0] = HookDeployment(
             MORPHO_SUPPLY_AND_BORROW_HOOK_KEY,
             "",
-            abi.encodePacked(
-                __getOtherHooksBytecode("MorphoSupplyAndBorrowHook", env),
-                abi.encode(otherHooksConfiguration.morphos[chainId])
-            )
+            abi.encodePacked(__getOtherHooksBytecode("MorphoSupplyAndBorrowHook", env), morphoArg)
         );
-        hooks[14] = HookDeployment(
-            MORPHO_REPAY_HOOK_KEY,
-            "",
-            abi.encodePacked(
-                __getOtherHooksBytecode("MorphoRepayHook", env), abi.encode(otherHooksConfiguration.morphos[chainId])
-            )
-        );
-        hooks[15] = HookDeployment(
-            MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY,
-            "",
-            abi.encodePacked(
-                __getOtherHooksBytecode("MorphoRepayAndWithdrawHook", env),
-                abi.encode(otherHooksConfiguration.morphos[chainId])
-            )
-        );
-        hooks[16] = HookDeployment(
+        hooks[1] = HookDeployment(
             MORPHO_BORROW_ONLY_HOOK_KEY,
             "",
-            abi.encodePacked(
-                __getOtherHooksBytecode("MorphoBorrowHook", env), abi.encode(otherHooksConfiguration.morphos[chainId])
-            )
+            abi.encodePacked(__getOtherHooksBytecode("MorphoBorrowHook", env), morphoArg)
+        );
+        hooks[2] = HookDeployment(
+            MORPHO_REPAY_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("MorphoRepayHook", env), morphoArg)
+        );
+        hooks[3] = HookDeployment(
+            MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("MorphoRepayAndWithdrawHook", env), morphoArg)
+        );
+        hooks[4] = HookDeployment(
+            MORPHO_SUPPLY_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("MorphoSupplyHook", env), morphoArg)
+        );
+        hooks[5] = HookDeployment(
+            MORPHO_WITHDRAW_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("MorphoWithdrawHook", env), morphoArg)
+        );
+
+        // Lender-side hook
+        hooks[6] = HookDeployment(
+            MORPHO_LEND_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("MorphoLendHook", env), morphoArg)
+        );
+
+        // MetaMorpho reallocate hook (no constructor args)
+        hooks[7] = HookDeployment(
+            META_MORPHO_REALLOCATE_HOOK_KEY, "", __getOtherHooksBytecode("MetaMorphoReallocateHook", env)
         );
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
-            // Use saltOverride if provided, otherwise use name for salt
             string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
             addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
         }
 
         // Assign hook addresses
-        hookAddresses.fluidClaimRewardHook =
-            Strings.equal(hooks[0].name, FLUID_CLAIM_REWARD_HOOK_KEY) ? addresses[0] : address(0);
-        hookAddresses.gearboxClaimRewardHook =
-            Strings.equal(hooks[1].name, GEARBOX_CLAIM_REWARD_HOOK_KEY) ? addresses[1] : address(0);
-        hookAddresses.yearnClaimOneRewardHook =
-            Strings.equal(hooks[2].name, YEARN_CLAIM_ONE_REWARD_HOOK_KEY) ? addresses[2] : address(0);
-        hookAddresses.fluidStakeHook = Strings.equal(hooks[3].name, FLUID_STAKE_HOOK_KEY) ? addresses[3] : address(0);
-        hookAddresses.approveAndFluidStakeHook =
-            Strings.equal(hooks[4].name, APPROVE_AND_FLUID_STAKE_HOOK_KEY) ? addresses[4] : address(0);
-        hookAddresses.fluidUnstakeHook =
-            Strings.equal(hooks[5].name, FLUID_UNSTAKE_HOOK_KEY) ? addresses[5] : address(0);
-        hookAddresses.gearboxStakeHook =
-            Strings.equal(hooks[6].name, GEARBOX_STAKE_HOOK_KEY) ? addresses[6] : address(0);
-        hookAddresses.approveAndGearboxStakeHook =
-            Strings.equal(hooks[7].name, GEARBOX_APPROVE_AND_STAKE_HOOK_KEY) ? addresses[7] : address(0);
-        hookAddresses.gearboxUnstakeHook =
-            Strings.equal(hooks[8].name, GEARBOX_UNSTAKE_HOOK_KEY) ? addresses[8] : address(0);
-        hookAddresses.spectraExchangeDepositHook =
-            Strings.equal(hooks[9].name, SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY) ? addresses[9] : address(0);
-        hookAddresses.spectraExchangeRedeemHook =
-            Strings.equal(hooks[10].name, SPECTRA_EXCHANGE_REDEEM_HOOK_KEY) ? addresses[10] : address(0);
-        hookAddresses.pendleRouterSwapHook =
-            Strings.equal(hooks[11].name, PENDLE_ROUTER_SWAP_HOOK_KEY) ? addresses[11] : address(0);
-        hookAddresses.pendleRouterRedeemHook =
-            Strings.equal(hooks[12].name, PENDLE_ROUTER_REDEEM_HOOK_KEY) ? addresses[12] : address(0);
         hookAddresses.morphoSupplyAndBorrowHook =
-            Strings.equal(hooks[13].name, MORPHO_SUPPLY_AND_BORROW_HOOK_KEY) ? addresses[13] : address(0);
-        hookAddresses.morphoRepayHook =
-            Strings.equal(hooks[14].name, MORPHO_REPAY_HOOK_KEY) ? addresses[14] : address(0);
-        hookAddresses.morphoRepayAndWithdrawHook =
-            Strings.equal(hooks[15].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[15] : address(0);
+            Strings.equal(hooks[0].name, MORPHO_SUPPLY_AND_BORROW_HOOK_KEY) ? addresses[0] : address(0);
         hookAddresses.morphoBorrowHook =
-            Strings.equal(hooks[16].name, MORPHO_BORROW_ONLY_HOOK_KEY) ? addresses[16] : address(0);
+            Strings.equal(hooks[1].name, MORPHO_BORROW_ONLY_HOOK_KEY) ? addresses[1] : address(0);
+        hookAddresses.morphoRepayHook =
+            Strings.equal(hooks[2].name, MORPHO_REPAY_HOOK_KEY) ? addresses[2] : address(0);
+        hookAddresses.morphoRepayAndWithdrawHook =
+            Strings.equal(hooks[3].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[3] : address(0);
+        hookAddresses.morphoSupplyHook =
+            Strings.equal(hooks[4].name, MORPHO_SUPPLY_HOOK_KEY) ? addresses[4] : address(0);
+        hookAddresses.morphoWithdrawHook =
+            Strings.equal(hooks[5].name, MORPHO_WITHDRAW_HOOK_KEY) ? addresses[5] : address(0);
+        hookAddresses.morphoLendHook =
+            Strings.equal(hooks[6].name, MORPHO_LEND_HOOK_KEY) ? addresses[6] : address(0);
+        hookAddresses.metaMorphoReallocateHook =
+            Strings.equal(hooks[7].name, META_MORPHO_REALLOCATE_HOOK_KEY) ? addresses[7] : address(0);
 
         // Verify no hooks were assigned address(0)
-        require(hookAddresses.fluidClaimRewardHook != address(0), "fluidClaimRewardHook not assigned");
-        require(hookAddresses.gearboxClaimRewardHook != address(0), "gearboxClaimRewardHook not assigned");
-        require(hookAddresses.yearnClaimOneRewardHook != address(0), "yearnClaimOneRewardHook not assigned");
-        require(hookAddresses.fluidStakeHook != address(0), "fluidStakeHook not assigned");
-        require(hookAddresses.approveAndFluidStakeHook != address(0), "approveAndFluidStakeHook not assigned");
-        require(hookAddresses.fluidUnstakeHook != address(0), "fluidUnstakeHook not assigned");
-        require(hookAddresses.gearboxStakeHook != address(0), "gearboxStakeHook not assigned");
-        require(hookAddresses.approveAndGearboxStakeHook != address(0), "approveAndGearboxStakeHook not assigned");
-        require(hookAddresses.gearboxUnstakeHook != address(0), "gearboxUnstakeHook not assigned");
-        require(hookAddresses.spectraExchangeDepositHook != address(0), "spectraExchangeDepositHook not assigned");
-        require(hookAddresses.spectraExchangeRedeemHook != address(0), "spectraExchangeRedeemHook not assigned");
-        require(hookAddresses.pendleRouterSwapHook != address(0), "pendleRouterSwapHook not assigned");
-        require(hookAddresses.pendleRouterRedeemHook != address(0), "pendleRouterRedeemHook not assigned");
         require(hookAddresses.morphoSupplyAndBorrowHook != address(0), "MorphoSupplyAndBorrowHook not assigned");
-        require(hookAddresses.morphoRepayHook != address(0), "morphoRepayHook not assigned");
-        require(hookAddresses.morphoRepayAndWithdrawHook != address(0), "morphoRepayAndWithdrawHook not assigned");
-        require(hookAddresses.morphoBorrowHook != address(0), "morphoBorrowHook not assigned");
+        require(hookAddresses.morphoBorrowHook != address(0), "MorphoBorrowHook not assigned");
+        require(hookAddresses.morphoRepayHook != address(0), "MorphoRepayHook not assigned");
+        require(hookAddresses.morphoRepayAndWithdrawHook != address(0), "MorphoRepayAndWithdrawHook not assigned");
+        require(hookAddresses.morphoSupplyHook != address(0), "MorphoSupplyHook not assigned");
+        require(hookAddresses.morphoWithdrawHook != address(0), "MorphoWithdrawHook not assigned");
+        require(hookAddresses.morphoLendHook != address(0), "MorphoLendHook not assigned");
+        require(hookAddresses.metaMorphoReallocateHook != address(0), "MetaMorphoReallocateHook not assigned");
 
-        console2.log("All other hooks deployed and validated successfully.");
+        console2.log("All Morpho hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        AAVE V4 HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    function _deployAaveV4Hooks(uint64 chainId, uint256 env) internal {
+        _deployAaveV4HooksSet(chainId, env);
+    }
+
+    /// @notice Deploy all 6 Aave V4 hooks (no constructor args — Spoke comes from calldata)
+    function _deployAaveV4HooksSet(
+        uint64 chainId,
+        uint256 env
+    )
+        private
+        returns (AaveV4HookAddresses memory hookAddresses)
+    {
+        uint256 len = 6;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        // Aave V4 hooks have no constructor args
+        hooks[0] = HookDeployment(
+            AAVE_V4_SUPPLY_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4SupplyHook", env)
+        );
+        hooks[1] = HookDeployment(
+            AAVE_V4_WITHDRAW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4WithdrawHook", env)
+        );
+        hooks[2] = HookDeployment(
+            AAVE_V4_BORROW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4BorrowHook", env)
+        );
+        hooks[3] = HookDeployment(
+            AAVE_V4_REPAY_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4RepayHook", env)
+        );
+        hooks[4] = HookDeployment(
+            AAVE_V4_SUPPLY_AND_BORROW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4SupplyAndBorrowHook", env)
+        );
+        hooks[5] = HookDeployment(
+            AAVE_V4_REPAY_AND_WITHDRAW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4RepayAndWithdrawHook", env)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        hookAddresses.aaveV4SupplyHook = addresses[0];
+        hookAddresses.aaveV4WithdrawHook = addresses[1];
+        hookAddresses.aaveV4BorrowHook = addresses[2];
+        hookAddresses.aaveV4RepayHook = addresses[3];
+        hookAddresses.aaveV4SupplyAndBorrowHook = addresses[4];
+        hookAddresses.aaveV4RepayAndWithdrawHook = addresses[5];
+
+        // Verify no hooks were assigned address(0)
+        require(hookAddresses.aaveV4SupplyHook != address(0), "AaveV4SupplyHook not assigned");
+        require(hookAddresses.aaveV4WithdrawHook != address(0), "AaveV4WithdrawHook not assigned");
+        require(hookAddresses.aaveV4BorrowHook != address(0), "AaveV4BorrowHook not assigned");
+        require(hookAddresses.aaveV4RepayHook != address(0), "AaveV4RepayHook not assigned");
+        require(hookAddresses.aaveV4SupplyAndBorrowHook != address(0), "AaveV4SupplyAndBorrowHook not assigned");
+        require(hookAddresses.aaveV4RepayAndWithdrawHook != address(0), "AaveV4RepayAndWithdrawHook not assigned");
+
+        console2.log("All Aave V4 hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      FIRELIGHT HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    function _deployFirelightHooks(uint64 chainId, uint256 env) internal returns (FirelightHookAddresses memory) {
+        uint256 len = 2;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        // Firelight hooks have no constructor args
+        hooks[0] = HookDeployment(
+            REDEEM_FIRELIGHT_VAULT_HOOK_KEY,
+            "",
+            __getOtherHooksBytecode("RedeemFirelightVaultHook", env)
+        );
+        hooks[1] = HookDeployment(
+            CLAIM_WITHDRAW_FIRELIGHT_VAULT_HOOK_KEY,
+            "",
+            __getOtherHooksBytecode("ClaimWithdrawFirelightVaultHook", env)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        FirelightHookAddresses memory hookAddresses;
+        hookAddresses.redeemFirelightVaultHook = addresses[0];
+        hookAddresses.claimWithdrawFirelightVaultHook = addresses[1];
+
+        require(hookAddresses.redeemFirelightVaultHook != address(0), "RedeemFirelightVaultHook not assigned");
+        require(
+            hookAddresses.claimWithdrawFirelightVaultHook != address(0), "ClaimWithdrawFirelightVaultHook not assigned"
+        );
+
+        console2.log("All Firelight hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    function _deployAlgebraIntegralHooks(
+        uint64 chainId,
+        uint256 env
+    )
+        internal
+        returns (AlgebraIntegralHookAddresses memory)
+    {
+        uint256 len = 2;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        bytes memory routerArg = abi.encode(otherHooksConfiguration.algebraSwapRouters[chainId]);
+
+        hooks[0] = HookDeployment(
+            SWAP_ALGEBRA_INTEGRAL_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("SwapAlgebraIntegralHook", env), routerArg)
+        );
+        hooks[1] = HookDeployment(
+            APPROVE_AND_SWAP_ALGEBRA_INTEGRAL_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("ApproveAndSwapAlgebraIntegralHook", env), routerArg)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        AlgebraIntegralHookAddresses memory hookAddresses;
+        hookAddresses.swapAlgebraIntegralHook = addresses[0];
+        hookAddresses.approveAndSwapAlgebraIntegralHook = addresses[1];
+
+        require(hookAddresses.swapAlgebraIntegralHook != address(0), "SwapAlgebraIntegralHook not assigned");
+        require(
+            hookAddresses.approveAndSwapAlgebraIntegralHook != address(0),
+            "ApproveAndSwapAlgebraIntegralHook not assigned"
+        );
+
+        console2.log("All Algebra Integral hooks deployed and validated successfully.");
 
         return hookAddresses;
     }

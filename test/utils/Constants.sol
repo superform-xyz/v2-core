@@ -108,6 +108,19 @@ abstract contract Constants {
     string public constant MERKL_CLAIM_REWARD_HOOK_KEY = "MerklClaimRewardHook";
     string public constant SWAP_UNISWAP_V4_HOOK_KEY = "SwapUniswapV4Hook";
     string public constant SWAP_UNISWAP_V4_MULTI_HOP_HOOK_KEY = "SwapUniswapV4MultiHopHook";
+    string public constant SWAP_UNISWAP_V3_HOOK_KEY = "SwapUniswapV3Hook";
+    string public constant APPROVE_AND_SWAP_UNISWAP_V3_HOOK_KEY = "ApproveAndSwapUniswapV3Hook";
+    string public constant SWAP_ALGEBRA_INTEGRAL_HOOK_KEY = "SwapAlgebraIntegralHook";
+    string public constant APPROVE_AND_SWAP_ALGEBRA_INTEGRAL_HOOK_KEY = "ApproveAndSwapAlgebraIntegralHook";
+
+    // Algebra Integral / SparkDEX V4 addresses on Flare
+    address public constant FLARE_ALGEBRA_INTEGRAL_SWAP_ROUTER = 0x69D57B9D705eaD73a5d2f2476C30c55bD755cc2F;
+    address public constant FLARE_ALGEBRA_POOL_DEPLOYER = 0x59a662Ed724F19AD019307126CbEBdcF4b57d6B1;
+
+    // Flare tokens
+    address public constant FLARE_WFLR = 0x1D80c49BbBCd1C0911346656B529DF9E5c2F783d;
+    address public constant FLARE_SFLR = 0x12e605bc104e93B45e1aD99F9e555f659051c2BB;
+    address public constant FLARE_SPRK = 0x657097cC15fdEc9e383dB8628B57eA4a763F2ba0;
 
     // contracts
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
@@ -172,6 +185,12 @@ abstract contract Constants {
     address public constant CHAIN_1_ODOS_ROUTER = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
     address public constant CHAIN_10_ODOS_ROUTER = 0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680;
     address public constant CHAIN_8453_ODOS_ROUTER = 0x19cEeAd7105607Cd444F5ad10dd51356436095a1;
+
+    // uniswap v2
+    address public constant MAINNET_V2_SWAP_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+
+    // uniswap v3
+    address public constant MAINNET_V3_SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     // uniswap v4
     address public constant MAINNET_V4_POOL_MANAGER = 0x000000000004444c5dc75cB358380D2e3dE08A90;
@@ -238,6 +257,26 @@ abstract contract Constants {
     address public constant CHAIN_8453_PENDLE_ROUTER = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address public constant CHAIN_8453_PENDLE_SWAP = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
     address public constant CHAIN_8453_SPECTRA_ROUTER = 0x0FC2fbd3E8391744426C8bE5228b668481C59532;
+
+    // Spark PSM (Base)
+    address public constant CHAIN_8453_SPARK_PSM3 = 0x1601843c5E9bC251A3272907010AFa41Fa18347E;
+    address public constant CHAIN_8453_USDS = 0x820C137fa70C8691f0e44Dc420a5e53c168921Dc;
+    address public constant CHAIN_8453_SUSDS = 0x5875eEE11Cf8398102FdAd704C9E96607675467a;
+
+    // Yo Protocol vaults (Base)
+    address public constant CHAIN_8453_YO_ETH_VAULT = 0x3A43AEC53490CB9Fa922847385D82fe25d0E9De7;
+    address public constant CHAIN_8453_YO_BTC_VAULT = 0xbCbc8cb4D1e8ED048a6276a5E94A3e952660BcbC;
+    address public constant CHAIN_8453_YO_USD_VAULT = 0x0000000f2eB9f69274678c76222B35eEc7588a65;
+
+    // aave v4
+    address public constant AAVE_V4_MAIN_SPOKE = 0x94e7A5dCbE816e498b89aB752661904E2F56c485;
+    address public constant AAVE_V4_CORE_HUB = 0xCca852Bc40e560adC3b1Cc58CA5b55638ce826c9;
+    uint256 public constant AAVE_V4_WETH_RESERVE_ID = 0;
+    uint256 public constant AAVE_V4_WSTETH_RESERVE_ID = 1;
+    uint256 public constant AAVE_V4_WBTC_RESERVE_ID = 3;
+    uint256 public constant AAVE_V4_USDC_RESERVE_ID = 7;
+    uint256 public constant AAVE_V4_USDT_RESERVE_ID = 8;
+    uint256 public constant AAVE_V4_BLOCK = 24_884_274;
 
     // staking protocols
 

@@ -33,63 +33,92 @@ log() {
 
 
 
-# Function to read latest file from S3
+# Global variable to cache S3 content (fetched once)
+S3_CACHED_CONTENT=""
+S3_CACHE_LOADED=false
+
+# Function to read latest file from S3 (uses cache after first call)
 read_latest_from_s3() {
     local environment=$1
+
+    # Return cached content if already loaded
+    if [ "$S3_CACHE_LOADED" = true ]; then
+        echo "$S3_CACHED_CONTENT"
+        return
+    fi
+
     local latest_file_path="/tmp/latest_s3.json"
 
     if aws s3 cp "s3://$S3_BUCKET_NAME/$environment/latest.json" "$latest_file_path" --quiet 2>/dev/null; then
-        log "INFO" "Successfully downloaded latest.json from S3 for $environment"
-        
         # Read the file and validate JSON
         local content=$(cat "$latest_file_path")
 
-        
         # Check if content is empty or just whitespace
         if [ -z "$(echo "$content" | tr -d '[:space:]')" ]; then
-            log "WARN" "S3 file is empty or whitespace only, initializing default content"
             content="{\"networks\":{},\"updated_at\":null}"
         elif ! echo "$content" | jq '.' >/dev/null 2>&1; then
-            log "ERROR" "Invalid JSON in latest file, resetting to default"
             content="{\"networks\":{},\"updated_at\":null}"
-        else
-            log "INFO" "Successfully validated latest.json from S3"
         fi
     else
-        log "WARN" "latest.json not found in S3 for $environment, initializing empty file"
         content="{\"networks\":{},\"updated_at\":null}"
     fi
-   
+
+    # Cache the content
+    S3_CACHED_CONTENT="$content"
+    S3_CACHE_LOADED=true
+
     echo "$content"
+}
+
+# Function to display current S3 state
+show_current_s3_state() {
+    local environment=$1
+    local content=$(read_latest_from_s3 "$environment")
+
+    echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║${WHITE}                       📦 CURRENT S3 STATE 📦                                        ${CYAN}║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+
+    local updated_at=$(echo "$content" | jq -r '.updated_at // "Never"')
+    echo -e "${CYAN}Last Updated: ${WHITE}$updated_at${NC}"
+    echo ""
+
+    # Get all networks from S3
+    local networks=$(echo "$content" | jq -r '.networks | keys[]' 2>/dev/null)
+
+    if [ -z "$networks" ]; then
+        echo -e "${YELLOW}   ⚠️  No contracts currently in S3 for $environment${NC}"
+    else
+        for network in $networks; do
+            local contract_count=$(echo "$content" | jq -r ".networks[\"$network\"].contracts | length")
+            local counter=$(echo "$content" | jq -r ".networks[\"$network\"].counter // 0")
+            echo -e "${CYAN}   📍 $network: ${WHITE}$contract_count contracts${NC} (version: $counter)"
+        done
+    fi
+    echo ""
 }
 
 # Function to get next counter for a network
 get_next_counter() {
     local environment=$1
     local network_name=$2
-    
-    log "INFO" "Getting next counter for $network_name in $environment"
-    
+
     local content=$(read_latest_from_s3 "$environment")
     local existing_counter=$(echo "$content" | jq -r ".networks[\"$network_name\"].counter // empty")
-    
+
     if [ -n "$existing_counter" ] && [ "$existing_counter" != "null" ]; then
-        local new_counter=$((existing_counter + 1))
-        log "INFO" "Found existing counter: $existing_counter, new counter: $new_counter for $network_name"
-        echo "$new_counter"
+        echo "$((existing_counter + 1))"
     else
-        # Generate new counter starting from 0
-        local new_counter=0
-        log "INFO" "No existing counter found for $network_name, using new counter: $new_counter"
-        echo "$new_counter"
+        echo "0"
     fi
 }
 
 # Function to check if there are any changes for a network
+# Only considers new contracts and updated contracts (not removals since we never remove)
 has_contract_changes() {
     local existing_contracts=$1
     local new_contracts=$2
-    
+
     # Validate JSON inputs
     if ! echo "$existing_contracts" | jq '.' >/dev/null 2>&1; then
         existing_contracts="{}"
@@ -97,25 +126,19 @@ has_contract_changes() {
     if ! echo "$new_contracts" | jq '.' >/dev/null 2>&1; then
         return 1
     fi
-    
+
     # Check for new contracts (contracts that don't exist in S3)
     local new_contract_count=$(echo "$new_contracts" | jq --argjson existing "$existing_contracts" '
         [to_entries[] | select(.key as $k | $existing | has($k) | not)] | length
     ')
-    
+
     # Check for updated contracts (contracts that exist but with different addresses)
     local updated_contract_count=$(echo "$new_contracts" | jq --argjson existing "$existing_contracts" '
         [to_entries[] | select(.key as $k | .value as $v | $existing | has($k) and (.[$k] != $v))] | length
     ')
-    
-    # Check for removed contracts (contracts that exist in S3 but not in new deployment)
-    # Exclude Nexus contracts from being considered removable
-    local removed_contract_count=$(echo "$existing_contracts" | jq --argjson new_contracts "$new_contracts" '
-        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory"))] | length
-    ')
-    
-    # Return true if there are any new, updated, or removed contracts
-    local total_changes=$((new_contract_count + updated_contract_count + removed_contract_count))
+
+    # Return true if there are any new or updated contracts
+    local total_changes=$((new_contract_count + updated_contract_count))
     return $([[ $total_changes -gt 0 ]] && echo 0 || echo 1)
 }
 
@@ -124,9 +147,11 @@ show_contract_diff() {
     local network_name=$1
     local existing_contracts=$2
     local new_contracts=$3
-    
-    echo -e "${CYAN}📍 $network_name Changes:${NC}"
-    
+
+    echo -e "${CYAN}╭─────────────────────────────────────────────────────────────────────────────────────╮${NC}"
+    echo -e "${CYAN}│${WHITE}  📍 $network_name${NC}"
+    echo -e "${CYAN}╰─────────────────────────────────────────────────────────────────────────────────────╯${NC}"
+
     # Validate JSON inputs
     if ! echo "$existing_contracts" | jq '.' >/dev/null 2>&1; then
         existing_contracts="{}"
@@ -135,66 +160,90 @@ show_contract_diff() {
         echo -e "  ${RED}Error: Invalid JSON for new contracts${NC}"
         return 1
     fi
-    
+
+    local existing_count=$(echo "$existing_contracts" | jq 'length')
+    local new_count=$(echo "$new_contracts" | jq 'length')
+
+    # Calculate merged count (existing + new contracts that don't exist yet)
+    local new_only_count=$(echo "$new_contracts" | jq --argjson existing "$existing_contracts" '
+        [to_entries[] | select(.key as $k | $existing | has($k) | not)] | length
+    ')
+    local merged_count=$((existing_count + new_only_count))
+
+    echo -e "  ${CYAN}Current in S3: ${WHITE}$existing_count contracts${NC}"
+    echo -e "  ${CYAN}After merge: ${WHITE}$merged_count contracts${NC}"
+    echo ""
+
     # Show new contracts (contracts that don't exist in S3)
     local new_contract_names=$(echo "$new_contracts" | jq -r --argjson existing "$existing_contracts" '
         to_entries[] | select(.key as $k | $existing | has($k) | not) | .key
-    ' | tr '\n' ' ')
-    
+    ' 2>/dev/null | grep -v '^null$' | grep -v '^:' | sort)
+
     # Show updated contracts (contracts that exist but with different addresses)
     local updated_contract_names=$(echo "$new_contracts" | jq -r --argjson existing "$existing_contracts" '
         to_entries[] | select(.key as $k | .value as $v | $existing | has($k) and (.[$k] != $v)) | .key
-    ' | tr '\n' ' ')
-    
-    # Show removed contracts (contracts that exist in S3 but not in new deployment)
-    # Exclude Nexus contracts from being shown as removed
-    local removed_contract_names=$(echo "$existing_contracts" | jq -r --argjson new_contracts "$new_contracts" '
-        to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory")) | .key
-    ' | tr '\n' ' ')
-    
+    ' 2>/dev/null | grep -v '^null$' | grep -v '^:' | sort)
+
+    # Show unchanged contracts count
+    local unchanged_contract_names=$(echo "$new_contracts" | jq -r --argjson existing "$existing_contracts" '
+        to_entries[] | select(.key as $k | .value as $v | $existing | has($k) and (.[$k] == $v)) | .key
+    ' 2>/dev/null | grep -v '^null$' | grep -v '^:')
+    local unchanged_count=$(echo "$unchanged_contract_names" | grep -c . 2>/dev/null || true)
+
+    # Count preserved contracts (in S3 but not in new deployment - will be kept)
+    local preserved_count=$(echo "$existing_contracts" | jq --argjson new_contracts "$new_contracts" '
+        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not)] | length
+    ')
+
     local changes_shown=false
-    
-    if [ -n "$new_contract_names" ] && [ "${new_contract_names// /}" != "" ]; then
-        local new_count=$(echo "$new_contract_names" | wc -w | tr -d ' ')
-        echo -e "  ${GREEN}+ ${new_count} new contracts${NC}"
+
+    # Count and display new contracts
+    if [ -n "$new_contract_names" ] && [ "$(echo "$new_contract_names" | tr -d '[:space:]')" != "" ]; then
+        new_contract_names=$(echo "$new_contract_names" | tr -d '\r' | sed 's/null//g' | xargs)
+        local add_count=$(echo "$new_contract_names" | wc -w | tr -d ' ')
+        echo -e "  ${GREEN}➕ NEW ($add_count contracts):${NC}"
         for contract in $new_contract_names; do
             if [ -n "$contract" ]; then
-                local addr=$(echo "$new_contracts" | jq -r ".$contract")
-                echo -e "    ${GREEN}+ $contract: $addr${NC}"
+                local addr=$(echo "$new_contracts" | jq -r ".[\"$contract\"]" 2>/dev/null || echo "unknown")
+                echo -e "     ${GREEN}$contract${NC}"
+                echo -e "       ${WHITE}$addr${NC}"
             fi
         done
+        echo ""
         changes_shown=true
     fi
-    
-    if [ -n "$updated_contract_names" ] && [ "${updated_contract_names// /}" != "" ]; then
-        local updated_count=$(echo "$updated_contract_names" | wc -w | tr -d ' ')
-        echo -e "  ${YELLOW}~ ${updated_count} updated contracts${NC}"
+
+    # Count and display updated contracts
+    if [ -n "$updated_contract_names" ] && [ "$(echo "$updated_contract_names" | tr -d '[:space:]')" != "" ]; then
+        updated_contract_names=$(echo "$updated_contract_names" | tr -d '\r' | sed 's/null//g' | xargs)
+        local upd_count=$(echo "$updated_contract_names" | wc -w | tr -d ' ')
+        echo -e "  ${YELLOW}🔄 UPDATED ($upd_count contracts):${NC}"
         for contract in $updated_contract_names; do
             if [ -n "$contract" ]; then
-                local old_addr=$(echo "$existing_contracts" | jq -r ".$contract")
-                local new_addr=$(echo "$new_contracts" | jq -r ".$contract")
-                echo -e "    ${YELLOW}~ $contract: $old_addr → $new_addr${NC}"
+                local old_addr=$(echo "$existing_contracts" | jq -r ".[\"$contract\"]" 2>/dev/null || echo "unknown")
+                local new_addr=$(echo "$new_contracts" | jq -r ".[\"$contract\"]" 2>/dev/null || echo "unknown")
+                echo -e "     ${YELLOW}$contract${NC}"
+                echo -e "       ${RED}- $old_addr${NC}"
+                echo -e "       ${GREEN}+ $new_addr${NC}"
             fi
         done
+        echo ""
         changes_shown=true
     fi
-    
-    if [ -n "$removed_contract_names" ] && [ "${removed_contract_names// /}" != "" ]; then
-        local removed_count=$(echo "$removed_contract_names" | wc -w | tr -d ' ')
-        echo -e "  ${RED}- ${removed_count} removed contracts${NC}"
-        for contract in $removed_contract_names; do
-            if [ -n "$contract" ]; then
-                local old_addr=$(echo "$existing_contracts" | jq -r ".$contract")
-                echo -e "    ${RED}- $contract: $old_addr${NC}"
-            fi
-        done
-        changes_shown=true
+
+    # Show unchanged count
+    if [ "$unchanged_count" -gt 0 ]; then
+        echo -e "  ${CYAN}═ UNCHANGED: $unchanged_count contracts${NC}"
     fi
-    
-    if [ "$changes_shown" = false ]; then
-        echo -e "  ${CYAN}No changes (all contracts already up to date)${NC}"
+
+    # Show preserved count (contracts in S3 not in this deployment - kept as-is)
+    if [ "$preserved_count" -gt 0 ]; then
+        echo -e "  ${PURPLE}📦 PRESERVED (from S3): $preserved_count contracts${NC}"
     fi
-    
+
+    if [ "$changes_shown" = false ] && [ "$unchanged_count" -eq 0 ]; then
+        echo -e "  ${CYAN}No changes detected${NC}"
+    fi
     echo ""
 }
 
@@ -204,12 +253,8 @@ batch_upload_to_s3() {
     shift
     local network_defs=("$@")
     
-    log "INFO" "Starting batch upload for all networks"
-    
-    # Read existing content from S3
+    # Read existing content from S3 (uses cached value)
     local content=$(read_latest_from_s3 "$environment")
-    log "DEBUG" "Initial content from S3 length: ${#content} characters"
-    log "DEBUG" "Initial content preview: $(echo "$content" | head -c 100)..."
     
     # Process each network and collect all data
     local updated_networks=()
@@ -222,88 +267,65 @@ batch_upload_to_s3() {
     for network_def in "${network_defs[@]}"; do
         total_networks=$((total_networks + 1))
         IFS=':' read -r network_id network_name rpc_var verifier_var <<< "$network_def"
-        
+
         echo -e "${CYAN}📋 Processing $network_name (Chain ID: $network_id)...${NC}"
-        
+
         # Get counter for this network
         local counter=$(get_next_counter "$environment" "$network_name")
-        
+
         # Use environment name directly
         local env_folder="$environment"
-        
+
         # Read deployed contracts from output file
         local contracts_file="$PROJECT_ROOT/script/output/$env_folder/$network_id/$network_name-latest.json"
-        
+
         if [ ! -f "$contracts_file" ]; then
-            log "ERROR" "Contract file not found: $contracts_file"
+            echo -e "   ${RED}✗ Contract file not found${NC}"
             update_summary+=("❌ $network_name: Contract file not found")
             continue
         fi
-        
-        log "INFO" "Reading contracts from: $contracts_file"
-        
+
         # Read and validate contracts file
         local contracts=$(tr -d '\r' < "$contracts_file")
-        
+
         if ! contracts=$(echo "$contracts" | jq -c '.' 2>/dev/null); then
-            log "ERROR" "Failed to parse JSON from contract file for $network_name"
+            echo -e "   ${RED}✗ Failed to parse JSON${NC}"
             update_summary+=("❌ $network_name: Failed to parse JSON")
             continue
         fi
-        
-        log "INFO" "Successfully parsed contracts JSON for $network_name"
-        
-        # Preserve existing contracts and merge with new ones
-        log "DEBUG" "Merging contracts for network: $network_name, counter: $counter"
-        
+
         # Check if network already exists in S3
         local network_exists=$(echo "$content" | jq -r ".networks[\"$network_name\"] // empty")
         local existing_contracts="{}"
         local existing_counter=0
         local existing_vnet_id=""
-        
+
         if [ -n "$network_exists" ] && [ "$network_exists" != "null" ] && [ "$network_exists" != "empty" ]; then
             # Network exists, preserve existing data
             existing_contracts=$(echo "$content" | jq -r ".networks[\"$network_name\"].contracts // {}")
             existing_counter=$(echo "$content" | jq -r ".networks[\"$network_name\"].counter // 0")
             existing_vnet_id=$(echo "$content" | jq -r ".networks[\"$network_name\"].vnet_id // \"\"")
-            log "INFO" "Found existing network $network_name, preserving existing contracts and data"
         else
             # New network, use provided counter
             existing_counter=$counter
-            log "INFO" "Creating new network entry for $network_name"
         fi
-        
+
         # Check if there are any changes for this network
         if has_contract_changes "$existing_contracts" "$contracts"; then
-            log "INFO" "Changes detected for $network_name"
             total_changes=$((total_changes + 1))
         else
-            log "INFO" "No changes detected for $network_name - skipping"
-            echo -e "${CYAN}   📋 $network_name: No changes detected, skipping${NC}"
+            echo -e "   ${CYAN}⊘ No changes${NC}"
             continue
         fi
-        
-        # Replace existing contracts with new contracts, but preserve Nexus contracts
-        local nexus_contracts=$(echo "$existing_contracts" | jq '{
-            Nexus: .Nexus,
-            NexusBootstrap: .NexusBootstrap,
-            NexusAccountFactory: .NexusAccountFactory
-        } | with_entries(select(.value != null))')
-        
-        local nexus_count=$(echo "$nexus_contracts" | jq 'length')
-        if [ "$nexus_count" -gt 0 ]; then
-            log "INFO" "Preserving $nexus_count Nexus contracts for $network_name"
-        fi
-        
-        local merged_contracts=$(echo "$contracts" | jq --argjson nexus "$nexus_contracts" '. + $nexus')
-        
-        # Count contracts that will be added/updated
+
+        # Merge: existing S3 contracts + new contracts (new contracts override existing ones)
+        # This preserves ALL existing contracts and only adds/updates
+        local merged_contracts=$(echo "$existing_contracts" | jq --argjson new_contracts "$contracts" '. + $new_contracts')
+
+        # Count contracts
         local existing_contract_count=$(echo "$existing_contracts" | jq 'length')
         local new_contract_count=$(echo "$contracts" | jq 'length')
         local merged_contract_count=$(echo "$merged_contracts" | jq 'length')
-        
-        log "INFO" "Contract replacement summary for $network_name: $existing_contract_count existing → $merged_contract_count new (full replacement)"
         
         content=$(echo "$content" | jq \
             --arg network "$network_name" \
@@ -315,26 +337,26 @@ batch_upload_to_s3() {
                 "vnet_id": $vnet_id,
                 "contracts": $contracts
             }') || {
-            log "ERROR" "Failed to update content with deployment info for $network_name"
+            echo -e "   ${RED}✗ Failed to merge${NC}"
             update_summary+=("❌ $network_name: Failed to update S3 content")
             continue
         }
-        
+
         # Store diff information for display (write to temp files for complex JSON data)
         local diff_file="/tmp/diff_${network_name}_$$"
         echo "$existing_contracts" > "${diff_file}_existing.json"
         echo "$contracts" > "${diff_file}_new.json"
         network_diffs+=("$network_name:${diff_file}")
-        
+
         updated_networks+=("$network_name")
-        update_summary+=("✅ $network_name: ${new_contract_count} contracts added/updated")
+        update_summary+=("✅ $network_name: $existing_contract_count → $merged_contract_count contracts")
         successful_networks=$((successful_networks + 1))
-        echo -e "${GREEN}   ✅ $network_name contracts replaced successfully (${merged_contract_count} total contracts)${NC}"
+        echo -e "   ${GREEN}✓ Has changes ($existing_contract_count → $merged_contract_count contracts)${NC}"
     done
     
     # Update timestamp
     content=$(echo "$content" | jq --arg time "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" '.updated_at = $time') || {
-        log "ERROR" "Failed to update timestamp"
+        echo -e "${RED}❌ Failed to update timestamp${NC}"
         return 1
     }
     
@@ -377,8 +399,8 @@ batch_upload_to_s3() {
     
     # Display contract differences for confirmation
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}📋 Contract Changes that will be uploaded to S3:${NC}"
-    echo -e "${CYAN}💡 Note: Full replacement - removed contracts will be deleted (except Nexus contracts)${NC}"
+    echo -e "${CYAN}📋 Contract Changes that will be merged to S3:${NC}"
+    echo -e "${CYAN}💡 Note: Merge only - existing S3 contracts are preserved, new contracts added, existing ones updated${NC}"
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
     # Show diffs for each network
@@ -403,19 +425,20 @@ batch_upload_to_s3() {
     echo ""
     
     if [ "$confirmation" != "y" ] && [ "$confirmation" != "Y" ]; then
-        log "INFO" "Batch upload cancelled by user"
+        echo -e "${YELLOW}⚠️  Upload cancelled by user${NC}"
         return 1
     fi
     
     # Upload to S3
     local latest_file_path="/tmp/latest_upload.json"
     echo "$content" | jq '.' > "$latest_file_path"
-    
+
+    echo -e "${CYAN}📤 Uploading to S3...${NC}"
     if aws s3 cp "$latest_file_path" "s3://$S3_BUCKET_NAME/$environment/latest.json" --quiet; then
-        log "SUCCESS" "Successfully uploaded latest.json to S3 for $environment"
+        echo -e "${GREEN}✅ Successfully uploaded to S3${NC}"
         return 0
     else
-        log "ERROR" "Failed to upload latest.json to S3"
+        echo -e "${RED}❌ Failed to upload to S3${NC}"
         return 1
     fi
 }
@@ -443,13 +466,11 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Determine which networks file to use based on environment (passed as first argument)
 ENV_ARG="${1:-staging}"
-if [[ "$ENV_ARG" == "prod" ]]; then
-    NETWORKS_FILE="$SCRIPT_DIR/networks-production.sh"
-elif [[ "$ENV_ARG" == "staging" ]]; then
+if [[ "$ENV_ARG" == "staging" ]]; then
     NETWORKS_FILE="$SCRIPT_DIR/networks-staging.sh"
 else
     echo -e "${RED}❌ Error: Invalid environment '$ENV_ARG'${NC}"
-    echo -e "${YELLOW}Expected 'staging' or 'prod'${NC}"
+    echo -e "${YELLOW}Expected 'staging'${NC}"
     exit 1
 fi
 
@@ -465,19 +486,18 @@ source "$NETWORKS_FILE"
 if [ $# -lt 1 ]; then
     echo -e "${RED}❌ Error: Missing required argument${NC}"
     echo -e "${YELLOW}Usage: $0 <environment>${NC}"
-    echo -e "${CYAN}  environment: staging or prod${NC}"
+    echo -e "${CYAN}  environment: staging${NC}"
     echo -e "${CYAN}Examples:${NC}"
     echo -e "${CYAN}  $0 staging${NC}"
-    echo -e "${CYAN}  $0 prod${NC}"
     exit 1
 fi
 
 ENVIRONMENT=$1
 
 # Validate environment
-if [ "$ENVIRONMENT" != "staging" ] && [ "$ENVIRONMENT" != "prod" ]; then
+if [ "$ENVIRONMENT" != "staging" ]; then
     echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"
-    echo -e "${YELLOW}Environment must be either 'staging' or 'prod'${NC}"
+    echo -e "${YELLOW}Environment must be 'staging'${NC}"
     exit 1
 fi
 
@@ -491,6 +511,10 @@ export S3_BUCKET_NAME="superform-deployment-state"
 echo -e "${GREEN}✅ Configuration loaded successfully${NC}"
 echo -e "${CYAN}   • Environment: $ENVIRONMENT${NC}"
 echo -e "${CYAN}   • S3 Bucket: $S3_BUCKET_NAME${NC}"
+print_separator
+
+# Show current S3 state first
+show_current_s3_state "$ENVIRONMENT"
 print_separator
 
 # Use environment name directly

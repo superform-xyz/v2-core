@@ -69,20 +69,7 @@ contract BatchTransferHook is BaseHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure override returns (bytes memory result) {
-        // First 20 bytes is the 'to' address
-        address to = BytesLib.toAddress(data, 0);
-
-        // The rest is abi encoded (address[] tokens, uint256[] amounts)
-        bytes memory tokensData = BytesLib.slice(data, 20, data.length - 20);
-        (address[] memory tokens,) = abi.decode(tokensData, (address[], uint256[]));
-
-        // Return the 'to' address and all token addresses
-        result = abi.encodePacked(to);
-
-        uint256 tokensLen = tokens.length;
-        for (uint256 i; i < tokensLen; i++) {
-            result = abi.encodePacked(result, tokens[i]);
-        }
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+        return abi.encodePacked(BytesLib.toAddress(data, 0)); //to
     }
 }

@@ -179,12 +179,25 @@ for network_def in "${NETWORKS[@]}"; do
     RPC_URL=$(get_rpc_url "$network_id")
     export FIREBLOCKS_RPC_URL="$RPC_URL"
     export FIREBLOCKS_CHAIN_ID="$network_id"
-    
+
+    # Per-chain sender address and tx type (Fireblocks derives different addresses per chain)
+    local sender_address
+    local tx_type_flag=""
+    case $network_id in
+        14) # Flare - different Fireblocks address, legacy tx required
+            sender_address="0x40a4012A1a154ed58E9BB2f4C63D07f64816b719"
+            tx_type_flag="--legacy"
+            ;;
+        *)  sender_address="0x28b7599f461D104f07D78215Fa6F9B959851f93d" ;;
+    esac
+    echo -e "${CYAN}   Sender: ${WHITE}$sender_address${NC}"
+
     fireblocks-json-rpc --http -- forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'runLedgerConfigurations(uint256,uint64)' $FORGE_ENV $network_id \
         --rpc-url {} \
-        --sender 0x28b7599f461D104f07D78215Fa6F9B959851f93d \
+        --sender $sender_address \
         $BROADCAST_FLAG \
+        $tx_type_flag \
         --unlocked \
         --slow \
         -vv

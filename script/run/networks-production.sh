@@ -14,10 +14,12 @@ NETWORKS=(
     "137:Polygon:POLYGON_MAINNET"
     "130:Unichain:UNICHAIN_MAINNET"
     "43114:Avalanche:AVALANCHE_MAINNET"
-    # "80094:Berachain:BERACHAIN_MAINNET"  # Temporarily removed from production
+    # "80094:Berachain:BERACHAIN_MAINNET"  # TEMPORARILY DISABLED
     "146:Sonic:SONIC_MAINNET"
     "100:Gnosis:GNOSIS_MAINNET"
     "480:Worldchain:WORLDCHAIN_MAINNET"
+    "999:HyperEVM:HYPEREVM_MAINNET"
+    "14:Flare:FLARE_MAINNET"
 )
 
 # Network name mapping function
@@ -48,9 +50,9 @@ get_network_name() {
         43114)
             echo "Avalanche"
             ;;
-        # 80094)  # Temporarily removed from production
-        #     echo "Berachain"
-        #     ;;
+        80094)
+            echo "Berachain"
+            ;;
         146)
             echo "Sonic"
             ;;
@@ -59,6 +61,12 @@ get_network_name() {
             ;;
         480)
             echo "Worldchain"
+            ;;
+        999)
+            echo "HyperEVM"
+            ;;
+        14)
+            echo "Flare"
             ;;
         *)
             echo "ERROR: Unknown production network ID: $network_id" >&2
@@ -95,9 +103,9 @@ get_rpc_var() {
         43114)
             echo "AVALANCHE_MAINNET"
             ;;
-        # 80094)  # Temporarily removed from production
-        #     echo "BERACHAIN_MAINNET"
-        #     ;;
+        80094)
+            echo "BERACHAIN_MAINNET"
+            ;;
         146)
             echo "SONIC_MAINNET"
             ;;
@@ -106,6 +114,12 @@ get_rpc_var() {
             ;;
         480)
             echo "WORLDCHAIN_MAINNET"
+            ;;
+        999)
+            echo "HYPEREVM_MAINNET"
+            ;;
+        14)
+            echo "FLARE_MAINNET"
             ;;
         *)
             echo "ERROR: Unknown production network ID for RPC: $network_id" >&2
@@ -142,9 +156,9 @@ get_rpc_url() {
         43114)
             echo "$AVALANCHE_MAINNET"
             ;;
-        # 80094)  # Temporarily removed from production
-        #     echo "$BERACHAIN_MAINNET"
-        #     ;;
+        80094)  
+            echo "$BERACHAIN_MAINNET"
+            ;;
         146)
             echo "$SONIC_MAINNET"
             ;;
@@ -153,6 +167,12 @@ get_rpc_url() {
             ;;
         480)
             echo "$WORLDCHAIN_MAINNET"
+            ;;
+        999)
+            echo "$HYPEREVM_MAINNET"
+            ;;
+        14)
+            echo "$FLARE_MAINNET"
             ;;
         *)
             echo "ERROR: Unknown production network ID for RPC: $network_id" >&2
@@ -245,12 +265,12 @@ load_rpc_urls_ci() {
         failed_rpcs+=("AVALANCHE_RPC_URL")
     fi
 
-    # echo "  • Loading Berachain RPC..."  # Temporarily removed from production
-    # if [[ -n "${BERACHAIN_RPC_URL:-}" ]]; then
-    #     export BERACHAIN_MAINNET="$BERACHAIN_RPC_URL"
-    # else
-    #     failed_rpcs+=("BERACHAIN_RPC_URL")
-    # fi
+    echo "  • Loading Berachain RPC..."
+    if [[ -n "${BERACHAIN_RPC_URL:-}" ]]; then
+        export BERACHAIN_MAINNET="$BERACHAIN_RPC_URL"
+    else
+        failed_rpcs+=("BERACHAIN_RPC_URL")
+    fi
 
     echo "  • Loading Sonic RPC..."
     if [[ -n "${SONIC_RPC_URL:-}" ]]; then
@@ -272,7 +292,21 @@ load_rpc_urls_ci() {
     else
         failed_rpcs+=("WORLDCHAIN_RPC_URL")
     fi
-    
+
+    echo "  • Loading HyperEVM RPC..."
+    if [[ -n "${HYPEREVM_RPC_URL:-}" ]]; then
+        export HYPEREVM_MAINNET="$HYPEREVM_RPC_URL"
+    else
+        failed_rpcs+=("HYPEREVM_RPC_URL")
+    fi
+
+    echo "  • Loading Flare RPC..."
+    if [[ -n "${FLARE_RPC_URL:-}" ]]; then
+        export FLARE_MAINNET="$FLARE_RPC_URL"
+    else
+        failed_rpcs+=("FLARE_RPC_URL")
+    fi
+
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then
         echo "❌ Failed to load the following RPC URLs from environment:"
         for failed_rpc in "${failed_rpcs[@]}"; do
@@ -333,10 +367,10 @@ load_rpc_urls() {
         failed_rpcs+=("AVALANCHE_RPC_URL")
     fi
 
-    # echo "  • Loading Berachain RPC..."  # Temporarily removed from production
-    # if ! export BERACHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BERACHAIN_RPC_URL/credential 2>/dev/null); then
-    #     failed_rpcs+=("BERACHAIN_RPC_URL")
-    # fi
+    echo "  • Loading Berachain RPC..."
+    if ! export BERACHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BERACHAIN_RPC_URL/credential 2>/dev/null); then
+        failed_rpcs+=("BERACHAIN_RPC_URL")
+    fi
 
     echo "  • Loading Sonic RPC..."
     if ! export SONIC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/SONIC_RPC_URL/credential 2>/dev/null); then
@@ -352,7 +386,17 @@ load_rpc_urls() {
     if ! export WORLDCHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/WORLDCHAIN_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("WORLDCHAIN_RPC_URL")
     fi
-    
+
+    echo "  • Loading HyperEVM RPC..."
+    if ! export HYPEREVM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/HYPEREVM_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("HYPEREVM_RPC_URL")
+    fi
+
+    echo "  • Loading Flare RPC..."
+    if ! export FLARE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/FLARE_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("FLARE_RPC_URL")
+    fi
+
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then
         echo "❌ Failed to load the following RPC URLs from 1Password:"
         for failed_rpc in "${failed_rpcs[@]}"; do

@@ -94,4 +94,13 @@ contract MockStandardizedYield {
     function setTotalAsset(uint256 amount) external {
         totalSupply = amount;
     }
+
+    function isValidTokenOut(address token) external view returns (bool) {
+        for (uint256 i = 0; i < tokensOut.length; i++) {
+            if (tokensOut[i] == token) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

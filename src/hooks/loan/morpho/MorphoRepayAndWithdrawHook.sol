@@ -10,11 +10,10 @@ import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
 import { IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id, Market } from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
+import { BaseHook } from "../../BaseHook.sol";
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoRepayAndWithdrawHook
 /// @author Superform Labs
@@ -27,17 +26,21 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 112);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         bool isFullRepayment = _decodeBool(data, 145);
+/// @dev KNOWN LIMITATION (P1-2): An attacker can front-run full repayment by repaying 1 wei of shares
+///      on behalf of the borrower, causing the victim's transaction to revert. Mitigate by using
+///      private mempools or adding slippage tolerance to share amounts.
+/// @dev KNOWN LIMITATION (P1-3): Interest accrues between build() and execute(). For full repayment,
+///      the approval amount from deriveLoanAmount() may be slightly stale. _preExecute calls
+///      accrueInterest() before the actual repay, but the approval was set during build().
 contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
-    using MarketParamsLib for MarketParams;
-    using HookDataDecoder for bytes;
     using SharesMathLib for uint256;
+    using MarketParamsLib for MarketParams;
 
     /*//////////////////////////////////////////////////////////////
                                STORAGE
     //////////////////////////////////////////////////////////////*/
-    address public morpho;
-    IMorphoBase public morphoBase;
-    IMorphoStaticTyping public morphoStaticTyping;
+
+    IMorphoStaticTyping public immutable morphoStaticTyping;
 
     struct BuildExecutionContext {
         MarketParams marketParams;
@@ -48,22 +51,20 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         uint256 shareBalance;
     }
 
-    uint256 private constant PRICE_SCALING_FACTOR = 1e36;
-    uint256 private constant PERCENTAGE_SCALING_FACTOR = 1e18;
-
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
+
+    /// @param morpho_ Address of the Morpho Blue protocol
     constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN_REPAY) {
-        morpho = morpho_;
-        morphoBase = IMorphoBase(morpho_);
-        morphoInterface = IMorpho(morpho_);
         morphoStaticTyping = IMorphoStaticTyping(morpho_);
     }
 
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc BaseHook
     function _buildHookExecutions(
         address prevHook,
         address account,
@@ -75,7 +76,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         returns (Execution[] memory executions)
     {
         BuildHookLocalVars memory vars = _decodeHookData(data);
-        if (vars.loanToken == address(0) || vars.collateralToken == address(0)) revert ADDRESS_NOT_VALID();
 
         BuildExecutionContext memory ctx;
         ctx.marketParams = _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
@@ -150,33 +150,36 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
             marketParams.loanToken, marketParams.collateralToken, marketParams.oracle, marketParams.irm
         );
     }
+
     /*//////////////////////////////////////////////////////////////
                             PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @dev derive the share balance of the account
-    /// @param id the id of the market
-    /// @param account the account to derive the share balance for
-    /// @return borrowShares the share balance of the account
 
+    /// @notice Derive the borrow share balance of the account
+    /// @param id The id of the market
+    /// @param account The account to derive the share balance for
+    /// @return borrowShares The borrow share balance of the account
     function deriveShareBalance(Id id, address account) public view returns (uint128 borrowShares) {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
     }
 
-    /// @dev derive the collateral balance of the account
-    /// @param id the id of the market
-    /// @param account the account to derive the collateral balance for
-    /// @return collateralAmount the collateral balance of the account
+    /// @notice Derive the collateral balance of the account (for full repayment withdrawal)
+    /// @param id The id of the market
+    /// @param account The account to derive the collateral balance for
+    /// @return collateralAmount The collateral balance of the account
     function deriveCollateralForFullRepayment(Id id, address account) public view returns (uint256 collateralAmount) {
         (,, uint128 collateral) = morphoStaticTyping.position(id, account);
         collateralAmount = uint256(collateral);
     }
 
-    /// @dev derive the collateral amount for partial repayment
-    /// @param id the id of the market
-    /// @param account the account to derive the collateral amount for
-    /// @param amount the amount to repay
-    /// @param fullCollateral the full collateral amount
-    /// @return withdrawableCollateral the collateral amount for partial repayment
+    /// @notice Derive the collateral amount for partial repayment (proportional to debt repaid)
+    /// @dev NOTE (P3-10): Uses Math.mulDiv which rounds DOWN by default, favoring the protocol.
+    ///      Repeated partial repayments will compound small rounding losses for the user.
+    /// @param id The id of the market
+    /// @param account The account to derive the collateral amount for
+    /// @param amount The amount to repay
+    /// @param fullCollateral The full collateral amount
+    /// @return withdrawableCollateral The collateral amount for partial repayment
     function deriveCollateralForPartialRepayment(
         Id id,
         address account,
@@ -188,56 +191,60 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         returns (uint256 withdrawableCollateral)
     {
         uint256 fullLoanAmount = deriveLoanAmount(id, account);
+        if (fullLoanAmount == 0) revert NO_OUTSTANDING_DEBT();
 
         withdrawableCollateral = Math.mulDiv(fullCollateral, amount, fullLoanAmount);
     }
 
-    /// @dev derive the loan amount of the account
-    /// @param id the id of the market
-    /// @param account the account to derive the loan amount for
-    /// @return loanAmount the loan amount of the account
+    /// @notice Derive the loan amount of the account (rounds up to favor protocol)
+    /// @param id The id of the market
+    /// @param account The account to derive the loan amount for
+    /// @return loanAmount The loan amount of the account
     function deriveLoanAmount(Id id, address account) public view returns (uint256 loanAmount) {
         (, uint128 fullShares,) = morphoStaticTyping.position(id, account);
         uint256 castShares = uint256(fullShares);
 
-        Market memory market = morphoInterface.market(id);
+        Market memory market = IMorpho(morpho).market(id);
         loanAmount = castShares.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
     }
 
-    /// @dev derive the assets for a share balance in a market
-    /// @param marketParams the market parameters
-    /// @param account the account to derive the assets for
-    /// @return assets the assets of the account
+    /// @notice Derive the assets for a share balance in a market (rounds up to favor protocol)
+    /// @param marketParams The market parameters
+    /// @param account The account to derive the assets for
+    /// @return assets The assets of the account
     function sharesToAssets(MarketParams memory marketParams, address account) public view returns (uint256 assets) {
         Id id = marketParams.id();
         uint256 shareBalance = deriveShareBalance(id, account);
-        Market memory market = morphoInterface.market(id);
+        Market memory market = IMorpho(morpho).market(id);
         assets = shareBalance.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
     }
 
-    /// @dev derive the shares for an amount of assets in a market
-    /// @param marketParams the market parameters
-    /// @param assets the assets to derive the shares for
-    /// @return shares the shares of the account
+    /// @notice Derive the shares for an amount of assets in a market (rounds up)
+    /// @param marketParams The market parameters
+    /// @param assets The assets to derive the shares for
+    /// @return shares The shares of the account
     function assetsToShares(MarketParams memory marketParams, uint256 assets) public view returns (uint256 shares) {
         Id id = marketParams.id();
-        Market memory market = morphoInterface.market(id);
+        Market memory market = IMorpho(morpho).market(id);
         shares = assets.toSharesUp(market.totalBorrowAssets, market.totalBorrowShares);
     }
 
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc BaseHook
     function _preExecute(address, address account, bytes calldata data) internal override {
         BuildHookLocalVars memory vars = _decodeHookData(data);
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
-        morphoInterface.accrueInterest(marketParams);
+        IMorpho(morpho).accrueInterest(marketParams);
 
         // store current balance
         _setOutAmount(getCollateralTokenBalance(account, data), account);
     }
 
+    /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(getCollateralTokenBalance(account, data) - getOutAmount(account), account);
     }

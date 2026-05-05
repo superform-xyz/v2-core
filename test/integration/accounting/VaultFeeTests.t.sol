@@ -20,7 +20,7 @@ import { IYieldSourceOracle } from "../../../src/interfaces/accounting/IYieldSou
 import { ISuperLedgerConfiguration } from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ERC4626YieldSourceOracle } from "../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../../../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { ERC7540YieldSourceOracle } from "../../../src/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { ERC7540YieldSourceOracle } from "../../mocks/unused-oracles/ERC7540YieldSourceOracle.sol";
 import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
 
 // -- centrifuge mocks

@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { IERC7540Redeem, IERC7540CancelRedeem } from "../standards/ERC7540/IERC7540Vault.sol";
+import { IERC7741 } from "../standards/ERC7741/IERC7741.sol";
+
 /// @title ISuperVault
 /// @notice Interface for SuperVault core contract that manages share minting
 /// @author Superform Labs
-interface ISuperVault {
+interface ISuperVault is IERC4626, IERC7540Redeem, IERC7741, IERC7540CancelRedeem {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
-    error ALREADY_INITIALIZED();
     error INVALID_ASSET();
     error INVALID_STRATEGY();
     error INVALID_ESCROW();
@@ -18,7 +21,7 @@ interface ISuperVault {
     error INVALID_AMOUNT();
     error REQUEST_NOT_FOUND();
     error UNAUTHORIZED();
-    error TIMELOCK_NOT_EXPIRED();
+    error DEADLINE_PASSED();
     error INVALID_SIGNATURE();
     error NOT_IMPLEMENTED();
     error INVALID_NONCE();
@@ -27,6 +30,9 @@ interface ISuperVault {
     error CAP_EXCEEDED();
     error INVALID_PPS();
     error INVALID_CONTROLLER();
+    error CONTROLLER_MUST_EQUAL_OWNER();
+    error NOT_ENOUGH_ASSETS();
+    error CANCELLATION_REDEEM_REQUEST_PENDING();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -44,36 +50,42 @@ interface ISuperVault {
 
     event NonceInvalidated(address indexed sender, bytes32 indexed nonce);
 
-    event RedeemRequestCancelled(address indexed controller, address indexed sender);
+    event SuperGovernorSet(address indexed superGovernor);
+
+    event DepositRequestCancelled(address indexed receiver, address indexed caller, uint256 assets);
+
+    event MintRequest(
+        address indexed sender, address indexed receiver, uint256 requestId, uint256 requestedShares, uint256 maxAssets
+    );
+
+    event MintRequestCancelled(address indexed receiver, address indexed caller, uint256 assets);
+    event DepositAssetsReturned(address indexed receiver, uint256 assets);
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    function cancelRedeem(address controller) external;
-
-    /// @notice Mint new shares, only callable by strategy
+    /// @notice Mint shares, only callable by strategy
+    /// @param to The address to mint shares to
     /// @param amount The amount of shares to mint
-    function mintShares(uint256 amount) external;
+    function mintShares(address to, uint256 amount) external;
 
     /// @notice Burn shares, only callable by strategy
     /// @param amount The amount of shares to burn
     function burnShares(uint256 amount) external;
 
-    /// @notice Callback function for when a redeem becomes claimable
-    /// @param user The user whose redeem is claimable
-    /// @param assets The amount of assets to be received
-    /// @param shares The amount of shares redeemed
-    /// @param averageWithdrawPrice The average price of the redeem
-    /// @param accumulatorShares The amount of shares in the accumulator
-    /// @param accumulatorCostBasis The cost basis of the accumulator
-    function onRedeemClaimable(
-        address user,
-        uint256 assets,
-        uint256 shares,
-        uint256 averageWithdrawPrice,
-        uint256 accumulatorShares,
-        uint256 accumulatorCostBasis
-    )
-        external;
+    /// @notice Extract assets from escrow and moves them to strategy
+    /// @dev Called by `SuperVaultStrategy`
+    /// @param to The address to send assets to
+    /// @param assets The amount of assets to be extracted
+    function extractAndSendAssets(address to, uint256 assets) external;
+
+    /// @notice Get the amount of assets escrowed
+    function getEscrowedAssets() external view returns (uint256);
+
+    /*//////////////////////////////////////////////////////////////
+                            VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Get the escrow address
+    function escrow() external view returns (address);
 }

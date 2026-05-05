@@ -16,8 +16,8 @@ import { ISuperHookContextAware } from "../../interfaces/ISuperHook.sol";
 abstract contract BaseLoanHook is BaseHook, ISuperHookLoans {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 80;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
+    uint256 internal constant AMOUNT_POSITION = 80;
+    uint256 internal constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
 
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
@@ -28,7 +28,7 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans {
                             EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHookContextAware
-    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
+    function decodeUsePrevHookAmount(bytes memory data) external pure virtual returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 

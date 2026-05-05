@@ -24,12 +24,14 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title PendleRouterSwapHook
 /// @author Superform Labs
+/// @notice Hook for swapping tokens via Pendle Router V4
 /// @dev data has the following structure
 /// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
 /// @notice         uint256 value = BytesLib.toUint256(data, 53);
 /// @notice         bytes txData_ = BytesLib.slice(data, 85, data.length - 85);
+/// @custom:deprecated Use PendleUnifiedHook instead which supports all Pendle operations including swap routing for redemptions
 contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
@@ -78,12 +80,19 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
         bytes memory txData_ = data[85:];
 
         bytes memory updatedTxData = _validateTxData(data[85:], account, usePrevHookAmount, prevHook, pendleMarket);
+        bytes memory finalTxData = usePrevHookAmount ? updatedTxData : txData_;
+        
+        // Extract tokenIn & compute execValue
+        (bool isTokenForPt, address tokenIn) = _extractTokenIn(finalTxData);
+        uint256 netTokenIn = usePrevHookAmount ? ISuperHookResult(prevHook).getOutAmount(account) : value;
+        
+        uint256 execValue = (isTokenForPt && tokenIn == address(0)) ? netTokenIn : 0;
 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(PENDLE_ROUTER_V4),
-            value: usePrevHookAmount ? ISuperHookResult(prevHook).getOutAmount(account) : value,
-            callData: usePrevHookAmount ? updatedTxData : txData_
+            value: execValue,
+            callData: finalTxData
         });
     }
 
@@ -102,7 +111,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
 
         if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
             // skip selector
-            (address receiver, address market,,, TokenInput memory input, LimitOrderData memory limit) =
+            (address receiver, address market,,, TokenInput memory input,) =
                 abi.decode(txData_[4:], (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
 
             packed = abi.encodePacked(
@@ -112,33 +121,11 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
                 input.tokenIn,
                 input.tokenMintSy,
                 input.pendleSwap,
-                input.swapData.extRouter,
-                limit.limitRouter
+                input.swapData.extRouter
             );
-
-            uint256 normalFillsLen = limit.normalFills.length;
-            for (uint256 i; i < normalFillsLen; i++) {
-                packed = abi.encodePacked(
-                    packed,
-                    limit.normalFills[i].order.token,
-                    limit.normalFills[i].order.YT,
-                    limit.normalFills[i].order.maker,
-                    limit.normalFills[i].order.receiver
-                );
-            }
-            uint256 flashFillsLen = limit.flashFills.length;
-            for (uint256 i; i < flashFillsLen; i++) {
-                packed = abi.encodePacked(
-                    packed,
-                    limit.flashFills[i].order.token,
-                    limit.flashFills[i].order.YT,
-                    limit.flashFills[i].order.maker,
-                    limit.flashFills[i].order.receiver
-                );
-            }
         } else if (selector == IPendleRouterV4.swapExactPtForToken.selector) {
             // skip selector
-            (address receiver, address market,, TokenOutput memory output, LimitOrderData memory limit) =
+            (address receiver, address market,, TokenOutput memory output,) =
                 abi.decode(txData_[4:], (address, address, uint256, TokenOutput, LimitOrderData));
 
             packed = abi.encodePacked(
@@ -150,27 +137,6 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
                 output.pendleSwap,
                 output.swapData.extRouter
             );
-
-            uint256 normalFillsLen = limit.normalFills.length;
-            for (uint256 i; i < normalFillsLen; i++) {
-                packed = abi.encodePacked(
-                    packed,
-                    limit.normalFills[i].order.token,
-                    limit.normalFills[i].order.YT,
-                    limit.normalFills[i].order.maker,
-                    limit.normalFills[i].order.receiver
-                );
-            }
-            uint256 flashFillsLen = limit.flashFills.length;
-            for (uint256 i; i < flashFillsLen; i++) {
-                packed = abi.encodePacked(
-                    packed,
-                    limit.flashFills[i].order.token,
-                    limit.flashFills[i].order.YT,
-                    limit.flashFills[i].order.maker,
-                    limit.flashFills[i].order.receiver
-                );
-            }
         }
     }
 
@@ -178,11 +144,11 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        _setOutAmount(_getBalance(data), account);
+        _setOutAmount(_getBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        _setOutAmount(_getBalance(data) - getOutAmount(account), account);
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -218,9 +184,6 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
             // validate approx params
             if (guessPtOut.guessMin > guessPtOut.guessMax) revert INVALID_GUESS_PT_OUT();
             if (guessPtOut.eps > 1e18) revert EPS_NOT_VALID();
-
-            // validate token input
-            if (input.tokenMintSy == address(0) || input.pendleSwap == address(0)) revert ADDRESS_NOT_VALID();
 
             if (usePrevHookAmount) {
                 input.netTokenIn = ISuperHookResult(prevHook).getOutAmount(account);
@@ -283,34 +246,41 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
         if (order.maker == address(0) || order.receiver == address(0)) revert ADDRESS_NOT_VALID();
     }
 
-    function _decodeTokenOutAndReceiver(bytes calldata data)
-        internal
-        view
-        returns (address tokenOut, address receiver)
-    {
+    function _decodeTokenOut(bytes calldata data) private view returns (address tokenOut) {
         bytes4 selector = bytes4(data[0:4]);
         if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
-            (address _receiver, address market,,,,) =
+            (, address market,,,,) =
                 abi.decode(data[4:], (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
             (, tokenOut,) = IPendleMarket(market).readTokens();
-            receiver = _receiver;
         } else if (selector == IPendleRouterV4.swapExactPtForToken.selector) {
-            (address _receiver,,, TokenOutput memory output,) =
+            (,, , TokenOutput memory output,) =
                 abi.decode(data[4:], (address, address, uint256, TokenOutput, LimitOrderData));
             tokenOut = output.tokenOut;
-            receiver = _receiver;
         } else {
             revert INVALID_SWAP_TYPE();
         }
     }
 
-    function _getBalance(bytes calldata data) private view returns (uint256) {
-        (address tokenOut, address receiver) = _decodeTokenOutAndReceiver(data[85:]);
+    function _extractTokenIn(bytes memory txData) private pure returns (bool isTokenForPt, address tokenIn) {
+        bytes4 selector = bytes4(BytesLib.slice(txData, 0, 4));
+        if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
+            (, , , , TokenInput memory input, ) = abi.decode(
+                BytesLib.slice(txData, 4, txData.length - 4), 
+                (address, address, uint256, ApproxParams, TokenInput, LimitOrderData)
+            );
+            return (true, input.tokenIn);
+        }
+        // PtForToken: no tokenIn → value=0 always
+        return (false, address(0));
+    }
+
+    function _getBalance(address account, bytes calldata data) private view returns (uint256) {
+        address tokenOut = _decodeTokenOut(data[85:]);
 
         if (tokenOut == address(0)) {
-            return receiver.balance;
+            return account.balance;
         }
 
-        return IERC20(tokenOut).balanceOf(receiver);
+        return IERC20(tokenOut).balanceOf(account);
     }
 }

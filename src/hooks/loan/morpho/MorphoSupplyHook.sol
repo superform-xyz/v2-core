@@ -2,17 +2,16 @@
 pragma solidity 0.8.30;
 
 // external
-import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
+import { BaseHook } from "../../BaseHook.sol";
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoSupplyHook
 /// @author Superform Labs
@@ -25,13 +24,9 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 112);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 contract MorphoSupplyHook is BaseMorphoLoanHook {
-    using HookDataDecoder for bytes;
-
     /*//////////////////////////////////////////////////////////////
-                               STORAGE
+                               STRUCTS
     //////////////////////////////////////////////////////////////*/
-    address public morpho;
-    IMorphoBase public morphoBase;
 
     struct SupplyHookLocalVars {
         address loanToken;
@@ -46,14 +41,15 @@ contract MorphoSupplyHook is BaseMorphoLoanHook {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN) {
-        morpho = morpho_;
-        morphoBase = IMorphoBase(morpho_);
-    }
+
+    /// @param morpho_ Address of the Morpho Blue protocol
+    constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN) { }
 
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc BaseHook
     function _buildHookExecutions(
         address prevHook,
         address account,
@@ -71,17 +67,11 @@ contract MorphoSupplyHook is BaseMorphoLoanHook {
         }
 
         if (vars.amount == 0) revert AMOUNT_NOT_VALID();
-        if (
-            vars.loanToken == address(0) || vars.collateralToken == address(0) || vars.oracle == address(0)
-                || vars.irm == address(0)
-        ) {
-            revert ADDRESS_NOT_VALID();
-        }
 
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        executions = new Execution[](3);
+        executions = new Execution[](4);
         executions[0] =
             Execution({ target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
         executions[1] = Execution({
@@ -94,6 +84,9 @@ contract MorphoSupplyHook is BaseMorphoLoanHook {
             value: 0,
             callData: abi.encodeCall(IMorphoBase.supplyCollateral, (marketParams, vars.amount, account, ""))
         });
+        // P1-1: Reset approval after supply to prevent dangling allowance
+        executions[3] =
+            Execution({ target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
     }
 
     /// @inheritdoc ISuperHookInspector
@@ -111,14 +104,25 @@ contract MorphoSupplyHook is BaseMorphoLoanHook {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @dev Decodes the hook data for supply operations
+    /// @param data The hook data
+    /// @return vars The decoded supply hook parameters
     function _decodeSupplyHookData(bytes memory data) internal pure returns (SupplyHookLocalVars memory vars) {
-        address loanToken = BytesLib.toAddress(data, 0);
-        address collateralToken = BytesLib.toAddress(data, 20);
-        address oracle = BytesLib.toAddress(data, 40);
-        address irm = BytesLib.toAddress(data, 60);
+        if (data.length < SUPPLY_MIN_DATA_LENGTH) revert INVALID_DATA_LENGTH();
+
+        address loanToken = BytesLib.toAddress(data, LOAN_TOKEN_OFFSET);
+        address collateralToken = BytesLib.toAddress(data, COLLATERAL_TOKEN_OFFSET);
+        address oracle = BytesLib.toAddress(data, ORACLE_OFFSET);
+        address irm = BytesLib.toAddress(data, IRM_OFFSET);
+
+        if (loanToken == address(0) || collateralToken == address(0) || oracle == address(0) || irm == address(0)) {
+            revert ADDRESS_NOT_VALID();
+        }
+
         uint256 amount = _decodeAmount(data);
-        uint256 lltv = BytesLib.toUint256(data, 112);
-        bool usePrevHookAmount = _decodeBool(data, 144);
+        uint256 lltv = BytesLib.toUint256(data, LLTV_OFFSET);
+        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         return SupplyHookLocalVars({
             loanToken: loanToken,
@@ -131,11 +135,12 @@ contract MorphoSupplyHook is BaseMorphoLoanHook {
         });
     }
 
+    /// @inheritdoc BaseHook
     function _preExecute(address, address account, bytes calldata data) internal override {
-        // store current balance
         _setOutAmount(getCollateralTokenBalance(account, data), account);
     }
 
+    /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(getOutAmount(account) - getCollateralTokenBalance(account, data), account);
     }

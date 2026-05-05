@@ -47,6 +47,14 @@ contract MockERC20 is ERC20 {
         return 1e18;
     }
 
+    function SY() external view virtual returns (address) {
+        return address(this);
+    }
+
+    function isValidTokenOut(address) external pure returns (bool) {
+        return true;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

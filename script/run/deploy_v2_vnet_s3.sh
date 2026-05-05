@@ -346,7 +346,7 @@ get_salt() {
             echo "$timestamp"
         else
             # Use fixed timestamp for demo branch
-            local fixed_salt="1756453482"
+            local fixed_salt="1763631947"
             log "INFO" "Demo branch: using fixed salt $fixed_salt"
             echo "$fixed_salt"
         fi
@@ -964,11 +964,45 @@ preview_demo_deployment_diff() {
     echo -e "  ${WHITE}Total contracts expected: $total_to_deploy${NC}"
     local missing_total=$((total_to_deploy - total_already_deployed))
     echo -e "  ${WHITE}Contracts needing deployment: $missing_total${NC}"
-    
+
+    # List all contracts needing deployment across all networks
+    if [ "$missing_total" -gt 0 ]; then
+        echo -e "  ${YELLOW}📋 Contracts needing deployment:${NC}"
+
+        i=0
+        for network in 1 8453 10; do
+            local network_slug=$(get_network_slug "$network")
+            local vnet_response="${VNET_RESPONSES[$i]}"
+            local admin_rpc=$(echo "$vnet_response" | cut -d'|' -f1)
+            local salt_value=$(get_salt)
+
+            # Get undeployed contracts for this network
+            local undeployed_contracts=$(forge script script/DeployV2Core.s.sol:DeployV2Core \
+                --sig 'run(bool,uint256,uint64,string)' true $FORGE_ENV $network "$salt_value" \
+                --rpc-url "$admin_rpc" \
+                --chain $network \
+                -vv 2>&1 | grep "Code Size:  0" | grep -v "SKIPPED" | sed 's/ Addr:.*//' | sed 's/^[ \t]*//' || true)
+
+            if [[ -n "$undeployed_contracts" ]]; then
+                local contract_count=$(echo "$undeployed_contracts" | grep -c . || echo "0")
+                if [ "$contract_count" -gt 0 ]; then
+                    echo -e "    ${CYAN}$network_slug:${NC}"
+                    while IFS= read -r contract; do
+                        if [[ -n "$contract" ]]; then
+                            echo -e "      ${YELLOW}•${NC} $contract"
+                        fi
+                    done <<< "$undeployed_contracts"
+                fi
+            fi
+
+            i=$((i + 1))
+        done
+    fi
+
     if [ "$REDEPLOY_FLAG" = "redeploy" ]; then
         echo -e "  ${YELLOW}🔄 Redeploy mode will create new addresses for ALL contracts${NC}"
     fi
-    
+
     echo ""
     
     # Debug output for troubleshooting
@@ -1296,11 +1330,21 @@ deploy_error_handler() {
 # Set trap to ensure S3 files are preserved on any unexpected error
 trap 'log "ERROR" "Unexpected error occurred, preserving S3 file"; exit 1' ERR
 
+###################################################################################
+# Keystore Password (prompt once, reuse for all chains)
+###################################################################################
+KEYSTORE_PASSWORD=""
+if [ -t 0 ]; then
+    read -s -p "Enter keystore password: " KEYSTORE_PASSWORD
+    echo ""
+    log "INFO" "Keystore password cached for all deployments"
+fi
+
 # Deploy all networks - Core contracts only
 deploy_contracts() {
     # Deploy Core contracts on Ethereum Mainnet
     log "INFO" "Deploying V2 Core on Ethereum Mainnet..."
-    if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
+    if ! echo "$KEYSTORE_PASSWORD" | forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(uint256,uint64,string)' $FORGE_ENV $ETH_CHAIN_ID "$ETH_SALT" \
         --verify \
         --verifier-url $ETH_MAINNET_VERIFIER_URL \
@@ -1313,10 +1357,10 @@ deploy_contracts() {
         deploy_error_handler "Ethereum"
     fi
     wait
-    
+
     # Deploy Core contracts on Base Mainnet
     log "INFO" "Deploying V2 Core on Base Mainnet..."
-    if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
+    if ! echo "$KEYSTORE_PASSWORD" | forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(uint256,uint64,string)' $FORGE_ENV $BASE_CHAIN_ID "$BASE_SALT" \
         --verify \
         --verifier-url $BASE_MAINNET_VERIFIER_URL \
@@ -1329,10 +1373,10 @@ deploy_contracts() {
         deploy_error_handler "Base"
     fi
     wait
-    
+
     # Deploy Core contracts on Optimism Mainnet
     log "INFO" "Deploying V2 Core on Optimism Mainnet..."
-    if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
+    if ! echo "$KEYSTORE_PASSWORD" | forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(uint256,uint64,string)' $FORGE_ENV $OPTIMISM_CHAIN_ID "$OPTIMISM_SALT" \
         --verify \
         --verifier-url $OPTIMISM_MAINNET_VERIFIER_URL \
@@ -1593,7 +1637,7 @@ if [ "$BRANCH_NAME" != "demo" ] || ([ "$BRANCH_NAME" = "demo" ] && [ "$REDEPLOY_
         esac
         
         log "INFO" "Configuring SuperLedger on $network_slug..."
-        if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
+        if ! echo "$KEYSTORE_PASSWORD" | forge script script/DeployV2Core.s.sol:DeployV2Core \
             --sig 'runLedgerConfigurations(uint256,uint64,string,string)' $FORGE_ENV $network "$salt" "$BRANCH_NAME" \
             --rpc-url "$admin_rpc" \
             --chain $network \

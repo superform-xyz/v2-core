@@ -13,7 +13,8 @@ abstract contract ConfigCore is ConfigBase {
 
     /// @notice Sets up core contract dependencies
     /// @dev Configures addresses required for core contract deployment and operation
-    function _setCoreConfiguration() internal {
+    /// @param env Environment (0 = prod, 1 = dev, 2 = staging)
+    function _setCoreConfiguration(uint256 env) internal {
         // ===== ACROSS SPOKE POOL V3 ADDRESSES =====
         configuration.acrossSpokePoolV3s[MAINNET_CHAIN_ID] = ACROSS_SPOKE_POOL_MAINNET;
         configuration.acrossSpokePoolV3s[BASE_CHAIN_ID] = ACROSS_SPOKE_POOL_BASE;
@@ -28,6 +29,8 @@ abstract contract ConfigCore is ConfigBase {
         configuration.acrossSpokePoolV3s[SONIC_CHAIN_ID] = address(0); // Not deployed yet
         configuration.acrossSpokePoolV3s[GNOSIS_CHAIN_ID] = address(0); // Not deployed yet
         configuration.acrossSpokePoolV3s[WORLDCHAIN_CHAIN_ID] = ACROSS_SPOKE_POOL_WORLDCHAIN;
+        configuration.acrossSpokePoolV3s[HYPEREVM_CHAIN_ID] = ACROSS_SPOKE_POOL_HYPEREVM;
+        configuration.acrossSpokePoolV3s[FLARE_CHAIN_ID] = address(0); // Not deployed yet
 
         // ===== DEBRIDGE DLN SOURCE ADDRESSES =====
         configuration.debridgeSrcDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_SRC;
@@ -43,6 +46,8 @@ abstract contract ConfigCore is ConfigBase {
         configuration.debridgeSrcDln[SONIC_CHAIN_ID] = DEBRIDGE_DLN_SRC;
         configuration.debridgeSrcDln[GNOSIS_CHAIN_ID] = DEBRIDGE_DLN_SRC;
         configuration.debridgeSrcDln[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed yet
+        configuration.debridgeSrcDln[HYPEREVM_CHAIN_ID] = DEBRIDGE_DLN_SRC;
+        configuration.debridgeSrcDln[FLARE_CHAIN_ID] = address(0); // Not deployed yet
 
         // ===== DEBRIDGE DLN DESTINATION ADDRESSES =====
         configuration.debridgeDstDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_DST;
@@ -58,6 +63,8 @@ abstract contract ConfigCore is ConfigBase {
         configuration.debridgeDstDln[SONIC_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[GNOSIS_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed yet
+        configuration.debridgeDstDln[HYPEREVM_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[FLARE_CHAIN_ID] = address(0); // Not deployed yet
 
         // ===== PERMIT2 ADDRESSES =====
         configuration.permit2s[MAINNET_CHAIN_ID] = PERMIT2;
@@ -73,6 +80,8 @@ abstract contract ConfigCore is ConfigBase {
         configuration.permit2s[SONIC_CHAIN_ID] = PERMIT2;
         configuration.permit2s[GNOSIS_CHAIN_ID] = PERMIT2;
         configuration.permit2s[WORLDCHAIN_CHAIN_ID] = PERMIT2;
+        configuration.permit2s[HYPEREVM_CHAIN_ID] = PERMIT2;
+        configuration.permit2s[FLARE_CHAIN_ID] = PERMIT2;
 
         // ===== MERKL DISTRIBUTOR ADDRESSES =====
         configuration.merklDistributors[MAINNET_CHAIN_ID] = MERKL_DISTRIBUTOR;
@@ -88,6 +97,8 @@ abstract contract ConfigCore is ConfigBase {
         configuration.merklDistributors[SONIC_CHAIN_ID] = MERKL_DISTRIBUTOR;
         configuration.merklDistributors[GNOSIS_CHAIN_ID] = MERKL_DISTRIBUTOR;
         configuration.merklDistributors[WORLDCHAIN_CHAIN_ID] = MERKL_DISTRIBUTOR;
+        configuration.merklDistributors[HYPEREVM_CHAIN_ID] = MERKL_DISTRIBUTOR;
+        configuration.merklDistributors[FLARE_CHAIN_ID] = address(0); // Not deployed
 
         // ===== CRITICAL ROUTER ADDRESSES FOR CORE HOOKS =====
         // These are required for core hook deployments
@@ -104,6 +115,8 @@ abstract contract ConfigCore is ConfigBase {
         configuration.aggregationRouters[SONIC_CHAIN_ID] = AGGREGATION_ROUTER;
         configuration.aggregationRouters[GNOSIS_CHAIN_ID] = AGGREGATION_ROUTER;
         configuration.aggregationRouters[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.aggregationRouters[HYPEREVM_CHAIN_ID] = address(0); // Not deployed
+        configuration.aggregationRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
 
         configuration.odosRouters[MAINNET_CHAIN_ID] = ODOS_ROUTER_MAINNET;
         configuration.odosRouters[BASE_CHAIN_ID] = ODOS_ROUTER_BASE;
@@ -118,6 +131,101 @@ abstract contract ConfigCore is ConfigBase {
         configuration.odosRouters[SONIC_CHAIN_ID] = ODOS_ROUTER_SONIC;
         configuration.odosRouters[GNOSIS_CHAIN_ID] = address(0); // Not deployed
         configuration.odosRouters[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.odosRouters[HYPEREVM_CHAIN_ID] = address(0); // Not deployed
+        configuration.odosRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
+
+        // ===== KYBERSWAP ROUTER AND SCALE HELPER ADDRESSES =====
+        // Same address across all supported chains
+        configuration.kyberSwapRouters[MAINNET_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[BASE_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[BNB_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[ARBITRUM_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[OPTIMISM_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[POLYGON_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[UNICHAIN_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[LINEA_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[AVALANCHE_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[BERACHAIN_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[SONIC_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[GNOSIS_CHAIN_ID] = address(0); // Not deployed
+        configuration.kyberSwapRouters[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.kyberSwapRouters[HYPEREVM_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
+
+        configuration.kyberSwapScaleHelpers[MAINNET_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[BASE_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[BNB_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[ARBITRUM_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[OPTIMISM_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[POLYGON_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[UNICHAIN_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[LINEA_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[AVALANCHE_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[BERACHAIN_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[SONIC_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[GNOSIS_CHAIN_ID] = address(0); // Not deployed
+        configuration.kyberSwapScaleHelpers[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.kyberSwapScaleHelpers[HYPEREVM_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[FLARE_CHAIN_ID] = address(0); // Not deployed
+
+        // ===== PENDLE ROUTER ADDRESSES =====
+        configuration.pendleRouters[MAINNET_CHAIN_ID] = PENDLE_ROUTER_MAINNET;
+        configuration.pendleRouters[BASE_CHAIN_ID] = PENDLE_ROUTER_BASE;
+        configuration.pendleRouters[BNB_CHAIN_ID] = PENDLE_ROUTER_BNB;
+        configuration.pendleRouters[ARBITRUM_CHAIN_ID] = PENDLE_ROUTER_ARBITRUM;
+        configuration.pendleRouters[OPTIMISM_CHAIN_ID] = PENDLE_ROUTER_OPTIMISM;
+        configuration.pendleRouters[POLYGON_CHAIN_ID] = address(0); // Not deployed
+        configuration.pendleRouters[UNICHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.pendleRouters[LINEA_CHAIN_ID] = address(0); // Not deployed
+        configuration.pendleRouters[AVALANCHE_CHAIN_ID] = address(0); // Not deployed
+        configuration.pendleRouters[BERACHAIN_CHAIN_ID] = PENDLE_ROUTER_BERACHAIN;
+        configuration.pendleRouters[SONIC_CHAIN_ID] = PENDLE_ROUTER_SONIC;
+        configuration.pendleRouters[GNOSIS_CHAIN_ID] = address(0); // Not deployed
+        configuration.pendleRouters[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.pendleRouters[HYPEREVM_CHAIN_ID] = PENDLE_ROUTER_HYPEREVM;
+        configuration.pendleRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
+
+        // ===== PENDLE PT AMORTIZED ORACLE ADDRESSES (V1) =====
+        // NOTE: Set to address(0) - oracles are deployed via DeployV2Core and config is updated dynamically
+        // Legacy addresses (for reference):
+        // - Staging: 0xE31FD1d26A52B4a958651a8E751e9362B3880524
+        // - Production: 0xD64089698f82cbCD91ba5e0422aDFa81D247eB62
+        configuration.pendlePTAmortizedOracles[MAINNET_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[BASE_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[HYPEREVM_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[BNB_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[ARBITRUM_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[OPTIMISM_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[POLYGON_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[UNICHAIN_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[LINEA_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[AVALANCHE_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[BERACHAIN_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[SONIC_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[GNOSIS_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[WORLDCHAIN_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[FLARE_CHAIN_ID] = address(0);
+
+        // ===== PENDLE PT AMORTIZED ORACLE V2 ADDRESSES =====
+        // NOTE: Set to address(0) - oracles are deployed via DeployV2Core and config is updated dynamically
+        // Legacy addresses (for reference):
+        // - Staging: 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e
+        // - Production: 0x2185B40476510Ad27d17AF90889CE91BE9282A04
+        configuration.pendlePTAmortizedOraclesV2[MAINNET_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[BASE_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[HYPEREVM_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[BNB_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[ARBITRUM_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[OPTIMISM_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[POLYGON_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[UNICHAIN_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[LINEA_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[AVALANCHE_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[BERACHAIN_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[SONIC_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[GNOSIS_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[WORLDCHAIN_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[FLARE_CHAIN_ID] = address(0);
 
         // ===== NATIVE TOKEN ADDRESSES =====
         configuration.nativeTokens[MAINNET_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
@@ -133,6 +241,8 @@ abstract contract ConfigCore is ConfigBase {
         configuration.nativeTokens[SONIC_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[GNOSIS_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[WORLDCHAIN_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
+        configuration.nativeTokens[HYPEREVM_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
+        configuration.nativeTokens[FLARE_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
 
         // ===== UNISWAP V4 POOL MANAGER ADDRESSES =====
         configuration.uniswapV4PoolManagers[MAINNET_CHAIN_ID] = 0x000000000004444c5dc75cB358380D2e3dE08A90;
@@ -148,5 +258,61 @@ abstract contract ConfigCore is ConfigBase {
         configuration.uniswapV4PoolManagers[SONIC_CHAIN_ID] = address(0); // Not deployed
         configuration.uniswapV4PoolManagers[GNOSIS_CHAIN_ID] = address(0); // Not deployed
         configuration.uniswapV4PoolManagers[WORLDCHAIN_CHAIN_ID] = 0xb1860D529182ac3BC1F51Fa2ABd56662b7D13f33;
+        configuration.uniswapV4PoolManagers[HYPEREVM_CHAIN_ID] = address(0); // Not deployed
+        configuration.uniswapV4PoolManagers[FLARE_CHAIN_ID] = address(0); // Not deployed
+
+        // ===== UNISWAP V3 SWAP ROUTER ADDRESSES =====
+        // Using SwapRouter (exactInputSingle with deadline in struct)
+        configuration.uniswapV3SwapRouters[MAINNET_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[BASE_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[BNB_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[ARBITRUM_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[OPTIMISM_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[POLYGON_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[UNICHAIN_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[LINEA_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[AVALANCHE_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[BERACHAIN_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[SONIC_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[GNOSIS_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[WORLDCHAIN_CHAIN_ID] = address(0);
+        configuration.uniswapV3SwapRouters[HYPEREVM_CHAIN_ID] = 0x1EbDFC75FfE3ba3de61E7138a3E8706aC841Af9B;
+        configuration.uniswapV3SwapRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
+
+        // ===== UNISWAP V2 SWAP ROUTER ADDRESSES =====
+        // SparkDex on Flare is a Uniswap V2 fork
+        configuration.uniswapV2SwapRouters[MAINNET_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[BASE_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[BNB_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[ARBITRUM_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[OPTIMISM_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[POLYGON_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[UNICHAIN_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[LINEA_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[AVALANCHE_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[BERACHAIN_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[SONIC_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[GNOSIS_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[WORLDCHAIN_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[HYPEREVM_CHAIN_ID] = address(0);
+        configuration.uniswapV2SwapRouters[FLARE_CHAIN_ID] = SPARKDEX_V2_ROUTER_FLARE;
+
+        // ===== SPARK PSM3 ADDRESSES =====
+        // PSM3 is only deployed on Base
+        configuration.sparkPsm3s[MAINNET_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[BASE_CHAIN_ID] = 0x1601843c5E9bC251A3272907010AFa41Fa18347E;
+        configuration.sparkPsm3s[BNB_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[ARBITRUM_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[OPTIMISM_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[POLYGON_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[UNICHAIN_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[LINEA_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[AVALANCHE_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[BERACHAIN_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[SONIC_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[GNOSIS_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[WORLDCHAIN_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[HYPEREVM_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[FLARE_CHAIN_ID] = address(0);
     }
 }

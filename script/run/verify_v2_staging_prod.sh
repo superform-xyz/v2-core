@@ -3,12 +3,16 @@
 # ===== CHAIN FILTER CONFIGURATION =====
 # Specify which chains to verify (comment out to verify all chains)
 # Leave empty array to verify all chains from network configuration
-CHAINS_TO_VERIFY=()
+CHAINS_TO_VERIFY=(14)
 
 # ===== CONTRACT FILTER CONFIGURATION =====
 # Specify which contracts to verify (comment out to verify all contracts)
 # Leave empty array to verify all contracts found in deployment JSON
 CONTRACTS_TO_VERIFY=()
+
+# ===== RATE LIMIT CONFIGURATION =====
+# Delay in seconds between verification requests (prevents Cloudflare rate limiting)
+VERIFY_DELAY=5
 
 # Colors for better visual output
 RED='\033[0;31m'
@@ -131,18 +135,20 @@ load_contract_addresses() {
         "146") network_suffix="Sonic-latest" ;;
         "100") network_suffix="Gnosis-latest" ;;
         "480") network_suffix="Worldchain-latest" ;;
+        "999") network_suffix="HyperEVM-latest" ;;
+        "14") network_suffix="Flare-latest" ;;
         *) network_suffix="${network_name}-latest" ;;
     esac
-    
+
     local json_file="script/output/$ENVIRONMENT/$chain_id/$network_suffix.json"
-    
+
     if [ ! -f "$json_file" ]; then
         echo -e "${RED}❌ JSON file not found: $json_file${NC}"
         echo -e "${RED}   Expected path: $json_file${NC}"
         echo -e "${YELLOW}   Make sure contracts have been deployed to this network first${NC}"
         return 1
     fi
-    
+
     echo -e "${CYAN}   • Loading addresses from: $json_file${NC}"
     return 0
 }
@@ -168,14 +174,16 @@ get_contract_address() {
         "146") network_suffix="Sonic-latest" ;;
         "100") network_suffix="Gnosis-latest" ;;
         "480") network_suffix="Worldchain-latest" ;;
-        *) 
+        "999") network_suffix="HyperEVM-latest" ;;
+        "14") network_suffix="Flare-latest" ;;
+        *)
             local network_name=$(get_network_name "$chain_id")
             network_suffix="${network_name}-latest"
             ;;
     esac
-    
+
     local json_file="script/output/$ENVIRONMENT/$chain_id/$network_suffix.json"
-    
+
     if [ -f "$json_file" ]; then
         local address=$(jq -r ".$contract_name // empty" "$json_file")
         echo "$address"
@@ -208,6 +216,25 @@ generate_constructor_args() {
     local debridge_dln_dst="0xE7351Fd770A37282b91D153Ee690B63579D6dd7f"  # Standard DeBridge DLN DST
     local gateway_wallet="0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE"  # Circle Gateway Wallet
     local gateway_minter="0x2222222d7164433c4C09B0b0D809a9b52C04C205"  # Circle Gateway Minter
+    # Pendle PT Amortized Oracle addresses (V1)
+    # Staging: 0xE31FD1d26A52B4a958651a8E751e9362B3880524
+    # Production: 0xD64089698f82cbCD91ba5e0422aDFa81D247eB62
+    local pendle_pt_amortized_oracle=""
+    if [ "$ENVIRONMENT" = "staging" ]; then
+        pendle_pt_amortized_oracle="0xE31FD1d26A52B4a958651a8E751e9362B3880524"
+    else
+        pendle_pt_amortized_oracle="0xD64089698f82cbCD91ba5e0422aDFa81D247eB62"
+    fi
+
+    # Pendle PT Amortized Oracle V2 addresses
+    # Staging: 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e
+    # Production: TBD
+    local pendle_pt_amortized_oracle_v2=""
+    if [ "$ENVIRONMENT" = "staging" ]; then
+        pendle_pt_amortized_oracle_v2="0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e"
+    else
+        pendle_pt_amortized_oracle_v2=""  # TBD - update after prod deployment
+    fi
     
     # Network-specific configurations
     case $chain_id in
@@ -307,6 +334,22 @@ generate_constructor_args() {
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
+        "999") # HyperEVM (Hyperliquid)
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router=""  # Not deployed
+            odos_router=""  # Not deployed
+            across_spoke_pool_v3=""  # Not deployed
+            merkl_distributor=""  # Not deployed
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
+        "14") # Flare
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router=""  # Not deployed
+            odos_router=""  # Not deployed
+            across_spoke_pool_v3=""  # Not deployed
+            merkl_distributor=""  # Not deployed
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
     esac
     
     # Generate constructor arguments based on contract type
@@ -371,7 +414,74 @@ generate_constructor_args() {
         "CircleGatewayMinterHook")
             echo "$(cast abi-encode "constructor(address)" "$gateway_minter")"
             ;;
-        
+        "RecordPurchasePendlePTAmortizedOracleHook"|"RecordRedemptionPendlePTAmortizedOracleHook")
+            echo "$(cast abi-encode "constructor(address)" "$pendle_pt_amortized_oracle")"
+            ;;
+        "RecordPurchasePendlePTAmortizedOracleHookV2"|"RecordRedemptionPendlePTAmortizedOracleHookV2")
+            echo "$(cast abi-encode "constructor(address)" "$pendle_pt_amortized_oracle_v2")"
+            ;;
+
+        # Uniswap V3 Hooks
+        "SwapUniswapV3Hook"|"ApproveAndSwapUniswapV3Hook")
+            local uniswap_v3_router=""
+            case $chain_id in
+                "999") uniswap_v3_router="0x1EbDFC75FfE3ba3de61E7138a3E8706aC841Af9B" ;;  # HyperEVM
+                *) uniswap_v3_router="" ;;  # Not deployed on other chains
+            esac
+            echo "$(cast abi-encode "constructor(address)" "$uniswap_v3_router")"
+            ;;
+
+        # Uniswap V4 Hook
+        "SwapUniswapV4Hook")
+            local uniswap_v4_pool_manager=""
+            case $chain_id in
+                "1") uniswap_v4_pool_manager="0x000000000004444c5dc75cB358380D2e3dE08A90" ;;  # Ethereum
+                "8453") uniswap_v4_pool_manager="0x498581fF718922c3f8e6A244956aF099B2652b2b" ;;  # Base
+                "42161") uniswap_v4_pool_manager="0x360E68faCcca8cA495c1B759Fd9EEe466db9FB32" ;;  # Arbitrum
+                "10") uniswap_v4_pool_manager="0x9a13F98Cb987694C9F086b1F5eB990EeA8264Ec3" ;;  # Optimism
+                "137") uniswap_v4_pool_manager="0x67366782805870060151383F4BbFF9daB53e5cD6" ;;  # Polygon
+                "130") uniswap_v4_pool_manager="0x1F98400000000000000000000000000000000004" ;;  # Unichain
+                "43114") uniswap_v4_pool_manager="0x06380C0e0912312B5150364B9DC4542BA0DbBc85" ;;  # Avalanche
+                "480") uniswap_v4_pool_manager="0xb1860D529182ac3BC1F51Fa2ABd56662b7D13f33" ;;  # Worldchain
+                *) uniswap_v4_pool_manager="" ;;  # Not deployed
+            esac
+            echo "$(cast abi-encode "constructor(address)" "$uniswap_v4_pool_manager")"
+            ;;
+
+        # TransferHook - takes native token address
+        "TransferHook")
+            echo "$(cast abi-encode "constructor(address)" "$native_token")"
+            ;;
+
+        # Pendle Hooks - PendleUnifiedHook, PendleRouterSwapHook, PendleRouterRedeemHook
+        "PendleUnifiedHook"|"PendleRouterSwapHook"|"PendleRouterRedeemHook")
+            local pendle_router="0x888888888889758F76e7103c6CbF23ABbF58F946"  # Same for all chains
+            echo "$(cast abi-encode "constructor(address)" "$pendle_router")"
+            ;;
+
+        # SuperVaultYieldSourceOracle
+        "SuperVaultYieldSourceOracle")
+            echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
+            ;;
+
+        # Morpho Hooks (all take Morpho Blue address as constructor arg)
+        "MorphoSupplyAndBorrowHook"|"MorphoBorrowHook"|"MorphoRepayHook"|"MorphoRepayAndWithdrawHook"|"MorphoSupplyHook"|"MorphoWithdrawHook"|"MorphoLendHook")
+            local morpho_address=""
+            case $chain_id in
+                "1") morpho_address="0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb" ;;    # Ethereum
+                "8453") morpho_address="0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb" ;; # Base
+                "10") morpho_address="0xce95AfbB8EA029495c66020883F87aaE8864AF92" ;;    # Optimism
+                "42161") morpho_address="0x6c247b1F6182318877311737BaC0844bAa518F5e" ;; # Arbitrum
+                "56") morpho_address="0x01b0Bd309AA75547f7a37Ad7B1219A898E67a83a" ;;    # BNB
+                *) morpho_address="" ;;
+            esac
+            if [ -n "$morpho_address" ]; then
+                echo "$(cast abi-encode "constructor(address)" "$morpho_address")"
+            else
+                echo "$(cast abi-encode "constructor()")"
+            fi
+            ;;
+
         # All other contracts (no constructor args)
         *)
             echo "$(cast abi-encode "constructor()")"
@@ -397,9 +507,10 @@ get_contract_source() {
         "SuperNativePaymaster") echo "src/paymaster/SuperNativePaymaster.sol" ;;
         "SuperSenderCreator") echo "src/executors/helpers/SuperSenderCreator.sol" ;;
         
-        # Hooks - ERC20
+        # Hooks - ERC20 and Token Transfers
         "ApproveERC20Hook") echo "src/hooks/tokens/erc20/ApproveERC20Hook.sol" ;;
         "TransferERC20Hook") echo "src/hooks/tokens/erc20/TransferERC20Hook.sol" ;;
+        "TransferHook") echo "src/hooks/tokens/TransferHook.sol" ;;
         "BatchTransferHook") echo "src/hooks/tokens/BatchTransferHook.sol" ;;
         "BatchTransferFromHook") echo "src/hooks/tokens/permit2/BatchTransferFromHook.sol" ;;
         "OfframpTokensHook") echo "src/hooks/tokens/OfframpTokensHook.sol" ;;
@@ -420,11 +531,19 @@ get_contract_source() {
         "CancelRedeemRequest7540Hook") echo "src/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol" ;;
         "ClaimCancelDepositRequest7540Hook") echo "src/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol" ;;
         "ClaimCancelRedeemRequest7540Hook") echo "src/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol" ;;
-        
+        "SetOperator7540Hook") echo "src/hooks/vaults/7540/SetOperator7540Hook.sol" ;;
+        "SetSlippageHook") echo "src/hooks/vaults/7540/SetSlippageHook.sol" ;;
+
         # Hooks - Swappers
         "Swap1InchHook") echo "src/hooks/swappers/1inch/Swap1InchHook.sol" ;;
         "SwapOdosV2Hook") echo "src/hooks/swappers/odos/SwapOdosV2Hook.sol" ;;
         "ApproveAndSwapOdosV2Hook") echo "src/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol" ;;
+        "SwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Hook.sol" ;;
+        "ApproveAndSwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/ApproveAndSwapUniswapV3Hook.sol" ;;
+        "SwapUniswapV4Hook") echo "src/hooks/swappers/uniswap-v4/SwapUniswapV4Hook.sol" ;;
+        "PendleUnifiedHook") echo "src/hooks/swappers/pendle/PendleUnifiedHook.sol" ;;
+        "PendleRouterSwapHook") echo "src/hooks/swappers/pendle/PendleRouterSwapHook.sol" ;;
+        "PendleRouterRedeemHook") echo "src/hooks/swappers/pendle/PendleRouterRedeemHook.sol" ;;
         
         # Hooks - Bridges
         "AcrossSendFundsAndExecuteOnDstHook") echo "src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol" ;;
@@ -445,7 +564,26 @@ get_contract_source() {
         "CircleGatewayMinterHook") echo "src/hooks/bridges/circle/CircleGatewayMinterHook.sol" ;;
         "CircleGatewayAddDelegateHook") echo "src/hooks/bridges/circle/CircleGatewayAddDelegateHook.sol" ;;
         "CircleGatewayRemoveDelegateHook") echo "src/hooks/bridges/circle/CircleGatewayRemoveDelegateHook.sol" ;;
-        
+
+        # Hooks - Pendle PT Amortized Oracle
+        "RecordPurchasePendlePTAmortizedOracleHook") echo "src/hooks/oracles/pendle/RecordPurchasePendlePTAmortizedOracleHook.sol" ;;
+        "RecordRedemptionPendlePTAmortizedOracleHook") echo "src/hooks/oracles/pendle/RecordRedemptionPendlePTAmortizedOracleHook.sol" ;;
+        "RecordPurchasePendlePTAmortizedOracleHookV2") echo "src/hooks/oracles/pendle/RecordPurchasePendlePTAmortizedOracleHookV2.sol" ;;
+        "RecordRedemptionPendlePTAmortizedOracleHookV2") echo "src/hooks/oracles/pendle/RecordRedemptionPendlePTAmortizedOracleHookV2.sol" ;;
+
+        # Hooks - Firelight Vault
+        "RedeemFirelightVaultHook") echo "src/hooks/vaults/firelight/RedeemFirelightVaultHook.sol" ;;
+        "ClaimWithdrawFirelightVaultHook") echo "src/hooks/vaults/firelight/ClaimWithdrawFirelightVaultHook.sol" ;;
+
+        # Hooks - Morpho Loan
+        "MorphoSupplyAndBorrowHook") echo "src/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol" ;;
+        "MorphoBorrowHook") echo "src/hooks/loan/morpho/MorphoBorrowHook.sol" ;;
+        "MorphoRepayHook") echo "src/hooks/loan/morpho/MorphoRepayHook.sol" ;;
+        "MorphoRepayAndWithdrawHook") echo "src/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol" ;;
+        "MorphoSupplyHook") echo "src/hooks/loan/morpho/MorphoSupplyHook.sol" ;;
+        "MorphoWithdrawHook") echo "src/hooks/loan/morpho/MorphoWithdrawHook.sol" ;;
+        "MorphoLendHook") echo "src/hooks/loan/morpho/MorphoLendHook.sol" ;;
+
         # Oracles
         "ERC4626YieldSourceOracle") echo "src/accounting/oracles/ERC4626YieldSourceOracle.sol" ;;
         "ERC5115YieldSourceOracle") echo "src/accounting/oracles/ERC5115YieldSourceOracle.sol" ;;
@@ -453,6 +591,7 @@ get_contract_source() {
         "SpectraPTYieldSourceOracle") echo "src/accounting/oracles/SpectraPTYieldSourceOracle.sol" ;;
         "StakingYieldSourceOracle") echo "src/accounting/oracles/StakingYieldSourceOracle.sol" ;;
         "SuperYieldSourceOracle") echo "src/accounting/oracles/SuperYieldSourceOracle.sol" ;;
+        "SuperVaultYieldSourceOracle") echo "src/accounting/oracles/SuperVaultYieldSourceOracle.sol" ;;
         
         *) echo "src/core/unknown/$contract_name.sol" ;;
     esac
@@ -466,25 +605,25 @@ verify_contract() {
     local constructor_args=$4
     local source_file=$5
     local rpc_url=$6
-    
+
     echo -e "${YELLOW}   🔍 Verifying $contract_name...${NC}"
     echo -e "${CYAN}      Address: $contract_address${NC}"
     echo -e "${CYAN}      Source: $source_file${NC}"
     echo -e "${CYAN}      Chain ID: $chain_id${NC}"
-    
+
     forge verify-contract "$contract_address" "$source_file:$contract_name" \
         --constructor-args "$constructor_args" \
         --rpc-url "$rpc_url" \
         --chain "$chain_id" \
         --etherscan-api-key "$ETHERSCANV2_API_KEY" \
         --verifier etherscan
-            
+
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}   ✅ $contract_name verified successfully${NC}"
     else
         echo -e "${RED}   ❌ $contract_name verification failed${NC}"
     fi
-    
+
     echo ""
 }
 
@@ -533,11 +672,13 @@ verify_network() {
         "146") network_suffix="Sonic-latest" ;;
         "100") network_suffix="Gnosis-latest" ;;
         "480") network_suffix="Worldchain-latest" ;;
+        "999") network_suffix="HyperEVM-latest" ;;
+        "14") network_suffix="Flare-latest" ;;
         *) network_suffix="${network_name}-latest" ;;
     esac
-    
+
     local json_file="script/output/$ENVIRONMENT/$chain_id/$network_suffix.json"
-    
+
     if [ ! -f "$json_file" ]; then
         echo -e "${RED}   ❌ Contract addresses file not found: $json_file${NC}"
         return 1
@@ -586,6 +727,11 @@ verify_network() {
         local source_file=$(get_contract_source "$contract_name")
         
         verify_contract "$chain_id" "$contract_name" "$contract_address" "$constructor_args" "$source_file" "$rpc_url"
+
+        # Rate limit protection: wait between verification requests
+        if [ "$VERIFY_DELAY" -gt 0 ]; then
+            sleep "$VERIFY_DELAY"
+        fi
     done
     
     echo -e "${GREEN}✅ Network $network_name verification completed${NC}"
