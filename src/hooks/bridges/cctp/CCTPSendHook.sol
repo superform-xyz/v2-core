@@ -5,6 +5,7 @@ pragma solidity 0.8.30;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { ITokenMessengerV2 } from "../../../vendor/bridges/cctp/ITokenMessengerV2.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -110,7 +111,14 @@ contract CCTPSendHook is BaseHook, ISuperHookContextAware {
         }
 
         if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) {
-            s.amount = ISuperHookResult(prevHook).getOutAmount(account);
+            uint256 outAmount = ISuperHookResult(prevHook).getOutAmount(account);
+
+            // Scale maxFee proportionally to the new amount
+            if (s.amount > 0 && s.maxFee > 0) {
+                s.maxFee = Math.mulDiv(s.maxFee, outAmount, s.amount);
+            }
+
+            s.amount = outAmount;
         }
 
         if (s.amount == 0) revert AMOUNT_NOT_VALID();

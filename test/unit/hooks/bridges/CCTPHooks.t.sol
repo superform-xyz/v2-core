@@ -11,6 +11,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { MockHook } from "../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract MockCCTPSignatureStorage {
     function retrieveSignatureData(address) external view returns (bytes memory) {
@@ -222,6 +223,36 @@ contract CCTPHooks is Helpers {
 
         // Verify the approval uses the prev hook amount, not the encoded amount
         assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (mockTokenMessenger, prevHookAmount)));
+    }
+
+    function test_CCTP_Build_WithPrevHookAmount_ScalesMaxFee() public {
+        uint256 prevHookAmount = 2000e6; // Double the original
+
+        mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockBurnToken));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
+
+        vm.mockCall(
+            mockPrevHook, abi.encodeWithSelector(ISuperHookResult.getOutAmount.selector), abi.encode(prevHookAmount)
+        );
+
+        bytes memory data = _encodeCCTPData(true, false);
+        Execution[] memory executions = cctpHook.build(mockPrevHook, mockAccount, data);
+
+        // maxFee should scale: 1e6 * 2000e6 / 1000e6 = 2e6
+        uint256 expectedMaxFee = Math.mulDiv(mockMaxFee, prevHookAmount, mockAmount);
+
+        // Decode the depositForBurnWithHook calldata to verify maxFee was scaled
+        // calldata layout: selector(4) + amount(32) + destinationDomain(32) + mintRecipient(32)
+        //                  + burnToken(32) + destinationCaller(32) + maxFee(32) + ...
+        bytes memory callData = executions[3].callData;
+        uint256 encodedMaxFee;
+        assembly {
+            // skip 4 bytes selector + 5*32 bytes (amount, dstDomain, recipient, burnToken, dstCaller) = 164 offset
+            // from start of callData memory: +32 (length) + 4 (selector) + 160 (5 params) = 196
+            encodedMaxFee := mload(add(callData, 196))
+        }
+        assertEq(encodedMaxFee, expectedMaxFee, "maxFee should be scaled proportionally");
+        assertEq(expectedMaxFee, 2e6, "expected 2 USDC maxFee for doubled amount");
     }
 
     function test_CCTP_Build_WithPrevHookAmount_RevertIf_ZeroAmount() public {
@@ -661,7 +692,8 @@ contract CCTPSendHookTests is Helpers {
 
         assertEq(executions.length, 3);
 
-        // Verify the depositForBurnWithHook uses the prev hook amount
+        // Verify the depositForBurnWithHook uses the prev hook amount and scaled maxFee
+        uint256 expectedMaxFee = Math.mulDiv(mockMaxFee, prevHookAmount, mockAmount);
         bytes memory expectedCalldata = abi.encodeCall(
             ITokenMessengerV2.depositForBurnWithHook,
             (
@@ -670,12 +702,41 @@ contract CCTPSendHookTests is Helpers {
                 mockMintRecipient,
                 mockBurnToken,
                 mockDestinationCaller,
-                mockMaxFee,
+                expectedMaxFee,
                 mockMinFinalityThreshold,
                 bytes("")
             )
         );
         assertEq(executions[1].callData, expectedCalldata);
+    }
+
+    function test_CCTPSend_Build_WithPrevHookAmount_ScalesMaxFee() public {
+        uint256 prevHookAmount = 2000e6; // Double the original
+
+        mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockBurnToken));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
+
+        vm.mockCall(
+            mockPrevHook, abi.encodeWithSelector(ISuperHookResult.getOutAmount.selector), abi.encode(prevHookAmount)
+        );
+
+        bytes memory data = _encodeCCTPData(true, false);
+        Execution[] memory executions = cctpSendHook.build(mockPrevHook, mockAccount, data);
+
+        // maxFee should scale: 1e6 * 2000e6 / 1000e6 = 2e6
+        uint256 expectedMaxFee = Math.mulDiv(mockMaxFee, prevHookAmount, mockAmount);
+
+        // Decode the depositForBurnWithHook calldata to verify maxFee was scaled
+        // For CCTPSendHook: executions[1] is the depositForBurnWithHook (no approve pattern)
+        bytes memory callData = executions[1].callData;
+        uint256 encodedMaxFee;
+        assembly {
+            // skip 4 bytes selector + 5*32 bytes (amount, dstDomain, recipient, burnToken, dstCaller) = 164 offset
+            // from start of callData memory: +32 (length) + 4 (selector) + 160 (5 params) = 196
+            encodedMaxFee := mload(add(callData, 196))
+        }
+        assertEq(encodedMaxFee, expectedMaxFee, "maxFee should be scaled proportionally");
+        assertEq(expectedMaxFee, 2e6, "expected 2 USDC maxFee for doubled amount");
     }
 
     function test_CCTPSend_Build_WithPrevHookAmount_RevertIf_ZeroAmount() public {

@@ -18,7 +18,11 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @author Superform Labs
 /// @dev Sends native tokens cross-chain via Stargate V2 with optional destination execution
 /// @dev For native sends: msg.value = lzNativeFee + amountLD
-/// @dev Supports paying LZ messaging fee in native ETH or LZ token (set lzTokenFee > 0 and provide lzToken address)
+/// @dev Supports paying LZ messaging fee in native ETH or LZ token (ZRO)
+/// @dev When lzTokenFee > 0: approves lzToken to the pool (pool pulls via safeTransferFrom to endpoint)
+/// @dev WARNING: refundAddress is set to the account. If the native fee is overestimated, Stargate synchronously
+/// @dev refunds the excess to the account during sendToken. ERC7579/7702 accounts with non-payable fallbacks or
+/// @dev fallbacks that reenter the executor will cause sendToken to revert (liveness DoS, no fund loss).
 /// @dev `composeMsg` field won't contain the signature for the destination executor
 /// @dev      signature is retrieved from the validator contract transient storage
 /// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to
@@ -164,42 +168,37 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
             oftCmd: s.isBusMode ? abi.encodePacked(uint8(1)) : bytes("")
         });
 
-        IStargate.MessagingFee memory messagingFee =
-            IStargate.MessagingFee({ nativeFee: s.lzNativeFee, lzTokenFee: s.lzTokenFee });
-
-        // Build executions based on fee payment method
         if (s.lzTokenFee > 0) {
-            // Pay in LZ token: approve LZ token to pool, then sendToken, then cleanup
-            executions = new Execution[](4);
+            IStargate.MessagingFee memory messagingFee =
+                IStargate.MessagingFee({ nativeFee: s.lzNativeFee, lzTokenFee: s.lzTokenFee });
 
-            // Execution 0: Reset LZ token approval to 0
+            // LZ token fee path: approve(0) -> approve(fee) -> sendToken -> approve(0)
+            // Pool pulls lzToken from msg.sender via safeTransferFrom and forwards to endpoint
+            executions = new Execution[](4);
             executions[0] = Execution({
                 target: s.lzToken,
                 value: 0,
                 callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
             });
-
-            // Execution 1: Approve LZ token fee amount
             executions[1] = Execution({
                 target: s.lzToken,
                 value: 0,
                 callData: abi.encodeCall(IERC20.approve, (s.stargatePool, s.lzTokenFee))
             });
-
-            // Execution 2: Bridge call (value = amountLD for native token transfer)
             executions[2] = Execution({
                 target: s.stargatePool,
                 value: s.lzNativeFee + s.amountLD,
                 callData: abi.encodeCall(IStargate.sendToken, (sendParam, messagingFee, account))
             });
-
-            // Execution 3: Cleanup LZ token approval to 0
             executions[3] = Execution({
                 target: s.lzToken,
                 value: 0,
                 callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
             });
         } else {
+            IStargate.MessagingFee memory messagingFee =
+                IStargate.MessagingFee({ nativeFee: s.lzNativeFee, lzTokenFee: 0 });
+
             // Pay in native ETH: value = lzNativeFee + amountLD
             executions = new Execution[](1);
             executions[0] = Execution({

@@ -717,8 +717,10 @@ contract CCTPHooksFork is Helpers {
         assertTrue(evt.data.length > 0, "DepositForBurn event must be emitted");
 
         // Verify event uses prevHook amount (2500), NOT the encoded amount (1000)
-        _verifyDepositForBurnData(evt.data, prevHookOutput, account, DOMAIN_BASE, bytes32(0), 5e6);
-        console2.log("PrevHook amount in event verified: 2500 USDC (not 1000)");
+        // maxFee is also scaled proportionally: 5e6 * 2500e6 / 1000e6 = 12.5e6
+        uint256 scaledMaxFee = (5e6 * prevHookOutput) / 1000e6;
+        _verifyDepositForBurnData(evt.data, prevHookOutput, account, DOMAIN_BASE, bytes32(0), scaledMaxFee);
+        console2.log("PrevHook amount in event verified: 2500 USDC (not 1000), maxFee scaled to", scaledMaxFee);
     }
 
     /*//////////////////////////////////////////////////////////////

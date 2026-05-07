@@ -18,9 +18,13 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @author Superform Labs
 /// @dev ERC20-only version of StargateSendHook with approval pattern
 /// @dev For ERC20 sends: msg.value = lzNativeFee only (tokens pulled via approve)
-/// @dev Supports paying LZ messaging fee in native ETH or LZ token (set lzTokenFee > 0 and provide lzToken address)
+/// @dev Supports paying LZ messaging fee in native ETH or LZ token (ZRO)
+/// @dev When lzTokenFee > 0: approves lzToken to the pool (pool pulls via safeTransferFrom to endpoint)
 /// @dev This hook adds approval pattern (approve 0 -> approve amount -> execute -> approve 0) to the bridge operation
 /// @dev For native token transfers, use StargateSendHook instead
+/// @dev WARNING: refundAddress is set to the account. If the native fee is overestimated, Stargate synchronously
+/// @dev refunds the excess to the account during sendToken. ERC7579/7702 accounts with non-payable fallbacks or
+/// @dev fallbacks that reenter the executor will cause sendToken to revert (liveness DoS, no fund loss).
 /// @dev `composeMsg` field won't contain the signature for the destination executor
 /// @dev      signature is retrieved from the validator contract transient storage
 /// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to
@@ -184,8 +188,9 @@ contract ApproveAndStargateSendHook is BaseHook, ISuperHookContextAware {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Builds execution calls with approval pattern
-    /// @dev Without LZ token fee: approve(0) -> approve(amount) -> sendToken -> approve(0) [4 executions]
-    /// @dev With LZ token fee: adds LZ token approval around sendToken [7 executions]
+    /// @dev lzTokenFee == 0: approve(0) -> approve(amount) -> sendToken -> approve(0) [4 executions]
+    /// @dev lzTokenFee > 0 && inputToken == lzToken: combined approval for amountLD + lzTokenFee [4 executions]
+    /// @dev lzTokenFee > 0 && inputToken != lzToken: separate approvals [7 executions]
     function _buildExecutions(
         StargateSendData memory s,
         address account
@@ -205,63 +210,90 @@ contract ApproveAndStargateSendHook is BaseHook, ISuperHookContextAware {
             oftCmd: s.isBusMode ? abi.encodePacked(uint8(1)) : bytes("")
         });
 
-        IStargate.MessagingFee memory messagingFee =
-            IStargate.MessagingFee({ nativeFee: s.lzNativeFee, lzTokenFee: s.lzTokenFee });
-
         if (s.lzTokenFee > 0) {
-            // With LZ token fee: 7 executions
-            executions = new Execution[](7);
+            IStargate.MessagingFee memory messagingFee =
+                IStargate.MessagingFee({ nativeFee: s.lzNativeFee, lzTokenFee: s.lzTokenFee });
 
-            // Execution 0: Reset input token approval to 0
-            executions[0] = Execution({
-                target: s.inputToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
-            });
+            if (s.inputToken == s.lzToken) {
+                // Same token for bridge amount and LZ fee: combine into single approval
+                // Pool pulls amountLD (for bridging) + lzTokenFee (forwarded to LZ endpoint)
+                uint256 combinedAmount = s.amountLD + s.lzTokenFee;
 
-            // Execution 1: Approve input token amount
-            executions[1] = Execution({
-                target: s.inputToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (s.stargatePool, s.amountLD))
-            });
+                executions = new Execution[](4);
+                executions[0] = Execution({
+                    target: s.inputToken,
+                    value: 0,
+                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
+                });
+                executions[1] = Execution({
+                    target: s.inputToken,
+                    value: 0,
+                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, combinedAmount))
+                });
+                executions[2] = Execution({
+                    target: s.stargatePool,
+                    value: s.lzNativeFee,
+                    callData: abi.encodeCall(IStargate.sendToken, (sendParam, messagingFee, account))
+                });
+                executions[3] = Execution({
+                    target: s.inputToken,
+                    value: 0,
+                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
+                });
+            } else {
+                // Different tokens: separate approval sequences (7 executions)
+                executions = new Execution[](7);
 
-            // Execution 2: Reset LZ token approval to 0
-            executions[2] = Execution({
-                target: s.lzToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
-            });
+                // Input token approval
+                executions[0] = Execution({
+                    target: s.inputToken,
+                    value: 0,
+                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
+                });
+                executions[1] = Execution({
+                    target: s.inputToken,
+                    value: 0,
+                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, s.amountLD))
+                });
 
-            // Execution 3: Approve LZ token fee amount
-            executions[3] = Execution({
-                target: s.lzToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (s.stargatePool, s.lzTokenFee))
-            });
+                // LZ token approval (pool pulls via safeTransferFrom to endpoint)
+                executions[2] = Execution({
+                    target: s.lzToken,
+                    value: 0,
+                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
+                });
+                executions[3] = Execution({
+                    target: s.lzToken,
+                    value: 0,
+                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, s.lzTokenFee))
+                });
 
-            // Execution 4: Bridge call (value = lzNativeFee only for ERC20)
-            executions[4] = Execution({
-                target: s.stargatePool,
-                value: s.lzNativeFee,
-                callData: abi.encodeCall(IStargate.sendToken, (sendParam, messagingFee, account))
-            });
+                // Bridge call (value = lzNativeFee only for ERC20)
+                executions[4] = Execution({
+                    target: s.stargatePool,
+                    value: s.lzNativeFee,
+                    callData: abi.encodeCall(IStargate.sendToken, (sendParam, messagingFee, account))
+                });
 
-            // Execution 5: Cleanup LZ token approval to 0
-            executions[5] = Execution({
-                target: s.lzToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
-            });
+                // Cleanup LZ token approval
+                executions[5] = Execution({
+                    target: s.lzToken,
+                    value: 0,
+                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
+                });
 
-            // Execution 6: Cleanup input token approval to 0
-            executions[6] = Execution({
-                target: s.inputToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
-            });
+                // Cleanup input token approval
+                executions[6] = Execution({
+                    target: s.inputToken,
+                    value: 0,
+                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
+                });
+            }
         } else {
-            // Without LZ token fee: 4 executions (original behavior)
+            IStargate.MessagingFee memory messagingFee =
+                IStargate.MessagingFee({ nativeFee: s.lzNativeFee, lzTokenFee: 0 });
+
+            // ERC20 only: 4 executions
             executions = new Execution[](4);
 
             // Execution 0: Reset approval to 0 (prevents approval race conditions)

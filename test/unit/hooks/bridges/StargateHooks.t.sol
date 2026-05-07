@@ -936,9 +936,9 @@ contract StargateHooks is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_StargateSend_Build_WithLzTokenFee() public {
+        // lzTokenFee > 0 should produce 4 hook executions (+ pre/post = 6 total)
         address mockLzToken = makeAddr("lzToken");
         uint256 lzTokenFee = 1e18;
-
         bytes memory fixedPart = abi.encodePacked(
             mockLzNativeFee, lzTokenFee, mockStargatePool, mockInputToken, mockLzToken, mockDstEid, mockTo,
             mockAmountLD, mockMinAmountLD
@@ -949,14 +949,14 @@ contract StargateHooks is Helpers {
 
         Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
 
-        // pre + 4 hook (lz approve 0 + lz approve fee + sendToken + lz cleanup) + post = 6
+        // pre + 4 hook executions + post = 6
         assertEq(executions.length, 6);
 
-        // Execution 1: Reset LZ token approval
+        // Execution 1: approve(lzToken, pool, 0)
         assertEq(executions[1].target, mockLzToken);
         assertEq(executions[1].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, 0)));
 
-        // Execution 2: Approve LZ token fee
+        // Execution 2: approve(lzToken, pool, lzTokenFee)
         assertEq(executions[2].target, mockLzToken);
         assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, lzTokenFee)));
 
@@ -965,15 +965,15 @@ contract StargateHooks is Helpers {
         assertEq(executions[3].value, mockLzNativeFee + mockAmountLD);
         assertEq(bytes4(executions[3].callData), IStargate.sendToken.selector);
 
-        // Execution 4: Cleanup LZ token approval
+        // Execution 4: approve(lzToken, pool, 0) cleanup
         assertEq(executions[4].target, mockLzToken);
         assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, 0)));
     }
 
     function test_ApproveAndStargateSend_Build_WithLzTokenFee() public {
+        // lzTokenFee > 0 should produce 7 hook executions (+ pre/post = 9 total)
         address mockLzToken = makeAddr("lzToken");
         uint256 lzTokenFee = 1e18;
-
         bytes memory fixedPart = abi.encodePacked(
             mockLzNativeFee, lzTokenFee, mockStargatePool, mockInputToken, mockLzToken, mockDstEid, mockTo,
             mockAmountLD, mockMinAmountLD
@@ -987,19 +987,19 @@ contract StargateHooks is Helpers {
         // pre + 7 hook executions + post = 9
         assertEq(executions.length, 9);
 
-        // Execution 1: Reset input token approval
+        // Execution 1: approve(inputToken, pool, 0)
         assertEq(executions[1].target, mockInputToken);
         assertEq(executions[1].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, 0)));
 
-        // Execution 2: Approve input token amount
+        // Execution 2: approve(inputToken, pool, amountLD)
         assertEq(executions[2].target, mockInputToken);
         assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, mockAmountLD)));
 
-        // Execution 3: Reset LZ token approval
+        // Execution 3: approve(lzToken, pool, 0)
         assertEq(executions[3].target, mockLzToken);
         assertEq(executions[3].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, 0)));
 
-        // Execution 4: Approve LZ token fee
+        // Execution 4: approve(lzToken, pool, lzTokenFee)
         assertEq(executions[4].target, mockLzToken);
         assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, lzTokenFee)));
 
@@ -1008,17 +1008,17 @@ contract StargateHooks is Helpers {
         assertEq(executions[5].value, mockLzNativeFee);
         assertEq(bytes4(executions[5].callData), IStargate.sendToken.selector);
 
-        // Execution 6: Cleanup LZ token approval
+        // Execution 6: approve(lzToken, pool, 0) cleanup
         assertEq(executions[6].target, mockLzToken);
         assertEq(executions[6].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, 0)));
 
-        // Execution 7: Cleanup input token approval
+        // Execution 7: approve(inputToken, pool, 0) cleanup
         assertEq(executions[7].target, mockInputToken);
         assertEq(executions[7].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, 0)));
     }
 
     function test_StargateSend_Build_RevertIf_LzTokenFeeWithoutLzToken() public {
-        // lzTokenFee > 0 but lzToken = address(0) should revert
+        // lzTokenFee > 0 with lzToken = address(0) should revert with ADDRESS_NOT_VALID
         bytes memory fixedPart = abi.encodePacked(
             mockLzNativeFee, uint256(1e18), mockStargatePool, mockInputToken, address(0), mockDstEid, mockTo,
             mockAmountLD, mockMinAmountLD
@@ -1031,8 +1031,46 @@ contract StargateHooks is Helpers {
         stargateHook.build(address(0), mockAccount, data);
     }
 
+    function test_ApproveAndStargateSend_Build_WithLzTokenFee_SameToken() public {
+        // When inputToken == lzToken, approvals must be combined to avoid overwrite
+        uint256 lzTokenFee = 1e18;
+        // Use mockInputToken as both inputToken and lzToken
+        bytes memory fixedPart = abi.encodePacked(
+            mockLzNativeFee, lzTokenFee, mockStargatePool, mockInputToken, mockInputToken, mockDstEid, mockTo,
+            mockAmountLD, mockMinAmountLD
+        );
+        bytes memory data = abi.encodePacked(
+            fixedPart, false, false, uint256(mockExtraOptions.length), mockExtraOptions, uint256(0)
+        );
+
+        Execution[] memory executions = approveAndStargateHook.build(address(0), mockAccount, data);
+
+        // Combined approval path: pre + 4 hook executions + post = 6
+        assertEq(executions.length, 6);
+
+        // Execution 1: approve(inputToken, pool, 0)
+        assertEq(executions[1].target, mockInputToken);
+        assertEq(executions[1].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, 0)));
+
+        // Execution 2: approve(inputToken, pool, amountLD + lzTokenFee) — combined
+        assertEq(executions[2].target, mockInputToken);
+        assertEq(
+            executions[2].callData,
+            abi.encodeCall(IERC20.approve, (mockStargatePool, mockAmountLD + lzTokenFee))
+        );
+
+        // Execution 3: sendToken
+        assertEq(executions[3].target, mockStargatePool);
+        assertEq(executions[3].value, mockLzNativeFee);
+        assertEq(bytes4(executions[3].callData), IStargate.sendToken.selector);
+
+        // Execution 4: approve(inputToken, pool, 0) cleanup
+        assertEq(executions[4].target, mockInputToken);
+        assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, 0)));
+    }
+
     function test_ApproveAndStargateSend_Build_RevertIf_LzTokenFeeWithoutLzToken() public {
-        // lzTokenFee > 0 but lzToken = address(0) should revert
+        // lzTokenFee > 0 with lzToken = address(0) should revert with ADDRESS_NOT_VALID
         bytes memory fixedPart = abi.encodePacked(
             mockLzNativeFee, uint256(1e18), mockStargatePool, mockInputToken, address(0), mockDstEid, mockTo,
             mockAmountLD, mockMinAmountLD
