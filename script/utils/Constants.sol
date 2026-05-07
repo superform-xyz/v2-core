@@ -246,6 +246,17 @@ abstract contract Constants {
     string internal constant CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY = "CircleGatewayAddDelegateHook";
     string internal constant CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY = "CircleGatewayRemoveDelegateHook";
 
+    // Stargate Hook Keys
+    string internal constant STARGATE_SEND_HOOK_KEY = "StargateSendHook";
+    string internal constant APPROVE_AND_STARGATE_SEND_HOOK_KEY = "ApproveAndStargateSendHook";
+
+    // CCTP V2 Hook Keys
+    string internal constant CCTP_SEND_HOOK_KEY = "CCTPSendHook";
+    string internal constant APPROVE_AND_CCTP_SEND_HOOK_KEY = "ApproveAndCCTPSendHook";
+
+    // CCTP V2 Token Messenger (same address on all EVM chains via CREATE2)
+    address internal constant CCTP_V2_TOKEN_MESSENGER = 0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d;
+
     // Firelight Hook Keys
     string internal constant REDEEM_FIRELIGHT_VAULT_HOOK_KEY = "RedeemFirelightVaultHook";
     string internal constant CLAIM_WITHDRAW_FIRELIGHT_VAULT_HOOK_KEY = "ClaimWithdrawFirelightVaultHook";

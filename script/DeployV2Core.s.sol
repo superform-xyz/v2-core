@@ -92,6 +92,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address claimCancelRedeemRequestWithId7540Hook;
         address redeemWithId7540VaultHook;
         address withdrawWithId7540VaultHook;
+        address stargateSendHook;
+        address approveAndStargateSendHook;
+        address cctpSendHook;
+        address approveAndCCTPSendHook;
     }
 
     struct HookDeployment {
@@ -306,7 +310,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-        string[56] memory baseHooks = [
+        string[60] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -362,7 +366,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "SwapKyberSwapHook",
             "ApproveAndSwapKyberSwapHook",
             "SwapUniswapV2Hook",
-            "ApproveAndSwapUniswapV2Hook"
+            "ApproveAndSwapUniswapV2Hook",
+            "StargateSendHook",
+            "ApproveAndStargateSendHook",
+            "CCTPSendHook",
+            "ApproveAndCCTPSendHook"
         ];
 
         // Start with all hooks, then decrement for missing configurations
@@ -1269,6 +1277,42 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log("SKIPPED DeBridgeCancelOrderHook: DeBridge DLN DST not configured");
+        }
+
+        // Stargate bridge hooks
+        if (superValidator != address(0)) {
+            __checkContract(
+                STARGATE_SEND_HOOK_KEY,
+                __getSalt(STARGATE_SEND_HOOK_KEY),
+                abi.encode(superValidator),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_STARGATE_SEND_HOOK_KEY,
+                __getSalt(APPROVE_AND_STARGATE_SEND_HOOK_KEY),
+                abi.encode(superValidator),
+                env
+            );
+        } else {
+            revert("STARGATE_HOOK_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
+        }
+
+        // CCTP V2 bridge hooks
+        if (superValidator != address(0)) {
+            __checkContract(
+                CCTP_SEND_HOOK_KEY,
+                __getSalt(CCTP_SEND_HOOK_KEY),
+                abi.encode(CCTP_V2_TOKEN_MESSENGER, superValidator),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_CCTP_SEND_HOOK_KEY,
+                __getSalt(APPROVE_AND_CCTP_SEND_HOOK_KEY),
+                abi.encode(CCTP_V2_TOKEN_MESSENGER, superValidator),
+                env
+            );
+        } else {
+            revert("CCTP_HOOK_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
         }
 
         // Merkl claim reward hook
@@ -2231,7 +2275,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 62;
+        uint256 len = 66;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -2644,6 +2688,40 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[55] = HookDeployment("", "", ""); // Empty deployment
         }
 
+        // Stargate Bridge Hooks - Only require SuperValidator (pool address is in user-signed data)
+        {
+            address stargateValidator = _getContract(chainId, SUPER_VALIDATOR_KEY);
+            require(stargateValidator != address(0), "STARGATE_HOOK_VALIDATOR_PARAM_ZERO");
+            require(stargateValidator.code.length > 0, "STARGATE_HOOK_VALIDATOR_NOT_DEPLOYED");
+
+            hooks[62] = _createSafeHookDeploymentWithArgs(
+                STARGATE_SEND_HOOK_KEY, "StargateSendHook", env, abi.encode(stargateValidator)
+            );
+            hooks[63] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_STARGATE_SEND_HOOK_KEY, "ApproveAndStargateSendHook", env, abi.encode(stargateValidator)
+            );
+        }
+
+        // CCTP V2 Bridge hooks (same TokenMessengerV2 address on all chains via CREATE2)
+        {
+            address cctpValidator = _getContract(chainId, SUPER_VALIDATOR_KEY);
+            require(cctpValidator != address(0), "CCTP_HOOK_VALIDATOR_PARAM_ZERO");
+            require(cctpValidator.code.length > 0, "CCTP_HOOK_VALIDATOR_NOT_DEPLOYED");
+
+            hooks[64] = _createSafeHookDeploymentWithArgs(
+                CCTP_SEND_HOOK_KEY,
+                "CCTPSendHook",
+                env,
+                abi.encode(CCTP_V2_TOKEN_MESSENGER, cctpValidator)
+            );
+            hooks[65] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_CCTP_SEND_HOOK_KEY,
+                "ApproveAndCCTPSendHook",
+                env,
+                abi.encode(CCTP_V2_TOKEN_MESSENGER, cctpValidator)
+            );
+        }
+
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying hooks with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
@@ -2819,6 +2897,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[60].name, REDEEM_WITH_ID_7540_VAULT_HOOK_KEY) ? addresses[60] : address(0);
         hookAddresses.withdrawWithId7540VaultHook =
             Strings.equal(hooks[61].name, WITHDRAW_WITH_ID_7540_VAULT_HOOK_KEY) ? addresses[61] : address(0);
+
+        // Stargate Bridge hooks
+        hookAddresses.stargateSendHook =
+            Strings.equal(hooks[62].name, STARGATE_SEND_HOOK_KEY) ? addresses[62] : address(0);
+        hookAddresses.approveAndStargateSendHook =
+            Strings.equal(hooks[63].name, APPROVE_AND_STARGATE_SEND_HOOK_KEY) ? addresses[63] : address(0);
+
+        // CCTP V2 Bridge hooks
+        hookAddresses.cctpSendHook =
+            Strings.equal(hooks[64].name, CCTP_SEND_HOOK_KEY) ? addresses[64] : address(0);
+        hookAddresses.approveAndCCTPSendHook =
+            Strings.equal(hooks[65].name, APPROVE_AND_CCTP_SEND_HOOK_KEY) ? addresses[65] : address(0);
 
         // ===== FINAL VALIDATION OF ALL CRITICAL HOOKS =====
         require(hookAddresses.approveErc20Hook != address(0), "APPROVE_ERC20_HOOK_NOT_ASSIGNED");

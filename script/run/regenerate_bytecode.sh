@@ -138,6 +138,8 @@ HOOK_CONTRACTS=(
     "ApproveAndAcrossSendFundsAndExecuteOnDstHook"
     "DeBridgeSendOrderAndExecuteOnDstHook"
     "DeBridgeCancelOrderHook"
+    "StargateSendHook"
+    "ApproveAndStargateSendHook"
     "EthenaCooldownSharesHook"
     "EthenaUnstakeHook"
     "OfframpTokensHook"
@@ -162,6 +164,8 @@ HOOK_CONTRACTS=(
     "ClaimWithdrawFirelightVaultHook"
     "SwapAlgebraIntegralHook"
     "ApproveAndSwapAlgebraIntegralHook"
+    "CCTPSendHook"
+    "ApproveAndCCTPSendHook"
 )
 
 # Oracle contracts from accounting/oracles

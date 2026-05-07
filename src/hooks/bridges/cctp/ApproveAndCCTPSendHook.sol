@@ -1,0 +1,196 @@
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity 0.8.30;
+
+// external
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { BytesLib } from "../../../vendor/BytesLib.sol";
+import { ITokenMessengerV2 } from "../../../vendor/bridges/cctp/ITokenMessengerV2.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+
+// Superform
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperSignatureStorage } from "../../../interfaces/ISuperSignatureStorage.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+
+/// @title ApproveAndCCTPSendHook
+/// @author Superform Labs
+/// @dev Burns USDC via Circle's CCTP V2 TokenMessengerV2.depositForBurnWithHook for cross-chain transfers
+/// @dev Uses approval pattern (approve 0 -> approve amount -> execute -> approve 0)
+/// @dev No native ETH needed — CCTP V2 deducts fees from the transfer amount via maxFee
+/// @dev `hookCallData` field won't contain the signature for the destination executor
+/// @dev      signature is retrieved from the validator contract transient storage
+/// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to
+/// sign it
+/// @dev data has the following structure
+/// @notice         address burnToken = BytesLib.toAddress(data, 0);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 20);
+/// @notice         uint32 destinationDomain = BytesLib.toUint32(data, 52);
+/// @notice         bytes32 mintRecipient = BytesLib.toBytes32(data, 56);
+/// @notice         bytes32 destinationCaller = BytesLib.toBytes32(data, 88);
+/// @notice         uint256 maxFee = BytesLib.toUint256(data, 120);
+/// @notice         uint32 minFinalityThreshold = BytesLib.toUint32(data, 152);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
+/// @notice         uint256 hookCallDataLength = BytesLib.toUint256(data, 157);
+/// @notice         bytes hookCallData = BytesLib.slice(data, 189, hookCallDataLength);
+contract ApproveAndCCTPSendHook is BaseHook, ISuperHookContextAware {
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
+    address public immutable TOKEN_MESSENGER;
+    address private immutable VALIDATOR;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
+
+    struct CCTPSendData {
+        address burnToken;
+        uint256 amount;
+        uint32 destinationDomain;
+        bytes32 mintRecipient;
+        bytes32 destinationCaller;
+        uint256 maxFee;
+        uint32 minFinalityThreshold;
+        bytes hookCallData;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Thrown when the input data length is less than the minimum required or variable fields exceed bounds
+    error DATA_NOT_VALID();
+
+    /// @notice Thrown when the mint recipient is the zero bytes32 value
+    error RECIPIENT_NOT_VALID();
+
+    /// @param tokenMessenger_ The CCTP V2 TokenMessengerV2 contract address
+    /// @param validator_ The validator contract address for signature retrieval
+    constructor(
+        address tokenMessenger_,
+        address validator_
+    ) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
+        if (tokenMessenger_ == address(0) || validator_ == address(0)) revert ADDRESS_NOT_VALID();
+        TOKEN_MESSENGER = tokenMessenger_;
+        VALIDATOR = validator_;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
+        view
+        override
+        returns (Execution[] memory executions)
+    {
+        if (data.length < 157) revert DATA_NOT_VALID();
+
+        CCTPSendData memory s;
+        s.burnToken = BytesLib.toAddress(data, 0);
+        s.amount = BytesLib.toUint256(data, 20);
+        s.destinationDomain = BytesLib.toUint32(data, 52);
+        s.mintRecipient = BytesLib.toBytes32(data, 56);
+        s.destinationCaller = BytesLib.toBytes32(data, 88);
+        s.maxFee = BytesLib.toUint256(data, 120);
+        s.minFinalityThreshold = BytesLib.toUint32(data, 152);
+
+        // Fail-fast validation on fixed fields before external calls
+        if (s.burnToken == address(0)) revert ADDRESS_NOT_VALID();
+        if (s.mintRecipient == bytes32(0)) revert RECIPIENT_NOT_VALID();
+
+        // Decode variable-length hookCallData
+        uint256 hookCallDataLength = BytesLib.toUint256(data, 157);
+        if (hookCallDataLength > 0) {
+            if (data.length < 189 + hookCallDataLength) revert DATA_NOT_VALID();
+            s.hookCallData = BytesLib.slice(data, 189, hookCallDataLength);
+        }
+
+        if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) {
+            s.amount = ISuperHookResult(prevHook).getOutAmount(account);
+        }
+
+        if (s.amount == 0) revert AMOUNT_NOT_VALID();
+
+        // Append signature to hookCallData if present
+        if (s.hookCallData.length > 0) {
+            // Minimum ABI-encoded size for (bytes, bytes, address, address[], uint256[])
+            if (s.hookCallData.length < 160) revert DATA_NOT_VALID();
+
+            bytes memory signature = ISuperSignatureStorage(VALIDATOR).retrieveSignatureData(account);
+
+            (
+                bytes memory initData,
+                bytes memory executorCalldata,
+                address _account,
+                address[] memory dstTokens,
+                uint256[] memory intentAmounts
+            ) = abi.decode(s.hookCallData, (bytes, bytes, address, address[], uint256[]));
+
+            s.hookCallData = abi.encode(initData, executorCalldata, _account, dstTokens, intentAmounts, signature);
+        }
+
+        // Build 4 executions with approval pattern
+        executions = new Execution[](4);
+
+        // Execution 0: Reset approval to 0 (prevents approval race conditions)
+        executions[0] = Execution({
+            target: s.burnToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (TOKEN_MESSENGER, 0))
+        });
+
+        // Execution 1: Approve exact amount
+        executions[1] = Execution({
+            target: s.burnToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (TOKEN_MESSENGER, s.amount))
+        });
+
+        // Execution 2: CCTP V2 depositForBurnWithHook (value = 0, no native ETH needed)
+        executions[2] = Execution({
+            target: TOKEN_MESSENGER,
+            value: 0,
+            callData: abi.encodeCall(
+                ITokenMessengerV2.depositForBurnWithHook,
+                (
+                    s.amount,
+                    s.destinationDomain,
+                    s.mintRecipient,
+                    s.burnToken,
+                    s.destinationCaller,
+                    s.maxFee,
+                    s.minFinalityThreshold,
+                    s.hookCallData
+                )
+            )
+        });
+
+        // Execution 3: Cleanup approval to 0
+        executions[3] = Execution({
+            target: s.burnToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (TOKEN_MESSENGER, 0))
+        });
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
+        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+        return abi.encodePacked(
+            BytesLib.toAddress(data, 0), // burnToken
+            address(uint160(uint256(BytesLib.toBytes32(data, 56)))) // mintRecipient (as address from bytes32)
+        );
+    }
+}
