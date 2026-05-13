@@ -69,14 +69,14 @@ contract ClaimAssetsDETHHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCon
         });
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(data.extractYieldSource());
     }
-
-    /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
@@ -100,7 +100,7 @@ contract ClaimAssetsDETHHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCon
         // NOTE: usedShares intentionally not set — shares were consumed in the prior RequestRedeem step
     }
 
-    /// @dev outAmount may be 0 if the request is not yet claimable
+    /// @dev outAmount is the WETH delta (balance after claim minus balance before claim)
     function _postExecute(address, address account, bytes calldata) internal override {
         _setOutAmount(_getBalance(account) - getOutAmount(account), account);
     }

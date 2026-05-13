@@ -68,13 +68,13 @@ contract DETHHooksTests is Helpers {
         approveAndRequestHook = new ApproveAndRequestRedeemDETHHook();
         claimHook = new ClaimAssetsDETHHook();
 
-        dethToken = new MockERC20("Dialectic ETH", "DETH", 12);
+        dethToken = new MockERC20("Dialectic ETH", "DETH", 18);
         weth = new MockERC20("Wrapped Ether", "WETH", 18);
         machine = new MockMachine(address(dethToken), address(weth));
         asyncRedeemer = new MockAsyncRedeemer(address(machine));
         yieldSourceOracleId = bytes32(keccak256("YIELD_SOURCE_ORACLE_ID"));
-        amount = 1000e12; // 12 decimals
-        prevHookAmount = 2000e12;
+        amount = 1000e18;
+        prevHookAmount = 2000e18;
         minAssets = 900e18;
     }
 
@@ -324,7 +324,7 @@ contract DETHHooksTests is Helpers {
         assertEq(requestRedeemHook.usedShares(), amount);
 
         // Simulate share burn by reducing balance
-        uint256 burnAmount = 500e12;
+        uint256 burnAmount = 500e18;
         deal(address(dethToken), address(this), amount - burnAmount);
 
         requestRedeemHook.postExecute(address(0), address(this), data);
@@ -340,7 +340,7 @@ contract DETHHooksTests is Helpers {
         assertEq(approveAndRequestHook.getOutAmount(address(this)), amount, "preExecute should capture DETH balance");
 
         // Simulate share burn
-        uint256 burnAmount = 500e12;
+        uint256 burnAmount = 500e18;
         deal(address(dethToken), address(this), amount - burnAmount);
 
         approveAndRequestHook.postExecute(address(0), address(this), data);
@@ -550,7 +550,7 @@ contract DETHHooksTests is Helpers {
         assertEq(requestRedeemHook.spToken(), address(dethToken));
 
         // Simulate share burn
-        uint256 burnAmount = 400e12;
+        uint256 burnAmount = 400e18;
         deal(address(dethToken), address(this), amount - burnAmount);
 
         // postExecute uses cached spToken — no re-derivation of shareToken
