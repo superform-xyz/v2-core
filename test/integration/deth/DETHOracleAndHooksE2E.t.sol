@@ -563,6 +563,7 @@ contract DETHOracleAndHooksE2E is Test {
         // ========== Phase 0: Initial state ==========
         uint256 tvl0 = oracle.getTVLByOwnerOfShares(ASYNC_REDEEMER, strategy);
         uint256 balance0 = IERC20(DETH).balanceOf(strategy);
+        uint256 wethBefore = IERC20(WETH).balanceOf(strategy);
         assertEq(balance0, 100 ether, "Phase 0: strategy holds 100 DETH");
 
         console2.log("=== Phase 0: Initial ===");
@@ -604,6 +605,14 @@ contract DETHOracleAndHooksE2E is Test {
         // ========== Phase 3: Simulate finalization + ROUTER claims WETH ==========
         uint256 expectedWeth = IMachine(MACHINE).convertToAssets(redeemShares);
 
+        // Simulate finalization: advance lastFinalizedRequestId past our request
+        // so the oracle's pending scan no longer includes it
+        vm.mockCall(
+            ASYNC_REDEEMER,
+            abi.encodeWithSelector(IDETHAsyncRedeemer.lastFinalizedRequestId.selector),
+            abi.encode(requestId)
+        );
+
         // Simulate WETH arriving from finalized claim (real finalization requires Dialectic keeper)
         deal(WETH, ROUTER, expectedWeth);
 
@@ -615,7 +624,9 @@ contract DETHOracleAndHooksE2E is Test {
         IERC20(WETH).transfer(strategy, expectedWeth);
 
         assertEq(IERC20(WETH).balanceOf(ROUTER), 0, "Phase 4: router WETH fully returned");
-        assertEq(IERC20(WETH).balanceOf(strategy), expectedWeth, "Phase 4: strategy received WETH");
+        assertEq(
+            IERC20(WETH).balanceOf(strategy), wethBefore + expectedWeth, "Phase 4: strategy received WETH"
+        );
 
         // ========== Phase 5: Verify final state ==========
         // Strategy now has: 50 DETH held + expectedWeth WETH
@@ -623,7 +634,7 @@ contract DETHOracleAndHooksE2E is Test {
         uint256 finalWETH = IERC20(WETH).balanceOf(strategy);
 
         assertEq(finalDETH, 50 ether, "Phase 5: strategy still holds 50 DETH");
-        assertEq(finalWETH, expectedWeth, "Phase 5: strategy received WETH from routed redeem");
+        assertEq(finalWETH, wethBefore + expectedWeth, "Phase 5: strategy received WETH from routed redeem");
 
         // Oracle TVL for remaining DETH position
         uint256 tvlFinal = oracle.getTVLByOwnerOfShares(ASYNC_REDEEMER, strategy);

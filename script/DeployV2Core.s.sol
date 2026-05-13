@@ -1482,11 +1482,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 env
             );
             // DETHYieldSourceOracle (superLedgerConfig + foundation) - only if foundation is configured
-            if (configuration.dethFoundations[uint64(block.chainid)] != address(0)) {
+            if (configuration.dethFoundation != address(0)) {
                 __checkContract(
                     DETH_YIELD_SOURCE_ORACLE_KEY,
                     __getSalt(DETH_YIELD_SOURCE_ORACLE_KEY),
-                    abi.encode(superLedgerConfig, configuration.dethFoundations[uint64(block.chainid)]),
+                    abi.encode(superLedgerConfig, configuration.dethFoundation),
                     env
                 );
             }
@@ -2147,7 +2147,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         } else if (Strings.equal(contractToVerify.name, "DETHYieldSourceOracle")) {
             // DETHYieldSourceOracle needs SuperLedgerConfiguration + foundation
             bytes memory constructorArgs =
-                abi.encode(vars.superLedgerConfig, configuration.dethFoundations[uint64(block.chainid)]);
+                abi.encode(vars.superLedgerConfig, configuration.dethFoundation);
             computedAddress = DeterministicDeployerLib.computeAddress(
                 abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
             );
@@ -3010,12 +3010,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         );
         // DETHYieldSourceOracle (superLedgerConfig + foundation)
         // Only deploy if a DETH foundation address is configured for this chain
-        if (configuration.dethFoundations[chainId] != address(0)) {
+        if (configuration.dethFoundation != address(0)) {
             oracles[11] = _createSafeOracleDeploymentWithArgs(
                 DETH_YIELD_SOURCE_ORACLE_KEY,
                 "DETHYieldSourceOracle",
                 env,
-                abi.encode(superLedgerConfig, configuration.dethFoundations[chainId])
+                abi.encode(superLedgerConfig, configuration.dethFoundation)
             );
         }
 
