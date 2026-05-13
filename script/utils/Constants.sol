@@ -275,6 +275,7 @@ abstract contract Constants {
     string internal constant PENDLE_PT_AMORTIZED_ORACLE_KEY = "PendlePTAmortizedOracle";
     string internal constant PENDLE_PT_AMORTIZED_ORACLE_V2_KEY = "PendlePTAmortizedOracleV2";
     string internal constant FIRELIGHT_YIELD_SOURCE_ORACLE_KEY = "FirelightYieldSourceOracle";
+    string internal constant DETH_YIELD_SOURCE_ORACLE_KEY = "DETHYieldSourceOracle";
 
     // SuperLedgerConfigs Salts
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_SALT = "ERC4626YieldSourceOracle_v1.0.1";

@@ -541,9 +541,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             }
         }
 
-        // Oracles (11 contracts - always check these)
+        // Oracles (12 contracts - always check these)
         // NOTE: Order must match _deployOracles array indices for consistency
-        string[11] memory oracleContracts = [
+        string[12] memory oracleContracts = [
             "ERC4626YieldSourceOracle",      // [0]
             "ERC5115YieldSourceOracle",      // [1]
             "PendlePTYieldSourceOracle",     // [2]
@@ -554,7 +554,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "YoYieldSourceOracle",           // [7]
             "PendlePTAmortizedOracle",       // [8]
             "PendlePTAmortizedOracleV2",     // [9]
-            "FirelightYieldSourceOracle"     // [10]
+            "FirelightYieldSourceOracle",    // [10]
+            "DETHYieldSourceOracle"          // [11]
         ];
 
         for (uint256 i = 0; i < oracleContracts.length; i++) {
@@ -1480,6 +1481,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encode(superLedgerConfig),
                 env
             );
+            // DETHYieldSourceOracle (superLedgerConfig + foundation) - only if foundation is configured
+            if (configuration.dethFoundations[uint64(block.chainid)] != address(0)) {
+                __checkContract(
+                    DETH_YIELD_SOURCE_ORACLE_KEY,
+                    __getSalt(DETH_YIELD_SOURCE_ORACLE_KEY),
+                    abi.encode(superLedgerConfig, configuration.dethFoundations[uint64(block.chainid)]),
+                    env
+                );
+            }
         } else {
             revert("ORACLES_CHECK_FAILED_MISSING_SUPER_LEDGER_CONFIG");
         }
@@ -2131,6 +2141,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         ) {
             // Oracles need SuperLedgerConfiguration
             bytes memory constructorArgs = abi.encode(vars.superLedgerConfig);
+            computedAddress = DeterministicDeployerLib.computeAddress(
+                abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
+            );
+        } else if (Strings.equal(contractToVerify.name, "DETHYieldSourceOracle")) {
+            // DETHYieldSourceOracle needs SuperLedgerConfiguration + foundation
+            bytes memory constructorArgs =
+                abi.encode(vars.superLedgerConfig, configuration.dethFoundations[uint64(block.chainid)]);
             computedAddress = DeterministicDeployerLib.computeAddress(
                 abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
             );
@@ -2948,7 +2965,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         uint256 pendlePTAmortizedOracleIndex = 8;
         uint256 pendlePTAmortizedOracleV2Index = 9;
 
-        uint256 len = 11;
+        uint256 len = 12;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         address[] memory oracleAddresses = new address[](len);
 
@@ -2991,6 +3008,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         oracles[10] = _createSafeOracleDeploymentWithArgs(
             FIRELIGHT_YIELD_SOURCE_ORACLE_KEY, "FirelightYieldSourceOracle", env, abi.encode(superLedgerConfig)
         );
+        // DETHYieldSourceOracle (superLedgerConfig + foundation)
+        // Only deploy if a DETH foundation address is configured for this chain
+        if (configuration.dethFoundations[chainId] != address(0)) {
+            oracles[11] = _createSafeOracleDeploymentWithArgs(
+                DETH_YIELD_SOURCE_ORACLE_KEY,
+                "DETHYieldSourceOracle",
+                env,
+                abi.encode(superLedgerConfig, configuration.dethFoundations[chainId])
+            );
+        }
 
         console2.log("Deploying", len, "oracles with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {

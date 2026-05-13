@@ -31,6 +31,7 @@ abstract contract ConfigBase is Constants {
         mapping(uint64 chainId => address kyberRouter) kyberSwapRouters;
         mapping(uint64 chainId => address kyberScaleHelper) kyberSwapScaleHelpers;
         mapping(uint64 chainId => address swapRouter) uniswapV2SwapRouters;
+        mapping(uint64 chainId => address dethFoundation) dethFoundations;
     }
 
     EnvironmentData public configuration;

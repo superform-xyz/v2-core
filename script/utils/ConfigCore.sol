@@ -314,5 +314,12 @@ abstract contract ConfigCore is ConfigBase {
         configuration.sparkPsm3s[WORLDCHAIN_CHAIN_ID] = address(0);
         configuration.sparkPsm3s[HYPEREVM_CHAIN_ID] = address(0);
         configuration.sparkPsm3s[FLARE_CHAIN_ID] = address(0);
+
+        // ===== DETH FOUNDATION ADDRESSES =====
+        // DETH async redemption routing: the FOUNDATION address receives ERC-721 NFT receipts
+        // on behalf of the strategy (SuperVaultStrategy lacks onERC721Received).
+        // Only Ethereum mainnet — DETH/Machine vault is mainnet-only.
+        // TODO: Set the actual FOUNDATION address before production deployment
+        configuration.dethFoundations[MAINNET_CHAIN_ID] = address(0);
     }
 }
