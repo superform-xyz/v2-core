@@ -302,7 +302,10 @@ contract DETHYieldSourceOracle is AbstractYieldSourceOracle {
             }
         }
 
-        // Convert accumulated pending shares to asset value (R2 - graceful degradation)
+        // Convert accumulated pending shares to asset value using current PPS (R2 - graceful degradation).
+        // NOTE: AsyncRedeemer stores an asset amount at request time (convertToAssets at request PPS), but the
+        // actual fulfillment amount is recalculated at current PPS via Machine.redeem → Machine._convertToAssets.
+        // Therefore, valuing pending shares at current PPS (via Machine.convertToAssets) is the accurate approach.
         if (totalPendingShares > 0) {
             try IMachine(machineAddr).convertToAssets(totalPendingShares) returns (uint256 value) {
                 totalPendingValue = value;

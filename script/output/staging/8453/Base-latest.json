@@ -24,6 +24,7 @@
   "ClaimCancelDepositRequestWithId7540Hook": "0x91D1dEb29Bae6f0F78670dCa00D58C0dB3813879",
   "ClaimCancelRedeemRequest7540Hook": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989",
   "ClaimCancelRedeemRequestWithId7540Hook": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
+  "DETHYieldSourceOracle": "0x23A783da41218f8796652ec6cbF73DA2dd580d9D",
   "DeBridgeCancelOrderHook": "0x8A6bc4bA5e6E4330f8f1bE93fe27CC5dd4a3B53c",
   "DeBridgeSendOrderAndExecuteOnDstHook": "0x48A5f8319F4a9340D2D2190E03EFa60b262Dd7ae",
   "DebridgeAdapter": "0x09158270738CDdF351Eaa88eF888B23301D21C05",
