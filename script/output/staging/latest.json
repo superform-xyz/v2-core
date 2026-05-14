@@ -35,6 +35,7 @@
         "ClaimCancelDepositRequestWithId7540Hook": "0x91D1dEb29Bae6f0F78670dCa00D58C0dB3813879",
         "ClaimCancelRedeemRequest7540Hook": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989",
         "ClaimCancelRedeemRequestWithId7540Hook": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
+        "DETHYieldSourceOracle": "0x23A783da41218f8796652ec6cbF73DA2dd580d9D",
         "DeBridgeCancelOrderHook": "0x8A6bc4bA5e6E4330f8f1bE93fe27CC5dd4a3B53c",
         "DeBridgeSendOrderAndExecuteOnDstHook": "0x48A5f8319F4a9340D2D2190E03EFa60b262Dd7ae",
         "DebridgeAdapter": "0x09158270738CDdF351Eaa88eF888B23301D21C05",
@@ -133,6 +134,7 @@
         "ClaimCancelDepositRequestWithId7540Hook": "0x91D1dEb29Bae6f0F78670dCa00D58C0dB3813879",
         "ClaimCancelRedeemRequest7540Hook": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989",
         "ClaimCancelRedeemRequestWithId7540Hook": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
+        "DETHYieldSourceOracle": "0x23A783da41218f8796652ec6cbF73DA2dd580d9D",
         "DeBridgeCancelOrderHook": "0x8A6bc4bA5e6E4330f8f1bE93fe27CC5dd4a3B53c",
         "DeBridgeSendOrderAndExecuteOnDstHook": "0x48A5f8319F4a9340D2D2190E03EFa60b262Dd7ae",
         "DebridgeAdapter": "0x09158270738CDdF351Eaa88eF888B23301D21C05",
@@ -230,6 +232,7 @@
         "ClaimCancelDepositRequestWithId7540Hook": "0x91D1dEb29Bae6f0F78670dCa00D58C0dB3813879",
         "ClaimCancelRedeemRequest7540Hook": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989",
         "ClaimCancelRedeemRequestWithId7540Hook": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
+        "DETHYieldSourceOracle": "0x23A783da41218f8796652ec6cbF73DA2dd580d9D",
         "DeBridgeCancelOrderHook": "0x8A6bc4bA5e6E4330f8f1bE93fe27CC5dd4a3B53c",
         "DeBridgeSendOrderAndExecuteOnDstHook": "0x48A5f8319F4a9340D2D2190E03EFa60b262Dd7ae",
         "DebridgeAdapter": "0x09158270738CDdF351Eaa88eF888B23301D21C05",
@@ -324,6 +327,7 @@
         "ClaimCancelDepositRequestWithId7540Hook": "0x91D1dEb29Bae6f0F78670dCa00D58C0dB3813879",
         "ClaimCancelRedeemRequest7540Hook": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989",
         "ClaimCancelRedeemRequestWithId7540Hook": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
+        "DETHYieldSourceOracle": "0x23A783da41218f8796652ec6cbF73DA2dd580d9D",
         "DeBridgeCancelOrderHook": "0x8A6bc4bA5e6E4330f8f1bE93fe27CC5dd4a3B53c",
         "DeBridgeSendOrderAndExecuteOnDstHook": "0x48A5f8319F4a9340D2D2190E03EFa60b262Dd7ae",
         "DebridgeAdapter": "0x09158270738CDdF351Eaa88eF888B23301D21C05",
@@ -416,6 +420,7 @@
         "ClaimCancelDepositRequestWithId7540Hook": "0x91D1dEb29Bae6f0F78670dCa00D58C0dB3813879",
         "ClaimCancelRedeemRequest7540Hook": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989",
         "ClaimCancelRedeemRequestWithId7540Hook": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
+        "DETHYieldSourceOracle": "0x23A783da41218f8796652ec6cbF73DA2dd580d9D",
         "DeBridgeCancelOrderHook": "0x8A6bc4bA5e6E4330f8f1bE93fe27CC5dd4a3B53c",
         "DeBridgeSendOrderAndExecuteOnDstHook": "0x48A5f8319F4a9340D2D2190E03EFa60b262Dd7ae",
         "DebridgeAdapter": "0x09158270738CDdF351Eaa88eF888B23301D21C05",
@@ -426,6 +431,7 @@
         "ERC5115YieldSourceOracle": "0x5F255eBDF9456EBF8dDe43C38b11D32d161e7300",
         "EthenaCooldownSharesHook": "0xA1BD126da3d2830fe19eA93c0872aF433B7c04f7",
         "EthenaUnstakeHook": "0xC836797f7b7f645248b73938d0bD2Ab2dc6A9337",
+        "FirelightYieldSourceOracle": "0xB70348aFE1A22aA795eB3DEc6853ef1AC2c4BD07",
         "FlatFeeLedger": "0xb989FC825C8C77fbE84b69082048372d548f6FeF",
         "MarkRootAsUsedHook": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
         "MerklClaimRewardHook": "0x67CcC575D4064418406AE70cC094781837D01777",
@@ -499,6 +505,7 @@
         "ClaimCancelDepositRequestWithId7540Hook": "0x91D1dEb29Bae6f0F78670dCa00D58C0dB3813879",
         "ClaimCancelRedeemRequest7540Hook": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989",
         "ClaimCancelRedeemRequestWithId7540Hook": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
+        "DETHYieldSourceOracle": "0x23A783da41218f8796652ec6cbF73DA2dd580d9D",
         "DeBridgeCancelOrderHook": "0x8A6bc4bA5e6E4330f8f1bE93fe27CC5dd4a3B53c",
         "DeBridgeSendOrderAndExecuteOnDstHook": "0x48A5f8319F4a9340D2D2190E03EFa60b262Dd7ae",
         "DebridgeAdapter": "0x09158270738CDdF351Eaa88eF888B23301D21C05",
@@ -509,6 +516,7 @@
         "ERC5115YieldSourceOracle": "0x5F255eBDF9456EBF8dDe43C38b11D32d161e7300",
         "EthenaCooldownSharesHook": "0xA1BD126da3d2830fe19eA93c0872aF433B7c04f7",
         "EthenaUnstakeHook": "0xC836797f7b7f645248b73938d0bD2Ab2dc6A9337",
+        "FirelightYieldSourceOracle": "0xB70348aFE1A22aA795eB3DEc6853ef1AC2c4BD07",
         "FlatFeeLedger": "0xb989FC825C8C77fbE84b69082048372d548f6FeF",
         "MarkRootAsUsedHook": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
         "MerklClaimRewardHook": "0x67CcC575D4064418406AE70cC094781837D01777",
@@ -581,6 +589,7 @@
         "ClaimCancelRedeemRequest7540Hook": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989",
         "ClaimCancelRedeemRequestWithId7540Hook": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
         "ClaimWithdrawFirelightVaultHook": "0x4e371E2c950ADf9D4c7830438A51bBD703dB7f36",
+        "DETHYieldSourceOracle": "0x23A783da41218f8796652ec6cbF73DA2dd580d9D",
         "Deposit4626VaultHook": "0xe3FFf64A14A38a5b082502779ae6f6a9a273b02C",
         "Deposit5115VaultHook": "0x153B77421C844005C9af67cCA8A0469F814e10f8",
         "Deposit7540VaultHook": "0xBDF724DA1928988F2891B9B565460161968Fc9d7",
@@ -634,5 +643,5 @@
       }
     }
   },
-  "updated_at": "2026-05-14T07:48:57Z"
+  "updated_at": "2026-05-14T10:15:19Z"
 }
