@@ -177,6 +177,7 @@ ORACLE_CONTRACTS=(
     "PendlePTAmortizedOracle"
     "PendlePTAmortizedOracleV2"
     "FirelightYieldSourceOracle"
+    "DETHYieldSourceOracle"
 )
 
 # Morpho hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode-other/)
@@ -199,6 +200,13 @@ AAVE_V4_HOOK_CONTRACTS=(
     "AaveV4RepayHook"
     "AaveV4SupplyAndBorrowHook"
     "AaveV4RepayAndWithdrawHook"
+)
+
+# DETH hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode-other/)
+DETH_HOOK_CONTRACTS=(
+    "RequestRedeemDETHHook"
+    "ApproveAndRequestRedeemDETHHook"
+    "ClaimAssetsDETHHook"
 )
 
 # Function to copy contract artifact
@@ -293,9 +301,24 @@ else
         fi
     done
 
+    # Copy DETH hook contracts to generated-bytecode-other/
+    log "INFO" "${BLUE}🪝 Copying DETH hook contracts to generated-bytecode-other/...${NC}"
+    failed_deth=0
+    for contract in "${DETH_HOOK_CONTRACTS[@]}"; do
+        local_source="out/${contract}.sol/${contract}.json"
+        local_dest="script/generated-bytecode-other/${contract}.json"
+        if [ ! -f "$local_source" ]; then
+            log "ERROR" "${RED}❌ Artifact not found for contract: ${contract} at ${local_source}${NC}"
+            failed_deth=$((failed_deth + 1))
+        else
+            cp "$local_source" "$local_dest"
+            log "INFO" "${GREEN}✅ Copied ${contract} → generated-bytecode-other/${NC}"
+        fi
+    done
+
     # Summary for all contracts mode
-    total_contracts=$((${#CORE_CONTRACTS[@]} + ${#HOOK_CONTRACTS[@]} + ${#ORACLE_CONTRACTS[@]} + ${#MORPHO_HOOK_CONTRACTS[@]} + ${#AAVE_V4_HOOK_CONTRACTS[@]}))
-    total_failed=$((failed_core + failed_hooks + failed_oracles + failed_morpho + failed_aavev4))
+    total_contracts=$((${#CORE_CONTRACTS[@]} + ${#HOOK_CONTRACTS[@]} + ${#ORACLE_CONTRACTS[@]} + ${#MORPHO_HOOK_CONTRACTS[@]} + ${#AAVE_V4_HOOK_CONTRACTS[@]} + ${#DETH_HOOK_CONTRACTS[@]}))
+    total_failed=$((failed_core + failed_hooks + failed_oracles + failed_morpho + failed_aavev4 + failed_deth))
     total_success=$((total_contracts - total_failed))
 
     log "INFO" "${BLUE}📊 Summary:${NC}"
@@ -319,6 +342,10 @@ else
 
     if [ $failed_aavev4 -gt 0 ]; then
         log "WARN" "${YELLOW}  ⚠️  Failed Aave V4 hook contracts: ${failed_aavev4}/${#AAVE_V4_HOOK_CONTRACTS[@]}${NC}"
+    fi
+
+    if [ $failed_deth -gt 0 ]; then
+        log "WARN" "${YELLOW}  ⚠️  Failed DETH hook contracts: ${failed_deth}/${#DETH_HOOK_CONTRACTS[@]}${NC}"
     fi
 
     if [ $total_failed -eq 0 ]; then

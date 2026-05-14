@@ -38,6 +38,12 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address approveAndSwapAlgebraIntegralHook;
     }
 
+    struct DETHHookAddresses {
+        address requestRedeemDETHHook;
+        address approveAndRequestRedeemDETHHook;
+        address claimAssetsDETHHook;
+    }
+
     struct HookDeployment {
         string name;
         string saltOverride; // Optional custom salt (empty = use name for salt)
@@ -80,6 +86,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    function runDETH(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying DETH Hooks on chainId: ", chainId);
+
+        _deployDETHHooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
     /// @notice Deploy all applicable hooks for the given chain
     function _deployAllHooks(uint64 chainId, uint256 env) internal {
         // Morpho hooks — only on chains where Morpho is deployed
@@ -104,6 +118,12 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         if (otherHooksConfiguration.algebraSwapRouters[chainId] != address(0)) {
             console2.log("Deploying Algebra Integral Hooks on chainId: ", chainId);
             _deployAlgebraIntegralHooks(chainId, env);
+        }
+
+        // DETH hooks — only on Ethereum mainnet (DETH/Machine vault is mainnet-only)
+        if (chainId == MAINNET_CHAIN_ID) {
+            console2.log("Deploying DETH Hooks on chainId: ", chainId);
+            _deployDETHHooks(chainId, env);
         }
     }
 
@@ -375,6 +395,56 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         );
 
         console2.log("All Algebra Integral hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          DETH HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Deploy all 3 DETH hooks (no constructor args — AsyncRedeemer/Machine come from calldata)
+    function _deployDETHHooks(uint64 chainId, uint256 env) internal returns (DETHHookAddresses memory) {
+        uint256 len = 3;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        // DETH hooks have no constructor args
+        hooks[0] = HookDeployment(
+            REQUEST_REDEEM_DETH_HOOK_KEY,
+            "",
+            __getOtherHooksBytecode("RequestRedeemDETHHook", env)
+        );
+        hooks[1] = HookDeployment(
+            APPROVE_AND_REQUEST_REDEEM_DETH_HOOK_KEY,
+            "",
+            __getOtherHooksBytecode("ApproveAndRequestRedeemDETHHook", env)
+        );
+        hooks[2] = HookDeployment(
+            CLAIM_ASSETS_DETH_HOOK_KEY,
+            "",
+            __getOtherHooksBytecode("ClaimAssetsDETHHook", env)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        DETHHookAddresses memory hookAddresses;
+        hookAddresses.requestRedeemDETHHook = addresses[0];
+        hookAddresses.approveAndRequestRedeemDETHHook = addresses[1];
+        hookAddresses.claimAssetsDETHHook = addresses[2];
+
+        require(hookAddresses.requestRedeemDETHHook != address(0), "RequestRedeemDETHHook not assigned");
+        require(
+            hookAddresses.approveAndRequestRedeemDETHHook != address(0),
+            "ApproveAndRequestRedeemDETHHook not assigned"
+        );
+        require(hookAddresses.claimAssetsDETHHook != address(0), "ClaimAssetsDETHHook not assigned");
+
+        console2.log("All DETH hooks deployed and validated successfully.");
 
         return hookAddresses;
     }
