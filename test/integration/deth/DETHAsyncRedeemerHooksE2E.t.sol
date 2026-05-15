@@ -362,8 +362,7 @@ contract DETHAsyncRedeemerHooksE2E is Test {
     /// @notice Test real claimAssets on an already-finalized request (request #30 on mainnet)
     /// @dev Request #30 is finalized on mainnet, owned by 0x7bb196C9eBf38DA33804A5941E6a501BeA9AF406
     function test_claimHook_realClaimOnFinalizedRequest() public {
-        uint256 requestId = 30;
-        address nftOwner = IAsyncRedeemerAdmin(ASYNC_REDEEMER).ownerOf(requestId);
+        (uint256 requestId, address nftOwner) = _createFinalizedRequest();
 
         // Whitelist the NFT owner (may already be whitelisted)
         _whitelistAccount(nftOwner);
@@ -401,8 +400,7 @@ contract DETHAsyncRedeemerHooksE2E is Test {
 
     /// @notice Verify claim hook does NOT set usedShares
     function test_claimHook_usedSharesNotSet() public {
-        uint256 requestId = 30;
-        address nftOwner = IAsyncRedeemerAdmin(ASYNC_REDEEMER).ownerOf(requestId);
+        (uint256 requestId, address nftOwner) = _createFinalizedRequest();
         _whitelistAccount(nftOwner);
 
         bytes memory data = _encodeClaimData(ASYNC_REDEEMER, requestId, false);
@@ -555,9 +553,8 @@ contract DETHAsyncRedeemerHooksE2E is Test {
 
     /// @notice Verify that non-owner cannot claim someone else's NFT
     function test_claimAssets_revertsIfNotNFTOwner() public {
-        // Request #30 is finalized and owned by a different address
-        uint256 requestId = 30;
-        address nftOwner = IAsyncRedeemerAdmin(ASYNC_REDEEMER).ownerOf(requestId);
+        // Find a finalized request owned by a different address
+        (uint256 requestId, address nftOwner) = _createFinalizedRequest();
         assertTrue(nftOwner != account, "NFT owner should be different from test account");
 
         // Account is whitelisted but doesn't own the NFT
@@ -800,8 +797,7 @@ contract DETHAsyncRedeemerHooksE2E is Test {
 
     /// @notice Claiming an already-claimed request reverts (NFT burned)
     function test_claimAssets_revertsIfAlreadyClaimed() public {
-        uint256 requestId = 30;
-        address nftOwner = IAsyncRedeemerAdmin(ASYNC_REDEEMER).ownerOf(requestId);
+        (uint256 requestId, address nftOwner) = _createFinalizedRequest();
         _whitelistAccount(nftOwner);
 
         // Claim once — should succeed
@@ -816,8 +812,7 @@ contract DETHAsyncRedeemerHooksE2E is Test {
 
     /// @notice Claim hook correctly tracks WETH delta when account has pre-existing WETH balance
     function test_claimHook_tracksWethDelta_withExistingBalance() public {
-        uint256 requestId = 30;
-        address nftOwner = IAsyncRedeemerAdmin(ASYNC_REDEEMER).ownerOf(requestId);
+        (uint256 requestId, address nftOwner) = _createFinalizedRequest();
         _whitelistAccount(nftOwner);
 
         // Give the owner some pre-existing WETH
@@ -967,8 +962,7 @@ contract DETHAsyncRedeemerHooksE2E is Test {
 
     /// @notice Verify real claimed WETH is reasonable (sanity check against PPS)
     function test_realClaim_wethAmountSanity() public {
-        uint256 requestId = 30;
-        address nftOwner = IAsyncRedeemerAdmin(ASYNC_REDEEMER).ownerOf(requestId);
+        (uint256 requestId, address nftOwner) = _createFinalizedRequest();
         _whitelistAccount(nftOwner);
 
         uint256 wethBefore = IERC20(WETH).balanceOf(nftOwner);
@@ -1012,9 +1006,8 @@ contract DETHAsyncRedeemerHooksE2E is Test {
         assertEq(requestRedeemHook.usedShares(), shares, "Phase 1: usedShares correct");
         assertEq(IAsyncRedeemerAdmin(ASYNC_REDEEMER).ownerOf(newRequestId), account, "Phase 1: NFT minted");
 
-        // --- Phase 2: Claim an existing finalized request (#30) ---
-        uint256 requestId = 30;
-        address nftOwner = IAsyncRedeemerAdmin(ASYNC_REDEEMER).ownerOf(requestId);
+        // --- Phase 2: Claim an existing finalized request (dynamically discovered) ---
+        (uint256 requestId, address nftOwner) = _createFinalizedRequest();
         _whitelistAccount(nftOwner);
 
         ClaimAssetsDETHHook claimHook2 = new ClaimAssetsDETHHook();
@@ -1051,6 +1044,30 @@ contract DETHAsyncRedeemerHooksE2E is Test {
         users[0] = _account;
         vm.prank(RISK_MANAGER);
         IAsyncRedeemerAdmin(ASYNC_REDEEMER).setWhitelistedUsers(users, true);
+    }
+
+    /// @dev Creates a new request and simulates finalization via vm.store
+    ///      so claimAssets() can be tested against real AsyncRedeemer logic.
+    bytes32 private constant _LAST_FINALIZED_SLOT = 0x187c268ec5d498b5b6e4945b27f62abf37217cdbd80e6429181b3e4c2c378901;
+
+    function _createFinalizedRequest() internal returns (uint256 requestId, address nftOwner) {
+        nftOwner = makeAddr("finalizedRequestOwner");
+        uint256 shares = 1 ether;
+
+        _whitelistAccount(nftOwner);
+        deal(DETH, nftOwner, shares);
+
+        vm.startPrank(nftOwner);
+        IERC20(DETH).approve(ASYNC_REDEEMER, shares);
+        requestId = IDETHAsyncRedeemer(ASYNC_REDEEMER).requestRedeem(shares, nftOwner, 0);
+        vm.stopPrank();
+
+        // Simulate finalization by bumping lastFinalizedRequestId
+        vm.store(ASYNC_REDEEMER, _LAST_FINALIZED_SLOT, bytes32(requestId));
+
+        // Ensure AsyncRedeemer has WETH to pay out claims
+        uint256 currentWeth = IERC20(WETH).balanceOf(ASYNC_REDEEMER);
+        deal(WETH, ASYNC_REDEEMER, currentWeth + 10 ether);
     }
 
     /// @dev Encodes RequestRedeemDETHHook data

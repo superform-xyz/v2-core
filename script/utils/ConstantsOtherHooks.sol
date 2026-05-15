@@ -13,4 +13,12 @@ abstract contract ConstantsOtherHooks {
     string internal constant REQUEST_REDEEM_DETH_HOOK_KEY = "RequestRedeemDETHHook";
     string internal constant APPROVE_AND_REQUEST_REDEEM_DETH_HOOK_KEY = "ApproveAndRequestRedeemDETHHook";
     string internal constant CLAIM_ASSETS_DETH_HOOK_KEY = "ClaimAssetsDETHHook";
+
+    // rFLR hook keys
+    string internal constant CLAIM_RFLR_HOOK_KEY = "ClaimRFLRHook";
+    string internal constant WITHDRAW_RFLR_HOOK_KEY = "WithdrawRFLRHook";
+
+    // rFLR contract addresses (Flare mainnet)
+    address internal constant RNAT_FLARE = 0x26d460c3Cf931Fb2014FA436a49e3Af08619810e;
+    address internal constant WFLR_FLARE = 0x1D80c49BbBCd1C0911346656B529DF9E5c2F783d;
 }

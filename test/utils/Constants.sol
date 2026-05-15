@@ -118,6 +118,7 @@ abstract contract Constants {
     address public constant FLARE_ALGEBRA_POOL_DEPLOYER = 0x59a662Ed724F19AD019307126CbEBdcF4b57d6B1;
 
     // Flare tokens
+    address public constant FLARE_RNAT = 0x26d460c3Cf931Fb2014FA436a49e3Af08619810e;
     address public constant FLARE_WFLR = 0x1D80c49BbBCd1C0911346656B529DF9E5c2F783d;
     address public constant FLARE_SFLR = 0x12e605bc104e93B45e1aD99F9e555f659051c2BB;
     address public constant FLARE_SPRK = 0x657097cC15fdEc9e383dB8628B57eA4a763F2ba0;
