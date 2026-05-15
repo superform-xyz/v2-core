@@ -54,30 +54,13 @@ contract MockRNat is MockERC20 {
 /// @notice Replicates the core hook execution flow from SuperVaultStrategy._processSingleHookExecution()
 /// @dev The strategy IS the account — it holds tokens and is msg.sender for all hook calls.
 ///      Flow: setExecutionContext → build → execute each Execution via .call() → resetExecutionState → getOutAmount
-contract MockSuperVaultStrategy is Test {
-    /*//////////////////////////////////////////////////////////////
-                                ERRORS
-    //////////////////////////////////////////////////////////////*/
-
+contract MockSuperVaultStrategy {
     error SLIPPAGE_CHECK_FAILED(uint256 outAmount, uint256 minExpected);
-    error EXECUTION_FAILED(uint256 index, bytes returnData);
-
-    /*//////////////////////////////////////////////////////////////
-                                EVENTS
-    //////////////////////////////////////////////////////////////*/
+    error EXECUTION_FAILED(uint256 index);
 
     event HookExecuted(address indexed hook, uint256 outAmount);
 
-    /*//////////////////////////////////////////////////////////////
-                          EXTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
-
     /// @notice Execute a single hook through the full strategy flow
-    /// @param hook The hook to execute
-    /// @param prevHook Previous hook in chain (address(0) if first)
-    /// @param data Hook-specific calldata
-    /// @param minExpected Minimum outAmount for slippage check (0 to skip)
-    /// @return outAmount The amount output by the hook
     function executeHook(
         address hook,
         address prevHook,
@@ -87,38 +70,14 @@ contract MockSuperVaultStrategy is Test {
         external
         returns (uint256 outAmount)
     {
-        // 1. Set execution context — sets lastCaller = address(this)
-        ISuperHook(hook).setExecutionContext(address(this));
+        outAmount = _processHook(hook, prevHook, data);
 
-        // 2. Build execution array
-        Execution[] memory executions = ISuperHook(hook).build(prevHook, address(this), data);
-
-        // 3. Execute each Execution via .call() (strategy is msg.sender = account)
-        for (uint256 i; i < executions.length; ++i) {
-            (bool success, bytes memory returnData) =
-                executions[i].target.call{ value: executions[i].value }(executions[i].callData);
-            if (!success) revert EXECUTION_FAILED(i, returnData);
-        }
-
-        // 4. Reset execution state — requires msg.sender == lastCaller
-        ISuperHook(hook).resetExecutionState(address(this));
-
-        // 5. Read outAmount
-        outAmount = ISuperHookResult(hook).getOutAmount(address(this));
-
-        // 6. Slippage check
         if (minExpected > 0 && outAmount < minExpected) {
             revert SLIPPAGE_CHECK_FAILED(outAmount, minExpected);
         }
-
-        emit HookExecuted(hook, outAmount);
     }
 
     /// @notice Execute multiple hooks in sequence (chained)
-    /// @param hooks Array of hook addresses to execute
-    /// @param datas Array of hook-specific calldata (parallel to hooks)
-    /// @param minExpected Minimum outAmount for the LAST hook (0 to skip)
-    /// @return outAmount The outAmount from the last hook
     function executeHooks(
         address[] calldata hooks,
         bytes[] calldata datas,
@@ -130,37 +89,36 @@ contract MockSuperVaultStrategy is Test {
         address prevHook = address(0);
 
         for (uint256 i; i < hooks.length; ++i) {
-            address hook = hooks[i];
-
-            // 1. Set execution context
-            ISuperHook(hook).setExecutionContext(address(this));
-
-            // 2. Build
-            Execution[] memory executions = ISuperHook(hook).build(prevHook, address(this), datas[i]);
-
-            // 3. Execute
-            for (uint256 j; j < executions.length; ++j) {
-                (bool success, bytes memory returnData) =
-                    executions[j].target.call{ value: executions[j].value }(executions[j].callData);
-                if (!success) revert EXECUTION_FAILED(j, returnData);
-            }
-
-            // 4. Reset
-            ISuperHook(hook).resetExecutionState(address(this));
-
-            // 5. Read outAmount
-            outAmount = ISuperHookResult(hook).getOutAmount(address(this));
-
-            emit HookExecuted(hook, outAmount);
-
-            // Chain: this hook becomes prevHook for the next
-            prevHook = hook;
+            outAmount = _processHook(hooks[i], prevHook, datas[i]);
+            prevHook = hooks[i];
         }
 
-        // Slippage check on final output
         if (minExpected > 0 && outAmount < minExpected) {
             revert SLIPPAGE_CHECK_FAILED(outAmount, minExpected);
         }
+    }
+
+    /// @dev Replicates SuperVaultStrategy._processSingleHookExecution()
+    function _processHook(address hook, address prevHook, bytes calldata data) internal returns (uint256) {
+        // 1. Set execution context — sets lastCaller = address(this)
+        ISuperHook(hook).setExecutionContext(address(this));
+
+        // 2. Build execution array
+        Execution[] memory execs = ISuperHook(hook).build(prevHook, address(this), data);
+
+        // 3. Execute each via .call() (strategy is msg.sender = account)
+        for (uint256 i; i < execs.length; ++i) {
+            (bool ok,) = execs[i].target.call{ value: execs[i].value }(execs[i].callData);
+            if (!ok) revert EXECUTION_FAILED(i);
+        }
+
+        // 4. Reset execution state — requires msg.sender == lastCaller
+        ISuperHook(hook).resetExecutionState(address(this));
+
+        // 5. Read outAmount
+        uint256 out = ISuperHookResult(hook).getOutAmount(address(this));
+        emit HookExecuted(hook, out);
+        return out;
     }
 }
 
