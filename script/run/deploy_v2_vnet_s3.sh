@@ -700,7 +700,7 @@ has_contract_changes() {
     # Check for removed contracts (contracts that exist in S3 but not in new deployment)
     # Exclude Nexus contracts and banned contracts from being considered removable
     local removed_contract_count=$(echo "$existing_contracts" | jq --argjson new_contracts "$new_contracts" '
-        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle" and $k != "MockDex" and $k != "MockDexHook"))] | length
+        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "NexusProxy" and $k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle" and $k != "MockDex" and $k != "MockDexHook"))] | length
     ')
     
     # Return true if there are any new, updated, or removed contracts
@@ -745,7 +745,7 @@ show_contract_diff() {
     # Show removed contracts (contracts that exist in S3 but not in new deployment)
     # Exclude Nexus contracts and banned contracts from being shown as removed
     local removed_contract_names=$(echo "$existing_contracts" | jq -r --argjson new_contracts "$new_contracts" '
-        to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle" and $k != "MockDex" and $k != "MockDexHook")) | .key
+        to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "NexusProxy" and $k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle" and $k != "MockDex" and $k != "MockDexHook")) | .key
     ' | tr '\n' ' ')
     
     local changes_shown=false
@@ -1435,6 +1435,7 @@ update_latest_file() {
     
     # Collect all network contracts first
     declare -A ALL_NETWORK_CONTRACTS
+    declare -A ALL_NETWORK_IDS
     declare -A ALL_NETWORK_VNET_IDS
     declare -A ALL_NETWORK_SALTS
     
@@ -1472,6 +1473,7 @@ update_latest_file() {
         
         # Store in associative arrays
         ALL_NETWORK_CONTRACTS["$network_slug"]="$contracts"
+        ALL_NETWORK_IDS["$network_slug"]="$network"
         ALL_NETWORK_VNET_IDS["$network_slug"]="$vnet_id"
         
         # Store salt
@@ -1496,6 +1498,7 @@ update_latest_file() {
         # Preserve existing banned contracts before updating
         local existing_contracts=$(echo "$content" | jq -r ".networks[\"$network_slug\"].contracts // {}")
         local banned_contracts=$(echo "$existing_contracts" | jq '{
+            NexusProxy: .NexusProxy,
             Nexus: .Nexus,
             NexusBootstrap: .NexusBootstrap,
             NexusAccountFactory: .NexusAccountFactory,
@@ -1513,6 +1516,10 @@ update_latest_file() {
         
         # Merge new contracts with preserved banned contracts
         local merged_contracts=$(echo "${ALL_NETWORK_CONTRACTS[$network_slug]}" | jq --argjson banned "$banned_contracts" '. + $banned')
+
+        # Keep the chain-specific deployment file in sync with contracts preserved in latest.json.
+        local chain_contracts_file="$OUTPUT_BASE_DIR/$GITHUB_REF_NAME/${ALL_NETWORK_IDS[$network_slug]}/$network_slug-latest.json"
+        echo "$merged_contracts" | jq '.' > "$chain_contracts_file"
         
         content=$(echo "$content" | jq \
             --arg slug "$network_slug" \
