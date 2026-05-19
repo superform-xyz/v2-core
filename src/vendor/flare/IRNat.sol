@@ -9,7 +9,7 @@ interface IRNat {
     /// @notice Claims rFLR rewards across specified projects up to a given month
     /// @param projectIds Array of project IDs to claim from
     /// @param month The month up to which to claim (inclusive, cumulative)
-    /// @return claimedAmount Total WFLR deposited into caller's RNat account
+    /// @return claimedAmount Total rFLR minted to the caller's RNat account
     function claimRewards(uint256[] calldata projectIds, uint256 month) external returns (uint128 claimedAmount);
 
     /// @notice Withdraws all funds from the caller's RNat account

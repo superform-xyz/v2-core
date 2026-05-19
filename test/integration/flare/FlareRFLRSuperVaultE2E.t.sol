@@ -244,4 +244,156 @@ contract FlareRFLRSuperVaultE2ETest is Test {
         );
         strategy.executeHook(address(claimHook), address(0), _claimData(), 50e18);
     }
+
+    /*//////////////////////////////////////////////////////////////
+          TEST: WITHDRAW WITH MINOUT (Variant A) - THROUGH STRATEGY
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Withdraw with minOut through strategy — passes when delta >= minOut
+    function test_withdrawRFLR_withMinOut_throughStrategy() public {
+        rNat.mint(address(strategy), 50e18);
+
+        // data: ack=0, minOut=50e18
+        bytes memory withdrawData = abi.encodePacked(uint8(0), uint256(50e18));
+
+        uint256 outAmount = strategy.executeHook(address(withdrawHook), address(0), withdrawData, 0);
+
+        assertEq(wflr.balanceOf(address(strategy)), 50e18, "strategy should have received WFLR");
+        assertEq(outAmount, 50e18, "outAmount should match withdrawn amount");
+    }
+
+    /// @notice Withdraw with minOut through strategy — reverts when delta < minOut
+    function test_withdrawRFLR_withMinOut_reverts_throughStrategy() public {
+        rNat.mint(address(strategy), 30e18);
+
+        // data: ack=0, minOut=50e18 (but only 30e18 rFLR available)
+        bytes memory withdrawData = abi.encodePacked(uint8(0), uint256(50e18));
+
+        // postExecute is execution index 2 (pre=0, withdrawAll=1, post=2)
+        vm.expectRevert(abi.encodeWithSelector(MockSuperVaultStrategy.EXECUTION_FAILED.selector, uint256(2)));
+        strategy.executeHook(address(withdrawHook), address(0), withdrawData, 0);
+    }
+
+    /// @notice Chained claim → withdraw with minOut on the withdraw leg
+    function test_claimThenWithdraw_withMinOut_throughStrategy() public {
+        assertEq(rNat.balanceOf(address(strategy)), 0);
+        assertEq(wflr.balanceOf(address(strategy)), 0);
+
+        address[] memory hooks = new address[](2);
+        hooks[0] = address(claimHook);
+        hooks[1] = address(withdrawHook);
+
+        // withdraw data: ack=0, minOut=CLAIM_AMOUNT (exact match expected)
+        bytes[] memory datas = new bytes[](2);
+        datas[0] = _claimData();
+        datas[1] = abi.encodePacked(uint8(0), CLAIM_AMOUNT);
+
+        uint256 outAmount = strategy.executeHooks(hooks, datas, 0);
+
+        assertEq(rNat.balanceOf(address(strategy)), 0, "rFLR should be 0 after full lifecycle");
+        assertEq(wflr.balanceOf(address(strategy)), CLAIM_AMOUNT, "WFLR should equal claimed amount");
+        assertEq(outAmount, CLAIM_AMOUNT, "final outAmount should be the WFLR received");
+    }
+
+    /// @notice Chained claim → withdraw reverts when minOut exceeds actual yield
+    function test_claimThenWithdraw_withMinOut_reverts_throughStrategy() public {
+        // Claim only 10e18 but minOut on withdraw expects 50e18
+        rNat.setClaimAmount(10e18);
+
+        address[] memory hooks = new address[](2);
+        hooks[0] = address(claimHook);
+        hooks[1] = address(withdrawHook);
+
+        bytes[] memory datas = new bytes[](2);
+        datas[0] = _claimData();
+        datas[1] = abi.encodePacked(uint8(0), uint256(50e18));
+
+        vm.expectRevert(abi.encodeWithSelector(MockSuperVaultStrategy.EXECUTION_FAILED.selector, uint256(2)));
+        strategy.executeHooks(hooks, datas, 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+         TEST: WITHDRAW WITH PENALTY SIMULATION (Variant A guard)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Simulates the 50% locked-burn penalty and verifies minOut catches it
+    function test_withdrawRFLR_withPenalty_minOutCatchesLoss() public {
+        // Give strategy 100 rFLR but MockRNat burns all → mints all as WFLR (no penalty).
+        // To simulate penalty, we use a MockRNatWithPenalty.
+        MockRNatWithPenalty penaltyRNat = new MockRNatWithPenalty(address(wflr));
+        WithdrawRFLRHook penaltyWithdrawHook = new WithdrawRFLRHook(address(penaltyRNat), address(wflr));
+
+        penaltyRNat.mint(address(strategy), 100e18);
+        penaltyRNat.setLockedAmount(50e18); // 50% locked → 25e18 burned as penalty
+
+        // Expected output: 100 - 25 (50% of 50 locked) = 75 WFLR
+        // minOut = 90e18 → should revert
+        bytes memory withdrawData = abi.encodePacked(uint8(0), uint256(90e18));
+
+        vm.expectRevert(abi.encodeWithSelector(MockSuperVaultStrategy.EXECUTION_FAILED.selector, uint256(2)));
+        strategy.executeHook(address(penaltyWithdrawHook), address(0), withdrawData, 0);
+    }
+
+    /// @notice Simulates the 50% locked-burn penalty — passes with correct minOut
+    function test_withdrawRFLR_withPenalty_passesWithCorrectMinOut() public {
+        MockRNatWithPenalty penaltyRNat = new MockRNatWithPenalty(address(wflr));
+        WithdrawRFLRHook penaltyWithdrawHook = new WithdrawRFLRHook(address(penaltyRNat), address(wflr));
+
+        penaltyRNat.mint(address(strategy), 100e18);
+        penaltyRNat.setLockedAmount(50e18); // 50% of 50 locked = 25 burned
+
+        // Expected: 75 WFLR. minOut = 75e18 → passes
+        bytes memory withdrawData = abi.encodePacked(uint8(0), uint256(75e18));
+
+        uint256 outAmount = strategy.executeHook(address(penaltyWithdrawHook), address(0), withdrawData, 0);
+
+        assertEq(wflr.balanceOf(address(strategy)), 75e18, "strategy should receive 75 WFLR");
+        assertEq(outAmount, 75e18, "outAmount should be 75 WFLR after penalty");
+    }
+
+    /// @notice Withdraw with empty data still works (backward compat through strategy)
+    function test_withdrawRFLR_emptyData_backwardCompat_throughStrategy() public {
+        rNat.mint(address(strategy), 50e18);
+
+        // Empty data — no slippage check, exactly like before
+        uint256 outAmount = strategy.executeHook(address(withdrawHook), address(0), "", 0);
+
+        assertEq(wflr.balanceOf(address(strategy)), 50e18);
+        assertEq(outAmount, 50e18);
+    }
+}
+
+/*//////////////////////////////////////////////////////////////
+          MOCK RNAT WITH 50% LOCKED-BURN PENALTY
+//////////////////////////////////////////////////////////////*/
+
+/// @title MockRNatWithPenalty
+/// @notice Simulates the real RNat 50% penalty on locked (unvested) rFLR
+contract MockRNatWithPenalty is MockERC20 {
+    address public wflr;
+    uint256 public lockedAmount;
+
+    constructor(address wflr_) MockERC20("rFLR", "rFLR", 18) {
+        wflr = wflr_;
+    }
+
+    function setLockedAmount(uint256 amount) external {
+        lockedAmount = amount;
+    }
+
+    /// @dev Simulates withdrawAll with 50% penalty on locked portion
+    ///      Total rFLR balance - 50% of locked = WFLR minted
+    function withdrawAll(bool) external returns (uint128) {
+        uint256 bal = balanceOf(msg.sender);
+        uint256 penalty = lockedAmount / 2; // 50% of locked portion burned
+        uint256 netOutput = bal - penalty;
+
+        _burn(msg.sender, bal);
+        MockERC20(wflr).mint(msg.sender, netOutput);
+        return uint128(netOutput);
+    }
+
+    function getBalancesOf(address owner) external view returns (uint256, uint256, uint256) {
+        return (0, balanceOf(owner), lockedAmount);
+    }
 }

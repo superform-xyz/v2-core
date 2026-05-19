@@ -99,7 +99,9 @@ contract WithdrawRFLRHookTest is Helpers {
         assertEq(hook.getOutAmount(account), initialWflrBalance);
 
         // Mock increased WFLR balance for post
-        vm.mockCall(wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance + withdrawnAmount));
+        vm.mockCall(
+            wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance + withdrawnAmount)
+        );
 
         // Post-execute
         vm.prank(account);
@@ -116,6 +118,161 @@ contract WithdrawRFLRHookTest is Helpers {
         hook.preExecute(address(0), account, "");
 
         assertEq(hook.asset(), wflr);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                   SLIPPAGE PROTECTION (Variant A) TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_PostExecute_MinOut_Passes() public {
+        uint256 initialWflrBalance = 100 ether;
+        uint256 withdrawnAmount = 50 ether;
+        uint256 minOut = 50 ether;
+
+        vm.mockCall(wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance));
+        hook.setExecutionContext(account);
+
+        vm.prank(account);
+        hook.preExecute(address(0), account, "");
+
+        vm.mockCall(
+            wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance + withdrawnAmount)
+        );
+
+        // data: 1 byte ack (0x00) + 32 bytes minOut
+        bytes memory data = abi.encodePacked(uint8(0), minOut);
+
+        vm.prank(account);
+        hook.postExecute(address(0), account, data);
+        assertEq(hook.getOutAmount(account), withdrawnAmount);
+    }
+
+    function test_PostExecute_MinOut_ExactlyMet() public {
+        uint256 initialWflrBalance = 100 ether;
+        uint256 withdrawnAmount = 30 ether;
+        uint256 minOut = 30 ether;
+
+        vm.mockCall(wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance));
+        hook.setExecutionContext(account);
+
+        vm.prank(account);
+        hook.preExecute(address(0), account, "");
+
+        vm.mockCall(
+            wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance + withdrawnAmount)
+        );
+
+        bytes memory data = abi.encodePacked(uint8(0), minOut);
+
+        vm.prank(account);
+        hook.postExecute(address(0), account, data);
+        assertEq(hook.getOutAmount(account), withdrawnAmount);
+    }
+
+    function test_PostExecute_MinOut_Exceeded_Reverts() public {
+        uint256 initialWflrBalance = 100 ether;
+        uint256 withdrawnAmount = 30 ether;
+        uint256 minOut = 50 ether; // delta (30) < minOut (50)
+
+        vm.mockCall(wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance));
+        hook.setExecutionContext(account);
+
+        vm.prank(account);
+        hook.preExecute(address(0), account, "");
+
+        vm.mockCall(
+            wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance + withdrawnAmount)
+        );
+
+        bytes memory data = abi.encodePacked(uint8(0), minOut);
+
+        vm.expectRevert(WithdrawRFLRHook.SLIPPAGE_EXCEEDED.selector);
+        vm.prank(account);
+        hook.postExecute(address(0), account, data);
+    }
+
+    function test_PostExecute_MinOut_ZeroDelta_Reverts() public {
+        uint256 initialWflrBalance = 100 ether;
+        uint256 minOut = 1 ether;
+
+        vm.mockCall(wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance));
+        hook.setExecutionContext(account);
+
+        vm.prank(account);
+        hook.preExecute(address(0), account, "");
+
+        // Balance unchanged — delta is 0
+        vm.mockCall(wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance));
+
+        bytes memory data = abi.encodePacked(uint8(0), minOut);
+
+        vm.expectRevert(WithdrawRFLRHook.SLIPPAGE_EXCEEDED.selector);
+        vm.prank(account);
+        hook.postExecute(address(0), account, data);
+    }
+
+    function test_PostExecute_MinOut_ZeroValue_NoCheck() public {
+        uint256 initialWflrBalance = 100 ether;
+        uint256 withdrawnAmount = 1; // tiny delta
+
+        vm.mockCall(wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance));
+        hook.setExecutionContext(account);
+
+        vm.prank(account);
+        hook.preExecute(address(0), account, "");
+
+        vm.mockCall(
+            wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance + withdrawnAmount)
+        );
+
+        // minOut = 0 means no check
+        bytes memory data = abi.encodePacked(uint8(0), uint256(0));
+
+        vm.prank(account);
+        hook.postExecute(address(0), account, data);
+        assertEq(hook.getOutAmount(account), withdrawnAmount);
+    }
+
+    function test_PostExecute_EmptyData_NoSlippageCheck() public {
+        uint256 initialWflrBalance = 100 ether;
+        uint256 withdrawnAmount = 1; // tiny delta, no revert since no minOut
+
+        vm.mockCall(wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance));
+        hook.setExecutionContext(account);
+
+        vm.prank(account);
+        hook.preExecute(address(0), account, "");
+
+        vm.mockCall(
+            wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance + withdrawnAmount)
+        );
+
+        // Empty data — backward compatible, no slippage check
+        vm.prank(account);
+        hook.postExecute(address(0), account, "");
+        assertEq(hook.getOutAmount(account), withdrawnAmount);
+    }
+
+    function test_PostExecute_OnlyAckByte_NoSlippageCheck() public {
+        uint256 initialWflrBalance = 100 ether;
+        uint256 withdrawnAmount = 1;
+
+        vm.mockCall(wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance));
+        hook.setExecutionContext(account);
+
+        vm.prank(account);
+        hook.preExecute(address(0), account, "");
+
+        vm.mockCall(
+            wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance + withdrawnAmount)
+        );
+
+        // Only 1 byte (ack) — no minOut field, no slippage check
+        bytes memory data = abi.encodePacked(uint8(1));
+
+        vm.prank(account);
+        hook.postExecute(address(0), account, data);
+        assertEq(hook.getOutAmount(account), withdrawnAmount);
     }
 
     /*//////////////////////////////////////////////////////////////

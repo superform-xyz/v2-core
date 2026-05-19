@@ -291,6 +291,159 @@ contract FlareRFLRHooksE2E is Test, Constants {
     }
 
     /*//////////////////////////////////////////////////////////////
+              WITHDRAW RFLR HOOK - SLIPPAGE PROTECTION (Variant A)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Withdraw with minOut — passes when actual WFLR delta >= minOut
+    function test_withdrawRFLR_withMinOut_passes() public {
+        // First figure out how much WFLR we'd get from TOP_HOLDER
+        (uint256 wNatBal, uint256 rNatBal, uint256 lockedBal) = IRNat(FLARE_RNAT).getBalancesOf(TOP_HOLDER);
+        uint256 unlocked = (wNatBal + rNatBal) - lockedBal;
+        assertGt(unlocked, 0, "need unlocked balance for this test");
+
+        // Use a conservative minOut (1 wei) — should always pass
+        bytes memory withdrawData = abi.encodePacked(uint8(0), uint256(1));
+        Execution[] memory executions = withdrawHook.build(address(0), TOP_HOLDER, withdrawData);
+
+        uint256 wflrBefore = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER);
+
+        vm.startPrank(TOP_HOLDER);
+        _executeAll(executions);
+        vm.stopPrank();
+
+        uint256 wflrReceived = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER) - wflrBefore;
+        assertGt(wflrReceived, 0, "Should receive WFLR");
+        console2.log("WFLR received with minOut=1:", wflrReceived);
+    }
+
+    /// @notice Withdraw with minOut that exceeds actual yield — reverts with SLIPPAGE_EXCEEDED
+    function test_withdrawRFLR_withMinOut_reverts() public {
+        // Set an impossibly high minOut
+        bytes memory withdrawData = abi.encodePacked(uint8(0), uint256(type(uint128).max));
+        Execution[] memory executions = withdrawHook.build(address(0), TOP_HOLDER, withdrawData);
+
+        vm.startPrank(TOP_HOLDER);
+
+        // Execute pre + withdrawAll (these succeed)
+        (bool ok1,) = executions[0].target.call{ value: executions[0].value }(executions[0].callData);
+        assertTrue(ok1, "preExecute should succeed");
+
+        (bool ok2,) = executions[1].target.call{ value: executions[1].value }(executions[1].callData);
+        assertTrue(ok2, "withdrawAll should succeed");
+
+        // postExecute should revert with SLIPPAGE_EXCEEDED
+        (bool ok3,) = executions[2].target.call{ value: executions[2].value }(executions[2].callData);
+        assertFalse(ok3, "postExecute should revert due to slippage");
+        vm.stopPrank();
+    }
+
+    /// @notice Withdraw with minOut=0 in data — no slippage check (same as omitting)
+    function test_withdrawRFLR_withMinOutZero_noCheck() public {
+        bytes memory withdrawData = abi.encodePacked(uint8(0), uint256(0));
+        Execution[] memory executions = withdrawHook.build(address(0), TOP_HOLDER, withdrawData);
+
+        uint256 wflrBefore = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER);
+
+        vm.startPrank(TOP_HOLDER);
+        _executeAll(executions);
+        vm.stopPrank();
+
+        uint256 wflrReceived = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER) - wflrBefore;
+        assertGt(wflrReceived, 0, "Should receive WFLR even with minOut=0");
+    }
+
+    /// @notice Withdraw with exact minOut matching expected output
+    function test_withdrawRFLR_withExactMinOut() public {
+        // Snapshot: do a dry-run withdrawal to find exact output
+        uint256 snapshotId = vm.snapshotState();
+
+        Execution[] memory dryExecs = withdrawHook.build(address(0), TOP_HOLDER, "");
+        uint256 wflrBefore = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER);
+
+        vm.startPrank(TOP_HOLDER);
+        _executeAll(dryExecs);
+        vm.stopPrank();
+
+        uint256 expectedWflr = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER) - wflrBefore;
+        assertGt(expectedWflr, 0, "dry run should produce WFLR");
+
+        // Revert to pre-withdrawal state
+        vm.revertToState(snapshotId);
+
+        // Now execute with exact minOut
+        bytes memory withdrawData = abi.encodePacked(uint8(0), expectedWflr);
+        Execution[] memory executions = withdrawHook.build(address(0), TOP_HOLDER, withdrawData);
+
+        wflrBefore = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER);
+
+        vm.startPrank(TOP_HOLDER);
+        _executeAll(executions);
+        vm.stopPrank();
+
+        uint256 wflrReceived = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER) - wflrBefore;
+        assertEq(wflrReceived, expectedWflr, "should receive exact same WFLR as dry run");
+    }
+
+    /// @notice Verify backward compatibility — empty data still works on fork
+    function test_withdrawRFLR_emptyData_backwardCompat() public {
+        Execution[] memory executions = withdrawHook.build(address(0), TOP_HOLDER, "");
+
+        uint256 wflrBefore = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER);
+
+        vm.startPrank(TOP_HOLDER);
+        _executeAll(executions);
+        vm.stopPrank();
+
+        uint256 wflrReceived = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER) - wflrBefore;
+        assertGt(wflrReceived, 0, "should receive WFLR with empty data");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              WITHDRAW RFLR - LOCKED-BURN PENALTY AWARENESS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Withdraw from a holder with locked balance — verify penalty occurs and minOut can catch it
+    function test_withdrawRFLR_lockedBalance_penaltyOccurs() public {
+        // SECOND_HOLDER likely has locked balance after claiming
+        // First claim to ensure locked balance exists
+        uint256 currentMonth = IRNat(FLARE_RNAT).getCurrentMonth();
+        uint256[] memory projectIds = _allProjectIds();
+
+        bytes memory claimData = _encodeClaimData(currentMonth, projectIds);
+        Execution[] memory claimExecs = claimHook.build(address(0), SECOND_HOLDER, claimData);
+
+        vm.startPrank(SECOND_HOLDER);
+        _executeAll(claimExecs);
+        vm.stopPrank();
+
+        // Check locked balance
+        (uint256 wNatBal, uint256 rNatBal, uint256 lockedBal) = IRNat(FLARE_RNAT).getBalancesOf(SECOND_HOLDER);
+        uint256 totalBalance = wNatBal + rNatBal;
+        console2.log("Total balance before withdraw:", totalBalance);
+        console2.log("Locked balance:", lockedBal);
+
+        // Withdraw with a very high minOut — if there's locked balance, penalty should cause revert
+        if (lockedBal > 0) {
+            // minOut = totalBalance (but penalty means we get less)
+            bytes memory withdrawData = abi.encodePacked(uint8(0), totalBalance);
+            Execution[] memory executions = withdrawHook.build(address(0), SECOND_HOLDER, withdrawData);
+
+            vm.startPrank(SECOND_HOLDER);
+            // Execute pre + withdrawAll
+            (bool ok1,) = executions[0].target.call{ value: executions[0].value }(executions[0].callData);
+            assertTrue(ok1, "preExecute should succeed");
+            (bool ok2,) = executions[1].target.call{ value: executions[1].value }(executions[1].callData);
+            assertTrue(ok2, "withdrawAll should succeed");
+            // postExecute should revert — actual WFLR < totalBalance due to penalty
+            (bool ok3,) = executions[2].target.call{ value: executions[2].value }(executions[2].callData);
+            assertFalse(ok3, "postExecute should revert - penalty caused WFLR < minOut");
+            vm.stopPrank();
+        } else {
+            console2.log("No locked balance - skipping penalty test (holder fully vested)");
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
                     E2E - FULL LIFECYCLE
     //////////////////////////////////////////////////////////////*/
 
@@ -336,6 +489,46 @@ contract FlareRFLRHooksE2E is Test, Constants {
         uint256 rnatAfterWithdraw = IERC20(FLARE_RNAT).balanceOf(SECOND_HOLDER);
         assertEq(rnatAfterWithdraw, 0, "rFLR balance should be 0 after withdrawAll");
         console2.log("Final rFLR balance:", rnatAfterWithdraw);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+           E2E - FULL LIFECYCLE WITH MINOUT SLIPPAGE PROTECTION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Full lifecycle with minOut: claim → withdraw with slippage floor
+    function test_e2e_claimThenWithdraw_withMinOut() public {
+        uint256 currentMonth = IRNat(FLARE_RNAT).getCurrentMonth();
+        uint256[] memory projectIds = _allProjectIds();
+
+        // --- Phase 1: Claim rFLR ---
+        bytes memory claimData = _encodeClaimData(currentMonth, projectIds);
+        Execution[] memory claimExecs = claimHook.build(address(0), SECOND_HOLDER, claimData);
+
+        vm.startPrank(SECOND_HOLDER);
+        _executeAll(claimExecs);
+        vm.stopPrank();
+
+        uint256 claimedAmount = claimHook.getOutAmount(SECOND_HOLDER);
+        assertGt(claimedAmount, 0, "Should have claimed rFLR");
+        console2.log("Claimed rFLR:", claimedAmount);
+
+        // --- Phase 2: Withdraw with minOut = 1 (conservative floor) ---
+        uint256 wflrBefore = IERC20(FLARE_WFLR).balanceOf(SECOND_HOLDER);
+        bytes memory withdrawData = abi.encodePacked(uint8(0), uint256(1));
+        Execution[] memory withdrawExecs = withdrawHook.build(address(0), SECOND_HOLDER, withdrawData);
+
+        vm.startPrank(SECOND_HOLDER);
+        _executeAll(withdrawExecs);
+        vm.stopPrank();
+
+        uint256 wflrReceived = IERC20(FLARE_WFLR).balanceOf(SECOND_HOLDER) - wflrBefore;
+        assertGt(wflrReceived, 0, "Should have received WFLR");
+
+        // WFLR may be less than claimed due to 50% penalty on locked portion
+        console2.log("WFLR received (after any penalty):", wflrReceived);
+        if (wflrReceived < claimedAmount) {
+            console2.log("Penalty applied - WFLR < claimed rFLR");
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
