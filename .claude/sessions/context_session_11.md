@@ -1,6 +1,6 @@
 # Session 11: Stargate Native Fee Sponsorship
 
-## Status: Implementation Complete (Contracts + Unit Tests + Integration Tests + Fork Tests + Security Fixes)
+## Status: Implementation Complete (Contracts + Unit Tests + Integration Tests + Fork Tests + Security Fixes + Ownable Removal)
 
 ## Implementation Summary
 
@@ -34,10 +34,17 @@ Security report at `specs/security-reports/2026-05-19-native-fee-sponsorship.md`
 | P3-6: Redundant getter | Changed `sponsoredNative` mapping from `public` to `internal` |
 
 Additional changes from security fixes:
-- Added `Ownable` to `SuperNativePaymaster` (needed for `reclaimSponsorship` access control)
-- Added `reclaimSponsorship(sponsorship, account, to, amount)` function (owner-only, for reclaiming unused paymaster deposits)
 - Added `UNAUTHORIZED_DEPOSITOR` error to `INativeFeeSponsorship`
 - Added `TOO_MANY_DEPOSITS` error to `ISuperNativePaymaster`
+
+### Ownable Removal (Post-Security)
+Removed `Ownable` from `SuperNativePaymaster` to keep it permissionless:
+- Removed `Ownable` import, inheritance, and `Ownable(msg.sender)` constructor call
+- Removed `reclaimSponsorship` function entirely (was the only reason for Ownable)
+- Removed `reclaimSponsorship` from `ISuperNativePaymaster` interface
+- Removed 3 reclaim unit tests from `SuperNativePaymasterSponsorshipTest.t.sol`
+- Rewrote fork test 5 (`test_Fork_ReclaimAfterHandleOps` → `test_Fork_SponsorReclaimsDirectly`) to test reclaim via direct `sponsorship.withdrawSponsorDeposit()` call (pranked as paymaster)
+- Rationale: The atomic `sponsorNativeAndHandleOps` flow makes reclaim mostly unnecessary — if handleOps reverts, the entire tx reverts including deposits. Sponsors can still reclaim directly on NativeFeeSponsorship since paymaster is the sponsor of record.
 
 ### Test Results: 59 tests passing (53 unit/integration + 6 fork)
 

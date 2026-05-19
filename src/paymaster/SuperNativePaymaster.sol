@@ -5,7 +5,7 @@ pragma solidity 0.8.30;
 import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import { IEntryPointSimulations } from "modulekit/external/ERC4337.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+
 import { UserOperationLib } from "../vendor/account-abstraction/UserOperationLib.sol";
 import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 
@@ -18,7 +18,7 @@ import { INativeFeeSponsorship } from "../interfaces/INativeFeeSponsorship.sol";
 /// @author Superform Labs
 /// @notice A paymaster contract that allows users to pay for their operations with native tokens.
 /// @dev Inspired by https://github.com/0xPolycode/klaster-smart-contracts/blob/master/contracts/KlasterPaymasterV7.so
-contract SuperNativePaymaster is BasePaymaster, Ownable, ISuperNativePaymaster {
+contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
     using UserOperationLib for PackedUserOperation;
 
     uint256 internal constant MAX_NODE_OPERATOR_PREMIUM = 10_000;
@@ -27,7 +27,7 @@ contract SuperNativePaymaster is BasePaymaster, Ownable, ISuperNativePaymaster {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) Ownable(msg.sender) { }
+    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -119,20 +119,6 @@ contract SuperNativePaymaster is BasePaymaster, Ownable, ISuperNativePaymaster {
         }
 
         emit SponsorNativeAndHandleOps(msg.sender, totalNative, ops.length);
-    }
-
-    /// @inheritdoc ISuperNativePaymaster
-    function reclaimSponsorship(
-        address sponsorship,
-        address account,
-        address payable to,
-        uint256 amount
-    )
-        external
-        onlyOwner
-    {
-        if (sponsorship == address(0)) revert INVALID_SPONSORSHIP();
-        INativeFeeSponsorship(sponsorship).withdrawSponsorDeposit(account, to, amount);
     }
 
     /// @notice Simulate the handling of a user operation.

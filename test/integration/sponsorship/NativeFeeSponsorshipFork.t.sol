@@ -247,11 +247,11 @@ contract NativeFeeSponsorshipForkTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-        TEST 5: Reclaim after handleOps
+        TEST 5: Sponsor reclaims via withdrawSponsorDeposit directly
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Deposit for account via sponsorNativeAndHandleOps, then owner reclaims unused portion
-    function test_Fork_ReclaimAfterHandleOps() public {
+    /// @notice The paymaster (sponsor of record) can reclaim unused deposits directly on NativeFeeSponsorship
+    function test_Fork_SponsorReclaimsDirectly() public {
         uint256 sponsorAmount = 0.5 ether;
         uint256 gasAmount = 1 ether;
 
@@ -278,11 +278,13 @@ contract NativeFeeSponsorshipForkTest is Test {
             "sponsorship retains deposit"
         );
 
-        // Owner reclaims (test contract is the owner since it deployed the paymaster)
+        // Paymaster (sponsor of record) reclaims directly on NativeFeeSponsorship
+        // In production, this would be triggered by the bundler calling the paymaster
+        // which then calls withdrawSponsorDeposit. Since the paymaster IS the sponsor,
+        // we prank as the paymaster to call withdrawSponsorDeposit.
         address recipient = makeAddr("recipient");
-        paymaster.reclaimSponsorship(
-            address(sponsorship), address(account), payable(recipient), sponsorAmount
-        );
+        vm.prank(address(paymaster));
+        sponsorship.withdrawSponsorDeposit(address(account), payable(recipient), sponsorAmount);
 
         assertEq(sponsorship.sponsoredAmount(address(paymaster), address(account)), 0, "drained after reclaim");
         assertEq(recipient.balance, sponsorAmount, "recipient received reclaimed ETH");

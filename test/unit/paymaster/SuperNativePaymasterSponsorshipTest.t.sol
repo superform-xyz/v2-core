@@ -148,43 +148,6 @@ contract SuperNativePaymasterSponsorshipTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-                       reclaimSponsorship
-    //////////////////////////////////////////////////////////////*/
-
-    function test_ReclaimSponsorship() public {
-        // 1. Deposit via paymaster
-        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        ops[0] = _createUserOp(smartAccount);
-
-        ISuperNativePaymaster.NativeFeeDeposit[] memory deposits =
-            new ISuperNativePaymaster.NativeFeeDeposit[](1);
-        deposits[0] = ISuperNativePaymaster.NativeFeeDeposit({ account: smartAccount, amount: 0.5 ether });
-
-        vm.prank(bundler);
-        paymaster.sponsorNativeAndHandleOps{ value: 1.5 ether }(ops, deposits, address(sponsorship));
-
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), smartAccount), 0.5 ether);
-
-        // 2. Owner reclaims
-        address payable recipient = payable(makeAddr("recipient"));
-        paymaster.reclaimSponsorship(address(sponsorship), smartAccount, recipient, 0.5 ether);
-
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), smartAccount), 0);
-        assertEq(recipient.balance, 0.5 ether);
-    }
-
-    function test_ReclaimSponsorship_RevertIf_NotOwner() public {
-        vm.expectRevert();
-        vm.prank(bundler);
-        paymaster.reclaimSponsorship(address(sponsorship), smartAccount, payable(bundler), 0.5 ether);
-    }
-
-    function test_ReclaimSponsorship_RevertIf_SponsorshipZero() public {
-        vm.expectRevert(ISuperNativePaymaster.INVALID_SPONSORSHIP.selector);
-        paymaster.reclaimSponsorship(address(0), smartAccount, payable(bundler), 0.5 ether);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                        Backward Compatibility
     //////////////////////////////////////////////////////////////*/
 

@@ -109,21 +109,6 @@ interface ISuperNativePaymaster {
         external
         payable;
 
-    /// @notice Reclaim unused sponsored native ETH from a NativeFeeSponsorship contract
-    /// @dev Only callable by the contract owner. The paymaster is the sponsor of record in
-    ///      NativeFeeSponsorship, so only it can reclaim via withdrawSponsorDeposit.
-    /// @param sponsorship The NativeFeeSponsorship contract to reclaim from
-    /// @param account The account whose sponsorship allocation to reclaim
-    /// @param to The address to send reclaimed ETH to
-    /// @param amount The amount to reclaim
-    function reclaimSponsorship(
-        address sponsorship,
-        address account,
-        address payable to,
-        uint256 amount
-    )
-        external;
-
     /// @notice Calculate the refund amount based on gas parameters
     /// @dev Takes into account node operator premium when calculating refunds
     ///      Returns zero if the actual cost (with premium) exceeds the maximum cost
