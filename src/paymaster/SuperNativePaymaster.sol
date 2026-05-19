@@ -5,18 +5,20 @@ pragma solidity 0.8.30;
 import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import { IEntryPointSimulations } from "modulekit/external/ERC4337.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { UserOperationLib } from "../vendor/account-abstraction/UserOperationLib.sol";
 import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 
 // superform
 import { BasePaymaster } from "../vendor/account-abstraction/BasePaymaster.sol";
 import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
+import { INativeFeeSponsorship } from "../interfaces/INativeFeeSponsorship.sol";
 
 /// @title SuperNativePaymaster
 /// @author Superform Labs
 /// @notice A paymaster contract that allows users to pay for their operations with native tokens.
 /// @dev Inspired by https://github.com/0xPolycode/klaster-smart-contracts/blob/master/contracts/KlasterPaymasterV7.so
-contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
+contract SuperNativePaymaster is BasePaymaster, Ownable, ISuperNativePaymaster {
     using UserOperationLib for PackedUserOperation;
 
     uint256 internal constant MAX_NODE_OPERATOR_PREMIUM = 10_000;
@@ -25,7 +27,7 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) { }
+    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) Ownable(msg.sender) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -69,6 +71,68 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         entryPoint.withdrawTo(payable(msg.sender), withdrawnAmount);
 
         emit UserOperationsHandled(msg.sender, ops.length, balance, withdrawnAmount);
+    }
+
+    uint256 internal constant MAX_DEPOSITS = 50;
+
+    /// @inheritdoc ISuperNativePaymaster
+    function sponsorNativeAndHandleOps(
+        PackedUserOperation[] calldata ops,
+        NativeFeeDeposit[] calldata deposits,
+        address sponsorship
+    )
+        external
+        payable
+    {
+        if (sponsorship == address(0)) revert INVALID_SPONSORSHIP();
+        if (deposits.length > MAX_DEPOSITS) revert TOO_MANY_DEPOSITS();
+
+        // Pre-validate total native amount before sending any ETH
+        uint256 totalNative;
+        uint256 depositsLength = deposits.length;
+        for (uint256 i; i < depositsLength; ++i) {
+            totalNative += deposits[i].amount;
+        }
+        if (totalNative > msg.value) revert NATIVE_AMOUNT_EXCEEDS_VALUE();
+
+        // Deposit into sponsorship (paymaster is the sponsor of record)
+        for (uint256 i; i < depositsLength; ++i) {
+            INativeFeeSponsorship(sponsorship).depositForAccount{ value: deposits[i].amount }(
+                address(this), deposits[i].account
+            );
+        }
+
+        // Deposit remaining ETH for gas
+        uint256 gasAmount = msg.value - totalNative;
+        if (gasAmount > 0) {
+            (bool success,) = payable(address(entryPoint)).call{ value: gasAmount }("");
+            if (!success) revert INSUFFICIENT_BALANCE();
+        }
+
+        // handleOps reverts on failure → entire tx reverts including deposits
+        entryPoint.handleOps(ops, payable(msg.sender));
+
+        // Withdraw remaining deposit back to bundler
+        uint256 withdrawnAmount = entryPoint.getDepositInfo(address(this)).deposit;
+        if (withdrawnAmount > 0) {
+            entryPoint.withdrawTo(payable(msg.sender), withdrawnAmount);
+        }
+
+        emit SponsorNativeAndHandleOps(msg.sender, totalNative, ops.length);
+    }
+
+    /// @inheritdoc ISuperNativePaymaster
+    function reclaimSponsorship(
+        address sponsorship,
+        address account,
+        address payable to,
+        uint256 amount
+    )
+        external
+        onlyOwner
+    {
+        if (sponsorship == address(0)) revert INVALID_SPONSORSHIP();
+        INativeFeeSponsorship(sponsorship).withdrawSponsorDeposit(account, to, amount);
     }
 
     /// @notice Simulate the handling of a user operation.

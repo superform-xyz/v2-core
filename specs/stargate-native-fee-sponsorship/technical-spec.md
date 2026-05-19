@@ -86,12 +86,12 @@ Three on-chain components:
 - [ ] `inspect()` returns `abi.encodePacked(SPONSORSHIP)`
 
 ### Paymaster
-- [ ] `sponsorNativeAndHandleOps(PackedUserOperation[] ops, uint256[] nativeAmounts, address sponsorship)` added
-- [ ] Validates `nativeAmounts.length == ops.length`
+- [ ] `NativeFeeDeposit` struct: `{ address account; uint256 amount; }` defined in interface
+- [ ] `sponsorNativeAndHandleOps(PackedUserOperation[] ops, NativeFeeDeposit[] deposits, address sponsorship)` added
 - [ ] Validates `sponsorship != address(0)`
-- [ ] For each op: if `nativeAmounts[i] > 0`, deposits into NativeFeeSponsorship for `ops[i].sender`
-- [ ] `nativeAmounts[i] == 0` is valid (skip deposit for non-Stargate ops in batch)
-- [ ] `sum(nativeAmounts) <= msg.value`
+- [ ] For each deposit: deposits `amount` into NativeFeeSponsorship for `deposit.account`
+- [ ] Deposits array is independent of ops array — one entry per unique sender that needs sponsorship
+- [ ] `sum(deposits[].amount) <= msg.value`
 - [ ] Remaining `msg.value` deposited to EntryPoint for gas
 - [ ] Calls `entryPoint.handleOps`, withdraws remaining deposit back to `msg.sender`
 - [ ] Emits `SponsorNativeAndHandleOps` event
@@ -250,6 +250,12 @@ contract FetchNativeFeeHook is BaseHook {
 
 Add to ISuperNativePaymaster interface:
 ```solidity
+/// @notice Deposit info for native fee sponsorship per account
+struct NativeFeeDeposit {
+    address account;
+    uint256 amount;
+}
+
 error NATIVE_AMOUNT_EXCEEDS_VALUE();
 error INVALID_SPONSORSHIP();
 
@@ -259,29 +265,28 @@ event SponsorNativeAndHandleOps(
 
 function sponsorNativeAndHandleOps(
     PackedUserOperation[] calldata ops,
-    uint256[] calldata nativeAmounts,
+    NativeFeeDeposit[] calldata deposits,
     address sponsorship
 ) external payable;
 ```
+
+**Key design**: The `deposits` array is independent of the `ops` array. One entry per unique account that needs native fee sponsorship. For a batch of 5 ops from the same sender, only 1 deposit entry is needed instead of 5 (with 4 zeros). For mixed batches (some ops need Stargate, some don't), only accounts that need sponsorship appear in deposits.
 
 Add to SuperNativePaymaster:
 ```solidity
 function sponsorNativeAndHandleOps(
     PackedUserOperation[] calldata ops,
-    uint256[] calldata nativeAmounts,
+    NativeFeeDeposit[] calldata deposits,
     address sponsorship
 ) external payable {
-    if (ops.length != nativeAmounts.length) revert INVALID_OPS_LENGTH();
     if (sponsorship == address(0)) revert INVALID_SPONSORSHIP();
 
     uint256 totalNative;
-    for (uint256 i; i < ops.length; ++i) {
-        if (nativeAmounts[i] > 0) {
-            INativeFeeSponsorship(sponsorship).depositForAccount{ value: nativeAmounts[i] }(
-                msg.sender, ops[i].sender
-            );
-            totalNative += nativeAmounts[i];
-        }
+    for (uint256 i; i < deposits.length; ++i) {
+        INativeFeeSponsorship(sponsorship).depositForAccount{ value: deposits[i].amount }(
+            msg.sender, deposits[i].account
+        );
+        totalNative += deposits[i].amount;
     }
     if (totalNative > msg.value) revert NATIVE_AMOUNT_EXCEEDS_VALUE();
 

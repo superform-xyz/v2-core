@@ -64,14 +64,22 @@ Notion document: "Stargate Native Fee Sponsorship in Bundler" — describes 3 on
 **Note:** The sponsorship deposit happens BEFORE `entryPoint.handleOps`. If `handleOps` reverts entirely (e.g., validation failure), the whole tx reverts including the deposit. But if the inner call execution fails (ERC-4337 still processes postOp), the deposit persists.
 
 ### 10. Batch Support
-**Decision:** Design for batch from the start. Function signature:
+**Decision:** Design for batch from the start. Use a struct-based deposits array independent of ops:
 ```solidity
+struct NativeFeeDeposit {
+    address account;
+    uint256 amount;
+}
+
 function sponsorNativeAndHandleOps(
     PackedUserOperation[] calldata ops,
-    uint256[] calldata nativeAmounts
+    NativeFeeDeposit[] calldata deposits,
+    address sponsorship
 ) external payable;
 ```
-Each op gets its own `nativeAmount`. Array of amounts must match array of ops.
+One deposit entry per unique account needing sponsorship. Reduces calldata for same-sender batches (most common case).
+
+**Rationale:** Most handleOps calls have one sender, so a parallel `uint256[]` array would be mostly zeros. The struct approach is more explicit and gas-efficient.
 
 ### 11. Native Fee Scope
 **Decision:** FetchNativeFeeHook sponsors ONLY the `lzNativeFee` (LayerZero messaging fee), NOT the `amountLD` (bridged amount). Smart account must hold native ETH for `amountLD` separately (e.g., via WETH unwrap hook before the Stargate hook).

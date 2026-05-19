@@ -10,6 +10,18 @@ import { PackedUserOperation } from "@ERC4337/account-abstraction/contracts/inte
 
 interface ISuperNativePaymaster {
     /*//////////////////////////////////////////////////////////////
+                                 TYPES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Deposit info for native fee sponsorship per account
+    /// @param account The smart account to deposit for
+    /// @param amount The amount of native ETH to deposit
+    struct NativeFeeDeposit {
+        address account;
+        uint256 amount;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     /// @notice Thrown when a critical address parameter is set to the zero address
@@ -31,6 +43,15 @@ interface ISuperNativePaymaster {
     /// @notice Thrown when a node operator premium exceeds the maximum allowed
     /// @dev Node operator premium is capped at 10,000 basis points (100%)
     error INVALID_NODE_OPERATOR_PREMIUM();
+
+    /// @notice Thrown when the total native amount exceeds msg.value
+    error NATIVE_AMOUNT_EXCEEDS_VALUE();
+
+    /// @notice Thrown when the sponsorship contract address is zero
+    error INVALID_SPONSORSHIP();
+
+    /// @notice Thrown when the deposits array exceeds the maximum allowed length
+    error TOO_MANY_DEPOSITS();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -54,6 +75,12 @@ interface ISuperNativePaymaster {
     /// @param withdrawnAmount The amount of native tokens withdrawn
     event UserOperationsHandled(address indexed sender, uint256 numOps, uint256 initialAmount, uint256 withdrawnAmount);
 
+    /// @notice Emitted when native fee sponsorship and UserOp handling completes
+    /// @param sponsor The bundler/sponsor address
+    /// @param totalNativeAmount The total native ETH deposited for messaging fees
+    /// @param opsCount The number of operations handled
+    event SponsorNativeAndHandleOps(address indexed sponsor, uint256 totalNativeAmount, uint256 opsCount);
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -63,6 +90,39 @@ interface ISuperNativePaymaster {
     ///      Called by a bundler or gateway contract to process operations
     /// @param ops Array of packed user operations to execute
     function handleOps(PackedUserOperation[] calldata ops) external payable;
+
+    /// @notice Deposit native ETH for messaging fees and execute UserOps atomically
+    /// @dev Splits msg.value into native deposits (for sponsorship) and remainder (for gas).
+    ///      The deposits array is independent of ops — one entry per unique account needing sponsorship.
+    ///      The paymaster deposits as itself (paymaster = sponsor in NativeFeeSponsorship).
+    ///      WARNING: If deposits and UserOp execution happen in separate transactions (non-atomic path),
+    ///      a race condition exists where the sponsor can reclaim before the account withdraws.
+    ///      Always prefer this atomic function over direct depositForAccount calls.
+    /// @param ops Array of packed user operations to execute
+    /// @param deposits Array of native fee deposits, one per unique account needing sponsorship (max 50)
+    /// @param sponsorship The NativeFeeSponsorship contract address to deposit into
+    function sponsorNativeAndHandleOps(
+        PackedUserOperation[] calldata ops,
+        NativeFeeDeposit[] calldata deposits,
+        address sponsorship
+    )
+        external
+        payable;
+
+    /// @notice Reclaim unused sponsored native ETH from a NativeFeeSponsorship contract
+    /// @dev Only callable by the contract owner. The paymaster is the sponsor of record in
+    ///      NativeFeeSponsorship, so only it can reclaim via withdrawSponsorDeposit.
+    /// @param sponsorship The NativeFeeSponsorship contract to reclaim from
+    /// @param account The account whose sponsorship allocation to reclaim
+    /// @param to The address to send reclaimed ETH to
+    /// @param amount The amount to reclaim
+    function reclaimSponsorship(
+        address sponsorship,
+        address account,
+        address payable to,
+        uint256 amount
+    )
+        external;
 
     /// @notice Calculate the refund amount based on gas parameters
     /// @dev Takes into account node operator premium when calculating refunds

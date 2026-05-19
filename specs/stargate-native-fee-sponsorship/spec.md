@@ -18,8 +18,8 @@ Three on-chain components: a standalone ETH sponsorship ledger (`NativeFeeSponso
 ### Functional
 1. NativeFeeSponsorship: ETH ledger with `mapping(sponsor => mapping(account => uint256))` — deposit, account withdrawal, sponsor reclaim
 2. FetchNativeFeeHook: NONACCOUNTING hook with immutable SPONSORSHIP address, withdraws sponsored ETH to smart account
-3. SuperNativePaymaster: New `sponsorNativeAndHandleOps(ops, nativeAmounts, sponsorship)` — deposits sponsorship + handles ops atomically
-4. Batch support: array of nativeAmounts matching array of ops, `nativeAmounts[i] == 0` valid for non-Stargate ops
+3. SuperNativePaymaster: New `sponsorNativeAndHandleOps(ops, deposits, sponsorship)` — deposits sponsorship + handles ops atomically
+4. Batch support: `NativeFeeDeposit[]` struct array (account + amount) independent of ops — one entry per unique sender needing sponsorship
 5. Only sponsors `lzNativeFee` (LayerZero messaging fee), NOT `amountLD` (bridged amount)
 
 ### Non-Functional
@@ -57,12 +57,18 @@ mapping(address sponsor => mapping(address account => uint256 amount)) public sp
 
 New paymaster function (no constructor change — Option A):
 ```solidity
+struct NativeFeeDeposit {
+    address account;
+    uint256 amount;
+}
+
 function sponsorNativeAndHandleOps(
     PackedUserOperation[] calldata ops,
-    uint256[] calldata nativeAmounts,
+    NativeFeeDeposit[] calldata deposits,
     address sponsorship
 ) external payable;
 ```
+`deposits` array is independent of `ops` — one entry per unique sender needing sponsorship, reducing calldata for same-sender batches.
 
 ## Implementation Plan
 
@@ -115,12 +121,12 @@ function sponsorNativeAndHandleOps(
 | Emergency pause? | No — minimal, pure ledger | Cosmin |
 | Orphan handling? | Manual sponsor reclaim | Cosmin |
 | Atomicity model? | Accept orphan risk on inner call revert | Cosmin |
-| Batch support? | Yes — array of nativeAmounts matching ops | Cosmin |
+| Batch support? | Yes — NativeFeeDeposit[] struct (account+amount), independent of ops | Cosmin |
 | Native scope? | Only lzNativeFee, not amountLD | Cosmin |
 | Reentrancy model? | ReentrancyGuard + CEI sufficient | Cosmin |
 | Testing? | Unit + fork integration | Cosmin |
 | HookSubType? | TOKEN | Cosmin |
-| nativeAmounts[i] == 0? | Valid — skip deposit for mixed batches | Cosmin |
+| Deposits array shape? | Struct (account+amount), independent of ops array | Cosmin |
 
 ## Interview Notes
 See: [interview-notes.md](./interview-notes.md)
