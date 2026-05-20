@@ -44,6 +44,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address claimAssetsDETHHook;
     }
 
+    struct SponsorshipAddresses {
+        address nativeFeeSponsorship;
+        address fetchNativeFeeHook;
+    }
+
     struct HookDeployment {
         string name;
         string saltOverride; // Optional custom salt (empty = use name for salt)
@@ -94,6 +99,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    function runSponsorship(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying Sponsorship contracts on chainId: ", chainId);
+
+        _deploySponsorshipContracts(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
     /// @notice Deploy all applicable hooks for the given chain
     function _deployAllHooks(uint64 chainId, uint256 env) internal {
         // Morpho hooks — only on chains where Morpho is deployed
@@ -125,6 +138,10 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             console2.log("Deploying DETH Hooks on chainId: ", chainId);
             _deployDETHHooks(chainId, env);
         }
+
+        // Native Fee Sponsorship — all chains (paymaster is deployed everywhere)
+        console2.log("Deploying Sponsorship contracts on chainId: ", chainId);
+        _deploySponsorshipContracts(chainId, env);
     }
 
     /// @notice Get bytecode directory based on environment
@@ -447,5 +464,46 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         console2.log("All DETH hooks deployed and validated successfully.");
 
         return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    SPONSORSHIP CONTRACTS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Deploy NativeFeeSponsorship (no constructor args) and FetchNativeFeeHook (takes sponsorship address)
+    function _deploySponsorshipContracts(
+        uint64 chainId,
+        uint256 env
+    )
+        internal
+        returns (SponsorshipAddresses memory)
+    {
+        // First deploy NativeFeeSponsorship (no constructor args)
+        address sponsorship = __deployContract(
+            NATIVE_FEE_SPONSORSHIP_KEY,
+            chainId,
+            __getSalt(NATIVE_FEE_SPONSORSHIP_KEY),
+            __getOtherHooksBytecode("NativeFeeSponsorship", env)
+        );
+
+        // Then deploy FetchNativeFeeHook with sponsorship address as constructor arg
+        bytes memory sponsorshipArg = abi.encode(sponsorship);
+        address fetchHook = __deployContract(
+            FETCH_NATIVE_FEE_HOOK_KEY,
+            chainId,
+            __getSalt(FETCH_NATIVE_FEE_HOOK_KEY),
+            abi.encodePacked(__getOtherHooksBytecode("FetchNativeFeeHook", env), sponsorshipArg)
+        );
+
+        SponsorshipAddresses memory addresses;
+        addresses.nativeFeeSponsorship = sponsorship;
+        addresses.fetchNativeFeeHook = fetchHook;
+
+        require(addresses.nativeFeeSponsorship != address(0), "NativeFeeSponsorship not assigned");
+        require(addresses.fetchNativeFeeHook != address(0), "FetchNativeFeeHook not assigned");
+
+        console2.log("All Sponsorship contracts deployed and validated successfully.");
+
+        return addresses;
     }
 }

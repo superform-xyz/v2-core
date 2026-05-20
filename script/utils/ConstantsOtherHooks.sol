@@ -13,4 +13,8 @@ abstract contract ConstantsOtherHooks {
     string internal constant REQUEST_REDEEM_DETH_HOOK_KEY = "RequestRedeemDETHHook";
     string internal constant APPROVE_AND_REQUEST_REDEEM_DETH_HOOK_KEY = "ApproveAndRequestRedeemDETHHook";
     string internal constant CLAIM_ASSETS_DETH_HOOK_KEY = "ClaimAssetsDETHHook";
+
+    // Native Fee Sponsorship keys
+    string internal constant NATIVE_FEE_SPONSORSHIP_KEY = "NativeFeeSponsorship";
+    string internal constant FETCH_NATIVE_FEE_HOOK_KEY = "FetchNativeFeeHook";
 }
