@@ -153,8 +153,7 @@ contract CCTPHooks is Helpers {
             mockDestinationCaller, // bytes32 (32 bytes)
             mockMaxFee, // uint256 (32 bytes)
             mockMinFinalityThreshold, // uint32 (4 bytes)
-            false, // usePrevHookAmount (1 byte)
-            uint256(0) // hookCallDataLength (32 bytes)
+            false // usePrevHookAmount (1 byte)
         );
 
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
@@ -170,8 +169,7 @@ contract CCTPHooks is Helpers {
             mockDestinationCaller,
             mockMaxFee,
             mockMinFinalityThreshold,
-            false,
-            uint256(0)
+            false
         );
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -187,8 +185,7 @@ contract CCTPHooks is Helpers {
             mockDestinationCaller,
             mockMaxFee,
             mockMinFinalityThreshold,
-            false,
-            uint256(0)
+            false
         );
 
         vm.expectRevert(ApproveAndCCTPSendHook.RECIPIENT_NOT_VALID.selector);
@@ -322,25 +319,7 @@ contract CCTPHooks is Helpers {
             mockMaxFee,
             mockMinFinalityThreshold,
             false,
-            uint256(shortHookCallData.length),
             shortHookCallData
-        );
-
-        vm.expectRevert(ApproveAndCCTPSendHook.DATA_NOT_VALID.selector);
-        cctpHook.build(address(0), mockAccount, data);
-    }
-
-    function test_CCTP_Build_RevertIf_HookCallDataLengthExceedsData() public {
-        bytes memory data = abi.encodePacked(
-            mockBurnToken,
-            mockAmount,
-            mockDestinationDomain,
-            mockMintRecipient,
-            mockDestinationCaller,
-            mockMaxFee,
-            mockMinFinalityThreshold,
-            false,
-            uint256(9999) // hookCallDataLength that exceeds actual data
         );
 
         vm.expectRevert(ApproveAndCCTPSendHook.DATA_NOT_VALID.selector);
@@ -440,8 +419,7 @@ contract CCTPHooks is Helpers {
             mockDestinationCaller,
             mockMaxFee,
             mockMinFinalityThreshold,
-            false,
-            uint256(0)
+            false
         );
 
         Execution[] memory executions = cctpHook.build(address(0), mockAccount, data);
@@ -460,8 +438,7 @@ contract CCTPHooks is Helpers {
             mockDestinationCaller,
             mockMaxFee,
             mockMinFinalityThreshold,
-            false,
-            uint256(0)
+            false
         );
 
         Execution[] memory executions = cctpHook.build(address(0), mockAccount, data);
@@ -499,8 +476,7 @@ contract CCTPHooks is Helpers {
             mockMaxFee, // uint256 (32 bytes)
             mockMinFinalityThreshold, // uint32 (4 bytes)
             usePrevHookAmount, // bool (1 byte)
-            uint256(hookCallData.length), // uint256 (32 bytes)
-            hookCallData // bytes (variable)
+            hookCallData // bytes (variable, last field)
         );
     }
 }
@@ -624,8 +600,7 @@ contract CCTPSendHookTests is Helpers {
             mockDestinationCaller,
             mockMaxFee,
             mockMinFinalityThreshold,
-            false,
-            uint256(0)
+            false
         );
 
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
@@ -641,8 +616,7 @@ contract CCTPSendHookTests is Helpers {
             mockDestinationCaller,
             mockMaxFee,
             mockMinFinalityThreshold,
-            false,
-            uint256(0)
+            false
         );
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -658,8 +632,7 @@ contract CCTPSendHookTests is Helpers {
             mockDestinationCaller,
             mockMaxFee,
             mockMinFinalityThreshold,
-            false,
-            uint256(0)
+            false
         );
 
         vm.expectRevert(CCTPSendHook.RECIPIENT_NOT_VALID.selector);
@@ -779,25 +752,7 @@ contract CCTPSendHookTests is Helpers {
             mockMaxFee,
             mockMinFinalityThreshold,
             false,
-            uint256(shortHookCallData.length),
             shortHookCallData
-        );
-
-        vm.expectRevert(CCTPSendHook.DATA_NOT_VALID.selector);
-        cctpSendHook.build(address(0), mockAccount, data);
-    }
-
-    function test_CCTPSend_Build_RevertIf_HookCallDataLengthExceedsData() public {
-        bytes memory data = abi.encodePacked(
-            mockBurnToken,
-            mockAmount,
-            mockDestinationDomain,
-            mockMintRecipient,
-            mockDestinationCaller,
-            mockMaxFee,
-            mockMinFinalityThreshold,
-            false,
-            uint256(9999)
         );
 
         vm.expectRevert(CCTPSendHook.DATA_NOT_VALID.selector);
@@ -853,8 +808,7 @@ contract CCTPSendHookTests is Helpers {
             mockDestinationCaller,
             mockMaxFee,
             mockMinFinalityThreshold,
-            false,
-            uint256(0)
+            false
         );
 
         Execution[] memory executions = cctpSendHook.build(address(0), mockAccount, data);
@@ -870,8 +824,7 @@ contract CCTPSendHookTests is Helpers {
             mockDestinationCaller,
             mockMaxFee,
             mockMinFinalityThreshold,
-            false,
-            uint256(0)
+            false
         );
 
         Execution[] memory executions = cctpSendHook.build(address(0), mockAccount, data);
@@ -909,7 +862,6 @@ contract CCTPSendHookTests is Helpers {
             mockMaxFee,
             mockMinFinalityThreshold,
             usePrevHookAmount,
-            uint256(hookCallData.length),
             hookCallData
         );
     }

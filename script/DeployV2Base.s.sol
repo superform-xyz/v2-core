@@ -481,7 +481,8 @@ abstract contract DeployV2Base is Script, ConfigBase {
                 for (uint256 i = 0; i < keys.length; i++) {
                     bytes memory addrBytes = vm.parseJson(existingJson, string(abi.encodePacked(".", keys[i])));
                     address existingAddr = abi.decode(addrBytes, (address));
-                    vm.serializeAddress(objectKey, keys[i], existingAddr);
+                    // Always capture the return value so exportedContracts stays up-to-date
+                    exportedContracts[chainId] = vm.serializeAddress(objectKey, keys[i], existingAddr);
                 }
                 // Re-apply new contracts so they take priority over existing entries
                 string[] memory newNames = allContractNames[chainId];

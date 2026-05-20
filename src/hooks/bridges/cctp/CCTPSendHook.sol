@@ -32,8 +32,7 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @notice         uint256 maxFee = BytesLib.toUint256(data, 120);
 /// @notice         uint32 minFinalityThreshold = BytesLib.toUint32(data, 152);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
-/// @notice         uint256 hookCallDataLength = BytesLib.toUint256(data, 157);
-/// @notice         bytes hookCallData = BytesLib.slice(data, 189, hookCallDataLength);
+/// @notice         bytes hookCallData = BytesLib.slice(data, 157, data.length - 157);
 contract CCTPSendHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -103,11 +102,9 @@ contract CCTPSendHook is BaseHook, ISuperHookContextAware {
         if (s.burnToken == address(0)) revert ADDRESS_NOT_VALID();
         if (s.mintRecipient == bytes32(0)) revert RECIPIENT_NOT_VALID();
 
-        // Decode variable-length hookCallData
-        uint256 hookCallDataLength = BytesLib.toUint256(data, 157);
-        if (hookCallDataLength > 0) {
-            if (data.length < 189 + hookCallDataLength) revert DATA_NOT_VALID();
-            s.hookCallData = BytesLib.slice(data, 189, hookCallDataLength);
+        // Decode variable-length hookCallData (last field — length derived from total data length)
+        if (data.length > 157) {
+            s.hookCallData = BytesLib.slice(data, 157, data.length - 157);
         }
 
         if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) {

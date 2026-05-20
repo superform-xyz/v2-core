@@ -223,6 +223,19 @@ is_algebra_integral_supported() {
     return 1
 }
 
+# DETH hooks are only deployed on Ethereum mainnet
+DETH_SUPPORTED_CHAINS=("1")
+
+is_deth_supported() {
+    local chain_id=$1
+    for supported in "${DETH_SUPPORTED_CHAINS[@]}"; do
+        if [ "$supported" = "$chain_id" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Other hooks use locked-bytecode-other/ for production
 OTHER_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode-other"
 if [ "$ENVIRONMENT" = "staging" ]; then
@@ -338,10 +351,36 @@ if [ $missing_algebra -gt 0 ]; then
 fi
 
 echo ""
+
+# Check bytecode availability for DETH hooks
+echo -e "${BLUE}🔍 Checking DETH hook bytecode availability...${NC}"
+
+DETH_HOOKS=(
+    "RequestRedeemDETHHook"
+    "ApproveAndRequestRedeemDETHHook"
+    "ClaimAssetsDETHHook"
+)
+
+missing_deth=0
+for hook in "${DETH_HOOKS[@]}"; do
+    if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
+        echo -e "${GREEN}   ✅ ${hook}${NC}"
+    else
+        echo -e "${YELLOW}   ⚠️  ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
+        missing_deth=$((missing_deth + 1))
+    fi
+done
+
+if [ $missing_deth -gt 0 ]; then
+    echo -e "${YELLOW}⚠️  ${missing_deth} DETH hook(s) missing bytecode. They will be skipped during deployment.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/regenerate_bytecode.sh to generate missing bytecode.${NC}"
+fi
+
+echo ""
 print_separator
 
 # Confirmation before deployment
-echo -e "${WHITE}🤔 Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
+echo -e "${WHITE}🤔 Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral + DETH) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
 read -r proceed
 
 if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
@@ -475,6 +514,37 @@ for network_def in "${NETWORKS[@]}"; do
         fi
     fi
 
+    # Deploy DETH hooks if supported on this chain
+    if is_deth_supported "$network_id"; then
+        has_hooks=true
+        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
+        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
+        echo -e "${YELLOW}   Deploying DETH hooks...${NC}"
+
+        if forge script script/DeployV2OtherHooks.s.sol:DeployV2OtherHooks \
+            --sig 'runDETH(uint256,uint64)' $FORGE_ENV $network_id \
+            --account $ACCOUNT \
+            $KEYSTORE_PASSWORD_FLAG \
+            --rpc-url ${!rpc_var} \
+            --chain $network_id \
+            --etherscan-api-key $ETHERSCANV2_API_KEY \
+            --verifier etherscan \
+            $BROADCAST_FLAG \
+            $VERIFY_FLAG \
+            $SLOW_FLAG \
+            $BATCH_SIZE_FLAG \
+            $RESUME_FLAG \
+            $LEGACY_FLAG \
+            $GAS_PRICE_FLAG \
+            --timeout 300 \
+            -vv; then
+            echo -e "${GREEN}   ✅ DETH hooks deployment completed!${NC}"
+        else
+            echo -e "${RED}   ❌ DETH hooks deployment failed on $network_name, continuing...${NC}"
+        fi
+    fi
+
     if [ "$has_hooks" = false ]; then
         echo -e "${YELLOW}  ⏭️  No supported hooks for $network_name ($network_id), skipping${NC}"
         continue
@@ -486,5 +556,5 @@ done
 
 print_separator
 echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║${WHITE}       🎉 Other Hooks $ENVIRONMENT $MODE Completed ($deployed_networks networks) 🎉                ${GREEN}║${NC}"
+echo -e "${GREEN}║${WHITE}     🎉 Other Hooks $ENVIRONMENT $MODE Completed ($deployed_networks networks) 🎉                  ${GREEN}║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"

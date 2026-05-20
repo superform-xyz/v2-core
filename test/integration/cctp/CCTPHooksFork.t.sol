@@ -854,7 +854,6 @@ contract CCTPHooksFork is Helpers {
             maxFee,
             minFinalityThreshold,
             usePrevHookAmount,
-            uint256(hookCallData.length),
             hookCallData
         );
     }
@@ -1209,7 +1208,6 @@ contract CCTPHooksForkE2E is Helpers {
             maxFee,
             minFinalityThreshold,
             usePrevHookAmount,
-            uint256(hookCallData.length),
             hookCallData
         );
     }
