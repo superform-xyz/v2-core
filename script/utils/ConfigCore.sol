@@ -134,6 +134,24 @@ abstract contract ConfigCore is ConfigBase {
         configuration.odosRouters[HYPEREVM_CHAIN_ID] = address(0); // Not deployed
         configuration.odosRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
 
+        // ===== ODOS V3 ROUTER ADDRESSES =====
+        // Same CREATE2 address on all EVM chains where deployed
+        configuration.odosRouterV3s[MAINNET_CHAIN_ID] = ODOS_ROUTER_V3;
+        configuration.odosRouterV3s[BASE_CHAIN_ID] = ODOS_ROUTER_V3;
+        configuration.odosRouterV3s[BNB_CHAIN_ID] = ODOS_ROUTER_V3;
+        configuration.odosRouterV3s[ARBITRUM_CHAIN_ID] = ODOS_ROUTER_V3;
+        configuration.odosRouterV3s[OPTIMISM_CHAIN_ID] = ODOS_ROUTER_V3;
+        configuration.odosRouterV3s[POLYGON_CHAIN_ID] = ODOS_ROUTER_V3;
+        configuration.odosRouterV3s[UNICHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.odosRouterV3s[LINEA_CHAIN_ID] = ODOS_ROUTER_V3;
+        configuration.odosRouterV3s[AVALANCHE_CHAIN_ID] = ODOS_ROUTER_V3;
+        configuration.odosRouterV3s[BERACHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.odosRouterV3s[SONIC_CHAIN_ID] = ODOS_ROUTER_V3;
+        configuration.odosRouterV3s[GNOSIS_CHAIN_ID] = address(0); // Not deployed
+        configuration.odosRouterV3s[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.odosRouterV3s[HYPEREVM_CHAIN_ID] = address(0); // Not deployed
+        configuration.odosRouterV3s[FLARE_CHAIN_ID] = address(0); // Not deployed
+
         // ===== KYBERSWAP ROUTER AND SCALE HELPER ADDRESSES =====
         // Same address across all supported chains
         configuration.kyberSwapRouters[MAINNET_CHAIN_ID] = KYBER_ROUTER;

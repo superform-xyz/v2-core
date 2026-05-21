@@ -86,6 +86,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address approveAndSwapKyberSwapHook;
         address swapUniswapV2Hook;
         address approveAndSwapUniswapV2Hook;
+        address swapOdosV3Hook;
+        address approveAndSwapOdosV3Hook;
         address cancelDepositRequestWithId7540Hook;
         address cancelRedeemRequestWithId7540Hook;
         address claimCancelDepositRequestWithId7540Hook;
@@ -232,6 +234,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool deBridgeCancelOrderHook;
         bool swap1InchHook;
         bool swapOdosHooks;
+        bool swapOdosV3Hooks;
         bool swapUniswapV4Hook;
         bool swapUniswapV3Hooks;
         bool swapSparkPsmHooks;
@@ -278,8 +281,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         returns (ContractAvailability memory availability)
     {
         // Initialize all skipped contracts array
-        // Max possible skips: 2 adapters + 22 hooks = 24 skipped contracts
-        string[] memory potentialSkips = new string[](30);
+        // Max possible skips: 2 adapters + 31 hooks = 33 skipped contracts
+        string[] memory potentialSkips = new string[](35);
         uint256 skipCount = 0;
         // Adapter contracts (2 contracts - conditionally deployed)
         string[2] memory adapterContracts = ["AcrossV3Adapter", "DebridgeAdapter"];
@@ -306,7 +309,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-        string[56] memory baseHooks = [
+        string[58] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -362,7 +365,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "SwapKyberSwapHook",
             "ApproveAndSwapKyberSwapHook",
             "SwapUniswapV2Hook",
-            "ApproveAndSwapUniswapV2Hook"
+            "ApproveAndSwapUniswapV2Hook",
+            "SwapOdosV3Hook",
+            "ApproveAndSwapOdosV3Hook"
         ];
 
         // Start with all hooks, then decrement for missing configurations
@@ -388,6 +393,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             expectedHooks -= 2; // SwapOdosV2Hook + ApproveAndSwapOdosV2Hook
             potentialSkips[skipCount++] = "SwapOdosV2Hook";
             potentialSkips[skipCount++] = "ApproveAndSwapOdosV2Hook";
+        }
+
+        if (configuration.odosRouterV3s[chainId] != address(0)) {
+            availability.swapOdosV3Hooks = true;
+        } else {
+            expectedHooks -= 2; // SwapOdosV3Hook + ApproveAndSwapOdosV3Hook
+            potentialSkips[skipCount++] = "SwapOdosV3Hook";
+            potentialSkips[skipCount++] = "ApproveAndSwapOdosV3Hook";
         }
 
         if (configuration.debridgeSrcDln[chainId] != address(0)) {
@@ -1092,6 +1105,25 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         } else {
             console2.log(
                 "SKIPPED SwapOdosV2Hook & ApproveAndSwapOdosV2Hook: ODOS Router not configured for chain", chainId
+            );
+        }
+
+        if (availability.swapOdosV3Hooks) {
+            __checkContract(
+                SWAP_ODOSV3_HOOK_KEY,
+                __getSalt(SWAP_ODOSV3_HOOK_KEY),
+                abi.encode(configuration.odosRouterV3s[chainId]),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_SWAP_ODOSV3_HOOK_KEY,
+                __getSalt(APPROVE_AND_SWAP_ODOSV3_HOOK_KEY),
+                abi.encode(configuration.odosRouterV3s[chainId]),
+                env
+            );
+        } else {
+            console2.log(
+                "SKIPPED SwapOdosV3Hook & ApproveAndSwapOdosV3Hook: ODOS V3 Router not configured for chain", chainId
             );
         }
 
@@ -2248,7 +2280,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 62;
+        uint256 len = 64;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -2661,6 +2693,25 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[55] = HookDeployment("", "", ""); // Empty deployment
         }
 
+        // ODOS V3 Swap Hooks - Only deploy if available on this chain
+        if (availability.swapOdosV3Hooks) {
+            require(configuration.odosRouterV3s[chainId] != address(0), "SWAP_ODOSV3_HOOK_ROUTER_PARAM_ZERO");
+            require(configuration.odosRouterV3s[chainId].code.length > 0, "SWAP_ODOSV3_HOOK_ROUTER_NOT_DEPLOYED");
+            hooks[62] = _createSafeHookDeploymentWithArgs(
+                SWAP_ODOSV3_HOOK_KEY, "SwapOdosV3Hook", env, abi.encode(configuration.odosRouterV3s[chainId])
+            );
+            hooks[63] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_SWAP_ODOSV3_HOOK_KEY,
+                "ApproveAndSwapOdosV3Hook",
+                env,
+                abi.encode(configuration.odosRouterV3s[chainId])
+            );
+        } else {
+            console2.log(" SKIPPED ODOS V3 Swap Hooks deployment: Not available on chain", chainId);
+            hooks[62] = HookDeployment("", "", ""); // Empty deployment
+            hooks[63] = HookDeployment("", "", ""); // Empty deployment
+        }
+
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying hooks with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
@@ -2818,6 +2869,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[54].name, SWAP_UNISWAPV2_HOOK_KEY) ? addresses[54] : address(0);
         hookAddresses.approveAndSwapUniswapV2Hook =
             Strings.equal(hooks[55].name, APPROVE_AND_SWAP_UNISWAPV2_HOOK_KEY) ? addresses[55] : address(0);
+        hookAddresses.swapOdosV3Hook =
+            Strings.equal(hooks[62].name, SWAP_ODOSV3_HOOK_KEY) ? addresses[62] : address(0);
+        hookAddresses.approveAndSwapOdosV3Hook =
+            Strings.equal(hooks[63].name, APPROVE_AND_SWAP_ODOSV3_HOOK_KEY) ? addresses[63] : address(0);
 
         // ERC-7540 WithId hooks
         hookAddresses.cancelDepositRequestWithId7540Hook = Strings.equal(
@@ -2884,6 +2939,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             require(
                 hookAddresses.approveAndSwapUniswapV2Hook != address(0),
                 "APPROVE_AND_SWAP_UNISWAPV2_HOOK_NOT_ASSIGNED"
+            );
+        }
+        if (availability.swapOdosV3Hooks) {
+            require(hookAddresses.swapOdosV3Hook != address(0), "SWAP_ODOSV3_HOOK_NOT_ASSIGNED");
+            require(
+                hookAddresses.approveAndSwapOdosV3Hook != address(0), "APPROVE_AND_SWAP_ODOSV3_HOOK_NOT_ASSIGNED"
             );
         }
         if (availability.acrossV3Adapter) {
