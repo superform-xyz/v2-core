@@ -3,12 +3,12 @@
 # ===== CHAIN FILTER CONFIGURATION =====
 # Specify which chains to verify (comment out to verify all chains)
 # Leave empty array to verify all chains from network configuration
-CHAINS_TO_VERIFY=(14)
+CHAINS_TO_VERIFY=(1 8453 56 42161 43114)
 
 # ===== CONTRACT FILTER CONFIGURATION =====
 # Specify which contracts to verify (comment out to verify all contracts)
 # Leave empty array to verify all contracts found in deployment JSON
-CONTRACTS_TO_VERIFY=()
+CONTRACTS_TO_VERIFY=("SwapOdosV3Hook" "ApproveAndSwapOdosV3Hook")
 
 # ===== RATE LIMIT CONFIGURATION =====
 # Delay in seconds between verification requests (prevents Cloudflare rate limiting)
@@ -208,6 +208,7 @@ generate_constructor_args() {
     local permit2=""
     local aggregation_router=""
     local odos_router=""
+    local odos_router_v3="0x0D05a7D3448512B78fa8A9e46c4872C88C4a0D05"  # Same CREATE2 on all EVM chains
     local across_spoke_pool_v3=""
     local merkl_distributor=""
     local debridge_dst_dln="0xE7351Fd770A37282b91D153Ee690B63579D6dd7f"
@@ -393,6 +394,9 @@ generate_constructor_args() {
         "SwapOdosV2Hook"|"ApproveAndSwapOdosV2Hook")
             echo "$(cast abi-encode "constructor(address)" "$odos_router")"
             ;;
+        "SwapOdosV3Hook"|"ApproveAndSwapOdosV3Hook")
+            echo "$(cast abi-encode "constructor(address)" "$odos_router_v3")"
+            ;;
         "AcrossSendFundsAndExecuteOnDstHook")
             echo "$(cast abi-encode "constructor(address,address)" "$across_spoke_pool_v3" "$super_merkle_validator")"
             ;;
@@ -538,6 +542,8 @@ get_contract_source() {
         "Swap1InchHook") echo "src/hooks/swappers/1inch/Swap1InchHook.sol" ;;
         "SwapOdosV2Hook") echo "src/hooks/swappers/odos/SwapOdosV2Hook.sol" ;;
         "ApproveAndSwapOdosV2Hook") echo "src/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol" ;;
+        "SwapOdosV3Hook") echo "src/hooks/swappers/odos/SwapOdosV3Hook.sol" ;;
+        "ApproveAndSwapOdosV3Hook") echo "src/hooks/swappers/odos/ApproveAndSwapOdosV3Hook.sol" ;;
         "SwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Hook.sol" ;;
         "ApproveAndSwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/ApproveAndSwapUniswapV3Hook.sol" ;;
         "SwapUniswapV4Hook") echo "src/hooks/swappers/uniswap-v4/SwapUniswapV4Hook.sol" ;;
