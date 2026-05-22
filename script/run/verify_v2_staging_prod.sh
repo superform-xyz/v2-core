@@ -589,6 +589,9 @@ get_contract_source() {
         "MorphoSupplyHook") echo "src/hooks/loan/morpho/MorphoSupplyHook.sol" ;;
         "MorphoWithdrawHook") echo "src/hooks/loan/morpho/MorphoWithdrawHook.sol" ;;
         "MorphoLendHook") echo "src/hooks/loan/morpho/MorphoLendHook.sol" ;;
+        "MetaMorphoReallocateHook") echo "src/hooks/vaults/metamorpho/MetaMorphoReallocateHook.sol" ;;
+        "ForceDeallocateMorphoHook") echo "src/hooks/vaults/metamorpho/ForceDeallocateMorphoHook.sol" ;;
+        "ApproveAndForceDeallocateMorphoHook") echo "src/hooks/vaults/metamorpho/ApproveAndForceDeallocateMorphoHook.sol" ;;
 
         # Oracles
         "ERC4626YieldSourceOracle") echo "src/accounting/oracles/ERC4626YieldSourceOracle.sol" ;;

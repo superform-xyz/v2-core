@@ -256,6 +256,8 @@ MORPHO_HOOKS=(
     "MorphoWithdrawHook"
     "MorphoLendHook"
     "MetaMorphoReallocateHook"
+    "ForceDeallocateMorphoHook"
+    "ApproveAndForceDeallocateMorphoHook"
 )
 
 missing_morpho=0
