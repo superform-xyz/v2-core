@@ -21,6 +21,7 @@ abstract contract ConfigBase is Constants {
         mapping(uint64 chainId => address merklDistributor) merklDistributors;
         mapping(uint64 chainId => address routers) aggregationRouters;
         mapping(uint64 chainId => address odosRouter) odosRouters;
+        mapping(uint64 chainId => address odosRouterV3) odosRouterV3s;
         mapping(uint64 chainId => address pendleRouter) pendleRouters;
         mapping(uint64 chainId => address pendlePTAmortizedOracle) pendlePTAmortizedOracles;
         mapping(uint64 chainId => address pendlePTAmortizedOracleV2) pendlePTAmortizedOraclesV2;

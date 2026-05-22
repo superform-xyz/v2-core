@@ -21,6 +21,7 @@
         "ApproveAndStargateSendHook": "0xA6216dC99F7e2FFB07f58B8BbBfF894fD1b3a89D",
         "ApproveAndSwapKyberSwapHook": "0xdC9D10d9710DBf82924a3F7733293457Ad12D37D",
         "ApproveAndSwapOdosV2Hook": "0x067696e1EfBD25cAfD3B55648ED253C20A7d9671",
+        "ApproveAndSwapOdosV3Hook": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A",
         "ApproveERC20Hook": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
         "BatchTransferFromHook": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
         "BatchTransferHook": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
@@ -61,6 +62,10 @@
         "MorphoSupplyAndBorrowHook": "0xAf77F98fd73524253A19086105c6C3944039053d",
         "MorphoSupplyHook": "0xa8d51a5E4D774D5FD65a915aF732AC23c388D1dc",
         "MorphoWithdrawHook": "0x2E80aace37Fb7A9C858B9398f23Dd3e771D52B22",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
         "OfframpTokensHook": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
         "PendlePTAmortizedOracle": "0xD64089698f82cbCD91ba5e0422aDFa81D247eB62",
         "PendlePTAmortizedOracleV2": "0x2185B40476510Ad27d17AF90889CE91BE9282A04",
@@ -98,14 +103,11 @@
         "Swap1InchHook": "0x0D94a8f3305AdDdB14692266aDb488552F91F660",
         "SwapKyberSwapHook": "0x828d8a9c015CEf90b373a071500AE463eD204dF9",
         "SwapOdosV2Hook": "0x98313d15797048F60B1bFd41AE7A2B9877056079",
+        "SwapOdosV3Hook": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7",
         "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
         "TransferHook": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
         "WithdrawWithId7540VaultHook": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
-        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4",
-        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
-        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
-        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
-        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050"
+        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4"
       }
     },
     "Base": {
@@ -122,6 +124,7 @@
         "ApproveAndStargateSendHook": "0xA6216dC99F7e2FFB07f58B8BbBfF894fD1b3a89D",
         "ApproveAndSwapKyberSwapHook": "0xdC9D10d9710DBf82924a3F7733293457Ad12D37D",
         "ApproveAndSwapOdosV2Hook": "0x3E10d4105F826dFc8929845C94c019CDAF4d93cD",
+        "ApproveAndSwapOdosV3Hook": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A",
         "ApproveAndSwapSparkPSMExactInHook": "0x3e2E2948AB83CCF5024Dba60D362ee14Beb4346f",
         "ApproveAndSwapSparkPSMExactOutHook": "0x9dd7b19c89F5FF980E962aCca76d09d02793c544",
         "ApproveERC20Hook": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
@@ -163,6 +166,10 @@
         "MorphoSupplyAndBorrowHook": "0xAf77F98fd73524253A19086105c6C3944039053d",
         "MorphoSupplyHook": "0xa8d51a5E4D774D5FD65a915aF732AC23c388D1dc",
         "MorphoWithdrawHook": "0x2E80aace37Fb7A9C858B9398f23Dd3e771D52B22",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
         "OfframpTokensHook": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
         "PendlePTAmortizedOracle": "0xD64089698f82cbCD91ba5e0422aDFa81D247eB62",
         "PendlePTAmortizedOracleV2": "0x2185B40476510Ad27d17AF90889CE91BE9282A04",
@@ -199,16 +206,13 @@
         "Swap1InchHook": "0x0D94a8f3305AdDdB14692266aDb488552F91F660",
         "SwapKyberSwapHook": "0x828d8a9c015CEf90b373a071500AE463eD204dF9",
         "SwapOdosV2Hook": "0x074F9973EBfB050D7abc75a5cB03491d675DA843",
+        "SwapOdosV3Hook": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7",
         "SwapSparkPSMExactInHook": "0x9B8cc0D7DecF5B90481eA761670b1abB334450Ae",
         "SwapSparkPSMExactOutHook": "0x5D6FFbE88Ffb41BD8252727a461d121692890870",
         "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
         "TransferHook": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
         "WithdrawWithId7540VaultHook": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
-        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4",
-        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
-        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
-        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
-        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050"
+        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4"
       }
     },
     "BNB": {
@@ -225,6 +229,7 @@
         "ApproveAndStargateSendHook": "0xA6216dC99F7e2FFB07f58B8BbBfF894fD1b3a89D",
         "ApproveAndSwapKyberSwapHook": "0xdC9D10d9710DBf82924a3F7733293457Ad12D37D",
         "ApproveAndSwapOdosV2Hook": "0x13c42c0cfAFE376002AD7D75485Fd199EcA1068C",
+        "ApproveAndSwapOdosV3Hook": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A",
         "ApproveERC20Hook": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
         "BatchTransferFromHook": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
         "BatchTransferHook": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
@@ -264,6 +269,10 @@
         "MorphoSupplyAndBorrowHook": "0xf7ae84e5E8B1D73649B8E40CD17D9Aa8553977e8",
         "MorphoSupplyHook": "0x9dA4fc64eC49679663B0C9e5d255A3a9E6Ad7AD3",
         "MorphoWithdrawHook": "0x15c75c455cae4d1756eF38aB50E0Fb926aBD9ab1",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
         "OfframpTokensHook": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
         "PendlePTAmortizedOracle": "0xD64089698f82cbCD91ba5e0422aDFa81D247eB62",
         "PendlePTAmortizedOracleV2": "0x2185B40476510Ad27d17AF90889CE91BE9282A04",
@@ -300,14 +309,11 @@
         "Swap1InchHook": "0x0D94a8f3305AdDdB14692266aDb488552F91F660",
         "SwapKyberSwapHook": "0x828d8a9c015CEf90b373a071500AE463eD204dF9",
         "SwapOdosV2Hook": "0x6AADDD4047E7e9723c3446eb2E538cE88C12A12c",
+        "SwapOdosV3Hook": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7",
         "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
         "TransferHook": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
         "WithdrawWithId7540VaultHook": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
-        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4",
-        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
-        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
-        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
-        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050"
+        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4"
       }
     },
     "Arbitrum": {
@@ -324,6 +330,7 @@
         "ApproveAndStargateSendHook": "0xA6216dC99F7e2FFB07f58B8BbBfF894fD1b3a89D",
         "ApproveAndSwapKyberSwapHook": "0xdC9D10d9710DBf82924a3F7733293457Ad12D37D",
         "ApproveAndSwapOdosV2Hook": "0xE5F934e5eDb77F11A502503f67672fD9252ba339",
+        "ApproveAndSwapOdosV3Hook": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A",
         "ApproveERC20Hook": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
         "BatchTransferFromHook": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
         "BatchTransferHook": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
@@ -363,6 +370,10 @@
         "MorphoSupplyAndBorrowHook": "0xE8E3E1bd33E7ad2f90632eA9ae3dB3923F96A95e",
         "MorphoSupplyHook": "0xd7af3d9D2FaF3CD2692Df45a53Dbf88D4b456BCf",
         "MorphoWithdrawHook": "0x4597b7e2559CE49aFfD430ADfd8A0a0fD959CEB6",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
         "OfframpTokensHook": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
         "PendlePTAmortizedOracle": "0xD64089698f82cbCD91ba5e0422aDFa81D247eB62",
         "PendlePTAmortizedOracleV2": "0x2185B40476510Ad27d17AF90889CE91BE9282A04",
@@ -399,14 +410,11 @@
         "Swap1InchHook": "0x0D94a8f3305AdDdB14692266aDb488552F91F660",
         "SwapKyberSwapHook": "0x828d8a9c015CEf90b373a071500AE463eD204dF9",
         "SwapOdosV2Hook": "0xCCB88A83190257681BC0925e933A19c7Ca0b6d94",
+        "SwapOdosV3Hook": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7",
         "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
         "TransferHook": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
         "WithdrawWithId7540VaultHook": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
-        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4",
-        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
-        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
-        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
-        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050"
+        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4"
       }
     },
     "Optimism": {
@@ -423,6 +431,7 @@
         "ApproveAndStargateSendHook": "0xA6216dC99F7e2FFB07f58B8BbBfF894fD1b3a89D",
         "ApproveAndSwapKyberSwapHook": "0xdC9D10d9710DBf82924a3F7733293457Ad12D37D",
         "ApproveAndSwapOdosV2Hook": "0xeF64C3bad00beE592c7812937ED1CCc23c11C878",
+        "ApproveAndSwapOdosV3Hook": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A",
         "ApproveERC20Hook": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
         "BatchTransferFromHook": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
         "BatchTransferHook": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
@@ -454,6 +463,10 @@
         "FlatFeeLedger": "0xAb56d09Ad9975116fCeb14970F2fFb3bB0ad683E",
         "MarkRootAsUsedHook": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
         "MerklClaimRewardHook": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
         "OfframpTokensHook": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
         "PendlePTAmortizedOracle": "0xD64089698f82cbCD91ba5e0422aDFa81D247eB62",
         "PendlePTAmortizedOracleV2": "0x2185B40476510Ad27d17AF90889CE91BE9282A04",
@@ -490,14 +503,11 @@
         "Swap1InchHook": "0x0D94a8f3305AdDdB14692266aDb488552F91F660",
         "SwapKyberSwapHook": "0x828d8a9c015CEf90b373a071500AE463eD204dF9",
         "SwapOdosV2Hook": "0xF65319b5D299a3B0c29cfAC7579b27845d3461E4",
+        "SwapOdosV3Hook": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7",
         "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
         "TransferHook": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
         "WithdrawWithId7540VaultHook": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
-        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4",
-        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
-        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
-        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
-        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050"
+        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4"
       }
     },
     "Polygon": {
@@ -514,6 +524,7 @@
         "ApproveAndStargateSendHook": "0xA6216dC99F7e2FFB07f58B8BbBfF894fD1b3a89D",
         "ApproveAndSwapKyberSwapHook": "0x7Ab50186A2596AB61da2d66C47C9FCc43e7b608F",
         "ApproveAndSwapOdosV2Hook": "0x31EA75ABaE28a5A05f514F3812C768b0e6244fc4",
+        "ApproveAndSwapOdosV3Hook": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A",
         "ApproveERC20Hook": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
         "BatchTransferFromHook": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
         "BatchTransferHook": "0x6f0B2f40E44a10C5b6A43f8e60F0CcD128ff83be",
@@ -545,6 +556,10 @@
         "FlatFeeLedger": "0xAb56d09Ad9975116fCeb14970F2fFb3bB0ad683E",
         "MarkRootAsUsedHook": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
         "MerklClaimRewardHook": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
         "OfframpTokensHook": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
         "PendlePTAmortizedOracle": "0xD64089698f82cbCD91ba5e0422aDFa81D247eB62",
         "PendlePTAmortizedOracleV2": "0x2185B40476510Ad27d17AF90889CE91BE9282A04",
@@ -578,14 +593,11 @@
         "Swap1InchHook": "0x1a94b274275AD72aB2Eead09722f2443C6aB1882",
         "SwapKyberSwapHook": "0xB6fb01b7114e7dCBC77a1aDED9c321FA6c8455f4",
         "SwapOdosV2Hook": "0x36B84691d3375fDEC79cA5b3142d0bc908e016cC",
+        "SwapOdosV3Hook": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7",
         "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
         "TransferHook": "0xafc5789b4D92B2B07f2A943989ac105ec6C69F18",
         "WithdrawWithId7540VaultHook": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
-        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4",
-        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
-        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
-        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
-        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050"
+        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4"
       }
     },
     "Unichain": {
@@ -684,6 +696,7 @@
         "ApproveAndStargateSendHook": "0xA6216dC99F7e2FFB07f58B8BbBfF894fD1b3a89D",
         "ApproveAndSwapKyberSwapHook": "0xdC9D10d9710DBf82924a3F7733293457Ad12D37D",
         "ApproveAndSwapOdosV2Hook": "0xdDD8A338ddBb6356D1Af22c9715CDB3e4a03b358",
+        "ApproveAndSwapOdosV3Hook": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A",
         "ApproveERC20Hook": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
         "BatchTransferFromHook": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
         "BatchTransferHook": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
@@ -715,6 +728,10 @@
         "FlatFeeLedger": "0xAb56d09Ad9975116fCeb14970F2fFb3bB0ad683E",
         "MarkRootAsUsedHook": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
         "MerklClaimRewardHook": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
         "OfframpTokensHook": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
         "PendlePTAmortizedOracle": "0xD64089698f82cbCD91ba5e0422aDFa81D247eB62",
         "PendlePTAmortizedOracleV2": "0x2185B40476510Ad27d17AF90889CE91BE9282A04",
@@ -748,14 +765,11 @@
         "Swap1InchHook": "0x0D94a8f3305AdDdB14692266aDb488552F91F660",
         "SwapKyberSwapHook": "0x828d8a9c015CEf90b373a071500AE463eD204dF9",
         "SwapOdosV2Hook": "0x6B9308Ca3bAF94aC3516Df08e0cd83ed1D7c312d",
+        "SwapOdosV3Hook": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7",
         "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
         "TransferHook": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
         "WithdrawWithId7540VaultHook": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
-        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4",
-        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
-        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
-        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
-        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050"
+        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4"
       }
     },
     "Berachain": {
@@ -832,6 +846,7 @@
         "ApproveAndStargateSendHook": "0xA6216dC99F7e2FFB07f58B8BbBfF894fD1b3a89D",
         "ApproveAndSwapKyberSwapHook": "0xdC9D10d9710DBf82924a3F7733293457Ad12D37D",
         "ApproveAndSwapOdosV2Hook": "0x7088bEFA0AE50B290E42Fb88F1260DBFC0d6e83f",
+        "ApproveAndSwapOdosV3Hook": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A",
         "ApproveERC20Hook": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
         "BatchTransferFromHook": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
         "BatchTransferHook": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
@@ -863,6 +878,10 @@
         "FlatFeeLedger": "0xAb56d09Ad9975116fCeb14970F2fFb3bB0ad683E",
         "MarkRootAsUsedHook": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
         "MerklClaimRewardHook": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
+        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
+        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050",
+        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
+        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
         "OfframpTokensHook": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
         "PendlePTAmortizedOracle": "0xD64089698f82cbCD91ba5e0422aDFa81D247eB62",
         "PendlePTAmortizedOracleV2": "0x2185B40476510Ad27d17AF90889CE91BE9282A04",
@@ -899,14 +918,11 @@
         "Swap1InchHook": "0x0D94a8f3305AdDdB14692266aDb488552F91F660",
         "SwapKyberSwapHook": "0x828d8a9c015CEf90b373a071500AE463eD204dF9",
         "SwapOdosV2Hook": "0xF3162BEf5c8f0564a0F7DbC88119BbA453DA58B9",
+        "SwapOdosV3Hook": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7",
         "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
         "TransferHook": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
         "WithdrawWithId7540VaultHook": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
-        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4",
-        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
-        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
-        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
-        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050"
+        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4"
       }
     },
     "Gnosis": {
@@ -1243,5 +1259,5 @@
       }
     }
   },
-  "updated_at": "2026-05-14T10:15:25Z"
+  "updated_at": "2026-05-21T10:27:32Z"
 }

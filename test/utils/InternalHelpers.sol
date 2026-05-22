@@ -239,6 +239,41 @@ abstract contract InternalHelpers is Test {
         );
     }
 
+    function _createOdosV3SwapHookData(
+        address inputToken,
+        uint256 inputAmount,
+        address inputReceiver,
+        address outputToken,
+        uint256 outputQuote,
+        uint256 outputMin,
+        bytes memory pathDefinition,
+        address executor,
+        uint64 referralCode,
+        uint64 referralFee,
+        address feeRecipient,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = bytes.concat(
+            bytes20(inputToken),
+            bytes32(inputAmount),
+            bytes20(inputReceiver),
+            bytes20(outputToken),
+            bytes32(outputQuote),
+            bytes32(outputMin),
+            bytes1(usePrevHookAmount ? uint8(1) : uint8(0)),
+            bytes32(pathDefinition.length),
+            pathDefinition,
+            bytes20(executor),
+            bytes8(referralCode),
+            bytes8(referralFee),
+            bytes20(feeRecipient)
+        );
+    }
+
     function _createSpectraExchangeDepositHookData(
         bool usePrevHookAmount,
         uint256 value,

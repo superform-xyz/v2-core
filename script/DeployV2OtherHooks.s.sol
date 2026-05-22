@@ -44,6 +44,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address claimAssetsDETHHook;
     }
 
+    struct OdosV3HookAddresses {
+        address swapOdosV3Hook;
+        address approveAndSwapOdosV3Hook;
+    }
+
     struct HookDeployment {
         string name;
         string saltOverride; // Optional custom salt (empty = use name for salt)
@@ -94,6 +99,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    function runOdosV3(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying Odos V3 Hooks on chainId: ", chainId);
+
+        _deployOdosV3Hooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
     /// @notice Deploy all applicable hooks for the given chain
     function _deployAllHooks(uint64 chainId, uint256 env) internal {
         // Morpho hooks — only on chains where Morpho is deployed
@@ -124,6 +137,12 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         if (chainId == MAINNET_CHAIN_ID) {
             console2.log("Deploying DETH Hooks on chainId: ", chainId);
             _deployDETHHooks(chainId, env);
+        }
+
+        // Odos V3 hooks — on chains where Odos V3 router is deployed
+        if (otherHooksConfiguration.odosRouterV3s[chainId] != address(0)) {
+            console2.log("Deploying Odos V3 Hooks on chainId: ", chainId);
+            _deployOdosV3Hooks(chainId, env);
         }
     }
 
@@ -445,6 +464,46 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(hookAddresses.claimAssetsDETHHook != address(0), "ClaimAssetsDETHHook not assigned");
 
         console2.log("All DETH hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      ODOS V3 HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    function _deployOdosV3Hooks(uint64 chainId, uint256 env) internal returns (OdosV3HookAddresses memory) {
+        uint256 len = 2;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        bytes memory routerArg = abi.encode(otherHooksConfiguration.odosRouterV3s[chainId]);
+
+        hooks[0] = HookDeployment(
+            SWAP_ODOSV3_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("SwapOdosV3Hook", env), routerArg)
+        );
+        hooks[1] = HookDeployment(
+            APPROVE_AND_SWAP_ODOSV3_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("ApproveAndSwapOdosV3Hook", env), routerArg)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        OdosV3HookAddresses memory hookAddresses;
+        hookAddresses.swapOdosV3Hook = addresses[0];
+        hookAddresses.approveAndSwapOdosV3Hook = addresses[1];
+
+        require(hookAddresses.swapOdosV3Hook != address(0), "SwapOdosV3Hook not assigned");
+        require(hookAddresses.approveAndSwapOdosV3Hook != address(0), "ApproveAndSwapOdosV3Hook not assigned");
+
+        console2.log("All Odos V3 hooks deployed and validated successfully.");
 
         return hookAddresses;
     }
