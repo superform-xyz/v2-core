@@ -35,13 +35,13 @@ contract OdosV3RouterSwapFork is MinimalBaseIntegrationTest, OdosV3APIParser {
                               HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Get a route from Odos API and decode into V3-compatible format
-    function _getOdosRoute(
+    /// @dev External wrapper for Odos API call so try/catch can be used
+    function getOdosRouteExternal(
         address inputToken,
         uint256 inputAmount,
         address outputToken
     )
-        internal
+        external
         returns (OdosV3DecodedSwap memory decoded)
     {
         QuoteInputToken[] memory quoteInputTokens = new QuoteInputToken[](1);
@@ -53,6 +53,22 @@ contract OdosV3RouterSwapFork is MinimalBaseIntegrationTest, OdosV3APIParser {
         string memory pathId = surlCallQuoteV2(quoteInputTokens, quoteOutputTokens, accountEth, ETH, false);
         string memory txDataHex = surlCallAssemble(pathId, accountEth);
         decoded = decodeOdosV3SwapCalldata(fromHex(txDataHex));
+    }
+
+    /// @dev Get a route from Odos API and decode into V3-compatible format. Skips test if API fails.
+    function _getOdosRoute(
+        address inputToken,
+        uint256 inputAmount,
+        address outputToken
+    )
+        internal
+        returns (OdosV3DecodedSwap memory decoded)
+    {
+        try this.getOdosRouteExternal(inputToken, inputAmount, outputToken) returns (OdosV3DecodedSwap memory result) {
+            decoded = result;
+        } catch {
+            vm.skip(true);
+        }
     }
 
     /// @dev Build V3 hook data from decoded API response with extra slippage
