@@ -48,14 +48,15 @@ log() {
 extract_contracts_from_regenerate_script() {
     local array_name=$1
     local script_path="$PROJECT_ROOT/script/run/regenerate_bytecode.sh"
-    
+
     if [[ ! -f "$script_path" ]]; then
         return 1
     fi
-    
+
     # Extract contract names from the specified array in regenerate_bytecode.sh
-    # Find the array definition and stop at the closing parenthesis
-    sed -n "/${array_name}=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | tr -d '"'
+    # Match from "ARRAY_NAME=(" up to the first line containing only ")"
+    # Use awk to stop at the first closing paren (sed range is greedy)
+    awk "/${array_name}=\\(/{found=1} found{print; if(/^\\)/) exit}" "$script_path" | grep -o '"[^"]*"' | tr -d '"'
 }
 
 # Function to report bytecode availability (sourced from regenerate_bytecode.sh)
@@ -175,17 +176,12 @@ get_expected_contract_count() {
         return 1
     fi
     
-    # Use the same extraction logic as extract_contracts_from_update_script
     local core_count hook_count oracle_count
-    
-    # Extract CORE_CONTRACTS array and count elements
-    core_count=$(sed -n "/CORE_CONTRACTS=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | wc -l)
-    
-    # Extract HOOK_CONTRACTS array and count elements  
-    hook_count=$(sed -n "/HOOK_CONTRACTS=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | wc -l)
-    
-    # Extract ORACLE_CONTRACTS array and count elements
-    oracle_count=$(sed -n "/ORACLE_CONTRACTS=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | wc -l)
+
+    # Extract array elements using awk (stops at first closing paren, unlike sed range which is greedy)
+    core_count=$(awk '/CORE_CONTRACTS=\(/{found=1} found{print; if(/^\)/) exit}' "$script_path" | grep -o '"[^"]*"' | wc -l)
+    hook_count=$(awk '/HOOK_CONTRACTS=\(/{found=1} found{print; if(/^\)/) exit}' "$script_path" | grep -o '"[^"]*"' | wc -l)
+    oracle_count=$(awk '/ORACLE_CONTRACTS=\(/{found=1} found{print; if(/^\)/) exit}' "$script_path" | grep -o '"[^"]*"' | wc -l)
     
     local total_expected=$((core_count + hook_count + oracle_count))
     echo "$total_expected"

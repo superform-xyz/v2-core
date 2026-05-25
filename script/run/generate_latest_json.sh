@@ -363,30 +363,57 @@ batch_generate_latest_json() {
             log "INFO" "Creating new network entry for $network_name"
         fi
         
-        # Check if there are any changes for this network
-        if has_contract_changes "$existing_contracts" "$contracts"; then
-            log "INFO" "Changes detected for $network_name"
-            total_changes=$((total_changes + 1))
-        else
-            log "INFO" "No changes detected for $network_name - skipping"
-            echo -e "${CYAN}   📋 $network_name: No changes detected, skipping${NC}"
-            continue
-        fi
-        
-        # Replace existing contracts with new contracts, but preserve Nexus contracts
+        # Preserve existing Nexus contracts in both the aggregate latest.json
+        # and the chain-specific deployment file.
         local nexus_contracts=$(echo "$existing_contracts" | jq '{
             NexusProxy: .NexusProxy,
             Nexus: .Nexus,
             NexusBootstrap: .NexusBootstrap,
             NexusAccountFactory: .NexusAccountFactory
         } | with_entries(select(.value != null))')
-        
+
         local nexus_count=$(echo "$nexus_contracts" | jq 'length')
+        local chain_file_updated=false
         if [ "$nexus_count" -gt 0 ]; then
             log "INFO" "Preserving $nexus_count Nexus contracts for $network_name"
+
+            local nexus_mismatch_count=$(jq -n \
+                --argjson contracts "$contracts" \
+                --argjson nexus "$nexus_contracts" \
+                '$nexus | to_entries | map(select($contracts[.key] != .value)) | length')
+            contracts=$(jq -c -n \
+                --argjson contracts "$contracts" \
+                --argjson nexus "$nexus_contracts" \
+                '$contracts + $nexus')
+
+            if [ "$nexus_mismatch_count" -gt 0 ]; then
+                echo "$contracts" | jq '.' > "$contracts_file" || {
+                    log "ERROR" "Failed to sync Nexus contracts into $contracts_file"
+                    update_summary+=("❌ $network_name: Failed to sync Nexus contracts into chain file")
+                    continue
+                }
+                chain_file_updated=true
+                log "INFO" "Synced Nexus contracts into chain file for $network_name"
+            fi
+        fi
+
+        # Check if there are any changes for this network
+        if has_contract_changes "$existing_contracts" "$contracts"; then
+            log "INFO" "Changes detected for $network_name"
+            total_changes=$((total_changes + 1))
+        else
+            if [ "$chain_file_updated" = true ]; then
+                update_summary+=("✅ $network_name: Chain file synced with preserved Nexus contracts")
+                successful_networks=$((successful_networks + 1))
+                echo -e "${GREEN}   ✅ $network_name chain file synced with preserved Nexus contracts${NC}"
+                continue
+            fi
+            log "INFO" "No changes detected for $network_name - skipping"
+            echo -e "${CYAN}   📋 $network_name: No changes detected, skipping${NC}"
+            continue
         fi
         
-        local merged_contracts=$(echo "$contracts" | jq --argjson nexus "$nexus_contracts" '. + $nexus')
+        local merged_contracts="$contracts"
         
         # Count contracts that will be added/updated
         local existing_contract_count=$(echo "$existing_contracts" | jq 'length')
@@ -445,11 +472,6 @@ batch_generate_latest_json() {
     done
     echo ""
     
-    if [ $successful_networks -eq 0 ]; then
-        echo -e "${RED}❌ No successful merges to generate${NC}"
-        return 1
-    fi
-    
     # Check if there are actually any changes to generate
     if [ $total_changes -eq 0 ]; then
         print_separator
@@ -463,6 +485,11 @@ batch_generate_latest_json() {
         echo -e "${CYAN}💡 No generation needed - terminating script${NC}"
         print_separator
         return 0
+    fi
+
+    if [ $successful_networks -eq 0 ]; then
+        echo -e "${RED}❌ No successful merges to generate${NC}"
+        return 1
     fi
     
     # Display contract differences for confirmation

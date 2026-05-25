@@ -187,6 +187,9 @@ abstract contract Constants {
     address public constant CHAIN_10_ODOS_ROUTER = 0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680;
     address public constant CHAIN_8453_ODOS_ROUTER = 0x19cEeAd7105607Cd444F5ad10dd51356436095a1;
 
+    // odos v3 (same CREATE2 address on all EVM chains)
+    address public constant ODOS_ROUTER_V3 = 0x0D05a7D3448512B78fa8A9e46c4872C88C4a0D05;
+
     // uniswap v2
     address public constant MAINNET_V2_SWAP_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 

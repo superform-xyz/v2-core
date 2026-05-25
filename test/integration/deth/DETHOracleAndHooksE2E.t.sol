@@ -88,6 +88,10 @@ contract DETHOracleAndHooksE2E is Test {
     /// @dev The real SuperWETH strategy, funded with DETH for testing
     address public strategy;
 
+    /// @dev ERC-7201 storage slot for lastFinalizedRequestId in AsyncRedeemer
+    bytes32 internal constant LAST_FINALIZED_SLOT =
+        0x187c268ec5d498b5b6e4945b27f62abf37217cdbd80e6429181b3e4c2c378901;
+
     /*//////////////////////////////////////////////////////////////
                                  SETUP
     //////////////////////////////////////////////////////////////*/
@@ -378,20 +382,20 @@ contract DETHOracleAndHooksE2E is Test {
         console2.log("  TVL (WETH):  ", tvl2);
     }
 
-    /// @notice Full E2E with real claimAssets on an already-finalized request + oracle verification
-    /// @dev Request #30 is already finalized, so the oracle does NOT count it in pending range.
-    ///      The nftOwner may have 0 DETH held. This test verifies the hook tracks WETH correctly
-    ///      and the oracle state is consistent before and after claim.
+    /// @notice Full E2E with real claimAssets on a finalized request + oracle verification
+    /// @dev Creates a fresh request and force-finalizes it, so the oracle does NOT count it in pending range.
+    ///      This test verifies the hook tracks WETH correctly and the oracle state is consistent before and after claim.
     function test_e2e_realClaim_oracleTracksWETHDelta() public {
-        (uint256 requestId, address nftOwner) = _createFinalizedRequest();
-        _whitelistAccount(nftOwner);
+        // Create a finalized request for a separate account
+        address claimAccount = makeAddr("oracleClaimAccount");
+        uint256 claimShares = 1 ether;
+        (uint256 requestId, address nftOwner) = _createFinalizedRequest(claimAccount, claimShares);
 
-        // Get the nftOwner's DETH balance and pending shares
+        // Get the nftOwner's DETH balance
         uint256 dethBalance = IERC20(DETH).balanceOf(nftOwner);
-        uint256 pendingShares = IAsyncRedeemerAdmin(ASYNC_REDEEMER).getShares(requestId);
         uint256 lastFinalized = IAsyncRedeemerAdmin(ASYNC_REDEEMER).lastFinalizedRequestId();
 
-        // Request #30 is finalized (requestId <= lastFinalizedRequestId), so oracle won't scan it
+        // Request is finalized (requestId <= lastFinalizedRequestId), so oracle won't scan it
         // Oracle TVL = held DETH value only (pending scan range starts at lastFinalized+1)
         uint256 tvlBefore = oracle.getTVLByOwnerOfShares(ASYNC_REDEEMER, nftOwner);
         uint256 expectedTVL = dethBalance > 0 ? IMachine(MACHINE).convertToAssets(dethBalance) : 0;
@@ -400,7 +404,6 @@ contract DETHOracleAndHooksE2E is Test {
         console2.log("=== Before real claim ===");
         console2.log("  nftOwner:", nftOwner);
         console2.log("  DETH held:", dethBalance);
-        console2.log("  pending shares:", pendingShares);
         console2.log("  lastFinalizedRequestId:", lastFinalized);
         console2.log("  TVL:", tvlBefore);
 
@@ -1144,5 +1147,33 @@ contract DETHOracleAndHooksE2E is Test {
         returns (bytes memory)
     {
         return abi.encodePacked(yieldSourceOracleId, asyncRedeemer, requestId, usePrevHook);
+    }
+
+    /// @dev Creates a real redeem request and force-finalizes it via storage manipulation.
+    ///      Returns the request ID and NFT owner (the caller account).
+    ///      Deals WETH to AsyncRedeemer so claimAssets can transfer it out.
+    function _createFinalizedRequest(
+        address caller,
+        uint256 shares
+    )
+        internal
+        returns (uint256 requestId, address nftOwner)
+    {
+        _whitelistAccount(caller);
+        deal(DETH, caller, shares);
+
+        vm.startPrank(caller);
+        IERC20(DETH).approve(ASYNC_REDEEMER, shares);
+        requestId = IDETHAsyncRedeemer(ASYNC_REDEEMER).requestRedeem(shares, caller, 0);
+        vm.stopPrank();
+
+        // Force-finalize by advancing lastFinalizedRequestId past this request
+        vm.store(ASYNC_REDEEMER, LAST_FINALIZED_SLOT, bytes32(requestId));
+
+        // Deal WETH to AsyncRedeemer so claimAssets can pay out
+        uint256 expectedAssets = IMachine(MACHINE).convertToAssets(shares);
+        deal(WETH, ASYNC_REDEEMER, IERC20(WETH).balanceOf(ASYNC_REDEEMER) + expectedAssets);
+
+        nftOwner = caller;
     }
 }
