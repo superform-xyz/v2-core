@@ -1050,6 +1050,30 @@ contract DETHAsyncRedeemerHooksE2E is Test {
         IAsyncRedeemerAdmin(ASYNC_REDEEMER).setWhitelistedUsers(users, true);
     }
 
+    /// @dev Creates a new request and simulates finalization via vm.store
+    ///      so claimAssets() can be tested against real AsyncRedeemer logic.
+    bytes32 private constant _LAST_FINALIZED_SLOT = 0x187c268ec5d498b5b6e4945b27f62abf37217cdbd80e6429181b3e4c2c378901;
+
+    function _createFinalizedRequest() internal returns (uint256 requestId, address nftOwner) {
+        nftOwner = makeAddr("finalizedRequestOwner");
+        uint256 shares = 1 ether;
+
+        _whitelistAccount(nftOwner);
+        deal(DETH, nftOwner, shares);
+
+        vm.startPrank(nftOwner);
+        IERC20(DETH).approve(ASYNC_REDEEMER, shares);
+        requestId = IDETHAsyncRedeemer(ASYNC_REDEEMER).requestRedeem(shares, nftOwner, 0);
+        vm.stopPrank();
+
+        // Simulate finalization by bumping lastFinalizedRequestId
+        vm.store(ASYNC_REDEEMER, _LAST_FINALIZED_SLOT, bytes32(requestId));
+
+        // Ensure AsyncRedeemer has WETH to pay out claims
+        uint256 currentWeth = IERC20(WETH).balanceOf(ASYNC_REDEEMER);
+        deal(WETH, ASYNC_REDEEMER, currentWeth + 10 ether);
+    }
+
     /// @dev Encodes RequestRedeemDETHHook data
     /// Layout: bytes32 oracleId | address asyncRedeemer | uint256 shares | uint256 minAssets | bool usePrevHook
     function _encodeRequestRedeemData(

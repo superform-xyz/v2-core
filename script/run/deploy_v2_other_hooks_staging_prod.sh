@@ -236,6 +236,19 @@ is_deth_supported() {
     return 1
 }
 
+# rFLR hooks are only deployed on Flare
+RFLR_SUPPORTED_CHAINS=("14")
+
+is_rflr_supported() {
+    local chain_id=$1
+    for supported in "${RFLR_SUPPORTED_CHAINS[@]}"; do
+        if [ "$supported" = "$chain_id" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Other hooks use locked-bytecode-other/ for production
 OTHER_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode-other"
 if [ "$ENVIRONMENT" = "staging" ]; then
@@ -377,10 +390,35 @@ if [ $missing_deth -gt 0 ]; then
 fi
 
 echo ""
+
+# Check bytecode availability for rFLR hooks
+echo -e "${BLUE}🔍 Checking rFLR hook bytecode availability...${NC}"
+
+RFLR_HOOKS=(
+    "ClaimRFLRHook"
+    "WithdrawRFLRHook"
+)
+
+missing_rflr=0
+for hook in "${RFLR_HOOKS[@]}"; do
+    if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
+        echo -e "${GREEN}   ✅ ${hook}${NC}"
+    else
+        echo -e "${YELLOW}   ⚠️  ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
+        missing_rflr=$((missing_rflr + 1))
+    fi
+done
+
+if [ $missing_rflr -gt 0 ]; then
+    echo -e "${YELLOW}⚠️  ${missing_rflr} rFLR hook(s) missing bytecode. They will be skipped during deployment.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/regenerate_bytecode.sh to generate missing bytecode.${NC}"
+fi
+
+echo ""
 print_separator
 
 # Confirmation before deployment
-echo -e "${WHITE}🤔 Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral + DETH) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
+echo -e "${WHITE}🤔 Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral + DETH + rFLR) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
 read -r proceed
 
 if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
@@ -542,6 +580,37 @@ for network_def in "${NETWORKS[@]}"; do
             echo -e "${GREEN}   ✅ DETH hooks deployment completed!${NC}"
         else
             echo -e "${RED}   ❌ DETH hooks deployment failed on $network_name, continuing...${NC}"
+        fi
+    fi
+
+    # Deploy rFLR hooks if supported on this chain
+    if is_rflr_supported "$network_id"; then
+        has_hooks=true
+        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
+        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
+        echo -e "${YELLOW}   Deploying rFLR hooks...${NC}"
+
+        if forge script script/DeployV2OtherHooks.s.sol:DeployV2OtherHooks \
+            --sig 'runRFLR(uint256,uint64)' $FORGE_ENV $network_id \
+            --account $ACCOUNT \
+            $KEYSTORE_PASSWORD_FLAG \
+            --rpc-url ${!rpc_var} \
+            --chain $network_id \
+            --etherscan-api-key $ETHERSCANV2_API_KEY \
+            --verifier etherscan \
+            $BROADCAST_FLAG \
+            $VERIFY_FLAG \
+            $SLOW_FLAG \
+            $BATCH_SIZE_FLAG \
+            $RESUME_FLAG \
+            $LEGACY_FLAG \
+            $GAS_PRICE_FLAG \
+            --timeout 300 \
+            -vv; then
+            echo -e "${GREEN}   ✅ rFLR hooks deployment completed!${NC}"
+        else
+            echo -e "${RED}   ❌ rFLR hooks deployment failed on $network_name, continuing...${NC}"
         fi
     fi
 
