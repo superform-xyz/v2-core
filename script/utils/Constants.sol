@@ -133,6 +133,9 @@ abstract contract Constants {
     address internal constant GATEWAY_WALLET = 0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE;
     address internal constant GATEWAY_MINTER = 0x2222222d7164433c4C09B0b0D809a9b52C04C205;
 
+    // Odos V3 Router (same CREATE2 address on all EVM chains)
+    address internal constant ODOS_ROUTER_V3 = 0x0D05a7D3448512B78fa8A9e46c4872C88C4a0D05;
+
     // SparkDex V2 Router (Uniswap V2 fork on Flare)
     address internal constant SPARKDEX_V2_ROUTER_FLARE = 0x4a1E5A90e9943467FAd1acea1E7F0e5e88472a1e;
 
@@ -169,6 +172,8 @@ abstract contract Constants {
     string internal constant FLUID_UNSTAKE_HOOK_KEY = "FluidUnstakeHook";
     string internal constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
     string internal constant SWAP_ODOSV2_HOOK_KEY = "SwapOdosV2Hook";
+    string internal constant SWAP_ODOSV3_HOOK_KEY = "SwapOdosV3Hook";
+    string internal constant APPROVE_AND_SWAP_ODOSV3_HOOK_KEY = "ApproveAndSwapOdosV3Hook";
     string internal constant SWAP_UNISWAPV4_HOOK_KEY = "SwapUniswapV4Hook";
     string internal constant SWAP_UNISWAPV3_HOOK_KEY = "SwapUniswapV3Hook";
     string internal constant APPROVE_AND_SWAP_UNISWAPV3_HOOK_KEY = "ApproveAndSwapUniswapV3Hook";
@@ -247,6 +252,17 @@ abstract contract Constants {
     string internal constant CIRCLE_GATEWAY_MINTER_HOOK_KEY = "CircleGatewayMinterHook";
     string internal constant CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY = "CircleGatewayAddDelegateHook";
     string internal constant CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY = "CircleGatewayRemoveDelegateHook";
+
+    // Stargate Hook Keys
+    string internal constant STARGATE_SEND_HOOK_KEY = "StargateSendHook";
+    string internal constant APPROVE_AND_STARGATE_SEND_HOOK_KEY = "ApproveAndStargateSendHook";
+
+    // CCTP V2 Hook Keys
+    string internal constant CCTP_SEND_HOOK_KEY = "CCTPSendHook";
+    string internal constant APPROVE_AND_CCTP_SEND_HOOK_KEY = "ApproveAndCCTPSendHook";
+
+    // CCTP V2 Token Messenger (same address on all EVM chains via CREATE2)
+    address internal constant CCTP_V2_TOKEN_MESSENGER = 0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d;
 
     // Firelight Hook Keys
     string internal constant REDEEM_FIRELIGHT_VAULT_HOOK_KEY = "RedeemFirelightVaultHook";

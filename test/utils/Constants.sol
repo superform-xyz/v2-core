@@ -118,6 +118,7 @@ abstract contract Constants {
     address public constant FLARE_ALGEBRA_POOL_DEPLOYER = 0x59a662Ed724F19AD019307126CbEBdcF4b57d6B1;
 
     // Flare tokens
+    address public constant FLARE_RNAT = 0x26d460c3Cf931Fb2014FA436a49e3Af08619810e;
     address public constant FLARE_WFLR = 0x1D80c49BbBCd1C0911346656B529DF9E5c2F783d;
     address public constant FLARE_SFLR = 0x12e605bc104e93B45e1aD99F9e555f659051c2BB;
     address public constant FLARE_SPRK = 0x657097cC15fdEc9e383dB8628B57eA4a763F2ba0;
@@ -185,6 +186,9 @@ abstract contract Constants {
     address public constant CHAIN_1_ODOS_ROUTER = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
     address public constant CHAIN_10_ODOS_ROUTER = 0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680;
     address public constant CHAIN_8453_ODOS_ROUTER = 0x19cEeAd7105607Cd444F5ad10dd51356436095a1;
+
+    // odos v3 (same CREATE2 address on all EVM chains)
+    address public constant ODOS_ROUTER_V3 = 0x0D05a7D3448512B78fa8A9e46c4872C88C4a0D05;
 
     // uniswap v2
     address public constant MAINNET_V2_SWAP_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;

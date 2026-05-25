@@ -86,12 +86,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address approveAndSwapKyberSwapHook;
         address swapUniswapV2Hook;
         address approveAndSwapUniswapV2Hook;
+        address swapOdosV3Hook;
+        address approveAndSwapOdosV3Hook;
         address cancelDepositRequestWithId7540Hook;
         address cancelRedeemRequestWithId7540Hook;
         address claimCancelDepositRequestWithId7540Hook;
         address claimCancelRedeemRequestWithId7540Hook;
         address redeemWithId7540VaultHook;
         address withdrawWithId7540VaultHook;
+        address stargateSendHook;
+        address approveAndStargateSendHook;
+        address cctpSendHook;
+        address approveAndCCTPSendHook;
     }
 
     struct HookDeployment {
@@ -232,6 +238,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool deBridgeCancelOrderHook;
         bool swap1InchHook;
         bool swapOdosHooks;
+        bool swapOdosV3Hooks;
         bool swapUniswapV4Hook;
         bool swapUniswapV3Hooks;
         bool swapSparkPsmHooks;
@@ -278,8 +285,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         returns (ContractAvailability memory availability)
     {
         // Initialize all skipped contracts array
-        // Max possible skips: 2 adapters + 22 hooks = 24 skipped contracts
-        string[] memory potentialSkips = new string[](30);
+        // Max possible skips: 2 adapters + 31 hooks = 33 skipped contracts
+        string[] memory potentialSkips = new string[](35);
         uint256 skipCount = 0;
         // Adapter contracts (2 contracts - conditionally deployed)
         string[2] memory adapterContracts = ["AcrossV3Adapter", "DebridgeAdapter"];
@@ -306,7 +313,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-        string[56] memory baseHooks = [
+        string[62] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -362,7 +369,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "SwapKyberSwapHook",
             "ApproveAndSwapKyberSwapHook",
             "SwapUniswapV2Hook",
-            "ApproveAndSwapUniswapV2Hook"
+            "ApproveAndSwapUniswapV2Hook",
+            "StargateSendHook",
+            "ApproveAndStargateSendHook",
+            "CCTPSendHook",
+            "ApproveAndCCTPSendHook",
+            "SwapOdosV3Hook",
+            "ApproveAndSwapOdosV3Hook"
         ];
 
         // Start with all hooks, then decrement for missing configurations
@@ -388,6 +401,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             expectedHooks -= 2; // SwapOdosV2Hook + ApproveAndSwapOdosV2Hook
             potentialSkips[skipCount++] = "SwapOdosV2Hook";
             potentialSkips[skipCount++] = "ApproveAndSwapOdosV2Hook";
+        }
+
+        if (configuration.odosRouterV3s[chainId] != address(0)) {
+            availability.swapOdosV3Hooks = true;
+        } else {
+            expectedHooks -= 2; // SwapOdosV3Hook + ApproveAndSwapOdosV3Hook
+            potentialSkips[skipCount++] = "SwapOdosV3Hook";
+            potentialSkips[skipCount++] = "ApproveAndSwapOdosV3Hook";
         }
 
         if (configuration.debridgeSrcDln[chainId] != address(0)) {
@@ -1095,6 +1116,25 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         }
 
+        if (availability.swapOdosV3Hooks) {
+            __checkContract(
+                SWAP_ODOSV3_HOOK_KEY,
+                __getSalt(SWAP_ODOSV3_HOOK_KEY),
+                abi.encode(configuration.odosRouterV3s[chainId]),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_SWAP_ODOSV3_HOOK_KEY,
+                __getSalt(APPROVE_AND_SWAP_ODOSV3_HOOK_KEY),
+                abi.encode(configuration.odosRouterV3s[chainId]),
+                env
+            );
+        } else {
+            console2.log(
+                "SKIPPED SwapOdosV3Hook & ApproveAndSwapOdosV3Hook: ODOS V3 Router not configured for chain", chainId
+            );
+        }
+
         if (availability.swapKyberSwapHooks) {
             __checkContract(
                 SWAP_KYBERSWAP_HOOK_KEY,
@@ -1270,6 +1310,42 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log("SKIPPED DeBridgeCancelOrderHook: DeBridge DLN DST not configured");
+        }
+
+        // Stargate bridge hooks
+        if (superValidator != address(0)) {
+            __checkContract(
+                STARGATE_SEND_HOOK_KEY,
+                __getSalt(STARGATE_SEND_HOOK_KEY),
+                abi.encode(superValidator),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_STARGATE_SEND_HOOK_KEY,
+                __getSalt(APPROVE_AND_STARGATE_SEND_HOOK_KEY),
+                abi.encode(superValidator),
+                env
+            );
+        } else {
+            revert("STARGATE_HOOK_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
+        }
+
+        // CCTP V2 bridge hooks
+        if (superValidator != address(0)) {
+            __checkContract(
+                CCTP_SEND_HOOK_KEY,
+                __getSalt(CCTP_SEND_HOOK_KEY),
+                abi.encode(CCTP_V2_TOKEN_MESSENGER, superValidator),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_CCTP_SEND_HOOK_KEY,
+                __getSalt(APPROVE_AND_CCTP_SEND_HOOK_KEY),
+                abi.encode(CCTP_V2_TOKEN_MESSENGER, superValidator),
+                env
+            );
+        } else {
+            revert("CCTP_HOOK_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
         }
 
         // Merkl claim reward hook
@@ -2248,7 +2324,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 62;
+        uint256 len = 68;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -2661,6 +2737,59 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[55] = HookDeployment("", "", ""); // Empty deployment
         }
 
+        // Stargate Bridge Hooks - Only require SuperValidator (pool address is in user-signed data)
+        {
+            address stargateValidator = _getContract(chainId, SUPER_VALIDATOR_KEY);
+            require(stargateValidator != address(0), "STARGATE_HOOK_VALIDATOR_PARAM_ZERO");
+            require(stargateValidator.code.length > 0, "STARGATE_HOOK_VALIDATOR_NOT_DEPLOYED");
+
+            hooks[62] = _createSafeHookDeploymentWithArgs(
+                STARGATE_SEND_HOOK_KEY, "StargateSendHook", env, abi.encode(stargateValidator)
+            );
+            hooks[63] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_STARGATE_SEND_HOOK_KEY, "ApproveAndStargateSendHook", env, abi.encode(stargateValidator)
+            );
+        }
+
+        // CCTP V2 Bridge hooks (same TokenMessengerV2 address on all chains via CREATE2)
+        {
+            address cctpValidator = _getContract(chainId, SUPER_VALIDATOR_KEY);
+            require(cctpValidator != address(0), "CCTP_HOOK_VALIDATOR_PARAM_ZERO");
+            require(cctpValidator.code.length > 0, "CCTP_HOOK_VALIDATOR_NOT_DEPLOYED");
+
+            hooks[64] = _createSafeHookDeploymentWithArgs(
+                CCTP_SEND_HOOK_KEY,
+                "CCTPSendHook",
+                env,
+                abi.encode(CCTP_V2_TOKEN_MESSENGER, cctpValidator)
+            );
+            hooks[65] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_CCTP_SEND_HOOK_KEY,
+                "ApproveAndCCTPSendHook",
+                env,
+                abi.encode(CCTP_V2_TOKEN_MESSENGER, cctpValidator)
+            );
+        }
+
+        // ODOS V3 Swap Hooks - Only deploy if available on this chain
+        if (availability.swapOdosV3Hooks) {
+            require(configuration.odosRouterV3s[chainId] != address(0), "SWAP_ODOSV3_HOOK_ROUTER_PARAM_ZERO");
+            require(configuration.odosRouterV3s[chainId].code.length > 0, "SWAP_ODOSV3_HOOK_ROUTER_NOT_DEPLOYED");
+            hooks[66] = _createSafeHookDeploymentWithArgs(
+                SWAP_ODOSV3_HOOK_KEY, "SwapOdosV3Hook", env, abi.encode(configuration.odosRouterV3s[chainId])
+            );
+            hooks[67] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_SWAP_ODOSV3_HOOK_KEY,
+                "ApproveAndSwapOdosV3Hook",
+                env,
+                abi.encode(configuration.odosRouterV3s[chainId])
+            );
+        } else {
+            console2.log(" SKIPPED ODOS V3 Swap Hooks deployment: Not available on chain", chainId);
+            hooks[66] = HookDeployment("", "", ""); // Empty deployment
+            hooks[67] = HookDeployment("", "", ""); // Empty deployment
+        }
+
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying hooks with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
@@ -2818,6 +2947,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[54].name, SWAP_UNISWAPV2_HOOK_KEY) ? addresses[54] : address(0);
         hookAddresses.approveAndSwapUniswapV2Hook =
             Strings.equal(hooks[55].name, APPROVE_AND_SWAP_UNISWAPV2_HOOK_KEY) ? addresses[55] : address(0);
+        hookAddresses.swapOdosV3Hook =
+            Strings.equal(hooks[66].name, SWAP_ODOSV3_HOOK_KEY) ? addresses[66] : address(0);
+        hookAddresses.approveAndSwapOdosV3Hook =
+            Strings.equal(hooks[67].name, APPROVE_AND_SWAP_ODOSV3_HOOK_KEY) ? addresses[67] : address(0);
 
         // ERC-7540 WithId hooks
         hookAddresses.cancelDepositRequestWithId7540Hook = Strings.equal(
@@ -2836,6 +2969,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[60].name, REDEEM_WITH_ID_7540_VAULT_HOOK_KEY) ? addresses[60] : address(0);
         hookAddresses.withdrawWithId7540VaultHook =
             Strings.equal(hooks[61].name, WITHDRAW_WITH_ID_7540_VAULT_HOOK_KEY) ? addresses[61] : address(0);
+
+        // Stargate Bridge hooks
+        hookAddresses.stargateSendHook =
+            Strings.equal(hooks[62].name, STARGATE_SEND_HOOK_KEY) ? addresses[62] : address(0);
+        hookAddresses.approveAndStargateSendHook =
+            Strings.equal(hooks[63].name, APPROVE_AND_STARGATE_SEND_HOOK_KEY) ? addresses[63] : address(0);
+
+        // CCTP V2 Bridge hooks
+        hookAddresses.cctpSendHook =
+            Strings.equal(hooks[64].name, CCTP_SEND_HOOK_KEY) ? addresses[64] : address(0);
+        hookAddresses.approveAndCCTPSendHook =
+            Strings.equal(hooks[65].name, APPROVE_AND_CCTP_SEND_HOOK_KEY) ? addresses[65] : address(0);
 
         // ===== FINAL VALIDATION OF ALL CRITICAL HOOKS =====
         require(hookAddresses.approveErc20Hook != address(0), "APPROVE_ERC20_HOOK_NOT_ASSIGNED");
@@ -2884,6 +3029,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             require(
                 hookAddresses.approveAndSwapUniswapV2Hook != address(0),
                 "APPROVE_AND_SWAP_UNISWAPV2_HOOK_NOT_ASSIGNED"
+            );
+        }
+        if (availability.swapOdosV3Hooks) {
+            require(hookAddresses.swapOdosV3Hook != address(0), "SWAP_ODOSV3_HOOK_NOT_ASSIGNED");
+            require(
+                hookAddresses.approveAndSwapOdosV3Hook != address(0), "APPROVE_AND_SWAP_ODOSV3_HOOK_NOT_ASSIGNED"
             );
         }
         if (availability.acrossV3Adapter) {
