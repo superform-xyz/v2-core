@@ -219,8 +219,6 @@ abstract contract Constants {
     string internal constant MORPHO_LEND_HOOK_KEY = "MorphoLendHook";
     string internal constant META_MORPHO_REALLOCATE_HOOK_KEY = "MetaMorphoReallocateHook";
     string internal constant FORCE_DEALLOCATE_MORPHO_HOOK_KEY = "ForceDeallocateMorphoHook";
-    string internal constant APPROVE_AND_FORCE_DEALLOCATE_MORPHO_HOOK_KEY =
-        "ApproveAndForceDeallocateMorphoHook";
 
     // Aave V4 Hook Keys
     string internal constant AAVE_V4_SUPPLY_HOOK_KEY = "AaveV4SupplyHook";

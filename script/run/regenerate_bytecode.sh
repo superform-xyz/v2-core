@@ -193,7 +193,6 @@ MORPHO_HOOK_CONTRACTS=(
     "MorphoLendHook"
     "MetaMorphoReallocateHook"
     "ForceDeallocateMorphoHook"
-    "ApproveAndForceDeallocateMorphoHook"
 )
 
 # Aave V4 hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode-other/)

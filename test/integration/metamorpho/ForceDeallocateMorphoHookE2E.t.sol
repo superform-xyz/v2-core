@@ -13,8 +13,6 @@ import { HookSubTypes } from "../../../src/libraries/HookSubTypes.sol";
 import { IMorphoVaultV2 } from "../../../src/vendor/morpho/IMorphoVaultV2.sol";
 import { ForceDeallocateMorphoHook } from
     "../../../src/hooks/vaults/metamorpho/ForceDeallocateMorphoHook.sol";
-import { ApproveAndForceDeallocateMorphoHook } from
-    "../../../src/hooks/vaults/metamorpho/ApproveAndForceDeallocateMorphoHook.sol";
 import { Constants } from "../../utils/Constants.sol";
 
 /// @notice Minimal interface for reading Morpho Vault V2 state
@@ -34,7 +32,7 @@ interface IAdapter {
 }
 
 /// @title ForceDeallocateMorphoHookE2E
-/// @notice E2E integration test for ForceDeallocateMorphoHook and ApproveAndForceDeallocateMorphoHook
+/// @notice E2E integration test for ForceDeallocateMorphoHook
 ///         using real Morpho Vault V2 on Ethereum mainnet fork
 contract ForceDeallocateMorphoHookE2E is Test, Constants {
     /*//////////////////////////////////////////////////////////////
@@ -63,7 +61,6 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
     //////////////////////////////////////////////////////////////*/
 
     ForceDeallocateMorphoHook public hook;
-    ApproveAndForceDeallocateMorphoHook public approveHook;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -72,7 +69,6 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
     function setUp() public {
         vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), FORK_BLOCK);
         hook = new ForceDeallocateMorphoHook();
-        approveHook = new ApproveAndForceDeallocateMorphoHook();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -82,8 +78,6 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
     function test_Constructor() public view {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
         assertEq(hook.SUB_TYPE(), HookSubTypes.MISC);
-        assertEq(uint256(approveHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
-        assertEq(approveHook.SUB_TYPE(), HookSubTypes.MISC);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -646,79 +640,21 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
     }
 
     /*//////////////////////////////////////////////////////////////
-                APPROVE VARIANT — HAPPY PATH
+              NO APPROVAL NEEDED — VERIFICATION TESTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Test the approve variant builds 6 executions (pre + 4 hook + post)
-    function test_ApproveAndForceDeallocate_Build() public {
-        address account = makeAddr("smartAccount");
-
-        bytes memory data = _encodeApproveData(ApproveDataParams({
-            vault: ZERO_PENALTY_VAULT,
-            token: USDC,
-            adapter: ZERO_PENALTY_ADAPTER,
-            assets: 1e6,
-            deadline: 0,
-            maxPenaltyBps: 10_000,
-            usePrevHookAmount: false,
-            adapterData: ""
-        }));
-
-        Execution[] memory executions = approveHook.build(address(0), account, data);
-
-        // preExecute + 4 hook executions (zero-approve-action-zero) + postExecute = 6
-        assertEq(executions.length, 6, "Should have 6 executions");
-
-        // executions[1] = approve(vault, 0) — zero out
-        assertEq(executions[1].target, USDC, "First approve target should be token");
-        assertEq(
-            executions[1].callData,
-            abi.encodeCall(IERC20.approve, (ZERO_PENALTY_VAULT, 0)),
-            "First approve should zero allowance"
-        );
-
-        // executions[2] = approve(vault, assets) — exact amount
-        assertEq(executions[2].target, USDC, "Second approve target should be token");
-        assertEq(
-            executions[2].callData,
-            abi.encodeCall(IERC20.approve, (ZERO_PENALTY_VAULT, 1e6)),
-            "Second approve should set exact allowance"
-        );
-
-        // executions[3] = forceDeallocate
-        assertEq(executions[3].target, ZERO_PENALTY_VAULT, "Action target should be vault");
-        bytes memory expectedCalldata = abi.encodeCall(
-            IMorphoVaultV2.forceDeallocate, (ZERO_PENALTY_ADAPTER, "", 1e6, account)
-        );
-        assertEq(executions[3].callData, expectedCalldata, "Calldata should match");
-
-        // executions[4] = approve(vault, 0) — cleanup
-        assertEq(executions[4].target, USDC, "Cleanup approve target should be token");
-        assertEq(
-            executions[4].callData,
-            abi.encodeCall(IERC20.approve, (ZERO_PENALTY_VAULT, 0)),
-            "Cleanup approve should zero allowance"
-        );
-    }
-
-    /// @notice Test approve variant full execution flow (mocked vault call)
-    function test_ApproveAndForceDeallocate_Execute() public {
+    /// @notice forceDeallocate succeeds without any token approval
+    function test_ForceDeallocate_Execute_NoApproval() public {
         uint256 extractAmount = 1e6;
         address account = makeAddr("smartAccount");
         deal(USDC, account, extractAmount * 2);
 
-        bytes memory data = _encodeApproveData(ApproveDataParams({
-            vault: ZERO_PENALTY_VAULT,
-            token: USDC,
-            adapter: ZERO_PENALTY_ADAPTER,
-            assets: extractAmount,
-            deadline: 0,
-            maxPenaltyBps: 10_000,
-            usePrevHookAmount: false,
-            adapterData: ""
-        }));
+        // Use base hook (no approval) — forceDeallocate does NOT pull tokens from user
+        bytes memory data = _encodeBaseData(
+            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, extractAmount, 0, 10_000, false, ""
+        );
 
-        Execution[] memory executions = approveHook.build(address(0), account, data);
+        Execution[] memory executions = hook.build(address(0), account, data);
 
         // Mock the vault's forceDeallocate to succeed
         vm.mockCall(
@@ -729,280 +665,111 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
 
         _executeAll(executions, account);
 
-        assertEq(approveHook.getOutAmount(account), extractAmount);
-
-        // Verify approval was cleaned up (revoked to 0)
-        uint256 allowance = IERC20(USDC).allowance(account, ZERO_PENALTY_VAULT);
-        assertEq(allowance, 0, "Allowance should be zeroed after execution");
+        assertEq(hook.getOutAmount(account), extractAmount);
     }
 
-    /// @notice Test approve variant penalty enforcement
-    function test_ApproveAndForceDeallocate_RevertIf_PenaltyTooHigh() public {
-        address account = makeAddr("smartAccount");
+    /// @notice forceDeallocate succeeds with zero allowance — proves no approval needed
+    function test_ForceDeallocate_NoApprovalNeeded_ZeroAllowance() public {
+        uint256 extractAmount = 1e6;
+        address account = makeAddr("noApprovalAccount");
 
-        bytes memory data = _encodeApproveData(ApproveDataParams({
-            vault: STEAKHOUSE_USDT_VAULT,
-            token: USDT,
-            adapter: STEAKHOUSE_USDT_ADAPTER,
-            assets: 1e6,
-            deadline: 0,
-            maxPenaltyBps: 5,
-            usePrevHookAmount: false,
-            adapterData: ""
-        }));
+        // Confirm zero allowance before
+        assertEq(IERC20(USDC).allowance(account, ZERO_PENALTY_VAULT), 0, "Allowance should be 0 before");
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ApproveAndForceDeallocateMorphoHook.PENALTY_TOO_HIGH.selector, 10, 5
-            )
+        bytes memory data = _encodeBaseData(
+            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, extractAmount, 0, 10_000, false, ""
         );
-        approveHook.build(address(0), account, data);
-    }
 
-    /// @notice Test approve variant validation — zero token
-    function test_ApproveAndForceDeallocate_RevertIf_ZeroToken() public {
-        bytes memory data = _encodeApproveData(ApproveDataParams({
-            vault: ZERO_PENALTY_VAULT,
-            token: address(0),
-            adapter: ZERO_PENALTY_ADAPTER,
-            assets: 1e6,
-            deadline: 0,
-            maxPenaltyBps: 10_000,
-            usePrevHookAmount: false,
-            adapterData: ""
-        }));
-
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        approveHook.build(address(0), makeAddr("account"), data);
-    }
-
-    /// @notice Test approve variant validation — zero vault
-    function test_ApproveAndForceDeallocate_RevertIf_ZeroVault() public {
-        bytes memory data = _encodeApproveData(ApproveDataParams({
-            vault: address(0),
-            token: USDC,
-            adapter: ZERO_PENALTY_ADAPTER,
-            assets: 1e6,
-            deadline: 0,
-            maxPenaltyBps: 10_000,
-            usePrevHookAmount: false,
-            adapterData: ""
-        }));
-
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        approveHook.build(address(0), makeAddr("account"), data);
-    }
-
-    /// @notice Test approve variant validation — zero adapter
-    function test_ApproveAndForceDeallocate_RevertIf_ZeroAdapter() public {
-        bytes memory data = _encodeApproveData(ApproveDataParams({
-            vault: ZERO_PENALTY_VAULT,
-            token: USDC,
-            adapter: address(0),
-            assets: 1e6,
-            deadline: 0,
-            maxPenaltyBps: 10_000,
-            usePrevHookAmount: false,
-            adapterData: ""
-        }));
-
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        approveHook.build(address(0), makeAddr("account"), data);
-    }
-
-    /// @notice Test approve variant validation — zero assets
-    function test_ApproveAndForceDeallocate_RevertIf_ZeroAssets() public {
-        bytes memory data = _encodeApproveData(ApproveDataParams({
-            vault: ZERO_PENALTY_VAULT,
-            token: USDC,
-            adapter: ZERO_PENALTY_ADAPTER,
-            assets: 0,
-            deadline: 0,
-            maxPenaltyBps: 10_000,
-            usePrevHookAmount: false,
-            adapterData: ""
-        }));
-
-        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
-        approveHook.build(address(0), makeAddr("account"), data);
-    }
-
-    /// @notice Test approve variant deadline enforcement
-    function test_ApproveAndForceDeallocate_RevertIf_DeadlineExpired() public {
-        address account = makeAddr("smartAccount");
-
-        bytes memory data = _encodeApproveData(ApproveDataParams({
-            vault: ZERO_PENALTY_VAULT,
-            token: USDC,
-            adapter: ZERO_PENALTY_ADAPTER,
-            assets: 1e6,
-            deadline: block.timestamp - 1,
-            maxPenaltyBps: 10_000,
-            usePrevHookAmount: false,
-            adapterData: ""
-        }));
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ApproveAndForceDeallocateMorphoHook.EXPIRED_DEADLINE.selector,
-                block.timestamp - 1,
-                block.timestamp
-            )
-        );
-        approveHook.build(address(0), account, data);
-    }
-
-    /// @notice Test approve variant reverts when usePrevHookAmount with prevHook = address(0)
-    function test_ApproveAndForceDeallocate_RevertIf_UsePrevHookAmount_ZeroPrevHook() public {
-        address account = makeAddr("smartAccount");
-
-        bytes memory data = _encodeApproveData(ApproveDataParams({
-            vault: ZERO_PENALTY_VAULT,
-            token: USDC,
-            adapter: ZERO_PENALTY_ADAPTER,
-            assets: 1e6,
-            deadline: 0,
-            maxPenaltyBps: 10_000,
-            usePrevHookAmount: true,
-            adapterData: ""
-        }));
-
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        approveHook.build(address(0), account, data);
-    }
-
-    /// @notice Test approve variant usePrevHookAmount
-    function test_ApproveAndForceDeallocate_UsePrevHookAmount() public {
-        address prevHook = makeAddr("prevHook");
-        address account = makeAddr("smartAccount");
-        uint256 prevAmount = 3e6;
+        Execution[] memory executions = hook.build(address(0), account, data);
 
         vm.mockCall(
-            prevHook,
-            abi.encodeWithSelector(bytes4(keccak256("getOutAmount(address)")), account),
-            abi.encode(prevAmount)
+            ZERO_PENALTY_VAULT,
+            abi.encodeCall(IMorphoVaultV2.forceDeallocate, (ZERO_PENALTY_ADAPTER, "", extractAmount, account)),
+            abi.encode(uint256(0))
         );
 
-        bytes memory data = _encodeApproveData(ApproveDataParams({
-            vault: ZERO_PENALTY_VAULT,
-            token: USDC,
-            adapter: ZERO_PENALTY_ADAPTER,
-            assets: 0,
-            deadline: 0,
-            maxPenaltyBps: 10_000,
-            usePrevHookAmount: true,
-            adapterData: ""
-        }));
+        _executeAll(executions, account);
 
-        Execution[] memory executions = approveHook.build(prevHook, account, data);
+        assertEq(hook.getOutAmount(account), extractAmount);
+        // Allowance still zero — no approval was ever set
+        assertEq(IERC20(USDC).allowance(account, ZERO_PENALTY_VAULT), 0, "Allowance should still be 0 after");
+    }
 
-        // forceDeallocate is executions[3] in the approve variant
-        bytes memory expectedCalldata = abi.encodeCall(
-            IMorphoVaultV2.forceDeallocate, (ZERO_PENALTY_ADAPTER, "", prevAmount, account)
+    /// @notice forceDeallocate with penalty vault works without approval
+    function test_ForceDeallocate_NoApprovalNeeded_WithPenalty() public {
+        uint256 extractAmount = 1e6;
+        address account = makeAddr("penaltyNoApproval");
+
+        assertEq(IERC20(USDT).allowance(account, STEAKHOUSE_USDT_VAULT), 0, "Allowance should be 0 before");
+
+        bytes memory data = _encodeBaseData(
+            STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, extractAmount, 0, 10_000, false, ""
         );
-        assertEq(executions[3].callData, expectedCalldata, "Should use prevHookAmount");
-    }
 
-    /// @notice Test approve variant inspect returns vault + adapter
-    function test_ApproveAndForceDeallocate_Inspect() public view {
-        bytes memory data = _encodeApproveData(ApproveDataParams({
-            vault: STEAKHOUSE_USDT_VAULT,
-            token: USDT,
-            adapter: STEAKHOUSE_USDT_ADAPTER,
-            assets: 1e6,
-            deadline: 0,
-            maxPenaltyBps: 200,
-            usePrevHookAmount: false,
-            adapterData: ""
-        }));
-        bytes memory result = approveHook.inspect(data);
+        Execution[] memory executions = hook.build(address(0), account, data);
 
-        assertEq(result.length, 40, "Inspect should return 40 bytes");
-        assertEq(BytesLib.toAddress(result, 0), STEAKHOUSE_USDT_VAULT);
-        assertEq(BytesLib.toAddress(result, 20), STEAKHOUSE_USDT_ADAPTER);
-    }
-
-    /// @notice Test approve variant decodeUsePrevHookAmount
-    function test_ApproveAndForceDeallocate_DecodeUsePrevHookAmount_True() public view {
-        bytes memory data = _encodeApproveData(ApproveDataParams({
-            vault: ZERO_PENALTY_VAULT,
-            token: USDC,
-            adapter: ZERO_PENALTY_ADAPTER,
-            assets: 1e6,
-            deadline: 0,
-            maxPenaltyBps: 10_000,
-            usePrevHookAmount: true,
-            adapterData: ""
-        }));
-        assertTrue(approveHook.decodeUsePrevHookAmount(data));
-    }
-
-    function test_ApproveAndForceDeallocate_DecodeUsePrevHookAmount_False() public view {
-        bytes memory data = _encodeApproveData(ApproveDataParams({
-            vault: ZERO_PENALTY_VAULT,
-            token: USDC,
-            adapter: ZERO_PENALTY_ADAPTER,
-            assets: 1e6,
-            deadline: 0,
-            maxPenaltyBps: 10_000,
-            usePrevHookAmount: false,
-            adapterData: ""
-        }));
-        assertFalse(approveHook.decodeUsePrevHookAmount(data));
-    }
-
-    /// @notice Test approve variant with non-empty adapterData
-    function test_ApproveAndForceDeallocate_WithAdapterData() public {
-        address account = makeAddr("smartAccount");
-        bytes memory adapterData = abi.encodePacked(uint256(99), address(0xbeef));
-
-        bytes memory data = _encodeApproveData(ApproveDataParams({
-            vault: ZERO_PENALTY_VAULT,
-            token: USDC,
-            adapter: ZERO_PENALTY_ADAPTER,
-            assets: 1e6,
-            deadline: 0,
-            maxPenaltyBps: 10_000,
-            usePrevHookAmount: false,
-            adapterData: adapterData
-        }));
-
-        Execution[] memory executions = approveHook.build(address(0), account, data);
-
-        bytes memory expectedCalldata = abi.encodeCall(
-            IMorphoVaultV2.forceDeallocate, (ZERO_PENALTY_ADAPTER, adapterData, 1e6, account)
+        // Mock vault returns penalty shares burned (non-zero penalty)
+        vm.mockCall(
+            STEAKHOUSE_USDT_VAULT,
+            abi.encodeCall(IMorphoVaultV2.forceDeallocate, (STEAKHOUSE_USDT_ADAPTER, "", extractAmount, account)),
+            abi.encode(uint256(100)) // 100 shares burned as penalty
         );
-        assertEq(executions[3].callData, expectedCalldata, "adapterData should be passed through");
+
+        _executeAll(executions, account);
+
+        assertEq(hook.getOutAmount(account), extractAmount);
+        assertEq(IERC20(USDT).allowance(account, STEAKHOUSE_USDT_VAULT), 0, "Allowance should still be 0 after");
     }
 
-    /// @notice Test approve variant data too short
-    function test_ApproveAndForceDeallocate_RevertIf_DataTooShort() public {
-        bytes memory shortData = new bytes(188);
+    /// @notice forceDeallocate with max penalty vault works without approval
+    function test_ForceDeallocate_NoApprovalNeeded_MaxPenaltyVault() public {
+        uint256 adapterAssets = IAdapter(MAX_PENALTY_ADAPTER).realAssets();
+        if (adapterAssets == 0) {
+            console2.log("SKIP: Max penalty adapter has no assets");
+            return;
+        }
 
-        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
-        approveHook.build(address(0), makeAddr("account"), shortData);
+        uint256 extractAmount = adapterAssets > 200 ? 100 : adapterAssets / 2;
+        address account = makeAddr("maxPenaltyNoApproval");
+
+        bytes memory data = _encodeBaseData(
+            MAX_PENALTY_VAULT, MAX_PENALTY_ADAPTER, extractAmount, 0, 200, false, ""
+        );
+
+        Execution[] memory executions = hook.build(address(0), account, data);
+
+        vm.mockCall(
+            MAX_PENALTY_VAULT,
+            abi.encodeCall(IMorphoVaultV2.forceDeallocate, (MAX_PENALTY_ADAPTER, "", extractAmount, account)),
+            abi.encode(uint256(500)) // shares burned as 2% penalty
+        );
+
+        _executeAll(executions, account);
+        assertEq(hook.getOutAmount(account), extractAmount);
     }
 
-    /// @notice Approve variant MIN_DATA_LENGTH = 189
-    function test_ApproveAndForceDeallocate_MinDataLength() public {
-        address account = makeAddr("smartAccount");
+    /// @notice forceDeallocate with adapterData works without approval
+    function test_ForceDeallocate_NoApprovalNeeded_WithAdapterData() public {
+        uint256 extractAmount = 1e6;
+        address account = makeAddr("adapterDataNoApproval");
+        bytes memory adapterData = hex"deadbeef";
 
-        bytes memory data = _encodeApproveData(ApproveDataParams({
-            vault: ZERO_PENALTY_VAULT,
-            token: USDC,
-            adapter: ZERO_PENALTY_ADAPTER,
-            assets: 1e6,
-            deadline: 0,
-            maxPenaltyBps: 10_000,
-            usePrevHookAmount: false,
-            adapterData: ""
-        }));
+        bytes memory data = _encodeBaseData(
+            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, extractAmount, 0, 10_000, false, adapterData
+        );
 
-        assertEq(data.length, 189, "Data should be exactly MIN_DATA_LENGTH for approve variant");
+        Execution[] memory executions = hook.build(address(0), account, data);
 
-        Execution[] memory executions = approveHook.build(address(0), account, data);
-        assertEq(executions.length, 6);
+        vm.mockCall(
+            ZERO_PENALTY_VAULT,
+            abi.encodeCall(IMorphoVaultV2.forceDeallocate, (ZERO_PENALTY_ADAPTER, adapterData, extractAmount, account)),
+            abi.encode(uint256(0))
+        );
+
+        _executeAll(executions, account);
+        assertEq(hook.getOutAmount(account), extractAmount);
     }
+
 
     /*//////////////////////////////////////////////////////////////
                         FUZZ TESTS
@@ -1082,26 +849,6 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         hook.build(address(0), account, data);
     }
 
-    /// @notice Fuzz: approve variant assets
-    function testFuzz_ApproveBuild_Assets(uint256 assets) public {
-        assets = bound(assets, 1, 1e18);
-        address account = makeAddr("smartAccount");
-
-        bytes memory data = _encodeApproveData(ApproveDataParams({
-            vault: ZERO_PENALTY_VAULT,
-            token: USDC,
-            adapter: ZERO_PENALTY_ADAPTER,
-            assets: assets,
-            deadline: 0,
-            maxPenaltyBps: 10_000,
-            usePrevHookAmount: false,
-            adapterData: ""
-        }));
-
-        Execution[] memory executions = approveHook.build(address(0), account, data);
-        assertEq(executions.length, 6);
-    }
-
     /// @notice Fuzz: adapterData of varying length
     function testFuzz_Build_AdapterDataLength(uint256 len) public {
         len = bound(len, 0, 256);
@@ -1169,34 +916,6 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         bytes memory head = bytes.concat(
             new bytes(32),
             abi.encodePacked(p.vault),
-            abi.encodePacked(p.adapter),
-            abi.encode(p.assets)
-        );
-        return bytes.concat(
-            head,
-            abi.encode(p.deadline),
-            abi.encode(p.maxPenaltyBps),
-            abi.encodePacked(p.usePrevHookAmount ? uint8(1) : uint8(0)),
-            p.adapterData
-        );
-    }
-
-    struct ApproveDataParams {
-        address vault;
-        address token;
-        address adapter;
-        uint256 assets;
-        uint256 deadline;
-        uint256 maxPenaltyBps;
-        bool usePrevHookAmount;
-        bytes adapterData;
-    }
-
-    function _encodeApproveData(ApproveDataParams memory p) internal pure returns (bytes memory) {
-        bytes memory head = bytes.concat(
-            new bytes(32),
-            abi.encodePacked(p.vault),
-            abi.encodePacked(p.token),
             abi.encodePacked(p.adapter),
             abi.encode(p.assets)
         );

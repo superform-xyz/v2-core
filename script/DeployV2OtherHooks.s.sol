@@ -18,7 +18,6 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address morphoLendHook;
         address metaMorphoReallocateHook;
         address forceDeallocateMorphoHook;
-        address approveAndForceDeallocateMorphoHook;
     }
 
     struct AaveV4HookAddresses {
@@ -179,7 +178,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         private
         returns (MorphoHookAddresses memory hookAddresses)
     {
-        uint256 len = 10;
+        uint256 len = 9;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -229,14 +228,9 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             META_MORPHO_REALLOCATE_HOOK_KEY, "", __getOtherHooksBytecode("MetaMorphoReallocateHook", env)
         );
 
-        // Morpho Vault V2 force deallocate hooks (no constructor args)
+        // Morpho Vault V2 force deallocate hook (no constructor args)
         hooks[8] = HookDeployment(
             FORCE_DEALLOCATE_MORPHO_HOOK_KEY, "", __getOtherHooksBytecode("ForceDeallocateMorphoHook", env)
-        );
-        hooks[9] = HookDeployment(
-            APPROVE_AND_FORCE_DEALLOCATE_MORPHO_HOOK_KEY,
-            "",
-            __getOtherHooksBytecode("ApproveAndForceDeallocateMorphoHook", env)
         );
 
         for (uint256 i = 0; i < len; ++i) {
@@ -264,8 +258,6 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             Strings.equal(hooks[7].name, META_MORPHO_REALLOCATE_HOOK_KEY) ? addresses[7] : address(0);
         hookAddresses.forceDeallocateMorphoHook =
             Strings.equal(hooks[8].name, FORCE_DEALLOCATE_MORPHO_HOOK_KEY) ? addresses[8] : address(0);
-        hookAddresses.approveAndForceDeallocateMorphoHook =
-            Strings.equal(hooks[9].name, APPROVE_AND_FORCE_DEALLOCATE_MORPHO_HOOK_KEY) ? addresses[9] : address(0);
 
         // Verify no hooks were assigned address(0)
         require(hookAddresses.morphoSupplyAndBorrowHook != address(0), "MorphoSupplyAndBorrowHook not assigned");
@@ -278,10 +270,6 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(hookAddresses.metaMorphoReallocateHook != address(0), "MetaMorphoReallocateHook not assigned");
         require(
             hookAddresses.forceDeallocateMorphoHook != address(0), "ForceDeallocateMorphoHook not assigned"
-        );
-        require(
-            hookAddresses.approveAndForceDeallocateMorphoHook != address(0),
-            "ApproveAndForceDeallocateMorphoHook not assigned"
         );
 
         console2.log("All Morpho hooks deployed and validated successfully.");
