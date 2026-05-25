@@ -20,6 +20,7 @@ abstract contract Constants {
     string internal constant WORLDCHAIN_KEY = "Worldchain";
     string internal constant HYPEREVM_KEY = "HyperEVM";
     string internal constant FLARE_KEY = "Flare";
+    string internal constant STABLE_KEY = "Stable";
     string internal constant SEPOLIA_KEY = "Sepolia";
     string internal constant ARB_SEPOLIA_KEY = "Arbitrum_Sepolia";
     string internal constant BASE_SEPOLIA_KEY = "Base_Sepolia";
@@ -61,6 +62,7 @@ abstract contract Constants {
     uint64 internal constant WORLDCHAIN_CHAIN_ID = 480;
     uint64 internal constant HYPEREVM_CHAIN_ID = 999;
     uint64 internal constant FLARE_CHAIN_ID = 14;
+    uint64 internal constant STABLE_CHAIN_ID = 988;
     // testnets
     uint64 internal constant SEPOLIA_CHAIN_ID = 11_155_111;
     uint64 internal constant ARB_SEPOLIA_CHAIN_ID = 421_613;

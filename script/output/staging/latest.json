@@ -108,7 +108,11 @@
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
         "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
         "WithdrawWithId7540VaultHook": "0x077aBdC3310668636448cF5505707990005AbF17",
-        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
+        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F",
+        "NexusProxy": "0x9128F3d78425f9b671E0eB245bF33902ee421352",
+        "Nexus": "0x10f2Ef78610aB17685656f894c556b568AeF2a35",
+        "NexusBootstrap": "0x3BF33e679b933446292b95F27186DCDB68492CD0",
+        "NexusAccountFactory": "0x4fb71F028D424358B27877fb3d9F481cf10D1C63"
       }
     },
     "Base": {
@@ -214,7 +218,11 @@
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
         "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
         "WithdrawWithId7540VaultHook": "0x077aBdC3310668636448cF5505707990005AbF17",
-        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
+        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F",
+        "NexusProxy": "0x9128F3d78425f9b671E0eB245bF33902ee421352",
+        "Nexus": "0x10f2Ef78610aB17685656f894c556b568AeF2a35",
+        "NexusBootstrap": "0x3BF33e679b933446292b95F27186DCDB68492CD0",
+        "NexusAccountFactory": "0x4fb71F028D424358B27877fb3d9F481cf10D1C63"
       }
     },
     "BNB": {
@@ -315,7 +323,11 @@
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
         "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
         "WithdrawWithId7540VaultHook": "0x077aBdC3310668636448cF5505707990005AbF17",
-        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
+        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F",
+        "NexusProxy": "0x9128F3d78425f9b671E0eB245bF33902ee421352",
+        "Nexus": "0x10f2Ef78610aB17685656f894c556b568AeF2a35",
+        "NexusBootstrap": "0x3BF33e679b933446292b95F27186DCDB68492CD0",
+        "NexusAccountFactory": "0x4fb71F028D424358B27877fb3d9F481cf10D1C63"
       }
     },
     "Arbitrum": {
@@ -417,7 +429,11 @@
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
         "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
         "WithdrawWithId7540VaultHook": "0x077aBdC3310668636448cF5505707990005AbF17",
-        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
+        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F",
+        "NexusProxy": "0x9128F3d78425f9b671E0eB245bF33902ee421352",
+        "Nexus": "0x10f2Ef78610aB17685656f894c556b568AeF2a35",
+        "NexusBootstrap": "0x3BF33e679b933446292b95F27186DCDB68492CD0",
+        "NexusAccountFactory": "0x4fb71F028D424358B27877fb3d9F481cf10D1C63"
       }
     },
     "Avalanche": {
@@ -505,7 +521,11 @@
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
         "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
         "WithdrawWithId7540VaultHook": "0x077aBdC3310668636448cF5505707990005AbF17",
-        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
+        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F",
+        "NexusProxy": "0x9128F3d78425f9b671E0eB245bF33902ee421352",
+        "Nexus": "0x10f2Ef78610aB17685656f894c556b568AeF2a35",
+        "NexusBootstrap": "0x3BF33e679b933446292b95F27186DCDB68492CD0",
+        "NexusAccountFactory": "0x4fb71F028D424358B27877fb3d9F481cf10D1C63"
       }
     },
     "HyperEVM": {
@@ -592,10 +612,10 @@
         "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
         "WithdrawWithId7540VaultHook": "0x077aBdC3310668636448cF5505707990005AbF17",
         "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F",
-        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
-        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
-        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
-        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050"
+        "NexusProxy": "0x9128F3d78425f9b671E0eB245bF33902ee421352",
+        "Nexus": "0x10f2Ef78610aB17685656f894c556b568AeF2a35",
+        "NexusBootstrap": "0x3BF33e679b933446292b95F27186DCDB68492CD0",
+        "NexusAccountFactory": "0x4fb71F028D424358B27877fb3d9F481cf10D1C63"
       }
     },
     "Flare": {
@@ -674,10 +694,82 @@
         "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
         "WithdrawWithId7540VaultHook": "0x077aBdC3310668636448cF5505707990005AbF17",
         "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F",
-        "NexusProxy": "0x8a3A6698C3D142b9dAD80F114947d46671A5290E",
-        "Nexus": "0xA3AA31f8d4Da6005aAfB0d61e5012a64d15F5B3A",
-        "NexusBootstrap": "0x5eBeb4d51723bA345080D81bBF178D93E84bC9BE",
-        "NexusAccountFactory": "0x4153Db38136E74a88A77b51a955A88823820C050"
+        "Nexus": "0x10f2Ef78610aB17685656f894c556b568AeF2a35",
+        "NexusAccountFactory": "0x4fb71F028D424358B27877fb3d9F481cf10D1C63",
+        "NexusBootstrap": "0x3BF33e679b933446292b95F27186DCDB68492CD0",
+        "NexusProxy": "0x9128F3d78425f9b671E0eB245bF33902ee421352"
+      }
+    },
+    "Stable": {
+      "counter": 0,
+      "vnet_id": "",
+      "contracts": {
+        "ApproveAndDeposit4626VaultHook": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4",
+        "ApproveAndDeposit5115VaultHook": "0xDc997F44693d865C68d2321E41716Bdc098016ee",
+        "ApproveAndRequestDeposit7540VaultHook": "0xef56121Af8553C0a534052b6305301E414E79c41",
+        "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
+        "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
+        "BatchTransferHook": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
+        "CancelDepositRequest7540Hook": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
+        "CancelDepositRequestWithId7540Hook": "0x6EE2299ddB4Cc2579C8Db13f5D28720203d6aB9E",
+        "CancelRedeemRequest7540Hook": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
+        "CancelRedeemRequestWithId7540Hook": "0xB9A161DcAC6BE72F80e0fD84B09f7fF67FA63421",
+        "CircleGatewayAddDelegateHook": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
+        "CircleGatewayMinterHook": "0x3A2a1281622Aa704a6480D1745702F6F83727521",
+        "CircleGatewayRemoveDelegateHook": "0xfC02C7Ec6efaF48DdB5E6DB97d7F95Fd3433Ea0C",
+        "CircleGatewayWalletHook": "0x7Be37FB4Ad39BDe35c5168Df21f3f1E019462510",
+        "ClaimCancelDepositRequest7540Hook": "0x0B515b1344cb9bAe3205B1c846a9a8C942Ef41b0",
+        "ClaimCancelDepositRequestWithId7540Hook": "0x91D1dEb29Bae6f0F78670dCa00D58C0dB3813879",
+        "ClaimCancelRedeemRequest7540Hook": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989",
+        "ClaimCancelRedeemRequestWithId7540Hook": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
+        "DETHYieldSourceOracle": "0x23A783da41218f8796652ec6cbF73DA2dd580d9D",
+        "Deposit4626VaultHook": "0xe3FFf64A14A38a5b082502779ae6f6a9a273b02C",
+        "Deposit5115VaultHook": "0x153B77421C844005C9af67cCA8A0469F814e10f8",
+        "Deposit7540VaultHook": "0xBDF724DA1928988F2891B9B565460161968Fc9d7",
+        "ERC4626YieldSourceOracle": "0x693E5364A5f95Be378eD44e27b62374d24Af6DF0",
+        "ERC5115YieldSourceOracle": "0x5F255eBDF9456EBF8dDe43C38b11D32d161e7300",
+        "EthenaCooldownSharesHook": "0xA1BD126da3d2830fe19eA93c0872aF433B7c04f7",
+        "EthenaUnstakeHook": "0xC836797f7b7f645248b73938d0bD2Ab2dc6A9337",
+        "FirelightYieldSourceOracle": "0xB70348aFE1A22aA795eB3DEc6853ef1AC2c4BD07",
+        "FlatFeeLedger": "0xb989FC825C8C77fbE84b69082048372d548f6FeF",
+        "MarkRootAsUsedHook": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
+        "MerklClaimRewardHook": "0x67CcC575D4064418406AE70cC094781837D01777",
+        "OfframpTokensHook": "0x45769A1252B26976896533664454b6e295b88266",
+        "PendlePTAmortizedOracle": "0xE31FD1d26A52B4a958651a8E751e9362B3880524",
+        "PendlePTAmortizedOracleV2": "0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e",
+        "PendlePTYieldSourceOracle": "0x5456333427e671072F77F68E90E3A7d89Cc996Aa",
+        "RecordPurchasePendlePTAmortizedOracleHook": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
+        "RecordPurchasePendlePTAmortizedOracleHookV2": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
+        "RecordRedemptionPendlePTAmortizedOracleHook": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
+        "RecordRedemptionPendlePTAmortizedOracleHookV2": "0x65133147a37b2d1171f1c164c4C697db34419809",
+        "Redeem4626VaultHook": "0xB10b1fCE2E4B24C5A988A9932d4Cf9DB37Ba0394",
+        "Redeem5115VaultHook": "0x421aE0BB3C201959D0B152a87d56BCdB2Ee1cF63",
+        "Redeem7540VaultHook": "0xCa50aB0375b774B2DE12919423Dd0B8e8cAad95f",
+        "RedeemWithId7540VaultHook": "0x53d833050721d0cDB2cBd0f5693f92746FAbE3F6",
+        "RequestDeposit7540VaultHook": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
+        "RequestRedeem7540VaultHook": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
+        "SetOperator7540Hook": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+        "SetSlippageHook": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
+        "SpectraPTYieldSourceOracle": "0xBb9154D1a9c06047D4AD5721eAEd874Ee125f4E3",
+        "StakingYieldSourceOracle": "0x0737eB8db2992b13a66b46E8226F36d774CA2A02",
+        "SuperDestinationExecutor": "0xd0B5d200a6B136D619Dd1c7BBA30b004b4773C40",
+        "SuperDestinationValidator": "0xCA9bB3fcDfB455962ee284A189CbFc2262970b39",
+        "SuperExecutor": "0xdC903190CF37993e970aA0b15cCC6e08EA12BCa0",
+        "SuperLedger": "0x31A3c245C67468A93E6874Dec00A7d3Ac4eF5245",
+        "SuperLedgerConfiguration": "0x102146454720de58Ee1331F7a91cdCC1F0c346E0",
+        "SuperNativePaymaster": "0x321093026AA7Ea3d25E69e550C4102d71D82E1cD",
+        "SuperSenderCreator": "0xEe885bD357B603cdC18239b8036e2510Ed2d1E35",
+        "SuperValidator": "0x5C563Ba4881e3c2710BABe76282895EfE5C8247d",
+        "SuperVaultYieldSourceOracle": "0x2339E250Cc72694BFea62C594B267270d728fD2b",
+        "SuperYieldSourceOracle": "0x03f1d66d67BDacD1d417d884a59733f3Af626c62",
+        "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
+        "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
+        "WithdrawWithId7540VaultHook": "0x077aBdC3310668636448cF5505707990005AbF17",
+        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F",
+        "Nexus": "0x10f2Ef78610aB17685656f894c556b568AeF2a35",
+        "NexusAccountFactory": "0x4fb71F028D424358B27877fb3d9F481cf10D1C63",
+        "NexusBootstrap": "0x3BF33e679b933446292b95F27186DCDB68492CD0",
+        "NexusProxy": "0x9128F3d78425f9b671E0eB245bF33902ee421352"
       }
     }
   },

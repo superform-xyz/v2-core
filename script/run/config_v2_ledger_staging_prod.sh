@@ -180,6 +180,12 @@ for network_def in "${NETWORKS[@]}"; do
     export FIREBLOCKS_RPC_URL="$RPC_URL"
     export FIREBLOCKS_CHAIN_ID="$network_id"
 
+    # Set Fireblocks asset ID for chains not auto-detected
+    case $network_id in
+        988) export FIREBLOCKS_ASSET_ID="GUSDT_STABLE" ;;
+        *)   unset FIREBLOCKS_ASSET_ID ;;
+    esac
+
     # Per-chain sender address and tx type (Fireblocks derives different addresses per chain)
     local sender_address
     local tx_type_flag=""
