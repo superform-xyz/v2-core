@@ -41,7 +41,7 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
     address public constant DAM = 0x0FedbA9178b70e8b54e2Af08eBffcf28A1e5A43B; // Reservoir (DAM) - 18 decimals
     address public constant STRATEGY = 0x41A9Eb398518D2487301c61D2b33E4e966A9F1DD; // SuperUSDC strategy escrow
 
-    uint256 constant MAX_RETRIES = 3;
+    uint256 constant MAX_RETRIES = 5;
 
     address public account;
 
@@ -92,10 +92,16 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
         internal
         returns (bytes memory txData_, uint256 expectedOut)
     {
-        // Exclude DEXes that use EVM features incompatible with Foundry's fork (UniV4 PoolManager, Ekubo)
-        // Note: "ekubo" and "uniswap-v4" are the actual exchange names in KyberSwap route responses
-        string memory routeSummary =
-            surlCallRoutes(tokenIn, tokenOut, amountIn, "ethereum", "ekubo-v3,ekubo,uniswap-v4,axima-v2");
+        // Exclude DEXes that use EVM features incompatible with Foundry's fork (UniV4 PoolManager, Ekubo,
+        // Euler V2 swap pools). KyberSwap may name these exchanges differently from the pool type — e.g.,
+        // "uniswap-v4-euler-v2" is a distinct exchange name from "uniswap-v4".
+        string memory routeSummary = surlCallRoutes(
+            tokenIn,
+            tokenOut,
+            amountIn,
+            "ethereum",
+            "ekubo-v3,ekubo,uniswap-v4,uniswap-v4-euler-v2,axima-v2,balancer-v3"
+        );
         expectedOut = extractAmountOut(routeSummary);
         string memory txDataHex = surlCallBuild(routeSummary, account, account, 200, "ethereum");
         txData_ = fromHex(txDataHex);

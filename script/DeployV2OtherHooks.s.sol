@@ -17,6 +17,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address morphoWithdrawHook;
         address morphoLendHook;
         address metaMorphoReallocateHook;
+        address forceDeallocateMorphoHook;
     }
 
     struct AaveV4HookAddresses {
@@ -196,7 +197,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         private
         returns (MorphoHookAddresses memory hookAddresses)
     {
-        uint256 len = 8;
+        uint256 len = 9;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -246,6 +247,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             META_MORPHO_REALLOCATE_HOOK_KEY, "", __getOtherHooksBytecode("MetaMorphoReallocateHook", env)
         );
 
+        // Morpho Vault V2 force deallocate hook (no constructor args)
+        hooks[8] = HookDeployment(
+            FORCE_DEALLOCATE_MORPHO_HOOK_KEY, "", __getOtherHooksBytecode("ForceDeallocateMorphoHook", env)
+        );
+
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
             string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
@@ -269,6 +275,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             Strings.equal(hooks[6].name, MORPHO_LEND_HOOK_KEY) ? addresses[6] : address(0);
         hookAddresses.metaMorphoReallocateHook =
             Strings.equal(hooks[7].name, META_MORPHO_REALLOCATE_HOOK_KEY) ? addresses[7] : address(0);
+        hookAddresses.forceDeallocateMorphoHook =
+            Strings.equal(hooks[8].name, FORCE_DEALLOCATE_MORPHO_HOOK_KEY) ? addresses[8] : address(0);
 
         // Verify no hooks were assigned address(0)
         require(hookAddresses.morphoSupplyAndBorrowHook != address(0), "MorphoSupplyAndBorrowHook not assigned");
@@ -279,6 +287,9 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(hookAddresses.morphoWithdrawHook != address(0), "MorphoWithdrawHook not assigned");
         require(hookAddresses.morphoLendHook != address(0), "MorphoLendHook not assigned");
         require(hookAddresses.metaMorphoReallocateHook != address(0), "MetaMorphoReallocateHook not assigned");
+        require(
+            hookAddresses.forceDeallocateMorphoHook != address(0), "ForceDeallocateMorphoHook not assigned"
+        );
 
         console2.log("All Morpho hooks deployed and validated successfully.");
 
