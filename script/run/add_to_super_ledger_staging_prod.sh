@@ -182,6 +182,12 @@ for network_def in "${NETWORKS[@]}"; do
     export FIREBLOCKS_RPC_URL="$RPC_URL"
     export FIREBLOCKS_CHAIN_ID="$CHAIN_ID"
 
+    # Set Fireblocks asset ID for chains not auto-detected
+    case $CHAIN_ID in
+        988) export FIREBLOCKS_ASSET_ID="GUSDT_STABLE" ;;
+        *)   unset FIREBLOCKS_ASSET_ID ;;
+    esac
+
     # Load deployment output for this chain
     OUTPUT_FILE="$OUTPUT_DIR/$ENV_DIR/$CHAIN_ID/${CHAIN_NAME}-latest.json"
     if [ ! -f "$OUTPUT_FILE" ]; then

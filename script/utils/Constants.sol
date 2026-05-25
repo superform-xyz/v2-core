@@ -20,6 +20,7 @@ abstract contract Constants {
     string internal constant WORLDCHAIN_KEY = "Worldchain";
     string internal constant HYPEREVM_KEY = "HyperEVM";
     string internal constant FLARE_KEY = "Flare";
+    string internal constant STABLE_KEY = "Stable";
     string internal constant SEPOLIA_KEY = "Sepolia";
     string internal constant ARB_SEPOLIA_KEY = "Arbitrum_Sepolia";
     string internal constant BASE_SEPOLIA_KEY = "Base_Sepolia";
@@ -61,6 +62,7 @@ abstract contract Constants {
     uint64 internal constant WORLDCHAIN_CHAIN_ID = 480;
     uint64 internal constant HYPEREVM_CHAIN_ID = 999;
     uint64 internal constant FLARE_CHAIN_ID = 14;
+    uint64 internal constant STABLE_CHAIN_ID = 988;
     // testnets
     uint64 internal constant SEPOLIA_CHAIN_ID = 11_155_111;
     uint64 internal constant ARB_SEPOLIA_CHAIN_ID = 421_613;
@@ -251,6 +253,17 @@ abstract contract Constants {
     string internal constant CIRCLE_GATEWAY_MINTER_HOOK_KEY = "CircleGatewayMinterHook";
     string internal constant CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY = "CircleGatewayAddDelegateHook";
     string internal constant CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY = "CircleGatewayRemoveDelegateHook";
+
+    // Stargate Hook Keys
+    string internal constant STARGATE_SEND_HOOK_KEY = "StargateSendHook";
+    string internal constant APPROVE_AND_STARGATE_SEND_HOOK_KEY = "ApproveAndStargateSendHook";
+
+    // CCTP V2 Hook Keys
+    string internal constant CCTP_SEND_HOOK_KEY = "CCTPSendHook";
+    string internal constant APPROVE_AND_CCTP_SEND_HOOK_KEY = "ApproveAndCCTPSendHook";
+
+    // CCTP V2 Token Messenger (same address on all EVM chains via CREATE2)
+    address internal constant CCTP_V2_TOKEN_MESSENGER = 0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d;
 
     // Firelight Hook Keys
     string internal constant REDEEM_FIRELIGHT_VAULT_HOOK_KEY = "RedeemFirelightVaultHook";

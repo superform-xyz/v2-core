@@ -101,4 +101,5 @@ ignore = [
 ]
 
 [etherscan]
-mainnet   = { key = "${ETHERSCANV2_API_KEY_TEST}" } 
+mainnet   = { key = "${ETHERSCANV2_API_KEY_TEST}" }
+stable    = { key = "${ETHERSCANV2_API_KEY}", chain = 988, url = "https://api.etherscan.io/v2/api?chainid=988" }

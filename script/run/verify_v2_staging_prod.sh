@@ -351,6 +351,14 @@ generate_constructor_args() {
             merkl_distributor=""  # Not deployed
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
+        "988") # Stable
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router=""  # Not deployed
+            odos_router=""  # Not deployed
+            across_spoke_pool_v3=""  # Not deployed
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
     esac
     
     # Generate constructor arguments based on contract type
@@ -619,12 +627,29 @@ verify_contract() {
     echo -e "${CYAN}      Source: $source_file${NC}"
     echo -e "${CYAN}      Chain ID: $chain_id${NC}"
 
-    forge verify-contract "$contract_address" "$source_file:$contract_name" \
-        --constructor-args "$constructor_args" \
-        --rpc-url "$rpc_url" \
-        --chain "$chain_id" \
-        --etherscan-api-key "$ETHERSCANV2_API_KEY" \
-        --verifier etherscan
+    # Chains not in forge's internal registry: drop --chain and --rpc-url,
+    # use --verifier-url only (Etherscan verification submits source, no RPC needed)
+    local verifier_url=""
+    case $chain_id in
+        "988"|"999"|"14"|"80094")
+            verifier_url="https://api.etherscan.io/v2/api?chainid=${chain_id}"
+            ;;
+    esac
+
+    if [ -n "$verifier_url" ]; then
+        forge verify-contract "$contract_address" "$source_file:$contract_name" \
+            --constructor-args "$constructor_args" \
+            --etherscan-api-key "$ETHERSCANV2_API_KEY" \
+            --verifier etherscan \
+            --verifier-url "$verifier_url"
+    else
+        forge verify-contract "$contract_address" "$source_file:$contract_name" \
+            --constructor-args "$constructor_args" \
+            --rpc-url "$rpc_url" \
+            --chain "$chain_id" \
+            --etherscan-api-key "$ETHERSCANV2_API_KEY" \
+            --verifier etherscan
+    fi
 
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}   ✅ $contract_name verified successfully${NC}"
