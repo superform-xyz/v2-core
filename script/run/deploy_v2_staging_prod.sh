@@ -651,6 +651,42 @@ trap 'unset KEYSTORE_PASSWORD' EXIT
 
 print_separator
 
+# Function to preserve entries in chain output JSON that the forge script doesn't manage
+# (e.g., Nexus contracts deployed by a separate process)
+preserve_existing_json_entries() {
+    local output_file=$1
+    local backup_file=$2
+
+    if [[ ! -f "$backup_file" ]] || [[ ! -f "$output_file" ]]; then
+        return 0
+    fi
+
+    # Merge: start with the new output, then add any keys from the backup that are missing
+    local merged
+    merged=$(python3 -c "
+import json, sys
+with open('$output_file') as f:
+    new = json.load(f)
+with open('$backup_file') as f:
+    old = json.load(f)
+# Add back any keys from the old file that are missing in the new file
+changed = False
+for k, v in old.items():
+    if k not in new:
+        new[k] = v
+        changed = True
+if changed:
+    print(json.dumps(new, indent=2, sort_keys=True))
+else:
+    sys.exit(1)
+" 2>/dev/null) || true
+
+    if [[ -n "$merged" ]]; then
+        echo "$merged" > "$output_file"
+        echo -e "${CYAN}   📋 Preserved existing entries in output file${NC}"
+    fi
+}
+
 # Deploy only to networks that need deployment (smart deployment logic)
 deployed_networks=0
 skipped_networks=0
@@ -698,6 +734,13 @@ for network_def in "${NETWORKS[@]}"; do
     esac
     echo -e "${YELLOW}   Executing forge script...${NC}"
 
+    # Backup the existing output JSON before forge overwrites it
+    output_json="$PROJECT_ROOT/script/output/$ENVIRONMENT/$network_id/$network_name-latest.json"
+    backup_json="${output_json}.bak"
+    if [[ -f "$output_json" ]]; then
+        cp "$output_json" "$backup_json"
+    fi
+
     forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(bool,uint256,uint64)' false $FORGE_ENV $network_id \
         --account $ACCOUNT \
@@ -714,7 +757,11 @@ for network_def in "${NETWORKS[@]}"; do
         $GAS_PRICE_FLAG \
         --timeout 300 \
         -vv
-    
+
+    # Restore any entries that the forge script dropped (e.g., Nexus contracts)
+    preserve_existing_json_entries "$output_json" "$backup_json"
+    rm -f "$backup_json"
+
     echo -e "${GREEN}✅ $network_name Mainnet deployment completed successfully!${NC}"
     ((deployed_networks++))
 done

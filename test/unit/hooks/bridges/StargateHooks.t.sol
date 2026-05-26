@@ -5,6 +5,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { StargateSendHook } from "../../../../src/hooks/bridges/stargate/StargateSendHook.sol";
 import { ApproveAndStargateSendHook } from "../../../../src/hooks/bridges/stargate/ApproveAndStargateSendHook.sol";
 import { IStargate } from "../../../../src/vendor/bridges/stargate/IStargate.sol";
+import { IOFT } from "../../../../src/vendor/bridges/layerzero/IOFT.sol";
 import { ISuperValidator } from "../../../../src/interfaces/ISuperValidator.sol";
 import { ISuperHook, ISuperHookResult } from "../../../../src/interfaces/ISuperHook.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
@@ -51,7 +52,7 @@ contract StargateHooks is Helpers {
 
         mockLzNativeFee = 0.01 ether;
         mockDstEid = 30_184; // Base
-        mockTo = bytes32(uint256(uint160(makeAddr("recipient"))));
+        mockTo = bytes32(uint256(uint160(mockAccount)));
         mockAmountLD = 1000e6; // 1000 USDC
         mockMinAmountLD = 995e6; // 0.5% slippage
         mockExtraOptions = hex"0003";
@@ -91,7 +92,7 @@ contract StargateHooks is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_StargateSend_Build_TaxiMode() public view {
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
         Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
 
         // preExecute + sendToken + postExecute = 3
@@ -101,7 +102,7 @@ contract StargateHooks is Helpers {
     }
 
     function test_StargateSend_Build_BusMode() public view {
-        bytes memory data = _encodeStargateData(false, true, false);
+        bytes memory data = _encodeStargateData(false, 1, false);
         Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
 
         assertEq(executions.length, 3);
@@ -110,7 +111,7 @@ contract StargateHooks is Helpers {
     }
 
     function test_StargateSend_Build_WithComposeMsg() public view {
-        bytes memory data = _encodeStargateData(false, false, true);
+        bytes memory data = _encodeStargateData(false, 0, true);
         Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
 
         assertEq(executions.length, 3);
@@ -122,7 +123,7 @@ contract StargateHooks is Helpers {
     }
 
     function test_StargateSend_Build_WithoutComposeMsg() public view {
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
         Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
 
         assertEq(executions.length, 3);
@@ -144,7 +145,7 @@ contract StargateHooks is Helpers {
             mockPrevHook, abi.encodeWithSelector(ISuperHookResult.getOutAmount.selector), abi.encode(prevHookAmount)
         );
 
-        bytes memory data = _encodeStargateData(true, false, false);
+        bytes memory data = _encodeStargateData(true, 0, false);
         Execution[] memory executions = stargateHook.build(mockPrevHook, mockAccount, data);
 
         assertEq(executions.length, 3);
@@ -162,7 +163,7 @@ contract StargateHooks is Helpers {
             mockPrevHook, abi.encodeWithSelector(ISuperHookResult.getOutAmount.selector), abi.encode(prevHookAmount)
         );
 
-        bytes memory data = _encodeStargateData(true, false, false);
+        bytes memory data = _encodeStargateData(true, 0, false);
         Execution[] memory executions = stargateHook.build(mockPrevHook, mockAccount, data);
 
         // Verify minAmountLD was scaled: minAmountLD * prevHookAmount / amountLD
@@ -189,7 +190,7 @@ contract StargateHooks is Helpers {
     function test_StargateSend_Build_RevertIf_AmountZero() public {
         uint256 originalAmount = mockAmountLD;
         mockAmountLD = 0;
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
         mockAmountLD = originalAmount;
 
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
@@ -199,7 +200,7 @@ contract StargateHooks is Helpers {
     function test_StargateSend_Build_RevertIf_PoolZero() public {
         address originalPool = mockStargatePool;
         mockStargatePool = address(0);
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
         mockStargatePool = originalPool;
 
         vm.expectRevert(StargateSendHook.POOL_NOT_VALID.selector);
@@ -209,7 +210,7 @@ contract StargateHooks is Helpers {
     function test_StargateSend_Build_RevertIf_RecipientZero() public {
         bytes32 originalTo = mockTo;
         mockTo = bytes32(0);
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
         mockTo = originalTo;
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -226,7 +227,7 @@ contract StargateHooks is Helpers {
             mockPrevHook, abi.encodeWithSelector(ISuperHookResult.getOutAmount.selector), abi.encode(prevHookAmount)
         );
 
-        bytes memory data = _encodeStargateData(true, false, false);
+        bytes memory data = _encodeStargateData(true, 0, false);
 
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         stargateHook.build(mockPrevHook, mockAccount, data);
@@ -237,7 +238,7 @@ contract StargateHooks is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_StargateSend_Inspector() public view {
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
         bytes memory argsEncoded = stargateHook.inspect(data);
 
         // Should return stargatePool + inputToken + toAddress (60 bytes)
@@ -249,12 +250,12 @@ contract StargateHooks is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_StargateSend_DecodeUsePrevHookAmount_True() public view {
-        bytes memory data = _encodeStargateData(true, false, false);
+        bytes memory data = _encodeStargateData(true, 0, false);
         assertTrue(stargateHook.decodeUsePrevHookAmount(data));
     }
 
     function test_StargateSend_DecodeUsePrevHookAmount_False() public view {
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
         assertFalse(stargateHook.decodeUsePrevHookAmount(data));
     }
 
@@ -275,7 +276,7 @@ contract StargateHooks is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_ApproveAndStargateSend_Build_ERC20() public view {
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
         Execution[] memory executions = approveAndStargateHook.build(address(0), mockAccount, data);
 
         // preExecute + approve(0) + approve(amount) + sendToken + approve(0) + postExecute = 6
@@ -302,7 +303,7 @@ contract StargateHooks is Helpers {
     }
 
     function test_ApproveAndStargateSend_Build_WithComposeMsg() public view {
-        bytes memory data = _encodeStargateData(false, false, true);
+        bytes memory data = _encodeStargateData(false, 0, true);
         Execution[] memory executions = approveAndStargateHook.build(address(0), mockAccount, data);
 
         assertEq(executions.length, 6);
@@ -320,7 +321,7 @@ contract StargateHooks is Helpers {
             mockPrevHook, abi.encodeWithSelector(ISuperHookResult.getOutAmount.selector), abi.encode(prevHookAmount)
         );
 
-        bytes memory data = _encodeStargateData(true, false, false);
+        bytes memory data = _encodeStargateData(true, 0, false);
         Execution[] memory executions = approveAndStargateHook.build(mockPrevHook, mockAccount, data);
 
         assertEq(executions.length, 6);
@@ -340,7 +341,7 @@ contract StargateHooks is Helpers {
     function test_ApproveAndStargateSend_Build_RevertIf_InputTokenZero() public {
         address originalToken = mockInputToken;
         mockInputToken = address(0);
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
         mockInputToken = originalToken;
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -352,7 +353,7 @@ contract StargateHooks is Helpers {
         address wrongToken = makeAddr("wrongToken");
         vm.mockCall(mockStargatePool, abi.encodeWithSelector(IStargate.token.selector), abi.encode(wrongToken));
 
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
 
         vm.expectRevert(ApproveAndStargateSendHook.POOL_NOT_VALID.selector);
         approveAndStargateHook.build(address(0), mockAccount, data);
@@ -366,7 +367,7 @@ contract StargateHooks is Helpers {
         address fakePool = makeAddr("fakePool");
         address originalPool = mockStargatePool;
         mockStargatePool = fakePool;
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
         mockStargatePool = originalPool;
 
         // Should revert because token() call fails on non-contract address
@@ -375,7 +376,7 @@ contract StargateHooks is Helpers {
     }
 
     function test_ApproveAndStargateSend_Inspector() public view {
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
         bytes memory argsEncoded = approveAndStargateHook.inspect(data);
         assertEq(argsEncoded.length, 60);
     }
@@ -404,7 +405,7 @@ contract StargateHooks is Helpers {
         address eoaPool = address(0xdead);
         address originalPool = mockStargatePool;
         mockStargatePool = eoaPool;
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
         mockStargatePool = originalPool;
 
         vm.expectRevert();
@@ -415,7 +416,7 @@ contract StargateHooks is Helpers {
         address eoaPool = address(0xdead);
         address originalPool = mockStargatePool;
         mockStargatePool = eoaPool;
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
         mockStargatePool = originalPool;
 
         vm.expectRevert();
@@ -426,7 +427,7 @@ contract StargateHooks is Helpers {
         // Pool returns address(0) as token (native pool), but hook expects ERC20
         vm.mockCall(mockStargatePool, abi.encodeWithSelector(IStargate.token.selector), abi.encode(address(0)));
 
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
 
         vm.expectRevert(ApproveAndStargateSendHook.POOL_NOT_VALID.selector);
         approveAndStargateHook.build(address(0), mockAccount, data);
@@ -437,7 +438,7 @@ contract StargateHooks is Helpers {
 
     function test_ApproveAndStargateSend_Build_Passes_WhenPoolTokenMatches() public view {
         // Happy path: pool.token() == inputToken (set up in setUp)
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
         Execution[] memory executions = approveAndStargateHook.build(address(0), mockAccount, data);
         assertEq(executions.length, 6);
     }
@@ -449,7 +450,7 @@ contract StargateHooks is Helpers {
         // BEFORE attempting to call prevHook.getOutAmount()
         address originalPool = mockStargatePool;
         mockStargatePool = address(0);
-        bytes memory data = _encodeStargateData(true, false, false);
+        bytes memory data = _encodeStargateData(true, 0, false);
         mockStargatePool = originalPool;
 
         // If validation ordering is wrong, this would revert with a different error
@@ -461,7 +462,7 @@ contract StargateHooks is Helpers {
     function test_StargateSend_FailFast_RecipientZeroBeforePrevHookCall() public {
         bytes32 originalTo = mockTo;
         mockTo = bytes32(0);
-        bytes memory data = _encodeStargateData(true, false, false);
+        bytes memory data = _encodeStargateData(true, 0, false);
         mockTo = originalTo;
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -471,7 +472,7 @@ contract StargateHooks is Helpers {
     function test_ApproveAndStargateSend_FailFast_InputTokenZeroBeforePrevHookCall() public {
         address originalToken = mockInputToken;
         mockInputToken = address(0);
-        bytes memory data = _encodeStargateData(true, false, false);
+        bytes memory data = _encodeStargateData(true, 0, false);
         mockInputToken = originalToken;
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -481,7 +482,7 @@ contract StargateHooks is Helpers {
     function test_ApproveAndStargateSend_FailFast_PoolZeroBeforePrevHookCall() public {
         address originalPool = mockStargatePool;
         mockStargatePool = address(0);
-        bytes memory data = _encodeStargateData(true, false, false);
+        bytes memory data = _encodeStargateData(true, 0, false);
         mockStargatePool = originalPool;
 
         vm.expectRevert(ApproveAndStargateSendHook.POOL_NOT_VALID.selector);
@@ -821,11 +822,11 @@ contract StargateHooks is Helpers {
     // --- Bus mode OFT cmd encoding validation ---
 
     function test_StargateSend_Build_BusMode_OftCmdEncoding() public view {
-        bytes memory data = _encodeStargateData(false, true, false);
+        bytes memory data = _encodeStargateData(false, 1, false);
         Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
 
         // Verify bus mode produces different calldata than taxi mode
-        bytes memory taxiData = _encodeStargateData(false, false, false);
+        bytes memory taxiData = _encodeStargateData(false, 0, false);
         Execution[] memory taxiExecutions = stargateHook.build(address(0), mockAccount, taxiData);
 
         // Both should target the pool and have valid calldata
@@ -837,7 +838,7 @@ contract StargateHooks is Helpers {
     }
 
     function test_StargateSend_Build_TaxiMode_OftCmdEncoding() public view {
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
         Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
         assertGt(executions[1].callData.length, 0);
     }
@@ -848,7 +849,7 @@ contract StargateHooks is Helpers {
         // Simulate a native pool (token() returns address(0)) being used with ERC20 hook
         vm.mockCall(mockStargatePool, abi.encodeWithSelector(IStargate.token.selector), abi.encode(address(0)));
 
-        bytes memory data = _encodeStargateData(false, false, false);
+        bytes memory data = _encodeStargateData(false, 0, false);
 
         vm.expectRevert(ApproveAndStargateSendHook.POOL_NOT_VALID.selector);
         approveAndStargateHook.build(address(0), mockAccount, data);
@@ -869,7 +870,7 @@ contract StargateHooks is Helpers {
         );
 
         // Pool mock is still set from setUp, so token() check passes
-        bytes memory data = _encodeStargateData(true, false, false);
+        bytes memory data = _encodeStargateData(true, 0, false);
         Execution[] memory executions = stargateHook.build(mockPrevHook, mockAccount, data);
 
         assertEq(executions.length, 3);
@@ -885,7 +886,7 @@ contract StargateHooks is Helpers {
             mockPrevHook, abi.encodeWithSelector(ISuperHookResult.getOutAmount.selector), abi.encode(prevHookAmount)
         );
 
-        bytes memory data = _encodeStargateData(true, false, false);
+        bytes memory data = _encodeStargateData(true, 0, false);
         Execution[] memory executions = approveAndStargateHook.build(mockPrevHook, mockAccount, data);
 
         assertEq(executions.length, 6);
@@ -1084,12 +1085,405 @@ contract StargateHooks is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                         OFT MODE (MODE=2) TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    // --- StargateSendHook OFT mode ---
+
+    function test_StargateSend_Build_OFTMode() public view {
+        bytes memory data = _encodeStargateData(false, 2, false);
+        Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
+
+        // preExecute + IOFT.send + postExecute = 3
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockStargatePool);
+
+        // CRITICAL: OFT mode value = lzNativeFee ONLY (not + amountLD)
+        assertEq(executions[1].value, mockLzNativeFee);
+
+        // Verify selector is IOFT.send, not IStargate.sendToken
+        assertEq(bytes4(executions[1].callData), IOFT.send.selector);
+    }
+
+    function test_StargateSend_Build_OFTMode_ValueIsLzNativeFeeOnly() public view {
+        // Explicitly verify the critical msg.value difference between modes
+        bytes memory stargateData = _encodeStargateData(false, 0, false);
+        Execution[] memory stargateExecs = stargateHook.build(address(0), mockAccount, stargateData);
+
+        bytes memory oftData = _encodeStargateData(false, 2, false);
+        Execution[] memory oftExecs = stargateHook.build(address(0), mockAccount, oftData);
+
+        // Stargate: value = lzNativeFee + amountLD
+        assertEq(stargateExecs[1].value, mockLzNativeFee + mockAmountLD);
+
+        // OFT: value = lzNativeFee ONLY
+        assertEq(oftExecs[1].value, mockLzNativeFee);
+    }
+
+    function test_StargateSend_Build_OFTMode_WithComposeMsg() public view {
+        bytes memory data = _encodeStargateData(false, 2, true);
+        Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
+
+        assertEq(executions.length, 3);
+        assertEq(bytes4(executions[1].callData), IOFT.send.selector);
+        // value still lzNativeFee only
+        assertEq(executions[1].value, mockLzNativeFee);
+    }
+
+    function test_StargateSend_Build_OFTMode_WithPrevHookAmount() public {
+        uint256 prevHookAmount = 2000e6;
+
+        mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
+
+        vm.mockCall(
+            mockPrevHook, abi.encodeWithSelector(ISuperHookResult.getOutAmount.selector), abi.encode(prevHookAmount)
+        );
+
+        bytes memory data = _encodeStargateData(true, 2, false);
+        Execution[] memory executions = stargateHook.build(mockPrevHook, mockAccount, data);
+
+        assertEq(executions.length, 3);
+        // OFT mode: value = lzNativeFee only (prevHookAmount NOT added to value)
+        assertEq(executions[1].value, mockLzNativeFee);
+        assertEq(bytes4(executions[1].callData), IOFT.send.selector);
+    }
+
+    function test_StargateSend_Build_OFTMode_WithLzTokenFee() public {
+        address mockLzToken = makeAddr("lzToken");
+        uint256 lzTokenFee = 1e18;
+        bytes memory fixedPart = abi.encodePacked(
+            mockLzNativeFee, lzTokenFee, mockStargatePool, mockInputToken, mockLzToken, mockDstEid, mockTo,
+            mockAmountLD, mockMinAmountLD
+        );
+        bytes memory data = abi.encodePacked(
+            fixedPart, false, uint8(2), uint256(mockExtraOptions.length), mockExtraOptions, uint256(0)
+        );
+
+        Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
+
+        // pre + 4 hook executions + post = 6
+        assertEq(executions.length, 6);
+
+        // Execution 1: approve(lzToken, pool, 0)
+        assertEq(executions[1].target, mockLzToken);
+        assertEq(executions[1].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, 0)));
+
+        // Execution 2: approve(lzToken, pool, lzTokenFee)
+        assertEq(executions[2].target, mockLzToken);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, lzTokenFee)));
+
+        // Execution 3: IOFT.send (value = lzNativeFee ONLY for OFT)
+        assertEq(executions[3].target, mockStargatePool);
+        assertEq(executions[3].value, mockLzNativeFee);
+        assertEq(bytes4(executions[3].callData), IOFT.send.selector);
+
+        // Execution 4: approve(lzToken, pool, 0) cleanup
+        assertEq(executions[4].target, mockLzToken);
+        assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, 0)));
+    }
+
+    // --- ApproveAndStargateSendHook OFT mode ---
+
+    function test_ApproveAndStargateSend_Build_OFTMode() public view {
+        bytes memory data = _encodeStargateData(false, 2, false);
+        Execution[] memory executions = approveAndStargateHook.build(address(0), mockAccount, data);
+
+        // preExecute + approve(0) + approve(amount) + IOFT.send + approve(0) + postExecute = 6
+        assertEq(executions.length, 6);
+
+        // Execution 1: approve(inputToken, pool/OFT, 0)
+        assertEq(executions[1].target, mockInputToken);
+        assertEq(executions[1].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, 0)));
+
+        // Execution 2: approve(inputToken, pool/OFT, amountLD)
+        assertEq(executions[2].target, mockInputToken);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, mockAmountLD)));
+
+        // Execution 3: IOFT.send (value = lzNativeFee)
+        assertEq(executions[3].target, mockStargatePool);
+        assertEq(executions[3].value, mockLzNativeFee);
+        assertEq(bytes4(executions[3].callData), IOFT.send.selector);
+
+        // Execution 4: approve(inputToken, pool/OFT, 0)
+        assertEq(executions[4].target, mockInputToken);
+        assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, 0)));
+    }
+
+    function test_ApproveAndStargateSend_Build_OFTMode_WithComposeMsg() public view {
+        bytes memory data = _encodeStargateData(false, 2, true);
+        Execution[] memory executions = approveAndStargateHook.build(address(0), mockAccount, data);
+
+        assertEq(executions.length, 6);
+        assertEq(bytes4(executions[3].callData), IOFT.send.selector);
+    }
+
+    function test_ApproveAndStargateSend_Build_OFTMode_WithPrevHookAmount() public {
+        uint256 prevHookAmount = 2000e6;
+
+        mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
+
+        vm.mockCall(
+            mockPrevHook, abi.encodeWithSelector(ISuperHookResult.getOutAmount.selector), abi.encode(prevHookAmount)
+        );
+
+        bytes memory data = _encodeStargateData(true, 2, false);
+        Execution[] memory executions = approveAndStargateHook.build(mockPrevHook, mockAccount, data);
+
+        assertEq(executions.length, 6);
+        // Approval should use prevHookAmount
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, prevHookAmount)));
+        // Value should be lzNativeFee only
+        assertEq(executions[3].value, mockLzNativeFee);
+        assertEq(bytes4(executions[3].callData), IOFT.send.selector);
+    }
+
+    function test_ApproveAndStargateSend_Build_OFTMode_WithLzTokenFee() public {
+        address mockLzToken = makeAddr("lzToken");
+        uint256 lzTokenFee = 1e18;
+        bytes memory fixedPart = abi.encodePacked(
+            mockLzNativeFee, lzTokenFee, mockStargatePool, mockInputToken, mockLzToken, mockDstEid, mockTo,
+            mockAmountLD, mockMinAmountLD
+        );
+        bytes memory data = abi.encodePacked(
+            fixedPart, false, uint8(2), uint256(mockExtraOptions.length), mockExtraOptions, uint256(0)
+        );
+
+        Execution[] memory executions = approveAndStargateHook.build(address(0), mockAccount, data);
+
+        // pre + 7 hook executions + post = 9
+        assertEq(executions.length, 9);
+
+        // Execution 5: IOFT.send (value = lzNativeFee only)
+        assertEq(executions[5].target, mockStargatePool);
+        assertEq(executions[5].value, mockLzNativeFee);
+        assertEq(bytes4(executions[5].callData), IOFT.send.selector);
+    }
+
+    function test_ApproveAndStargateSend_Build_OFTMode_WithLzTokenFee_SameToken() public {
+        uint256 lzTokenFee = 1e18;
+        bytes memory fixedPart = abi.encodePacked(
+            mockLzNativeFee, lzTokenFee, mockStargatePool, mockInputToken, mockInputToken, mockDstEid, mockTo,
+            mockAmountLD, mockMinAmountLD
+        );
+        bytes memory data = abi.encodePacked(
+            fixedPart, false, uint8(2), uint256(mockExtraOptions.length), mockExtraOptions, uint256(0)
+        );
+
+        Execution[] memory executions = approveAndStargateHook.build(address(0), mockAccount, data);
+
+        // Combined approval path: pre + 4 hook executions + post = 6
+        assertEq(executions.length, 6);
+
+        // Execution 2: approve(inputToken, pool, amountLD + lzTokenFee)
+        assertEq(
+            executions[2].callData,
+            abi.encodeCall(IERC20.approve, (mockStargatePool, mockAmountLD + lzTokenFee))
+        );
+
+        // Execution 3: IOFT.send
+        assertEq(bytes4(executions[3].callData), IOFT.send.selector);
+    }
+
+    function test_ApproveAndStargateSend_Build_OFTMode_TokenValidation() public {
+        // OFT's token() must match inputToken, same as Stargate mode
+        address wrongToken = makeAddr("wrongToken");
+        vm.mockCall(mockStargatePool, abi.encodeWithSelector(IStargate.token.selector), abi.encode(wrongToken));
+
+        bytes memory data = _encodeStargateData(false, 2, false);
+
+        vm.expectRevert(ApproveAndStargateSendHook.POOL_NOT_VALID.selector);
+        approveAndStargateHook.build(address(0), mockAccount, data);
+
+        // Restore
+        vm.mockCall(mockStargatePool, abi.encodeWithSelector(IStargate.token.selector), abi.encode(mockInputToken));
+    }
+
+    // --- Mode validation tests (both hooks) ---
+
+    function test_StargateSend_Build_RevertIf_ModeInvalid() public {
+        bytes memory data = _encodeStargateData(false, 3, false);
+
+        vm.expectRevert(StargateSendHook.MODE_NOT_VALID.selector);
+        stargateHook.build(address(0), mockAccount, data);
+    }
+
+    function test_StargateSend_Build_RevertIf_ModeMax() public {
+        bytes memory data = _encodeStargateData(false, 255, false);
+
+        vm.expectRevert(StargateSendHook.MODE_NOT_VALID.selector);
+        stargateHook.build(address(0), mockAccount, data);
+    }
+
+    function test_ApproveAndStargateSend_Build_RevertIf_ModeInvalid() public {
+        bytes memory data = _encodeStargateData(false, 3, false);
+
+        vm.expectRevert(ApproveAndStargateSendHook.MODE_NOT_VALID.selector);
+        approveAndStargateHook.build(address(0), mockAccount, data);
+    }
+
+    function test_ApproveAndStargateSend_Build_RevertIf_ModeMax() public {
+        bytes memory data = _encodeStargateData(false, 255, false);
+
+        vm.expectRevert(ApproveAndStargateSendHook.MODE_NOT_VALID.selector);
+        approveAndStargateHook.build(address(0), mockAccount, data);
+    }
+
+    // --- OFT mode selector verification ---
+
+    function test_StargateSend_OFTMode_UsesCorrectSelector() public view {
+        bytes memory data = _encodeStargateData(false, 2, false);
+        Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
+
+        assertEq(bytes4(executions[1].callData), IOFT.send.selector);
+        assertTrue(bytes4(executions[1].callData) != IStargate.sendToken.selector);
+    }
+
+    function test_ApproveAndStargateSend_OFTMode_UsesCorrectSelector() public view {
+        bytes memory data = _encodeStargateData(false, 2, false);
+        Execution[] memory executions = approveAndStargateHook.build(address(0), mockAccount, data);
+
+        assertEq(bytes4(executions[3].callData), IOFT.send.selector);
+        assertTrue(bytes4(executions[3].callData) != IStargate.sendToken.selector);
+    }
+
+    // --- Backward compatibility ---
+
+    function test_StargateSend_Mode0_IdenticalToOriginalTaxi() public view {
+        bytes memory data = _encodeStargateData(false, 0, false);
+        Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
+
+        assertEq(executions.length, 3);
+        assertEq(executions[1].value, mockLzNativeFee + mockAmountLD);
+        assertEq(bytes4(executions[1].callData), IStargate.sendToken.selector);
+    }
+
+    function test_StargateSend_Mode1_IdenticalToOriginalBus() public view {
+        bytes memory data = _encodeStargateData(false, 1, false);
+        Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
+
+        assertEq(executions.length, 3);
+        assertEq(executions[1].value, mockLzNativeFee + mockAmountLD);
+        assertEq(bytes4(executions[1].callData), IStargate.sendToken.selector);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                     SECURITY VALIDATION TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev P1 Fix: composeMsg _account must match executing account
+    function test_StargateSend_Build_RevertIf_ComposeMsgAccountMismatch() public {
+        // Encode composeMsg with a different _account than mockAccount
+        address wrongAccount = makeAddr("attacker");
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = mockInputToken;
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = mockAmountLD;
+        bytes memory composeMsg = abi.encode(bytes("0x123"), bytes("0x456"), wrongAccount, dstTokens, intentAmounts);
+
+        bytes memory fixedPart = abi.encodePacked(
+            mockLzNativeFee, uint256(0), mockStargatePool, mockInputToken, address(0), mockDstEid, mockTo,
+            mockAmountLD, mockMinAmountLD
+        );
+        bytes memory data = abi.encodePacked(
+            fixedPart, false, uint8(0), uint256(mockExtraOptions.length), mockExtraOptions,
+            uint256(composeMsg.length), composeMsg
+        );
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        stargateHook.build(address(0), mockAccount, data);
+    }
+
+    /// @dev P1 Fix: composeMsg _account must match executing account (ApproveAndStargate)
+    function test_ApproveAndStargateSend_Build_RevertIf_ComposeMsgAccountMismatch() public {
+        address wrongAccount = makeAddr("attacker");
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = mockInputToken;
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = mockAmountLD;
+        bytes memory composeMsg = abi.encode(bytes("0x123"), bytes("0x456"), wrongAccount, dstTokens, intentAmounts);
+
+        bytes memory fixedPart = abi.encodePacked(
+            mockLzNativeFee, uint256(0), mockStargatePool, mockInputToken, address(0), mockDstEid, mockTo,
+            mockAmountLD, mockMinAmountLD
+        );
+        bytes memory data = abi.encodePacked(
+            fixedPart, false, uint8(0), uint256(mockExtraOptions.length), mockExtraOptions,
+            uint256(composeMsg.length), composeMsg
+        );
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        approveAndStargateHook.build(address(0), mockAccount, data);
+    }
+
+    /// @dev Finding #3: to must match executing account
+    function test_StargateSend_Build_RevertIf_RecipientNotAccount() public {
+        bytes32 originalTo = mockTo;
+        mockTo = bytes32(uint256(uint160(makeAddr("someone_else"))));
+        bytes memory data = _encodeStargateData(false, 0, false);
+        mockTo = originalTo;
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        stargateHook.build(address(0), mockAccount, data);
+    }
+
+    /// @dev Finding #3: to must match executing account (ApproveAndStargate)
+    function test_ApproveAndStargateSend_Build_RevertIf_RecipientNotAccount() public {
+        bytes32 originalTo = mockTo;
+        mockTo = bytes32(uint256(uint160(makeAddr("someone_else"))));
+        bytes memory data = _encodeStargateData(false, 0, false);
+        mockTo = originalTo;
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        approveAndStargateHook.build(address(0), mockAccount, data);
+    }
+
+    /// @dev Finding #4: minAmountLD must not round to zero after proportional scaling
+    function test_StargateSend_Build_RevertIf_MinAmountRoundsToZero() public {
+        // Set up prev hook with a very small output relative to amountLD
+        // minAmountLD=1, amountLD=1000e6, outAmount=1 => mulDiv(1, 1, 1000e6) = 0
+        uint256 originalMinAmountLD = mockMinAmountLD;
+        uint256 originalAmountLD = mockAmountLD;
+        mockMinAmountLD = 1;
+        mockAmountLD = 1000e6;
+
+        mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
+        MockHook(mockPrevHook).setOutAmount(1, mockAccount);
+
+        bytes memory data = _encodeStargateData(true, 0, false);
+        mockMinAmountLD = originalMinAmountLD;
+        mockAmountLD = originalAmountLD;
+
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        stargateHook.build(address(mockPrevHook), mockAccount, data);
+    }
+
+    /// @dev Finding #4: minAmountLD must not round to zero after proportional scaling (ApproveAndStargate)
+    function test_ApproveAndStargateSend_Build_RevertIf_MinAmountRoundsToZero() public {
+        uint256 originalMinAmountLD = mockMinAmountLD;
+        uint256 originalAmountLD = mockAmountLD;
+        mockMinAmountLD = 1;
+        mockAmountLD = 1000e6;
+
+        mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
+        MockHook(mockPrevHook).setOutAmount(1, mockAccount);
+
+        bytes memory data = _encodeStargateData(true, 0, false);
+        mockMinAmountLD = originalMinAmountLD;
+        mockAmountLD = originalAmountLD;
+
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        approveAndStargateHook.build(address(mockPrevHook), mockAccount, data);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     function _encodeStargateData(
         bool usePrevHookAmount,
-        bool isBusMode,
+        uint8 mode,
         bool includeComposeMsg
     )
         internal
@@ -1111,7 +1505,7 @@ contract StargateHooks is Helpers {
             mockAmountLD, mockMinAmountLD
         );
         return abi.encodePacked(
-            fixedPart, usePrevHookAmount, isBusMode, uint256(mockExtraOptions.length), mockExtraOptions,
+            fixedPart, usePrevHookAmount, mode, uint256(mockExtraOptions.length), mockExtraOptions,
             uint256(composeMsg.length), composeMsg
         );
     }

@@ -32,6 +32,7 @@ abstract contract Constants {
     string internal constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
     string internal constant ACROSS_V3_ADAPTER_KEY = "AcrossV3Adapter";
     string internal constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
+    string internal constant STARGATE_ADAPTER_KEY = "StargateAdapter";
     string internal constant SUPER_LEDGER_KEY = "SuperLedger";
     string internal constant ERC1155_LEDGER_KEY = "ERC1155Ledger";
     string internal constant FLAT_FEE_LEDGER_KEY = "FlatFeeLedger";
@@ -87,6 +88,15 @@ abstract contract Constants {
     // DeBridge Gate addresses per chain
     address internal constant DEBRIDGE_DLN_SRC = 0xeF4fB24aD0916217251F553c0596F8Edc630EB66;
     address internal constant DEBRIDGE_DLN_DST = 0xE7351Fd770A37282b91D153Ee690B63579D6dd7f;
+
+    // LayerZero V2 EndpointV2 addresses
+    // Standard address used on most chains (Ethereum, Base, BNB, Arbitrum, Optimism, Polygon, Linea, Avalanche,
+    // Gnosis, Flare)
+    address internal constant LZ_ENDPOINT_V2 = 0x1a44076050125825900e736c501f859c50fE728c;
+    // Newer deployments (Unichain, Berachain, Sonic, Worldchain, Stable)
+    address internal constant LZ_ENDPOINT_V2_ALT = 0x6F475642a6e85809B1c36Fa62763669b1b48DD5B;
+    // HyperEVM-specific deployment
+    address internal constant LZ_ENDPOINT_V2_HYPEREVM = 0x3A73033C0b1407574C76BdBAc67f126f6b4a9AA9;
 
     // 1inch Aggregation Router addresses per chain
     // https://portal.1inch.dev/documentation/contracts/aggregation-protocol/aggregation-introduction

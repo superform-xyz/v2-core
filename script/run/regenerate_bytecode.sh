@@ -85,6 +85,7 @@ CORE_CONTRACTS=(
     "SuperSenderCreator"
     "AcrossV3Adapter"
     "DebridgeAdapter"
+    "StargateAdapter"
     "SuperLedger"
     "FlatFeeLedger"
     "SuperLedgerConfiguration"

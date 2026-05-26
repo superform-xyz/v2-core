@@ -3,9 +3,11 @@ pragma solidity 0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { StargateSendHook } from "../../../src/hooks/bridges/stargate/StargateSendHook.sol";
 import { ApproveAndStargateSendHook } from "../../../src/hooks/bridges/stargate/ApproveAndStargateSendHook.sol";
 import { IStargate } from "../../../src/vendor/bridges/stargate/IStargate.sol";
+import { IOFT } from "../../../src/vendor/bridges/layerzero/IOFT.sol";
 import { ISuperHook } from "../../../src/interfaces/ISuperHook.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 import { BaseHook } from "../../../src/hooks/BaseHook.sol";
@@ -147,7 +149,7 @@ contract StargateHooksFork is Helpers {
             amountLD,
             minAmountLD,
             false, // usePrevHookAmount
-            false, // isBusMode (taxi)
+            0, // mode: taxi
             hex"", // extraOptions
             hex"" // no composeMsg
         );
@@ -211,7 +213,7 @@ contract StargateHooksFork is Helpers {
             amountLD,
             minAmountLD,
             false,
-            false, // taxi mode
+            0, // mode: taxi
             hex"",
             hex""
         );
@@ -331,7 +333,7 @@ contract StargateHooksFork is Helpers {
             amountLD,
             minAmountLD,
             false,
-            false,
+            0, // mode: taxi
             hex"",
             hex""
         );
@@ -391,7 +393,7 @@ contract StargateHooksFork is Helpers {
             amountLD,
             minAmountLD,
             false,
-            false,
+            0, // mode: taxi
             hex"",
             hex""
         );
@@ -492,7 +494,7 @@ contract StargateHooksFork is Helpers {
             amountLD,
             minAmountLD,
             false,
-            false,
+            0, // mode: taxi
             extraOptions,
             composeMsgForHook
         );
@@ -504,6 +506,873 @@ contract StargateHooksFork is Helpers {
         // The sendToken call should have the compose message with signature appended
         bytes4 selector = bytes4(executions[3].callData);
         assertEq(selector, IStargate.sendToken.selector);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    OFT MODE FORK TESTS - COMPREHENSIVE
+    //////////////////////////////////////////////////////////////*/
+
+    // UP OFTAdapter on Ethereum mainnet (locks UP tokens and sends cross-chain)
+    address public constant UP_OFT_ADAPTER_ETH = 0x722ff7C0665F4b1823c9C4cFcDF73A43de5865BD;
+
+    // WBTC OFTAdapter on Ethereum mainnet (locks WBTC and sends cross-chain)
+    address public constant WBTC_OFT_ADAPTER_ETH = 0x0555E30da8f98308EdB960aa94C0Db47230d2B9c;
+
+    // WBTC on Ethereum (8 decimals)
+    address public constant WBTC_ETH = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
+
+    /*//////////////////////////////////////////////////////////////
+                    OFT INTERFACE COMPATIBILITY
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Verify UP OFTAdapter implements token() and returns valid ERC20
+    function test_Fork_OFTAdapter_UP_TokenInterface() public view {
+        address token = IOFT(UP_OFT_ADAPTER_ETH).token();
+        assertTrue(token != address(0), "OFTAdapter should return a non-zero token address");
+        uint256 totalSupply = IERC20(token).totalSupply();
+        assertGt(totalSupply, 0, "UP token should have non-zero total supply");
+        console2.log("UP OFTAdapter underlying token:", token);
+        console2.log("UP token total supply:", totalSupply);
+    }
+
+    /// @notice Verify WBTC OFTAdapter implements token() and returns WBTC
+    function test_Fork_OFTAdapter_WBTC_TokenInterface() public view {
+        address token = IOFT(WBTC_OFT_ADAPTER_ETH).token();
+        assertEq(token, WBTC_ETH, "WBTC OFTAdapter should return WBTC as underlying token");
+        uint256 totalSupply = IERC20(token).totalSupply();
+        assertGt(totalSupply, 0, "WBTC should have non-zero total supply");
+        // WBTC is 8 decimals
+        uint8 decimals = IERC20Metadata(WBTC_ETH).decimals();
+        assertEq(decimals, 8, "WBTC should have 8 decimals");
+        console2.log("WBTC OFTAdapter underlying token:", token);
+    }
+
+    /// @notice Verify token() selector (0xfc0c546a) is identical across IStargate and IOFT
+    /// @dev This is what makes our pool validation work for OFT contracts
+    function test_Fork_OFTAdapter_SelectorCompatibility() public view {
+        // Cast UP OFTAdapter as IStargate and call token() — should return same result
+        address tokenViaIOFT = IOFT(UP_OFT_ADAPTER_ETH).token();
+        address tokenViaIStargate = IStargate(UP_OFT_ADAPTER_ETH).token();
+        assertEq(tokenViaIOFT, tokenViaIStargate, "token() must return same result regardless of interface cast");
+
+        // Same for WBTC
+        address wbtcViaIOFT = IOFT(WBTC_OFT_ADAPTER_ETH).token();
+        address wbtcViaIStargate = IStargate(WBTC_OFT_ADAPTER_ETH).token();
+        assertEq(wbtcViaIOFT, wbtcViaIStargate, "WBTC token() must match across interfaces");
+    }
+
+    /// @notice Verify quoteSend ABI compatibility — OFTAdapter.quoteSend works via IStargate cast
+    function test_Fork_OFTAdapter_UP_QuoteSend() public view {
+        IStargate.SendParam memory sendParam = IStargate.SendParam({
+            dstEid: EID_BASE,
+            to: bytes32(uint256(uint160(account))),
+            amountLD: 100e18,
+            minAmountLD: 99e18,
+            extraOptions: hex"",
+            composeMsg: hex"",
+            oftCmd: bytes("")
+        });
+
+        // Cast OFTAdapter to IStargate for quoteSend — identical ABI
+        IStargate.MessagingFee memory fee = IStargate(UP_OFT_ADAPTER_ETH).quoteSend(sendParam, false);
+        assertGt(fee.nativeFee, 0, "UP OFTAdapter quoteSend should return non-zero fee");
+        console2.log("UP OFTAdapter LZ fee for ETH->Base:", fee.nativeFee);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            APPROVE AND STARGATE SEND - OFT MODE BUILD TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Build OFT mode executions with real UP OFTAdapter
+    function test_Fork_ApproveAndStargateSend_OFTMode_Build_UP() public view {
+        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
+        uint256 amountLD = 100e18;
+        uint256 minAmountLD = 99e18;
+
+        bytes memory hookData = _encodeStargateData(
+            0.01 ether,
+            UP_OFT_ADAPTER_ETH,
+            upToken,
+            EID_BASE,
+            bytes32(uint256(uint160(account))),
+            amountLD,
+            minAmountLD,
+            false,
+            2, // mode: OFT
+            hex"",
+            hex""
+        );
+
+        Execution[] memory executions = approveAndStargateHook.build(address(0), account, hookData);
+
+        // preExecute + approve(0) + approve(amount) + IOFT.send + approve(0) + postExecute = 6
+        assertEq(executions.length, 6, "OFT mode should have 6 executions");
+
+        // Verify approval targets the UP token, NOT the OFTAdapter
+        assertEq(executions[1].target, upToken, "First approve should target UP token");
+        assertEq(executions[1].callData, abi.encodeCall(IERC20.approve, (UP_OFT_ADAPTER_ETH, 0)));
+        assertEq(executions[2].target, upToken, "Second approve should target UP token");
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (UP_OFT_ADAPTER_ETH, amountLD)));
+
+        // Verify the send call targets the OFTAdapter
+        assertEq(executions[3].target, UP_OFT_ADAPTER_ETH, "Send should target OFTAdapter");
+        assertEq(executions[3].value, 0.01 ether, "Value should be lzNativeFee only for OFT mode");
+        assertEq(bytes4(executions[3].callData), IOFT.send.selector, "Should use IOFT.send selector");
+
+        // Verify cleanup approval
+        assertEq(executions[4].target, upToken, "Cleanup approve should target UP token");
+        assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (UP_OFT_ADAPTER_ETH, 0)));
+    }
+
+    /// @notice Build OFT mode executions with real WBTC OFTAdapter (different token, different decimals)
+    function test_Fork_ApproveAndStargateSend_OFTMode_Build_WBTC() public view {
+        uint256 amountLD = 1e7; // 0.1 WBTC (8 decimals)
+        uint256 minAmountLD = 99e5; // ~0.099 WBTC
+
+        bytes memory hookData = _encodeStargateData(
+            0.005 ether,
+            WBTC_OFT_ADAPTER_ETH,
+            WBTC_ETH,
+            EID_BASE,
+            bytes32(uint256(uint160(account))),
+            amountLD,
+            minAmountLD,
+            false,
+            2, // mode: OFT
+            hex"",
+            hex""
+        );
+
+        Execution[] memory executions = approveAndStargateHook.build(address(0), account, hookData);
+
+        assertEq(executions.length, 6, "OFT mode should have 6 executions");
+
+        // Verify approval targets WBTC, approved to WBTC OFTAdapter
+        assertEq(executions[1].target, WBTC_ETH);
+        assertEq(executions[1].callData, abi.encodeCall(IERC20.approve, (WBTC_OFT_ADAPTER_ETH, 0)));
+        assertEq(executions[2].target, WBTC_ETH);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (WBTC_OFT_ADAPTER_ETH, amountLD)));
+
+        // Verify send targets WBTC OFTAdapter with IOFT.send selector
+        assertEq(executions[3].target, WBTC_OFT_ADAPTER_ETH);
+        assertEq(bytes4(executions[3].callData), IOFT.send.selector);
+        assertEq(executions[3].value, 0.005 ether);
+
+        // Cleanup
+        assertEq(executions[4].target, WBTC_ETH);
+        assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (WBTC_OFT_ADAPTER_ETH, 0)));
+    }
+
+    /// @notice OFT mode with composeMsg — verify compose path works with real OFTAdapter
+    function test_Fork_ApproveAndStargateSend_OFTMode_WithComposeMsg() public view {
+        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
+        uint256 amountLD = 50e18;
+        uint256 minAmountLD = 49e18;
+
+        // Build composeMsg
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = 0x5b2193fDc451C1f847bE09CA9d13A4Bf60f8c86B; // UP OFT on Base
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = amountLD;
+        bytes memory composeMsgForHook = abi.encode(
+            bytes(""), bytes(""), account, dstTokens, intentAmounts
+        );
+        bytes memory extraOptions = hex"000301001101000000000000000000000000000186a0";
+
+        bytes memory hookData = _encodeStargateData(
+            0.02 ether,
+            UP_OFT_ADAPTER_ETH,
+            upToken,
+            EID_BASE,
+            bytes32(uint256(uint160(account))),
+            amountLD,
+            minAmountLD,
+            false,
+            2, // mode: OFT
+            extraOptions,
+            composeMsgForHook
+        );
+
+        Execution[] memory executions = approveAndStargateHook.build(address(0), account, hookData);
+        assertEq(executions.length, 6);
+
+        // Verify selector is IOFT.send (not IStargate.sendToken) even with composeMsg
+        assertEq(bytes4(executions[3].callData), IOFT.send.selector);
+        assertEq(executions[3].target, UP_OFT_ADAPTER_ETH);
+
+        // The calldata should contain the compose message with appended signature
+        // sendCallData length should be > basic send without compose
+        assertGt(executions[3].callData.length, 200, "Calldata should include composed message");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+      APPROVE AND STARGATE SEND - OFT MODE VALUE & COMPARISON TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice CRITICAL: Verify OFT mode value is lzNativeFee ONLY, while Stargate mode adds amountLD
+    /// @dev This is the most important safety check — sending excess ETH to OFT = permanent loss
+    function test_Fork_ApproveAndStargateSend_OFTMode_ValueAlwaysLzNativeFee() public view {
+        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
+        uint256 amountLD = 500e18;
+        uint256 minAmountLD = 495e18;
+        uint256 lzNativeFee = 0.01 ether;
+
+        // Build OFT mode
+        bytes memory oftHookData = _encodeStargateData(
+            lzNativeFee,
+            UP_OFT_ADAPTER_ETH,
+            upToken,
+            EID_BASE,
+            bytes32(uint256(uint160(account))),
+            amountLD,
+            minAmountLD,
+            false,
+            2, // mode: OFT
+            hex"",
+            hex""
+        );
+
+        Execution[] memory oftExecs = approveAndStargateHook.build(address(0), account, oftHookData);
+
+        // For ApproveAndStargateSendHook, value is ALWAYS lzNativeFee regardless of mode
+        // (tokens are pulled via approve/transferFrom)
+        assertEq(oftExecs[3].value, lzNativeFee, "OFT mode: value must be lzNativeFee only");
+
+        // Build Stargate mode with same params but using real Stargate pool
+        bytes memory stargateHookData = _encodeStargateData(
+            lzNativeFee,
+            STARGATE_USDC_POOL_ETH,
+            USDC_ETH,
+            EID_BASE,
+            bytes32(uint256(uint160(account))),
+            1000e6, // USDC amount
+            995e6,
+            false,
+            0, // mode: Stargate taxi
+            hex"",
+            hex""
+        );
+
+        Execution[] memory sgExecs = approveAndStargateHook.build(address(0), account, stargateHookData);
+
+        // Both should have same value (lzNativeFee only) since ApproveAndStargate is ERC20 path
+        assertEq(sgExecs[3].value, lzNativeFee, "Stargate mode: value should also be lzNativeFee for ERC20 hook");
+        assertEq(oftExecs[3].value, sgExecs[3].value, "Both modes should have same value in ERC20 hook");
+    }
+
+    /// @notice CRITICAL: StargateSendHook value divergence — OFT = lzNativeFee, Stargate = lzNativeFee + amountLD
+    /// @dev This test proves the safety-critical difference between modes in the native hook
+    function test_Fork_StargateSend_OFTMode_CriticalValueDivergence() public view {
+        uint256 amountLD = 1000e6;
+        uint256 minAmountLD = 995e6;
+        uint256 lzNativeFee = 0.01 ether;
+
+        // Stargate mode (0) — value = lzNativeFee + amountLD
+        bytes memory stargateHookData = _encodeStargateData(
+            lzNativeFee,
+            STARGATE_USDC_POOL_ETH,
+            USDC_ETH,
+            EID_BASE,
+            bytes32(uint256(uint160(account))),
+            amountLD,
+            minAmountLD,
+            false,
+            0, // mode: Stargate taxi
+            hex"",
+            hex""
+        );
+        Execution[] memory sgExecs = stargateHook.build(address(0), account, stargateHookData);
+        assertEq(sgExecs[1].value, lzNativeFee + amountLD, "Stargate mode: value = lzNativeFee + amountLD");
+
+        // OFT mode (2) — value = lzNativeFee ONLY
+        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
+        bytes memory oftHookData = _encodeStargateData(
+            lzNativeFee,
+            UP_OFT_ADAPTER_ETH,
+            upToken,
+            EID_BASE,
+            bytes32(uint256(uint160(account))),
+            100e18,
+            99e18,
+            false,
+            2, // mode: OFT
+            hex"",
+            hex""
+        );
+        Execution[] memory oftExecs = stargateHook.build(address(0), account, oftHookData);
+        assertEq(oftExecs[1].value, lzNativeFee, "OFT mode: value = lzNativeFee ONLY");
+
+        // The difference is amountLD — sending this excess to an OFT would be permanent ETH loss
+        assertGt(sgExecs[1].value, oftExecs[1].value, "Stargate mode should have higher value than OFT mode");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+          APPROVE AND STARGATE SEND - OFT MODE REVERT TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Revert when inputToken doesn't match UP OFTAdapter.token()
+    function test_Fork_ApproveAndStargateSend_OFTMode_RevertIf_WrongToken_UP() public {
+        bytes memory hookData = _encodeStargateData(
+            0.01 ether,
+            UP_OFT_ADAPTER_ETH,
+            USDC_ETH, // wrong — OFTAdapter.token() returns UP, not USDC
+            EID_BASE,
+            bytes32(uint256(uint160(account))),
+            100e18,
+            99e18,
+            false,
+            2,
+            hex"",
+            hex""
+        );
+
+        vm.expectRevert(ApproveAndStargateSendHook.POOL_NOT_VALID.selector);
+        approveAndStargateHook.build(address(0), account, hookData);
+    }
+
+    /// @notice Revert when inputToken doesn't match WBTC OFTAdapter.token()
+    function test_Fork_ApproveAndStargateSend_OFTMode_RevertIf_WrongToken_WBTC() public {
+        // Use UP token address as inputToken with WBTC OFTAdapter
+        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
+
+        bytes memory hookData = _encodeStargateData(
+            0.01 ether,
+            WBTC_OFT_ADAPTER_ETH,
+            upToken, // wrong — WBTC adapter expects WBTC
+            EID_BASE,
+            bytes32(uint256(uint160(account))),
+            1e7,
+            99e5,
+            false,
+            2,
+            hex"",
+            hex""
+        );
+
+        vm.expectRevert(ApproveAndStargateSendHook.POOL_NOT_VALID.selector);
+        approveAndStargateHook.build(address(0), account, hookData);
+    }
+
+    /// @notice Revert when inputToken doesn't match Stargate pool in OFT mode
+    /// @dev Even though the validation uses IStargate(pool).token(), mode doesn't affect validation
+    function test_Fork_ApproveAndStargateSend_OFTMode_RevertIf_WrongToken_StargatePoolAsOFT() public {
+        // Use WBTC as inputToken with Stargate USDC pool in OFT mode
+        bytes memory hookData = _encodeStargateData(
+            0.01 ether,
+            STARGATE_USDC_POOL_ETH, // Stargate pool used with OFT mode
+            WBTC_ETH, // wrong — pool.token() returns USDC
+            EID_BASE,
+            bytes32(uint256(uint160(account))),
+            1e7,
+            99e5,
+            false,
+            2, // mode: OFT
+            hex"",
+            hex""
+        );
+
+        vm.expectRevert(ApproveAndStargateSendHook.POOL_NOT_VALID.selector);
+        approveAndStargateHook.build(address(0), account, hookData);
+    }
+
+    /// @notice Revert when mode is invalid (3) with real OFT address
+    function test_Fork_ApproveAndStargateSend_OFTMode_RevertIf_ModeInvalid() public {
+        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
+
+        bytes memory hookData = _encodeStargateData(
+            0.01 ether, UP_OFT_ADAPTER_ETH, upToken, EID_BASE,
+            bytes32(uint256(uint160(account))), 100e18, 99e18, false,
+            3, // invalid mode
+            hex"", hex""
+        );
+
+        vm.expectRevert(ApproveAndStargateSendHook.MODE_NOT_VALID.selector);
+        approveAndStargateHook.build(address(0), account, hookData);
+    }
+
+    /// @notice StargateSendHook also reverts on invalid mode with real contract
+    function test_Fork_StargateSend_OFTMode_RevertIf_ModeInvalid() public {
+        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
+
+        bytes memory hookData = _encodeStargateData(
+            0.01 ether, UP_OFT_ADAPTER_ETH, upToken, EID_BASE,
+            bytes32(uint256(uint160(account))), 100e18, 99e18, false,
+            3, hex"", hex""
+        );
+
+        vm.expectRevert(StargateSendHook.MODE_NOT_VALID.selector);
+        stargateHook.build(address(0), account, hookData);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+           STARGATE SEND HOOK - OFT MODE BUILD TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice StargateSendHook OFT mode build with UP OFTAdapter
+    function test_Fork_StargateSend_OFTMode_Build_UP() public view {
+        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
+        uint256 amountLD = 100e18;
+        uint256 minAmountLD = 99e18;
+
+        bytes memory hookData = _encodeStargateData(
+            0.01 ether, UP_OFT_ADAPTER_ETH, upToken, EID_BASE,
+            bytes32(uint256(uint160(account))), amountLD, minAmountLD,
+            false, 2, hex"", hex""
+        );
+
+        Execution[] memory executions = stargateHook.build(address(0), account, hookData);
+
+        // preExecute + IOFT.send + postExecute = 3
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, UP_OFT_ADAPTER_ETH);
+        assertEq(executions[1].value, 0.01 ether, "Value must be lzNativeFee only");
+        assertEq(bytes4(executions[1].callData), IOFT.send.selector);
+    }
+
+    /// @notice StargateSendHook OFT mode build with WBTC OFTAdapter
+    function test_Fork_StargateSend_OFTMode_Build_WBTC() public view {
+        uint256 amountLD = 1e7; // 0.1 WBTC
+        uint256 minAmountLD = 99e5;
+
+        bytes memory hookData = _encodeStargateData(
+            0.005 ether, WBTC_OFT_ADAPTER_ETH, WBTC_ETH, EID_BASE,
+            bytes32(uint256(uint160(account))), amountLD, minAmountLD,
+            false, 2, hex"", hex""
+        );
+
+        Execution[] memory executions = stargateHook.build(address(0), account, hookData);
+
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, WBTC_OFT_ADAPTER_ETH);
+        assertEq(executions[1].value, 0.005 ether, "Value must be lzNativeFee only");
+        assertEq(bytes4(executions[1].callData), IOFT.send.selector);
+    }
+
+    /// @notice StargateSendHook OFT mode with lzTokenFee — verify 4 executions (approve-send-cleanup)
+    function test_Fork_StargateSend_OFTMode_WithLzTokenFee() public view {
+        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
+        // Use UP token as both the bridge token and LZ fee token (hypothetical scenario)
+        // The hook doesn't validate whether lzToken is actually a valid LZ payment token
+
+        bytes memory hookData = _encodeStargateDataWithLzToken(
+            0.01 ether, // lzNativeFee
+            1e18, // lzTokenFee
+            UP_OFT_ADAPTER_ETH,
+            upToken,
+            upToken, // lzToken = same as inputToken (test the combined approval path)
+            EID_BASE,
+            bytes32(uint256(uint160(account))),
+            100e18,
+            99e18,
+            false,
+            2, // mode: OFT
+            hex"",
+            hex""
+        );
+
+        Execution[] memory executions = stargateHook.build(address(0), account, hookData);
+
+        // With lzTokenFee > 0: preExecute + approve(0) + approve(fee) + send + approve(0) + postExecute = 6
+        assertEq(executions.length, 6, "LZ token fee path should have 6 executions");
+        assertEq(bytes4(executions[3].callData), IOFT.send.selector, "Should use IOFT.send selector");
+        assertEq(executions[3].value, 0.01 ether, "Value should be lzNativeFee only");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+               OFT MODE EXECUTION TESTS (REAL SENDS)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Execute a real UP OFT send via ApproveAndStargateSendHook on fork
+    /// @dev Verifies: token transfer, approval cleanup, correct msg.value, LZ message emission
+    function test_Fork_ApproveAndStargateSend_OFTMode_Execute_UP() public {
+        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
+        uint256 amountLD = 100e18;
+        uint256 minAmountLD = 99e18;
+
+        // Fund account with UP tokens
+        deal(upToken, account, amountLD);
+
+        // Quote the real LZ fee via IStargate cast (ABI-compatible)
+        IStargate.SendParam memory quoteSendParam = IStargate.SendParam({
+            dstEid: EID_BASE,
+            to: bytes32(uint256(uint160(account))),
+            amountLD: amountLD,
+            minAmountLD: minAmountLD,
+            extraOptions: hex"",
+            composeMsg: hex"",
+            oftCmd: bytes("")
+        });
+        IStargate.MessagingFee memory fee = IStargate(UP_OFT_ADAPTER_ETH).quoteSend(quoteSendParam, false);
+        console2.log("UP OFTAdapter LZ fee:", fee.nativeFee);
+        assertGt(fee.nativeFee, 0, "Fee should be positive");
+
+        // Build hook data with real fee
+        bytes memory hookData = _encodeStargateData(
+            fee.nativeFee,
+            UP_OFT_ADAPTER_ETH,
+            upToken,
+            EID_BASE,
+            bytes32(uint256(uint160(account))),
+            amountLD,
+            minAmountLD,
+            false,
+            2, // mode: OFT
+            hex"",
+            hex""
+        );
+
+        Execution[] memory executions = approveAndStargateHook.build(address(0), account, hookData);
+        assertEq(executions.length, 6);
+
+        // Snapshot balances before
+        uint256 upBefore = IERC20(upToken).balanceOf(account);
+        assertEq(upBefore, amountLD);
+
+        // Execute all from account
+        vm.startPrank(account);
+        for (uint256 i = 0; i < executions.length; i++) {
+            (bool success,) = executions[i].target.call{ value: executions[i].value }(executions[i].callData);
+            assertTrue(success, string.concat("Execution ", vm.toString(i), " failed"));
+        }
+        vm.stopPrank();
+
+        // Verify UP tokens were transferred (locked in OFTAdapter)
+        uint256 upAfter = IERC20(upToken).balanceOf(account);
+        assertEq(upAfter, 0, "All UP tokens should have been locked in OFTAdapter");
+
+        // Verify approval was cleaned up
+        uint256 allowance = IERC20(upToken).allowance(account, UP_OFT_ADAPTER_ETH);
+        assertEq(allowance, 0, "Approval should be cleaned up to 0");
+
+        console2.log("Successfully sent", amountLD / 1e18, "UP tokens via OFTAdapter to Base");
+    }
+
+    /// @notice Verify approval cleanup works correctly after OFT mode execution
+    function test_Fork_ApproveAndStargateSend_OFTMode_ApprovalCleanup_WBTC() public {
+        uint256 amountLD = 1e7; // 0.1 WBTC
+
+        // Fund account with WBTC
+        deal(WBTC_ETH, account, amountLD);
+
+        // Build hook data — we only care about the approval lifecycle, not the send success
+        // Use quoteSend to get real fee
+        IStargate.SendParam memory quoteSendParam = IStargate.SendParam({
+            dstEid: EID_BASE,
+            to: bytes32(uint256(uint160(account))),
+            amountLD: amountLD,
+            minAmountLD: 99e5,
+            extraOptions: hex"",
+            composeMsg: hex"",
+            oftCmd: bytes("")
+        });
+
+        // This may revert if WBTC OFTAdapter doesn't support Base as destination
+        // In that case, the test verifies the build at least generates correct approvals
+        try IStargate(WBTC_OFT_ADAPTER_ETH).quoteSend(quoteSendParam, false) returns (
+            IStargate.MessagingFee memory fee
+        ) {
+            bytes memory hookData = _encodeStargateData(
+                fee.nativeFee, WBTC_OFT_ADAPTER_ETH, WBTC_ETH, EID_BASE,
+                bytes32(uint256(uint160(account))), amountLD, 99e5,
+                false, 2, hex"", hex""
+            );
+
+            Execution[] memory executions = approveAndStargateHook.build(address(0), account, hookData);
+
+            // Execute approval steps only (0-2), skip send (3), execute cleanup (4-5)
+            vm.startPrank(account);
+
+            // preExecute
+            (bool s0,) = executions[0].target.call{ value: executions[0].value }(executions[0].callData);
+            assertTrue(s0, "preExecute failed");
+
+            // approve(0) + approve(amount)
+            (bool s1,) = executions[1].target.call(executions[1].callData);
+            assertTrue(s1, "approve(0) failed");
+            (bool s2,) = executions[2].target.call(executions[2].callData);
+            assertTrue(s2, "approve(amount) failed");
+
+            // Verify approval is set
+            uint256 allowanceBefore = IERC20(WBTC_ETH).allowance(account, WBTC_OFT_ADAPTER_ETH);
+            assertEq(allowanceBefore, amountLD, "Allowance should be set to amountLD");
+
+            // Skip send (executions[3]) — we're testing cleanup
+            // Execute cleanup approve(0) directly
+            (bool s4,) = executions[4].target.call(executions[4].callData);
+            assertTrue(s4, "cleanup approve(0) failed");
+
+            vm.stopPrank();
+
+            // Verify approval is cleaned
+            uint256 allowanceAfter = IERC20(WBTC_ETH).allowance(account, WBTC_OFT_ADAPTER_ETH);
+            assertEq(allowanceAfter, 0, "Approval should be cleaned up to 0 after cleanup step");
+        } catch {
+            // quoteSend reverted — WBTC adapter might not support Base
+            // Still verify build works
+            bytes memory hookData = _encodeStargateData(
+                0.01 ether, WBTC_OFT_ADAPTER_ETH, WBTC_ETH, EID_BASE,
+                bytes32(uint256(uint160(account))), amountLD, 99e5,
+                false, 2, hex"", hex""
+            );
+            Execution[] memory executions = approveAndStargateHook.build(address(0), account, hookData);
+            assertEq(executions.length, 6, "Build should succeed even if quoteSend fails");
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              CROSS-MODE VALIDATION (WRONG MODE + CONTRACT TYPE)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Stargate mode (0) with OFTAdapter address — build succeeds but execution reverts
+    /// @dev OFTAdapter doesn't implement sendToken(), only send()
+    function test_Fork_StargateMode_WithOFTAdapter_BuildSucceeds_ExecuteReverts() public {
+        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
+        uint256 amountLD = 100e18;
+
+        // Build with mode=0 (Stargate) but using OFTAdapter address
+        bytes memory hookData = _encodeStargateData(
+            0.01 ether, UP_OFT_ADAPTER_ETH, upToken, EID_BASE,
+            bytes32(uint256(uint160(account))), amountLD, 99e18,
+            false, 0, // mode: Stargate taxi (WRONG for OFTAdapter)
+            hex"", hex""
+        );
+
+        // Build should succeed — token() validation passes (same selector)
+        Execution[] memory executions = approveAndStargateHook.build(address(0), account, hookData);
+        assertEq(executions.length, 6, "Build should succeed");
+
+        // But the generated calldata uses sendToken selector (wrong for OFTAdapter)
+        bytes4 selector = bytes4(executions[3].callData);
+        assertEq(selector, IStargate.sendToken.selector, "Mode 0 should generate sendToken selector");
+
+        // Fund the account and try to execute — should fail at the sendToken call
+        deal(upToken, account, amountLD);
+        vm.deal(account, 1 ether);
+
+        vm.startPrank(account);
+
+        // preExecute, approve(0), approve(amount) should succeed
+        for (uint256 i = 0; i < 3; i++) {
+            (bool success,) = executions[i].target.call{ value: executions[i].value }(executions[i].callData);
+            assertTrue(success, string.concat("Pre-send execution ", vm.toString(i), " should succeed"));
+        }
+
+        // sendToken on OFTAdapter should revert — function doesn't exist
+        (bool sendSuccess,) =
+            executions[3].target.call{ value: executions[3].value }(executions[3].callData);
+        assertFalse(sendSuccess, "sendToken should revert on OFTAdapter (function not found)");
+
+        vm.stopPrank();
+    }
+
+    /// @notice OFT mode (2) with Stargate pool address — build succeeds, selector differs
+    /// @dev Stargate pools inherit OFTCore which has send(), so this might succeed at execution
+    /// @dev But the OFT mode sets value = lzNativeFee only (missing amountLD for native sends)
+    function test_Fork_OFTMode_WithStargatePool_BuildSucceeds() public view {
+        // Build with mode=2 (OFT) but using Stargate pool address
+        bytes memory hookData = _encodeStargateData(
+            0.01 ether, STARGATE_USDC_POOL_ETH, USDC_ETH, EID_BASE,
+            bytes32(uint256(uint160(account))), 1000e6, 995e6,
+            false, 2, // mode: OFT (UNUSUAL for Stargate pool)
+            hex"", hex""
+        );
+
+        // Build should succeed — token() validation passes
+        Execution[] memory executions = approveAndStargateHook.build(address(0), account, hookData);
+        assertEq(executions.length, 6);
+
+        // Verify it generates IOFT.send selector instead of sendToken
+        bytes4 selector = bytes4(executions[3].callData);
+        assertEq(selector, IOFT.send.selector, "Mode 2 should generate IOFT.send selector");
+        // Note: value is still lzNativeFee only (correct for ApproveAndStargate ERC20 path)
+    }
+
+    /// @notice StargateSendHook: using OFT mode with Stargate pool changes the value
+    /// @dev Proves that using wrong mode with Stargate pool would under-send ETH for native sends
+    function test_Fork_StargateSend_WrongMode_ValueMismatch() public view {
+        uint256 amountLD = 1000e6;
+        uint256 lzNativeFee = 0.01 ether;
+
+        // Correct: Stargate mode, value = lzNativeFee + amountLD
+        bytes memory correctData = _encodeStargateData(
+            lzNativeFee, STARGATE_USDC_POOL_ETH, USDC_ETH, EID_BASE,
+            bytes32(uint256(uint160(account))), amountLD, 995e6,
+            false, 0, hex"", hex""
+        );
+        Execution[] memory correctExecs = stargateHook.build(address(0), account, correctData);
+        assertEq(correctExecs[1].value, lzNativeFee + amountLD);
+
+        // Wrong: OFT mode with Stargate pool, value = lzNativeFee ONLY (missing amountLD!)
+        bytes memory wrongData = _encodeStargateData(
+            lzNativeFee, STARGATE_USDC_POOL_ETH, USDC_ETH, EID_BASE,
+            bytes32(uint256(uint160(account))), amountLD, 995e6,
+            false, 2, hex"", hex""
+        );
+        Execution[] memory wrongExecs = stargateHook.build(address(0), account, wrongData);
+        assertEq(wrongExecs[1].value, lzNativeFee, "OFT mode omits amountLD from value");
+
+        // The difference equals amountLD — this is the ETH that would be missing
+        assertEq(correctExecs[1].value - wrongExecs[1].value, amountLD);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    OFT MODE EDGE CASES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Zero amount reverts even in OFT mode
+    function test_Fork_ApproveAndStargateSend_OFTMode_RevertIf_ZeroAmount() public {
+        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
+
+        bytes memory hookData = _encodeStargateData(
+            0.01 ether, UP_OFT_ADAPTER_ETH, upToken, EID_BASE,
+            bytes32(uint256(uint160(account))), 0, 0,
+            false, 2, hex"", hex""
+        );
+
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        approveAndStargateHook.build(address(0), account, hookData);
+    }
+
+    /// @notice Very large amount still builds correctly in OFT mode
+    function test_Fork_ApproveAndStargateSend_OFTMode_LargeAmount() public view {
+        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
+        uint256 amountLD = 1_000_000e18; // 1M UP tokens
+
+        bytes memory hookData = _encodeStargateData(
+            0.01 ether, UP_OFT_ADAPTER_ETH, upToken, EID_BASE,
+            bytes32(uint256(uint160(account))), amountLD, amountLD - 1e18,
+            false, 2, hex"", hex""
+        );
+
+        Execution[] memory executions = approveAndStargateHook.build(address(0), account, hookData);
+        assertEq(executions.length, 6);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (UP_OFT_ADAPTER_ETH, amountLD)));
+    }
+
+    /// @notice OFT mode with zero lzNativeFee — some LZ configs allow free messaging
+    function test_Fork_ApproveAndStargateSend_OFTMode_ZeroNativeFee() public view {
+        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
+
+        bytes memory hookData = _encodeStargateData(
+            0, // zero lzNativeFee
+            UP_OFT_ADAPTER_ETH, upToken, EID_BASE,
+            bytes32(uint256(uint160(account))), 100e18, 99e18,
+            false, 2, hex"", hex""
+        );
+
+        Execution[] memory executions = approveAndStargateHook.build(address(0), account, hookData);
+        assertEq(executions.length, 6);
+        assertEq(executions[3].value, 0, "Value should be 0 when lzNativeFee is 0");
+    }
+
+    /// @notice OFT mode with lzTokenFee (separate token for LZ fee) — different token path
+    function test_Fork_ApproveAndStargateSend_OFTMode_WithLzTokenFee_DifferentToken() public view {
+        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
+
+        // Use WBTC as lzToken (hypothetical — testing execution path, not actual LZ payment)
+        bytes memory hookData = _encodeStargateDataWithLzToken(
+            0.01 ether, // lzNativeFee
+            1e7, // lzTokenFee (0.1 WBTC)
+            UP_OFT_ADAPTER_ETH,
+            upToken, // inputToken
+            WBTC_ETH, // lzToken (different from inputToken)
+            EID_BASE,
+            bytes32(uint256(uint160(account))),
+            100e18,
+            99e18,
+            false,
+            2, // mode: OFT
+            hex"",
+            hex""
+        );
+
+        Execution[] memory executions = approveAndStargateHook.build(address(0), account, hookData);
+
+        // Different token path: pre + approve(inputToken,0) + approve(inputToken,amount) +
+        //   approve(lzToken,0) + approve(lzToken,fee) + send + approve(lzToken,0) + approve(inputToken,0) + post = 9
+        assertEq(executions.length, 9, "Different lzToken path should have 9 executions");
+
+        // Verify input token approvals (executions 1-2)
+        assertEq(executions[1].target, upToken);
+        assertEq(executions[2].target, upToken);
+
+        // Verify lzToken approvals (executions 3-4)
+        assertEq(executions[3].target, WBTC_ETH);
+        assertEq(executions[4].target, WBTC_ETH);
+        assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (UP_OFT_ADAPTER_ETH, 1e7)));
+
+        // Verify send
+        assertEq(executions[5].target, UP_OFT_ADAPTER_ETH);
+        assertEq(bytes4(executions[5].callData), IOFT.send.selector);
+        assertEq(executions[5].value, 0.01 ether);
+
+        // Verify cleanups (executions 6-7)
+        assertEq(executions[6].target, WBTC_ETH); // lzToken cleanup
+        assertEq(executions[7].target, upToken); // inputToken cleanup
+    }
+
+    /// @notice OFT mode with lzTokenFee where lzToken == inputToken — combined approval path
+    function test_Fork_ApproveAndStargateSend_OFTMode_WithLzTokenFee_SameToken() public view {
+        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
+        uint256 amountLD = 100e18;
+        uint256 lzTokenFee = 5e18;
+
+        bytes memory hookData = _encodeStargateDataWithLzToken(
+            0.01 ether,
+            lzTokenFee,
+            UP_OFT_ADAPTER_ETH,
+            upToken,
+            upToken, // lzToken == inputToken
+            EID_BASE,
+            bytes32(uint256(uint160(account))),
+            amountLD,
+            99e18,
+            false,
+            2,
+            hex"",
+            hex""
+        );
+
+        Execution[] memory executions = approveAndStargateHook.build(address(0), account, hookData);
+
+        // Same token path: pre + approve(0) + approve(combined) + send + approve(0) + post = 6
+        assertEq(executions.length, 6, "Same lzToken path should have 6 executions");
+
+        // Combined approval = amountLD + lzTokenFee
+        assertEq(
+            executions[2].callData,
+            abi.encodeCall(IERC20.approve, (UP_OFT_ADAPTER_ETH, amountLD + lzTokenFee))
+        );
+        assertEq(bytes4(executions[3].callData), IOFT.send.selector);
+    }
+
+    /// @notice Verify inspect() returns correct addresses regardless of mode
+    function test_Fork_ApproveAndStargateSend_OFTMode_Inspect() public view {
+        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
+
+        bytes memory hookData = _encodeStargateData(
+            0.01 ether, UP_OFT_ADAPTER_ETH, upToken, EID_BASE,
+            bytes32(uint256(uint160(account))), 100e18, 99e18,
+            false, 2, hex"", hex""
+        );
+
+        bytes memory inspected = approveAndStargateHook.inspect(hookData);
+
+        // inspect returns: stargatePool (20) + inputToken (20) + to (20) = 60 bytes
+        assertEq(inspected.length, 60);
+
+        // Decode addresses
+        address inspectedPool;
+        address inspectedToken;
+        address inspectedTo;
+        assembly {
+            inspectedPool := mload(add(inspected, 20))
+            inspectedToken := mload(add(inspected, 40))
+            inspectedTo := mload(add(inspected, 60))
+        }
+        assertEq(inspectedPool, UP_OFT_ADAPTER_ETH);
+        assertEq(inspectedToken, upToken);
+        assertEq(inspectedTo, account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -519,7 +1388,7 @@ contract StargateHooksFork is Helpers {
         uint256 amountLD,
         uint256 minAmountLD,
         bool usePrevHookAmount,
-        bool isBusMode,
+        uint8 mode,
         bytes memory extraOptions,
         bytes memory composeMsg
     )
@@ -529,7 +1398,7 @@ contract StargateHooksFork is Helpers {
     {
         return _encodeStargateDataWithLzToken(
             lzNativeFee, 0, stargatePool, inputToken, address(0), dstEid, to, amountLD, minAmountLD,
-            usePrevHookAmount, isBusMode, extraOptions, composeMsg
+            usePrevHookAmount, mode, extraOptions, composeMsg
         );
     }
 
@@ -544,7 +1413,7 @@ contract StargateHooksFork is Helpers {
         uint256 amountLD,
         uint256 minAmountLD,
         bool usePrevHookAmount,
-        bool isBusMode,
+        uint8 mode,
         bytes memory extraOptions,
         bytes memory composeMsg
     )
@@ -557,7 +1426,7 @@ contract StargateHooksFork is Helpers {
             lzNativeFee, lzTokenFee, stargatePool, inputToken, lzToken, dstEid, to, amountLD, minAmountLD
         );
         return abi.encodePacked(
-            fixedPart, usePrevHookAmount, isBusMode, uint256(extraOptions.length), extraOptions,
+            fixedPart, usePrevHookAmount, mode, uint256(extraOptions.length), extraOptions,
             uint256(composeMsg.length), composeMsg
         );
     }

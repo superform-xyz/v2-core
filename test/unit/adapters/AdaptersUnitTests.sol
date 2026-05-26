@@ -6,6 +6,7 @@ import { Helpers } from "../../utils/Helpers.sol";
 import { AcrossV3Adapter } from "../../../src/adapters/AcrossV3Adapter.sol";
 import { IAcrossV3Receiver } from "../../../src/vendor/bridges/across/IAcrossV3Receiver.sol";
 import { DebridgeAdapter } from "../../../src/adapters/DebridgeAdapter.sol";
+import { StargateAdapter } from "../../../src/adapters/StargateAdapter.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 
 contract MockDlnDestination {
@@ -215,5 +216,231 @@ contract AcrossV3AdapterTest is Helpers {
         pure
     {
         revert("A");
+    }
+}
+
+/// @dev Mock Stargate pool with configurable token() return value
+contract MockStargatePool {
+    address public token;
+
+    constructor(address token_) {
+        token = token_;
+    }
+}
+
+/// @dev Contract that cannot receive ETH (no receive/fallback)
+contract NonPayableContract { }
+
+contract StargateAdapterTest is Helpers {
+    StargateAdapter public stargateAdapter;
+    MockStargatePool public mockPool;
+    MockStargatePool public mockNativePool;
+    MockERC20 public mockERC20;
+
+    // Test contract acts as both LZ_ENDPOINT and SUPER_DESTINATION_EXECUTOR
+    address internal lzEndpoint;
+    bytes32 internal constant GUID = bytes32(uint256(1));
+
+    receive() external payable { }
+
+    function setUp() public {
+        lzEndpoint = address(this);
+        mockERC20 = new MockERC20("Mock Token", "MOCK", 18);
+        mockPool = new MockStargatePool(address(mockERC20));
+        mockNativePool = new MockStargatePool(address(0));
+        stargateAdapter = new StargateAdapter(lzEndpoint, address(this));
+    }
+
+    // ------------- CONSTRUCTOR ---------------
+
+    function test_StargateAdapter_Constructor() public {
+        StargateAdapter adp = new StargateAdapter(address(0x1), address(0x2));
+        assertEq(adp.LZ_ENDPOINT(), address(0x1));
+        assertEq(address(adp.SUPER_DESTINATION_EXECUTOR()), address(0x2));
+    }
+
+    function test_StargateAdapter_Constructor_RevertIf_ZeroEndpoint() public {
+        vm.expectRevert(StargateAdapter.ADDRESS_NOT_VALID.selector);
+        new StargateAdapter(address(0), address(this));
+    }
+
+    function test_StargateAdapter_Constructor_RevertIf_ZeroExecutor() public {
+        vm.expectRevert(StargateAdapter.ADDRESS_NOT_VALID.selector);
+        new StargateAdapter(address(this), address(0));
+    }
+
+    // ------------- SENDER VALIDATION ---------------
+
+    function test_StargateAdapter_lzCompose_RevertIf_InvalidSender() public {
+        vm.prank(address(0x1));
+        vm.expectRevert(StargateAdapter.INVALID_SENDER.selector);
+        stargateAdapter.lzCompose(address(mockPool), GUID, new bytes(0), address(0), new bytes(0));
+    }
+
+    // ------------- MESSAGE VALIDATION ---------------
+
+    function test_StargateAdapter_lzCompose_RevertIf_MessageTooShort() public {
+        // Message with 75 bytes (1 less than the 76-byte OFTComposeMsgCodec header)
+        bytes memory shortMessage = new bytes(75);
+        vm.expectRevert(StargateAdapter.COMPOSE_MSG_TOO_SHORT.selector);
+        stargateAdapter.lzCompose(address(mockPool), GUID, shortMessage, address(0), new bytes(0));
+    }
+
+    function test_StargateAdapter_lzCompose_RevertIf_InvalidInnerDecoding() public {
+        // 76-byte header + garbage that won't abi.decode to the 6-tuple
+        bytes memory invalidMsg = _encodeComposeMsg(1, 30_101, 1000e18, bytes32(uint256(1)), new bytes(32));
+        vm.expectRevert();
+        stargateAdapter.lzCompose(address(mockPool), GUID, invalidMsg, address(0), new bytes(0));
+    }
+
+    // ------------- ERC20 HAPPY PATH ---------------
+
+    function test_StargateAdapter_lzCompose_ERC20_HappyPath() public {
+        bytes memory innerPayload = _buildStargateDestinationData(address(this));
+        bytes memory message = _encodeComposeMsg(1, 30_101, 1000e18, bytes32(uint256(1)), innerPayload);
+
+        _getTokens(address(mockERC20), address(stargateAdapter), 1000);
+        _mockProcessBridgedExecution();
+
+        vm.expectEmit(true, true, false, true);
+        emit StargateAdapter.ComposeExecuted(address(this), address(mockERC20), 1000);
+
+        stargateAdapter.lzCompose(address(mockPool), GUID, message, address(0), new bytes(0));
+        assertEq(mockERC20.balanceOf(address(this)), 1000);
+        assertEq(mockERC20.balanceOf(address(stargateAdapter)), 0);
+    }
+
+    // ------------- NATIVE ETH HAPPY PATH ---------------
+
+    function test_StargateAdapter_lzCompose_NativeETH_HappyPath() public {
+        bytes memory innerPayload = _buildStargateDestinationData(address(this));
+        bytes memory message = _encodeComposeMsg(1, 30_101, 1 ether, bytes32(uint256(1)), innerPayload);
+
+        deal(address(stargateAdapter), 1 ether);
+        _mockProcessBridgedExecution();
+
+        vm.expectEmit(true, true, false, true);
+        emit StargateAdapter.ComposeExecuted(address(this), address(0), 1 ether);
+
+        uint256 balBefore = address(this).balance;
+        stargateAdapter.lzCompose(address(mockNativePool), GUID, message, address(0), new bytes(0));
+        assertEq(address(this).balance - balBefore, 1 ether);
+        assertEq(address(stargateAdapter).balance, 0);
+    }
+
+    function test_StargateAdapter_lzCompose_NativeETH_RevertIf_AccountNotPayable() public {
+        NonPayableContract target = new NonPayableContract();
+        bytes memory innerPayload = _buildStargateDestinationData(address(target));
+        bytes memory message = _encodeComposeMsg(1, 30_101, 1 ether, bytes32(uint256(1)), innerPayload);
+
+        deal(address(stargateAdapter), 1 ether);
+
+        vm.expectRevert(StargateAdapter.ETH_TRANSFER_FAILED.selector);
+        stargateAdapter.lzCompose(address(mockNativePool), GUID, message, address(0), new bytes(0));
+    }
+
+    // ------------- BALANCE EDGE CASES ---------------
+
+    function test_StargateAdapter_lzCompose_TransfersFullBalance() public {
+        bytes memory innerPayload = _buildStargateDestinationData(address(this));
+        // amountLD in codec says 500 but adapter has 1000 - full balance should be transferred
+        bytes memory message = _encodeComposeMsg(1, 30_101, 500, bytes32(uint256(1)), innerPayload);
+
+        _getTokens(address(mockERC20), address(stargateAdapter), 1000);
+        _mockProcessBridgedExecution();
+
+        stargateAdapter.lzCompose(address(mockPool), GUID, message, address(0), new bytes(0));
+        assertEq(mockERC20.balanceOf(address(this)), 1000);
+        assertEq(mockERC20.balanceOf(address(stargateAdapter)), 0);
+    }
+
+    function test_StargateAdapter_lzCompose_ZeroBalance() public {
+        bytes memory innerPayload = _buildStargateDestinationData(address(this));
+        bytes memory message = _encodeComposeMsg(1, 30_101, 0, bytes32(uint256(1)), innerPayload);
+
+        // No tokens in adapter - safeTransfer(0) should succeed and executor is still called
+        _mockProcessBridgedExecution();
+
+        stargateAdapter.lzCompose(address(mockPool), GUID, message, address(0), new bytes(0));
+        assertEq(mockERC20.balanceOf(address(stargateAdapter)), 0);
+    }
+
+    function test_StargateAdapter_lzCompose_DustFromPriorCompose() public {
+        bytes memory innerPayload = _buildStargateDestinationData(address(this));
+        bytes memory message = _encodeComposeMsg(1, 30_101, 800, bytes32(uint256(1)), innerPayload);
+
+        // Simulate dust (200) from prior failed compose + new delivery (800)
+        _getTokens(address(mockERC20), address(stargateAdapter), 1000);
+        _mockProcessBridgedExecution();
+
+        stargateAdapter.lzCompose(address(mockPool), GUID, message, address(0), new bytes(0));
+        // Full balance (1000) swept including dust
+        assertEq(mockERC20.balanceOf(address(this)), 1000);
+        assertEq(mockERC20.balanceOf(address(stargateAdapter)), 0);
+    }
+
+    // ------------- RECEIVE ---------------
+
+    function test_StargateAdapter_receive_AcceptsETH() public {
+        deal(address(this), 1 ether);
+        (bool success,) = address(stargateAdapter).call{ value: 1 ether }("");
+        assertTrue(success);
+        assertEq(address(stargateAdapter).balance, 1 ether);
+    }
+
+    // ------------- HELPERS ---------------
+
+    function _encodeComposeMsg(
+        uint64 nonce_,
+        uint32 srcEid_,
+        uint256 amountLD_,
+        bytes32 composeFrom_,
+        bytes memory innerPayload_
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(nonce_, srcEid_, amountLD_, composeFrom_, innerPayload_);
+    }
+
+    function _buildStargateDestinationData(address account_) private pure returns (bytes memory) {
+        bytes memory initData = new bytes(0);
+        bytes memory executorCalldata = new bytes(0);
+        address[] memory dstTokens = new address[](0);
+        uint256[] memory intentAmounts = new uint256[](0);
+        bytes memory sigData = new bytes(0);
+        return abi.encode(initData, executorCalldata, account_, dstTokens, intentAmounts, sigData);
+    }
+
+    function _mockProcessBridgedExecution() private {
+        vm.mockCall(
+            address(this),
+            abi.encodeWithSignature("processBridgedExecution(address,address,address[],uint256[],bytes,bytes,bytes)"),
+            abi.encode(
+                address(mockERC20),
+                address(this),
+                new address[](0),
+                new uint256[](0),
+                new bytes(0),
+                new bytes(0),
+                new bytes(0)
+            )
+        );
+    }
+
+    function processBridgedExecution(
+        address,
+        address,
+        address[] memory,
+        uint256[] memory,
+        bytes memory,
+        bytes memory,
+        bytes memory
+    )
+        external
+        pure
+    {
+        revert("B");
     }
 }
