@@ -50,6 +50,42 @@ print_separator() {
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
+# Function to preserve entries in chain output JSON that the forge script doesn't manage
+# (e.g., Nexus contracts deployed by a separate process)
+preserve_existing_json_entries() {
+    local output_file=$1
+    local backup_file=$2
+
+    if [[ ! -f "$backup_file" ]] || [[ ! -f "$output_file" ]]; then
+        return 0
+    fi
+
+    # Merge: start with the new output, then add any keys from the backup that are missing
+    local merged
+    merged=$(python3 -c "
+import json, sys
+with open('$output_file') as f:
+    new = json.load(f)
+with open('$backup_file') as f:
+    old = json.load(f)
+# Add back any keys from the old file that are missing in the new file
+changed = False
+for k, v in old.items():
+    if k not in new:
+        new[k] = v
+        changed = True
+if changed:
+    print(json.dumps(new, indent=2, sort_keys=True))
+else:
+    sys.exit(1)
+" 2>/dev/null) || true
+
+    if [[ -n "$merged" ]]; then
+        echo "$merged" > "$output_file"
+        echo -e "${CYAN}   📋 Preserved existing entries in output file${NC}"
+    fi
+}
+
 print_header
 
 # Script directory and project root setup
@@ -398,6 +434,7 @@ echo -e "${BLUE}🔍 Checking rFLR hook bytecode availability...${NC}"
 RFLR_HOOKS=(
     "ClaimRFLRHook"
     "WithdrawRFLRHook"
+    "WithdrawVestedRFLRHook"
 )
 
 missing_rflr=0
@@ -459,6 +496,13 @@ for network_def in "${NETWORKS[@]}"; do
     fi
 
     has_hooks=false
+
+    # Backup the existing output JSON before forge overwrites it
+    output_json="$PROJECT_ROOT/script/output/$ENVIRONMENT/$network_id/$network_name-latest.json"
+    backup_json="${output_json}.bak"
+    if [[ -f "$output_json" ]]; then
+        cp "$output_json" "$backup_json"
+    fi
 
     # Deploy Morpho hooks if supported on this chain
     if is_morpho_supported "$network_id"; then
@@ -614,6 +658,10 @@ for network_def in "${NETWORKS[@]}"; do
             echo -e "${RED}   ❌ rFLR hooks deployment failed on $network_name, continuing...${NC}"
         fi
     fi
+
+    # Restore any entries that the forge script dropped (e.g., Nexus contracts)
+    preserve_existing_json_entries "$output_json" "$backup_json"
+    rm -f "$backup_json"
 
     if [ "$has_hooks" = false ]; then
         echo -e "${YELLOW}  ⏭️  No supported hooks for $network_name ($network_id), skipping${NC}"

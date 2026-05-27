@@ -420,6 +420,28 @@ generate_constructor_args() {
         "MerklClaimRewardHook")
             echo "$(cast abi-encode "constructor(address)" "$merkl_distributor")"
             ;;
+
+        # Hooks - Stargate Bridge (constructor arg: SuperValidator)
+        "StargateSendHook"|"ApproveAndStargateSendHook")
+            echo "$(cast abi-encode "constructor(address)" "$super_merkle_validator")"
+            ;;
+
+        # Hooks - Claim (Flare rFLR)
+        "ClaimRFLRHook")
+            local rnat_flare="0x26d460c3Cf931Fb2014FA436a49e3Af08619810e"
+            echo "$(cast abi-encode "constructor(address)" "$rnat_flare")"
+            ;;
+        "WithdrawRFLRHook"|"WithdrawVestedRFLRHook")
+            local rnat_flare="0x26d460c3Cf931Fb2014FA436a49e3Af08619810e"
+            local wflr_flare="0x1D80c49BbBCd1C0911346656B529DF9E5c2F783d"
+            echo "$(cast abi-encode "constructor(address,address)" "$rnat_flare" "$wflr_flare")"
+            ;;
+
+        # Hooks - Claim (no constructor args)
+        "FluidClaimRewardHook"|"GearboxClaimRewardHook"|"YearnClaimOneRewardHook")
+            echo "$(cast abi-encode "constructor()")"
+            ;;
+
         "CircleGatewayWalletHook"|"CircleGatewayAddDelegateHook"|"CircleGatewayRemoveDelegateHook")
             echo "$(cast abi-encode "constructor(address)" "$gateway_wallet")"
             ;;
@@ -570,8 +592,18 @@ get_contract_source() {
         "EthenaUnstakeHook") echo "src/hooks/vaults/ethena/EthenaUnstakeHook.sol" ;;
         "MarkRootAsUsedHook") echo "src/hooks/superform/MarkRootAsUsedHook.sol" ;;
 
+        # Hooks - Bridges (Stargate)
+        "StargateSendHook") echo "src/hooks/bridges/stargate/StargateSendHook.sol" ;;
+        "ApproveAndStargateSendHook") echo "src/hooks/bridges/stargate/ApproveAndStargateSendHook.sol" ;;
+
         # Hooks - Claim
         "MerklClaimRewardHook") echo "src/hooks/claim/merkl/MerklClaimRewardHook.sol" ;;
+        "FluidClaimRewardHook") echo "src/hooks/claim/fluid/FluidClaimRewardHook.sol" ;;
+        "GearboxClaimRewardHook") echo "src/hooks/claim/gearbox/GearboxClaimRewardHook.sol" ;;
+        "YearnClaimOneRewardHook") echo "src/hooks/claim/yearn/YearnClaimOneRewardHook.sol" ;;
+        "ClaimRFLRHook") echo "src/hooks/claim/flare/ClaimRFLRHook.sol" ;;
+        "WithdrawRFLRHook") echo "src/hooks/claim/flare/WithdrawRFLRHook.sol" ;;
+        "WithdrawVestedRFLRHook") echo "src/hooks/claim/flare/WithdrawVestedRFLRHook.sol" ;;
 
         # Hooks - Circle Gateway
         "CircleGatewayWalletHook") echo "src/hooks/bridges/circle/CircleGatewayWalletHook.sol" ;;

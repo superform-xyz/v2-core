@@ -69,6 +69,27 @@ abstract contract ConfigCore is ConfigBase {
         configuration.debridgeDstDln[FLARE_CHAIN_ID] = address(0); // Not deployed yet
         configuration.debridgeDstDln[STABLE_CHAIN_ID] = address(0); // Not deployed yet
 
+        // ===== LAYERZERO V2 ENDPOINT ADDRESSES =====
+        // Standard EndpointV2 address on most chains
+        configuration.lzEndpointV2s[MAINNET_CHAIN_ID] = LZ_ENDPOINT_V2;
+        configuration.lzEndpointV2s[BASE_CHAIN_ID] = LZ_ENDPOINT_V2;
+        configuration.lzEndpointV2s[BNB_CHAIN_ID] = LZ_ENDPOINT_V2;
+        configuration.lzEndpointV2s[ARBITRUM_CHAIN_ID] = LZ_ENDPOINT_V2;
+        configuration.lzEndpointV2s[OPTIMISM_CHAIN_ID] = LZ_ENDPOINT_V2;
+        configuration.lzEndpointV2s[POLYGON_CHAIN_ID] = LZ_ENDPOINT_V2;
+        configuration.lzEndpointV2s[LINEA_CHAIN_ID] = LZ_ENDPOINT_V2;
+        configuration.lzEndpointV2s[AVALANCHE_CHAIN_ID] = LZ_ENDPOINT_V2;
+        configuration.lzEndpointV2s[GNOSIS_CHAIN_ID] = LZ_ENDPOINT_V2;
+        configuration.lzEndpointV2s[FLARE_CHAIN_ID] = LZ_ENDPOINT_V2;
+        // Newer EndpointV2 deployment address
+        configuration.lzEndpointV2s[UNICHAIN_CHAIN_ID] = LZ_ENDPOINT_V2_ALT;
+        configuration.lzEndpointV2s[BERACHAIN_CHAIN_ID] = LZ_ENDPOINT_V2_ALT;
+        configuration.lzEndpointV2s[SONIC_CHAIN_ID] = LZ_ENDPOINT_V2_ALT;
+        configuration.lzEndpointV2s[WORLDCHAIN_CHAIN_ID] = LZ_ENDPOINT_V2_ALT;
+        configuration.lzEndpointV2s[STABLE_CHAIN_ID] = LZ_ENDPOINT_V2_ALT;
+        // HyperEVM has its own EndpointV2 address
+        configuration.lzEndpointV2s[HYPEREVM_CHAIN_ID] = LZ_ENDPOINT_V2_HYPEREVM;
+
         // ===== PERMIT2 ADDRESSES =====
         configuration.permit2s[MAINNET_CHAIN_ID] = PERMIT2;
         configuration.permit2s[BASE_CHAIN_ID] = PERMIT2;

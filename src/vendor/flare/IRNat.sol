@@ -12,6 +12,13 @@ interface IRNat {
     /// @return claimedAmount Total rFLR minted to the caller's RNat account
     function claimRewards(uint256[] calldata projectIds, uint256 month) external returns (uint128 claimedAmount);
 
+    /// @notice Withdraws a specific amount of unlocked funds from the caller's RNat account
+    /// @dev Only withdraws from vested (unlocked) balance. Reverts if amount > unlocked balance.
+    ///      No penalty applied (unlike withdrawAll which penalizes locked portion).
+    /// @param _amount Amount of tokens to transfer (in wei)
+    /// @param _wrap If true returns WFLR (ERC-20); if false returns native FLR
+    function withdraw(uint128 _amount, bool _wrap) external;
+
     /// @notice Withdraws all funds from the caller's RNat account
     /// @dev 50% penalty on locked (unvested) portion -- half is burned
     /// @param wrap If true returns WFLR (ERC-20); if false returns native FLR

@@ -5,7 +5,7 @@ pragma solidity 0.8.30;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { IStargate } from "../../../vendor/bridges/stargate/IStargate.sol";
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { IOFT } from "../../../vendor/bridges/layerzero/IOFT.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
@@ -18,8 +18,7 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @author Superform Labs
 /// @dev Sends native tokens cross-chain via Stargate V2 with optional destination execution
 /// @dev For native sends: msg.value = lzNativeFee + amountLD
-/// @dev Supports paying LZ messaging fee in native ETH or LZ token (ZRO)
-/// @dev When lzTokenFee > 0: approves lzToken to the pool (pool pulls via safeTransferFrom to endpoint)
+/// @dev LZ messaging fee is always paid in native ETH (lzTokenFee is hardcoded to 0)
 /// @dev WARNING: refundAddress is set to the account. If the native fee is overestimated, Stargate synchronously
 /// @dev refunds the excess to the account during sendToken. ERC7579/7702 accounts with non-payable fallbacks or
 /// @dev fallbacks that reenter the executor will cause sendToken to revert (liveness DoS, no fund loss).
@@ -29,37 +28,33 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// sign it
 /// @dev data has the following structure
 /// @notice         uint256 lzNativeFee = BytesLib.toUint256(data, 0);
-/// @notice         uint256 lzTokenFee = BytesLib.toUint256(data, 32);
-/// @notice         address stargatePool = BytesLib.toAddress(data, 64);
-/// @notice         address inputToken = BytesLib.toAddress(data, 84);
-/// @notice         address lzToken = BytesLib.toAddress(data, 104);
-/// @notice         uint32 dstEid = BytesLib.toUint32(data, 124);
-/// @notice         bytes32 to = BytesLib.toBytes32(data, 128);
-/// @notice         uint256 amountLD = BytesLib.toUint256(data, 160);
-/// @notice         uint256 minAmountLD = BytesLib.toUint256(data, 192);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 224);
-/// @notice         bool isBusMode = _decodeBool(data, 225);
-/// @notice         uint256 extraOptionsLength = BytesLib.toUint256(data, 226);
-/// @notice         bytes extraOptions = BytesLib.slice(data, 258, extraOptionsLength);
-/// @notice         uint256 composeMsgLength = BytesLib.toUint256(data, 258 + extraOptionsLength);
-/// @notice         bytes composeMsg = BytesLib.slice(data, 290 + extraOptionsLength, composeMsgLength);
+/// @notice         address stargatePool = BytesLib.toAddress(data, 32);
+/// @notice         address inputToken = BytesLib.toAddress(data, 52);
+/// @notice         uint32 dstEid = BytesLib.toUint32(data, 72);
+/// @notice         bytes32 to = BytesLib.toBytes32(data, 76);
+/// @notice         uint256 amountLD = BytesLib.toUint256(data, 108);
+/// @notice         uint256 minAmountLD = BytesLib.toUint256(data, 140);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 172);
+/// @notice         uint8 mode = BytesLib.toUint8(data, 173);
+/// @notice         uint256 extraOptionsLength = BytesLib.toUint256(data, 174);
+/// @notice         bytes extraOptions = BytesLib.slice(data, 206, extraOptionsLength);
+/// @notice         uint256 composeMsgLength = BytesLib.toUint256(data, 206 + extraOptionsLength);
+/// @notice         bytes composeMsg = BytesLib.slice(data, 238 + extraOptionsLength, composeMsgLength);
 contract StargateSendHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     address private immutable VALIDATOR;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 224;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 172;
 
     struct StargateSendData {
         uint256 lzNativeFee;
-        uint256 lzTokenFee;
         address stargatePool;
-        address lzToken;
         uint32 dstEid;
         bytes32 to;
         uint256 amountLD;
         uint256 minAmountLD;
-        bool isBusMode;
+        uint8 mode;
         bytes extraOptions;
         bytes composeMsg;
     }
@@ -73,6 +68,9 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
 
     /// @notice Thrown when the Stargate pool address is invalid or not a legitimate Stargate pool
     error POOL_NOT_VALID();
+
+    /// @notice Thrown when the mode flag is not 0 (taxi), 1 (bus), or 2 (OFT)
+    error MODE_NOT_VALID();
 
     /// @param validator_ The validator contract address for signature retrieval
     constructor(address validator_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
@@ -94,33 +92,32 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
         override
         returns (Execution[] memory executions)
     {
-        if (data.length < 290) revert DATA_NOT_VALID();
+        if (data.length < 238) revert DATA_NOT_VALID();
 
         StargateSendData memory s;
         s.lzNativeFee = BytesLib.toUint256(data, 0);
-        s.lzTokenFee = BytesLib.toUint256(data, 32);
-        s.stargatePool = BytesLib.toAddress(data, 64);
-        s.lzToken = BytesLib.toAddress(data, 104);
-        s.dstEid = BytesLib.toUint32(data, 124);
-        s.to = BytesLib.toBytes32(data, 128);
-        s.amountLD = BytesLib.toUint256(data, 160);
-        s.minAmountLD = BytesLib.toUint256(data, 192);
-        s.isBusMode = _decodeBool(data, 225);
+        s.stargatePool = BytesLib.toAddress(data, 32);
+        s.dstEid = BytesLib.toUint32(data, 72);
+        s.to = BytesLib.toBytes32(data, 76);
+        s.amountLD = BytesLib.toUint256(data, 108);
+        s.minAmountLD = BytesLib.toUint256(data, 140);
+        s.mode = BytesLib.toUint8(data, 173);
+        if (s.mode > 2) revert MODE_NOT_VALID();
 
         // Fail-fast validation on fixed fields before external calls
         if (s.stargatePool == address(0)) revert POOL_NOT_VALID();
         if (s.to == bytes32(0)) revert ADDRESS_NOT_VALID();
-        if (s.lzTokenFee > 0 && s.lzToken == address(0)) revert ADDRESS_NOT_VALID();
+        if (s.to != bytes32(uint256(uint160(account)))) revert ADDRESS_NOT_VALID();
 
         // Verify pool implements IStargate interface (reverts on non-pool addresses)
         IStargate(s.stargatePool).token();
 
         // Validate variable-length field bounds
-        uint256 extraOptionsLength = BytesLib.toUint256(data, 226);
-        if (data.length < 290 + extraOptionsLength) revert DATA_NOT_VALID();
-        s.extraOptions = BytesLib.slice(data, 258, extraOptionsLength);
+        uint256 extraOptionsLength = BytesLib.toUint256(data, 174);
+        if (data.length < 238 + extraOptionsLength) revert DATA_NOT_VALID();
+        s.extraOptions = BytesLib.slice(data, 206, extraOptionsLength);
 
-        uint256 composeMsgOffset = 258 + extraOptionsLength;
+        uint256 composeMsgOffset = 206 + extraOptionsLength;
         uint256 composeMsgLength = BytesLib.toUint256(data, composeMsgOffset);
         if (data.length < composeMsgOffset + 32 + composeMsgLength) revert DATA_NOT_VALID();
         s.composeMsg = BytesLib.slice(data, composeMsgOffset + 32, composeMsgLength);
@@ -131,6 +128,7 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
             // Scale minAmountLD proportionally
             if (s.amountLD > 0 && s.minAmountLD > 0) {
                 s.minAmountLD = Math.mulDiv(s.minAmountLD, outAmount, s.amountLD);
+                if (s.minAmountLD == 0) revert AMOUNT_NOT_VALID();
             }
 
             s.amountLD = outAmount;
@@ -153,49 +151,25 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
                 uint256[] memory intentAmounts
             ) = abi.decode(s.composeMsg, (bytes, bytes, address, address[], uint256[]));
 
+            if (_account != account) revert ADDRESS_NOT_VALID();
+
             s.composeMsg = abi.encode(initData, executorCalldata, _account, dstTokens, intentAmounts, signature);
         }
 
-        // Build SendParam
-        IStargate.SendParam memory sendParam = IStargate.SendParam({
-            dstEid: s.dstEid,
-            to: s.to,
-            amountLD: s.amountLD,
-            minAmountLD: s.minAmountLD,
-            extraOptions: s.extraOptions,
-            composeMsg: s.composeMsg,
-            // Bus mode (batched, lower fee) has delivery latency - only sent when bus is full or driven
-            oftCmd: s.isBusMode ? abi.encodePacked(uint8(1)) : bytes("")
-        });
+        // Build executions based on mode
+        if (s.mode <= 1) {
+            // Stargate mode (taxi=0, bus=1)
+            IStargate.SendParam memory sendParam = IStargate.SendParam({
+                dstEid: s.dstEid,
+                to: s.to,
+                amountLD: s.amountLD,
+                minAmountLD: s.minAmountLD,
+                extraOptions: s.extraOptions,
+                composeMsg: s.composeMsg,
+                // Bus mode (batched, lower fee) has delivery latency - only sent when bus is full or driven
+                oftCmd: s.mode == 1 ? abi.encodePacked(uint8(1)) : bytes("")
+            });
 
-        if (s.lzTokenFee > 0) {
-            IStargate.MessagingFee memory messagingFee =
-                IStargate.MessagingFee({ nativeFee: s.lzNativeFee, lzTokenFee: s.lzTokenFee });
-
-            // LZ token fee path: approve(0) -> approve(fee) -> sendToken -> approve(0)
-            // Pool pulls lzToken from msg.sender via safeTransferFrom and forwards to endpoint
-            executions = new Execution[](4);
-            executions[0] = Execution({
-                target: s.lzToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
-            });
-            executions[1] = Execution({
-                target: s.lzToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (s.stargatePool, s.lzTokenFee))
-            });
-            executions[2] = Execution({
-                target: s.stargatePool,
-                value: s.lzNativeFee + s.amountLD,
-                callData: abi.encodeCall(IStargate.sendToken, (sendParam, messagingFee, account))
-            });
-            executions[3] = Execution({
-                target: s.lzToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
-            });
-        } else {
             IStargate.MessagingFee memory messagingFee =
                 IStargate.MessagingFee({ nativeFee: s.lzNativeFee, lzTokenFee: 0 });
 
@@ -205,6 +179,29 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
                 target: s.stargatePool,
                 value: s.lzNativeFee + s.amountLD,
                 callData: abi.encodeCall(IStargate.sendToken, (sendParam, messagingFee, account))
+            });
+        } else {
+            // OFT mode (mode=2)
+            // CRITICAL: value = lzNativeFee ONLY. OFT contracts burn tokens from msg.sender internally.
+            // Sending amountLD in msg.value to an OFT contract risks permanent ETH loss.
+            IOFT.SendParam memory sendParam = IOFT.SendParam({
+                dstEid: s.dstEid,
+                to: s.to,
+                amountLD: s.amountLD,
+                minAmountLD: s.minAmountLD,
+                extraOptions: s.extraOptions,
+                composeMsg: s.composeMsg,
+                oftCmd: bytes("")
+            });
+
+            IOFT.MessagingFee memory messagingFee =
+                IOFT.MessagingFee({ nativeFee: s.lzNativeFee, lzTokenFee: 0 });
+
+            executions = new Execution[](1);
+            executions[0] = Execution({
+                target: s.stargatePool,
+                value: s.lzNativeFee,
+                callData: abi.encodeCall(IOFT.send, (sendParam, messagingFee, account))
             });
         }
     }
@@ -221,9 +218,9 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(
-            BytesLib.toAddress(data, 64), // stargatePool
-            BytesLib.toAddress(data, 84), // inputToken
-            address(uint160(uint256(BytesLib.toBytes32(data, 128)))) // to (as address)
+            BytesLib.toAddress(data, 32), // stargatePool
+            BytesLib.toAddress(data, 52), // inputToken
+            address(uint160(uint256(BytesLib.toBytes32(data, 76)))) // to (as address)
         );
     }
 }

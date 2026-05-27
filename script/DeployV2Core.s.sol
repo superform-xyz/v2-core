@@ -19,6 +19,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address superExecutor;
         address acrossV3Adapter;
         address debridgeAdapter;
+        address stargateAdapter;
         address superDestinationExecutor;
         address superSenderCreator;
         address superLedger;
@@ -234,6 +235,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     struct ContractAvailability {
         bool acrossV3Adapter;
         bool debridgeAdapter;
+        bool stargateAdapter;
         bool deBridgeSendOrderHook;
         bool deBridgeCancelOrderHook;
         bool swap1InchHook;
@@ -288,8 +290,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Max possible skips: 2 adapters + 31 hooks = 33 skipped contracts
         string[] memory potentialSkips = new string[](35);
         uint256 skipCount = 0;
-        // Adapter contracts (2 contracts - conditionally deployed)
-        string[2] memory adapterContracts = ["AcrossV3Adapter", "DebridgeAdapter"];
+        // Adapter contracts (3 contracts - conditionally deployed)
+        string[3] memory adapterContracts = ["AcrossV3Adapter", "DebridgeAdapter", "StargateAdapter"];
 
         // Start with all adapters, then decrement for missing configurations
         uint256 expectedAdapters = adapterContracts.length;
@@ -308,6 +310,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         } else {
             expectedAdapters -= 1; // DebridgeAdapter
             potentialSkips[skipCount++] = "DebridgeAdapter";
+        }
+
+        // StargateAdapter
+        if (configuration.lzEndpointV2s[chainId] != address(0)) {
+            availability.stargateAdapter = true;
+        } else {
+            expectedAdapters -= 1; // StargateAdapter
+            potentialSkips[skipCount++] = "StargateAdapter";
         }
 
         availability.expectedAdapters = expectedAdapters;
@@ -923,6 +933,20 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log("SKIPPED DebridgeAdapter: DeBridge DLN not configured for chain", chainId);
         } else {
             revert("DEBRIDGE_ADAPTER_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
+        }
+
+        // StargateAdapter (requires lzEndpointV2 and superDestinationExecutor)
+        if (availability.stargateAdapter && superDestExecutor != address(0)) {
+            __checkContract(
+                STARGATE_ADAPTER_KEY,
+                __getSalt(STARGATE_ADAPTER_KEY),
+                abi.encode(configuration.lzEndpointV2s[chainId], superDestExecutor),
+                env
+            );
+        } else if (!availability.stargateAdapter) {
+            console2.log("SKIPPED StargateAdapter: LZ EndpointV2 not configured for chain", chainId);
+        } else {
+            revert("STARGATE_ADAPTER_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
         }
     }
 
@@ -1589,6 +1613,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         status = _getContractStatus(chainId, DEBRIDGE_ADAPTER_KEY);
         if (status.isDeployed) coreContracts.debridgeAdapter = status.contractAddress;
 
+        status = _getContractStatus(chainId, STARGATE_ADAPTER_KEY);
+        if (status.isDeployed) coreContracts.stargateAdapter = status.contractAddress;
+
         status = _getContractStatus(chainId, SUPER_DESTINATION_EXECUTOR_KEY);
         if (status.isDeployed) coreContracts.superDestinationExecutor = status.contractAddress;
 
@@ -1838,6 +1865,28 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" DebridgeAdapter deployed and validated");
         } else {
             console2.log(" SKIPPED DebridgeAdapter deployment: Not available on chain", chainId);
+        }
+
+        // Deploy StargateAdapter only if available on this chain
+        if (availability.stargateAdapter) {
+            require(configuration.lzEndpointV2s[chainId] != address(0), "STARGATE_ADAPTER_LZ_ENDPOINT_PARAM_ZERO");
+            require(coreContracts.superDestinationExecutor != address(0), "STARGATE_ADAPTER_DEST_EXECUTOR_PARAM_ZERO");
+
+            coreContracts.stargateAdapter = __deployContractIfNeeded(
+                STARGATE_ADAPTER_KEY,
+                chainId,
+                __getSalt(STARGATE_ADAPTER_KEY),
+                abi.encodePacked(
+                    __getBytecode("StargateAdapter", env),
+                    abi.encode(configuration.lzEndpointV2s[chainId], coreContracts.superDestinationExecutor)
+                )
+            );
+
+            require(coreContracts.stargateAdapter != address(0), "STARGATE_ADAPTER_DEPLOYMENT_FAILED");
+            require(coreContracts.stargateAdapter.code.length > 0, "STARGATE_ADAPTER_NO_CODE");
+            console2.log(" StargateAdapter deployed and validated");
+        } else {
+            console2.log(" SKIPPED StargateAdapter deployment: Not available on chain", chainId);
         }
 
         // ===== LEDGER DEPLOYMENT WITH VALIDATED EXECUTORS =====

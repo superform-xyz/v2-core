@@ -17,6 +17,7 @@ abstract contract ConstantsOtherHooks {
     // rFLR hook keys
     string internal constant CLAIM_RFLR_HOOK_KEY = "ClaimRFLRHook";
     string internal constant WITHDRAW_RFLR_HOOK_KEY = "WithdrawRFLRHook";
+    string internal constant WITHDRAW_VESTED_RFLR_HOOK_KEY = "WithdrawVestedRFLRHook";
 
     // rFLR contract addresses (Flare mainnet)
     address internal constant RNAT_FLARE = 0x26d460c3Cf931Fb2014FA436a49e3Af08619810e;
