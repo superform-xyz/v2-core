@@ -113,7 +113,6 @@ contract ApproveAndStargateSendHook is BaseHook, ISuperHookContextAware {
         if (s.stargatePool == address(0)) revert POOL_NOT_VALID();
         if (s.inputToken == address(0)) revert ADDRESS_NOT_VALID();
         if (s.to == bytes32(0)) revert ADDRESS_NOT_VALID();
-        if (s.to != bytes32(uint256(uint160(account)))) revert ADDRESS_NOT_VALID();
 
         // Verify pool is a legitimate Stargate pool and matches the input token
         if (IStargate(s.stargatePool).token() != s.inputToken) revert POOL_NOT_VALID();

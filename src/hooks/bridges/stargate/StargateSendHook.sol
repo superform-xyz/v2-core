@@ -107,7 +107,6 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
         // Fail-fast validation on fixed fields before external calls
         if (s.stargatePool == address(0)) revert POOL_NOT_VALID();
         if (s.to == bytes32(0)) revert ADDRESS_NOT_VALID();
-        if (s.to != bytes32(uint256(uint160(account)))) revert ADDRESS_NOT_VALID();
 
         // Verify pool implements IStargate interface (reverts on non-pool addresses)
         IStargate(s.stargatePool).token();

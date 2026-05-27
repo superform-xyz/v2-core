@@ -1154,26 +1154,41 @@ contract StargateHooks is Helpers {
         approveAndStargateHook.build(address(0), mockAccount, data);
     }
 
-    /// @dev Finding #3: to must match executing account
-    function test_StargateSend_Build_RevertIf_RecipientNotAccount() public {
+    /// @dev Recipient can be a different address (e.g., StargateAdapter for cross-chain execution)
+    function test_StargateSend_Build_RecipientCanBeAdapter() public {
         bytes32 originalTo = mockTo;
-        mockTo = bytes32(uint256(uint160(makeAddr("someone_else"))));
+        mockTo = bytes32(uint256(uint160(makeAddr("stargateAdapter"))));
         bytes memory data = _encodeStargateData(false, 0, false);
         mockTo = originalTo;
 
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        stargateHook.build(address(0), mockAccount, data);
+        Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockStargatePool);
     }
 
-    /// @dev Finding #3: to must match executing account (ApproveAndStargate)
-    function test_ApproveAndStargateSend_Build_RevertIf_RecipientNotAccount() public {
+    /// @dev Recipient can be a different address (ApproveAndStargate variant)
+    function test_ApproveAndStargateSend_Build_RecipientCanBeAdapter() public {
         bytes32 originalTo = mockTo;
-        mockTo = bytes32(uint256(uint160(makeAddr("someone_else"))));
+        mockTo = bytes32(uint256(uint160(makeAddr("stargateAdapter"))));
         bytes memory data = _encodeStargateData(false, 0, false);
         mockTo = originalTo;
 
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        approveAndStargateHook.build(address(0), mockAccount, data);
+        Execution[] memory executions = approveAndStargateHook.build(address(0), mockAccount, data);
+        assertEq(executions.length, 6);
+        assertEq(executions[3].target, mockStargatePool);
+    }
+
+    /// @dev Recipient can be adapter in OFT mode too
+    function test_StargateSend_Build_OFTMode_RecipientCanBeAdapter() public {
+        bytes32 originalTo = mockTo;
+        mockTo = bytes32(uint256(uint160(makeAddr("stargateAdapter"))));
+        bytes memory data = _encodeStargateData(false, 2, false);
+        mockTo = originalTo;
+
+        Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
+        assertEq(executions.length, 3);
+        // OFT mode: value = lzNativeFee only
+        assertEq(executions[1].value, mockLzNativeFee);
     }
 
     /// @dev Finding #4: minAmountLD must not round to zero after proportional scaling

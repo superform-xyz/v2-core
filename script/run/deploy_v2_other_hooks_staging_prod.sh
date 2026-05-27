@@ -527,6 +527,21 @@ for network_def in "${NETWORKS[@]}"; do
 
     has_hooks=false
 
+    # Per-chain verification flags (some chains don't support Etherscan V2)
+    local_etherscan_flags=""
+    local_verify_flag="$VERIFY_FLAG"
+    case $network_id in
+        14|999|988) # Flare, HyperEVM, Stable - no Etherscan support or rate-limited
+            local_verify_flag=""
+            echo -e "${CYAN}   Verification: ${WHITE}Skipped (explorer not supported)${NC}"
+            ;;
+        *)
+            if [[ -n "$VERIFY_FLAG" ]]; then
+                local_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan"
+            fi
+            ;;
+    esac
+
     # Backup the existing output JSON before forge overwrites it
     output_json="$PROJECT_ROOT/script/output/$ENVIRONMENT/$network_id/$network_name-latest.json"
     backup_json="${output_json}.bak"
@@ -548,10 +563,9 @@ for network_def in "${NETWORKS[@]}"; do
             $KEYSTORE_PASSWORD_FLAG \
             --rpc-url ${!rpc_var} \
             --chain $network_id \
-            --etherscan-api-key $ETHERSCANV2_API_KEY \
-            --verifier etherscan \
+            $local_etherscan_flags \
             $BROADCAST_FLAG \
-            $VERIFY_FLAG \
+            $local_verify_flag \
             $SLOW_FLAG \
             $BATCH_SIZE_FLAG \
             $RESUME_FLAG \
@@ -579,10 +593,9 @@ for network_def in "${NETWORKS[@]}"; do
             $KEYSTORE_PASSWORD_FLAG \
             --rpc-url ${!rpc_var} \
             --chain $network_id \
-            --etherscan-api-key $ETHERSCANV2_API_KEY \
-            --verifier etherscan \
+            $local_etherscan_flags \
             $BROADCAST_FLAG \
-            $VERIFY_FLAG \
+            $local_verify_flag \
             $SLOW_FLAG \
             $BATCH_SIZE_FLAG \
             $RESUME_FLAG \
@@ -610,10 +623,9 @@ for network_def in "${NETWORKS[@]}"; do
             $KEYSTORE_PASSWORD_FLAG \
             --rpc-url ${!rpc_var} \
             --chain $network_id \
-            --etherscan-api-key $ETHERSCANV2_API_KEY \
-            --verifier etherscan \
+            $local_etherscan_flags \
             $BROADCAST_FLAG \
-            $VERIFY_FLAG \
+            $local_verify_flag \
             $SLOW_FLAG \
             $BATCH_SIZE_FLAG \
             $RESUME_FLAG \
@@ -641,10 +653,9 @@ for network_def in "${NETWORKS[@]}"; do
             $KEYSTORE_PASSWORD_FLAG \
             --rpc-url ${!rpc_var} \
             --chain $network_id \
-            --etherscan-api-key $ETHERSCANV2_API_KEY \
-            --verifier etherscan \
+            $local_etherscan_flags \
             $BROADCAST_FLAG \
-            $VERIFY_FLAG \
+            $local_verify_flag \
             $SLOW_FLAG \
             $BATCH_SIZE_FLAG \
             $RESUME_FLAG \
@@ -672,10 +683,9 @@ for network_def in "${NETWORKS[@]}"; do
             $KEYSTORE_PASSWORD_FLAG \
             --rpc-url ${!rpc_var} \
             --chain $network_id \
-            --etherscan-api-key $ETHERSCANV2_API_KEY \
-            --verifier etherscan \
+            $local_etherscan_flags \
             $BROADCAST_FLAG \
-            $VERIFY_FLAG \
+            $local_verify_flag \
             $SLOW_FLAG \
             $BATCH_SIZE_FLAG \
             $RESUME_FLAG \
@@ -703,10 +713,9 @@ for network_def in "${NETWORKS[@]}"; do
             $KEYSTORE_PASSWORD_FLAG \
             --rpc-url ${!rpc_var} \
             --chain $network_id \
-            --etherscan-api-key $ETHERSCANV2_API_KEY \
-            --verifier etherscan \
+            $local_etherscan_flags \
             $BROADCAST_FLAG \
-            $VERIFY_FLAG \
+            $local_verify_flag \
             $SLOW_FLAG \
             $BATCH_SIZE_FLAG \
             $RESUME_FLAG \
