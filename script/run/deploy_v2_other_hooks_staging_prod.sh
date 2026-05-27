@@ -272,6 +272,11 @@ is_deth_supported() {
     return 1
 }
 
+# Sponsorship contracts are deployed on all chains
+is_sponsorship_supported() {
+    return 0
+}
+
 # rFLR hooks are only deployed on Flare
 RFLR_SUPPORTED_CHAINS=("14")
 
@@ -428,6 +433,31 @@ fi
 
 echo ""
 
+# Check bytecode availability for Sponsorship contracts
+echo -e "${BLUE}🔍 Checking Sponsorship contract bytecode availability...${NC}"
+
+SPONSORSHIP_CONTRACTS=(
+    "NativeFeeSponsorship"
+    "FetchNativeFeeHook"
+)
+
+missing_sponsorship=0
+for hook in "${SPONSORSHIP_CONTRACTS[@]}"; do
+    if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
+        echo -e "${GREEN}   ✅ ${hook}${NC}"
+    else
+        echo -e "${YELLOW}   ⚠️  ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
+        missing_sponsorship=$((missing_sponsorship + 1))
+    fi
+done
+
+if [ $missing_sponsorship -gt 0 ]; then
+    echo -e "${YELLOW}⚠️  ${missing_sponsorship} Sponsorship contract(s) missing bytecode. They will be skipped during deployment.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/regenerate_bytecode.sh to generate missing bytecode.${NC}"
+fi
+
+echo ""
+
 # Check bytecode availability for rFLR hooks
 echo -e "${BLUE}🔍 Checking rFLR hook bytecode availability...${NC}"
 
@@ -456,7 +486,7 @@ echo ""
 print_separator
 
 # Confirmation before deployment
-echo -e "${WHITE}🤔 Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral + DETH + rFLR) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
+echo -e "${WHITE}🤔 Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral + DETH + Sponsorship + rFLR) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
 read -r proceed
 
 if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
@@ -628,6 +658,37 @@ for network_def in "${NETWORKS[@]}"; do
         fi
     fi
 
+    # Deploy Sponsorship contracts (all chains)
+    if is_sponsorship_supported "$network_id"; then
+        has_hooks=true
+        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
+        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
+        echo -e "${YELLOW}   Deploying Sponsorship contracts...${NC}"
+
+        if forge script script/DeployV2OtherHooks.s.sol:DeployV2OtherHooks \
+            --sig 'runSponsorship(uint256,uint64)' $FORGE_ENV $network_id \
+            --account $ACCOUNT \
+            $KEYSTORE_PASSWORD_FLAG \
+            --rpc-url ${!rpc_var} \
+            --chain $network_id \
+            --etherscan-api-key $ETHERSCANV2_API_KEY \
+            --verifier etherscan \
+            $BROADCAST_FLAG \
+            $VERIFY_FLAG \
+            $SLOW_FLAG \
+            $BATCH_SIZE_FLAG \
+            $RESUME_FLAG \
+            $LEGACY_FLAG \
+            $GAS_PRICE_FLAG \
+            --timeout 300 \
+            -vv; then
+            echo -e "${GREEN}   ✅ Sponsorship contracts deployment completed!${NC}"
+        else
+            echo -e "${RED}   ❌ Sponsorship contracts deployment failed on $network_name, continuing...${NC}"
+        fi
+    fi
+
     # Deploy rFLR hooks if supported on this chain
     if is_rflr_supported "$network_id"; then
         has_hooks=true
@@ -662,6 +723,7 @@ for network_def in "${NETWORKS[@]}"; do
     # Restore any entries that the forge script dropped (e.g., Nexus contracts)
     preserve_existing_json_entries "$output_json" "$backup_json"
     rm -f "$backup_json"
+
 
     if [ "$has_hooks" = false ]; then
         echo -e "${YELLOW}  ⏭️  No supported hooks for $network_name ($network_id), skipping${NC}"

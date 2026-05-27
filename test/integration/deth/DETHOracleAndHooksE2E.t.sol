@@ -435,7 +435,6 @@ contract DETHOracleAndHooksE2E is Test {
         console2.log("=== After real claim ===");
         console2.log("  WETH received:", assetsReceived);
         console2.log("  TVL after:", tvlAfter);
-        console2.log("  TVL delta:", tvlBefore - tvlAfter);
     }
 
     /// @notice E2E with RequestRedeemDETHHook variant + oracle tracking

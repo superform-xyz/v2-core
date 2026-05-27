@@ -217,6 +217,12 @@ DETH_HOOK_CONTRACTS=(
     "ClaimAssetsDETHHook"
 )
 
+# Sponsorship contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode-other/)
+SPONSORSHIP_CONTRACTS=(
+    "NativeFeeSponsorship"
+    "FetchNativeFeeHook"
+)
+
 # rFLR hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode-other/)
 RFLR_HOOK_CONTRACTS=(
     "ClaimRFLRHook"
@@ -226,6 +232,7 @@ RFLR_HOOK_CONTRACTS=(
 
 # Odos V3 hook contracts - now deployed via DeployV2Core (kept here for reference)
 ODOS_V3_HOOK_CONTRACTS=()
+
 
 # Function to copy contract artifact
 copy_contract() {
@@ -334,6 +341,21 @@ else
         fi
     done
 
+    # Copy Sponsorship contracts to generated-bytecode-other/
+    log "INFO" "${BLUE}🪝 Copying Sponsorship contracts to generated-bytecode-other/...${NC}"
+    failed_sponsorship=0
+    for contract in "${SPONSORSHIP_CONTRACTS[@]}"; do
+        local_source="out/${contract}.sol/${contract}.json"
+        local_dest="script/generated-bytecode-other/${contract}.json"
+        if [ ! -f "$local_source" ]; then
+            log "ERROR" "${RED}❌ Artifact not found for contract: ${contract} at ${local_source}${NC}"
+            failed_sponsorship=$((failed_sponsorship + 1))
+        else
+            cp "$local_source" "$local_dest"
+            log "INFO" "${GREEN}✅ Copied ${contract} → generated-bytecode-other/${NC}"
+        fi
+    done
+
     # Copy rFLR hook contracts to generated-bytecode-other/
     log "INFO" "${BLUE}🪝 Copying rFLR hook contracts to generated-bytecode-other/...${NC}"
     failed_rflr=0
@@ -365,8 +387,8 @@ else
     done
 
     # Summary for all contracts mode
-    total_contracts=$((${#CORE_CONTRACTS[@]} + ${#HOOK_CONTRACTS[@]} + ${#ORACLE_CONTRACTS[@]} + ${#MORPHO_HOOK_CONTRACTS[@]} + ${#AAVE_V4_HOOK_CONTRACTS[@]} + ${#DETH_HOOK_CONTRACTS[@]} + ${#RFLR_HOOK_CONTRACTS[@]} + ${#ODOS_V3_HOOK_CONTRACTS[@]}))
-    total_failed=$((failed_core + failed_hooks + failed_oracles + failed_morpho + failed_aavev4 + failed_deth + failed_rflr + failed_odosv3))
+    total_contracts=$((${#CORE_CONTRACTS[@]} + ${#HOOK_CONTRACTS[@]} + ${#ORACLE_CONTRACTS[@]} + ${#MORPHO_HOOK_CONTRACTS[@]} + ${#AAVE_V4_HOOK_CONTRACTS[@]} + ${#DETH_HOOK_CONTRACTS[@]} + ${#SPONSORSHIP_CONTRACTS[@]} + ${#RFLR_HOOK_CONTRACTS[@]} + ${#ODOS_V3_HOOK_CONTRACTS[@]}))
+    total_failed=$((failed_core + failed_hooks + failed_oracles + failed_morpho + failed_aavev4 + failed_deth + failed_sponsorship + failed_rflr + failed_odosv3))
     total_success=$((total_contracts - total_failed))
 
     log "INFO" "${BLUE}📊 Summary:${NC}"
@@ -394,6 +416,10 @@ else
 
     if [ $failed_deth -gt 0 ]; then
         log "WARN" "${YELLOW}  ⚠️  Failed DETH hook contracts: ${failed_deth}/${#DETH_HOOK_CONTRACTS[@]}${NC}"
+    fi
+
+    if [ $failed_sponsorship -gt 0 ]; then
+        log "WARN" "${YELLOW}  ⚠️  Failed Sponsorship contracts: ${failed_sponsorship}/${#SPONSORSHIP_CONTRACTS[@]}${NC}"
     fi
 
     if [ $failed_rflr -gt 0 ]; then
