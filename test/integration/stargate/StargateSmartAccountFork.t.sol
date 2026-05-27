@@ -6,7 +6,6 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { IStargate } from "../../../src/vendor/bridges/stargate/IStargate.sol";
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { ApproveAndStargateSendHook } from "../../../src/hooks/bridges/stargate/ApproveAndStargateSendHook.sol";
-import { StargateSendHook } from "../../../src/hooks/bridges/stargate/StargateSendHook.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 import { LayerZeroV2Helper } from "../../../lib/pigeon/src/layerzero-v2/LayerZeroV2Helper.sol";
 import { MinimalBaseNexusIntegrationTest } from "../MinimalBaseNexusIntegrationTest.t.sol";
@@ -49,9 +48,6 @@ contract StargateSmartAccountFork is MinimalBaseNexusIntegrationTest {
 
     // USDC on Base
     address public constant USDC_BASE = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
-
-    // LayerZero ZRO token on Ethereum
-    address public constant LZ_TOKEN_ETH = 0x6985884C4392D348587B19cb9eAAf157F13271cd;
 
     /*//////////////////////////////////////////////////////////////
                                  STATE
@@ -239,147 +235,6 @@ contract StargateSmartAccountFork is MinimalBaseNexusIntegrationTest {
         vm.selectFork(ethForkId);
     }
 
-    /// @notice Verify hook generates correct execution structure with LZ token fee path
-    /// @dev LZ token payment is not available on Ethereum mainnet (endpoint.lzToken == address(0))
-    /// @dev so we test the hook's execution generation logic directly
-    function test_Fork_SmartAccount_ApproveAndStargateSend_LzTokenFee_ExecutionStructure() public {
-        uint256 amountLD = 1000e6;
-        uint256 minAmountLD = 995e6;
-        uint256 lzTokenFee = 1e18; // 1 ZRO token
-
-        // Quote the native fee (still needed even when paying LZ token)
-        IStargate.SendParam memory quoteSendParam = IStargate.SendParam({
-            dstEid: EID_BASE,
-            to: bytes32(uint256(uint160(smartAccount))),
-            amountLD: amountLD,
-            minAmountLD: minAmountLD,
-            extraOptions: hex"",
-            composeMsg: hex"",
-            oftCmd: bytes("")
-        });
-
-        IStargate.MessagingFee memory fee = IStargate(STARGATE_USDC_POOL_ETH).quoteSend(quoteSendParam, false);
-
-        // Build hook data WITH LZ token fee
-        bytes memory hookData = _encodeStargateDataWithLzToken(
-            fee.nativeFee,
-            lzTokenFee,
-            STARGATE_USDC_POOL_ETH,
-            USDC_ETH,
-            LZ_TOKEN_ETH,
-            EID_BASE,
-            bytes32(uint256(uint160(smartAccount))),
-            amountLD,
-            minAmountLD,
-            false,
-            false,
-            hex"",
-            hex""
-        );
-
-        // Build executions - verifies hook logic generates correct structure
-        Execution[] memory executions = approveAndStargateHook.build(address(0), smartAccount, hookData);
-
-        // With LZ token fee: pre + 7 hook executions + post = 9 total
-        assertEq(executions.length, 9, "Should have 9 executions (pre + 7 hook + post)");
-
-        // Execution 1: Reset input token approval to 0
-        assertEq(executions[1].target, USDC_ETH);
-        assertEq(executions[1].callData, abi.encodeCall(IERC20.approve, (STARGATE_USDC_POOL_ETH, 0)));
-
-        // Execution 2: Approve input token amount
-        assertEq(executions[2].target, USDC_ETH);
-        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (STARGATE_USDC_POOL_ETH, amountLD)));
-
-        // Execution 3: Reset LZ token approval to 0
-        assertEq(executions[3].target, LZ_TOKEN_ETH);
-        assertEq(executions[3].callData, abi.encodeCall(IERC20.approve, (STARGATE_USDC_POOL_ETH, 0)));
-
-        // Execution 4: Approve LZ token fee amount
-        assertEq(executions[4].target, LZ_TOKEN_ETH);
-        assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (STARGATE_USDC_POOL_ETH, lzTokenFee)));
-
-        // Execution 5: sendToken call
-        assertEq(executions[5].target, STARGATE_USDC_POOL_ETH);
-        assertEq(executions[5].value, fee.nativeFee, "Value should be lzNativeFee only");
-        assertEq(bytes4(executions[5].callData), IStargate.sendToken.selector);
-
-        // Execution 6: Cleanup LZ token approval to 0
-        assertEq(executions[6].target, LZ_TOKEN_ETH);
-        assertEq(executions[6].callData, abi.encodeCall(IERC20.approve, (STARGATE_USDC_POOL_ETH, 0)));
-
-        // Execution 7: Cleanup input token approval to 0
-        assertEq(executions[7].target, USDC_ETH);
-        assertEq(executions[7].callData, abi.encodeCall(IERC20.approve, (STARGATE_USDC_POOL_ETH, 0)));
-
-        console2.log("LZ token fee path generates correct 7-execution structure");
-    }
-
-
-    /// @notice Verify StargateSendHook (native) generates correct structure with LZ token fee
-    function test_Fork_SmartAccount_StargateSend_LzTokenFee_ExecutionStructure() public {
-        uint256 amountLD = 1 ether;
-        uint256 minAmountLD = 0.995 ether;
-        uint256 lzTokenFee = 1e18;
-
-        StargateSendHook stargateHook = new StargateSendHook(address(mockSignatureStorage));
-
-        // Quote fee
-        IStargate.SendParam memory quoteSendParam = IStargate.SendParam({
-            dstEid: EID_BASE,
-            to: bytes32(uint256(uint160(smartAccount))),
-            amountLD: amountLD,
-            minAmountLD: minAmountLD,
-            extraOptions: hex"",
-            composeMsg: hex"",
-            oftCmd: bytes("")
-        });
-
-        IStargate.MessagingFee memory fee = IStargate(STARGATE_USDC_POOL_ETH).quoteSend(quoteSendParam, false);
-
-        // Build hook data with LZ token fee (StargateSendHook = native variant)
-        bytes memory hookData = _encodeStargateDataWithLzToken(
-            fee.nativeFee,
-            lzTokenFee,
-            STARGATE_USDC_POOL_ETH,
-            USDC_ETH,
-            LZ_TOKEN_ETH,
-            EID_BASE,
-            bytes32(uint256(uint160(smartAccount))),
-            amountLD,
-            minAmountLD,
-            false,
-            false,
-            hex"",
-            hex""
-        );
-
-        // Build executions
-        Execution[] memory executions = stargateHook.build(address(0), smartAccount, hookData);
-
-        // With LZ token fee on native hook: pre + 4 hook executions + post = 6 total
-        assertEq(executions.length, 6, "Should have 6 executions (pre + 4 hook + post)");
-
-        // Execution 1: Reset LZ token approval to 0
-        assertEq(executions[1].target, LZ_TOKEN_ETH);
-        assertEq(executions[1].callData, abi.encodeCall(IERC20.approve, (STARGATE_USDC_POOL_ETH, 0)));
-
-        // Execution 2: Approve LZ token fee
-        assertEq(executions[2].target, LZ_TOKEN_ETH);
-        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (STARGATE_USDC_POOL_ETH, lzTokenFee)));
-
-        // Execution 3: sendToken (value = lzNativeFee + amountLD for native)
-        assertEq(executions[3].target, STARGATE_USDC_POOL_ETH);
-        assertEq(executions[3].value, fee.nativeFee + amountLD);
-        assertEq(bytes4(executions[3].callData), IStargate.sendToken.selector);
-
-        // Execution 4: Cleanup LZ token approval to 0
-        assertEq(executions[4].target, LZ_TOKEN_ETH);
-        assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (STARGATE_USDC_POOL_ETH, 0)));
-
-        console2.log("StargateSendHook LZ token fee path generates correct 4-execution structure");
-    }
-
     /*//////////////////////////////////////////////////////////////
                             HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -401,34 +256,9 @@ contract StargateSmartAccountFork is MinimalBaseNexusIntegrationTest {
         pure
         returns (bytes memory)
     {
-        return _encodeStargateDataWithLzToken(
-            lzNativeFee, 0, stargatePool, inputToken, address(0), dstEid, to, amountLD, minAmountLD,
-            usePrevHookAmount, isBusMode, extraOptions, composeMsg
-        );
-    }
-
-    function _encodeStargateDataWithLzToken(
-        uint256 lzNativeFee,
-        uint256 lzTokenFee,
-        address stargatePool,
-        address inputToken,
-        address lzToken,
-        uint32 dstEid,
-        bytes32 to,
-        uint256 amountLD,
-        uint256 minAmountLD,
-        bool usePrevHookAmount,
-        bool isBusMode,
-        bytes memory extraOptions,
-        bytes memory composeMsg
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
         // Split encoding to avoid stack too deep
         bytes memory fixedPart = abi.encodePacked(
-            lzNativeFee, lzTokenFee, stargatePool, inputToken, lzToken, dstEid, to, amountLD, minAmountLD
+            lzNativeFee, stargatePool, inputToken, dstEid, to, amountLD, minAmountLD
         );
         return abi.encodePacked(
             fixedPart, usePrevHookAmount, isBusMode, uint256(extraOptions.length), extraOptions,

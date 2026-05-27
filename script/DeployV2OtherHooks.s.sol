@@ -48,6 +48,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     struct RFLRHookAddresses {
         address claimRFLRHook;
         address withdrawRFLRHook;
+        address withdrawVestedRFLRHook;
     }
 
     struct OdosV3HookAddresses {
@@ -502,9 +503,9 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
                         RFLR HOOKS DEPLOYMENT
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Deploy 2 rFLR hooks (constructor args: RNAT address, and RNAT+WFLR for withdraw hook)
+    /// @notice Deploy 3 rFLR hooks (constructor args: RNAT address, and RNAT+WFLR for withdraw hooks)
     function _deployRFLRHooks(uint64 chainId, uint256 env) internal returns (RFLRHookAddresses memory) {
-        uint256 len = 2;
+        uint256 len = 3;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -518,6 +519,13 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             "",
             abi.encodePacked(__getOtherHooksBytecode("WithdrawRFLRHook", env), abi.encode(RNAT_FLARE, WFLR_FLARE))
         );
+        hooks[2] = HookDeployment(
+            WITHDRAW_VESTED_RFLR_HOOK_KEY,
+            "",
+            abi.encodePacked(
+                __getOtherHooksBytecode("WithdrawVestedRFLRHook", env), abi.encode(RNAT_FLARE, WFLR_FLARE)
+            )
+        );
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
@@ -528,9 +536,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         RFLRHookAddresses memory hookAddresses;
         hookAddresses.claimRFLRHook = addresses[0];
         hookAddresses.withdrawRFLRHook = addresses[1];
+        hookAddresses.withdrawVestedRFLRHook = addresses[2];
 
         require(hookAddresses.claimRFLRHook != address(0), "ClaimRFLRHook not assigned");
         require(hookAddresses.withdrawRFLRHook != address(0), "WithdrawRFLRHook not assigned");
+        require(hookAddresses.withdrawVestedRFLRHook != address(0), "WithdrawVestedRFLRHook not assigned");
 
         console2.log("All rFLR hooks deployed and validated successfully.");
 

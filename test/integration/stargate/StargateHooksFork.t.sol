@@ -948,36 +948,6 @@ contract StargateHooksFork is Helpers {
         assertEq(bytes4(executions[1].callData), IOFT.send.selector);
     }
 
-    /// @notice StargateSendHook OFT mode with lzTokenFee — verify 4 executions (approve-send-cleanup)
-    function test_Fork_StargateSend_OFTMode_WithLzTokenFee() public view {
-        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
-        // Use UP token as both the bridge token and LZ fee token (hypothetical scenario)
-        // The hook doesn't validate whether lzToken is actually a valid LZ payment token
-
-        bytes memory hookData = _encodeStargateDataWithLzToken(
-            0.01 ether, // lzNativeFee
-            1e18, // lzTokenFee
-            UP_OFT_ADAPTER_ETH,
-            upToken,
-            upToken, // lzToken = same as inputToken (test the combined approval path)
-            EID_BASE,
-            bytes32(uint256(uint160(account))),
-            100e18,
-            99e18,
-            false,
-            2, // mode: OFT
-            hex"",
-            hex""
-        );
-
-        Execution[] memory executions = stargateHook.build(address(0), account, hookData);
-
-        // With lzTokenFee > 0: preExecute + approve(0) + approve(fee) + send + approve(0) + postExecute = 6
-        assertEq(executions.length, 6, "LZ token fee path should have 6 executions");
-        assertEq(bytes4(executions[3].callData), IOFT.send.selector, "Should use IOFT.send selector");
-        assertEq(executions[3].value, 0.01 ether, "Value should be lzNativeFee only");
-    }
-
     /*//////////////////////////////////////////////////////////////
                OFT MODE EXECUTION TESTS (REAL SENDS)
     //////////////////////////////////////////////////////////////*/
@@ -1265,87 +1235,6 @@ contract StargateHooksFork is Helpers {
         assertEq(executions[3].value, 0, "Value should be 0 when lzNativeFee is 0");
     }
 
-    /// @notice OFT mode with lzTokenFee (separate token for LZ fee) — different token path
-    function test_Fork_ApproveAndStargateSend_OFTMode_WithLzTokenFee_DifferentToken() public view {
-        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
-
-        // Use WBTC as lzToken (hypothetical — testing execution path, not actual LZ payment)
-        bytes memory hookData = _encodeStargateDataWithLzToken(
-            0.01 ether, // lzNativeFee
-            1e7, // lzTokenFee (0.1 WBTC)
-            UP_OFT_ADAPTER_ETH,
-            upToken, // inputToken
-            WBTC_ETH, // lzToken (different from inputToken)
-            EID_BASE,
-            bytes32(uint256(uint160(account))),
-            100e18,
-            99e18,
-            false,
-            2, // mode: OFT
-            hex"",
-            hex""
-        );
-
-        Execution[] memory executions = approveAndStargateHook.build(address(0), account, hookData);
-
-        // Different token path: pre + approve(inputToken,0) + approve(inputToken,amount) +
-        //   approve(lzToken,0) + approve(lzToken,fee) + send + approve(lzToken,0) + approve(inputToken,0) + post = 9
-        assertEq(executions.length, 9, "Different lzToken path should have 9 executions");
-
-        // Verify input token approvals (executions 1-2)
-        assertEq(executions[1].target, upToken);
-        assertEq(executions[2].target, upToken);
-
-        // Verify lzToken approvals (executions 3-4)
-        assertEq(executions[3].target, WBTC_ETH);
-        assertEq(executions[4].target, WBTC_ETH);
-        assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (UP_OFT_ADAPTER_ETH, 1e7)));
-
-        // Verify send
-        assertEq(executions[5].target, UP_OFT_ADAPTER_ETH);
-        assertEq(bytes4(executions[5].callData), IOFT.send.selector);
-        assertEq(executions[5].value, 0.01 ether);
-
-        // Verify cleanups (executions 6-7)
-        assertEq(executions[6].target, WBTC_ETH); // lzToken cleanup
-        assertEq(executions[7].target, upToken); // inputToken cleanup
-    }
-
-    /// @notice OFT mode with lzTokenFee where lzToken == inputToken — combined approval path
-    function test_Fork_ApproveAndStargateSend_OFTMode_WithLzTokenFee_SameToken() public view {
-        address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
-        uint256 amountLD = 100e18;
-        uint256 lzTokenFee = 5e18;
-
-        bytes memory hookData = _encodeStargateDataWithLzToken(
-            0.01 ether,
-            lzTokenFee,
-            UP_OFT_ADAPTER_ETH,
-            upToken,
-            upToken, // lzToken == inputToken
-            EID_BASE,
-            bytes32(uint256(uint160(account))),
-            amountLD,
-            99e18,
-            false,
-            2,
-            hex"",
-            hex""
-        );
-
-        Execution[] memory executions = approveAndStargateHook.build(address(0), account, hookData);
-
-        // Same token path: pre + approve(0) + approve(combined) + send + approve(0) + post = 6
-        assertEq(executions.length, 6, "Same lzToken path should have 6 executions");
-
-        // Combined approval = amountLD + lzTokenFee
-        assertEq(
-            executions[2].callData,
-            abi.encodeCall(IERC20.approve, (UP_OFT_ADAPTER_ETH, amountLD + lzTokenFee))
-        );
-        assertEq(bytes4(executions[3].callData), IOFT.send.selector);
-    }
-
     /// @notice Verify inspect() returns correct addresses regardless of mode
     function test_Fork_ApproveAndStargateSend_OFTMode_Inspect() public view {
         address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
@@ -1396,34 +1285,9 @@ contract StargateHooksFork is Helpers {
         pure
         returns (bytes memory)
     {
-        return _encodeStargateDataWithLzToken(
-            lzNativeFee, 0, stargatePool, inputToken, address(0), dstEid, to, amountLD, minAmountLD,
-            usePrevHookAmount, mode, extraOptions, composeMsg
-        );
-    }
-
-    function _encodeStargateDataWithLzToken(
-        uint256 lzNativeFee,
-        uint256 lzTokenFee,
-        address stargatePool,
-        address inputToken,
-        address lzToken,
-        uint32 dstEid,
-        bytes32 to,
-        uint256 amountLD,
-        uint256 minAmountLD,
-        bool usePrevHookAmount,
-        uint8 mode,
-        bytes memory extraOptions,
-        bytes memory composeMsg
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
         // Split encoding to avoid stack too deep
         bytes memory fixedPart = abi.encodePacked(
-            lzNativeFee, lzTokenFee, stargatePool, inputToken, lzToken, dstEid, to, amountLD, minAmountLD
+            lzNativeFee, stargatePool, inputToken, dstEid, to, amountLD, minAmountLD
         );
         return abi.encodePacked(
             fixedPart, usePrevHookAmount, mode, uint256(extraOptions.length), extraOptions,

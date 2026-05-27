@@ -19,8 +19,7 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @author Superform Labs
 /// @dev ERC20-only version of StargateSendHook with approval pattern
 /// @dev For ERC20 sends: msg.value = lzNativeFee only (tokens pulled via approve)
-/// @dev Supports paying LZ messaging fee in native ETH or LZ token (ZRO)
-/// @dev When lzTokenFee > 0: approves lzToken to the pool (pool pulls via safeTransferFrom to endpoint)
+/// @dev LZ messaging fee is always paid in native ETH (lzTokenFee is hardcoded to 0)
 /// @dev This hook adds approval pattern (approve 0 -> approve amount -> execute -> approve 0) to the bridge operation
 /// @dev For native token transfers, use StargateSendHook instead
 /// @dev WARNING: refundAddress is set to the account. If the native fee is overestimated, Stargate synchronously
@@ -32,33 +31,29 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// sign it
 /// @dev data has the following structure
 /// @notice         uint256 lzNativeFee = BytesLib.toUint256(data, 0);
-/// @notice         uint256 lzTokenFee = BytesLib.toUint256(data, 32);
-/// @notice         address stargatePool = BytesLib.toAddress(data, 64);
-/// @notice         address inputToken = BytesLib.toAddress(data, 84);
-/// @notice         address lzToken = BytesLib.toAddress(data, 104);
-/// @notice         uint32 dstEid = BytesLib.toUint32(data, 124);
-/// @notice         bytes32 to = BytesLib.toBytes32(data, 128);
-/// @notice         uint256 amountLD = BytesLib.toUint256(data, 160);
-/// @notice         uint256 minAmountLD = BytesLib.toUint256(data, 192);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 224);
-/// @notice         uint8 mode = uint8(data[225]);
-/// @notice         uint256 extraOptionsLength = BytesLib.toUint256(data, 226);
-/// @notice         bytes extraOptions = BytesLib.slice(data, 258, extraOptionsLength);
-/// @notice         uint256 composeMsgLength = BytesLib.toUint256(data, 258 + extraOptionsLength);
-/// @notice         bytes composeMsg = BytesLib.slice(data, 290 + extraOptionsLength, composeMsgLength);
+/// @notice         address stargatePool = BytesLib.toAddress(data, 32);
+/// @notice         address inputToken = BytesLib.toAddress(data, 52);
+/// @notice         uint32 dstEid = BytesLib.toUint32(data, 72);
+/// @notice         bytes32 to = BytesLib.toBytes32(data, 76);
+/// @notice         uint256 amountLD = BytesLib.toUint256(data, 108);
+/// @notice         uint256 minAmountLD = BytesLib.toUint256(data, 140);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 172);
+/// @notice         uint8 mode = uint8(data[173]);
+/// @notice         uint256 extraOptionsLength = BytesLib.toUint256(data, 174);
+/// @notice         bytes extraOptions = BytesLib.slice(data, 206, extraOptionsLength);
+/// @notice         uint256 composeMsgLength = BytesLib.toUint256(data, 206 + extraOptionsLength);
+/// @notice         bytes composeMsg = BytesLib.slice(data, 238 + extraOptionsLength, composeMsgLength);
 contract ApproveAndStargateSendHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     address private immutable VALIDATOR;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 224;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 172;
 
     struct StargateSendData {
         uint256 lzNativeFee;
-        uint256 lzTokenFee;
         address stargatePool;
         address inputToken;
-        address lzToken;
         uint32 dstEid;
         bytes32 to;
         uint256 amountLD;
@@ -101,19 +96,17 @@ contract ApproveAndStargateSendHook is BaseHook, ISuperHookContextAware {
         override
         returns (Execution[] memory executions)
     {
-        if (data.length < 290) revert DATA_NOT_VALID();
+        if (data.length < 238) revert DATA_NOT_VALID();
 
         StargateSendData memory s;
         s.lzNativeFee = BytesLib.toUint256(data, 0);
-        s.lzTokenFee = BytesLib.toUint256(data, 32);
-        s.stargatePool = BytesLib.toAddress(data, 64);
-        s.inputToken = BytesLib.toAddress(data, 84);
-        s.lzToken = BytesLib.toAddress(data, 104);
-        s.dstEid = BytesLib.toUint32(data, 124);
-        s.to = BytesLib.toBytes32(data, 128);
-        s.amountLD = BytesLib.toUint256(data, 160);
-        s.minAmountLD = BytesLib.toUint256(data, 192);
-        s.mode = uint8(data[225]);
+        s.stargatePool = BytesLib.toAddress(data, 32);
+        s.inputToken = BytesLib.toAddress(data, 52);
+        s.dstEid = BytesLib.toUint32(data, 72);
+        s.to = BytesLib.toBytes32(data, 76);
+        s.amountLD = BytesLib.toUint256(data, 108);
+        s.minAmountLD = BytesLib.toUint256(data, 140);
+        s.mode = uint8(data[173]);
         if (s.mode > 2) revert MODE_NOT_VALID();
 
         // Fail-fast validation on fixed fields before external calls
@@ -121,17 +114,16 @@ contract ApproveAndStargateSendHook is BaseHook, ISuperHookContextAware {
         if (s.inputToken == address(0)) revert ADDRESS_NOT_VALID();
         if (s.to == bytes32(0)) revert ADDRESS_NOT_VALID();
         if (s.to != bytes32(uint256(uint160(account)))) revert ADDRESS_NOT_VALID();
-        if (s.lzTokenFee > 0 && s.lzToken == address(0)) revert ADDRESS_NOT_VALID();
 
         // Verify pool is a legitimate Stargate pool and matches the input token
         if (IStargate(s.stargatePool).token() != s.inputToken) revert POOL_NOT_VALID();
 
         // Validate variable-length field bounds
-        uint256 extraOptionsLength = BytesLib.toUint256(data, 226);
-        if (data.length < 290 + extraOptionsLength) revert DATA_NOT_VALID();
-        s.extraOptions = BytesLib.slice(data, 258, extraOptionsLength);
+        uint256 extraOptionsLength = BytesLib.toUint256(data, 174);
+        if (data.length < 238 + extraOptionsLength) revert DATA_NOT_VALID();
+        s.extraOptions = BytesLib.slice(data, 206, extraOptionsLength);
 
-        uint256 composeMsgOffset = 258 + extraOptionsLength;
+        uint256 composeMsgOffset = 206 + extraOptionsLength;
         uint256 composeMsgLength = BytesLib.toUint256(data, composeMsgOffset);
         if (data.length < composeMsgOffset + 32 + composeMsgLength) revert DATA_NOT_VALID();
         s.composeMsg = BytesLib.slice(data, composeMsgOffset + 32, composeMsgLength);
@@ -186,9 +178,9 @@ contract ApproveAndStargateSendHook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(
-            BytesLib.toAddress(data, 64), // stargatePool
-            BytesLib.toAddress(data, 84), // inputToken
-            address(uint160(uint256(BytesLib.toBytes32(data, 128)))) // to (as address)
+            BytesLib.toAddress(data, 32), // stargatePool
+            BytesLib.toAddress(data, 52), // inputToken
+            address(uint160(uint256(BytesLib.toBytes32(data, 76)))) // to (as address)
         );
     }
 
@@ -197,9 +189,7 @@ contract ApproveAndStargateSendHook is BaseHook, ISuperHookContextAware {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Builds execution calls with approval pattern
-    /// @dev lzTokenFee == 0: approve(0) -> approve(amount) -> send/sendToken -> approve(0) [4 executions]
-    /// @dev lzTokenFee > 0 && inputToken == lzToken: combined approval for amountLD + lzTokenFee [4 executions]
-    /// @dev lzTokenFee > 0 && inputToken != lzToken: separate approvals [7 executions]
+    /// @dev Always 4 executions: approve(0) -> approve(amount) -> send/sendToken -> approve(0)
     function _buildExecutions(
         StargateSendData memory s,
         address account
@@ -224,7 +214,7 @@ contract ApproveAndStargateSendHook is BaseHook, ISuperHookContextAware {
                 oftCmd: s.mode == 1 ? abi.encodePacked(uint8(1)) : bytes("")
             });
             IStargate.MessagingFee memory messagingFee =
-                IStargate.MessagingFee({ nativeFee: s.lzNativeFee, lzTokenFee: s.lzTokenFee });
+                IStargate.MessagingFee({ nativeFee: s.lzNativeFee, lzTokenFee: 0 });
             sendCallData = abi.encodeCall(IStargate.sendToken, (sendParam, messagingFee, account));
         } else {
             // OFT mode (mode=2)
@@ -238,117 +228,39 @@ contract ApproveAndStargateSendHook is BaseHook, ISuperHookContextAware {
                 oftCmd: bytes("")
             });
             IOFT.MessagingFee memory messagingFee =
-                IOFT.MessagingFee({ nativeFee: s.lzNativeFee, lzTokenFee: s.lzTokenFee });
+                IOFT.MessagingFee({ nativeFee: s.lzNativeFee, lzTokenFee: 0 });
             sendCallData = abi.encodeCall(IOFT.send, (sendParam, messagingFee, account));
         }
 
-        if (s.lzTokenFee > 0) {
-            if (s.inputToken == s.lzToken) {
-                // Same token for bridge amount and LZ fee: combine into single approval
-                // Pool/OFT pulls amountLD (for bridging) + lzTokenFee (forwarded to LZ endpoint)
-                uint256 combinedAmount = s.amountLD + s.lzTokenFee;
+        // ERC20: 4 executions (approve 0 -> approve amount -> bridge -> approve 0)
+        executions = new Execution[](4);
 
-                executions = new Execution[](4);
-                executions[0] = Execution({
-                    target: s.inputToken,
-                    value: 0,
-                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
-                });
-                executions[1] = Execution({
-                    target: s.inputToken,
-                    value: 0,
-                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, combinedAmount))
-                });
-                executions[2] = Execution({
-                    target: s.stargatePool,
-                    value: s.lzNativeFee,
-                    callData: sendCallData
-                });
-                executions[3] = Execution({
-                    target: s.inputToken,
-                    value: 0,
-                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
-                });
-            } else {
-                // Different tokens: separate approval sequences (7 executions)
-                executions = new Execution[](7);
+        // Execution 0: Reset approval to 0 (prevents approval race conditions)
+        executions[0] = Execution({
+            target: s.inputToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
+        });
 
-                // Input token approval
-                executions[0] = Execution({
-                    target: s.inputToken,
-                    value: 0,
-                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
-                });
-                executions[1] = Execution({
-                    target: s.inputToken,
-                    value: 0,
-                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, s.amountLD))
-                });
+        // Execution 1: Approve exact amount
+        executions[1] = Execution({
+            target: s.inputToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (s.stargatePool, s.amountLD))
+        });
 
-                // LZ token approval (pool/OFT pulls via safeTransferFrom to endpoint)
-                executions[2] = Execution({
-                    target: s.lzToken,
-                    value: 0,
-                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
-                });
-                executions[3] = Execution({
-                    target: s.lzToken,
-                    value: 0,
-                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, s.lzTokenFee))
-                });
+        // Execution 2: Bridge call (value = lzNativeFee only for ERC20)
+        executions[2] = Execution({
+            target: s.stargatePool,
+            value: s.lzNativeFee,
+            callData: sendCallData
+        });
 
-                // Bridge call (value = lzNativeFee only for ERC20)
-                executions[4] = Execution({
-                    target: s.stargatePool,
-                    value: s.lzNativeFee,
-                    callData: sendCallData
-                });
-
-                // Cleanup LZ token approval
-                executions[5] = Execution({
-                    target: s.lzToken,
-                    value: 0,
-                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
-                });
-
-                // Cleanup input token approval
-                executions[6] = Execution({
-                    target: s.inputToken,
-                    value: 0,
-                    callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
-                });
-            }
-        } else {
-            // ERC20 only: 4 executions
-            executions = new Execution[](4);
-
-            // Execution 0: Reset approval to 0 (prevents approval race conditions)
-            executions[0] = Execution({
-                target: s.inputToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
-            });
-
-            // Execution 1: Approve exact amount
-            executions[1] = Execution({
-                target: s.inputToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (s.stargatePool, s.amountLD))
-            });
-
-            // Execution 2: Bridge call (value = lzNativeFee only for ERC20)
-            executions[2] = Execution({
-                target: s.stargatePool,
-                value: s.lzNativeFee,
-                callData: sendCallData
-            });
-
-            // Execution 3: Cleanup approval to 0
-            executions[3] = Execution({
-                target: s.inputToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
-            });
-        }
+        // Execution 3: Cleanup approval to 0
+        executions[3] = Execution({
+            target: s.inputToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
+        });
     }
 }

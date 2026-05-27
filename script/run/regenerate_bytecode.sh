@@ -221,6 +221,7 @@ DETH_HOOK_CONTRACTS=(
 RFLR_HOOK_CONTRACTS=(
     "ClaimRFLRHook"
     "WithdrawRFLRHook"
+    "WithdrawVestedRFLRHook"
 )
 
 # Odos V3 hook contracts - now deployed via DeployV2Core (kept here for reference)
