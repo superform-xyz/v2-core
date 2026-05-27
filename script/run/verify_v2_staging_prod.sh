@@ -8,7 +8,7 @@ CHAINS_TO_VERIFY=(1 8453 56 42161 43114)
 # ===== CONTRACT FILTER CONFIGURATION =====
 # Specify which contracts to verify (comment out to verify all contracts)
 # Leave empty array to verify all contracts found in deployment JSON
-CONTRACTS_TO_VERIFY=("SwapOdosV3Hook" "ApproveAndSwapOdosV3Hook")
+CONTRACTS_TO_VERIFY=("SwapOdosV3Hook" "ApproveAndSwapOdosV3Hook" "StargateSendHook" "ApproveAndStargateSendHook")
 
 # ===== RATE LIMIT CONFIGURATION =====
 # Delay in seconds between verification requests (prevents Cloudflare rate limiting)
