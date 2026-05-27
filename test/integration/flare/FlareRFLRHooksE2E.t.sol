@@ -785,6 +785,396 @@ contract FlareRFLRHooksE2E is Test, Constants {
     }
 
     /*//////////////////////////////////////////////////////////////
+              WITHDRAW VESTED RFLR - IDEMPOTENCY
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice After vested withdrawal, a second build should revert (or return less) since vested was drained
+    function test_withdrawVestedRFLR_doubleWithdraw_secondReverts() public {
+        // First withdrawal — drains vested portion
+        Execution[] memory execs1 = withdrawVestedHook.build(address(0), TOP_HOLDER, "");
+
+        vm.startPrank(TOP_HOLDER);
+        _executeAll(execs1);
+        vm.stopPrank();
+
+        uint256 wflrReceived1 = withdrawVestedHook.getOutAmount(TOP_HOLDER);
+        assertGt(wflrReceived1, 0, "First withdrawal should produce WFLR");
+
+        // Second build — vested portion is now 0 (locked == rNatBalance), should revert
+        (, uint256 rNatBal2, uint256 lockedBal2) = IRNat(FLARE_RNAT).getBalancesOf(TOP_HOLDER);
+        console2.log("After 1st vested withdraw - rNat:", rNatBal2, "locked:", lockedBal2);
+
+        if (rNatBal2 <= lockedBal2) {
+            vm.expectRevert(WithdrawVestedRFLRHook.NOTHING_TO_WITHDRAW.selector);
+            withdrawVestedHook.build(address(0), TOP_HOLDER, "");
+            console2.log("Second build correctly reverts - no more vested tokens");
+        } else {
+            // Edge case: some additional vesting may have unlocked between calls (unlikely in same block)
+            uint256 remaining = rNatBal2 - lockedBal2;
+            console2.log("Remaining vested (due to time-based unlock):", remaining);
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              WITHDRAW VESTED RFLR - LOCKED BALANCE PRESERVED
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Verify locked balance is exactly preserved after vested-only withdrawal
+    function test_withdrawVestedRFLR_lockedBalanceExactlyPreserved() public {
+        (, uint256 rNatBefore, uint256 lockedBefore) = IRNat(FLARE_RNAT).getBalancesOf(TOP_HOLDER);
+        uint256 vestedBefore = rNatBefore - lockedBefore;
+        assertGt(vestedBefore, 0, "Need vested balance");
+        assertGt(lockedBefore, 0, "Need locked balance for meaningful test");
+
+        Execution[] memory executions = withdrawVestedHook.build(address(0), TOP_HOLDER, "");
+
+        vm.startPrank(TOP_HOLDER);
+        _executeAll(executions);
+        vm.stopPrank();
+
+        (, uint256 rNatAfter, uint256 lockedAfter) = IRNat(FLARE_RNAT).getBalancesOf(TOP_HOLDER);
+
+        // Locked balance must be exactly the same
+        assertEq(lockedAfter, lockedBefore, "Locked balance must not change");
+        // rNat balance should decrease by exactly the vested amount
+        assertEq(rNatAfter, rNatBefore - vestedBefore, "rNat should decrease by exactly vestedAmount");
+        // After withdrawal, rNat should equal locked (nothing more to withdraw)
+        assertEq(rNatAfter, lockedAfter, "rNat should equal locked after full vested withdrawal");
+
+        console2.log("Locked before:", lockedBefore);
+        console2.log("Locked after:", lockedAfter);
+        console2.log("rNat before:", rNatBefore);
+        console2.log("rNat after:", rNatAfter);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              WITHDRAW VESTED RFLR - WFLR RECEIVED == VESTED AMOUNT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Verify WFLR received is exactly equal to the computed vested amount (1:1 ratio)
+    function test_withdrawVestedRFLR_wflrReceivedEqualsVestedAmount() public {
+        (, uint256 rNatBal, uint256 lockedBal) = IRNat(FLARE_RNAT).getBalancesOf(TOP_HOLDER);
+        uint256 vestedAmount = rNatBal - lockedBal;
+        assertGt(vestedAmount, 0, "Need vested balance");
+
+        uint256 wflrBefore = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER);
+
+        Execution[] memory executions = withdrawVestedHook.build(address(0), TOP_HOLDER, "");
+
+        vm.startPrank(TOP_HOLDER);
+        _executeAll(executions);
+        vm.stopPrank();
+
+        uint256 wflrReceived = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER) - wflrBefore;
+
+        // 1:1 ratio — withdraw(amount, true) gives back exactly `amount` in WFLR
+        assertEq(wflrReceived, vestedAmount, "WFLR received must be exactly the vested amount (1:1)");
+        // outAmount tracked by hook must also match
+        assertEq(withdrawVestedHook.getOutAmount(TOP_HOLDER), vestedAmount, "outAmount must match vestedAmount");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              WITHDRAW VESTED RFLR - EXISTING WFLR BALANCE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Verify hook correctly handles account that already has WFLR balance
+    function test_withdrawVestedRFLR_accountWithExistingWFLR() public {
+        // TOP_HOLDER likely has existing WFLR — verify delta is computed correctly
+        uint256 existingWflr = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER);
+        console2.log("Existing WFLR balance:", existingWflr);
+
+        (, uint256 rNatBal, uint256 lockedBal) = IRNat(FLARE_RNAT).getBalancesOf(TOP_HOLDER);
+        uint256 expectedVested = rNatBal - lockedBal;
+
+        Execution[] memory executions = withdrawVestedHook.build(address(0), TOP_HOLDER, "");
+
+        vm.startPrank(TOP_HOLDER);
+        _executeAll(executions);
+        vm.stopPrank();
+
+        uint256 finalWflr = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER);
+        uint256 delta = finalWflr - existingWflr;
+
+        // Delta should be exactly the vested amount, regardless of existing WFLR
+        assertEq(delta, expectedVested, "Delta should equal vested amount regardless of existing WFLR");
+        assertEq(withdrawVestedHook.getOutAmount(TOP_HOLDER), delta, "outAmount should equal delta");
+        console2.log("Final WFLR balance:", finalWflr);
+        console2.log("WFLR delta:", delta);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              WITHDRAW VESTED RFLR - EXACT MINOUT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Verify slippage passes when minOut == exact vested amount
+    function test_withdrawVestedRFLR_exactMinOut_passes() public {
+        (, uint256 rNatBal, uint256 lockedBal) = IRNat(FLARE_RNAT).getBalancesOf(TOP_HOLDER);
+        uint256 vestedAmount = rNatBal - lockedBal;
+        assertGt(vestedAmount, 0, "Need vested balance");
+
+        // Build and run with exact minOut matching expected output
+        bytes memory data = abi.encode(vestedAmount);
+        Execution[] memory executions = withdrawVestedHook.build(address(0), TOP_HOLDER, "");
+
+        uint256 wflrBefore = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER);
+
+        vm.startPrank(TOP_HOLDER);
+        // pre
+        (bool ok0,) = executions[0].target.call{ value: executions[0].value }(executions[0].callData);
+        assertTrue(ok0, "preExecute failed");
+        // withdraw
+        (bool ok1,) = executions[1].target.call{ value: executions[1].value }(executions[1].callData);
+        assertTrue(ok1, "withdraw failed");
+        // post with exact minOut
+        (bool ok2,) = address(withdrawVestedHook).call(
+            abi.encodeWithSelector(withdrawVestedHook.postExecute.selector, address(0), TOP_HOLDER, data)
+        );
+        assertTrue(ok2, "postExecute with exact minOut should pass");
+        vm.stopPrank();
+
+        uint256 wflrReceived = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER) - wflrBefore;
+        assertEq(wflrReceived, vestedAmount, "Should receive exactly vestedAmount");
+    }
+
+    /// @notice Verify slippage fails when minOut == vestedAmount + 1
+    function test_withdrawVestedRFLR_minOutPlusOne_reverts() public {
+        (, uint256 rNatBal, uint256 lockedBal) = IRNat(FLARE_RNAT).getBalancesOf(TOP_HOLDER);
+        uint256 vestedAmount = rNatBal - lockedBal;
+        assertGt(vestedAmount, 0, "Need vested balance");
+
+        bytes memory data = abi.encode(vestedAmount + 1);
+        Execution[] memory executions = withdrawVestedHook.build(address(0), TOP_HOLDER, "");
+
+        vm.startPrank(TOP_HOLDER);
+        (bool ok0,) = executions[0].target.call{ value: executions[0].value }(executions[0].callData);
+        assertTrue(ok0, "preExecute should succeed");
+        (bool ok1,) = executions[1].target.call{ value: executions[1].value }(executions[1].callData);
+        assertTrue(ok1, "withdraw should succeed");
+
+        // minOut = vestedAmount + 1 should fail
+        (bool ok2,) = address(withdrawVestedHook).call(
+            abi.encodeWithSelector(withdrawVestedHook.postExecute.selector, address(0), TOP_HOLDER, data)
+        );
+        assertFalse(ok2, "postExecute should revert - minOut exceeds actual by 1 wei");
+        vm.stopPrank();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              WITHDRAW VESTED RFLR - SECOND HOLDER (MIXED STATE)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Test vested withdrawal using SECOND_HOLDER which has a different vested/locked ratio
+    function test_withdrawVestedRFLR_secondHolder() public {
+        (, uint256 rNatBal, uint256 lockedBal) = IRNat(FLARE_RNAT).getBalancesOf(SECOND_HOLDER);
+        uint256 vestedAmount = rNatBal > lockedBal ? rNatBal - lockedBal : 0;
+
+        console2.log("SECOND_HOLDER rNat:", rNatBal);
+        console2.log("SECOND_HOLDER locked:", lockedBal);
+        console2.log("SECOND_HOLDER vested:", vestedAmount);
+
+        if (vestedAmount == 0) {
+            vm.expectRevert(WithdrawVestedRFLRHook.NOTHING_TO_WITHDRAW.selector);
+            withdrawVestedHook.build(address(0), SECOND_HOLDER, "");
+            console2.log("SECOND_HOLDER has no vested tokens - correctly reverts");
+            return;
+        }
+
+        uint256 wflrBefore = IERC20(FLARE_WFLR).balanceOf(SECOND_HOLDER);
+        Execution[] memory executions = withdrawVestedHook.build(address(0), SECOND_HOLDER, "");
+
+        vm.startPrank(SECOND_HOLDER);
+        _executeAll(executions);
+        vm.stopPrank();
+
+        uint256 wflrReceived = IERC20(FLARE_WFLR).balanceOf(SECOND_HOLDER) - wflrBefore;
+        assertEq(wflrReceived, vestedAmount, "WFLR received should equal vested amount");
+
+        (, uint256 rNatAfter, uint256 lockedAfter) = IRNat(FLARE_RNAT).getBalancesOf(SECOND_HOLDER);
+        assertEq(lockedAfter, lockedBal, "Locked balance must be preserved");
+        console2.log("WFLR received:", wflrReceived);
+        console2.log("Locked preserved:", lockedAfter);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              WITHDRAW VESTED RFLR - CONSTRUCTOR VALIDATION ON FORK
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Verify constructor stores correct immutables on fork
+    function test_withdrawVestedRFLR_constructorImmutables() public view {
+        assertEq(withdrawVestedHook.RNAT(), FLARE_RNAT, "RNAT should be real RNat address");
+        assertEq(withdrawVestedHook.WFLR(), FLARE_WFLR, "WFLR should be real WFLR address");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              WITHDRAW VESTED RFLR - ASSET SET CORRECTLY
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Verify asset is set to WFLR after preExecute on fork
+    function test_withdrawVestedRFLR_assetSetToWFLR() public {
+        withdrawVestedHook.setExecutionContext(TOP_HOLDER);
+
+        vm.prank(TOP_HOLDER);
+        withdrawVestedHook.preExecute(address(0), TOP_HOLDER, "");
+
+        assertEq(withdrawVestedHook.asset(), FLARE_WFLR, "asset should be WFLR after preExecute");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              WITHDRAW VESTED RFLR - POSTEXECUTE SAFE DELTA ON FORK
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Verify postExecute produces 0 delta (not revert) when WFLR balance decreases between pre and post
+    function test_withdrawVestedRFLR_postExecute_zeroDeltaWhenBalanceDecreases() public {
+        address testAccount = makeAddr("vestedTestAccount");
+
+        // Give testAccount WFLR via deal
+        deal(FLARE_WFLR, testAccount, 500 ether);
+
+        withdrawVestedHook.setExecutionContext(testAccount);
+
+        vm.prank(testAccount);
+        withdrawVestedHook.preExecute(address(0), testAccount, "");
+        assertEq(withdrawVestedHook.getOutAmount(testAccount), 500 ether, "Should snapshot 500 WFLR");
+
+        // Simulate balance decrease
+        deal(FLARE_WFLR, testAccount, 200 ether);
+
+        vm.prank(testAccount);
+        withdrawVestedHook.postExecute(address(0), testAccount, "");
+        assertEq(withdrawVestedHook.getOutAmount(testAccount), 0, "outAmount should be 0 when balance decreased");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              E2E - CLAIM THEN VESTED WITHDRAW THEN VERIFY REMAINING
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Claim → vested withdraw → verify remaining locked can still be withdrawn via withdrawAll
+    function test_e2e_claimThenVestedThenWithdrawAll() public {
+        uint256 currentMonth = IRNat(FLARE_RNAT).getCurrentMonth();
+        uint256[] memory projectIds = _allProjectIds();
+
+        // --- Phase 1: Claim rFLR ---
+        bytes memory claimData = _encodeClaimData(currentMonth, projectIds);
+        Execution[] memory claimExecs = claimHook.build(address(0), SECOND_HOLDER, claimData);
+
+        vm.startPrank(SECOND_HOLDER);
+        _executeAll(claimExecs);
+        vm.stopPrank();
+
+        uint256 claimedAmount = claimHook.getOutAmount(SECOND_HOLDER);
+        assertGt(claimedAmount, 0, "Should have claimed rFLR");
+        console2.log("Phase 1 - Claimed rFLR:", claimedAmount);
+
+        // --- Phase 2: Vested-only withdrawal ---
+        (, uint256 rNatMid, uint256 lockedMid) = IRNat(FLARE_RNAT).getBalancesOf(SECOND_HOLDER);
+        uint256 vestedMid = rNatMid > lockedMid ? rNatMid - lockedMid : 0;
+
+        if (vestedMid == 0) {
+            console2.log("Phase 2 - No vested tokens, skipping vested withdrawal");
+        } else {
+            uint256 wflrBefore2 = IERC20(FLARE_WFLR).balanceOf(SECOND_HOLDER);
+            Execution[] memory vestedExecs = withdrawVestedHook.build(address(0), SECOND_HOLDER, "");
+
+            vm.startPrank(SECOND_HOLDER);
+            _executeAll(vestedExecs);
+            vm.stopPrank();
+
+            uint256 wflrFromVested = IERC20(FLARE_WFLR).balanceOf(SECOND_HOLDER) - wflrBefore2;
+            console2.log("Phase 2 - WFLR from vested (penalty-free):", wflrFromVested);
+        }
+
+        // --- Phase 3: WithdrawAll for remaining locked (with 50% penalty) ---
+        (, uint256 rNatRemaining, uint256 lockedRemaining) = IRNat(FLARE_RNAT).getBalancesOf(SECOND_HOLDER);
+        console2.log("Phase 3 - rNat remaining:", rNatRemaining, "locked:", lockedRemaining);
+
+        if (rNatRemaining == 0) {
+            console2.log("Phase 3 - No remaining balance, skipping withdrawAll");
+            return;
+        }
+
+        uint256 wflrBefore3 = IERC20(FLARE_WFLR).balanceOf(SECOND_HOLDER);
+        Execution[] memory allExecs = withdrawHook.build(address(0), SECOND_HOLDER, "");
+
+        vm.startPrank(SECOND_HOLDER);
+        _executeAll(allExecs);
+        vm.stopPrank();
+
+        uint256 wflrFromAll = IERC20(FLARE_WFLR).balanceOf(SECOND_HOLDER) - wflrBefore3;
+        console2.log("Phase 3 - WFLR from withdrawAll (with penalty):", wflrFromAll);
+
+        // After withdrawAll, rFLR balance should be 0
+        uint256 finalRNat = IERC20(FLARE_RNAT).balanceOf(SECOND_HOLDER);
+        assertEq(finalRNat, 0, "rFLR should be 0 after withdrawAll");
+
+        // withdrawAll gives less per locked token due to 50% burn
+        if (lockedRemaining > 0) {
+            assertLt(wflrFromAll, lockedRemaining, "withdrawAll should return < locked due to 50% penalty");
+            console2.log("Penalty confirmed: received %d from %d locked", wflrFromAll, lockedRemaining);
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              WITHDRAW VESTED vs WITHDRAWALL — QUANTIFY SAVINGS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Quantify WFLR savings from using vested-only withdrawal vs withdrawAll
+    function test_withdrawVestedRFLR_quantifySavingsVsWithdrawAll() public {
+        (, uint256 rNatBal, uint256 lockedBal) = IRNat(FLARE_RNAT).getBalancesOf(TOP_HOLDER);
+        uint256 vestedAmount = rNatBal - lockedBal;
+        assertGt(vestedAmount, 0, "Need vested balance");
+        assertGt(lockedBal, 0, "Need locked balance for meaningful comparison");
+
+        // --- Strategy A: Vested-only withdrawal (penalty-free) ---
+        uint256 snapshotId = vm.snapshotState();
+
+        uint256 wflrBefore = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER);
+        Execution[] memory vestedExecs = withdrawVestedHook.build(address(0), TOP_HOLDER, "");
+
+        vm.startPrank(TOP_HOLDER);
+        _executeAll(vestedExecs);
+        vm.stopPrank();
+
+        uint256 wflrFromVestedOnly = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER) - wflrBefore;
+        uint256 rNatPreserved = IERC20(FLARE_RNAT).balanceOf(TOP_HOLDER);
+
+        vm.revertToState(snapshotId);
+
+        // --- Strategy B: WithdrawAll (50% penalty on locked) ---
+        wflrBefore = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER);
+        Execution[] memory allExecs = withdrawHook.build(address(0), TOP_HOLDER, "");
+
+        vm.startPrank(TOP_HOLDER);
+        _executeAll(allExecs);
+        vm.stopPrank();
+
+        uint256 wflrFromWithdrawAll = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER) - wflrBefore;
+
+        // --- Compare ---
+        // withdrawAll gives: vested + (locked * 0.5)
+        // vestedOnly gives: vested (preserving locked for future vesting)
+        uint256 lockedBurned = lockedBal / 2; // 50% penalty
+
+        console2.log("=== STRATEGY COMPARISON ===");
+        console2.log("Vested amount:", vestedAmount);
+        console2.log("Locked amount:", lockedBal);
+        console2.log("Strategy A (vested-only) WFLR:", wflrFromVestedOnly);
+        console2.log("Strategy A rFLR preserved:", rNatPreserved);
+        console2.log("Strategy B (withdrawAll) WFLR:", wflrFromWithdrawAll);
+        console2.log("Locked tokens burned by B:", lockedBurned);
+
+        // Strategy B returns more WFLR now, but burns locked tokens
+        assertGt(wflrFromWithdrawAll, wflrFromVestedOnly, "withdrawAll returns more immediate WFLR");
+        // But Strategy A preserves locked balance for future vesting
+        assertGt(rNatPreserved, 0, "Vested-only preserves locked rFLR for future");
+        // The cost of using withdrawAll is the burned locked tokens
+        assertEq(
+            wflrFromWithdrawAll,
+            wflrFromVestedOnly + (lockedBal - lockedBurned),
+            "withdrawAll = vested + 50% of locked"
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
                               HELPERS
     //////////////////////////////////////////////////////////////*/
 

@@ -38,7 +38,7 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @notice         uint256 amountLD = BytesLib.toUint256(data, 108);
 /// @notice         uint256 minAmountLD = BytesLib.toUint256(data, 140);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 172);
-/// @notice         uint8 mode = uint8(data[173]);
+/// @notice         uint8 mode = BytesLib.toUint8(data, 173);
 /// @notice         uint256 extraOptionsLength = BytesLib.toUint256(data, 174);
 /// @notice         bytes extraOptions = BytesLib.slice(data, 206, extraOptionsLength);
 /// @notice         uint256 composeMsgLength = BytesLib.toUint256(data, 206 + extraOptionsLength);
@@ -106,7 +106,7 @@ contract ApproveAndStargateSendHook is BaseHook, ISuperHookContextAware {
         s.to = BytesLib.toBytes32(data, 76);
         s.amountLD = BytesLib.toUint256(data, 108);
         s.minAmountLD = BytesLib.toUint256(data, 140);
-        s.mode = uint8(data[173]);
+        s.mode = BytesLib.toUint8(data, 173);
         if (s.mode > 2) revert MODE_NOT_VALID();
 
         // Fail-fast validation on fixed fields before external calls
