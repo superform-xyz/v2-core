@@ -990,7 +990,7 @@ contract DETHAsyncRedeemerHooksE2E is Test {
                   FULL E2E — REQUEST + REAL CLAIM
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Full lifecycle: account requests → claim from already-finalized request #30
+    /// @notice Full lifecycle: account requests → claim from a finalized request
     ///         Exercises both request hooks AND real claimAssets in a single test
     function test_e2e_requestNewAndClaimExistingFinalized() public {
         // --- Phase 1: Create a new request (proves request flow) ---

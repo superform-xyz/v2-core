@@ -516,6 +516,19 @@ generate_constructor_args() {
             fi
             ;;
 
+        # Sponsorship contracts
+        "SuperSponsorshipPaymaster")
+            local deployer="0x6E3dadcAf328ebB58753e89a3e589F5C5e988dF8"
+            echo "$(cast abi-encode "constructor(address,address)" "$entry_point" "$deployer")"
+            ;;
+        "NativeFeeSponsorship")
+            echo "$(cast abi-encode "constructor()")"
+            ;;
+        "FetchNativeFeeHook")
+            local native_fee_sponsorship=$(get_contract_address "$chain_id" "NativeFeeSponsorship")
+            echo "$(cast abi-encode "constructor(address)" "$native_fee_sponsorship")"
+            ;;
+
         # All other contracts (no constructor args)
         *)
             echo "$(cast abi-encode "constructor()")"
@@ -631,6 +644,11 @@ get_contract_source() {
         "MorphoLendHook") echo "src/hooks/loan/morpho/MorphoLendHook.sol" ;;
         "MetaMorphoReallocateHook") echo "src/hooks/vaults/metamorpho/MetaMorphoReallocateHook.sol" ;;
         "ForceDeallocateMorphoHook") echo "src/hooks/vaults/metamorpho/ForceDeallocateMorphoHook.sol" ;;
+
+        # Sponsorship
+        "SuperSponsorshipPaymaster") echo "src/paymaster/SuperSponsorshipPaymaster.sol" ;;
+        "NativeFeeSponsorship") echo "src/sponsorship/NativeFeeSponsorship.sol" ;;
+        "FetchNativeFeeHook") echo "src/hooks/sponsorship/FetchNativeFeeHook.sol" ;;
 
         # Oracles
         "ERC4626YieldSourceOracle") echo "src/accounting/oracles/ERC4626YieldSourceOracle.sol" ;;
