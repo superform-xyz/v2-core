@@ -725,6 +725,7 @@ for network_def in "${NETWORKS[@]}"; do
     rm -f "$backup_json"
 
 
+
     if [ "$has_hooks" = false ]; then
         echo -e "${YELLOW}  ⏭️  No supported hooks for $network_name ($network_id), skipping${NC}"
         continue
