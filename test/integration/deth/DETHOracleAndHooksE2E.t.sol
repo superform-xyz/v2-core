@@ -383,9 +383,8 @@ contract DETHOracleAndHooksE2E is Test {
     }
 
     /// @notice Full E2E with real claimAssets on a finalized request + oracle verification
-    /// @dev Creates a fresh request and force-finalizes it. The oracle does NOT count finalized
-    ///      requests in pending range. This test verifies the hook tracks WETH correctly
-    ///      and the oracle state is consistent before and after claim.
+    /// @dev Creates a fresh request and force-finalizes it, so the oracle does NOT count it in pending range.
+    ///      This test verifies the hook tracks WETH correctly and the oracle state is consistent before and after claim.
     function test_e2e_realClaim_oracleTracksWETHDelta() public {
         // Create a finalized request for a separate account
         address claimAccount = makeAddr("oracleClaimAccount");
@@ -1024,6 +1023,27 @@ contract DETHOracleAndHooksE2E is Test {
         IAsyncRedeemerAdmin(ASYNC_REDEEMER).setWhitelistedUsers(users, true);
     }
 
+    /// @dev Creates a new request and simulates finalization via vm.store
+    bytes32 private constant _LAST_FINALIZED_SLOT = 0x187c268ec5d498b5b6e4945b27f62abf37217cdbd80e6429181b3e4c2c378901;
+
+    function _createFinalizedRequest() internal returns (uint256 requestId, address nftOwner) {
+        nftOwner = makeAddr("finalizedRequestOwner");
+        uint256 shares = 1 ether;
+
+        _whitelistAccount(nftOwner);
+        deal(DETH, nftOwner, shares);
+
+        vm.startPrank(nftOwner);
+        IERC20(DETH).approve(ASYNC_REDEEMER, shares);
+        requestId = IDETHAsyncRedeemer(ASYNC_REDEEMER).requestRedeem(shares, nftOwner, 0);
+        vm.stopPrank();
+
+        vm.store(ASYNC_REDEEMER, _LAST_FINALIZED_SLOT, bytes32(requestId));
+
+        uint256 currentWeth = IERC20(WETH).balanceOf(ASYNC_REDEEMER);
+        deal(WETH, ASYNC_REDEEMER, currentWeth + 10 ether);
+    }
+
     /// @dev Gets SuperWETH vault PPS via convertToAssets(1e18)
     function _getSuperWETHPPS() internal view returns (uint256) {
         (bool success, bytes memory data) =
@@ -1138,15 +1158,8 @@ contract DETHOracleAndHooksE2E is Test {
         internal
         returns (uint256 requestId, address nftOwner)
     {
-        deal(DETH, caller, IERC20(DETH).balanceOf(caller) + shares);
         _whitelistAccount(caller);
-
-        // Mock onERC721Received so AsyncRedeemer can _safeMint NFTs
-        vm.mockCall(
-            caller,
-            abi.encodeWithSelector(bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))),
-            abi.encode(bytes4(keccak256("onERC721Received(address,address,uint256,bytes)")))
-        );
+        deal(DETH, caller, shares);
 
         vm.startPrank(caller);
         IERC20(DETH).approve(ASYNC_REDEEMER, shares);

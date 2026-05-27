@@ -17,4 +17,15 @@ abstract contract ConstantsOtherHooks {
     // Native Fee Sponsorship keys
     string internal constant NATIVE_FEE_SPONSORSHIP_KEY = "NativeFeeSponsorship";
     string internal constant FETCH_NATIVE_FEE_HOOK_KEY = "FetchNativeFeeHook";
+
+    // rFLR hook keys
+    string internal constant CLAIM_RFLR_HOOK_KEY = "ClaimRFLRHook";
+    string internal constant WITHDRAW_RFLR_HOOK_KEY = "WithdrawRFLRHook";
+    string internal constant WITHDRAW_VESTED_RFLR_HOOK_KEY = "WithdrawVestedRFLRHook";
+
+    // rFLR contract addresses (Flare mainnet)
+    address internal constant RNAT_FLARE = 0x26d460c3Cf931Fb2014FA436a49e3Af08619810e;
+    address internal constant WFLR_FLARE = 0x1D80c49BbBCd1C0911346656B529DF9E5c2F783d;
+
+    // NOTE: Odos V3 hook keys and ODOS_ROUTER_V3 moved to Constants.sol (deployed via DeployV2Core)
 }

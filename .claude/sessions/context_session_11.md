@@ -1,210 +1,132 @@
-# Session 11: Stargate Native Fee Sponsorship
+# Session 11: OFT Send Hook Implementation
 
-## Status: Implementation Complete (Contracts + Unit Tests + Integration Tests + Fork Tests + Security Fixes + Ownable Removal)
+## Status: Implementation Complete - All Unit Tests Passing
 
-## Implementation Summary
+## Goal
+Extend StargateSendHook and ApproveAndStargateSendHook to support generic LayerZero V2 OFT/OFTAdapter tokens via mode flag.
 
-### Files Created
-- `src/interfaces/INativeFeeSponsorship.sol` — Interface with errors, events, functions
-- `src/sponsorship/NativeFeeSponsorship.sol` — Standalone ETH ledger with ReentrancyGuard + CEI
-- `src/hooks/sponsorship/FetchNativeFeeHook.sol` — NONACCOUNTING hook, TOKEN subtype, immutable SPONSORSHIP
-- `test/unit/sponsorship/NativeFeeSponsorshipTest.t.sol` — 25 tests
-- `test/unit/hooks/sponsorship/FetchNativeFeeHookTest.t.sol` — 8 tests
-- `test/unit/paymaster/SuperNativePaymasterSponsorshipTest.t.sol` — 7 tests
-- `test/integration/sponsorship/NativeFeeSponsorshipE2E.t.sol` — 8 integration tests (all passing)
-- `test/integration/sponsorship/NativeFeeSponsorshipFork.t.sol` — 6 fork tests against real EntryPoint (all passing)
+## Spec
+See: `specs/oft-send-hook/technical-spec.md`
 
-### Files Modified
-- `src/interfaces/ISuperNativePaymaster.sol` — Added NativeFeeDeposit struct, sponsorNativeAndHandleOps, errors, events
-- `src/paymaster/SuperNativePaymaster.sol` — Added sponsorNativeAndHandleOps implementation + INativeFeeSponsorship import
+## Key Design Decisions
+- Repurpose `isBusMode` byte (offset 225) as `uint8 mode` (0=taxi, 1=bus, 2=OFT)
+- No data layout offset changes (290 byte minimum preserved)
+- New IOFT vendor interface at `src/vendor/bridges/layerzero/IOFT.sol`
+- `stargatePool` field serves double duty (pool OR OFT address)
+- msg.value: OFT mode = `lzNativeFee` only (critical for StargateSendHook)
 
-### Key Design Decision: NativeFeeDeposit Struct
-Changed from parallel arrays `(ops[], nativeAmounts[])` to struct-based `NativeFeeDeposit[] deposits` independent of ops. One entry per unique sender needing sponsorship (reduces calldata for same-sender batches).
+## UP OFT Addresses
+- Ethereum (1): UpOFTAdapter 0x722ff7C0665F4b1823c9C4cFcDF73A43de5865BD
+- Base (8453): UpOFT 0x5b2193fDc451C1f847bE09CA9d13A4Bf60f8c86B
+- HyperEVM (999): UpOFT 0x642fFC3496AcA19106BAB7A42F1F221a329654fe
+- Flare (14): UpOFT 0xe030A89fd2b7f858c8aA47725679CA25D467dFD1
 
-### Security Fixes Applied
-Security report at `specs/security-reports/2026-05-19-native-fee-sponsorship.md`.
-
-| Finding | Fix |
-|---------|-----|
-| P1-1: Deposit spoofing | Option B: `msg.sender != sponsor` check in `depositForAccount`; paymaster deposits as `address(this)` |
-| P2-2: Pre-validate total | Two-pass loop: sum first, validate `totalNative <= msg.value`, then deposit |
-| P2-3: Race condition docs | Added WARNING NatSpec to `sponsorNativeAndHandleOps` |
-| P3-4: Unbounded deposits | Added `MAX_DEPOSITS = 50` constant and check |
-| P3-5: NatSpec fixes | Fixed `@notice` to `@dev` for data layout in FetchNativeFeeHook |
-| P3-6: Redundant getter | Changed `sponsoredNative` mapping from `public` to `internal` |
-
-Additional changes from security fixes:
-- Added `UNAUTHORIZED_DEPOSITOR` error to `INativeFeeSponsorship`
-- Added `TOO_MANY_DEPOSITS` error to `ISuperNativePaymaster`
-
-### Ownable Removal (Post-Security)
-Removed `Ownable` from `SuperNativePaymaster` to keep it permissionless:
-- Removed `Ownable` import, inheritance, and `Ownable(msg.sender)` constructor call
-- Removed `reclaimSponsorship` function entirely (was the only reason for Ownable)
-- Removed `reclaimSponsorship` from `ISuperNativePaymaster` interface
-- Removed 3 reclaim unit tests from `SuperNativePaymasterSponsorshipTest.t.sol`
-- Rewrote fork test 5 (`test_Fork_ReclaimAfterHandleOps` → `test_Fork_SponsorReclaimsDirectly`) to test reclaim via direct `sponsorship.withdrawSponsorDeposit()` call (pranked as paymaster)
-- Rationale: The atomic `sponsorNativeAndHandleOps` flow makes reclaim mostly unnecessary — if handleOps reverts, the entire tx reverts including deposits. Sponsors can still reclaim directly on NativeFeeSponsorship since paymaster is the sponsor of record.
-
-### Test Results: 59 tests passing (53 unit/integration + 6 fork)
-
-### Fork Integration Test (`test/integration/sponsorship/NativeFeeSponsorshipFork.t.sol`)
-
-Uses real ERC-4337 v0.7 EntryPoint at `0x0000000071727De22E5E9d8BAf0edAc6f37da032` on Ethereum mainnet fork. Deploys `NativeFeeSponsorship`, `FetchNativeFeeHook`, `SuperNativePaymaster` fresh on fork. Uses `MockSponsorshipAccount` — minimal ERC-4337 account with `execute(target, value, data)` gated to EntryPoint only.
-
-| # | Test | What it verifies |
-|---|------|-----------------|
-| 1 | `test_Fork_SponsorNativeAndHandleOps` | Full flow: bundler → paymaster deposits to sponsorship → EntryPoint processes UserOp → account withdraws from sponsorship via execute() → paymaster refunds gas |
-| 2 | `test_Fork_SponsorNativeAndHandleOps_MultipleAccounts` | Two accounts with separate deposits, each UserOp withdraws its own sponsorship independently |
-| 3 | `test_Fork_SponsorNativeAndHandleOps_EmptyDeposits` | No deposits, all msg.value to gas, UserOp does doNothing() — backward compat |
-| 4 | `test_Fork_SponsorNativeAndHandleOps_InsufficientNative_Reverts` | totalNative > msg.value reverts with NATIVE_AMOUNT_EXCEEDS_VALUE before any ETH sent |
-| 5 | `test_Fork_ReclaimAfterHandleOps` | Deposit via sponsorNativeAndHandleOps (UserOp doesn't withdraw), owner reclaims via reclaimSponsorship |
-| 6 | `test_Fork_HandleOps_BackwardCompat` | Existing handleOps (no sponsorship) still works through real EntryPoint |
-
-Key implementation details:
-- UserOp callData encodes `execute(sponsorship, 0, withdrawSponsoredNative(paymaster, amount))` — account withdraws sponsored ETH during UserOp execution
-- paymasterAndData layout: `[0:20] paymaster | [20:36] verificationGas (uint128) | [36:52] postOpGas (uint128) | [52:] abi.encode(maxGasLimit, nodeOperatorPremium, postOpGas)`
-- Requires `ETHEREUM_RPC_URL` env var for mainnet fork
-
-### Integration Test Details (`test/integration/sponsorship/NativeFeeSponsorshipE2E.t.sol`)
-
-Uses real `NativeFeeSponsorship`, `FetchNativeFeeHook`, `SuperNativePaymaster` with `MockEntryPoint`. Mock bridge (`MockStargatePool`) simulates Stargate V2 `sendToken()` consuming `msg.value`. `MockSmartAccount` simulates a minimal account that can receive ETH and execute calls.
-
-| # | Test | What it verifies |
-|---|------|-----------------|
-| 1 | `test_deposit_then_hookWithdraw` | Bundler deposits → account withdraws via hook → ETH transferred |
-| 2 | `test_fetchHook_then_mockStargateBridge` | Hook withdrawal → bridge sendToken with native fee → pool receives both |
-| 3 | `test_paymaster_deposits_to_sponsorship` | `sponsorNativeAndHandleOps` deposits correct amounts per account |
-| 4 | `test_full_paymaster_to_hookWithdraw` | Full flow: paymaster → sponsorship → hook → account has ETH |
-| 5 | `test_multiple_accounts_separate_sponsorship` | Two accounts with independent balances, each withdraws own amount |
-| 6 | `test_sponsor_reclaims_unused` | Bundler reclaims via `withdrawSponsorDeposit` |
-| 7 | `test_fetchHook_reverts_insufficient_balance` | Withdrawal call fails when balance < requested |
-| 8 | `test_excess_native_stays_on_account` | Excess ETH stays on account after bridge (not recoverable by bundler) |
-
-Key implementation notes:
-- Test 5 requires calling `fetchHook.setExecutionContext(account)` before each hook chain (simulates what SuperExecutor does in production) to avoid `PRE_EXECUTE_ALREADY_CALLED` due to shared transient storage context 0.
-- Test 7 directly checks the low-level call return value (`assertFalse(ok1)`) instead of `vm.expectRevert` since the multi-call `_executePrank` pattern doesn't work with Foundry's `expectRevert`.
-
-## Overview
-
-Support Stargate V2 bridge hooks that require native tokens (`msg.value`) for LayerZero messaging fees. The bundler sponsors native ETH atomically during ERC-4337 UserOp execution. The smart account doesn't need to hold native tokens before execution.
-
-## Spec Source
-
-`/Users/cosming/Downloads/Private & Shared-3/Stargate Native Fee Sponsorship in Bundler 36135672200c80b383ffc5b4adf89f58.html`
-
-## Architecture (from spec)
-
-### Three On-Chain Components
-
-#### 1. SuperNativePaymaster (Modified)
-
-Add `sponsorNativeAndHandleUserOp` to the existing `SuperNativePaymaster`:
-
-```solidity
-function sponsorNativeAndHandleUserOp(
-    PackedUserOperation calldata op,
-    uint256 nativeAmount
-) external payable onlyAllowedBundler nonReentrant
-```
-
-- `nativeAmount` = Stargate `messagingFee.nativeFee`
-- `msg.sender` = sponsor (bundler)
-- `op.sender` = sponsored smart account
-- `msg.value - nativeAmount` = existing gas-paymaster funding path
-- Supports only 1 UserOp for MVP
-- Must hard-revert if `handleOps` fails (no orphaned sponsorship)
-
-#### 2. NativeFeeSponsorship (New)
-
-Standalone ledger contract:
-
-```solidity
-mapping(address sponsor => mapping(address account => uint256 amount)) public sponsoredNative;
-```
-
-Functions:
-- `depositForAccount(sponsor, account)` — payable, callable by wrapper
-- `withdrawSponsoredNative(sponsor, amount)` — callable by smart account (msg.sender = account)
-- `withdrawSponsorDeposit(account, to, amount)` — callable by sponsor (msg.sender = sponsor)
-- `sponsoredAmount(sponsor, account)` — view
-
-Key design:
-- No signatures/nonces needed — open balance model
-- Bundler assumes replay risk if it makes mistakes
-- Fetch hook should withdraw exact amount needed (not overfetch)
-
-#### 3. FetchNativeFeeHook (New)
-
-NONACCOUNTING hook to withdraw sponsored native ETH before Stargate bridge hook:
-
-Hook data: `(address sponsorship, address sponsor, uint256 amount)`
-
-Build output:
-```solidity
-Execution({
-    target: data.sponsorship,
-    value: 0,
-    callData: abi.encodeCall(INativeFeeSponsorship.withdrawSponsoredNative, (data.sponsor, data.amount))
-});
-```
-
-preExecute validates:
-- `data.sponsorship == EXPECTED_SPONSORSHIP`
-- `data.sponsor` is allowed
-- `data.amount > 0`
-
-postExecute: no-op for MVP
-
-## Existing Codebase Context
-
-- `SuperNativePaymaster` at `src/paymaster/SuperNativePaymaster.sol` — current bundler gas wrapper
-- `SuperSponsorshipPaymaster` at `src/paymaster/SuperSponsorshipPaymaster.sol` — per-strategy gas budgets (separate concern)
-- `NativeTransferHook` at `src/hooks/tokens/NativeTransferHook.sol` — simple ETH transfer hook (reference)
-- `BaseHook` at `src/hooks/BaseHook.sol` — hook base class
-- Hooks data uses BytesLib for packed encoding
-
-## Security Concerns (from spec)
-
-1. Someone withdrawing funds not meant for them → mitigated by `mapping[sponsor][account]` key
-2. UserOp reverting and bundler paying → hard-revert ensures atomicity
-3. Transaction ordering: sponsor can reclaim before account withdraws (or vice versa) — accepted tradeoff
-4. Overfetch: if hook withdraws more than Stargate needs, excess ETH stays on smart account (not recoverable by bundler)
-
-## Revocation Model
-
-Persistent sponsorship balance with `withdrawSponsorDeposit` for sponsor reclaim. No epochs/nonces for MVP.
-
-## Bundler Integration (off-chain, not in scope for contracts)
-
-- Bridge service: add Stargate provider, call `quoteOFT` + `quoteSend`, return `messagingFee.nativeFee`
-- Hooks resolution: insert `FetchNativeFeeHook` immediately before `StargateBridgeHook`
-- Executor build: detect sponsored UserOps, store metadata
-- Executor execute: call `sponsorNativeAndHandleUserOp` for sponsored UserOps
+## Files to Modify
+1. NEW: `src/vendor/bridges/layerzero/IOFT.sol`
+2. MODIFY: `src/hooks/bridges/stargate/StargateSendHook.sol`
+3. MODIFY: `src/hooks/bridges/stargate/ApproveAndStargateSendHook.sol`
+4. MODIFY: `test/unit/hooks/bridges/StargateHooks.t.sol`
+5. MODIFY: `test/integration/stargate/StargateHooksFork.t.sol` (add OFT tests to existing file)
 
 ## Implementation Plan
+See: `.claude/doc/OFTSendHook/implementation-plan.md`
 
-Full plan at: `.claude/doc/stargate-native-fee-sponsorship/implementation-plan.md`
+### Summary of Changes
 
-### Key Decision: Constructor Change vs Parameter Approach
+#### File 1: `src/vendor/bridges/layerzero/IOFT.sol` (NEW)
+- New IOFT interface with `send()`, `token()`, `SendParam`, `MessagingFee`, `MessagingReceipt`, `OFTReceipt`
+- Structs have identical field layout to IStargate counterparts
+- `send()` selector: `0xc7c7f5b3` (different from `sendToken()`: `0xcbef2aa9`)
+- `token()` selector: `0xfc0c546a` (same as IStargate)
 
-**Option A (MVP — Recommended)**: Pass sponsorship address as a function parameter in `sponsorNativeAndHandleUserOp`. No constructor change, no paymaster redeployment needed.
+#### File 2: `src/hooks/bridges/stargate/StargateSendHook.sol` (MODIFY)
+- Import IOFT
+- Struct: `bool isBusMode` -> `uint8 mode`
+- New error: `MODE_NOT_VALID()`
+- Decoding: `_decodeBool(data, 225)` -> `uint8(data[225])` + validation `if (s.mode > 2)`
+- NatSpec: `bool isBusMode` -> `uint8 mode`
+- Execution building: full replacement of lines 159-209 with mode-branched logic
+  - mode <= 1: Stargate path (unchanged behavior)
+  - mode == 2: OFT path with `IOFT.send()` and `value = lzNativeFee` ONLY
+- Both lzTokenFee > 0 and lzTokenFee == 0 paths handled for both modes
 
-**Option B (Cleaner)**: Add `INativeFeeSponsorship` as immutable constructor param. Requires redeploying SuperNativePaymaster on ALL chains.
+#### File 3: `src/hooks/bridges/stargate/ApproveAndStargateSendHook.sol` (MODIFY)
+- Same import, struct, error, decoding changes as StargateSendHook
+- `_buildExecutions` refactored: pre-compute `sendCallData` bytes before lzTokenFee branching
+  - mode <= 1: `sendCallData = abi.encodeCall(IStargate.sendToken, ...)`
+  - mode == 2: `sendCallData = abi.encodeCall(IOFT.send, ...)`
+  - Same 3-branch lzTokenFee logic uses `sendCallData` uniformly
+- msg.value stays `lzNativeFee` for ALL modes (no change needed -- ERC20 hook)
+- Pool validation unchanged: `IStargate(s.stargatePool).token()` works for OFT too (same selector)
 
-### Files Summary
+#### File 4: `test/unit/hooks/bridges/StargateHooks.t.sol` (MODIFY)
+- Import IOFT
+- Helper signature: `_encodeStargateData(bool, bool, bool)` -> `_encodeStargateData(bool, uint8, bool)`
+- ALL 27+ existing callers updated: `false` -> `0`, `true` -> `1`
+- 20 new test functions for OFT mode covering:
+  - Basic OFT send for both hooks
+  - msg.value verification (lzNativeFee only vs lzNativeFee + amountLD)
+  - ComposeMsg with OFT mode
+  - PrevHookAmount with OFT mode
+  - LzTokenFee with OFT mode (both same-token and different-token paths)
+  - Token validation in OFT mode
+  - Mode validation (mode=3 and mode=255 revert)
+  - Selector verification (IOFT.send vs IStargate.sendToken)
+  - OftCmd always empty in OFT mode
+  - Backward compatibility (mode=0 matches old taxi, mode=1 matches old bus)
 
-| File | Action |
-|------|--------|
-| `src/interfaces/INativeFeeSponsorship.sol` | CREATE |
-| `src/sponsorship/NativeFeeSponsorship.sol` | CREATE |
-| `src/hooks/sponsorship/FetchNativeFeeHook.sol` | CREATE |
-| `src/interfaces/ISuperNativePaymaster.sol` | MODIFY |
-| `src/paymaster/SuperNativePaymaster.sol` | MODIFY |
-| `test/unit/sponsorship/NativeFeeSponsorshipTest.t.sol` | CREATE |
-| `test/unit/hooks/sponsorship/FetchNativeFeeHookTest.t.sol` | CREATE |
-| `test/unit/paymaster/SuperNativePaymasterSponsorshipTest.t.sol` | CREATE |
-| `script/utils/ConstantsOtherHooks.sol` | MODIFY |
-| `script/DeployV2OtherHooks.s.sol` | MODIFY |
-| `script/run/regenerate_bytecode.sh` | MODIFY |
-| `script/run/deploy_v2_other_hooks_staging_prod.sh` | MODIFY |
+#### File 5: `test/integration/stargate/StargateHooksFork.t.sol` (MODIFY)
+- 3 new fork tests using real UP OFTAdapter on Ethereum mainnet:
+  - `test_Fork_OFTAdapter_TokenInterface()` - verify interface compatibility
+  - `test_Fork_ApproveAndStargateSend_OFTMode_Build()` - build against real contract
+  - `test_Fork_ApproveAndStargateSend_OFTMode_RevertIf_WrongToken()` - token validation
+
+### Critical Notes for Implementer
+
+1. **MOST CRITICAL**: StargateSendHook OFT mode `value` must be `lzNativeFee` ONLY, never `lzNativeFee + amountLD`. OFT contracts burn tokens from `msg.sender` internally -- sending extra ETH = permanent loss.
+
+2. **Existing tests**: All 27+ callers of `_encodeStargateData` must be updated from `bool` to `uint8`. Missing even one will cause compilation failure.
+
+3. **Inline encodings**: Tests that manually encode data with `abi.encodePacked(..., false, false, ...)` do NOT need changes because `false` encodes to `0x00` = `uint8(0)` = taxi mode. But replacing with `uint8(0)` is cleaner.
+
+4. **token() selector compatibility**: Both IStargate.token() and IOFT.token() have selector `0xfc0c546a`. The existing validation `IStargate(s.stargatePool).token()` works for OFT contracts without any casting changes.
+
+5. **No deployment script changes needed**: The hooks have the same constructor signature (just `validator_`), so existing deployment infrastructure works unchanged. New bytecode will produce new CREATE2 addresses.
+
+## Execution Order
+1. Create IOFT interface
+2. Modify StargateSendHook
+3. Modify ApproveAndStargateSendHook
+4. Modify unit tests
+5. Modify integration tests
+6. `forge build`
+7. `make forge-test TEST=StargateHooks`
+8. `make forge-test TEST=StargateHooksFork` (requires ETHEREUM_RPC_URL)
+
+## Progress Log
+- Session started, launching superform-hook-master for planning
+- Implementation plan completed at `.claude/doc/OFTSendHook/implementation-plan.md`
+- Task 1: Created `src/vendor/bridges/layerzero/IOFT.sol` ✅
+- Task 2: Modified `StargateSendHook.sol` with OFT mode support ✅
+- Task 3: Modified `ApproveAndStargateSendHook.sol` with OFT mode support ✅
+- Task 4: Updated unit tests - helper signature, 27+ callers, 20 new OFT tests ✅
+- Task 5: Updated fork integration tests - helper signature, callers, 4 new OFT fork tests ✅
+- Task 6: `forge build` succeeds, `forge test --match-path StargateHooks.t.sol` → 83/83 tests pass ✅
+- Fork tests require ETHEREUM_RPC_URL to run (not run in this session)
+- Task 7: Comprehensive fork integration tests with real UP and WBTC OFTAdapter contracts (36 fork tests) ✅
+- Task 8: Security analysis (`/superform:security`) on both hooks ✅
+  - Report at: `specs/security-reports/2026-05-26-stargate-hooks.md`
+  - 0 P0, 1 P1, 6 P2, 7 P3 findings
+- Task 9: Applied security fixes ✅
+  - P1 [#1]: Added `_account != account` validation in composeMsg decoding (both hooks)
+  - P2 [#3]: Added `to != bytes32(uint256(uint160(account)))` validation (both hooks)
+  - P2 [#4]: Added `minAmountLD == 0` check after proportional scaling (both hooks)
+  - Updated `mockTo` in unit tests to derive from `mockAccount`
+  - Added 6 new security validation tests
+  - 89/89 unit tests pass ✅
+- Task 10: Fixed deployment scripts to preserve Nexus addresses ✅
+  - Root cause: `DeployV2Core.s.sol`'s `_writeExportedContracts` merge logic fails to preserve entries from the existing JSON that aren't managed by DeployV2Core (e.g., Nexus contracts)
+  - Fix: Added `preserve_existing_json_entries()` function to both deployment scripts
+  - Backs up existing JSON before forge runs, merges back any dropped entries after
+  - Modified: `script/run/deploy_v2_staging_prod.sh`
+  - Modified: `script/run/deploy_v2_other_hooks_staging_prod.sh`

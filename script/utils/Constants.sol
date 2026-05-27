@@ -20,6 +20,7 @@ abstract contract Constants {
     string internal constant WORLDCHAIN_KEY = "Worldchain";
     string internal constant HYPEREVM_KEY = "HyperEVM";
     string internal constant FLARE_KEY = "Flare";
+    string internal constant STABLE_KEY = "Stable";
     string internal constant SEPOLIA_KEY = "Sepolia";
     string internal constant ARB_SEPOLIA_KEY = "Arbitrum_Sepolia";
     string internal constant BASE_SEPOLIA_KEY = "Base_Sepolia";
@@ -31,6 +32,7 @@ abstract contract Constants {
     string internal constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
     string internal constant ACROSS_V3_ADAPTER_KEY = "AcrossV3Adapter";
     string internal constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
+    string internal constant STARGATE_ADAPTER_KEY = "StargateAdapter";
     string internal constant SUPER_LEDGER_KEY = "SuperLedger";
     string internal constant ERC1155_LEDGER_KEY = "ERC1155Ledger";
     string internal constant FLAT_FEE_LEDGER_KEY = "FlatFeeLedger";
@@ -61,6 +63,7 @@ abstract contract Constants {
     uint64 internal constant WORLDCHAIN_CHAIN_ID = 480;
     uint64 internal constant HYPEREVM_CHAIN_ID = 999;
     uint64 internal constant FLARE_CHAIN_ID = 14;
+    uint64 internal constant STABLE_CHAIN_ID = 988;
     // testnets
     uint64 internal constant SEPOLIA_CHAIN_ID = 11_155_111;
     uint64 internal constant ARB_SEPOLIA_CHAIN_ID = 421_613;
@@ -85,6 +88,15 @@ abstract contract Constants {
     // DeBridge Gate addresses per chain
     address internal constant DEBRIDGE_DLN_SRC = 0xeF4fB24aD0916217251F553c0596F8Edc630EB66;
     address internal constant DEBRIDGE_DLN_DST = 0xE7351Fd770A37282b91D153Ee690B63579D6dd7f;
+
+    // LayerZero V2 EndpointV2 addresses
+    // Standard address used on most chains (Ethereum, Base, BNB, Arbitrum, Optimism, Polygon, Linea, Avalanche,
+    // Gnosis, Flare)
+    address internal constant LZ_ENDPOINT_V2 = 0x1a44076050125825900e736c501f859c50fE728c;
+    // Newer deployments (Unichain, Berachain, Sonic, Worldchain, Stable)
+    address internal constant LZ_ENDPOINT_V2_ALT = 0x6F475642a6e85809B1c36Fa62763669b1b48DD5B;
+    // HyperEVM-specific deployment
+    address internal constant LZ_ENDPOINT_V2_HYPEREVM = 0x3A73033C0b1407574C76BdBAc67f126f6b4a9AA9;
 
     // 1inch Aggregation Router addresses per chain
     // https://portal.1inch.dev/documentation/contracts/aggregation-protocol/aggregation-introduction
@@ -131,6 +143,9 @@ abstract contract Constants {
     address internal constant GATEWAY_WALLET = 0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE;
     address internal constant GATEWAY_MINTER = 0x2222222d7164433c4C09B0b0D809a9b52C04C205;
 
+    // Odos V3 Router (same CREATE2 address on all EVM chains)
+    address internal constant ODOS_ROUTER_V3 = 0x0D05a7D3448512B78fa8A9e46c4872C88C4a0D05;
+
     // SparkDex V2 Router (Uniswap V2 fork on Flare)
     address internal constant SPARKDEX_V2_ROUTER_FLARE = 0x4a1E5A90e9943467FAd1acea1E7F0e5e88472a1e;
 
@@ -167,6 +182,8 @@ abstract contract Constants {
     string internal constant FLUID_UNSTAKE_HOOK_KEY = "FluidUnstakeHook";
     string internal constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
     string internal constant SWAP_ODOSV2_HOOK_KEY = "SwapOdosV2Hook";
+    string internal constant SWAP_ODOSV3_HOOK_KEY = "SwapOdosV3Hook";
+    string internal constant APPROVE_AND_SWAP_ODOSV3_HOOK_KEY = "ApproveAndSwapOdosV3Hook";
     string internal constant SWAP_UNISWAPV4_HOOK_KEY = "SwapUniswapV4Hook";
     string internal constant SWAP_UNISWAPV3_HOOK_KEY = "SwapUniswapV3Hook";
     string internal constant APPROVE_AND_SWAP_UNISWAPV3_HOOK_KEY = "ApproveAndSwapUniswapV3Hook";
@@ -213,6 +230,7 @@ abstract contract Constants {
     string internal constant MORPHO_WITHDRAW_HOOK_KEY = "MorphoWithdrawHook";
     string internal constant MORPHO_LEND_HOOK_KEY = "MorphoLendHook";
     string internal constant META_MORPHO_REALLOCATE_HOOK_KEY = "MetaMorphoReallocateHook";
+    string internal constant FORCE_DEALLOCATE_MORPHO_HOOK_KEY = "ForceDeallocateMorphoHook";
 
     // Aave V4 Hook Keys
     string internal constant AAVE_V4_SUPPLY_HOOK_KEY = "AaveV4SupplyHook";
@@ -245,6 +263,17 @@ abstract contract Constants {
     string internal constant CIRCLE_GATEWAY_MINTER_HOOK_KEY = "CircleGatewayMinterHook";
     string internal constant CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY = "CircleGatewayAddDelegateHook";
     string internal constant CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY = "CircleGatewayRemoveDelegateHook";
+
+    // Stargate Hook Keys
+    string internal constant STARGATE_SEND_HOOK_KEY = "StargateSendHook";
+    string internal constant APPROVE_AND_STARGATE_SEND_HOOK_KEY = "ApproveAndStargateSendHook";
+
+    // CCTP V2 Hook Keys
+    string internal constant CCTP_SEND_HOOK_KEY = "CCTPSendHook";
+    string internal constant APPROVE_AND_CCTP_SEND_HOOK_KEY = "ApproveAndCCTPSendHook";
+
+    // CCTP V2 Token Messenger (same address on all EVM chains via CREATE2)
+    address internal constant CCTP_V2_TOKEN_MESSENGER = 0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d;
 
     // Firelight Hook Keys
     string internal constant REDEEM_FIRELIGHT_VAULT_HOOK_KEY = "RedeemFirelightVaultHook";

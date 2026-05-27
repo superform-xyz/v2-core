@@ -17,6 +17,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address morphoWithdrawHook;
         address morphoLendHook;
         address metaMorphoReallocateHook;
+        address forceDeallocateMorphoHook;
     }
 
     struct AaveV4HookAddresses {
@@ -47,6 +48,17 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     struct SponsorshipAddresses {
         address nativeFeeSponsorship;
         address fetchNativeFeeHook;
+    }
+
+    struct RFLRHookAddresses {
+        address claimRFLRHook;
+        address withdrawRFLRHook;
+        address withdrawVestedRFLRHook;
+    }
+
+    struct OdosV3HookAddresses {
+        address swapOdosV3Hook;
+        address approveAndSwapOdosV3Hook;
     }
 
     struct HookDeployment {
@@ -107,6 +119,22 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    function runRFLR(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying rFLR Hooks on chainId: ", chainId);
+
+        _deployRFLRHooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
+    function runOdosV3(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying Odos V3 Hooks on chainId: ", chainId);
+
+        _deployOdosV3Hooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
     /// @notice Deploy all applicable hooks for the given chain
     function _deployAllHooks(uint64 chainId, uint256 env) internal {
         // Morpho hooks — only on chains where Morpho is deployed
@@ -142,6 +170,18 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         // Native Fee Sponsorship — all chains (paymaster is deployed everywhere)
         console2.log("Deploying Sponsorship contracts on chainId: ", chainId);
         _deploySponsorshipContracts(chainId, env);
+
+        // rFLR hooks — only on Flare
+        if (chainId == FLARE_CHAIN_ID) {
+            console2.log("Deploying rFLR Hooks on chainId: ", chainId);
+            _deployRFLRHooks(chainId, env);
+        }
+
+        // Odos V3 hooks — on chains where Odos V3 router is deployed
+        if (otherHooksConfiguration.odosRouterV3s[chainId] != address(0)) {
+            console2.log("Deploying Odos V3 Hooks on chainId: ", chainId);
+            _deployOdosV3Hooks(chainId, env);
+        }
     }
 
     /// @notice Get bytecode directory based on environment
@@ -175,7 +215,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         private
         returns (MorphoHookAddresses memory hookAddresses)
     {
-        uint256 len = 8;
+        uint256 len = 9;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -225,6 +265,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             META_MORPHO_REALLOCATE_HOOK_KEY, "", __getOtherHooksBytecode("MetaMorphoReallocateHook", env)
         );
 
+        // Morpho Vault V2 force deallocate hook (no constructor args)
+        hooks[8] = HookDeployment(
+            FORCE_DEALLOCATE_MORPHO_HOOK_KEY, "", __getOtherHooksBytecode("ForceDeallocateMorphoHook", env)
+        );
+
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
             string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
@@ -248,6 +293,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             Strings.equal(hooks[6].name, MORPHO_LEND_HOOK_KEY) ? addresses[6] : address(0);
         hookAddresses.metaMorphoReallocateHook =
             Strings.equal(hooks[7].name, META_MORPHO_REALLOCATE_HOOK_KEY) ? addresses[7] : address(0);
+        hookAddresses.forceDeallocateMorphoHook =
+            Strings.equal(hooks[8].name, FORCE_DEALLOCATE_MORPHO_HOOK_KEY) ? addresses[8] : address(0);
 
         // Verify no hooks were assigned address(0)
         require(hookAddresses.morphoSupplyAndBorrowHook != address(0), "MorphoSupplyAndBorrowHook not assigned");
@@ -258,6 +305,9 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(hookAddresses.morphoWithdrawHook != address(0), "MorphoWithdrawHook not assigned");
         require(hookAddresses.morphoLendHook != address(0), "MorphoLendHook not assigned");
         require(hookAddresses.metaMorphoReallocateHook != address(0), "MetaMorphoReallocateHook not assigned");
+        require(
+            hookAddresses.forceDeallocateMorphoHook != address(0), "ForceDeallocateMorphoHook not assigned"
+        );
 
         console2.log("All Morpho hooks deployed and validated successfully.");
 
@@ -505,5 +555,93 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         console2.log("All Sponsorship contracts deployed and validated successfully.");
 
         return addresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        RFLR HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Deploy 3 rFLR hooks (constructor args: RNAT address, and RNAT+WFLR for withdraw hooks)
+    function _deployRFLRHooks(uint64 chainId, uint256 env) internal returns (RFLRHookAddresses memory) {
+        uint256 len = 3;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        hooks[0] = HookDeployment(
+            CLAIM_RFLR_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("ClaimRFLRHook", env), abi.encode(RNAT_FLARE))
+        );
+        hooks[1] = HookDeployment(
+            WITHDRAW_RFLR_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("WithdrawRFLRHook", env), abi.encode(RNAT_FLARE, WFLR_FLARE))
+        );
+        hooks[2] = HookDeployment(
+            WITHDRAW_VESTED_RFLR_HOOK_KEY,
+            "",
+            abi.encodePacked(
+                __getOtherHooksBytecode("WithdrawVestedRFLRHook", env), abi.encode(RNAT_FLARE, WFLR_FLARE)
+            )
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        RFLRHookAddresses memory hookAddresses;
+        hookAddresses.claimRFLRHook = addresses[0];
+        hookAddresses.withdrawRFLRHook = addresses[1];
+        hookAddresses.withdrawVestedRFLRHook = addresses[2];
+
+        require(hookAddresses.claimRFLRHook != address(0), "ClaimRFLRHook not assigned");
+        require(hookAddresses.withdrawRFLRHook != address(0), "WithdrawRFLRHook not assigned");
+        require(hookAddresses.withdrawVestedRFLRHook != address(0), "WithdrawVestedRFLRHook not assigned");
+
+        console2.log("All rFLR hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      ODOS V3 HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    function _deployOdosV3Hooks(uint64 chainId, uint256 env) internal returns (OdosV3HookAddresses memory) {
+        uint256 len = 2;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        bytes memory routerArg = abi.encode(otherHooksConfiguration.odosRouterV3s[chainId]);
+
+        hooks[0] = HookDeployment(
+            SWAP_ODOSV3_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("SwapOdosV3Hook", env), routerArg)
+        );
+        hooks[1] = HookDeployment(
+            APPROVE_AND_SWAP_ODOSV3_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("ApproveAndSwapOdosV3Hook", env), routerArg)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        OdosV3HookAddresses memory hookAddresses;
+        hookAddresses.swapOdosV3Hook = addresses[0];
+        hookAddresses.approveAndSwapOdosV3Hook = addresses[1];
+
+        require(hookAddresses.swapOdosV3Hook != address(0), "SwapOdosV3Hook not assigned");
+        require(hookAddresses.approveAndSwapOdosV3Hook != address(0), "ApproveAndSwapOdosV3Hook not assigned");
+
+        console2.log("All Odos V3 hooks deployed and validated successfully.");
+
+        return hookAddresses;
     }
 }

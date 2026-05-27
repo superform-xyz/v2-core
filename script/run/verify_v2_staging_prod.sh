@@ -3,12 +3,12 @@
 # ===== CHAIN FILTER CONFIGURATION =====
 # Specify which chains to verify (comment out to verify all chains)
 # Leave empty array to verify all chains from network configuration
-CHAINS_TO_VERIFY=(14)
+CHAINS_TO_VERIFY=(1 8453 56 42161 43114)
 
 # ===== CONTRACT FILTER CONFIGURATION =====
 # Specify which contracts to verify (comment out to verify all contracts)
 # Leave empty array to verify all contracts found in deployment JSON
-CONTRACTS_TO_VERIFY=()
+CONTRACTS_TO_VERIFY=("SwapOdosV3Hook" "ApproveAndSwapOdosV3Hook")
 
 # ===== RATE LIMIT CONFIGURATION =====
 # Delay in seconds between verification requests (prevents Cloudflare rate limiting)
@@ -208,6 +208,7 @@ generate_constructor_args() {
     local permit2=""
     local aggregation_router=""
     local odos_router=""
+    local odos_router_v3="0x0D05a7D3448512B78fa8A9e46c4872C88C4a0D05"  # Same CREATE2 on all EVM chains
     local across_spoke_pool_v3=""
     local merkl_distributor=""
     local debridge_dst_dln="0xE7351Fd770A37282b91D153Ee690B63579D6dd7f"
@@ -350,6 +351,14 @@ generate_constructor_args() {
             merkl_distributor=""  # Not deployed
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
+        "988") # Stable
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router=""  # Not deployed
+            odos_router=""  # Not deployed
+            across_spoke_pool_v3=""  # Not deployed
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
     esac
     
     # Generate constructor arguments based on contract type
@@ -393,6 +402,9 @@ generate_constructor_args() {
         "SwapOdosV2Hook"|"ApproveAndSwapOdosV2Hook")
             echo "$(cast abi-encode "constructor(address)" "$odos_router")"
             ;;
+        "SwapOdosV3Hook"|"ApproveAndSwapOdosV3Hook")
+            echo "$(cast abi-encode "constructor(address)" "$odos_router_v3")"
+            ;;
         "AcrossSendFundsAndExecuteOnDstHook")
             echo "$(cast abi-encode "constructor(address,address)" "$across_spoke_pool_v3" "$super_merkle_validator")"
             ;;
@@ -408,6 +420,28 @@ generate_constructor_args() {
         "MerklClaimRewardHook")
             echo "$(cast abi-encode "constructor(address)" "$merkl_distributor")"
             ;;
+
+        # Hooks - Stargate Bridge (constructor arg: SuperValidator)
+        "StargateSendHook"|"ApproveAndStargateSendHook")
+            echo "$(cast abi-encode "constructor(address)" "$super_merkle_validator")"
+            ;;
+
+        # Hooks - Claim (Flare rFLR)
+        "ClaimRFLRHook")
+            local rnat_flare="0x26d460c3Cf931Fb2014FA436a49e3Af08619810e"
+            echo "$(cast abi-encode "constructor(address)" "$rnat_flare")"
+            ;;
+        "WithdrawRFLRHook"|"WithdrawVestedRFLRHook")
+            local rnat_flare="0x26d460c3Cf931Fb2014FA436a49e3Af08619810e"
+            local wflr_flare="0x1D80c49BbBCd1C0911346656B529DF9E5c2F783d"
+            echo "$(cast abi-encode "constructor(address,address)" "$rnat_flare" "$wflr_flare")"
+            ;;
+
+        # Hooks - Claim (no constructor args)
+        "FluidClaimRewardHook"|"GearboxClaimRewardHook"|"YearnClaimOneRewardHook")
+            echo "$(cast abi-encode "constructor()")"
+            ;;
+
         "CircleGatewayWalletHook"|"CircleGatewayAddDelegateHook"|"CircleGatewayRemoveDelegateHook")
             echo "$(cast abi-encode "constructor(address)" "$gateway_wallet")"
             ;;
@@ -538,6 +572,8 @@ get_contract_source() {
         "Swap1InchHook") echo "src/hooks/swappers/1inch/Swap1InchHook.sol" ;;
         "SwapOdosV2Hook") echo "src/hooks/swappers/odos/SwapOdosV2Hook.sol" ;;
         "ApproveAndSwapOdosV2Hook") echo "src/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol" ;;
+        "SwapOdosV3Hook") echo "src/hooks/swappers/odos/SwapOdosV3Hook.sol" ;;
+        "ApproveAndSwapOdosV3Hook") echo "src/hooks/swappers/odos/ApproveAndSwapOdosV3Hook.sol" ;;
         "SwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Hook.sol" ;;
         "ApproveAndSwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/ApproveAndSwapUniswapV3Hook.sol" ;;
         "SwapUniswapV4Hook") echo "src/hooks/swappers/uniswap-v4/SwapUniswapV4Hook.sol" ;;
@@ -556,8 +592,18 @@ get_contract_source() {
         "EthenaUnstakeHook") echo "src/hooks/vaults/ethena/EthenaUnstakeHook.sol" ;;
         "MarkRootAsUsedHook") echo "src/hooks/superform/MarkRootAsUsedHook.sol" ;;
 
+        # Hooks - Bridges (Stargate)
+        "StargateSendHook") echo "src/hooks/bridges/stargate/StargateSendHook.sol" ;;
+        "ApproveAndStargateSendHook") echo "src/hooks/bridges/stargate/ApproveAndStargateSendHook.sol" ;;
+
         # Hooks - Claim
         "MerklClaimRewardHook") echo "src/hooks/claim/merkl/MerklClaimRewardHook.sol" ;;
+        "FluidClaimRewardHook") echo "src/hooks/claim/fluid/FluidClaimRewardHook.sol" ;;
+        "GearboxClaimRewardHook") echo "src/hooks/claim/gearbox/GearboxClaimRewardHook.sol" ;;
+        "YearnClaimOneRewardHook") echo "src/hooks/claim/yearn/YearnClaimOneRewardHook.sol" ;;
+        "ClaimRFLRHook") echo "src/hooks/claim/flare/ClaimRFLRHook.sol" ;;
+        "WithdrawRFLRHook") echo "src/hooks/claim/flare/WithdrawRFLRHook.sol" ;;
+        "WithdrawVestedRFLRHook") echo "src/hooks/claim/flare/WithdrawVestedRFLRHook.sol" ;;
 
         # Hooks - Circle Gateway
         "CircleGatewayWalletHook") echo "src/hooks/bridges/circle/CircleGatewayWalletHook.sol" ;;
@@ -583,6 +629,8 @@ get_contract_source() {
         "MorphoSupplyHook") echo "src/hooks/loan/morpho/MorphoSupplyHook.sol" ;;
         "MorphoWithdrawHook") echo "src/hooks/loan/morpho/MorphoWithdrawHook.sol" ;;
         "MorphoLendHook") echo "src/hooks/loan/morpho/MorphoLendHook.sol" ;;
+        "MetaMorphoReallocateHook") echo "src/hooks/vaults/metamorpho/MetaMorphoReallocateHook.sol" ;;
+        "ForceDeallocateMorphoHook") echo "src/hooks/vaults/metamorpho/ForceDeallocateMorphoHook.sol" ;;
 
         # Oracles
         "ERC4626YieldSourceOracle") echo "src/accounting/oracles/ERC4626YieldSourceOracle.sol" ;;
@@ -611,12 +659,29 @@ verify_contract() {
     echo -e "${CYAN}      Source: $source_file${NC}"
     echo -e "${CYAN}      Chain ID: $chain_id${NC}"
 
-    forge verify-contract "$contract_address" "$source_file:$contract_name" \
-        --constructor-args "$constructor_args" \
-        --rpc-url "$rpc_url" \
-        --chain "$chain_id" \
-        --etherscan-api-key "$ETHERSCANV2_API_KEY" \
-        --verifier etherscan
+    # Chains not in forge's internal registry: drop --chain and --rpc-url,
+    # use --verifier-url only (Etherscan verification submits source, no RPC needed)
+    local verifier_url=""
+    case $chain_id in
+        "988"|"999"|"14"|"80094")
+            verifier_url="https://api.etherscan.io/v2/api?chainid=${chain_id}"
+            ;;
+    esac
+
+    if [ -n "$verifier_url" ]; then
+        forge verify-contract "$contract_address" "$source_file:$contract_name" \
+            --constructor-args "$constructor_args" \
+            --etherscan-api-key "$ETHERSCANV2_API_KEY" \
+            --verifier etherscan \
+            --verifier-url "$verifier_url"
+    else
+        forge verify-contract "$contract_address" "$source_file:$contract_name" \
+            --constructor-args "$constructor_args" \
+            --rpc-url "$rpc_url" \
+            --chain "$chain_id" \
+            --etherscan-api-key "$ETHERSCANV2_API_KEY" \
+            --verifier etherscan
+    fi
 
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}   ✅ $contract_name verified successfully${NC}"

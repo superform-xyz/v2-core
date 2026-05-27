@@ -50,6 +50,42 @@ print_separator() {
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
+# Function to preserve entries in chain output JSON that the forge script doesn't manage
+# (e.g., Nexus contracts deployed by a separate process)
+preserve_existing_json_entries() {
+    local output_file=$1
+    local backup_file=$2
+
+    if [[ ! -f "$backup_file" ]] || [[ ! -f "$output_file" ]]; then
+        return 0
+    fi
+
+    # Merge: start with the new output, then add any keys from the backup that are missing
+    local merged
+    merged=$(python3 -c "
+import json, sys
+with open('$output_file') as f:
+    new = json.load(f)
+with open('$backup_file') as f:
+    old = json.load(f)
+# Add back any keys from the old file that are missing in the new file
+changed = False
+for k, v in old.items():
+    if k not in new:
+        new[k] = v
+        changed = True
+if changed:
+    print(json.dumps(new, indent=2, sort_keys=True))
+else:
+    sys.exit(1)
+" 2>/dev/null) || true
+
+    if [[ -n "$merged" ]]; then
+        echo "$merged" > "$output_file"
+        echo -e "${CYAN}   📋 Preserved existing entries in output file${NC}"
+    fi
+}
+
 print_header
 
 # Script directory and project root setup
@@ -241,6 +277,19 @@ is_sponsorship_supported() {
     return 0
 }
 
+# rFLR hooks are only deployed on Flare
+RFLR_SUPPORTED_CHAINS=("14")
+
+is_rflr_supported() {
+    local chain_id=$1
+    for supported in "${RFLR_SUPPORTED_CHAINS[@]}"; do
+        if [ "$supported" = "$chain_id" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Other hooks use locked-bytecode-other/ for production
 OTHER_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode-other"
 if [ "$ENVIRONMENT" = "staging" ]; then
@@ -261,6 +310,7 @@ MORPHO_HOOKS=(
     "MorphoWithdrawHook"
     "MorphoLendHook"
     "MetaMorphoReallocateHook"
+    "ForceDeallocateMorphoHook"
 )
 
 missing_morpho=0
@@ -407,10 +457,36 @@ if [ $missing_sponsorship -gt 0 ]; then
 fi
 
 echo ""
+
+# Check bytecode availability for rFLR hooks
+echo -e "${BLUE}🔍 Checking rFLR hook bytecode availability...${NC}"
+
+RFLR_HOOKS=(
+    "ClaimRFLRHook"
+    "WithdrawRFLRHook"
+    "WithdrawVestedRFLRHook"
+)
+
+missing_rflr=0
+for hook in "${RFLR_HOOKS[@]}"; do
+    if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
+        echo -e "${GREEN}   ✅ ${hook}${NC}"
+    else
+        echo -e "${YELLOW}   ⚠️  ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
+        missing_rflr=$((missing_rflr + 1))
+    fi
+done
+
+if [ $missing_rflr -gt 0 ]; then
+    echo -e "${YELLOW}⚠️  ${missing_rflr} rFLR hook(s) missing bytecode. They will be skipped during deployment.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/regenerate_bytecode.sh to generate missing bytecode.${NC}"
+fi
+
+echo ""
 print_separator
 
 # Confirmation before deployment
-echo -e "${WHITE}🤔 Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral + DETH + Sponsorship) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
+echo -e "${WHITE}🤔 Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral + DETH + Sponsorship + rFLR) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
 read -r proceed
 
 if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
@@ -450,6 +526,13 @@ for network_def in "${NETWORKS[@]}"; do
     fi
 
     has_hooks=false
+
+    # Backup the existing output JSON before forge overwrites it
+    output_json="$PROJECT_ROOT/script/output/$ENVIRONMENT/$network_id/$network_name-latest.json"
+    backup_json="${output_json}.bak"
+    if [[ -f "$output_json" ]]; then
+        cp "$output_json" "$backup_json"
+    fi
 
     # Deploy Morpho hooks if supported on this chain
     if is_morpho_supported "$network_id"; then
@@ -605,6 +688,42 @@ for network_def in "${NETWORKS[@]}"; do
             echo -e "${RED}   ❌ Sponsorship contracts deployment failed on $network_name, continuing...${NC}"
         fi
     fi
+
+    # Deploy rFLR hooks if supported on this chain
+    if is_rflr_supported "$network_id"; then
+        has_hooks=true
+        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
+        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
+        echo -e "${YELLOW}   Deploying rFLR hooks...${NC}"
+
+        if forge script script/DeployV2OtherHooks.s.sol:DeployV2OtherHooks \
+            --sig 'runRFLR(uint256,uint64)' $FORGE_ENV $network_id \
+            --account $ACCOUNT \
+            $KEYSTORE_PASSWORD_FLAG \
+            --rpc-url ${!rpc_var} \
+            --chain $network_id \
+            --etherscan-api-key $ETHERSCANV2_API_KEY \
+            --verifier etherscan \
+            $BROADCAST_FLAG \
+            $VERIFY_FLAG \
+            $SLOW_FLAG \
+            $BATCH_SIZE_FLAG \
+            $RESUME_FLAG \
+            $LEGACY_FLAG \
+            $GAS_PRICE_FLAG \
+            --timeout 300 \
+            -vv; then
+            echo -e "${GREEN}   ✅ rFLR hooks deployment completed!${NC}"
+        else
+            echo -e "${RED}   ❌ rFLR hooks deployment failed on $network_name, continuing...${NC}"
+        fi
+    fi
+
+    # Restore any entries that the forge script dropped (e.g., Nexus contracts)
+    preserve_existing_json_entries "$output_json" "$backup_json"
+    rm -f "$backup_json"
+
 
     if [ "$has_hooks" = false ]; then
         echo -e "${YELLOW}  ⏭️  No supported hooks for $network_name ($network_id), skipping${NC}"

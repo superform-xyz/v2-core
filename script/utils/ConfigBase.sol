@@ -21,6 +21,7 @@ abstract contract ConfigBase is Constants {
         mapping(uint64 chainId => address merklDistributor) merklDistributors;
         mapping(uint64 chainId => address routers) aggregationRouters;
         mapping(uint64 chainId => address odosRouter) odosRouters;
+        mapping(uint64 chainId => address odosRouterV3) odosRouterV3s;
         mapping(uint64 chainId => address pendleRouter) pendleRouters;
         mapping(uint64 chainId => address pendlePTAmortizedOracle) pendlePTAmortizedOracles;
         mapping(uint64 chainId => address pendlePTAmortizedOracleV2) pendlePTAmortizedOraclesV2;
@@ -31,6 +32,7 @@ abstract contract ConfigBase is Constants {
         mapping(uint64 chainId => address kyberRouter) kyberSwapRouters;
         mapping(uint64 chainId => address kyberScaleHelper) kyberSwapScaleHelpers;
         mapping(uint64 chainId => address swapRouter) uniswapV2SwapRouters;
+        mapping(uint64 chainId => address lzEndpointV2) lzEndpointV2s;
         address dethFoundation;
     }
 
@@ -90,6 +92,7 @@ abstract contract ConfigBase is Constants {
         chainNames[WORLDCHAIN_CHAIN_ID] = WORLDCHAIN_KEY;
         chainNames[HYPEREVM_CHAIN_ID] = HYPEREVM_KEY;
         chainNames[FLARE_CHAIN_ID] = FLARE_KEY;
+        chainNames[STABLE_CHAIN_ID] = STABLE_KEY;
 
         // ===== COMMON CONFIGURATION =====
         if (env_ == 0 || env_ == 2) {

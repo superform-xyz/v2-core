@@ -48,14 +48,15 @@ log() {
 extract_contracts_from_regenerate_script() {
     local array_name=$1
     local script_path="$PROJECT_ROOT/script/run/regenerate_bytecode.sh"
-    
+
     if [[ ! -f "$script_path" ]]; then
         return 1
     fi
-    
+
     # Extract contract names from the specified array in regenerate_bytecode.sh
-    # Find the array definition and stop at the closing parenthesis
-    sed -n "/${array_name}=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | tr -d '"'
+    # Match from "ARRAY_NAME=(" up to the first line containing only ")"
+    # Use awk to stop at the first closing paren (sed range is greedy)
+    awk "/${array_name}=\\(/{found=1} found{print; if(/^\\)/) exit}" "$script_path" | grep -o '"[^"]*"' | tr -d '"'
 }
 
 # Function to report bytecode availability (sourced from regenerate_bytecode.sh)
@@ -175,17 +176,12 @@ get_expected_contract_count() {
         return 1
     fi
     
-    # Use the same extraction logic as extract_contracts_from_update_script
     local core_count hook_count oracle_count
-    
-    # Extract CORE_CONTRACTS array and count elements
-    core_count=$(sed -n "/CORE_CONTRACTS=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | wc -l)
-    
-    # Extract HOOK_CONTRACTS array and count elements  
-    hook_count=$(sed -n "/HOOK_CONTRACTS=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | wc -l)
-    
-    # Extract ORACLE_CONTRACTS array and count elements
-    oracle_count=$(sed -n "/ORACLE_CONTRACTS=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | wc -l)
+
+    # Extract array elements using awk (stops at first closing paren, unlike sed range which is greedy)
+    core_count=$(awk '/CORE_CONTRACTS=\(/{found=1} found{print; if(/^\)/) exit}' "$script_path" | grep -o '"[^"]*"' | wc -l)
+    hook_count=$(awk '/HOOK_CONTRACTS=\(/{found=1} found{print; if(/^\)/) exit}' "$script_path" | grep -o '"[^"]*"' | wc -l)
+    oracle_count=$(awk '/ORACLE_CONTRACTS=\(/{found=1} found{print; if(/^\)/) exit}' "$script_path" | grep -o '"[^"]*"' | wc -l)
     
     local total_expected=$((core_count + hook_count + oracle_count))
     echo "$total_expected"
@@ -655,6 +651,42 @@ trap 'unset KEYSTORE_PASSWORD' EXIT
 
 print_separator
 
+# Function to preserve entries in chain output JSON that the forge script doesn't manage
+# (e.g., Nexus contracts deployed by a separate process)
+preserve_existing_json_entries() {
+    local output_file=$1
+    local backup_file=$2
+
+    if [[ ! -f "$backup_file" ]] || [[ ! -f "$output_file" ]]; then
+        return 0
+    fi
+
+    # Merge: start with the new output, then add any keys from the backup that are missing
+    local merged
+    merged=$(python3 -c "
+import json, sys
+with open('$output_file') as f:
+    new = json.load(f)
+with open('$backup_file') as f:
+    old = json.load(f)
+# Add back any keys from the old file that are missing in the new file
+changed = False
+for k, v in old.items():
+    if k not in new:
+        new[k] = v
+        changed = True
+if changed:
+    print(json.dumps(new, indent=2, sort_keys=True))
+else:
+    sys.exit(1)
+" 2>/dev/null) || true
+
+    if [[ -n "$merged" ]]; then
+        echo "$merged" > "$output_file"
+        echo -e "${CYAN}   📋 Preserved existing entries in output file${NC}"
+    fi
+}
+
 # Deploy only to networks that need deployment (smart deployment logic)
 deployed_networks=0
 skipped_networks=0
@@ -702,6 +734,13 @@ for network_def in "${NETWORKS[@]}"; do
     esac
     echo -e "${YELLOW}   Executing forge script...${NC}"
 
+    # Backup the existing output JSON before forge overwrites it
+    output_json="$PROJECT_ROOT/script/output/$ENVIRONMENT/$network_id/$network_name-latest.json"
+    backup_json="${output_json}.bak"
+    if [[ -f "$output_json" ]]; then
+        cp "$output_json" "$backup_json"
+    fi
+
     forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(bool,uint256,uint64)' false $FORGE_ENV $network_id \
         --account $ACCOUNT \
@@ -718,7 +757,11 @@ for network_def in "${NETWORKS[@]}"; do
         $GAS_PRICE_FLAG \
         --timeout 300 \
         -vv
-    
+
+    # Restore any entries that the forge script dropped (e.g., Nexus contracts)
+    preserve_existing_json_entries "$output_json" "$backup_json"
+    rm -f "$backup_json"
+
     echo -e "${GREEN}✅ $network_name Mainnet deployment completed successfully!${NC}"
     ((deployed_networks++))
 done

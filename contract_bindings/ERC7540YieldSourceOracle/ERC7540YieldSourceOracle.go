@@ -31,7 +31,7 @@ var (
 
 // ERC7540YieldSourceOracleMetaData contains all meta data concerning the ERC7540YieldSourceOracle contract.
 var ERC7540YieldSourceOracleMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"superLedgerConfiguration_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"SUPER_LEDGER_CONFIGURATION\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"decimals\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint8\",\"internalType\":\"uint8\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAssetOutput\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"sharesIn\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAssetOutputWithFees\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"assetOut\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"usedShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getBalanceOfOwner\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ownerOfShares\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPricePerShare\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPricePerShareMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"pricesPerShare\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getShareOutput\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"assetsIn\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVL\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLByOwnerOfShares\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ownerOfShares\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLByOwnerOfSharesMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"ownersOfShares\",\"type\":\"address[][]\",\"internalType\":\"address[][]\"}],\"outputs\":[{\"name\":\"userTvls\",\"type\":\"uint256[][]\",\"internalType\":\"uint256[][]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"tvls\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"error\",\"name\":\"ARRAY_LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_BASE_ASSET\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"superLedgerConfiguration_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"requestId_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"REQUEST_ID\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"SUPER_LEDGER_CONFIGURATION\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"decimals\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint8\",\"internalType\":\"uint8\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAssetOutput\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"sharesIn\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAssetOutputWithFees\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"assetOut\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"usedShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAsyncStateBreakdown\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"heldValue\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"pendingRedeemValue\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"claimableRedeemValue\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"pendingDepositValue\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"claimableDepositValue\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getBalanceOfOwner\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ownerOfShares\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPricePerShare\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPricePerShareMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"pricesPerShare\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getShareOutput\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"assetsIn\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVL\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLByOwnerOfShares\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ownerOfShares\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLByOwnerOfSharesMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"ownersOfShares\",\"type\":\"address[][]\",\"internalType\":\"address[][]\"}],\"outputs\":[{\"name\":\"userTvls\",\"type\":\"uint256[][]\",\"internalType\":\"uint256[][]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"tvls\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getWithdrawalShareOutput\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"assetsIn\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"error\",\"name\":\"ARRAY_LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_BASE_ASSET\",\"inputs\":[]}]",
 }
 
 // ERC7540YieldSourceOracleABI is the input ABI used to generate the binding from.
@@ -180,6 +180,37 @@ func (_ERC7540YieldSourceOracle *ERC7540YieldSourceOracleTransactorRaw) Transact
 	return _ERC7540YieldSourceOracle.Contract.contract.Transact(opts, method, params...)
 }
 
+// REQUESTID is a free data retrieval call binding the contract method 0x792c2348.
+//
+// Solidity: function REQUEST_ID() view returns(uint256)
+func (_ERC7540YieldSourceOracle *ERC7540YieldSourceOracleCaller) REQUESTID(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _ERC7540YieldSourceOracle.contract.Call(opts, &out, "REQUEST_ID")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// REQUESTID is a free data retrieval call binding the contract method 0x792c2348.
+//
+// Solidity: function REQUEST_ID() view returns(uint256)
+func (_ERC7540YieldSourceOracle *ERC7540YieldSourceOracleSession) REQUESTID() (*big.Int, error) {
+	return _ERC7540YieldSourceOracle.Contract.REQUESTID(&_ERC7540YieldSourceOracle.CallOpts)
+}
+
+// REQUESTID is a free data retrieval call binding the contract method 0x792c2348.
+//
+// Solidity: function REQUEST_ID() view returns(uint256)
+func (_ERC7540YieldSourceOracle *ERC7540YieldSourceOracleCallerSession) REQUESTID() (*big.Int, error) {
+	return _ERC7540YieldSourceOracle.Contract.REQUESTID(&_ERC7540YieldSourceOracle.CallOpts)
+}
+
 // SUPERLEDGERCONFIGURATION is a free data retrieval call binding the contract method 0x8717164a.
 //
 // Solidity: function SUPER_LEDGER_CONFIGURATION() view returns(address)
@@ -302,6 +333,66 @@ func (_ERC7540YieldSourceOracle *ERC7540YieldSourceOracleSession) GetAssetOutput
 // Solidity: function getAssetOutputWithFees(bytes32 yieldSourceOracleId, address yieldSourceAddress, address assetOut, address user, uint256 usedShares) view returns(uint256)
 func (_ERC7540YieldSourceOracle *ERC7540YieldSourceOracleCallerSession) GetAssetOutputWithFees(yieldSourceOracleId [32]byte, yieldSourceAddress common.Address, assetOut common.Address, user common.Address, usedShares *big.Int) (*big.Int, error) {
 	return _ERC7540YieldSourceOracle.Contract.GetAssetOutputWithFees(&_ERC7540YieldSourceOracle.CallOpts, yieldSourceOracleId, yieldSourceAddress, assetOut, user, usedShares)
+}
+
+// GetAsyncStateBreakdown is a free data retrieval call binding the contract method 0x188519d0.
+//
+// Solidity: function getAsyncStateBreakdown(address yieldSourceAddress, address owner) view returns(uint256 heldValue, uint256 pendingRedeemValue, uint256 claimableRedeemValue, uint256 pendingDepositValue, uint256 claimableDepositValue)
+func (_ERC7540YieldSourceOracle *ERC7540YieldSourceOracleCaller) GetAsyncStateBreakdown(opts *bind.CallOpts, yieldSourceAddress common.Address, owner common.Address) (struct {
+	HeldValue             *big.Int
+	PendingRedeemValue    *big.Int
+	ClaimableRedeemValue  *big.Int
+	PendingDepositValue   *big.Int
+	ClaimableDepositValue *big.Int
+}, error) {
+	var out []interface{}
+	err := _ERC7540YieldSourceOracle.contract.Call(opts, &out, "getAsyncStateBreakdown", yieldSourceAddress, owner)
+
+	outstruct := new(struct {
+		HeldValue             *big.Int
+		PendingRedeemValue    *big.Int
+		ClaimableRedeemValue  *big.Int
+		PendingDepositValue   *big.Int
+		ClaimableDepositValue *big.Int
+	})
+	if err != nil {
+		return *outstruct, err
+	}
+
+	outstruct.HeldValue = *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+	outstruct.PendingRedeemValue = *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
+	outstruct.ClaimableRedeemValue = *abi.ConvertType(out[2], new(*big.Int)).(**big.Int)
+	outstruct.PendingDepositValue = *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
+	outstruct.ClaimableDepositValue = *abi.ConvertType(out[4], new(*big.Int)).(**big.Int)
+
+	return *outstruct, err
+
+}
+
+// GetAsyncStateBreakdown is a free data retrieval call binding the contract method 0x188519d0.
+//
+// Solidity: function getAsyncStateBreakdown(address yieldSourceAddress, address owner) view returns(uint256 heldValue, uint256 pendingRedeemValue, uint256 claimableRedeemValue, uint256 pendingDepositValue, uint256 claimableDepositValue)
+func (_ERC7540YieldSourceOracle *ERC7540YieldSourceOracleSession) GetAsyncStateBreakdown(yieldSourceAddress common.Address, owner common.Address) (struct {
+	HeldValue             *big.Int
+	PendingRedeemValue    *big.Int
+	ClaimableRedeemValue  *big.Int
+	PendingDepositValue   *big.Int
+	ClaimableDepositValue *big.Int
+}, error) {
+	return _ERC7540YieldSourceOracle.Contract.GetAsyncStateBreakdown(&_ERC7540YieldSourceOracle.CallOpts, yieldSourceAddress, owner)
+}
+
+// GetAsyncStateBreakdown is a free data retrieval call binding the contract method 0x188519d0.
+//
+// Solidity: function getAsyncStateBreakdown(address yieldSourceAddress, address owner) view returns(uint256 heldValue, uint256 pendingRedeemValue, uint256 claimableRedeemValue, uint256 pendingDepositValue, uint256 claimableDepositValue)
+func (_ERC7540YieldSourceOracle *ERC7540YieldSourceOracleCallerSession) GetAsyncStateBreakdown(yieldSourceAddress common.Address, owner common.Address) (struct {
+	HeldValue             *big.Int
+	PendingRedeemValue    *big.Int
+	ClaimableRedeemValue  *big.Int
+	PendingDepositValue   *big.Int
+	ClaimableDepositValue *big.Int
+}, error) {
+	return _ERC7540YieldSourceOracle.Contract.GetAsyncStateBreakdown(&_ERC7540YieldSourceOracle.CallOpts, yieldSourceAddress, owner)
 }
 
 // GetBalanceOfOwner is a free data retrieval call binding the contract method 0xfea8af5f.
@@ -550,4 +641,35 @@ func (_ERC7540YieldSourceOracle *ERC7540YieldSourceOracleSession) GetTVLMultiple
 // Solidity: function getTVLMultiple(address[] yieldSourceAddresses) view returns(uint256[] tvls)
 func (_ERC7540YieldSourceOracle *ERC7540YieldSourceOracleCallerSession) GetTVLMultiple(yieldSourceAddresses []common.Address) ([]*big.Int, error) {
 	return _ERC7540YieldSourceOracle.Contract.GetTVLMultiple(&_ERC7540YieldSourceOracle.CallOpts, yieldSourceAddresses)
+}
+
+// GetWithdrawalShareOutput is a free data retrieval call binding the contract method 0x7eeb8107.
+//
+// Solidity: function getWithdrawalShareOutput(address yieldSourceAddress, address , uint256 assetsIn) view returns(uint256)
+func (_ERC7540YieldSourceOracle *ERC7540YieldSourceOracleCaller) GetWithdrawalShareOutput(opts *bind.CallOpts, yieldSourceAddress common.Address, arg1 common.Address, assetsIn *big.Int) (*big.Int, error) {
+	var out []interface{}
+	err := _ERC7540YieldSourceOracle.contract.Call(opts, &out, "getWithdrawalShareOutput", yieldSourceAddress, arg1, assetsIn)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetWithdrawalShareOutput is a free data retrieval call binding the contract method 0x7eeb8107.
+//
+// Solidity: function getWithdrawalShareOutput(address yieldSourceAddress, address , uint256 assetsIn) view returns(uint256)
+func (_ERC7540YieldSourceOracle *ERC7540YieldSourceOracleSession) GetWithdrawalShareOutput(yieldSourceAddress common.Address, arg1 common.Address, assetsIn *big.Int) (*big.Int, error) {
+	return _ERC7540YieldSourceOracle.Contract.GetWithdrawalShareOutput(&_ERC7540YieldSourceOracle.CallOpts, yieldSourceAddress, arg1, assetsIn)
+}
+
+// GetWithdrawalShareOutput is a free data retrieval call binding the contract method 0x7eeb8107.
+//
+// Solidity: function getWithdrawalShareOutput(address yieldSourceAddress, address , uint256 assetsIn) view returns(uint256)
+func (_ERC7540YieldSourceOracle *ERC7540YieldSourceOracleCallerSession) GetWithdrawalShareOutput(yieldSourceAddress common.Address, arg1 common.Address, assetsIn *big.Int) (*big.Int, error) {
+	return _ERC7540YieldSourceOracle.Contract.GetWithdrawalShareOutput(&_ERC7540YieldSourceOracle.CallOpts, yieldSourceAddress, arg1, assetsIn)
 }
