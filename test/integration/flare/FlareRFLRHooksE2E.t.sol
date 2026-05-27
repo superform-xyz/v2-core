@@ -989,7 +989,7 @@ contract FlareRFLRHooksE2E is Test, Constants {
         uint256 wflrReceived = IERC20(FLARE_WFLR).balanceOf(SECOND_HOLDER) - wflrBefore;
         assertEq(wflrReceived, vestedAmount, "WFLR received should equal vested amount");
 
-        (, uint256 rNatAfter, uint256 lockedAfter) = IRNat(FLARE_RNAT).getBalancesOf(SECOND_HOLDER);
+        (,, uint256 lockedAfter) = IRNat(FLARE_RNAT).getBalancesOf(SECOND_HOLDER);
         assertEq(lockedAfter, lockedBal, "Locked balance must be preserved");
         console2.log("WFLR received:", wflrReceived);
         console2.log("Locked preserved:", lockedAfter);
