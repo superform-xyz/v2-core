@@ -176,8 +176,8 @@ contract StargateAdapterFork is Helpers {
         adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message, address(0), new bytes(0));
     }
 
-    /// @notice Deal extra USDC (simulating dust from prior compose), verify full balance swept
-    function test_Fork_StargateAdapter_lzCompose_RealUSDC_FullBalanceSweep() public {
+    /// @notice Deal extra USDC (simulating dust from prior compose), verify only amountLD transferred
+    function test_Fork_StargateAdapter_lzCompose_RealUSDC_DustNotSwept() public {
         uint256 deliveredAmount = 1000e6;
         uint256 dustAmount = 50e6;
         uint256 totalBalance = deliveredAmount + dustAmount;
@@ -186,7 +186,7 @@ contract StargateAdapterFork is Helpers {
         deal(USDC_ETH, address(adapter), totalBalance);
 
         bytes memory innerPayload = _buildStargateDestinationData(account);
-        // amountLD in codec says 1000 USDC but adapter holds 1050 USDC
+        // amountLD in codec says 1000 USDC, adapter holds 1050 USDC — only 1000 should transfer
         bytes memory message = _encodeComposeMsg(1, EID_BASE, deliveredAmount, bytes32(uint256(1)), innerPayload);
 
         _mockProcessBridgedExecution();
@@ -194,9 +194,9 @@ contract StargateAdapterFork is Helpers {
         vm.prank(LZ_ENDPOINT);
         adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message, address(0), new bytes(0));
 
-        // Full balance (including dust) should be swept
-        assertEq(IERC20(USDC_ETH).balanceOf(account), totalBalance, "Account should receive full balance including dust");
-        assertEq(IERC20(USDC_ETH).balanceOf(address(adapter)), 0, "Adapter should be empty after sweep");
+        // Only amountLD transferred, dust remains in adapter
+        assertEq(IERC20(USDC_ETH).balanceOf(account), deliveredAmount, "Account should receive only amountLD");
+        assertEq(IERC20(USDC_ETH).balanceOf(address(adapter)), dustAmount, "Dust should remain in adapter");
     }
 
     /// @notice Test with WBTC (8 decimals) via OFT adapter to verify different decimal tokens
