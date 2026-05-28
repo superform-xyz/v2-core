@@ -185,6 +185,7 @@ ORACLE_CONTRACTS=(
     "PendlePTAmortizedOracleV2"
     "FirelightYieldSourceOracle"
     "DETHYieldSourceOracle"
+    "ERC7540YieldSourceOracle"
 )
 
 # Morpho hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode-other/)

@@ -19,8 +19,8 @@ import { ISuperDestinationExecutor } from "../interfaces/ISuperDestinationExecut
 /// logic.
 /// @dev Supports both Stargate pool tokens (taxi/bus modes) and generic OFT tokens
 /// @dev Token delivery happens in a separate transaction (lzReceive) before lzCompose is called
-/// @dev WARNING: This contract uses balance-based transfers. If a prior compose failed and left dust,
-/// @dev the next successful compose will sweep all held tokens (including dust) to its target account.
+/// @dev Uses amountLD from OFTComposeMsgCodec header (bytes 12-44) for transfers, ensuring each
+/// @dev compose only transfers the exact amount credited during its corresponding lzReceive
 contract StargateAdapter is ILayerZeroComposer {
     using SafeERC20 for IERC20;
 
@@ -88,7 +88,6 @@ contract StargateAdapter is ILayerZeroComposer {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Accepts native ETH from StargatePoolNative during lzReceive token credit
-    /// @dev WARNING: Any ETH sent to this contract will be forwarded to the next compose account
     receive() external payable { }
 
     /*//////////////////////////////////////////////////////////////
@@ -99,7 +98,7 @@ contract StargateAdapter is ILayerZeroComposer {
     /// @dev Decodes the OFTComposeMsgCodec message, transfers tokens to the target account,
     ///      and forwards the execution payload to SuperDestinationExecutor
     /// @dev The _from parameter is the destination Stargate pool or OFT contract (NOT the source chain sender)
-    /// @dev Uses balance-based transfers: transfers full adapter balance of the identified token
+    /// @dev Uses amountLD from OFTComposeMsgCodec header for precise per-compose transfers
     function lzCompose(
         address _from,
         bytes32, // _guid
@@ -117,7 +116,11 @@ contract StargateAdapter is ILayerZeroComposer {
         // 2. Validate message length: must contain OFTComposeMsgCodec header
         if (_message.length < COMPOSE_MSG_OFFSET) revert COMPOSE_MSG_TOO_SHORT();
 
-        // 3. Decode the inner application payload (skip 76-byte OFTComposeMsgCodec header)
+        // 3. Extract amountLD from OFTComposeMsgCodec header (bytes 12-44)
+        //    This is the post-dust-removal amount set by Stargate after lzReceive
+        uint256 amountLD = uint256(bytes32(_message[12:44]));
+
+        // 4. Decode the inner application payload (skip 76-byte OFTComposeMsgCodec header)
         (
             bytes memory initData,
             bytes memory executorCalldata,
@@ -127,30 +130,28 @@ contract StargateAdapter is ILayerZeroComposer {
             bytes memory sigData
         ) = abi.decode(_message[COMPOSE_MSG_OFFSET:], (bytes, bytes, address, address[], uint256[], bytes));
 
-        // 4. Identify token via _from.token()
+        // 5. Identify token via _from.token()
         //    - Stargate ERC20 pools: returns underlying ERC20 address
         //    - StargatePoolNative: returns address(0) for ETH
         //    - OFT contracts: returns address(this) (OFT IS the token)
         //    - OFTAdapter contracts: returns underlying ERC20 address
         address tokenSent = IStargate(_from).token();
 
-        // 5. Transfer received funds to the target account before calling the executor
-        //    This ensures the executor can reliably check the balance.
+        // 6. Transfer received funds to the target account before calling the executor
+        //    Uses amountLD from the compose header — the exact amount credited during lzReceive
         //    Account is encoded in the merkle tree and validated by the destination executor
         if (tokenSent == address(0)) {
             // Native ETH path
-            uint256 ethBalance = address(this).balance;
-            (bool success,) = account.call{ value: ethBalance }("");
+            (bool success,) = account.call{ value: amountLD }("");
             if (!success) revert ETH_TRANSFER_FAILED();
-            emit ComposeExecuted(account, tokenSent, ethBalance);
+            emit ComposeExecuted(account, tokenSent, amountLD);
         } else {
             // ERC20 path
-            uint256 balance = IERC20(tokenSent).balanceOf(address(this));
-            IERC20(tokenSent).safeTransfer(account, balance);
-            emit ComposeExecuted(account, tokenSent, balance);
+            IERC20(tokenSent).safeTransfer(account, amountLD);
+            emit ComposeExecuted(account, tokenSent, amountLD);
         }
 
-        // 6. Call the core executor's standardized function
+        // 7. Call the core executor's standardized function
         SUPER_DESTINATION_EXECUTOR.processBridgedExecution(
             tokenSent,
             account,

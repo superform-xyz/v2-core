@@ -297,7 +297,8 @@ contract StargateAdapterTest is Helpers {
 
     function test_StargateAdapter_lzCompose_ERC20_HappyPath() public {
         bytes memory innerPayload = _buildStargateDestinationData(address(this));
-        bytes memory message = _encodeComposeMsg(1, 30_101, 1000e18, bytes32(uint256(1)), innerPayload);
+        // amountLD = 1000 in the header, adapter holds exactly 1000
+        bytes memory message = _encodeComposeMsg(1, 30_101, 1000, bytes32(uint256(1)), innerPayload);
 
         _getTokens(address(mockERC20), address(stargateAdapter), 1000);
         _mockProcessBridgedExecution();
@@ -339,34 +340,38 @@ contract StargateAdapterTest is Helpers {
         stargateAdapter.lzCompose(address(mockNativePool), GUID, message, address(0), new bytes(0));
     }
 
-    // ------------- BALANCE EDGE CASES ---------------
+    // ------------- AMOUNTLD EDGE CASES ---------------
 
-    function test_StargateAdapter_lzCompose_TransfersFullBalance() public {
+    function test_StargateAdapter_lzCompose_TransfersOnlyAmountLD() public {
         bytes memory innerPayload = _buildStargateDestinationData(address(this));
-        // amountLD in codec says 500 but adapter has 1000 - full balance should be transferred
+        // amountLD in codec says 500, adapter has 1000 — only 500 should be transferred
         bytes memory message = _encodeComposeMsg(1, 30_101, 500, bytes32(uint256(1)), innerPayload);
 
         _getTokens(address(mockERC20), address(stargateAdapter), 1000);
         _mockProcessBridgedExecution();
 
+        vm.expectEmit(true, true, false, true);
+        emit StargateAdapter.ComposeExecuted(address(this), address(mockERC20), 500);
+
         stargateAdapter.lzCompose(address(mockPool), GUID, message, address(0), new bytes(0));
-        assertEq(mockERC20.balanceOf(address(this)), 1000);
-        assertEq(mockERC20.balanceOf(address(stargateAdapter)), 0);
+        assertEq(mockERC20.balanceOf(address(this)), 500, "Should receive only amountLD");
+        assertEq(mockERC20.balanceOf(address(stargateAdapter)), 500, "Remainder stays in adapter");
     }
 
-    function test_StargateAdapter_lzCompose_ZeroBalance() public {
+    function test_StargateAdapter_lzCompose_ZeroAmountLD() public {
         bytes memory innerPayload = _buildStargateDestinationData(address(this));
         bytes memory message = _encodeComposeMsg(1, 30_101, 0, bytes32(uint256(1)), innerPayload);
 
-        // No tokens in adapter - safeTransfer(0) should succeed and executor is still called
+        // No tokens needed - safeTransfer(0) should succeed and executor is still called
         _mockProcessBridgedExecution();
 
         stargateAdapter.lzCompose(address(mockPool), GUID, message, address(0), new bytes(0));
         assertEq(mockERC20.balanceOf(address(stargateAdapter)), 0);
     }
 
-    function test_StargateAdapter_lzCompose_DustFromPriorCompose() public {
+    function test_StargateAdapter_lzCompose_DustRemainsInAdapter() public {
         bytes memory innerPayload = _buildStargateDestinationData(address(this));
+        // amountLD = 800, but adapter holds 1000 (200 is dust from prior failed compose)
         bytes memory message = _encodeComposeMsg(1, 30_101, 800, bytes32(uint256(1)), innerPayload);
 
         // Simulate dust (200) from prior failed compose + new delivery (800)
@@ -374,9 +379,37 @@ contract StargateAdapterTest is Helpers {
         _mockProcessBridgedExecution();
 
         stargateAdapter.lzCompose(address(mockPool), GUID, message, address(0), new bytes(0));
-        // Full balance (1000) swept including dust
-        assertEq(mockERC20.balanceOf(address(this)), 1000);
-        assertEq(mockERC20.balanceOf(address(stargateAdapter)), 0);
+        // Only amountLD (800) transferred, dust (200) remains
+        assertEq(mockERC20.balanceOf(address(this)), 800, "Should receive only amountLD");
+        assertEq(mockERC20.balanceOf(address(stargateAdapter)), 200, "Dust remains in adapter");
+    }
+
+    function test_StargateAdapter_lzCompose_ConcurrentComposesIsolated() public {
+        // User A's compose delivers 600, User B's compose delivers 400
+        // Both land in adapter (total 1000). Each compose should only transfer its amountLD.
+        address userA = makeAddr("userA");
+        address userB = makeAddr("userB");
+        vm.deal(userA, 1 ether);
+        vm.deal(userB, 1 ether);
+
+        _getTokens(address(mockERC20), address(stargateAdapter), 1000);
+        _mockProcessBridgedExecution();
+
+        // User A's compose: amountLD = 600
+        bytes memory payloadA = _buildStargateDestinationData(userA);
+        bytes memory messageA = _encodeComposeMsg(1, 30_101, 600, bytes32(uint256(1)), payloadA);
+        stargateAdapter.lzCompose(address(mockPool), GUID, messageA, address(0), new bytes(0));
+
+        assertEq(mockERC20.balanceOf(userA), 600, "User A should get exactly 600");
+        assertEq(mockERC20.balanceOf(address(stargateAdapter)), 400, "400 remains for User B");
+
+        // User B's compose: amountLD = 400
+        bytes memory payloadB = _buildStargateDestinationData(userB);
+        bytes memory messageB = _encodeComposeMsg(2, 30_101, 400, bytes32(uint256(2)), payloadB);
+        stargateAdapter.lzCompose(address(mockPool), GUID, messageB, address(0), new bytes(0));
+
+        assertEq(mockERC20.balanceOf(userB), 400, "User B should get exactly 400");
+        assertEq(mockERC20.balanceOf(address(stargateAdapter)), 0, "Adapter should be empty");
     }
 
     // ------------- RECEIVE ---------------

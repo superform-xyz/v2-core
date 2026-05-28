@@ -56,25 +56,18 @@ None found.
   ```
   Note: Adding an allowlist requires governance/admin functions and changes the contract from being immutable/stateless. An alternative is documenting the trust assumption explicitly.
 
-### [P2-2] Balance-Based Accounting — Cross-User Dust Leakage
+### [P2-2] Balance-Based Accounting — Cross-User Dust Leakage — **FIXED**
 
-- **File:** `src/adapters/StargateAdapter.sol:130-138`
+- **File:** `src/adapters/StargateAdapter.sol:119-152`
 - **SWC:** N/A (Bridge-specific)
 - **Category:** Balance-Based Accounting
-- **Description:** The adapter transfers its full `balanceOf` (ERC20) or `address(this).balance` (ETH) to the target account, rather than the `amountLD` from the OFTComposeMsgCodec header. If a prior compose failed (revert in `processBridgedExecution`), those tokens remain in the adapter. The next successful compose sweeps all accumulated tokens — including the prior user's — to a different account.
-- **Exploit Scenario:** User A's compose delivers 1000 USDC, but `processBridgedExecution` reverts (expired signature). User B's compose delivers 500 USDC. Adapter has 1500 USDC, all swept to User B's account.
-- **Vulnerable Code:**
+- **Description:** The adapter previously transferred its full `balanceOf` (ERC20) or `address(this).balance` (ETH) to the target account. If a prior compose failed, the next successful compose would sweep all accumulated tokens to a different account.
+- **Resolution:** Replaced balance-based transfers with `amountLD` extracted from the OFTComposeMsgCodec header (bytes 12-44). This is the post-dust-removal amount set by Stargate after `lzReceive`, so it accurately represents what was credited for each specific compose. Each compose now transfers only its own amount, preventing cross-user fund mixing.
+- **Fixed Code:**
   ```solidity
-  uint256 balance = IERC20(tokenSent).balanceOf(address(this));
-  IERC20(tokenSent).safeTransfer(account, balance);
-  ```
-- **Secure Pattern:**
-  ```solidity
-  // Extract amountLD from OFTComposeMsgCodec header (bytes 12-44)
-  uint256 amountLD = abi.decode(_message[12:44], (uint256));
+  uint256 amountLD = uint256(bytes32(_message[12:44]));
   IERC20(tokenSent).safeTransfer(account, amountLD);
   ```
-- **Design Note:** The team has deliberately chosen balance-based transfers (documented in `@dev WARNING` on lines 22-23) because `amountLD` can differ from actual credit due to Stargate's shared-decimals dust removal. This is an accepted tradeoff. The risk is limited since `processBridgedExecution` validates `intentAmounts` independently.
 
 ### [P2-3] Missing Event Emission for Compose Execution — **FIXED**
 
@@ -129,7 +122,7 @@ None found.
 ## Attack Surface Summary
 
 - **External Entry Points:** `lzCompose()` (only callable by LZ EndpointV2), `receive()` (unrestricted)
-- **Value Transfer Points:** ETH via `account.call{value}`, ERC20 via `safeTransfer`, both use full adapter balance
+- **Value Transfer Points:** ETH via `account.call{value}`, ERC20 via `safeTransfer`, both use `amountLD` from compose header
 - **Oracle Dependencies:** None
 - **Cross-Contract Interactions:** `IStargate(_from).token()` (view call to Stargate pool), `processBridgedExecution()` (to SuperDestinationExecutor)
 - **Upgrade Mechanisms:** None (immutable contract, no proxy)
@@ -138,7 +131,7 @@ None found.
 
 | Feature | AcrossV3Adapter | DebridgeAdapter | StargateAdapter |
 |---------|----------------|-----------------|-----------------|
-| Transfer amount | Parameter (`amount`) | Parameter (`_transferredAmount`) | `balanceOf(address(this))` |
+| Transfer amount | Parameter (`amount`) | Parameter (`_transferredAmount`) | `amountLD` from compose header |
 | Token source | Parameter (`tokenSent`) | Parameter (`_token`) | `_from.token()` call |
 | Source validation | `msg.sender == SPOKE_POOL` | `msg.sender == externalCallAdapter` | `msg.sender == LZ_ENDPOINT` only |
 | `_from` allowlist | N/A | N/A | **None** |
