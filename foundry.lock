@@ -2,6 +2,12 @@
   "lib/ExcessivelySafeCall": {
     "rev": "81cd99ce3e69117d665d7601c330ea03b97acce0"
   },
+  "lib/checknsignatures": {
+    "branch": {
+      "name": "main",
+      "rev": "f8389c186fb58480a9a42d598adebaa1a557762d"
+    }
+  },
   "lib/evm-gateway-contracts": {
     "rev": "569d7cef11b70fac4eb696a98b9c5997d87b32d3"
   },
