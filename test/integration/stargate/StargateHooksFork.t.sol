@@ -8,6 +8,7 @@ import { StargateSendHook } from "../../../src/hooks/bridges/stargate/StargateSe
 import { ApproveAndStargateSendHook } from "../../../src/hooks/bridges/stargate/ApproveAndStargateSendHook.sol";
 import { IStargate } from "../../../src/vendor/bridges/stargate/IStargate.sol";
 import { IOFT } from "../../../src/vendor/bridges/layerzero/IOFT.sol";
+import { ILZMultiCall } from "../../../src/vendor/bridges/layerzero/ILZMultiCall.sol";
 import { ISuperHook } from "../../../src/interfaces/ISuperHook.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 import { BaseHook } from "../../../src/hooks/BaseHook.sol";
@@ -875,14 +876,14 @@ contract StargateHooksFork is Helpers {
         approveAndStargateHook.build(address(0), account, hookData);
     }
 
-    /// @notice Revert when mode is invalid (3) with real OFT address
+    /// @notice Revert when mode is invalid (4) with real OFT address
     function test_Fork_ApproveAndStargateSend_OFTMode_RevertIf_ModeInvalid() public {
         address upToken = IOFT(UP_OFT_ADAPTER_ETH).token();
 
         bytes memory hookData = _encodeStargateData(
             0.01 ether, UP_OFT_ADAPTER_ETH, upToken, EID_BASE,
             bytes32(uint256(uint160(account))), 100e18, 99e18, false,
-            3, // invalid mode
+            4, // invalid mode (was 3, now 3 is valid lzMulticall)
             hex"", hex""
         );
 
@@ -897,7 +898,7 @@ contract StargateHooksFork is Helpers {
         bytes memory hookData = _encodeStargateData(
             0.01 ether, UP_OFT_ADAPTER_ETH, upToken, EID_BASE,
             bytes32(uint256(uint160(account))), 100e18, 99e18, false,
-            3, hex"", hex""
+            4, hex"", hex""
         );
 
         vm.expectRevert(StargateSendHook.MODE_NOT_VALID.selector);
@@ -1265,6 +1266,262 @@ contract StargateHooksFork is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+              LZ MULTICALL MODE (MODE=3) FORK TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    // LZMultiCall contract address (same on all EVM chains via CREATE2)
+    address public constant LZ_MULTICALL = 0xAcdDAC6C77318B615f7F6fB9bb67c6833e9c05f1;
+
+    /// @notice Verify the LZMultiCall contract is deployed on Ethereum mainnet
+    function test_Fork_LzMulticall_ContractExists() public view {
+        uint256 codeSize;
+        assembly {
+            codeSize := extcodesize(LZ_MULTICALL)
+        }
+        assertGt(codeSize, 0, "LZMultiCall contract should be deployed on Ethereum mainnet");
+    }
+
+    /// @notice Build StargateSendHook mode 3 with real lzMulticall address
+    function test_Fork_StargateSend_LzMulticallMode_Build() public view {
+        // Build a realistic lzMulticall.execute calldata with two Stargate sendToken calls
+        ILZMultiCall.Call[] memory calls = new ILZMultiCall.Call[](1);
+        calls[0] = ILZMultiCall.Call({
+            target: STARGATE_USDC_POOL_ETH,
+            value: 0.005 ether,
+            data: abi.encodeCall(
+                IStargate.sendToken,
+                (
+                    IStargate.SendParam({
+                        dstEid: EID_BASE,
+                        to: bytes32(uint256(uint160(account))),
+                        amountLD: 1000e6,
+                        minAmountLD: 995e6,
+                        extraOptions: hex"",
+                        composeMsg: hex"",
+                        oftCmd: bytes("")
+                    }),
+                    IStargate.MessagingFee({ nativeFee: 0.005 ether, lzTokenFee: 0 }),
+                    account
+                )
+            )
+        });
+        bytes32 quoteId = keccak256("test_quote_123");
+        bytes memory executeCalldata = abi.encodeCall(ILZMultiCall.execute, (calls, quoteId));
+
+        uint256 lzNativeFee = 0.01 ether;
+
+        bytes memory fixedPart = abi.encodePacked(
+            lzNativeFee, LZ_MULTICALL, USDC_ETH, uint32(0), bytes32(0), uint256(1000e6), uint256(995e6)
+        );
+        bytes memory hookData = abi.encodePacked(
+            fixedPart, false, uint8(3),
+            uint256(0), // extraOptionsLength
+            uint256(0), // composeMsgLength
+            uint256(executeCalldata.length), executeCalldata
+        );
+
+        Execution[] memory executions = stargateHook.build(address(0), account, hookData);
+
+        // preExecute + lzMulticall + postExecute = 3
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, LZ_MULTICALL, "Target should be lzMulticall contract");
+        assertEq(executions[1].value, lzNativeFee, "Value should be lzNativeFee");
+        assertEq(executions[1].callData, executeCalldata, "Calldata should be forwarded exactly");
+    }
+
+    /// @notice Build ApproveAndStargateSendHook mode 3 with real lzMulticall address
+    /// @dev Verifies approval targets lzMulticall, and calldata is forwarded
+    function test_Fork_ApproveAndStargateSend_LzMulticallMode_Build() public view {
+        ILZMultiCall.Call[] memory calls = new ILZMultiCall.Call[](1);
+        calls[0] = ILZMultiCall.Call({
+            target: STARGATE_USDC_POOL_ETH,
+            value: 0.005 ether,
+            data: hex"aabbccdd"
+        });
+        bytes32 quoteId = keccak256("test_quote");
+        bytes memory executeCalldata = abi.encodeCall(ILZMultiCall.execute, (calls, quoteId));
+
+        uint256 amountLD = 1000e6;
+        uint256 lzNativeFee = 0.01 ether;
+
+        bytes memory fixedPart = abi.encodePacked(
+            lzNativeFee, LZ_MULTICALL, USDC_ETH, uint32(0), bytes32(0), amountLD, uint256(995e6)
+        );
+        bytes memory hookData = abi.encodePacked(
+            fixedPart, false, uint8(3),
+            uint256(0),
+            uint256(0),
+            uint256(executeCalldata.length), executeCalldata
+        );
+
+        Execution[] memory executions = approveAndStargateHook.build(address(0), account, hookData);
+
+        // preExecute + approve(0) + approve(amount) + lzMulticall + approve(0) + postExecute = 6
+        assertEq(executions.length, 6);
+
+        // Approvals target USDC for lzMulticall address
+        assertEq(executions[1].target, USDC_ETH, "First approve targets USDC");
+        assertEq(executions[1].callData, abi.encodeCall(IERC20.approve, (LZ_MULTICALL, 0)));
+        assertEq(executions[2].target, USDC_ETH, "Second approve targets USDC");
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (LZ_MULTICALL, amountLD)));
+
+        // lzMulticall call
+        assertEq(executions[3].target, LZ_MULTICALL, "Send targets lzMulticall");
+        assertEq(executions[3].value, lzNativeFee, "Value is lzNativeFee");
+        assertEq(executions[3].callData, executeCalldata, "Calldata forwarded exactly");
+
+        // Cleanup approval
+        assertEq(executions[4].target, USDC_ETH);
+        assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (LZ_MULTICALL, 0)));
+    }
+
+    /// @notice Execute mode 3 with real lzMulticall: approval lifecycle works correctly
+    function test_Fork_ApproveAndStargateSend_LzMulticallMode_ApprovalLifecycle() public {
+        uint256 amountLD = 1000e6;
+
+        // Fund account with USDC
+        deal(USDC_ETH, account, amountLD);
+
+        // Build a simple lzMulticall execute calldata
+        // We use a no-op call that just sends ETH to the contract itself (won't execute Stargate)
+        // This tests the approval lifecycle without needing a full Stargate bridge
+        ILZMultiCall.Call[] memory calls = new ILZMultiCall.Call[](0);
+        bytes32 quoteId = keccak256("approval_test");
+        bytes memory executeCalldata = abi.encodeCall(ILZMultiCall.execute, (calls, quoteId));
+
+        uint256 lzNativeFee = 0.001 ether;
+
+        bytes memory fixedPart = abi.encodePacked(
+            lzNativeFee, LZ_MULTICALL, USDC_ETH, uint32(0), bytes32(0), amountLD, uint256(995e6)
+        );
+        bytes memory hookData = abi.encodePacked(
+            fixedPart, false, uint8(3),
+            uint256(0),
+            uint256(0),
+            uint256(executeCalldata.length), executeCalldata
+        );
+
+        Execution[] memory executions = approveAndStargateHook.build(address(0), account, hookData);
+        assertEq(executions.length, 6);
+
+        vm.startPrank(account);
+
+        // preExecute
+        (bool s0,) = executions[0].target.call{ value: executions[0].value }(executions[0].callData);
+        assertTrue(s0, "preExecute");
+
+        // approve(0) - reset
+        (bool s1,) = executions[1].target.call(executions[1].callData);
+        assertTrue(s1, "approve(0)");
+
+        // approve(amountLD)
+        (bool s2,) = executions[2].target.call(executions[2].callData);
+        assertTrue(s2, "approve(amount)");
+
+        // Verify approval is set to lzMulticall
+        uint256 allowanceBefore = IERC20(USDC_ETH).allowance(account, LZ_MULTICALL);
+        assertEq(allowanceBefore, amountLD, "Allowance should be set to amountLD for lzMulticall");
+
+        // Execute lzMulticall (empty calls array — just tests the call goes through)
+        (bool s3,) = executions[3].target.call{ value: executions[3].value }(executions[3].callData);
+        assertTrue(s3, "lzMulticall.execute");
+
+        // approve(0) - cleanup
+        (bool s4,) = executions[4].target.call(executions[4].callData);
+        assertTrue(s4, "approve(0) cleanup");
+
+        // postExecute
+        (bool s5,) = executions[5].target.call{ value: executions[5].value }(executions[5].callData);
+        assertTrue(s5, "postExecute");
+
+        vm.stopPrank();
+
+        // Verify approval is cleaned up
+        uint256 allowanceAfter = IERC20(USDC_ETH).allowance(account, LZ_MULTICALL);
+        assertEq(allowanceAfter, 0, "Approval should be cleaned up to 0");
+
+        console2.log("lzMulticall mode 3: approval lifecycle verified with real LZMultiCall contract");
+    }
+
+    /// @notice Mode 3 skips pool validation — lzMulticall doesn't implement token()
+    function test_Fork_StargateSend_LzMulticallMode_SkipsPoolValidation() public view {
+        bytes memory executeCalldata = abi.encodeCall(
+            ILZMultiCall.execute,
+            (new ILZMultiCall.Call[](0), keccak256("skip_validation"))
+        );
+
+        // Use lzMulticall as pool — token() would revert if called
+        bytes memory fixedPart = abi.encodePacked(
+            uint256(0.01 ether), LZ_MULTICALL, USDC_ETH, uint32(0), bytes32(0), uint256(1000e6), uint256(995e6)
+        );
+        bytes memory hookData = abi.encodePacked(
+            fixedPart, false, uint8(3),
+            uint256(0),
+            uint256(0),
+            uint256(executeCalldata.length), executeCalldata
+        );
+
+        // Should NOT revert — pool.token() is skipped for mode 3
+        Execution[] memory executions = stargateHook.build(address(0), account, hookData);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, LZ_MULTICALL);
+    }
+
+    /// @notice Mode 3 value = lzNativeFee, consistent with OFT mode
+    function test_Fork_StargateSend_LzMulticallMode_ValueIsLzNativeFee() public view {
+        uint256 lzNativeFee = 0.02 ether;
+        bytes memory executeCalldata = abi.encodeCall(
+            ILZMultiCall.execute,
+            (new ILZMultiCall.Call[](0), keccak256("value_test"))
+        );
+
+        bytes memory fixedPart = abi.encodePacked(
+            lzNativeFee, LZ_MULTICALL, USDC_ETH, uint32(0), bytes32(0), uint256(1000e6), uint256(995e6)
+        );
+        bytes memory hookData = abi.encodePacked(
+            fixedPart, false, uint8(3),
+            uint256(0),
+            uint256(0),
+            uint256(executeCalldata.length), executeCalldata
+        );
+
+        Execution[] memory executions = stargateHook.build(address(0), account, hookData);
+        assertEq(executions[1].value, lzNativeFee, "Mode 3 value should be lzNativeFee only");
+    }
+
+    /// @notice Mode 3 with real multi-call: multiple Stargate quoteSend targets
+    function test_Fork_StargateSend_LzMulticallMode_MultipleCallsCalldata() public view {
+        bytes memory executeCalldata = _buildMultiSendCalldata();
+        // Total value = sum of inner call values
+        uint256 totalNativeFee = 0.02 ether;
+
+        bytes memory hookData = _encodeLzMulticallForkData(totalNativeFee, USDC_ETH, 1000e6, 994e6, executeCalldata);
+
+        Execution[] memory executions = stargateHook.build(address(0), account, hookData);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, LZ_MULTICALL);
+        assertEq(executions[1].value, totalNativeFee);
+        assertEq(executions[1].callData, executeCalldata, "Multi-call calldata preserved");
+        assertGt(executeCalldata.length, 500, "Multi-call calldata should be substantial");
+    }
+
+    /// @notice Mode 3 revert if executeCalldata is empty
+    function test_Fork_StargateSend_LzMulticallMode_RevertIf_EmptyCalldata() public {
+        bytes memory fixedPart = abi.encodePacked(
+            uint256(0.01 ether), LZ_MULTICALL, USDC_ETH, uint32(0), bytes32(0), uint256(1000e6), uint256(995e6)
+        );
+        bytes memory hookData = abi.encodePacked(
+            fixedPart, false, uint8(3),
+            uint256(0),
+            uint256(0),
+            uint256(0) // empty executeCalldata
+        );
+
+        vm.expectRevert(StargateSendHook.DATA_NOT_VALID.selector);
+        stargateHook.build(address(0), account, hookData);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -1293,5 +1550,55 @@ contract StargateHooksFork is Helpers {
             fixedPart, usePrevHookAmount, mode, uint256(extraOptions.length), extraOptions,
             uint256(composeMsg.length), composeMsg
         );
+    }
+
+    function _encodeLzMulticallForkData(
+        uint256 lzNativeFee,
+        address inputToken,
+        uint256 amountLD,
+        uint256 minAmountLD,
+        bytes memory executeCalldata
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory fixedPart = abi.encodePacked(
+            lzNativeFee, LZ_MULTICALL, inputToken, uint32(0), bytes32(0), amountLD, minAmountLD
+        );
+        return abi.encodePacked(
+            fixedPart, false, uint8(3),
+            uint256(0), // extraOptionsLength
+            uint256(0), // composeMsgLength
+            uint256(executeCalldata.length), executeCalldata
+        );
+    }
+
+    function _buildMultiSendCalldata() internal view returns (bytes memory) {
+        IStargate.SendParam memory sp = IStargate.SendParam({
+            dstEid: EID_BASE,
+            to: bytes32(uint256(uint160(account))),
+            amountLD: 500e6,
+            minAmountLD: 497e6,
+            extraOptions: hex"",
+            composeMsg: hex"",
+            oftCmd: bytes("")
+        });
+
+        IStargate.MessagingFee memory fee = IStargate(STARGATE_USDC_POOL_ETH).quoteSend(sp, false);
+
+        ILZMultiCall.Call[] memory calls = new ILZMultiCall.Call[](2);
+        calls[0] = ILZMultiCall.Call({
+            target: STARGATE_USDC_POOL_ETH,
+            value: fee.nativeFee + 500e6,
+            data: abi.encodeCall(IStargate.sendToken, (sp, fee, account))
+        });
+        calls[1] = ILZMultiCall.Call({
+            target: STARGATE_USDC_POOL_ETH,
+            value: fee.nativeFee + 500e6,
+            data: abi.encodeCall(IStargate.sendToken, (sp, fee, account))
+        });
+
+        return abi.encodeCall(ILZMultiCall.execute, (calls, keccak256("multi_send_quote")));
     }
 }
