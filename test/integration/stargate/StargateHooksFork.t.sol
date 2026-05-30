@@ -1522,6 +1522,109 @@ contract StargateHooksFork is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+          LZ MULTICALL MODE (MODE=3) CROSS-CHAIN PIGEON TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Full cross-chain test: StargateSendHook mode 3 via lzMulticall with pigeon relay ETH → Base
+    /// @dev Pre-funds lzMulticall with USDC, builds Call[] with approve+sendToken, relays via pigeon
+    function test_Fork_CrossChain_LzMulticall_StargateSend_WithPigeon() public {
+        uint256 amountLD = 1000e6;
+        uint256 minAmountLD = 995e6;
+
+        // Create Base fork
+        uint256 baseForkId = vm.createFork(vm.envString("BASE_RPC_URL"));
+        vm.selectFork(ethForkId);
+
+        // Pre-fund lzMulticall with USDC (simulates bundler pre-positioning tokens)
+        deal(USDC_ETH, LZ_MULTICALL, amountLD);
+
+        // Build lzMulticall execute calldata: approve pool + sendToken
+        (bytes memory executeCalldata, uint256 nativeFee) =
+            _buildPigeonSendCalls(amountLD, minAmountLD);
+
+        // Build hook data and executions
+        bytes memory hookData =
+            _encodeLzMulticallForkData(nativeFee, USDC_ETH, amountLD, minAmountLD, executeCalldata);
+        Execution[] memory executions = stargateHook.build(address(0), account, hookData);
+        assertEq(executions.length, 3, "preExecute + lzMulticall + postExecute");
+
+        // Record logs and execute
+        vm.recordLogs();
+        vm.startPrank(account);
+        for (uint256 i = 0; i < executions.length; i++) {
+            (bool success,) = executions[i].target.call{ value: executions[i].value }(executions[i].callData);
+            assertTrue(success, string.concat("Execution ", vm.toString(i), " failed"));
+        }
+        vm.stopPrank();
+
+        // Verify source: lzMulticall USDC drained
+        assertEq(IERC20(USDC_ETH).balanceOf(LZ_MULTICALL), 0, "lzMulticall should have no USDC left");
+
+        // Relay via pigeon
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        lzHelper.help(LZ_ENDPOINT_BASE, baseForkId, logs);
+
+        // Verify on Base
+        vm.selectFork(baseForkId);
+        address USDC_BASE = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+        uint256 baseBalance = IERC20(USDC_BASE).balanceOf(account);
+        console2.log("USDC received on Base via lzMulticall:", baseBalance);
+        assertGe(baseBalance, minAmountLD, "Should receive at least minAmountLD on Base");
+
+        vm.selectFork(ethForkId);
+    }
+
+    /// @notice Full cross-chain test: ApproveAndStargateSendHook mode 3 with pigeon relay ETH → Base
+    /// @dev Account holds USDC, hook approves lzMulticall, Call[] pulls tokens via transferFrom then bridges
+    function test_Fork_CrossChain_LzMulticall_ApproveAndStargateSend_WithPigeon() public {
+        uint256 amountLD = 1000e6;
+        uint256 minAmountLD = 995e6;
+
+        // Create Base fork
+        uint256 baseForkId = vm.createFork(vm.envString("BASE_RPC_URL"));
+        vm.selectFork(ethForkId);
+
+        // Fund account with USDC
+        deal(USDC_ETH, account, amountLD);
+
+        // Build lzMulticall calldata: transferFrom + approve pool + sendToken
+        (bytes memory executeCalldata, uint256 nativeFee) =
+            _buildPigeonTransferAndSendCalls(amountLD, minAmountLD);
+
+        // Build hook data and executions
+        bytes memory hookData =
+            _encodeLzMulticallForkData(nativeFee, USDC_ETH, amountLD, minAmountLD, executeCalldata);
+        Execution[] memory executions = approveAndStargateHook.build(address(0), account, hookData);
+        assertEq(executions.length, 6, "pre + approve(0) + approve(amt) + lzMulticall + approve(0) + post");
+
+        // Record logs and execute
+        vm.recordLogs();
+        vm.startPrank(account);
+        for (uint256 i = 0; i < executions.length; i++) {
+            (bool success,) = executions[i].target.call{ value: executions[i].value }(executions[i].callData);
+            assertTrue(success, string.concat("Execution ", vm.toString(i), " failed"));
+        }
+        vm.stopPrank();
+
+        // Verify source state
+        assertEq(IERC20(USDC_ETH).balanceOf(account), 0, "All USDC should be bridged");
+        assertEq(IERC20(USDC_ETH).allowance(account, LZ_MULTICALL), 0, "Approval should be cleaned up");
+
+        // Relay via pigeon
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        lzHelper.help(LZ_ENDPOINT_BASE, baseForkId, logs);
+
+        // Verify on Base
+        vm.selectFork(baseForkId);
+        address USDC_BASE = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+        uint256 baseBalance = IERC20(USDC_BASE).balanceOf(account);
+        console2.log("USDC received on Base via lzMulticall (approve flow):", baseBalance);
+        assertGe(baseBalance, minAmountLD, "Should receive at least minAmountLD on Base");
+
+        vm.selectFork(ethForkId);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -1600,5 +1703,88 @@ contract StargateHooksFork is Helpers {
         });
 
         return abi.encodeCall(ILZMultiCall.execute, (calls, keccak256("multi_send_quote")));
+    }
+
+    /// @dev Build lzMulticall Call[] for pigeon test: approve pool + sendToken (lzMulticall holds tokens)
+    function _buildPigeonSendCalls(
+        uint256 amountLD_,
+        uint256 minAmountLD_
+    )
+        internal
+        view
+        returns (bytes memory executeCalldata, uint256 nativeFee)
+    {
+        IStargate.SendParam memory sp = IStargate.SendParam({
+            dstEid: EID_BASE,
+            to: bytes32(uint256(uint160(account))),
+            amountLD: amountLD_,
+            minAmountLD: minAmountLD_,
+            extraOptions: hex"",
+            composeMsg: hex"",
+            oftCmd: bytes("")
+        });
+        IStargate.MessagingFee memory fee = IStargate(STARGATE_USDC_POOL_ETH).quoteSend(sp, false);
+        nativeFee = fee.nativeFee;
+
+        ILZMultiCall.Call[] memory calls = new ILZMultiCall.Call[](2);
+        // lzMulticall approves Stargate pool to spend USDC
+        calls[0] = ILZMultiCall.Call({
+            target: USDC_ETH,
+            value: 0,
+            data: abi.encodeCall(IERC20.approve, (STARGATE_USDC_POOL_ETH, amountLD_))
+        });
+        // lzMulticall calls sendToken (msg.sender = lzMulticall, pool pulls from lzMulticall)
+        calls[1] = ILZMultiCall.Call({
+            target: STARGATE_USDC_POOL_ETH,
+            value: fee.nativeFee,
+            data: abi.encodeCall(IStargate.sendToken, (sp, fee, account))
+        });
+
+        executeCalldata = abi.encodeCall(ILZMultiCall.execute, (calls, keccak256("pigeon_send")));
+    }
+
+    /// @dev Build lzMulticall Call[] for pigeon test: transferFrom + approve pool + sendToken
+    ///      (account holds tokens, hook approves lzMulticall, lzMulticall pulls via transferFrom)
+    function _buildPigeonTransferAndSendCalls(
+        uint256 amountLD_,
+        uint256 minAmountLD_
+    )
+        internal
+        view
+        returns (bytes memory executeCalldata, uint256 nativeFee)
+    {
+        IStargate.SendParam memory sp = IStargate.SendParam({
+            dstEid: EID_BASE,
+            to: bytes32(uint256(uint160(account))),
+            amountLD: amountLD_,
+            minAmountLD: minAmountLD_,
+            extraOptions: hex"",
+            composeMsg: hex"",
+            oftCmd: bytes("")
+        });
+        IStargate.MessagingFee memory fee = IStargate(STARGATE_USDC_POOL_ETH).quoteSend(sp, false);
+        nativeFee = fee.nativeFee;
+
+        ILZMultiCall.Call[] memory calls = new ILZMultiCall.Call[](3);
+        // Pull USDC from account to lzMulticall (account approved lzMulticall via hook)
+        calls[0] = ILZMultiCall.Call({
+            target: USDC_ETH,
+            value: 0,
+            data: abi.encodeCall(IERC20.transferFrom, (account, LZ_MULTICALL, amountLD_))
+        });
+        // lzMulticall approves Stargate pool
+        calls[1] = ILZMultiCall.Call({
+            target: USDC_ETH,
+            value: 0,
+            data: abi.encodeCall(IERC20.approve, (STARGATE_USDC_POOL_ETH, amountLD_))
+        });
+        // Send via Stargate
+        calls[2] = ILZMultiCall.Call({
+            target: STARGATE_USDC_POOL_ETH,
+            value: fee.nativeFee,
+            data: abi.encodeCall(IStargate.sendToken, (sp, fee, account))
+        });
+
+        executeCalldata = abi.encodeCall(ILZMultiCall.execute, (calls, keccak256("pigeon_approve_send")));
     }
 }
