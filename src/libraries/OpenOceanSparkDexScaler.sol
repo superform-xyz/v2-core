@@ -19,6 +19,7 @@ library OpenOceanSparkDexScaler {
     uint256 private constant DISTRIBUTION_WITHDRAW_AMOUNT_BIAS = 0x04;
     uint256 private constant DISTRIBUTION_PATCH_SENTINEL = 1;
     uint256 private constant COLLECT_SLIPPAGE_LOW_MASK = (uint256(1) << 240) - 1;
+    uint256 private constant MAX_NESTED_MAKE_CALL_DEPTH = 10;
 
     address private constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
@@ -41,6 +42,7 @@ library OpenOceanSparkDexScaler {
     error INVALID_AMOUNT();
     error INVALID_CALL_VALUE();
     error DIRECT_SAFE_TRANSFER_NOT_SUPPORTED();
+    error MAX_CALL_DEPTH_EXCEEDED();
 
     function updateTxDataAmounts(
         bytes memory txData_,
@@ -122,7 +124,8 @@ library OpenOceanSparkDexScaler {
                 originalAmount_,
                 exactInputScaling ? originalInputAmountSum : 0,
                 remainingInputAmount,
-                i == lastInputAmountIndex
+                i == lastInputAmountIndex,
+                0
             );
 
             if (calls_[i].value > 0) {
@@ -143,7 +146,8 @@ library OpenOceanSparkDexScaler {
         uint256 originalAmount_,
         uint256 exactInputDenominator_,
         uint256 remainingInputAmount_,
-        bool isLastInputAmount_
+        bool isLastInputAmount_,
+        uint256 callDepth_
     )
         private
         pure
@@ -187,10 +191,12 @@ library OpenOceanSparkDexScaler {
             return (updatedData, remainingInputAmount);
         }
         if (selector == MAKE_CALL_SELECTOR) {
-            return (_updateMakeCall(data_, newAmount_, originalAmount_), remainingInputAmount);
+            return
+                (_updateMakeCall(data_, newAmount_, originalAmount_, _nextCallDepth(callDepth_)), remainingInputAmount);
         }
         if (selector == MAKE_CALLS_SELECTOR) {
-            return (_updateMakeCalls(data_, newAmount_, originalAmount_), remainingInputAmount);
+            return
+                (_updateMakeCalls(data_, newAmount_, originalAmount_, _nextCallDepth(callDepth_)), remainingInputAmount);
         }
 
         revert INVALID_SELECTOR();
@@ -334,7 +340,8 @@ library OpenOceanSparkDexScaler {
     function _updateMakeCall(
         bytes memory data_,
         uint256 newAmount_,
-        uint256 originalAmount_
+        uint256 originalAmount_,
+        uint256 callDepth_
     )
         private
         pure
@@ -342,7 +349,7 @@ library OpenOceanSparkDexScaler {
     {
         IOpenOceanCaller.CallDescription memory desc =
             abi.decode(BytesLib.slice(data_, 4, data_.length - 4), (IOpenOceanCaller.CallDescription));
-        (desc.data,) = _updateCallData(desc.data, newAmount_, originalAmount_, 0, newAmount_, false);
+        (desc.data,) = _updateCallData(desc.data, newAmount_, originalAmount_, 0, newAmount_, false, callDepth_);
         desc.value = Math.mulDiv(desc.value, newAmount_, originalAmount_);
         return abi.encodePacked(MAKE_CALL_SELECTOR, abi.encode(desc));
     }
@@ -350,7 +357,8 @@ library OpenOceanSparkDexScaler {
     function _updateMakeCalls(
         bytes memory data_,
         uint256 newAmount_,
-        uint256 originalAmount_
+        uint256 originalAmount_,
+        uint256 callDepth_
     )
         private
         pure
@@ -359,10 +367,16 @@ library OpenOceanSparkDexScaler {
         IOpenOceanCaller.CallDescription[] memory descs =
             abi.decode(BytesLib.slice(data_, 4, data_.length - 4), (IOpenOceanCaller.CallDescription[]));
         for (uint256 i; i < descs.length; ++i) {
-            (descs[i].data,) = _updateCallData(descs[i].data, newAmount_, originalAmount_, 0, newAmount_, false);
+            (descs[i].data,) =
+                _updateCallData(descs[i].data, newAmount_, originalAmount_, 0, newAmount_, false, callDepth_);
             descs[i].value = Math.mulDiv(descs[i].value, newAmount_, originalAmount_);
         }
         return abi.encodePacked(MAKE_CALLS_SELECTOR, abi.encode(descs));
+    }
+
+    function _nextCallDepth(uint256 callDepth_) private pure returns (uint256) {
+        if (callDepth_ >= MAX_NESTED_MAKE_CALL_DEPTH) revert MAX_CALL_DEPTH_EXCEEDED();
+        return callDepth_ + 1;
     }
 
     function _directInputAmount(bytes memory data_) private pure returns (uint256) {

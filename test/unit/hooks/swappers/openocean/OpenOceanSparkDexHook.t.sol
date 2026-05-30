@@ -74,6 +74,7 @@ contract OpenOceanSparkDexHookTest is Test {
     bytes4 private constant SAFE_TRANSFER_SELECTOR = 0xd1660f99;
     bytes4 private constant DEPOSIT_SELECTOR = 0xd0e30db0;
     bytes4 private constant WITHDRAW_SELECTOR = 0x2e1a7d4d;
+    bytes4 private constant MAKE_CALL_SELECTOR = 0x0c7e1209;
 
     OpenOceanSparkDexScalerHarness private harness;
     SwapOpenOceanSparkDexHook private swapHook;
@@ -159,7 +160,7 @@ contract OpenOceanSparkDexHookTest is Test {
 
     function test_SwapHook_UpdatesNativeExecutionValue() public {
         bytes memory txData = _buildNativeSplitTxData(1001, 900, 950);
-        bytes memory data = _swapHookData(NATIVE, 1001, 1001, 900, true, txData);
+        bytes memory data = _swapHookData(outputToken, 1001, 1001, 900, true, txData);
 
         prevHook.setOutAmount(2000, account);
 
@@ -168,6 +169,28 @@ contract OpenOceanSparkDexHookTest is Test {
 
         assertEq(executions[1].value, 2000);
         assertEq(desc.amount, 2000);
+    }
+
+    function test_SwapHook_DerivesNativeValueFromInputAmount() public view {
+        bytes memory txData = _buildNativeSplitTxData(1001, 900, 950);
+        bytes memory data = _swapHookData(outputToken, 2000, 1001, 900, false, txData);
+
+        Execution[] memory executions = swapHook.build(address(prevHook), account, data);
+        (, IOpenOceanExchange.SwapDescription memory desc,) = _decodeSwap(executions[1].callData);
+
+        assertEq(executions[1].value, 1001);
+        assertEq(desc.amount, 1001);
+    }
+
+    function test_SwapHook_DerivesZeroValueForErc20Input() public view {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _swapHookData(outputToken, 1000, 1000, 900, false, txData);
+
+        Execution[] memory executions = swapHook.build(address(prevHook), account, data);
+        (, IOpenOceanExchange.SwapDescription memory desc,) = _decodeSwap(executions[1].callData);
+
+        assertEq(executions[1].value, 0);
+        assertEq(desc.amount, 1000);
     }
 
     function test_SwapHook_UsesPrevAmountAndExecutesNativeSwap() public {
@@ -185,6 +208,14 @@ contract OpenOceanSparkDexHookTest is Test {
         assertEq(mockRouter.lastMsgValue(), 2000);
         assertEq(IERC20(outputToken).balanceOf(account), 2000);
         assertEq(swapHook.getOutAmount(account), 2000);
+    }
+
+    function test_RevertWhenSwapHookInputTokenEqualsOutputToken() public {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 0);
+        bytes memory data = _swapHookData(inputToken, 0, 1000, 900, false, txData);
+
+        vm.expectRevert(SwapOpenOceanSparkDexHook.SAME_INPUT_OUTPUT_TOKEN.selector);
+        swapHook.build(address(0), account, data);
     }
 
     function test_ApproveAndSwapHook_UsesPrevAmountForApprovalAndSwap() public {
@@ -221,6 +252,47 @@ contract OpenOceanSparkDexHookTest is Test {
         assertEq(IERC20(inputToken).allowance(account, router), 0);
         assertEq(IERC20(outputToken).balanceOf(account), 2000);
         assertEq(approveAndSwapHook.getOutAmount(account), 2000);
+    }
+
+    function test_ApproveAndSwapHook_UsesNativePathAndPrevAmount() public {
+        bytes memory txData = _buildNativeSplitTxData(1001, 900, 950);
+        bytes memory data = _approveAndSwapHookData(address(0), outputToken, 1001, 900, true, txData);
+
+        prevHook.setOutAmount(2000, account);
+
+        Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
+        (, IOpenOceanExchange.SwapDescription memory desc,) = _decodeSwap(executions[1].callData);
+
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, router);
+        assertEq(executions[1].value, 2000);
+        assertEq(desc.amount, 2000);
+        assertEq(desc.minReturnAmount, uint256(900) * 2000 / 1001);
+    }
+
+    function test_ApproveAndSwapHook_UsesPrevAmountAndExecutesNativeSwap() public {
+        bytes memory txData = _buildNativeSplitTxData(1001, 900, 950);
+        bytes memory data = _approveAndSwapHookData(address(0), outputToken, 1001, 900, true, txData);
+
+        vm.deal(account, 2000);
+        prevHook.setOutAmount(2000, account);
+
+        Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
+        _execute(executions);
+
+        assertEq(mockRouter.lastAmount(), 2000);
+        assertEq(mockRouter.lastMinReturnAmount(), uint256(900) * 2000 / 1001);
+        assertEq(mockRouter.lastMsgValue(), 2000);
+        assertEq(IERC20(outputToken).balanceOf(account), 2000);
+        assertEq(approveAndSwapHook.getOutAmount(account), 2000);
+    }
+
+    function test_RevertWhenApproveAndSwapHookInputTokenEqualsOutputToken() public {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 0);
+        bytes memory data = _approveAndSwapHookData(inputToken, inputToken, 1000, 900, false, txData);
+
+        vm.expectRevert(ApproveAndSwapOpenOceanSparkDexHook.SAME_INPUT_OUTPUT_TOKEN.selector);
+        approveAndSwapHook.build(address(0), account, data);
     }
 
     function test_RevertWhenCallerDoesNotMatch() public {
@@ -263,6 +335,26 @@ contract OpenOceanSparkDexHookTest is Test {
         bytes memory txData = _buildTxData(caller, inputToken, outputToken, 1000, 900, 950, 0, calls);
 
         vm.expectRevert(OpenOceanSparkDexScaler.INVALID_SELECTOR.selector);
+        harness.updateTxDataAmounts(txData, caller, 2000, 1000);
+    }
+
+    function test_Scaler_AllowsMaxNestedMakeCallDepth() public {
+        IOpenOceanCaller.CallDescription[] memory calls = new IOpenOceanCaller.CallDescription[](1);
+        calls[0] = _call(0, 0, _nestedMakeCallData(_uniswapCallData(inputToken, outputToken, 1000), 10));
+        bytes memory txData = _buildTxData(caller, inputToken, outputToken, 1000, 900, 950, 0, calls);
+
+        bytes memory updated = harness.updateTxDataAmounts(txData, caller, 2000, 1000);
+        (,, IOpenOceanCaller.CallDescription[] memory updatedCalls) = _decodeSwap(updated);
+
+        assertEq(_decodeUniswapAmount(_unwrapMakeCallData(updatedCalls[0].data, 10)), 2000);
+    }
+
+    function test_RevertWhenNestedMakeCallDepthExceedsMax() public {
+        IOpenOceanCaller.CallDescription[] memory calls = new IOpenOceanCaller.CallDescription[](1);
+        calls[0] = _call(0, 0, _nestedMakeCallData(_uniswapCallData(inputToken, outputToken, 1000), 11));
+        bytes memory txData = _buildTxData(caller, inputToken, outputToken, 1000, 900, 950, 0, calls);
+
+        vm.expectRevert(OpenOceanSparkDexScaler.MAX_CALL_DEPTH_EXCEEDED.selector);
         harness.updateTxDataAmounts(txData, caller, 2000, 1000);
     }
 
@@ -391,6 +483,36 @@ contract OpenOceanSparkDexHookTest is Test {
         return abi.encodePacked(
             SINGLE_DISTRIBUTION_CALL_SELECTOR, abi.encode(token_, DISTRIBUTION_SENTINEL, nested, amountBias_)
         );
+    }
+
+    function _nestedMakeCallData(
+        bytes memory data_,
+        uint256 depth_
+    )
+        private
+        pure
+        returns (bytes memory nestedData)
+    {
+        nestedData = data_;
+        for (uint256 i; i < depth_; ++i) {
+            nestedData = abi.encodePacked(MAKE_CALL_SELECTOR, abi.encode(_call(0, 0, nestedData)));
+        }
+    }
+
+    function _unwrapMakeCallData(
+        bytes memory data_,
+        uint256 depth_
+    )
+        private
+        pure
+        returns (bytes memory unwrappedData)
+    {
+        unwrappedData = data_;
+        for (uint256 i; i < depth_; ++i) {
+            IOpenOceanCaller.CallDescription memory nested =
+                abi.decode(_sliceAfterSelector(unwrappedData), (IOpenOceanCaller.CallDescription));
+            unwrappedData = nested.data;
+        }
     }
 
     function _call(
