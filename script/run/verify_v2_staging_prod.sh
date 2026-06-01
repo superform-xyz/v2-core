@@ -498,6 +498,11 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
             ;;
 
+        # ERC7540YieldSourceOracle / SpectraMetaVaultOracle (superLedgerConfig + requestId=0)
+        "ERC7540YieldSourceOracle"|"SpectraMetaVaultOracle")
+            echo "$(cast abi-encode "constructor(address,uint256)" "$super_ledger_config" "0")"
+            ;;
+
         # Morpho Hooks (all take Morpho Blue address as constructor arg)
         "MorphoSupplyAndBorrowHook"|"MorphoBorrowHook"|"MorphoRepayHook"|"MorphoRepayAndWithdrawHook"|"MorphoSupplyHook"|"MorphoWithdrawHook"|"MorphoLendHook")
             local morpho_address=""
@@ -655,9 +660,11 @@ get_contract_source() {
         "ERC5115YieldSourceOracle") echo "src/accounting/oracles/ERC5115YieldSourceOracle.sol" ;;
         "PendlePTYieldSourceOracle") echo "src/accounting/oracles/PendlePTYieldSourceOracle.sol" ;;
         "SpectraPTYieldSourceOracle") echo "src/accounting/oracles/SpectraPTYieldSourceOracle.sol" ;;
+        "SpectraMetaVaultOracle") echo "src/accounting/oracles/SpectraMetaVaultOracle.sol" ;;
         "StakingYieldSourceOracle") echo "src/accounting/oracles/StakingYieldSourceOracle.sol" ;;
         "SuperYieldSourceOracle") echo "src/accounting/oracles/SuperYieldSourceOracle.sol" ;;
         "SuperVaultYieldSourceOracle") echo "src/accounting/oracles/SuperVaultYieldSourceOracle.sol" ;;
+        "ERC7540YieldSourceOracle") echo "src/accounting/oracles/ERC7540YieldSourceOracle.sol" ;;
         
         *) echo "src/core/unknown/$contract_name.sol" ;;
     esac

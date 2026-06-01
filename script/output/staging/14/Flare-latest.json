@@ -59,6 +59,7 @@
   "RequestRedeem7540VaultHook": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
   "SetOperator7540Hook": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
   "SetSlippageHook": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
+  "SpectraMetaVaultOracle": "0xa8505E27820A988A8Fe8cF52bB90347D2d2Cae1b",
   "SpectraPTYieldSourceOracle": "0xBb9154D1a9c06047D4AD5721eAEd874Ee125f4E3",
   "StakingYieldSourceOracle": "0x0737eB8db2992b13a66b46E8226F36d774CA2A02",
   "StargateAdapter": "0x04fb7dBb9d31625b63f4199F1dc13f1AD8c6D13F",

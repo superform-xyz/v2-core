@@ -574,7 +574,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Oracles (12 contracts - always check these)
         // NOTE: Order must match _deployOracles array indices for consistency
-        string[13] memory oracleContracts = [
+        string[14] memory oracleContracts = [
             "ERC4626YieldSourceOracle",      // [0]
             "ERC5115YieldSourceOracle",      // [1]
             "PendlePTYieldSourceOracle",     // [2]
@@ -587,7 +587,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "PendlePTAmortizedOracleV2",     // [9]
             "FirelightYieldSourceOracle",    // [10]
             "DETHYieldSourceOracle",         // [11]
-            "ERC7540YieldSourceOracle"       // [12]
+            "ERC7540YieldSourceOracle",      // [12]
+            "SpectraMetaVaultOracle"         // [13]
         ];
 
         for (uint256 i = 0; i < oracleContracts.length; i++) {
@@ -1598,6 +1599,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encode(superLedgerConfig, uint256(0)),
                 env
             );
+            // SpectraMetaVaultOracle (superLedgerConfig + requestId)
+            __checkContract(
+                SPECTRA_META_VAULT_ORACLE_KEY,
+                __getSalt(SPECTRA_META_VAULT_ORACLE_KEY),
+                abi.encode(superLedgerConfig, uint256(0)),
+                env
+            );
         } else {
             revert("ORACLES_CHECK_FAILED_MISSING_SUPER_LEDGER_CONFIG");
         }
@@ -2178,7 +2186,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         vars.ledgerConstructorArgs = abi.encode(vars.superLedgerConfig, vars.allowedExecutors);
 
         // Define contracts to verify with their corresponding environment-specific bytecode paths and constructor args
-        ContractVerification[] memory contracts = new ContractVerification[](7);
+        ContractVerification[] memory contracts = new ContractVerification[](8);
 
         // Core contracts verification - always use locked bytecode
 
@@ -2228,6 +2236,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             name: "ERC7540YieldSourceOracle",
             outputKey: ".ERC7540YieldSourceOracle",
             bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "ERC7540YieldSourceOracle.json")),
+            constructorArgs: ""
+        });
+
+        contracts[7] = ContractVerification({
+            name: "SpectraMetaVaultOracle",
+            outputKey: ".SpectraMetaVaultOracle",
+            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "SpectraMetaVaultOracle.json")),
             constructorArgs: ""
         });
         // Verify each contract
@@ -2291,8 +2306,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             computedAddress = DeterministicDeployerLib.computeAddress(
                 abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
             );
-        } else if (Strings.equal(contractToVerify.name, "ERC7540YieldSourceOracle")) {
-            // ERC7540YieldSourceOracle needs SuperLedgerConfiguration + requestId
+        } else if (
+            Strings.equal(contractToVerify.name, "ERC7540YieldSourceOracle")
+                || Strings.equal(contractToVerify.name, "SpectraMetaVaultOracle")
+        ) {
+            // ERC7540YieldSourceOracle / SpectraMetaVaultOracle need SuperLedgerConfiguration + requestId
             bytes memory constructorArgs = abi.encode(vars.superLedgerConfig, uint256(0));
             computedAddress = DeterministicDeployerLib.computeAddress(
                 abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
@@ -3186,7 +3204,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         uint256 pendlePTAmortizedOracleIndex = 8;
         uint256 pendlePTAmortizedOracleV2Index = 9;
 
-        uint256 len = 13;
+        uint256 len = 14;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         address[] memory oracleAddresses = new address[](len);
 
@@ -3243,6 +3261,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         oracles[12] = _createSafeOracleDeploymentWithArgs(
             ERC7540_YIELD_SOURCE_ORACLE_KEY,
             "ERC7540YieldSourceOracle",
+            env,
+            abi.encode(superLedgerConfig, uint256(0))
+        );
+        // SpectraMetaVaultOracle (superLedgerConfig + requestId=0)
+        oracles[13] = _createSafeOracleDeploymentWithArgs(
+            SPECTRA_META_VAULT_ORACLE_KEY,
+            "SpectraMetaVaultOracle",
             env,
             abi.encode(superLedgerConfig, uint256(0))
         );
