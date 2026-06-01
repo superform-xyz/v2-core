@@ -50,7 +50,8 @@ contract KyberSwapUnitTests is Helpers {
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, inputToken);
 
         swapHook = new SwapKyberSwapHook(kyberRouter, address(0), 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
-        approveAndSwapHook = new ApproveAndSwapKyberSwapHook(kyberRouter, address(0), 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        approveAndSwapHook =
+            new ApproveAndSwapKyberSwapHook(kyberRouter, address(0), 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -116,11 +117,31 @@ contract KyberSwapUnitTests is Helpers {
         assertEq(executions[1].value, 0);
     }
 
-    function test_SwapHook_Build_WithNativeValue() public view {
+    function test_SwapHook_Build_DerivesZeroValueForErc20Input() public view {
         bytes memory txData_ = _buildKyberTxData();
         bytes memory data = bytes.concat(
             bytes20(outputToken),
-            bytes32(uint256(1 ether)), // value > 0 for native ETH
+            bytes32(uint256(1 ether)),
+            bytes32(inputAmount),
+            bytes32(outputMin),
+            bytes1(uint8(0)),
+            bytes32(txData_.length),
+            txData_
+        );
+
+        Execution[] memory executions = swapHook.build(address(prevHook), account, data);
+
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, kyberRouter);
+        assertEq(executions[1].value, 0);
+    }
+
+    function test_SwapHook_Build_DerivesNativeValueFromInputAmount() public view {
+        address native = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+        bytes memory txData_ = _buildKyberTxDataWithTokens(native, outputToken, 1 ether, outputMin, approveTarget);
+        bytes memory data = bytes.concat(
+            bytes20(outputToken),
+            bytes32(uint256(2 ether)),
             bytes32(uint256(1 ether)),
             bytes32(outputMin),
             bytes1(uint8(0)),
@@ -148,10 +169,11 @@ contract KyberSwapUnitTests is Helpers {
     }
 
     function test_SwapHook_Build_WithPrevHookAmount_NativeValue() public {
-        bytes memory txData_ = _buildKyberTxData();
+        address native = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+        bytes memory txData_ = _buildKyberTxDataWithTokens(native, outputToken, 1 ether, outputMin, approveTarget);
         bytes memory data = bytes.concat(
             bytes20(outputToken),
-            bytes32(uint256(1 ether)), // value > 0
+            bytes32(uint256(0)),
             bytes32(uint256(1 ether)),
             bytes32(outputMin),
             bytes1(uint8(1)), // usePrevHookAmount = true
@@ -165,7 +187,6 @@ contract KyberSwapUnitTests is Helpers {
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
 
         assertEq(executions.length, 3);
-        // When usePrevHookAmount && value > 0, value should be updated to prevAmount
         assertEq(executions[1].value, prevHookAmount);
     }
 
@@ -402,35 +423,45 @@ contract KyberSwapUnitTests is Helpers {
     }
 
     function _buildKyberTxDataWithApproveTarget(address _approveTarget) internal view returns (bytes memory) {
+        return _buildKyberTxDataWithTokens(inputToken, outputToken, inputAmount, outputMin, _approveTarget);
+    }
+
+    function _buildKyberTxDataWithTokens(
+        address _inputToken,
+        address _outputToken,
+        uint256 _inputAmount,
+        uint256 _outputMin,
+        address _approveTarget
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
         address[] memory srcReceivers = new address[](1);
         srcReceivers[0] = callTarget;
 
         uint256[] memory srcAmounts = new uint256[](1);
-        srcAmounts[0] = inputAmount;
+        srcAmounts[0] = _inputAmount;
 
         address[] memory feeReceivers = new address[](0);
         uint256[] memory feeAmounts = new uint256[](0);
 
         IMetaAggregationRouterV2.SwapDescriptionV2 memory desc = IMetaAggregationRouterV2.SwapDescriptionV2({
-            srcToken: IERC20(inputToken),
-            dstToken: IERC20(outputToken),
+            srcToken: IERC20(_inputToken),
+            dstToken: IERC20(_outputToken),
             srcReceivers: srcReceivers,
             srcAmounts: srcAmounts,
             feeReceivers: feeReceivers,
             feeAmounts: feeAmounts,
             dstReceiver: account,
-            amount: inputAmount,
-            minReturnAmount: outputMin,
+            amount: _inputAmount,
+            minReturnAmount: _outputMin,
             flags: 0,
             permit: ""
         });
 
         IMetaAggregationRouterV2.SwapExecutionParams memory params = IMetaAggregationRouterV2.SwapExecutionParams({
-            callTarget: callTarget,
-            approveTarget: _approveTarget,
-            clientData: "",
-            desc: desc,
-            targetData: ""
+            callTarget: callTarget, approveTarget: _approveTarget, clientData: "", desc: desc, targetData: ""
         });
 
         return abi.encodePacked(IMetaAggregationRouterV2.swap.selector, abi.encode(params));

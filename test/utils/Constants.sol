@@ -77,7 +77,8 @@ abstract contract Constants {
     string public constant MINT_SUPERPOSITIONS_HOOK_KEY = "MintSuperPositionsHook";
     string public constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
     string public constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
-    string public constant APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "ApproveAndAcrossSendFundsAndExecuteOnDstHook";
+    string public constant APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY =
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHook";
     string public constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
     string public constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
     string public constant GEARBOX_CLAIM_REWARD_HOOK_KEY = "GearboxClaimRewardHook";
@@ -112,6 +113,8 @@ abstract contract Constants {
     string public constant APPROVE_AND_SWAP_UNISWAP_V3_HOOK_KEY = "ApproveAndSwapUniswapV3Hook";
     string public constant SWAP_ALGEBRA_INTEGRAL_HOOK_KEY = "SwapAlgebraIntegralHook";
     string public constant APPROVE_AND_SWAP_ALGEBRA_INTEGRAL_HOOK_KEY = "ApproveAndSwapAlgebraIntegralHook";
+    string public constant SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY = "SwapOpenOceanSparkDexHook";
+    string public constant APPROVE_AND_SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY = "ApproveAndSwapOpenOceanSparkDexHook";
 
     // Algebra Integral / SparkDEX V4 addresses on Flare
     address public constant FLARE_ALGEBRA_INTEGRAL_SWAP_ROUTER = 0x69D57B9D705eaD73a5d2f2476C30c55bD755cc2F;
