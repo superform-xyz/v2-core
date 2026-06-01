@@ -1,20 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
-// external
-import { BytesLib } from "../../../vendor/BytesLib.sol";
-import { IMetaAggregationRouterV2 } from "../../../vendor/kyberswap/IMetaAggregationRouterV2.sol";
-import { IScaleHelper } from "../../../vendor/kyberswap/IScaleHelper.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-// Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { KyberSwapScaler } from "../../../libraries/KyberSwapScaler.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { BytesLib } from "../../../vendor/BytesLib.sol";
+import { IOpenOceanCaller } from "../../../vendor/openocean/IOpenOceanCaller.sol";
+import { IOpenOceanExchange } from "../../../vendor/openocean/IOpenOceanExchange.sol";
+import { OpenOceanSparkDexScaler } from "../../../libraries/OpenOceanSparkDexScaler.sol";
+import { ISuperHookContextAware, ISuperHookInspector, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
-/// @title SwapKyberSwapHook
+/// @title SwapOpenOceanSparkDexHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address outputToken = BytesLib.toAddress(data, 0);
@@ -24,32 +22,30 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 116);
 /// @notice         uint256 txDataLength = BytesLib.toUint256(data, 117);
 /// @notice         bytes txData_ = BytesLib.slice(data, 149, txDataLength);
-contract SwapKyberSwapHook is BaseHook, ISuperHookContextAware {
-    IMetaAggregationRouterV2 public immutable KYBER_ROUTER;
-    IScaleHelper public immutable SCALE_HELPER;
+contract SwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware {
+    IOpenOceanExchange public immutable OPENOCEAN_ROUTER;
+    IOpenOceanCaller public immutable OPENOCEAN_CALLER;
 
     address public immutable NATIVE;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 116;
 
+    /// @notice Thrown when inputToken and outputToken are the same address
+    error SAME_INPUT_OUTPUT_TOKEN();
+
     constructor(
         address router_,
-        address scaleHelper_,
+        address caller_,
         address nativeToken_
     )
         BaseHook(HookType.NONACCOUNTING, HookSubTypes.SWAP)
     {
-        if (router_ == address(0)) revert ADDRESS_NOT_VALID();
-        KYBER_ROUTER = IMetaAggregationRouterV2(router_);
-        SCALE_HELPER = IScaleHelper(scaleHelper_);
+        if (router_ == address(0) || caller_ == address(0)) revert ADDRESS_NOT_VALID();
+        OPENOCEAN_ROUTER = IOpenOceanExchange(router_);
+        OPENOCEAN_CALLER = IOpenOceanCaller(caller_);
         NATIVE = nativeToken_;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                 VIEW METHODS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @inheritdoc BaseHook
     function _buildHookExecutions(
         address prevHook,
         address account,
@@ -60,28 +56,28 @@ contract SwapKyberSwapHook is BaseHook, ISuperHookContextAware {
         override
         returns (Execution[] memory executions)
     {
+        address outputToken = BytesLib.toAddress(data, 0);
         uint256 inputAmount = BytesLib.toUint256(data, 52);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         uint256 txDataLength = BytesLib.toUint256(data, 117);
         bytes memory txData_ = BytesLib.slice(data, 149, txDataLength);
 
+        _validateTokenPair(_getInputToken(txData_), outputToken);
+
         uint256 executionAmount = inputAmount;
         if (usePrevHookAmount) {
             executionAmount = ISuperHookResult(prevHook).getOutAmount(account);
-            txData_ = KyberSwapScaler.updateTxDataAmounts(SCALE_HELPER, txData_, executionAmount, inputAmount);
         }
 
+        txData_ = OpenOceanSparkDexScaler.updateTxDataAmounts(
+            txData_, address(OPENOCEAN_CALLER), executionAmount, inputAmount
+        );
         uint256 value = _isNativeInput(txData_) ? executionAmount : 0;
 
         executions = new Execution[](1);
-        executions[0] = Execution({ target: address(KYBER_ROUTER), value: value, callData: txData_ });
+        executions[0] = Execution({ target: address(OPENOCEAN_ROUTER), value: value, callData: txData_ });
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
@@ -91,15 +87,20 @@ contract SwapKyberSwapHook is BaseHook, ISuperHookContextAware {
         uint256 txDataLength = BytesLib.toUint256(data, 117);
         bytes memory txData_ = BytesLib.slice(data, 149, txDataLength);
 
-        IMetaAggregationRouterV2.SwapExecutionParams memory params =
-            abi.decode(BytesLib.slice(txData_, 4, txData_.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams));
+        (
+            IOpenOceanCaller caller,
+            IOpenOceanExchange.SwapDescription memory desc,
+            IOpenOceanCaller.CallDescription[] memory calls
+        ) = abi.decode(
+            BytesLib.slice(txData_, 4, txData_.length - 4),
+            (IOpenOceanCaller, IOpenOceanExchange.SwapDescription, IOpenOceanCaller.CallDescription[])
+        );
+        calls;
 
-        return abi.encodePacked(address(params.desc.dstToken));
+        return abi.encodePacked(
+            address(caller), address(desc.srcToken), address(desc.dstToken), desc.srcReceiver, desc.dstReceiver
+        );
     }
-
-    /*//////////////////////////////////////////////////////////////
-                                 INTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
 
     function _preExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data), account);
@@ -109,21 +110,38 @@ contract SwapKyberSwapHook is BaseHook, ISuperHookContextAware {
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
-
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
         address outputToken = BytesLib.toAddress(data, 0);
-        if (outputToken == NATIVE) {
+        if (_isNative(outputToken)) {
             return account.balance;
         }
         return IERC20(outputToken).balanceOf(account);
     }
 
+    function _isNative(address token_) private view returns (bool) {
+        return token_ == address(0) || token_ == NATIVE;
+    }
+
     function _isNativeInput(bytes memory txData_) private view returns (bool) {
-        IMetaAggregationRouterV2.SwapExecutionParams memory params =
-            abi.decode(BytesLib.slice(txData_, 4, txData_.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams));
-        return address(params.desc.srcToken) == NATIVE;
+        return _isNative(_getInputToken(txData_));
+    }
+
+    function _getInputToken(bytes memory txData_) private pure returns (address) {
+        (, IOpenOceanExchange.SwapDescription memory desc,) = abi.decode(
+            BytesLib.slice(txData_, 4, txData_.length - 4),
+            (IOpenOceanCaller, IOpenOceanExchange.SwapDescription, IOpenOceanCaller.CallDescription[])
+        );
+        return address(desc.srcToken);
+    }
+
+    function _validateTokenPair(address inputToken_, address outputToken_) private view {
+        if (_isSameToken(inputToken_, outputToken_)) revert SAME_INPUT_OUTPUT_TOKEN();
+    }
+
+    function _isSameToken(address tokenA_, address tokenB_) private view returns (bool) {
+        if (_isNative(tokenA_) && _isNative(tokenB_)) {
+            return true;
+        }
+        return tokenA_ == tokenB_;
     }
 }
