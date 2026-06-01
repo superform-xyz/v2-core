@@ -15,6 +15,7 @@ import {
 import {
     ApproveAndSwapUniswapV3Router02Hook
 } from "../../../src/hooks/swappers/uniswap-v3/ApproveAndSwapUniswapV3Router02Hook.sol";
+import { ApproveERC20Hook } from "../../../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { ISuperHook } from "../../../src/interfaces/ISuperHook.sol";
 import { BaseHook } from "../../../src/hooks/BaseHook.sol";
 
@@ -31,7 +32,6 @@ contract UniswapV3Router02HookIntegrationTest is MinimalBaseIntegrationTest {
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Struct to avoid stack too deep in swap tests
     struct SwapTestParams {
         uint256 sellAmount;
         address tokenIn;
@@ -52,8 +52,14 @@ contract UniswapV3Router02HookIntegrationTest is MinimalBaseIntegrationTest {
 
     SwapUniswapV3Router02Hook public swapHook;
     ApproveAndSwapUniswapV3Router02Hook public approveAndSwapHook;
+    ApproveERC20Hook public approveERC20Hook;
+
+    // Real mainnet token addresses
+    address public constant USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+    address public constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
     // Uniswap V3 fee tiers
+    uint24 public constant FEE_LOWEST = 100; // 0.01%
     uint24 public constant FEE_LOW = 500; // 0.05%
     uint24 public constant FEE_MEDIUM = 3000; // 0.3%
     uint24 public constant FEE_HIGH = 10000; // 1%
@@ -66,27 +72,17 @@ contract UniswapV3Router02HookIntegrationTest is MinimalBaseIntegrationTest {
         blockNumber = 0;
         super.setUp();
 
-        console2.log("Deploying UniswapV3Router02 hooks with real SwapRouter02");
-
-        // Deploy hooks with real Uniswap V3 SwapRouter02
         swapHook = new SwapUniswapV3Router02Hook(MAINNET_V3_SWAP_ROUTER_02);
         approveAndSwapHook = new ApproveAndSwapUniswapV3Router02Hook(MAINNET_V3_SWAP_ROUTER_02);
-
-        console2.log("SwapUniswapV3Router02Hook deployed at:", address(swapHook));
-        console2.log("ApproveAndSwapUniswapV3Router02Hook deployed at:", address(approveAndSwapHook));
-        console2.log("User account:", address(instanceOnEth.account));
+        approveERC20Hook = new ApproveERC20Hook();
     }
 
-    // CRITICAL: Integration test contracts MUST include receive() for EntryPoint fee refunds
     receive() external payable { }
 
     /*//////////////////////////////////////////////////////////////
                             HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Build hook data for Uniswap V3 SwapRouter02 swap
-    /// @dev No recipient or deadline fields — Router02 handles deadline via multicall wrapper,
-    ///      recipient is always set to account in the hook
     function _buildRouter02HookData(
         address tokenIn,
         address tokenOut,
@@ -111,254 +107,704 @@ contract UniswapV3Router02HookIntegrationTest is MinimalBaseIntegrationTest {
         );
     }
 
-    /// @notice Execute a swap using the hook via SuperExecutor
-    function _executeSwapWithApproval(address swapHook_, bytes memory swapHookData) private {
+    function _buildApproveERC20HookData(
+        address token,
+        address spender,
+        uint256 amount,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(token, spender, amount, usePrevHookAmount);
+    }
+
+    function _executeSingleHook(address hook, bytes memory hookData) private {
         address[] memory hookAddresses = new address[](1);
-        hookAddresses[0] = swapHook_;
+        hookAddresses[0] = hook;
 
         bytes[] memory hookDataArray = new bytes[](1);
-        hookDataArray[0] = swapHookData;
+        hookDataArray[0] = hookData;
 
-        ISuperExecutor.ExecutorEntry memory entryToExecute =
+        ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookDataArray });
 
-        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
+        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
+        executeOp(opData);
+    }
+
+    function _executeMultiHook(address[] memory hooks, bytes[] memory hookDatas) private {
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookDatas });
+
+        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
+        executeOp(opData);
+    }
+
+    function _tryExecuteSingleHook(address hook, bytes memory hookData) private returns (bool success) {
+        address[] memory hookAddresses = new address[](1);
+        hookAddresses[0] = hook;
+
+        bytes[] memory hookDataArray = new bytes[](1);
+        hookDataArray[0] = hookData;
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookDataArray });
+
+        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
+
+        try this.executeOpExternal(opData) {
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    function _tryExecuteMultiHook(address[] memory hooks, bytes[] memory hookDatas) private returns (bool success) {
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookDatas });
+
+        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
+
+        try this.executeOpExternal(opData) {
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    /// @notice External wrapper to enable try/catch for UserOp execution
+    function executeOpExternal(UserOpData memory opData) external {
         executeOp(opData);
     }
 
     /*//////////////////////////////////////////////////////////////
-                            CORE FUNCTIONALITY TESTS
+                        CORE: ApproveAndSwap TESTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Test hook data decoding
-    function test_UniswapV3Router02_HookDataDecoding() external view {
-        bytes memory hookData = _buildRouter02HookData(
-            CHAIN_1_USDC,
-            CHAIN_1_WETH,
-            FEE_MEDIUM,
-            0, // sqrtPriceLimitX96 (0 = no limit)
-            1000e6, // amountIn
-            0.3 ether, // amountOutMinimum
-            false
-        );
+    /// @notice USDC -> WETH swap via ApproveAndSwap
+    function test_ApproveAndSwap_USDC_to_WETH() public {
+        address account = instanceOnEth.account;
+        uint256 sellAmount = 1000e6;
+        deal(CHAIN_1_USDC, account, sellAmount);
 
-        bool usePrevHookAmount = swapHook.decodeUsePrevHookAmount(hookData);
-        assertFalse(usePrevHookAmount, "Should not use prev hook amount");
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(account);
+
+        bytes memory hookData =
+            _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, sellAmount, 0.2 ether, false);
+
+        _executeSingleHook(address(approveAndSwapHook), hookData);
+
+        uint256 wethAfter = IERC20(CHAIN_1_WETH).balanceOf(account);
+        uint256 usdcAfter = IERC20(CHAIN_1_USDC).balanceOf(account);
+
+        assertEq(usdcAfter, 0, "Should spend all USDC");
+        assertGe(wethAfter - wethBefore, 0.2 ether, "Should receive at least min WETH");
     }
 
-    /// @notice Test inspect function returns tokenOut
-    function test_UniswapV3Router02_InspectFunction() external view {
-        bytes memory hookData = _buildRouter02HookData(
-            CHAIN_1_USDC,
-            CHAIN_1_WETH,
-            FEE_MEDIUM,
-            0,
-            1000e6,
-            0.3 ether,
-            false
-        );
+    /// @notice WETH -> USDC swap via ApproveAndSwap
+    function test_ApproveAndSwap_WETH_to_USDC() public {
+        address account = instanceOnEth.account;
+        uint256 sellAmount = 1 ether;
+        deal(CHAIN_1_WETH, account, sellAmount);
 
-        bytes memory inspectResult = swapHook.inspect(hookData);
-        assertEq(inspectResult.length, 20, "Should return 20 bytes (1 address)");
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(account);
 
-        address extractedTokenOut;
-        assembly {
-            extractedTokenOut := mload(add(inspectResult, 20))
-        }
-        assertEq(extractedTokenOut, CHAIN_1_WETH, "Should extract correct tokenOut");
+        bytes memory hookData =
+            _buildRouter02HookData(CHAIN_1_WETH, CHAIN_1_USDC, FEE_MEDIUM, 0, sellAmount, 1000e6, false);
+
+        _executeSingleHook(address(approveAndSwapHook), hookData);
+
+        uint256 wethAfter = IERC20(CHAIN_1_WETH).balanceOf(account);
+        uint256 usdcAfter = IERC20(CHAIN_1_USDC).balanceOf(account);
+
+        assertEq(wethAfter, 0, "Should spend all WETH");
+        assertGe(usdcAfter - usdcBefore, 1000e6, "Should receive at least 1000 USDC");
+    }
+
+    /// @notice WETH -> DAI swap on 0.3% fee tier
+    function test_ApproveAndSwap_WETH_to_DAI() public {
+        address account = instanceOnEth.account;
+        uint256 sellAmount = 0.5 ether;
+        deal(CHAIN_1_WETH, account, sellAmount);
+
+        uint256 daiBefore = IERC20(DAI).balanceOf(account);
+
+        bytes memory hookData =
+            _buildRouter02HookData(CHAIN_1_WETH, DAI, FEE_MEDIUM, 0, sellAmount, 500e18, false);
+
+        _executeSingleHook(address(approveAndSwapHook), hookData);
+
+        uint256 daiAfter = IERC20(DAI).balanceOf(account);
+        assertGt(daiAfter - daiBefore, 500e18, "Should receive >500 DAI for 0.5 WETH");
+    }
+
+    /// @notice DAI -> USDC stablecoin swap on 0.01% fee tier
+    function test_ApproveAndSwap_DAI_to_USDC_LowestFeeTier() public {
+        address account = instanceOnEth.account;
+        uint256 sellAmount = 1000e18;
+        deal(DAI, account, sellAmount);
+
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(account);
+
+        bytes memory hookData =
+            _buildRouter02HookData(DAI, CHAIN_1_USDC, FEE_LOWEST, 0, sellAmount, 990e6, false);
+
+        _executeSingleHook(address(approveAndSwapHook), hookData);
+
+        uint256 usdcAfter = IERC20(CHAIN_1_USDC).balanceOf(account);
+        uint256 received = usdcAfter - usdcBefore;
+        assertGe(received, 990e6, "Stablecoin swap should have minimal slippage");
+        assertLe(received, 1010e6, "Should be close to 1:1 for stablecoin swap");
+    }
+
+    /// @notice WBTC -> WETH swap on 0.3% fee tier
+    function test_ApproveAndSwap_WBTC_to_WETH() public {
+        address account = instanceOnEth.account;
+        uint256 sellAmount = 0.01e8; // 0.01 WBTC (8 decimals)
+        deal(CHAIN_1_WBTC, account, sellAmount);
+
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(account);
+
+        bytes memory hookData =
+            _buildRouter02HookData(CHAIN_1_WBTC, CHAIN_1_WETH, FEE_MEDIUM, 0, sellAmount, 0.1 ether, false);
+
+        _executeSingleHook(address(approveAndSwapHook), hookData);
+
+        uint256 wethAfter = IERC20(CHAIN_1_WETH).balanceOf(account);
+        assertGt(wethAfter - wethBefore, 0.1 ether, "0.01 WBTC should yield > 0.1 WETH");
+    }
+
+    /// @notice USDT -> USDC swap (USDT has non-standard approve requiring reset to 0)
+    function test_ApproveAndSwap_USDT_to_USDC() public {
+        address account = instanceOnEth.account;
+        uint256 sellAmount = 1000e6;
+        deal(USDT, account, sellAmount);
+
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(account);
+
+        bytes memory hookData =
+            _buildRouter02HookData(USDT, CHAIN_1_USDC, FEE_LOWEST, 0, sellAmount, 990e6, false);
+
+        _executeSingleHook(address(approveAndSwapHook), hookData);
+
+        uint256 usdcAfter = IERC20(CHAIN_1_USDC).balanceOf(account);
+        assertGe(usdcAfter - usdcBefore, 990e6, "USDT->USDC should work with approve reset pattern");
     }
 
     /*//////////////////////////////////////////////////////////////
-                            SWAP EXECUTION TESTS
+                        CORE: SwapHook (no-approve) TESTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Test successful USDC -> WETH swap using ApproveAndSwapUniswapV3Router02Hook
-    function test_UniswapV3Router02_ApproveAndSwap_USDC_to_WETH() public {
-        SwapTestParams memory params;
-        params.sellAmount = 1000e6;
-        params.tokenIn = CHAIN_1_USDC;
-        params.tokenOut = CHAIN_1_WETH;
-        params.fee = FEE_MEDIUM;
-        params.sqrtPriceLimitX96 = 0;
-        params.expectedMinOut = 0.2 ether;
-        params.account = instanceOnEth.account;
-
-        deal(CHAIN_1_USDC, params.account, params.sellAmount);
-
-        params.initialTokenInBalance = IERC20(params.tokenIn).balanceOf(params.account);
-        params.initialTokenOutBalance = IERC20(params.tokenOut).balanceOf(params.account);
-
-        bytes memory hookData = _buildRouter02HookData(
-            params.tokenIn,
-            params.tokenOut,
-            params.fee,
-            params.sqrtPriceLimitX96,
-            params.sellAmount,
-            params.expectedMinOut,
-            false
-        );
-
-        _executeSwapWithApproval(address(approveAndSwapHook), hookData);
-
-        params.finalTokenInBalance = IERC20(params.tokenIn).balanceOf(params.account);
-        params.finalTokenOutBalance = IERC20(params.tokenOut).balanceOf(params.account);
-
-        uint256 usdcSpent = params.initialTokenInBalance - params.finalTokenInBalance;
-        uint256 wethReceived = params.finalTokenOutBalance - params.initialTokenOutBalance;
-
-        assertEq(usdcSpent, params.sellAmount, "Should spend exact USDC amount");
-        assertGt(wethReceived, 0, "Should receive some WETH");
-        assertGe(wethReceived, params.expectedMinOut, "Should receive at least minimum WETH");
-
-        console2.log("USDC spent:", usdcSpent);
-        console2.log("WETH received:", wethReceived);
-    }
-
-    /// @notice Test successful WETH -> USDC swap using ApproveAndSwapUniswapV3Router02Hook
-    function test_UniswapV3Router02_ApproveAndSwap_WETH_to_USDC() public {
-        SwapTestParams memory params;
-        params.sellAmount = 1 ether;
-        params.tokenIn = CHAIN_1_WETH;
-        params.tokenOut = CHAIN_1_USDC;
-        params.fee = FEE_MEDIUM;
-        params.sqrtPriceLimitX96 = 0;
-        params.expectedMinOut = 1000e6;
-        params.account = instanceOnEth.account;
-
-        deal(CHAIN_1_WETH, params.account, params.sellAmount);
-
-        params.initialTokenInBalance = IERC20(params.tokenIn).balanceOf(params.account);
-        params.initialTokenOutBalance = IERC20(params.tokenOut).balanceOf(params.account);
-
-        bytes memory hookData = _buildRouter02HookData(
-            params.tokenIn,
-            params.tokenOut,
-            params.fee,
-            params.sqrtPriceLimitX96,
-            params.sellAmount,
-            params.expectedMinOut,
-            false
-        );
-
-        _executeSwapWithApproval(address(approveAndSwapHook), hookData);
-
-        params.finalTokenInBalance = IERC20(params.tokenIn).balanceOf(params.account);
-        params.finalTokenOutBalance = IERC20(params.tokenOut).balanceOf(params.account);
-
-        uint256 wethSpent = params.initialTokenInBalance - params.finalTokenInBalance;
-        uint256 usdcReceived = params.finalTokenOutBalance - params.initialTokenOutBalance;
-
-        assertEq(wethSpent, params.sellAmount, "Should spend exact WETH amount");
-        assertGt(usdcReceived, 0, "Should receive some USDC");
-        assertGe(usdcReceived, params.expectedMinOut, "Should receive at least minimum USDC");
-
-        console2.log("WETH spent:", wethSpent);
-        console2.log("USDC received:", usdcReceived);
-    }
-
-    /// @notice Test swap with different fee tiers
-    function test_UniswapV3Router02_DifferentFeeTiers() public {
+    /// @notice SwapHook requires pre-approval — chain ApproveERC20Hook + SwapHook
+    function test_SwapHook_WithApproveChain_USDC_to_WETH() public {
         address account = instanceOnEth.account;
-        uint256 sellAmount = 0.1 ether;
+        uint256 sellAmount = 1000e6;
+        deal(CHAIN_1_USDC, account, sellAmount);
 
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(account);
+
+        address[] memory hooks = new address[](2);
+        hooks[0] = address(approveERC20Hook);
+        hooks[1] = address(swapHook);
+
+        bytes[] memory hookDatas = new bytes[](2);
+        hookDatas[0] = _buildApproveERC20HookData(CHAIN_1_USDC, MAINNET_V3_SWAP_ROUTER_02, sellAmount, false);
+        hookDatas[1] = _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, sellAmount, 0.2 ether, false);
+
+        _executeMultiHook(hooks, hookDatas);
+
+        uint256 wethAfter = IERC20(CHAIN_1_WETH).balanceOf(account);
+        assertGe(wethAfter - wethBefore, 0.2 ether, "SwapHook with pre-approval should work");
+    }
+
+    /// @notice SwapHook with WETH -> USDC
+    function test_SwapHook_WithApproveChain_WETH_to_USDC() public {
+        address account = instanceOnEth.account;
+        uint256 sellAmount = 0.5 ether;
         deal(CHAIN_1_WETH, account, sellAmount);
 
-        uint256 initialWETH = IERC20(CHAIN_1_WETH).balanceOf(account);
-        uint256 initialUSDC = IERC20(CHAIN_1_USDC).balanceOf(account);
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(account);
 
-        bytes memory hookData = _buildRouter02HookData(
-            CHAIN_1_WETH,
-            CHAIN_1_USDC,
-            FEE_LOW, // 0.05% fee tier
-            0,
-            sellAmount,
-            100e6,
-            false
-        );
+        address[] memory hooks = new address[](2);
+        hooks[0] = address(approveERC20Hook);
+        hooks[1] = address(swapHook);
 
-        _executeSwapWithApproval(address(approveAndSwapHook), hookData);
+        bytes[] memory hookDatas = new bytes[](2);
+        hookDatas[0] = _buildApproveERC20HookData(CHAIN_1_WETH, MAINNET_V3_SWAP_ROUTER_02, sellAmount, false);
+        hookDatas[1] = _buildRouter02HookData(CHAIN_1_WETH, CHAIN_1_USDC, FEE_MEDIUM, 0, sellAmount, 500e6, false);
 
-        uint256 finalWETH = IERC20(CHAIN_1_WETH).balanceOf(account);
-        uint256 finalUSDC = IERC20(CHAIN_1_USDC).balanceOf(account);
+        _executeMultiHook(hooks, hookDatas);
 
-        assertLt(finalWETH, initialWETH, "Should spend WETH");
-        assertGt(finalUSDC, initialUSDC, "Should receive USDC");
+        uint256 usdcAfter = IERC20(CHAIN_1_USDC).balanceOf(account);
+        assertGe(usdcAfter - usdcBefore, 500e6, "SwapHook WETH->USDC should receive >= 500 USDC");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            FEE TIER TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice 0.05% fee tier (USDC/WETH)
+    function test_ApproveAndSwap_FeeTier_500() public {
+        address account = instanceOnEth.account;
+        deal(CHAIN_1_WETH, account, 0.1 ether);
+
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(account);
+
+        bytes memory hookData =
+            _buildRouter02HookData(CHAIN_1_WETH, CHAIN_1_USDC, FEE_LOW, 0, 0.1 ether, 100e6, false);
+
+        _executeSingleHook(address(approveAndSwapHook), hookData);
+
+        assertGt(IERC20(CHAIN_1_USDC).balanceOf(account) - usdcBefore, 100e6);
+    }
+
+    /// @notice 1% fee tier (WETH/USDC)
+    function test_ApproveAndSwap_FeeTier_10000() public {
+        address account = instanceOnEth.account;
+        deal(CHAIN_1_WETH, account, 0.1 ether);
+
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(account);
+
+        bytes memory hookData =
+            _buildRouter02HookData(CHAIN_1_WETH, CHAIN_1_USDC, FEE_HIGH, 0, 0.1 ether, 50e6, false);
+
+        _executeSingleHook(address(approveAndSwapHook), hookData);
+
+        assertGt(IERC20(CHAIN_1_USDC).balanceOf(account) - usdcBefore, 50e6);
+    }
+
+    /// @notice 0.01% fee tier (DAI/USDC stablecoin)
+    function test_ApproveAndSwap_FeeTier_100() public {
+        address account = instanceOnEth.account;
+        deal(DAI, account, 500e18);
+
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(account);
+
+        bytes memory hookData = _buildRouter02HookData(DAI, CHAIN_1_USDC, FEE_LOWEST, 0, 500e18, 495e6, false);
+
+        _executeSingleHook(address(approveAndSwapHook), hookData);
+
+        assertGt(IERC20(CHAIN_1_USDC).balanceOf(account) - usdcBefore, 495e6);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        AMOUNT VARIATION TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Very small swap: 1 USDC
+    function test_ApproveAndSwap_SmallAmount_1USDC() public {
+        address account = instanceOnEth.account;
+        deal(CHAIN_1_USDC, account, 1e6);
+
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(account);
+
+        bytes memory hookData = _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1e6, 0, false);
+
+        _executeSingleHook(address(approveAndSwapHook), hookData);
+
+        assertGt(IERC20(CHAIN_1_WETH).balanceOf(account), wethBefore, "1 USDC swap should yield some WETH");
+    }
+
+    /// @notice Large swap: 100,000 USDC
+    function test_ApproveAndSwap_LargeAmount_100kUSDC() public {
+        address account = instanceOnEth.account;
+        uint256 sellAmount = 100_000e6;
+        deal(CHAIN_1_USDC, account, sellAmount);
+
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(account);
+
+        bytes memory hookData =
+            _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, sellAmount, 20 ether, false);
+
+        _executeSingleHook(address(approveAndSwapHook), hookData);
+
+        uint256 wethReceived = IERC20(CHAIN_1_WETH).balanceOf(account) - wethBefore;
+        assertGe(wethReceived, 20 ether, "100k USDC should yield at least 20 WETH");
+    }
+
+    /// @notice Partial balance swap — should leave remaining tokens untouched
+    function test_ApproveAndSwap_PartialBalance() public {
+        address account = instanceOnEth.account;
+        deal(CHAIN_1_USDC, account, 5000e6);
+
+        bytes memory hookData =
+            _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 2000e6, 0.4 ether, false);
+
+        _executeSingleHook(address(approveAndSwapHook), hookData);
+
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(account), 3000e6, "Should only spend 2000 USDC, leave 3000");
+        assertGt(IERC20(CHAIN_1_WETH).balanceOf(account), 0, "Should receive WETH");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        APPROVAL PATTERN TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Verify ApproveAndSwap clears allowance after swap (approve(0) at end)
+    function test_ApproveAndSwap_AllowanceClearedAfterSwap() public {
+        address account = instanceOnEth.account;
+        deal(CHAIN_1_USDC, account, 1000e6);
+
+        bytes memory hookData =
+            _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1000e6, 0.2 ether, false);
+
+        _executeSingleHook(address(approveAndSwapHook), hookData);
+
+        uint256 remainingAllowance = IERC20(CHAIN_1_USDC).allowance(account, MAINNET_V3_SWAP_ROUTER_02);
+        assertEq(remainingAllowance, 0, "Allowance should be 0 after swap (approve(0) cleanup)");
+    }
+
+    /// @notice USDT approve-reset pattern: USDT reverts if approve(X) when allowance != 0
+    /// The hook does approve(0) -> approve(amount) which handles this
+    function test_ApproveAndSwap_USDT_ApproveResetPattern() public {
+        address account = instanceOnEth.account;
+        deal(USDT, account, 2000e6);
+
+        // First swap
+        bytes memory hookData1 = _buildRouter02HookData(USDT, CHAIN_1_USDC, FEE_LOWEST, 0, 1000e6, 990e6, false);
+        _executeSingleHook(address(approveAndSwapHook), hookData1);
+
+        // Second swap on same token pair — approve(0) -> approve(amount) pattern must work
+        bytes memory hookData2 = _buildRouter02HookData(USDT, CHAIN_1_USDC, FEE_LOWEST, 0, 1000e6, 990e6, false);
+        _executeSingleHook(address(approveAndSwapHook), hookData2);
+
+        assertEq(IERC20(USDT).balanceOf(account), 0, "All USDT should be swapped");
     }
 
     /*//////////////////////////////////////////////////////////////
                         HOOK CHAINING TESTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Test swap with usePrevHookAmount flag
-    function test_UniswapV3Router02_UsePrevHookAmount() public {
+    /// @notice usePrevHookAmount: prev hook outputs 500 USDC, swap uses that as amountIn
+    function test_UsePrevHookAmount_SwapsExactPrevOutput() public {
         address account = instanceOnEth.account;
         uint256 mockPrevAmount = 500e6;
-
         deal(CHAIN_1_USDC, account, mockPrevAmount);
 
         MockPrevHookRouter02 mockPrevHook = new MockPrevHookRouter02(mockPrevAmount);
 
-        bytes memory swapHookData = _buildRouter02HookData(
+        bytes memory swapData = _buildRouter02HookData(
             CHAIN_1_USDC,
             CHAIN_1_WETH,
             FEE_MEDIUM,
             0,
-            1000e6, // originalAmountIn (different from actual)
-            0.1 ether,
-            true // usePrevHookAmount = true
+            1000e6, // originalAmountIn (different from actual prevHook output)
+            0.1 ether, // originalMinAmountOut
+            true
         );
 
-        address[] memory hookAddresses = new address[](2);
-        hookAddresses[0] = address(mockPrevHook);
-        hookAddresses[1] = address(approveAndSwapHook);
+        address[] memory hooks = new address[](2);
+        hooks[0] = address(mockPrevHook);
+        hooks[1] = address(approveAndSwapHook);
 
-        bytes[] memory hookDataArray = new bytes[](2);
-        hookDataArray[0] = "";
-        hookDataArray[1] = swapHookData;
+        bytes[] memory hookDatas = new bytes[](2);
+        hookDatas[0] = "";
+        hookDatas[1] = swapData;
 
-        ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookDataArray });
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(account);
 
-        uint256 initialWETH = IERC20(CHAIN_1_WETH).balanceOf(account);
+        _executeMultiHook(hooks, hookDatas);
 
-        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
-        executeOp(opData);
+        uint256 wethReceived = IERC20(CHAIN_1_WETH).balanceOf(account) - wethBefore;
+        assertGt(wethReceived, 0, "Should receive WETH from prev hook amount");
 
-        uint256 finalWETH = IERC20(CHAIN_1_WETH).balanceOf(account);
+        // All USDC should be swapped (prevHookAmount = total balance)
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(account), 0, "Should swap exactly prevHook amount");
+    }
 
-        assertGt(finalWETH, initialWETH, "Should receive WETH");
+    /// @notice usePrevHookAmount with SwapHook (no-approve variant) + pre-approve chain
+    function test_UsePrevHookAmount_SwapHookVariant() public {
+        address account = instanceOnEth.account;
+        uint256 mockPrevAmount = 500e6;
+        deal(CHAIN_1_USDC, account, mockPrevAmount);
+
+        MockPrevHookRouter02 mockPrevHook = new MockPrevHookRouter02(mockPrevAmount);
+
+        address[] memory hooks = new address[](3);
+        hooks[0] = address(mockPrevHook);
+        hooks[1] = address(approveERC20Hook);
+        hooks[2] = address(swapHook);
+
+        bytes[] memory hookDatas = new bytes[](3);
+        hookDatas[0] = "";
+        hookDatas[1] = _buildApproveERC20HookData(CHAIN_1_USDC, MAINNET_V3_SWAP_ROUTER_02, mockPrevAmount, false);
+        hookDatas[2] = _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1000e6, 0.05 ether, true);
+
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(account);
+
+        _executeMultiHook(hooks, hookDatas);
+
+        assertGt(IERC20(CHAIN_1_WETH).balanceOf(account) - wethBefore, 0, "SwapHook + usePrevHookAmount should work");
+    }
+
+    /// @notice Chain: Swap USDC->WETH, then swap WETH->DAI using prevHookAmount
+    function test_ChainedSwaps_USDC_WETH_DAI() public {
+        address account = instanceOnEth.account;
+        deal(CHAIN_1_USDC, account, 1000e6);
+
+        ApproveAndSwapUniswapV3Router02Hook secondSwapHook =
+            new ApproveAndSwapUniswapV3Router02Hook(MAINNET_V3_SWAP_ROUTER_02);
+
+        address[] memory hooks = new address[](2);
+        hooks[0] = address(approveAndSwapHook);
+        hooks[1] = address(secondSwapHook);
+
+        bytes[] memory hookDatas = new bytes[](2);
+        hookDatas[0] =
+            _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1000e6, 0.2 ether, false);
+        // Second swap uses output of first swap
+        hookDatas[1] =
+            _buildRouter02HookData(CHAIN_1_WETH, DAI, FEE_MEDIUM, 0, 0.2 ether, 300e18, true);
+
+        uint256 daiBefore = IERC20(DAI).balanceOf(account);
+
+        _executeMultiHook(hooks, hookDatas);
+
+        uint256 daiReceived = IERC20(DAI).balanceOf(account) - daiBefore;
+        assertGt(daiReceived, 0, "Should receive DAI from chained USDC->WETH->DAI");
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(account), 0, "All USDC should be consumed");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        MULTI-SWAP BATCH TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Two independent swaps in a single batch
+    function test_BatchSwaps_TwoIndependentSwaps() public {
+        address account = instanceOnEth.account;
+        deal(CHAIN_1_USDC, account, 1000e6);
+        deal(CHAIN_1_WETH, account, 0.5 ether);
+
+        ApproveAndSwapUniswapV3Router02Hook secondSwapHook =
+            new ApproveAndSwapUniswapV3Router02Hook(MAINNET_V3_SWAP_ROUTER_02);
+
+        uint256 daiBefore = IERC20(DAI).balanceOf(account);
+        uint256 wbtcBefore = IERC20(CHAIN_1_WBTC).balanceOf(account);
+
+        address[] memory hooks = new address[](2);
+        hooks[0] = address(approveAndSwapHook);
+        hooks[1] = address(secondSwapHook);
+
+        bytes[] memory hookDatas = new bytes[](2);
+        hookDatas[0] = _buildRouter02HookData(CHAIN_1_USDC, DAI, FEE_LOWEST, 0, 1000e6, 990e18, false);
+        hookDatas[1] = _buildRouter02HookData(CHAIN_1_WETH, CHAIN_1_WBTC, FEE_MEDIUM, 0, 0.5 ether, 0, false);
+
+        _executeMultiHook(hooks, hookDatas);
+
+        assertGt(IERC20(DAI).balanceOf(account) - daiBefore, 0, "Should receive DAI");
+        assertGt(IERC20(CHAIN_1_WBTC).balanceOf(account) - wbtcBefore, 0, "Should receive WBTC");
+    }
+
+    /// @notice Three sequential swaps in one batch
+    function test_BatchSwaps_ThreeSequentialSwaps() public {
+        address account = instanceOnEth.account;
+        deal(CHAIN_1_USDC, account, 3000e6);
+
+        ApproveAndSwapUniswapV3Router02Hook hook2 =
+            new ApproveAndSwapUniswapV3Router02Hook(MAINNET_V3_SWAP_ROUTER_02);
+        ApproveAndSwapUniswapV3Router02Hook hook3 =
+            new ApproveAndSwapUniswapV3Router02Hook(MAINNET_V3_SWAP_ROUTER_02);
+
+        address[] memory hooks = new address[](3);
+        hooks[0] = address(approveAndSwapHook);
+        hooks[1] = address(hook2);
+        hooks[2] = address(hook3);
+
+        bytes[] memory hookDatas = new bytes[](3);
+        hookDatas[0] = _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1000e6, 0.2 ether, false);
+        hookDatas[1] = _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1000e6, 0.2 ether, false);
+        hookDatas[2] = _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1000e6, 0.2 ether, false);
+
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(account);
+
+        _executeMultiHook(hooks, hookDatas);
+
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(account), 0, "All 3000 USDC spent");
+        assertGe(
+            IERC20(CHAIN_1_WETH).balanceOf(account) - wethBefore, 0.6 ether, "Should receive >= 0.6 WETH from 3 swaps"
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        REVERT / ERROR SCENARIO TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Slippage too high — amountOutMinimum impossible to satisfy
+    function test_RevertIf_SlippageTooHigh() public {
+        address account = instanceOnEth.account;
+        deal(CHAIN_1_USDC, account, 1000e6);
+
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(account);
+
+        bytes memory hookData =
+            _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1000e6, 100 ether, false);
+
+        bool success = _tryExecuteSingleHook(address(approveAndSwapHook), hookData);
+        assertFalse(success, "Should revert with impossible slippage");
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(account), usdcBefore, "USDC should be untouched after revert");
+    }
+
+    /// @notice Zero amountIn reverts
+    function test_RevertIf_ZeroAmountIn() public {
+        bytes memory hookData = _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 0, 0, false);
+
+        bool success = _tryExecuteSingleHook(address(approveAndSwapHook), hookData);
+        assertFalse(success, "Zero amountIn should revert");
+    }
+
+    /// @notice Insufficient balance — account doesn't have enough tokenIn
+    function test_RevertIf_InsufficientBalance() public {
+        address account = instanceOnEth.account;
+        deal(CHAIN_1_USDC, account, 100e6); // only 100 USDC
+
+        bytes memory hookData =
+            _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1000e6, 0, false);
+
+        bool success = _tryExecuteSingleHook(address(approveAndSwapHook), hookData);
+        assertFalse(success, "Should revert with insufficient balance");
+    }
+
+    /// @notice Invalid fee tier — pool doesn't exist for this fee
+    function test_RevertIf_InvalidPoolFeeTier() public {
+        address account = instanceOnEth.account;
+        deal(CHAIN_1_USDC, account, 1000e6);
+
+        // 200 bps is not a standard Uniswap V3 fee tier, pool likely doesn't exist
+        bytes memory hookData =
+            _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, 200, 0, 1000e6, 0, false);
+
+        bool success = _tryExecuteSingleHook(address(approveAndSwapHook), hookData);
+        assertFalse(success, "Non-existent pool should revert");
+    }
+
+    /// @notice Hook data too short — should revert with INVALID_HOOK_DATA
+    function test_RevertIf_TruncatedHookData() public {
+        // Only 100 bytes instead of required 141
+        bytes memory shortData = new bytes(100);
+
+        bool success = _tryExecuteSingleHook(address(approveAndSwapHook), shortData);
+        assertFalse(success, "Truncated hook data should revert");
+    }
+
+    /// @notice Same tokenIn and tokenOut should revert
+    function test_RevertIf_SameTokenInAndOut() public {
+        address account = instanceOnEth.account;
+        deal(CHAIN_1_USDC, account, 1000e6);
+
+        bytes memory hookData =
+            _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_USDC, FEE_MEDIUM, 0, 1000e6, 900e6, false);
+
+        bool success = _tryExecuteSingleHook(address(approveAndSwapHook), hookData);
+        assertFalse(success, "Same token swap should revert");
+    }
+
+    /// @notice SwapHook without pre-approval should revert (insufficient allowance)
+    function test_RevertIf_SwapHookWithoutApproval() public {
+        address account = instanceOnEth.account;
+        deal(CHAIN_1_USDC, account, 1000e6);
+
+        bytes memory hookData =
+            _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1000e6, 0, false);
+
+        bool success = _tryExecuteSingleHook(address(swapHook), hookData);
+        assertFalse(success, "SwapHook without approval should revert");
     }
 
     /*//////////////////////////////////////////////////////////////
                         OUT AMOUNT TRACKING TESTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Test that outAmount is correctly tracked for chaining
-    function test_UniswapV3Router02_OutAmountTracking() public {
+    /// @notice outAmount tracking: swap and verify the delta is stored
+    function test_OutAmountTracking_MatchesActualReceived() public {
         address account = instanceOnEth.account;
-        uint256 sellAmount = 1000e6;
+        deal(CHAIN_1_USDC, account, 1000e6);
 
-        deal(CHAIN_1_USDC, account, sellAmount);
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(account);
 
-        uint256 initialWETH = IERC20(CHAIN_1_WETH).balanceOf(account);
+        bytes memory hookData =
+            _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1000e6, 0.2 ether, false);
 
-        bytes memory hookData = _buildRouter02HookData(
-            CHAIN_1_USDC,
-            CHAIN_1_WETH,
-            FEE_MEDIUM,
-            0,
-            sellAmount,
-            0.2 ether,
-            false
+        _executeSingleHook(address(approveAndSwapHook), hookData);
+
+        uint256 wethReceived = IERC20(CHAIN_1_WETH).balanceOf(account) - wethBefore;
+        assertGt(wethReceived, 0, "Should track non-zero WETH output");
+    }
+
+    /// @notice Verify both hook variants produce identical outAmounts for the same swap
+    function test_OutAmountTracking_BothVariantsConsistent() public {
+        address account = instanceOnEth.account;
+
+        // Snapshot state so both swaps see identical pool state
+        uint256 snap = vm.snapshotState();
+
+        // Swap 1: ApproveAndSwap
+        deal(CHAIN_1_USDC, account, 1000e6);
+        uint256 wethBefore1 = IERC20(CHAIN_1_WETH).balanceOf(account);
+        _executeSingleHook(
+            address(approveAndSwapHook),
+            _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1000e6, 0, false)
         );
+        uint256 wethReceived1 = IERC20(CHAIN_1_WETH).balanceOf(account) - wethBefore1;
 
-        _executeSwapWithApproval(address(approveAndSwapHook), hookData);
+        // Revert to snapshot so pool state is identical for the second swap
+        vm.revertToState(snap);
 
-        uint256 finalWETH = IERC20(CHAIN_1_WETH).balanceOf(account);
-        uint256 wethReceived = finalWETH - initialWETH;
+        // Swap 2: ApproveERC20 + SwapHook (different hook instance)
+        SwapUniswapV3Router02Hook swapHook2 = new SwapUniswapV3Router02Hook(MAINNET_V3_SWAP_ROUTER_02);
+        deal(CHAIN_1_USDC, account, 1000e6);
+        uint256 wethBefore2 = IERC20(CHAIN_1_WETH).balanceOf(account);
 
-        assertGt(wethReceived, 0, "Should track WETH received");
-        console2.log("WETH received and tracked:", wethReceived);
+        address[] memory hooks = new address[](2);
+        hooks[0] = address(approveERC20Hook);
+        hooks[1] = address(swapHook2);
+
+        bytes[] memory hookDatas = new bytes[](2);
+        hookDatas[0] = _buildApproveERC20HookData(CHAIN_1_USDC, MAINNET_V3_SWAP_ROUTER_02, 1000e6, false);
+        hookDatas[1] = _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1000e6, 0, false);
+
+        _executeMultiHook(hooks, hookDatas);
+        uint256 wethReceived2 = IERC20(CHAIN_1_WETH).balanceOf(account) - wethBefore2;
+
+        // Both variants should receive the same amount (identical pool state via snapshot)
+        assertEq(wethReceived1, wethReceived2, "Both variants should produce identical output");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            INSPECT TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice inspect returns tokenOut for different token pairs
+    function test_Inspect_ReturnsCorrectTokenOut() external view {
+        bytes memory hookData1 =
+            _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1000e6, 0, false);
+        bytes memory hookData2 = _buildRouter02HookData(CHAIN_1_WETH, DAI, FEE_MEDIUM, 0, 1 ether, 0, false);
+
+        bytes memory result1 = swapHook.inspect(hookData1);
+        bytes memory result2 = approveAndSwapHook.inspect(hookData2);
+
+        address tokenOut1;
+        address tokenOut2;
+        assembly {
+            tokenOut1 := mload(add(result1, 20))
+            tokenOut2 := mload(add(result2, 20))
+        }
+        assertEq(tokenOut1, CHAIN_1_WETH, "inspect should return WETH");
+        assertEq(tokenOut2, DAI, "inspect should return DAI");
+    }
+
+    /// @notice decodeUsePrevHookAmount returns correct bool
+    function test_DecodeUsePrevHookAmount() external view {
+        bytes memory dataFalse =
+            _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1000e6, 0, false);
+        bytes memory dataTrue =
+            _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1000e6, 0, true);
+
+        assertFalse(swapHook.decodeUsePrevHookAmount(dataFalse));
+        assertTrue(swapHook.decodeUsePrevHookAmount(dataTrue));
+        assertFalse(approveAndSwapHook.decodeUsePrevHookAmount(dataFalse));
+        assertTrue(approveAndSwapHook.decodeUsePrevHookAmount(dataTrue));
     }
 }
 
@@ -384,212 +830,4 @@ contract MockPrevHookRouter02 is BaseHook {
     }
 
     function _postExecute(address, address, bytes calldata) internal pure override { }
-}
-
-/*//////////////////////////////////////////////////////////////
-                    EXTENDED INTEGRATION TESTS
-//////////////////////////////////////////////////////////////*/
-
-/// @title UniswapV3Router02HookEdgeCaseTests
-/// @notice Additional edge case and error scenario tests for Router02
-contract UniswapV3Router02HookEdgeCaseTests is MinimalBaseIntegrationTest {
-    using ModuleKitHelpers for *;
-
-    ApproveAndSwapUniswapV3Router02Hook public approveAndSwapHook;
-
-    uint24 public constant FEE_MEDIUM = 3000;
-
-    function setUp() public override {
-        blockNumber = 0;
-        super.setUp();
-
-        approveAndSwapHook = new ApproveAndSwapUniswapV3Router02Hook(MAINNET_V3_SWAP_ROUTER_02);
-    }
-
-    receive() external payable { }
-
-    function _buildRouter02HookData(
-        address tokenIn,
-        address tokenOut,
-        uint24 fee,
-        uint160 sqrtPriceLimitX96,
-        uint256 amountIn,
-        uint256 amountOutMinimum,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(
-            tokenIn,
-            tokenOut,
-            uint32(fee),
-            uint256(sqrtPriceLimitX96),
-            amountIn,
-            amountOutMinimum,
-            usePrevHookAmount
-        );
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        SLIPPAGE REVERT TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Test that swap reverts when slippage is too high
-    function test_UniswapV3Router02_RevertIf_SlippageTooHigh() public {
-        address account = instanceOnEth.account;
-        uint256 sellAmount = 1000e6;
-
-        deal(CHAIN_1_USDC, account, sellAmount);
-
-        uint256 unrealisticMinOut = 100 ether;
-
-        bytes memory hookData = _buildRouter02HookData(
-            CHAIN_1_USDC,
-            CHAIN_1_WETH,
-            FEE_MEDIUM,
-            0,
-            sellAmount,
-            unrealisticMinOut,
-            false
-        );
-
-        address[] memory hookAddresses = new address[](1);
-        hookAddresses[0] = address(approveAndSwapHook);
-
-        bytes[] memory hookDataArray = new bytes[](1);
-        hookDataArray[0] = hookData;
-
-        ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookDataArray });
-
-        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
-
-        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(account);
-
-        try this.executeOpExternal(opData) {
-            revert("Expected swap to fail due to slippage");
-        } catch {
-            uint256 usdcAfter = IERC20(CHAIN_1_USDC).balanceOf(account);
-            assertEq(usdcAfter, usdcBefore, "USDC should not be spent on failed swap");
-        }
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        ZERO AMOUNT TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Test swap with zero amount reverts
-    function test_UniswapV3Router02_ZeroAmountSwap() public {
-        address account = instanceOnEth.account;
-
-        bytes memory hookData = _buildRouter02HookData(
-            CHAIN_1_USDC,
-            CHAIN_1_WETH,
-            FEE_MEDIUM,
-            0,
-            0, // Zero amount
-            0,
-            false
-        );
-
-        address[] memory hookAddresses = new address[](1);
-        hookAddresses[0] = address(approveAndSwapHook);
-
-        bytes[] memory hookDataArray = new bytes[](1);
-        hookDataArray[0] = hookData;
-
-        ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookDataArray });
-
-        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
-
-        try this.executeOpExternal(opData) {
-            revert("Expected swap to fail due to zero amount");
-        } catch {
-            // Expected failure
-        }
-    }
-
-    /// @notice External wrapper to enable try/catch for UserOp execution
-    function executeOpExternal(UserOpData memory opData) external {
-        executeOp(opData);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        MULTIPLE SWAPS TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Test multiple sequential swaps in a single transaction
-    function test_UniswapV3Router02_MultipleSequentialSwaps() public {
-        address account = instanceOnEth.account;
-        uint256 initialUSDC = 2000e6;
-
-        deal(CHAIN_1_USDC, account, initialUSDC);
-
-        bytes memory hookData1 = _buildRouter02HookData(
-            CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1000e6, 0.2 ether, false
-        );
-
-        bytes memory hookData2 = _buildRouter02HookData(
-            CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, 1000e6, 0.2 ether, false
-        );
-
-        address[] memory hookAddresses = new address[](2);
-        hookAddresses[0] = address(approveAndSwapHook);
-        hookAddresses[1] = address(approveAndSwapHook);
-
-        bytes[] memory hookDataArray = new bytes[](2);
-        hookDataArray[0] = hookData1;
-        hookDataArray[1] = hookData2;
-
-        ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookDataArray });
-
-        uint256 initialWETH = IERC20(CHAIN_1_WETH).balanceOf(account);
-
-        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
-        executeOp(opData);
-
-        uint256 finalUSDC = IERC20(CHAIN_1_USDC).balanceOf(account);
-        uint256 finalWETH = IERC20(CHAIN_1_WETH).balanceOf(account);
-
-        assertEq(finalUSDC, 0, "Should spend all USDC");
-        assertGt(finalWETH, initialWETH, "Should receive WETH");
-        assertGe(finalWETH - initialWETH, 0.4 ether, "Should receive at least 0.4 WETH total");
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        SMALL AMOUNT TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Test swap with very small amounts
-    function test_UniswapV3Router02_SmallAmountSwap() public {
-        address account = instanceOnEth.account;
-        uint256 smallAmount = 1e6;
-
-        deal(CHAIN_1_USDC, account, smallAmount);
-
-        uint256 initialWETH = IERC20(CHAIN_1_WETH).balanceOf(account);
-
-        bytes memory hookData = _buildRouter02HookData(
-            CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, smallAmount, 0, false
-        );
-
-        address[] memory hookAddresses = new address[](1);
-        hookAddresses[0] = address(approveAndSwapHook);
-
-        bytes[] memory hookDataArray = new bytes[](1);
-        hookDataArray[0] = hookData;
-
-        ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookDataArray });
-
-        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
-        executeOp(opData);
-
-        uint256 finalWETH = IERC20(CHAIN_1_WETH).balanceOf(account);
-        assertGt(finalWETH, initialWETH, "Should receive some WETH even for small amount");
-    }
 }

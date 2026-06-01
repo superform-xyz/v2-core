@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
+// External
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+// Superform
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
@@ -16,7 +19,14 @@ import { IV3SwapRouter } from "./interfaces/IV3SwapRouter.sol";
 /// @dev Handles: approve(0) -> approve(amount) -> swap -> approve(0)
 /// @dev SwapRouter02 removes deadline from ExactInputSingleParams (deadline handled via multicall wrapper)
 /// @dev Fee-on-transfer and rebasing tokens are NOT supported (Uniswap V3 limitation)
-/// @dev data structure same as SwapUniswapV3Router02Hook
+/// @dev data has the following structure:
+/// @notice         address tokenIn = BytesLib.toAddress(data, 0);
+/// @notice         address tokenOut = BytesLib.toAddress(data, 20);
+/// @notice         uint24 fee = uint24(BytesLib.toUint32(data, 40));
+/// @notice         uint160 sqrtPriceLimitX96 = uint160(BytesLib.toUint256(data, 44));
+/// @notice         uint256 originalAmountIn = BytesLib.toUint256(data, 76);
+/// @notice         uint256 originalMinAmountOut = BytesLib.toUint256(data, 108);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 140);
 contract ApproveAndSwapUniswapV3Router02Hook is BaseHook, ISuperHookContextAware {
     using BytesLib for bytes;
 
@@ -160,9 +170,16 @@ contract ApproveAndSwapUniswapV3Router02Hook is BaseHook, ISuperHookContextAware
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Decodes swap parameters from hook data
+    /// @dev Recipient is always set to `account` to ensure balance tracking works correctly for hook chaining
     /// @param prevHook The previous hook in the chain
     /// @param account The account executing the swap
     /// @param data The encoded hook data
+    /// @return tokenIn The input token address
+    /// @return tokenOut The output token address
+    /// @return fee The Uniswap V3 pool fee tier
+    /// @return sqrtPriceLimitX96 The price limit for the swap (0 = no limit)
+    /// @return amountIn The amount of input tokens to swap
+    /// @return amountOutMinimum The minimum acceptable output amount
     function _decodeSwapParams(
         address prevHook,
         address account,
@@ -185,8 +202,13 @@ contract ApproveAndSwapUniswapV3Router02Hook is BaseHook, ISuperHookContextAware
         if (tokenIn == address(0) || tokenOut == address(0)) revert NATIVE_ETH_NOT_SUPPORTED();
         if (tokenIn == tokenOut) revert INVALID_HOOK_DATA();
 
-        fee = uint24(data.toUint32(40));
-        sqrtPriceLimitX96 = uint160(data.toUint256(44));
+        uint32 rawFee = data.toUint32(40);
+        if (rawFee > type(uint24).max) revert INVALID_HOOK_DATA();
+        fee = uint24(rawFee);
+
+        uint256 rawSqrtPriceLimit = data.toUint256(44);
+        if (rawSqrtPriceLimit > type(uint160).max) revert INVALID_HOOK_DATA();
+        sqrtPriceLimitX96 = uint160(rawSqrtPriceLimit);
 
         uint256 originalAmountIn = data.toUint256(76);
         uint256 originalMinAmountOut = data.toUint256(108);
@@ -199,6 +221,7 @@ contract ApproveAndSwapUniswapV3Router02Hook is BaseHook, ISuperHookContextAware
                 originalAmountIn,
                 originalMinAmountOut
             );
+            if (amountOutMinimum == 0) revert AMOUNT_NOT_VALID();
         } else {
             amountIn = originalAmountIn;
             amountOutMinimum = originalMinAmountOut;
