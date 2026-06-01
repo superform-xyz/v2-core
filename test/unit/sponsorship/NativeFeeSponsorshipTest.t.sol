@@ -66,13 +66,14 @@ contract NativeFeeSponsorshipTest is Helpers {
         sponsorship.depositForAccount{ value: 0 }(sponsor, account);
     }
 
-    function test_DepositForAccount_RevertIf_UnauthorizedDepositor() public {
-        address attacker = makeAddr("attacker");
-        vm.deal(attacker, 10 ether);
+    function test_DepositForAccount_ThirdPartyCanDepositOnBehalfOfSponsor() public {
+        address intermediary = makeAddr("intermediary");
+        vm.deal(intermediary, 10 ether);
 
-        vm.expectRevert(INativeFeeSponsorship.UNAUTHORIZED_DEPOSITOR.selector);
-        vm.prank(attacker);
+        vm.prank(intermediary);
         sponsorship.depositForAccount{ value: 1 ether }(sponsor, account);
+
+        assertEq(sponsorship.sponsoredAmount(sponsor, account), 1 ether);
     }
 
     /*//////////////////////////////////////////////////////////////

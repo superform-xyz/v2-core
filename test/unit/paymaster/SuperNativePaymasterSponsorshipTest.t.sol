@@ -50,8 +50,8 @@ contract SuperNativePaymasterSponsorshipTest is Helpers {
         vm.prank(bundler);
         paymaster.sponsorNativeAndHandleOps{ value: 1.5 ether }(ops, deposits, address(sponsorship));
 
-        // Sponsorship deposit was made by paymaster (paymaster is sponsor of record)
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), smartAccount), 0.5 ether);
+        // Sponsorship deposit records bundler (msg.sender) as sponsor so they can reclaim
+        assertEq(sponsorship.sponsoredAmount(bundler, smartAccount), 0.5 ether);
     }
 
     function test_SponsorNativeAndHandleOps_MultipleDeposits() public {
@@ -69,8 +69,8 @@ contract SuperNativePaymasterSponsorshipTest is Helpers {
         vm.prank(bundler);
         paymaster.sponsorNativeAndHandleOps{ value: 1.5 ether }(ops, deposits, address(sponsorship));
 
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), smartAccount), 0.3 ether);
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), smartAccount2), 0.2 ether);
+        assertEq(sponsorship.sponsoredAmount(bundler, smartAccount), 0.3 ether);
+        assertEq(sponsorship.sponsoredAmount(bundler, smartAccount2), 0.2 ether);
     }
 
     function test_SponsorNativeAndHandleOps_EmptyDeposits() public {
@@ -84,7 +84,7 @@ contract SuperNativePaymasterSponsorshipTest is Helpers {
         paymaster.sponsorNativeAndHandleOps{ value: 1 ether }(ops, deposits, address(sponsorship));
 
         // All value goes to gas, no sponsorship deposits
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), smartAccount), 0);
+        assertEq(sponsorship.sponsoredAmount(bundler, smartAccount), 0);
     }
 
     function test_SponsorNativeAndHandleOps_EmitsEvent() public {
