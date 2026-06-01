@@ -6,6 +6,7 @@ import { StargateSendHook } from "../../../../src/hooks/bridges/stargate/Stargat
 import { ApproveAndStargateSendHook } from "../../../../src/hooks/bridges/stargate/ApproveAndStargateSendHook.sol";
 import { IStargate } from "../../../../src/vendor/bridges/stargate/IStargate.sol";
 import { IOFT } from "../../../../src/vendor/bridges/layerzero/IOFT.sol";
+import { ILZMultiCall } from "../../../../src/vendor/bridges/layerzero/ILZMultiCall.sol";
 import { ISuperValidator } from "../../../../src/interfaces/ISuperValidator.sol";
 import { ISuperHook, ISuperHookResult } from "../../../../src/interfaces/ISuperHook.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
@@ -1042,7 +1043,7 @@ contract StargateHooks is Helpers {
     // --- Mode validation tests (both hooks) ---
 
     function test_StargateSend_Build_RevertIf_ModeInvalid() public {
-        bytes memory data = _encodeStargateData(false, 3, false);
+        bytes memory data = _encodeStargateData(false, 4, false);
 
         vm.expectRevert(StargateSendHook.MODE_NOT_VALID.selector);
         stargateHook.build(address(0), mockAccount, data);
@@ -1056,7 +1057,7 @@ contract StargateHooks is Helpers {
     }
 
     function test_ApproveAndStargateSend_Build_RevertIf_ModeInvalid() public {
-        bytes memory data = _encodeStargateData(false, 3, false);
+        bytes memory data = _encodeStargateData(false, 4, false);
 
         vm.expectRevert(ApproveAndStargateSendHook.MODE_NOT_VALID.selector);
         approveAndStargateHook.build(address(0), mockAccount, data);
@@ -1680,8 +1681,10 @@ contract StargateHooks is Helpers {
         assertEq(executions[3].value, mockLzNativeFee);
     }
 
-    /// @dev Fuzz: any valid mode 0-2 succeeds, 3-255 reverts
+    /// @dev Fuzz: any valid mode 0-2 succeeds, 4-255 reverts (mode 3 tested separately with executeCalldata)
     function testFuzz_StargateSend_Build_ModeValidation(uint8 mode) public {
+        vm.assume(mode != 3); // mode 3 requires executeCalldata, tested separately
+
         bytes memory fixedPart = abi.encodePacked(
             mockLzNativeFee, mockStargatePool, mockInputToken, mockDstEid, mockTo, mockAmountLD, mockMinAmountLD
         );
@@ -1689,7 +1692,7 @@ contract StargateHooks is Helpers {
             fixedPart, false, mode, uint256(mockExtraOptions.length), mockExtraOptions, uint256(0)
         );
 
-        if (mode > 2) {
+        if (mode > 3) {
             vm.expectRevert(StargateSendHook.MODE_NOT_VALID.selector);
             stargateHook.build(address(0), mockAccount, data);
         } else {
@@ -1712,6 +1715,188 @@ contract StargateHooks is Helpers {
 
         Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
         assertEq(executions[1].value, lzNativeFee + amountLD);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                     LZ MULTICALL MODE (MODE=3) TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    // --- StargateSendHook mode 3 ---
+
+    function test_StargateSend_Build_LzMulticallMode() public view {
+        bytes memory executeCalldata = _buildMockExecuteCalldata();
+        bytes memory data = _encodeLzMulticallData(executeCalldata, false);
+        Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
+
+        // preExecute + lzMulticall + postExecute = 3
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockStargatePool);
+        assertEq(executions[1].value, mockLzNativeFee);
+        assertEq(executions[1].callData, executeCalldata);
+    }
+
+    function test_StargateSend_Build_LzMulticallMode_PoolValidationSkipped() public {
+        // No token() mock needed for mode 3 - pool validation is skipped
+        address lzMulticallAddr = makeAddr("lzMulticall");
+        address originalPool = mockStargatePool;
+
+        bytes memory executeCalldata = _buildMockExecuteCalldata();
+        bytes memory fixedPart = abi.encodePacked(
+            mockLzNativeFee, lzMulticallAddr, mockInputToken, uint32(0), bytes32(0), mockAmountLD, mockMinAmountLD
+        );
+        bytes memory data = abi.encodePacked(
+            fixedPart, false, uint8(3),
+            uint256(0), // extraOptionsLength
+            uint256(0), // composeMsgLength
+            uint256(executeCalldata.length), executeCalldata
+        );
+
+        Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, lzMulticallAddr);
+    }
+
+    function test_StargateSend_Build_LzMulticallMode_ToZeroAllowed() public view {
+        // to=bytes32(0) is allowed for mode 3
+        bytes memory executeCalldata = _buildMockExecuteCalldata();
+        bytes memory fixedPart = abi.encodePacked(
+            mockLzNativeFee, mockStargatePool, mockInputToken, uint32(0), bytes32(0), mockAmountLD, mockMinAmountLD
+        );
+        bytes memory data = abi.encodePacked(
+            fixedPart, false, uint8(3),
+            uint256(0),
+            uint256(0),
+            uint256(executeCalldata.length), executeCalldata
+        );
+
+        Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
+        assertEq(executions.length, 3);
+    }
+
+    function test_StargateSend_Build_LzMulticallMode_RevertIf_EmptyExecuteCalldata() public {
+        bytes memory fixedPart = abi.encodePacked(
+            mockLzNativeFee, mockStargatePool, mockInputToken, uint32(0), bytes32(0), mockAmountLD, mockMinAmountLD
+        );
+        bytes memory data = abi.encodePacked(
+            fixedPart, false, uint8(3),
+            uint256(0), // extraOptionsLength
+            uint256(0), // composeMsgLength
+            uint256(0) // executeCalldataLength = 0
+        );
+
+        vm.expectRevert(StargateSendHook.DATA_NOT_VALID.selector);
+        stargateHook.build(address(0), mockAccount, data);
+    }
+
+    function test_StargateSend_Build_LzMulticallMode_RevertIf_PoolZero() public {
+        bytes memory executeCalldata = _buildMockExecuteCalldata();
+        bytes memory fixedPart = abi.encodePacked(
+            mockLzNativeFee, address(0), mockInputToken, uint32(0), bytes32(0), mockAmountLD, mockMinAmountLD
+        );
+        bytes memory data = abi.encodePacked(
+            fixedPart, false, uint8(3),
+            uint256(0),
+            uint256(0),
+            uint256(executeCalldata.length), executeCalldata
+        );
+
+        vm.expectRevert(StargateSendHook.POOL_NOT_VALID.selector);
+        stargateHook.build(address(0), mockAccount, data);
+    }
+
+    function test_StargateSend_Build_LzMulticallMode_CorrectValueAndCalldata() public view {
+        // Build realistic lzMulticall.execute calldata
+        ILZMultiCall.Call[] memory calls = new ILZMultiCall.Call[](2);
+        calls[0] = ILZMultiCall.Call({ target: address(0x1), value: 0.005 ether, data: hex"aabbccdd" });
+        calls[1] = ILZMultiCall.Call({ target: address(0x2), value: 0.005 ether, data: hex"eeff0011" });
+        bytes32 quoteId = keccak256("quote123");
+        bytes memory executeCalldata = abi.encodeCall(ILZMultiCall.execute, (calls, quoteId));
+
+        bytes memory data = _encodeLzMulticallData(executeCalldata, false);
+        Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
+
+        assertEq(executions[1].target, mockStargatePool);
+        assertEq(executions[1].value, mockLzNativeFee);
+        assertEq(executions[1].callData, executeCalldata);
+    }
+
+    // --- ApproveAndStargateSendHook mode 3 ---
+
+    function test_ApproveAndStargateSend_Build_LzMulticallMode() public view {
+        bytes memory executeCalldata = _buildMockExecuteCalldata();
+        bytes memory data = _encodeLzMulticallData(executeCalldata, false);
+        Execution[] memory executions = approveAndStargateHook.build(address(0), mockAccount, data);
+
+        // preExecute + approve(0) + approve(amount) + lzMulticall + approve(0) + postExecute = 6
+        assertEq(executions.length, 6);
+
+        // Execution 1: approve(inputToken, lzMulticall, 0)
+        assertEq(executions[1].target, mockInputToken);
+        assertEq(executions[1].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, 0)));
+
+        // Execution 2: approve(inputToken, lzMulticall, amountLD)
+        assertEq(executions[2].target, mockInputToken);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, mockAmountLD)));
+
+        // Execution 3: lzMulticall.execute (value = lzNativeFee, calldata = executeCalldata)
+        assertEq(executions[3].target, mockStargatePool);
+        assertEq(executions[3].value, mockLzNativeFee);
+        assertEq(executions[3].callData, executeCalldata);
+
+        // Execution 4: approve(inputToken, lzMulticall, 0)
+        assertEq(executions[4].target, mockInputToken);
+        assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (mockStargatePool, 0)));
+    }
+
+    function test_ApproveAndStargateSend_Build_LzMulticallMode_TokenMatchSkipped() public {
+        // pool.token() check is skipped in mode 3, so wrong token mock won't cause revert
+        address lzMulticallAddr = makeAddr("lzMulticall");
+        bytes memory executeCalldata = _buildMockExecuteCalldata();
+        bytes memory fixedPart = abi.encodePacked(
+            mockLzNativeFee, lzMulticallAddr, mockInputToken, uint32(0), bytes32(0), mockAmountLD, mockMinAmountLD
+        );
+        bytes memory data = abi.encodePacked(
+            fixedPart, false, uint8(3),
+            uint256(0),
+            uint256(0),
+            uint256(executeCalldata.length), executeCalldata
+        );
+
+        // Should succeed even without mocking token() on lzMulticallAddr
+        Execution[] memory executions = approveAndStargateHook.build(address(0), mockAccount, data);
+        assertEq(executions.length, 6);
+        // Approval targets lzMulticall
+        assertEq(executions[1].callData, abi.encodeCall(IERC20.approve, (lzMulticallAddr, 0)));
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (lzMulticallAddr, mockAmountLD)));
+    }
+
+    function test_ApproveAndStargateSend_Build_LzMulticallMode_CalldataForwarded() public view {
+        ILZMultiCall.Call[] memory calls = new ILZMultiCall.Call[](1);
+        calls[0] = ILZMultiCall.Call({ target: address(0x1), value: 0.01 ether, data: hex"deadbeef" });
+        bytes32 quoteId = keccak256("quote456");
+        bytes memory executeCalldata = abi.encodeCall(ILZMultiCall.execute, (calls, quoteId));
+
+        bytes memory data = _encodeLzMulticallData(executeCalldata, false);
+        Execution[] memory executions = approveAndStargateHook.build(address(0), mockAccount, data);
+
+        // Verify the calldata is forwarded exactly
+        assertEq(executions[3].callData, executeCalldata);
+    }
+
+    function test_ApproveAndStargateSend_Build_LzMulticallMode_RevertIf_InputTokenZero() public {
+        bytes memory executeCalldata = _buildMockExecuteCalldata();
+        bytes memory fixedPart = abi.encodePacked(
+            mockLzNativeFee, mockStargatePool, address(0), uint32(0), bytes32(0), mockAmountLD, mockMinAmountLD
+        );
+        bytes memory data = abi.encodePacked(
+            fixedPart, false, uint8(3),
+            uint256(0),
+            uint256(0),
+            uint256(executeCalldata.length), executeCalldata
+        );
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        approveAndStargateHook.build(address(0), mockAccount, data);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1753,5 +1938,30 @@ contract StargateHooks is Helpers {
             fixedPart, usePrevHookAmount, mode, uint256(mockExtraOptions.length), mockExtraOptions,
             uint256(composeMsg.length), composeMsg
         );
+    }
+
+    function _encodeLzMulticallData(
+        bytes memory executeCalldata,
+        bool usePrevHookAmount
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes memory fixedPart = abi.encodePacked(
+            mockLzNativeFee, mockStargatePool, mockInputToken, uint32(0), bytes32(0), mockAmountLD, mockMinAmountLD
+        );
+        return abi.encodePacked(
+            fixedPart, usePrevHookAmount, uint8(3),
+            uint256(0), // extraOptionsLength
+            uint256(0), // composeMsgLength
+            uint256(executeCalldata.length), executeCalldata
+        );
+    }
+
+    function _buildMockExecuteCalldata() internal pure returns (bytes memory) {
+        ILZMultiCall.Call[] memory calls = new ILZMultiCall.Call[](1);
+        calls[0] = ILZMultiCall.Call({ target: address(0x1), value: 0.01 ether, data: hex"aabbccdd" });
+        return abi.encodeCall(ILZMultiCall.execute, (calls, keccak256("testQuote")));
     }
 }

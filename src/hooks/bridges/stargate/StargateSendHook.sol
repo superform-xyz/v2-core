@@ -6,6 +6,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { IStargate } from "../../../vendor/bridges/stargate/IStargate.sol";
 import { IOFT } from "../../../vendor/bridges/layerzero/IOFT.sol";
+import { ILZMultiCall } from "../../../vendor/bridges/layerzero/ILZMultiCall.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
@@ -40,6 +41,10 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @notice         bytes extraOptions = BytesLib.slice(data, 206, extraOptionsLength);
 /// @notice         uint256 composeMsgLength = BytesLib.toUint256(data, 206 + extraOptionsLength);
 /// @notice         bytes composeMsg = BytesLib.slice(data, 238 + extraOptionsLength, composeMsgLength);
+/// @notice         --- mode 3 only (after composeMsg) ---
+/// @notice         uint256 executeCalldataLength = BytesLib.toUint256(data, composeMsgOffset + 32 + composeMsgLength);
+/// @notice         bytes executeCalldata = BytesLib.slice(data, composeMsgOffset + 64 + composeMsgLength,
+/// executeCalldataLength);
 contract StargateSendHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -57,6 +62,7 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
         uint8 mode;
         bytes extraOptions;
         bytes composeMsg;
+        bytes executeCalldata;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -69,7 +75,7 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
     /// @notice Thrown when the Stargate pool address is invalid or not a legitimate Stargate pool
     error POOL_NOT_VALID();
 
-    /// @notice Thrown when the mode flag is not 0 (taxi), 1 (bus), or 2 (OFT)
+    /// @notice Thrown when the mode flag is not 0 (taxi), 1 (bus), 2 (OFT), or 3 (lzMulticall)
     error MODE_NOT_VALID();
 
     /// @param validator_ The validator contract address for signature retrieval
@@ -102,14 +108,17 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
         s.amountLD = BytesLib.toUint256(data, 108);
         s.minAmountLD = BytesLib.toUint256(data, 140);
         s.mode = BytesLib.toUint8(data, 173);
-        if (s.mode > 2) revert MODE_NOT_VALID();
+        if (s.mode > 3) revert MODE_NOT_VALID();
 
         // Fail-fast validation on fixed fields before external calls
         if (s.stargatePool == address(0)) revert POOL_NOT_VALID();
-        if (s.to == bytes32(0)) revert ADDRESS_NOT_VALID();
 
-        // Verify pool implements IStargate interface (reverts on non-pool addresses)
-        IStargate(s.stargatePool).token();
+        if (s.mode <= 2) {
+            if (s.to == bytes32(0)) revert ADDRESS_NOT_VALID();
+
+            // Verify pool implements IStargate interface (reverts on non-pool addresses)
+            IStargate(s.stargatePool).token();
+        }
 
         // Validate variable-length field bounds
         uint256 extraOptionsLength = BytesLib.toUint256(data, 174);
@@ -121,38 +130,49 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
         if (data.length < composeMsgOffset + 32 + composeMsgLength) revert DATA_NOT_VALID();
         s.composeMsg = BytesLib.slice(data, composeMsgOffset + 32, composeMsgLength);
 
-        if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) {
-            uint256 outAmount = ISuperHookResult(prevHook).getOutAmount(account);
+        if (s.mode <= 2) {
+            if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) {
+                uint256 outAmount = ISuperHookResult(prevHook).getOutAmount(account);
 
-            // Scale minAmountLD proportionally
-            if (s.amountLD > 0 && s.minAmountLD > 0) {
-                s.minAmountLD = Math.mulDiv(s.minAmountLD, outAmount, s.amountLD);
-                if (s.minAmountLD == 0) revert AMOUNT_NOT_VALID();
+                // Scale minAmountLD proportionally
+                if (s.amountLD > 0 && s.minAmountLD > 0) {
+                    s.minAmountLD = Math.mulDiv(s.minAmountLD, outAmount, s.amountLD);
+                    if (s.minAmountLD == 0) revert AMOUNT_NOT_VALID();
+                }
+
+                s.amountLD = outAmount;
             }
 
-            s.amountLD = outAmount;
+            if (s.amountLD == 0) revert AMOUNT_NOT_VALID();
+
+            // Append signature to composeMsg if present
+            if (s.composeMsg.length > 0) {
+                // Minimum ABI-encoded size for (bytes, bytes, address, address[], uint256[])
+                if (s.composeMsg.length < 160) revert DATA_NOT_VALID();
+
+                bytes memory signature = ISuperSignatureStorage(VALIDATOR).retrieveSignatureData(account);
+
+                (
+                    bytes memory initData,
+                    bytes memory executorCalldata,
+                    address _account,
+                    address[] memory dstTokens,
+                    uint256[] memory intentAmounts
+                ) = abi.decode(s.composeMsg, (bytes, bytes, address, address[], uint256[]));
+
+                if (_account != account) revert ADDRESS_NOT_VALID();
+
+                s.composeMsg = abi.encode(initData, executorCalldata, _account, dstTokens, intentAmounts, signature);
+            }
         }
 
-        if (s.amountLD == 0) revert AMOUNT_NOT_VALID();
-
-        // Append signature to composeMsg if present
-        if (s.composeMsg.length > 0) {
-            // Minimum ABI-encoded size for (bytes, bytes, address, address[], uint256[])
-            if (s.composeMsg.length < 160) revert DATA_NOT_VALID();
-
-            bytes memory signature = ISuperSignatureStorage(VALIDATOR).retrieveSignatureData(account);
-
-            (
-                bytes memory initData,
-                bytes memory executorCalldata,
-                address _account,
-                address[] memory dstTokens,
-                uint256[] memory intentAmounts
-            ) = abi.decode(s.composeMsg, (bytes, bytes, address, address[], uint256[]));
-
-            if (_account != account) revert ADDRESS_NOT_VALID();
-
-            s.composeMsg = abi.encode(initData, executorCalldata, _account, dstTokens, intentAmounts, signature);
+        if (s.mode == 3) {
+            // Decode executeCalldata for lzMulticall mode
+            uint256 executeCalldataOffset = composeMsgOffset + 32 + composeMsgLength;
+            uint256 executeCalldataLength = BytesLib.toUint256(data, executeCalldataOffset);
+            if (data.length < executeCalldataOffset + 32 + executeCalldataLength) revert DATA_NOT_VALID();
+            if (executeCalldataLength == 0) revert DATA_NOT_VALID();
+            s.executeCalldata = BytesLib.slice(data, executeCalldataOffset + 32, executeCalldataLength);
         }
 
         // Build executions based on mode
@@ -179,7 +199,7 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
                 value: s.lzNativeFee + s.amountLD,
                 callData: abi.encodeCall(IStargate.sendToken, (sendParam, messagingFee, account))
             });
-        } else {
+        } else if (s.mode == 2) {
             // OFT mode (mode=2)
             // CRITICAL: value = lzNativeFee ONLY. OFT contracts burn tokens from msg.sender internally.
             // Sending amountLD in msg.value to an OFT contract risks permanent ETH loss.
@@ -201,6 +221,14 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
                 target: s.stargatePool,
                 value: s.lzNativeFee,
                 callData: abi.encodeCall(IOFT.send, (sendParam, messagingFee, account))
+            });
+        } else {
+            // lzMulticall mode (mode=3): forward pre-built calldata to lzMulticall contract
+            executions = new Execution[](1);
+            executions[0] = Execution({
+                target: s.stargatePool,
+                value: s.lzNativeFee,
+                callData: s.executeCalldata
             });
         }
     }
