@@ -187,6 +187,8 @@ abstract contract Constants {
     string internal constant SWAP_UNISWAPV4_HOOK_KEY = "SwapUniswapV4Hook";
     string internal constant SWAP_UNISWAPV3_HOOK_KEY = "SwapUniswapV3Hook";
     string internal constant APPROVE_AND_SWAP_UNISWAPV3_HOOK_KEY = "ApproveAndSwapUniswapV3Hook";
+    string internal constant SWAP_UNISWAPV3_ROUTER02_HOOK_KEY = "SwapUniswapV3Router02Hook";
+    string internal constant APPROVE_AND_SWAP_UNISWAPV3_ROUTER02_HOOK_KEY = "ApproveAndSwapUniswapV3Router02Hook";
     string internal constant SWAP_ALGEBRA_INTEGRAL_HOOK_KEY = "SwapAlgebraIntegralHook";
     string internal constant APPROVE_AND_SWAP_ALGEBRA_INTEGRAL_HOOK_KEY = "ApproveAndSwapAlgebraIntegralHook";
     string internal constant SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY = "SwapSparkPSMExactInHook";

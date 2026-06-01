@@ -78,6 +78,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address swapUniswapV4Hook;
         address swapUniswapV3Hook;
         address approveAndSwapUniswapV3Hook;
+        address swapUniswapV3Router02Hook;
+        address approveAndSwapUniswapV3Router02Hook;
         address transferHook;
         address swapSparkPsmExactInHook;
         address approveAndSwapSparkPsmExactInHook;
@@ -243,6 +245,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool swapOdosV3Hooks;
         bool swapUniswapV4Hook;
         bool swapUniswapV3Hooks;
+        bool swapUniswapV3Router02Hooks;
         bool swapSparkPsmHooks;
         bool swapKyberSwapHooks;
         bool swapUniswapV2Hooks;
@@ -288,7 +291,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     {
         // Initialize all skipped contracts array
         // Max possible skips: 2 adapters + 31 hooks = 33 skipped contracts
-        string[] memory potentialSkips = new string[](35);
+        string[] memory potentialSkips = new string[](37);
         uint256 skipCount = 0;
         // Adapter contracts (3 contracts - conditionally deployed)
         string[3] memory adapterContracts = ["AcrossV3Adapter", "DebridgeAdapter", "StargateAdapter"];
@@ -323,7 +326,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-        string[62] memory baseHooks = [
+        string[64] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -385,7 +388,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "CCTPSendHook",
             "ApproveAndCCTPSendHook",
             "SwapOdosV3Hook",
-            "ApproveAndSwapOdosV3Hook"
+            "ApproveAndSwapOdosV3Hook",
+            "SwapUniswapV3Router02Hook",
+            "ApproveAndSwapUniswapV3Router02Hook"
         ];
 
         // Start with all hooks, then decrement for missing configurations
@@ -462,6 +467,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             expectedHooks -= 2; // SwapUniswapV3Hook + ApproveAndSwapUniswapV3Hook
             potentialSkips[skipCount++] = "SwapUniswapV3Hook";
             potentialSkips[skipCount++] = "ApproveAndSwapUniswapV3Hook";
+        }
+
+        if (configuration.uniswapV3SwapRouter02s[chainId] != address(0)) {
+            availability.swapUniswapV3Router02Hooks = true;
+        } else {
+            expectedHooks -= 2; // SwapUniswapV3Router02Hook + ApproveAndSwapUniswapV3Router02Hook
+            potentialSkips[skipCount++] = "SwapUniswapV3Router02Hook";
+            potentialSkips[skipCount++] = "ApproveAndSwapUniswapV3Router02Hook";
         }
 
         if (configuration.sparkPsm3s[chainId] != address(0)) {
@@ -1442,6 +1455,30 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log("SKIPPED ApproveAndSwapUniswapV3Hook: Uniswap V3 SwapRouter not configured for chain", chainId);
         }
 
+        // UniswapV3 SwapRouter02 swap hooks
+        if (availability.swapUniswapV3Router02Hooks) {
+            __checkContract(
+                SWAP_UNISWAPV3_ROUTER02_HOOK_KEY,
+                __getSalt(SWAP_UNISWAPV3_ROUTER02_HOOK_KEY),
+                abi.encode(configuration.uniswapV3SwapRouter02s[chainId]),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_SWAP_UNISWAPV3_ROUTER02_HOOK_KEY,
+                __getSalt(APPROVE_AND_SWAP_UNISWAPV3_ROUTER02_HOOK_KEY),
+                abi.encode(configuration.uniswapV3SwapRouter02s[chainId]),
+                env
+            );
+        } else {
+            console2.log(
+                "SKIPPED SwapUniswapV3Router02Hook: Uniswap V3 SwapRouter02 not configured for chain", chainId
+            );
+            console2.log(
+                "SKIPPED ApproveAndSwapUniswapV3Router02Hook: Uniswap V3 SwapRouter02 not configured for chain",
+                chainId
+            );
+        }
+
         // Spark PSM swap hooks
         if (availability.swapSparkPsmHooks) {
             __checkContract(
@@ -2394,7 +2431,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 68;
+        uint256 len = 70;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -2860,6 +2897,31 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[67] = HookDeployment("", "", ""); // Empty deployment
         }
 
+        // UniswapV3 SwapRouter02 Hooks - Only deploy if V3 SwapRouter02 available on this chain
+        if (availability.swapUniswapV3Router02Hooks) {
+            hooks[68] = _createSafeHookDeploymentWithArgs(
+                SWAP_UNISWAPV3_ROUTER02_HOOK_KEY,
+                "SwapUniswapV3Router02Hook",
+                env,
+                abi.encode(configuration.uniswapV3SwapRouter02s[chainId])
+            );
+            hooks[69] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_SWAP_UNISWAPV3_ROUTER02_HOOK_KEY,
+                "ApproveAndSwapUniswapV3Router02Hook",
+                env,
+                abi.encode(configuration.uniswapV3SwapRouter02s[chainId])
+            );
+        } else {
+            console2.log(
+                "SKIPPED SwapUniswapV3Router02Hook: Uniswap V3 SwapRouter02 not available on chain", chainId
+            );
+            console2.log(
+                "SKIPPED ApproveAndSwapUniswapV3Router02Hook: Uniswap V3 SwapRouter02 not available on chain", chainId
+            );
+            hooks[68] = HookDeployment("", "", ""); // Empty deployment
+            hooks[69] = HookDeployment("", "", ""); // Empty deployment
+        }
+
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying hooks with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
@@ -3021,6 +3083,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[66].name, SWAP_ODOSV3_HOOK_KEY) ? addresses[66] : address(0);
         hookAddresses.approveAndSwapOdosV3Hook =
             Strings.equal(hooks[67].name, APPROVE_AND_SWAP_ODOSV3_HOOK_KEY) ? addresses[67] : address(0);
+        hookAddresses.swapUniswapV3Router02Hook =
+            Strings.equal(hooks[68].name, SWAP_UNISWAPV3_ROUTER02_HOOK_KEY) ? addresses[68] : address(0);
+        hookAddresses.approveAndSwapUniswapV3Router02Hook = Strings.equal(
+            hooks[69].name, APPROVE_AND_SWAP_UNISWAPV3_ROUTER02_HOOK_KEY
+        ) ? addresses[69] : address(0);
 
         // ERC-7540 WithId hooks
         hookAddresses.cancelDepositRequestWithId7540Hook = Strings.equal(

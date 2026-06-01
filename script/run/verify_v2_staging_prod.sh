@@ -518,8 +518,8 @@ generate_constructor_args() {
 
         # Sponsorship contracts
         "SuperSponsorshipPaymaster")
-            local deployer="0x6E3dadcAf328ebB58753e89a3e589F5C5e988dF8"
-            echo "$(cast abi-encode "constructor(address,address)" "$entry_point" "$deployer")"
+            local paymaster_admin="0x22BC97cFac64D6d9BCaDF5dC36e4D01Db9e929c5"
+            echo "$(cast abi-encode "constructor(address,address)" "$entry_point" "$paymaster_admin")"
             ;;
         "NativeFeeSponsorship")
             echo "$(cast abi-encode "constructor()")"

@@ -26,9 +26,11 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
-
     bytes32 public constant FUNDING_ROLE = keccak256("FUNDING_ROLE");
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+
+    // deployment version
+    uint256 public constant VERSION = 2;
 
     /// @notice Offset into paymasterAndData where the strategy address begins.
     ///         Layout: [0:20] paymaster, [20:36] verificationGasLimit, [36:52] postOpGasLimit, [52:72] strategy
