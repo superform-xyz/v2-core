@@ -338,6 +338,25 @@ abstract contract ConfigCore is ConfigBase {
         configuration.uniswapV3SwapRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.uniswapV3SwapRouters[STABLE_CHAIN_ID] = address(0); // Not deployed
 
+        // ===== UNISWAP V3 SWAP ROUTER 02 ADDRESSES =====
+        // Using SwapRouter02 (exactInputSingle WITHOUT deadline in struct)
+        configuration.uniswapV3SwapRouter02s[MAINNET_CHAIN_ID] = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
+        configuration.uniswapV3SwapRouter02s[BASE_CHAIN_ID] = 0x2626664c2603336E57B271c5C0b26F421741e481;
+        configuration.uniswapV3SwapRouter02s[BNB_CHAIN_ID] = 0xB971eF87ede563556b2ED4b1C0b0019111Dd85d2;
+        configuration.uniswapV3SwapRouter02s[ARBITRUM_CHAIN_ID] = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
+        configuration.uniswapV3SwapRouter02s[OPTIMISM_CHAIN_ID] = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
+        configuration.uniswapV3SwapRouter02s[POLYGON_CHAIN_ID] = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
+        configuration.uniswapV3SwapRouter02s[UNICHAIN_CHAIN_ID] = 0x73855d06DE49d0fe4A9c42636Ba96c62da12FF9C;
+        configuration.uniswapV3SwapRouter02s[LINEA_CHAIN_ID] = 0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a;
+        configuration.uniswapV3SwapRouter02s[AVALANCHE_CHAIN_ID] = 0xbb00FF08d01D300023C629E8fFfFcb65A5a578cE;
+        configuration.uniswapV3SwapRouter02s[BERACHAIN_CHAIN_ID] = address(0); // Not deployed
+        configuration.uniswapV3SwapRouter02s[SONIC_CHAIN_ID] = address(0); // Not confirmed
+        configuration.uniswapV3SwapRouter02s[GNOSIS_CHAIN_ID] = address(0); // Not confirmed
+        configuration.uniswapV3SwapRouter02s[WORLDCHAIN_CHAIN_ID] = 0x091AD9e2e6e5eD44c1c66dB50e49A601F9f36cF6;
+        configuration.uniswapV3SwapRouter02s[HYPEREVM_CHAIN_ID] = address(0); // Uses HyperSwap v1 router
+        configuration.uniswapV3SwapRouter02s[FLARE_CHAIN_ID] = address(0); // Not deployed
+        configuration.uniswapV3SwapRouter02s[STABLE_CHAIN_ID] = 0x32eaf9B5d5F2CD7361c5012890C943D7de84C22a;
+
         // ===== UNISWAP V2 SWAP ROUTER ADDRESSES =====
         // SparkDex on Flare is a Uniswap V2 fork
         configuration.uniswapV2SwapRouters[MAINNET_CHAIN_ID] = address(0);

@@ -9,14 +9,21 @@ import { console2 } from "forge-std/console2.sol";
 /// @title DeploySuperSponsorshipPaymaster
 /// @notice Deployment script for SuperSponsorshipPaymaster - per-strategy gas sponsorship budgets
 /// @dev Deploys across multiple chains with deterministic addresses
-/// @dev Initially grants all roles to DEPLOYER for operational flexibility, then transfers to SUPER_GOVERNOR later
+/// @dev Initially grants all roles to PAYMASTER_ADMIN for operational flexibility, then transfers to SUPER_GOVERNOR
+/// later
 contract DeploySuperSponsorshipPaymaster is DeployV2Base {
+    /// @notice Admin address for the SuperSponsorshipPaymaster
+    address internal constant PAYMASTER_ADMIN = 0x22BC97cFac64D6d9BCaDF5dC36e4D01Db9e929c5;
+
+    /// @notice Flare-specific Super Governor address
+    address internal constant FLARE_SUPER_GOVERNOR = 0x0f0Db7CEDD49587D78d67175Ff59Ed7069A35874;
+
     /*//////////////////////////////////////////////////////////////
                             MAIN FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Deploy SuperSponsorshipPaymaster on a single chain
-    /// @dev Grants all roles (DEFAULT_ADMIN_ROLE, FUNDING_ROLE, MANAGER_ROLE) to DEPLOYER
+    /// @dev Grants all roles (DEFAULT_ADMIN_ROLE, FUNDING_ROLE, MANAGER_ROLE) to PAYMASTER_ADMIN
     /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
     /// @param chainId Chain ID to deploy on
     /// @param branchName Branch name for vnet deployments (required when env == 1, ignored otherwise)
@@ -24,14 +31,14 @@ contract DeploySuperSponsorshipPaymaster is DeployV2Base {
         _validateEnvAndBranchName(env, branchName);
         _setBaseConfiguration(env, branchName);
 
-        // Use DEPLOYER as admin - will be transferred to SUPER_GOVERNOR_ADDRESS later
-        address admin = DEPLOYER;
+        // Use PAYMASTER_ADMIN - will be transferred to SUPER_GOVERNOR_ADDRESS later
+        address admin = PAYMASTER_ADMIN;
 
         _deploy(env, chainId, admin, branchName);
     }
 
     /// @notice Deploy SuperSponsorshipPaymaster on multiple chains
-    /// @dev Grants all roles (DEFAULT_ADMIN_ROLE, FUNDING_ROLE, MANAGER_ROLE) to DEPLOYER
+    /// @dev Grants all roles (DEFAULT_ADMIN_ROLE, FUNDING_ROLE, MANAGER_ROLE) to PAYMASTER_ADMIN
     /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
     /// @param chainIds Array of chain IDs to deploy on
     /// @param branchName Branch name for vnet deployments (required when env == 1, ignored otherwise)
@@ -46,15 +53,15 @@ contract DeploySuperSponsorshipPaymaster is DeployV2Base {
         _validateEnvAndBranchName(env, branchName);
         _setBaseConfiguration(env, branchName);
 
-        // Use DEPLOYER as admin - will be transferred to SUPER_GOVERNOR_ADDRESS later
-        address admin = DEPLOYER;
+        // Use PAYMASTER_ADMIN - will be transferred to SUPER_GOVERNOR_ADDRESS later
+        address admin = PAYMASTER_ADMIN;
 
         console2.log("====== Deploying SuperSponsorshipPaymaster (Multi-Chain) ======");
         console2.log("Environment:", env);
         if (env == 1) {
             console2.log("Branch Name:", branchName);
         }
-        console2.log("Admin (DEPLOYER):", admin);
+        console2.log("Admin (PAYMASTER_ADMIN):", admin);
         console2.log("EntryPoint:", ENTRY_POINT);
         console2.log("Number of chains:", chainIds.length);
         console2.log("");
@@ -75,7 +82,7 @@ contract DeploySuperSponsorshipPaymaster is DeployV2Base {
         _validateEnvAndBranchName(env, branchName);
         _setBaseConfiguration(env, branchName);
 
-        address admin = DEPLOYER;
+        address admin = PAYMASTER_ADMIN;
 
         console2.log("====== SuperSponsorshipPaymaster Deployment Check ======");
         console2.log("Chain ID:", chainId);
@@ -83,9 +90,11 @@ contract DeploySuperSponsorshipPaymaster is DeployV2Base {
         if (env == 1) {
             console2.log("Branch Name:", branchName);
         }
-        console2.log("Admin (DEPLOYER):", admin);
+        console2.log("Admin (PAYMASTER_ADMIN):", admin);
         console2.log("EntryPoint:", ENTRY_POINT);
-        console2.log("SUPER_GOVERNOR_ADDRESS:", SUPER_GOVERNOR_ADDRESS);
+
+        address superGovernor = _getSuperGovernor(chainId);
+        console2.log("SUPER_GOVERNOR:", superGovernor);
         console2.log("");
 
         address paymasterAddr = _computePaymasterAddress(env, admin);
@@ -98,20 +107,15 @@ contract DeploySuperSponsorshipPaymaster is DeployV2Base {
             SuperSponsorshipPaymaster pm = SuperSponsorshipPaymaster(payable(paymasterAddr));
             console2.log("");
             console2.log("=== Paymaster Role Status ===");
-            console2.log("DEPLOYER has DEFAULT_ADMIN_ROLE:", pm.hasRole(pm.DEFAULT_ADMIN_ROLE(), admin));
-            console2.log("DEPLOYER has FUNDING_ROLE:", pm.hasRole(pm.FUNDING_ROLE(), admin));
-            console2.log("DEPLOYER has MANAGER_ROLE:", pm.hasRole(pm.MANAGER_ROLE(), admin));
+            console2.log("PAYMASTER_ADMIN has DEFAULT_ADMIN_ROLE:", pm.hasRole(pm.DEFAULT_ADMIN_ROLE(), admin));
+            console2.log("PAYMASTER_ADMIN has FUNDING_ROLE:", pm.hasRole(pm.FUNDING_ROLE(), admin));
+            console2.log("PAYMASTER_ADMIN has MANAGER_ROLE:", pm.hasRole(pm.MANAGER_ROLE(), admin));
             console2.log("");
             console2.log(
-                "SUPER_GOVERNOR has DEFAULT_ADMIN_ROLE:",
-                pm.hasRole(pm.DEFAULT_ADMIN_ROLE(), SUPER_GOVERNOR_ADDRESS)
+                "SUPER_GOVERNOR has DEFAULT_ADMIN_ROLE:", pm.hasRole(pm.DEFAULT_ADMIN_ROLE(), superGovernor)
             );
-            console2.log(
-                "SUPER_GOVERNOR has FUNDING_ROLE:", pm.hasRole(pm.FUNDING_ROLE(), SUPER_GOVERNOR_ADDRESS)
-            );
-            console2.log(
-                "SUPER_GOVERNOR has MANAGER_ROLE:", pm.hasRole(pm.MANAGER_ROLE(), SUPER_GOVERNOR_ADDRESS)
-            );
+            console2.log("SUPER_GOVERNOR has FUNDING_ROLE:", pm.hasRole(pm.FUNDING_ROLE(), superGovernor));
+            console2.log("SUPER_GOVERNOR has MANAGER_ROLE:", pm.hasRole(pm.MANAGER_ROLE(), superGovernor));
             console2.log("");
             console2.log("EntryPoint:", address(pm.entryPoint()));
             console2.log("Global Paused:", pm.globalPaused());
@@ -132,7 +136,7 @@ contract DeploySuperSponsorshipPaymaster is DeployV2Base {
     /// @dev Grants all roles (DEFAULT_ADMIN_ROLE, FUNDING_ROLE, MANAGER_ROLE) to admin
     /// @param env Environment (0 = prod, 1 = vnet, 2 = staging)
     /// @param chainId Chain ID to deploy on
-    /// @param admin Admin address (DEPLOYER)
+    /// @param admin Admin address (PAYMASTER_ADMIN)
     /// @param branchName Branch name for vnet deployments
     function _deploy(uint256 env, uint64 chainId, address admin, string calldata branchName) internal {
         console2.log("====== Deploying SuperSponsorshipPaymaster ======");
@@ -141,7 +145,7 @@ contract DeploySuperSponsorshipPaymaster is DeployV2Base {
         if (env == 1) {
             console2.log("Branch Name:", branchName);
         }
-        console2.log("Admin (DEPLOYER):", admin);
+        console2.log("Admin (PAYMASTER_ADMIN):", admin);
         console2.log("EntryPoint:", ENTRY_POINT);
         console2.log("");
 
@@ -239,5 +243,15 @@ contract DeploySuperSponsorshipPaymaster is DeployV2Base {
 
         console2.log("");
         console2.log("SuperSponsorshipPaymaster merged into:", outputPath);
+    }
+
+    /// @notice Returns the Super Governor address for a given chain
+    /// @param chainId Chain ID
+    /// @return The Super Governor address (Flare-specific or default)
+    function _getSuperGovernor(uint64 chainId) internal pure returns (address) {
+        if (chainId == FLARE_CHAIN_ID) {
+            return FLARE_SUPER_GOVERNOR;
+        }
+        return SUPER_GOVERNOR_ADDRESS;
     }
 }

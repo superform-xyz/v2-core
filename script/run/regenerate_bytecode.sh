@@ -171,6 +171,8 @@ HOOK_CONTRACTS=(
     "ApproveAndSwapOdosV3Hook"
     "CCTPSendHook"
     "ApproveAndCCTPSendHook"
+    "SwapUniswapV3Router02Hook"
+    "ApproveAndSwapUniswapV3Router02Hook"
 )
 
 # Oracle contracts from accounting/oracles

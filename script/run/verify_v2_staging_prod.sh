@@ -479,6 +479,25 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address)" "$uniswap_v3_router")"
             ;;
 
+        # Uniswap V3 Router02 Hooks
+        "SwapUniswapV3Router02Hook"|"ApproveAndSwapUniswapV3Router02Hook")
+            local uniswap_v3_router02=""
+            case $chain_id in
+                "1") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;  # Ethereum
+                "8453") uniswap_v3_router02="0x2626664c2603336E57B271c5C0b26F421741e481" ;;  # Base
+                "56") uniswap_v3_router02="0xB971eF87ede563556b2ED4b1C0b0019111Dd85d2" ;;  # BNB
+                "42161") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;  # Arbitrum
+                "10") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;  # Optimism
+                "137") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;  # Polygon
+                "130") uniswap_v3_router02="0x73855d06DE49d0fe4A9c42636Ba96c62da12FF9C" ;;  # Unichain
+                "43114") uniswap_v3_router02="0xbb00FF08d01D300023C629E8fFfFcb65A5a578cE" ;;  # Avalanche
+                "480") uniswap_v3_router02="0x091AD9e2e6e5eD44c1c66dB50e49A601F9f36cF6" ;;  # Worldchain
+                "988") uniswap_v3_router02="0x32eaf9B5d5F2CD7361c5012890C943D7de84C22a" ;;  # Stable
+                *) uniswap_v3_router02="" ;;  # Not deployed on other chains
+            esac
+            echo "$(cast abi-encode "constructor(address)" "$uniswap_v3_router02")"
+            ;;
+
         # Uniswap V4 Hook
         "SwapUniswapV4Hook")
             local uniswap_v4_pool_manager=""
@@ -505,6 +524,11 @@ generate_constructor_args() {
         "PendleUnifiedHook"|"PendleRouterSwapHook"|"PendleRouterRedeemHook")
             local pendle_router="0x888888888889758F76e7103c6CbF23ABbF58F946"  # Same for all chains
             echo "$(cast abi-encode "constructor(address)" "$pendle_router")"
+            ;;
+
+        # ERC7540YieldSourceOracle and SpectraMetaVaultOracle
+        "ERC7540YieldSourceOracle"|"SpectraMetaVaultOracle")
+            echo "$(cast abi-encode "constructor(address,uint256)" "$super_ledger_config" "0")"
             ;;
 
         # SuperVaultYieldSourceOracle
@@ -537,8 +561,8 @@ generate_constructor_args() {
 
         # Sponsorship contracts
         "SuperSponsorshipPaymaster")
-            local deployer="0x6E3dadcAf328ebB58753e89a3e589F5C5e988dF8"
-            echo "$(cast abi-encode "constructor(address,address)" "$entry_point" "$deployer")"
+            local paymaster_admin="0x22BC97cFac64D6d9BCaDF5dC36e4D01Db9e929c5"
+            echo "$(cast abi-encode "constructor(address,address)" "$entry_point" "$paymaster_admin")"
             ;;
         "NativeFeeSponsorship")
             echo "$(cast abi-encode "constructor()")"
@@ -610,6 +634,8 @@ get_contract_source() {
         "ApproveAndSwapOpenOceanSparkDexHook") echo "src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol" ;;
         "SwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Hook.sol" ;;
         "ApproveAndSwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/ApproveAndSwapUniswapV3Hook.sol" ;;
+        "SwapUniswapV3Router02Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Router02Hook.sol" ;;
+        "ApproveAndSwapUniswapV3Router02Hook") echo "src/hooks/swappers/uniswap-v3/ApproveAndSwapUniswapV3Router02Hook.sol" ;;
         "SwapUniswapV4Hook") echo "src/hooks/swappers/uniswap-v4/SwapUniswapV4Hook.sol" ;;
         "PendleUnifiedHook") echo "src/hooks/swappers/pendle/PendleUnifiedHook.sol" ;;
         "PendleRouterSwapHook") echo "src/hooks/swappers/pendle/PendleRouterSwapHook.sol" ;;
@@ -681,243 +707,3 @@ get_contract_source() {
         "SuperYieldSourceOracle") echo "src/accounting/oracles/SuperYieldSourceOracle.sol" ;;
         "SuperVaultYieldSourceOracle") echo "src/accounting/oracles/SuperVaultYieldSourceOracle.sol" ;;
         "ERC7540YieldSourceOracle") echo "src/accounting/oracles/ERC7540YieldSourceOracle.sol" ;;
-        
-        *) echo "src/core/unknown/$contract_name.sol" ;;
-    esac
-}
-
-# Function to verify a single contract
-verify_contract() {
-    local chain_id=$1
-    local contract_name=$2
-    local contract_address=$3
-    local constructor_args=$4
-    local source_file=$5
-    local rpc_url=$6
-
-    echo -e "${YELLOW}   🔍 Verifying $contract_name...${NC}"
-    echo -e "${CYAN}      Address: $contract_address${NC}"
-    echo -e "${CYAN}      Source: $source_file${NC}"
-    echo -e "${CYAN}      Chain ID: $chain_id${NC}"
-
-    # Chains not in forge's internal registry: drop --chain and --rpc-url,
-    # use --verifier-url only (Etherscan verification submits source, no RPC needed)
-    local verifier_url=""
-    case $chain_id in
-        "988"|"999"|"14"|"80094")
-            verifier_url="https://api.etherscan.io/v2/api?chainid=${chain_id}"
-            ;;
-    esac
-
-    if [ -n "$verifier_url" ]; then
-        forge verify-contract "$contract_address" "$source_file:$contract_name" \
-            --constructor-args "$constructor_args" \
-            --etherscan-api-key "$ETHERSCANV2_API_KEY" \
-            --verifier etherscan \
-            --verifier-url "$verifier_url"
-    else
-        forge verify-contract "$contract_address" "$source_file:$contract_name" \
-            --constructor-args "$constructor_args" \
-            --rpc-url "$rpc_url" \
-            --chain "$chain_id" \
-            --etherscan-api-key "$ETHERSCANV2_API_KEY" \
-            --verifier etherscan
-    fi
-
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}   ✅ $contract_name verified successfully${NC}"
-    else
-        echo -e "${RED}   ❌ $contract_name verification failed${NC}"
-    fi
-
-    echo ""
-}
-
-# Function to verify all contracts for a network
-verify_network() {
-    local chain_id=$1
-    
-    # Get network name and RPC URL from loaded configuration
-    local network_name=$(get_network_name "$chain_id")
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}❌ Unknown network ID: $chain_id${NC}"
-        return 1
-    fi
-    
-    local rpc_url=$(get_rpc_url "$chain_id")
-    if [ -z "$rpc_url" ]; then
-        echo -e "${RED}❌ RPC URL not found for chain $chain_id${NC}"
-        return 1
-    fi
-    
-    print_network_header "$network_name"
-    echo -e "${CYAN}   Chain ID: ${WHITE}$chain_id${NC}"
-    echo -e "${CYAN}   RPC URL: ${WHITE}$rpc_url${NC}"
-    echo -e "${CYAN}   Verification: ${WHITE}Etherscan V2${NC}"
-    
-    if ! load_contract_addresses "$chain_id"; then
-        echo -e "${RED}   ❌ Failed to load contract addresses for chain $chain_id${NC}"
-        return 1
-    fi
-    
-    echo -e "${CYAN}   📋 Starting contract verification...${NC}"
-    
-    # Get network suffix for JSON file
-    local network_suffix=""
-    case $chain_id in
-        "1") network_suffix="Ethereum-latest" ;;
-        "8453") network_suffix="Base-latest" ;;
-        "56") network_suffix="BNB-latest" ;;
-        "42161") network_suffix="Arbitrum-latest" ;;
-        "10") network_suffix="Optimism-latest" ;;
-        "137") network_suffix="Polygon-latest" ;;
-        "130") network_suffix="Unichain-latest" ;;
-        "59144") network_suffix="Linea-latest" ;;
-        "43114") network_suffix="Avalanche-latest" ;;
-        "80094") network_suffix="Berachain-latest" ;;
-        "146") network_suffix="Sonic-latest" ;;
-        "100") network_suffix="Gnosis-latest" ;;
-        "480") network_suffix="Worldchain-latest" ;;
-        "999") network_suffix="HyperEVM-latest" ;;
-        "14") network_suffix="Flare-latest" ;;
-        *) network_suffix="${network_name}-latest" ;;
-    esac
-
-    local json_file="script/output/$ENVIRONMENT/$chain_id/$network_suffix.json"
-
-    if [ ! -f "$json_file" ]; then
-        echo -e "${RED}   ❌ Contract addresses file not found: $json_file${NC}"
-        return 1
-    fi
-    
-    # Extract contract names from JSON
-    local all_contract_names=($(jq -r 'keys[]' "$json_file"))
-    local contract_names=()
-    
-    # Apply contract filter if specified
-    if [ ${#CONTRACTS_TO_VERIFY[@]} -eq 0 ]; then
-        # No filter specified, use all contracts
-        contract_names=("${all_contract_names[@]}")
-        echo -e "${CYAN}   📋 No contract filter specified, verifying all deployed contracts...${NC}"
-    else
-        # Use filtered contracts
-        echo -e "${CYAN}   📋 Contract filter active, verifying only specified contracts...${NC}"
-        echo -e "${CYAN}      Filtered contracts: ${CONTRACTS_TO_VERIFY[*]}${NC}"
-        for contract_name in "${CONTRACTS_TO_VERIFY[@]}"; do
-            # Check if the contract exists in the deployed contracts
-            local found=false
-            for deployed_contract in "${all_contract_names[@]}"; do
-                if [ "$deployed_contract" = "$contract_name" ]; then
-                    contract_names+=("$contract_name")
-                    found=true
-                    break
-                fi
-            done
-            if [ "$found" = false ]; then
-                echo -e "${YELLOW}      ⚠️  Warning: Contract $contract_name not found in deployment, skipping...${NC}"
-            fi
-        done
-    fi
-    
-    echo -e "${CYAN}   📋 Verifying ${#contract_names[@]} contracts...${NC}"
-    
-    for contract_name in "${contract_names[@]}"; do
-        local contract_address=$(get_contract_address "$chain_id" "$contract_name")
-        
-        if [ -z "$contract_address" ] || [ "$contract_address" = "null" ]; then
-            echo -e "${YELLOW}   ⚠️  Skipping $contract_name (address not found)${NC}"
-            continue
-        fi
-        
-        local constructor_args=$(generate_constructor_args "$contract_name" "$chain_id")
-        local source_file=$(get_contract_source "$contract_name")
-        
-        verify_contract "$chain_id" "$contract_name" "$contract_address" "$constructor_args" "$source_file" "$rpc_url"
-
-        # Rate limit protection: wait between verification requests
-        if [ "$VERIFY_DELAY" -gt 0 ]; then
-            sleep "$VERIFY_DELAY"
-        fi
-    done
-    
-    echo -e "${GREEN}✅ Network $network_name verification completed${NC}"
-}
-
-# Main verification loop
-main() {
-    # Get chain IDs from the loaded network configuration or use filter
-    local chains=()
-    
-    if [ ${#CHAINS_TO_VERIFY[@]} -eq 0 ]; then
-        # No filter specified, use all chains from network configuration
-        echo -e "${CYAN}📋 No chain filter specified, verifying all configured networks...${NC}"
-        for network_def in "${NETWORKS[@]}"; do
-            IFS=':' read -r network_id _ _ <<< "$network_def"
-            chains+=("$network_id")
-        done
-    else
-        # Use filtered chains
-        echo -e "${CYAN}📋 Chain filter active, verifying only specified chains...${NC}"
-        for chain_id in "${CHAINS_TO_VERIFY[@]}"; do
-            # Verify the chain exists in network configuration
-            local found=false
-            for network_def in "${NETWORKS[@]}"; do
-                IFS=':' read -r network_id _ _ <<< "$network_def"
-                if [ "$network_id" = "$chain_id" ]; then
-                    chains+=("$chain_id")
-                    found=true
-                    break
-                fi
-            done
-            if [ "$found" = false ]; then
-                echo -e "${YELLOW}⚠️  Warning: Chain $chain_id not found in network configuration, skipping...${NC}"
-            fi
-        done
-    fi
-    
-    echo -e "${BLUE}🔍 Starting verification for ${#chains[@]} networks in $ENVIRONMENT environment...${NC}"
-    if [ ${#CHAINS_TO_VERIFY[@]} -gt 0 ]; then
-        echo -e "${CYAN}   Filtered chains: ${CHAINS_TO_VERIFY[*]}${NC}"
-    fi
-    if [ ${#CONTRACTS_TO_VERIFY[@]} -gt 0 ]; then
-        echo -e "${CYAN}   Filtered contracts: ${CONTRACTS_TO_VERIFY[*]}${NC}"
-    fi
-    echo ""
-    
-    local successful_networks=0
-    local failed_networks=0
-    
-    for chain_id in "${chains[@]}"; do
-        if verify_network "$chain_id"; then
-            ((successful_networks++))
-        else
-            ((failed_networks++))
-        fi
-        print_separator
-    done
-    
-    echo -e "${BLUE}📊 Verification Summary:${NC}"
-    echo -e "${GREEN}   • Networks verified successfully: $successful_networks${NC}"
-    if [ $failed_networks -gt 0 ]; then
-        echo -e "${RED}   • Networks with verification failures: $failed_networks${NC}"
-    fi
-    echo ""
-    
-    if [ $failed_networks -eq 0 ]; then
-        echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-        echo -e "${GREEN}║                                                                                      ║${NC}"
-        echo -e "${GREEN}║${WHITE}            🎉 All V2 Core $ENVIRONMENT Contract Verification Completed! 🎉             ${GREEN}║${NC}"
-        echo -e "${GREEN}║                                                                                      ║${NC}"
-        echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    else
-        echo -e "${YELLOW}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-        echo -e "${YELLOW}║                                                                                      ║${NC}"
-        echo -e "${YELLOW}║${WHITE}               ⚠️  V2 Core $ENVIRONMENT Verification Completed with Issues ⚠️               ${YELLOW}║${NC}"
-        echo -e "${YELLOW}║                                                                                      ║${NC}"
-        echo -e "${YELLOW}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-        exit 1
-    fi
-}
-
-# Run the main function
-main

@@ -198,6 +198,7 @@ abstract contract Constants {
 
     // uniswap v3
     address public constant MAINNET_V3_SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    address public constant MAINNET_V3_SWAP_ROUTER_02 = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
 
     // uniswap v4
     address public constant MAINNET_V4_POOL_MANAGER = 0x000000000004444c5dc75cB358380D2e3dE08A90;

@@ -95,10 +95,10 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         }
         if (totalNative > msg.value) revert NATIVE_AMOUNT_EXCEEDS_VALUE();
 
-        // Deposit into sponsorship (paymaster is the sponsor of record)
+        // Deposit into sponsorship (caller is the sponsor of record, so they can reclaim unused deposits)
         for (uint256 i; i < depositsLength; ++i) {
             INativeFeeSponsorship(sponsorship).depositForAccount{ value: deposits[i].amount }(
-                address(this), deposits[i].account
+                msg.sender, deposits[i].account
             );
         }
 

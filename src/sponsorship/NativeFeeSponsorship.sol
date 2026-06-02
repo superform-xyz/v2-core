@@ -26,7 +26,6 @@ contract NativeFeeSponsorship is INativeFeeSponsorship, ReentrancyGuard {
         if (sponsor == address(0)) revert ZERO_ADDRESS();
         if (account == address(0)) revert ZERO_ADDRESS();
         if (msg.value == 0) revert ZERO_AMOUNT();
-        if (msg.sender != sponsor) revert UNAUTHORIZED_DEPOSITOR();
 
         sponsoredNative[sponsor][account] += msg.value;
 
