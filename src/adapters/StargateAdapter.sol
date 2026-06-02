@@ -9,6 +9,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 // Vendor Interfaces
 import { ILayerZeroComposer } from "../vendor/bridges/layerzero/ILayerZeroComposer.sol";
 import { IStargate } from "../vendor/bridges/stargate/IStargate.sol";
+import { ITokenMessaging } from "../vendor/bridges/stargate/ITokenMessaging.sol";
 
 // Superform Interfaces
 import { ISuperDestinationExecutor } from "../interfaces/ISuperDestinationExecutor.sol";
@@ -43,6 +44,13 @@ contract StargateAdapter is ILayerZeroComposer, ReentrancyGuard {
     /// @notice The LayerZero V2 EndpointV2 address
     /// @dev Same on all EVM chains: 0x1a44076050125825900e736c501f859c50fE728c
     address public immutable LZ_ENDPOINT;
+
+    /// @notice The Stargate V2 TokenMessaging contract for pool registration verification
+    /// @dev Used to validate that _from in lzCompose is a legitimate Stargate pool.
+    ///      TokenMessaging.assetIds(pool) returns non-zero only for pools registered by the owner.
+    ///      This prevents spoofed composes from malicious contracts — sendCompose is permissionless
+    ///      in LZ V2, so any contract can register a compose targeting this adapter.
+    ITokenMessaging public immutable TOKEN_MESSAGING;
 
     /// @notice The SuperDestinationExecutor for processing bridged executions
     ISuperDestinationExecutor public immutable SUPER_DESTINATION_EXECUTOR;
@@ -89,10 +97,10 @@ contract StargateAdapter is ILayerZeroComposer, ReentrancyGuard {
     event TransferFailed(bytes32 indexed guid, address indexed account, address indexed token, uint256 amount);
 
     /// @notice Emitted when the executor call fails but tokens were already transferred to the account
+    /// @dev Revert reason is intentionally omitted to prevent returnbomb OOG inside catch (EIP-150)
     /// @param guid The LayerZero unique message identifier
     /// @param account The account that received tokens but whose execution failed
-    /// @param reason The revert reason from the executor
-    event ExecutionFailed(bytes32 indexed guid, address indexed account, bytes reason);
+    event ExecutionFailed(bytes32 indexed guid, address indexed account);
 
     /// @notice Emitted when the compose message is too short to contain the OFTComposeMsgCodec header
     /// @param guid The LayerZero unique message identifier
@@ -100,14 +108,21 @@ contract StargateAdapter is ILayerZeroComposer, ReentrancyGuard {
     event ComposeMsgTooShort(bytes32 indexed guid, uint256 messageLength);
 
     /// @notice Emitted when the inner compose payload cannot be decoded (malformed composeMsg)
+    /// @dev Revert reason is intentionally omitted to prevent returnbomb OOG inside catch (EIP-150)
     /// @param guid The LayerZero unique message identifier
-    /// @param reason The revert reason from the failed decode
-    event ComposeDecodeFailed(bytes32 indexed guid, bytes reason);
+    event ComposeDecodeFailed(bytes32 indexed guid);
 
     /// @notice Emitted when token resolution from _from.token() fails during lzCompose
     /// @param guid The LayerZero unique message identifier
     /// @param from The Stargate pool or OFT contract that failed token resolution
     event TokenResolutionFailed(bytes32 indexed guid, address indexed from);
+
+    /// @notice Emitted when _from is not a registered Stargate pool in TokenMessaging
+    /// @dev sendCompose is permissionless in LZ V2 — anyone can spoof a compose.
+    ///      This event is emitted instead of reverting to avoid blocking the compose queue.
+    /// @param guid The LayerZero unique message identifier
+    /// @param from The unregistered contract that sent the compose
+    event UnregisteredPool(bytes32 indexed guid, address indexed from);
 
     /// @notice Emitted when a user claims their failed transfer
     /// @param account The account claiming funds
@@ -120,12 +135,14 @@ contract StargateAdapter is ILayerZeroComposer, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /// @param lzEndpoint_ The LayerZero V2 EndpointV2 address
+    /// @param tokenMessaging_ The Stargate V2 TokenMessaging address for pool verification
     /// @param superDestinationExecutor_ The SuperDestinationExecutor address
-    constructor(address lzEndpoint_, address superDestinationExecutor_) {
-        if (lzEndpoint_ == address(0) || superDestinationExecutor_ == address(0)) {
+    constructor(address lzEndpoint_, address tokenMessaging_, address superDestinationExecutor_) {
+        if (lzEndpoint_ == address(0) || tokenMessaging_ == address(0) || superDestinationExecutor_ == address(0)) {
             revert ADDRESS_NOT_VALID();
         }
         LZ_ENDPOINT = lzEndpoint_;
+        TOKEN_MESSAGING = ITokenMessaging(tokenMessaging_);
         SUPER_DESTINATION_EXECUTOR = ISuperDestinationExecutor(superDestinationExecutor_);
     }
 
@@ -168,31 +185,40 @@ contract StargateAdapter is ILayerZeroComposer, ReentrancyGuard {
             return;
         }
 
-        // 3. Extract amountLD from OFTComposeMsgCodec header (bytes 12-44)
+        // 3. Validate _from is a registered Stargate pool in TokenMessaging
+        //    sendCompose() in LZ V2 is permissionless — anyone can register a compose targeting
+        //    this adapter with a fabricated _from. TokenMessaging.assetIds() returns 0 for
+        //    unregistered addresses, and only the TokenMessaging owner can register pools.
+        //    Emit + return instead of reverting to avoid blocking the compose pipeline.
+        if (TOKEN_MESSAGING.assetIds(_from) == 0) {
+            emit UnregisteredPool(_guid, _from);
+            return;
+        }
+
+        // 4. Extract amountLD from OFTComposeMsgCodec header (bytes 12-44)
         //    This is the post-dust-removal amount set by Stargate after lzReceive
         uint256 amountLD = uint256(bytes32(_message[12:44]));
 
-        // 4. Extract composeFrom from OFTComposeMsgCodec header (bytes 44-76)
+        // 5. Extract composeFrom from OFTComposeMsgCodec header (bytes 44-76)
         //    This is the source chain sender address (padded to bytes32)
         //    Used as fallback claimant when account is address(0)
         address composeFrom = address(uint160(uint256(bytes32(_message[44:76]))));
 
-        // 5. Identify token via _from.token() — wrapped in try/catch (P2-1)
-        //    If _from is not a valid Stargate/OFT contract, token() will revert.
-        //    We MUST NOT let that block the compose pipeline.
-        address tokenSent;
-        try IStargate(_from).token() returns (address resolvedToken) {
-            tokenSent = resolvedToken;
-        } catch {
-            emit TokenResolutionFailed(_guid, _from);
-            return;
-        }
+        // 6. Identify token via _from.token()
+        //    Safe to call without try/catch here because _from is a verified Stargate pool
+        //    (validated in step 3). Stargate pools always implement token().
+        address tokenSent = IStargate(_from).token();
 
-        // 6. Delegate to external handler via self-call so abi.decode panics are caught
+        // 7. Delegate to external handler via self-call so abi.decode panics are caught
         //    by try/catch. A malformed inner payload must not block the compose pipeline.
         try this.handleCompose(_guid, _message, tokenSent, amountLD, composeFrom) { }
-        catch (bytes memory reason) {
-            emit ComposeDecodeFailed(_guid, reason);
+        catch {
+            // NOTE: we intentionally discard the revert reason to prevent returnbomb attacks.
+            //       A hostile token's balanceOf (or any external call in the execution path) could
+            //       revert with very large data; copying it via `catch (bytes memory reason)` can
+            //       OOG inside the catch block (only 1/64 gas remains per EIP-150), causing
+            //       lzCompose itself to revert and blocking the ordered compose queue.
+            emit ComposeDecodeFailed(_guid);
         }
     }
 
@@ -218,6 +244,14 @@ contract StargateAdapter is ILayerZeroComposer, ReentrancyGuard {
             bytes memory sigData
         ) = abi.decode(_message[COMPOSE_MSG_OFFSET:], (bytes, bytes, address, address[], uint256[], bytes));
 
+        // Snapshot adapter balance BEFORE any transfer attempt.
+        //    failedTransfers credits are only created when the adapter actually held the funds.
+        //    Without this check, a compose where sendParam.to = account (tokens delivered directly
+        //    to the account during lzReceive, bypassing the adapter) would create unbacked credits
+        //    that could later drain other users' funds from the adapter.
+        uint256 preBalance =
+            tokenSent == address(0) ? address(this).balance : IERC20(tokenSent).balanceOf(address(this));
+
         // Validate account is not zero address
         //    If account is zero, store in failedTransfers keyed by composeFrom (source chain sender)
         //    so the originator can claim on the destination chain.
@@ -227,8 +261,10 @@ contract StargateAdapter is ILayerZeroComposer, ReentrancyGuard {
         //    intentionally admin-less and adding a rescue function would widen the attack surface
         //    more than this near-impossible edge case warrants.
         if (account == address(0)) {
-            failedTransfers[composeFrom][tokenSent] += amountLD;
-            emit TransferFailed(_guid, composeFrom, tokenSent, amountLD);
+            if (preBalance >= amountLD) {
+                failedTransfers[composeFrom][tokenSent] += amountLD;
+                emit TransferFailed(_guid, composeFrom, tokenSent, amountLD);
+            }
             return;
         }
 
@@ -238,8 +274,13 @@ contract StargateAdapter is ILayerZeroComposer, ReentrancyGuard {
         bool transferSuccess = _tryTransfer(tokenSent, account, amountLD);
 
         if (!transferSuccess) {
-            failedTransfers[account][tokenSent] += amountLD;
-            emit TransferFailed(_guid, account, tokenSent, amountLD);
+            // Only create a claimable credit if the adapter actually held the funds.
+            //    If preBalance < amountLD, tokens were delivered elsewhere (e.g. directly to account
+            //    during lzReceive) and the adapter has no liability to record.
+            if (preBalance >= amountLD) {
+                failedTransfers[account][tokenSent] += amountLD;
+                emit TransferFailed(_guid, account, tokenSent, amountLD);
+            }
         } else {
             emit TransferSucceeded(_guid, account, tokenSent, amountLD);
         }
@@ -252,8 +293,9 @@ contract StargateAdapter is ILayerZeroComposer, ReentrancyGuard {
         //    because there is no valid account to target).
         try SUPER_DESTINATION_EXECUTOR.processBridgedExecution(
             tokenSent, account, dstTokens, intentAmounts, initData, executorCalldata, sigData
-        ) { } catch (bytes memory reason) {
-            emit ExecutionFailed(_guid, account, reason);
+        ) { } catch {
+            // NOTE: discard revert reason to prevent returnbomb attacks (see ComposeDecodeFailed comment)
+            emit ExecutionFailed(_guid, account);
         }
     }
 

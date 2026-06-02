@@ -28,6 +28,15 @@ contract MockAdapterForkSignatureStorage {
 /// @dev Contract that cannot receive ETH (no receive/fallback) — used for failed transfer tests
 contract NonPayableForkTarget { }
 
+/// @dev Attacker's fake Stargate pool that implements token() — used for compose sender trust tests
+contract FakeStargatePool {
+    address public token;
+
+    constructor(address token_) {
+        token = token_;
+    }
+}
+
 /// @title StargateAdapterFork
 /// @notice Fork-based integration tests for StargateAdapter using real on-chain contracts
 /// @dev Tests real Stargate pool and OFT adapter interactions on forked Ethereum mainnet
@@ -38,6 +47,9 @@ contract StargateAdapterFork is Helpers {
 
     // LayerZero V2 Endpoint on Ethereum (same on all EVM chains)
     address public constant LZ_ENDPOINT = 0x1a44076050125825900e736c501f859c50fE728c;
+
+    // Stargate V2 TokenMessaging on Ethereum (for pool registration verification)
+    address public constant TOKEN_MESSAGING_ETH = 0x6d6620eFa72948C5f68A3C8646d58C00d3f4A980;
 
     // Stargate V2 USDC Pool on Ethereum
     address public constant STARGATE_USDC_POOL_ETH = 0xc026395860Db2d07ee33e05fE50ed7bD583189C7;
@@ -81,17 +93,18 @@ contract StargateAdapterFork is Helpers {
         account = makeAddr("account");
         vm.deal(account, 100 ether);
 
-        // Deploy adapter with real LZ endpoint and mock executor
-        adapter = new StargateAdapter(LZ_ENDPOINT, mockExecutor);
+        // Deploy adapter with real LZ endpoint, real TokenMessaging, and mock executor
+        adapter = new StargateAdapter(LZ_ENDPOINT, TOKEN_MESSAGING_ETH, mockExecutor);
     }
 
     /*//////////////////////////////////////////////////////////////
                     FORK VALIDATION TESTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Deploy adapter with real LZ endpoint, verify immutables
+    /// @notice Deploy adapter with real LZ endpoint and TokenMessaging, verify immutables
     function test_Fork_StargateAdapter_Constructor_RealEndpoint() public view {
         assertEq(adapter.LZ_ENDPOINT(), LZ_ENDPOINT, "LZ endpoint should match real address");
+        assertEq(address(adapter.TOKEN_MESSAGING()), TOKEN_MESSAGING_ETH, "TokenMessaging should match");
         assertEq(address(adapter.SUPER_DESTINATION_EXECUTOR()), mockExecutor, "Executor should match");
     }
 
@@ -118,6 +131,113 @@ contract StargateAdapterFork is Helpers {
         assertTrue(upToken != address(0), "UP OFT adapter should return a non-zero token address");
         console2.log("UP token address:", upToken);
         console2.log("UP token symbol:", IERC20Metadata(upToken).symbol());
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    COMPOSE SENDER TRUST VALIDATION (REAL ADDRESSES)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Fork: Registered Stargate USDC pool passes TokenMessaging validation
+    function test_Fork_StargateAdapter_PoolValidation_RegisteredPool_Passes() public {
+        uint256 amount = 1000e6;
+        deal(USDC_ETH, address(adapter), amount);
+
+        bytes memory innerPayload = _buildStargateDestinationData(account);
+        bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
+        _mockProcessBridgedExecution();
+
+        // Should NOT emit UnregisteredPool — USDC pool is registered in TokenMessaging
+        vm.expectEmit(true, true, true, true);
+        emit StargateAdapter.TransferSucceeded(GUID, account, USDC_ETH, amount);
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message, address(0), new bytes(0));
+        assertEq(IERC20(USDC_ETH).balanceOf(account), amount, "Registered pool should succeed");
+    }
+
+    /// @notice Fork: OFT adapters are NOT registered in TokenMessaging — rejected as unregistered
+    /// @dev OFT adapters (e.g. WBTC OFT) are different from Stargate pools.
+    ///      TokenMessaging only registers Stargate pool addresses.
+    ///      If OFT compose support is needed, use a dedicated OFT adapter contract.
+    function test_Fork_StargateAdapter_PoolValidation_OFTAdapter_IsUnregistered() public {
+        uint256 amount = 1e8;
+        deal(WBTC_ETH, address(adapter), amount);
+
+        bytes memory innerPayload = _buildStargateDestinationData(account);
+        bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
+
+        // OFT adapter is NOT a registered Stargate pool → rejected
+        vm.expectEmit(true, true, false, false);
+        emit StargateAdapter.UnregisteredPool(GUID, WBTC_OFT_ADAPTER_ETH);
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(WBTC_OFT_ADAPTER_ETH, GUID, message, address(0), new bytes(0));
+
+        // Funds remain in adapter
+        assertEq(IERC20(WBTC_ETH).balanceOf(address(adapter)), amount, "OFT adapter rejected, funds safe");
+    }
+
+    /// @notice Fork: Unregistered fake contract is rejected with UnregisteredPool event
+    /// @dev This is the critical security test — validates that spoofed composes cannot drain funds
+    function test_Fork_StargateAdapter_PoolValidation_UnregisteredContract_Rejected() public {
+        uint256 amount = 1000e6;
+
+        // Fund adapter with real USDC (simulates tokens from a prior legitimate lzReceive)
+        deal(USDC_ETH, address(adapter), amount);
+
+        bytes memory innerPayload = _buildStargateDestinationData(account);
+        bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
+
+        // Use a random address as _from — NOT a registered Stargate pool
+        address fakeContract = makeAddr("attacker_fake_pool");
+
+        vm.expectEmit(true, true, false, false);
+        emit StargateAdapter.UnregisteredPool(GUID, fakeContract);
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(fakeContract, GUID, message, address(0), new bytes(0));
+
+        // Funds remain in adapter — attacker could not drain them
+        assertEq(IERC20(USDC_ETH).balanceOf(address(adapter)), amount, "Funds should remain in adapter");
+        assertEq(IERC20(USDC_ETH).balanceOf(account), 0, "No tokens should reach account");
+    }
+
+    /// @notice Fork: Contract implementing token() but unregistered is still rejected
+    /// @dev Tests the actual attack vector: attacker deploys pool-like contract, calls sendCompose
+    function test_Fork_StargateAdapter_PoolValidation_FakePoolWithToken_Rejected() public {
+        uint256 amount = 1000e6;
+        deal(USDC_ETH, address(adapter), amount);
+
+        // Attacker deploys a contract that implements token() and returns USDC — mimics a Stargate pool
+        // But it's NOT registered in TokenMessaging
+        address fakePool = address(new FakeStargatePool(USDC_ETH));
+
+        bytes memory innerPayload = _buildStargateDestinationData(account);
+        bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
+
+        vm.expectEmit(true, true, false, false);
+        emit StargateAdapter.UnregisteredPool(GUID, fakePool);
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(fakePool, GUID, message, address(0), new bytes(0));
+
+        // Attacker's fake pool was rejected — funds safe
+        assertEq(IERC20(USDC_ETH).balanceOf(address(adapter)), amount, "Fake pool rejected, funds safe");
+    }
+
+    /// @notice Fork: Verify real TokenMessaging returns non-zero for registered pools, zero for unregistered
+    function test_Fork_StargateAdapter_TokenMessaging_AssetIds_RealValues() public {
+        // USDC pool should have assetId = 1
+        uint16 usdcAssetId = adapter.TOKEN_MESSAGING().assetIds(STARGATE_USDC_POOL_ETH);
+        assertTrue(usdcAssetId != 0, "USDC pool should be registered (non-zero assetId)");
+
+        // OFT adapters are NOT registered in TokenMessaging (they're a different contract type)
+        uint16 wbtcOftAssetId = adapter.TOKEN_MESSAGING().assetIds(WBTC_OFT_ADAPTER_ETH);
+        assertEq(wbtcOftAssetId, 0, "OFT adapter should NOT be registered in TokenMessaging");
+
+        // Random address should have assetId = 0
+        uint16 fakeAssetId = adapter.TOKEN_MESSAGING().assetIds(makeAddr("random"));
+        assertEq(fakeAssetId, 0, "Unregistered address should have assetId 0");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -148,24 +268,29 @@ contract StargateAdapterFork is Helpers {
         assertEq(IERC20(USDC_ETH).balanceOf(address(adapter)), 0, "Adapter should be empty");
     }
 
-    /// @notice lzCompose with real OFT adapter (WBTC) as _from
-    function test_Fork_StargateAdapter_lzCompose_ERC20_OFTAdapter() public {
-        uint256 amount = 1e8; // 1 WBTC
+    /// @notice lzCompose with USDT pool (assetId=2) — verifies multiple registered pool types work
+    function test_Fork_StargateAdapter_lzCompose_ERC20_USDTPool() public {
+        // Stargate USDT Pool on Ethereum (assetId=2)
+        address STARGATE_USDT_POOL_ETH = 0x933597a323Eb81cAe705C5bC29985172fd5A3973;
+        address USDT_ETH = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+        uint256 amount = 1000e6; // 1000 USDT
 
-        // Deal real WBTC to adapter
-        deal(WBTC_ETH, address(adapter), amount);
+        // Verify pool is registered
+        assertTrue(adapter.TOKEN_MESSAGING().assetIds(STARGATE_USDT_POOL_ETH) != 0, "USDT pool should be registered");
+
+        // Deal real USDT to adapter
+        deal(USDT_ETH, address(adapter), amount);
 
         bytes memory innerPayload = _buildStargateDestinationData(account);
         bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
 
         _mockProcessBridgedExecution();
 
-        // Use WBTC OFT adapter as _from — adapter will call _from.token() which returns WBTC_ETH
         vm.prank(LZ_ENDPOINT);
-        adapter.lzCompose(WBTC_OFT_ADAPTER_ETH, GUID, message, address(0), new bytes(0));
+        adapter.lzCompose(STARGATE_USDT_POOL_ETH, GUID, message, address(0), new bytes(0));
 
-        assertEq(IERC20(WBTC_ETH).balanceOf(account), amount, "Account should receive WBTC");
-        assertEq(IERC20(WBTC_ETH).balanceOf(address(adapter)), 0, "Adapter should be empty");
+        assertEq(IERC20(USDT_ETH).balanceOf(account), amount, "Account should receive USDT");
+        assertEq(IERC20(USDT_ETH).balanceOf(address(adapter)), 0, "Adapter should be empty");
     }
 
     /// @notice Verify revert when sender is not the real LZ endpoint
@@ -202,9 +327,13 @@ contract StargateAdapterFork is Helpers {
         assertEq(IERC20(USDC_ETH).balanceOf(address(adapter)), dustAmount, "Dust should remain in adapter");
     }
 
-    /// @notice Test with WBTC (8 decimals) via OFT adapter to verify different decimal tokens
-    function test_Fork_StargateAdapter_lzCompose_MultipleTokenTypes() public {
-        // Test 1: USDC (6 decimals) via Stargate pool
+    /// @notice Test multiple registered Stargate pools (USDC + USDT + ETH) in sequence
+    function test_Fork_StargateAdapter_lzCompose_MultipleRegisteredPools() public {
+        address STARGATE_POOL_NATIVE = 0x77b2043768d28E9C9aB44E1aBfC95944bcE57931;
+        address STARGATE_USDT_POOL_ETH = 0x933597a323Eb81cAe705C5bC29985172fd5A3973;
+        address USDT_ETH = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+
+        // Test 1: USDC (6 decimals) via Stargate USDC pool
         uint256 usdcAmount = 5000e6;
         deal(USDC_ETH, address(adapter), usdcAmount);
 
@@ -216,18 +345,31 @@ contract StargateAdapterFork is Helpers {
         adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, usdcMessage, address(0), new bytes(0));
         assertEq(IERC20(USDC_ETH).balanceOf(account), usdcAmount, "Account should receive USDC");
 
-        // Test 2: WBTC (8 decimals) via OFT adapter
+        // Test 2: USDT (6 decimals) via Stargate USDT pool
         address account2 = makeAddr("account2");
-        uint256 wbtcAmount = 5e7; // 0.5 WBTC
-        deal(WBTC_ETH, address(adapter), wbtcAmount);
+        uint256 usdtAmount = 3000e6;
+        deal(USDT_ETH, address(adapter), usdtAmount);
 
-        bytes memory wbtcPayload = _buildStargateDestinationData(account2);
-        bytes memory wbtcMessage = _encodeComposeMsg(2, EID_BASE, wbtcAmount, bytes32(uint256(2)), wbtcPayload);
+        bytes memory usdtPayload = _buildStargateDestinationData(account2);
+        bytes memory usdtMessage = _encodeComposeMsg(2, EID_BASE, usdtAmount, bytes32(uint256(2)), usdtPayload);
         _mockProcessBridgedExecution();
 
         vm.prank(LZ_ENDPOINT);
-        adapter.lzCompose(WBTC_OFT_ADAPTER_ETH, GUID, wbtcMessage, address(0), new bytes(0));
-        assertEq(IERC20(WBTC_ETH).balanceOf(account2), wbtcAmount, "Account2 should receive WBTC");
+        adapter.lzCompose(STARGATE_USDT_POOL_ETH, GUID, usdtMessage, address(0), new bytes(0));
+        assertEq(IERC20(USDT_ETH).balanceOf(account2), usdtAmount, "Account2 should receive USDT");
+
+        // Test 3: Native ETH via StargatePoolNative
+        address account3 = makeAddr("account3");
+        uint256 ethAmount = 1 ether;
+        deal(address(adapter), ethAmount);
+
+        bytes memory ethPayload = _buildStargateDestinationData(account3);
+        bytes memory ethMessage = _encodeComposeMsg(3, EID_BASE, ethAmount, bytes32(uint256(3)), ethPayload);
+        _mockProcessBridgedExecution();
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(STARGATE_POOL_NATIVE, GUID, ethMessage, address(0), new bytes(0));
+        assertEq(account3.balance, ethAmount, "Account3 should receive ETH");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -238,8 +380,13 @@ contract StargateAdapterFork is Helpers {
     function test_Fork_StargateAdapter_lzCompose_ERC20_TransferFails_StoresForClaim() public {
         uint256 amount = 1000e6;
 
-        // Do NOT deal USDC to adapter — simulates a scenario where lzReceive didn't credit tokens
-        // (In practice, lzReceive always credits, but this tests the defensive path)
+        // Fund adapter so preBalance guard passes, mock transfer revert to simulate blacklist
+        deal(USDC_ETH, address(adapter), amount);
+        vm.mockCallRevert(
+            USDC_ETH,
+            abi.encodeWithSelector(IERC20.transfer.selector, account, amount),
+            "BLACKLISTED"
+        );
         bytes memory innerPayload = _buildStargateDestinationData(account);
         bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
 
@@ -308,7 +455,7 @@ contract StargateAdapterFork is Helpers {
         emit StargateAdapter.TransferSucceeded(GUID,account, USDC_ETH, amount);
 
         vm.expectEmit(true, false, false, false);
-        emit StargateAdapter.ExecutionFailed(GUID,account, "");
+        emit StargateAdapter.ExecutionFailed(GUID, account);
 
         vm.prank(LZ_ENDPOINT);
         adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message, address(0), new bytes(0));
@@ -322,7 +469,13 @@ contract StargateAdapterFork is Helpers {
     function test_Fork_StargateAdapter_lzCompose_BothTransferAndExecutionFail_NoRevert() public {
         uint256 amount = 1000e6;
 
-        // No tokens in adapter → transfer fails
+        // Fund adapter so preBalance guard passes, mock transfer revert to simulate blacklist
+        deal(USDC_ETH, address(adapter), amount);
+        vm.mockCallRevert(
+            USDC_ETH,
+            abi.encodeWithSelector(IERC20.transfer.selector, account, amount),
+            "BLACKLISTED"
+        );
         bytes memory innerPayload = _buildStargateDestinationData(account);
         bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
 
@@ -340,7 +493,7 @@ contract StargateAdapterFork is Helpers {
         emit StargateAdapter.TransferFailed(GUID,account, USDC_ETH, amount);
 
         vm.expectEmit(true, false, false, false);
-        emit StargateAdapter.ExecutionFailed(GUID,account, "");
+        emit StargateAdapter.ExecutionFailed(GUID, account);
 
         vm.prank(LZ_ENDPOINT);
         adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message, address(0), new bytes(0));
@@ -357,7 +510,13 @@ contract StargateAdapterFork is Helpers {
         uint256 amountA = 500e6;
         uint256 amountB = 1000e6;
 
-        // ---- COMPOSE 1: Transfer fails (no tokens), but execution still attempted ----
+        // ---- COMPOSE 1: Transfer fails (adapter funded, transfer reverts) ----
+        deal(USDC_ETH, address(adapter), amountA);
+        vm.mockCallRevert(
+            USDC_ETH,
+            abi.encodeWithSelector(IERC20.transfer.selector, userA, amountA),
+            "BLACKLISTED"
+        );
         bytes memory payloadA = _buildStargateDestinationData(userA);
         bytes memory messageA = _encodeComposeMsg(1, EID_BASE, amountA, bytes32(uint256(1)), payloadA);
 
@@ -368,6 +527,8 @@ contract StargateAdapterFork is Helpers {
 
         vm.prank(LZ_ENDPOINT);
         adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, messageA, address(0), new bytes(0));
+        vm.clearMockedCalls();
+        _mockProcessBridgedExecution(); // re-mock after clearMockedCalls
 
         // userA: transfer failed, stored for claim
         assertEq(adapter.failedTransfers(userA, USDC_ETH), amountA, "UserA failed transfer stored");
@@ -396,18 +557,24 @@ contract StargateAdapterFork is Helpers {
     function test_Fork_StargateAdapter_ClaimFailedTransfer_RealUSDC() public {
         uint256 amount = 2000e6;
 
-        // Force a failed transfer (no tokens in adapter)
+        // Fund adapter so preBalance guard passes, mock transfer revert to simulate blacklist
+        deal(USDC_ETH, address(adapter), amount);
+        vm.mockCallRevert(
+            USDC_ETH,
+            abi.encodeWithSelector(IERC20.transfer.selector, account, amount),
+            "BLACKLISTED"
+        );
         bytes memory innerPayload = _buildStargateDestinationData(account);
         bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
         _mockProcessBridgedExecution();
 
         vm.prank(LZ_ENDPOINT);
         adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message, address(0), new bytes(0));
+        vm.clearMockedCalls();
 
         assertEq(adapter.failedTransfers(account, USDC_ETH), amount, "Stored for claim");
 
-        // Fund adapter with real USDC so claim can succeed
-        deal(USDC_ETH, address(adapter), amount);
+        // Adapter still holds tokens (transfer was reverted), claim should succeed
 
         vm.expectEmit(true, true, false, true);
         emit StargateAdapter.FailedTransferClaimed(account, USDC_ETH, amount);
@@ -424,15 +591,22 @@ contract StargateAdapterFork is Helpers {
     function test_Fork_StargateAdapter_ClaimFailedTransfer_PartialClaim_RealUSDC() public {
         uint256 amount = 1000e6;
 
-        // Force failed transfer
+        // Fund adapter so preBalance guard passes, mock transfer revert to simulate blacklist
+        deal(USDC_ETH, address(adapter), amount);
+        vm.mockCallRevert(
+            USDC_ETH,
+            abi.encodeWithSelector(IERC20.transfer.selector, account, amount),
+            "BLACKLISTED"
+        );
         bytes memory innerPayload = _buildStargateDestinationData(account);
         bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
         _mockProcessBridgedExecution();
 
         vm.prank(LZ_ENDPOINT);
         adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message, address(0), new bytes(0));
+        vm.clearMockedCalls();
 
-        deal(USDC_ETH, address(adapter), amount);
+        // Adapter still holds tokens (transfer was reverted)
 
         // Claim half
         vm.prank(account);
@@ -466,6 +640,19 @@ contract StargateAdapterFork is Helpers {
         uint256 amount1 = 500e6;
         uint256 amount2 = 700e6;
 
+        // Fund adapter with total amount, mock both transfer amounts to revert
+        deal(USDC_ETH, address(adapter), amount1 + amount2);
+        vm.mockCallRevert(
+            USDC_ETH,
+            abi.encodeWithSelector(IERC20.transfer.selector, account, amount1),
+            "BLACKLISTED"
+        );
+        vm.mockCallRevert(
+            USDC_ETH,
+            abi.encodeWithSelector(IERC20.transfer.selector, account, amount2),
+            "BLACKLISTED"
+        );
+
         _mockProcessBridgedExecution();
 
         // First failed compose
@@ -481,6 +668,8 @@ contract StargateAdapterFork is Helpers {
         vm.prank(LZ_ENDPOINT);
         adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message2, address(0), new bytes(0));
 
+        vm.clearMockedCalls();
+
         // Balances accumulate
         assertEq(
             adapter.failedTransfers(account, USDC_ETH),
@@ -488,8 +677,7 @@ contract StargateAdapterFork is Helpers {
             "Failed transfers should accumulate"
         );
 
-        // Can claim all at once
-        deal(USDC_ETH, address(adapter), amount1 + amount2);
+        // Adapter still holds tokens (transfers were reverted), claim should succeed
         vm.prank(account);
         adapter.claimFailedTransfer(USDC_ETH, amount1 + amount2);
         assertEq(IERC20(USDC_ETH).balanceOf(account), amount1 + amount2);
@@ -518,47 +706,62 @@ contract StargateAdapterFork is Helpers {
         assertEq(address(adapter).balance, 0, "Adapter should be empty");
     }
 
-    /// @notice Fork: WBTC compose with real OFT adapter — transfer fails, claim works
-    function test_Fork_StargateAdapter_lzCompose_WBTC_TransferFails_ThenClaim() public {
-        uint256 amount = 1e8; // 1 WBTC
+    /// @notice Fork: USDT compose — transfer fails (no balance), then claim works
+    function test_Fork_StargateAdapter_lzCompose_USDT_TransferFails_ThenClaim() public {
+        address STARGATE_USDT_POOL_ETH = 0x933597a323Eb81cAe705C5bC29985172fd5A3973;
+        address USDT_ETH = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+        uint256 amount = 1000e6;
 
-        // No WBTC in adapter → transfer fails
+        // Fund adapter so preBalance guard passes, mock transfer revert to simulate blacklist
+        deal(USDT_ETH, address(adapter), amount);
+        vm.mockCallRevert(
+            USDT_ETH,
+            abi.encodeWithSelector(IERC20.transfer.selector, account, amount),
+            "BLACKLISTED"
+        );
         bytes memory innerPayload = _buildStargateDestinationData(account);
         bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
 
         _mockProcessBridgedExecution();
 
         vm.expectEmit(true, true, true, true);
-        emit StargateAdapter.TransferFailed(GUID,account, WBTC_ETH, amount);
+        emit StargateAdapter.TransferFailed(GUID, account, USDT_ETH, amount);
 
         vm.prank(LZ_ENDPOINT);
-        adapter.lzCompose(WBTC_OFT_ADAPTER_ETH, GUID, message, address(0), new bytes(0));
+        adapter.lzCompose(STARGATE_USDT_POOL_ETH, GUID, message, address(0), new bytes(0));
+        vm.clearMockedCalls();
 
-        assertEq(adapter.failedTransfers(account, WBTC_ETH), amount, "WBTC stored for claim");
+        assertEq(adapter.failedTransfers(account, USDT_ETH), amount, "USDT stored for claim");
 
-        // Fund and claim
-        deal(WBTC_ETH, address(adapter), amount);
+        // Adapter still holds tokens (transfer was reverted), claim should succeed
 
         vm.prank(account);
-        adapter.claimFailedTransfer(WBTC_ETH, amount);
+        adapter.claimFailedTransfer(USDT_ETH, amount);
 
-        assertEq(IERC20(WBTC_ETH).balanceOf(account), amount, "Account claimed WBTC");
-        assertEq(adapter.failedTransfers(account, WBTC_ETH), 0, "Claim cleared");
+        assertEq(IERC20(USDT_ETH).balanceOf(account), amount, "Account claimed USDT");
+        assertEq(adapter.failedTransfers(account, USDT_ETH), 0, "Claim cleared");
     }
 
     /// @notice Fork: Third-party cannot claim another user's failed transfer
     function test_Fork_StargateAdapter_ClaimFailedTransfer_OnlyRecipientCanClaim() public {
         uint256 amount = 1000e6;
 
-        // Force failed transfer for account
+        // Fund adapter so preBalance guard passes, mock transfer revert to simulate blacklist
+        deal(USDC_ETH, address(adapter), amount);
+        vm.mockCallRevert(
+            USDC_ETH,
+            abi.encodeWithSelector(IERC20.transfer.selector, account, amount),
+            "BLACKLISTED"
+        );
         bytes memory innerPayload = _buildStargateDestinationData(account);
         bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
         _mockProcessBridgedExecution();
 
         vm.prank(LZ_ENDPOINT);
         adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message, address(0), new bytes(0));
+        vm.clearMockedCalls();
 
-        deal(USDC_ETH, address(adapter), amount);
+        // Adapter still holds tokens (transfer was reverted)
 
         // Attacker tries to claim account's funds
         address attacker = makeAddr("attacker");
@@ -570,6 +773,29 @@ contract StargateAdapterFork is Helpers {
         vm.prank(account);
         adapter.claimFailedTransfer(USDC_ETH, amount);
         assertEq(IERC20(USDC_ETH).balanceOf(account), amount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    PREBALANCE GUARD (UNBACKED CREDIT PREVENTION)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Fork: Verify preBalance guard — adapter has 0 USDC, compose arrives, no unbacked credit
+    /// @dev Prevents the attack where sendParam.to = account and tokens bypass the adapter
+    function test_Fork_StargateAdapter_lzCompose_NoPreBalance_NoUnbackedCredit() public {
+        uint256 amount = 1000e6;
+
+        // Adapter has 0 USDC — simulates sendParam.to = account (tokens went directly to user)
+        bytes memory innerPayload = _buildStargateDestinationData(account);
+        bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
+
+        _mockProcessBridgedExecution();
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message, address(0), new bytes(0));
+
+        // preBalance guard: no failedTransfers credit created
+        assertEq(adapter.failedTransfers(account, USDC_ETH), 0, "No unbacked credit");
+        assertEq(IERC20(USDC_ETH).balanceOf(account), 0, "Account has no tokens");
     }
 
     /*//////////////////////////////////////////////////////////////

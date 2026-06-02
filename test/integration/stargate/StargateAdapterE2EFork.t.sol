@@ -12,6 +12,9 @@ import { BootstrapConfig, INexusBootstrap } from "../../../src/vendor/nexus/INex
 import { IERC7484 } from "../../../src/vendor/nexus/IERC7484.sol";
 import { LayerZeroV2Helper } from "../../../lib/pigeon/src/layerzero-v2/LayerZeroV2Helper.sol";
 import { StargateAdapter } from "../../../src/adapters/StargateAdapter.sol";
+import { ITokenMessaging } from "../../../src/vendor/bridges/stargate/ITokenMessaging.sol";
+import { ClaimFailedTransferHook } from "../../../src/hooks/claim/stargate/ClaimFailedTransferHook.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
 import { Vm } from "forge-std/Vm.sol";
 import "forge-std/console2.sol";
@@ -42,6 +45,9 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
 
     // LayerZero V2 endpoints (same address on all EVM chains)
     address public constant LZ_ENDPOINT_BASE = 0x1a44076050125825900e736c501f859c50fE728c;
+
+    // Stargate V2 TokenMessaging on Base (for pool registration verification)
+    address public constant TOKEN_MESSAGING_BASE = 0x5634c4a5FEd09819E3c46D86A965Dd9447d86e47;
 
     // LayerZero V2 Endpoint IDs
     uint32 public constant EID_ETHEREUM = 30_101;
@@ -143,7 +149,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     function test_Fork_E2E_StargateExecutionFails_TokensTransferred_ETHToBase() public {
         // Deploy the updated StargateAdapter from source on Base fork (has try/catch)
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
         _adapterTarget = address(localAdapter);
         vm.label(_adapterTarget, "LocalStargateAdapter");
         console2.log("Deployed local StargateAdapter on Base:", _adapterTarget);
@@ -213,7 +219,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     function test_Fork_E2E_StargateTransferFails_ClaimFailedTransfer_ETHToBase() public {
         // Deploy the updated StargateAdapter from source on Base fork
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
         _adapterTarget = address(localAdapter);
         vm.label(_adapterTarget, "LocalStargateAdapter");
         vm.selectFork(ethForkId);
@@ -286,7 +292,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     function test_Fork_E2E_StargateZeroAccount_ClaimByComposeFrom_ETHToBase() public {
         // Deploy the updated StargateAdapter from source on Base fork
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
         _adapterTarget = address(localAdapter);
         vm.label(_adapterTarget, "LocalStargateAdapter");
         vm.selectFork(ethForkId);
@@ -349,7 +355,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     ///         User claims the full accumulated balance in a single call.
     function test_Fork_E2E_StargateMultipleFailedTransfers_SameUser_Accumulate() public {
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         // Simulate 3 lzReceive deliveries totalling 2000 USDC sitting at the adapter
         uint256 amount1 = 500e6;
@@ -396,7 +402,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     ///         Each user claims independently without affecting the other.
     function test_Fork_E2E_StargateMultipleFailedTransfers_DifferentUsers_Isolated() public {
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         address userA = makeAddr("userA");
         address userB = makeAddr("userB");
@@ -447,7 +453,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     ///         Only the failed amount goes to failedTransfers. User claims and ends up with the full total.
     function test_Fork_E2E_StargateMultipleComposes_MixedOutcomes_SameUser() public {
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         uint256 amount1 = 1000e6; // will succeed
         uint256 amount2 = 1000e6; // will fail
@@ -492,7 +498,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     /// @notice Multiple failures then partial claims — user drains balance incrementally.
     function test_Fork_E2E_StargatePartialClaim_AfterMultipleFailures() public {
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         uint256 totalAmount = 1500e6;
         deal(USDC_BASE, address(localAdapter), totalAmount);
@@ -543,7 +549,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     /// @notice lzCompose called by non-endpoint address — must revert with INVALID_SENDER.
     function test_Fork_E2E_StargateInvalidSender_Reverts() public {
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         bytes memory innerMsg = _buildInnerComposeMsg(dstAccount);
         bytes memory composeMsgCodec = _wrapComposeMsgCodec(1000e6, sender, innerMsg);
@@ -558,7 +564,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     /// @notice Message shorter than the 76-byte OFTComposeMsgCodec header — emits ComposeMsgTooShort, does not revert.
     function test_Fork_E2E_StargateComposeMsgTooShort_EmitsAndReturns() public {
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         bytes memory shortMsg = new bytes(75); // one byte short of COMPOSE_MSG_OFFSET (76)
 
@@ -573,21 +579,24 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
         _assertEventEmitted(vm.getRecordedLogs(), "ComposeMsgTooShort(bytes32,uint256)");
     }
 
-    /// @notice Constructor rejects zero addresses for lzEndpoint and superDestinationExecutor.
+    /// @notice Constructor rejects zero addresses for lzEndpoint, tokenMessaging, and superDestinationExecutor.
     function test_Fork_E2E_StargateConstructor_ZeroAddress_Reverts() public {
         vm.selectFork(baseForkId);
 
         vm.expectRevert(StargateAdapter.ADDRESS_NOT_VALID.selector);
-        new StargateAdapter(address(0), SUPER_DST_EXECUTOR_BASE);
+        new StargateAdapter(address(0), TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         vm.expectRevert(StargateAdapter.ADDRESS_NOT_VALID.selector);
-        new StargateAdapter(LZ_ENDPOINT_BASE, address(0));
+        new StargateAdapter(LZ_ENDPOINT_BASE, address(0), SUPER_DST_EXECUTOR_BASE);
+
+        vm.expectRevert(StargateAdapter.ADDRESS_NOT_VALID.selector);
+        new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, address(0));
     }
 
     /// @notice Claim with zero amount reverts with ZERO_AMOUNT.
     function test_Fork_E2E_StargateClaimZeroAmount_Reverts() public {
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         vm.prank(dstAccount);
         vm.expectRevert(StargateAdapter.ZERO_AMOUNT.selector);
@@ -597,7 +606,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     /// @notice Claim by a user with no failed transfer balance reverts with INSUFFICIENT_FAILED_BALANCE.
     function test_Fork_E2E_StargateClaimByUnauthorizedUser_Reverts() public {
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         // Give adapter some tokens and create a failed transfer for dstAccount
         deal(USDC_BASE, address(localAdapter), 1000e6);
@@ -627,7 +636,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     ///         Verifies the M-1 DoS fix: one malformed bridge tx cannot block the compose queue.
     function test_Fork_E2E_StargateMalformedPayload_DoesNotBlockPipeline() public {
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         uint256 amount = 1000e6;
         deal(USDC_BASE, address(localAdapter), amount * 2);
@@ -650,7 +659,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
         );
 
         // Verify ComposeDecodeFailed event was emitted
-        _assertEventEmitted(vm.getRecordedLogs(), "ComposeDecodeFailed(bytes32,bytes)");
+        _assertEventEmitted(vm.getRecordedLogs(), "ComposeDecodeFailed(bytes32)");
 
         // Tokens remain at adapter (no transfer attempted since decode failed)
         assertEq(IERC20(USDC_BASE).balanceOf(address(localAdapter)), amount * 2, "Tokens untouched");
@@ -672,16 +681,18 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
                         TOKEN RESOLUTION TESTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice _from.token() reverts (not a valid Stargate/OFT contract).
-    ///         Adapter emits TokenResolutionFailed and returns — tokens stuck at adapter with no recovery.
-    function test_Fork_E2E_StargateTokenResolutionFailed_TokensStuck() public {
+    /// @notice Unregistered _from is rejected at TokenMessaging validation.
+    ///         Adapter emits UnregisteredPool and returns — tokens remain in adapter.
+    ///         NOTE: TokenResolutionFailed can no longer be triggered because pool validation
+    ///         (step 3) rejects unregistered addresses before token() is called (step 6).
+    function test_Fork_E2E_StargateUnregisteredPool_TokensStuck() public {
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         uint256 amount = 1000e6;
         deal(USDC_BASE, address(localAdapter), amount);
 
-        // Deploy a contract that doesn't implement token() — call will revert
+        // Deploy a contract that isn't registered in TokenMessaging
         address fakeFrom = address(new ETHRejecter());
 
         bytes memory innerMsg = _buildInnerComposeMsg(dstAccount);
@@ -694,13 +705,13 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
             fakeFrom, bytes32(0), composeMsgCodec, address(0), bytes("")
         );
 
-        // Tokens stuck at adapter — no failedTransfers entry, no recovery path
-        assertEq(IERC20(USDC_BASE).balanceOf(address(localAdapter)), amount, "Tokens stuck at adapter");
+        // Tokens remain at adapter — unregistered pool rejected before any transfer
+        assertEq(IERC20(USDC_BASE).balanceOf(address(localAdapter)), amount, "Tokens remain at adapter");
         assertEq(localAdapter.failedTransfers(dstAccount, USDC_BASE), 0, "No failedTransfers for account");
         assertEq(localAdapter.failedTransfers(sender, USDC_BASE), 0, "No failedTransfers for sender");
 
-        // Verify TokenResolutionFailed event
-        _assertEventEmitted(vm.getRecordedLogs(), "TokenResolutionFailed(bytes32,address)");
+        // Verify UnregisteredPool event (replaces TokenResolutionFailed in new validation)
+        _assertEventEmitted(vm.getRecordedLogs(), "UnregisteredPool(bytes32,address)");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -710,16 +721,21 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     /// @notice Native ETH compose — happy path: ETH transferred to recipient via _tryTransfer.
     function test_Fork_E2E_StargateNativeETH_TransferSucceeds() public {
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         uint256 amount = 1 ether;
         vm.deal(address(localAdapter), amount);
 
         address recipient = makeAddr("eth_recipient");
 
-        // Mock _from.token() → address(0) to simulate StargatePoolNative
+        // Mock _from as a registered StargatePoolNative: token() → address(0), assetIds → 13
         address fakeNativePool = makeAddr("native_pool");
         vm.mockCall(fakeNativePool, abi.encodeWithSelector(IStargate.token.selector), abi.encode(address(0)));
+        vm.mockCall(
+            TOKEN_MESSAGING_BASE,
+            abi.encodeWithSelector(ITokenMessaging.assetIds.selector, fakeNativePool),
+            abi.encode(uint16(13))
+        );
 
         bytes memory innerMsg = _buildInnerComposeMsg(recipient);
         bytes memory composeMsgCodec = _wrapComposeMsgCodec(amount, sender, innerMsg);
@@ -742,7 +758,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     ///         funds are unrecoverable via claimFailedTransfer.
     function test_Fork_E2E_StargateNativeETH_RejectingRecipient_FundsStuck() public {
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         uint256 amount = 1 ether;
         vm.deal(address(localAdapter), amount);
@@ -750,8 +766,14 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
         // Deploy a contract that rejects ETH
         address rejecter = address(new ETHRejecter());
 
+        // Mock _from as a registered StargatePoolNative
         address fakeNativePool = makeAddr("native_pool");
         vm.mockCall(fakeNativePool, abi.encodeWithSelector(IStargate.token.selector), abi.encode(address(0)));
+        vm.mockCall(
+            TOKEN_MESSAGING_BASE,
+            abi.encodeWithSelector(ITokenMessaging.assetIds.selector, fakeNativePool),
+            abi.encode(uint16(13))
+        );
 
         bytes memory innerMsg = _buildInnerComposeMsg(rejecter);
         bytes memory composeMsgCodec = _wrapComposeMsgCodec(amount, sender, innerMsg);
@@ -780,13 +802,19 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     ///         Sender claims native ETH successfully.
     function test_Fork_E2E_StargateNativeETH_ZeroAccount_ClaimByComposeFrom() public {
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         uint256 amount = 2 ether;
         vm.deal(address(localAdapter), amount);
 
+        // Mock _from as a registered StargatePoolNative
         address fakeNativePool = makeAddr("native_pool");
         vm.mockCall(fakeNativePool, abi.encodeWithSelector(IStargate.token.selector), abi.encode(address(0)));
+        vm.mockCall(
+            TOKEN_MESSAGING_BASE,
+            abi.encodeWithSelector(ITokenMessaging.assetIds.selector, fakeNativePool),
+            abi.encode(uint16(13))
+        );
 
         bytes memory innerMsg = _buildInnerComposeMsg(address(0));
         bytes memory composeMsgCodec = _wrapComposeMsgCodec(amount, sender, innerMsg);
@@ -820,7 +848,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     /// @notice Multiple users all receive tokens successfully — no failures, no failedTransfers.
     function test_Fork_E2E_StargateMultipleUsers_AllTransfersSucceed() public {
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         address userA = makeAddr("userA_success");
         address userB = makeAddr("userB_success");
@@ -861,7 +889,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     ///         Verifies failure isolation — one user's blocklist doesn't affect others.
     function test_Fork_E2E_StargateMultipleUsers_OneFailsOthersSucceed() public {
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         address userA = makeAddr("userA_ok");
         address userB = makeAddr("userB_blocked");
@@ -919,7 +947,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     ///         Each sender's tokens are tracked independently under their composeFrom address.
     function test_Fork_E2E_StargateMultipleZeroAccounts_DifferentSenders() public {
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         address sender1 = makeAddr("sender1");
         address sender2 = makeAddr("sender2");
@@ -969,7 +997,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     /// @notice Verify correct events emitted for success, failure, and claim in sequence.
     function test_Fork_E2E_StargateEventEmission_SuccessFailureClaim() public {
         vm.selectFork(baseForkId);
-        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, SUPER_DST_EXECUTOR_BASE);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
 
         uint256 amount = 500e6;
         deal(USDC_BASE, address(localAdapter), amount * 2);
@@ -1000,6 +1028,217 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
         vm.prank(user);
         localAdapter.claimFailedTransfer(USDC_BASE, amount);
         _assertEventEmitted(vm.getRecordedLogs(), "FailedTransferClaimed(address,address,uint256)");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    CLAIM FAILED TRANSFER HOOK TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Full E2E with Pigeon: Stargate bridge ETH→Base, transfer fails on dst, recover via hook.
+    ///         Flow: sendToken (ETH) → Pigeon lzReceive (Base) → lzCompose (transfer mocked to fail)
+    ///         → failedTransfers stored → ClaimFailedTransferHook claim → tokens recovered
+    function test_Fork_E2E_ClaimFailedTransferHook_FullBridgeFlow_ETHToBase() public {
+        // Deploy local adapter and hook on Base
+        vm.selectFork(baseForkId);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
+        ClaimFailedTransferHook hook = new ClaimFailedTransferHook();
+        _adapterTarget = address(localAdapter);
+        vm.label(_adapterTarget, "LocalStargateAdapter");
+        vm.selectFork(ethForkId);
+
+        uint256 amountLD = 1000e6;
+        uint256 minAmountLD = 995e6;
+        deal(USDC_ETH, sender, amountLD);
+
+        _signingKey = signerPrvKey;
+        _buildComposeMsg();
+        _sendAndRelay(amountLD, minAmountLD);
+
+        // Switch to Base — tokens arrived at adapter via Pigeon lzReceive
+        vm.selectFork(baseForkId);
+
+        uint256 amountReceived = IERC20(USDC_BASE).balanceOf(_adapterTarget);
+        assertGt(amountReceived, 0, "Adapter should have received USDC via real Pigeon relay");
+        assertGe(amountReceived, minAmountLD);
+
+        // Mock USDC.transfer(dstAccount) to fail — simulates blocklisted recipient
+        vm.mockCall(USDC_BASE, abi.encodeCall(IERC20.transfer, (dstAccount, amountReceived)), abi.encode(false));
+
+        // Trigger lzCompose — transfer fails, tokens go to failedTransfers
+        bytes memory composeMsgCodec = abi.encodePacked(
+            uint64(0), uint32(EID_ETHEREUM), uint256(amountReceived), bytes32(uint256(uint160(sender))), _composeMsg
+        );
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(_adapterTarget).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), composeMsgCodec, address(0), bytes("")
+        );
+        vm.clearMockedCalls();
+
+        // Verify: tokens stuck in failedTransfers, dstAccount has nothing
+        assertEq(localAdapter.failedTransfers(dstAccount, USDC_BASE), amountReceived, "Should have failed balance");
+        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), 0, "dstAccount should have 0");
+
+        // Recover via ClaimFailedTransferHook
+        _executeHookClaim(hook, address(localAdapter), USDC_BASE, amountReceived, dstAccount);
+
+        // Verify full recovery
+        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), amountReceived, "dstAccount recovered all USDC");
+        assertEq(localAdapter.failedTransfers(dstAccount, USDC_BASE), 0, "failedTransfers cleared");
+        assertEq(IERC20(USDC_BASE).balanceOf(_adapterTarget), 0, "Adapter empty");
+        assertEq(hook.getOutAmount(dstAccount), amountReceived, "outAmount matches");
+
+        console2.log("Full E2E: Stargate bridge -> transfer fail -> hook claim recovery:", amountReceived, "USDC");
+    }
+
+    /// @notice E2E (local): Transfer fails → tokens in failedTransfers → recover via ClaimFailedTransferHook.
+    function test_Fork_E2E_ClaimFailedTransferHook_ERC20() public {
+        vm.selectFork(baseForkId);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
+        ClaimFailedTransferHook hook = new ClaimFailedTransferHook();
+
+        uint256 amount = 500e6;
+        address user = makeAddr("hook_claim_user");
+        deal(USDC_BASE, address(localAdapter), amount);
+
+        // 1. Create failed transfer: mock USDC.transfer(user) returning false
+        vm.mockCall(USDC_BASE, abi.encodeCall(IERC20.transfer, (user, amount)), abi.encode(false));
+
+        bytes memory innerMsg = _buildInnerComposeMsg(user);
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(localAdapter)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), _wrapComposeMsgCodec(amount, sender, innerMsg), address(0), bytes("")
+        );
+        vm.clearMockedCalls();
+
+        // Verify tokens stuck in failedTransfers
+        assertEq(localAdapter.failedTransfers(user, USDC_BASE), amount, "Should have failed balance");
+        assertEq(IERC20(USDC_BASE).balanceOf(user), 0, "User should have 0 USDC");
+
+        // 2. Execute claim via hook
+        _executeHookClaim(hook, address(localAdapter), USDC_BASE, amount, user);
+
+        // 3. Verify recovery
+        assertEq(IERC20(USDC_BASE).balanceOf(user), amount, "User should have recovered USDC");
+        assertEq(localAdapter.failedTransfers(user, USDC_BASE), 0, "failedTransfers should be cleared");
+        assertEq(IERC20(USDC_BASE).balanceOf(address(localAdapter)), 0, "Adapter should be empty");
+
+        // 5. Verify outAmount tracking
+        assertEq(hook.getOutAmount(user), amount, "outAmount should match claimed amount");
+    }
+
+    /// @notice E2E: Native ETH transfer fails → recover via ClaimFailedTransferHook.
+    ///         Uses ETHRejecter to cause initial failure, then a normal EOA user to claim via
+    ///         the zero-account/composeFrom path (since ETHRejecter can't call claim itself).
+    function test_Fork_E2E_ClaimFailedTransferHook_NativeETH() public {
+        vm.selectFork(baseForkId);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
+        ClaimFailedTransferHook hook = new ClaimFailedTransferHook();
+
+        uint256 amount = 2 ether;
+        address ethUser = makeAddr("eth_claim_user");
+        vm.deal(address(localAdapter), amount);
+
+        // Use account=address(0) so tokens are stored under composeFrom=ethUser
+        // This way ethUser can claim native ETH via the hook
+        address mockNativePool = makeAddr("mockNativePool");
+        vm.mockCall(mockNativePool, abi.encodeWithSignature("token()"), abi.encode(address(0)));
+        vm.mockCall(
+            TOKEN_MESSAGING_BASE,
+            abi.encodeWithSelector(ITokenMessaging.assetIds.selector, mockNativePool),
+            abi.encode(uint16(13))
+        );
+
+        bytes memory innerMsg = _buildInnerComposeMsg(address(0));
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(localAdapter)).lzCompose(
+            mockNativePool,
+            bytes32(0),
+            _wrapComposeMsgCodec(amount, ethUser, innerMsg),
+            address(0),
+            bytes("")
+        );
+        vm.clearMockedCalls();
+
+        assertEq(localAdapter.failedTransfers(ethUser, address(0)), amount, "Should have failed ETH balance");
+
+        // Claim native ETH via hook
+        _executeHookClaim(hook, address(localAdapter), address(0), amount, ethUser);
+
+        // Verify native ETH recovery
+        assertEq(ethUser.balance, amount, "User should have recovered ETH");
+        assertEq(localAdapter.failedTransfers(ethUser, address(0)), 0, "failedTransfers should be cleared");
+        assertEq(hook.getOutAmount(ethUser), amount, "outAmount should match claimed ETH");
+    }
+
+    /// @notice E2E: Zero-account compose → composeFrom claims via hook.
+    function test_Fork_E2E_ClaimFailedTransferHook_ZeroAccount_ComposeFromClaims() public {
+        vm.selectFork(baseForkId);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
+        ClaimFailedTransferHook hook = new ClaimFailedTransferHook();
+
+        uint256 amount = 750e6;
+        address originator = makeAddr("originator");
+        deal(USDC_BASE, address(localAdapter), amount);
+
+        // Trigger compose with account=address(0) → tokens stored under composeFrom (originator)
+        bytes memory innerMsg = _buildInnerComposeMsg(address(0));
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(localAdapter)).lzCompose(
+            STARGATE_USDC_POOL_BASE,
+            bytes32(0),
+            _wrapComposeMsgCodec(amount, originator, innerMsg),
+            address(0),
+            bytes("")
+        );
+
+        assertEq(localAdapter.failedTransfers(originator, USDC_BASE), amount, "originator should have failed balance");
+
+        // Originator claims via hook
+        _executeHookClaim(hook, address(localAdapter), USDC_BASE, amount, originator);
+
+        assertEq(IERC20(USDC_BASE).balanceOf(originator), amount, "Originator should have recovered USDC");
+        assertEq(localAdapter.failedTransfers(originator, USDC_BASE), 0, "failedTransfers should be cleared");
+        assertEq(hook.getOutAmount(originator), amount, "outAmount should match claimed amount");
+    }
+
+    /// @notice E2E: Multiple failed transfers → partial claim via hook, then remaining claim.
+    function test_Fork_E2E_ClaimFailedTransferHook_PartialClaim() public {
+        vm.selectFork(baseForkId);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
+        ClaimFailedTransferHook hook = new ClaimFailedTransferHook();
+
+        address user = makeAddr("partial_claim_user");
+        deal(USDC_BASE, address(localAdapter), 800e6);
+
+        // Create two failed transfers for the same user (300 + 500 = 800)
+        bytes memory innerMsg = _buildInnerComposeMsg(user);
+
+        vm.mockCall(USDC_BASE, abi.encodeCall(IERC20.transfer, (user, 300e6)), abi.encode(false));
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(localAdapter)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), _wrapComposeMsgCodec(300e6, sender, innerMsg), address(0), bytes("")
+        );
+
+        vm.mockCall(USDC_BASE, abi.encodeCall(IERC20.transfer, (user, 500e6)), abi.encode(false));
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(localAdapter)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), _wrapComposeMsgCodec(500e6, sender, innerMsg), address(0), bytes("")
+        );
+        vm.clearMockedCalls();
+
+        assertEq(localAdapter.failedTransfers(user, USDC_BASE), 800e6, "Should have accumulated balance");
+
+        // Claim first 300 via hook
+        _executeHookClaim(hook, address(localAdapter), USDC_BASE, 300e6, user);
+
+        assertEq(IERC20(USDC_BASE).balanceOf(user), 300e6, "Should have partial claim");
+        assertEq(localAdapter.failedTransfers(user, USDC_BASE), 500e6, "Remaining should be left");
+
+        // Claim remaining 500 via hook
+        _executeHookClaim(hook, address(localAdapter), USDC_BASE, 500e6, user);
+
+        assertEq(IERC20(USDC_BASE).balanceOf(user), 800e6, "Should have full claim");
+        assertEq(localAdapter.failedTransfers(user, USDC_BASE), 0, "All claimed");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1167,7 +1406,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
 
     /// @dev Asserts that an ExecutionFailed event was emitted in recorded logs
     function _assertExecutionFailedEmitted() internal {
-        _assertEventEmitted(vm.getRecordedLogs(), "ExecutionFailed(bytes32,address,bytes)");
+        _assertEventEmitted(vm.getRecordedLogs(), "ExecutionFailed(bytes32,address)");
     }
 
     /// @dev Generic helper: asserts an event with the given signature was emitted in the logs
@@ -1177,6 +1416,26 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
             if (logs[i].topics[0] == sig) return;
         }
         revert(string.concat("Expected event not emitted: ", eventSig));
+    }
+
+    /// @dev Executes a ClaimFailedTransferHook claim: setContext + preExecute + claim + postExecute
+    function _executeHookClaim(
+        ClaimFailedTransferHook hook,
+        address adapter,
+        address token,
+        uint256 amount,
+        address user
+    )
+        internal
+    {
+        bytes memory hookData = abi.encodePacked(adapter, token, amount);
+        Execution[] memory execs = hook.build(address(0), user, hookData);
+        hook.setExecutionContext(user);
+        for (uint256 i = 0; i < execs.length; i++) {
+            vm.prank(user);
+            (bool ok,) = execs[i].target.call(execs[i].callData);
+            assertTrue(ok, "Hook execution step failed");
+        }
     }
 
     /// @dev Creates a Nexus smart account on Base fork with deployed SUPER_DST_VALIDATOR + SUPER_DST_EXECUTOR
