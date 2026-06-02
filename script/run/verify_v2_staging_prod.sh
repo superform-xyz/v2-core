@@ -479,6 +479,25 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address)" "$uniswap_v3_router")"
             ;;
 
+        # Uniswap V3 Router02 Hooks
+        "SwapUniswapV3Router02Hook"|"ApproveAndSwapUniswapV3Router02Hook")
+            local uniswap_v3_router02=""
+            case $chain_id in
+                "1") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;  # Ethereum
+                "8453") uniswap_v3_router02="0x2626664c2603336E57B271c5C0b26F421741e481" ;;  # Base
+                "56") uniswap_v3_router02="0xB971eF87ede563556b2ED4b1C0b0019111Dd85d2" ;;  # BNB
+                "42161") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;  # Arbitrum
+                "10") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;  # Optimism
+                "137") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;  # Polygon
+                "130") uniswap_v3_router02="0x73855d06DE49d0fe4A9c42636Ba96c62da12FF9C" ;;  # Unichain
+                "43114") uniswap_v3_router02="0xbb00FF08d01D300023C629E8fFfFcb65A5a578cE" ;;  # Avalanche
+                "480") uniswap_v3_router02="0x091AD9e2e6e5eD44c1c66dB50e49A601F9f36cF6" ;;  # Worldchain
+                "988") uniswap_v3_router02="0x32eaf9B5d5F2CD7361c5012890C943D7de84C22a" ;;  # Stable
+                *) uniswap_v3_router02="" ;;  # Not deployed on other chains
+            esac
+            echo "$(cast abi-encode "constructor(address)" "$uniswap_v3_router02")"
+            ;;
+
         # Uniswap V4 Hook
         "SwapUniswapV4Hook")
             local uniswap_v4_pool_manager=""
@@ -507,6 +526,11 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address)" "$pendle_router")"
             ;;
 
+        # ERC7540YieldSourceOracle and SpectraMetaVaultOracle
+        "ERC7540YieldSourceOracle"|"SpectraMetaVaultOracle")
+            echo "$(cast abi-encode "constructor(address,uint256)" "$super_ledger_config" "0")"
+            ;;
+
         # SuperVaultYieldSourceOracle
         "SuperVaultYieldSourceOracle")
             echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
@@ -532,8 +556,8 @@ generate_constructor_args() {
 
         # Sponsorship contracts
         "SuperSponsorshipPaymaster")
-            local deployer="0x6E3dadcAf328ebB58753e89a3e589F5C5e988dF8"
-            echo "$(cast abi-encode "constructor(address,address)" "$entry_point" "$deployer")"
+            local paymaster_admin="0x22BC97cFac64D6d9BCaDF5dC36e4D01Db9e929c5"
+            echo "$(cast abi-encode "constructor(address,address)" "$entry_point" "$paymaster_admin")"
             ;;
         "NativeFeeSponsorship")
             echo "$(cast abi-encode "constructor()")"
@@ -605,6 +629,8 @@ get_contract_source() {
         "ApproveAndSwapOpenOceanSparkDexHook") echo "src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol" ;;
         "SwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Hook.sol" ;;
         "ApproveAndSwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/ApproveAndSwapUniswapV3Hook.sol" ;;
+        "SwapUniswapV3Router02Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Router02Hook.sol" ;;
+        "ApproveAndSwapUniswapV3Router02Hook") echo "src/hooks/swappers/uniswap-v3/ApproveAndSwapUniswapV3Router02Hook.sol" ;;
         "SwapUniswapV4Hook") echo "src/hooks/swappers/uniswap-v4/SwapUniswapV4Hook.sol" ;;
         "PendleUnifiedHook") echo "src/hooks/swappers/pendle/PendleUnifiedHook.sol" ;;
         "PendleRouterSwapHook") echo "src/hooks/swappers/pendle/PendleRouterSwapHook.sol" ;;
@@ -674,7 +700,8 @@ get_contract_source() {
         "StakingYieldSourceOracle") echo "src/accounting/oracles/StakingYieldSourceOracle.sol" ;;
         "SuperYieldSourceOracle") echo "src/accounting/oracles/SuperYieldSourceOracle.sol" ;;
         "SuperVaultYieldSourceOracle") echo "src/accounting/oracles/SuperVaultYieldSourceOracle.sol" ;;
-        
+        "ERC7540YieldSourceOracle") echo "src/accounting/oracles/ERC7540YieldSourceOracle.sol" ;;
+
         *) echo "src/core/unknown/$contract_name.sol" ;;
     esac
 }

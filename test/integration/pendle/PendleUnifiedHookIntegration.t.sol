@@ -44,8 +44,8 @@ contract PendleUnifiedHookIntegration is MinimalBaseIntegrationTest, OdosAPIPars
     address public yt;
 
     function setUp() public override {
-        // Fork mainnet at current block
-        blockNumber = 0;
+        // Pin to block before DETH market expiry (Jan 29, 2026) to ensure consistent Pendle state
+        blockNumber = 24_300_000;
         super.setUp();
 
         // Deploy PendleUnifiedHook with real Pendle Router
