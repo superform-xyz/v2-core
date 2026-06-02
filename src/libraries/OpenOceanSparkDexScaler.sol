@@ -13,7 +13,7 @@ import { IOpenOceanExchange } from "../vendor/openocean/IOpenOceanExchange.sol";
 /// @notice Selector-aware calldata scaler for OpenOcean V4 routes constrained to SparkDexV4.
 library OpenOceanSparkDexScaler {
     uint256 private constant PARTIAL_FILL = 0x01;
-    uint256 private constant DISTRIBUTION_SENTINEL = (uint256(1) << 128) + 1;
+    uint256 private constant DISTRIBUTION_DENOMINATOR_MASK = (uint256(1) << 128) - 1;
     uint256 private constant DISTRIBUTION_UNISWAP_AMOUNT_BIAS = 0x44;
     uint256 private constant DISTRIBUTION_SAFE_TRANSFER_AMOUNT_BIAS = 0x44;
     uint256 private constant DISTRIBUTION_WITHDRAW_AMOUNT_BIAS = 0x04;
@@ -267,9 +267,15 @@ library OpenOceanSparkDexScaler {
         private
         pure
     {
-        if (distribution_ != DISTRIBUTION_SENTINEL) revert INVALID_DISTRIBUTION();
+        _validateDistributionFraction(distribution_);
         if (desc_.value != 0) revert INVALID_CALL_VALUE();
         _validateDistributionPatchTarget(desc_.data, amountBias_);
+    }
+
+    function _validateDistributionFraction(uint256 distribution_) private pure {
+        uint256 numerator = distribution_ >> 128;
+        uint256 denominator = distribution_ & DISTRIBUTION_DENOMINATOR_MASK;
+        if (numerator == 0 || denominator == 0 || numerator > denominator) revert INVALID_DISTRIBUTION();
     }
 
     function _validateDistributionPatchTarget(bytes memory data_, uint256 amountBias_) private pure {

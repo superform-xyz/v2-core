@@ -126,6 +126,38 @@ contract OpenOceanSparkDexHookTest is Test {
         assertEq(_decodeSafeTransferAmount(_nestedDistributionData(calls[3].data)), 1);
     }
 
+    function test_Scaler_AllowsPackedFractionDistribution() public {
+        uint256 distribution = _distribution(1, 50);
+        bytes memory txData = _buildFractionalDistributionTxData(distribution);
+
+        bytes memory updated = harness.updateTxDataAmounts(txData, caller, 2000, 1000);
+        (,, IOpenOceanCaller.CallDescription[] memory calls) = _decodeSwap(updated);
+
+        assertEq(_decodeDistribution(calls[0].data), distribution);
+        assertEq(_decodeUniswapAmount(_nestedDistributionData(calls[0].data)), 1);
+    }
+
+    function test_RevertWhenDistributionNumeratorIsZero() public {
+        bytes memory txData = _buildFractionalDistributionTxData(_distribution(0, 50));
+
+        vm.expectRevert(OpenOceanSparkDexScaler.INVALID_DISTRIBUTION.selector);
+        harness.updateTxDataAmounts(txData, caller, 2000, 1000);
+    }
+
+    function test_RevertWhenDistributionDenominatorIsZero() public {
+        bytes memory txData = _buildFractionalDistributionTxData(_distribution(1, 0));
+
+        vm.expectRevert(OpenOceanSparkDexScaler.INVALID_DISTRIBUTION.selector);
+        harness.updateTxDataAmounts(txData, caller, 2000, 1000);
+    }
+
+    function test_RevertWhenDistributionNumeratorExceedsDenominator() public {
+        bytes memory txData = _buildFractionalDistributionTxData(_distribution(51, 50));
+
+        vm.expectRevert(OpenOceanSparkDexScaler.INVALID_DISTRIBUTION.selector);
+        harness.updateTxDataAmounts(txData, caller, 2000, 1000);
+    }
+
     function test_Scaler_ScalesNativeValuesAndDirectInputsWithSameRemainder() public {
         bytes memory txData = _buildNativeSplitTxData(1001, 900, 950);
 
@@ -423,6 +455,15 @@ contract OpenOceanSparkDexHookTest is Test {
         return _buildTxData(caller, address(0), outputToken, amount_, minReturnAmount_, guaranteedAmount_, 0, calls);
     }
 
+    function _buildFractionalDistributionTxData(uint256 distribution_) private view returns (bytes memory) {
+        IOpenOceanCaller.CallDescription[] memory calls = new IOpenOceanCaller.CallDescription[](1);
+        calls[0] = _call(
+            0, 0, _singleDistributionCall(inputToken, _uniswapCallData(inputToken, outputToken, 1), 0x44, distribution_)
+        );
+
+        return _buildTxData(caller, inputToken, outputToken, 1000, 900, 950, 0, calls);
+    }
+
     function _buildTxData(
         address caller_,
         address srcToken_,
@@ -479,10 +520,22 @@ contract OpenOceanSparkDexHookTest is Test {
         pure
         returns (bytes memory)
     {
+        return _singleDistributionCall(token_, nestedData_, amountBias_, DISTRIBUTION_SENTINEL);
+    }
+
+    function _singleDistributionCall(
+        address token_,
+        bytes memory nestedData_,
+        uint256 amountBias_,
+        uint256 distribution_
+    )
+        private
+        pure
+        returns (bytes memory)
+    {
         IOpenOceanCaller.CallDescription memory nested = _call(0, 0, nestedData_);
-        return abi.encodePacked(
-            SINGLE_DISTRIBUTION_CALL_SELECTOR, abi.encode(token_, DISTRIBUTION_SENTINEL, nested, amountBias_)
-        );
+        return
+            abi.encodePacked(SINGLE_DISTRIBUTION_CALL_SELECTOR, abi.encode(token_, distribution_, nested, amountBias_));
     }
 
     function _nestedMakeCallData(
@@ -592,6 +645,15 @@ contract OpenOceanSparkDexHookTest is Test {
         (,, IOpenOceanCaller.CallDescription memory nested,) =
             abi.decode(_sliceAfterSelector(data_), (address, uint256, IOpenOceanCaller.CallDescription, uint256));
         nestedData = nested.data;
+    }
+
+    function _decodeDistribution(bytes memory data_) private pure returns (uint256 distribution) {
+        (, distribution,,) =
+            abi.decode(_sliceAfterSelector(data_), (address, uint256, IOpenOceanCaller.CallDescription, uint256));
+    }
+
+    function _distribution(uint256 numerator_, uint256 denominator_) private pure returns (uint256) {
+        return (numerator_ << 128) | denominator_;
     }
 
     function _decodeUniswapAmount(bytes memory data_) private pure returns (uint256) {
