@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 import { Helpers } from "../../utils/Helpers.sol";
+import { Vm } from "forge-std/Vm.sol";
 
 import { AcrossV3Adapter } from "../../../src/adapters/AcrossV3Adapter.sol";
 import { IAcrossV3Receiver } from "../../../src/vendor/bridges/across/IAcrossV3Receiver.sol";
@@ -279,18 +280,22 @@ contract StargateAdapterTest is Helpers {
 
     // ------------- MESSAGE VALIDATION ---------------
 
-    function test_StargateAdapter_lzCompose_RevertIf_MessageTooShort() public {
+    function test_StargateAdapter_lzCompose_MessageTooShort_EmitsAndReturns() public {
         // Message with 75 bytes (1 less than the 76-byte OFTComposeMsgCodec header)
+        // Should NOT revert — emits ComposeMsgTooShort and returns to avoid blocking pipeline
         bytes memory shortMessage = new bytes(75);
-        vm.expectRevert(StargateAdapter.COMPOSE_MSG_TOO_SHORT.selector);
+        vm.recordLogs();
         stargateAdapter.lzCompose(address(mockPool), GUID, shortMessage, address(0), new bytes(0));
+        _assertEventEmitted(vm.getRecordedLogs(), "ComposeMsgTooShort(bytes32,uint256)");
     }
 
-    function test_StargateAdapter_lzCompose_RevertIf_InvalidInnerDecoding() public {
+    function test_StargateAdapter_lzCompose_InvalidInnerDecoding_EmitsAndReturns() public {
         // 76-byte header + garbage that won't abi.decode to the 6-tuple
+        // Should NOT revert — emits ComposeDecodeFailed and returns to avoid blocking pipeline
         bytes memory invalidMsg = _encodeComposeMsg(1, 30_101, 1000e18, bytes32(uint256(1)), new bytes(32));
-        vm.expectRevert();
+        vm.recordLogs();
         stargateAdapter.lzCompose(address(mockPool), GUID, invalidMsg, address(0), new bytes(0));
+        _assertEventEmitted(vm.getRecordedLogs(), "ComposeDecodeFailed(bytes32,bytes)");
     }
 
     // ------------- ERC20 HAPPY PATH ---------------
@@ -608,6 +613,14 @@ contract StargateAdapterTest is Helpers {
         uint256[] memory intentAmounts = new uint256[](0);
         bytes memory sigData = new bytes(0);
         return abi.encode(initData, executorCalldata, account_, dstTokens, intentAmounts, sigData);
+    }
+
+    function _assertEventEmitted(Vm.Log[] memory logs, string memory eventSig) internal pure {
+        bytes32 sig = keccak256(bytes(eventSig));
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == sig) return;
+        }
+        revert(string.concat("Expected event not emitted: ", eventSig));
     }
 
     function _mockProcessBridgedExecution() private {
