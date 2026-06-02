@@ -161,7 +161,12 @@ contract StargateAdapter is ILayerZeroComposer, ReentrancyGuard {
         //    This is the post-dust-removal amount set by Stargate after lzReceive
         uint256 amountLD = uint256(bytes32(_message[12:44]));
 
-        // 4. Identify token via _from.token() — wrapped in try/catch (P2-1)
+        // 4. Extract composeFrom from OFTComposeMsgCodec header (bytes 44-76)
+        //    This is the source chain sender address (padded to bytes32)
+        //    Used as fallback claimant when account is address(0)
+        address composeFrom = address(uint160(uint256(bytes32(_message[44:76]))));
+
+        // 5. Identify token via _from.token() — wrapped in try/catch (P2-1)
         //    If _from is not a valid Stargate/OFT contract, token() will revert.
         //    We MUST NOT let that block the compose pipeline.
         address tokenSent;
@@ -172,8 +177,8 @@ contract StargateAdapter is ILayerZeroComposer, ReentrancyGuard {
             return;
         }
 
-        // 5. Delegate to internal handler (avoids stack-too-deep with all decoded params + guid)
-        _handleCompose(_guid, _message, tokenSent, amountLD);
+        // 6. Delegate to internal handler (avoids stack-too-deep with all decoded params + guid)
+        _handleCompose(_guid, _message, tokenSent, amountLD, composeFrom);
     }
 
     /// @dev Internal handler for compose logic — separated from lzCompose to avoid stack-too-deep
@@ -181,7 +186,8 @@ contract StargateAdapter is ILayerZeroComposer, ReentrancyGuard {
         bytes32 _guid,
         bytes calldata _message,
         address tokenSent,
-        uint256 amountLD
+        uint256 amountLD,
+        address composeFrom
     )
         internal
     {
@@ -196,10 +202,12 @@ contract StargateAdapter is ILayerZeroComposer, ReentrancyGuard {
         ) = abi.decode(_message[COMPOSE_MSG_OFFSET:], (bytes, bytes, address, address[], uint256[], bytes));
 
         // Validate account is not zero address
-        //    If account is zero, funds would be unrecoverable
+        //    If account is zero, store in failedTransfers keyed by composeFrom (source chain sender)
+        //    so the originator can claim on the destination chain
         //    Don't revert to avoid blocking the LZ pipeline
         if (account == address(0)) {
-            emit TransferFailed(_guid, address(0), address(0), amountLD);
+            failedTransfers[composeFrom][tokenSent] += amountLD;
+            emit TransferFailed(_guid, composeFrom, tokenSent, amountLD);
             return;
         }
 
