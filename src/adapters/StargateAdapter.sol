@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 // External Dependencies
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 // Vendor Interfaces
 import { ILayerZeroComposer } from "../vendor/bridges/layerzero/ILayerZeroComposer.sol";
@@ -21,7 +22,10 @@ import { ISuperDestinationExecutor } from "../interfaces/ISuperDestinationExecut
 /// @dev Token delivery happens in a separate transaction (lzReceive) before lzCompose is called
 /// @dev Uses amountLD from OFTComposeMsgCodec header (bytes 12-44) for transfers, ensuring each
 /// @dev compose only transfers the exact amount credited during its corresponding lzReceive
-contract StargateAdapter is ILayerZeroComposer {
+/// @dev lzCompose MUST NOT revert (except for invalid sender) — LZ compose messages are ordered,
+/// @dev so a revert blocks all subsequent composes from the same source. Failed transfers are stored
+/// @dev for user self-claim via claimFailedTransfer.
+contract StargateAdapter is ILayerZeroComposer, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
@@ -43,6 +47,10 @@ contract StargateAdapter is ILayerZeroComposer {
     /// @notice The SuperDestinationExecutor for processing bridged executions
     ISuperDestinationExecutor public immutable SUPER_DESTINATION_EXECUTOR;
 
+    /// @notice Claimable balances for failed token transfers: account => token => amount
+    /// @dev token address(0) represents native ETH
+    mapping(address account => mapping(address token => uint256 amount)) public failedTransfers;
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -53,21 +61,52 @@ contract StargateAdapter is ILayerZeroComposer {
     /// @notice Thrown when lzCompose is called by an address other than the LZ endpoint
     error INVALID_SENDER();
 
-    /// @notice Thrown when native ETH transfer to the target account fails
+    /// @notice Thrown when native ETH transfer fails during claim
     error ETH_TRANSFER_FAILED();
 
     /// @notice Thrown when the compose message is too short to contain the OFTComposeMsgCodec header
     error COMPOSE_MSG_TOO_SHORT();
 
+    /// @notice Thrown when claiming more than the available failed transfer balance
+    error INSUFFICIENT_FAILED_BALANCE();
+
+    /// @notice Thrown when claiming with zero amount
+    error ZERO_AMOUNT();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Emitted when a compose message is successfully executed
+    /// @notice Emitted when token transfer to the account succeeds during lzCompose
+    /// @param guid The LayerZero unique message identifier
     /// @param account The target account that received the tokens
     /// @param tokenSent The token address transferred (address(0) for native ETH)
     /// @param amount The amount of tokens transferred
-    event ComposeExecuted(address indexed account, address indexed tokenSent, uint256 amount);
+    event TransferSucceeded(bytes32 indexed guid, address indexed account, address indexed tokenSent, uint256 amount);
+
+    /// @notice Emitted when token transfer to the account fails during lzCompose
+    /// @param guid The LayerZero unique message identifier
+    /// @param account The intended recipient
+    /// @param token The token that failed to transfer (address(0) for native ETH)
+    /// @param amount The amount stored for manual claim
+    event TransferFailed(bytes32 indexed guid, address indexed account, address indexed token, uint256 amount);
+
+    /// @notice Emitted when the executor call fails but tokens were already transferred to the account
+    /// @param guid The LayerZero unique message identifier
+    /// @param account The account that received tokens but whose execution failed
+    /// @param reason The revert reason from the executor
+    event ExecutionFailed(bytes32 indexed guid, address indexed account, bytes reason);
+
+    /// @notice Emitted when token resolution from _from.token() fails during lzCompose
+    /// @param guid The LayerZero unique message identifier
+    /// @param from The Stargate pool or OFT contract that failed token resolution
+    event TokenResolutionFailed(bytes32 indexed guid, address indexed from);
+
+    /// @notice Emitted when a user claims their failed transfer
+    /// @param account The account claiming funds
+    /// @param token The token claimed (address(0) for native ETH)
+    /// @param amount The amount claimed
+    event FailedTransferClaimed(address indexed account, address indexed token, uint256 amount);
 
     /*//////////////////////////////////////////////////////////////
                                  CONSTRUCTOR
@@ -96,12 +135,14 @@ contract StargateAdapter is ILayerZeroComposer {
 
     /// @inheritdoc ILayerZeroComposer
     /// @dev Decodes the OFTComposeMsgCodec message, transfers tokens to the target account,
-    ///      and forwards the execution payload to SuperDestinationExecutor
+    ///      and forwards the execution payload to SuperDestinationExecutor.
+    /// @dev MUST NOT revert after sender validation — a revert blocks ALL subsequent composes
+    ///      from the same source. Failed transfers are stored for user self-claim.
     /// @dev The _from parameter is the destination Stargate pool or OFT contract (NOT the source chain sender)
     /// @dev Uses amountLD from OFTComposeMsgCodec header for precise per-compose transfers
     function lzCompose(
         address _from,
-        bytes32, // _guid
+        bytes32 _guid,
         bytes calldata _message,
         address, // _executor
         bytes calldata // _extraData
@@ -120,7 +161,31 @@ contract StargateAdapter is ILayerZeroComposer {
         //    This is the post-dust-removal amount set by Stargate after lzReceive
         uint256 amountLD = uint256(bytes32(_message[12:44]));
 
-        // 4. Decode the inner application payload (skip 76-byte OFTComposeMsgCodec header)
+        // 4. Identify token via _from.token() — wrapped in try/catch (P2-1)
+        //    If _from is not a valid Stargate/OFT contract, token() will revert.
+        //    We MUST NOT let that block the compose pipeline.
+        address tokenSent;
+        try IStargate(_from).token() returns (address resolvedToken) {
+            tokenSent = resolvedToken;
+        } catch {
+            emit TokenResolutionFailed(_guid, _from);
+            return;
+        }
+
+        // 5. Delegate to internal handler (avoids stack-too-deep with all decoded params + guid)
+        _handleCompose(_guid, _message, tokenSent, amountLD);
+    }
+
+    /// @dev Internal handler for compose logic — separated from lzCompose to avoid stack-too-deep
+    function _handleCompose(
+        bytes32 _guid,
+        bytes calldata _message,
+        address tokenSent,
+        uint256 amountLD
+    )
+        internal
+    {
+        // Decode the inner application payload (skip 76-byte OFTComposeMsgCodec header)
         (
             bytes memory initData,
             bytes memory executorCalldata,
@@ -130,36 +195,83 @@ contract StargateAdapter is ILayerZeroComposer {
             bytes memory sigData
         ) = abi.decode(_message[COMPOSE_MSG_OFFSET:], (bytes, bytes, address, address[], uint256[], bytes));
 
-        // 5. Identify token via _from.token()
-        //    - Stargate ERC20 pools: returns underlying ERC20 address
-        //    - StargatePoolNative: returns address(0) for ETH
-        //    - OFT contracts: returns address(this) (OFT IS the token)
-        //    - OFTAdapter contracts: returns underlying ERC20 address
-        address tokenSent = IStargate(_from).token();
-
-        // 6. Transfer received funds to the target account before calling the executor
-        //    Uses amountLD from the compose header — the exact amount credited during lzReceive
-        //    Account is encoded in the merkle tree and validated by the destination executor
-        if (tokenSent == address(0)) {
-            // Native ETH path
-            (bool success,) = account.call{ value: amountLD }("");
-            if (!success) revert ETH_TRANSFER_FAILED();
-            emit ComposeExecuted(account, tokenSent, amountLD);
-        } else {
-            // ERC20 path
-            IERC20(tokenSent).safeTransfer(account, amountLD);
-            emit ComposeExecuted(account, tokenSent, amountLD);
+        // Validate account is not zero address
+        //    If account is zero, funds would be unrecoverable
+        //    Don't revert to avoid blocking the LZ pipeline
+        if (account == address(0)) {
+            emit TransferFailed(_guid, address(0), address(0), amountLD);
+            return;
         }
 
-        // 7. Call the core executor's standardized function
-        SUPER_DESTINATION_EXECUTOR.processBridgedExecution(
-            tokenSent,
-            account,
-            dstTokens,
-            intentAmounts,
-            initData,
-            executorCalldata,
-            sigData
-        );
+        // Transfer received funds to the target account
+        //    Uses amountLD from the compose header — the exact amount credited during lzReceive
+        //    If transfer fails, store for manual claim — MUST NOT revert to avoid blocking LZ pipeline
+        bool transferSuccess = _tryTransfer(tokenSent, account, amountLD);
+
+        if (!transferSuccess) {
+            failedTransfers[account][tokenSent] += amountLD;
+            emit TransferFailed(_guid, account, tokenSent, amountLD);
+        } else {
+            emit TransferSucceeded(_guid, account, tokenSent, amountLD);
+        }
+
+        // Call the core executor — ALWAYS attempt execution regardless of transfer outcome.
+        //    This ensures the signed intent (merkle root) gets consumed even when the transfer
+        //    fails, preventing a stale intent from conflicting with subsequent bridgings.
+        //    Wrapped in try/catch so a failed execution does not revert the compose.
+        try SUPER_DESTINATION_EXECUTOR.processBridgedExecution(
+            tokenSent, account, dstTokens, intentAmounts, initData, executorCalldata, sigData
+        ) { } catch (bytes memory reason) {
+            emit ExecutionFailed(_guid, account, reason);
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            CLAIM LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Claim tokens from a failed lzCompose transfer
+    /// @dev Only the intended recipient (account) can claim their own failed transfers
+    /// @param token The token to claim (address(0) for native ETH)
+    /// @param amount The amount to claim
+    function claimFailedTransfer(address token, uint256 amount) external nonReentrant {
+        if (amount == 0) revert ZERO_AMOUNT();
+
+        uint256 available = failedTransfers[msg.sender][token];
+        if (available < amount) revert INSUFFICIENT_FAILED_BALANCE();
+
+        failedTransfers[msg.sender][token] = available - amount;
+
+        if (token == address(0)) {
+            (bool success,) = msg.sender.call{ value: amount }("");
+            if (!success) revert ETH_TRANSFER_FAILED();
+        } else {
+            IERC20(token).safeTransfer(msg.sender, amount);
+        }
+
+        emit FailedTransferClaimed(msg.sender, token, amount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            INTERNAL
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Attempt to transfer tokens to an account, returning success/failure
+    /// @dev Does not revert on failure — returns false so the caller can handle it
+    /// @dev Uses low-level call for ERC20 transfers to support non-standard tokens (e.g. USDT)
+    ///      that don't return a bool from transfer()
+    /// @param token The token to transfer (address(0) for native ETH)
+    /// @param account The recipient
+    /// @param amount The amount to transfer
+    /// @return success Whether the transfer succeeded
+    function _tryTransfer(address token, address account, uint256 amount) internal returns (bool success) {
+        if (token == address(0)) {
+            (success,) = account.call{ value: amount }("");
+        } else {
+            // Low-level call handles non-standard ERC20s (USDT) that don't return bool
+            (bool callSuccess, bytes memory returnData) =
+                token.call(abi.encodeCall(IERC20.transfer, (account, amount)));
+            success = callSuccess && (returnData.length == 0 || abi.decode(returnData, (bool)));
+        }
     }
 }

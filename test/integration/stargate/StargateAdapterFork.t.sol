@@ -25,6 +25,9 @@ contract MockAdapterForkSignatureStorage {
     }
 }
 
+/// @dev Contract that cannot receive ETH (no receive/fallback) — used for failed transfer tests
+contract NonPayableForkTarget { }
+
 /// @title StargateAdapterFork
 /// @notice Fork-based integration tests for StargateAdapter using real on-chain contracts
 /// @dev Tests real Stargate pool and OFT adapter interactions on forked Ethereum mainnet
@@ -225,6 +228,348 @@ contract StargateAdapterFork is Helpers {
         vm.prank(LZ_ENDPOINT);
         adapter.lzCompose(WBTC_OFT_ADAPTER_ETH, GUID, wbtcMessage, address(0), new bytes(0));
         assertEq(IERC20(WBTC_ETH).balanceOf(account2), wbtcAmount, "Account2 should receive WBTC");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    FAILED TRANSFER + CLAIM TESTS (FORK)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Fork: ERC20 transfer fails (adapter has no tokens), stored for claim, execution still attempted
+    function test_Fork_StargateAdapter_lzCompose_ERC20_TransferFails_StoresForClaim() public {
+        uint256 amount = 1000e6;
+
+        // Do NOT deal USDC to adapter — simulates a scenario where lzReceive didn't credit tokens
+        // (In practice, lzReceive always credits, but this tests the defensive path)
+        bytes memory innerPayload = _buildStargateDestinationData(account);
+        bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
+
+        _mockProcessBridgedExecution();
+
+        // Expect TransferFailed event
+        vm.expectEmit(true, true, true, true);
+        emit StargateAdapter.TransferFailed(GUID,account, USDC_ETH, amount);
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message, address(0), new bytes(0));
+
+        // Verify: tokens stored for claim, not at account
+        assertEq(adapter.failedTransfers(account, USDC_ETH), amount, "Failed transfer should be stored");
+        assertEq(IERC20(USDC_ETH).balanceOf(account), 0, "Account should not have tokens");
+    }
+
+    /// @notice Fork: Native ETH transfer to non-payable contract fails, stored for claim
+    function test_Fork_StargateAdapter_lzCompose_NativeETH_NonPayable_StoresForClaim() public {
+        // Stargate PoolNative on Ethereum
+        address STARGATE_POOL_NATIVE = 0x77b2043768d28E9C9aB44E1aBfC95944bcE57931;
+        uint256 amount = 1 ether;
+
+        // Deploy a non-payable contract as the target account
+        NonPayableForkTarget target = new NonPayableForkTarget();
+
+        bytes memory innerPayload = _buildStargateDestinationData(address(target));
+        bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
+
+        // Fund adapter with ETH
+        deal(address(adapter), amount);
+        _mockProcessBridgedExecution();
+
+        // Expect TransferFailed (target can't receive ETH)
+        vm.expectEmit(true, true, true, true);
+        emit StargateAdapter.TransferFailed(GUID,address(target), address(0), amount);
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(STARGATE_POOL_NATIVE, GUID, message, address(0), new bytes(0));
+
+        // Verify: stored for claim
+        assertEq(adapter.failedTransfers(address(target), address(0)), amount, "Failed ETH stored");
+        assertEq(address(adapter).balance, amount, "ETH stays in adapter");
+    }
+
+    /// @notice Fork: Execution fails but transfer succeeds — tokens at account, ExecutionFailed emitted
+    function test_Fork_StargateAdapter_lzCompose_ExecutionFails_TokensStillTransferred() public {
+        uint256 amount = 1000e6;
+
+        deal(USDC_ETH, address(adapter), amount);
+
+        bytes memory innerPayload = _buildStargateDestinationData(account);
+        bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
+
+        // Mock executor to revert
+        vm.mockCallRevert(
+            mockExecutor,
+            abi.encodeWithSignature(
+                "processBridgedExecution(address,address,address[],uint256[],bytes,bytes,bytes)"
+            ),
+            "EXECUTION_REVERTED"
+        );
+
+        // Transfer succeeds, but execution fails
+        vm.expectEmit(true, true, true, true);
+        emit StargateAdapter.TransferSucceeded(GUID,account, USDC_ETH, amount);
+
+        vm.expectEmit(true, false, false, false);
+        emit StargateAdapter.ExecutionFailed(GUID,account, "");
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message, address(0), new bytes(0));
+
+        // Account has tokens even though execution reverted
+        assertEq(IERC20(USDC_ETH).balanceOf(account), amount, "Account should have tokens");
+        assertEq(IERC20(USDC_ETH).balanceOf(address(adapter)), 0, "Adapter should be empty");
+    }
+
+    /// @notice Fork: Both transfer AND execution fail — compose still doesn't revert, pipeline unblocked
+    function test_Fork_StargateAdapter_lzCompose_BothTransferAndExecutionFail_NoRevert() public {
+        uint256 amount = 1000e6;
+
+        // No tokens in adapter → transfer fails
+        bytes memory innerPayload = _buildStargateDestinationData(account);
+        bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
+
+        // Executor also reverts
+        vm.mockCallRevert(
+            mockExecutor,
+            abi.encodeWithSignature(
+                "processBridgedExecution(address,address,address[],uint256[],bytes,bytes,bytes)"
+            ),
+            "EXECUTION_REVERTED"
+        );
+
+        // Expect TransferFailed + ExecutionFailed events, no revert
+        vm.expectEmit(true, true, true, true);
+        emit StargateAdapter.TransferFailed(GUID,account, USDC_ETH, amount);
+
+        vm.expectEmit(true, false, false, false);
+        emit StargateAdapter.ExecutionFailed(GUID,account, "");
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message, address(0), new bytes(0));
+
+        // Failed transfer stored
+        assertEq(adapter.failedTransfers(account, USDC_ETH), amount, "Failed transfer stored");
+    }
+
+    /// @notice Fork: Two sequential composes — first transfer fails (stored for claim), execution consumes intent,
+    ///         second compose succeeds normally. Pipeline is NOT blocked.
+    function test_Fork_StargateAdapter_TwoSequentialComposes_FirstFailsTransfer_SecondSucceeds() public {
+        address userA = makeAddr("userA");
+        address userB = makeAddr("userB");
+        uint256 amountA = 500e6;
+        uint256 amountB = 1000e6;
+
+        // ---- COMPOSE 1: Transfer fails (no tokens), but execution still attempted ----
+        bytes memory payloadA = _buildStargateDestinationData(userA);
+        bytes memory messageA = _encodeComposeMsg(1, EID_BASE, amountA, bytes32(uint256(1)), payloadA);
+
+        _mockProcessBridgedExecution();
+
+        vm.expectEmit(true, true, true, true);
+        emit StargateAdapter.TransferFailed(GUID,userA, USDC_ETH, amountA);
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, messageA, address(0), new bytes(0));
+
+        // userA: transfer failed, stored for claim
+        assertEq(adapter.failedTransfers(userA, USDC_ETH), amountA, "UserA failed transfer stored");
+        assertEq(IERC20(USDC_ETH).balanceOf(userA), 0, "UserA has no tokens yet");
+
+        // ---- COMPOSE 2: Normal success — pipeline NOT blocked by compose 1 ----
+        deal(USDC_ETH, address(adapter), amountB);
+        bytes memory payloadB = _buildStargateDestinationData(userB);
+        bytes memory messageB = _encodeComposeMsg(2, EID_BASE, amountB, bytes32(uint256(2)), payloadB);
+
+        vm.expectEmit(true, true, true, true);
+        emit StargateAdapter.TransferSucceeded(GUID,userB, USDC_ETH, amountB);
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, messageB, address(0), new bytes(0));
+
+        // userB: success
+        assertEq(IERC20(USDC_ETH).balanceOf(userB), amountB, "UserB should receive tokens");
+        assertEq(IERC20(USDC_ETH).balanceOf(address(adapter)), 0, "Adapter empty after compose 2");
+
+        // userA: can still claim later
+        assertEq(adapter.failedTransfers(userA, USDC_ETH), amountA, "UserA claim still available");
+    }
+
+    /// @notice Fork: Claim failed ERC20 transfer with real USDC
+    function test_Fork_StargateAdapter_ClaimFailedTransfer_RealUSDC() public {
+        uint256 amount = 2000e6;
+
+        // Force a failed transfer (no tokens in adapter)
+        bytes memory innerPayload = _buildStargateDestinationData(account);
+        bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
+        _mockProcessBridgedExecution();
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message, address(0), new bytes(0));
+
+        assertEq(adapter.failedTransfers(account, USDC_ETH), amount, "Stored for claim");
+
+        // Fund adapter with real USDC so claim can succeed
+        deal(USDC_ETH, address(adapter), amount);
+
+        vm.expectEmit(true, true, false, true);
+        emit StargateAdapter.FailedTransferClaimed(account, USDC_ETH, amount);
+
+        vm.prank(account);
+        adapter.claimFailedTransfer(USDC_ETH, amount);
+
+        assertEq(IERC20(USDC_ETH).balanceOf(account), amount, "Account claimed USDC");
+        assertEq(adapter.failedTransfers(account, USDC_ETH), 0, "Claim balance zeroed");
+        assertEq(IERC20(USDC_ETH).balanceOf(address(adapter)), 0, "Adapter empty after claim");
+    }
+
+    /// @notice Fork: Partial claim — claim half, then the rest
+    function test_Fork_StargateAdapter_ClaimFailedTransfer_PartialClaim_RealUSDC() public {
+        uint256 amount = 1000e6;
+
+        // Force failed transfer
+        bytes memory innerPayload = _buildStargateDestinationData(account);
+        bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
+        _mockProcessBridgedExecution();
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message, address(0), new bytes(0));
+
+        deal(USDC_ETH, address(adapter), amount);
+
+        // Claim half
+        vm.prank(account);
+        adapter.claimFailedTransfer(USDC_ETH, 500e6);
+        assertEq(IERC20(USDC_ETH).balanceOf(account), 500e6, "Half claimed");
+        assertEq(adapter.failedTransfers(account, USDC_ETH), 500e6, "Half remaining");
+
+        // Claim rest
+        vm.prank(account);
+        adapter.claimFailedTransfer(USDC_ETH, 500e6);
+        assertEq(IERC20(USDC_ETH).balanceOf(account), 1000e6, "Full amount claimed");
+        assertEq(adapter.failedTransfers(account, USDC_ETH), 0, "Nothing remaining");
+    }
+
+    /// @notice Fork: Claim revert if insufficient balance
+    function test_Fork_StargateAdapter_ClaimFailedTransfer_RevertIf_InsufficientBalance() public {
+        vm.prank(account);
+        vm.expectRevert(StargateAdapter.INSUFFICIENT_FAILED_BALANCE.selector);
+        adapter.claimFailedTransfer(USDC_ETH, 100e6);
+    }
+
+    /// @notice Fork: Claim revert if zero amount
+    function test_Fork_StargateAdapter_ClaimFailedTransfer_RevertIf_ZeroAmount() public {
+        vm.prank(account);
+        vm.expectRevert(StargateAdapter.ZERO_AMOUNT.selector);
+        adapter.claimFailedTransfer(USDC_ETH, 0);
+    }
+
+    /// @notice Fork: Multiple failed transfers accumulate for the same user/token
+    function test_Fork_StargateAdapter_MultipleFailedTransfers_Accumulate() public {
+        uint256 amount1 = 500e6;
+        uint256 amount2 = 700e6;
+
+        _mockProcessBridgedExecution();
+
+        // First failed compose
+        bytes memory payload1 = _buildStargateDestinationData(account);
+        bytes memory message1 = _encodeComposeMsg(1, EID_BASE, amount1, bytes32(uint256(1)), payload1);
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message1, address(0), new bytes(0));
+
+        // Second failed compose
+        bytes memory message2 = _encodeComposeMsg(2, EID_BASE, amount2, bytes32(uint256(2)), payload1);
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message2, address(0), new bytes(0));
+
+        // Balances accumulate
+        assertEq(
+            adapter.failedTransfers(account, USDC_ETH),
+            amount1 + amount2,
+            "Failed transfers should accumulate"
+        );
+
+        // Can claim all at once
+        deal(USDC_ETH, address(adapter), amount1 + amount2);
+        vm.prank(account);
+        adapter.claimFailedTransfer(USDC_ETH, amount1 + amount2);
+        assertEq(IERC20(USDC_ETH).balanceOf(account), amount1 + amount2);
+    }
+
+    /// @notice Fork: Native ETH compose with real StargatePoolNative — happy path
+    function test_Fork_StargateAdapter_lzCompose_NativeETH_RealPoolNative() public {
+        address STARGATE_POOL_NATIVE = 0x77b2043768d28E9C9aB44E1aBfC95944bcE57931;
+        uint256 amount = 1 ether;
+
+        deal(address(adapter), amount);
+
+        bytes memory innerPayload = _buildStargateDestinationData(account);
+        bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
+
+        _mockProcessBridgedExecution();
+
+        vm.expectEmit(true, true, true, true);
+        emit StargateAdapter.TransferSucceeded(GUID,account, address(0), amount);
+
+        uint256 balBefore = account.balance;
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(STARGATE_POOL_NATIVE, GUID, message, address(0), new bytes(0));
+
+        assertEq(account.balance - balBefore, amount, "Account should receive ETH");
+        assertEq(address(adapter).balance, 0, "Adapter should be empty");
+    }
+
+    /// @notice Fork: WBTC compose with real OFT adapter — transfer fails, claim works
+    function test_Fork_StargateAdapter_lzCompose_WBTC_TransferFails_ThenClaim() public {
+        uint256 amount = 1e8; // 1 WBTC
+
+        // No WBTC in adapter → transfer fails
+        bytes memory innerPayload = _buildStargateDestinationData(account);
+        bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
+
+        _mockProcessBridgedExecution();
+
+        vm.expectEmit(true, true, true, true);
+        emit StargateAdapter.TransferFailed(GUID,account, WBTC_ETH, amount);
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(WBTC_OFT_ADAPTER_ETH, GUID, message, address(0), new bytes(0));
+
+        assertEq(adapter.failedTransfers(account, WBTC_ETH), amount, "WBTC stored for claim");
+
+        // Fund and claim
+        deal(WBTC_ETH, address(adapter), amount);
+
+        vm.prank(account);
+        adapter.claimFailedTransfer(WBTC_ETH, amount);
+
+        assertEq(IERC20(WBTC_ETH).balanceOf(account), amount, "Account claimed WBTC");
+        assertEq(adapter.failedTransfers(account, WBTC_ETH), 0, "Claim cleared");
+    }
+
+    /// @notice Fork: Third-party cannot claim another user's failed transfer
+    function test_Fork_StargateAdapter_ClaimFailedTransfer_OnlyRecipientCanClaim() public {
+        uint256 amount = 1000e6;
+
+        // Force failed transfer for account
+        bytes memory innerPayload = _buildStargateDestinationData(account);
+        bytes memory message = _encodeComposeMsg(1, EID_BASE, amount, bytes32(uint256(1)), innerPayload);
+        _mockProcessBridgedExecution();
+
+        vm.prank(LZ_ENDPOINT);
+        adapter.lzCompose(STARGATE_USDC_POOL_ETH, GUID, message, address(0), new bytes(0));
+
+        deal(USDC_ETH, address(adapter), amount);
+
+        // Attacker tries to claim account's funds
+        address attacker = makeAddr("attacker");
+        vm.prank(attacker);
+        vm.expectRevert(StargateAdapter.INSUFFICIENT_FAILED_BALANCE.selector);
+        adapter.claimFailedTransfer(USDC_ETH, amount);
+
+        // Original account can claim
+        vm.prank(account);
+        adapter.claimFailedTransfer(USDC_ETH, amount);
+        assertEq(IERC20(USDC_ETH).balanceOf(account), amount);
     }
 
     /*//////////////////////////////////////////////////////////////
