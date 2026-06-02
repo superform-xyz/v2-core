@@ -159,6 +159,8 @@ HOOK_CONTRACTS=(
     "ApproveAndSwapSparkPSMExactOutHook"
     "SwapKyberSwapHook"
     "ApproveAndSwapKyberSwapHook"
+    "SwapOpenOceanSparkDexHook"
+    "ApproveAndSwapOpenOceanSparkDexHook"
     "SwapUniswapV2Hook"
     "ApproveAndSwapUniswapV2Hook"
     "RedeemFirelightVaultHook"
@@ -440,4 +442,4 @@ else
         log "ERROR" "${RED}❌ ${total_failed} contracts failed to copy. Please check the error messages above.${NC}"
         exit 1
     fi
-fi 
+fi

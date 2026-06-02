@@ -111,7 +111,7 @@ contract NativeFeeSponsorshipForkTest is Test {
 
         // Build UserOp that withdraws sponsored ETH during execution
         bytes memory withdrawCall = abi.encodeCall(
-            INativeFeeSponsorship.withdrawSponsoredNative, (address(paymaster), sponsorAmount)
+            INativeFeeSponsorship.withdrawSponsoredNative, (bundler, sponsorAmount)
         );
         bytes memory callData =
             abi.encodeCall(MockSponsorshipAccount.execute, (address(sponsorship), 0, withdrawCall));
@@ -133,7 +133,7 @@ contract NativeFeeSponsorshipForkTest is Test {
         );
 
         // Sponsorship drained
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), address(account)), 0, "sponsorship drained");
+        assertEq(sponsorship.sponsoredAmount(bundler, address(account)), 0, "sponsorship drained");
 
         // Account received sponsored ETH (may also get gas refund from postOp)
         assertTrue(
@@ -158,10 +158,10 @@ contract NativeFeeSponsorshipForkTest is Test {
 
         // Build UserOps — each withdraws its own sponsored ETH
         bytes memory withdrawCall1 = abi.encodeCall(
-            INativeFeeSponsorship.withdrawSponsoredNative, (address(paymaster), amount1)
+            INativeFeeSponsorship.withdrawSponsoredNative, (bundler, amount1)
         );
         bytes memory withdrawCall2 = abi.encodeCall(
-            INativeFeeSponsorship.withdrawSponsoredNative, (address(paymaster), amount2)
+            INativeFeeSponsorship.withdrawSponsoredNative, (bundler, amount2)
         );
 
         PackedUserOperation[] memory ops = new PackedUserOperation[](2);
@@ -191,8 +191,8 @@ contract NativeFeeSponsorshipForkTest is Test {
         );
 
         // Both sponsorships drained
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), address(account)), 0);
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), address(account2)), 0);
+        assertEq(sponsorship.sponsoredAmount(bundler, address(account)), 0);
+        assertEq(sponsorship.sponsoredAmount(bundler, address(account2)), 0);
 
         // Both accounts received their ETH
         assertTrue(address(account).balance >= account1BalBefore + amount1);
@@ -250,7 +250,7 @@ contract NativeFeeSponsorshipForkTest is Test {
         TEST 5: Sponsor reclaims via withdrawSponsorDeposit directly
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The paymaster (sponsor of record) can reclaim unused deposits directly on NativeFeeSponsorship
+    /// @notice The bundler (sponsor of record) can reclaim unused deposits directly on NativeFeeSponsorship
     function test_Fork_SponsorReclaimsDirectly() public {
         uint256 sponsorAmount = 0.5 ether;
         uint256 gasAmount = 1 ether;
@@ -273,20 +273,17 @@ contract NativeFeeSponsorshipForkTest is Test {
 
         // Sponsorship retains deposit (account didn't withdraw)
         assertEq(
-            sponsorship.sponsoredAmount(address(paymaster), address(account)),
+            sponsorship.sponsoredAmount(bundler, address(account)),
             sponsorAmount,
             "sponsorship retains deposit"
         );
 
-        // Paymaster (sponsor of record) reclaims directly on NativeFeeSponsorship
-        // In production, this would be triggered by the bundler calling the paymaster
-        // which then calls withdrawSponsorDeposit. Since the paymaster IS the sponsor,
-        // we prank as the paymaster to call withdrawSponsorDeposit.
+        // Bundler (sponsor of record) reclaims directly on NativeFeeSponsorship
         address recipient = makeAddr("recipient");
-        vm.prank(address(paymaster));
+        vm.prank(bundler);
         sponsorship.withdrawSponsorDeposit(address(account), payable(recipient), sponsorAmount);
 
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), address(account)), 0, "drained after reclaim");
+        assertEq(sponsorship.sponsoredAmount(bundler, address(account)), 0, "drained after reclaim");
         assertEq(recipient.balance, sponsorAmount, "recipient received reclaimed ETH");
     }
 

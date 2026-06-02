@@ -24,6 +24,7 @@ interface INativeFeeSponsorship {
     error ETH_TRANSFER_FAILED();
 
     /// @notice Thrown when msg.sender does not match the sponsor parameter
+    /// @dev Kept for backwards compatibility but no longer used
     error UNAUTHORIZED_DEPOSITOR();
 
     /*//////////////////////////////////////////////////////////////
@@ -56,9 +57,9 @@ interface INativeFeeSponsorship {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Deposit native ETH for a smart account, keyed by sponsor
-    /// @dev Only the sponsor itself (msg.sender == sponsor) can deposit. Intermediaries like
-    ///      SuperNativePaymaster deposit as themselves and become the sponsor of record.
-    /// @param sponsor The address of the sponsor (must equal msg.sender)
+    /// @dev Allows intermediaries (e.g. SuperNativePaymaster) to deposit on behalf of the actual sponsor,
+    ///      so the sponsor can later reclaim unused deposits via withdrawSponsorDeposit.
+    /// @param sponsor The address of the sponsor (recorded as the deposit owner)
     /// @param account The smart account that can withdraw these funds
     function depositForAccount(address sponsor, address account) external payable;
 

@@ -247,8 +247,8 @@ contract NativeFeeSponsorshipE2E is Test {
         vm.prank(bundler);
         paymaster.sponsorNativeAndHandleOps{ value: 1.5 ether }(ops, deposits, address(sponsorship));
 
-        // Verify sponsorship received the deposit (paymaster is sponsor of record)
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), address(account)), nativeAmount);
+        // Verify sponsorship received the deposit (bundler is sponsor of record)
+        assertEq(sponsorship.sponsoredAmount(bundler, address(account)), nativeAmount);
         assertEq(address(sponsorship).balance, nativeAmount);
     }
 
@@ -271,11 +271,11 @@ contract NativeFeeSponsorshipE2E is Test {
         vm.prank(bundler);
         paymaster.sponsorNativeAndHandleOps{ value: 1.2 ether }(ops, deposits, address(sponsorship));
 
-        // 2. Verify sponsorship balance (paymaster is sponsor of record)
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), address(account)), nativeAmount);
+        // 2. Verify sponsorship balance (bundler is sponsor of record)
+        assertEq(sponsorship.sponsoredAmount(bundler, address(account)), nativeAmount);
 
-        // 3. Account withdraws via FetchNativeFeeHook (sponsor = paymaster)
-        bytes memory hookData = abi.encodePacked(address(paymaster), nativeAmount);
+        // 3. Account withdraws via FetchNativeFeeHook (sponsor = bundler)
+        bytes memory hookData = abi.encodePacked(bundler, nativeAmount);
         Execution[] memory executions = fetchHook.build(address(0), address(account), hookData);
 
         uint256 accountBalBefore = address(account).balance;
@@ -283,7 +283,7 @@ contract NativeFeeSponsorshipE2E is Test {
 
         // 4. Verify: account has ETH, sponsorship is empty
         assertEq(address(account).balance - accountBalBefore, nativeAmount);
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), address(account)), 0);
+        assertEq(sponsorship.sponsoredAmount(bundler, address(account)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -308,30 +308,30 @@ contract NativeFeeSponsorshipE2E is Test {
         vm.prank(bundler);
         paymaster.sponsorNativeAndHandleOps{ value: 1.5 ether }(ops, deposits, address(sponsorship));
 
-        // 2. Verify independent balances (paymaster is sponsor of record)
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), address(account)), amount1);
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), address(account2)), amount2);
+        // 2. Verify independent balances (bundler is sponsor of record)
+        assertEq(sponsorship.sponsoredAmount(bundler, address(account)), amount1);
+        assertEq(sponsorship.sponsoredAmount(bundler, address(account2)), amount2);
 
         // 3. Account1 withdraws via hook (set execution context like SuperExecutor does)
         fetchHook.setExecutionContext(address(account));
-        bytes memory hookData1 = abi.encodePacked(address(paymaster), amount1);
+        bytes memory hookData1 = abi.encodePacked(bundler, amount1);
         Execution[] memory execs1 = fetchHook.build(address(0), address(account), hookData1);
         _executePrank(execs1, address(account));
 
         assertEq(address(account).balance, amount1);
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), address(account)), 0);
+        assertEq(sponsorship.sponsoredAmount(bundler, address(account)), 0);
 
         // 4. Account2 still has its balance intact
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), address(account2)), amount2);
+        assertEq(sponsorship.sponsoredAmount(bundler, address(account2)), amount2);
 
         // 5. Account2 withdraws via hook (fresh execution context)
         fetchHook.setExecutionContext(address(account2));
-        bytes memory hookData2 = abi.encodePacked(address(paymaster), amount2);
+        bytes memory hookData2 = abi.encodePacked(bundler, amount2);
         Execution[] memory execs2 = fetchHook.build(address(0), address(account2), hookData2);
         _executePrank(execs2, address(account2));
 
         assertEq(address(account2).balance, amount2);
-        assertEq(sponsorship.sponsoredAmount(address(paymaster), address(account2)), 0);
+        assertEq(sponsorship.sponsoredAmount(bundler, address(account2)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////

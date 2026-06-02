@@ -87,6 +87,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address approveAndSwapSparkPsmExactOutHook;
         address swapKyberSwapHook;
         address approveAndSwapKyberSwapHook;
+        address swapOpenOceanSparkDexHook;
+        address approveAndSwapOpenOceanSparkDexHook;
         address swapUniswapV2Hook;
         address approveAndSwapUniswapV2Hook;
         address swapOdosV3Hook;
@@ -248,6 +250,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool swapUniswapV3Router02Hooks;
         bool swapSparkPsmHooks;
         bool swapKyberSwapHooks;
+        bool swapOpenOceanSparkDexHooks;
         bool swapUniswapV2Hooks;
         bool pendleRouterHooks;
         bool pendlePTAmortizedOracleHooks;
@@ -290,7 +293,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         returns (ContractAvailability memory availability)
     {
         // Initialize all skipped contracts array
-        // Max possible skips: 2 adapters + 31 hooks = 33 skipped contracts
+        // Max possible skips: 3 adapters + 31 hooks = 34 skipped contracts; keep a little headroom.
         string[] memory potentialSkips = new string[](37);
         uint256 skipCount = 0;
         // Adapter contracts (3 contracts - conditionally deployed)
@@ -326,7 +329,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-        string[64] memory baseHooks = [
+        string[66] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -381,6 +384,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "ApproveAndSwapSparkPSMExactOutHook",
             "SwapKyberSwapHook",
             "ApproveAndSwapKyberSwapHook",
+            "SwapOpenOceanSparkDexHook",
+            "ApproveAndSwapOpenOceanSparkDexHook",
             "SwapUniswapV2Hook",
             "ApproveAndSwapUniswapV2Hook",
             "StargateSendHook",
@@ -495,6 +500,17 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             potentialSkips[skipCount++] = "ApproveAndSwapKyberSwapHook";
         }
 
+        if (
+            configuration.openOceanRouters[chainId] != address(0)
+                && configuration.openOceanCallers[chainId] != address(0)
+        ) {
+            availability.swapOpenOceanSparkDexHooks = true;
+        } else {
+            expectedHooks -= 2; // SwapOpenOceanSparkDexHook + ApproveAndSwapOpenOceanSparkDexHook
+            potentialSkips[skipCount++] = "SwapOpenOceanSparkDexHook";
+            potentialSkips[skipCount++] = "ApproveAndSwapOpenOceanSparkDexHook";
+        }
+
         if (configuration.uniswapV2SwapRouters[chainId] != address(0)) {
             availability.swapUniswapV2Hooks = true;
         } else {
@@ -517,7 +533,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         if (__checkBytecodeExists("PendlePTAmortizedOracle", env)) {
             availability.pendlePTAmortizedOracleHooks = true;
         } else {
-            expectedHooks -= 2; // RecordPurchasePendlePTAmortizedOracleHook + RecordRedemptionPendlePTAmortizedOracleHook
+            expectedHooks -= 2; // RecordPurchasePendlePTAmortizedOracleHook +
+                // RecordRedemptionPendlePTAmortizedOracleHook
             potentialSkips[skipCount++] = "RecordPurchasePendlePTAmortizedOracleHook";
             potentialSkips[skipCount++] = "RecordRedemptionPendlePTAmortizedOracleHook";
         }
@@ -525,7 +542,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         if (__checkBytecodeExists("PendlePTAmortizedOracleV2", env)) {
             availability.pendlePTAmortizedOracleHooksV2 = true;
         } else {
-            expectedHooks -= 2; // RecordPurchasePendlePTAmortizedOracleHookV2 + RecordRedemptionPendlePTAmortizedOracleHookV2
+            expectedHooks -= 2; // RecordPurchasePendlePTAmortizedOracleHookV2 +
+                // RecordRedemptionPendlePTAmortizedOracleHookV2
             potentialSkips[skipCount++] = "RecordPurchasePendlePTAmortizedOracleHookV2";
             potentialSkips[skipCount++] = "RecordRedemptionPendlePTAmortizedOracleHookV2";
         }
@@ -539,7 +557,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         // Check bytecode existence and collect missing contracts
-        string[] memory potentialMissing = new string[](50); // Conservative size for all possible contracts
+        string[] memory potentialMissing = new string[](90); // Conservative size for all possible contracts
         uint256 missingCount = 0;
 
         // Pure core contracts (9 contracts - always deployed)
@@ -588,19 +606,19 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Oracles (12 contracts - always check these)
         // NOTE: Order must match _deployOracles array indices for consistency
         string[13] memory oracleContracts = [
-            "ERC4626YieldSourceOracle",      // [0]
-            "ERC5115YieldSourceOracle",      // [1]
-            "PendlePTYieldSourceOracle",     // [2]
-            "SpectraPTYieldSourceOracle",    // [3]
-            "StakingYieldSourceOracle",      // [4]
-            "SuperYieldSourceOracle",        // [5]
-            "SuperVaultYieldSourceOracle",   // [6]
-            "YoYieldSourceOracle",           // [7]
-            "PendlePTAmortizedOracle",       // [8]
-            "PendlePTAmortizedOracleV2",     // [9]
-            "FirelightYieldSourceOracle",    // [10]
-            "DETHYieldSourceOracle",         // [11]
-            "ERC7540YieldSourceOracle"       // [12]
+            "ERC4626YieldSourceOracle", // [0]
+            "ERC5115YieldSourceOracle", // [1]
+            "PendlePTYieldSourceOracle", // [2]
+            "SpectraPTYieldSourceOracle", // [3]
+            "StakingYieldSourceOracle", // [4]
+            "SuperYieldSourceOracle", // [5]
+            "SuperVaultYieldSourceOracle", // [6]
+            "YoYieldSourceOracle", // [7]
+            "PendlePTAmortizedOracle", // [8]
+            "PendlePTAmortizedOracleV2", // [9]
+            "FirelightYieldSourceOracle", // [10]
+            "DETHYieldSourceOracle", // [11]
+            "ERC7540YieldSourceOracle" // [12]
         ];
 
         for (uint256 i = 0; i < oracleContracts.length; i++) {
@@ -618,7 +636,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Set expected counts from actual array lengths
         availability.expectedCore = coreContracts.length; // 9 pure core contracts
         availability.expectedOracles = oracleContracts.length; // 10 oracle contracts
-        // expectedAdapters and expectedHooks already set above based on chain configuration
+            // expectedAdapters and expectedHooks already set above based on chain configuration
 
         // Calculate total expected contracts
         // Total = core + adapters + hooks + oracles - contracts without bytecode
@@ -859,7 +877,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     /// @param chainId The target chain ID
     /// @param env Environment (1 = vnet/dev, 0/2 = prod/staging)
     /// @param availability Contract availability for this chain
-    function _checkCoreContracts(uint64 chainId, uint256 env, ContractAvailability memory availability) internal {
+    function _checkCoreContracts(
+        uint64 chainId,
+        uint256 env,
+        ContractAvailability memory availability
+    )
+        internal
+    {
         console2.log("=== Core Contracts ===");
 
         // SuperLedgerConfiguration (no constructor args)
@@ -1099,10 +1123,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             env
         );
         __checkContract(
-            CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY,
-            __getSalt(CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY),
-            "",
-            env
+            CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY, __getSalt(CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY), "", env
         );
         __checkContract(
             CLAIM_CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY,
@@ -1116,12 +1137,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "",
             env
         );
-        __checkContract(
-            REDEEM_WITH_ID_7540_VAULT_HOOK_KEY, __getSalt(REDEEM_WITH_ID_7540_VAULT_HOOK_KEY), "", env
-        );
-        __checkContract(
-            WITHDRAW_WITH_ID_7540_VAULT_HOOK_KEY, __getSalt(WITHDRAW_WITH_ID_7540_VAULT_HOOK_KEY), "", env
-        );
+        __checkContract(REDEEM_WITH_ID_7540_VAULT_HOOK_KEY, __getSalt(REDEEM_WITH_ID_7540_VAULT_HOOK_KEY), "", env);
+        __checkContract(WITHDRAW_WITH_ID_7540_VAULT_HOOK_KEY, __getSalt(WITHDRAW_WITH_ID_7540_VAULT_HOOK_KEY), "", env);
 
         // Swap hooks with router dependencies
         if (availability.swap1InchHook) {
@@ -1177,19 +1194,54 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             __checkContract(
                 SWAP_KYBERSWAP_HOOK_KEY,
                 __getSalt(SWAP_KYBERSWAP_HOOK_KEY),
-                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId], configuration.nativeTokens[chainId]),
+                abi.encode(
+                    configuration.kyberSwapRouters[chainId],
+                    configuration.kyberSwapScaleHelpers[chainId],
+                    configuration.nativeTokens[chainId]
+                ),
                 env
             );
             __checkContract(
                 APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY,
                 __getSalt(APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY),
-                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId], configuration.nativeTokens[chainId]),
+                abi.encode(
+                    configuration.kyberSwapRouters[chainId],
+                    configuration.kyberSwapScaleHelpers[chainId],
+                    configuration.nativeTokens[chainId]
+                ),
                 env
             );
         } else {
             console2.log(
                 "SKIPPED SwapKyberSwapHook & ApproveAndSwapKyberSwapHook: KyberSwap Router not configured for chain",
                 chainId
+            );
+        }
+
+        if (availability.swapOpenOceanSparkDexHooks) {
+            __checkContract(
+                SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY,
+                __getSalt(SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY),
+                abi.encode(
+                    configuration.openOceanRouters[chainId],
+                    configuration.openOceanCallers[chainId],
+                    configuration.nativeTokens[chainId]
+                ),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY,
+                __getSalt(APPROVE_AND_SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY),
+                abi.encode(
+                    configuration.openOceanRouters[chainId],
+                    configuration.openOceanCallers[chainId],
+                    configuration.nativeTokens[chainId]
+                ),
+                env
+            );
+        } else {
+            console2.log(
+                "SKIPPED OpenOcean SparkDexV4 hooks: OpenOcean Router/Caller not configured for chain", chainId
             );
         }
 
@@ -1208,8 +1260,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             console2.log(
-                "SKIPPED SwapUniswapV2Hook & ApproveAndSwapUniswapV2Hook: V2 Router not configured for chain",
-                chainId
+                "SKIPPED SwapUniswapV2Hook & ApproveAndSwapUniswapV2Hook: V2 Router not configured for chain", chainId
             );
         }
 
@@ -1242,7 +1293,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Pendle PT Amortized Oracle hooks (V1)
         // NOTE: Hook check requires oracle address in config. In check mode before deployment,
         // oracle config is address(0), so we skip hook check (hooks will be deployed after oracles).
-        if (availability.pendlePTAmortizedOracleHooks && configuration.pendlePTAmortizedOracles[chainId] != address(0)) {
+        if (availability.pendlePTAmortizedOracleHooks && configuration.pendlePTAmortizedOracles[chainId] != address(0))
+        {
             __checkContract(
                 RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY,
                 __getSalt(RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY),
@@ -1269,7 +1321,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Pendle PT Amortized Oracle hooks (V2)
         // NOTE: Same as V1 - hook check requires oracle address in config.
-        if (availability.pendlePTAmortizedOracleHooksV2 && configuration.pendlePTAmortizedOraclesV2[chainId] != address(0)) {
+        if (
+            availability.pendlePTAmortizedOracleHooksV2
+                && configuration.pendlePTAmortizedOraclesV2[chainId] != address(0)
+        ) {
             __checkContract(
                 RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY,
                 __getSalt(RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY),
@@ -1352,12 +1407,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Stargate bridge hooks
         if (superValidator != address(0)) {
-            __checkContract(
-                STARGATE_SEND_HOOK_KEY,
-                __getSalt(STARGATE_SEND_HOOK_KEY),
-                abi.encode(superValidator),
-                env
-            );
+            __checkContract(STARGATE_SEND_HOOK_KEY, __getSalt(STARGATE_SEND_HOOK_KEY), abi.encode(superValidator), env);
             __checkContract(
                 APPROVE_AND_STARGATE_SEND_HOOK_KEY,
                 __getSalt(APPROVE_AND_STARGATE_SEND_HOOK_KEY),
@@ -1390,7 +1440,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         if (availability.merklClaimRewardHook) {
             __checkContract(
                 MERKL_CLAIM_REWARD_HOOK_KEY,
-                __getSalt(MERKL_CLAIM_REWARD_HOOK_SALT),  // Use custom salt for new deployment
+                __getSalt(MERKL_CLAIM_REWARD_HOOK_SALT), // Use custom salt for new deployment
                 abi.encode(configuration.merklDistributors[chainId]),
                 env
             );
@@ -1513,13 +1563,21 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             __checkContract(
                 SWAP_KYBERSWAP_HOOK_KEY,
                 __getSalt(SWAP_KYBERSWAP_HOOK_KEY),
-                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId], configuration.nativeTokens[chainId]),
+                abi.encode(
+                    configuration.kyberSwapRouters[chainId],
+                    configuration.kyberSwapScaleHelpers[chainId],
+                    configuration.nativeTokens[chainId]
+                ),
                 env
             );
             __checkContract(
                 APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY,
                 __getSalt(APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY),
-                abi.encode(configuration.kyberSwapRouters[chainId], configuration.kyberSwapScaleHelpers[chainId], configuration.nativeTokens[chainId]),
+                abi.encode(
+                    configuration.kyberSwapRouters[chainId],
+                    configuration.kyberSwapScaleHelpers[chainId],
+                    configuration.nativeTokens[chainId]
+                ),
                 env
             );
         } else {
@@ -1595,10 +1653,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 env
             );
             __checkContract(
-                YO_YIELD_SOURCE_ORACLE_KEY,
-                __getSalt(YO_YIELD_SOURCE_ORACLE_KEY),
-                abi.encode(superLedgerConfig),
-                env
+                YO_YIELD_SOURCE_ORACLE_KEY, __getSalt(YO_YIELD_SOURCE_ORACLE_KEY), abi.encode(superLedgerConfig), env
             );
             // PendlePTAmortizedOracle and V2 (admin + superLedgerConfig)
             __checkContract(
@@ -1646,7 +1701,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     /// @notice Populate CoreContracts struct with addresses from deployment status
     /// @param chainId Chain ID
     /// @param coreContracts CoreContracts struct to populate
-    function _populateCoreContractsFromStatus(uint64 chainId, CoreContracts memory coreContracts) internal view {
+    function _populateCoreContractsFromStatus(
+        uint64 chainId,
+        CoreContracts memory coreContracts
+    )
+        internal
+        view
+    {
         ContractStatus memory status;
 
         status = _getContractStatus(chainId, SUPER_EXECUTOR_KEY);
@@ -1756,6 +1817,17 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" KyberSwap ScaleHelper:", configuration.kyberSwapScaleHelpers[chainId]);
         } else {
             console2.log(" SKIPPED KyberSwap Router validation: Not available on chain", chainId);
+        }
+
+        if (availability.swapOpenOceanSparkDexHooks) {
+            require(configuration.openOceanRouters[chainId] != address(0), "OPENOCEAN_ROUTER_ADDRESS_ZERO");
+            require(configuration.openOceanRouters[chainId].code.length > 0, "OPENOCEAN_ROUTER_NOT_DEPLOYED");
+            require(configuration.openOceanCallers[chainId] != address(0), "OPENOCEAN_CALLER_ADDRESS_ZERO");
+            require(configuration.openOceanCallers[chainId].code.length > 0, "OPENOCEAN_CALLER_NOT_DEPLOYED");
+            console2.log(" OpenOcean Router:", configuration.openOceanRouters[chainId]);
+            console2.log(" OpenOcean Caller:", configuration.openOceanCallers[chainId]);
+        } else {
+            console2.log(" SKIPPED OpenOcean SparkDexV4 validation: Not available on chain", chainId);
         }
 
         if (availability.swapUniswapV2Hooks) {
@@ -2323,8 +2395,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else if (Strings.equal(contractToVerify.name, "DETHYieldSourceOracle")) {
             // DETHYieldSourceOracle needs SuperLedgerConfiguration + foundation
-            bytes memory constructorArgs =
-                abi.encode(vars.superLedgerConfig, configuration.dethFoundation);
+            bytes memory constructorArgs = abi.encode(vars.superLedgerConfig, configuration.dethFoundation);
             computedAddress = DeterministicDeployerLib.computeAddress(
                 abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
             );
@@ -2431,7 +2502,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 70;
+        uint256 len = 72;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -2512,7 +2583,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             require(configuration.pendleRouters[chainId] != address(0), "PENDLE_ROUTER_HOOK_ROUTER_PARAM_ZERO");
             require(configuration.pendleRouters[chainId].code.length > 0, "PENDLE_ROUTER_HOOK_ROUTER_NOT_DEPLOYED");
             hooks[20] = _createSafeHookDeploymentWithArgs(
-                PENDLE_ROUTER_SWAP_HOOK_KEY, "PendleRouterSwapHook", env, abi.encode(configuration.pendleRouters[chainId])
+                PENDLE_ROUTER_SWAP_HOOK_KEY,
+                "PendleRouterSwapHook",
+                env,
+                abi.encode(configuration.pendleRouters[chainId])
             );
             hooks[21] = _createSafeHookDeploymentWithArgs(
                 PENDLE_ROUTER_REDEEM_HOOK_KEY,
@@ -2549,7 +2623,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[23] = HookDeployment("", "", ""); // Empty deployment
         }
 
-        // Pendle PT Amortized Oracle Hooks (V2) - Only deploy if oracle V2 was deployed (config updated by _deployOracles)
+        // Pendle PT Amortized Oracle Hooks (V2) - Only deploy if oracle V2 was deployed (config updated by
+        // _deployOracles)
         if (
             configuration.pendlePTAmortizedOraclesV2[chainId] != address(0)
                 && configuration.pendlePTAmortizedOraclesV2[chainId].code.length > 0
@@ -2658,10 +2733,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hooks[59] = _createSafeHookDeployment(
             CLAIM_CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY, "ClaimCancelRedeemRequestWithId7540Hook", env
         );
-        hooks[60] =
-            _createSafeHookDeployment(REDEEM_WITH_ID_7540_VAULT_HOOK_KEY, "RedeemWithId7540VaultHook", env);
-        hooks[61] =
-            _createSafeHookDeployment(WITHDRAW_WITH_ID_7540_VAULT_HOOK_KEY, "WithdrawWithId7540VaultHook", env);
+        hooks[60] = _createSafeHookDeployment(REDEEM_WITH_ID_7540_VAULT_HOOK_KEY, "RedeemWithId7540VaultHook", env);
+        hooks[61] = _createSafeHookDeployment(WITHDRAW_WITH_ID_7540_VAULT_HOOK_KEY, "WithdrawWithId7540VaultHook", env);
 
         hooks[34] = _createSafeHookDeployment(OFFRAMP_TOKENS_HOOK_KEY, "OfframpTokensHook", env);
         hooks[35] = _createSafeHookDeployment(MARK_ROOT_AS_USED_HOOK_KEY, "MarkRootAsUsedHook", env);
@@ -2819,9 +2892,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // UniswapV2 Swap Hooks - Only deploy if V2 SwapRouter available on this chain (e.g., SparkDex on Flare)
         if (availability.swapUniswapV2Hooks) {
-            require(
-                configuration.uniswapV2SwapRouters[chainId] != address(0), "SWAP_UNISWAPV2_HOOK_ROUTER_PARAM_ZERO"
-            );
+            require(configuration.uniswapV2SwapRouters[chainId] != address(0), "SWAP_UNISWAPV2_HOOK_ROUTER_PARAM_ZERO");
             require(
                 configuration.uniswapV2SwapRouters[chainId].code.length > 0, "SWAP_UNISWAPV2_HOOK_ROUTER_NOT_DEPLOYED"
             );
@@ -2865,10 +2936,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             require(cctpValidator.code.length > 0, "CCTP_HOOK_VALIDATOR_NOT_DEPLOYED");
 
             hooks[64] = _createSafeHookDeploymentWithArgs(
-                CCTP_SEND_HOOK_KEY,
-                "CCTPSendHook",
-                env,
-                abi.encode(CCTP_V2_TOKEN_MESSENGER, cctpValidator)
+                CCTP_SEND_HOOK_KEY, "CCTPSendHook", env, abi.encode(CCTP_V2_TOKEN_MESSENGER, cctpValidator)
             );
             hooks[65] = _createSafeHookDeploymentWithArgs(
                 APPROVE_AND_CCTP_SEND_HOOK_KEY,
@@ -2897,15 +2965,47 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[67] = HookDeployment("", "", ""); // Empty deployment
         }
 
+        // OpenOcean SparkDexV4 Hooks - Only deploy if available on this chain
+        if (availability.swapOpenOceanSparkDexHooks) {
+            require(configuration.openOceanRouters[chainId] != address(0), "OPENOCEAN_HOOK_ROUTER_PARAM_ZERO");
+            require(configuration.openOceanRouters[chainId].code.length > 0, "OPENOCEAN_HOOK_ROUTER_NOT_DEPLOYED");
+            require(configuration.openOceanCallers[chainId] != address(0), "OPENOCEAN_HOOK_CALLER_PARAM_ZERO");
+            require(configuration.openOceanCallers[chainId].code.length > 0, "OPENOCEAN_HOOK_CALLER_NOT_DEPLOYED");
+            hooks[68] = _createSafeHookDeploymentWithArgs(
+                SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY,
+                "SwapOpenOceanSparkDexHook",
+                env,
+                abi.encode(
+                    configuration.openOceanRouters[chainId],
+                    configuration.openOceanCallers[chainId],
+                    configuration.nativeTokens[chainId]
+                )
+            );
+            hooks[69] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY,
+                "ApproveAndSwapOpenOceanSparkDexHook",
+                env,
+                abi.encode(
+                    configuration.openOceanRouters[chainId],
+                    configuration.openOceanCallers[chainId],
+                    configuration.nativeTokens[chainId]
+                )
+            );
+        } else {
+            console2.log(" SKIPPED OpenOcean SparkDexV4 Hooks deployment: Not available on chain", chainId);
+            hooks[68] = HookDeployment("", "", ""); // Empty deployment
+            hooks[69] = HookDeployment("", "", ""); // Empty deployment
+        }
+
         // UniswapV3 SwapRouter02 Hooks - Only deploy if V3 SwapRouter02 available on this chain
         if (availability.swapUniswapV3Router02Hooks) {
-            hooks[68] = _createSafeHookDeploymentWithArgs(
+            hooks[70] = _createSafeHookDeploymentWithArgs(
                 SWAP_UNISWAPV3_ROUTER02_HOOK_KEY,
                 "SwapUniswapV3Router02Hook",
                 env,
                 abi.encode(configuration.uniswapV3SwapRouter02s[chainId])
             );
-            hooks[69] = _createSafeHookDeploymentWithArgs(
+            hooks[71] = _createSafeHookDeploymentWithArgs(
                 APPROVE_AND_SWAP_UNISWAPV3_ROUTER02_HOOK_KEY,
                 "ApproveAndSwapUniswapV3Router02Hook",
                 env,
@@ -2916,10 +3016,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 "SKIPPED SwapUniswapV3Router02Hook: Uniswap V3 SwapRouter02 not available on chain", chainId
             );
             console2.log(
-                "SKIPPED ApproveAndSwapUniswapV3Router02Hook: Uniswap V3 SwapRouter02 not available on chain", chainId
+                "SKIPPED ApproveAndSwapUniswapV3Router02Hook: Uniswap V3 SwapRouter02 not available on chain",
+                chainId
             );
-            hooks[68] = HookDeployment("", "", ""); // Empty deployment
-            hooks[69] = HookDeployment("", "", ""); // Empty deployment
+            hooks[70] = HookDeployment("", "", ""); // Empty deployment
+            hooks[71] = HookDeployment("", "", ""); // Empty deployment
         }
 
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
@@ -2997,30 +3098,30 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hookAddresses.pendleUnifiedHook =
             Strings.equal(hooks[45].name, PENDLE_UNIFIED_HOOK_KEY) ? addresses[45] : address(0);
         hookAddresses.recordPurchasePendlePTAmortizedOracleHook = Strings.equal(
-            hooks[22].name, RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY
-        )
+                hooks[22].name, RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY
+            )
             ? addresses[22]
             : address(0);
         hookAddresses.recordRedemptionPendlePTAmortizedOracleHook = Strings.equal(
-            hooks[23].name, RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY
-        )
+                hooks[23].name, RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY
+            )
             ? addresses[23]
             : address(0);
         hookAddresses.recordPurchasePendlePTAmortizedOracleHookV2 = Strings.equal(
-            hooks[46].name, RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY
-        )
+                hooks[46].name, RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY
+            )
             ? addresses[46]
             : address(0);
         hookAddresses.recordRedemptionPendlePTAmortizedOracleHookV2 = Strings.equal(
-            hooks[47].name, RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY
-        )
+                hooks[47].name, RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY
+            )
             ? addresses[47]
             : address(0);
         hookAddresses.acrossSendFundsAndExecuteOnDstHook =
             Strings.equal(hooks[24].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[24] : address(0);
         hookAddresses.approveAndAcrossSendFundsAndExecuteOnDstHook = Strings.equal(
-            hooks[25].name, APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY
-        )
+                hooks[25].name, APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY
+            )
             ? addresses[25]
             : address(0);
         hookAddresses.deBridgeSendOrderAndExecuteOnDstHook =
@@ -3059,18 +3160,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[42].name, SWAP_UNISWAPV3_HOOK_KEY) ? addresses[42] : address(0);
         hookAddresses.approveAndSwapUniswapV3Hook =
             Strings.equal(hooks[43].name, APPROVE_AND_SWAP_UNISWAPV3_HOOK_KEY) ? addresses[43] : address(0);
-        hookAddresses.transferHook =
-            Strings.equal(hooks[44].name, TRANSFER_HOOK_KEY) ? addresses[44] : address(0);
+        hookAddresses.transferHook = Strings.equal(hooks[44].name, TRANSFER_HOOK_KEY) ? addresses[44] : address(0);
         hookAddresses.swapSparkPsmExactInHook =
             Strings.equal(hooks[48].name, SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY) ? addresses[48] : address(0);
-        hookAddresses.approveAndSwapSparkPsmExactInHook = Strings.equal(
-            hooks[49].name, APPROVE_AND_SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY
-        ) ? addresses[49] : address(0);
+        hookAddresses.approveAndSwapSparkPsmExactInHook =
+            Strings.equal(hooks[49].name, APPROVE_AND_SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY) ? addresses[49] : address(0);
         hookAddresses.swapSparkPsmExactOutHook =
             Strings.equal(hooks[50].name, SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY) ? addresses[50] : address(0);
-        hookAddresses.approveAndSwapSparkPsmExactOutHook = Strings.equal(
-            hooks[51].name, APPROVE_AND_SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY
-        ) ? addresses[51] : address(0);
+        hookAddresses.approveAndSwapSparkPsmExactOutHook =
+            Strings.equal(hooks[51].name, APPROVE_AND_SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY) ? addresses[51] : address(0);
         hookAddresses.swapKyberSwapHook =
             Strings.equal(hooks[52].name, SWAP_KYBERSWAP_HOOK_KEY) ? addresses[52] : address(0);
         hookAddresses.approveAndSwapKyberSwapHook =
@@ -3079,29 +3177,34 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[54].name, SWAP_UNISWAPV2_HOOK_KEY) ? addresses[54] : address(0);
         hookAddresses.approveAndSwapUniswapV2Hook =
             Strings.equal(hooks[55].name, APPROVE_AND_SWAP_UNISWAPV2_HOOK_KEY) ? addresses[55] : address(0);
-        hookAddresses.swapOdosV3Hook =
-            Strings.equal(hooks[66].name, SWAP_ODOSV3_HOOK_KEY) ? addresses[66] : address(0);
+        hookAddresses.swapOdosV3Hook = Strings.equal(hooks[66].name, SWAP_ODOSV3_HOOK_KEY) ? addresses[66] : address(0);
         hookAddresses.approveAndSwapOdosV3Hook =
             Strings.equal(hooks[67].name, APPROVE_AND_SWAP_ODOSV3_HOOK_KEY) ? addresses[67] : address(0);
+        hookAddresses.swapOpenOceanSparkDexHook =
+            Strings.equal(hooks[68].name, SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY) ? addresses[68] : address(0);
+        hookAddresses.approveAndSwapOpenOceanSparkDexHook =
+            Strings.equal(hooks[69].name, APPROVE_AND_SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY) ? addresses[69] : address(0);
         hookAddresses.swapUniswapV3Router02Hook =
-            Strings.equal(hooks[68].name, SWAP_UNISWAPV3_ROUTER02_HOOK_KEY) ? addresses[68] : address(0);
+            Strings.equal(hooks[70].name, SWAP_UNISWAPV3_ROUTER02_HOOK_KEY) ? addresses[70] : address(0);
         hookAddresses.approveAndSwapUniswapV3Router02Hook = Strings.equal(
-            hooks[69].name, APPROVE_AND_SWAP_UNISWAPV3_ROUTER02_HOOK_KEY
-        ) ? addresses[69] : address(0);
+            hooks[71].name, APPROVE_AND_SWAP_UNISWAPV3_ROUTER02_HOOK_KEY
+        ) ? addresses[71] : address(0);
 
         // ERC-7540 WithId hooks
-        hookAddresses.cancelDepositRequestWithId7540Hook = Strings.equal(
-            hooks[56].name, CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY
-        ) ? addresses[56] : address(0);
-        hookAddresses.cancelRedeemRequestWithId7540Hook = Strings.equal(
-            hooks[57].name, CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY
-        ) ? addresses[57] : address(0);
+        hookAddresses.cancelDepositRequestWithId7540Hook =
+            Strings.equal(hooks[56].name, CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY) ? addresses[56] : address(0);
+        hookAddresses.cancelRedeemRequestWithId7540Hook =
+            Strings.equal(hooks[57].name, CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY) ? addresses[57] : address(0);
         hookAddresses.claimCancelDepositRequestWithId7540Hook = Strings.equal(
-            hooks[58].name, CLAIM_CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY
-        ) ? addresses[58] : address(0);
+                hooks[58].name, CLAIM_CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY
+            )
+            ? addresses[58]
+            : address(0);
         hookAddresses.claimCancelRedeemRequestWithId7540Hook = Strings.equal(
-            hooks[59].name, CLAIM_CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY
-        ) ? addresses[59] : address(0);
+                hooks[59].name, CLAIM_CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY
+            )
+            ? addresses[59]
+            : address(0);
         hookAddresses.redeemWithId7540VaultHook =
             Strings.equal(hooks[60].name, REDEEM_WITH_ID_7540_VAULT_HOOK_KEY) ? addresses[60] : address(0);
         hookAddresses.withdrawWithId7540VaultHook =
@@ -3114,8 +3217,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[63].name, APPROVE_AND_STARGATE_SEND_HOOK_KEY) ? addresses[63] : address(0);
 
         // CCTP V2 Bridge hooks
-        hookAddresses.cctpSendHook =
-            Strings.equal(hooks[64].name, CCTP_SEND_HOOK_KEY) ? addresses[64] : address(0);
+        hookAddresses.cctpSendHook = Strings.equal(hooks[64].name, CCTP_SEND_HOOK_KEY) ? addresses[64] : address(0);
         hookAddresses.approveAndCCTPSendHook =
             Strings.equal(hooks[65].name, APPROVE_AND_CCTP_SEND_HOOK_KEY) ? addresses[65] : address(0);
 
@@ -3157,21 +3259,24 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         if (availability.swapKyberSwapHooks) {
             require(hookAddresses.swapKyberSwapHook != address(0), "SWAP_KYBERSWAP_HOOK_NOT_ASSIGNED");
             require(
-                hookAddresses.approveAndSwapKyberSwapHook != address(0),
-                "APPROVE_AND_SWAP_KYBERSWAP_HOOK_NOT_ASSIGNED"
+                hookAddresses.approveAndSwapKyberSwapHook != address(0), "APPROVE_AND_SWAP_KYBERSWAP_HOOK_NOT_ASSIGNED"
             );
         }
         if (availability.swapUniswapV2Hooks) {
             require(hookAddresses.swapUniswapV2Hook != address(0), "SWAP_UNISWAPV2_HOOK_NOT_ASSIGNED");
             require(
-                hookAddresses.approveAndSwapUniswapV2Hook != address(0),
-                "APPROVE_AND_SWAP_UNISWAPV2_HOOK_NOT_ASSIGNED"
+                hookAddresses.approveAndSwapUniswapV2Hook != address(0), "APPROVE_AND_SWAP_UNISWAPV2_HOOK_NOT_ASSIGNED"
             );
         }
         if (availability.swapOdosV3Hooks) {
             require(hookAddresses.swapOdosV3Hook != address(0), "SWAP_ODOSV3_HOOK_NOT_ASSIGNED");
+            require(hookAddresses.approveAndSwapOdosV3Hook != address(0), "APPROVE_AND_SWAP_ODOSV3_HOOK_NOT_ASSIGNED");
+        }
+        if (availability.swapOpenOceanSparkDexHooks) {
+            require(hookAddresses.swapOpenOceanSparkDexHook != address(0), "SWAP_OPENOCEAN_SPARKDEX_HOOK_NOT_ASSIGNED");
             require(
-                hookAddresses.approveAndSwapOdosV3Hook != address(0), "APPROVE_AND_SWAP_ODOSV3_HOOK_NOT_ASSIGNED"
+                hookAddresses.approveAndSwapOpenOceanSparkDexHook != address(0),
+                "APPROVE_AND_SWAP_OPENOCEAN_SPARKDEX_HOOK_NOT_ASSIGNED"
             );
         }
         if (availability.acrossV3Adapter) {
@@ -3214,9 +3319,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hookAddresses.claimCancelRedeemRequestWithId7540Hook != address(0),
             "CLAIM_CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_NOT_ASSIGNED"
         );
-        require(
-            hookAddresses.redeemWithId7540VaultHook != address(0), "REDEEM_WITH_ID_7540_VAULT_HOOK_NOT_ASSIGNED"
-        );
+        require(hookAddresses.redeemWithId7540VaultHook != address(0), "REDEEM_WITH_ID_7540_VAULT_HOOK_NOT_ASSIGNED");
         require(
             hookAddresses.withdrawWithId7540VaultHook != address(0), "WITHDRAW_WITH_ID_7540_VAULT_HOOK_NOT_ASSIGNED"
         );
@@ -3308,10 +3411,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
         // ERC7540YieldSourceOracle (superLedgerConfig + requestId=0)
         oracles[12] = _createSafeOracleDeploymentWithArgs(
-            ERC7540_YIELD_SOURCE_ORACLE_KEY,
-            "ERC7540YieldSourceOracle",
-            env,
-            abi.encode(superLedgerConfig, uint256(0))
+            ERC7540_YIELD_SOURCE_ORACLE_KEY, "ERC7540YieldSourceOracle", env, abi.encode(superLedgerConfig, uint256(0))
         );
 
         console2.log("Deploying", len, "oracles with parameter validation...");

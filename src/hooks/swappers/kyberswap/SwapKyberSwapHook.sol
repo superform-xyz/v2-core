@@ -60,19 +60,18 @@ contract SwapKyberSwapHook is BaseHook, ISuperHookContextAware {
         override
         returns (Execution[] memory executions)
     {
-        uint256 value = BytesLib.toUint256(data, 20);
         uint256 inputAmount = BytesLib.toUint256(data, 52);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         uint256 txDataLength = BytesLib.toUint256(data, 117);
         bytes memory txData_ = BytesLib.slice(data, 149, txDataLength);
 
+        uint256 executionAmount = inputAmount;
         if (usePrevHookAmount) {
-            uint256 prevAmount = ISuperHookResult(prevHook).getOutAmount(account);
-            if (value > 0) {
-                value = prevAmount;
-            }
-            txData_ = KyberSwapScaler.updateTxDataAmounts(SCALE_HELPER, txData_, prevAmount, inputAmount);
+            executionAmount = ISuperHookResult(prevHook).getOutAmount(account);
+            txData_ = KyberSwapScaler.updateTxDataAmounts(SCALE_HELPER, txData_, executionAmount, inputAmount);
         }
+
+        uint256 value = _isNativeInput(txData_) ? executionAmount : 0;
 
         executions = new Execution[](1);
         executions[0] = Execution({ target: address(KYBER_ROUTER), value: value, callData: txData_ });
@@ -120,5 +119,11 @@ contract SwapKyberSwapHook is BaseHook, ISuperHookContextAware {
             return account.balance;
         }
         return IERC20(outputToken).balanceOf(account);
+    }
+
+    function _isNativeInput(bytes memory txData_) private view returns (bool) {
+        IMetaAggregationRouterV2.SwapExecutionParams memory params =
+            abi.decode(BytesLib.slice(txData_, 4, txData_.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams));
+        return address(params.desc.srcToken) == NATIVE;
     }
 }

@@ -3,12 +3,19 @@
 # ===== CHAIN FILTER CONFIGURATION =====
 # Specify which chains to verify (comment out to verify all chains)
 # Leave empty array to verify all chains from network configuration
-CHAINS_TO_VERIFY=(1 8453 56 42161 43114)
+CHAINS_TO_VERIFY=(1 8453 56 42161 43114 14)
 
 # ===== CONTRACT FILTER CONFIGURATION =====
 # Specify which contracts to verify (comment out to verify all contracts)
 # Leave empty array to verify all contracts found in deployment JSON
-CONTRACTS_TO_VERIFY=("SwapOdosV3Hook" "ApproveAndSwapOdosV3Hook" "StargateSendHook" "ApproveAndStargateSendHook")
+CONTRACTS_TO_VERIFY=(
+    "SwapOdosV3Hook"
+    "ApproveAndSwapOdosV3Hook"
+    "StargateSendHook"
+    "ApproveAndStargateSendHook"
+    "SwapOpenOceanSparkDexHook"
+    "ApproveAndSwapOpenOceanSparkDexHook"
+)
 
 # ===== RATE LIMIT CONFIGURATION =====
 # Delay in seconds between verification requests (prevents Cloudflare rate limiting)
@@ -209,6 +216,8 @@ generate_constructor_args() {
     local aggregation_router=""
     local odos_router=""
     local odos_router_v3="0x0D05a7D3448512B78fa8A9e46c4872C88C4a0D05"  # Same CREATE2 on all EVM chains
+    local openocean_router=""
+    local openocean_caller=""
     local across_spoke_pool_v3=""
     local merkl_distributor=""
     local debridge_dst_dln="0xE7351Fd770A37282b91D153Ee690B63579D6dd7f"
@@ -347,6 +356,8 @@ generate_constructor_args() {
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
             aggregation_router=""  # Not deployed
             odos_router=""  # Not deployed
+            openocean_router="0x6352a56caadc4f1e25cd6c75970fa768a3304e64"
+            openocean_caller="0x6dd434082eab5cd134b33719ec1ff05fe985b97b"
             across_spoke_pool_v3=""  # Not deployed
             merkl_distributor=""  # Not deployed
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
@@ -404,6 +415,9 @@ generate_constructor_args() {
             ;;
         "SwapOdosV3Hook"|"ApproveAndSwapOdosV3Hook")
             echo "$(cast abi-encode "constructor(address)" "$odos_router_v3")"
+            ;;
+        "SwapOpenOceanSparkDexHook"|"ApproveAndSwapOpenOceanSparkDexHook")
+            echo "$(cast abi-encode "constructor(address,address,address)" "$openocean_router" "$openocean_caller" "$native_token")"
             ;;
         "AcrossSendFundsAndExecuteOnDstHook")
             echo "$(cast abi-encode "constructor(address,address)" "$across_spoke_pool_v3" "$super_merkle_validator")"
@@ -611,6 +625,8 @@ get_contract_source() {
         "ApproveAndSwapOdosV2Hook") echo "src/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol" ;;
         "SwapOdosV3Hook") echo "src/hooks/swappers/odos/SwapOdosV3Hook.sol" ;;
         "ApproveAndSwapOdosV3Hook") echo "src/hooks/swappers/odos/ApproveAndSwapOdosV3Hook.sol" ;;
+        "SwapOpenOceanSparkDexHook") echo "src/hooks/swappers/openocean/SwapOpenOceanSparkDexHook.sol" ;;
+        "ApproveAndSwapOpenOceanSparkDexHook") echo "src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol" ;;
         "SwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Hook.sol" ;;
         "ApproveAndSwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/ApproveAndSwapUniswapV3Hook.sol" ;;
         "SwapUniswapV3Router02Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Router02Hook.sol" ;;
@@ -924,4 +940,4 @@ main() {
 }
 
 # Run the main function
-main 
+main
