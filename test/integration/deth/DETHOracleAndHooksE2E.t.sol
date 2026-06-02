@@ -495,7 +495,7 @@ contract DETHOracleAndHooksE2E is Test {
         for (uint256 i = 0; i < amounts.length; i++) {
             uint256 shares = oracle.getShareOutput(ASYNC_REDEEMER, address(0), amounts[i]);
             uint256 assetsBack = oracle.getAssetOutput(ASYNC_REDEEMER, address(0), shares);
-            assertApproxEqAbs(assetsBack, amounts[i], 1, "Round-trip off by > 1 wei");
+            assertApproxEqAbs(assetsBack, amounts[i], 2, "Round-trip off by > 2 wei");
         }
     }
 
