@@ -601,16 +601,28 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor()")"
             ;;
 
-        # StargateAdapter - deployed bytecode uses 2-arg constructor (lzEndpoint, superDestinationExecutor)
-        # NOTE: Current source has 3-arg constructor (added tokenMessaging). If verification fails,
-        #       the source code doesn't match the deployed bytecode. Re-deploy StargateAdapter first.
+        # StargateAdapter (lzEndpoint, tokenMessaging, superDestinationExecutor)
         "StargateAdapter")
             local lz_endpoint=""
+            local token_messaging=""
             case $chain_id in
                 "130"|"146"|"480"|"80094") lz_endpoint="$lz_endpoint_v2_alt" ;;
                 *) lz_endpoint="$lz_endpoint_v2" ;;
             esac
-            echo "$(cast abi-encode "constructor(address,address)" "$lz_endpoint" "$super_destination_executor")"
+            case $chain_id in
+                "1") token_messaging="0x6d6620eFa72948C5f68A3C8646d58C00d3f4A980" ;;
+                "8453") token_messaging="0x5634c4a5FEd09819E3c46D86A965Dd9447d86e47" ;;
+                "56") token_messaging="0x6E3d884C96d640526F273C61dfcF08915eBd7e2B" ;;
+                "42161") token_messaging="0x19cFCE47eD54a88614648DC3f19A5980097007dD" ;;
+                "43114") token_messaging="0x17E450Be3Ba9557F2378E20d64AD417E59Ef9A34" ;;
+                "14") token_messaging="0x45d417612e177672958dC0537C45a8f8d754Ac2E" ;;
+                "146") token_messaging="0x2086f755A6d9254045C257ea3d382ef854849B0f" ;;
+                "130") token_messaging="0xB1EeAD6959cb5bB9B20417d6689922523B2B86C3" ;;
+                "100") token_messaging="0xAf368c91793CB22739386DFCbBb2F1A9e4bCBeBf" ;;
+                "80094") token_messaging="0xAf5191B0De278C7286d6C7CC6ab6BB8A73bA2Cd6" ;;
+                *) token_messaging="" ;;
+            esac
+            echo "$(cast abi-encode "constructor(address,address,address)" "$lz_endpoint" "$token_messaging" "$super_destination_executor")"
             ;;
 
         # Oracles - ERC7540YieldSourceOracle (superLedgerConfig + requestId=0)

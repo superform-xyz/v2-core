@@ -538,10 +538,27 @@ echo ""
 declare -a FAILED_NETWORKS=()
 declare -a SUCCESSFUL_NETWORKS=()
 
+# Chains where forge doesn't support --chain (not in forge's internal registry)
+FORGE_UNSUPPORTED_CHAINS=("988")
+
 # Check addresses on all networks using current configuration
 for network_def in "${NETWORKS[@]}"; do
     IFS=':' read -r network_id network_name rpc_var <<< "$network_def"
-    
+
+    # Skip chains not supported by forge's --chain flag
+    skip_chain=false
+    for unsupported in "${FORGE_UNSUPPORTED_CHAINS[@]}"; do
+        if [[ "$network_id" == "$unsupported" ]]; then
+            skip_chain=true
+            break
+        fi
+    done
+    if [[ "$skip_chain" == "true" ]]; then
+        echo -e "${YELLOW}⚠️  Skipping $network_name (Chain $network_id) - not supported by forge --chain${NC}"
+        SUCCESSFUL_NETWORKS+=("$network_name (Chain $network_id) [skipped]")
+        continue
+    fi
+
     if check_v2_addresses "$network_id" "$network_name" "$rpc_var"; then
         SUCCESSFUL_NETWORKS+=("$network_name (Chain $network_id)")
     else
@@ -694,6 +711,20 @@ skipped_networks=0
 for network_def in "${NETWORKS[@]}"; do
     IFS=':' read -r network_id network_name rpc_var <<< "$network_def"
     
+    # Skip chains not supported by forge's --chain flag
+    skip_chain=false
+    for unsupported in "${FORGE_UNSUPPORTED_CHAINS[@]}"; do
+        if [[ "$network_id" == "$unsupported" ]]; then
+            skip_chain=true
+            break
+        fi
+    done
+    if [[ "$skip_chain" == "true" ]]; then
+        echo -e "${YELLOW}⏭️  Skipping ${network_name^^} MAINNET - Chain $network_id not supported by forge --chain${NC}"
+        ((skipped_networks++))
+        continue
+    fi
+
     # Check deployment status for this network
     if [[ -n "${NETWORK_DEPLOYMENT_STATUS[$network_id]}" ]]; then
         IFS=':' read -r deployed total_expected network_status_name <<< "${NETWORK_DEPLOYMENT_STATUS[$network_id]}"

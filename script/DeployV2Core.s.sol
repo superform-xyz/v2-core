@@ -316,8 +316,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             potentialSkips[skipCount++] = "DebridgeAdapter";
         }
 
-        // StargateAdapter
-        if (configuration.lzEndpointV2s[chainId] != address(0)) {
+        // StargateAdapter (requires lzEndpointV2 and tokenMessaging)
+        if (
+            configuration.lzEndpointV2s[chainId] != address(0)
+                && configuration.stargateTokenMessagings[chainId] != address(0)
+        ) {
             availability.stargateAdapter = true;
         } else {
             expectedAdapters -= 1; // StargateAdapter
@@ -962,16 +965,20 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             revert("DEBRIDGE_ADAPTER_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
         }
 
-        // StargateAdapter (requires lzEndpointV2 and superDestinationExecutor)
+        // StargateAdapter (requires lzEndpointV2, tokenMessaging, and superDestinationExecutor)
         if (availability.stargateAdapter && superDestExecutor != address(0)) {
             __checkContract(
                 STARGATE_ADAPTER_KEY,
                 __getSalt(STARGATE_ADAPTER_KEY),
-                abi.encode(configuration.lzEndpointV2s[chainId], superDestExecutor),
+                abi.encode(
+                    configuration.lzEndpointV2s[chainId],
+                    configuration.stargateTokenMessagings[chainId],
+                    superDestExecutor
+                ),
                 env
             );
         } else if (!availability.stargateAdapter) {
-            console2.log("SKIPPED StargateAdapter: LZ EndpointV2 not configured for chain", chainId);
+            console2.log("SKIPPED StargateAdapter: LZ EndpointV2 or TokenMessaging not configured for chain", chainId);
         } else {
             revert("STARGATE_ADAPTER_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
         }
@@ -1957,6 +1964,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Deploy StargateAdapter only if available on this chain
         if (availability.stargateAdapter) {
             require(configuration.lzEndpointV2s[chainId] != address(0), "STARGATE_ADAPTER_LZ_ENDPOINT_PARAM_ZERO");
+            require(
+                configuration.stargateTokenMessagings[chainId] != address(0),
+                "STARGATE_ADAPTER_TOKEN_MESSAGING_PARAM_ZERO"
+            );
             require(coreContracts.superDestinationExecutor != address(0), "STARGATE_ADAPTER_DEST_EXECUTOR_PARAM_ZERO");
 
             coreContracts.stargateAdapter = __deployContractIfNeeded(
@@ -1965,7 +1976,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 __getSalt(STARGATE_ADAPTER_KEY),
                 abi.encodePacked(
                     __getBytecode("StargateAdapter", env),
-                    abi.encode(configuration.lzEndpointV2s[chainId], coreContracts.superDestinationExecutor)
+                    abi.encode(
+                        configuration.lzEndpointV2s[chainId],
+                        configuration.stargateTokenMessagings[chainId],
+                        coreContracts.superDestinationExecutor
+                    )
                 )
             );
 
