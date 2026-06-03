@@ -15,6 +15,7 @@ import { StargateAdapter } from "../../../src/adapters/StargateAdapter.sol";
 import { ITokenMessaging } from "../../../src/vendor/bridges/stargate/ITokenMessaging.sol";
 import { ClaimFailedTransferHook } from "../../../src/hooks/claim/stargate/ClaimFailedTransferHook.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
 import { Vm } from "forge-std/Vm.sol";
 import "forge-std/console2.sol";
@@ -1199,6 +1200,143 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
         assertEq(IERC20(USDC_BASE).balanceOf(originator), amount, "Originator should have recovered USDC");
         assertEq(localAdapter.failedTransfers(originator, USDC_BASE), 0, "failedTransfers should be cleared");
         assertEq(hook.getOutAmount(originator), amount, "outAmount should match claimed amount");
+    }
+
+    /// @notice E2E: decodeAmount + replaceCalldataAmount roundtrip — simulates bundler adjusting the claim amount.
+    ///         Flow: build hook data with 800 USDC → decodeAmount reads 800 → replaceCalldataAmount sets 500 → claim 500.
+    function test_Fork_E2E_ClaimFailedTransferHook_DecodeAndReplaceAmount() public {
+        vm.selectFork(baseForkId);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
+        ClaimFailedTransferHook hook = new ClaimFailedTransferHook();
+
+        uint256 originalAmount = 800e6;
+        uint256 adjustedAmount = 500e6;
+        address user = makeAddr("decode_replace_user");
+        deal(USDC_BASE, address(localAdapter), originalAmount);
+
+        // Create failed transfer
+        vm.mockCall(USDC_BASE, abi.encodeCall(IERC20.transfer, (user, originalAmount)), abi.encode(false));
+        bytes memory innerMsg = _buildInnerComposeMsg(user);
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(localAdapter)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), _wrapComposeMsgCodec(originalAmount, sender, innerMsg), address(0), bytes("")
+        );
+        vm.clearMockedCalls();
+        assertEq(localAdapter.failedTransfers(user, USDC_BASE), originalAmount);
+
+        // Bundler flow: build original hook data, decode amount, replace with adjusted amount
+        bytes memory hookData = abi.encodePacked(address(localAdapter), USDC_BASE, originalAmount);
+        uint256 decoded = hook.decodeAmount(hookData);
+        assertEq(decoded, originalAmount, "decodeAmount should read original amount");
+
+        bytes memory adjustedData = hook.replaceCalldataAmount(hookData, adjustedAmount);
+        uint256 decodedAdjusted = hook.decodeAmount(adjustedData);
+        assertEq(decodedAdjusted, adjustedAmount, "decodeAmount after replace should read adjusted amount");
+
+        // Execute claim with adjusted amount (500 out of 800)
+        _executeHookClaim(hook, address(localAdapter), USDC_BASE, adjustedAmount, user);
+
+        assertEq(IERC20(USDC_BASE).balanceOf(user), adjustedAmount, "User should have adjusted amount");
+        assertEq(localAdapter.failedTransfers(user, USDC_BASE), originalAmount - adjustedAmount, "Remaining should be left");
+        assertEq(hook.getOutAmount(user), adjustedAmount, "outAmount should match adjusted claim");
+    }
+
+    /// @notice E2E: Same user has failed transfers in both USDC and native ETH — claims both via separate hook calls.
+    function test_Fork_E2E_ClaimFailedTransferHook_MultipleTokens() public {
+        vm.selectFork(baseForkId);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
+        ClaimFailedTransferHook hook = new ClaimFailedTransferHook();
+
+        uint256 usdcAmount = 600e6;
+        uint256 ethAmount = 3 ether;
+        address user = makeAddr("multi_token_user");
+
+        // --- Create failed USDC transfer ---
+        deal(USDC_BASE, address(localAdapter), usdcAmount);
+        vm.mockCall(USDC_BASE, abi.encodeCall(IERC20.transfer, (user, usdcAmount)), abi.encode(false));
+        bytes memory innerMsg = _buildInnerComposeMsg(user);
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(localAdapter)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), _wrapComposeMsgCodec(usdcAmount, sender, innerMsg), address(0), bytes("")
+        );
+        vm.clearMockedCalls();
+
+        // --- Create failed native ETH transfer (via zero-account path) ---
+        vm.deal(address(localAdapter), ethAmount);
+        address mockNativePool = makeAddr("mockNativePoolMulti");
+        vm.mockCall(mockNativePool, abi.encodeWithSignature("token()"), abi.encode(address(0)));
+        vm.mockCall(
+            TOKEN_MESSAGING_BASE,
+            abi.encodeWithSelector(ITokenMessaging.assetIds.selector, mockNativePool),
+            abi.encode(uint16(13))
+        );
+        bytes memory ethInnerMsg = _buildInnerComposeMsg(address(0));
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(localAdapter)).lzCompose(
+            mockNativePool, bytes32(0), _wrapComposeMsgCodec(ethAmount, user, ethInnerMsg), address(0), bytes("")
+        );
+        vm.clearMockedCalls();
+
+        // Verify both failed balances
+        assertEq(localAdapter.failedTransfers(user, USDC_BASE), usdcAmount, "USDC failed balance");
+        assertEq(localAdapter.failedTransfers(user, address(0)), ethAmount, "ETH failed balance");
+
+        // Claim USDC first
+        _executeHookClaim(hook, address(localAdapter), USDC_BASE, usdcAmount, user);
+        assertEq(IERC20(USDC_BASE).balanceOf(user), usdcAmount, "User should have USDC");
+        assertEq(localAdapter.failedTransfers(user, USDC_BASE), 0, "USDC failed cleared");
+
+        // Claim native ETH second
+        _executeHookClaim(hook, address(localAdapter), address(0), ethAmount, user);
+        assertEq(user.balance, ethAmount, "User should have ETH");
+        assertEq(localAdapter.failedTransfers(user, address(0)), 0, "ETH failed cleared");
+    }
+
+    /// @notice E2E: Verify inspect() returns correct adapter+token after a real compose failure on fork.
+    function test_Fork_E2E_ClaimFailedTransferHook_Inspect() public {
+        vm.selectFork(baseForkId);
+        StargateAdapter localAdapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
+        ClaimFailedTransferHook hook = new ClaimFailedTransferHook();
+
+        uint256 amount = 250e6;
+        address user = makeAddr("inspect_user");
+        deal(USDC_BASE, address(localAdapter), amount);
+
+        // Create failed transfer
+        vm.mockCall(USDC_BASE, abi.encodeCall(IERC20.transfer, (user, amount)), abi.encode(false));
+        bytes memory innerMsg = _buildInnerComposeMsg(user);
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(localAdapter)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), _wrapComposeMsgCodec(amount, sender, innerMsg), address(0), bytes("")
+        );
+        vm.clearMockedCalls();
+        assertEq(localAdapter.failedTransfers(user, USDC_BASE), amount);
+
+        // Verify inspect returns correct adapter + token
+        bytes memory hookData = abi.encodePacked(address(localAdapter), USDC_BASE, amount);
+        bytes memory inspected = hook.inspect(hookData);
+
+        assertEq(inspected.length, 40, "Inspect output should be 40 bytes");
+        assertEq(BytesLib.toAddress(inspected, 0), address(localAdapter), "Inspect adapter mismatch");
+        assertEq(BytesLib.toAddress(inspected, 20), USDC_BASE, "Inspect token mismatch");
+
+        // Also verify decodeAmount on the same data
+        assertEq(hook.decodeAmount(hookData), amount, "decodeAmount mismatch");
+
+        // Execute claim to confirm the inspected data is actionable
+        _executeHookClaim(hook, address(localAdapter), USDC_BASE, amount, user);
+        assertEq(IERC20(USDC_BASE).balanceOf(user), amount, "User should have recovered USDC");
+    }
+
+    /// @notice E2E: Revert when hook data is too short in fork context.
+    function test_Fork_E2E_ClaimFailedTransferHook_RevertIf_DataTooShort() public {
+        vm.selectFork(baseForkId);
+        ClaimFailedTransferHook hook = new ClaimFailedTransferHook();
+
+        address user = makeAddr("short_data_user");
+        bytes memory shortData = abi.encodePacked(address(0x1234), address(0x5678)); // 40 bytes, missing amount
+        vm.expectRevert(ClaimFailedTransferHook.DATA_NOT_VALID.selector);
+        hook.build(address(0), user, shortData);
     }
 
     /// @notice E2E: Multiple failed transfers → partial claim via hook, then remaining claim.

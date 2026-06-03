@@ -8,14 +8,7 @@ CHAINS_TO_VERIFY=(1 8453 56 42161 43114 14)
 # ===== CONTRACT FILTER CONFIGURATION =====
 # Specify which contracts to verify (comment out to verify all contracts)
 # Leave empty array to verify all contracts found in deployment JSON
-CONTRACTS_TO_VERIFY=(
-    "SwapOdosV3Hook"
-    "ApproveAndSwapOdosV3Hook"
-    "StargateSendHook"
-    "ApproveAndStargateSendHook"
-    "SwapOpenOceanSparkDexHook"
-    "ApproveAndSwapOpenOceanSparkDexHook"
-)
+CONTRACTS_TO_VERIFY=()
 
 # ===== RATE LIMIT CONFIGURATION =====
 # Delay in seconds between verification requests (prevents Cloudflare rate limiting)
@@ -94,10 +87,9 @@ echo -e "${BLUE}🔧 Loading Configuration...${NC}"
 # Load RPC URLs using network-specific function
 echo -e "${CYAN}   • Loading RPC URLs...${NC}"
 if ! load_rpc_urls; then
-    echo -e "${RED}❌ Failed to load some RPC URLs from credential manager${NC}"
-    echo -e "${YELLOW}⚠️  This may cause connectivity issues during verification${NC}"
-    echo -e "${YELLOW}   Please ensure all required RPC URLs are configured in 1Password${NC}"
-    exit 1
+    echo -e "${YELLOW}⚠️  Failed to load some RPC URLs from credential manager${NC}"
+    echo -e "${YELLOW}   Chains using Blockscout (Flare) can still verify without RPC${NC}"
+    echo -e "${YELLOW}   Other chains may fail if their RPC is missing${NC}"
 fi
 
 # Load Etherscan V2 API key for verification
@@ -246,6 +238,18 @@ generate_constructor_args() {
         pendle_pt_amortized_oracle_v2=""  # TBD - update after prod deployment
     fi
     
+    # Common addresses (same on all chains via CREATE2)
+    local cctp_v2_token_messenger="0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d"
+    local kyber_router="0x6131B5fae19EA4f9D964eAc0408E4408b66337b5"
+    local kyber_scale_helper="0x2f577A41BeC1BE1152AeEA12e73b7391d15f655D"
+    local deth_foundation="0x97b5e4a707A4D5AB4A58b2c93bc8d249a63Ff153"
+    local deployer="0x6E3dadcAf328ebB58753e89a3e589F5C5e988dF8"
+    local algebra_integral_router_flare="0x69D57B9D705eaD73a5d2f2476C30c55bD755cc2F"
+    local sparkdex_v2_router_flare="0x4a1E5A90e9943467FAd1acea1E7F0e5e88472a1e"
+    local spark_psm3_base="0x1601843c5E9bC251A3272907010AFa41Fa18347E"
+    local lz_endpoint_v2="0x1a44076050125825900e736c501f859c50fE728c"
+    local lz_endpoint_v2_alt="0x6F475642a6e85809B1c36Fa62763669b1b48DD5B"
+
     # Network-specific configurations
     case $chain_id in
         "1") # Ethereum Mainnet
@@ -532,7 +536,6 @@ generate_constructor_args() {
 
         # Sponsorship contracts
         "SuperSponsorshipPaymaster")
-            local deployer="0x6E3dadcAf328ebB58753e89a3e589F5C5e988dF8"
             echo "$(cast abi-encode "constructor(address,address)" "$entry_point" "$deployer")"
             ;;
         "NativeFeeSponsorship")
@@ -541,6 +544,98 @@ generate_constructor_args() {
         "FetchNativeFeeHook")
             local native_fee_sponsorship=$(get_contract_address "$chain_id" "NativeFeeSponsorship")
             echo "$(cast abi-encode "constructor(address)" "$native_fee_sponsorship")"
+            ;;
+
+        # AaveV4 Loan Hooks (no constructor args - BaseAaveV4LoanHook inherits BaseLoanHook)
+        "AaveV4BorrowHook"|"AaveV4RepayAndWithdrawHook"|"AaveV4RepayHook"|"AaveV4SupplyAndBorrowHook"|"AaveV4SupplyHook"|"AaveV4WithdrawHook")
+            echo "$(cast abi-encode "constructor()")"
+            ;;
+
+        # CCTP V2 Bridge Hooks (TokenMessengerV2 + SuperValidator)
+        "CCTPSendHook"|"ApproveAndCCTPSendHook")
+            echo "$(cast abi-encode "constructor(address,address)" "$cctp_v2_token_messenger" "$super_merkle_validator")"
+            ;;
+
+        # DETH Hooks (no constructor args)
+        "RequestRedeemDETHHook"|"ApproveAndRequestRedeemDETHHook"|"ClaimAssetsDETHHook")
+            echo "$(cast abi-encode "constructor()")"
+            ;;
+
+        # KyberSwap Hooks (router + scaleHelper + nativeToken)
+        "SwapKyberSwapHook"|"ApproveAndSwapKyberSwapHook")
+            echo "$(cast abi-encode "constructor(address,address,address)" "$kyber_router" "$kyber_scale_helper" "$native_token")"
+            ;;
+
+        # Algebra Integral Hooks (swapRouter - Flare only)
+        "SwapAlgebraIntegralHook"|"ApproveAndSwapAlgebraIntegralHook")
+            local algebra_router=""
+            case $chain_id in
+                "14") algebra_router="$algebra_integral_router_flare" ;;
+                *) algebra_router="" ;;
+            esac
+            echo "$(cast abi-encode "constructor(address)" "$algebra_router")"
+            ;;
+
+        # Spark PSM Hooks (psmAddress - Base only)
+        "SwapSparkPSMExactInHook"|"ApproveAndSwapSparkPSMExactInHook"|"SwapSparkPSMExactOutHook"|"ApproveAndSwapSparkPSMExactOutHook")
+            local psm_address=""
+            case $chain_id in
+                "8453") psm_address="$spark_psm3_base" ;;
+                *) psm_address="" ;;
+            esac
+            echo "$(cast abi-encode "constructor(address)" "$psm_address")"
+            ;;
+
+        # UniswapV2 Hooks (router + native - Flare only via SparkDex)
+        "SwapUniswapV2Hook"|"ApproveAndSwapUniswapV2Hook")
+            local uniswap_v2_router=""
+            case $chain_id in
+                "14") uniswap_v2_router="$sparkdex_v2_router_flare" ;;
+                *) uniswap_v2_router="" ;;
+            esac
+            echo "$(cast abi-encode "constructor(address,address)" "$uniswap_v2_router" "$native_token")"
+            ;;
+
+        # 7540 WithId Hooks (no constructor args)
+        "CancelDepositRequestWithId7540Hook"|"CancelRedeemRequestWithId7540Hook"|"ClaimCancelDepositRequestWithId7540Hook"|"ClaimCancelRedeemRequestWithId7540Hook"|"RedeemWithId7540VaultHook"|"WithdrawWithId7540VaultHook")
+            echo "$(cast abi-encode "constructor()")"
+            ;;
+
+        # StargateAdapter - deployed bytecode uses 2-arg constructor (lzEndpoint, superDestinationExecutor)
+        # NOTE: Current source has 3-arg constructor (added tokenMessaging). If verification fails,
+        #       the source code doesn't match the deployed bytecode. Re-deploy StargateAdapter first.
+        "StargateAdapter")
+            local lz_endpoint=""
+            case $chain_id in
+                "130"|"146"|"480"|"80094") lz_endpoint="$lz_endpoint_v2_alt" ;;
+                *) lz_endpoint="$lz_endpoint_v2" ;;
+            esac
+            echo "$(cast abi-encode "constructor(address,address)" "$lz_endpoint" "$super_destination_executor")"
+            ;;
+
+        # Oracles - ERC7540YieldSourceOracle (superLedgerConfig + requestId=0)
+        "ERC7540YieldSourceOracle")
+            echo "$(cast abi-encode "constructor(address,uint256)" "$super_ledger_config" "0")"
+            ;;
+
+        # Oracles - DETHYieldSourceOracle (superLedgerConfig + foundation)
+        "DETHYieldSourceOracle")
+            echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$deth_foundation")"
+            ;;
+
+        # Oracles - FirelightYieldSourceOracle, YoYieldSourceOracle (superLedgerConfig only)
+        "FirelightYieldSourceOracle"|"YoYieldSourceOracle")
+            echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
+            ;;
+
+        # Oracles - PendlePTAmortizedOracle (admin/deployer + superLedgerConfig)
+        "PendlePTAmortizedOracle")
+            echo "$(cast abi-encode "constructor(address,address)" "$deployer" "$super_ledger_config")"
+            ;;
+
+        # Oracles - PendlePTAmortizedOracleV2 (admin/deployer + superLedgerConfig)
+        "PendlePTAmortizedOracleV2")
+            echo "$(cast abi-encode "constructor(address,address)" "$deployer" "$super_ledger_config")"
             ;;
 
         # All other contracts (no constructor args)
@@ -606,6 +701,16 @@ get_contract_source() {
         "SwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Hook.sol" ;;
         "ApproveAndSwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/ApproveAndSwapUniswapV3Hook.sol" ;;
         "SwapUniswapV4Hook") echo "src/hooks/swappers/uniswap-v4/SwapUniswapV4Hook.sol" ;;
+        "SwapKyberSwapHook") echo "src/hooks/swappers/kyberswap/SwapKyberSwapHook.sol" ;;
+        "ApproveAndSwapKyberSwapHook") echo "src/hooks/swappers/kyberswap/ApproveAndSwapKyberSwapHook.sol" ;;
+        "SwapAlgebraIntegralHook") echo "src/hooks/swappers/algebra-integral/SwapAlgebraIntegralHook.sol" ;;
+        "ApproveAndSwapAlgebraIntegralHook") echo "src/hooks/swappers/algebra-integral/ApproveAndSwapAlgebraIntegralHook.sol" ;;
+        "SwapSparkPSMExactInHook") echo "src/hooks/swappers/spark-psm/SwapSparkPSMExactInHook.sol" ;;
+        "ApproveAndSwapSparkPSMExactInHook") echo "src/hooks/swappers/spark-psm/ApproveAndSwapSparkPSMExactInHook.sol" ;;
+        "SwapSparkPSMExactOutHook") echo "src/hooks/swappers/spark-psm/SwapSparkPSMExactOutHook.sol" ;;
+        "ApproveAndSwapSparkPSMExactOutHook") echo "src/hooks/swappers/spark-psm/ApproveAndSwapSparkPSMExactOutHook.sol" ;;
+        "SwapUniswapV2Hook") echo "src/hooks/swappers/uniswap-v2/SwapUniswapV2Hook.sol" ;;
+        "ApproveAndSwapUniswapV2Hook") echo "src/hooks/swappers/uniswap-v2/ApproveAndSwapUniswapV2Hook.sol" ;;
         "PendleUnifiedHook") echo "src/hooks/swappers/pendle/PendleUnifiedHook.sol" ;;
         "PendleRouterSwapHook") echo "src/hooks/swappers/pendle/PendleRouterSwapHook.sol" ;;
         "PendleRouterRedeemHook") echo "src/hooks/swappers/pendle/PendleRouterRedeemHook.sol" ;;
@@ -615,11 +720,34 @@ get_contract_source() {
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook") echo "src/hooks/bridges/across/ApproveAndAcrossSendFundsAndExecuteOnDstHook.sol" ;;
         "DeBridgeSendOrderAndExecuteOnDstHook") echo "src/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol" ;;
         "DeBridgeCancelOrderHook") echo "src/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol" ;;
+        "CCTPSendHook") echo "src/hooks/bridges/cctp/CCTPSendHook.sol" ;;
+        "ApproveAndCCTPSendHook") echo "src/hooks/bridges/cctp/ApproveAndCCTPSendHook.sol" ;;
         
         # Hooks - Protocol Specific
         "EthenaCooldownSharesHook") echo "src/hooks/vaults/ethena/EthenaCooldownSharesHook.sol" ;;
         "EthenaUnstakeHook") echo "src/hooks/vaults/ethena/EthenaUnstakeHook.sol" ;;
         "MarkRootAsUsedHook") echo "src/hooks/superform/MarkRootAsUsedHook.sol" ;;
+
+        # Hooks - DETH
+        "RequestRedeemDETHHook") echo "src/hooks/vaults/deth/RequestRedeemDETHHook.sol" ;;
+        "ApproveAndRequestRedeemDETHHook") echo "src/hooks/vaults/deth/ApproveAndRequestRedeemDETHHook.sol" ;;
+        "ClaimAssetsDETHHook") echo "src/hooks/vaults/deth/ClaimAssetsDETHHook.sol" ;;
+
+        # Hooks - 7540 WithId variants
+        "CancelDepositRequestWithId7540Hook") echo "src/hooks/vaults/7540/CancelDepositRequestWithId7540Hook.sol" ;;
+        "CancelRedeemRequestWithId7540Hook") echo "src/hooks/vaults/7540/CancelRedeemRequestWithId7540Hook.sol" ;;
+        "ClaimCancelDepositRequestWithId7540Hook") echo "src/hooks/vaults/7540/ClaimCancelDepositRequestWithId7540Hook.sol" ;;
+        "ClaimCancelRedeemRequestWithId7540Hook") echo "src/hooks/vaults/7540/ClaimCancelRedeemRequestWithId7540Hook.sol" ;;
+        "RedeemWithId7540VaultHook") echo "src/hooks/vaults/7540/RedeemWithId7540VaultHook.sol" ;;
+        "WithdrawWithId7540VaultHook") echo "src/hooks/vaults/7540/WithdrawWithId7540VaultHook.sol" ;;
+
+        # Hooks - AaveV4 Loan
+        "AaveV4BorrowHook") echo "src/hooks/loan/aave-v4/AaveV4BorrowHook.sol" ;;
+        "AaveV4RepayAndWithdrawHook") echo "src/hooks/loan/aave-v4/AaveV4RepayAndWithdrawHook.sol" ;;
+        "AaveV4RepayHook") echo "src/hooks/loan/aave-v4/AaveV4RepayHook.sol" ;;
+        "AaveV4SupplyAndBorrowHook") echo "src/hooks/loan/aave-v4/AaveV4SupplyAndBorrowHook.sol" ;;
+        "AaveV4SupplyHook") echo "src/hooks/loan/aave-v4/AaveV4SupplyHook.sol" ;;
+        "AaveV4WithdrawHook") echo "src/hooks/loan/aave-v4/AaveV4WithdrawHook.sol" ;;
 
         # Hooks - Bridges (Stargate)
         "StargateSendHook") echo "src/hooks/bridges/stargate/StargateSendHook.sol" ;;
@@ -666,15 +794,29 @@ get_contract_source() {
         "NativeFeeSponsorship") echo "src/sponsorship/NativeFeeSponsorship.sol" ;;
         "FetchNativeFeeHook") echo "src/hooks/sponsorship/FetchNativeFeeHook.sol" ;;
 
+        # Adapters
+        "StargateAdapter") echo "src/adapters/StargateAdapter.sol" ;;
+
         # Oracles
         "ERC4626YieldSourceOracle") echo "src/accounting/oracles/ERC4626YieldSourceOracle.sol" ;;
         "ERC5115YieldSourceOracle") echo "src/accounting/oracles/ERC5115YieldSourceOracle.sol" ;;
+        "ERC7540YieldSourceOracle") echo "src/accounting/oracles/ERC7540YieldSourceOracle.sol" ;;
         "PendlePTYieldSourceOracle") echo "src/accounting/oracles/PendlePTYieldSourceOracle.sol" ;;
         "SpectraPTYieldSourceOracle") echo "src/accounting/oracles/SpectraPTYieldSourceOracle.sol" ;;
         "StakingYieldSourceOracle") echo "src/accounting/oracles/StakingYieldSourceOracle.sol" ;;
         "SuperYieldSourceOracle") echo "src/accounting/oracles/SuperYieldSourceOracle.sol" ;;
         "SuperVaultYieldSourceOracle") echo "src/accounting/oracles/SuperVaultYieldSourceOracle.sol" ;;
-        
+        "DETHYieldSourceOracle") echo "src/accounting/oracles/DETHYieldSourceOracle.sol" ;;
+        "FirelightYieldSourceOracle") echo "src/accounting/oracles/FirelightYieldSourceOracle.sol" ;;
+        "YoYieldSourceOracle") echo "src/accounting/oracles/YoYieldSourceOracle.sol" ;;
+        "PendlePTAmortizedOracle") echo "src/accounting/oracles/PendlePTAmortizedOracle.sol" ;;
+        "PendlePTAmortizedOracleV2") echo "src/accounting/oracles/PendlePTAmortizedOracleV2.sol" ;;
+
+        # Nexus contracts (external library - skip verification from this repo)
+        "Nexus"|"NexusAccountFactory"|"NexusBootstrap"|"NexusProxy")
+            echo "SKIP_EXTERNAL_LIB"
+            ;;
+
         *) echo "src/core/unknown/$contract_name.sol" ;;
     esac
 }
@@ -693,29 +835,41 @@ verify_contract() {
     echo -e "${CYAN}      Source: $source_file${NC}"
     echo -e "${CYAN}      Chain ID: $chain_id${NC}"
 
-    # Chains not in forge's internal registry: drop --chain and --rpc-url,
-    # use --verifier-url only (Etherscan verification submits source, no RPC needed)
-    local verifier_url=""
+    # Skip external library contracts that can't be verified from this repo
+    if [ "$source_file" = "SKIP_EXTERNAL_LIB" ]; then
+        echo -e "${YELLOW}   ⚠️  Skipping $contract_name (external library contract)${NC}"
+        return 0
+    fi
+
+    # Chain-specific verifier configuration
     case $chain_id in
-        "988"|"999"|"14"|"80094")
-            verifier_url="https://api.etherscan.io/v2/api?chainid=${chain_id}"
+        "14")
+            # Flare uses Blockscout explorer
+            # --skip-is-verified-check: Blockscout returns source from bytecode-matched contracts,
+            # which makes forge think the contract is "already verified" when it isn't
+            forge verify-contract "$contract_address" "$source_file:$contract_name" \
+                --constructor-args "$constructor_args" \
+                --verifier blockscout \
+                --verifier-url "https://flare-explorer.flare.network/api/" \
+                --skip-is-verified-check
+            ;;
+        "988"|"999"|"80094")
+            # Chains not in forge's internal registry: use Etherscan V2 API with chainid
+            forge verify-contract "$contract_address" "$source_file:$contract_name" \
+                --constructor-args "$constructor_args" \
+                --etherscan-api-key "$ETHERSCANV2_API_KEY" \
+                --verifier etherscan \
+                --verifier-url "https://api.etherscan.io/v2/api?chainid=${chain_id}"
+            ;;
+        *)
+            forge verify-contract "$contract_address" "$source_file:$contract_name" \
+                --constructor-args "$constructor_args" \
+                --rpc-url "$rpc_url" \
+                --chain "$chain_id" \
+                --etherscan-api-key "$ETHERSCANV2_API_KEY" \
+                --verifier etherscan
             ;;
     esac
-
-    if [ -n "$verifier_url" ]; then
-        forge verify-contract "$contract_address" "$source_file:$contract_name" \
-            --constructor-args "$constructor_args" \
-            --etherscan-api-key "$ETHERSCANV2_API_KEY" \
-            --verifier etherscan \
-            --verifier-url "$verifier_url"
-    else
-        forge verify-contract "$contract_address" "$source_file:$contract_name" \
-            --constructor-args "$constructor_args" \
-            --rpc-url "$rpc_url" \
-            --chain "$chain_id" \
-            --etherscan-api-key "$ETHERSCANV2_API_KEY" \
-            --verifier etherscan
-    fi
 
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}   ✅ $contract_name verified successfully${NC}"
@@ -738,7 +892,12 @@ verify_network() {
     fi
     
     local rpc_url=$(get_rpc_url "$chain_id")
-    if [ -z "$rpc_url" ]; then
+    # Blockscout-verified chains (e.g. Flare) don't need RPC for verification
+    local uses_blockscout=false
+    case $chain_id in
+        "14") uses_blockscout=true ;;
+    esac
+    if [ -z "$rpc_url" ] && [ "$uses_blockscout" = false ]; then
         echo -e "${RED}❌ RPC URL not found for chain $chain_id${NC}"
         return 1
     fi

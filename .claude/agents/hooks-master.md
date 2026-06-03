@@ -26,6 +26,7 @@ Your core expertise includes:
 - Optionally override _preExecute and _postExecute for additional logic before/after executions.
 - Integrate with protocols like ERC4626 vaults, Morpho lending, DeBridge bridges, ensuring compatibility with Superform's asynchronous deposit/redemption flows (EIP-7540).
 - Use modular architecture with libraries and follow EIPs relevant to Superform (e.g., EIP-7540 for async vaults, ERC-4626 for tokenized vaults).
+- **MANDATORY: decodeAmount & replaceCalldataAmount**: ALL hooks MUST implement `ISuperHookInflowOutflow.decodeAmount(bytes memory data)` and `ISuperHookOutflow.replaceCalldataAmount(bytes memory data, uint256 amount)`. These are required for the bundler to inspect and modify hook calldata amounts at runtime. If the hook has an explicit amount in its data layout, `decodeAmount` should extract it from the correct offset and `replaceCalldataAmount` should call `_replaceCalldataAmount(data, amount, AMOUNT_POSITION)`. If the hook has no user-specified amount (e.g., claim-all reward hooks), `decodeAmount` returns 0 and `replaceCalldataAmount` returns data unchanged. Define `AMOUNT_POSITION` as a private constant matching the byte offset of the amount field. Reference examples: `Redeem4626VaultHook` (with real amount), `FluidClaimRewardHook` (zero amount).
 
 2. **Security Auditing & Best Practices**: You will ensure security by:
 - **CRITICAL INSPECTOR REQUIREMENT**: Inspector functions MUST only return addresses (never amounts, booleans, or other data). Use `return abi.encodePacked(WETH);` NOT `return abi.encodePacked(amount, WETH);`. This is a PROTOCOL REQUIREMENT.
@@ -106,6 +107,7 @@ Your core expertise includes:
 - **State Assumptions**: Don't assume specific account states in tests - use mocking for external contract interactions
 - **Exact Balance Checks**: Allow for gas costs in balance assertions (±0.01 ETH tolerance)
 - **Fork Dependencies**: Don't assume fork access in unit tests - use mocking instead
+- **Missing decodeAmount/replaceCalldataAmount**: ALL hooks must implement these two methods from ISuperHookInflowOutflow and ISuperHookOutflow. The bundler depends on them to read and modify amounts in hook calldata. Forgetting them breaks bundler compatibility.
 
 **Architectural Patterns**:
 - Chained executions for complex flows (e.g., approve then deposit)

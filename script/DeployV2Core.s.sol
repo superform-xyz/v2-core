@@ -99,6 +99,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address withdrawWithId7540VaultHook;
         address stargateSendHook;
         address approveAndStargateSendHook;
+        address claimFailedTransferHook;
         address cctpSendHook;
         address approveAndCCTPSendHook;
     }
@@ -326,7 +327,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-        string[64] memory baseHooks = [
+        string[65] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -390,7 +391,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "CCTPSendHook",
             "ApproveAndCCTPSendHook",
             "SwapOdosV3Hook",
-            "ApproveAndSwapOdosV3Hook"
+            "ApproveAndSwapOdosV3Hook",
+            "ClaimFailedTransferHook"
         ];
 
         // Start with all hooks, then decrement for missing configurations
@@ -1404,6 +1406,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         } else {
             revert("STARGATE_HOOK_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
         }
+
+        // ClaimFailedTransferHook — no constructor args
+        __checkContract(
+            CLAIM_FAILED_TRANSFER_HOOK_KEY, __getSalt(CLAIM_FAILED_TRANSFER_HOOK_KEY), "", env
+        );
 
         // CCTP V2 bridge hooks
         if (superValidator != address(0)) {
@@ -2465,7 +2472,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 70;
+        uint256 len = 71;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -2892,6 +2899,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         }
 
+        // ClaimFailedTransferHook — no constructor args
+        hooks[70] = _createSafeHookDeployment(CLAIM_FAILED_TRANSFER_HOOK_KEY, "ClaimFailedTransferHook", env);
+
         // CCTP V2 Bridge hooks (same TokenMessengerV2 address on all chains via CREATE2)
         {
             address cctpValidator = _getContract(chainId, SUPER_VALIDATOR_KEY);
@@ -3147,6 +3157,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[62].name, STARGATE_SEND_HOOK_KEY) ? addresses[62] : address(0);
         hookAddresses.approveAndStargateSendHook =
             Strings.equal(hooks[63].name, APPROVE_AND_STARGATE_SEND_HOOK_KEY) ? addresses[63] : address(0);
+        hookAddresses.claimFailedTransferHook =
+            Strings.equal(hooks[70].name, CLAIM_FAILED_TRANSFER_HOOK_KEY) ? addresses[70] : address(0);
 
         // CCTP V2 Bridge hooks
         hookAddresses.cctpSendHook = Strings.equal(hooks[64].name, CCTP_SEND_HOOK_KEY) ? addresses[64] : address(0);
@@ -3274,6 +3286,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_NOT_ASSIGNED"
         );
         require(hookAddresses.transferHook != address(0), "TRANSFER_HOOK_NOT_ASSIGNED");
+        require(hookAddresses.claimFailedTransferHook != address(0), "CLAIM_FAILED_TRANSFER_HOOK_NOT_ASSIGNED");
 
         console2.log(" All hooks deployed and validated successfully with comprehensive dependency checking! ");
 

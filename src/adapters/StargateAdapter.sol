@@ -224,6 +224,11 @@ contract StargateAdapter is ILayerZeroComposer, ReentrancyGuard {
 
     /// @notice Compose handler — external so lzCompose can wrap it in try/catch to absorb decode panics
     /// @dev MUST only be called by this contract (self-call from lzCompose)
+    /// @param _guid The LayerZero unique message identifier
+    /// @param _message The full OFTComposeMsgCodec-encoded message including header
+    /// @param tokenSent The resolved token address from the Stargate pool
+    /// @param amountLD The amount in local decimals extracted from the compose header
+    /// @param composeFrom The source chain sender address (fallback claimant)
     function handleCompose(
         bytes32 _guid,
         bytes calldata _message,
