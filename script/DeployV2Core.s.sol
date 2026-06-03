@@ -78,6 +78,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address swapUniswapV4Hook;
         address swapUniswapV3Hook;
         address approveAndSwapUniswapV3Hook;
+        address swapUniswapV3Router02Hook;
+        address approveAndSwapUniswapV3Router02Hook;
         address transferHook;
         address swapSparkPsmExactInHook;
         address approveAndSwapSparkPsmExactInHook;
@@ -246,6 +248,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool swapOdosV3Hooks;
         bool swapUniswapV4Hook;
         bool swapUniswapV3Hooks;
+        bool swapUniswapV3Router02Hooks;
         bool swapSparkPsmHooks;
         bool swapKyberSwapHooks;
         bool swapOpenOceanSparkDexHooks;
@@ -330,7 +333,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
+<<<<<<< HEAD
         string[65] memory baseHooks = [
+=======
+        string[66] memory baseHooks = [
+>>>>>>> 5eecd2831eee048ae9cecc7de114fec91d5513d9
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -395,7 +402,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "ApproveAndCCTPSendHook",
             "SwapOdosV3Hook",
             "ApproveAndSwapOdosV3Hook",
+<<<<<<< HEAD
             "ClaimFailedTransferHook"
+=======
+            "SwapUniswapV3Router02Hook",
+            "ApproveAndSwapUniswapV3Router02Hook"
+>>>>>>> 5eecd2831eee048ae9cecc7de114fec91d5513d9
         ];
 
         // Start with all hooks, then decrement for missing configurations
@@ -472,6 +484,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             expectedHooks -= 2; // SwapUniswapV3Hook + ApproveAndSwapUniswapV3Hook
             potentialSkips[skipCount++] = "SwapUniswapV3Hook";
             potentialSkips[skipCount++] = "ApproveAndSwapUniswapV3Hook";
+        }
+
+        if (configuration.uniswapV3SwapRouter02s[chainId] != address(0)) {
+            availability.swapUniswapV3Router02Hooks = true;
+        } else {
+            expectedHooks -= 2; // SwapUniswapV3Router02Hook + ApproveAndSwapUniswapV3Router02Hook
+            potentialSkips[skipCount++] = "SwapUniswapV3Router02Hook";
+            potentialSkips[skipCount++] = "ApproveAndSwapUniswapV3Router02Hook";
         }
 
         if (configuration.sparkPsm3s[chainId] != address(0)) {
@@ -597,20 +617,21 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Oracles (12 contracts - always check these)
         // NOTE: Order must match _deployOracles array indices for consistency
-        string[13] memory oracleContracts = [
-            "ERC4626YieldSourceOracle", // [0]
-            "ERC5115YieldSourceOracle", // [1]
-            "PendlePTYieldSourceOracle", // [2]
-            "SpectraPTYieldSourceOracle", // [3]
-            "StakingYieldSourceOracle", // [4]
-            "SuperYieldSourceOracle", // [5]
-            "SuperVaultYieldSourceOracle", // [6]
-            "YoYieldSourceOracle", // [7]
-            "PendlePTAmortizedOracle", // [8]
-            "PendlePTAmortizedOracleV2", // [9]
-            "FirelightYieldSourceOracle", // [10]
-            "DETHYieldSourceOracle", // [11]
-            "ERC7540YieldSourceOracle" // [12]
+        string[14] memory oracleContracts = [
+            "ERC4626YieldSourceOracle",      // [0]
+            "ERC5115YieldSourceOracle",      // [1]
+            "PendlePTYieldSourceOracle",     // [2]
+            "SpectraPTYieldSourceOracle",    // [3]
+            "StakingYieldSourceOracle",      // [4]
+            "SuperYieldSourceOracle",        // [5]
+            "SuperVaultYieldSourceOracle",   // [6]
+            "YoYieldSourceOracle",           // [7]
+            "PendlePTAmortizedOracle",       // [8]
+            "PendlePTAmortizedOracleV2",     // [9]
+            "FirelightYieldSourceOracle",    // [10]
+            "DETHYieldSourceOracle",         // [11]
+            "ERC7540YieldSourceOracle",      // [12]
+            "SpectraMetaVaultOracle"         // [13]
         ];
 
         for (uint256 i = 0; i < oracleContracts.length; i++) {
@@ -1506,6 +1527,30 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log("SKIPPED ApproveAndSwapUniswapV3Hook: Uniswap V3 SwapRouter not configured for chain", chainId);
         }
 
+        // UniswapV3 SwapRouter02 swap hooks
+        if (availability.swapUniswapV3Router02Hooks) {
+            __checkContract(
+                SWAP_UNISWAPV3_ROUTER02_HOOK_KEY,
+                __getSalt(SWAP_UNISWAPV3_ROUTER02_HOOK_KEY),
+                abi.encode(configuration.uniswapV3SwapRouter02s[chainId]),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_SWAP_UNISWAPV3_ROUTER02_HOOK_KEY,
+                __getSalt(APPROVE_AND_SWAP_UNISWAPV3_ROUTER02_HOOK_KEY),
+                abi.encode(configuration.uniswapV3SwapRouter02s[chainId]),
+                env
+            );
+        } else {
+            console2.log(
+                "SKIPPED SwapUniswapV3Router02Hook: Uniswap V3 SwapRouter02 not configured for chain", chainId
+            );
+            console2.log(
+                "SKIPPED ApproveAndSwapUniswapV3Router02Hook: Uniswap V3 SwapRouter02 not configured for chain",
+                chainId
+            );
+        }
+
         // Spark PSM swap hooks
         if (availability.swapSparkPsmHooks) {
             __checkContract(
@@ -1664,6 +1709,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             __checkContract(
                 ERC7540_YIELD_SOURCE_ORACLE_KEY,
                 __getSalt(ERC7540_YIELD_SOURCE_ORACLE_KEY),
+                abi.encode(superLedgerConfig, uint256(0)),
+                env
+            );
+            // SpectraMetaVaultOracle (superLedgerConfig + requestId)
+            __checkContract(
+                SPECTRA_META_VAULT_ORACLE_KEY,
+                __getSalt(SPECTRA_META_VAULT_ORACLE_KEY),
                 abi.encode(superLedgerConfig, uint256(0)),
                 env
             );
@@ -2272,7 +2324,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         vars.ledgerConstructorArgs = abi.encode(vars.superLedgerConfig, vars.allowedExecutors);
 
         // Define contracts to verify with their corresponding environment-specific bytecode paths and constructor args
-        ContractVerification[] memory contracts = new ContractVerification[](7);
+        ContractVerification[] memory contracts = new ContractVerification[](8);
 
         // Core contracts verification - always use locked bytecode
 
@@ -2322,6 +2374,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             name: "ERC7540YieldSourceOracle",
             outputKey: ".ERC7540YieldSourceOracle",
             bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "ERC7540YieldSourceOracle.json")),
+            constructorArgs: ""
+        });
+
+        contracts[7] = ContractVerification({
+            name: "SpectraMetaVaultOracle",
+            outputKey: ".SpectraMetaVaultOracle",
+            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "SpectraMetaVaultOracle.json")),
             constructorArgs: ""
         });
         // Verify each contract
@@ -2384,8 +2443,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             computedAddress = DeterministicDeployerLib.computeAddress(
                 abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
             );
-        } else if (Strings.equal(contractToVerify.name, "ERC7540YieldSourceOracle")) {
-            // ERC7540YieldSourceOracle needs SuperLedgerConfiguration + requestId
+        } else if (
+            Strings.equal(contractToVerify.name, "ERC7540YieldSourceOracle")
+                || Strings.equal(contractToVerify.name, "SpectraMetaVaultOracle")
+        ) {
+            // ERC7540YieldSourceOracle / SpectraMetaVaultOracle need SuperLedgerConfiguration + requestId
             bytes memory constructorArgs = abi.encode(vars.superLedgerConfig, uint256(0));
             computedAddress = DeterministicDeployerLib.computeAddress(
                 abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
@@ -2487,7 +2549,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
+<<<<<<< HEAD
         uint256 len = 71;
+=======
+        uint256 len = 72;
+>>>>>>> 5eecd2831eee048ae9cecc7de114fec91d5513d9
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -2985,6 +3051,32 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[69] = HookDeployment("", "", ""); // Empty deployment
         }
 
+        // UniswapV3 SwapRouter02 Hooks - Only deploy if V3 SwapRouter02 available on this chain
+        if (availability.swapUniswapV3Router02Hooks) {
+            hooks[70] = _createSafeHookDeploymentWithArgs(
+                SWAP_UNISWAPV3_ROUTER02_HOOK_KEY,
+                "SwapUniswapV3Router02Hook",
+                env,
+                abi.encode(configuration.uniswapV3SwapRouter02s[chainId])
+            );
+            hooks[71] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_SWAP_UNISWAPV3_ROUTER02_HOOK_KEY,
+                "ApproveAndSwapUniswapV3Router02Hook",
+                env,
+                abi.encode(configuration.uniswapV3SwapRouter02s[chainId])
+            );
+        } else {
+            console2.log(
+                "SKIPPED SwapUniswapV3Router02Hook: Uniswap V3 SwapRouter02 not available on chain", chainId
+            );
+            console2.log(
+                "SKIPPED ApproveAndSwapUniswapV3Router02Hook: Uniswap V3 SwapRouter02 not available on chain",
+                chainId
+            );
+            hooks[70] = HookDeployment("", "", ""); // Empty deployment
+            hooks[71] = HookDeployment("", "", ""); // Empty deployment
+        }
+
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying hooks with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
@@ -3146,6 +3238,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[68].name, SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY) ? addresses[68] : address(0);
         hookAddresses.approveAndSwapOpenOceanSparkDexHook =
             Strings.equal(hooks[69].name, APPROVE_AND_SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY) ? addresses[69] : address(0);
+        hookAddresses.swapUniswapV3Router02Hook =
+            Strings.equal(hooks[70].name, SWAP_UNISWAPV3_ROUTER02_HOOK_KEY) ? addresses[70] : address(0);
+        hookAddresses.approveAndSwapUniswapV3Router02Hook = Strings.equal(
+            hooks[71].name, APPROVE_AND_SWAP_UNISWAPV3_ROUTER02_HOOK_KEY
+        ) ? addresses[71] : address(0);
 
         // ERC-7540 WithId hooks
         hookAddresses.cancelDepositRequestWithId7540Hook =
@@ -3316,7 +3413,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         uint256 pendlePTAmortizedOracleIndex = 8;
         uint256 pendlePTAmortizedOracleV2Index = 9;
 
-        uint256 len = 13;
+        uint256 len = 14;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         address[] memory oracleAddresses = new address[](len);
 
@@ -3372,6 +3469,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // ERC7540YieldSourceOracle (superLedgerConfig + requestId=0)
         oracles[12] = _createSafeOracleDeploymentWithArgs(
             ERC7540_YIELD_SOURCE_ORACLE_KEY, "ERC7540YieldSourceOracle", env, abi.encode(superLedgerConfig, uint256(0))
+        );
+        // SpectraMetaVaultOracle (superLedgerConfig + requestId=0)
+        oracles[13] = _createSafeOracleDeploymentWithArgs(
+            SPECTRA_META_VAULT_ORACLE_KEY,
+            "SpectraMetaVaultOracle",
+            env,
+            abi.encode(superLedgerConfig, uint256(0))
         );
 
         console2.log("Deploying", len, "oracles with parameter validation...");

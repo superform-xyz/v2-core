@@ -483,6 +483,25 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address)" "$uniswap_v3_router")"
             ;;
 
+        # Uniswap V3 Router02 Hooks
+        "SwapUniswapV3Router02Hook"|"ApproveAndSwapUniswapV3Router02Hook")
+            local uniswap_v3_router02=""
+            case $chain_id in
+                "1") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;  # Ethereum
+                "8453") uniswap_v3_router02="0x2626664c2603336E57B271c5C0b26F421741e481" ;;  # Base
+                "56") uniswap_v3_router02="0xB971eF87ede563556b2ED4b1C0b0019111Dd85d2" ;;  # BNB
+                "42161") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;  # Arbitrum
+                "10") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;  # Optimism
+                "137") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;  # Polygon
+                "130") uniswap_v3_router02="0x73855d06DE49d0fe4A9c42636Ba96c62da12FF9C" ;;  # Unichain
+                "43114") uniswap_v3_router02="0xbb00FF08d01D300023C629E8fFfFcb65A5a578cE" ;;  # Avalanche
+                "480") uniswap_v3_router02="0x091AD9e2e6e5eD44c1c66dB50e49A601F9f36cF6" ;;  # Worldchain
+                "988") uniswap_v3_router02="0x32eaf9B5d5F2CD7361c5012890C943D7de84C22a" ;;  # Stable
+                *) uniswap_v3_router02="" ;;  # Not deployed on other chains
+            esac
+            echo "$(cast abi-encode "constructor(address)" "$uniswap_v3_router02")"
+            ;;
+
         # Uniswap V4 Hook
         "SwapUniswapV4Hook")
             local uniswap_v4_pool_manager=""
@@ -511,6 +530,11 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address)" "$pendle_router")"
             ;;
 
+        # ERC7540YieldSourceOracle and SpectraMetaVaultOracle
+        "ERC7540YieldSourceOracle"|"SpectraMetaVaultOracle")
+            echo "$(cast abi-encode "constructor(address,uint256)" "$super_ledger_config" "0")"
+            ;;
+
         # SuperVaultYieldSourceOracle
         "SuperVaultYieldSourceOracle")
             echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
@@ -536,7 +560,8 @@ generate_constructor_args() {
 
         # Sponsorship contracts
         "SuperSponsorshipPaymaster")
-            echo "$(cast abi-encode "constructor(address,address)" "$entry_point" "$deployer")"
+            local paymaster_admin="0x22BC97cFac64D6d9BCaDF5dC36e4D01Db9e929c5"
+            echo "$(cast abi-encode "constructor(address,address)" "$entry_point" "$paymaster_admin")"
             ;;
         "NativeFeeSponsorship")
             echo "$(cast abi-encode "constructor()")"
@@ -625,10 +650,6 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address,address,address)" "$lz_endpoint" "$token_messaging" "$super_destination_executor")"
             ;;
 
-        # Oracles - ERC7540YieldSourceOracle (superLedgerConfig + requestId=0)
-        "ERC7540YieldSourceOracle")
-            echo "$(cast abi-encode "constructor(address,uint256)" "$super_ledger_config" "0")"
-            ;;
 
         # Oracles - DETHYieldSourceOracle (superLedgerConfig + foundation)
         "DETHYieldSourceOracle")
@@ -712,6 +733,8 @@ get_contract_source() {
         "ApproveAndSwapOpenOceanSparkDexHook") echo "src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol" ;;
         "SwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Hook.sol" ;;
         "ApproveAndSwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/ApproveAndSwapUniswapV3Hook.sol" ;;
+        "SwapUniswapV3Router02Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Router02Hook.sol" ;;
+        "ApproveAndSwapUniswapV3Router02Hook") echo "src/hooks/swappers/uniswap-v3/ApproveAndSwapUniswapV3Router02Hook.sol" ;;
         "SwapUniswapV4Hook") echo "src/hooks/swappers/uniswap-v4/SwapUniswapV4Hook.sol" ;;
         "SwapKyberSwapHook") echo "src/hooks/swappers/kyberswap/SwapKyberSwapHook.sol" ;;
         "ApproveAndSwapKyberSwapHook") echo "src/hooks/swappers/kyberswap/ApproveAndSwapKyberSwapHook.sol" ;;
@@ -815,6 +838,7 @@ get_contract_source() {
         "ERC7540YieldSourceOracle") echo "src/accounting/oracles/ERC7540YieldSourceOracle.sol" ;;
         "PendlePTYieldSourceOracle") echo "src/accounting/oracles/PendlePTYieldSourceOracle.sol" ;;
         "SpectraPTYieldSourceOracle") echo "src/accounting/oracles/SpectraPTYieldSourceOracle.sol" ;;
+        "SpectraMetaVaultOracle") echo "src/accounting/oracles/SpectraMetaVaultOracle.sol" ;;
         "StakingYieldSourceOracle") echo "src/accounting/oracles/StakingYieldSourceOracle.sol" ;;
         "SuperYieldSourceOracle") echo "src/accounting/oracles/SuperYieldSourceOracle.sol" ;;
         "SuperVaultYieldSourceOracle") echo "src/accounting/oracles/SuperVaultYieldSourceOracle.sol" ;;
@@ -895,14 +919,14 @@ verify_contract() {
 # Function to verify all contracts for a network
 verify_network() {
     local chain_id=$1
-    
+
     # Get network name and RPC URL from loaded configuration
     local network_name=$(get_network_name "$chain_id")
     if [ $? -ne 0 ]; then
         echo -e "${RED}❌ Unknown network ID: $chain_id${NC}"
         return 1
     fi
-    
+
     local rpc_url=$(get_rpc_url "$chain_id")
     # Blockscout-verified chains (e.g. Flare) don't need RPC for verification
     local uses_blockscout=false
@@ -913,19 +937,19 @@ verify_network() {
         echo -e "${RED}❌ RPC URL not found for chain $chain_id${NC}"
         return 1
     fi
-    
+
     print_network_header "$network_name"
     echo -e "${CYAN}   Chain ID: ${WHITE}$chain_id${NC}"
     echo -e "${CYAN}   RPC URL: ${WHITE}$rpc_url${NC}"
     echo -e "${CYAN}   Verification: ${WHITE}Etherscan V2${NC}"
-    
+
     if ! load_contract_addresses "$chain_id"; then
         echo -e "${RED}   ❌ Failed to load contract addresses for chain $chain_id${NC}"
         return 1
     fi
-    
+
     echo -e "${CYAN}   📋 Starting contract verification...${NC}"
-    
+
     # Get network suffix for JSON file
     local network_suffix=""
     case $chain_id in
@@ -953,11 +977,11 @@ verify_network() {
         echo -e "${RED}   ❌ Contract addresses file not found: $json_file${NC}"
         return 1
     fi
-    
+
     # Extract contract names from JSON
     local all_contract_names=($(jq -r 'keys[]' "$json_file"))
     local contract_names=()
-    
+
     # Apply contract filter if specified
     if [ ${#CONTRACTS_TO_VERIFY[@]} -eq 0 ]; then
         # No filter specified, use all contracts
@@ -982,20 +1006,20 @@ verify_network() {
             fi
         done
     fi
-    
+
     echo -e "${CYAN}   📋 Verifying ${#contract_names[@]} contracts...${NC}"
-    
+
     for contract_name in "${contract_names[@]}"; do
         local contract_address=$(get_contract_address "$chain_id" "$contract_name")
-        
+
         if [ -z "$contract_address" ] || [ "$contract_address" = "null" ]; then
             echo -e "${YELLOW}   ⚠️  Skipping $contract_name (address not found)${NC}"
             continue
         fi
-        
+
         local constructor_args=$(generate_constructor_args "$contract_name" "$chain_id")
         local source_file=$(get_contract_source "$contract_name")
-        
+
         verify_contract "$chain_id" "$contract_name" "$contract_address" "$constructor_args" "$source_file" "$rpc_url"
 
         # Rate limit protection: wait between verification requests
@@ -1003,7 +1027,7 @@ verify_network() {
             sleep "$VERIFY_DELAY"
         fi
     done
-    
+
     echo -e "${GREEN}✅ Network $network_name verification completed${NC}"
 }
 
@@ -1011,7 +1035,7 @@ verify_network() {
 main() {
     # Get chain IDs from the loaded network configuration or use filter
     local chains=()
-    
+
     if [ ${#CHAINS_TO_VERIFY[@]} -eq 0 ]; then
         # No filter specified, use all chains from network configuration
         echo -e "${CYAN}📋 No chain filter specified, verifying all configured networks...${NC}"
@@ -1038,7 +1062,7 @@ main() {
             fi
         done
     fi
-    
+
     echo -e "${BLUE}🔍 Starting verification for ${#chains[@]} networks in $ENVIRONMENT environment...${NC}"
     if [ ${#CHAINS_TO_VERIFY[@]} -gt 0 ]; then
         echo -e "${CYAN}   Filtered chains: ${CHAINS_TO_VERIFY[*]}${NC}"
@@ -1047,10 +1071,10 @@ main() {
         echo -e "${CYAN}   Filtered contracts: ${CONTRACTS_TO_VERIFY[*]}${NC}"
     fi
     echo ""
-    
+
     local successful_networks=0
     local failed_networks=0
-    
+
     for chain_id in "${chains[@]}"; do
         if verify_network "$chain_id"; then
             ((successful_networks++))
@@ -1059,14 +1083,14 @@ main() {
         fi
         print_separator
     done
-    
+
     echo -e "${BLUE}📊 Verification Summary:${NC}"
     echo -e "${GREEN}   • Networks verified successfully: $successful_networks${NC}"
     if [ $failed_networks -gt 0 ]; then
         echo -e "${RED}   • Networks with verification failures: $failed_networks${NC}"
     fi
     echo ""
-    
+
     if [ $failed_networks -eq 0 ]; then
         echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
         echo -e "${GREEN}║                                                                                      ║${NC}"

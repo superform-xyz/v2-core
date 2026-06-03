@@ -172,6 +172,8 @@ HOOK_CONTRACTS=(
     "ApproveAndSwapOdosV3Hook"
     "CCTPSendHook"
     "ApproveAndCCTPSendHook"
+    "SwapUniswapV3Router02Hook"
+    "ApproveAndSwapUniswapV3Router02Hook"
 )
 
 # Oracle contracts from accounting/oracles
@@ -189,6 +191,7 @@ ORACLE_CONTRACTS=(
     "FirelightYieldSourceOracle"
     "DETHYieldSourceOracle"
     "ERC7540YieldSourceOracle"
+    "SpectraMetaVaultOracle"
 )
 
 # Morpho hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode-other/)

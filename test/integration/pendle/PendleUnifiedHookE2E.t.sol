@@ -56,7 +56,8 @@ contract PendleUnifiedHookE2E is Test {
     address public user;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString("ETHEREUM_RPC_URL"));
+        // Pin to block before DETH market expiry (Jan 29, 2026) to ensure consistent Pendle state
+        vm.createSelectFork(vm.envString("ETHEREUM_RPC_URL"), 24_300_000);
 
         hook = new PendleUnifiedHook(PENDLE_ROUTER);
         prevHook = new MockHook(ISuperHook.HookType.NONACCOUNTING, address(0));
