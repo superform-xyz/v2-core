@@ -43,6 +43,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address redeem5115VaultHook;
         address approveAndDeposit5115VaultHook;
         address deposit7540VaultHook;
+        address withdraw7540VaultHook;
         address requestDeposit7540VaultHook;
         address approveAndRequestDeposit7540VaultHook;
         address redeem7540VaultHook;
@@ -333,11 +334,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-<<<<<<< HEAD
-        string[65] memory baseHooks = [
-=======
-        string[66] memory baseHooks = [
->>>>>>> 5eecd2831eee048ae9cecc7de114fec91d5513d9
+        string[68] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -353,6 +350,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "Redeem7540VaultHook",
             "RequestRedeem7540VaultHook",
             "Deposit7540VaultHook",
+            "Withdraw7540VaultHook",
             "SetOperator7540Hook",
             "SetSlippageHook",
             "CancelDepositRequest7540Hook",
@@ -402,12 +400,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "ApproveAndCCTPSendHook",
             "SwapOdosV3Hook",
             "ApproveAndSwapOdosV3Hook",
-<<<<<<< HEAD
-            "ClaimFailedTransferHook"
-=======
+            "ClaimFailedTransferHook",
             "SwapUniswapV3Router02Hook",
             "ApproveAndSwapUniswapV3Router02Hook"
->>>>>>> 5eecd2831eee048ae9cecc7de114fec91d5513d9
         ];
 
         // Start with all hooks, then decrement for missing configurations
@@ -2549,11 +2544,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-<<<<<<< HEAD
-        uint256 len = 71;
-=======
-        uint256 len = 72;
->>>>>>> 5eecd2831eee048ae9cecc7de114fec91d5513d9
+        uint256 len = 74;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -3053,13 +3044,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // UniswapV3 SwapRouter02 Hooks - Only deploy if V3 SwapRouter02 available on this chain
         if (availability.swapUniswapV3Router02Hooks) {
-            hooks[70] = _createSafeHookDeploymentWithArgs(
+            hooks[71] = _createSafeHookDeploymentWithArgs(
                 SWAP_UNISWAPV3_ROUTER02_HOOK_KEY,
                 "SwapUniswapV3Router02Hook",
                 env,
                 abi.encode(configuration.uniswapV3SwapRouter02s[chainId])
             );
-            hooks[71] = _createSafeHookDeploymentWithArgs(
+            hooks[72] = _createSafeHookDeploymentWithArgs(
                 APPROVE_AND_SWAP_UNISWAPV3_ROUTER02_HOOK_KEY,
                 "ApproveAndSwapUniswapV3Router02Hook",
                 env,
@@ -3073,9 +3064,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 "SKIPPED ApproveAndSwapUniswapV3Router02Hook: Uniswap V3 SwapRouter02 not available on chain",
                 chainId
             );
-            hooks[70] = HookDeployment("", "", ""); // Empty deployment
             hooks[71] = HookDeployment("", "", ""); // Empty deployment
+            hooks[72] = HookDeployment("", "", ""); // Empty deployment
         }
+
+        // Withdraw7540VaultHook — no constructor args
+        hooks[73] = _createSafeHookDeployment(WITHDRAW_7540_VAULT_HOOK_KEY, "Withdraw7540VaultHook", env);
 
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying hooks with parameter validation...");
@@ -3239,10 +3233,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hookAddresses.approveAndSwapOpenOceanSparkDexHook =
             Strings.equal(hooks[69].name, APPROVE_AND_SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY) ? addresses[69] : address(0);
         hookAddresses.swapUniswapV3Router02Hook =
-            Strings.equal(hooks[70].name, SWAP_UNISWAPV3_ROUTER02_HOOK_KEY) ? addresses[70] : address(0);
+            Strings.equal(hooks[71].name, SWAP_UNISWAPV3_ROUTER02_HOOK_KEY) ? addresses[71] : address(0);
         hookAddresses.approveAndSwapUniswapV3Router02Hook = Strings.equal(
-            hooks[71].name, APPROVE_AND_SWAP_UNISWAPV3_ROUTER02_HOOK_KEY
-        ) ? addresses[71] : address(0);
+            hooks[72].name, APPROVE_AND_SWAP_UNISWAPV3_ROUTER02_HOOK_KEY
+        ) ? addresses[72] : address(0);
 
         // ERC-7540 WithId hooks
         hookAddresses.cancelDepositRequestWithId7540Hook =
@@ -3271,6 +3265,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[63].name, APPROVE_AND_STARGATE_SEND_HOOK_KEY) ? addresses[63] : address(0);
         hookAddresses.claimFailedTransferHook =
             Strings.equal(hooks[70].name, CLAIM_FAILED_TRANSFER_HOOK_KEY) ? addresses[70] : address(0);
+
+        // Withdraw7540VaultHook
+        hookAddresses.withdraw7540VaultHook =
+            Strings.equal(hooks[73].name, WITHDRAW_7540_VAULT_HOOK_KEY) ? addresses[73] : address(0);
 
         // CCTP V2 Bridge hooks
         hookAddresses.cctpSendHook = Strings.equal(hooks[64].name, CCTP_SEND_HOOK_KEY) ? addresses[64] : address(0);

@@ -113,6 +113,7 @@ HOOK_CONTRACTS=(
     "Redeem7540VaultHook"
     "RequestRedeem7540VaultHook"
     "Deposit7540VaultHook"
+    "Withdraw7540VaultHook"
     "SetOperator7540Hook"
     "SetSlippageHook"
     "CancelDepositRequest7540Hook"

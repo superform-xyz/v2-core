@@ -116,6 +116,7 @@
         "SwapUniswapV4Hook": "0x08c57a93C225E598B3D596A296F971cA80cF1B84",
         "TransferERC20Hook": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
         "TransferHook": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
+        "Withdraw7540VaultHook": "0x299912843Df875b21094c5551880C7CaB6277d31",
         "WithdrawWithId7540VaultHook": "0x077aBdC3310668636448cF5505707990005AbF17",
         "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
       }
@@ -825,9 +826,5 @@
       }
     }
   },
-<<<<<<< HEAD
-  "updated_at": "2026-06-03T14:20:35Z"
-=======
-  "updated_at": "2026-06-02T08:42:58Z"
->>>>>>> 5eecd2831eee048ae9cecc7de114fec91d5513d9
+  "updated_at": "2026-06-04T06:44:54Z"
 }

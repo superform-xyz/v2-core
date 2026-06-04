@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Session 14: ClaimFailedTransferHook for StargateAdapter
 
 ## Summary
@@ -143,8 +142,10 @@ Offset 40: uint256 amount   (32 bytes) -- Amount to claim
 - The `_getBalance` helper uses `account.balance` for native ETH, `IERC20.balanceOf` for ERC20
 - Must be on `pre-dev` branch
 - Check exact hook index in DeployV2Core.s.sol before adding -- indices may have changed
-=======
-# Session 14: SpectraMetaVaultOracle — Custom Oracle for Spectra MetaVaultWrapper
+
+---
+
+# Session 14b: SpectraMetaVaultOracle — Custom Oracle for Spectra MetaVaultWrapper
 
 ## Context
 The generic `ERC7540YieldSourceOracle` has two bugs when used with Spectra MetaVaultWrapper (0x6420A613e936602Ca3f1AD5680b3F4d47D473bf1 on Base):
@@ -191,4 +192,3 @@ The generic `ERC7540YieldSourceOracle` has two bugs when used with Spectra MetaV
 ## Test Results
 - Unit tests: 39/39 pass
 - Fork tests: 9/9 pass (requires BASE_RPC_URL)
->>>>>>> 5eecd2831eee048ae9cecc7de114fec91d5513d9
