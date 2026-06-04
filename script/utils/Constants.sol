@@ -275,6 +275,7 @@ abstract contract Constants {
     // Stargate Hook Keys
     string internal constant STARGATE_SEND_HOOK_KEY = "StargateSendHook";
     string internal constant APPROVE_AND_STARGATE_SEND_HOOK_KEY = "ApproveAndStargateSendHook";
+    string internal constant CLAIM_FAILED_TRANSFER_HOOK_KEY = "ClaimFailedTransferHook";
 
     // CCTP V2 Hook Keys
     string internal constant CCTP_SEND_HOOK_KEY = "CCTPSendHook";

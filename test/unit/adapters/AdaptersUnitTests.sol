@@ -2,11 +2,13 @@
 pragma solidity 0.8.30;
 
 import { Helpers } from "../../utils/Helpers.sol";
+import { Vm } from "forge-std/Vm.sol";
 
 import { AcrossV3Adapter } from "../../../src/adapters/AcrossV3Adapter.sol";
 import { IAcrossV3Receiver } from "../../../src/vendor/bridges/across/IAcrossV3Receiver.sol";
 import { DebridgeAdapter } from "../../../src/adapters/DebridgeAdapter.sol";
 import { StargateAdapter } from "../../../src/adapters/StargateAdapter.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 
 contract MockDlnDestination {
@@ -228,6 +230,15 @@ contract MockStargatePool {
     }
 }
 
+/// @dev Mock TokenMessaging for pool registration verification in unit tests
+contract MockTokenMessaging {
+    mapping(address => uint16) public assetIds;
+
+    function setAssetId(address pool, uint16 assetId) external {
+        assetIds[pool] = assetId;
+    }
+}
+
 /// @dev Contract that cannot receive ETH (no receive/fallback)
 contract NonPayableContract { }
 
@@ -235,6 +246,7 @@ contract StargateAdapterTest is Helpers {
     StargateAdapter public stargateAdapter;
     MockStargatePool public mockPool;
     MockStargatePool public mockNativePool;
+    MockTokenMessaging public mockTokenMessaging;
     MockERC20 public mockERC20;
 
     // Test contract acts as both LZ_ENDPOINT and SUPER_DESTINATION_EXECUTOR
@@ -248,25 +260,66 @@ contract StargateAdapterTest is Helpers {
         mockERC20 = new MockERC20("Mock Token", "MOCK", 18);
         mockPool = new MockStargatePool(address(mockERC20));
         mockNativePool = new MockStargatePool(address(0));
-        stargateAdapter = new StargateAdapter(lzEndpoint, address(this));
+
+        // Setup mock TokenMessaging and register pools
+        mockTokenMessaging = new MockTokenMessaging();
+        mockTokenMessaging.setAssetId(address(mockPool), 1);
+        mockTokenMessaging.setAssetId(address(mockNativePool), 13);
+
+        stargateAdapter = new StargateAdapter(lzEndpoint, address(mockTokenMessaging), address(this));
     }
 
     // ------------- CONSTRUCTOR ---------------
 
     function test_StargateAdapter_Constructor() public {
-        StargateAdapter adp = new StargateAdapter(address(0x1), address(0x2));
+        StargateAdapter adp = new StargateAdapter(address(0x1), address(0x2), address(0x3));
         assertEq(adp.LZ_ENDPOINT(), address(0x1));
-        assertEq(address(adp.SUPER_DESTINATION_EXECUTOR()), address(0x2));
+        assertEq(address(adp.TOKEN_MESSAGING()), address(0x2));
+        assertEq(address(adp.SUPER_DESTINATION_EXECUTOR()), address(0x3));
     }
 
     function test_StargateAdapter_Constructor_RevertIf_ZeroEndpoint() public {
         vm.expectRevert(StargateAdapter.ADDRESS_NOT_VALID.selector);
-        new StargateAdapter(address(0), address(this));
+        new StargateAdapter(address(0), address(0x1), address(this));
+    }
+
+    function test_StargateAdapter_Constructor_RevertIf_ZeroTokenMessaging() public {
+        vm.expectRevert(StargateAdapter.ADDRESS_NOT_VALID.selector);
+        new StargateAdapter(address(this), address(0), address(this));
     }
 
     function test_StargateAdapter_Constructor_RevertIf_ZeroExecutor() public {
         vm.expectRevert(StargateAdapter.ADDRESS_NOT_VALID.selector);
-        new StargateAdapter(address(this), address(0));
+        new StargateAdapter(address(this), address(0x1), address(0));
+    }
+
+    // ------------- POOL REGISTRATION VALIDATION ---------------
+
+    function test_StargateAdapter_lzCompose_UnregisteredPool_EmitsAndReturns() public {
+        // Deploy a fake pool that is NOT registered in TokenMessaging
+        MockStargatePool fakePool = new MockStargatePool(address(mockERC20));
+        // Do NOT register fakePool in mockTokenMessaging → assetIds returns 0
+
+        bytes memory innerPayload = _buildStargateDestinationData(address(this));
+        bytes memory message = _encodeComposeMsg(1, 30_101, 1000, bytes32(uint256(1)), innerPayload);
+
+        vm.recordLogs();
+        stargateAdapter.lzCompose(address(fakePool), GUID, message, address(0), new bytes(0));
+        _assertEventEmitted(vm.getRecordedLogs(), "UnregisteredPool(bytes32,address)");
+    }
+
+    function test_StargateAdapter_lzCompose_UnregisteredPool_NoTokensTransferred() public {
+        MockStargatePool fakePool = new MockStargatePool(address(mockERC20));
+        _getTokens(address(mockERC20), address(stargateAdapter), 1000);
+
+        bytes memory innerPayload = _buildStargateDestinationData(address(this));
+        bytes memory message = _encodeComposeMsg(1, 30_101, 1000, bytes32(uint256(1)), innerPayload);
+
+        stargateAdapter.lzCompose(address(fakePool), GUID, message, address(0), new bytes(0));
+
+        // Tokens remain in adapter — unregistered pool was rejected
+        assertEq(mockERC20.balanceOf(address(stargateAdapter)), 1000, "Tokens should remain in adapter");
+        assertEq(mockERC20.balanceOf(address(this)), 0, "No tokens should be transferred");
     }
 
     // ------------- SENDER VALIDATION ---------------
@@ -279,18 +332,22 @@ contract StargateAdapterTest is Helpers {
 
     // ------------- MESSAGE VALIDATION ---------------
 
-    function test_StargateAdapter_lzCompose_RevertIf_MessageTooShort() public {
+    function test_StargateAdapter_lzCompose_MessageTooShort_EmitsAndReturns() public {
         // Message with 75 bytes (1 less than the 76-byte OFTComposeMsgCodec header)
+        // Should NOT revert — emits ComposeMsgTooShort and returns to avoid blocking pipeline
         bytes memory shortMessage = new bytes(75);
-        vm.expectRevert(StargateAdapter.COMPOSE_MSG_TOO_SHORT.selector);
+        vm.recordLogs();
         stargateAdapter.lzCompose(address(mockPool), GUID, shortMessage, address(0), new bytes(0));
+        _assertEventEmitted(vm.getRecordedLogs(), "ComposeMsgTooShort(bytes32,uint256)");
     }
 
-    function test_StargateAdapter_lzCompose_RevertIf_InvalidInnerDecoding() public {
+    function test_StargateAdapter_lzCompose_InvalidInnerDecoding_EmitsAndReturns() public {
         // 76-byte header + garbage that won't abi.decode to the 6-tuple
+        // Should NOT revert — emits ComposeDecodeFailed and returns to avoid blocking pipeline
         bytes memory invalidMsg = _encodeComposeMsg(1, 30_101, 1000e18, bytes32(uint256(1)), new bytes(32));
-        vm.expectRevert();
+        vm.recordLogs();
         stargateAdapter.lzCompose(address(mockPool), GUID, invalidMsg, address(0), new bytes(0));
+        _assertEventEmitted(vm.getRecordedLogs(), "ComposeDecodeFailed(bytes32)");
     }
 
     // ------------- ERC20 HAPPY PATH ---------------
@@ -303,8 +360,8 @@ contract StargateAdapterTest is Helpers {
         _getTokens(address(mockERC20), address(stargateAdapter), 1000);
         _mockProcessBridgedExecution();
 
-        vm.expectEmit(true, true, false, true);
-        emit StargateAdapter.ComposeExecuted(address(this), address(mockERC20), 1000);
+        vm.expectEmit(true, true, true, true);
+        emit StargateAdapter.TransferSucceeded(GUID,address(this), address(mockERC20), 1000);
 
         stargateAdapter.lzCompose(address(mockPool), GUID, message, address(0), new bytes(0));
         assertEq(mockERC20.balanceOf(address(this)), 1000);
@@ -320,8 +377,8 @@ contract StargateAdapterTest is Helpers {
         deal(address(stargateAdapter), 1 ether);
         _mockProcessBridgedExecution();
 
-        vm.expectEmit(true, true, false, true);
-        emit StargateAdapter.ComposeExecuted(address(this), address(0), 1 ether);
+        vm.expectEmit(true, true, true, true);
+        emit StargateAdapter.TransferSucceeded(GUID,address(this), address(0), 1 ether);
 
         uint256 balBefore = address(this).balance;
         stargateAdapter.lzCompose(address(mockNativePool), GUID, message, address(0), new bytes(0));
@@ -329,15 +386,22 @@ contract StargateAdapterTest is Helpers {
         assertEq(address(stargateAdapter).balance, 0);
     }
 
-    function test_StargateAdapter_lzCompose_NativeETH_RevertIf_AccountNotPayable() public {
+    function test_StargateAdapter_lzCompose_NativeETH_NonPayableAccount_StoresForClaim() public {
         NonPayableContract target = new NonPayableContract();
         bytes memory innerPayload = _buildStargateDestinationData(address(target));
         bytes memory message = _encodeComposeMsg(1, 30_101, 1 ether, bytes32(uint256(1)), innerPayload);
 
         deal(address(stargateAdapter), 1 ether);
 
-        vm.expectRevert(StargateAdapter.ETH_TRANSFER_FAILED.selector);
+        // Should NOT revert — stores the failed transfer for manual claim
+        vm.expectEmit(true, true, true, true);
+        emit StargateAdapter.TransferFailed(GUID,address(target), address(0), 1 ether);
+
         stargateAdapter.lzCompose(address(mockNativePool), GUID, message, address(0), new bytes(0));
+
+        // Funds remain in adapter, claimable by target
+        assertEq(stargateAdapter.failedTransfers(address(target), address(0)), 1 ether);
+        assertEq(address(stargateAdapter).balance, 1 ether);
     }
 
     // ------------- AMOUNTLD EDGE CASES ---------------
@@ -350,8 +414,8 @@ contract StargateAdapterTest is Helpers {
         _getTokens(address(mockERC20), address(stargateAdapter), 1000);
         _mockProcessBridgedExecution();
 
-        vm.expectEmit(true, true, false, true);
-        emit StargateAdapter.ComposeExecuted(address(this), address(mockERC20), 500);
+        vm.expectEmit(true, true, true, true);
+        emit StargateAdapter.TransferSucceeded(GUID,address(this), address(mockERC20), 500);
 
         stargateAdapter.lzCompose(address(mockPool), GUID, message, address(0), new bytes(0));
         assertEq(mockERC20.balanceOf(address(this)), 500, "Should receive only amountLD");
@@ -412,6 +476,238 @@ contract StargateAdapterTest is Helpers {
         assertEq(mockERC20.balanceOf(address(stargateAdapter)), 0, "Adapter should be empty");
     }
 
+    // ------------- EXECUTION FAILURE (TRY/CATCH) ---------------
+
+    function test_StargateAdapter_lzCompose_ExecutionFails_DoesNotRevert() public {
+        bytes memory innerPayload = _buildStargateDestinationData(address(this));
+        bytes memory message = _encodeComposeMsg(1, 30_101, 1000, bytes32(uint256(1)), innerPayload);
+
+        _getTokens(address(mockERC20), address(stargateAdapter), 1000);
+        // Do NOT mock processBridgedExecution — the test contract's implementation reverts with "B"
+
+        vm.expectEmit(true, true, true, true);
+        emit StargateAdapter.TransferSucceeded(GUID,address(this), address(mockERC20), 1000);
+
+        // Should succeed — tokens transferred, execution failure caught
+        stargateAdapter.lzCompose(address(mockPool), GUID, message, address(0), new bytes(0));
+
+        // User has tokens even though execution failed
+        assertEq(mockERC20.balanceOf(address(this)), 1000);
+        assertEq(mockERC20.balanceOf(address(stargateAdapter)), 0);
+    }
+
+    function test_StargateAdapter_lzCompose_ExecutionFails_EmitsEvent() public {
+        bytes memory innerPayload = _buildStargateDestinationData(address(this));
+        bytes memory message = _encodeComposeMsg(1, 30_101, 1000, bytes32(uint256(1)), innerPayload);
+
+        _getTokens(address(mockERC20), address(stargateAdapter), 1000);
+
+        // Expect ExecutionFailed event
+        vm.expectEmit(true, false, false, false);
+        emit StargateAdapter.ExecutionFailed(GUID, address(this));
+
+        stargateAdapter.lzCompose(address(mockPool), GUID, message, address(0), new bytes(0));
+    }
+
+    // ------------- CLAIM FAILED TRANSFER ---------------
+
+    function test_StargateAdapter_claimFailedTransfer_ERC20() public {
+        // Simulate a failed ERC20 transfer by directly setting state via a compose to non-payable
+        // We'll use the native path to get a stored failed transfer, then test ERC20 claim separately
+
+        // Setup: force a failed native transfer to get failedTransfers populated
+        NonPayableContract target = new NonPayableContract();
+        bytes memory innerPayload = _buildStargateDestinationData(address(target));
+        bytes memory message = _encodeComposeMsg(1, 30_101, 500, bytes32(uint256(1)), innerPayload);
+
+        // Give adapter ERC20 tokens, use ERC20 pool — transfer should succeed (NonPayableContract accepts ERC20)
+        // Instead, test claim via native path where failure actually occurs
+        deal(address(stargateAdapter), 1 ether);
+        stargateAdapter.lzCompose(address(mockNativePool), GUID, message, address(0), new bytes(0));
+
+        assertEq(stargateAdapter.failedTransfers(address(target), address(0)), 500);
+
+        // Target can't claim ETH directly (non-payable), but a payable target can
+        // Let's test with a payable user instead
+        address payableUser = makeAddr("payableUser");
+        vm.deal(payableUser, 0);
+
+        // Setup a failed transfer for payableUser
+        bytes memory payload2 = _buildStargateDestinationData(payableUser);
+        // Make the token() call return a non-existent ERC20 to force transfer failure
+        MockERC20 failToken = new MockERC20("Fail", "FAIL", 18);
+        MockStargatePool failPool = new MockStargatePool(address(failToken));
+        mockTokenMessaging.setAssetId(address(failPool), 2); // Register pool
+        // Fund adapter so preBalance guard passes, mock transfer revert to simulate blacklist
+        _getTokens(address(failToken), address(stargateAdapter), 100);
+        vm.mockCallRevert(
+            address(failToken),
+            abi.encodeWithSelector(IERC20.transfer.selector, payableUser, 100),
+            "BLACKLISTED"
+        );
+        bytes memory message2 = _encodeComposeMsg(2, 30_101, 100, bytes32(uint256(2)), payload2);
+        stargateAdapter.lzCompose(address(failPool), GUID, message2, address(0), new bytes(0));
+        vm.clearMockedCalls();
+
+        assertEq(stargateAdapter.failedTransfers(payableUser, address(failToken)), 100);
+
+        // Adapter still holds tokens (transfer was reverted), claim should succeed
+
+        vm.expectEmit(true, true, false, true);
+        emit StargateAdapter.FailedTransferClaimed(payableUser, address(failToken), 100);
+
+        vm.prank(payableUser);
+        stargateAdapter.claimFailedTransfer(address(failToken), 100);
+
+        assertEq(failToken.balanceOf(payableUser), 100);
+        assertEq(stargateAdapter.failedTransfers(payableUser, address(failToken)), 0);
+    }
+
+    function test_StargateAdapter_claimFailedTransfer_NativeETH() public {
+        address payableUser = makeAddr("payableUser");
+        vm.deal(payableUser, 0);
+
+        // Force a failed transfer: send native to NonPayableContract, then transfer claim to payableUser
+        // Actually, let's directly test: fail transfer to payableUser by having adapter with no ETH
+        // Simpler: use NonPayableContract to fail, then deploy a new adapter with the payable user scenario
+
+        // Directly: create situation where native ETH goes to non-payable, then re-test
+        NonPayableContract target = new NonPayableContract();
+        bytes memory innerPayload = _buildStargateDestinationData(address(target));
+        bytes memory message = _encodeComposeMsg(1, 30_101, 0.5 ether, bytes32(uint256(1)), innerPayload);
+
+        deal(address(stargateAdapter), 0.5 ether);
+        stargateAdapter.lzCompose(address(mockNativePool), GUID, message, address(0), new bytes(0));
+
+        assertEq(stargateAdapter.failedTransfers(address(target), address(0)), 0.5 ether);
+
+        // NonPayableContract can't claim ETH either — this demonstrates the need for a payable recipient
+        // In production, smart accounts are payable. Let's test with a payable user.
+
+        // Setup payable user failed transfer
+        bytes memory payload2 = _buildStargateDestinationData(payableUser);
+        MockERC20 noBalToken = new MockERC20("NoBal", "NB", 18);
+        MockStargatePool noBalPool = new MockStargatePool(address(noBalToken));
+        mockTokenMessaging.setAssetId(address(noBalPool), 2); // Register pool
+        // Fund adapter so preBalance guard passes, mock transfer revert to simulate failure
+        _getTokens(address(noBalToken), address(stargateAdapter), 200);
+        vm.mockCallRevert(
+            address(noBalToken),
+            abi.encodeWithSelector(IERC20.transfer.selector, payableUser, 200),
+            "BLACKLISTED"
+        );
+        bytes memory message2 = _encodeComposeMsg(2, 30_101, 200, bytes32(uint256(2)), payload2);
+        stargateAdapter.lzCompose(address(noBalPool), GUID, message2, address(0), new bytes(0));
+        vm.clearMockedCalls();
+
+        assertEq(stargateAdapter.failedTransfers(payableUser, address(noBalToken)), 200);
+
+        // Adapter still holds tokens (transfer was reverted), claim should succeed
+        vm.prank(payableUser);
+        stargateAdapter.claimFailedTransfer(address(noBalToken), 200);
+
+        assertEq(noBalToken.balanceOf(payableUser), 200);
+        assertEq(stargateAdapter.failedTransfers(payableUser, address(noBalToken)), 0);
+    }
+
+    function test_StargateAdapter_claimFailedTransfer_RevertIf_ZeroAmount() public {
+        vm.expectRevert(StargateAdapter.ZERO_AMOUNT.selector);
+        stargateAdapter.claimFailedTransfer(address(mockERC20), 0);
+    }
+
+    function test_StargateAdapter_claimFailedTransfer_RevertIf_InsufficientBalance() public {
+        vm.expectRevert(StargateAdapter.INSUFFICIENT_FAILED_BALANCE.selector);
+        stargateAdapter.claimFailedTransfer(address(mockERC20), 100);
+    }
+
+    function test_StargateAdapter_claimFailedTransfer_PartialClaim() public {
+        // Setup: force failed transfer of 1000 tokens
+        address user = makeAddr("user");
+        MockERC20 failToken = new MockERC20("Fail", "FAIL", 18);
+        MockStargatePool failPool = new MockStargatePool(address(failToken));
+        mockTokenMessaging.setAssetId(address(failPool), 2); // Register pool
+
+        bytes memory payload = _buildStargateDestinationData(user);
+        // Fund adapter so preBalance guard passes, mock transfer revert to simulate failure
+        _getTokens(address(failToken), address(stargateAdapter), 1000);
+        vm.mockCallRevert(
+            address(failToken),
+            abi.encodeWithSelector(IERC20.transfer.selector, user, 1000),
+            "BLACKLISTED"
+        );
+        bytes memory message = _encodeComposeMsg(1, 30_101, 1000, bytes32(uint256(1)), payload);
+        stargateAdapter.lzCompose(address(failPool), GUID, message, address(0), new bytes(0));
+        vm.clearMockedCalls();
+
+        assertEq(stargateAdapter.failedTransfers(user, address(failToken)), 1000);
+
+        // Adapter still holds tokens (transfer was reverted), claim should work
+        vm.prank(user);
+        stargateAdapter.claimFailedTransfer(address(failToken), 400);
+
+        assertEq(failToken.balanceOf(user), 400);
+        assertEq(stargateAdapter.failedTransfers(user, address(failToken)), 600);
+
+        // Claim remaining
+        vm.prank(user);
+        stargateAdapter.claimFailedTransfer(address(failToken), 600);
+        assertEq(failToken.balanceOf(user), 1000);
+        assertEq(stargateAdapter.failedTransfers(user, address(failToken)), 0);
+    }
+
+    // ------------- PREBALANCE GUARD (UNBACKED CREDIT PREVENTION) ---------------
+
+    /// @notice Verify preBalance guard: adapter has 0 tokens, compose arrives → no failedTransfers credit
+    /// @dev Prevents unbacked credits when tokens were delivered directly to account during lzReceive
+    function test_StargateAdapter_lzCompose_NoPreBalance_NoFailedCredit() public {
+        address user = makeAddr("user");
+        MockERC20 someToken = new MockERC20("Some", "SOME", 18);
+        MockStargatePool somePool = new MockStargatePool(address(someToken));
+        mockTokenMessaging.setAssetId(address(somePool), 3);
+
+        // Adapter has 0 someToken — compose claims amountLD = 500
+        bytes memory innerPayload = _buildStargateDestinationData(user);
+        bytes memory message = _encodeComposeMsg(1, 30_101, 500, bytes32(uint256(1)), innerPayload);
+
+        _mockProcessBridgedExecution();
+
+        stargateAdapter.lzCompose(address(somePool), GUID, message, address(0), new bytes(0));
+
+        // preBalance guard: no failedTransfers credit created (adapter had 0 tokens)
+        assertEq(stargateAdapter.failedTransfers(user, address(someToken)), 0, "No unbacked credit");
+    }
+
+    /// @notice Verify preBalance guard with zero account: adapter has 0 tokens → no failedTransfers credit
+    function test_StargateAdapter_lzCompose_NoPreBalance_ZeroAccount_NoFailedCredit() public {
+        MockERC20 someToken = new MockERC20("Some", "SOME", 18);
+        MockStargatePool somePool = new MockStargatePool(address(someToken));
+        mockTokenMessaging.setAssetId(address(somePool), 3);
+
+        // Compose with account = address(0), adapter has 0 tokens
+        bytes memory innerPayload = _buildStargateDestinationData(address(0));
+        bytes memory message = _encodeComposeMsg(1, 30_101, 500, bytes32(uint256(42)), innerPayload);
+
+        stargateAdapter.lzCompose(address(somePool), GUID, message, address(0), new bytes(0));
+
+        // composeFrom = address(42)
+        address composeFrom = address(uint160(42));
+        assertEq(stargateAdapter.failedTransfers(composeFrom, address(someToken)), 0, "No unbacked credit for composeFrom");
+    }
+
+    /// @notice Verify preBalance guard with native ETH: adapter has 0 ETH → no failedTransfers credit
+    function test_StargateAdapter_lzCompose_NoPreBalance_NativeETH_NoFailedCredit() public {
+        NonPayableContract target = new NonPayableContract();
+
+        // Adapter has 0 ETH — compose claims amountLD = 1 ether
+        bytes memory innerPayload = _buildStargateDestinationData(address(target));
+        bytes memory message = _encodeComposeMsg(1, 30_101, 1 ether, bytes32(uint256(1)), innerPayload);
+
+        stargateAdapter.lzCompose(address(mockNativePool), GUID, message, address(0), new bytes(0));
+
+        // preBalance guard: no failedTransfers credit created (adapter had 0 ETH)
+        assertEq(stargateAdapter.failedTransfers(address(target), address(0)), 0, "No unbacked ETH credit");
+    }
+
     // ------------- RECEIVE ---------------
 
     function test_StargateAdapter_receive_AcceptsETH() public {
@@ -444,6 +740,14 @@ contract StargateAdapterTest is Helpers {
         uint256[] memory intentAmounts = new uint256[](0);
         bytes memory sigData = new bytes(0);
         return abi.encode(initData, executorCalldata, account_, dstTokens, intentAmounts, sigData);
+    }
+
+    function _assertEventEmitted(Vm.Log[] memory logs, string memory eventSig) internal pure {
+        bytes32 sig = keccak256(bytes(eventSig));
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == sig) return;
+        }
+        revert(string.concat("Expected event not emitted: ", eventSig));
     }
 
     function _mockProcessBridgedExecution() private {

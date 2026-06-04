@@ -8,14 +8,7 @@ CHAINS_TO_VERIFY=(1 8453 56 42161 43114 14)
 # ===== CONTRACT FILTER CONFIGURATION =====
 # Specify which contracts to verify (comment out to verify all contracts)
 # Leave empty array to verify all contracts found in deployment JSON
-CONTRACTS_TO_VERIFY=(
-    "SwapOdosV3Hook"
-    "ApproveAndSwapOdosV3Hook"
-    "StargateSendHook"
-    "ApproveAndStargateSendHook"
-    "SwapOpenOceanSparkDexHook"
-    "ApproveAndSwapOpenOceanSparkDexHook"
-)
+CONTRACTS_TO_VERIFY=()
 
 # ===== RATE LIMIT CONFIGURATION =====
 # Delay in seconds between verification requests (prevents Cloudflare rate limiting)
@@ -94,10 +87,9 @@ echo -e "${BLUE}🔧 Loading Configuration...${NC}"
 # Load RPC URLs using network-specific function
 echo -e "${CYAN}   • Loading RPC URLs...${NC}"
 if ! load_rpc_urls; then
-    echo -e "${RED}❌ Failed to load some RPC URLs from credential manager${NC}"
-    echo -e "${YELLOW}⚠️  This may cause connectivity issues during verification${NC}"
-    echo -e "${YELLOW}   Please ensure all required RPC URLs are configured in 1Password${NC}"
-    exit 1
+    echo -e "${YELLOW}⚠️  Failed to load some RPC URLs from credential manager${NC}"
+    echo -e "${YELLOW}   Chains using Blockscout (Flare) can still verify without RPC${NC}"
+    echo -e "${YELLOW}   Other chains may fail if their RPC is missing${NC}"
 fi
 
 # Load Etherscan V2 API key for verification
@@ -246,6 +238,18 @@ generate_constructor_args() {
         pendle_pt_amortized_oracle_v2=""  # TBD - update after prod deployment
     fi
     
+    # Common addresses (same on all chains via CREATE2)
+    local cctp_v2_token_messenger="0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d"
+    local kyber_router="0x6131B5fae19EA4f9D964eAc0408E4408b66337b5"
+    local kyber_scale_helper="0x2f577A41BeC1BE1152AeEA12e73b7391d15f655D"
+    local deth_foundation="0x97b5e4a707A4D5AB4A58b2c93bc8d249a63Ff153"
+    local deployer="0x6E3dadcAf328ebB58753e89a3e589F5C5e988dF8"
+    local algebra_integral_router_flare="0x69D57B9D705eaD73a5d2f2476C30c55bD755cc2F"
+    local sparkdex_v2_router_flare="0x4a1E5A90e9943467FAd1acea1E7F0e5e88472a1e"
+    local spark_psm3_base="0x1601843c5E9bC251A3272907010AFa41Fa18347E"
+    local lz_endpoint_v2="0x1a44076050125825900e736c501f859c50fE728c"
+    local lz_endpoint_v2_alt="0x6F475642a6e85809B1c36Fa62763669b1b48DD5B"
+
     # Network-specific configurations
     case $chain_id in
         "1") # Ethereum Mainnet
@@ -536,11 +540,6 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
             ;;
 
-        # ERC7540YieldSourceOracle / SpectraMetaVaultOracle (superLedgerConfig + requestId=0)
-        "ERC7540YieldSourceOracle"|"SpectraMetaVaultOracle")
-            echo "$(cast abi-encode "constructor(address,uint256)" "$super_ledger_config" "0")"
-            ;;
-
         # Morpho Hooks (all take Morpho Blue address as constructor arg)
         "MorphoSupplyAndBorrowHook"|"MorphoBorrowHook"|"MorphoRepayHook"|"MorphoRepayAndWithdrawHook"|"MorphoSupplyHook"|"MorphoWithdrawHook"|"MorphoLendHook")
             local morpho_address=""
@@ -570,6 +569,106 @@ generate_constructor_args() {
         "FetchNativeFeeHook")
             local native_fee_sponsorship=$(get_contract_address "$chain_id" "NativeFeeSponsorship")
             echo "$(cast abi-encode "constructor(address)" "$native_fee_sponsorship")"
+            ;;
+
+        # AaveV4 Loan Hooks (no constructor args - BaseAaveV4LoanHook inherits BaseLoanHook)
+        "AaveV4BorrowHook"|"AaveV4RepayAndWithdrawHook"|"AaveV4RepayHook"|"AaveV4SupplyAndBorrowHook"|"AaveV4SupplyHook"|"AaveV4WithdrawHook")
+            echo "$(cast abi-encode "constructor()")"
+            ;;
+
+        # CCTP V2 Bridge Hooks (TokenMessengerV2 + SuperValidator)
+        "CCTPSendHook"|"ApproveAndCCTPSendHook")
+            echo "$(cast abi-encode "constructor(address,address)" "$cctp_v2_token_messenger" "$super_merkle_validator")"
+            ;;
+
+        # DETH Hooks (no constructor args)
+        "RequestRedeemDETHHook"|"ApproveAndRequestRedeemDETHHook"|"ClaimAssetsDETHHook")
+            echo "$(cast abi-encode "constructor()")"
+            ;;
+
+        # KyberSwap Hooks (router + scaleHelper + nativeToken)
+        "SwapKyberSwapHook"|"ApproveAndSwapKyberSwapHook")
+            echo "$(cast abi-encode "constructor(address,address,address)" "$kyber_router" "$kyber_scale_helper" "$native_token")"
+            ;;
+
+        # Algebra Integral Hooks (swapRouter - Flare only)
+        "SwapAlgebraIntegralHook"|"ApproveAndSwapAlgebraIntegralHook")
+            local algebra_router=""
+            case $chain_id in
+                "14") algebra_router="$algebra_integral_router_flare" ;;
+                *) algebra_router="" ;;
+            esac
+            echo "$(cast abi-encode "constructor(address)" "$algebra_router")"
+            ;;
+
+        # Spark PSM Hooks (psmAddress - Base only)
+        "SwapSparkPSMExactInHook"|"ApproveAndSwapSparkPSMExactInHook"|"SwapSparkPSMExactOutHook"|"ApproveAndSwapSparkPSMExactOutHook")
+            local psm_address=""
+            case $chain_id in
+                "8453") psm_address="$spark_psm3_base" ;;
+                *) psm_address="" ;;
+            esac
+            echo "$(cast abi-encode "constructor(address)" "$psm_address")"
+            ;;
+
+        # UniswapV2 Hooks (router + native - Flare only via SparkDex)
+        "SwapUniswapV2Hook"|"ApproveAndSwapUniswapV2Hook")
+            local uniswap_v2_router=""
+            case $chain_id in
+                "14") uniswap_v2_router="$sparkdex_v2_router_flare" ;;
+                *) uniswap_v2_router="" ;;
+            esac
+            echo "$(cast abi-encode "constructor(address,address)" "$uniswap_v2_router" "$native_token")"
+            ;;
+
+        # 7540 WithId Hooks (no constructor args)
+        "CancelDepositRequestWithId7540Hook"|"CancelRedeemRequestWithId7540Hook"|"ClaimCancelDepositRequestWithId7540Hook"|"ClaimCancelRedeemRequestWithId7540Hook"|"RedeemWithId7540VaultHook"|"WithdrawWithId7540VaultHook")
+            echo "$(cast abi-encode "constructor()")"
+            ;;
+
+        # StargateAdapter (lzEndpoint, tokenMessaging, superDestinationExecutor)
+        "StargateAdapter")
+            local lz_endpoint=""
+            local token_messaging=""
+            case $chain_id in
+                "130"|"146"|"480"|"80094") lz_endpoint="$lz_endpoint_v2_alt" ;;
+                *) lz_endpoint="$lz_endpoint_v2" ;;
+            esac
+            case $chain_id in
+                "1") token_messaging="0x6d6620eFa72948C5f68A3C8646d58C00d3f4A980" ;;
+                "8453") token_messaging="0x5634c4a5FEd09819E3c46D86A965Dd9447d86e47" ;;
+                "56") token_messaging="0x6E3d884C96d640526F273C61dfcF08915eBd7e2B" ;;
+                "42161") token_messaging="0x19cFCE47eD54a88614648DC3f19A5980097007dD" ;;
+                "43114") token_messaging="0x17E450Be3Ba9557F2378E20d64AD417E59Ef9A34" ;;
+                "14") token_messaging="0x45d417612e177672958dC0537C45a8f8d754Ac2E" ;;
+                "146") token_messaging="0x2086f755A6d9254045C257ea3d382ef854849B0f" ;;
+                "130") token_messaging="0xB1EeAD6959cb5bB9B20417d6689922523B2B86C3" ;;
+                "100") token_messaging="0xAf368c91793CB22739386DFCbBb2F1A9e4bCBeBf" ;;
+                "80094") token_messaging="0xAf5191B0De278C7286d6C7CC6ab6BB8A73bA2Cd6" ;;
+                *) token_messaging="" ;;
+            esac
+            echo "$(cast abi-encode "constructor(address,address,address)" "$lz_endpoint" "$token_messaging" "$super_destination_executor")"
+            ;;
+
+
+        # Oracles - DETHYieldSourceOracle (superLedgerConfig + foundation)
+        "DETHYieldSourceOracle")
+            echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$deth_foundation")"
+            ;;
+
+        # Oracles - FirelightYieldSourceOracle, YoYieldSourceOracle (superLedgerConfig only)
+        "FirelightYieldSourceOracle"|"YoYieldSourceOracle")
+            echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
+            ;;
+
+        # Oracles - PendlePTAmortizedOracle (admin/deployer + superLedgerConfig)
+        "PendlePTAmortizedOracle")
+            echo "$(cast abi-encode "constructor(address,address)" "$deployer" "$super_ledger_config")"
+            ;;
+
+        # Oracles - PendlePTAmortizedOracleV2 (admin/deployer + superLedgerConfig)
+        "PendlePTAmortizedOracleV2")
+            echo "$(cast abi-encode "constructor(address,address)" "$deployer" "$super_ledger_config")"
             ;;
 
         # All other contracts (no constructor args)
@@ -637,6 +736,16 @@ get_contract_source() {
         "SwapUniswapV3Router02Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Router02Hook.sol" ;;
         "ApproveAndSwapUniswapV3Router02Hook") echo "src/hooks/swappers/uniswap-v3/ApproveAndSwapUniswapV3Router02Hook.sol" ;;
         "SwapUniswapV4Hook") echo "src/hooks/swappers/uniswap-v4/SwapUniswapV4Hook.sol" ;;
+        "SwapKyberSwapHook") echo "src/hooks/swappers/kyberswap/SwapKyberSwapHook.sol" ;;
+        "ApproveAndSwapKyberSwapHook") echo "src/hooks/swappers/kyberswap/ApproveAndSwapKyberSwapHook.sol" ;;
+        "SwapAlgebraIntegralHook") echo "src/hooks/swappers/algebra-integral/SwapAlgebraIntegralHook.sol" ;;
+        "ApproveAndSwapAlgebraIntegralHook") echo "src/hooks/swappers/algebra-integral/ApproveAndSwapAlgebraIntegralHook.sol" ;;
+        "SwapSparkPSMExactInHook") echo "src/hooks/swappers/spark-psm/SwapSparkPSMExactInHook.sol" ;;
+        "ApproveAndSwapSparkPSMExactInHook") echo "src/hooks/swappers/spark-psm/ApproveAndSwapSparkPSMExactInHook.sol" ;;
+        "SwapSparkPSMExactOutHook") echo "src/hooks/swappers/spark-psm/SwapSparkPSMExactOutHook.sol" ;;
+        "ApproveAndSwapSparkPSMExactOutHook") echo "src/hooks/swappers/spark-psm/ApproveAndSwapSparkPSMExactOutHook.sol" ;;
+        "SwapUniswapV2Hook") echo "src/hooks/swappers/uniswap-v2/SwapUniswapV2Hook.sol" ;;
+        "ApproveAndSwapUniswapV2Hook") echo "src/hooks/swappers/uniswap-v2/ApproveAndSwapUniswapV2Hook.sol" ;;
         "PendleUnifiedHook") echo "src/hooks/swappers/pendle/PendleUnifiedHook.sol" ;;
         "PendleRouterSwapHook") echo "src/hooks/swappers/pendle/PendleRouterSwapHook.sol" ;;
         "PendleRouterRedeemHook") echo "src/hooks/swappers/pendle/PendleRouterRedeemHook.sol" ;;
@@ -646,11 +755,34 @@ get_contract_source() {
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook") echo "src/hooks/bridges/across/ApproveAndAcrossSendFundsAndExecuteOnDstHook.sol" ;;
         "DeBridgeSendOrderAndExecuteOnDstHook") echo "src/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol" ;;
         "DeBridgeCancelOrderHook") echo "src/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol" ;;
+        "CCTPSendHook") echo "src/hooks/bridges/cctp/CCTPSendHook.sol" ;;
+        "ApproveAndCCTPSendHook") echo "src/hooks/bridges/cctp/ApproveAndCCTPSendHook.sol" ;;
         
         # Hooks - Protocol Specific
         "EthenaCooldownSharesHook") echo "src/hooks/vaults/ethena/EthenaCooldownSharesHook.sol" ;;
         "EthenaUnstakeHook") echo "src/hooks/vaults/ethena/EthenaUnstakeHook.sol" ;;
         "MarkRootAsUsedHook") echo "src/hooks/superform/MarkRootAsUsedHook.sol" ;;
+
+        # Hooks - DETH
+        "RequestRedeemDETHHook") echo "src/hooks/vaults/deth/RequestRedeemDETHHook.sol" ;;
+        "ApproveAndRequestRedeemDETHHook") echo "src/hooks/vaults/deth/ApproveAndRequestRedeemDETHHook.sol" ;;
+        "ClaimAssetsDETHHook") echo "src/hooks/vaults/deth/ClaimAssetsDETHHook.sol" ;;
+
+        # Hooks - 7540 WithId variants
+        "CancelDepositRequestWithId7540Hook") echo "src/hooks/vaults/7540/CancelDepositRequestWithId7540Hook.sol" ;;
+        "CancelRedeemRequestWithId7540Hook") echo "src/hooks/vaults/7540/CancelRedeemRequestWithId7540Hook.sol" ;;
+        "ClaimCancelDepositRequestWithId7540Hook") echo "src/hooks/vaults/7540/ClaimCancelDepositRequestWithId7540Hook.sol" ;;
+        "ClaimCancelRedeemRequestWithId7540Hook") echo "src/hooks/vaults/7540/ClaimCancelRedeemRequestWithId7540Hook.sol" ;;
+        "RedeemWithId7540VaultHook") echo "src/hooks/vaults/7540/RedeemWithId7540VaultHook.sol" ;;
+        "WithdrawWithId7540VaultHook") echo "src/hooks/vaults/7540/WithdrawWithId7540VaultHook.sol" ;;
+
+        # Hooks - AaveV4 Loan
+        "AaveV4BorrowHook") echo "src/hooks/loan/aave-v4/AaveV4BorrowHook.sol" ;;
+        "AaveV4RepayAndWithdrawHook") echo "src/hooks/loan/aave-v4/AaveV4RepayAndWithdrawHook.sol" ;;
+        "AaveV4RepayHook") echo "src/hooks/loan/aave-v4/AaveV4RepayHook.sol" ;;
+        "AaveV4SupplyAndBorrowHook") echo "src/hooks/loan/aave-v4/AaveV4SupplyAndBorrowHook.sol" ;;
+        "AaveV4SupplyHook") echo "src/hooks/loan/aave-v4/AaveV4SupplyHook.sol" ;;
+        "AaveV4WithdrawHook") echo "src/hooks/loan/aave-v4/AaveV4WithdrawHook.sol" ;;
 
         # Hooks - Bridges (Stargate)
         "StargateSendHook") echo "src/hooks/bridges/stargate/StargateSendHook.sol" ;;
@@ -697,13 +829,283 @@ get_contract_source() {
         "NativeFeeSponsorship") echo "src/sponsorship/NativeFeeSponsorship.sol" ;;
         "FetchNativeFeeHook") echo "src/hooks/sponsorship/FetchNativeFeeHook.sol" ;;
 
+        # Adapters
+        "StargateAdapter") echo "src/adapters/StargateAdapter.sol" ;;
+
         # Oracles
         "ERC4626YieldSourceOracle") echo "src/accounting/oracles/ERC4626YieldSourceOracle.sol" ;;
         "ERC5115YieldSourceOracle") echo "src/accounting/oracles/ERC5115YieldSourceOracle.sol" ;;
+        "ERC7540YieldSourceOracle") echo "src/accounting/oracles/ERC7540YieldSourceOracle.sol" ;;
         "PendlePTYieldSourceOracle") echo "src/accounting/oracles/PendlePTYieldSourceOracle.sol" ;;
         "SpectraPTYieldSourceOracle") echo "src/accounting/oracles/SpectraPTYieldSourceOracle.sol" ;;
         "SpectraMetaVaultOracle") echo "src/accounting/oracles/SpectraMetaVaultOracle.sol" ;;
         "StakingYieldSourceOracle") echo "src/accounting/oracles/StakingYieldSourceOracle.sol" ;;
         "SuperYieldSourceOracle") echo "src/accounting/oracles/SuperYieldSourceOracle.sol" ;;
         "SuperVaultYieldSourceOracle") echo "src/accounting/oracles/SuperVaultYieldSourceOracle.sol" ;;
-        "ERC7540YieldSourceOracle") echo "src/accounting/oracles/ERC7540YieldSourceOracle.sol" ;;
+        "DETHYieldSourceOracle") echo "src/accounting/oracles/DETHYieldSourceOracle.sol" ;;
+        "FirelightYieldSourceOracle") echo "src/accounting/oracles/FirelightYieldSourceOracle.sol" ;;
+        "YoYieldSourceOracle") echo "src/accounting/oracles/YoYieldSourceOracle.sol" ;;
+        "PendlePTAmortizedOracle") echo "src/accounting/oracles/PendlePTAmortizedOracle.sol" ;;
+        "PendlePTAmortizedOracleV2") echo "src/accounting/oracles/PendlePTAmortizedOracleV2.sol" ;;
+
+        # Nexus contracts (external library - skip verification from this repo)
+        "Nexus"|"NexusAccountFactory"|"NexusBootstrap"|"NexusProxy")
+            echo "SKIP_EXTERNAL_LIB"
+            ;;
+
+        *) echo "src/core/unknown/$contract_name.sol" ;;
+    esac
+}
+
+# Function to verify a single contract
+verify_contract() {
+    local chain_id=$1
+    local contract_name=$2
+    local contract_address=$3
+    local constructor_args=$4
+    local source_file=$5
+    local rpc_url=$6
+
+    echo -e "${YELLOW}   🔍 Verifying $contract_name...${NC}"
+    echo -e "${CYAN}      Address: $contract_address${NC}"
+    echo -e "${CYAN}      Source: $source_file${NC}"
+    echo -e "${CYAN}      Chain ID: $chain_id${NC}"
+
+    # Skip external library contracts that can't be verified from this repo
+    if [ "$source_file" = "SKIP_EXTERNAL_LIB" ]; then
+        echo -e "${YELLOW}   ⚠️  Skipping $contract_name (external library contract)${NC}"
+        return 0
+    fi
+
+    # Chain-specific verifier configuration
+    case $chain_id in
+        "14")
+            # Flare uses Blockscout explorer
+            # --skip-is-verified-check: Blockscout returns source from bytecode-matched contracts,
+            # which makes forge think the contract is "already verified" when it isn't
+            forge verify-contract "$contract_address" "$source_file:$contract_name" \
+                --constructor-args "$constructor_args" \
+                --verifier blockscout \
+                --verifier-url "https://flare-explorer.flare.network/api/" \
+                --skip-is-verified-check
+            ;;
+        "988"|"999"|"80094")
+            # Chains not in forge's internal registry: use Etherscan V2 API with chainid
+            forge verify-contract "$contract_address" "$source_file:$contract_name" \
+                --constructor-args "$constructor_args" \
+                --etherscan-api-key "$ETHERSCANV2_API_KEY" \
+                --verifier etherscan \
+                --verifier-url "https://api.etherscan.io/v2/api?chainid=${chain_id}"
+            ;;
+        *)
+            forge verify-contract "$contract_address" "$source_file:$contract_name" \
+                --constructor-args "$constructor_args" \
+                --rpc-url "$rpc_url" \
+                --chain "$chain_id" \
+                --etherscan-api-key "$ETHERSCANV2_API_KEY" \
+                --verifier etherscan
+            ;;
+    esac
+
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}   ✅ $contract_name verified successfully${NC}"
+    else
+        echo -e "${RED}   ❌ $contract_name verification failed${NC}"
+    fi
+
+    echo ""
+}
+
+# Function to verify all contracts for a network
+verify_network() {
+    local chain_id=$1
+
+    # Get network name and RPC URL from loaded configuration
+    local network_name=$(get_network_name "$chain_id")
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ Unknown network ID: $chain_id${NC}"
+        return 1
+    fi
+
+    local rpc_url=$(get_rpc_url "$chain_id")
+    # Blockscout-verified chains (e.g. Flare) don't need RPC for verification
+    local uses_blockscout=false
+    case $chain_id in
+        "14") uses_blockscout=true ;;
+    esac
+    if [ -z "$rpc_url" ] && [ "$uses_blockscout" = false ]; then
+        echo -e "${RED}❌ RPC URL not found for chain $chain_id${NC}"
+        return 1
+    fi
+
+    print_network_header "$network_name"
+    echo -e "${CYAN}   Chain ID: ${WHITE}$chain_id${NC}"
+    echo -e "${CYAN}   RPC URL: ${WHITE}$rpc_url${NC}"
+    echo -e "${CYAN}   Verification: ${WHITE}Etherscan V2${NC}"
+
+    if ! load_contract_addresses "$chain_id"; then
+        echo -e "${RED}   ❌ Failed to load contract addresses for chain $chain_id${NC}"
+        return 1
+    fi
+
+    echo -e "${CYAN}   📋 Starting contract verification...${NC}"
+
+    # Get network suffix for JSON file
+    local network_suffix=""
+    case $chain_id in
+        "1") network_suffix="Ethereum-latest" ;;
+        "8453") network_suffix="Base-latest" ;;
+        "56") network_suffix="BNB-latest" ;;
+        "42161") network_suffix="Arbitrum-latest" ;;
+        "10") network_suffix="Optimism-latest" ;;
+        "137") network_suffix="Polygon-latest" ;;
+        "130") network_suffix="Unichain-latest" ;;
+        "59144") network_suffix="Linea-latest" ;;
+        "43114") network_suffix="Avalanche-latest" ;;
+        "80094") network_suffix="Berachain-latest" ;;
+        "146") network_suffix="Sonic-latest" ;;
+        "100") network_suffix="Gnosis-latest" ;;
+        "480") network_suffix="Worldchain-latest" ;;
+        "999") network_suffix="HyperEVM-latest" ;;
+        "14") network_suffix="Flare-latest" ;;
+        *) network_suffix="${network_name}-latest" ;;
+    esac
+
+    local json_file="script/output/$ENVIRONMENT/$chain_id/$network_suffix.json"
+
+    if [ ! -f "$json_file" ]; then
+        echo -e "${RED}   ❌ Contract addresses file not found: $json_file${NC}"
+        return 1
+    fi
+
+    # Extract contract names from JSON
+    local all_contract_names=($(jq -r 'keys[]' "$json_file"))
+    local contract_names=()
+
+    # Apply contract filter if specified
+    if [ ${#CONTRACTS_TO_VERIFY[@]} -eq 0 ]; then
+        # No filter specified, use all contracts
+        contract_names=("${all_contract_names[@]}")
+        echo -e "${CYAN}   📋 No contract filter specified, verifying all deployed contracts...${NC}"
+    else
+        # Use filtered contracts
+        echo -e "${CYAN}   📋 Contract filter active, verifying only specified contracts...${NC}"
+        echo -e "${CYAN}      Filtered contracts: ${CONTRACTS_TO_VERIFY[*]}${NC}"
+        for contract_name in "${CONTRACTS_TO_VERIFY[@]}"; do
+            # Check if the contract exists in the deployed contracts
+            local found=false
+            for deployed_contract in "${all_contract_names[@]}"; do
+                if [ "$deployed_contract" = "$contract_name" ]; then
+                    contract_names+=("$contract_name")
+                    found=true
+                    break
+                fi
+            done
+            if [ "$found" = false ]; then
+                echo -e "${YELLOW}      ⚠️  Warning: Contract $contract_name not found in deployment, skipping...${NC}"
+            fi
+        done
+    fi
+
+    echo -e "${CYAN}   📋 Verifying ${#contract_names[@]} contracts...${NC}"
+
+    for contract_name in "${contract_names[@]}"; do
+        local contract_address=$(get_contract_address "$chain_id" "$contract_name")
+
+        if [ -z "$contract_address" ] || [ "$contract_address" = "null" ]; then
+            echo -e "${YELLOW}   ⚠️  Skipping $contract_name (address not found)${NC}"
+            continue
+        fi
+
+        local constructor_args=$(generate_constructor_args "$contract_name" "$chain_id")
+        local source_file=$(get_contract_source "$contract_name")
+
+        verify_contract "$chain_id" "$contract_name" "$contract_address" "$constructor_args" "$source_file" "$rpc_url"
+
+        # Rate limit protection: wait between verification requests
+        if [ "$VERIFY_DELAY" -gt 0 ]; then
+            sleep "$VERIFY_DELAY"
+        fi
+    done
+
+    echo -e "${GREEN}✅ Network $network_name verification completed${NC}"
+}
+
+# Main verification loop
+main() {
+    # Get chain IDs from the loaded network configuration or use filter
+    local chains=()
+
+    if [ ${#CHAINS_TO_VERIFY[@]} -eq 0 ]; then
+        # No filter specified, use all chains from network configuration
+        echo -e "${CYAN}📋 No chain filter specified, verifying all configured networks...${NC}"
+        for network_def in "${NETWORKS[@]}"; do
+            IFS=':' read -r network_id _ _ <<< "$network_def"
+            chains+=("$network_id")
+        done
+    else
+        # Use filtered chains
+        echo -e "${CYAN}📋 Chain filter active, verifying only specified chains...${NC}"
+        for chain_id in "${CHAINS_TO_VERIFY[@]}"; do
+            # Verify the chain exists in network configuration
+            local found=false
+            for network_def in "${NETWORKS[@]}"; do
+                IFS=':' read -r network_id _ _ <<< "$network_def"
+                if [ "$network_id" = "$chain_id" ]; then
+                    chains+=("$chain_id")
+                    found=true
+                    break
+                fi
+            done
+            if [ "$found" = false ]; then
+                echo -e "${YELLOW}⚠️  Warning: Chain $chain_id not found in network configuration, skipping...${NC}"
+            fi
+        done
+    fi
+
+    echo -e "${BLUE}🔍 Starting verification for ${#chains[@]} networks in $ENVIRONMENT environment...${NC}"
+    if [ ${#CHAINS_TO_VERIFY[@]} -gt 0 ]; then
+        echo -e "${CYAN}   Filtered chains: ${CHAINS_TO_VERIFY[*]}${NC}"
+    fi
+    if [ ${#CONTRACTS_TO_VERIFY[@]} -gt 0 ]; then
+        echo -e "${CYAN}   Filtered contracts: ${CONTRACTS_TO_VERIFY[*]}${NC}"
+    fi
+    echo ""
+
+    local successful_networks=0
+    local failed_networks=0
+
+    for chain_id in "${chains[@]}"; do
+        if verify_network "$chain_id"; then
+            ((successful_networks++))
+        else
+            ((failed_networks++))
+        fi
+        print_separator
+    done
+
+    echo -e "${BLUE}📊 Verification Summary:${NC}"
+    echo -e "${GREEN}   • Networks verified successfully: $successful_networks${NC}"
+    if [ $failed_networks -gt 0 ]; then
+        echo -e "${RED}   • Networks with verification failures: $failed_networks${NC}"
+    fi
+    echo ""
+
+    if [ $failed_networks -eq 0 ]; then
+        echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${GREEN}║                                                                                      ║${NC}"
+        echo -e "${GREEN}║${WHITE}            🎉 All V2 Core $ENVIRONMENT Contract Verification Completed! 🎉             ${GREEN}║${NC}"
+        echo -e "${GREEN}║                                                                                      ║${NC}"
+        echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    else
+        echo -e "${YELLOW}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${YELLOW}║                                                                                      ║${NC}"
+        echo -e "${YELLOW}║${WHITE}               ⚠️  V2 Core $ENVIRONMENT Verification Completed with Issues ⚠️               ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║                                                                                      ║${NC}"
+        echo -e "${YELLOW}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+        exit 1
+    fi
+}
+
+# Run the main function
+main

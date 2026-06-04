@@ -146,6 +146,7 @@ HOOK_CONTRACTS=(
     "OfframpTokensHook"
     "MarkRootAsUsedHook"
     "MerklClaimRewardHook"
+    "ClaimFailedTransferHook"
     "CircleGatewayWalletHook"
     "CircleGatewayMinterHook"
     "CircleGatewayAddDelegateHook"

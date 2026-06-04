@@ -90,6 +90,22 @@ abstract contract ConfigCore is ConfigBase {
         // HyperEVM has its own EndpointV2 address
         configuration.lzEndpointV2s[HYPEREVM_CHAIN_ID] = LZ_ENDPOINT_V2_HYPEREVM;
 
+        // ===== STARGATE V2 TOKEN MESSAGING ADDRESSES =====
+        configuration.stargateTokenMessagings[MAINNET_CHAIN_ID] = 0x6d6620eFa72948C5f68A3C8646d58C00d3f4A980;
+        configuration.stargateTokenMessagings[BASE_CHAIN_ID] = 0x5634c4a5FEd09819E3c46D86A965Dd9447d86e47;
+        configuration.stargateTokenMessagings[BNB_CHAIN_ID] = 0x6E3d884C96d640526F273C61dfcF08915eBd7e2B;
+        configuration.stargateTokenMessagings[ARBITRUM_CHAIN_ID] = 0x19cFCE47eD54a88614648DC3f19A5980097007dD;
+        configuration.stargateTokenMessagings[OPTIMISM_CHAIN_ID] = 0xF1fCb4CBd57B67d683972A59B6a7b1e2E8Bf27E6;
+        configuration.stargateTokenMessagings[POLYGON_CHAIN_ID] = 0x6CE9bf8CDaB780416AD1fd87b318A077D2f50EaC;
+        configuration.stargateTokenMessagings[AVALANCHE_CHAIN_ID] = 0x17E450Be3Ba9557F2378E20d64AD417E59Ef9A34;
+        configuration.stargateTokenMessagings[LINEA_CHAIN_ID] = 0x5f688F563Dc16590e570f97b542FA87931AF2feD;
+        configuration.stargateTokenMessagings[GNOSIS_CHAIN_ID] = 0xAf368c91793CB22739386DFCbBb2F1A9e4bCBeBf;
+        configuration.stargateTokenMessagings[FLARE_CHAIN_ID] = 0x45d417612e177672958dC0537C45a8f8d754Ac2E;
+        configuration.stargateTokenMessagings[UNICHAIN_CHAIN_ID] = 0xB1EeAD6959cb5bB9B20417d6689922523B2B86C3;
+        configuration.stargateTokenMessagings[BERACHAIN_CHAIN_ID] = 0xAf5191B0De278C7286d6C7CC6ab6BB8A73bA2Cd6;
+        configuration.stargateTokenMessagings[SONIC_CHAIN_ID] = 0x2086f755A6d9254045C257ea3d382ef854849B0f;
+        configuration.stargateTokenMessagings[WORLDCHAIN_CHAIN_ID] = address(0); // Not available yet
+
         // ===== PERMIT2 ADDRESSES =====
         configuration.permit2s[MAINNET_CHAIN_ID] = PERMIT2;
         configuration.permit2s[BASE_CHAIN_ID] = PERMIT2;
