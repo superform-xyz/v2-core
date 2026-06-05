@@ -31,6 +31,7 @@ abstract contract Constants {
     string internal constant SUPER_EXECUTOR_KEY = "SuperExecutor";
     string internal constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
     string internal constant ACROSS_V3_ADAPTER_KEY = "AcrossV3Adapter";
+    string internal constant ACROSS_V3_ADAPTER_V2_KEY = "AcrossV3AdapterV2";
     string internal constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
     string internal constant STARGATE_ADAPTER_KEY = "StargateAdapter";
     string internal constant STARGATE_ADAPTER_V2_KEY = "StargateAdapterV2";
@@ -161,6 +162,10 @@ abstract contract Constants {
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
     string internal constant APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY =
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook";
+    string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY =
+        "AcrossSendFundsAndExecuteOnDstHookV2";
+    string internal constant APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY =
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2";
     string internal constant FLUID_CLAIM_REWARD_HOOK_KEY = "FluidClaimRewardHook";
     string internal constant GEARBOX_CLAIM_REWARD_HOOK_KEY = "GearboxClaimRewardHook";
     string internal constant YEARN_CLAIM_ALL_REWARDS_HOOK_KEY = "YearnClaimAllRewardsHook";

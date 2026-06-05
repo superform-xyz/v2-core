@@ -18,6 +18,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     struct CoreContracts {
         address superExecutor;
         address acrossV3Adapter;
+        address acrossV3AdapterV2;
         address debridgeAdapter;
         address stargateAdapter;
         address stargateAdapterV2;
@@ -105,6 +106,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address approveAndStargateSendHook;
         address stargateSendHookV2;
         address approveAndStargateSendHookV2;
+        address acrossSendFundsAndExecuteOnDstHookV2;
+        address approveAndAcrossSendFundsAndExecuteOnDstHookV2;
         address claimFailedTransferHook;
         address cctpSendHook;
         address approveAndCCTPSendHook;
@@ -243,6 +246,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
     struct ContractAvailability {
         bool acrossV3Adapter;
+        bool acrossV3AdapterV2;
         bool debridgeAdapter;
         bool stargateAdapter;
         bool stargateAdapterV2;
@@ -302,18 +306,20 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Max possible skips: 3 adapters + 31 hooks = 34 skipped contracts; keep a little headroom.
         string[] memory potentialSkips = new string[](37);
         uint256 skipCount = 0;
-        // Adapter contracts (3 contracts - conditionally deployed)
-        string[3] memory adapterContracts = ["AcrossV3Adapter", "DebridgeAdapter", "StargateAdapter"];
+        // Adapter contracts (4 contracts - conditionally deployed)
+        string[4] memory adapterContracts = ["AcrossV3Adapter", "AcrossV3AdapterV2", "DebridgeAdapter", "StargateAdapter"];
 
         // Start with all adapters, then decrement for missing configurations
         uint256 expectedAdapters = adapterContracts.length;
 
-        // AcrossV3Adapter
+        // AcrossV3Adapter + AcrossV3AdapterV2
         if (configuration.acrossSpokePoolV3s[chainId] != address(0)) {
             availability.acrossV3Adapter = true;
+            availability.acrossV3AdapterV2 = true;
         } else {
-            expectedAdapters -= 1; // AcrossV3Adapter
+            expectedAdapters -= 2; // AcrossV3Adapter + AcrossV3AdapterV2
             potentialSkips[skipCount++] = "AcrossV3Adapter";
+            potentialSkips[skipCount++] = "AcrossV3AdapterV2";
         }
 
         // DebridgeAdapter
@@ -340,7 +346,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-        string[70] memory baseHooks = [
+        string[72] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -410,7 +416,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "ApproveAndSwapOdosV3Hook",
             "ClaimFailedTransferHook",
             "SwapUniswapV3Router02Hook",
-            "ApproveAndSwapUniswapV3Router02Hook"
+            "ApproveAndSwapUniswapV3Router02Hook",
+            "AcrossSendFundsAndExecuteOnDstHookV2",
+            "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2"
         ];
 
         // Start with all hooks, then decrement for missing configurations
@@ -418,9 +426,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Hooks that depend on external configurations - decrement if not available
         if (configuration.acrossSpokePoolV3s[chainId] == address(0)) {
-            expectedHooks -= 2; // AcrossSendFundsAndExecuteOnDstHook + ApproveAndAcrossSendFundsAndExecuteOnDstHook
+            expectedHooks -= 4; // V1 + V2 Across hooks
             potentialSkips[skipCount++] = "AcrossSendFundsAndExecuteOnDstHook";
             potentialSkips[skipCount++] = "ApproveAndAcrossSendFundsAndExecuteOnDstHook";
+            potentialSkips[skipCount++] = "AcrossSendFundsAndExecuteOnDstHookV2";
+            potentialSkips[skipCount++] = "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2";
         }
 
         if (configuration.aggregationRouters[chainId] != address(0)) {
@@ -1775,6 +1785,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         status = _getContractStatus(chainId, ACROSS_V3_ADAPTER_KEY);
         if (status.isDeployed) coreContracts.acrossV3Adapter = status.contractAddress;
 
+        status = _getContractStatus(chainId, ACROSS_V3_ADAPTER_V2_KEY);
+        if (status.isDeployed) coreContracts.acrossV3AdapterV2 = status.contractAddress;
+
         status = _getContractStatus(chainId, DEBRIDGE_ADAPTER_KEY);
         if (status.isDeployed) coreContracts.debridgeAdapter = status.contractAddress;
 
@@ -2021,6 +2034,29 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" AcrossV3Adapter deployed and validated");
         } else {
             console2.log(" SKIPPED AcrossV3Adapter deployment: Not available on chain", chainId);
+        }
+
+        // Deploy AcrossV3AdapterV2 (compact 2-field message format)
+        if (availability.acrossV3AdapterV2) {
+            require(configuration.acrossSpokePoolV3s[chainId] != address(0), "ACROSS_ADAPTER_V2_SPOKE_POOL_PARAM_ZERO");
+            require(coreContracts.superDestinationExecutor != address(0), "ACROSS_ADAPTER_V2_DEST_EXECUTOR_PARAM_ZERO");
+
+            coreContracts.acrossV3AdapterV2 = __deployContractIfNeeded(
+                ACROSS_V3_ADAPTER_V2_KEY,
+                chainId,
+                __getSalt(ACROSS_V3_ADAPTER_V2_KEY),
+                abi.encodePacked(
+                    __getBytecode("AcrossV3AdapterV2", env),
+                    abi.encode(configuration.acrossSpokePoolV3s[chainId], coreContracts.superDestinationExecutor)
+                )
+            );
+
+            // Validate AcrossV3AdapterV2 was deployed
+            require(coreContracts.acrossV3AdapterV2 != address(0), "ACROSS_V3_ADAPTER_V2_DEPLOYMENT_FAILED");
+            require(coreContracts.acrossV3AdapterV2.code.length > 0, "ACROSS_V3_ADAPTER_V2_NO_CODE");
+            console2.log(" AcrossV3AdapterV2 deployed and validated");
+        } else {
+            console2.log(" SKIPPED AcrossV3AdapterV2 deployment: Not available on chain", chainId);
         }
 
         // Deploy DebridgeAdapter only if available on this chain
@@ -2614,7 +2650,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 76;
+        uint256 len = 78;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -3153,6 +3189,31 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Withdraw7540VaultHook — no constructor args
         hooks[73] = _createSafeHookDeployment(WITHDRAW_7540_VAULT_HOOK_KEY, "Withdraw7540VaultHook", env);
 
+        // Across Bridge Hooks V2 (compact 2-field message format — paired with AcrossV3AdapterV2)
+        if (availability.acrossV3AdapterV2) {
+            hooks[76] = _createSafeHookDeploymentWithArgs(
+                ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY,
+                "AcrossSendFundsAndExecuteOnDstHookV2",
+                env,
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator)
+            );
+            hooks[77] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY,
+                "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2",
+                env,
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator)
+            );
+        } else {
+            console2.log(
+                " SKIPPED AcrossSendFundsAndExecuteOnDstHookV2 deployment: Not available on chain", chainId
+            );
+            console2.log(
+                " SKIPPED ApproveAndAcrossSendFundsAndExecuteOnDstHookV2 deployment: Not available on chain", chainId
+            );
+            hooks[76] = HookDeployment("", "", ""); // Empty deployment
+            hooks[77] = HookDeployment("", "", ""); // Empty deployment
+        }
+
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying hooks with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
@@ -3253,6 +3314,17 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 hooks[25].name, APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY
             )
             ? addresses[25]
+            : address(0);
+        // Across Bridge hooks V2 (compact 2-field message format)
+        hookAddresses.acrossSendFundsAndExecuteOnDstHookV2 = Strings.equal(
+                hooks[76].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY
+            )
+            ? addresses[76]
+            : address(0);
+        hookAddresses.approveAndAcrossSendFundsAndExecuteOnDstHookV2 = Strings.equal(
+                hooks[77].name, APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY
+            )
+            ? addresses[77]
             : address(0);
         hookAddresses.deBridgeSendOrderAndExecuteOnDstHook =
             Strings.equal(hooks[26].name, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[26] : address(0);
@@ -3424,6 +3496,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             require(
                 hookAddresses.acrossSendFundsAndExecuteOnDstHook != address(0),
                 "ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_NOT_ASSIGNED"
+            );
+        }
+        if (availability.acrossV3AdapterV2) {
+            require(
+                hookAddresses.acrossSendFundsAndExecuteOnDstHookV2 != address(0),
+                "ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_NOT_ASSIGNED"
+            );
+            require(
+                hookAddresses.approveAndAcrossSendFundsAndExecuteOnDstHookV2 != address(0),
+                "APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_NOT_ASSIGNED"
             );
         }
         if (availability.deBridgeSendOrderHook) {

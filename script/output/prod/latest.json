@@ -11,8 +11,11 @@
         "AaveV4SupplyHook": "0xA0b59C9Df3318a8A905540c35a1ea53A82B7E030",
         "AaveV4WithdrawHook": "0xCdD698531DC2B40340Fa918604d9ef890D1F40D7",
         "AcrossSendFundsAndExecuteOnDstHook": "0x39962bE24192d0d6B6e3a19f332e3c825604d16A",
+        "AcrossSendFundsAndExecuteOnDstHookV2": "0xE973a9D41702Eeac865bA5c8139C66De18E57ae8",
         "AcrossV3Adapter": "0x4dC34c4Eb23973F3551526C2AFE8ffb7f70F0fD7",
+        "AcrossV3AdapterV2": "0xBe99080142d797e188B2B0fa8fBACE3f1e1771e5",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0x72422aB917e4a698369767F7AcE667a769E0F3f2",
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0xe1F5b4e555a194e398225a1d7d0Fb4489Ceb78c9",
         "ApproveAndCCTPSendHook": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
         "ApproveAndDeposit4626VaultHook": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
         "ApproveAndDeposit5115VaultHook": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
@@ -128,8 +131,11 @@
       "vnet_id": "",
       "contracts": {
         "AcrossSendFundsAndExecuteOnDstHook": "0xd724315eEebefe346985E028A7382158390cB892",
+        "AcrossSendFundsAndExecuteOnDstHookV2": "0x9E216BBbD6f4306ab906b7ec02E24849FbcD167C",
         "AcrossV3Adapter": "0x59d557E862E11c2Ac55Af11c4E0458f66bAb1BeA",
+        "AcrossV3AdapterV2": "0x6B4598D0Ac5431479f60FAB912253AEE8af9CCCC",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0x2286d45D7dCaE6aabb6B72269Bc07a401C16e481",
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0x1E639A13D852c02Ac7b7C3F06BC14699C0943b06",
         "ApproveAndCCTPSendHook": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
         "ApproveAndDeposit4626VaultHook": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
         "ApproveAndDeposit5115VaultHook": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
@@ -360,8 +366,11 @@
       "vnet_id": "",
       "contracts": {
         "AcrossSendFundsAndExecuteOnDstHook": "0x424d9552825aeE50b0bF34d2Bd8B6f3eEFA46A7f",
+        "AcrossSendFundsAndExecuteOnDstHookV2": "0xDa807C7c74794865197d1d1b47Ad1e2FBa2E8084",
         "AcrossV3Adapter": "0x4858bD9a13EeEc482d440bF1FcAE2100D37AD315",
+        "AcrossV3AdapterV2": "0x7b7F90ccDEd77EedC9e9a3c4ce0f7b5De5091F9E",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0x032eCC92666a9A071F071BCcc07bF5a56E7813f2",
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0x6CD8c63aF50eC521E11cD2323c7389bb4d3813A1",
         "ApproveAndCCTPSendHook": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
         "ApproveAndDeposit4626VaultHook": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
         "ApproveAndDeposit5115VaultHook": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
@@ -474,8 +483,11 @@
       "vnet_id": "",
       "contracts": {
         "AcrossSendFundsAndExecuteOnDstHook": "0x70c371683Cc5aB1eE60Da0aC3C7166E49BFf8336",
+        "AcrossSendFundsAndExecuteOnDstHookV2": "0x9797FE2c4fd71d2FcBF0BD93313145B658d82873",
         "AcrossV3Adapter": "0x946Df68ca1284D02cAe4F634d0f150E7fD88e29D",
+        "AcrossV3AdapterV2": "0xebd374AB0BD2307cb3a59316E3F1C23fA2311da4",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0x1F7d6D1F3Ed94a7cB88612F90421C1a4c1F90800",
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0x09e2114A477c2E20B1354BAd8Dc3d5e244E26ED8",
         "ApproveAndCCTPSendHook": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
         "ApproveAndDeposit4626VaultHook": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
         "ApproveAndDeposit5115VaultHook": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
@@ -579,8 +591,11 @@
       "vnet_id": "",
       "contracts": {
         "AcrossSendFundsAndExecuteOnDstHook": "0xc2FB04Dcd5d2dB4e6d4f67F48604fc554bADa60B",
+        "AcrossSendFundsAndExecuteOnDstHookV2": "0x4fBD52E4A503eBc9aCC7D880C027984fC681288f",
         "AcrossV3Adapter": "0x8D58754A88bD1F1Ccf8dd22860d913e9933463e5",
+        "AcrossV3AdapterV2": "0x9E4B48ea829d45a43dd490F05Ccee0DC1AaaBeBb",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0x5235953F909Aa5A35d534C5ae3037448D1c3BFf9",
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0xe18CFDf90f1f99baDEC76F0c449974BA0eB8CF61",
         "ApproveAndCCTPSendHook": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
         "ApproveAndDeposit4626VaultHook": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
         "ApproveAndDeposit5115VaultHook": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
@@ -681,8 +696,11 @@
       "vnet_id": "",
       "contracts": {
         "AcrossSendFundsAndExecuteOnDstHook": "0xd724315eEebefe346985E028A7382158390cB892",
+        "AcrossSendFundsAndExecuteOnDstHookV2": "0x9E216BBbD6f4306ab906b7ec02E24849FbcD167C",
         "AcrossV3Adapter": "0x59d557E862E11c2Ac55Af11c4E0458f66bAb1BeA",
+        "AcrossV3AdapterV2": "0x6B4598D0Ac5431479f60FAB912253AEE8af9CCCC",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0x2286d45D7dCaE6aabb6B72269Bc07a401C16e481",
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0x1E639A13D852c02Ac7b7C3F06BC14699C0943b06",
         "ApproveAndCCTPSendHook": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
         "ApproveAndDeposit4626VaultHook": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
         "ApproveAndDeposit5115VaultHook": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
@@ -1163,8 +1181,11 @@
       "vnet_id": "",
       "contracts": {
         "AcrossSendFundsAndExecuteOnDstHook": "0xd724315eEebefe346985E028A7382158390cB892",
+        "AcrossSendFundsAndExecuteOnDstHookV2": "0x9E216BBbD6f4306ab906b7ec02E24849FbcD167C",
         "AcrossV3Adapter": "0x59d557E862E11c2Ac55Af11c4E0458f66bAb1BeA",
+        "AcrossV3AdapterV2": "0x6B4598D0Ac5431479f60FAB912253AEE8af9CCCC",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0x2286d45D7dCaE6aabb6B72269Bc07a401C16e481",
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0x1E639A13D852c02Ac7b7C3F06BC14699C0943b06",
         "ApproveAndCCTPSendHook": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
         "ApproveAndDeposit4626VaultHook": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
         "ApproveAndDeposit5115VaultHook": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
@@ -1530,5 +1551,5 @@
       }
     }
   },
-  "updated_at": "2026-06-05T13:03:06Z"
+  "updated_at": "2026-06-05T14:19:09Z"
 }

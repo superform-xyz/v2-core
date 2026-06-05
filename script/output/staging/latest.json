@@ -11,8 +11,11 @@
         "AaveV4SupplyHook": "0x327D94489D894B4854d02DFEc72294D2e4E0701C",
         "AaveV4WithdrawHook": "0xE91c603d32dEd7cE95BC21f36A321cF30dE43463",
         "AcrossSendFundsAndExecuteOnDstHook": "0x913D4b78d8C1c05a0C97AFf832377F82a800cf5A",
+        "AcrossSendFundsAndExecuteOnDstHookV2": "0x732bE847E95172491Fe76D418454c1ebf7213efD",
         "AcrossV3Adapter": "0x0cf03D2D16363E3143e42E3f14d66EE656CA1437",
+        "AcrossV3AdapterV2": "0x94c8eB189B6eD06d86bad1b954B91236dD821B6C",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0x13d20FC6BEb449606D1562654C7d0eF549f76812",
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0x2C059F170741a41C936D26f1Ac06DbdF23C140D9",
         "ApproveAndCCTPSendHook": "0xB7dDF0d4F2665b04068c28eb2c5cDF5eA158eA6C",
         "ApproveAndDeposit4626VaultHook": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4",
         "ApproveAndDeposit5115VaultHook": "0xDc997F44693d865C68d2321E41716Bdc098016ee",
@@ -852,5 +855,5 @@
       }
     }
   },
-  "updated_at": "2026-06-05T13:02:57Z"
+  "updated_at": "2026-06-05T14:19:04Z"
 }
