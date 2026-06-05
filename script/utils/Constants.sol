@@ -33,6 +33,7 @@ abstract contract Constants {
     string internal constant ACROSS_V3_ADAPTER_KEY = "AcrossV3Adapter";
     string internal constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
     string internal constant STARGATE_ADAPTER_KEY = "StargateAdapter";
+    string internal constant STARGATE_ADAPTER_V2_KEY = "StargateAdapterV2";
     string internal constant SUPER_LEDGER_KEY = "SuperLedger";
     string internal constant ERC1155_LEDGER_KEY = "ERC1155Ledger";
     string internal constant FLAT_FEE_LEDGER_KEY = "FlatFeeLedger";
@@ -275,6 +276,8 @@ abstract contract Constants {
     // Stargate Hook Keys
     string internal constant STARGATE_SEND_HOOK_KEY = "StargateSendHook";
     string internal constant APPROVE_AND_STARGATE_SEND_HOOK_KEY = "ApproveAndStargateSendHook";
+    string internal constant STARGATE_SEND_HOOK_V2_KEY = "StargateSendHookV2";
+    string internal constant APPROVE_AND_STARGATE_SEND_HOOK_V2_KEY = "ApproveAndStargateSendHookV2";
     string internal constant CLAIM_FAILED_TRANSFER_HOOK_KEY = "ClaimFailedTransferHook";
 
     // CCTP V2 Hook Keys

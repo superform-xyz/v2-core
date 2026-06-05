@@ -20,6 +20,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address acrossV3Adapter;
         address debridgeAdapter;
         address stargateAdapter;
+        address stargateAdapterV2;
         address superDestinationExecutor;
         address superSenderCreator;
         address superLedger;
@@ -102,6 +103,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address withdrawWithId7540VaultHook;
         address stargateSendHook;
         address approveAndStargateSendHook;
+        address stargateSendHookV2;
+        address approveAndStargateSendHookV2;
         address claimFailedTransferHook;
         address cctpSendHook;
         address approveAndCCTPSendHook;
@@ -242,6 +245,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool acrossV3Adapter;
         bool debridgeAdapter;
         bool stargateAdapter;
+        bool stargateAdapterV2;
         bool deBridgeSendOrderHook;
         bool deBridgeCancelOrderHook;
         bool swap1InchHook;
@@ -326,15 +330,17 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 && configuration.stargateTokenMessagings[chainId] != address(0)
         ) {
             availability.stargateAdapter = true;
+            availability.stargateAdapterV2 = true;
         } else {
             expectedAdapters -= 1; // StargateAdapter
             potentialSkips[skipCount++] = "StargateAdapter";
+            potentialSkips[skipCount++] = "StargateAdapterV2";
         }
 
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-        string[68] memory baseHooks = [
+        string[70] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -396,6 +402,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "ApproveAndSwapUniswapV2Hook",
             "StargateSendHook",
             "ApproveAndStargateSendHook",
+            "StargateSendHookV2",
+            "ApproveAndStargateSendHookV2",
             "CCTPSendHook",
             "ApproveAndCCTPSendHook",
             "SwapOdosV3Hook",
@@ -998,6 +1006,24 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         } else {
             revert("STARGATE_ADAPTER_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
         }
+
+        // StargateAdapterV2 (same dependencies as V1)
+        if (availability.stargateAdapterV2 && superDestExecutor != address(0)) {
+            __checkContract(
+                STARGATE_ADAPTER_V2_KEY,
+                __getSalt(STARGATE_ADAPTER_V2_KEY),
+                abi.encode(
+                    configuration.lzEndpointV2s[chainId],
+                    configuration.stargateTokenMessagings[chainId],
+                    superDestExecutor
+                ),
+                env
+            );
+        } else if (!availability.stargateAdapterV2) {
+            console2.log("SKIPPED StargateAdapterV2: LZ EndpointV2 or TokenMessaging not configured for chain", chainId);
+        } else {
+            revert("STARGATE_ADAPTER_V2_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
+        }
     }
 
     /// @notice Check ledger contracts
@@ -1417,12 +1443,21 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log("SKIPPED DeBridgeCancelOrderHook: DeBridge DLN DST not configured");
         }
 
-        // Stargate bridge hooks
+        // Stargate bridge hooks (V1 + V2)
         if (superValidator != address(0)) {
             __checkContract(STARGATE_SEND_HOOK_KEY, __getSalt(STARGATE_SEND_HOOK_KEY), abi.encode(superValidator), env);
             __checkContract(
                 APPROVE_AND_STARGATE_SEND_HOOK_KEY,
                 __getSalt(APPROVE_AND_STARGATE_SEND_HOOK_KEY),
+                abi.encode(superValidator),
+                env
+            );
+            __checkContract(
+                STARGATE_SEND_HOOK_V2_KEY, __getSalt(STARGATE_SEND_HOOK_V2_KEY), abi.encode(superValidator), env
+            );
+            __checkContract(
+                APPROVE_AND_STARGATE_SEND_HOOK_V2_KEY,
+                __getSalt(APPROVE_AND_STARGATE_SEND_HOOK_V2_KEY),
                 abi.encode(superValidator),
                 env
             );
@@ -1746,6 +1781,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         status = _getContractStatus(chainId, STARGATE_ADAPTER_KEY);
         if (status.isDeployed) coreContracts.stargateAdapter = status.contractAddress;
 
+        status = _getContractStatus(chainId, STARGATE_ADAPTER_V2_KEY);
+        if (status.isDeployed) coreContracts.stargateAdapterV2 = status.contractAddress;
+
         status = _getContractStatus(chainId, SUPER_DESTINATION_EXECUTOR_KEY);
         if (status.isDeployed) coreContracts.superDestinationExecutor = status.contractAddress;
 
@@ -2036,6 +2074,38 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" StargateAdapter deployed and validated");
         } else {
             console2.log(" SKIPPED StargateAdapter deployment: Not available on chain", chainId);
+        }
+
+        // Deploy StargateAdapterV2 (compact 2-field compose format)
+        if (availability.stargateAdapterV2) {
+            require(configuration.lzEndpointV2s[chainId] != address(0), "STARGATE_ADAPTER_V2_LZ_ENDPOINT_PARAM_ZERO");
+            require(
+                configuration.stargateTokenMessagings[chainId] != address(0),
+                "STARGATE_ADAPTER_V2_TOKEN_MESSAGING_PARAM_ZERO"
+            );
+            require(
+                coreContracts.superDestinationExecutor != address(0), "STARGATE_ADAPTER_V2_DEST_EXECUTOR_PARAM_ZERO"
+            );
+
+            coreContracts.stargateAdapterV2 = __deployContractIfNeeded(
+                STARGATE_ADAPTER_V2_KEY,
+                chainId,
+                __getSalt(STARGATE_ADAPTER_V2_KEY),
+                abi.encodePacked(
+                    __getBytecode("StargateAdapterV2", env),
+                    abi.encode(
+                        configuration.lzEndpointV2s[chainId],
+                        configuration.stargateTokenMessagings[chainId],
+                        coreContracts.superDestinationExecutor
+                    )
+                )
+            );
+
+            require(coreContracts.stargateAdapterV2 != address(0), "STARGATE_ADAPTER_V2_DEPLOYMENT_FAILED");
+            require(coreContracts.stargateAdapterV2.code.length > 0, "STARGATE_ADAPTER_V2_NO_CODE");
+            console2.log(" StargateAdapterV2 deployed and validated");
+        } else {
+            console2.log(" SKIPPED StargateAdapterV2 deployment: Not available on chain", chainId);
         }
 
         // ===== LEDGER DEPLOYMENT WITH VALIDATED EXECUTORS =====
@@ -2544,7 +2614,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 74;
+        uint256 len = 76;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -2963,11 +3033,23 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             require(stargateValidator != address(0), "STARGATE_HOOK_VALIDATOR_PARAM_ZERO");
             require(stargateValidator.code.length > 0, "STARGATE_HOOK_VALIDATOR_NOT_DEPLOYED");
 
+            // V1 hooks
             hooks[62] = _createSafeHookDeploymentWithArgs(
                 STARGATE_SEND_HOOK_KEY, "StargateSendHook", env, abi.encode(stargateValidator)
             );
             hooks[63] = _createSafeHookDeploymentWithArgs(
                 APPROVE_AND_STARGATE_SEND_HOOK_KEY, "ApproveAndStargateSendHook", env, abi.encode(stargateValidator)
+            );
+
+            // V2 hooks (compact 2-field compose format — paired with StargateAdapterV2)
+            hooks[74] = _createSafeHookDeploymentWithArgs(
+                STARGATE_SEND_HOOK_V2_KEY, "StargateSendHookV2", env, abi.encode(stargateValidator)
+            );
+            hooks[75] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_STARGATE_SEND_HOOK_V2_KEY,
+                "ApproveAndStargateSendHookV2",
+                env,
+                abi.encode(stargateValidator)
             );
         }
 
@@ -3258,11 +3340,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hookAddresses.withdrawWithId7540VaultHook =
             Strings.equal(hooks[61].name, WITHDRAW_WITH_ID_7540_VAULT_HOOK_KEY) ? addresses[61] : address(0);
 
-        // Stargate Bridge hooks
+        // Stargate Bridge hooks (V1)
         hookAddresses.stargateSendHook =
             Strings.equal(hooks[62].name, STARGATE_SEND_HOOK_KEY) ? addresses[62] : address(0);
         hookAddresses.approveAndStargateSendHook =
             Strings.equal(hooks[63].name, APPROVE_AND_STARGATE_SEND_HOOK_KEY) ? addresses[63] : address(0);
+        // Stargate Bridge hooks (V2 — compact compose format)
+        hookAddresses.stargateSendHookV2 =
+            Strings.equal(hooks[74].name, STARGATE_SEND_HOOK_V2_KEY) ? addresses[74] : address(0);
+        hookAddresses.approveAndStargateSendHookV2 =
+            Strings.equal(hooks[75].name, APPROVE_AND_STARGATE_SEND_HOOK_V2_KEY) ? addresses[75] : address(0);
         hookAddresses.claimFailedTransferHook =
             Strings.equal(hooks[70].name, CLAIM_FAILED_TRANSFER_HOOK_KEY) ? addresses[70] : address(0);
 

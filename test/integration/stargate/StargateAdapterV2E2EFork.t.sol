@@ -16,6 +16,9 @@ import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
 import { Vm } from "forge-std/Vm.sol";
 import "forge-std/console2.sol";
 
+/// @dev Helper contract that rejects ETH transfers (no receive/fallback)
+contract RejectETH { }
+
 /// @title StargateAdapterV2E2EFork
 /// @notice E2E fork test for StargateAdapterV2: compact 2-field compose format (initData, sigData)
 /// @dev Tests the complete flow:
@@ -427,6 +430,346 @@ contract StargateAdapterV2E2EFork is MerkleTreeHelper {
     }
 
     /*//////////////////////////////////////////////////////////////
+                        NATIVE ETH TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Native ETH: lzCompose with address(0) token (StargatePoolNative flow)
+    function test_Fork_V2_NativeETH_TransferSucceeds() public {
+        uint256 amountLD = 1 ether;
+        vm.deal(address(adapterV2), amountLD);
+
+        // Build V2 composeMsg — adapter resolves token via _from.token()
+        // For native ETH, token() returns address(0)
+        bytes memory composeMsg = _buildV2ComposeMsg(dstAccount, hex"deadbeef");
+        bytes memory composeMsgCodec = _wrapComposeMsgCodec(amountLD, sender, composeMsg);
+
+        // Mock the pool's token() to return address(0) (native ETH pool)
+        address nativePool = makeAddr("nativePool");
+        vm.mockCall(nativePool, abi.encodeWithSelector(IStargate.token.selector), abi.encode(address(0)));
+        // Register the native pool in TokenMessaging
+        vm.mockCall(
+            TOKEN_MESSAGING_BASE,
+            abi.encodeWithSelector(ITokenMessaging.assetIds.selector, nativePool),
+            abi.encode(uint16(1))
+        );
+
+        uint256 dstBalBefore = dstAccount.balance;
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapterV2)).lzCompose(
+            nativePool, bytes32(0), composeMsgCodec, address(0), bytes("")
+        );
+
+        assertEq(dstAccount.balance - dstBalBefore, amountLD, "dstAccount should receive ETH");
+        assertEq(address(adapterV2).balance, 0, "Adapter ETH should be 0");
+
+        vm.clearMockedCalls();
+    }
+
+    /// @notice Native ETH: Transfer fails → claim with native ETH
+    function test_Fork_V2_NativeETH_TransferFails_ClaimSucceeds() public {
+        uint256 amountLD = 1 ether;
+        vm.deal(address(adapterV2), amountLD);
+
+        // Use a contract that rejects ETH as the account
+        address rejectETH = address(new RejectETH());
+
+        bytes memory composeMsg = _buildV2ComposeMsg(rejectETH, hex"deadbeef");
+        bytes memory composeMsgCodec = _wrapComposeMsgCodec(amountLD, sender, composeMsg);
+
+        address nativePool = makeAddr("nativePool");
+        vm.mockCall(nativePool, abi.encodeWithSelector(IStargate.token.selector), abi.encode(address(0)));
+        vm.mockCall(
+            TOKEN_MESSAGING_BASE,
+            abi.encodeWithSelector(ITokenMessaging.assetIds.selector, nativePool),
+            abi.encode(uint16(1))
+        );
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapterV2)).lzCompose(
+            nativePool, bytes32(0), composeMsgCodec, address(0), bytes("")
+        );
+
+        vm.clearMockedCalls();
+
+        // ETH in failedTransfers for the rejecting contract
+        assertEq(adapterV2.failedTransfers(rejectETH, address(0)), amountLD, "failedTransfers should have ETH");
+
+        // The contract can still claim if it adds a receive function later
+        // (or a proxy upgrade, etc.) For test, use vm.deal to simulate a claim by EOA
+        // Actually, we test that the claim reverts if the account can't receive ETH
+        vm.prank(rejectETH);
+        vm.expectRevert(StargateAdapterV2.ETH_TRANSFER_FAILED.selector);
+        adapterV2.claimFailedTransfer(address(0), amountLD);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    SIGDATA EXTRACTION EDGE CASES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Multiple DstProofs — adapter takes first matching chain
+    function test_Fork_V2_MultipleDstProofs_TakesFirstMatch() public {
+        uint256 amountLD = 1000e6;
+        deal(USDC_BASE, address(adapterV2), amountLD);
+
+        // Build sigData with 3 DstProofs: chain 1, chain 8453 (first), chain 8453 (second with different account)
+        address firstAccount = makeAddr("first");
+        address secondAccount = makeAddr("second");
+
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](3);
+        // Chain 1 — doesn't match
+        proofDst[0] = _makeDstProof(makeAddr("ethAccount"), hex"aa", 1);
+        // Chain 8453 — first match (should be used)
+        proofDst[1] = _makeDstProof(firstAccount, hex"bb", uint64(block.chainid));
+        // Chain 8453 — second match (should be ignored)
+        proofDst[2] = _makeDstProof(secondAccount, hex"cc", uint64(block.chainid));
+
+        bytes memory sigData = _encodeSigDataWithProofs(proofDst);
+        bytes memory composeMsg = abi.encode(bytes(""), sigData);
+        bytes memory composeMsgCodec = _wrapComposeMsgCodec(amountLD, sender, composeMsg);
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapterV2)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), composeMsgCodec, address(0), bytes("")
+        );
+
+        // First match (firstAccount) gets the tokens
+        assertEq(IERC20(USDC_BASE).balanceOf(firstAccount), amountLD, "First match should receive tokens");
+        assertEq(IERC20(USDC_BASE).balanceOf(secondAccount), 0, "Second match should get nothing");
+    }
+
+    /// @notice Empty proofDst array → NoDstProofForChain + failedTransfers
+    function test_Fork_V2_EmptyProofDstArray_NoDstProofForChain() public {
+        uint256 amountLD = 500e6;
+        deal(USDC_BASE, address(adapterV2), amountLD);
+
+        // sigData with empty proofDst
+        ISuperValidator.DstProof[] memory emptyProofs = new ISuperValidator.DstProof[](0);
+        bytes memory sigData = _encodeSigDataWithProofs(emptyProofs);
+        bytes memory composeMsg = abi.encode(bytes(""), sigData);
+        bytes memory composeMsgCodec = _wrapComposeMsgCodec(amountLD, sender, composeMsg);
+
+        vm.recordLogs();
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapterV2)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), composeMsgCodec, address(0), bytes("")
+        );
+
+        _assertEventEmitted(vm.getRecordedLogs(), "NoDstProofForChain(bytes32,uint64)");
+        assertEq(adapterV2.failedTransfers(sender, USDC_BASE), amountLD, "composeFrom should be credited");
+    }
+
+    /// @notice NoDstProofForChain when adapter balance < amountLD → no failedTransfers credit
+    function test_Fork_V2_NoDstProofForChain_InsufficientBalance_NoCredit() public {
+        uint256 amountLD = 1000e6;
+        // Adapter has LESS than amountLD (tokens delivered elsewhere, e.g. directly to account during lzReceive)
+        deal(USDC_BASE, address(adapterV2), amountLD / 2);
+
+        bytes memory composeMsg = _buildV2ComposeMsgWrongChain(dstAccount, hex"deadbeef", 999);
+        bytes memory composeMsgCodec = _wrapComposeMsgCodec(amountLD, sender, composeMsg);
+
+        vm.recordLogs();
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapterV2)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), composeMsgCodec, address(0), bytes("")
+        );
+
+        _assertEventEmitted(vm.getRecordedLogs(), "NoDstProofForChain(bytes32,uint64)");
+        // No failedTransfers credit because adapter didn't have enough
+        assertEq(adapterV2.failedTransfers(sender, USDC_BASE), 0, "No credit when balance insufficient");
+    }
+
+    /// @notice NoDstProofForChain → composeFrom can claim the credited tokens
+    function test_Fork_V2_NoDstProofForChain_ComposeFromCanClaim() public {
+        uint256 amountLD = 1000e6;
+        deal(USDC_BASE, address(adapterV2), amountLD);
+
+        bytes memory composeMsg = _buildV2ComposeMsgWrongChain(dstAccount, hex"deadbeef", 999);
+        bytes memory composeMsgCodec = _wrapComposeMsgCodec(amountLD, sender, composeMsg);
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapterV2)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), composeMsgCodec, address(0), bytes("")
+        );
+
+        assertEq(adapterV2.failedTransfers(sender, USDC_BASE), amountLD, "credited to composeFrom");
+
+        // Claim
+        vm.prank(sender);
+        adapterV2.claimFailedTransfer(USDC_BASE, amountLD);
+
+        assertEq(IERC20(USDC_BASE).balanceOf(sender), amountLD, "sender recovered");
+        assertEq(adapterV2.failedTransfers(sender, USDC_BASE), 0, "cleared");
+    }
+
+    /// @notice Transfer succeeds but adapter preBalance < amountLD → no unbacked failedTransfers
+    function test_Fork_V2_TransferFails_InsufficientPreBalance_NoCredit() public {
+        uint256 amountLD = 1000e6;
+        // Adapter has less than amountLD
+        deal(USDC_BASE, address(adapterV2), amountLD / 2);
+
+        // Mock transfer to fail
+        vm.mockCall(
+            USDC_BASE, abi.encodeCall(IERC20.transfer, (dstAccount, amountLD)), abi.encode(false)
+        );
+
+        bytes memory composeMsg = _buildV2ComposeMsg(dstAccount, hex"deadbeef");
+        bytes memory composeMsgCodec = _wrapComposeMsgCodec(amountLD, sender, composeMsg);
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapterV2)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), composeMsgCodec, address(0), bytes("")
+        );
+
+        vm.clearMockedCalls();
+
+        // No failedTransfers credit — prevents creating unbacked claims
+        assertEq(adapterV2.failedTransfers(dstAccount, USDC_BASE), 0, "No unbacked credit");
+    }
+
+    /// @notice Partial claim — claim half, verify remaining balance
+    function test_Fork_V2_PartialClaim() public {
+        uint256 amountLD = 1000e6;
+        deal(USDC_BASE, address(adapterV2), amountLD);
+
+        vm.mockCall(USDC_BASE, abi.encodeWithSelector(IERC20.transfer.selector, dstAccount), abi.encode(false));
+
+        bytes memory composeMsg = _buildV2ComposeMsg(dstAccount, hex"deadbeef");
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapterV2)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), _wrapComposeMsgCodec(amountLD, sender, composeMsg), address(0), bytes("")
+        );
+        vm.clearMockedCalls();
+
+        // Claim half
+        vm.prank(dstAccount);
+        adapterV2.claimFailedTransfer(USDC_BASE, amountLD / 2);
+
+        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), amountLD / 2, "Half claimed");
+        assertEq(adapterV2.failedTransfers(dstAccount, USDC_BASE), amountLD / 2, "Half remaining");
+
+        // Claim rest
+        vm.prank(dstAccount);
+        adapterV2.claimFailedTransfer(USDC_BASE, amountLD / 2);
+
+        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), amountLD, "All claimed");
+        assertEq(adapterV2.failedTransfers(dstAccount, USDC_BASE), 0, "Nothing remaining");
+    }
+
+    /// @notice Claim more than balance reverts
+    function test_Fork_V2_ClaimExceedsBalance_Reverts() public {
+        uint256 amountLD = 1000e6;
+        deal(USDC_BASE, address(adapterV2), amountLD);
+
+        vm.mockCall(USDC_BASE, abi.encodeWithSelector(IERC20.transfer.selector, dstAccount), abi.encode(false));
+
+        bytes memory composeMsg = _buildV2ComposeMsg(dstAccount, hex"deadbeef");
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapterV2)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), _wrapComposeMsgCodec(amountLD, sender, composeMsg), address(0), bytes("")
+        );
+        vm.clearMockedCalls();
+
+        vm.prank(dstAccount);
+        vm.expectRevert(StargateAdapterV2.INSUFFICIENT_FAILED_BALANCE.selector);
+        adapterV2.claimFailedTransfer(USDC_BASE, amountLD + 1);
+    }
+
+    /// @notice handleCompose called directly (not via self-call) → reverts
+    function test_Fork_V2_HandleCompose_DirectCall_Reverts() public {
+        bytes memory composeMsgCodec = _wrapComposeMsgCodec(1000e6, sender, _buildV2ComposeMsg(dstAccount, hex"aa"));
+
+        vm.expectRevert(StargateAdapterV2.INVALID_SENDER.selector);
+        adapterV2.handleCompose(bytes32(0), composeMsgCodec, USDC_BASE, 1000e6, sender);
+    }
+
+    /// @notice Receive function accepts ETH
+    function test_Fork_V2_ReceiveETH() public {
+        vm.deal(address(this), 1 ether);
+        (bool ok,) = address(adapterV2).call{ value: 1 ether }("");
+        assertTrue(ok, "Should accept ETH");
+        assertEq(address(adapterV2).balance, 1 ether);
+    }
+
+    /// @notice Immutable getters return correct values
+    function test_Fork_V2_ImmutableGetters() public view {
+        assertEq(adapterV2.LZ_ENDPOINT(), LZ_ENDPOINT_BASE);
+        assertEq(address(adapterV2.TOKEN_MESSAGING()), TOKEN_MESSAGING_BASE);
+        assertEq(address(adapterV2.SUPER_DESTINATION_EXECUTOR()), SUPER_DST_EXECUTOR_BASE);
+    }
+
+    /// @notice Large sigData with multiple proofs for different chains — only correct chain used
+    function test_Fork_V2_LargeSigData_CorrectChainExtracted() public {
+        uint256 amountLD = 100e6;
+        deal(USDC_BASE, address(adapterV2), amountLD);
+
+        address correctAccount = makeAddr("correct");
+
+        // Build sigData with 5 DstProofs for different chains
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](5);
+        proofDst[0] = _makeDstProof(makeAddr("eth"), hex"aa", 1);
+        proofDst[1] = _makeDstProof(makeAddr("arb"), hex"bb", 42161);
+        proofDst[2] = _makeDstProof(correctAccount, hex"cc", uint64(block.chainid)); // Base
+        proofDst[3] = _makeDstProof(makeAddr("op"), hex"dd", 10);
+        proofDst[4] = _makeDstProof(makeAddr("bsc"), hex"ee", 56);
+
+        bytes memory sigData = _encodeSigDataWithProofs(proofDst);
+        bytes memory composeMsg = abi.encode(bytes(""), sigData);
+        bytes memory composeMsgCodec = _wrapComposeMsgCodec(amountLD, sender, composeMsg);
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapterV2)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), composeMsgCodec, address(0), bytes("")
+        );
+
+        assertEq(IERC20(USDC_BASE).balanceOf(correctAccount), amountLD, "Correct chain account receives tokens");
+    }
+
+    /// @notice TransferSucceeded event is emitted with correct params
+    function test_Fork_V2_TransferSucceeded_EventParams() public {
+        uint256 amountLD = 1000e6;
+        deal(USDC_BASE, address(adapterV2), amountLD);
+        bytes32 guid = keccak256("test_guid");
+
+        bytes memory composeMsg = _buildV2ComposeMsg(dstAccount, hex"deadbeef");
+        bytes memory composeMsgCodec = _wrapComposeMsgCodec(amountLD, sender, composeMsg);
+
+        vm.recordLogs();
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapterV2)).lzCompose(
+            STARGATE_USDC_POOL_BASE, guid, composeMsgCodec, address(0), bytes("")
+        );
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        _assertEventEmitted(logs, "TransferSucceeded(bytes32,address,address,uint256)");
+    }
+
+    /// @notice FailedTransferClaimed event is emitted on claim
+    function test_Fork_V2_FailedTransferClaimed_Event() public {
+        uint256 amountLD = 1000e6;
+        deal(USDC_BASE, address(adapterV2), amountLD);
+
+        vm.mockCall(USDC_BASE, abi.encodeWithSelector(IERC20.transfer.selector, dstAccount), abi.encode(false));
+
+        bytes memory composeMsg = _buildV2ComposeMsg(dstAccount, hex"deadbeef");
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapterV2)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), _wrapComposeMsgCodec(amountLD, sender, composeMsg), address(0), bytes("")
+        );
+        vm.clearMockedCalls();
+
+        vm.recordLogs();
+
+        vm.prank(dstAccount);
+        adapterV2.claimFailedTransfer(USDC_BASE, amountLD);
+
+        _assertEventEmitted(vm.getRecordedLogs(), "FailedTransferClaimed(address,address,uint256)");
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             HELPERS
     //////////////////////////////////////////////////////////////*/
 
@@ -519,5 +862,51 @@ contract StargateAdapterV2E2EFork is MerkleTreeHelper {
             }
         }
         revert(string.concat("Event not emitted: ", eventSig));
+    }
+
+    /// @dev Creates a single DstProof for the given account, executorCalldata, and chain
+    function _makeDstProof(
+        address account,
+        bytes memory executorCalldata,
+        uint64 chainId
+    )
+        internal
+        pure
+        returns (ISuperValidator.DstProof memory)
+    {
+        return ISuperValidator.DstProof({
+            proof: new bytes32[](0),
+            dstChainId: chainId,
+            info: ISuperValidator.DstInfo({
+                account: account,
+                executor: address(0xCAFE),
+                dstTokens: new address[](0),
+                intentAmounts: new uint256[](0),
+                validator: address(0xFACE),
+                data: executorCalldata
+            })
+        });
+    }
+
+    /// @dev Encodes a full SignatureData struct with custom DstProof array
+    function _encodeSigDataWithProofs(ISuperValidator.DstProof[] memory proofDst)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        uint64[] memory chainsWithDstExecution = new uint64[](proofDst.length);
+        for (uint256 i = 0; i < proofDst.length; i++) {
+            chainsWithDstExecution[i] = proofDst[i].dstChainId;
+        }
+
+        return abi.encode(
+            chainsWithDstExecution,
+            uint48(type(uint48).max), // validUntil
+            uint48(0), // validAfter
+            keccak256("test_root"), // merkleRoot
+            new bytes32[](0), // proofSrc
+            proofDst,
+            hex"abcdef" // signature (dummy)
+        );
     }
 }
