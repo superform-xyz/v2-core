@@ -157,7 +157,7 @@ contract OpenOceanDynamicAmountValidationTest is Test, OpenOceanAPIParser {
         assertEq(scaledDesc.referrer, OPENOCEAN_DYNAMIC_REFERRER, "referrer changed");
 
         if (address(scaledDesc.srcToken) == FLR) {
-            assertEq(_sumCallValues(scaledCalls), newAmount_, "native call values not scaled");
+            _assertNativeCallValues(originalCalls, scaledCalls, originalAmount_, newAmount_);
         }
         for (uint256 i; i < scaledCalls.length; ++i) {
             assertEq(keccak256(scaledCalls[i].data), keccak256(originalCalls[i].data), "route calldata changed");
@@ -196,6 +196,29 @@ contract OpenOceanDynamicAmountValidationTest is Test, OpenOceanAPIParser {
     function _sumCallValues(IOpenOceanCaller.CallDescription[] memory calls_) private pure returns (uint256 sum) {
         for (uint256 i; i < calls_.length; ++i) {
             sum += calls_[i].value;
+        }
+    }
+
+    function _assertNativeCallValues(
+        IOpenOceanCaller.CallDescription[] memory originalCalls_,
+        IOpenOceanCaller.CallDescription[] memory scaledCalls_,
+        uint256 originalAmount_,
+        uint256 newAmount_
+    )
+        private
+        pure
+    {
+        uint256 originalValueSum = _sumCallValues(originalCalls_);
+        uint256 scaledValueSum = _sumCallValues(scaledCalls_);
+
+        if (originalValueSum == 0) {
+            assertEq(scaledValueSum, 0, "zero-value native route changed call values");
+            for (uint256 i; i < scaledCalls_.length; ++i) {
+                assertEq(scaledCalls_[i].value, originalCalls_[i].value, "native call value changed");
+            }
+        } else {
+            assertEq(originalValueSum, originalAmount_, "native original value sum mismatch");
+            assertEq(scaledValueSum, newAmount_, "native call values not scaled");
         }
     }
 

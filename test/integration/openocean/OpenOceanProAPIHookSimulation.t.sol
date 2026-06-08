@@ -156,7 +156,7 @@ contract OpenOceanProAPIHookSimulationTest is Test, OpenOceanAPIParser {
             _assertScaledDescription(quote_.txData, scaledDesc, executionAmount_, quote_.inAmount);
             assertEq(executions[1].target, OPENOCEAN_ROUTER, "unexpected router target");
             assertEq(executions[1].value, executionAmount_, "native execution value not scaled");
-            assertEq(_sumCallValues(scaledCalls), executionAmount_, "native nested values not scaled");
+            _assertNativeCallValues(originalCalls, scaledCalls, quote_.inAmount, executionAmount_);
             _assertCallDataUnchanged(originalCalls, scaledCalls);
         }
 
@@ -380,6 +380,29 @@ contract OpenOceanProAPIHookSimulationTest is Test, OpenOceanAPIParser {
             assertEq(updatedCalls_[i].target, originalCalls_[i].target, "call target changed");
             assertEq(updatedCalls_[i].gasLimit, originalCalls_[i].gasLimit, "call gas changed");
             assertEq(keccak256(updatedCalls_[i].data), keccak256(originalCalls_[i].data), "route calldata changed");
+        }
+    }
+
+    function _assertNativeCallValues(
+        IOpenOceanCaller.CallDescription[] memory originalCalls_,
+        IOpenOceanCaller.CallDescription[] memory updatedCalls_,
+        uint256 originalAmount_,
+        uint256 executionAmount_
+    )
+        private
+        pure
+    {
+        uint256 originalValueSum = _sumCallValues(originalCalls_);
+        uint256 updatedValueSum = _sumCallValues(updatedCalls_);
+
+        if (originalValueSum == 0) {
+            assertEq(updatedValueSum, 0, "zero-value native route changed call values");
+            for (uint256 i; i < updatedCalls_.length; ++i) {
+                assertEq(updatedCalls_[i].value, originalCalls_[i].value, "native call value changed");
+            }
+        } else {
+            assertEq(originalValueSum, originalAmount_, "native original value sum mismatch");
+            assertEq(updatedValueSum, executionAmount_, "native nested values not scaled");
         }
     }
 

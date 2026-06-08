@@ -81,6 +81,7 @@ library OpenOceanDynamicAmountUpdater {
             }
         }
 
+        if (originalValueSum == 0) return;
         if (originalValueSum != originalAmount_) revert INVALID_CALL_VALUE();
 
         uint256 remainingValue = newAmount_;

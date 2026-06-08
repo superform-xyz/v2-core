@@ -968,3 +968,308 @@ Status: plan appended by `superform-hook-master`; Master Codex should review and
   - every failure in the final Foundry summary was caused by missing RPC environment variables
     (`ETHEREUM_RPC_URL`, `BASE_RPC_URL`, or `FLARE_RPC_URL`) in fork/integration test setup/constructors, not by Solidity
     compilation or the deploy-script merge resolution.
+
+## Test run after OpenOcean referrer set
+- User asked to run the branch-added tests now that the referrer has been set.
+- Branch context:
+  - current branch is `feat/openocean_hook_referrer_support`;
+  - compared against `origin/dev`, added OpenOcean tests are:
+    - `test/integration/openocean/OpenOceanDynamicAmountValidation.t.sol`;
+    - `test/integration/openocean/OpenOceanProAPIHookSimulation.t.sol`;
+  - relevant modified tests also include:
+    - `test/integration/openocean/OpenOceanSparkDexAPIScale.t.sol`;
+    - `test/unit/hooks/swappers/openocean/OpenOceanSparkDexHook.t.sol`.
+- Environment context:
+  - no `.env` file is present;
+  - `OPENOCEAN_PRO_API_KEY` is not exported in the shell, so pro API simulation tests cannot execute live and skip even with `RUN_OPENOCEAN_PRO_HOOK_SIMULATION=true`.
+- Commands/results:
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexHookTest`
+    - Passed: 17 passed, 0 failed, 0 skipped.
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanProAPIHookSimulationTest`
+    - Compiled successfully, but skipped both tests because opt-in/env was disabled.
+  - `RUN_OPENOCEAN_PRO_HOOK_SIMULATION=true FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanProAPIHookSimulationTest -vv`
+    - Skipped both tests because `OPENOCEAN_PRO_API_KEY` is not available.
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexAPIScaleTest -vvv`
+    - Failed: 0 passed, 2 failed.
+    - Both `test_OpenOceanAPI_SparkDexCalldataScalesDown` and `test_OpenOceanAPI_SparkDexCalldataScalesUp` reverted with `INVALID_CALL_VALUE()`.
+  - `RUN_OPENOCEAN_DYNAMIC_VALIDATION=true FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanDynamicAmountValidationTest -vvv`
+    - Failed overall: 2 passed, 2 failed, 0 skipped.
+    - Passed:
+      - `test_OpenOceanDynamicAmount_Erc20Input_ScalesDown`;
+      - `test_OpenOceanDynamicAmount_Erc20Input_ScalesUp`.
+    - Failed:
+      - `test_OpenOceanDynamicAmount_NativeInput_ScalesDown`;
+      - `test_OpenOceanDynamicAmount_NativeInput_ScalesUp`.
+    - Both native failures reverted with `INVALID_CALL_VALUE()` before router execution.
+- Failure diagnosis:
+  - `OpenOceanDynamicAmountUpdater._scaleNativeCallValues` requires the sum of top-level OpenOcean `CallDescription.value`
+    fields to equal the original input amount for native input.
+  - The live native FLR -> SPRK OpenOcean quote now contains the expected referrer
+    `0x0E24b0F342F034446Ec814281AD1a7653cBd85e9`, but the quote shape violates that native call-value invariant.
+  - Live ERC20 WFLR -> SPRK dynamic validation succeeds with the referrer enabled, showing the referrer-side dynamic path works for ERC20 in this test.
+
+## superform-hook-master plan and implementation: OpenOcean zero-value native routes
+- User asked to fix native token handling now that OpenOcean referrer-side scaling is enabled.
+- Per repo instructions, `superform-hook-master` planned the hook-feature change before implementation.
+- Plan summary:
+  - support OpenOcean's live native dynamic quote shape where router `msg.value` and `desc.amount` carry the input amount,
+    while every top-level `CallDescription.value` is zero;
+  - preserve existing legacy behavior for native routes whose top-level call values sum exactly to the original amount;
+  - keep reverting for partial nonzero native call-value sums that do not equal the original amount;
+  - keep ERC20 behavior unchanged.
+- Implementation:
+  - Updated `src/libraries/OpenOceanDynamicAmountUpdater.sol`.
+  - `_scaleNativeCallValues` now returns without mutating calls when the original top-level native call-value sum is zero.
+  - It still scales top-level native call values when their sum equals `originalAmount_`.
+  - It still reverts with `INVALID_CALL_VALUE()` when native call-value sum is nonzero but not equal to `originalAmount_`.
+  - No hook constructors, deployment config, public interfaces, or bytecode/deployment artifacts were changed.
+- Unit test updates:
+  - Added zero-value native route coverage in `test/unit/hooks/swappers/openocean/OpenOceanSparkDexHook.t.sol`.
+  - Added updater coverage proving desc fields scale while all top-level native call target/gas/value/data remain unchanged.
+  - Added swap hook and approve-and-swap hook coverage proving router execution value uses the previous-hook amount while
+    zero-value native OpenOcean calls remain unchanged.
+  - Added `INVALID_CALL_VALUE()` coverage for a partial nonzero native call-value sum.
+- Integration/test assertion updates:
+  - Updated `OpenOceanSparkDexAPIScaleTest`, `OpenOceanDynamicAmountValidationTest`, and
+    `OpenOceanProAPIHookSimulationTest` native assertions to accept both:
+    - zero-value dynamic native route shape with unchanged call values;
+    - legacy exact-sum native route shape with scaled call values.
+- Verification:
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexHookTest`
+    - Passed: 21 passed, 0 failed, 0 skipped.
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexAPIScaleTest -vvv`
+    - Passed: 2 passed, 0 failed, 0 skipped.
+  - `RUN_OPENOCEAN_DYNAMIC_VALIDATION=true FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanDynamicAmountValidationTest -vvv`
+    - Passed: 4 passed, 0 failed, 0 skipped.
+    - Confirms live native FLR -> SPRK scale down/up now executes successfully on a Flare fork.
+    - Confirms live ERC20 WFLR -> SPRK scale down/up still passes.
+  - `RUN_OPENOCEAN_PRO_HOOK_SIMULATION=true FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanProAPIHookSimulationTest -vv`
+    - Compiled successfully but skipped both tests because `OPENOCEAN_PRO_API_KEY` is not exported.
+  - `forge fmt --check` on all touched source/test files passed.
+  - `git diff --check` passed.
+
+## Code review: OpenOcean zero-value native route changes
+- User asked for review of current staged, unstaged, and untracked changes.
+- Worktree had no staged or untracked files; unstaged changes included `.Codex/sessions/context_session_1.md`, `src/libraries/OpenOceanDynamicAmountUpdater.sol`, and OpenOcean unit/integration test updates.
+- Reviewed the active code change in `OpenOceanDynamicAmountUpdater._scaleNativeCallValues`: native OpenOcean routes whose top-level `CallDescription.value` sum is zero now leave those call values untouched while scaled router `msg.value`/`desc.amount` are used by the hooks.
+- Reviewed accompanying test assertions/helpers for zero-value native route shape and partial nonzero native call-value rejection.
+- Ran `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexHookTest`; result: 21 passed, 0 failed, 0 skipped.
+- Review conclusion: no actionable code-review findings identified for the current diff.
+
+## Code review: current OpenOcean zero-value native route changes (repeat)
+- User again asked to review staged, unstaged, and untracked files.
+- Current worktree status: no staged or untracked files; unstaged files remain `.Codex/sessions/context_session_1.md`, `src/libraries/OpenOceanDynamicAmountUpdater.sol`, and OpenOcean unit/integration test updates.
+- Reviewed the one production change in `OpenOceanDynamicAmountUpdater._scaleNativeCallValues`: native routes with zero aggregate top-level `CallDescription.value` now return without mutating those calls, while legacy native routes with value sum equal to the original amount continue to scale and partial nonzero sums still revert.
+- Reviewed updated unit and integration assertions accepting both zero-value dynamic native routes and legacy value-split native routes.
+- Verification run for this review:
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexHookTest` passed: 21 passed, 0 failed, 0 skipped.
+  - `RUN_OPENOCEAN_DYNAMIC_VALIDATION=true FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanDynamicAmountValidationTest -vvv` passed: 4 passed, 0 failed, 0 skipped; live Flare fork/API validation covered native and ERC20 scale down/up.
+  - `git diff --check` passed.
+- Review conclusion: no actionable code-review findings identified for the current uncommitted diff.
+
+## Code simplifier pass: OpenOcean zero-value native route changes
+- User asked to run a code simplifier skill.
+- No `code simplifier` skill is available in the current Codex skill list, so a manual simplification pass was used as fallback.
+- Inspected current OpenOcean diff and looked for removable duplication or clearer helper structure.
+- Main candidate was the duplicated `_assertNativeCallValues` helper across three OpenOcean integration tests.
+- Decided not to centralize it into `OpenOceanAPIParser` because that parser utility does not directly own Foundry assertion behavior; moving assertion helpers there would make the parser heavier and less focused.
+- No code changes were made during this simplification pass.
+- Verification:
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexHookTest` passed: 21 passed, 0 failed, 0 skipped.
+  - `forge fmt --check` on touched OpenOcean files passed.
+  - `git diff --check` passed.
+
+## Branch test run: OpenOcean referrer support
+- User asked to run the tests in the current branch and see if they work.
+- Current branch/status:
+  - branch: `feat/openocean_hook_referrer_support`;
+  - no `.env` file present;
+  - `ETHEREUM_RPC_URL`, `BASE_RPC_URL`, `FLARE_RPC_URL`, and `OPENOCEAN_PRO_API_KEY` are not exported in the shell;
+  - unstaged files remain the OpenOcean updater/tests and this context file.
+- Branch-relevant test commands/results:
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexHookTest`
+    - Passed: 21 passed, 0 failed, 0 skipped.
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexAPIScaleTest -vvv`
+    - Passed: 2 passed, 0 failed, 0 skipped.
+  - `RUN_OPENOCEAN_DYNAMIC_VALIDATION=true FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanDynamicAmountValidationTest -vvv`
+    - Passed: 4 passed, 0 failed, 0 skipped.
+    - Live validation covered native FLR -> SPRK scale down/up and ERC20 WFLR -> SPRK scale down/up.
+  - `RUN_OPENOCEAN_PRO_HOOK_SIMULATION=true FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanProAPIHookSimulationTest -vv`
+    - Completed successfully in disabled mode: 0 passed, 0 failed, 2 skipped.
+    - Both tests skipped because `OPENOCEAN_PRO_API_KEY` is missing.
+- Full default suite:
+  - `forge test`
+    - Compilation succeeded.
+    - Aggregate result: 2648 passed, 84 failed, 7 skipped.
+    - Every reported failure was caused by missing RPC environment variables in fork/integration setup or constructors:
+      `ETHEREUM_RPC_URL`, `BASE_RPC_URL`, or `FLARE_RPC_URL`.
+    - No OpenOcean branch test failed in this full run; `OpenOceanSparkDexAPIScaleTest` passed and
+      `OpenOceanProAPIHookSimulationTest` skipped due to missing pro API key.
+- Conclusion:
+  - The branch-specific deterministic and live dynamic OpenOcean tests work in the current environment.
+  - The full default suite cannot pass until the required RPC environment variables are provided.
+
+## Branch test rerun with 1Password-backed RPC env
+- User asked to rerun because the environment should read from 1Password.
+- Checked local credential tooling:
+  - `op` exists at `/opt/homebrew/bin/op`.
+  - `onepass` and `direnv` are not installed.
+  - The Makefile only reads `op://...` values when `ENVIRONMENT=local`, and it does not export `FLARE_RPC_URL`.
+- Verified, without printing secrets, that these values can be read from 1Password:
+  - `ETHEREUM_RPC_URL`
+  - `BASE_RPC_URL`
+  - `FLARE_RPC_URL`
+  - `OPTIMISM_RPC_URL`
+- `SEPOLIA_RPC_URL` was not found at `op://5ylebqljbh3x6zomdxi3qd7tsa/SEPOLIA_RPC_URL/credential`, but the only Sepolia-referencing suite was skipped in the default run.
+- `OPENOCEAN_PRO_API_KEY` was not found in the expected 1Password item path, and no OpenOcean item title was found via `op item list --vault 5ylebqljbh3x6zomdxi3qd7tsa`.
+- Targeted OpenOcean results:
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexHookTest`
+    - Passed: 21 passed, 0 failed, 0 skipped.
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexAPIScaleTest -vvv`
+    - Passed: 2 passed, 0 failed, 0 skipped.
+  - `FLARE_RPC_URL="$(op read .../FLARE_RPC_URL/credential)" RUN_OPENOCEAN_DYNAMIC_VALIDATION=true FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanDynamicAmountValidationTest -vvv`
+    - Passed: 4 passed, 0 failed, 0 skipped.
+    - Live validation covered native FLR -> SPRK scale down/up and ERC20 WFLR -> SPRK scale down/up.
+  - `RUN_OPENOCEAN_PRO_HOOK_SIMULATION=true FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanProAPIHookSimulationTest -vv`
+    - Compiled and skipped both tests: 0 passed, 0 failed, 2 skipped.
+    - Reason: no `OPENOCEAN_PRO_API_KEY` available.
+- Full default suite command with 1Password RPC env:
+  - `ETHEREUM_RPC_URL="$(op read .../ETHEREUM_RPC_URL/credential)" BASE_RPC_URL="$(op read .../BASE_RPC_URL/credential)" FLARE_RPC_URL="$(op read .../FLARE_RPC_URL/credential)" OPTIMISM_RPC_URL="$(op read .../OPTIMISM_RPC_URL/credential)" ONE_INCH_API_KEY="$(op read .../OneInch/credential 2>/dev/null || true)" forge test`
+  - Aggregate result: 3912 passed, 7 failed, 20 skipped out of 3939 tests.
+  - The previous missing Optimism RPC setup failures were resolved.
+  - OpenOcean suites in the default run passed or skipped as expected:
+    - `OpenOceanSparkDexAPIScaleTest`: 2 passed.
+    - `OpenOceanSparkDexHookTest`: 21 passed.
+    - `OpenOceanDynamicAmountValidationTest`: 4 skipped because `RUN_OPENOCEAN_DYNAMIC_VALIDATION` is not set by default.
+    - `OpenOceanProAPIHookSimulationTest`: 2 skipped because `OPENOCEAN_PRO_API_KEY` is unavailable.
+- Remaining full-suite failures are all live Flare rFLR reward-state checks in `test/integration/flare/FlareRFLRHooksE2E.t.sol:FlareRFLRHooksE2E`:
+  - `test_claimRFLR_buildAndExecute_noFee`: `Should have claimable rewards: 0 <= 0`
+  - `test_claimRFLR_prePostExecute_tracksBalance`: `Should have claimable rewards: 0 <= 0`
+  - `test_claimRFLR_sanity`: `Second holder should have claimable rewards on Kinetic: 0 <= 0`
+  - `test_e2e_claimThenVestedThenWithdrawAll`: `Should have claimed rFLR: 0 <= 0`
+  - `test_e2e_claimThenWithdraw`: `Should have claimable rewards: 0 <= 0`
+  - `test_e2e_claimThenWithdrawVested`: `Should have claimed rFLR: 0 <= 0`
+  - `test_e2e_claimThenWithdraw_withMinOut`: `Should have claimed rFLR: 0 <= 0`
+- Conclusion:
+  - Rerunning with 1Password-backed RPC variables improves the full suite from env setup failures to only 7 live Flare rFLR reward-state failures.
+  - The OpenOcean branch-relevant tests pass; the pro API simulation remains skipped because the pro API key is not available in the searched 1Password paths.
+
+## Review: diff from dev for OpenOcean branch
+- User asked to check the diff from `dev` and focus on branch changes and tests.
+- Compared using merge-base diff (`dev...HEAD`) and also checked the current unstaged working tree.
+- Current branch: `feat/openocean_hook_referrer_support`.
+- Branch commit count over `dev`: one commit, `f4cd90ab feat: support openocean routes outside sparkdex`.
+- Merge-base diff from `dev` changes 17 files:
+  - Adds `.Codex/sessions/context_session_1.md`.
+  - Changes deployment/config wiring from OpenOcean caller to OpenOcean referrer.
+  - Changes both OpenOcean hooks to store/use `OPENOCEAN_REFERRER` instead of `OPENOCEAN_CALLER`.
+  - Deletes `src/libraries/OpenOceanSparkDexScaler.sol`.
+  - Adds `src/libraries/OpenOceanDynamicAmountUpdater.sol`.
+  - Adds/updates OpenOcean unit and live integration tests.
+  - Updates OpenOcean API parser helpers.
+- Current unstaged working tree also has OpenOcean-related test/updater changes plus this context file:
+  - `src/libraries/OpenOceanDynamicAmountUpdater.sol`
+  - `test/integration/openocean/OpenOceanDynamicAmountValidation.t.sol`
+  - `test/integration/openocean/OpenOceanProAPIHookSimulation.t.sol`
+  - `test/integration/openocean/OpenOceanSparkDexAPIScale.t.sol`
+  - `test/unit/hooks/swappers/openocean/OpenOceanSparkDexHook.t.sol`
+  - `.Codex/sessions/context_session_1.md`
+- Main production behavior changes reviewed:
+  - New updater validates top-level `swap` selector, exact `desc.referrer`, and partial-fill rejection.
+  - New updater no longer validates a fixed OpenOcean caller.
+  - New updater patches `desc.amount`, `desc.minReturnAmount`, and `desc.guaranteedAmount`.
+  - ERC20 routes keep all call values at zero and leave route calldata untouched.
+  - Native routes leave zero-value call routes untouched; legacy nonzero call-value routes are scaled if value sum equals original amount.
+  - Hooks derive router `msg.value` from decoded native input and execution amount.
+- Finding:
+  - Deployment/generated/locked bytecode artifacts for `SwapOpenOceanSparkDexHook` and `ApproveAndSwapOpenOceanSparkDexHook` are stale.
+  - Current compiled source exposes `OPENOCEAN_REFERRER()` and `INVALID_OPENOCEAN_REFERRER()`.
+  - `script/generated-bytecode`, `script/locked-bytecode`, and `script/locked-bytecode-dev` still expose `OPENOCEAN_CALLER()` and `INVALID_OPENOCEAN_CALLER()`.
+  - `DeployV2Core` now passes the referrer address as the second constructor arg, while `DeployV2Base` deploys from locked bytecode artifacts.
+  - If deployed as-is via locked artifacts, the old scaler bytecode would treat the referrer address as the expected caller and reject real OpenOcean quotes whose caller is not the referrer.
+  - Action needed before deployment/PR finalization: regenerate and lock bytecode artifacts for both OpenOcean hooks after the source change, or intentionally exclude deployment artifact updates if this branch is source/test-only.
+- Test coverage reviewed:
+  - Unit test coverage is strong for referrer validation, caller drift, partial-fill rejection, ERC20 unknown selectors, native/erc20 `usePrevHookAmount`, zero-value native route shape, legacy nonzero native call values, approval reset, and out-amount accounting.
+  - Live dynamic validation covers Flare native FLR -> SPRK and ERC20 WFLR -> SPRK scale down/up.
+  - Pro API hook simulation tests would cover hook lifecycle with returned live txData, but remain skipped locally because `OPENOCEAN_PRO_API_KEY` is unavailable.
+- Verification during review:
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexHookTest`
+    - Passed: 21 passed, 0 failed, 0 skipped.
+  - Previous targeted runs in this session:
+    - `OpenOceanSparkDexAPIScaleTest`: 2 passed.
+    - `OpenOceanDynamicAmountValidationTest` with enable flag: 4 passed.
+    - `OpenOceanProAPIHookSimulationTest` with enable flag but no API key: 2 skipped.
+  - Previous full suite with 1Password RPC env: 3912 passed, 7 failed, 20 skipped; remaining failures are Flare rFLR reward-state failures unrelated to OpenOcean.
+
+## OpenOcean hook inventory
+- User asked whether the repo contains both OpenOcean SparkDex hooks and a general OpenOcean hook.
+- Searched production hook/source paths for OpenOcean names.
+- Current production hooks are only:
+  - `src/hooks/swappers/openocean/SwapOpenOceanSparkDexHook.sol`
+  - `src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol`
+- There is no separately named generic production hook such as `SwapOpenOceanHook` or `ApproveAndSwapOpenOceanHook`.
+- This branch generalizes behavior inside the existing SparkDex-named hooks by using `src/libraries/OpenOceanDynamicAmountUpdater.sol`.
+- Test/helper files contain generic OpenOcean naming (`OpenOceanDynamicAmountValidation`, `OpenOceanProAPIHookSimulation`, `OpenOceanAPIParser`), but those are not production hooks.
+
+## Tests in branch that are not in dev
+- User asked for tests written in this branch that are not present in `dev`.
+- Compared test functions in current working tree against `dev`.
+- New test files added by the branch:
+  - `test/integration/openocean/OpenOceanDynamicAmountValidation.t.sol`
+  - `test/integration/openocean/OpenOceanProAPIHookSimulation.t.sol`
+- New test functions in committed branch diff (`dev...HEAD`):
+  - `OpenOceanDynamicAmountValidationTest.test_OpenOceanDynamicAmount_NativeInput_ScalesDown`
+  - `OpenOceanDynamicAmountValidationTest.test_OpenOceanDynamicAmount_NativeInput_ScalesUp`
+  - `OpenOceanDynamicAmountValidationTest.test_OpenOceanDynamicAmount_Erc20Input_ScalesDown`
+  - `OpenOceanDynamicAmountValidationTest.test_OpenOceanDynamicAmount_Erc20Input_ScalesUp`
+  - `OpenOceanProAPIHookSimulationTest.test_OpenOceanProAPI_SimulatesNativeSwapHookWithReturnedTxData`
+  - `OpenOceanProAPIHookSimulationTest.test_OpenOceanProAPI_SimulatesApproveAndSwapHookWithReturnedTxData`
+  - `OpenOceanSparkDexHookTest.test_Updater_ScalesDescFieldsAndLeavesErc20CallsUntouched`
+  - `OpenOceanSparkDexHookTest.test_Updater_ScalesNativeValuesAndLeavesNativeCallDataUntouched`
+  - `OpenOceanSparkDexHookTest.test_Updater_AllowsCallerDriftWhenReferrerMatches`
+  - `OpenOceanSparkDexHookTest.test_RevertWhenReferrerDoesNotMatch`
+  - `OpenOceanSparkDexHookTest.test_Updater_AllowsUnknownErc20RouteSelectors`
+- Additional new test functions currently unstaged in the working tree:
+  - `OpenOceanSparkDexHookTest.test_Updater_LeavesZeroValueNativeCallsUntouched`
+  - `OpenOceanSparkDexHookTest.test_SwapHook_UsesPrevAmountWithZeroValueNativeCalls`
+  - `OpenOceanSparkDexHookTest.test_ApproveAndSwapHook_UsesPrevAmountWithZeroValueNativeCalls`
+  - `OpenOceanSparkDexHookTest.test_RevertWhenNativeCallValueSumIsPartial`
+- Existing tests modified, not new by name:
+  - `OpenOceanSparkDexAPIScaleTest.test_OpenOceanAPI_SparkDexCalldataScalesUp`
+  - `OpenOceanSparkDexAPIScaleTest.test_OpenOceanAPI_SparkDexCalldataScalesDown`
+  - Several existing `OpenOceanSparkDexHookTest` hook behavior tests now assert dynamic updater/referrer behavior instead of selector-aware SparkDex scaler behavior.
+
+## Run branch-added OpenOcean tests
+- User asked to run all tests listed as added/changed by this branch.
+- Commands/results:
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexHookTest`
+    - Passed: 21 passed, 0 failed, 0 skipped.
+    - Covers all new unit tests from the committed branch and the additional unstaged zero-value native/partial call-value tests.
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexAPIScaleTest -vvv`
+    - Passed: 2 passed, 0 failed, 0 skipped.
+    - These tests existed on `dev` but are modified in this branch to validate the dynamic updater/referrer behavior.
+  - `RUN_OPENOCEAN_DYNAMIC_VALIDATION=true FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanDynamicAmountValidationTest -vvv`
+    - Passed: 4 passed, 0 failed, 0 skipped.
+    - Live validation covered native and ERC20 scale down/up.
+  - `RUN_OPENOCEAN_PRO_HOOK_SIMULATION=true FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanProAPIHookSimulationTest -vv`
+    - Compiled and skipped both tests: 0 passed, 0 failed, 2 skipped.
+    - Reason: `OPENOCEAN_PRO_API_KEY` is unavailable.
+- Aggregate for these branch-relevant commands:
+  - 27 passed, 0 failed, 2 skipped.
+
+## Commit and push request
+- User asked to commit and push everything currently in the working tree.
+- Current branch before commit: `feat/openocean_hook_referrer_support`.
+- Current tracked modifications to include:
+  - `.Codex/sessions/context_session_1.md`
+  - `src/libraries/OpenOceanDynamicAmountUpdater.sol`
+  - `test/integration/openocean/OpenOceanDynamicAmountValidation.t.sol`
+  - `test/integration/openocean/OpenOceanProAPIHookSimulation.t.sol`
+  - `test/integration/openocean/OpenOceanSparkDexAPIScale.t.sol`
+  - `test/unit/hooks/swappers/openocean/OpenOceanSparkDexHook.t.sol`
+- Pre-commit `git diff --check` passed.
+- Latest branch-relevant verification before commit:
+  - `OpenOceanSparkDexHookTest`: 21 passed.
+  - `OpenOceanSparkDexAPIScaleTest`: 2 passed.
+  - `OpenOceanDynamicAmountValidationTest`: 4 passed.
+  - `OpenOceanProAPIHookSimulationTest`: 2 skipped because `OPENOCEAN_PRO_API_KEY` is unavailable.

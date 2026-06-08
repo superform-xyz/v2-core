@@ -61,8 +61,7 @@ contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
             IOpenOceanCaller originalCaller,
             IOpenOceanExchange.SwapDescription memory originalDesc,
             IOpenOceanCaller.CallDescription[] memory originalCalls
-        ) =
-            _decodeSwap(quote_.txData);
+        ) = _decodeSwap(quote_.txData);
         (
             IOpenOceanCaller updatedCaller,
             IOpenOceanExchange.SwapDescription memory updatedDesc,
@@ -86,7 +85,7 @@ contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
             updatedDesc.guaranteedAmount,
             HookDataUpdater.getUpdatedOutputAmount(newAmount_, quote_.inAmount, originalDesc.guaranteedAmount)
         );
-        assertEq(_sumCallValues(updatedCalls), newAmount_);
+        _assertNativeCallValues(originalCalls, updatedCalls, quote_.inAmount, newAmount_);
         _assertCallDataUnchanged(originalCalls, updatedCalls);
     }
 
@@ -127,6 +126,29 @@ contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
             assertEq(updatedCalls_[i].target, originalCalls_[i].target);
             assertEq(updatedCalls_[i].gasLimit, originalCalls_[i].gasLimit);
             assertEq(keccak256(updatedCalls_[i].data), keccak256(originalCalls_[i].data));
+        }
+    }
+
+    function _assertNativeCallValues(
+        IOpenOceanCaller.CallDescription[] memory originalCalls_,
+        IOpenOceanCaller.CallDescription[] memory updatedCalls_,
+        uint256 originalAmount_,
+        uint256 newAmount_
+    )
+        internal
+        pure
+    {
+        uint256 originalValueSum = _sumCallValues(originalCalls_);
+        uint256 updatedValueSum = _sumCallValues(updatedCalls_);
+
+        if (originalValueSum == 0) {
+            assertEq(updatedValueSum, 0);
+            for (uint256 i; i < updatedCalls_.length; ++i) {
+                assertEq(updatedCalls_[i].value, originalCalls_[i].value);
+            }
+        } else {
+            assertEq(originalValueSum, originalAmount_);
+            assertEq(updatedValueSum, newAmount_);
         }
     }
 }

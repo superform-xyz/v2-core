@@ -143,6 +143,22 @@ contract OpenOceanSparkDexHookTest is Test {
         _assertCallDataUnchanged(originalCalls, calls);
     }
 
+    function test_Updater_LeavesZeroValueNativeCallsUntouched() public {
+        bytes memory txData = _buildNativeZeroValueTxData(1000, 900, 950);
+        (,, IOpenOceanCaller.CallDescription[] memory originalCalls) = _decodeSwap(txData);
+
+        bytes memory updated = harness.updateTxDataAmounts(txData, referrer, 2000, 1000);
+        (, IOpenOceanExchange.SwapDescription memory desc, IOpenOceanCaller.CallDescription[] memory calls) =
+            _decodeSwap(updated);
+
+        assertEq(address(desc.srcToken), address(0));
+        assertEq(desc.amount, 2000);
+        assertEq(desc.minReturnAmount, 1800);
+        assertEq(desc.guaranteedAmount, 1900);
+        assertEq(_sumCallValues(calls), 0);
+        _assertCallsUnchanged(originalCalls, calls);
+    }
+
     function test_SwapHook_UsesPrevAmountAndScalesCallData() public {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
         (,, IOpenOceanCaller.CallDescription[] memory originalCalls) = _decodeSwap(txData);
@@ -183,6 +199,25 @@ contract OpenOceanSparkDexHookTest is Test {
         assertEq(calls[0].value, 399);
         assertEq(calls[2].value, 1601);
         _assertCallDataUnchanged(originalCalls, calls);
+    }
+
+    function test_SwapHook_UsesPrevAmountWithZeroValueNativeCalls() public {
+        bytes memory txData = _buildNativeZeroValueTxData(1000, 900, 950);
+        (,, IOpenOceanCaller.CallDescription[] memory originalCalls) = _decodeSwap(txData);
+        bytes memory data = _swapHookData(outputToken, 1000, 1000, 900, true, txData);
+
+        prevHook.setOutAmount(2000, account);
+
+        Execution[] memory executions = swapHook.build(address(prevHook), account, data);
+        (, IOpenOceanExchange.SwapDescription memory desc, IOpenOceanCaller.CallDescription[] memory calls) =
+            _decodeSwap(executions[1].callData);
+
+        assertEq(executions[1].value, 2000);
+        assertEq(desc.amount, 2000);
+        assertEq(desc.minReturnAmount, 1800);
+        assertEq(desc.guaranteedAmount, 1900);
+        assertEq(_sumCallValues(calls), 0);
+        _assertCallsUnchanged(originalCalls, calls);
     }
 
     function test_SwapHook_DerivesNativeValueFromInputAmount() public view {
@@ -297,6 +332,25 @@ contract OpenOceanSparkDexHookTest is Test {
         _assertCallDataUnchanged(originalCalls, calls);
     }
 
+    function test_ApproveAndSwapHook_UsesPrevAmountWithZeroValueNativeCalls() public {
+        bytes memory txData = _buildNativeZeroValueTxData(1000, 900, 950);
+        (,, IOpenOceanCaller.CallDescription[] memory originalCalls) = _decodeSwap(txData);
+        bytes memory data = _approveAndSwapHookData(address(0), outputToken, 1000, 900, true, txData);
+
+        prevHook.setOutAmount(2000, account);
+
+        Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
+        (, IOpenOceanExchange.SwapDescription memory desc, IOpenOceanCaller.CallDescription[] memory calls) =
+            _decodeSwap(executions[1].callData);
+
+        assertEq(executions[1].value, 2000);
+        assertEq(desc.amount, 2000);
+        assertEq(desc.minReturnAmount, 1800);
+        assertEq(desc.guaranteedAmount, 1900);
+        assertEq(_sumCallValues(calls), 0);
+        _assertCallsUnchanged(originalCalls, calls);
+    }
+
     function test_ApproveAndSwapHook_UsesPrevAmountAndExecutesNativeSwap() public {
         bytes memory txData = _buildNativeSplitTxData(1001, 900, 950);
         bytes memory data = _approveAndSwapHookData(address(0), outputToken, 1001, 900, true, txData);
@@ -343,6 +397,16 @@ contract OpenOceanSparkDexHookTest is Test {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 1);
 
         vm.expectRevert(OpenOceanDynamicAmountUpdater.PARTIAL_FILL_NOT_ALLOWED.selector);
+        harness.updateTxDataAmounts(txData, referrer, 2000, 1000);
+    }
+
+    function test_RevertWhenNativeCallValueSumIsPartial() public {
+        IOpenOceanCaller.CallDescription[] memory calls = new IOpenOceanCaller.CallDescription[](2);
+        calls[0] = _call(uint256(uint160(inputToken)), 100, abi.encodePacked(DEPOSIT_SELECTOR));
+        calls[1] = _call(0, 0, _uniswapCallData(inputToken, outputToken, 100));
+        bytes memory txData = _buildTxData(caller, address(0), outputToken, 1000, 900, 950, 0, calls);
+
+        vm.expectRevert(OpenOceanDynamicAmountUpdater.INVALID_CALL_VALUE.selector);
         harness.updateTxDataAmounts(txData, referrer, 2000, 1000);
     }
 
@@ -436,6 +500,38 @@ contract OpenOceanSparkDexHookTest is Test {
             0,
             0,
             _singleDistributionCall(outputToken, abi.encodePacked(WITHDRAW_SELECTOR, abi.encode(uint256(1))), 0x04)
+        );
+
+        return _buildTxData(caller, address(0), outputToken, amount_, minReturnAmount_, guaranteedAmount_, 0, calls);
+    }
+
+    function _buildNativeZeroValueTxData(
+        uint256 amount_,
+        uint256 minReturnAmount_,
+        uint256 guaranteedAmount_
+    )
+        private
+        view
+        returns (bytes memory)
+    {
+        IOpenOceanCaller.CallDescription[] memory calls = new IOpenOceanCaller.CallDescription[](4);
+        calls[0] = _call(0, 0, _singleDistributionCall(inputToken, abi.encodePacked(DEPOSIT_SELECTOR), 0x44));
+        calls[1] = _call(0, 0, _uniswapCallData(inputToken, outputToken, amount_));
+        calls[2] = _call(
+            0,
+            0,
+            abi.encodePacked(
+                COLLECT_SLIPPAGE_SELECTOR, abi.encode(outputToken, address(0xBEEF), COLLECT_SLIPPAGE_HIGH_BITS | 1100)
+            )
+        );
+        calls[3] = _call(
+            0,
+            0,
+            _singleDistributionCall(
+                outputToken,
+                abi.encodePacked(SAFE_TRANSFER_SELECTOR, abi.encode(outputToken, account, uint256(1))),
+                0x44
+            )
         );
 
         return _buildTxData(caller, address(0), outputToken, amount_, minReturnAmount_, guaranteedAmount_, 0, calls);
