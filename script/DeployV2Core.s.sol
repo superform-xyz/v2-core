@@ -333,11 +333,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-<<<<<<< HEAD
-        string[65] memory baseHooks = [
-=======
-        string[66] memory baseHooks = [
->>>>>>> 5eecd2831eee048ae9cecc7de114fec91d5513d9
+        string[67] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -402,12 +398,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "ApproveAndCCTPSendHook",
             "SwapOdosV3Hook",
             "ApproveAndSwapOdosV3Hook",
-<<<<<<< HEAD
-            "ClaimFailedTransferHook"
-=======
             "SwapUniswapV3Router02Hook",
-            "ApproveAndSwapUniswapV3Router02Hook"
->>>>>>> 5eecd2831eee048ae9cecc7de114fec91d5513d9
+            "ApproveAndSwapUniswapV3Router02Hook",
+            "ClaimFailedTransferHook"
         ];
 
         // Start with all hooks, then decrement for missing configurations
@@ -514,7 +507,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         if (
             configuration.openOceanRouters[chainId] != address(0)
-                && configuration.openOceanCallers[chainId] != address(0)
+                && configuration.openOceanReferrers[chainId] != address(0)
         ) {
             availability.swapOpenOceanSparkDexHooks = true;
         } else {
@@ -1241,7 +1234,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 __getSalt(SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY),
                 abi.encode(
                     configuration.openOceanRouters[chainId],
-                    configuration.openOceanCallers[chainId],
+                    configuration.openOceanReferrers[chainId],
                     configuration.nativeTokens[chainId]
                 ),
                 env
@@ -1251,7 +1244,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 __getSalt(APPROVE_AND_SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY),
                 abi.encode(
                     configuration.openOceanRouters[chainId],
-                    configuration.openOceanCallers[chainId],
+                    configuration.openOceanReferrers[chainId],
                     configuration.nativeTokens[chainId]
                 ),
                 env
@@ -1851,10 +1844,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         if (availability.swapOpenOceanSparkDexHooks) {
             require(configuration.openOceanRouters[chainId] != address(0), "OPENOCEAN_ROUTER_ADDRESS_ZERO");
             require(configuration.openOceanRouters[chainId].code.length > 0, "OPENOCEAN_ROUTER_NOT_DEPLOYED");
-            require(configuration.openOceanCallers[chainId] != address(0), "OPENOCEAN_CALLER_ADDRESS_ZERO");
-            require(configuration.openOceanCallers[chainId].code.length > 0, "OPENOCEAN_CALLER_NOT_DEPLOYED");
+            require(configuration.openOceanReferrers[chainId] != address(0), "OPENOCEAN_REFERRER_ADDRESS_ZERO");
             console2.log(" OpenOcean Router:", configuration.openOceanRouters[chainId]);
-            console2.log(" OpenOcean Caller:", configuration.openOceanCallers[chainId]);
+            console2.log(" OpenOcean Referrer:", configuration.openOceanReferrers[chainId]);
         } else {
             console2.log(" SKIPPED OpenOcean SparkDexV4 validation: Not available on chain", chainId);
         }
@@ -2549,11 +2541,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-<<<<<<< HEAD
-        uint256 len = 71;
-=======
-        uint256 len = 72;
->>>>>>> 5eecd2831eee048ae9cecc7de114fec91d5513d9
+        uint256 len = 73;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -2981,7 +2969,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         // ClaimFailedTransferHook — no constructor args
-        hooks[70] = _createSafeHookDeployment(CLAIM_FAILED_TRANSFER_HOOK_KEY, "ClaimFailedTransferHook", env);
+        hooks[72] = _createSafeHookDeployment(CLAIM_FAILED_TRANSFER_HOOK_KEY, "ClaimFailedTransferHook", env);
 
         // CCTP V2 Bridge hooks (same TokenMessengerV2 address on all chains via CREATE2)
         {
@@ -3023,15 +3011,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         if (availability.swapOpenOceanSparkDexHooks) {
             require(configuration.openOceanRouters[chainId] != address(0), "OPENOCEAN_HOOK_ROUTER_PARAM_ZERO");
             require(configuration.openOceanRouters[chainId].code.length > 0, "OPENOCEAN_HOOK_ROUTER_NOT_DEPLOYED");
-            require(configuration.openOceanCallers[chainId] != address(0), "OPENOCEAN_HOOK_CALLER_PARAM_ZERO");
-            require(configuration.openOceanCallers[chainId].code.length > 0, "OPENOCEAN_HOOK_CALLER_NOT_DEPLOYED");
+            require(configuration.openOceanReferrers[chainId] != address(0), "OPENOCEAN_HOOK_REFERRER_PARAM_ZERO");
             hooks[68] = _createSafeHookDeploymentWithArgs(
                 SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY,
                 "SwapOpenOceanSparkDexHook",
                 env,
                 abi.encode(
                     configuration.openOceanRouters[chainId],
-                    configuration.openOceanCallers[chainId],
+                    configuration.openOceanReferrers[chainId],
                     configuration.nativeTokens[chainId]
                 )
             );
@@ -3041,7 +3028,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 env,
                 abi.encode(
                     configuration.openOceanRouters[chainId],
-                    configuration.openOceanCallers[chainId],
+                    configuration.openOceanReferrers[chainId],
                     configuration.nativeTokens[chainId]
                 )
             );
@@ -3270,7 +3257,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hookAddresses.approveAndStargateSendHook =
             Strings.equal(hooks[63].name, APPROVE_AND_STARGATE_SEND_HOOK_KEY) ? addresses[63] : address(0);
         hookAddresses.claimFailedTransferHook =
-            Strings.equal(hooks[70].name, CLAIM_FAILED_TRANSFER_HOOK_KEY) ? addresses[70] : address(0);
+            Strings.equal(hooks[72].name, CLAIM_FAILED_TRANSFER_HOOK_KEY) ? addresses[72] : address(0);
 
         // CCTP V2 Bridge hooks
         hookAddresses.cctpSendHook = Strings.equal(hooks[64].name, CCTP_SEND_HOOK_KEY) ? addresses[64] : address(0);

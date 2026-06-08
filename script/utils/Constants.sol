@@ -121,7 +121,7 @@ abstract contract Constants {
 
     // OpenOcean V4 SparkDexV4 routing on Flare
     address internal constant OPENOCEAN_ROUTER = 0x6352a56caadC4F1E25CD6c75970Fa768A3304e64;
-    address internal constant OPENOCEAN_CALLER_FLARE = 0x6dd434082EAB5Cd134B33719ec1FF05fE985B97b;
+    address internal constant OPENOCEAN_REFERRER_FLARE = 0x0E24b0F342F034446Ec814281AD1a7653cBd85e9;
 
     // Pendle Router addresses per chain
     address internal constant PENDLE_ROUTER_MAINNET = 0x888888888889758F76e7103c6CbF23ABbF58F946;

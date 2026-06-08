@@ -12,6 +12,7 @@ import { BaseAPIParser } from "./BaseAPIParser.sol";
 /// @notice Helper for calling the OpenOcean V4 swap API from Solidity tests via Surl.
 abstract contract OpenOceanAPIParser is StdUtils, BaseAPIParser {
     using Surl for *;
+    using Strings for uint256;
     using Strings for address;
     using strings for *;
 
@@ -54,6 +55,98 @@ abstract contract OpenOceanAPIParser is StdUtils, BaseAPIParser {
         if (status != 200) revert("OpenOceanAPIParser: swap call failed");
 
         string memory json = string(data);
+        response.txData = fromHex(_extractQuotedString(json, '"data":"'));
+        response.to = _parseAddress(_extractQuotedString(json, '"to":"'));
+        response.value = _stringToUint(_extractQuotedString(json, '"value":"'));
+        response.inAmount = _stringToUint(_extractQuotedString(json, '"inAmount":"'));
+        response.minOutAmount = _stringToUint(_extractQuotedString(json, '"minOutAmount":"'));
+    }
+
+    function surlCallOpenOceanDynamicSwap(
+        address tokenIn_,
+        address tokenOut_,
+        string memory amountDecimals_,
+        address account_,
+        address referrer_,
+        string memory slippage_
+    )
+        internal
+        returns (OpenOceanSwapResponse memory response)
+    {
+        string memory url = string.concat(
+            OPENOCEAN_V4_FLARE_SWAP_URL,
+            "?chain=14",
+            "&inTokenAddress=",
+            toChecksumString(tokenIn_),
+            "&outTokenAddress=",
+            toChecksumString(tokenOut_),
+            "&amountDecimals=",
+            amountDecimals_,
+            "&gasPriceDecimals=100000000000",
+            "&slippage=",
+            slippage_,
+            "&account=",
+            toChecksumString(account_),
+            "&referrer=",
+            toChecksumString(referrer_),
+            "&enabledDexIds=6"
+        );
+
+        (uint256 status, bytes memory data) = url.get();
+        if (status != 200) {
+            revert(string.concat("OpenOceanAPIParser: dynamic swap call failed: ", status.toString()));
+        }
+
+        return _parseSwapResponse(data);
+    }
+
+    function surlCallOpenOceanProDynamicSwap(
+        string memory apiKey_,
+        address tokenIn_,
+        address tokenOut_,
+        string memory amountDecimals_,
+        address account_,
+        address referrer_,
+        string memory slippage_
+    )
+        internal
+        returns (OpenOceanSwapResponse memory response)
+    {
+        string memory url = string.concat(
+            OPENOCEAN_V4_FLARE_SWAP_URL,
+            "?chain=14",
+            "&inTokenAddress=",
+            toChecksumString(tokenIn_),
+            "&outTokenAddress=",
+            toChecksumString(tokenOut_),
+            "&amountDecimals=",
+            amountDecimals_,
+            "&gasPriceDecimals=100000000000",
+            "&slippage=",
+            slippage_,
+            "&account=",
+            toChecksumString(account_),
+            "&referrer=",
+            toChecksumString(referrer_),
+            "&enabledDexIds=6"
+        );
+
+        (uint256 status, bytes memory data) = url.get(_openOceanProHeaders(apiKey_));
+        if (status != 200) {
+            revert(string.concat("OpenOceanAPIParser: pro dynamic swap call failed: ", status.toString()));
+        }
+
+        return _parseSwapResponse(data);
+    }
+
+    function _openOceanProHeaders(string memory apiKey_) internal pure returns (string[] memory headers) {
+        headers = new string[](2);
+        headers[0] = "accept: application/json";
+        headers[1] = string.concat("Authorization: Bearer ", apiKey_);
+    }
+
+    function _parseSwapResponse(bytes memory data_) private pure returns (OpenOceanSwapResponse memory response) {
+        string memory json = string(data_);
         response.txData = fromHex(_extractQuotedString(json, '"data":"'));
         response.to = _parseAddress(_extractQuotedString(json, '"to":"'));
         response.value = _stringToUint(_extractQuotedString(json, '"value":"'));

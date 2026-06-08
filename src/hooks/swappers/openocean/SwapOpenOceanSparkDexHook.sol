@@ -9,7 +9,7 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { IOpenOceanCaller } from "../../../vendor/openocean/IOpenOceanCaller.sol";
 import { IOpenOceanExchange } from "../../../vendor/openocean/IOpenOceanExchange.sol";
-import { OpenOceanSparkDexScaler } from "../../../libraries/OpenOceanSparkDexScaler.sol";
+import { OpenOceanDynamicAmountUpdater } from "../../../libraries/OpenOceanDynamicAmountUpdater.sol";
 import { ISuperHookContextAware, ISuperHookInspector, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
 /// @title SwapOpenOceanSparkDexHook
@@ -24,7 +24,7 @@ import { ISuperHookContextAware, ISuperHookInspector, ISuperHookResult } from ".
 /// @notice         bytes txData_ = BytesLib.slice(data, 149, txDataLength);
 contract SwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware {
     IOpenOceanExchange public immutable OPENOCEAN_ROUTER;
-    IOpenOceanCaller public immutable OPENOCEAN_CALLER;
+    address public immutable OPENOCEAN_REFERRER;
 
     address public immutable NATIVE;
 
@@ -35,14 +35,14 @@ contract SwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware {
 
     constructor(
         address router_,
-        address caller_,
+        address referrer_,
         address nativeToken_
     )
         BaseHook(HookType.NONACCOUNTING, HookSubTypes.SWAP)
     {
-        if (router_ == address(0) || caller_ == address(0)) revert ADDRESS_NOT_VALID();
+        if (router_ == address(0) || referrer_ == address(0)) revert ADDRESS_NOT_VALID();
         OPENOCEAN_ROUTER = IOpenOceanExchange(router_);
-        OPENOCEAN_CALLER = IOpenOceanCaller(caller_);
+        OPENOCEAN_REFERRER = referrer_;
         NATIVE = nativeToken_;
     }
 
@@ -69,8 +69,8 @@ contract SwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware {
             executionAmount = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
-        txData_ = OpenOceanSparkDexScaler.updateTxDataAmounts(
-            txData_, address(OPENOCEAN_CALLER), executionAmount, inputAmount
+        txData_ = OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
+            txData_, OPENOCEAN_REFERRER, executionAmount, inputAmount
         );
         uint256 value = _isNativeInput(txData_) ? executionAmount : 0;
 

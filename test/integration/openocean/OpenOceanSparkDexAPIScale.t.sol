@@ -4,29 +4,31 @@ pragma solidity 0.8.30;
 import { Test } from "forge-std/Test.sol";
 
 import { HookDataUpdater } from "../../../src/libraries/HookDataUpdater.sol";
-import { OpenOceanSparkDexScaler } from "../../../src/libraries/OpenOceanSparkDexScaler.sol";
+import { OpenOceanDynamicAmountUpdater } from "../../../src/libraries/OpenOceanDynamicAmountUpdater.sol";
 import { IOpenOceanCaller } from "../../../src/vendor/openocean/IOpenOceanCaller.sol";
 import { IOpenOceanExchange } from "../../../src/vendor/openocean/IOpenOceanExchange.sol";
 import { OpenOceanAPIParser } from "../../utils/parsers/OpenOceanAPIParser.sol";
 
 /// @title OpenOceanSparkDexAPIScaleTest
-/// @notice Uses real OpenOcean V4 SparkDexV4 calldata and verifies the scaler updates amounts safely.
+/// @notice Uses real OpenOcean V4 calldata and verifies the dynamic updater only changes owned fields.
 /// @dev Requires FFI/Surl network access. Run with:
 ///      forge test --match-contract OpenOceanSparkDexAPIScaleTest --skip CCTPHooksFork -vvv
 contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
     address internal constant OPENOCEAN_ROUTER = 0x6352a56caadC4F1E25CD6c75970Fa768A3304e64;
-    address internal constant OPENOCEAN_CALLER_FLARE = 0x6dd434082EAB5Cd134B33719ec1FF05fE985B97b;
+    address internal constant OPENOCEAN_REFERRER_FLARE = 0x0E24b0F342F034446Ec814281AD1a7653cBd85e9;
 
     address internal constant FLR = 0x0000000000000000000000000000000000000000;
     address internal constant SPRK = 0x657097cC15fdEc9e383dB8628B57eA4a763F2ba0;
+    string internal constant ONE_TOKEN = "1000000000000000000";
+    string internal constant SLIPPAGE = "1";
 
     function test_OpenOceanAPI_SparkDexCalldataScalesUp() public {
         OpenOceanSwapResponse memory quote =
-            surlCallOpenOceanSparkDexSwap(FLR, SPRK, "1.000000000000000000", address(this));
+            surlCallOpenOceanDynamicSwap(FLR, SPRK, ONE_TOKEN, address(this), OPENOCEAN_REFERRER_FLARE, SLIPPAGE);
 
         uint256 newAmount = quote.inAmount * 105 / 100;
-        bytes memory updated = OpenOceanSparkDexScaler.updateTxDataAmounts(
-            quote.txData, OPENOCEAN_CALLER_FLARE, newAmount, quote.inAmount
+        bytes memory updated = OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
+            quote.txData, OPENOCEAN_REFERRER_FLARE, newAmount, quote.inAmount
         );
 
         _assertScaledSwap(quote, updated, newAmount);
@@ -34,11 +36,11 @@ contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
 
     function test_OpenOceanAPI_SparkDexCalldataScalesDown() public {
         OpenOceanSwapResponse memory quote =
-            surlCallOpenOceanSparkDexSwap(FLR, SPRK, "1.000000000000000000", address(this));
+            surlCallOpenOceanDynamicSwap(FLR, SPRK, ONE_TOKEN, address(this), OPENOCEAN_REFERRER_FLARE, SLIPPAGE);
 
         uint256 newAmount = quote.inAmount * 95 / 100;
-        bytes memory updated = OpenOceanSparkDexScaler.updateTxDataAmounts(
-            quote.txData, OPENOCEAN_CALLER_FLARE, newAmount, quote.inAmount
+        bytes memory updated = OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
+            quote.txData, OPENOCEAN_REFERRER_FLARE, newAmount, quote.inAmount
         );
 
         _assertScaledSwap(quote, updated, newAmount);
@@ -55,7 +57,11 @@ contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
         assertEq(quote_.to, OPENOCEAN_ROUTER);
         assertEq(quote_.value, quote_.inAmount);
 
-        (IOpenOceanCaller originalCaller, IOpenOceanExchange.SwapDescription memory originalDesc,) =
+        (
+            IOpenOceanCaller originalCaller,
+            IOpenOceanExchange.SwapDescription memory originalDesc,
+            IOpenOceanCaller.CallDescription[] memory originalCalls
+        ) =
             _decodeSwap(quote_.txData);
         (
             IOpenOceanCaller updatedCaller,
@@ -63,10 +69,11 @@ contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
             IOpenOceanCaller.CallDescription[] memory updatedCalls
         ) = _decodeSwap(updated_);
 
-        assertEq(address(originalCaller), OPENOCEAN_CALLER_FLARE);
-        assertEq(address(updatedCaller), OPENOCEAN_CALLER_FLARE);
+        assertEq(address(updatedCaller), address(originalCaller));
         assertEq(address(originalDesc.srcToken), FLR);
         assertEq(address(originalDesc.dstToken), SPRK);
+        assertEq(originalDesc.referrer, OPENOCEAN_REFERRER_FLARE);
+        assertEq(updatedDesc.referrer, OPENOCEAN_REFERRER_FLARE);
         assertEq(originalDesc.amount, quote_.inAmount);
         assertEq(originalDesc.minReturnAmount, quote_.minOutAmount);
 
@@ -80,7 +87,7 @@ contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
             HookDataUpdater.getUpdatedOutputAmount(newAmount_, quote_.inAmount, originalDesc.guaranteedAmount)
         );
         assertEq(_sumCallValues(updatedCalls), newAmount_);
-        assertEq(_sumDirectPositiveSwapAmounts(updatedCalls), newAmount_);
+        _assertCallDataUnchanged(originalCalls, updatedCalls);
     }
 
     function _decodeSwap(bytes memory txData_)
@@ -108,33 +115,18 @@ contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
         }
     }
 
-    function _sumDirectPositiveSwapAmounts(IOpenOceanCaller.CallDescription[] memory calls_)
+    function _assertCallDataUnchanged(
+        IOpenOceanCaller.CallDescription[] memory originalCalls_,
+        IOpenOceanCaller.CallDescription[] memory updatedCalls_
+    )
         internal
         pure
-        returns (uint256 sum)
     {
-        for (uint256 i; i < calls_.length; ++i) {
-            if (_selector(calls_[i].data) == 0xe5b07cdb) {
-                (,, int256 amount,,) =
-                    abi.decode(_sliceAfterSelector(calls_[i].data), (address, bool, int256, address, bytes));
-                if (amount > 0) {
-                    sum += uint256(amount);
-                }
-            }
-        }
-    }
-
-    function _selector(bytes memory data_) internal pure returns (bytes4 selector) {
-        if (data_.length < 4) return bytes4(0);
-        assembly {
-            selector := mload(add(data_, 0x20))
-        }
-    }
-
-    function _sliceAfterSelector(bytes memory data_) internal pure returns (bytes memory result) {
-        result = new bytes(data_.length - 4);
-        for (uint256 i; i < result.length; ++i) {
-            result[i] = data_[i + 4];
+        assertEq(updatedCalls_.length, originalCalls_.length);
+        for (uint256 i; i < updatedCalls_.length; ++i) {
+            assertEq(updatedCalls_[i].target, originalCalls_[i].target);
+            assertEq(updatedCalls_[i].gasLimit, originalCalls_[i].gasLimit);
+            assertEq(keccak256(updatedCalls_[i].data), keccak256(originalCalls_[i].data));
         }
     }
 }
