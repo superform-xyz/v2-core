@@ -1380,7 +1380,7 @@
         "ApproveAndStargateSendHook": "0xeDDF409516D9E4ba9aC58A7Ea97E1FB1BfeCC027",
         "ApproveAndStargateSendHookV2": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
         "ApproveAndSwapAlgebraIntegralHook": "0xc59Ee68B274ecA9F64484e25ffeA50Bf32D4Ba01",
-        "ApproveAndSwapOpenOceanSparkDexHook": "0xfd2E5b73378121FEC4b874Eeee12304588331C4B",
+        "ApproveAndSwapOpenOceanSparkDexHook": "0xCEf4B73697D4e3441E29eEbAeE6ab0260C3DF856",
         "ApproveAndSwapUniswapV2Hook": "0x70B3A11e3a4AbeF2046c986eeF21342e019ec073",
         "ApproveERC20Hook": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
         "BatchTransferFromHook": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
@@ -1455,7 +1455,7 @@
         "SuperVaultYieldSourceOracle": "0xeEbb42210D8a8B165dCF154b325C588EE8dF149A",
         "SuperYieldSourceOracle": "0x98F0682ef39dE9cd6028D91090Be6EdAE129f52D",
         "SwapAlgebraIntegralHook": "0xdbA7A6586b3Bf1C9763B5aaAEe860Bd6505dED1C",
-        "SwapOpenOceanSparkDexHook": "0x40d2608C1786244E51aCE7f32d61966d58178FE1",
+        "SwapOpenOceanSparkDexHook": "0x2Ffdc87f4ccF6753D704836fF8DC39D90cBb6650",
         "SwapUniswapV2Hook": "0xA118D0eB6b343D0aa058A725551C82E1276C7b7A",
         "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
         "TransferHook": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
@@ -1551,5 +1551,5 @@
       }
     }
   },
-  "updated_at": "2026-06-05T14:19:09Z"
+  "updated_at": "2026-06-09T09:05:38Z"
 }
