@@ -63,7 +63,7 @@ contract OpenOceanDynamicAmountValidationTest is Test, OpenOceanAPIParser {
         );
         (IOpenOceanCaller caller,,) = _decodeSwap(quote.txData);
         uint256 newAmount = quote.inAmount * scalePercent_ / 100;
-        bytes memory scaled = _scaleTxDataAndAssertInvariants(quote.txData, newAmount, quote.inAmount);
+        bytes memory scaled = _scaleTxDataAndAssertInvariants(quote.txData, address(this), newAmount, quote.inAmount);
         (, IOpenOceanExchange.SwapDescription memory scaledDesc,) = _decodeSwap(scaled);
 
         vm.createSelectFork(FLARE_RPC);
@@ -89,7 +89,7 @@ contract OpenOceanDynamicAmountValidationTest is Test, OpenOceanAPIParser {
         );
         (IOpenOceanCaller caller,,) = _decodeSwap(quote.txData);
         uint256 newAmount = quote.inAmount * scalePercent_ / 100;
-        bytes memory scaled = _scaleTxDataAndAssertInvariants(quote.txData, newAmount, quote.inAmount);
+        bytes memory scaled = _scaleTxDataAndAssertInvariants(quote.txData, address(this), newAmount, quote.inAmount);
         (, IOpenOceanExchange.SwapDescription memory scaledDesc,) = _decodeSwap(scaled);
 
         vm.createSelectFork(FLARE_RPC);
@@ -113,6 +113,7 @@ contract OpenOceanDynamicAmountValidationTest is Test, OpenOceanAPIParser {
 
     function _scaleTxDataAndAssertInvariants(
         bytes memory txData_,
+        address receiver_,
         uint256 newAmount_,
         uint256 originalAmount_
     )
@@ -131,8 +132,8 @@ contract OpenOceanDynamicAmountValidationTest is Test, OpenOceanAPIParser {
 
         assertEq(originalDesc.referrer, OPENOCEAN_DYNAMIC_REFERRER, "dynamic referrer missing");
 
-        scaled = OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
-            txData_, OPENOCEAN_DYNAMIC_REFERRER, newAmount_, originalAmount_
+        (scaled,,) = OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
+            txData_, OPENOCEAN_DYNAMIC_REFERRER, receiver_, newAmount_, originalAmount_
         );
 
         (
@@ -221,6 +222,124 @@ contract OpenOceanDynamicAmountValidationTest is Test, OpenOceanAPIParser {
             assertEq(scaledValueSum, newAmount_, "native call values not scaled");
         }
     }
+
+    // ───── Security Validation Tests ─────
+
+    /// @notice Validates that updateTxDataAmounts returns correct srcToken and dstToken from real API calldata.
+    function test_OpenOceanDynamicAmount_ReturnsSrcAndDstTokens() public onlyWhenEnabled {
+        OpenOceanSwapResponse memory quote = surlCallOpenOceanDynamicSwap(
+            FLR, SPRK, ONE_TOKEN, address(this), OPENOCEAN_DYNAMIC_REFERRER, WIDE_SLIPPAGE
+        );
+
+        (, address srcToken, address dstToken) = OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
+            quote.txData, OPENOCEAN_DYNAMIC_REFERRER, address(this), quote.inAmount, quote.inAmount
+        );
+
+        assertTrue(srcToken == FLR || srcToken == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE, "unexpected srcToken");
+        assertEq(dstToken, SPRK, "unexpected dstToken");
+    }
+
+    /// @notice Validates that updateTxDataAmounts returns correct tokens for an ERC-20 input swap.
+    function test_OpenOceanDynamicAmount_Erc20Input_ReturnsSrcAndDstTokens() public onlyWhenEnabled {
+        OpenOceanSwapResponse memory quote = surlCallOpenOceanDynamicSwap(
+            WFLR, SPRK, ONE_TOKEN, address(this), OPENOCEAN_DYNAMIC_REFERRER, WIDE_SLIPPAGE
+        );
+
+        (, address srcToken, address dstToken) = OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
+            quote.txData, OPENOCEAN_DYNAMIC_REFERRER, address(this), quote.inAmount, quote.inAmount
+        );
+
+        assertEq(srcToken, WFLR, "unexpected srcToken for ERC20");
+        assertEq(dstToken, SPRK, "unexpected dstToken for ERC20");
+    }
+
+    /// @notice Validates that a tampered dstReceiver in real API calldata is rejected.
+    function test_OpenOceanDynamicAmount_RevertWhenReceiverTampered() public onlyWhenEnabled {
+        OpenOceanSwapResponse memory quote = surlCallOpenOceanDynamicSwap(
+            FLR, SPRK, ONE_TOKEN, address(this), OPENOCEAN_DYNAMIC_REFERRER, WIDE_SLIPPAGE
+        );
+
+        address attacker = makeAddr("attacker");
+        // The API produces calldata with dstReceiver == address(this), so passing attacker should revert
+        vm.expectRevert(OpenOceanDynamicAmountUpdater.INVALID_DST_RECEIVER.selector);
+        OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
+            quote.txData, OPENOCEAN_DYNAMIC_REFERRER, attacker, quote.inAmount, quote.inAmount
+        );
+    }
+
+    /// @notice Validates that a tampered dstReceiver is also rejected for ERC-20 input swaps.
+    function test_OpenOceanDynamicAmount_Erc20Input_RevertWhenReceiverTampered() public onlyWhenEnabled {
+        OpenOceanSwapResponse memory quote = surlCallOpenOceanDynamicSwap(
+            WFLR, SPRK, ONE_TOKEN, address(this), OPENOCEAN_DYNAMIC_REFERRER, WIDE_SLIPPAGE
+        );
+
+        address attacker = makeAddr("attacker");
+        vm.expectRevert(OpenOceanDynamicAmountUpdater.INVALID_DST_RECEIVER.selector);
+        OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
+            quote.txData, OPENOCEAN_DYNAMIC_REFERRER, attacker, quote.inAmount, quote.inAmount
+        );
+    }
+
+    /// @notice Validates that dstReceiver in real API calldata matches the account we requested.
+    function test_OpenOceanDynamicAmount_DstReceiverMatchesRequestedAccount() public onlyWhenEnabled {
+        OpenOceanSwapResponse memory quote = surlCallOpenOceanDynamicSwap(
+            FLR, SPRK, ONE_TOKEN, address(this), OPENOCEAN_DYNAMIC_REFERRER, WIDE_SLIPPAGE
+        );
+
+        (, IOpenOceanExchange.SwapDescription memory desc,) = _decodeSwap(quote.txData);
+        assertEq(desc.dstReceiver, address(this), "API dstReceiver does not match requested account");
+    }
+
+    /// @notice Validates that native swap on fork with correct receiver succeeds end-to-end.
+    function test_OpenOceanDynamicAmount_NativeInput_E2EWithReceiverValidation() public onlyWhenEnabled {
+        OpenOceanSwapResponse memory quote = surlCallOpenOceanDynamicSwap(
+            FLR, SPRK, ONE_TOKEN, address(this), OPENOCEAN_DYNAMIC_REFERRER, WIDE_SLIPPAGE
+        );
+
+        // This call succeeds because dstReceiver == address(this) as passed to the API
+        (bytes memory scaled, address srcToken, address dstToken) = OpenOceanDynamicAmountUpdater
+            .updateTxDataAmounts(
+            quote.txData, OPENOCEAN_DYNAMIC_REFERRER, address(this), quote.inAmount, quote.inAmount
+        );
+
+        assertTrue(srcToken == FLR || srcToken == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE, "srcToken not native");
+        assertEq(dstToken, SPRK, "dstToken mismatch");
+
+        vm.createSelectFork(FLARE_RPC);
+        vm.deal(address(this), quote.inAmount);
+
+        uint256 outputBefore = IERC20(SPRK).balanceOf(address(this));
+        _executeSwap(quote.to, scaled, quote.inAmount);
+        uint256 outputDelta = IERC20(SPRK).balanceOf(address(this)) - outputBefore;
+        assertGt(outputDelta, 0, "no SPRK received after receiver-validated swap");
+    }
+
+    /// @notice Validates that ERC-20 swap on fork with correct receiver succeeds end-to-end.
+    function test_OpenOceanDynamicAmount_Erc20Input_E2EWithReceiverValidation() public onlyWhenEnabled {
+        OpenOceanSwapResponse memory quote = surlCallOpenOceanDynamicSwap(
+            WFLR, SPRK, ONE_TOKEN, address(this), OPENOCEAN_DYNAMIC_REFERRER, WIDE_SLIPPAGE
+        );
+
+        (bytes memory scaled, address srcToken, address dstToken) = OpenOceanDynamicAmountUpdater
+            .updateTxDataAmounts(
+            quote.txData, OPENOCEAN_DYNAMIC_REFERRER, address(this), quote.inAmount, quote.inAmount
+        );
+
+        assertEq(srcToken, WFLR, "srcToken not WFLR");
+        assertEq(dstToken, SPRK, "dstToken mismatch");
+
+        vm.createSelectFork(FLARE_RPC);
+        vm.deal(address(this), quote.inAmount);
+        IWFLR(WFLR).deposit{ value: quote.inAmount }();
+        IERC20(WFLR).approve(quote.to, quote.inAmount);
+
+        uint256 outputBefore = IERC20(SPRK).balanceOf(address(this));
+        _executeSwap(quote.to, scaled, quote.value);
+        uint256 outputDelta = IERC20(SPRK).balanceOf(address(this)) - outputBefore;
+        assertGt(outputDelta, 0, "no SPRK received after receiver-validated ERC20 swap");
+    }
+
+    // ───── Helpers ─────
 
     function _selector(bytes memory data_) private pure returns (bytes4 selector) {
         if (data_.length < 4) return bytes4(0);
