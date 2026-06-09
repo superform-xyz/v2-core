@@ -86,6 +86,8 @@ CORE_CONTRACTS=(
     "AcrossV3Adapter"
     "DebridgeAdapter"
     "StargateAdapter"
+    "StargateAdapterV2"
+    "AcrossV3AdapterV2"
     "SuperLedger"
     "FlatFeeLedger"
     "SuperLedgerConfiguration"
@@ -113,6 +115,7 @@ HOOK_CONTRACTS=(
     "Redeem7540VaultHook"
     "RequestRedeem7540VaultHook"
     "Deposit7540VaultHook"
+    "Withdraw7540VaultHook"
     "SetOperator7540Hook"
     "SetSlippageHook"
     "CancelDepositRequest7540Hook"
@@ -141,6 +144,8 @@ HOOK_CONTRACTS=(
     "DeBridgeCancelOrderHook"
     "StargateSendHook"
     "ApproveAndStargateSendHook"
+    "StargateSendHookV2"
+    "ApproveAndStargateSendHookV2"
     "EthenaCooldownSharesHook"
     "EthenaUnstakeHook"
     "OfframpTokensHook"
@@ -174,6 +179,8 @@ HOOK_CONTRACTS=(
     "ApproveAndCCTPSendHook"
     "SwapUniswapV3Router02Hook"
     "ApproveAndSwapUniswapV3Router02Hook"
+    "AcrossSendFundsAndExecuteOnDstHookV2"
+    "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2"
 )
 
 # Oracle contracts from accounting/oracles

@@ -1273,3 +1273,136 @@ Status: plan appended by `superform-hook-master`; Master Codex should review and
   - `OpenOceanSparkDexAPIScaleTest`: 2 passed.
   - `OpenOceanDynamicAmountValidationTest`: 4 passed.
   - `OpenOceanProAPIHookSimulationTest`: 2 skipped because `OPENOCEAN_PRO_API_KEY` is unavailable.
+
+## superform-hook-master plan for PR 919 conflict resolution
+- Role/request: acting as `superform-hook-master` sub-agent in planning/research mode only. No implementation code changes were made.
+- PR: https://github.com/superform-xyz/v2-core/pull/919
+- Branch/base from GitHub/`gh pr view`:
+  - head: `feat/openocean_hook_referrer_support`
+  - base: `dev`
+  - title: `feat: openocean referrer hook support`
+  - current body:
+    - `feat: support openocean routes outside sparkdex`
+    - `test: cover OpenOcean zero-value native routes`
+  - merge state: `DIRTY`
+  - commits:
+    - `f4cd90ab` `feat: support openocean routes outside sparkdex`
+    - `96e6ee7e` `test: cover OpenOcean zero-value native routes`
+- Fresh refs inspected:
+  - `origin/dev`: `c18b9401` (`feat: lower data length for stargate adapter (#918)`)
+  - `origin/feat/openocean_hook_referrer_support`: `96e6ee7e`
+  - merge base: `4aa84bd3a286926dfba26cd3ef6c5bbaa909499a`
+- `git merge-tree --write-tree origin/dev origin/feat/openocean_hook_referrer_support` reports textual conflicts in:
+  - `script/DeployV2Core.s.sol`
+  - `script/output/prod/latest.json`
+  - `script/output/staging/latest.json`
+  - auto-merge touched `script/utils/Constants.sol` but did not report it as a textual conflict.
+- Real conflict cause:
+  - Current `dev` includes #917/#918 deployment/script/output changes for `Withdraw7540VaultHook`, `AcrossV3AdapterV2`, `StargateAdapterV2`, V2 bridge hooks, generated/locked bytecode, and deployment output timestamps/addresses.
+  - PR 919 also modified deployment/config paths to replace OpenOcean caller-based constructor/config with referrer-based constructor/config.
+  - The deployment output conflict should not be resolved by taking the PR side wholesale, because that would drop current `dev` deployment metadata.
+- OpenOcean production behavior to preserve:
+  - Existing hook names remain `SwapOpenOceanSparkDexHook` and `ApproveAndSwapOpenOceanSparkDexHook`; there is no separate generic OpenOcean production hook.
+  - Hooks should store `OPENOCEAN_REFERRER` as an `address`, not `OPENOCEAN_CALLER` as `IOpenOceanCaller`.
+  - Hook constructors should validate nonzero router and referrer, but should not require referrer code because the referrer is an identifier/address, not the OpenOcean caller contract.
+  - Hooks should call `OpenOceanDynamicAmountUpdater.updateTxDataAmounts(txData_, OPENOCEAN_REFERRER, executionAmount, originalInputAmount)`.
+  - Dynamic updater should validate `desc.referrer == expectedReferrer_`, allow caller drift, reject partial fill, update only `desc.amount`, `desc.minReturnAmount`, `desc.guaranteedAmount`, and avoid decoding/rewriting route internals.
+  - ERC20 input routes should reject nonzero nested call values.
+  - Native input routes should scale nested positive call values only when their sum equals original amount.
+  - Native input routes with zero nested call values must remain valid and keep nested values at zero while the hook sends top-level `Execution.value = executionAmount`.
+- Conflict-resolution MVP plan for Master implementation:
+  1. Start from a clean `feat/openocean_hook_referrer_support` worktree and merge or rebase onto fresh `origin/dev`.
+     - Recommended: merge `origin/dev` into the feature branch unless the project explicitly wants a linear rebase. A merge is lower risk for preserving the two PR commits and current PR discussion.
+  2. For `script/output/prod/latest.json` and `script/output/staging/latest.json`, keep the `origin/dev` versions.
+     - Reason: PR 919 does not deploy a new address set; its only meaningful output-file delta was stale conflict/timestamp cleanup. Current `dev` owns newer deployment metadata from #917/#918.
+  3. For `script/DeployV2Core.s.sol`, keep current `dev` structure/indexing and manually reapply only the OpenOcean referrer changes.
+     - Preserve #917/#918 additions: V2 adapters, V2 bridge hooks, `Withdraw7540VaultHook`, hook array length/indexing, assignment indexes, and availability logic.
+     - Apply PR 919 OpenOcean changes at the current `dev` locations:
+       - availability should require `configuration.openOceanRouters[chainId] != address(0)` and `configuration.openOceanReferrers[chainId] != address(0)`.
+       - constructor/check args for both OpenOcean hooks should use `configuration.openOceanReferrers[chainId]`.
+       - validation should require nonzero referrer and log `OpenOcean Referrer`; do not check `.code.length` on referrer.
+       - deployment creation should require nonzero referrer and ABI-encode router, referrer, native token.
+       - update skip messages from router/caller wording to router/referrer where relevant.
+  4. For `script/utils/ConfigBase.sol`, `script/utils/ConfigCore.sol`, `script/utils/Constants.sol`, and `script/run/verify_v2_staging_prod.sh`, apply the PR's caller-to-referrer rename on top of `dev`.
+     - `openOceanCallers` mapping becomes `openOceanReferrers`.
+     - `OPENOCEAN_CALLER_FLARE` becomes `OPENOCEAN_REFERRER_FLARE = 0x0E24b0F342F034446Ec814281AD1a7653cBd85e9`.
+     - Verification script should pass router/referrer/native to both OpenOcean hook constructors.
+     - Preserve all #917/#918 constants and script changes from `dev`.
+  5. For OpenOcean hooks/libraries/tests, keep PR 919 behavior unless a compile conflict appears after the merge.
+     - Keep `src/libraries/OpenOceanDynamicAmountUpdater.sol`.
+     - Keep removal of `src/libraries/OpenOceanSparkDexScaler.sol`.
+     - Keep hook imports switched to `OpenOceanDynamicAmountUpdater`.
+     - Keep tests covering caller drift, referrer mismatch, unknown ERC20 selectors, native value scaling, and zero-value native routes.
+  6. Remove `.Codex/sessions/context_session_1.md` from the PR commit set before final push unless the Master explicitly wants internal session context committed.
+     - Reason: `gh pr view` shows this file in the PR diff with large additions. It is useful local/session documentation, but it is not part of the OpenOcean feature surface.
+  7. After resolution, verify:
+     - `rg -n "^(<<<<<<<|=======|>>>>>>>)" script/DeployV2Core.s.sol script/output/prod/latest.json script/output/staging/latest.json src test script/utils script/run`
+     - `git diff --check`
+     - `forge build`
+     - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexHookTest`
+     - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexAPIScaleTest -vvv`
+     - Optional/network-gated:
+       - `RUN_OPENOCEAN_DYNAMIC_VALIDATION=true FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanDynamicAmountValidationTest -vvv`
+       - `RUN_OPENOCEAN_PRO_HOOK_SIMULATION=true OPENOCEAN_PRO_API_KEY=... FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanProAPIHookSimulationTest -vv`
+  8. Update PR description after implementation to describe:
+     - referrer-gated OpenOcean dynamic amount support;
+     - route-agnostic handling that no longer depends on SparkDex-only internal calldata rewriting;
+     - zero-value native route coverage;
+     - verification commands/results.
+- PR description draft for after implementation:
+  ```md
+  ## Summary
+  - Replace OpenOcean caller-gated SparkDex-only amount scaling with referrer-gated dynamic amount updates.
+  - Preserve OpenOcean route calldata internals so routes outside SparkDex can be used when the expected referrer is present.
+  - Support native OpenOcean routes whose nested calls carry zero value while the hook sends the scaled top-level native value.
+
+  ## Tests
+  - `forge build`
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexHookTest`
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexAPIScaleTest -vvv`
+  - `RUN_OPENOCEAN_DYNAMIC_VALIDATION=true FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanDynamicAmountValidationTest -vvv`
+  - `RUN_OPENOCEAN_PRO_HOOK_SIMULATION=true FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanProAPIHookSimulationTest -vv` (skips without `OPENOCEAN_PRO_API_KEY`)
+  ```
+- Approval gate: sub-agent should stop here and ask Master Codex to review/approve this plan before implementation.
+
+## Master Codex approval for PR 919 conflict-resolution plan
+- Reviewed the `superform-hook-master` plan.
+- Approved the MVP conflict-resolution approach:
+  - merge fresh `origin/dev` into `feat/openocean_hook_referrer_support`;
+  - keep current `dev` deployment output metadata for `script/output/prod/latest.json` and `script/output/staging/latest.json`;
+  - resolve `script/DeployV2Core.s.sol` by preserving current `dev` deployment structure while applying PR 919 OpenOcean router/referrer wiring;
+  - preserve PR 919 OpenOcean hook/library/test behavior;
+  - verify with build and focused OpenOcean tests;
+  - update the PR description with the resolved behavior and verification results.
+
+## PR 919 merge-conflict resolution
+- Merged fresh `origin/dev` into `feat/openocean_hook_referrer_support`.
+- Resolved textual conflicts in:
+  - `script/DeployV2Core.s.sol`
+  - `script/output/prod/latest.json`
+  - `script/output/staging/latest.json`
+- Resolution details:
+  - Preserved current `dev` deployment output metadata/timestamps for `prod/latest.json` and `staging/latest.json`.
+  - Preserved current `dev` hook slot layout in `DeployV2Core`:
+    - `len = 78`
+    - `ClaimFailedTransferHook` at index 70
+    - `Withdraw7540VaultHook` at index 73
+    - Stargate V2 hooks at indices 74 and 75
+    - Across V2 hooks at indices 76 and 77
+  - Kept PR 919 OpenOcean referrer wiring:
+    - availability uses `configuration.openOceanRouters[chainId]` and `configuration.openOceanReferrers[chainId]`;
+    - OpenOcean hook constructor args encode router, referrer, native token;
+    - validation requires nonzero referrer but does not require referrer code;
+    - stale router/caller skip copy was changed to router/referrer.
+- Formatting/checks:
+  - Ran `forge fmt` on `script/DeployV2Core.s.sol` and `script/utils/Constants.sol`.
+  - `rg` found no conflict markers or stale OpenOcean caller deployment/config references in the resolved paths.
+  - `git diff --cached --check` passed.
+- Verification:
+  - `forge build` passed with existing warnings.
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexHookTest` passed: 21 passed, 0 failed, 0 skipped.
+  - `FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanSparkDexAPIScaleTest -vvv` passed: 2 passed, 0 failed, 0 skipped.
+  - `RUN_OPENOCEAN_DYNAMIC_VALIDATION=true FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanDynamicAmountValidationTest -vvv` passed: 4 passed, 0 failed, 0 skipped.
+  - `RUN_OPENOCEAN_PRO_HOOK_SIMULATION=true FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanProAPIHookSimulationTest -vv` completed with 0 passed, 0 failed, 2 skipped because `OPENOCEAN_PRO_API_KEY` is unavailable.
+- PR description:
+  - Updated https://github.com/superform-xyz/v2-core/pull/919 with the merge-resolution summary and verification results.
