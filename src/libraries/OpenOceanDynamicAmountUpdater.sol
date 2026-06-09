@@ -19,18 +19,21 @@ library OpenOceanDynamicAmountUpdater {
     error ZERO_AMOUNT();
     error INVALID_SELECTOR();
     error INVALID_OPENOCEAN_REFERRER();
+    error INVALID_DST_RECEIVER();
     error PARTIAL_FILL_NOT_ALLOWED();
     error INVALID_CALL_VALUE();
+    error ZERO_MIN_RETURN();
 
     function updateTxDataAmounts(
         bytes memory txData_,
         address expectedReferrer_,
+        address expectedReceiver_,
         uint256 newAmount_,
         uint256 originalAmount_
     )
         internal
         pure
-        returns (bytes memory)
+        returns (bytes memory, address srcToken, address dstToken)
     {
         if (newAmount_ == 0 || originalAmount_ == 0) revert ZERO_AMOUNT();
         if (_selector(txData_) != IOpenOceanExchange.swap.selector) revert INVALID_SELECTOR();
@@ -45,14 +48,22 @@ library OpenOceanDynamicAmountUpdater {
         );
 
         if (desc.referrer != expectedReferrer_) revert INVALID_OPENOCEAN_REFERRER();
+        if (desc.dstReceiver != expectedReceiver_) revert INVALID_DST_RECEIVER();
         if ((desc.flags & PARTIAL_FILL) != 0) revert PARTIAL_FILL_NOT_ALLOWED();
 
-        bool isNativeInput = _isNative(address(desc.srcToken));
+        srcToken = address(desc.srcToken);
+        dstToken = address(desc.dstToken);
+        bool isNativeInput = _isNative(srcToken);
 
         desc.amount = newAmount_;
-        desc.minReturnAmount = HookDataUpdater.getUpdatedOutputAmount(newAmount_, originalAmount_, desc.minReturnAmount);
+
+        uint256 originalMinReturn = desc.minReturnAmount;
+        desc.minReturnAmount = HookDataUpdater.getUpdatedOutputAmount(newAmount_, originalAmount_, originalMinReturn);
+        if (originalMinReturn > 0 && desc.minReturnAmount == 0) revert ZERO_MIN_RETURN();
+
+        uint256 originalGuaranteed = desc.guaranteedAmount;
         desc.guaranteedAmount =
-            HookDataUpdater.getUpdatedOutputAmount(newAmount_, originalAmount_, desc.guaranteedAmount);
+            HookDataUpdater.getUpdatedOutputAmount(newAmount_, originalAmount_, originalGuaranteed);
 
         if (isNativeInput) {
             _scaleNativeCallValues(calls, newAmount_, originalAmount_);
@@ -60,7 +71,11 @@ library OpenOceanDynamicAmountUpdater {
             _validateNoCallValues(calls);
         }
 
-        return abi.encodePacked(IOpenOceanExchange.swap.selector, abi.encode(caller, desc, calls));
+        return (
+            abi.encodePacked(IOpenOceanExchange.swap.selector, abi.encode(caller, desc, calls)),
+            srcToken,
+            dstToken
+        );
     }
 
     function _scaleNativeCallValues(

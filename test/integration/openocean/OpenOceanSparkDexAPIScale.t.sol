@@ -27,8 +27,8 @@ contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
             surlCallOpenOceanDynamicSwap(FLR, SPRK, ONE_TOKEN, address(this), OPENOCEAN_REFERRER_FLARE, SLIPPAGE);
 
         uint256 newAmount = quote.inAmount * 105 / 100;
-        bytes memory updated = OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
-            quote.txData, OPENOCEAN_REFERRER_FLARE, newAmount, quote.inAmount
+        (bytes memory updated,,) = OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
+            quote.txData, OPENOCEAN_REFERRER_FLARE, address(this), newAmount, quote.inAmount
         );
 
         _assertScaledSwap(quote, updated, newAmount);
@@ -39,8 +39,8 @@ contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
             surlCallOpenOceanDynamicSwap(FLR, SPRK, ONE_TOKEN, address(this), OPENOCEAN_REFERRER_FLARE, SLIPPAGE);
 
         uint256 newAmount = quote.inAmount * 95 / 100;
-        bytes memory updated = OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
-            quote.txData, OPENOCEAN_REFERRER_FLARE, newAmount, quote.inAmount
+        (bytes memory updated,,) = OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
+            quote.txData, OPENOCEAN_REFERRER_FLARE, address(this), newAmount, quote.inAmount
         );
 
         _assertScaledSwap(quote, updated, newAmount);

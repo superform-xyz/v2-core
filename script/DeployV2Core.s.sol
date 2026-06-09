@@ -3085,7 +3085,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         // ClaimFailedTransferHook — no constructor args
-        hooks[72] = _createSafeHookDeployment(CLAIM_FAILED_TRANSFER_HOOK_KEY, "ClaimFailedTransferHook", env);
+        hooks[70] = _createSafeHookDeployment(CLAIM_FAILED_TRANSFER_HOOK_KEY, "ClaimFailedTransferHook", env);
 
         // CCTP V2 Bridge hooks (same TokenMessengerV2 address on all chains via CREATE2)
         {
