@@ -98,6 +98,21 @@ contract MintSuperPositionsHookTest is Helpers {
         assertEq(_amount, 1000);
     }
 
+    function test_MintVB_ReplaceCalldataAmount() public view {
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
+        uint256 newAmount = 2e18;
+        bytes memory result = mintSuperPositionsHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(mintSuperPositionsHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_MintVB_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
+        bytes memory result = mintSuperPositionsHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(mintSuperPositionsHook.decodeAmount(result), fuzzAmount);
+    }
+
     /*//////////////////////////////////////////////////////////////
                         ERROR TESTS
     //////////////////////////////////////////////////////////////*/

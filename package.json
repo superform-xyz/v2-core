@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "scripts": {
+    "generate:hook-sizing": "tsx scripts/generate-hook-sizing-manifest.ts",
+    "validate:hook-sizing": "tsx scripts/validate-hook-sizing-manifest.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "@types/node": "^22.0.0"
+  }
+}

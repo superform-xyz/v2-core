@@ -390,6 +390,52 @@ contract OpenOceanSparkDexHookTest is Test {
         harness.updateTxDataAmounts(txData, caller, 2000, 1000);
     }
 
+    function test_SwapOpenOcean_DecodeAmount() public view {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _swapHookData(outputToken, 0, 1000, 900, false, txData);
+        assertEq(swapHook.decodeAmount(data), 1000);
+    }
+
+    function test_SwapOpenOcean_ReplaceCalldataAmount() public view {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _swapHookData(outputToken, 0, 1000, 900, false, txData);
+        uint256 newAmount = 2e18;
+        bytes memory result = swapHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(swapHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_SwapOpenOcean_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _swapHookData(outputToken, 0, 1000, 900, false, txData);
+        bytes memory result = swapHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(swapHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_ApproveAndSwapOpenOcean_DecodeAmount() public view {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, false, txData);
+        assertEq(approveAndSwapHook.decodeAmount(data), 1000);
+    }
+
+    function test_ApproveAndSwapOpenOcean_ReplaceCalldataAmount() public view {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, false, txData);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndSwapHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(approveAndSwapHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_ApproveAndSwapOpenOcean_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, false, txData);
+        bytes memory result = approveAndSwapHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(approveAndSwapHook.decodeAmount(result), fuzzAmount);
+    }
+
     function _buildErc20RouteTxData(
         address caller_,
         uint256 amount_,

@@ -418,6 +418,50 @@ contract AcrossHooksV2 is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    DECODE/REPLACE AMOUNT TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_AcrossSendV2_DecodeAmount() public view {
+        bytes memory data = _encodeAcrossV2Data(false, false);
+        assertEq(acrossHookV2.decodeAmount(data), mockInputAmount);
+    }
+
+    function test_AcrossSendV2_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeAcrossV2Data(false, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = acrossHookV2.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(acrossHookV2.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_AcrossSendV2_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeAcrossV2Data(false, false);
+        bytes memory result = acrossHookV2.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(acrossHookV2.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_ApproveAndAcrossSendV2_DecodeAmount() public view {
+        bytes memory data = _encodeAcrossV2Data(false, false);
+        assertEq(approveAndAcrossHookV2.decodeAmount(data), mockInputAmount);
+    }
+
+    function test_ApproveAndAcrossSendV2_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeAcrossV2Data(false, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndAcrossHookV2.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(approveAndAcrossHookV2.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_ApproveAndAcrossSendV2_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeAcrossV2Data(false, false);
+        bytes memory result = approveAndAcrossHookV2.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(approveAndAcrossHookV2.decodeAmount(result), fuzzAmount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             HELPERS
     //////////////////////////////////////////////////////////////*/
 

@@ -1900,6 +1900,50 @@ contract StargateHooks is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    DECODE/REPLACE AMOUNT TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_StargateSend_DecodeAmount() public view {
+        bytes memory data = _encodeStargateData(false, 0, false);
+        assertEq(stargateHook.decodeAmount(data), mockAmountLD);
+    }
+
+    function test_StargateSend_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeStargateData(false, 0, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = stargateHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(stargateHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_StargateSend_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeStargateData(false, 0, false);
+        bytes memory result = stargateHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(stargateHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_ApproveAndStargateSend_DecodeAmount() public view {
+        bytes memory data = _encodeStargateData(false, 0, false);
+        assertEq(approveAndStargateHook.decodeAmount(data), mockAmountLD);
+    }
+
+    function test_ApproveAndStargateSend_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeStargateData(false, 0, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndStargateHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(approveAndStargateHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_ApproveAndStargateSend_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeStargateData(false, 0, false);
+        bytes memory result = approveAndStargateHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(approveAndStargateHook.decodeAmount(result), fuzzAmount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 

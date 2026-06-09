@@ -446,6 +446,30 @@ contract CCTPHooks is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    DECODE/REPLACE AMOUNT TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_CCTP_DecodeAmount() public view {
+        bytes memory data = _encodeCCTPData(false, false);
+        assertEq(cctpHook.decodeAmount(data), mockAmount);
+    }
+
+    function test_CCTP_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeCCTPData(false, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = cctpHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(cctpHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_CCTP_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeCCTPData(false, false);
+        bytes memory result = cctpHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(cctpHook.decodeAmount(result), fuzzAmount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                          HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -829,6 +853,30 @@ contract CCTPSendHookTests is Helpers {
 
         Execution[] memory executions = cctpSendHook.build(address(0), mockAccount, data);
         assertEq(executions.length, 3);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    DECODE/REPLACE AMOUNT TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_CCTPSend_DecodeAmount() public view {
+        bytes memory data = _encodeCCTPData(false, false);
+        assertEq(cctpSendHook.decodeAmount(data), mockAmount);
+    }
+
+    function test_CCTPSend_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeCCTPData(false, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = cctpSendHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(cctpSendHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_CCTPSend_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeCCTPData(false, false);
+        bytes memory result = cctpSendHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(cctpSendHook.decodeAmount(result), fuzzAmount);
     }
 
     /*//////////////////////////////////////////////////////////////

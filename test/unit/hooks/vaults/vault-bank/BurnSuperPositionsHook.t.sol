@@ -180,6 +180,21 @@ contract BurnSuperPositionsHookTest is Helpers {
         assertEq(decodedAmount, amount);
     }
 
+    function test_ReplaceCalldataAmount() public view {
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
+        uint256 newAmount = 2e18;
+        bytes memory result = burnSuperPositionsHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(burnSuperPositionsHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
+        bytes memory result = burnSuperPositionsHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(burnSuperPositionsHook.decodeAmount(result), fuzzAmount);
+    }
+
     function test_DecodeUsePrevHookAmount() public view {
         bytes memory dataWithUsePrev =
             abi.encodePacked(yieldSourceOracleId, spToken, amount, true, vaultBank, dstChainId);

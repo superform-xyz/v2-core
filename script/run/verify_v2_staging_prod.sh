@@ -390,7 +390,7 @@ generate_constructor_args() {
         "SuperDestinationExecutor")
             echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$super_destination_validator")"
             ;;
-        "AcrossV3Adapter")
+        "AcrossV3Adapter"|"AcrossV3AdapterV2")
             echo "$(cast abi-encode "constructor(address,address)" "$across_spoke_pool_v3" "$super_destination_executor")"
             ;;
         "DebridgeAdapter")
@@ -423,10 +423,10 @@ generate_constructor_args() {
         "SwapOpenOceanSparkDexHook"|"ApproveAndSwapOpenOceanSparkDexHook")
             echo "$(cast abi-encode "constructor(address,address,address)" "$openocean_router" "$openocean_caller" "$native_token")"
             ;;
-        "AcrossSendFundsAndExecuteOnDstHook")
+        "AcrossSendFundsAndExecuteOnDstHook"|"AcrossSendFundsAndExecuteOnDstHookV2")
             echo "$(cast abi-encode "constructor(address,address)" "$across_spoke_pool_v3" "$super_merkle_validator")"
             ;;
-        "ApproveAndAcrossSendFundsAndExecuteOnDstHook")
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHook"|"ApproveAndAcrossSendFundsAndExecuteOnDstHookV2")
             echo "$(cast abi-encode "constructor(address,address)" "$across_spoke_pool_v3" "$super_merkle_validator")"
             ;;
         "DeBridgeSendOrderAndExecuteOnDstHook")
@@ -441,6 +441,9 @@ generate_constructor_args() {
 
         # Hooks - Stargate Bridge (constructor arg: SuperValidator)
         "StargateSendHook"|"ApproveAndStargateSendHook")
+            echo "$(cast abi-encode "constructor(address)" "$super_merkle_validator")"
+            ;;
+        "StargateSendHookV2"|"ApproveAndStargateSendHookV2")
             echo "$(cast abi-encode "constructor(address)" "$super_merkle_validator")"
             ;;
 
@@ -627,7 +630,7 @@ generate_constructor_args() {
             ;;
 
         # StargateAdapter (lzEndpoint, tokenMessaging, superDestinationExecutor)
-        "StargateAdapter")
+        "StargateAdapter"|"StargateAdapterV2")
             local lz_endpoint=""
             local token_messaging=""
             case $chain_id in
@@ -687,6 +690,7 @@ get_contract_source() {
         "SuperExecutor") echo "src/executors/SuperExecutor.sol" ;;
         "SuperDestinationExecutor") echo "src/executors/SuperDestinationExecutor.sol" ;;
         "AcrossV3Adapter") echo "src/adapters/AcrossV3Adapter.sol" ;;
+        "AcrossV3AdapterV2") echo "src/adapters/AcrossV3AdapterV2.sol" ;;
         "DebridgeAdapter") echo "src/adapters/DebridgeAdapter.sol" ;;
         "SuperLedger") echo "src/accounting/SuperLedger.sol" ;;
         "FlatFeeLedger") echo "src/accounting/FlatFeeLedger.sol" ;;
@@ -753,6 +757,8 @@ get_contract_source() {
         # Hooks - Bridges
         "AcrossSendFundsAndExecuteOnDstHook") echo "src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol" ;;
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook") echo "src/hooks/bridges/across/ApproveAndAcrossSendFundsAndExecuteOnDstHook.sol" ;;
+        "AcrossSendFundsAndExecuteOnDstHookV2") echo "src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHookV2.sol" ;;
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2") echo "src/hooks/bridges/across/ApproveAndAcrossSendFundsAndExecuteOnDstHookV2.sol" ;;
         "DeBridgeSendOrderAndExecuteOnDstHook") echo "src/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol" ;;
         "DeBridgeCancelOrderHook") echo "src/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol" ;;
         "CCTPSendHook") echo "src/hooks/bridges/cctp/CCTPSendHook.sol" ;;
@@ -787,6 +793,8 @@ get_contract_source() {
         # Hooks - Bridges (Stargate)
         "StargateSendHook") echo "src/hooks/bridges/stargate/StargateSendHook.sol" ;;
         "ApproveAndStargateSendHook") echo "src/hooks/bridges/stargate/ApproveAndStargateSendHook.sol" ;;
+        "StargateSendHookV2") echo "src/hooks/bridges/stargate/StargateSendHookV2.sol" ;;
+        "ApproveAndStargateSendHookV2") echo "src/hooks/bridges/stargate/ApproveAndStargateSendHookV2.sol" ;;
 
         # Hooks - Claim
         "MerklClaimRewardHook") echo "src/hooks/claim/merkl/MerklClaimRewardHook.sol" ;;
@@ -831,6 +839,7 @@ get_contract_source() {
 
         # Adapters
         "StargateAdapter") echo "src/adapters/StargateAdapter.sol" ;;
+        "StargateAdapterV2") echo "src/adapters/StargateAdapterV2.sol" ;;
 
         # Oracles
         "ERC4626YieldSourceOracle") echo "src/accounting/oracles/ERC4626YieldSourceOracle.sol" ;;

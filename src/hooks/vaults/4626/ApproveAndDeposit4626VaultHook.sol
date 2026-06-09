@@ -15,6 +15,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
+    ISuperHookOutflow,
     ISuperHookContextAware,
     ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
@@ -32,6 +33,7 @@ contract ApproveAndDeposit4626VaultHook is
     BaseHook,
     VaultBankLockableHook,
     ISuperHookInflowOutflow,
+    ISuperHookOutflow,
     ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
@@ -85,6 +87,11 @@ contract ApproveAndDeposit4626VaultHook is
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookContextAware

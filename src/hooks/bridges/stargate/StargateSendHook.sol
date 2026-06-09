@@ -13,7 +13,13 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperSignatureStorage } from "../../../interfaces/ISuperSignatureStorage.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookResult,
+    ISuperHookContextAware,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 
 /// @title StargateSendHook
 /// @author Superform Labs
@@ -45,12 +51,13 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @notice         uint256 executeCalldataLength = BytesLib.toUint256(data, composeMsgOffset + 32 + composeMsgLength);
 /// @notice         bytes executeCalldata = BytesLib.slice(data, composeMsgOffset + 64 + composeMsgLength,
 /// executeCalldataLength);
-contract StargateSendHook is BaseHook, ISuperHookContextAware {
+contract StargateSendHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     address private immutable VALIDATOR;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 172;
+    uint256 private constant AMOUNT_POSITION = 108;
 
     struct StargateSendData {
         uint256 lzNativeFee;
@@ -240,6 +247,16 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookInspector

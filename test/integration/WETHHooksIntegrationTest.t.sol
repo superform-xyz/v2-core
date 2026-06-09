@@ -248,4 +248,61 @@ contract WETHHooksIntegrationTest is MinimalBaseIntegrationTest {
         require(success, "WETH deposit failed");
         vm.stopPrank();
     }
+
+    /*//////////////////////////////////////////////////////////////
+                    DECODE AMOUNT / REPLACE CALLDATA AMOUNT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice decodeAmount + replaceCalldataAmount roundtrip for WETH hooks (AMOUNT_POSITION = 0)
+    function test_DepositWETH_DecodeAmount_ReplaceCalldataAmount() external view {
+        uint256 originalAmount = 1 ether;
+        bytes memory hookData = abi.encodePacked(originalAmount, false);
+
+        assertEq(depositWETHHook.decodeAmount(hookData), originalAmount, "DepositWETH decodeAmount mismatch");
+
+        uint256 newAmount = 0.5 ether;
+        bytes memory replaced = depositWETHHook.replaceCalldataAmount(hookData, newAmount);
+        assertEq(depositWETHHook.decodeAmount(replaced), newAmount, "DepositWETH replaced amount mismatch");
+        assertFalse(depositWETHHook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
+    }
+
+    function test_WithdrawWETH_DecodeAmount_ReplaceCalldataAmount() external view {
+        uint256 originalAmount = 1 ether;
+        bytes memory hookData = abi.encodePacked(originalAmount, false);
+
+        assertEq(withdrawWETHHook.decodeAmount(hookData), originalAmount, "WithdrawWETH decodeAmount mismatch");
+
+        uint256 newAmount = 0.5 ether;
+        bytes memory replaced = withdrawWETHHook.replaceCalldataAmount(hookData, newAmount);
+        assertEq(withdrawWETHHook.decodeAmount(replaced), newAmount, "WithdrawWETH replaced amount mismatch");
+    }
+
+    /// @notice DepositWETH: build with 1 ETH, replace to 0.5 ETH, execute, verify only 0.5 converted
+    function test_DepositWETH_ReplaceCalldataAmount_ExecutesCorrectly() public {
+        uint256 originalAmount = 1 ether;
+        uint256 newAmount = 0.5 ether;
+
+        bytes memory hookData = abi.encodePacked(originalAmount, false);
+        bytes memory replaced = depositWETHHook.replaceCalldataAmount(hookData, newAmount);
+
+        HookExecutionData memory execData;
+        execData.hooksAddresses = new address[](1);
+        execData.hooksAddresses[0] = address(depositWETHHook);
+
+        execData.hooksData = new bytes[](1);
+        execData.hooksData[0] = replaced;
+
+        execData.entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: execData.hooksAddresses, hooksData: execData.hooksData });
+        execData.userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(execData.entry));
+
+        uint256 wethBefore = IERC20(weth).balanceOf(accountEth);
+
+        executeOpsThroughPaymaster(execData.userOpData, superNativePaymaster, 2e18);
+
+        uint256 wethAfter = IERC20(weth).balanceOf(accountEth);
+
+        // Should deposit exactly newAmount of ETH to WETH
+        assertEq(wethAfter - wethBefore, newAmount, "Should convert exactly replaced amount to WETH");
+    }
 }

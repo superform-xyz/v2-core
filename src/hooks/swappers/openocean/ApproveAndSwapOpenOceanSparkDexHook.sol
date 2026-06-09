@@ -10,7 +10,13 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { IOpenOceanCaller } from "../../../vendor/openocean/IOpenOceanCaller.sol";
 import { IOpenOceanExchange } from "../../../vendor/openocean/IOpenOceanExchange.sol";
 import { OpenOceanSparkDexScaler } from "../../../libraries/OpenOceanSparkDexScaler.sol";
-import { ISuperHookContextAware, ISuperHookInspector, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookContextAware,
+    ISuperHookInspector,
+    ISuperHookResult,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 
 /// @title ApproveAndSwapOpenOceanSparkDexHook
 /// @author Superform Labs
@@ -22,13 +28,14 @@ import { ISuperHookContextAware, ISuperHookInspector, ISuperHookResult } from ".
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
 /// @notice         uint256 txDataLength = BytesLib.toUint256(data, 105);
 /// @notice         bytes txData_ = BytesLib.slice(data, 137, txDataLength);
-contract ApproveAndSwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware {
+contract ApproveAndSwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     IOpenOceanExchange public immutable OPENOCEAN_ROUTER;
     IOpenOceanCaller public immutable OPENOCEAN_CALLER;
 
     address public immutable NATIVE;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 104;
+    uint256 private constant AMOUNT_POSITION = 40;
 
     /// @notice Thrown when inputToken and outputToken are the same address
     error SAME_INPUT_OUTPUT_TOKEN();
@@ -102,6 +109,16 @@ contract ApproveAndSwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware
 
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookInspector

@@ -467,6 +467,46 @@ contract KyberSwapUnitTests is Helpers {
         return abi.encodePacked(IMetaAggregationRouterV2.swap.selector, abi.encode(params));
     }
 
+    function test_SwapKyberSwap_DecodeAmount() public view {
+        bytes memory data = _buildSwapData(false);
+        assertEq(swapHook.decodeAmount(data), inputAmount);
+    }
+
+    function test_SwapKyberSwap_ReplaceCalldataAmount() public view {
+        bytes memory data = _buildSwapData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = swapHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(swapHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_SwapKyberSwap_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _buildSwapData(false);
+        bytes memory result = swapHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(swapHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_ApproveAndSwapKyberSwap_DecodeAmount() public view {
+        bytes memory data = _buildApproveAndSwapData(false);
+        assertEq(approveAndSwapHook.decodeAmount(data), inputAmount);
+    }
+
+    function test_ApproveAndSwapKyberSwap_ReplaceCalldataAmount() public view {
+        bytes memory data = _buildApproveAndSwapData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndSwapHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(approveAndSwapHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_ApproveAndSwapKyberSwap_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _buildApproveAndSwapData(false);
+        bytes memory result = approveAndSwapHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(approveAndSwapHook.decodeAmount(result), fuzzAmount);
+    }
+
     /// @dev Build SwapKyberSwapHook data layout:
     ///      outputToken(20) + value(32) + inputAmount(32) + outputMin(32) + usePrevHookAmount(1) + txDataLength(32)
     /// + txData_(var)

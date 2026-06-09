@@ -107,6 +107,26 @@ contract ApproveERC20HookTest is Helpers {
         assertEq(BytesLib.toAddress(argsEncoded, 20), spender);
     }
 
+    function test_DecodeAmount() public view {
+        bytes memory data = _encodeData(false);
+        assertEq(hook.decodeAmount(data), amount);
+    }
+
+    function test_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = hook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(hook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeData(false);
+        bytes memory result = hook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(hook.decodeAmount(result), fuzzAmount);
+    }
+
     function _encodeData(bool usePrev) internal view returns (bytes memory) {
         return abi.encodePacked(token, spender, amount, usePrev);
     }

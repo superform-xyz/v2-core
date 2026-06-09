@@ -1476,6 +1476,129 @@ contract AaveV4LoanHooksTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+              DECODE AMOUNT / REPLACE CALLDATA AMOUNT TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_SupplyHook_DecodeAmount() public view {
+        bytes memory data = _encodeSupplyData(false);
+        assertEq(supplyHook.decodeAmount(data), amount);
+    }
+
+    function test_SupplyHook_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeSupplyData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = supplyHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(supplyHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_SupplyHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeSupplyData(false);
+        bytes memory result = supplyHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(supplyHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_WithdrawHook_DecodeAmount() public view {
+        bytes memory data = _encodeWithdrawData(false);
+        assertEq(withdrawHook.decodeAmount(data), amount);
+    }
+
+    function test_WithdrawHook_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeWithdrawData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = withdrawHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(withdrawHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_WithdrawHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeWithdrawData(false);
+        bytes memory result = withdrawHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(withdrawHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_BorrowHook_DecodeAmount() public view {
+        bytes memory data = _encodeBorrowData(false);
+        assertEq(borrowHook.decodeAmount(data), amount);
+    }
+
+    function test_BorrowHook_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeBorrowData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = borrowHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(borrowHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_BorrowHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeBorrowData(false);
+        bytes memory result = borrowHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(borrowHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_RepayHook_DecodeAmount() public view {
+        bytes memory data = _encodeRepayData(false, false);
+        assertEq(repayHook.decodeAmount(data), amount);
+    }
+
+    function test_RepayHook_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeRepayData(false, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = repayHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(repayHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_RepayHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeRepayData(false, false);
+        bytes memory result = repayHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(repayHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_SupplyAndBorrowHook_DecodeAmount() public view {
+        bytes memory data = _encodeSupplyAndBorrowData(false, 500);
+        assertEq(supplyAndBorrowHook.decodeAmount(data), amount);
+    }
+
+    function test_SupplyAndBorrowHook_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeSupplyAndBorrowData(false, 500);
+        uint256 newAmount = 2e18;
+        bytes memory result = supplyAndBorrowHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(supplyAndBorrowHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_SupplyAndBorrowHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeSupplyAndBorrowData(false, 500);
+        bytes memory result = supplyAndBorrowHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(supplyAndBorrowHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_RepayAndWithdrawHook_DecodeAmount() public view {
+        bytes memory data = _encodeRepayAndWithdrawData(false, false, 500);
+        assertEq(repayAndWithdrawHook.decodeAmount(data), amount);
+    }
+
+    function test_RepayAndWithdrawHook_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeRepayAndWithdrawData(false, false, 500);
+        uint256 newAmount = 2e18;
+        bytes memory result = repayAndWithdrawHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(repayAndWithdrawHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_RepayAndWithdrawHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeRepayAndWithdrawData(false, false, 500);
+        bytes memory result = repayAndWithdrawHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(repayAndWithdrawHook.decodeAmount(result), fuzzAmount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                          ENCODING HELPERS
     //////////////////////////////////////////////////////////////*/
 

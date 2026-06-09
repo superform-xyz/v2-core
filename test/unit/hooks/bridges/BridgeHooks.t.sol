@@ -432,6 +432,50 @@ contract BridgeHooks is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    DECODE/REPLACE AMOUNT TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_AcrossV3_DecodeAmount() public view {
+        bytes memory data = _encodeAcrossData(false);
+        assertEq(acrossV3hook.decodeAmount(data), mockInputAmount);
+    }
+
+    function test_AcrossV3_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeAcrossData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = acrossV3hook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(acrossV3hook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_AcrossV3_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeAcrossData(false);
+        bytes memory result = acrossV3hook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(acrossV3hook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_ApproveAndAcrossV3_DecodeAmount() public view {
+        bytes memory data = _encodeAcrossData(false);
+        assertEq(approveAndAcrossV3hook.decodeAmount(data), mockInputAmount);
+    }
+
+    function test_ApproveAndAcrossV3_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeAcrossData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndAcrossV3hook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(approveAndAcrossV3hook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_ApproveAndAcrossV3_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeAcrossData(false);
+        bytes memory result = approveAndAcrossV3hook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(approveAndAcrossV3hook.decodeAmount(result), fuzzAmount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _encodeAcrossData(bool usePrevHookAmount) internal view returns (bytes memory) {

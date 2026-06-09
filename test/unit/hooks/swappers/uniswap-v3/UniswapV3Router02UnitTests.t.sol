@@ -831,6 +831,50 @@ contract UniswapV3Router02HookTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    DECODE/REPLACE AMOUNT TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SwapUniV3Router02_DecodeAmount() public view {
+        bytes memory data = _buildHookData(false);
+        assertEq(swapHook.decodeAmount(data), originalAmountIn);
+    }
+
+    function test_SwapUniV3Router02_ReplaceCalldataAmount() public view {
+        bytes memory data = _buildHookData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = swapHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(swapHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_SwapUniV3Router02_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _buildHookData(false);
+        bytes memory result = swapHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(swapHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_ApproveAndSwapUniV3Router02_DecodeAmount() public view {
+        bytes memory data = _buildHookData(false);
+        assertEq(approveAndSwapHook.decodeAmount(data), originalAmountIn);
+    }
+
+    function test_ApproveAndSwapUniV3Router02_ReplaceCalldataAmount() public view {
+        bytes memory data = _buildHookData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndSwapHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(approveAndSwapHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_ApproveAndSwapUniV3Router02_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _buildHookData(false);
+        bytes memory result = approveAndSwapHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(approveAndSwapHook.decodeAmount(result), fuzzAmount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                               Helpers
     //////////////////////////////////////////////////////////////*/
 

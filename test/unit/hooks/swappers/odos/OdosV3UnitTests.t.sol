@@ -1196,6 +1196,48 @@ contract OdosV3UnitTests is Helpers {
         }
     }
 
+    // ========================== DecodeAmount/ReplaceCalldataAmount ==========================
+
+    function test_SwapOdosV3_DecodeAmount() public view {
+        bytes memory data = _buildSwapOdosV3Data(false);
+        assertEq(swapOdosV3Hook.decodeAmount(data), inputAmount);
+    }
+
+    function test_SwapOdosV3_ReplaceCalldataAmount() public view {
+        bytes memory data = _buildSwapOdosV3Data(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = swapOdosV3Hook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(swapOdosV3Hook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_SwapOdosV3_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _buildSwapOdosV3Data(false);
+        bytes memory result = swapOdosV3Hook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(swapOdosV3Hook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_ApproveAndSwapOdosV3_DecodeAmount() public view {
+        bytes memory data = _buildApproveAndSwapOdosV3Data(false);
+        assertEq(approveAndSwapOdosV3Hook.decodeAmount(data), inputAmount);
+    }
+
+    function test_ApproveAndSwapOdosV3_ReplaceCalldataAmount() public view {
+        bytes memory data = _buildApproveAndSwapOdosV3Data(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndSwapOdosV3Hook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(approveAndSwapOdosV3Hook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_ApproveAndSwapOdosV3_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _buildApproveAndSwapOdosV3Data(false);
+        bytes memory result = approveAndSwapOdosV3Hook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(approveAndSwapOdosV3Hook.decodeAmount(result), fuzzAmount);
+    }
+
     // ========================== Data Builders ==========================
 
     function _buildSwapOdosV3Data(bool usePrevious) internal view returns (bytes memory) {

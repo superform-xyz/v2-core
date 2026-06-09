@@ -190,4 +190,58 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
 
         assertApproxEqRel(finalLtv, initialLtv, 1e16);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                    DECODE AMOUNT / REPLACE CALLDATA AMOUNT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice decodeAmount + replaceCalldataAmount roundtrip for MorphoSupplyAndBorrowHook (AMOUNT_POSITION = 80)
+    function test_MorphoSupplyAndBorrow_DecodeAmount_ReplaceCalldataAmount() external view {
+        address loanToken = CHAIN_1_USDC;
+        address collateralToken = CHAIN_1_WBTC;
+        uint256 originalAmount = 1_000_000;
+
+        bytes memory hookData = _createMorphoSupplyAndBorrowHookData(
+            loanToken, collateralToken, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, originalAmount, lltvRatio, false, lltv
+        );
+
+        MorphoSupplyAndBorrowHook morphoHook = MorphoSupplyAndBorrowHook(morphoSupplyAndBorrowHook);
+
+        // Verify decodeAmount
+        assertEq(morphoHook.decodeAmount(hookData), originalAmount, "decodeAmount mismatch");
+
+        // Replace and verify roundtrip
+        uint256 newAmount = 500_000;
+        bytes memory replaced = morphoHook.replaceCalldataAmount(hookData, newAmount);
+        assertEq(morphoHook.decodeAmount(replaced), newAmount, "replaced amount mismatch");
+
+        // Verify other fields preserved
+        assertFalse(morphoHook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
+    }
+
+    /// @notice decodeAmount + replaceCalldataAmount roundtrip for MorphoRepayAndWithdrawHook
+    function test_MorphoRepayAndWithdraw_DecodeAmount_ReplaceCalldataAmount() external view {
+        address loanToken = CHAIN_1_USDC;
+        address collateralToken = CHAIN_1_WBTC;
+        uint256 originalAmount = 500_000;
+
+        bytes memory hookData = abi.encodePacked(
+            loanToken,
+            collateralToken,
+            MORPHO_ORACLE_WBTC_USDC,
+            MORPHO_IRM_WBTC_USDC,
+            originalAmount,
+            lltv,
+            false, // usePrevHookAmount
+            false // isFullRepayment
+        );
+
+        // Verify decodeAmount
+        assertEq(repayAndWithdrawHook.decodeAmount(hookData), originalAmount, "decodeAmount mismatch");
+
+        // Replace and verify roundtrip
+        uint256 newAmount = 250_000;
+        bytes memory replaced = repayAndWithdrawHook.replaceCalldataAmount(hookData, newAmount);
+        assertEq(repayAndWithdrawHook.decodeAmount(replaced), newAmount, "replaced amount mismatch");
+    }
 }

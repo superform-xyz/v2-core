@@ -179,6 +179,21 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
         assertEq(decodedAmount, amount);
     }
 
+    function test_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = hook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(hook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeData(false);
+        bytes memory result = hook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(hook.decodeAmount(result), fuzzAmount);
+    }
+
     function test_UsePrevHookAmount() public view {
         bytes memory data = _encodeData(true);
         assertTrue(hook.decodeUsePrevHookAmount(data));

@@ -11,7 +11,13 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookResult,
+    ISuperHookContextAware,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 
 /// @title ApproveAndSwapOdosV3Hook
 /// @author Superform Labs
@@ -33,7 +39,7 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 ///      for swap execution. The executor must be trusted -- off-chain validation via inspect() is recommended.
 /// @dev Unlike V2, this hook supports native ETH swaps by skipping token approvals
 ///      when inputToken is address(0).
-contract ApproveAndSwapOdosV3Hook is BaseHook, ISuperHookContextAware {
+contract ApproveAndSwapOdosV3Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     IOdosRouterV3 public immutable ODOS_ROUTER_V3;
 
     /*//////////////////////////////////////////////////////////////
@@ -41,6 +47,7 @@ contract ApproveAndSwapOdosV3Hook is BaseHook, ISuperHookContextAware {
     //////////////////////////////////////////////////////////////*/
     uint256 private constant INPUT_TOKEN_POSITION = 0;
     uint256 private constant INPUT_AMOUNT_POSITION = 20;
+    uint256 private constant AMOUNT_POSITION = 20;
     uint256 private constant INPUT_RECEIVER_POSITION = 52;
     uint256 private constant OUTPUT_TOKEN_POSITION = 72;
     uint256 private constant OUTPUT_QUOTE_POSITION = 92;
@@ -170,6 +177,16 @@ contract ApproveAndSwapOdosV3Hook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookInspector

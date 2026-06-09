@@ -9,6 +9,13 @@ import { IOpenOceanCaller } from "../../../src/vendor/openocean/IOpenOceanCaller
 import { IOpenOceanExchange } from "../../../src/vendor/openocean/IOpenOceanExchange.sol";
 import { OpenOceanAPIParser } from "../../utils/parsers/OpenOceanAPIParser.sol";
 
+import {
+    ApproveAndSwapOpenOceanSparkDexHook
+} from "../../../src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol";
+import {
+    SwapOpenOceanSparkDexHook
+} from "../../../src/hooks/swappers/openocean/SwapOpenOceanSparkDexHook.sol";
+
 /// @title OpenOceanSparkDexAPIScaleTest
 /// @notice Uses real OpenOcean V4 SparkDexV4 calldata and verifies the scaler updates amounts safely.
 /// @dev Requires FFI/Surl network access. Run with:
@@ -136,5 +143,68 @@ contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
         for (uint256 i; i < result.length; ++i) {
             result[i] = data_[i + 4];
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    DECODE AMOUNT / REPLACE CALLDATA AMOUNT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice decodeAmount + replaceCalldataAmount roundtrip for ApproveAndSwapOpenOceanSparkDexHook
+    /// @dev AMOUNT_POSITION = 40 (was incorrectly 52, bugfix validated here)
+    function test_ApproveAndSwapOpenOcean_DecodeAmount_ReplaceCalldataAmount() public {
+        ApproveAndSwapOpenOceanSparkDexHook hook =
+            new ApproveAndSwapOpenOceanSparkDexHook(OPENOCEAN_ROUTER, OPENOCEAN_CALLER_FLARE, address(0));
+
+        uint256 originalAmount = 1 ether;
+        bytes memory dummyTxData = new bytes(100); // Dummy txData for roundtrip test
+
+        // Build hook data: inputToken(20) | outputToken(20) | inputAmount(32) | outputMin(32) | usePrevHookAmount(1) | txDataLength(32) | txData
+        bytes memory hookData = bytes.concat(
+            bytes20(FLR),
+            bytes20(SPRK),
+            bytes32(originalAmount),
+            bytes32(uint256(0)), // outputMin
+            bytes1(uint8(0)), // usePrevHookAmount = false
+            bytes32(dummyTxData.length),
+            dummyTxData
+        );
+
+        // Verify decodeAmount
+        assertEq(hook.decodeAmount(hookData), originalAmount, "decodeAmount mismatch");
+
+        // Replace and verify roundtrip
+        uint256 newAmount = 0.5 ether;
+        bytes memory replaced = hook.replaceCalldataAmount(hookData, newAmount);
+        assertEq(hook.decodeAmount(replaced), newAmount, "replaced amount mismatch");
+
+        // Verify other fields preserved
+        assertFalse(hook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
+    }
+
+    /// @notice decodeAmount + replaceCalldataAmount roundtrip for SwapOpenOceanSparkDexHook
+    /// @dev SwapHook layout: outputToken(20) | value(32) | inputAmount(32) | outputMin(32) | usePrevHookAmount(1) | txDataLength(32) | txData
+    function test_SwapOpenOcean_DecodeAmount_ReplaceCalldataAmount() public {
+        SwapOpenOceanSparkDexHook hook =
+            new SwapOpenOceanSparkDexHook(OPENOCEAN_ROUTER, OPENOCEAN_CALLER_FLARE, address(0));
+
+        uint256 originalAmount = 2 ether;
+        bytes memory dummyTxData = new bytes(100);
+
+        // Build data matching SwapOpenOceanSparkDexHook layout: outputToken(20) | value(32) | inputAmount(32) | ...
+        bytes memory hookData = bytes.concat(
+            bytes20(SPRK), // outputToken
+            bytes32(uint256(0)), // value (ETH value, 0 for ERC20)
+            bytes32(originalAmount), // inputAmount @ offset 52
+            bytes32(uint256(0)), // outputMin
+            bytes1(uint8(0)), // usePrevHookAmount
+            bytes32(dummyTxData.length),
+            dummyTxData
+        );
+
+        assertEq(hook.decodeAmount(hookData), originalAmount, "SwapHook decodeAmount mismatch");
+
+        uint256 newAmount = 1 ether;
+        bytes memory replaced = hook.replaceCalldataAmount(hookData, newAmount);
+        assertEq(hook.decodeAmount(replaced), newAmount, "SwapHook replaced amount mismatch");
     }
 }

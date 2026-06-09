@@ -604,6 +604,36 @@ contract ERC7540WithIdHookTests is Helpers, InternalHelpers {
         assertEq(decodedAmount, fuzzAmount);
     }
 
+    function test_RedeemWithIdHook_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeRedeemWithdrawWithIdData(false, requestId);
+        uint256 newAmount = 2e18;
+        bytes memory result = redeemWithIdHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(redeemWithIdHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_RedeemWithIdHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeRedeemWithdrawWithIdData(false, requestId);
+        bytes memory result = redeemWithIdHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(redeemWithIdHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_WithdrawWithIdHook_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeRedeemWithdrawWithIdData(false, requestId);
+        uint256 newAmount = 2e18;
+        bytes memory result = withdrawWithIdHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(withdrawWithIdHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_WithdrawWithIdHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeRedeemWithdrawWithIdData(false, requestId);
+        bytes memory result = withdrawWithIdHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(withdrawWithIdHook.decodeAmount(result), fuzzAmount);
+    }
+
     /// @dev Fuzz: redeem build with arbitrary amount and requestId
     function testFuzz_RedeemWithIdHook_Build(uint256 fuzzAmount, uint256 fuzzRequestId) public view {
         vm.assume(fuzzAmount > 0);

@@ -16,6 +16,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
+    ISuperHookOutflow,
     ISuperHookContextAware,
     ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
@@ -30,7 +31,7 @@ import {
 ///         bool usePrevHookAmount = BytesLib.toBool(data, 84);
 ///         address vaultBank = BytesLib.toAddress(data, 85);
 ///         uint256 dstChainId = BytesLib.toUint256(data, 105);
-contract BurnSuperPositionsHook is BaseHook, VaultBankLockableHook, ISuperHookInflowOutflow, ISuperHookContextAware {
+contract BurnSuperPositionsHook is BaseHook, VaultBankLockableHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
     using SafeCast for uint256;
     using HookDataDecoder for bytes;
 
@@ -102,6 +103,11 @@ contract BurnSuperPositionsHook is BaseHook, VaultBankLockableHook, ISuperHookIn
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookContextAware

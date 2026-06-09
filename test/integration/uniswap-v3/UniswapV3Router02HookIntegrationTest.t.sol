@@ -806,6 +806,105 @@ contract UniswapV3Router02HookIntegrationTest is MinimalBaseIntegrationTest {
         assertFalse(approveAndSwapHook.decodeUsePrevHookAmount(dataFalse));
         assertTrue(approveAndSwapHook.decodeUsePrevHookAmount(dataTrue));
     }
+
+    /*//////////////////////////////////////////////////////////////
+                    DECODE AMOUNT / REPLACE CALLDATA AMOUNT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice decodeAmount + replaceCalldataAmount roundtrip for SwapRouter02 hooks
+    function test_SwapRouter02_DecodeAmount_ReplaceCalldataAmount() external view {
+        uint256 originalAmount = 1000e6;
+        bytes memory hookData =
+            _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, originalAmount, 0.2 ether, false);
+
+        // Verify decodeAmount reads correctly
+        assertEq(swapHook.decodeAmount(hookData), originalAmount, "SwapHook decodeAmount mismatch");
+        assertEq(approveAndSwapHook.decodeAmount(hookData), originalAmount, "ApproveAndSwapHook decodeAmount mismatch");
+
+        // Replace with new amount and verify roundtrip
+        uint256 newAmount = 500e6;
+        bytes memory replacedSwap = swapHook.replaceCalldataAmount(hookData, newAmount);
+        bytes memory replacedApproveAndSwap = approveAndSwapHook.replaceCalldataAmount(hookData, newAmount);
+
+        assertEq(swapHook.decodeAmount(replacedSwap), newAmount, "SwapHook replaced amount mismatch");
+        assertEq(
+            approveAndSwapHook.decodeAmount(replacedApproveAndSwap),
+            newAmount,
+            "ApproveAndSwapHook replaced amount mismatch"
+        );
+
+        // Verify other fields are preserved
+        assertFalse(swapHook.decodeUsePrevHookAmount(replacedSwap), "usePrevHookAmount should be preserved");
+    }
+
+    /// @notice ApproveAndSwap: build with 1000 USDC, replace to 500 USDC, execute, verify only 500 spent
+    function test_ApproveAndSwapRouter02_ReplaceCalldataAmount_ExecutesCorrectly() public {
+        address account = instanceOnEth.account;
+        uint256 originalAmount = 1000e6;
+        uint256 newAmount = 500e6;
+
+        // Fund account with enough for original amount (to prove we only spend newAmount)
+        deal(CHAIN_1_USDC, account, originalAmount);
+
+        // Build hook data with original amount
+        bytes memory hookData =
+            _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, originalAmount, 0, false);
+
+        // Replace with new amount
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmount(hookData, newAmount);
+        assertEq(approveAndSwapHook.decodeAmount(replaced), newAmount, "Amount not replaced correctly");
+
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(account);
+
+        // Execute with replaced data
+        _executeSingleHook(address(approveAndSwapHook), replaced);
+
+        uint256 usdcAfter = IERC20(CHAIN_1_USDC).balanceOf(account);
+        uint256 wethAfter = IERC20(CHAIN_1_WETH).balanceOf(account);
+
+        // Should only spend newAmount (500 USDC), leaving 500 USDC
+        assertEq(usdcAfter, originalAmount - newAmount, "Should only spend replaced amount");
+        assertGt(wethAfter - wethBefore, 0, "Should receive WETH");
+    }
+
+    /// @notice SwapHook (no-approve): build with 1 WETH, replace to 0.5 WETH, execute, verify only 0.5 spent
+    function test_SwapRouter02_ReplaceCalldataAmount_ExecutesCorrectly() public {
+        address account = instanceOnEth.account;
+        uint256 originalAmount = 1 ether;
+        uint256 newAmount = 0.5 ether;
+
+        deal(CHAIN_1_WETH, account, originalAmount);
+
+        // Build hook data with original amount
+        bytes memory swapHookData =
+            _buildRouter02HookData(CHAIN_1_WETH, CHAIN_1_USDC, FEE_MEDIUM, 0, originalAmount, 0, false);
+
+        // Replace with new amount
+        bytes memory replacedSwapData = swapHook.replaceCalldataAmount(swapHookData, newAmount);
+
+        // Also build approve data for newAmount
+        bytes memory approveData =
+            _buildApproveERC20HookData(CHAIN_1_WETH, MAINNET_V3_SWAP_ROUTER_02, newAmount, false);
+
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(account);
+
+        // Execute with approve + swap chain
+        address[] memory hooks = new address[](2);
+        hooks[0] = address(approveERC20Hook);
+        hooks[1] = address(swapHook);
+
+        bytes[] memory hookDatas = new bytes[](2);
+        hookDatas[0] = approveData;
+        hookDatas[1] = replacedSwapData;
+
+        _executeMultiHook(hooks, hookDatas);
+
+        uint256 wethAfter = IERC20(CHAIN_1_WETH).balanceOf(account);
+        uint256 usdcAfter = IERC20(CHAIN_1_USDC).balanceOf(account);
+
+        assertEq(wethAfter, originalAmount - newAmount, "Should only spend replaced amount");
+        assertGt(usdcAfter - usdcBefore, 0, "Should receive USDC");
+    }
 }
 
 /// @notice Mock contract to simulate previous hook returning specific amounts

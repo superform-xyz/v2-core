@@ -10,7 +10,7 @@ import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoWithdrawHook
 /// @author Superform Labs
@@ -94,6 +94,16 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
             vars.marketParams.oracle,
             vars.marketParams.irm
         );
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, ASSETS_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure override returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, ASSETS_OFFSET);
     }
 
     /*//////////////////////////////////////////////////////////////

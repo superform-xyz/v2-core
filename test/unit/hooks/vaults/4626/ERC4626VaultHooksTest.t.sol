@@ -258,10 +258,47 @@ contract ERC4626VaultHooksTest is Helpers {
     /*//////////////////////////////////////////////////////////////
                 REPLACE CALLLDATA AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
+    function test_ApproveAndDepositHook_ReplaceCalldataAmount() public view {
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndDepositHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(approveAndDepositHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_ApproveAndDepositHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false);
+        bytes memory result = approveAndDepositHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(approveAndDepositHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_DepositHook_ReplaceCalldataAmount() public view {
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = depositHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(depositHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_DepositHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false);
+        bytes memory result = depositHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(depositHook.decodeAmount(result), fuzzAmount);
+    }
+
     function test_RedeemHook_ReplaceCalldataAmount() public view {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), shares, false);
         bytes memory newData = redeemHook.replaceCalldataAmount(data, prevHookAmount);
         assertEq(newData, abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), prevHookAmount, false));
+    }
+
+    function testFuzz_RedeemHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), shares, false);
+        bytes memory result = redeemHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(redeemHook.decodeAmount(result), fuzzAmount);
     }
 
     /*//////////////////////////////////////////////////////////////

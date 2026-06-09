@@ -13,6 +13,7 @@ import { BaseHook } from "../../BaseHook.sol";
 import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
+    ISuperHookOutflow,
     ISuperHookAsyncCancelations,
     ISuperHookContextAware,
     ISuperHookInspector
@@ -30,6 +31,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract RequestRedeem7540VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
+    ISuperHookOutflow,
     ISuperHookAsyncCancelations,
     ISuperHookContextAware
 {
@@ -85,6 +87,11 @@ contract RequestRedeem7540VaultHook is
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookContextAware

@@ -13,7 +13,12 @@ import { IUniswapV2Router } from "./interfaces/IUniswapV2Router.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookResult,
+    ISuperHookContextAware,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 
 /// @title SwapUniswapV2Hook
 /// @author Superform Labs
@@ -31,7 +36,7 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @dev         address[] path = decoded from (169, pathLength * 20);
 /// @dev Fee-on-transfer tokens are NOT supported
 /// @dev Rebasing tokens are NOT supported as output tokens
-contract SwapUniswapV2Hook is BaseHook, ISuperHookContextAware {
+contract SwapUniswapV2Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using BytesLib for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -46,6 +51,8 @@ contract SwapUniswapV2Hook is BaseHook, ISuperHookContextAware {
 
     /// @notice Position of usePrevHookAmount flag in hook data
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 136;
+
+    uint256 private constant AMOUNT_POSITION = 72;
 
     /// @notice Maximum allowed path length to prevent gas griefing
     uint256 private constant MAX_PATH_LENGTH = 10;
@@ -159,6 +166,16 @@ contract SwapUniswapV2Hook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /// @inheritdoc BaseHook

@@ -9,7 +9,13 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../BaseHook.sol";
 import { HookSubTypes } from "../../libraries/HookSubTypes.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookResult,
+    ISuperHookContextAware,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../interfaces/ISuperHook.sol";
 
 /// @title TransferHook
 /// @author Superform Labs
@@ -18,11 +24,12 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @notice         address to = BytesLib.toAddress(data, 20);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 40);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
-contract TransferHook is BaseHook, ISuperHookContextAware {
+contract TransferHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     /// @dev Bytecode version for redeployment tracking
     ///      New version to be deployed on polygon with 0xeee as the native token
     uint256 public constant VERSION = 2;
 
+    uint256 private constant AMOUNT_POSITION = 40;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
 
     /// @dev This is not a constant because some chains have different representations for the native token
@@ -78,6 +85,16 @@ contract TransferHook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookInspector

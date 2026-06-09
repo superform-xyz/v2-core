@@ -8,7 +8,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { IFirelightVault } from "../../../vendor/vaults/firelight/IFirelightVault.sol";
@@ -22,7 +22,7 @@ import { IFirelightVault } from "../../../vendor/vaults/firelight/IFirelightVaul
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         uint256 shares = BytesLib.toUint256(data, 52);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
-contract RedeemFirelightVaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware {
+contract RedeemFirelightVaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 52;
@@ -75,6 +75,11 @@ contract RedeemFirelightVaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookContextAware

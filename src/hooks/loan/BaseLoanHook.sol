@@ -7,13 +7,17 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../BaseHook.sol";
-import { ISuperHookLoans } from "../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookLoans,
+    ISuperHookContextAware,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
-import { ISuperHookContextAware } from "../../interfaces/ISuperHook.sol";
 
 /// @title BaseLoanHook
 /// @author Superform Labs
-abstract contract BaseLoanHook is BaseHook, ISuperHookLoans {
+abstract contract BaseLoanHook is BaseHook, ISuperHookLoans, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
     uint256 internal constant AMOUNT_POSITION = 80;
@@ -30,6 +34,16 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans {
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure virtual returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure virtual returns (uint256) {
+        return _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure virtual returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -274,6 +274,41 @@ contract DETHHooksTests is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    REPLACE CALLDATA AMOUNT TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_RequestRedeemDETHHook_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeRequestRedeemData(address(asyncRedeemer), amount, minAssets, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = requestRedeemHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(requestRedeemHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_RequestRedeemDETHHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeRequestRedeemData(address(asyncRedeemer), amount, minAssets, false);
+        bytes memory result = requestRedeemHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(requestRedeemHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_ApproveAndRequestRedeemDETHHook_ReplaceCalldataAmount() public view {
+        bytes memory data =
+            _encodeApproveAndRequestData(address(asyncRedeemer), address(dethToken), amount, minAssets, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndRequestHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(approveAndRequestHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_ApproveAndRequestRedeemDETHHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data =
+            _encodeApproveAndRequestData(address(asyncRedeemer), address(dethToken), amount, minAssets, false);
+        bytes memory result = approveAndRequestHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(approveAndRequestHook.decodeAmount(result), fuzzAmount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                     DECODE USE PREV HOOK AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
     function test_RequestRedeemDETHHook_DecodeUsePrevHookAmount() public view {

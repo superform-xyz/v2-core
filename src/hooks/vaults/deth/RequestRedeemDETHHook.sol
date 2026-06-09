@@ -11,6 +11,7 @@ import { BaseHook } from "../../BaseHook.sol";
 import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
+    ISuperHookOutflow,
     ISuperHookContextAware,
     ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
@@ -33,7 +34,7 @@ import { IMachine } from "../../../vendor/vaults/deth/IMachine.sol";
 /// @notice         uint256 shares = BytesLib.toUint256(data, 52);
 /// @notice         uint256 minAssets = BytesLib.toUint256(data, 84);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 116);
-contract RequestRedeemDETHHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware {
+contract RequestRedeemDETHHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 52;
@@ -88,6 +89,11 @@ contract RequestRedeemDETHHook is BaseHook, ISuperHookInflowOutflow, ISuperHookC
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookContextAware

@@ -10,7 +10,12 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookResult,
+    ISuperHookContextAware,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 import { IV3SwapRouter } from "./interfaces/IV3SwapRouter.sol";
 
 /// @title SwapUniswapV3Router02Hook
@@ -27,7 +32,7 @@ import { IV3SwapRouter } from "./interfaces/IV3SwapRouter.sol";
 /// @notice         uint256 originalAmountIn = BytesLib.toUint256(data, 76);
 /// @notice         uint256 originalMinAmountOut = BytesLib.toUint256(data, 108);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 140);
-contract SwapUniswapV3Router02Hook is BaseHook, ISuperHookContextAware {
+contract SwapUniswapV3Router02Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using BytesLib for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -39,6 +44,8 @@ contract SwapUniswapV3Router02Hook is BaseHook, ISuperHookContextAware {
 
     /// @notice Position of usePrevHookAmount flag in hook data
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 140;
+
+    uint256 private constant AMOUNT_POSITION = 76;
 
     /// @notice Minimum valid hook data length
     uint256 private constant MIN_HOOK_DATA_LENGTH = 141;
@@ -133,6 +140,16 @@ contract SwapUniswapV3Router02Hook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /// @inheritdoc BaseHook

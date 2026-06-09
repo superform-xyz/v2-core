@@ -1082,6 +1082,69 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
 
         // Expected dynamic minOut ~ (originalMinOut * actualAmount / originalAmount)
     }
+
+    /*//////////////////////////////////////////////////////////////
+                    DECODE AMOUNT / REPLACE CALLDATA AMOUNT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice decodeAmount + replaceCalldataAmount roundtrip for SwapUniswapV4Hook
+    function test_UniswapV4_DecodeAmount_ReplaceCalldataAmount() external view {
+        uint256 originalAmount = 1000e6;
+
+        bytes memory swapCalldata = parser.generateSingleHopSwapCalldata(
+            UniswapV4Parser.SingleHopParams({
+                poolKey: testPoolKey,
+                dstReceiver: accountEth,
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1,
+                originalAmountIn: originalAmount,
+                originalMinAmountOut: 0.2 ether,
+                maxSlippageDeviationBps: 500,
+                zeroForOne: true,
+                additionalData: ""
+            }),
+            false
+        );
+
+        // Verify decodeAmount
+        assertEq(uniswapV4Hook.decodeAmount(swapCalldata), originalAmount, "decodeAmount mismatch");
+
+        // Replace and verify roundtrip
+        uint256 newAmount = 500e6;
+        bytes memory replaced = uniswapV4Hook.replaceCalldataAmount(swapCalldata, newAmount);
+        assertEq(uniswapV4Hook.decodeAmount(replaced), newAmount, "replaced amount mismatch");
+
+        // Verify other fields preserved
+        assertFalse(uniswapV4Hook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
+    }
+
+    /// @notice Verify replaceCalldataAmount preserves data structure across multiple field types
+    function test_UniswapV4_ReplaceCalldataAmount_PreservesAllFields() external view {
+        uint256 originalAmount = 1000e6;
+        uint256 newAmount = 500e6;
+
+        bytes memory swapCalldata = parser.generateSingleHopSwapCalldata(
+            UniswapV4Parser.SingleHopParams({
+                poolKey: testPoolKey,
+                dstReceiver: accountEth,
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1,
+                originalAmountIn: originalAmount,
+                originalMinAmountOut: 0.2 ether,
+                maxSlippageDeviationBps: 500,
+                zeroForOne: true,
+                additionalData: ""
+            }),
+            false
+        );
+
+        bytes memory replaced = uniswapV4Hook.replaceCalldataAmount(swapCalldata, newAmount);
+
+        // Amount is replaced
+        assertEq(uniswapV4Hook.decodeAmount(replaced), newAmount, "Amount should be replaced");
+        // usePrevHookAmount is preserved
+        assertFalse(uniswapV4Hook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
+        // Data length is preserved
+        assertEq(replaced.length, swapCalldata.length, "Data length should be preserved");
+    }
 }
 
 /// @notice Mock contract to simulate previous hook returning specific amounts

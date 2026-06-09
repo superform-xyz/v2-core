@@ -426,6 +426,46 @@ contract ApproveAndSwapOdosHookTest is Helpers {
         assertEq(approveAndSwapOdosHook.getOutAmount(account), inputAmount);
     }
 
+    function test_ApproveAndSwapOdos_DecodeAmount() public view {
+        bytes memory data = _buildApproveAndSwapOdosData(false);
+        assertEq(approveAndSwapOdosHook.decodeAmount(data), inputAmount);
+    }
+
+    function test_ApproveAndSwapOdos_ReplaceCalldataAmount() public view {
+        bytes memory data = _buildApproveAndSwapOdosData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndSwapOdosHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(approveAndSwapOdosHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_ApproveAndSwapOdos_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _buildApproveAndSwapOdosData(false);
+        bytes memory result = approveAndSwapOdosHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(approveAndSwapOdosHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_SwapOdos_DecodeAmount() public view {
+        bytes memory data = _buildSwapOdosData(false);
+        assertEq(swapOdosHook.decodeAmount(data), inputAmount);
+    }
+
+    function test_SwapOdos_ReplaceCalldataAmount() public view {
+        bytes memory data = _buildSwapOdosData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = swapOdosHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(swapOdosHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_SwapOdos_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _buildSwapOdosData(false);
+        bytes memory result = swapOdosHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(swapOdosHook.decodeAmount(result), fuzzAmount);
+    }
+
     function _buildSwapOdosData(bool usePrevious) internal view returns (bytes memory) {
         bytes memory data = bytes.concat(
             bytes20(inputToken),

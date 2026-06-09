@@ -7,7 +7,12 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookResult,
+    ISuperHookContextAware,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 import { IAlgebraSwapRouter } from "../../../vendor/algebra-integral/IAlgebraSwapRouter.sol";
 
 /// @title ApproveAndSwapAlgebraIntegralHook
@@ -15,7 +20,7 @@ import { IAlgebraSwapRouter } from "../../../vendor/algebra-integral/IAlgebraSwa
 /// @notice Hook for executing swaps via Algebra Integral with approval handling
 /// @dev Handles: approve(0) -> approve(amount) -> swap -> approve(0)
 /// @dev data structure same as SwapAlgebraIntegralHook
-contract ApproveAndSwapAlgebraIntegralHook is BaseHook, ISuperHookContextAware {
+contract ApproveAndSwapAlgebraIntegralHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using BytesLib for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -27,6 +32,8 @@ contract ApproveAndSwapAlgebraIntegralHook is BaseHook, ISuperHookContextAware {
 
     /// @notice Position of usePrevHookAmount flag in hook data
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 208;
+
+    uint256 private constant AMOUNT_POSITION = 144;
 
     /// @notice Minimum required hook data length (208 bytes of params + 1 byte for usePrevHookAmount flag)
     uint256 private constant MIN_HOOK_DATA_LENGTH = 209;
@@ -153,6 +160,16 @@ contract ApproveAndSwapAlgebraIntegralHook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /// @inheritdoc BaseHook

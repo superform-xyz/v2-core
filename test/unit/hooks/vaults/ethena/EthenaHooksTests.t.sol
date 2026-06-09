@@ -139,6 +139,21 @@ contract EthenaHooksTests is Helpers {
         assertEq(decodedAmount, amount);
     }
 
+    function test_EthenaCooldownSharesHook_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeCooldownData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = cooldownSharesHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(cooldownSharesHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_EthenaCooldownSharesHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeCooldownData(false);
+        bytes memory result = cooldownSharesHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(cooldownSharesHook.decodeAmount(result), fuzzAmount);
+    }
+
     /*//////////////////////////////////////////////////////////////
                           PRE/POST EXECUTE TESTS
     //////////////////////////////////////////////////////////////*/

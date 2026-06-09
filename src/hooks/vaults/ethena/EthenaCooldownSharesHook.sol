@@ -11,7 +11,7 @@ import { IStakedUSDeCooldown } from "../../../vendor/ethena/IStakedUSDeCooldown.
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title EthenaCooldownSharesHook
 /// @author Superform Labs
@@ -21,7 +21,7 @@ import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookInspector } from "
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         uint256 shares = BytesLib.toUint256(data, 52);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
-contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow {
+contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 52;
@@ -74,6 +74,11 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow {
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /*//////////////////////////////////////////////////////////////

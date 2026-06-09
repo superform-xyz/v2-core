@@ -1180,6 +1180,55 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    DECODE AMOUNT / REPLACE CALLDATA AMOUNT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice decodeAmount + replaceCalldataAmount roundtrip for ApproveAndSwapKyberSwapHook
+    function test_ApproveAndSwap_DecodeAmount_ReplaceCalldataAmount() public {
+        uint256 originalAmount = 1000e6;
+        bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, originalAmount, 0, KYBER_ROUTER, KYBER_ROUTER, "");
+
+        bytes memory hookData =
+            _buildApproveAndSwapHookData(USDC, WETH, originalAmount, 0.2 ether, false, txData_);
+
+        // Verify decodeAmount reads correctly
+        assertEq(approveAndSwapHook.decodeAmount(hookData), originalAmount, "decodeAmount mismatch");
+
+        // Replace with new amount and verify roundtrip
+        uint256 newAmount = 500e6;
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmount(hookData, newAmount);
+
+        assertEq(approveAndSwapHook.decodeAmount(replaced), newAmount, "replaced amount mismatch");
+
+        // Verify other fields preserved
+        assertFalse(approveAndSwapHook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
+    }
+
+    /// @notice decodeAmount + replaceCalldataAmount roundtrip for SwapKyberSwapHook
+    /// @dev SwapKyberSwapHook layout: outputToken(20) | value(32) | inputAmount(32) | outputMin(32) | usePrevHookAmount(1) | txDataLength(32) | txData
+    function test_Swap_DecodeAmount_ReplaceCalldataAmount() public {
+        uint256 originalAmount = 2000e6;
+        bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, originalAmount, 0, KYBER_ROUTER, KYBER_ROUTER, "");
+
+        // Build data matching SwapKyberSwapHook layout: outputToken(20) | value(32) | inputAmount(32) | ...
+        bytes memory hookData = bytes.concat(
+            bytes20(WETH), // outputToken
+            bytes32(uint256(0)), // value (ETH value for swap, 0 for ERC20)
+            bytes32(originalAmount), // inputAmount @ offset 52
+            bytes32(uint256(0.2 ether)), // outputMin
+            bytes1(uint8(0)), // usePrevHookAmount
+            bytes32(txData_.length),
+            txData_
+        );
+
+        assertEq(swapHook.decodeAmount(hookData), originalAmount, "SwapHook decodeAmount mismatch");
+
+        uint256 newAmount = 1000e6;
+        bytes memory replaced = swapHook.replaceCalldataAmount(hookData, newAmount);
+        assertEq(swapHook.decodeAmount(replaced), newAmount, "SwapHook replaced amount mismatch");
+    }
+
+    /*//////////////////////////////////////////////////////////////
                          UTILITY
     //////////////////////////////////////////////////////////////*/
 

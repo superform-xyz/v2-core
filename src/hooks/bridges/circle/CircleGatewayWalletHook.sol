@@ -9,7 +9,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../../hooks/BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 import { IGatewayWallet } from "../../../vendor/circle/IGatewayWallet.sol";
 
@@ -20,7 +20,7 @@ import { IGatewayWallet } from "../../../vendor/circle/IGatewayWallet.sol";
 /// @notice         address usdc = BytesLib.toAddress(data, 0);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 20);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
-contract CircleGatewayWalletHook is BaseHook, ISuperHookContextAware {
+contract CircleGatewayWalletHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
     using BytesLib for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -95,11 +95,14 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookContextAware {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
-    /// @notice Decode the amount from hook data
-    /// @param data The hook data to decode
-    /// @return The amount value
+    /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /// @notice Decode the usdc from hook data

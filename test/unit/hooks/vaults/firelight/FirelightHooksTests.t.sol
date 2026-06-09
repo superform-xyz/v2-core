@@ -165,6 +165,21 @@ contract FirelightHooksTests is Helpers {
         assertEq(decodedAmount, amount);
     }
 
+    function test_RedeemFirelightVaultHook_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeRedeemData(address(stXRP), amount, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = redeemHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(redeemHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_RedeemFirelightVaultHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeRedeemData(address(stXRP), amount, false);
+        bytes memory result = redeemHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(redeemHook.decodeAmount(result), fuzzAmount);
+    }
+
     function test_ClaimWithdrawFirelightVaultHook_DecodeAmount() public view {
         uint256 requestId = 42;
         bytes memory data = _encodeClaimData(address(vault), requestId, false);

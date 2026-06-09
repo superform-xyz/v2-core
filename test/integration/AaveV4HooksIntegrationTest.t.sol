@@ -483,4 +483,64 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
         uint256 suppliedAfterSecond = spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth);
         assertApproxEqAbs(suppliedAfterSecond, firstAmount + secondAmount, 2, "Supplies should accumulate");
     }
+
+    /*//////////////////////////////////////////////////////////////
+                    DECODE AMOUNT / REPLACE CALLDATA AMOUNT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice decodeAmount + replaceCalldataAmount roundtrip for AaveV4SupplyHook (AMOUNT_POSITION = 124)
+    function test_AaveV4_Supply_DecodeAmount_ReplaceCalldataAmount() external view {
+        uint256 originalAmount = 1 ether;
+        bytes memory hookData = _createSupplyData(originalAmount, false);
+
+        assertEq(supplyHook.decodeAmount(hookData), originalAmount, "SupplyHook decodeAmount mismatch");
+
+        uint256 newAmount = 0.5 ether;
+        bytes memory replaced = supplyHook.replaceCalldataAmount(hookData, newAmount);
+        assertEq(supplyHook.decodeAmount(replaced), newAmount, "SupplyHook replaced amount mismatch");
+        assertFalse(supplyHook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
+    }
+
+    /// @notice decodeAmount roundtrip for AaveV4WithdrawHook
+    function test_AaveV4_Withdraw_DecodeAmount_ReplaceCalldataAmount() external view {
+        uint256 originalAmount = 0.5 ether;
+        bytes memory hookData = _createWithdrawData(originalAmount, false);
+
+        assertEq(withdrawHook.decodeAmount(hookData), originalAmount, "WithdrawHook decodeAmount mismatch");
+
+        uint256 newAmount = 0.25 ether;
+        bytes memory replaced = withdrawHook.replaceCalldataAmount(hookData, newAmount);
+        assertEq(withdrawHook.decodeAmount(replaced), newAmount, "WithdrawHook replaced amount mismatch");
+    }
+
+    /// @notice decodeAmount roundtrip for AaveV4BorrowHook
+    function test_AaveV4_Borrow_DecodeAmount_ReplaceCalldataAmount() external view {
+        uint256 originalAmount = 500e6;
+        bytes memory hookData = _createBorrowData(originalAmount, false);
+
+        assertEq(borrowHook.decodeAmount(hookData), originalAmount, "BorrowHook decodeAmount mismatch");
+
+        uint256 newAmount = 250e6;
+        bytes memory replaced = borrowHook.replaceCalldataAmount(hookData, newAmount);
+        assertEq(borrowHook.decodeAmount(replaced), newAmount, "BorrowHook replaced amount mismatch");
+    }
+
+    /// @notice Supply: build with 1 WETH, replace to 0.5 WETH, execute, verify only 0.5 supplied
+    function test_AaveV4_Supply_ReplaceCalldataAmount_ExecutesCorrectly() external {
+        uint256 originalAmount = 1 ether;
+        uint256 newAmount = 0.5 ether;
+
+        bytes memory hookData = _createSupplyData(originalAmount, false);
+        bytes memory replaced = supplyHook.replaceCalldataAmount(hookData, newAmount);
+
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
+
+        _executeHook(address(supplyHook), replaced);
+
+        uint256 wethAfter = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
+        uint256 supplied = spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth);
+
+        assertEq(wethBefore - wethAfter, newAmount, "Should spend exactly replaced amount");
+        assertApproxEqAbs(supplied, newAmount, 1, "Supplied amount should match replaced amount");
+    }
 }

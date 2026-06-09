@@ -6,6 +6,7 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 
 // Superform
 import { BaseLoanHook } from "../BaseLoanHook.sol";
+import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/ISuperHook.sol";
 
 /// @title BaseAaveV4LoanHook
 /// @author Superform Labs
@@ -126,6 +127,16 @@ abstract contract BaseAaveV4LoanHook is BaseLoanHook {
     /// @dev Overrides parent to use Aave V4 offset (156) instead of Morpho offset (144)
     function decodeUsePrevHookAmount(bytes memory data) external pure override returns (bool) {
         return _decodeBool(data, AAVE_V4_USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, AAVE_V4_AMOUNT_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure override returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AAVE_V4_AMOUNT_OFFSET);
     }
 
     /*//////////////////////////////////////////////////////////////

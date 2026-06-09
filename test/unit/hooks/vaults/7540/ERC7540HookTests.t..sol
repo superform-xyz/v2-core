@@ -629,6 +629,79 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         assertEq(replacedAmount, 1);
     }
 
+    function test_ApproveAndRequestDepositHook_ReplaceCallData() public view {
+        bytes memory data = _encodeData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndRequestDepositHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(approveAndRequestDepositHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_ApproveAndRequestDepositHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeData(false);
+        bytes memory result = approveAndRequestDepositHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(approveAndRequestDepositHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_RequestDepositHook_ReplaceCallData() public view {
+        bytes memory data = _encodeRequestData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = requestDepositHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(requestDepositHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_RequestDepositHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeRequestData(false);
+        bytes memory result = requestDepositHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(requestDepositHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_DepositHook_ReplaceCallData() public view {
+        bytes memory data = _encodeData(false, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = depositHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(depositHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_DepositHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeData(false, false);
+        bytes memory result = depositHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(depositHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_RequestRedeemHook_ReplaceCallData() public view {
+        bytes memory data = _encodeRequestData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = reqRedeemHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(reqRedeemHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_RequestRedeemHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeRequestData(false);
+        bytes memory result = reqRedeemHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(reqRedeemHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function testFuzz_RedeemHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, fuzzAmount, false);
+        assertEq(redeemHook.decodeAmount(data), fuzzAmount);
+    }
+
+    function testFuzz_WithdrawHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false, false);
+        bytes memory result = withdrawHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(withdrawHook.decodeAmount(result), fuzzAmount);
+    }
+
     /*//////////////////////////////////////////////////////////////
                       PRE/POST EXECUTE TESTS
     //////////////////////////////////////////////////////////////*/

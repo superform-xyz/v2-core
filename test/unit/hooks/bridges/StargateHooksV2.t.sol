@@ -572,6 +572,50 @@ contract StargateHooksV2 is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    DECODE/REPLACE AMOUNT TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_StargateSendV2_DecodeAmount() public view {
+        bytes memory data = _encodeStargateV2Data(false, 0, false);
+        assertEq(stargateHookV2.decodeAmount(data), mockAmountLD);
+    }
+
+    function test_StargateSendV2_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeStargateV2Data(false, 0, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = stargateHookV2.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(stargateHookV2.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_StargateSendV2_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeStargateV2Data(false, 0, false);
+        bytes memory result = stargateHookV2.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(stargateHookV2.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_ApproveAndStargateSendV2_DecodeAmount() public view {
+        bytes memory data = _encodeStargateV2Data(false, 0, false);
+        assertEq(approveAndStargateHookV2.decodeAmount(data), mockAmountLD);
+    }
+
+    function test_ApproveAndStargateSendV2_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeStargateV2Data(false, 0, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndStargateHookV2.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(approveAndStargateHookV2.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_ApproveAndStargateSendV2_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeStargateV2Data(false, 0, false);
+        bytes memory result = approveAndStargateHookV2.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(approveAndStargateHookV2.decodeAmount(result), fuzzAmount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             HELPERS
     //////////////////////////////////////////////////////////////*/
 

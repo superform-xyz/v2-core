@@ -138,6 +138,26 @@ contract TransferHookTest is Helpers {
         assertEq(BytesLib.toAddress(argsEncoded, 20), to);
     }
 
+    function test_DecodeAmount() public view {
+        bytes memory data = _encodeData(token, false);
+        assertEq(hook.decodeAmount(data), amount);
+    }
+
+    function test_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeData(token, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = hook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(hook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeData(token, false);
+        bytes memory result = hook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(hook.decodeAmount(result), fuzzAmount);
+    }
+
     function _encodeData(address tokenAddress, bool usePrev) internal view returns (bytes memory) {
         return abi.encodePacked(tokenAddress, to, amount, usePrev);
     }

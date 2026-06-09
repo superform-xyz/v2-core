@@ -1,0 +1,703 @@
+[
+  {
+    "hookKey": "AAVE_V4_BORROW_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 124,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "AAVE_V4_REPAY_AND_WITHDRAW_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 124,
+    "secondaryAmountPosition": 158,
+    "sizing": "dual",
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "AAVE_V4_REPAY_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 124,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "AAVE_V4_SUPPLY_AND_BORROW_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 124,
+    "secondaryAmountPosition": 157,
+    "sizing": "dual",
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "AAVE_V4_SUPPLY_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 124,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "AAVE_V4_WITHDRAW_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 124,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 92,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY",
+    "mode": "offset",
+    "amountPosition": 92,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 92,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY",
+    "mode": "offset",
+    "amountPosition": 92,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_CCTP_SEND_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 20,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 72,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 72,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_FLUID_STAKE_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 72,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 72,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_REQUEST_REDEEM_DETH_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 72,
+    "denom": "shares",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_STARGATE_SEND_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 108,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_STARGATE_SEND_HOOK_V2_KEY",
+    "mode": "offset",
+    "amountPosition": 108,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_SWAP_ALGEBRA_INTEGRAL_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 144,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 52,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_SWAP_ODOSV2_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 20,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_SWAP_ODOSV3_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 20,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 52,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 40,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 40,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_SWAP_UNISWAPV2_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 72,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_SWAP_UNISWAPV3_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 128,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_SWAP_UNISWAPV3_ROUTER02_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 128,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_ERC20_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 40,
+    "denom": "token",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "BATCH_TRANSFER_FROM_HOOK_KEY",
+    "mode": "external",
+    "denom": "token",
+    "reason": "amounts in variable-length array"
+  },
+  {
+    "hookKey": "BATCH_TRANSFER_HOOK_KEY",
+    "mode": "external",
+    "denom": "token",
+    "reason": "amounts in variable-length array"
+  },
+  {
+    "hookKey": "CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "CANCEL_REDEEM_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "CANCEL_REDEEM_REQUEST_7540_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "CCTP_SEND_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 20,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "CIRCLE_GATEWAY_ADD_DELEGATE_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "CIRCLE_GATEWAY_MINTER_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "CIRCLE_GATEWAY_REMOVE_DELEGATE_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "CIRCLE_GATEWAY_WALLET_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 20,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "CLAIM_ASSETS_DETH_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "CLAIM_CANCEL_DEPOSIT_REQUEST_WITH_ID_7540_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "CLAIM_CANCEL_REDEEM_REQUEST_WITH_ID_7540_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "CLAIM_FAILED_TRANSFER_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "denom": "assets"
+  },
+  {
+    "hookKey": "CLAIM_RFLR_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "CLAIM_WITHDRAW_FIRELIGHT_VAULT_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "DEBRIDGE_CANCEL_ORDER_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY",
+    "mode": "external",
+    "denom": "assets",
+    "reason": "complex variable layout"
+  },
+  {
+    "hookKey": "DEPOSIT_4626_VAULT_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 52,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "DEPOSIT_5115_VAULT_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 72,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "DEPOSIT_7540_VAULT_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 52,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "ETHENA_COOLDOWN_SHARES_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 52,
+    "denom": "shares",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "ETHENA_UNSTAKE_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "FETCH_NATIVE_FEE_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 20,
+    "denom": "fee",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "FLUID_CLAIM_REWARD_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "FLUID_STAKE_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 52,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "FLUID_UNSTAKE_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 52,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "FORCE_DEALLOCATE_MORPHO_HOOK_KEY",
+    "mode": "external",
+    "denom": "assets",
+    "reason": "amounts in allocations array"
+  },
+  {
+    "hookKey": "GEARBOX_APPROVE_AND_STAKE_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 72,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "GEARBOX_CLAIM_REWARD_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "GEARBOX_STAKE_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 52,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "GEARBOX_UNSTAKE_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 52,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "MARK_ROOT_AS_USED_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "MERKL_CLAIM_REWARD_HOOK_KEY",
+    "mode": "external",
+    "denom": "token",
+    "reason": "variable-length claim data"
+  },
+  {
+    "hookKey": "META_MORPHO_REALLOCATE_HOOK_KEY",
+    "mode": "external",
+    "denom": "assets",
+    "reason": "amounts in MarketAllocation[]"
+  },
+  {
+    "hookKey": "MINT_SUPERPOSITIONS_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 52,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "MORPHO_BORROW_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 80,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "MORPHO_LEND_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 80,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 80,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "MORPHO_REPAY_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 80,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "MORPHO_SUPPLY_AND_BORROW_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 80,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "MORPHO_SUPPLY_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 80,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "MORPHO_WITHDRAW_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 112,
+    "secondaryAmountPosition": 144,
+    "sizing": "exclusive-or",
+    "denom": "assets|shares",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "OFFRAMP_TOKENS_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "PENDLE_ROUTER_REDEEM_HOOK_KEY",
+    "mode": "external",
+    "denom": "shares",
+    "reason": "TokenOutput ABI-encoded struct"
+  },
+  {
+    "hookKey": "PENDLE_ROUTER_SWAP_HOOK_KEY",
+    "mode": "external",
+    "denom": "assets",
+    "reason": "amount inside aggregator txData"
+  },
+  {
+    "hookKey": "PENDLE_UNIFIED_HOOK_KEY",
+    "mode": "external",
+    "denom": "assets",
+    "reason": "amount inside aggregator txData"
+  },
+  {
+    "hookKey": "RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "REDEEM_4626_VAULT_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "denom": "shares"
+  },
+  {
+    "hookKey": "REDEEM_5115_VAULT_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "denom": "shares"
+  },
+  {
+    "hookKey": "REDEEM_7540_VAULT_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "denom": "shares"
+  },
+  {
+    "hookKey": "REDEEM_FIRELIGHT_VAULT_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 52,
+    "denom": "shares",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "REDEEM_WITH_ID_7540_VAULT_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "denom": "shares"
+  },
+  {
+    "hookKey": "REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 52,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "REQUEST_REDEEM_7540_VAULT_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 52,
+    "denom": "shares",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "REQUEST_REDEEM_DETH_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 52,
+    "denom": "shares",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "SET_OPERATOR_7540_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "SET_SLIPPAGE_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "STARGATE_SEND_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 108,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "STARGATE_SEND_HOOK_V2_KEY",
+    "mode": "offset",
+    "amountPosition": 108,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "SWAP_1INCH_HOOK_KEY",
+    "mode": "external",
+    "denom": "assets",
+    "reason": "amount inside aggregator txData; resize = re-quote"
+  },
+  {
+    "hookKey": "SWAP_ALGEBRA_INTEGRAL_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 144,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "SWAP_KYBERSWAP_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 52,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "SWAP_ODOSV2_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 20,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "SWAP_ODOSV3_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 20,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 52,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 40,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 40,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "SWAP_UNISWAPV2_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 72,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "SWAP_UNISWAPV3_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 128,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "SWAP_UNISWAPV3_ROUTER02_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 128,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "SWAP_UNISWAPV4_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 120,
+    "denom": "assets",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "TRANSFER_ERC20_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 40,
+    "denom": "token",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "TRANSFER_HOOK_KEY",
+    "mode": "offset",
+    "amountPosition": 40,
+    "denom": "native",
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "WITHDRAW_7540_VAULT_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "denom": "assets"
+  },
+  {
+    "hookKey": "WITHDRAW_RFLR_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "WITHDRAW_VESTED_RFLR_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "WITHDRAW_WITH_ID_7540_VAULT_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "denom": "assets"
+  },
+  {
+    "hookKey": "YEARN_CLAIM_ALL_REWARDS_HOOK_KEY",
+    "mode": "sizeless"
+  },
+  {
+    "hookKey": "YEARN_CLAIM_ONE_REWARD_HOOK_KEY",
+    "mode": "sizeless"
+  }
+]

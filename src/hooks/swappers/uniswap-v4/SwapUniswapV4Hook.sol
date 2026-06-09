@@ -9,7 +9,12 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 
 // Superform imports
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 
 // Real Uniswap V4 imports
@@ -42,7 +47,7 @@ import { TickMath } from "v4-core/libraries/TickMath.sol";
 /// @notice         bool zeroForOne = _decodeBool(data, 216);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 217);
 /// @notice         bytes additionalData = BytesLib.slice(data, 218, data.length - 218);
-contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
+contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow, ISuperHookOutflow {
     using PoolIdLibrary for PoolKey;
     using CurrencyLibrary for Currency;
     using BalanceDeltaLibrary for BalanceDelta;
@@ -61,6 +66,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
     uint256 private transient initialBalance;
 
+    uint256 private constant AMOUNT_POSITION = 120;
     uint256 private constant MAX_BPS = 10_000; // 100%
     uint256 private constant MAX_ADDITIONAL_DATA_LEN = 4096; // hard cap to bound gas on user-controlled data
 
@@ -453,6 +459,16 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
             revert INVALID_HOOK_DATA();
         }
         usePrevHookAmount = _decodeBool(data, 217);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /*//////////////////////////////////////////////////////////////

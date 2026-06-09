@@ -9,7 +9,13 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookResult,
+    ISuperHookContextAware,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 
 /// @title WithdrawWETHHook
 /// @author Superform Labs
@@ -17,7 +23,7 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @dev data has the following structure:
 ///      uint256 amount = BytesLib.toUint256(data, 0);
 ///      bool usePrevHookAmount = _decodeBool(data, 32);
-contract WithdrawWETHHook is BaseHook, ISuperHookContextAware {
+contract WithdrawWETHHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES
     //////////////////////////////////////////////////////////////*/
@@ -25,6 +31,9 @@ contract WithdrawWETHHook is BaseHook, ISuperHookContextAware {
     /// @notice The WETH contract address
     address public immutable WETH;
     
+    /// @notice Position of the amount in the hook data
+    uint256 private constant AMOUNT_POSITION = 0;
+
     /// @notice Position of the usePrevHookAmount flag in the hook data
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 32;
 
@@ -89,6 +98,16 @@ contract WithdrawWETHHook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookInspector
