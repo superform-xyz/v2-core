@@ -143,6 +143,15 @@ contract Deposit5115VaultHookTest is Helpers {
         assertEq(BytesLib.toAddress(argsEncoded, 20), token);
     }
 
+    function test_Deposit5115_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = hook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = hook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(hook.decodeAmount(replaced), newAmount);
+    }
+
     function _encodeData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, amount, usePrevHook);
     }

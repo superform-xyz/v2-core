@@ -11,7 +11,13 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookResult,
+    ISuperHookContextAware,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 import { IStandardizedYield } from "../../../vendor/pendle/IStandardizedYield.sol";
 
 /// @title PendleRouterRedeemHook
@@ -26,11 +32,12 @@ import { IStandardizedYield } from "../../../vendor/pendle/IStandardizedYield.so
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
 /// @notice         bytes output = BytesLib.slice(data, 125, data.length - 125);
 /// @custom:deprecated Use PendleUnifiedHook instead which supports swap routing for tokenOut that is not directly redeemable from SY
-contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
+contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
     // Offset for bool usePrevHookAmount (after packed amount, yt, tokenOut, minTokenOut)
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 124; // 0+32+20+20+32+20
+    uint256 private constant AMOUNT_POSITION = 0;
     // Offset for abi.encoded TokenOutput struct (after packed bool)
     uint256 private constant TOKEN_OUTPUT_OFFSET = 125; // USE_PREV_HOOK_AMOUNT_POSITION + 1
 
@@ -113,6 +120,16 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
         // Minimum length to read up to the bool flag + 1 byte for the flag itself
         if (data.length < TOKEN_OUTPUT_OFFSET) revert INVALID_DATA_LENGTH();
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookInspector

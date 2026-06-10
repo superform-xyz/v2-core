@@ -354,6 +354,33 @@ contract ERC4626VaultHooksTest is Helpers {
         assertGt(argsEncoded.length, 0);
     }
 
+    function test_ApproveAndDeposit4626_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeApproveAndDepositData();
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndDepositHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = approveAndDepositHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndDepositHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_Deposit4626_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeDepositData();
+        uint256 newAmount = 500;
+        bytes memory replaced = depositHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = depositHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(depositHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_Redeem4626_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeRedeemData();
+        uint256 newAmount = 500;
+        bytes memory replaced = redeemHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = redeemHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(redeemHook.decodeAmount(replaced), newAmount);
+    }
+
     /*//////////////////////////////////////////////////////////////
                         HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/

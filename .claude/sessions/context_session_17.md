@@ -246,3 +246,111 @@ Added integration tests that verify `decodeAmount()` and `replaceCalldataAmount(
 - Firelight/DETH vault hooks (require specific vault state)
 - Gearbox/Fluid staking (no existing integration test files)
 - Stargate adapter (already has decode/replace tests at lines 1205-1324)
+
+---
+
+# E2 Roundtrip Build + Field Preservation Tests
+
+## Status: COMPLETE
+- Date: 2026-06-09
+- All 97 roundtrip/field-preservation tests pass
+- Full regression: all 3,311 unit tests pass (0 failures)
+
+## What Was Done
+
+Added "replace + build roundtrip" tests and "field preservation" tests to ~35 unit test files. These tests verify:
+1. **Roundtrip**: `replaceCalldataAmount()` → `build()` succeeds with correct execution count + `decodeAmount()` reads back the new amount
+2. **Field preservation**: `replaceCalldataAmount()` only modifies the 32 bytes at AMOUNT_POSITION, leaving all other bytes unchanged
+
+### Test Pattern
+```solidity
+// Roundtrip: replace amount → build → verify
+function test_Hook_ReplaceCalldataAmount_ThenBuild() public view {
+    bytes memory data = _encodeData(false);
+    uint256 newAmount = 500;
+    bytes memory replaced = hook.replaceCalldataAmount(data, newAmount);
+    Execution[] memory executions = hook.build(address(0), address(this), replaced);
+    assertEq(executions.length, expectedCount);
+    assertEq(hook.decodeAmount(replaced), newAmount);
+}
+
+// Field preservation: verify bytes before/after AMOUNT_POSITION unchanged
+function test_Hook_ReplaceCalldataAmount_PreservesOtherFields() public view {
+    bytes memory data = _encodeData(false);
+    bytes memory replaced = hook.replaceCalldataAmount(data, 999);
+    assertEq(replaced.length, data.length);
+    for (uint256 i = 0; i < AMOUNT_POSITION; i++) { assertEq(replaced[i], data[i]); }
+    for (uint256 i = AMOUNT_POSITION + 32; i < data.length; i++) { assertEq(replaced[i], data[i]); }
+}
+```
+
+### Files Modified (by category)
+
+**Stake hooks (6 files):**
+- FluidStakeHook.t.sol (OFFSET=52, 3 exec)
+- FluidUnstakeHook.t.sol (OFFSET=52, 3 exec)
+- ApproveAndFluidStakeHook.t.sol (OFFSET=72, 6 exec)
+- GearboxStakeHook.t.sol (OFFSET=52, 3 exec)
+- GearboxUnstakeHook.t.sol (OFFSET=52, 3 exec)
+- ApproveAndGearboxStakeHook.t.sol (OFFSET=72, 6 exec)
+
+**Token hooks (6 files):**
+- TransferHook.t.sol (OFFSET=40, 3 exec)
+- TransferERC20Hook.t.sol (OFFSET=40, 3 exec)
+- ApproveERC20Hook.t.sol (OFFSET=40, 4 exec)
+- DepositWETHHook.t.sol (OFFSET=0, 3 exec)
+- WithdrawWETHHook.t.sol (OFFSET=0, 3 exec, needs vm.mockCall for balanceOf)
+- NativeTransferHook.t.sol (OFFSET=20, 3 exec, also verifies executions[1].value == newAmount)
+
+**Swapper hooks (8 files):**
+- AlgebraIntegralUnitTests.t.sol (OFFSET=144, swap=3/approve=6)
+- OdosUnitTests.t.sol (OFFSET=20, swap=3/approve=6)
+- OdosV3UnitTests.t.sol (OFFSET=20, swap=3/approve=6)
+- SparkPSMExactInUnitTests.t.sol (OFFSET=40, swap=3/approve=6)
+- SparkPSMExactOutUnitTests.t.sol (OFFSET=40, swap=3/approve=6)
+- UniswapV2UnitTests.t.sol (OFFSET=72, swap=3/approve=6)
+- UniswapV3UnitTests.t.sol (OFFSET=128, swap=3/approve=6)
+- UniswapV4UnitTests.t.sol (OFFSET=120, swap=3 only)
+- UniswapV3Router02UnitTests.t.sol (OFFSET=76, swap=3/approve=6) — fixed BytesLib issue
+
+**Bridge hooks (6 files):**
+- AcrossHooksV2.t.sol (OFFSET=92, base=3/approve=6)
+- CCTPHooks.t.sol (OFFSET=20, ApproveAndCCTP=6/CCTPSend=3)
+- StargateHooks.t.sol (OFFSET=108, base=3/approve=6)
+- StargateHooksV2.t.sol (OFFSET=108, base=3/approve=6)
+- CircleGatewayUnitTests.sol (OFFSET=20, wallet=6)
+- BridgeHooks.t.sol (DeBridge, OFFSET=53, 3 exec)
+
+**Vault hooks (8 files):**
+- ERC4626VaultHooksTest.t.sol (ApproveAndDeposit=6, Deposit=3, Redeem=3)
+- Deposit5115VaultHook.t.sol (3 exec)
+- ApproveAndDeposit5115VaultHook.t.sol (6 exec)
+- EthenaHooksTests.t.sol (CooldownShares, 3 exec)
+- FirelightHooksTests.t.sol (Redeem, 3 exec)
+- DETHHooksTests.t.sol (RequestRedeem=3, ApproveAndRequest=6)
+- ERC7540HookTests.t..sol (4 tests: ApproveAndRequest=6, RequestDeposit=3, Deposit=3, RequestRedeem=3)
+- ERC7540WithIdHookTests.t.sol (RedeemWithId, 3 exec)
+
+**Loan hooks (2 files):**
+- AaveV4LoanHooks.t.sol (Supply=7, Withdraw=3)
+- MorphoLoanHooks.t.sol (Supply=6, Lend=6, Withdraw=3)
+
+**Other hooks (4 files):**
+- FetchNativeFeeHookTest.t.sol (3 exec)
+- BurnSuperPositionsHook.t.sol (6 exec)
+- MintSuperPositionsHook.t.sol (6 exec)
+- PendleRouterRedeemHook.t.sol (5 exec)
+- SpectraExchangeHooks.t.sol (3 exec)
+
+## Bugs Found and Fixed During Testing
+
+1. **CCTPHooks.t.sol**: ApproveAndCCTP tests were placed in `CCTPSendHookTests` contract (which doesn't have `cctpHook`) — moved to `CCTPHooks` contract
+2. **MorphoLoanHooks.t.sol**: Withdraw test used `_encodeWithdrawData(false, false)` but function takes 7 params — fixed to `_encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, 0)`
+3. **PendleRouterRedeemHook.t.sol**: Used `_encodeData(...)` but helper is `_createRedeemData(...)` — fixed
+4. **WithdrawWETHHook.t.sol**: Build test needs `vm.mockCall` for WETH balanceOf — added
+5. **Multiple ApproveAnd* hooks**: Used execution count 3 instead of 6 — fixed (AcrossV2, Stargate, StargateV2, CircleGateway, MorphoLend)
+6. **UniswapV3Router02UnitTests.t.sol**: Field preservation tests used BytesLib (not imported) — rewrote with byte-level comparison loops
+
+## Final Test Counts
+- **97 new roundtrip/field-preservation tests** — all pass
+- **3,311 total unit tests** — all pass (0 failures, 0 skipped)

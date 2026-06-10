@@ -1943,6 +1943,36 @@ contract StargateHooks is Helpers {
         assertEq(approveAndStargateHook.decodeAmount(result), fuzzAmount);
     }
 
+    function test_Stargate_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeStargateData(false, 0, false);
+        uint256 newAmount = 500;
+        bytes memory replaced = stargateHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = stargateHook.build(address(0), mockAccount, replaced);
+        assertEq(executions.length, 3);
+        assertEq(stargateHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_ApproveAndStargate_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeStargateData(false, 0, false);
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndStargateHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = approveAndStargateHook.build(address(0), mockAccount, replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndStargateHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_Stargate_ReplaceCalldataAmount_PreservesOtherFields() public view {
+        bytes memory data = _encodeStargateData(false, 0, false);
+        bytes memory replaced = stargateHook.replaceCalldataAmount(data, 999);
+        assertEq(replaced.length, data.length);
+        for (uint256 i = 0; i < 108; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        for (uint256 i = 140; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+    }
+
     /*//////////////////////////////////////////////////////////////
                             HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/

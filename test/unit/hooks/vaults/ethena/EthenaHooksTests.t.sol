@@ -256,6 +256,15 @@ contract EthenaHooksTests is Helpers {
         assertGt(argsEncoded.length, 0);
     }
 
+    function test_EthenaCooldown_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeCooldownData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = cooldownSharesHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = cooldownSharesHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(cooldownSharesHook.decodeAmount(replaced), newAmount);
+    }
+
     /*//////////////////////////////////////////////////////////////
                               HELPERS
     //////////////////////////////////////////////////////////////*/

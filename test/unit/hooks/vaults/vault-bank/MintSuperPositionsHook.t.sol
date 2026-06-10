@@ -172,4 +172,13 @@ contract MintSuperPositionsHookTest is Helpers {
         vm.expectRevert(MintSuperPositionsHook.ID_NOT_VALID.selector);
         mintSuperPositionsHook.build(zeroDstChainIdMock, address(this), data);
     }
+
+    function test_MintSP_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
+        uint256 newAmount = 500;
+        bytes memory replaced = mintSuperPositionsHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = mintSuperPositionsHook.build(mockPrevHook, address(this), replaced);
+        assertEq(executions.length, 6);
+        assertEq(mintSuperPositionsHook.decodeAmount(replaced), newAmount);
+    }
 }

@@ -1611,6 +1611,33 @@ contract MorphoLoanHooksTest is Helpers {
         assertEq(withdrawHook.decodeAmount(result), fuzzAmount);
     }
 
+    function test_MorphoSupply_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeSupplyData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = supplyHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = supplyHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 6);
+        assertEq(supplyHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_MorphoLend_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeLendData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = lendHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = lendHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 6);
+        assertEq(lendHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_MorphoWithdraw_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, 0);
+        uint256 newAmount = 500;
+        bytes memory replaced = withdrawHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = withdrawHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(withdrawHook.decodeAmount(replaced), newAmount);
+    }
+
     /*//////////////////////////////////////////////////////////////
                             HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/

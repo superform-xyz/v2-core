@@ -462,6 +462,36 @@ contract AlgebraIntegralHookTest is Helpers {
         assertEq(approveAndSwapHook.decodeAmount(result), fuzzAmount);
     }
 
+    function test_SwapAlgebraIntegral_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _buildHookData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = swapHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = swapHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 3);
+        assertEq(swapHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_ApproveAndSwapAlgebraIntegral_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _buildHookData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndSwapHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_SwapAlgebraIntegral_ReplaceCalldataAmount_PreservesOtherFields() public view {
+        bytes memory data = _buildHookData(false);
+        bytes memory replaced = swapHook.replaceCalldataAmount(data, 999);
+        assertEq(replaced.length, data.length);
+        for (uint256 i = 0; i < 144; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        for (uint256 i = 176; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+    }
+
     /*//////////////////////////////////////////////////////////////
                               Helpers
     //////////////////////////////////////////////////////////////*/

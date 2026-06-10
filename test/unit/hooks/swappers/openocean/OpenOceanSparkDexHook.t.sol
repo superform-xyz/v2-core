@@ -436,6 +436,40 @@ contract OpenOceanSparkDexHookTest is Test {
         assertEq(approveAndSwapHook.decodeAmount(result), fuzzAmount);
     }
 
+    function test_SwapOpenOcean_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _swapHookData(outputToken, 0, 1000, 900, false, txData);
+        uint256 newAmount = 500;
+        bytes memory replaced = swapHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = swapHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 3);
+        assertEq(swapHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_ApproveAndSwapOpenOcean_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, false, txData);
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndSwapHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_ApproveAndSwapOpenOcean_ReplaceCalldataAmount_PreservesOtherFields() public view {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, false, txData);
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmount(data, 999);
+        // Verify bytes before AMOUNT_POSITION (40) are unchanged
+        for (uint256 i = 0; i < 40; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        // Verify bytes after AMOUNT_POSITION + 32 (72) are unchanged
+        for (uint256 i = 72; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+    }
+
     function _buildErc20RouteTxData(
         address caller_,
         uint256 amount_,

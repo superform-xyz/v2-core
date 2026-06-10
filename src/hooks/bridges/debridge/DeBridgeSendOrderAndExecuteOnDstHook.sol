@@ -11,7 +11,13 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperSignatureStorage } from "../../../interfaces/ISuperSignatureStorage.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookResult,
+    ISuperHookContextAware,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 
 /// @title DeBridgeSendOrderAndExecuteOnDstHook
 /// @author Superform Labs
@@ -70,13 +76,14 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @notice         uint256 referralCode = BytesLib.toUint256(data, 468 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
 /// allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength);
-contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAware {
+contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     address public immutable DLN_SOURCE;
     address private immutable VALIDATOR;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
+    uint256 private constant AMOUNT_POSITION = 53;
 
     error AMOUNT_UNDERFLOW();
 
@@ -138,6 +145,16 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookInspector

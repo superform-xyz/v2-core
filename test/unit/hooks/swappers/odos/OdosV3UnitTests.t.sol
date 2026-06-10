@@ -1238,6 +1238,36 @@ contract OdosV3UnitTests is Helpers {
         assertEq(approveAndSwapOdosV3Hook.decodeAmount(result), fuzzAmount);
     }
 
+    function test_SwapOdosV3_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _buildSwapOdosV3Data(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = swapOdosV3Hook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = swapOdosV3Hook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 3);
+        assertEq(swapOdosV3Hook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_ApproveAndSwapOdosV3_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _buildApproveAndSwapOdosV3Data(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndSwapOdosV3Hook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = approveAndSwapOdosV3Hook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndSwapOdosV3Hook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_SwapOdosV3_ReplaceCalldataAmount_PreservesOtherFields() public view {
+        bytes memory data = _buildSwapOdosV3Data(false);
+        bytes memory replaced = swapOdosV3Hook.replaceCalldataAmount(data, 999);
+        assertEq(replaced.length, data.length);
+        for (uint256 i = 0; i < 20; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        for (uint256 i = 52; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+    }
+
     // ========================== Data Builders ==========================
 
     function _buildSwapOdosV3Data(bool usePrevious) internal view returns (bytes memory) {

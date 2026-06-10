@@ -639,6 +639,25 @@ contract DETHHooksTests is Helpers {
         assertEq(requestRedeemHook.spToken(), address(dethToken));
     }
 
+    function test_RequestRedeemDETH_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeRequestRedeemData(address(asyncRedeemer), 1000, 900, false);
+        uint256 newAmount = 500;
+        bytes memory replaced = requestRedeemHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = requestRedeemHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(requestRedeemHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_ApproveAndRequestRedeemDETH_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data =
+            _encodeApproveAndRequestData(address(asyncRedeemer), address(dethToken), 1000, 900, false);
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndRequestHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = approveAndRequestHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndRequestHook.decodeAmount(replaced), newAmount);
+    }
+
     /*//////////////////////////////////////////////////////////////
                               HELPERS
     //////////////////////////////////////////////////////////////*/

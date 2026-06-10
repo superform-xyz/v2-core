@@ -776,6 +776,15 @@ contract ERC7540WithIdHookTests is Helpers, InternalHelpers {
         assertTrue(withdrawWithIdHook.decodeUsePrevHookAmount(dataTrue));
     }
 
+    function test_RedeemWithId7540_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeRedeemWithdrawWithIdData(false, 1);
+        uint256 newAmount = 500;
+        bytes memory replaced = redeemWithIdHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = redeemWithIdHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(redeemWithIdHook.decodeAmount(replaced), newAmount);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/

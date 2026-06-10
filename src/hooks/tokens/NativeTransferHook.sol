@@ -8,6 +8,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../BaseHook.sol";
 import { HookSubTypes } from "../../libraries/HookSubTypes.sol";
+import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../interfaces/ISuperHook.sol";
 
 /// @title NativeTransferHook
 /// @author Superform Labs
@@ -15,8 +16,9 @@ import { HookSubTypes } from "../../libraries/HookSubTypes.sol";
 /// @dev Data structure: address to (20 bytes) + uint256 amount (32 bytes) = 52 bytes total
 ///      This hook is NONACCOUNTING and only used for ETH → token swaps where
 ///      native ETH needs to be transferred to the next hook in the chain
-contract NativeTransferHook is BaseHook {
-    
+contract NativeTransferHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow {
+    uint256 private constant AMOUNT_POSITION = 20;
+
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -39,10 +41,24 @@ contract NativeTransferHook is BaseHook {
         uint256 amount = BytesLib.toUint256(data, 20);
 
         executions = new Execution[](1);
-        executions[0] = Execution({ 
-            target: to, 
-            value: amount, 
-            callData: "" 
+        executions[0] = Execution({
+            target: to,
+            value: amount,
+            callData: ""
         });
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 }

@@ -253,6 +253,36 @@ contract ApproveAndSwapOdosHookTest is Helpers {
         assertGt(argsEncoded.length, 0);
     }
 
+    function test_SwapOdos_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _buildSwapOdosData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = swapOdosHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = swapOdosHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 3);
+        assertEq(swapOdosHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_ApproveAndSwapOdos_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _buildApproveAndSwapOdosData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndSwapOdosHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = approveAndSwapOdosHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndSwapOdosHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_SwapOdos_ReplaceCalldataAmount_PreservesOtherFields() public view {
+        bytes memory data = _buildSwapOdosData(false);
+        bytes memory replaced = swapOdosHook.replaceCalldataAmount(data, 999);
+        assertEq(replaced.length, data.length);
+        for (uint256 i = 0; i < 20; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        for (uint256 i = 52; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+    }
+
     function _buildApproveAndSwapOdosData(bool usePrevious) internal view returns (bytes memory) {
         bytes memory data = bytes.concat(
             bytes20(inputToken),

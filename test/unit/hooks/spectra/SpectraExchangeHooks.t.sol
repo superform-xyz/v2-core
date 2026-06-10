@@ -758,6 +758,87 @@ contract SpectraExchangeHooksTests is Helpers {
         assertEq(decodedRecipient, recipient, "Recipient should match");
     }
 
+    function test_RedeemHook_DecodeAmount() public view {
+        address asset = address(token);
+        address recipient = account;
+        uint256 sharesToBurn = 500e18;
+        bool usePrevHookAmount = false;
+        bytes1 command = redeemHook.REDEEM_IBT_FOR_ASSET();
+
+        bytes memory data = abi.encodePacked(
+            bytes32(0), // placeholder (32 bytes)
+            asset, // asset (20 bytes) - position 32
+            address(0), // pt (20 bytes) - position 52
+            recipient, // recipient (20 bytes) - position 72
+            uint256(0), // minAssets (32 bytes) - position 92
+            sharesToBurn, // sharesToBurn (32 bytes) - position 124
+            usePrevHookAmount, // usePrevHookAmount (1 byte) - position 156
+            command // command (1 byte) - position 157
+        );
+
+        assertEq(redeemHook.decodeAmount(data), sharesToBurn);
+    }
+
+    function test_RedeemHook_ReplaceCalldataAmount() public view {
+        address asset = address(token);
+        address recipient = account;
+        uint256 sharesToBurn = 500e18;
+        bool usePrevHookAmount = false;
+        bytes1 command = redeemHook.REDEEM_IBT_FOR_ASSET();
+
+        bytes memory data = abi.encodePacked(
+            bytes32(0),
+            asset,
+            address(0),
+            recipient,
+            uint256(0),
+            sharesToBurn,
+            usePrevHookAmount,
+            command
+        );
+
+        uint256 newAmount = 250e18;
+        bytes memory result = redeemHook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(redeemHook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_RedeemHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        address asset = address(token);
+        address recipient = account;
+        bytes1 command = redeemHook.REDEEM_IBT_FOR_ASSET();
+
+        bytes memory data = abi.encodePacked(
+            bytes32(0),
+            asset,
+            address(0),
+            recipient,
+            uint256(0),
+            uint256(500e18),
+            false,
+            command
+        );
+
+        bytes memory result = redeemHook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(redeemHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_SpectraExchangeRedeem_ReplaceCalldataAmount_ThenBuild() public view {
+        address asset = address(token);
+        address recipient = account;
+        bytes1 command = redeemHook.REDEEM_IBT_FOR_ASSET();
+
+        bytes memory data = abi.encodePacked(
+            bytes32(0), asset, address(0), recipient, uint256(0), uint256(500e18), false, command
+        );
+        uint256 newAmount = 250e18;
+        bytes memory replaced = redeemHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = redeemHook.build(address(0), account, replaced);
+        assertEq(executions.length, 3);
+        assertEq(redeemHook.decodeAmount(replaced), newAmount);
+    }
+
     function _getYieldSourceOracleId(bytes32 id, address sender) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(id, sender));
     }

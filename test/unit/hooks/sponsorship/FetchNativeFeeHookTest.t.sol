@@ -122,6 +122,15 @@ contract FetchNativeFeeHookTest is Helpers {
         assertEq(hook.decodeAmount(result), fuzzAmount);
     }
 
+    function test_FetchNativeFee_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _createHookData(sponsor, 1 ether);
+        uint256 newAmount = 500;
+        bytes memory replaced = hook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = hook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(hook.decodeAmount(replaced), newAmount);
+    }
+
     function _createHookData(address sponsor_, uint256 amount_) internal pure returns (bytes memory) {
         return abi.encodePacked(sponsor_, amount_);
     }

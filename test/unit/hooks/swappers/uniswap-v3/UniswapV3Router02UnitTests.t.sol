@@ -875,6 +875,56 @@ contract UniswapV3Router02HookTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    REPLACE + BUILD ROUNDTRIP TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SwapUniV3Router02_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _buildHookData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = swapHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = swapHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 3);
+        assertEq(swapHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_ApproveAndSwapUniV3Router02_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _buildHookData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndSwapHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_SwapUniV3Router02_ReplaceCalldataAmount_PreservesOtherFields() public view {
+        bytes memory data = _buildHookData(false);
+        bytes memory replaced = swapHook.replaceCalldataAmount(data, 999);
+        assertEq(replaced.length, data.length);
+        // bytes before AMOUNT_POSITION (76) unchanged
+        for (uint256 i = 0; i < 76; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        // bytes after amount (108+) unchanged
+        for (uint256 i = 108; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        assertEq(swapHook.decodeAmount(replaced), 999);
+    }
+
+    function test_ApproveAndSwapUniV3Router02_ReplaceCalldataAmount_PreservesOtherFields() public view {
+        bytes memory data = _buildHookData(false);
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmount(data, 999);
+        assertEq(replaced.length, data.length);
+        for (uint256 i = 0; i < 76; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        for (uint256 i = 108; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        assertEq(approveAndSwapHook.decodeAmount(replaced), 999);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                               Helpers
     //////////////////////////////////////////////////////////////*/
 

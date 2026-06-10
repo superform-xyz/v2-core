@@ -183,6 +183,29 @@ contract WithdrawWETHHookTest is Helpers {
         assertEq(hook.decodeAmount(result), fuzzAmount);
     }
 
+    function test_WithdrawWETH_ReplaceCalldataAmount_ThenBuild() public {
+        bytes memory data = _encodeData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = hook.replaceCalldataAmount(data, newAmount);
+        vm.mockCall(
+            weth,
+            abi.encodeWithSignature("balanceOf(address)", address(this)),
+            abi.encode(newAmount)
+        );
+        Execution[] memory executions = hook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(hook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_WithdrawWETH_ReplaceCalldataAmount_PreservesOtherFields() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory replaced = hook.replaceCalldataAmount(data, 999);
+        assertEq(replaced.length, data.length);
+        for (uint256 i = 32; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+    }
+
     function _encodeData(bool usePrev) internal view returns (bytes memory) {
         return abi.encodePacked(amount, usePrev);
     }

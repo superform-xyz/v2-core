@@ -216,4 +216,13 @@ contract BurnSuperPositionsHookTest is Helpers {
             inspectResult, abi.encodePacked(spToken, vaultBank), "Inspect should return spToken and vaultBank addresses"
         );
     }
+
+    function test_BurnSP_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
+        uint256 newAmount = 500;
+        bytes memory replaced = burnSuperPositionsHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = burnSuperPositionsHook.build(mockPrevHook, address(this), replaced);
+        assertEq(executions.length, 6);
+        assertEq(burnSuperPositionsHook.decodeAmount(replaced), newAmount);
+    }
 }

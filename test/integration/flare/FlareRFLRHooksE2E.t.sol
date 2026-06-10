@@ -24,6 +24,9 @@ contract FlareRFLRHooksE2E is Test, Constants {
 
     string public constant FLARE_RPC_URL_KEY = "FLARE_RPC_URL";
 
+    /// @dev Pin fork to a block where SECOND_HOLDER has claimable rewards and TOP_HOLDER has unlocked rFLR
+    uint256 public constant FORK_BLOCK = 61_344_973;
+
     /// @dev Top rFLR holder with unlocked balance (~5.29M rFLR unlocked, 0 claimable)
     address public constant TOP_HOLDER = 0xb99a2c4C1C4F1fc27150681B740396F6CE1cBcF5;
 
@@ -51,7 +54,7 @@ contract FlareRFLRHooksE2E is Test, Constants {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        forkId = vm.createSelectFork(vm.envString(FLARE_RPC_URL_KEY));
+        forkId = vm.createSelectFork(vm.envString(FLARE_RPC_URL_KEY), FORK_BLOCK);
 
         claimHook = new ClaimRFLRHook(FLARE_RNAT);
         withdrawHook = new WithdrawRFLRHook(FLARE_RNAT, FLARE_WFLR);

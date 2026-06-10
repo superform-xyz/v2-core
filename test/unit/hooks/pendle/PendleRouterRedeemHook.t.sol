@@ -478,6 +478,29 @@ contract PendleRouterRedeemHookTest is Helpers {
         assertEq(executions.length, 5);
     }
 
+    function test_DecodeAmount() public view {
+        bytes memory data =
+            _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
+        assertEq(hook.decodeAmount(data), amount);
+    }
+
+    function test_ReplaceCalldataAmount() public view {
+        bytes memory data =
+            _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = hook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(hook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data =
+            _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
+        bytes memory result = hook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(hook.decodeAmount(result), fuzzAmount);
+    }
+
     function _createRedeemData(
         uint256 amount_,
         address yt_,
@@ -503,5 +526,14 @@ contract PendleRouterRedeemHookTest is Helpers {
             })
         );
         return abi.encodePacked(amount_, yt_, pt_, tokenOut_, minTokenOut_, usePrevHookAmount_, tokenOutput);
+    }
+
+    function test_PendleRouterRedeem_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
+        uint256 newAmount = 500;
+        bytes memory replaced = hook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = hook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 5);
+        assertEq(hook.decodeAmount(replaced), newAmount);
     }
 }

@@ -469,6 +469,27 @@ contract CCTPHooks is Helpers {
         assertEq(cctpHook.decodeAmount(result), fuzzAmount);
     }
 
+    function test_ApproveAndCCTP_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeCCTPData(false, false);
+        uint256 newAmount = 500;
+        bytes memory replaced = cctpHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = cctpHook.build(address(0), mockAccount, replaced);
+        assertEq(executions.length, 6);
+        assertEq(cctpHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_ApproveAndCCTP_ReplaceCalldataAmount_PreservesOtherFields() public view {
+        bytes memory data = _encodeCCTPData(false, false);
+        bytes memory replaced = cctpHook.replaceCalldataAmount(data, 999);
+        assertEq(replaced.length, data.length);
+        for (uint256 i = 0; i < 20; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        for (uint256 i = 52; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+    }
+
     /*//////////////////////////////////////////////////////////////
                          HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -877,6 +898,15 @@ contract CCTPSendHookTests is Helpers {
         bytes memory data = _encodeCCTPData(false, false);
         bytes memory result = cctpSendHook.replaceCalldataAmount(data, fuzzAmount);
         assertEq(cctpSendHook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_CCTPSend_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeCCTPData(false, false);
+        uint256 newAmount = 500;
+        bytes memory replaced = cctpSendHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = cctpSendHook.build(address(0), mockAccount, replaced);
+        assertEq(executions.length, 3);
+        assertEq(cctpSendHook.decodeAmount(replaced), newAmount);
     }
 
     /*//////////////////////////////////////////////////////////////

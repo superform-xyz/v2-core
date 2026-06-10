@@ -461,6 +461,36 @@ contract AcrossHooksV2 is Helpers {
         assertEq(approveAndAcrossHookV2.decodeAmount(result), fuzzAmount);
     }
 
+    function test_AcrossV2_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeAcrossV2Data(false, false);
+        uint256 newAmount = 500;
+        bytes memory replaced = acrossHookV2.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = acrossHookV2.build(address(0), mockAccount, replaced);
+        assertEq(executions.length, 3);
+        assertEq(acrossHookV2.decodeAmount(replaced), newAmount);
+    }
+
+    function test_ApproveAndAcrossV2_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeAcrossV2Data(false, false);
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndAcrossHookV2.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = approveAndAcrossHookV2.build(address(0), mockAccount, replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndAcrossHookV2.decodeAmount(replaced), newAmount);
+    }
+
+    function test_AcrossV2_ReplaceCalldataAmount_PreservesOtherFields() public view {
+        bytes memory data = _encodeAcrossV2Data(false, false);
+        bytes memory replaced = acrossHookV2.replaceCalldataAmount(data, 999);
+        assertEq(replaced.length, data.length);
+        for (uint256 i = 0; i < 92; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        for (uint256 i = 124; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+    }
+
     /*//////////////////////////////////////////////////////////////
                             HELPERS
     //////////////////////////////////////////////////////////////*/

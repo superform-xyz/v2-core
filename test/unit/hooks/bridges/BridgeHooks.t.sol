@@ -382,6 +382,35 @@ contract BridgeHooks is Helpers {
         assertFalse(deBridgehook.decodeUsePrevHookAmount(data));
     }
 
+    function test_DeBridge_DecodeAmount() public view {
+        bytes memory data = _encodeDebridgeData(false, 100, 0, address(mockInputToken));
+        assertEq(deBridgehook.decodeAmount(data), 100);
+    }
+
+    function test_DeBridge_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeDebridgeData(false, 100, 0, address(mockInputToken));
+        uint256 newAmount = 200;
+        bytes memory result = deBridgehook.replaceCalldataAmount(data, newAmount);
+        assertEq(result.length, data.length);
+        assertEq(deBridgehook.decodeAmount(result), newAmount);
+    }
+
+    function testFuzz_DeBridge_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeDebridgeData(false, 100, 0, address(mockInputToken));
+        bytes memory result = deBridgehook.replaceCalldataAmount(data, fuzzAmount);
+        assertEq(deBridgehook.decodeAmount(result), fuzzAmount);
+    }
+
+    function test_DeBridge_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeDebridgeData(false, 100, 0, address(mockInputToken));
+        uint256 newAmount = 500;
+        bytes memory replaced = deBridgehook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = deBridgehook.build(address(0), mockAccount, replaced);
+        assertEq(executions.length, 3);
+        assertEq(deBridgehook.decodeAmount(replaced), newAmount);
+    }
+
     // DeBridge Cancel Order Hook Tests
     function test_CancelOrderHook_Constructor() public view {
         assertEq(address(cancelOrderHook.DLN_DESTINATION()), address(this));

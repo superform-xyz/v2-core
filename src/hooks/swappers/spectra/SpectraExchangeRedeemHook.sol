@@ -10,7 +10,13 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookResult,
+    ISuperHookContextAware,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 import { SpectraCommands } from "../../../vendor/spectra/SpectraCommands.sol";
 
 /// @title SpectraExchangeRedeemHook
@@ -24,11 +30,12 @@ import { SpectraCommands } from "../../../vendor/spectra/SpectraCommands.sol";
 /// @notice         uint256 sharesToBurn = BytesLib.toUint256(data, 124);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
 /// @notice         bytes1 command = BytesLib.slice(data, 157, 1);
-contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware {
+contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
     uint256 private constant SHARES_POSITION = 124;
+    uint256 private constant AMOUNT_POSITION = 124;
 
     bytes1 public constant REDEEM_IBT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_IBT_FOR_ASSET));
     bytes1 public constant REDEEM_PT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_PT_FOR_ASSET));
@@ -116,6 +123,16 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookInspector

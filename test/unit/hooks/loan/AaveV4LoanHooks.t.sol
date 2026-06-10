@@ -1598,6 +1598,24 @@ contract AaveV4LoanHooksTest is Helpers {
         assertEq(repayAndWithdrawHook.decodeAmount(result), fuzzAmount);
     }
 
+    function test_AaveV4Supply_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeSupplyData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = supplyHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = supplyHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 7);
+        assertEq(supplyHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_AaveV4Withdraw_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeWithdrawData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = withdrawHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = withdrawHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(withdrawHook.decodeAmount(replaced), newAmount);
+    }
+
     /*//////////////////////////////////////////////////////////////
                          ENCODING HELPERS
     //////////////////////////////////////////////////////////////*/

@@ -507,6 +507,51 @@ contract KyberSwapUnitTests is Helpers {
         assertEq(approveAndSwapHook.decodeAmount(result), fuzzAmount);
     }
 
+    function test_SwapKyberSwap_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _buildSwapData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = swapHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = swapHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 3);
+        assertEq(swapHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_ApproveAndSwapKyberSwap_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _buildApproveAndSwapData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndSwapHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_ApproveAndSwapKyberSwap_ReplaceCalldataAmount_PreservesOtherFields() public view {
+        bytes memory data = _buildApproveAndSwapData(false);
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmount(data, 999);
+        // Verify bytes before AMOUNT_POSITION (40) are unchanged
+        for (uint256 i = 0; i < 40; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        // Verify bytes after AMOUNT_POSITION + 32 (72) are unchanged
+        for (uint256 i = 72; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+    }
+
+    function test_SwapKyberSwap_ReplaceCalldataAmount_PreservesOtherFields() public view {
+        bytes memory data = _buildSwapData(false);
+        bytes memory replaced = swapHook.replaceCalldataAmount(data, 999);
+        // SwapKyberSwapHook layout: outputToken(20) + value(32) + inputAmount(52,32) + ...
+        // Verify bytes before AMOUNT_POSITION (52) are unchanged
+        for (uint256 i = 0; i < 52; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        // Verify bytes after AMOUNT_POSITION + 32 (84) are unchanged
+        for (uint256 i = 84; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+    }
+
     /// @dev Build SwapKyberSwapHook data layout:
     ///      outputToken(20) + value(32) + inputAmount(32) + outputMin(32) + usePrevHookAmount(1) + txDataLength(32)
     /// + txData_(var)

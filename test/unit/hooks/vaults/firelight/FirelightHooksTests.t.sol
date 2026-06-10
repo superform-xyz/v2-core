@@ -343,6 +343,15 @@ contract FirelightHooksTests is Helpers {
         assertEq(argsEncoded, abi.encodePacked(address(vault)));
     }
 
+    function test_RedeemFirelight_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeRedeemData(address(vault), 1000, false);
+        uint256 newAmount = 500;
+        bytes memory replaced = redeemHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = redeemHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(redeemHook.decodeAmount(replaced), newAmount);
+    }
+
     /*//////////////////////////////////////////////////////////////
                               HELPERS
     //////////////////////////////////////////////////////////////*/

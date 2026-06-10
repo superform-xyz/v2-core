@@ -846,6 +846,42 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         );
     }
 
+    function test_ApproveAndRequestDeposit7540_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndRequestDepositHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = approveAndRequestDepositHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndRequestDepositHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_RequestDeposit7540_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeRequestData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = requestDepositHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = requestDepositHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(requestDepositHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_Deposit7540_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeData(false, false);
+        uint256 newAmount = 500;
+        bytes memory replaced = depositHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = depositHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(depositHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_RequestRedeem7540_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory data = _encodeRedeemData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = reqRedeemHook.replaceCalldataAmount(data, newAmount);
+        Execution[] memory executions = reqRedeemHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(reqRedeemHook.decodeAmount(replaced), newAmount);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/

@@ -278,6 +278,35 @@ contract CircleGatewayUnitTests is BaseTest {
         assertEq(walletHook.decodeAmount(result), fuzzAmount);
     }
 
+    function test_WalletHook_ReplaceCalldataAmount_ThenBuild() public view {
+        bytes memory hookData = abi.encodePacked(
+            address(mockToken), // token (20 bytes)
+            DEPOSIT_AMOUNT, // amount (32 bytes)
+            false // usePrevHookAmount (1 byte)
+        );
+        uint256 newAmount = 500;
+        bytes memory replaced = walletHook.replaceCalldataAmount(hookData, newAmount);
+        Execution[] memory executions = walletHook.build(address(0), ACCOUNT, replaced);
+        assertEq(executions.length, 6);
+        assertEq(walletHook.decodeAmount(replaced), newAmount);
+    }
+
+    function test_WalletHook_ReplaceCalldataAmount_PreservesOtherFields() public view {
+        bytes memory hookData = abi.encodePacked(
+            address(mockToken), // token (20 bytes)
+            DEPOSIT_AMOUNT, // amount (32 bytes)
+            false // usePrevHookAmount (1 byte)
+        );
+        bytes memory replaced = walletHook.replaceCalldataAmount(hookData, 999);
+        assertEq(replaced.length, hookData.length);
+        for (uint256 i = 0; i < 20; i++) {
+            assertEq(replaced[i], hookData[i]);
+        }
+        for (uint256 i = 52; i < hookData.length; i++) {
+            assertEq(replaced[i], hookData[i]);
+        }
+    }
+
     function test_WalletHook_DecodeToken() public view {
         bytes memory hookData = abi.encodePacked(
             address(mockToken), // token (20 bytes)
