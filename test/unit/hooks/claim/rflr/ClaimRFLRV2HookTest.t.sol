@@ -9,11 +9,11 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
 import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
 import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
-import { ClaimRFLV2Hook } from "../../../../../src/hooks/claim/flare/ClaimRFLV2Hook.sol";
+import { ClaimRFLRV2Hook } from "../../../../../src/hooks/claim/flare/ClaimRFLRV2Hook.sol";
 import { IRNat } from "../../../../../src/vendor/flare/IRNat.sol";
 
-contract ClaimRFLV2HookTest is Helpers {
-    ClaimRFLV2Hook public hook;
+contract ClaimRFLRV2HookTest is Helpers {
+    ClaimRFLRV2Hook public hook;
 
     address public rNat;
     address public account;
@@ -22,7 +22,7 @@ contract ClaimRFLV2HookTest is Helpers {
         rNat = makeAddr("rNat");
         account = makeAddr("account");
 
-        hook = new ClaimRFLV2Hook(rNat);
+        hook = new ClaimRFLRV2Hook(rNat);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -36,7 +36,7 @@ contract ClaimRFLV2HookTest is Helpers {
 
     function test_Constructor_RevertIf_RNatZero() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new ClaimRFLV2Hook(address(0));
+        new ClaimRFLRV2Hook(address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -113,21 +113,21 @@ contract ClaimRFLV2HookTest is Helpers {
         _mockClaimableRewards(1, account, 0);
         _mockClaimableRewards(2, account, 0);
 
-        vm.expectRevert(ClaimRFLV2Hook.NO_CLAIMABLE_REWARDS.selector);
+        vm.expectRevert(ClaimRFLRV2Hook.NO_CLAIMABLE_REWARDS.selector);
         hook.build(address(0), account, "");
     }
 
     function test_Build_RevertIf_ZeroProjects() public {
         _mockProjectsCount(0);
 
-        vm.expectRevert(ClaimRFLV2Hook.NO_CLAIMABLE_REWARDS.selector);
+        vm.expectRevert(ClaimRFLRV2Hook.NO_CLAIMABLE_REWARDS.selector);
         hook.build(address(0), account, "");
     }
 
     function test_Build_RevertIf_TooManyProjects() public {
         _mockProjectsCount(201);
 
-        vm.expectRevert(ClaimRFLV2Hook.TOO_MANY_PROJECTS.selector);
+        vm.expectRevert(ClaimRFLRV2Hook.TOO_MANY_PROJECTS.selector);
         hook.build(address(0), account, "");
     }
 

@@ -3,14 +3,14 @@
 # ===== CHAIN FILTER CONFIGURATION =====
 # Specify which chains to verify (comment out to verify all chains)
 # Leave empty array to verify all chains from network configuration
-# TEMP: Flare-only for ClaimRFLV2Hook verification
+# TEMP: Flare-only for ClaimRFLRV2Hook verification
 CHAINS_TO_VERIFY=(14)
 
 # ===== CONTRACT FILTER CONFIGURATION =====
 # Specify which contracts to verify (comment out to verify all contracts)
 # Leave empty array to verify all contracts found in deployment JSON
-# TEMP: ClaimRFLV2Hook only
-CONTRACTS_TO_VERIFY=("ClaimRFLV2Hook")
+# TEMP: ClaimRFLRV2Hook only
+CONTRACTS_TO_VERIFY=("ClaimRFLRV2Hook")
 
 # ===== RATE LIMIT CONFIGURATION =====
 # Delay in seconds between verification requests (prevents Cloudflare rate limiting)
@@ -447,7 +447,7 @@ generate_constructor_args() {
             ;;
 
         # Hooks - Claim (Flare rFLR)
-        "ClaimRFLRHook"|"ClaimRFLV2Hook")
+        "ClaimRFLRHook"|"ClaimRFLRV2Hook")
             local rnat_flare="0x26d460c3Cf931Fb2014FA436a49e3Af08619810e"
             echo "$(cast abi-encode "constructor(address)" "$rnat_flare")"
             ;;
@@ -796,7 +796,7 @@ get_contract_source() {
         "GearboxClaimRewardHook") echo "src/hooks/claim/gearbox/GearboxClaimRewardHook.sol" ;;
         "YearnClaimOneRewardHook") echo "src/hooks/claim/yearn/YearnClaimOneRewardHook.sol" ;;
         "ClaimRFLRHook") echo "src/hooks/claim/flare/ClaimRFLRHook.sol" ;;
-        "ClaimRFLV2Hook") echo "src/hooks/claim/flare/ClaimRFLV2Hook.sol" ;;
+        "ClaimRFLRV2Hook") echo "src/hooks/claim/flare/ClaimRFLRV2Hook.sol" ;;
         "WithdrawRFLRHook") echo "src/hooks/claim/flare/WithdrawRFLRHook.sol" ;;
         "WithdrawVestedRFLRHook") echo "src/hooks/claim/flare/WithdrawVestedRFLRHook.sol" ;;
 

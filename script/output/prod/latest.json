@@ -1275,8 +1275,11 @@
       "vnet_id": "",
       "contracts": {
         "AcrossSendFundsAndExecuteOnDstHook": "0x95b43AbEEdd47FA9f74Ff3586900D79D3E43d282",
+        "AcrossSendFundsAndExecuteOnDstHookV2": "0xDEa7a9c5fd5dd86aB1789529928166Cec29Fa9b6",
         "AcrossV3Adapter": "0x381D5EA470D13ceb51e5dFDd2A28a03b15d4F054",
+        "AcrossV3AdapterV2": "0x0822f965097666Ea26f80754F336cEa7f142f8fc",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0x77c932e8F7A308Ddf0EB4cd94ea0526Ed676eFeE",
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0x08a2e491C92Fe2A74cbE5e4072679c03a01a3CF2",
         "ApproveAndCCTPSendHook": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
         "ApproveAndDeposit4626VaultHook": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
         "ApproveAndDeposit5115VaultHook": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
@@ -1551,5 +1554,5 @@
       }
     }
   },
-  "updated_at": "2026-06-05T14:19:09Z"
+  "updated_at": "2026-06-11T15:41:25Z"
 }

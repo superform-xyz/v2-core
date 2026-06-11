@@ -7,15 +7,15 @@ import "forge-std/console2.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import { ClaimRFLV2Hook } from "../../../src/hooks/claim/flare/ClaimRFLV2Hook.sol";
+import { ClaimRFLRV2Hook } from "../../../src/hooks/claim/flare/ClaimRFLRV2Hook.sol";
 import { IRNat } from "../../../src/vendor/flare/IRNat.sol";
 import { Constants } from "../../utils/Constants.sol";
 
-/// @title FlareClaimRFLV2E2E
-/// @notice Fork integration tests for ClaimRFLV2Hook against real RNat on Flare mainnet
+/// @title FlareClaimRFLRV2E2E
+/// @notice Fork integration tests for ClaimRFLRV2Hook against real RNat on Flare mainnet
 /// @dev Pinned to block 50_000_000 where SECOND_HOLDER has claimable rewards on project 2 (Kinetic).
 ///      At this block: 11 projects, month 17, ~1.4M rFLR claimable on project 2.
-contract FlareClaimRFLV2E2E is Test, Constants {
+contract FlareClaimRFLRV2E2E is Test, Constants {
     /*//////////////////////////////////////////////////////////////
                                  CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -33,7 +33,7 @@ contract FlareClaimRFLV2E2E is Test, Constants {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    ClaimRFLV2Hook public hook;
+    ClaimRFLRV2Hook public hook;
     uint256 public forkId;
 
     /*//////////////////////////////////////////////////////////////
@@ -42,7 +42,7 @@ contract FlareClaimRFLV2E2E is Test, Constants {
 
     function setUp() public {
         forkId = vm.createSelectFork(vm.envString(FLARE_RPC_URL_KEY), FORK_BLOCK);
-        hook = new ClaimRFLV2Hook(FLARE_RNAT);
+        hook = new ClaimRFLRV2Hook(FLARE_RNAT);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -141,14 +141,14 @@ contract FlareClaimRFLV2E2E is Test, Constants {
         uint256 balAfterFirst = IERC20(FLARE_RNAT).balanceOf(CLAIMABLE_HOLDER);
 
         // Second claim should revert (no more claimable)
-        vm.expectRevert(ClaimRFLV2Hook.NO_CLAIMABLE_REWARDS.selector);
+        vm.expectRevert(ClaimRFLRV2Hook.NO_CLAIMABLE_REWARDS.selector);
         hook.build(address(0), CLAIMABLE_HOLDER, "");
     }
 
     /// @notice Address with no claimable rewards reverts
     function test_build_revertsWhenNoClaimable() public {
         address nobody = makeAddr("nobody_with_no_rewards");
-        vm.expectRevert(ClaimRFLV2Hook.NO_CLAIMABLE_REWARDS.selector);
+        vm.expectRevert(ClaimRFLRV2Hook.NO_CLAIMABLE_REWARDS.selector);
         hook.build(address(0), nobody, "");
     }
 
