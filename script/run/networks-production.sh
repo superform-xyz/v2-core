@@ -6,21 +6,22 @@
 # Define production networks
 # Format: "CHAIN_ID:NetworkName:RPC_VAR"
 NETWORKS=(
-    "1:Ethereum:ETH_MAINNET"
-    "8453:Base:BASE_MAINNET"
-    "56:BNB:BSC_MAINNET"
-    "42161:Arbitrum:ARBITRUM_MAINNET"
-    "10:Optimism:OPTIMISM_MAINNET"
-    "137:Polygon:POLYGON_MAINNET"
-    "130:Unichain:UNICHAIN_MAINNET"
-    "43114:Avalanche:AVALANCHE_MAINNET"
-    "80094:Berachain:BERACHAIN_MAINNET"
-    "146:Sonic:SONIC_MAINNET"
-    "100:Gnosis:GNOSIS_MAINNET"
-    "480:Worldchain:WORLDCHAIN_MAINNET"
-    "999:HyperEVM:HYPEREVM_MAINNET"
+    # TEMP: Flare-only for ClaimRFLV2Hook deployment
     "14:Flare:FLARE_MAINNET"
-    "988:Stable:STABLE_MAINNET"
+    # "1:Ethereum:ETH_MAINNET"
+    # "8453:Base:BASE_MAINNET"
+    # "56:BNB:BSC_MAINNET"
+    # "42161:Arbitrum:ARBITRUM_MAINNET"
+    # "10:Optimism:OPTIMISM_MAINNET"
+    # "137:Polygon:POLYGON_MAINNET"
+    # "130:Unichain:UNICHAIN_MAINNET"
+    # "43114:Avalanche:AVALANCHE_MAINNET"
+    # "80094:Berachain:BERACHAIN_MAINNET"
+    # "146:Sonic:SONIC_MAINNET"
+    # "100:Gnosis:GNOSIS_MAINNET"
+    # "480:Worldchain:WORLDCHAIN_MAINNET"
+    # "999:HyperEVM:HYPEREVM_MAINNET"
+    # "988:Stable:STABLE_MAINNET"
 )
 
 # Network name mapping function

@@ -240,6 +240,7 @@ SPONSORSHIP_CONTRACTS=(
 # rFLR hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode-other/)
 RFLR_HOOK_CONTRACTS=(
     "ClaimRFLRHook"
+    "ClaimRFLV2Hook"
     "WithdrawRFLRHook"
     "WithdrawVestedRFLRHook"
 )

@@ -463,6 +463,7 @@ echo -e "${BLUE}🔍 Checking rFLR hook bytecode availability...${NC}"
 
 RFLR_HOOKS=(
     "ClaimRFLRHook"
+    "ClaimRFLV2Hook"
     "WithdrawRFLRHook"
     "WithdrawVestedRFLRHook"
 )
