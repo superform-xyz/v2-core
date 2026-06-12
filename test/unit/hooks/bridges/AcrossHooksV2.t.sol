@@ -421,67 +421,67 @@ contract AcrossHooksV2 is Helpers {
                     DECODE/REPLACE AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_AcrossSendV2_DecodeAmount() public view {
+    function test_AcrossSendV2_DecodeAmounts() public view {
         bytes memory data = _encodeAcrossV2Data(false, false);
-        assertEq(acrossHookV2.decodeAmount(data), mockInputAmount);
+        assertEq(acrossHookV2.decodeAmounts(data)[0], mockInputAmount);
     }
 
-    function test_AcrossSendV2_ReplaceCalldataAmount() public view {
-        bytes memory data = _encodeAcrossV2Data(false, false);
-        uint256 newAmount = 2e18;
-        bytes memory result = acrossHookV2.replaceCalldataAmount(data, newAmount);
-        assertEq(result.length, data.length);
-        assertEq(acrossHookV2.decodeAmount(result), newAmount);
-    }
-
-    function testFuzz_AcrossSendV2_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
-        vm.assume(fuzzAmount > 0);
-        bytes memory data = _encodeAcrossV2Data(false, false);
-        bytes memory result = acrossHookV2.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(acrossHookV2.decodeAmount(result), fuzzAmount);
-    }
-
-    function test_ApproveAndAcrossSendV2_DecodeAmount() public view {
-        bytes memory data = _encodeAcrossV2Data(false, false);
-        assertEq(approveAndAcrossHookV2.decodeAmount(data), mockInputAmount);
-    }
-
-    function test_ApproveAndAcrossSendV2_ReplaceCalldataAmount() public view {
+    function test_AcrossSendV2_ReplaceCalldataAmounts() public view {
         bytes memory data = _encodeAcrossV2Data(false, false);
         uint256 newAmount = 2e18;
-        bytes memory result = approveAndAcrossHookV2.replaceCalldataAmount(data, newAmount);
+        bytes memory result = acrossHookV2.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(approveAndAcrossHookV2.decodeAmount(result), newAmount);
+        assertEq(acrossHookV2.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_ApproveAndAcrossSendV2_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_AcrossSendV2_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _encodeAcrossV2Data(false, false);
-        bytes memory result = approveAndAcrossHookV2.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(approveAndAcrossHookV2.decodeAmount(result), fuzzAmount);
+        bytes memory result = acrossHookV2.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(acrossHookV2.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_AcrossV2_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_ApproveAndAcrossSendV2_DecodeAmounts() public view {
+        bytes memory data = _encodeAcrossV2Data(false, false);
+        assertEq(approveAndAcrossHookV2.decodeAmounts(data)[0], mockInputAmount);
+    }
+
+    function test_ApproveAndAcrossSendV2_ReplaceCalldataAmounts() public view {
+        bytes memory data = _encodeAcrossV2Data(false, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndAcrossHookV2.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(approveAndAcrossHookV2.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_ApproveAndAcrossSendV2_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeAcrossV2Data(false, false);
+        bytes memory result = approveAndAcrossHookV2.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(approveAndAcrossHookV2.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_AcrossV2_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _encodeAcrossV2Data(false, false);
         uint256 newAmount = 500;
-        bytes memory replaced = acrossHookV2.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = acrossHookV2.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = acrossHookV2.build(address(0), mockAccount, replaced);
         assertEq(executions.length, 3);
-        assertEq(acrossHookV2.decodeAmount(replaced), newAmount);
+        assertEq(acrossHookV2.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_ApproveAndAcrossV2_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_ApproveAndAcrossV2_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _encodeAcrossV2Data(false, false);
         uint256 newAmount = 500;
-        bytes memory replaced = approveAndAcrossHookV2.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = approveAndAcrossHookV2.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = approveAndAcrossHookV2.build(address(0), mockAccount, replaced);
         assertEq(executions.length, 6);
-        assertEq(approveAndAcrossHookV2.decodeAmount(replaced), newAmount);
+        assertEq(approveAndAcrossHookV2.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_AcrossV2_ReplaceCalldataAmount_PreservesOtherFields() public view {
+    function test_AcrossV2_ReplaceCalldataAmounts_PreservesOtherFields() public view {
         bytes memory data = _encodeAcrossV2Data(false, false);
-        bytes memory replaced = acrossHookV2.replaceCalldataAmount(data, 999);
+        bytes memory replaced = acrossHookV2.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
         for (uint256 i = 0; i < 92; i++) {
             assertEq(replaced[i], data[i]);

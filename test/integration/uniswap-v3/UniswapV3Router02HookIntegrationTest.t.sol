@@ -812,23 +812,23 @@ contract UniswapV3Router02HookIntegrationTest is MinimalBaseIntegrationTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice decodeAmount + replaceCalldataAmount roundtrip for SwapRouter02 hooks
-    function test_SwapRouter02_DecodeAmount_ReplaceCalldataAmount() external view {
+    function test_SwapRouter02_DecodeAmounts_ReplaceCalldataAmounts() external view {
         uint256 originalAmount = 1000e6;
         bytes memory hookData =
             _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, originalAmount, 0.2 ether, false);
 
         // Verify decodeAmount reads correctly
-        assertEq(swapHook.decodeAmount(hookData), originalAmount, "SwapHook decodeAmount mismatch");
-        assertEq(approveAndSwapHook.decodeAmount(hookData), originalAmount, "ApproveAndSwapHook decodeAmount mismatch");
+        assertEq(swapHook.decodeAmounts(hookData)[0], originalAmount, "SwapHook decodeAmount mismatch");
+        assertEq(approveAndSwapHook.decodeAmounts(hookData)[0], originalAmount, "ApproveAndSwapHook decodeAmount mismatch");
 
         // Replace with new amount and verify roundtrip
         uint256 newAmount = 500e6;
-        bytes memory replacedSwap = swapHook.replaceCalldataAmount(hookData, newAmount);
-        bytes memory replacedApproveAndSwap = approveAndSwapHook.replaceCalldataAmount(hookData, newAmount);
+        bytes memory replacedSwap = swapHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        bytes memory replacedApproveAndSwap = approveAndSwapHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
 
-        assertEq(swapHook.decodeAmount(replacedSwap), newAmount, "SwapHook replaced amount mismatch");
+        assertEq(swapHook.decodeAmounts(replacedSwap)[0], newAmount, "SwapHook replaced amount mismatch");
         assertEq(
-            approveAndSwapHook.decodeAmount(replacedApproveAndSwap),
+            approveAndSwapHook.decodeAmounts(replacedApproveAndSwap)[0],
             newAmount,
             "ApproveAndSwapHook replaced amount mismatch"
         );
@@ -838,7 +838,7 @@ contract UniswapV3Router02HookIntegrationTest is MinimalBaseIntegrationTest {
     }
 
     /// @notice ApproveAndSwap: build with 1000 USDC, replace to 500 USDC, execute, verify only 500 spent
-    function test_ApproveAndSwapRouter02_ReplaceCalldataAmount_ExecutesCorrectly() public {
+    function test_ApproveAndSwapRouter02_ReplaceCalldataAmounts_ExecutesCorrectly() public {
         address account = instanceOnEth.account;
         uint256 originalAmount = 1000e6;
         uint256 newAmount = 500e6;
@@ -851,8 +851,8 @@ contract UniswapV3Router02HookIntegrationTest is MinimalBaseIntegrationTest {
             _buildRouter02HookData(CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, 0, originalAmount, 0, false);
 
         // Replace with new amount
-        bytes memory replaced = approveAndSwapHook.replaceCalldataAmount(hookData, newAmount);
-        assertEq(approveAndSwapHook.decodeAmount(replaced), newAmount, "Amount not replaced correctly");
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(approveAndSwapHook.decodeAmounts(replaced)[0], newAmount, "Amount not replaced correctly");
 
         uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(account);
 
@@ -868,7 +868,7 @@ contract UniswapV3Router02HookIntegrationTest is MinimalBaseIntegrationTest {
     }
 
     /// @notice SwapHook (no-approve): build with 1 WETH, replace to 0.5 WETH, execute, verify only 0.5 spent
-    function test_SwapRouter02_ReplaceCalldataAmount_ExecutesCorrectly() public {
+    function test_SwapRouter02_ReplaceCalldataAmounts_ExecutesCorrectly() public {
         address account = instanceOnEth.account;
         uint256 originalAmount = 1 ether;
         uint256 newAmount = 0.5 ether;
@@ -880,7 +880,7 @@ contract UniswapV3Router02HookIntegrationTest is MinimalBaseIntegrationTest {
             _buildRouter02HookData(CHAIN_1_WETH, CHAIN_1_USDC, FEE_MEDIUM, 0, originalAmount, 0, false);
 
         // Replace with new amount
-        bytes memory replacedSwapData = swapHook.replaceCalldataAmount(swapHookData, newAmount);
+        bytes memory replacedSwapData = swapHook.replaceCalldataAmounts(swapHookData, _singleAmount(newAmount));
 
         // Also build approve data for newAmount
         bytes memory approveData =

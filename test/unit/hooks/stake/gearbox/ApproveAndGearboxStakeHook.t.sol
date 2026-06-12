@@ -116,38 +116,38 @@ contract ApproveAndGearboxStakeHookTest is Helpers {
         assertGt(executions[4].callData.length, 0);
     }
 
-    function test_DecodeAmount() public view {
+    function test_DecodeAmounts() public view {
         bytes memory data = _encodeData(false);
-        assertEq(hook.decodeAmount(data), amount);
+        assertEq(hook.decodeAmounts(data)[0], amount);
     }
 
-    function test_ReplaceCalldataAmount() public view {
+    function test_ReplaceCalldataAmounts() public view {
         bytes memory data = _encodeData(false);
         uint256 newAmount = 2e18;
-        bytes memory result = hook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = hook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(hook.decodeAmount(result), newAmount);
+        assertEq(hook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _encodeData(false);
-        bytes memory result = hook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(hook.decodeAmount(result), fuzzAmount);
+        bytes memory result = hook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(hook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_ApproveAndGearboxStake_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_ApproveAndGearboxStake_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _encodeData(false);
         uint256 newAmount = 500;
-        bytes memory replaced = hook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = hook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = hook.build(address(0), address(this), replaced);
         assertEq(executions.length, 6);
-        assertEq(hook.decodeAmount(replaced), newAmount);
+        assertEq(hook.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_ApproveAndGearboxStake_ReplaceCalldataAmount_PreservesOtherFields() public view {
+    function test_ApproveAndGearboxStake_ReplaceCalldataAmounts_PreservesOtherFields() public view {
         bytes memory data = _encodeData(false);
-        bytes memory replaced = hook.replaceCalldataAmount(data, 999);
+        bytes memory replaced = hook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
         for (uint256 i = 0; i < 72; i++) {
             assertEq(replaced[i], data[i]);

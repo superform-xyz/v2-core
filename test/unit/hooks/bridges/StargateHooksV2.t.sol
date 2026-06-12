@@ -575,67 +575,67 @@ contract StargateHooksV2 is Helpers {
                     DECODE/REPLACE AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_StargateSendV2_DecodeAmount() public view {
+    function test_StargateSendV2_DecodeAmounts() public view {
         bytes memory data = _encodeStargateV2Data(false, 0, false);
-        assertEq(stargateHookV2.decodeAmount(data), mockAmountLD);
+        assertEq(stargateHookV2.decodeAmounts(data)[0], mockAmountLD);
     }
 
-    function test_StargateSendV2_ReplaceCalldataAmount() public view {
-        bytes memory data = _encodeStargateV2Data(false, 0, false);
-        uint256 newAmount = 2e18;
-        bytes memory result = stargateHookV2.replaceCalldataAmount(data, newAmount);
-        assertEq(result.length, data.length);
-        assertEq(stargateHookV2.decodeAmount(result), newAmount);
-    }
-
-    function testFuzz_StargateSendV2_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
-        vm.assume(fuzzAmount > 0);
-        bytes memory data = _encodeStargateV2Data(false, 0, false);
-        bytes memory result = stargateHookV2.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(stargateHookV2.decodeAmount(result), fuzzAmount);
-    }
-
-    function test_ApproveAndStargateSendV2_DecodeAmount() public view {
-        bytes memory data = _encodeStargateV2Data(false, 0, false);
-        assertEq(approveAndStargateHookV2.decodeAmount(data), mockAmountLD);
-    }
-
-    function test_ApproveAndStargateSendV2_ReplaceCalldataAmount() public view {
+    function test_StargateSendV2_ReplaceCalldataAmounts() public view {
         bytes memory data = _encodeStargateV2Data(false, 0, false);
         uint256 newAmount = 2e18;
-        bytes memory result = approveAndStargateHookV2.replaceCalldataAmount(data, newAmount);
+        bytes memory result = stargateHookV2.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(approveAndStargateHookV2.decodeAmount(result), newAmount);
+        assertEq(stargateHookV2.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_ApproveAndStargateSendV2_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_StargateSendV2_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _encodeStargateV2Data(false, 0, false);
-        bytes memory result = approveAndStargateHookV2.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(approveAndStargateHookV2.decodeAmount(result), fuzzAmount);
+        bytes memory result = stargateHookV2.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(stargateHookV2.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_StargateV2_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_ApproveAndStargateSendV2_DecodeAmounts() public view {
+        bytes memory data = _encodeStargateV2Data(false, 0, false);
+        assertEq(approveAndStargateHookV2.decodeAmounts(data)[0], mockAmountLD);
+    }
+
+    function test_ApproveAndStargateSendV2_ReplaceCalldataAmounts() public view {
+        bytes memory data = _encodeStargateV2Data(false, 0, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndStargateHookV2.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(approveAndStargateHookV2.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_ApproveAndStargateSendV2_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeStargateV2Data(false, 0, false);
+        bytes memory result = approveAndStargateHookV2.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(approveAndStargateHookV2.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_StargateV2_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _encodeStargateV2Data(false, 0, false);
         uint256 newAmount = 500;
-        bytes memory replaced = stargateHookV2.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = stargateHookV2.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = stargateHookV2.build(address(0), mockAccount, replaced);
         assertEq(executions.length, 3);
-        assertEq(stargateHookV2.decodeAmount(replaced), newAmount);
+        assertEq(stargateHookV2.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_ApproveAndStargateV2_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_ApproveAndStargateV2_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _encodeStargateV2Data(false, 0, false);
         uint256 newAmount = 500;
-        bytes memory replaced = approveAndStargateHookV2.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = approveAndStargateHookV2.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = approveAndStargateHookV2.build(address(0), mockAccount, replaced);
         assertEq(executions.length, 6);
-        assertEq(approveAndStargateHookV2.decodeAmount(replaced), newAmount);
+        assertEq(approveAndStargateHookV2.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_StargateV2_ReplaceCalldataAmount_PreservesOtherFields() public view {
+    function test_StargateV2_ReplaceCalldataAmounts_PreservesOtherFields() public view {
         bytes memory data = _encodeStargateV2Data(false, 0, false);
-        bytes memory replaced = stargateHookV2.replaceCalldataAmount(data, 999);
+        bytes memory replaced = stargateHookV2.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
         for (uint256 i = 0; i < 108; i++) {
             assertEq(replaced[i], data[i]);

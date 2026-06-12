@@ -8,7 +8,7 @@ import { IPermit2 } from "../../../vendor/uniswap/permit2/IPermit2.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IPermit2Batch } from "../../../vendor/uniswap/permit2/IPermit2Batch.sol";
 import { IAllowanceTransfer } from "../../../vendor/uniswap/permit2/IAllowanceTransfer.sol";
-import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/ISuperHook.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -24,7 +24,7 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 /// @notice     bytes amounts = BytesLib.slice(data, 84 + 20 * tokensLength, 32 * tokensLength);
 /// @notice     bytes nonces = BytesLib.slice(data, 84 + 20 * tokensLength + 32 * tokensLength, 6 * tokensLength);
 /// @notice     bytes signature = BytesLib.slice(data, data.length - 65, 65);
-contract BatchTransferFromHook is BaseHook {
+contract BatchTransferFromHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow {
     using SafeCast for uint256;
 
     /*//////////////////////////////////////////////////////////////
@@ -134,6 +134,38 @@ contract BatchTransferFromHook is BaseHook {
         bytes memory transferCallData = abi.encodeCall(IPermit2Batch.transferFrom, (vars.transferDetails));
 
         executions[1] = Execution({ target: PERMIT_2, value: 0, callData: transferCallData });
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    /// @dev Sizeless — Permit2-signed amounts cannot be rewritten without invalidating the signature
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+    }
+
+    /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
+    function _supportsSizingInterface() internal pure override returns (bool) {
+        return true;
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    /// @dev Sizeless — returns empty; amounts are commitment-bound (Permit2 signature)
+    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](0);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    /// @dev Sizeless — no amounts to replace
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 0) revert INVALID_AMOUNTS_LENGTH();
+        return data;
     }
 
     /// @inheritdoc ISuperHookInspector

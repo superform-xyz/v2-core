@@ -758,7 +758,7 @@ contract SpectraExchangeHooksTests is Helpers {
         assertEq(decodedRecipient, recipient, "Recipient should match");
     }
 
-    function test_RedeemHook_DecodeAmount() public view {
+    function test_RedeemHook_DecodeAmounts() public view {
         address asset = address(token);
         address recipient = account;
         uint256 sharesToBurn = 500e18;
@@ -776,10 +776,10 @@ contract SpectraExchangeHooksTests is Helpers {
             command // command (1 byte) - position 157
         );
 
-        assertEq(redeemHook.decodeAmount(data), sharesToBurn);
+        assertEq(redeemHook.decodeAmounts(data)[0], sharesToBurn);
     }
 
-    function test_RedeemHook_ReplaceCalldataAmount() public view {
+    function test_RedeemHook_ReplaceCalldataAmounts() public view {
         address asset = address(token);
         address recipient = account;
         uint256 sharesToBurn = 500e18;
@@ -798,12 +798,12 @@ contract SpectraExchangeHooksTests is Helpers {
         );
 
         uint256 newAmount = 250e18;
-        bytes memory result = redeemHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = redeemHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(redeemHook.decodeAmount(result), newAmount);
+        assertEq(redeemHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_RedeemHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_RedeemHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         address asset = address(token);
         address recipient = account;
@@ -820,11 +820,11 @@ contract SpectraExchangeHooksTests is Helpers {
             command
         );
 
-        bytes memory result = redeemHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(redeemHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = redeemHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(redeemHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_SpectraExchangeRedeem_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_SpectraExchangeRedeem_ReplaceCalldataAmounts_ThenBuild() public view {
         address asset = address(token);
         address recipient = account;
         bytes1 command = redeemHook.REDEEM_IBT_FOR_ASSET();
@@ -833,10 +833,10 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(0), asset, address(0), recipient, uint256(0), uint256(500e18), false, command
         );
         uint256 newAmount = 250e18;
-        bytes memory replaced = redeemHook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = redeemHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = redeemHook.build(address(0), account, replaced);
         assertEq(executions.length, 3);
-        assertEq(redeemHook.decodeAmount(replaced), newAmount);
+        assertEq(redeemHook.decodeAmounts(replaced)[0], newAmount);
     }
 
     function _getYieldSourceOracleId(bytes32 id, address sender) internal pure returns (bytes32) {

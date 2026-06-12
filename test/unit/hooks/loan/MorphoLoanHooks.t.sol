@@ -1468,174 +1468,179 @@ contract MorphoLoanHooksTest is Helpers {
     /*//////////////////////////////////////////////////////////////
               DECODE AMOUNT / REPLACE CALLDATA AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_SupplyHook_DecodeAmount() public view {
+    function test_SupplyHook_DecodeAmounts() public view {
         bytes memory data = _encodeSupplyData(false);
-        assertEq(supplyHook.decodeAmount(data), amount);
+        assertEq(supplyHook.decodeAmounts(data)[0], amount);
     }
 
-    function test_SupplyHook_ReplaceCalldataAmount() public view {
+    function test_SupplyHook_ReplaceCalldataAmounts() public view {
         bytes memory data = _encodeSupplyData(false);
         uint256 newAmount = 2e18;
-        bytes memory result = supplyHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = supplyHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(supplyHook.decodeAmount(result), newAmount);
+        assertEq(supplyHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_SupplyHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_SupplyHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _encodeSupplyData(false);
-        bytes memory result = supplyHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(supplyHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = supplyHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(supplyHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_LendHook_DecodeAmount() public view {
+    function test_LendHook_DecodeAmounts() public view {
         bytes memory data = _encodeLendData(false);
-        assertEq(lendHook.decodeAmount(data), amount);
+        assertEq(lendHook.decodeAmounts(data)[0], amount);
     }
 
-    function test_LendHook_ReplaceCalldataAmount() public view {
+    function test_LendHook_ReplaceCalldataAmounts() public view {
         bytes memory data = _encodeLendData(false);
         uint256 newAmount = 2e18;
-        bytes memory result = lendHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = lendHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(lendHook.decodeAmount(result), newAmount);
+        assertEq(lendHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_LendHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_LendHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _encodeLendData(false);
-        bytes memory result = lendHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(lendHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = lendHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(lendHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_BorrowHook_DecodeAmount() public view {
+    function test_BorrowHook_DecodeAmounts() public view {
         bytes memory data = _encodeBorrowData(false);
-        assertEq(borrowHook.decodeAmount(data), amount);
+        assertEq(borrowHook.decodeAmounts(data)[0], amount);
     }
 
-    function test_BorrowHook_ReplaceCalldataAmount() public view {
+    function test_BorrowHook_ReplaceCalldataAmounts() public view {
         bytes memory data = _encodeBorrowData(false);
         uint256 newAmount = 2e18;
-        bytes memory result = borrowHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = borrowHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(borrowHook.decodeAmount(result), newAmount);
+        assertEq(borrowHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_BorrowHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_BorrowHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _encodeBorrowData(false);
-        bytes memory result = borrowHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(borrowHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = borrowHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(borrowHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_RepayHook_DecodeAmount() public view {
+    function test_RepayHook_DecodeAmounts() public view {
         bytes memory data = _encodeRepayData(false, false);
-        assertEq(repayHook.decodeAmount(data), amount);
+        assertEq(repayHook.decodeAmounts(data)[0], amount);
     }
 
-    function test_RepayHook_ReplaceCalldataAmount() public view {
+    function test_RepayHook_ReplaceCalldataAmounts() public view {
         bytes memory data = _encodeRepayData(false, false);
         uint256 newAmount = 2e18;
-        bytes memory result = repayHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = repayHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(repayHook.decodeAmount(result), newAmount);
+        assertEq(repayHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_RepayHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_RepayHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _encodeRepayData(false, false);
-        bytes memory result = repayHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(repayHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = repayHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(repayHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_SupplyAndBorrowHook_DecodeAmount() public view {
+    function test_SupplyAndBorrowHook_DecodeAmounts() public view {
         bytes memory data = _encodeBorrowData(false);
-        assertEq(borrowHook.decodeAmount(data), amount);
+        assertEq(borrowHook.decodeAmounts(data)[0], amount);
     }
 
-    function test_SupplyAndBorrowHook_ReplaceCalldataAmount() public view {
+    function test_SupplyAndBorrowHook_ReplaceCalldataAmounts() public view {
         bytes memory data = _encodeBorrowData(false);
         uint256 newAmount = 2e18;
-        bytes memory result = borrowHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = borrowHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(borrowHook.decodeAmount(result), newAmount);
+        assertEq(borrowHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_SupplyAndBorrowHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_SupplyAndBorrowHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _encodeBorrowData(false);
-        bytes memory result = borrowHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(borrowHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = borrowHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(borrowHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_RepayAndWithdrawHook_DecodeAmount() public view {
+    function test_RepayAndWithdrawHook_DecodeAmounts() public view {
         bytes memory data = _encodeRepayAndWithdrawData(false, false);
-        assertEq(repayAndWithdrawHook.decodeAmount(data), amount);
+        assertEq(repayAndWithdrawHook.decodeAmounts(data)[0], amount);
     }
 
-    function test_RepayAndWithdrawHook_ReplaceCalldataAmount() public view {
+    function test_RepayAndWithdrawHook_ReplaceCalldataAmounts() public view {
         bytes memory data = _encodeRepayAndWithdrawData(false, false);
         uint256 newAmount = 2e18;
-        bytes memory result = repayAndWithdrawHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = repayAndWithdrawHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(repayAndWithdrawHook.decodeAmount(result), newAmount);
+        assertEq(repayAndWithdrawHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_RepayAndWithdrawHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_RepayAndWithdrawHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _encodeRepayAndWithdrawData(false, false);
-        bytes memory result = repayAndWithdrawHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(repayAndWithdrawHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = repayAndWithdrawHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(repayAndWithdrawHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_WithdrawHook_DecodeAmount() public view {
+    function test_WithdrawHook_DecodeAmounts() public view {
         bytes memory data =
             _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, 0);
-        assertEq(withdrawHook.decodeAmount(data), amount);
+        assertEq(withdrawHook.decodeAmounts(data)[0], amount);
     }
 
-    function test_WithdrawHook_ReplaceCalldataAmount() public view {
+    function test_WithdrawHook_ReplaceCalldataAmounts() public view {
         bytes memory data =
             _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, 0);
         uint256 newAmount = 2e18;
-        bytes memory result = withdrawHook.replaceCalldataAmount(data, newAmount);
+        // MorphoWithdrawHook has dual-slot: [assets, shares] with XOR invariant
+        bytes memory result = withdrawHook.replaceCalldataAmounts(data, _dualAmounts(newAmount, 0));
         assertEq(result.length, data.length);
-        assertEq(withdrawHook.decodeAmount(result), newAmount);
+        assertEq(withdrawHook.decodeAmounts(result)[0], newAmount);
+        assertEq(withdrawHook.decodeAmounts(result)[1], 0);
     }
 
-    function testFuzz_WithdrawHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_WithdrawHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data =
             _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, 0);
-        bytes memory result = withdrawHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(withdrawHook.decodeAmount(result), fuzzAmount);
+        // MorphoWithdrawHook has dual-slot: [assets, shares] with XOR invariant
+        bytes memory result = withdrawHook.replaceCalldataAmounts(data, _dualAmounts(fuzzAmount, 0));
+        assertEq(withdrawHook.decodeAmounts(result)[0], fuzzAmount);
+        assertEq(withdrawHook.decodeAmounts(result)[1], 0);
     }
 
-    function test_MorphoSupply_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_MorphoSupply_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _encodeSupplyData(false);
         uint256 newAmount = 500;
-        bytes memory replaced = supplyHook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = supplyHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = supplyHook.build(address(0), address(this), replaced);
         assertEq(executions.length, 6);
-        assertEq(supplyHook.decodeAmount(replaced), newAmount);
+        assertEq(supplyHook.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_MorphoLend_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_MorphoLend_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _encodeLendData(false);
         uint256 newAmount = 500;
-        bytes memory replaced = lendHook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = lendHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = lendHook.build(address(0), address(this), replaced);
         assertEq(executions.length, 6);
-        assertEq(lendHook.decodeAmount(replaced), newAmount);
+        assertEq(lendHook.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_MorphoWithdraw_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_MorphoWithdraw_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, 0);
         uint256 newAmount = 500;
-        bytes memory replaced = withdrawHook.replaceCalldataAmount(data, newAmount);
+        // MorphoWithdrawHook has dual-slot: [assets, shares] with XOR invariant
+        bytes memory replaced = withdrawHook.replaceCalldataAmounts(data, _dualAmounts(newAmount, 0));
         Execution[] memory executions = withdrawHook.build(address(0), address(this), replaced);
         assertEq(executions.length, 3);
-        assertEq(withdrawHook.decodeAmount(replaced), newAmount);
+        assertEq(withdrawHook.decodeAmounts(replaced)[0], newAmount);
     }
 
     /*//////////////////////////////////////////////////////////////

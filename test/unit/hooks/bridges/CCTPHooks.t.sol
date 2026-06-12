@@ -449,38 +449,38 @@ contract CCTPHooks is Helpers {
                     DECODE/REPLACE AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_CCTP_DecodeAmount() public view {
+    function test_CCTP_DecodeAmounts() public view {
         bytes memory data = _encodeCCTPData(false, false);
-        assertEq(cctpHook.decodeAmount(data), mockAmount);
+        assertEq(cctpHook.decodeAmounts(data)[0], mockAmount);
     }
 
-    function test_CCTP_ReplaceCalldataAmount() public view {
+    function test_CCTP_ReplaceCalldataAmounts() public view {
         bytes memory data = _encodeCCTPData(false, false);
         uint256 newAmount = 2e18;
-        bytes memory result = cctpHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = cctpHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(cctpHook.decodeAmount(result), newAmount);
+        assertEq(cctpHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_CCTP_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_CCTP_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _encodeCCTPData(false, false);
-        bytes memory result = cctpHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(cctpHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = cctpHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(cctpHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_ApproveAndCCTP_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_ApproveAndCCTP_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _encodeCCTPData(false, false);
         uint256 newAmount = 500;
-        bytes memory replaced = cctpHook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = cctpHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = cctpHook.build(address(0), mockAccount, replaced);
         assertEq(executions.length, 6);
-        assertEq(cctpHook.decodeAmount(replaced), newAmount);
+        assertEq(cctpHook.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_ApproveAndCCTP_ReplaceCalldataAmount_PreservesOtherFields() public view {
+    function test_ApproveAndCCTP_ReplaceCalldataAmounts_PreservesOtherFields() public view {
         bytes memory data = _encodeCCTPData(false, false);
-        bytes memory replaced = cctpHook.replaceCalldataAmount(data, 999);
+        bytes memory replaced = cctpHook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
         for (uint256 i = 0; i < 20; i++) {
             assertEq(replaced[i], data[i]);
@@ -880,33 +880,33 @@ contract CCTPSendHookTests is Helpers {
                     DECODE/REPLACE AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_CCTPSend_DecodeAmount() public view {
+    function test_CCTPSend_DecodeAmounts() public view {
         bytes memory data = _encodeCCTPData(false, false);
-        assertEq(cctpSendHook.decodeAmount(data), mockAmount);
+        assertEq(cctpSendHook.decodeAmounts(data)[0], mockAmount);
     }
 
-    function test_CCTPSend_ReplaceCalldataAmount() public view {
+    function test_CCTPSend_ReplaceCalldataAmounts() public view {
         bytes memory data = _encodeCCTPData(false, false);
         uint256 newAmount = 2e18;
-        bytes memory result = cctpSendHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = cctpSendHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(cctpSendHook.decodeAmount(result), newAmount);
+        assertEq(cctpSendHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_CCTPSend_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_CCTPSend_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _encodeCCTPData(false, false);
-        bytes memory result = cctpSendHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(cctpSendHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = cctpSendHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(cctpSendHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_CCTPSend_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_CCTPSend_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _encodeCCTPData(false, false);
         uint256 newAmount = 500;
-        bytes memory replaced = cctpSendHook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = cctpSendHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = cctpSendHook.build(address(0), mockAccount, replaced);
         assertEq(executions.length, 3);
-        assertEq(cctpSendHook.decodeAmount(replaced), newAmount);
+        assertEq(cctpSendHook.decodeAmounts(replaced)[0], newAmount);
     }
 
     /*//////////////////////////////////////////////////////////////

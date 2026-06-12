@@ -25,6 +25,11 @@ import "forge-std/console2.sol";
 ///      KyberSwap MetaAggregationRouterV2 at 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5
 ///      Requires ETHEREUM_RPC_URL environment variable
 contract KyberSwapHookIntegrationTest is Test, Constants {
+    function _singleAmount(uint256 amt) internal pure returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = amt;
+    }
+
     SwapKyberSwapHook public swapHook;
     ApproveAndSwapKyberSwapHook public approveAndSwapHook;
 
@@ -1184,7 +1189,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice decodeAmount + replaceCalldataAmount roundtrip for ApproveAndSwapKyberSwapHook
-    function test_ApproveAndSwap_DecodeAmount_ReplaceCalldataAmount() public {
+    function test_ApproveAndSwap_DecodeAmounts_ReplaceCalldataAmounts() public {
         uint256 originalAmount = 1000e6;
         bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, originalAmount, 0, KYBER_ROUTER, KYBER_ROUTER, "");
 
@@ -1192,13 +1197,13 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
             _buildApproveAndSwapHookData(USDC, WETH, originalAmount, 0.2 ether, false, txData_);
 
         // Verify decodeAmount reads correctly
-        assertEq(approveAndSwapHook.decodeAmount(hookData), originalAmount, "decodeAmount mismatch");
+        assertEq(approveAndSwapHook.decodeAmounts(hookData)[0], originalAmount, "decodeAmount mismatch");
 
         // Replace with new amount and verify roundtrip
         uint256 newAmount = 500e6;
-        bytes memory replaced = approveAndSwapHook.replaceCalldataAmount(hookData, newAmount);
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
 
-        assertEq(approveAndSwapHook.decodeAmount(replaced), newAmount, "replaced amount mismatch");
+        assertEq(approveAndSwapHook.decodeAmounts(replaced)[0], newAmount, "replaced amount mismatch");
 
         // Verify other fields preserved
         assertFalse(approveAndSwapHook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
@@ -1206,7 +1211,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
     /// @notice decodeAmount + replaceCalldataAmount roundtrip for SwapKyberSwapHook
     /// @dev SwapKyberSwapHook layout: outputToken(20) | value(32) | inputAmount(32) | outputMin(32) | usePrevHookAmount(1) | txDataLength(32) | txData
-    function test_Swap_DecodeAmount_ReplaceCalldataAmount() public {
+    function test_Swap_DecodeAmounts_ReplaceCalldataAmounts() public {
         uint256 originalAmount = 2000e6;
         bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, originalAmount, 0, KYBER_ROUTER, KYBER_ROUTER, "");
 
@@ -1221,11 +1226,11 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
             txData_
         );
 
-        assertEq(swapHook.decodeAmount(hookData), originalAmount, "SwapHook decodeAmount mismatch");
+        assertEq(swapHook.decodeAmounts(hookData)[0], originalAmount, "SwapHook decodeAmount mismatch");
 
         uint256 newAmount = 1000e6;
-        bytes memory replaced = swapHook.replaceCalldataAmount(hookData, newAmount);
-        assertEq(swapHook.decodeAmount(replaced), newAmount, "SwapHook replaced amount mismatch");
+        bytes memory replaced = swapHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(swapHook.decodeAmounts(replaced)[0], newAmount, "SwapHook replaced amount mismatch");
     }
 
     /*//////////////////////////////////////////////////////////////

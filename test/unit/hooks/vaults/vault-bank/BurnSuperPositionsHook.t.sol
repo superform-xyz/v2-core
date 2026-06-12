@@ -174,25 +174,25 @@ contract BurnSuperPositionsHookTest is Helpers {
         burnSuperPositionsHook.build(zeroDstChainIdMock, address(this), data);
     }
 
-    function test_DecodeAmount() public view {
+    function test_DecodeAmounts() public view {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
-        uint256 decodedAmount = burnSuperPositionsHook.decodeAmount(data);
+        uint256 decodedAmount = burnSuperPositionsHook.decodeAmounts(data)[0];
         assertEq(decodedAmount, amount);
     }
 
-    function test_ReplaceCalldataAmount() public view {
+    function test_ReplaceCalldataAmounts() public view {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
         uint256 newAmount = 2e18;
-        bytes memory result = burnSuperPositionsHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = burnSuperPositionsHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(burnSuperPositionsHook.decodeAmount(result), newAmount);
+        assertEq(burnSuperPositionsHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
-        bytes memory result = burnSuperPositionsHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(burnSuperPositionsHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = burnSuperPositionsHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(burnSuperPositionsHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
     function test_DecodeUsePrevHookAmount() public view {
@@ -217,12 +217,12 @@ contract BurnSuperPositionsHookTest is Helpers {
         );
     }
 
-    function test_BurnSP_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_BurnSP_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
         uint256 newAmount = 500;
-        bytes memory replaced = burnSuperPositionsHook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = burnSuperPositionsHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = burnSuperPositionsHook.build(mockPrevHook, address(this), replaced);
         assertEq(executions.length, 6);
-        assertEq(burnSuperPositionsHook.decodeAmount(replaced), newAmount);
+        assertEq(burnSuperPositionsHook.decodeAmounts(replaced)[0], newAmount);
     }
 }

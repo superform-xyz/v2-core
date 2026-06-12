@@ -30,6 +30,11 @@ contract MockRNat is MockERC20 {
         claimAmount = amount;
     }
 
+    /// @dev Returns a dummy current month for on-chain lookup
+    function getCurrentMonth() external pure returns (uint256) {
+        return 1;
+    }
+
     /// @dev Simulates claimRewards: mints rFLR to caller
     function claimRewards(uint256[] calldata, uint256) external returns (uint128) {
         if (claimAmount > 0) {
@@ -129,8 +134,8 @@ contract RFLRHooksHandler is Test {
         _setBalance(rNat, actor, existingBalance);
         rNat.setClaimAmount(claimAmount_);
 
-        // Encode claim data
-        bytes memory data = abi.encodePacked(month, numProjects);
+        // Encode claim data (month is now fetched on-chain via IRNat.getCurrentMonth())
+        bytes memory data = abi.encodePacked(numProjects);
         for (uint256 i; i < numProjects; ++i) {
             data = abi.encodePacked(data, i);
         }
@@ -212,8 +217,8 @@ contract RFLRHooksHandler is Test {
         _setBalance(rNat, actor, existingBalance);
         rNat.setClaimAmount(0); // No claim amount
 
-        // Encode minimal valid claim data (1 project)
-        bytes memory data = abi.encodePacked(uint256(1), uint256(1), uint256(0));
+        // Encode minimal valid claim data (1 project, month fetched on-chain)
+        bytes memory data = abi.encodePacked(uint256(1), uint256(0));
 
         // Build (for INV-3 tracking)
         Execution[] memory executions = claimHook.build(address(0), actor, data);

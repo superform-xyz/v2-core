@@ -478,27 +478,27 @@ contract PendleRouterRedeemHookTest is Helpers {
         assertEq(executions.length, 5);
     }
 
-    function test_DecodeAmount() public view {
+    function test_DecodeAmounts() public view {
         bytes memory data =
             _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
-        assertEq(hook.decodeAmount(data), amount);
+        assertEq(hook.decodeAmounts(data)[0], amount);
     }
 
-    function test_ReplaceCalldataAmount() public view {
+    function test_ReplaceCalldataAmounts() public view {
         bytes memory data =
             _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
         uint256 newAmount = 2e18;
-        bytes memory result = hook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = hook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(hook.decodeAmount(result), newAmount);
+        assertEq(hook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data =
             _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
-        bytes memory result = hook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(hook.decodeAmount(result), fuzzAmount);
+        bytes memory result = hook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(hook.decodeAmounts(result)[0], fuzzAmount);
     }
 
     function _createRedeemData(
@@ -528,12 +528,12 @@ contract PendleRouterRedeemHookTest is Helpers {
         return abi.encodePacked(amount_, yt_, pt_, tokenOut_, minTokenOut_, usePrevHookAmount_, tokenOutput);
     }
 
-    function test_PendleRouterRedeem_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_PendleRouterRedeem_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
         uint256 newAmount = 500;
-        bytes memory replaced = hook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = hook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = hook.build(address(prevHook), account, replaced);
         assertEq(executions.length, 5);
-        assertEq(hook.decodeAmount(replaced), newAmount);
+        assertEq(hook.decodeAmounts(replaced)[0], newAmount);
     }
 }

@@ -7,10 +7,13 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import {
+    ISuperHook,
     ISuperHookResult,
     ISuperHookInflowOutflow,
+    ISuperHookOutflow,
     ISuperHookContextAware,
     ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
@@ -79,8 +82,25 @@ contract ClaimAssetsDETHHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCon
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory data) external pure returns (uint256) {
-        return _decodeRequestId(data);
+    /// @dev Returns empty — requestId is not a sizable amount (it's an NFT receipt ID)
+    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](0);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+    }
+
+    /// @inheritdoc IERC165
+    /// @dev This hook implements ISuperHookInflowOutflow (decode-only) but NOT ISuperHookOutflow
+    ///      (no replaceCalldataAmounts). Override base to distinguish the two interfaces.
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
+        if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
+        return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
+            || interfaceId == type(ISuperHookResult).interfaceId
+            || interfaceId == type(ISuperHookInspector).interfaceId;
     }
 
     /// @inheritdoc ISuperHookContextAware

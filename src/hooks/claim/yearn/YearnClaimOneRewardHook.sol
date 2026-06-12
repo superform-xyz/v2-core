@@ -58,8 +58,18 @@ contract YearnClaimOneRewardHook is
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory) external pure returns (uint256) {
-        return 0;
+    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](0);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+    }
+
+    /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
+    function _supportsSizingInterface() internal pure override returns (bool) {
+        return true;
     }
 
     /// @inheritdoc ISuperHookContextAware
@@ -68,7 +78,8 @@ contract YearnClaimOneRewardHook is
     }
 
     /// @inheritdoc ISuperHookOutflow
-    function replaceCalldataAmount(bytes memory data, uint256) external pure returns (bytes memory) {
+    function replaceCalldataAmounts(bytes memory data, uint256[] memory amounts) external pure override returns (bytes memory) {
+        if (amounts.length != 0) revert INVALID_AMOUNTS_LENGTH();
         return data;
     }
 

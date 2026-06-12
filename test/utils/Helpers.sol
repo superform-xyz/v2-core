@@ -64,6 +64,20 @@ abstract contract Helpers is Test, Constants {
     }
 
     /*//////////////////////////////////////////////////////////////
+                                 AMOUNT ARRAY HELPERS
+    //////////////////////////////////////////////////////////////*/
+    function _singleAmount(uint256 amt) internal pure returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = amt;
+    }
+
+    function _dualAmounts(uint256 a, uint256 b) internal pure returns (uint256[] memory amounts) {
+        amounts = new uint256[](2);
+        amounts[0] = a;
+        amounts[1] = b;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  GENERIC HELPER METHODS
     //////////////////////////////////////////////////////////////*/
     function _bound(uint256 amount_) internal pure returns (uint256) {

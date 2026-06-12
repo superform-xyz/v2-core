@@ -91,26 +91,26 @@ contract MintSuperPositionsHookTest is Helpers {
         assertEq(inspectData.length, 40);
     }
 
-    function test_MintVB_DecodeAmount() public view {
+    function test_MintVB_DecodeAmounts() public view {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, uint256(1000), false, vaultBank, dstChainId);
-        uint256 _amount = mintSuperPositionsHook.decodeAmount(data);
+        uint256 _amount = mintSuperPositionsHook.decodeAmounts(data)[0];
 
         assertEq(_amount, 1000);
     }
 
-    function test_MintVB_ReplaceCalldataAmount() public view {
+    function test_MintVB_ReplaceCalldataAmounts() public view {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
         uint256 newAmount = 2e18;
-        bytes memory result = mintSuperPositionsHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = mintSuperPositionsHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(mintSuperPositionsHook.decodeAmount(result), newAmount);
+        assertEq(mintSuperPositionsHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_MintVB_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_MintVB_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
-        bytes memory result = mintSuperPositionsHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(mintSuperPositionsHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = mintSuperPositionsHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(mintSuperPositionsHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -173,12 +173,12 @@ contract MintSuperPositionsHookTest is Helpers {
         mintSuperPositionsHook.build(zeroDstChainIdMock, address(this), data);
     }
 
-    function test_MintSP_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_MintSP_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
         uint256 newAmount = 500;
-        bytes memory replaced = mintSuperPositionsHook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = mintSuperPositionsHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = mintSuperPositionsHook.build(mockPrevHook, address(this), replaced);
         assertEq(executions.length, 6);
-        assertEq(mintSuperPositionsHook.decodeAmount(replaced), newAmount);
+        assertEq(mintSuperPositionsHook.decodeAmounts(replaced)[0], newAmount);
     }
 }

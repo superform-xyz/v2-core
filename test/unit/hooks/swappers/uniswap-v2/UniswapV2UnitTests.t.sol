@@ -28,77 +28,77 @@ contract UniswapV2UnitTests is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-                    SwapUniswapV2Hook DecodeAmount Tests
+                    SwapUniswapV2Hook DecodeAmounts Tests
     //////////////////////////////////////////////////////////////*/
 
-    function test_SwapUniV2_DecodeAmount() public view {
+    function test_SwapUniV2_DecodeAmounts() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(swapHook.decodeAmount(data), originalAmountIn);
+        assertEq(swapHook.decodeAmounts(data)[0], originalAmountIn);
     }
 
-    function test_SwapUniV2_ReplaceCalldataAmount() public view {
+    function test_SwapUniV2_ReplaceCalldataAmounts() public view {
         bytes memory data = _buildHookData(false);
         uint256 newAmount = 2000;
-        bytes memory result = swapHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = swapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(swapHook.decodeAmount(result), newAmount);
+        assertEq(swapHook.decodeAmounts(result)[0], newAmount);
         // Verify other fields unchanged
         assertEq(swapHook.decodeUsePrevHookAmount(result), false);
     }
 
-    function testFuzz_SwapUniV2_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_SwapUniV2_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _buildHookData(false);
-        bytes memory result = swapHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(swapHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = swapHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(swapHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
-              ApproveAndSwapUniswapV2Hook DecodeAmount Tests
+              ApproveAndSwapUniswapV2Hook DecodeAmounts Tests
     //////////////////////////////////////////////////////////////*/
 
-    function test_ApproveAndSwapUniV2_DecodeAmount() public view {
+    function test_ApproveAndSwapUniV2_DecodeAmounts() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(approveAndSwapHook.decodeAmount(data), originalAmountIn);
+        assertEq(approveAndSwapHook.decodeAmounts(data)[0], originalAmountIn);
     }
 
-    function test_ApproveAndSwapUniV2_ReplaceCalldataAmount() public view {
+    function test_ApproveAndSwapUniV2_ReplaceCalldataAmounts() public view {
         bytes memory data = _buildHookData(false);
         uint256 newAmount = 2000;
-        bytes memory result = approveAndSwapHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(approveAndSwapHook.decodeAmount(result), newAmount);
+        assertEq(approveAndSwapHook.decodeAmounts(result)[0], newAmount);
         assertEq(approveAndSwapHook.decodeUsePrevHookAmount(result), false);
     }
 
-    function testFuzz_ApproveAndSwapUniV2_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_ApproveAndSwapUniV2_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _buildHookData(false);
-        bytes memory result = approveAndSwapHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(approveAndSwapHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(approveAndSwapHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_SwapUniV2_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_SwapUniV2_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _buildHookData(false);
         uint256 newAmount = 500;
-        bytes memory replaced = swapHook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = swapHook.build(address(0), address(this), replaced);
         assertEq(executions.length, 3);
-        assertEq(swapHook.decodeAmount(replaced), newAmount);
+        assertEq(swapHook.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_ApproveAndSwapUniV2_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_ApproveAndSwapUniV2_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _buildHookData(false);
         uint256 newAmount = 500;
-        bytes memory replaced = approveAndSwapHook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = approveAndSwapHook.build(address(0), address(this), replaced);
         assertEq(executions.length, 6);
-        assertEq(approveAndSwapHook.decodeAmount(replaced), newAmount);
+        assertEq(approveAndSwapHook.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_SwapUniV2_ReplaceCalldataAmount_PreservesOtherFields() public view {
+    function test_SwapUniV2_ReplaceCalldataAmounts_PreservesOtherFields() public view {
         bytes memory data = _buildHookData(false);
-        bytes memory replaced = swapHook.replaceCalldataAmount(data, 999);
+        bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
         for (uint256 i = 0; i < 72; i++) {
             assertEq(replaced[i], data[i]);

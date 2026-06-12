@@ -422,67 +422,67 @@ contract AlgebraIntegralHookTest is Helpers {
                     DECODE/REPLACE AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_SwapAlgebra_DecodeAmount() public view {
+    function test_SwapAlgebra_DecodeAmounts() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(swapHook.decodeAmount(data), originalAmountIn);
+        assertEq(swapHook.decodeAmounts(data)[0], originalAmountIn);
     }
 
-    function test_SwapAlgebra_ReplaceCalldataAmount() public view {
-        bytes memory data = _buildHookData(false);
-        uint256 newAmount = 2e18;
-        bytes memory result = swapHook.replaceCalldataAmount(data, newAmount);
-        assertEq(result.length, data.length);
-        assertEq(swapHook.decodeAmount(result), newAmount);
-    }
-
-    function testFuzz_SwapAlgebra_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
-        vm.assume(fuzzAmount > 0);
-        bytes memory data = _buildHookData(false);
-        bytes memory result = swapHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(swapHook.decodeAmount(result), fuzzAmount);
-    }
-
-    function test_ApproveAndSwapAlgebra_DecodeAmount() public view {
-        bytes memory data = _buildHookData(false);
-        assertEq(approveAndSwapHook.decodeAmount(data), originalAmountIn);
-    }
-
-    function test_ApproveAndSwapAlgebra_ReplaceCalldataAmount() public view {
+    function test_SwapAlgebra_ReplaceCalldataAmounts() public view {
         bytes memory data = _buildHookData(false);
         uint256 newAmount = 2e18;
-        bytes memory result = approveAndSwapHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = swapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(approveAndSwapHook.decodeAmount(result), newAmount);
+        assertEq(swapHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_ApproveAndSwapAlgebra_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_SwapAlgebra_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _buildHookData(false);
-        bytes memory result = approveAndSwapHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(approveAndSwapHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = swapHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(swapHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_SwapAlgebraIntegral_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_ApproveAndSwapAlgebra_DecodeAmounts() public view {
+        bytes memory data = _buildHookData(false);
+        assertEq(approveAndSwapHook.decodeAmounts(data)[0], originalAmountIn);
+    }
+
+    function test_ApproveAndSwapAlgebra_ReplaceCalldataAmounts() public view {
+        bytes memory data = _buildHookData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(approveAndSwapHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_ApproveAndSwapAlgebra_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _buildHookData(false);
+        bytes memory result = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(approveAndSwapHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_SwapAlgebraIntegral_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _buildHookData(false);
         uint256 newAmount = 500;
-        bytes memory replaced = swapHook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = swapHook.build(address(prevHook), account, replaced);
         assertEq(executions.length, 3);
-        assertEq(swapHook.decodeAmount(replaced), newAmount);
+        assertEq(swapHook.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_ApproveAndSwapAlgebraIntegral_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_ApproveAndSwapAlgebraIntegral_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _buildHookData(false);
         uint256 newAmount = 500;
-        bytes memory replaced = approveAndSwapHook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, replaced);
         assertEq(executions.length, 6);
-        assertEq(approveAndSwapHook.decodeAmount(replaced), newAmount);
+        assertEq(approveAndSwapHook.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_SwapAlgebraIntegral_ReplaceCalldataAmount_PreservesOtherFields() public view {
+    function test_SwapAlgebraIntegral_ReplaceCalldataAmounts_PreservesOtherFields() public view {
         bytes memory data = _buildHookData(false);
-        bytes memory replaced = swapHook.replaceCalldataAmount(data, 999);
+        bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
         for (uint256 i = 0; i < 144; i++) {
             assertEq(replaced[i], data[i]);

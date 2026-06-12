@@ -253,59 +253,59 @@ contract DETHHooksTests is Helpers {
     /*//////////////////////////////////////////////////////////////
                           DECODE AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_RequestRedeemDETHHook_DecodeAmount() public view {
+    function test_RequestRedeemDETHHook_DecodeAmounts() public view {
         bytes memory data = _encodeRequestRedeemData(address(asyncRedeemer), amount, minAssets, false);
-        uint256 decodedAmount = requestRedeemHook.decodeAmount(data);
+        uint256 decodedAmount = requestRedeemHook.decodeAmounts(data)[0];
         assertEq(decodedAmount, amount);
     }
 
-    function test_ApproveAndRequestRedeemDETHHook_DecodeAmount() public view {
+    function test_ApproveAndRequestRedeemDETHHook_DecodeAmounts() public view {
         bytes memory data =
             _encodeApproveAndRequestData(address(asyncRedeemer), address(dethToken), amount, minAssets, false);
-        uint256 decodedAmount = approveAndRequestHook.decodeAmount(data);
+        uint256 decodedAmount = approveAndRequestHook.decodeAmounts(data)[0];
         assertEq(decodedAmount, amount);
     }
 
-    function test_ClaimAssetsDETHHook_DecodeAmount() public view {
+    function test_ClaimAssetsDETHHook_DecodeAmounts() public view {
         uint256 requestId = 42;
         bytes memory data = _encodeClaimData(address(asyncRedeemer), requestId, false);
-        uint256 decodedAmount = claimHook.decodeAmount(data);
-        assertEq(decodedAmount, requestId);
+        // ClaimAssetsDETH returns empty — requestId is not a sizable amount
+        assertEq(claimHook.decodeAmounts(data).length, 0);
     }
 
     /*//////////////////////////////////////////////////////////////
                     REPLACE CALLDATA AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_RequestRedeemDETHHook_ReplaceCalldataAmount() public view {
+    function test_RequestRedeemDETHHook_ReplaceCalldataAmounts() public view {
         bytes memory data = _encodeRequestRedeemData(address(asyncRedeemer), amount, minAssets, false);
         uint256 newAmount = 2e18;
-        bytes memory result = requestRedeemHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = requestRedeemHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(requestRedeemHook.decodeAmount(result), newAmount);
+        assertEq(requestRedeemHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_RequestRedeemDETHHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_RequestRedeemDETHHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _encodeRequestRedeemData(address(asyncRedeemer), amount, minAssets, false);
-        bytes memory result = requestRedeemHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(requestRedeemHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = requestRedeemHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(requestRedeemHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_ApproveAndRequestRedeemDETHHook_ReplaceCalldataAmount() public view {
+    function test_ApproveAndRequestRedeemDETHHook_ReplaceCalldataAmounts() public view {
         bytes memory data =
             _encodeApproveAndRequestData(address(asyncRedeemer), address(dethToken), amount, minAssets, false);
         uint256 newAmount = 2e18;
-        bytes memory result = approveAndRequestHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = approveAndRequestHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(approveAndRequestHook.decodeAmount(result), newAmount);
+        assertEq(approveAndRequestHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_ApproveAndRequestRedeemDETHHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_ApproveAndRequestRedeemDETHHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data =
             _encodeApproveAndRequestData(address(asyncRedeemer), address(dethToken), amount, minAssets, false);
-        bytes memory result = approveAndRequestHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(approveAndRequestHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = approveAndRequestHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(approveAndRequestHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -639,23 +639,23 @@ contract DETHHooksTests is Helpers {
         assertEq(requestRedeemHook.spToken(), address(dethToken));
     }
 
-    function test_RequestRedeemDETH_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_RequestRedeemDETH_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _encodeRequestRedeemData(address(asyncRedeemer), 1000, 900, false);
         uint256 newAmount = 500;
-        bytes memory replaced = requestRedeemHook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = requestRedeemHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = requestRedeemHook.build(address(0), address(this), replaced);
         assertEq(executions.length, 3);
-        assertEq(requestRedeemHook.decodeAmount(replaced), newAmount);
+        assertEq(requestRedeemHook.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_ApproveAndRequestRedeemDETH_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_ApproveAndRequestRedeemDETH_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data =
             _encodeApproveAndRequestData(address(asyncRedeemer), address(dethToken), 1000, 900, false);
         uint256 newAmount = 500;
-        bytes memory replaced = approveAndRequestHook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = approveAndRequestHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = approveAndRequestHook.build(address(0), address(this), replaced);
         assertEq(executions.length, 6);
-        assertEq(approveAndRequestHook.decodeAmount(replaced), newAmount);
+        assertEq(approveAndRequestHook.decodeAmounts(replaced)[0], newAmount);
     }
 
     /*//////////////////////////////////////////////////////////////

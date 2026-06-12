@@ -242,18 +242,18 @@ contract CircleGatewayUnitTests is BaseTest {
         walletHook.decodeUsePrevHookAmount(hookData);
     }
 
-    function test_WalletHook_DecodeAmount() public view {
+    function test_WalletHook_DecodeAmounts() public view {
         bytes memory hookData = abi.encodePacked(
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes)
             true // usePrevHookAmount (1 byte)
         );
 
-        uint256 result = walletHook.decodeAmount(hookData);
+        uint256 result = walletHook.decodeAmounts(hookData)[0];
         assertEq(result, DEPOSIT_AMOUNT, "Should decode correct amount");
     }
 
-    function test_WalletHook_ReplaceCalldataAmount() public view {
+    function test_WalletHook_ReplaceCalldataAmounts() public view {
         bytes memory hookData = abi.encodePacked(
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes)
@@ -261,12 +261,12 @@ contract CircleGatewayUnitTests is BaseTest {
         );
 
         uint256 newAmount = 2000e6;
-        bytes memory result = walletHook.replaceCalldataAmount(hookData, newAmount);
+        bytes memory result = walletHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
         assertEq(result.length, hookData.length);
-        assertEq(walletHook.decodeAmount(result), newAmount);
+        assertEq(walletHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_WalletHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_WalletHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory hookData = abi.encodePacked(
             address(mockToken), // token (20 bytes)
@@ -274,30 +274,30 @@ contract CircleGatewayUnitTests is BaseTest {
             false // usePrevHookAmount (1 byte)
         );
 
-        bytes memory result = walletHook.replaceCalldataAmount(hookData, fuzzAmount);
-        assertEq(walletHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = walletHook.replaceCalldataAmounts(hookData, _singleAmount(fuzzAmount));
+        assertEq(walletHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_WalletHook_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_WalletHook_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory hookData = abi.encodePacked(
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes)
             false // usePrevHookAmount (1 byte)
         );
         uint256 newAmount = 500;
-        bytes memory replaced = walletHook.replaceCalldataAmount(hookData, newAmount);
+        bytes memory replaced = walletHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
         Execution[] memory executions = walletHook.build(address(0), ACCOUNT, replaced);
         assertEq(executions.length, 6);
-        assertEq(walletHook.decodeAmount(replaced), newAmount);
+        assertEq(walletHook.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_WalletHook_ReplaceCalldataAmount_PreservesOtherFields() public view {
+    function test_WalletHook_ReplaceCalldataAmounts_PreservesOtherFields() public view {
         bytes memory hookData = abi.encodePacked(
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes)
             false // usePrevHookAmount (1 byte)
         );
-        bytes memory replaced = walletHook.replaceCalldataAmount(hookData, 999);
+        bytes memory replaced = walletHook.replaceCalldataAmounts(hookData, _singleAmount(999));
         assertEq(replaced.length, hookData.length);
         for (uint256 i = 0; i < 20; i++) {
             assertEq(replaced[i], hookData[i]);

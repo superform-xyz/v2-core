@@ -255,36 +255,36 @@ contract ClaimFailedTransferHookTest is Helpers {
 
     // --- decodeAmount / replaceCalldataAmount Tests ---
 
-    function test_DecodeAmount() public view {
+    function test_DecodeAmounts() public view {
         bytes memory data = _encodeData(adapter, token, 42_000e18);
-        uint256 decoded = hook.decodeAmount(data);
+        uint256 decoded = hook.decodeAmounts(data)[0];
         assertEq(decoded, 42_000e18, "decodeAmount should extract amount at offset 40");
     }
 
-    function test_DecodeAmount_Zero() public view {
+    function test_DecodeAmounts_Zero() public view {
         bytes memory data = _encodeData(adapter, token, 0);
-        uint256 decoded = hook.decodeAmount(data);
+        uint256 decoded = hook.decodeAmounts(data)[0];
         assertEq(decoded, 0, "decodeAmount should return 0 for zero amount");
     }
 
-    function testFuzz_DecodeAmount(address fuzzAdapter, address fuzzToken, uint256 fuzzAmount) public view {
+    function testFuzz_DecodeAmounts(address fuzzAdapter, address fuzzToken, uint256 fuzzAmount) public view {
         bytes memory data = _encodeData(fuzzAdapter, fuzzToken, fuzzAmount);
-        assertEq(hook.decodeAmount(data), fuzzAmount);
+        assertEq(hook.decodeAmounts(data)[0], fuzzAmount);
     }
 
-    function test_ReplaceCalldataAmount() public view {
+    function test_ReplaceCalldataAmounts() public view {
         bytes memory data = _encodeData(adapter, token, 1000);
-        bytes memory replaced = hook.replaceCalldataAmount(data, 5000);
+        bytes memory replaced = hook.replaceCalldataAmounts(data, _singleAmount(5000));
 
         // Verify amount was replaced
-        assertEq(hook.decodeAmount(replaced), 5000, "Amount should be replaced");
+        assertEq(hook.decodeAmounts(replaced)[0], 5000, "Amount should be replaced");
 
         // Verify adapter and token are unchanged
         assertEq(BytesLib.toAddress(replaced, 0), adapter, "Adapter should be unchanged");
         assertEq(BytesLib.toAddress(replaced, 20), token, "Token should be unchanged");
     }
 
-    function testFuzz_ReplaceCalldataAmount(
+    function testFuzz_ReplaceCalldataAmounts(
         address fuzzAdapter,
         address fuzzToken,
         uint256 originalAmount,
@@ -294,9 +294,9 @@ contract ClaimFailedTransferHookTest is Helpers {
         view
     {
         bytes memory data = _encodeData(fuzzAdapter, fuzzToken, originalAmount);
-        bytes memory replaced = hook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = hook.replaceCalldataAmounts(data, _singleAmount(newAmount));
 
-        assertEq(hook.decodeAmount(replaced), newAmount, "Amount should be replaced");
+        assertEq(hook.decodeAmounts(replaced)[0], newAmount, "Amount should be replaced");
         assertEq(BytesLib.toAddress(replaced, 0), fuzzAdapter, "Adapter unchanged");
         assertEq(BytesLib.toAddress(replaced, 20), fuzzToken, "Token unchanged");
     }

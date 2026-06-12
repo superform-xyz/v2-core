@@ -254,36 +254,36 @@ contract WETHHooksIntegrationTest is MinimalBaseIntegrationTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice decodeAmount + replaceCalldataAmount roundtrip for WETH hooks (AMOUNT_POSITION = 0)
-    function test_DepositWETH_DecodeAmount_ReplaceCalldataAmount() external view {
+    function test_DepositWETH_DecodeAmounts_ReplaceCalldataAmounts() external view {
         uint256 originalAmount = 1 ether;
         bytes memory hookData = abi.encodePacked(originalAmount, false);
 
-        assertEq(depositWETHHook.decodeAmount(hookData), originalAmount, "DepositWETH decodeAmount mismatch");
+        assertEq(depositWETHHook.decodeAmounts(hookData)[0], originalAmount, "DepositWETH decodeAmount mismatch");
 
         uint256 newAmount = 0.5 ether;
-        bytes memory replaced = depositWETHHook.replaceCalldataAmount(hookData, newAmount);
-        assertEq(depositWETHHook.decodeAmount(replaced), newAmount, "DepositWETH replaced amount mismatch");
+        bytes memory replaced = depositWETHHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(depositWETHHook.decodeAmounts(replaced)[0], newAmount, "DepositWETH replaced amount mismatch");
         assertFalse(depositWETHHook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
     }
 
-    function test_WithdrawWETH_DecodeAmount_ReplaceCalldataAmount() external view {
+    function test_WithdrawWETH_DecodeAmounts_ReplaceCalldataAmounts() external view {
         uint256 originalAmount = 1 ether;
         bytes memory hookData = abi.encodePacked(originalAmount, false);
 
-        assertEq(withdrawWETHHook.decodeAmount(hookData), originalAmount, "WithdrawWETH decodeAmount mismatch");
+        assertEq(withdrawWETHHook.decodeAmounts(hookData)[0], originalAmount, "WithdrawWETH decodeAmount mismatch");
 
         uint256 newAmount = 0.5 ether;
-        bytes memory replaced = withdrawWETHHook.replaceCalldataAmount(hookData, newAmount);
-        assertEq(withdrawWETHHook.decodeAmount(replaced), newAmount, "WithdrawWETH replaced amount mismatch");
+        bytes memory replaced = withdrawWETHHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(withdrawWETHHook.decodeAmounts(replaced)[0], newAmount, "WithdrawWETH replaced amount mismatch");
     }
 
     /// @notice DepositWETH: build with 1 ETH, replace to 0.5 ETH, execute, verify only 0.5 converted
-    function test_DepositWETH_ReplaceCalldataAmount_ExecutesCorrectly() public {
+    function test_DepositWETH_ReplaceCalldataAmounts_ExecutesCorrectly() public {
         uint256 originalAmount = 1 ether;
         uint256 newAmount = 0.5 ether;
 
         bytes memory hookData = abi.encodePacked(originalAmount, false);
-        bytes memory replaced = depositWETHHook.replaceCalldataAmount(hookData, newAmount);
+        bytes memory replaced = depositWETHHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
 
         HookExecutionData memory execData;
         execData.hooksAddresses = new address[](1);

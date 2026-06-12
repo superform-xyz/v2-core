@@ -196,7 +196,7 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice decodeAmount + replaceCalldataAmount roundtrip for MorphoSupplyAndBorrowHook (AMOUNT_POSITION = 80)
-    function test_MorphoSupplyAndBorrow_DecodeAmount_ReplaceCalldataAmount() external view {
+    function test_MorphoSupplyAndBorrow_DecodeAmounts_ReplaceCalldataAmounts() external view {
         address loanToken = CHAIN_1_USDC;
         address collateralToken = CHAIN_1_WBTC;
         uint256 originalAmount = 1_000_000;
@@ -208,19 +208,19 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         MorphoSupplyAndBorrowHook morphoHook = MorphoSupplyAndBorrowHook(morphoSupplyAndBorrowHook);
 
         // Verify decodeAmount
-        assertEq(morphoHook.decodeAmount(hookData), originalAmount, "decodeAmount mismatch");
+        assertEq(morphoHook.decodeAmounts(hookData)[0], originalAmount, "decodeAmount mismatch");
 
         // Replace and verify roundtrip
         uint256 newAmount = 500_000;
-        bytes memory replaced = morphoHook.replaceCalldataAmount(hookData, newAmount);
-        assertEq(morphoHook.decodeAmount(replaced), newAmount, "replaced amount mismatch");
+        bytes memory replaced = morphoHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(morphoHook.decodeAmounts(replaced)[0], newAmount, "replaced amount mismatch");
 
         // Verify other fields preserved
         assertFalse(morphoHook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
     }
 
     /// @notice decodeAmount + replaceCalldataAmount roundtrip for MorphoRepayAndWithdrawHook
-    function test_MorphoRepayAndWithdraw_DecodeAmount_ReplaceCalldataAmount() external view {
+    function test_MorphoRepayAndWithdraw_DecodeAmounts_ReplaceCalldataAmounts() external view {
         address loanToken = CHAIN_1_USDC;
         address collateralToken = CHAIN_1_WBTC;
         uint256 originalAmount = 500_000;
@@ -237,11 +237,11 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         );
 
         // Verify decodeAmount
-        assertEq(repayAndWithdrawHook.decodeAmount(hookData), originalAmount, "decodeAmount mismatch");
+        assertEq(repayAndWithdrawHook.decodeAmounts(hookData)[0], originalAmount, "decodeAmount mismatch");
 
         // Replace and verify roundtrip
         uint256 newAmount = 250_000;
-        bytes memory replaced = repayAndWithdrawHook.replaceCalldataAmount(hookData, newAmount);
-        assertEq(repayAndWithdrawHook.decodeAmount(replaced), newAmount, "replaced amount mismatch");
+        bytes memory replaced = repayAndWithdrawHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(repayAndWithdrawHook.decodeAmounts(replaced)[0], newAmount, "replaced amount mismatch");
     }
 }

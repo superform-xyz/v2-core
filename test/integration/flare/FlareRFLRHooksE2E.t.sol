@@ -238,7 +238,7 @@ contract FlareRFLRHooksE2E is Test, Constants {
 
     /// @notice Verify build reverts with INVALID_DATA_LENGTH when data is too short
     function test_claimRFLR_revertIf_dataTooShort() public {
-        bytes memory shortData = abi.encodePacked(uint256(1)); // only 32 bytes, need >= 64
+        bytes memory shortData = abi.encodePacked(uint128(1)); // only 16 bytes, need >= 32
         vm.expectRevert(ClaimRFLRHook.INVALID_DATA_LENGTH.selector);
         claimHook.build(address(0), SECOND_HOLDER, shortData);
     }
@@ -255,10 +255,9 @@ contract FlareRFLRHooksE2E is Test, Constants {
 
     /// @notice Verify build reverts with TOO_MANY_PROJECT_IDS when exceeding max
     function test_claimRFLR_revertIf_tooManyProjectIds() public {
-        uint256 currentMonth = IRNat(FLARE_RNAT).getCurrentMonth();
-
         // Build data with 51 project IDs (exceeds MAX_PROJECT_IDS = 50)
-        bytes memory data = abi.encodePacked(currentMonth, uint256(51));
+        // New layout: projectIdsLength at offset 0, then projectIds[]
+        bytes memory data = abi.encodePacked(uint256(51));
         for (uint256 i; i < 51; ++i) {
             data = abi.encodePacked(data, i);
         }
@@ -1205,15 +1204,17 @@ contract FlareRFLRHooksE2E is Test, Constants {
     }
 
     /// @dev Encode ClaimRFLRHook data (no fee — rFLR is non-transferable)
+    /// @dev Data layout: projectIdsLength (uint256) + projectIds[] (uint256[])
+    ///      Month is now fetched on-chain via IRNat.getCurrentMonth()
     function _encodeClaimData(
-        uint256 month,
+        uint256,
         uint256[] memory projectIds
     )
         internal
         pure
         returns (bytes memory)
     {
-        bytes memory data = abi.encodePacked(month, projectIds.length);
+        bytes memory data = abi.encodePacked(projectIds.length);
 
         for (uint256 i; i < projectIds.length; ++i) {
             data = abi.encodePacked(data, projectIds[i]);

@@ -1088,7 +1088,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice decodeAmount + replaceCalldataAmount roundtrip for SwapUniswapV4Hook
-    function test_UniswapV4_DecodeAmount_ReplaceCalldataAmount() external view {
+    function test_UniswapV4_DecodeAmounts_ReplaceCalldataAmounts() external view {
         uint256 originalAmount = 1000e6;
 
         bytes memory swapCalldata = parser.generateSingleHopSwapCalldata(
@@ -1106,19 +1106,19 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         );
 
         // Verify decodeAmount
-        assertEq(uniswapV4Hook.decodeAmount(swapCalldata), originalAmount, "decodeAmount mismatch");
+        assertEq(uniswapV4Hook.decodeAmounts(swapCalldata)[0], originalAmount, "decodeAmount mismatch");
 
         // Replace and verify roundtrip
         uint256 newAmount = 500e6;
-        bytes memory replaced = uniswapV4Hook.replaceCalldataAmount(swapCalldata, newAmount);
-        assertEq(uniswapV4Hook.decodeAmount(replaced), newAmount, "replaced amount mismatch");
+        bytes memory replaced = uniswapV4Hook.replaceCalldataAmounts(swapCalldata, _singleAmount(newAmount));
+        assertEq(uniswapV4Hook.decodeAmounts(replaced)[0], newAmount, "replaced amount mismatch");
 
         // Verify other fields preserved
         assertFalse(uniswapV4Hook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
     }
 
     /// @notice Verify replaceCalldataAmount preserves data structure across multiple field types
-    function test_UniswapV4_ReplaceCalldataAmount_PreservesAllFields() external view {
+    function test_UniswapV4_ReplaceCalldataAmounts_PreservesAllFields() external view {
         uint256 originalAmount = 1000e6;
         uint256 newAmount = 500e6;
 
@@ -1136,10 +1136,10 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
             false
         );
 
-        bytes memory replaced = uniswapV4Hook.replaceCalldataAmount(swapCalldata, newAmount);
+        bytes memory replaced = uniswapV4Hook.replaceCalldataAmounts(swapCalldata, _singleAmount(newAmount));
 
         // Amount is replaced
-        assertEq(uniswapV4Hook.decodeAmount(replaced), newAmount, "Amount should be replaced");
+        assertEq(uniswapV4Hook.decodeAmounts(replaced)[0], newAmount, "Amount should be replaced");
         // usePrevHookAmount is preserved
         assertFalse(uniswapV4Hook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
         // Data length is preserved

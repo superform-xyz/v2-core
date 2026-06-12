@@ -159,32 +159,32 @@ contract FirelightHooksTests is Helpers {
     /*//////////////////////////////////////////////////////////////
                           DECODE AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_RedeemFirelightVaultHook_DecodeAmount() public view {
+    function test_RedeemFirelightVaultHook_DecodeAmounts() public view {
         bytes memory data = _encodeRedeemData(address(stXRP), amount, false);
-        uint256 decodedAmount = redeemHook.decodeAmount(data);
+        uint256 decodedAmount = redeemHook.decodeAmounts(data)[0];
         assertEq(decodedAmount, amount);
     }
 
-    function test_RedeemFirelightVaultHook_ReplaceCalldataAmount() public view {
+    function test_RedeemFirelightVaultHook_ReplaceCalldataAmounts() public view {
         bytes memory data = _encodeRedeemData(address(stXRP), amount, false);
         uint256 newAmount = 2e18;
-        bytes memory result = redeemHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = redeemHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(redeemHook.decodeAmount(result), newAmount);
+        assertEq(redeemHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_RedeemFirelightVaultHook_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_RedeemFirelightVaultHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _encodeRedeemData(address(stXRP), amount, false);
-        bytes memory result = redeemHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(redeemHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = redeemHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(redeemHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_ClaimWithdrawFirelightVaultHook_DecodeAmount() public view {
+    function test_ClaimWithdrawFirelightVaultHook_DecodeAmounts() public view {
         uint256 requestId = 42;
         bytes memory data = _encodeClaimData(address(vault), requestId, false);
-        uint256 decodedAmount = claimHook.decodeAmount(data);
-        assertEq(decodedAmount, requestId);
+        // ClaimWithdrawFirelight returns empty — requestId is not a sizable amount
+        assertEq(claimHook.decodeAmounts(data).length, 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -343,13 +343,13 @@ contract FirelightHooksTests is Helpers {
         assertEq(argsEncoded, abi.encodePacked(address(vault)));
     }
 
-    function test_RedeemFirelight_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_RedeemFirelight_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _encodeRedeemData(address(vault), 1000, false);
         uint256 newAmount = 500;
-        bytes memory replaced = redeemHook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = redeemHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = redeemHook.build(address(0), address(this), replaced);
         assertEq(executions.length, 3);
-        assertEq(redeemHook.decodeAmount(replaced), newAmount);
+        assertEq(redeemHook.decodeAmounts(replaced)[0], newAmount);
     }
 
     /*//////////////////////////////////////////////////////////////

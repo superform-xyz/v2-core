@@ -29,6 +29,11 @@ contract MockRNat is MockERC20 {
         claimAmount = amount;
     }
 
+    /// @dev Returns a dummy current month for on-chain lookup
+    function getCurrentMonth() external pure returns (uint256) {
+        return 1;
+    }
+
     /// @dev Simulates claimRewards: mints rFLR to caller
     function claimRewards(uint256[] calldata, uint256) external returns (uint128) {
         if (claimAmount > 0) {
@@ -157,9 +162,9 @@ contract FlareRFLRSuperVaultE2ETest is Test {
                     HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Encodes claim data: month=1, 1 project with id=0
+    /// @dev Encodes claim data: 1 project with id=0 (month fetched on-chain)
     function _claimData() internal pure returns (bytes memory) {
-        return abi.encodePacked(uint256(1), uint256(1), uint256(0));
+        return abi.encodePacked(uint256(1), uint256(0));
     }
 
     /*//////////////////////////////////////////////////////////////

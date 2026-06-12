@@ -44,12 +44,15 @@ contract ClaimRFLRHookTest is Helpers {
                               BUILD TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_Build() public view {
+    function test_Build() public {
         uint256[] memory projectIds = new uint256[](2);
         projectIds[0] = 1;
         projectIds[1] = 2;
 
-        bytes memory data = _createClaimRFLRData(5, projectIds);
+        uint256 currentMonth = 5;
+        vm.mockCall(rNat, abi.encodeCall(IRNat.getCurrentMonth, ()), abi.encode(currentMonth));
+
+        bytes memory data = _createClaimRFLRData(projectIds);
         Execution[] memory executions = hook.build(address(0), account, data);
 
         // preExecute + claim + postExecute = 3
@@ -60,31 +63,36 @@ contract ClaimRFLRHookTest is Helpers {
         assertEq(executions[2].target, address(hook)); // postExecute
 
         // Verify claim calldata
-        bytes memory expectedCallData = abi.encodeCall(IRNat.claimRewards, (projectIds, 5));
+        bytes memory expectedCallData = abi.encodeCall(IRNat.claimRewards, (projectIds, currentMonth));
         assertEq(keccak256(executions[1].callData), keccak256(expectedCallData));
     }
 
     function test_Build_RevertIf_EmptyProjectIds() public {
         uint256[] memory projectIds = new uint256[](0);
 
-        bytes memory data = _createClaimRFLRData(1, projectIds);
+        vm.mockCall(rNat, abi.encodeCall(IRNat.getCurrentMonth, ()), abi.encode(uint256(1)));
+
+        bytes memory data = _createClaimRFLRData(projectIds);
         vm.expectRevert(ClaimRFLRHook.EMPTY_PROJECT_IDS.selector);
         hook.build(address(0), account, data);
     }
 
-    function test_Build_MultipleProjectIds() public view {
+    function test_Build_MultipleProjectIds() public {
         uint256[] memory projectIds = new uint256[](5);
         for (uint256 i; i < 5; ++i) {
             projectIds[i] = i + 10;
         }
 
-        bytes memory data = _createClaimRFLRData(7, projectIds);
+        uint256 currentMonth = 7;
+        vm.mockCall(rNat, abi.encodeCall(IRNat.getCurrentMonth, ()), abi.encode(currentMonth));
+
+        bytes memory data = _createClaimRFLRData(projectIds);
         Execution[] memory executions = hook.build(address(0), account, data);
 
         assertEq(executions.length, 3);
 
         // Verify projectIds in calldata
-        bytes memory expectedCallData = abi.encodeCall(IRNat.claimRewards, (projectIds, 7));
+        bytes memory expectedCallData = abi.encodeCall(IRNat.claimRewards, (projectIds, currentMonth));
         assertEq(keccak256(executions[1].callData), keccak256(expectedCallData));
     }
 
@@ -135,7 +143,7 @@ contract ClaimRFLRHookTest is Helpers {
         uint256[] memory projectIds = new uint256[](1);
         projectIds[0] = 1;
 
-        bytes memory data = _createClaimRFLRData(1, projectIds);
+        bytes memory data = _createClaimRFLRData(projectIds);
         bytes memory argsEncoded = hook.inspect(data);
 
         assertEq(argsEncoded, abi.encodePacked(rNat));
@@ -146,14 +154,16 @@ contract ClaimRFLRHookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_Build_RevertIf_DataTooShort() public {
-        bytes memory shortData = abi.encodePacked(uint256(1));
+        bytes memory shortData = hex"0011";
         vm.expectRevert(ClaimRFLRHook.INVALID_DATA_LENGTH.selector);
         hook.build(address(0), account, shortData);
     }
 
     function test_Build_RevertIf_TooManyProjectIds() public {
-        // Encode month + length of 51 (exceeds MAX_PROJECT_IDS=50)
-        bytes memory data = abi.encodePacked(uint256(1), uint256(51));
+        vm.mockCall(rNat, abi.encodeCall(IRNat.getCurrentMonth, ()), abi.encode(uint256(1)));
+
+        // Encode length of 51 (exceeds MAX_PROJECT_IDS=50)
+        bytes memory data = abi.encodePacked(uint256(51));
         for (uint256 i; i < 51; ++i) {
             data = bytes.concat(data, abi.encodePacked(i));
         }
@@ -186,16 +196,19 @@ contract ClaimRFLRHookTest is Helpers {
                         CALLDATA DECODING TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_CalldataDecoding() public view {
+    function test_CalldataDecoding() public {
         uint256[] memory projectIds = new uint256[](3);
         projectIds[0] = 100;
         projectIds[1] = 200;
         projectIds[2] = 300;
 
-        bytes memory data = _createClaimRFLRData(12, projectIds);
+        uint256 currentMonth = 12;
+        vm.mockCall(rNat, abi.encodeCall(IRNat.getCurrentMonth, ()), abi.encode(currentMonth));
+
+        bytes memory data = _createClaimRFLRData(projectIds);
         Execution[] memory executions = hook.build(address(0), account, data);
 
-        bytes memory expectedCallData = abi.encodeCall(IRNat.claimRewards, (projectIds, 12));
+        bytes memory expectedCallData = abi.encodeCall(IRNat.claimRewards, (projectIds, currentMonth));
         assertEq(keccak256(executions[1].callData), keccak256(expectedCallData));
     }
 
@@ -203,15 +216,8 @@ contract ClaimRFLRHookTest is Helpers {
                               HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _createClaimRFLRData(
-        uint256 month_,
-        uint256[] memory projectIds_
-    )
-        internal
-        pure
-        returns (bytes memory data)
-    {
-        data = bytes.concat(abi.encodePacked(month_), abi.encodePacked(projectIds_.length));
+    function _createClaimRFLRData(uint256[] memory projectIds_) internal pure returns (bytes memory data) {
+        data = abi.encodePacked(projectIds_.length);
         for (uint256 i; i < projectIds_.length; ++i) {
             data = bytes.concat(data, abi.encodePacked(projectIds_[i]));
         }

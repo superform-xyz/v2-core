@@ -467,67 +467,67 @@ contract KyberSwapUnitTests is Helpers {
         return abi.encodePacked(IMetaAggregationRouterV2.swap.selector, abi.encode(params));
     }
 
-    function test_SwapKyberSwap_DecodeAmount() public view {
+    function test_SwapKyberSwap_DecodeAmounts() public view {
         bytes memory data = _buildSwapData(false);
-        assertEq(swapHook.decodeAmount(data), inputAmount);
+        assertEq(swapHook.decodeAmounts(data)[0], inputAmount);
     }
 
-    function test_SwapKyberSwap_ReplaceCalldataAmount() public view {
+    function test_SwapKyberSwap_ReplaceCalldataAmounts() public view {
         bytes memory data = _buildSwapData(false);
         uint256 newAmount = 2e18;
-        bytes memory result = swapHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = swapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(swapHook.decodeAmount(result), newAmount);
+        assertEq(swapHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_SwapKyberSwap_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_SwapKyberSwap_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _buildSwapData(false);
-        bytes memory result = swapHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(swapHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = swapHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(swapHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_ApproveAndSwapKyberSwap_DecodeAmount() public view {
+    function test_ApproveAndSwapKyberSwap_DecodeAmounts() public view {
         bytes memory data = _buildApproveAndSwapData(false);
-        assertEq(approveAndSwapHook.decodeAmount(data), inputAmount);
+        assertEq(approveAndSwapHook.decodeAmounts(data)[0], inputAmount);
     }
 
-    function test_ApproveAndSwapKyberSwap_ReplaceCalldataAmount() public view {
+    function test_ApproveAndSwapKyberSwap_ReplaceCalldataAmounts() public view {
         bytes memory data = _buildApproveAndSwapData(false);
         uint256 newAmount = 2e18;
-        bytes memory result = approveAndSwapHook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(approveAndSwapHook.decodeAmount(result), newAmount);
+        assertEq(approveAndSwapHook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_ApproveAndSwapKyberSwap_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_ApproveAndSwapKyberSwap_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _buildApproveAndSwapData(false);
-        bytes memory result = approveAndSwapHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(approveAndSwapHook.decodeAmount(result), fuzzAmount);
+        bytes memory result = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(approveAndSwapHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_SwapKyberSwap_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_SwapKyberSwap_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _buildSwapData(false);
         uint256 newAmount = 500;
-        bytes memory replaced = swapHook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = swapHook.build(address(prevHook), account, replaced);
         assertEq(executions.length, 3);
-        assertEq(swapHook.decodeAmount(replaced), newAmount);
+        assertEq(swapHook.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_ApproveAndSwapKyberSwap_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_ApproveAndSwapKyberSwap_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _buildApproveAndSwapData(false);
         uint256 newAmount = 500;
-        bytes memory replaced = approveAndSwapHook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, replaced);
         assertEq(executions.length, 6);
-        assertEq(approveAndSwapHook.decodeAmount(replaced), newAmount);
+        assertEq(approveAndSwapHook.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_ApproveAndSwapKyberSwap_ReplaceCalldataAmount_PreservesOtherFields() public view {
+    function test_ApproveAndSwapKyberSwap_ReplaceCalldataAmounts_PreservesOtherFields() public view {
         bytes memory data = _buildApproveAndSwapData(false);
-        bytes memory replaced = approveAndSwapHook.replaceCalldataAmount(data, 999);
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(999));
         // Verify bytes before AMOUNT_POSITION (40) are unchanged
         for (uint256 i = 0; i < 40; i++) {
             assertEq(replaced[i], data[i]);
@@ -538,9 +538,9 @@ contract KyberSwapUnitTests is Helpers {
         }
     }
 
-    function test_SwapKyberSwap_ReplaceCalldataAmount_PreservesOtherFields() public view {
+    function test_SwapKyberSwap_ReplaceCalldataAmounts_PreservesOtherFields() public view {
         bytes memory data = _buildSwapData(false);
-        bytes memory replaced = swapHook.replaceCalldataAmount(data, 999);
+        bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(999));
         // SwapKyberSwapHook layout: outputToken(20) + value(32) + inputAmount(52,32) + ...
         // Verify bytes before AMOUNT_POSITION (52) are unchanged
         for (uint256 i = 0; i < 52; i++) {

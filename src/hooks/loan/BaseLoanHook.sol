@@ -37,13 +37,36 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans, ISuperHookInflowOut
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory data) external pure virtual returns (uint256) {
-        return _decodeAmount(data);
+    function decodeAmounts(bytes memory data) external pure virtual override returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory)
+        external
+        pure
+        virtual
+        override
+        returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
+    {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](1);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
     }
 
     /// @inheritdoc ISuperHookOutflow
-    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure virtual returns (bytes memory) {
-        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        virtual
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 1) revert INVALID_AMOUNTS_LENGTH();
+        return _replaceCalldataAmount(data, amounts[0], AMOUNT_POSITION);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -69,6 +92,11 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans, ISuperHookInflowOut
     function getLoanTokenBalance(address account, bytes memory data) public view returns (uint256) {
         address loanToken = BytesLib.toAddress(data, 0);
         return IERC20(loanToken).balanceOf(account);
+    }
+
+    /// @dev BaseLoanHook implements ISuperHookInflowOutflow + ISuperHookOutflow
+    function _supportsSizingInterface() internal pure override returns (bool) {
+        return true;
     }
 
     /*//////////////////////////////////////////////////////////////

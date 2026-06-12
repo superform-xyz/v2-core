@@ -28,6 +28,9 @@ abstract contract BaseAaveV4LoanHook is BaseLoanHook {
     uint256 internal constant BORROW_RESERVE_ID_OFFSET = 92;
     uint256 internal constant AAVE_V4_AMOUNT_OFFSET = 124;
     uint256 internal constant AAVE_V4_USE_PREV_HOOK_AMOUNT_POSITION = 156;
+    /// @dev Byte 157 is used by TWO DIFFERENT data layouts (never both at once):
+    ///      - SupplyAndBorrow: uint256 borrowAmount starts at 157 (no isFullRepayment field)
+    ///      - RepayAndWithdraw: bool isFullRepayment at 157, then uint256 withdrawAmount at 158
     uint256 internal constant IS_FULL_REPAYMENT_OFFSET = 157;
     uint256 internal constant BORROW_AMOUNT_OFFSET = 157;
     uint256 internal constant WITHDRAW_AMOUNT_OFFSET = 158;
@@ -130,13 +133,36 @@ abstract contract BaseAaveV4LoanHook is BaseLoanHook {
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory data) external pure override returns (uint256) {
-        return BytesLib.toUint256(data, AAVE_V4_AMOUNT_OFFSET);
+    function decodeAmounts(bytes memory data) external pure virtual override returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = BytesLib.toUint256(data, AAVE_V4_AMOUNT_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory)
+        external
+        pure
+        virtual
+        override
+        returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
+    {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](1);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
     }
 
     /// @inheritdoc ISuperHookOutflow
-    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure override returns (bytes memory) {
-        return _replaceCalldataAmount(data, amount, AAVE_V4_AMOUNT_OFFSET);
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        virtual
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 1) revert INVALID_AMOUNTS_LENGTH();
+        return _replaceCalldataAmount(data, amounts[0], AAVE_V4_AMOUNT_OFFSET);
     }
 
     /*//////////////////////////////////////////////////////////////

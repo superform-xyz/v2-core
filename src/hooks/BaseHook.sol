@@ -3,10 +3,18 @@ pragma solidity 0.8.30;
 
 // External
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 // Superform
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
-import { ISuperHook, ISuperHookSetter, ISuperHookResult, ISuperHookInspector } from "../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookSetter,
+    ISuperHookResult,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../interfaces/ISuperHook.sol";
 
 /// @title BaseHook
 /// @author Superform Labs
@@ -15,7 +23,7 @@ import { ISuperHook, ISuperHookSetter, ISuperHookResult, ISuperHookInspector } f
 ///      All specialized hooks should inherit from this base contract
 ///      Implements the ISuperHook interface defined lifecycle methods
 ///      Uses a transient storage pattern for stateful execution context
-abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, ISuperHookInspector {
+abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, ISuperHookInspector, IERC165 {
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -93,6 +101,10 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     /// @notice Thrown when trying to set outAmount after preExecute or postExecute
     /// @dev Used to prevent setting outAmount after preExecute or postExecute
     error CANNOT_SET_OUT_AMOUNT();
+
+    /// @notice Thrown when the amounts array length doesn't match the expected count
+    /// @dev Used by replaceCalldataAmounts to validate input
+    error INVALID_AMOUNTS_LENGTH();
 
     /// @notice Initializes the hook with its type and subtype
     /// @dev Sets immutable parameters that define the hook's behavior
@@ -210,6 +222,29 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata) external view virtual returns (bytes memory) { }
+
+    /// @inheritdoc IERC165
+    /// @dev Hooks that implement ISuperHookInflowOutflow/ISuperHookOutflow override
+    ///      _supportsSizingInterface() to return true, which enables three-state detection:
+    ///      S1: supportsInterface(ISuperHookInflowOutflow) == true → hook has sizing interface
+    ///      S2: same as S1 but amountRoles(data).length == 0 → authoritatively sizeless
+    ///      S3: supportsInterface(ISuperHookInflowOutflow) == false → legacy, no sizing interface
+    function supportsInterface(bytes4 interfaceId) external view virtual override returns (bool) {
+        if (
+            interfaceId == type(ISuperHookInflowOutflow).interfaceId
+                || interfaceId == type(ISuperHookOutflow).interfaceId
+        ) {
+            return _supportsSizingInterface();
+        }
+        return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
+            || interfaceId == type(ISuperHookResult).interfaceId
+            || interfaceId == type(ISuperHookInspector).interfaceId;
+    }
+
+    /// @dev Override to return true in hooks that implement ISuperHookInflowOutflow/ISuperHookOutflow
+    function _supportsSizingInterface() internal pure virtual returns (bool) {
+        return false;
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS

@@ -24,6 +24,11 @@ import "forge-std/console2.sol";
 /// @dev Tests actual swaps against the deployed PSM3 contract on Base
 ///      Requires BASE_RPC_URL environment variable
 contract SparkPSMHookIntegrationTest is Test, Constants {
+    function _singleAmount(uint256 amt) internal pure returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = amt;
+    }
+
     SwapSparkPSMExactInHook public swapExactInHook;
     ApproveAndSwapSparkPSMExactInHook public approveAndSwapExactInHook;
     SwapSparkPSMExactOutHook public swapExactOutHook;
@@ -487,25 +492,25 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice decodeAmount + replaceCalldataAmount roundtrip for all SparkPSM hooks
-    function test_SparkPSM_DecodeAmount_ReplaceCalldataAmount() public view {
+    function test_SparkPSM_DecodeAmounts_ReplaceCalldataAmounts() public view {
         uint256 originalAmount = 1000e6;
 
         bytes memory exactInData = _buildExactInHookData(USDC, USDS, originalAmount, 999e18, false);
         bytes memory exactOutData = _buildExactOutHookData(USDC, USDS, originalAmount, 1001e6, false);
 
         // Verify decodeAmount for all hooks
-        assertEq(swapExactInHook.decodeAmount(exactInData), originalAmount, "SwapExactIn decodeAmount");
-        assertEq(approveAndSwapExactInHook.decodeAmount(exactInData), originalAmount, "ApproveAndSwapExactIn decodeAmount");
-        assertEq(swapExactOutHook.decodeAmount(exactOutData), originalAmount, "SwapExactOut decodeAmount");
-        assertEq(approveAndSwapExactOutHook.decodeAmount(exactOutData), originalAmount, "ApproveAndSwapExactOut decodeAmount");
+        assertEq(swapExactInHook.decodeAmounts(exactInData)[0], originalAmount, "SwapExactIn decodeAmount");
+        assertEq(approveAndSwapExactInHook.decodeAmounts(exactInData)[0], originalAmount, "ApproveAndSwapExactIn decodeAmount");
+        assertEq(swapExactOutHook.decodeAmounts(exactOutData)[0], originalAmount, "SwapExactOut decodeAmount");
+        assertEq(approveAndSwapExactOutHook.decodeAmounts(exactOutData)[0], originalAmount, "ApproveAndSwapExactOut decodeAmount");
 
         // Replace and verify roundtrip
         uint256 newAmount = 500e6;
-        bytes memory replacedExactIn = approveAndSwapExactInHook.replaceCalldataAmount(exactInData, newAmount);
-        bytes memory replacedExactOut = approveAndSwapExactOutHook.replaceCalldataAmount(exactOutData, newAmount);
+        bytes memory replacedExactIn = approveAndSwapExactInHook.replaceCalldataAmounts(exactInData, _singleAmount(newAmount));
+        bytes memory replacedExactOut = approveAndSwapExactOutHook.replaceCalldataAmounts(exactOutData, _singleAmount(newAmount));
 
-        assertEq(approveAndSwapExactInHook.decodeAmount(replacedExactIn), newAmount, "ExactIn replaced amount");
-        assertEq(approveAndSwapExactOutHook.decodeAmount(replacedExactOut), newAmount, "ExactOut replaced amount");
+        assertEq(approveAndSwapExactInHook.decodeAmounts(replacedExactIn)[0], newAmount, "ExactIn replaced amount");
+        assertEq(approveAndSwapExactOutHook.decodeAmounts(replacedExactOut)[0], newAmount, "ExactOut replaced amount");
 
         // Verify other fields preserved
         assertFalse(approveAndSwapExactInHook.decodeUsePrevHookAmount(replacedExactIn), "ExactIn usePrevHookAmount preserved");
@@ -513,15 +518,15 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
     }
 
     /// @notice ApproveAndSwapExactIn: build with 1000 USDC, replace to 500 USDC, execute, verify only 500 spent
-    function test_SparkPSM_ApproveAndSwapExactIn_ReplaceCalldataAmount_ExecutesCorrectly() public {
+    function test_SparkPSM_ApproveAndSwapExactIn_ReplaceCalldataAmounts_ExecutesCorrectly() public {
         uint256 originalAmount = 1000e6;
         uint256 newAmount = 500e6;
 
         deal(USDC, account, originalAmount);
 
         bytes memory hookData = _buildExactInHookData(USDC, USDS, originalAmount, 0, false);
-        bytes memory replaced = approveAndSwapExactInHook.replaceCalldataAmount(hookData, newAmount);
-        assertEq(approveAndSwapExactInHook.decodeAmount(replaced), newAmount, "Amount not replaced correctly");
+        bytes memory replaced = approveAndSwapExactInHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(approveAndSwapExactInHook.decodeAmounts(replaced)[0], newAmount, "Amount not replaced correctly");
 
         uint256 usdsBefore = IERC20(USDS).balanceOf(account);
 
@@ -538,7 +543,7 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
     }
 
     /// @notice ApproveAndSwapExactOut: build with 1000e18, replace to 500e18, execute, verify correct output
-    function test_SparkPSM_ApproveAndSwapExactOut_ReplaceCalldataAmount_ExecutesCorrectly() public {
+    function test_SparkPSM_ApproveAndSwapExactOut_ReplaceCalldataAmounts_ExecutesCorrectly() public {
         uint256 originalAmountOut = 1000e18;
         uint256 newAmountOut = 500e18;
 
@@ -548,8 +553,8 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
         deal(USDC, account, maxAmountIn + 1000e6); // extra buffer
 
         bytes memory hookData = _buildExactOutHookData(USDC, USDS, originalAmountOut, maxAmountIn + 1000e6, false);
-        bytes memory replaced = approveAndSwapExactOutHook.replaceCalldataAmount(hookData, newAmountOut);
-        assertEq(approveAndSwapExactOutHook.decodeAmount(replaced), newAmountOut, "Amount not replaced correctly");
+        bytes memory replaced = approveAndSwapExactOutHook.replaceCalldataAmounts(hookData, _singleAmount(newAmountOut));
+        assertEq(approveAndSwapExactOutHook.decodeAmounts(replaced)[0], newAmountOut, "Amount not replaced correctly");
 
         uint256 usdsBefore = IERC20(USDS).balanceOf(account);
 

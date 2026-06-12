@@ -489,49 +489,49 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice decodeAmount + replaceCalldataAmount roundtrip for AaveV4SupplyHook (AMOUNT_POSITION = 124)
-    function test_AaveV4_Supply_DecodeAmount_ReplaceCalldataAmount() external view {
+    function test_AaveV4_Supply_DecodeAmounts_ReplaceCalldataAmounts() external view {
         uint256 originalAmount = 1 ether;
         bytes memory hookData = _createSupplyData(originalAmount, false);
 
-        assertEq(supplyHook.decodeAmount(hookData), originalAmount, "SupplyHook decodeAmount mismatch");
+        assertEq(supplyHook.decodeAmounts(hookData)[0], originalAmount, "SupplyHook decodeAmount mismatch");
 
         uint256 newAmount = 0.5 ether;
-        bytes memory replaced = supplyHook.replaceCalldataAmount(hookData, newAmount);
-        assertEq(supplyHook.decodeAmount(replaced), newAmount, "SupplyHook replaced amount mismatch");
+        bytes memory replaced = supplyHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(supplyHook.decodeAmounts(replaced)[0], newAmount, "SupplyHook replaced amount mismatch");
         assertFalse(supplyHook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
     }
 
     /// @notice decodeAmount roundtrip for AaveV4WithdrawHook
-    function test_AaveV4_Withdraw_DecodeAmount_ReplaceCalldataAmount() external view {
+    function test_AaveV4_Withdraw_DecodeAmounts_ReplaceCalldataAmounts() external view {
         uint256 originalAmount = 0.5 ether;
         bytes memory hookData = _createWithdrawData(originalAmount, false);
 
-        assertEq(withdrawHook.decodeAmount(hookData), originalAmount, "WithdrawHook decodeAmount mismatch");
+        assertEq(withdrawHook.decodeAmounts(hookData)[0], originalAmount, "WithdrawHook decodeAmount mismatch");
 
         uint256 newAmount = 0.25 ether;
-        bytes memory replaced = withdrawHook.replaceCalldataAmount(hookData, newAmount);
-        assertEq(withdrawHook.decodeAmount(replaced), newAmount, "WithdrawHook replaced amount mismatch");
+        bytes memory replaced = withdrawHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(withdrawHook.decodeAmounts(replaced)[0], newAmount, "WithdrawHook replaced amount mismatch");
     }
 
     /// @notice decodeAmount roundtrip for AaveV4BorrowHook
-    function test_AaveV4_Borrow_DecodeAmount_ReplaceCalldataAmount() external view {
+    function test_AaveV4_Borrow_DecodeAmounts_ReplaceCalldataAmounts() external view {
         uint256 originalAmount = 500e6;
         bytes memory hookData = _createBorrowData(originalAmount, false);
 
-        assertEq(borrowHook.decodeAmount(hookData), originalAmount, "BorrowHook decodeAmount mismatch");
+        assertEq(borrowHook.decodeAmounts(hookData)[0], originalAmount, "BorrowHook decodeAmount mismatch");
 
         uint256 newAmount = 250e6;
-        bytes memory replaced = borrowHook.replaceCalldataAmount(hookData, newAmount);
-        assertEq(borrowHook.decodeAmount(replaced), newAmount, "BorrowHook replaced amount mismatch");
+        bytes memory replaced = borrowHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(borrowHook.decodeAmounts(replaced)[0], newAmount, "BorrowHook replaced amount mismatch");
     }
 
     /// @notice Supply: build with 1 WETH, replace to 0.5 WETH, execute, verify only 0.5 supplied
-    function test_AaveV4_Supply_ReplaceCalldataAmount_ExecutesCorrectly() external {
+    function test_AaveV4_Supply_ReplaceCalldataAmounts_ExecutesCorrectly() external {
         uint256 originalAmount = 1 ether;
         uint256 newAmount = 0.5 ether;
 
         bytes memory hookData = _createSupplyData(originalAmount, false);
-        bytes memory replaced = supplyHook.replaceCalldataAmount(hookData, newAmount);
+        bytes memory replaced = supplyHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
 
         uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
 

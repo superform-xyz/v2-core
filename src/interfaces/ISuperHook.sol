@@ -98,11 +98,48 @@ interface ISuperHookContextAware {
 /// @notice Interface for hooks that handle both inflows and outflows
 /// @dev Provides standardized amount extraction for both deposit and withdrawal operations
 interface ISuperHookInflowOutflow {
-    /// @notice Extracts the amount from the hook's calldata
+    /// @notice Direction of an amount slot
+    /// @dev IN  = primary amount the OMS sizes (intent amount)
+    ///      OUT = secondary derived amount (e.g. borrow amount in supply-and-borrow)
+    enum Direction {
+        IN,
+        OUT
+    }
+
+    /// @notice Denomination of an amount slot
+    /// @dev TOKEN  = raw ERC-20 amount (swaps, bridges, transfers, loan operations)
+    ///      ASSETS = underlying asset amount (vault deposits, ERC-4626/7540 withdraw)
+    ///      SHARES = vault share amount (vault redeems, ERC-4626/7540 requestRedeem)
+    enum Denomination {
+        TOKEN,
+        ASSETS,
+        SHARES
+    }
+
+    /// @notice Per-slot metadata: direction + denomination
+    /// @dev Aligned 1:1 with the array from decodeAmounts.
+    ///      A slot belongs in decodeAmounts/amountRoles iff the OMS can rewrite it
+    ///      at execution time without invalidating any commitment (signature or proof)
+    ///      embedded in the same data.
+    struct AmountMeta {
+        Direction dir;
+        Denomination denom;
+    }
+
+    /// @notice Extracts all amounts from the hook's calldata
     /// @dev Used to determine the quantity of assets or shares being processed
-    /// @param data The hook-specific calldata containing the amount
-    /// @return The amount of tokens to process
-    function decodeAmount(bytes memory data) external pure returns (uint256);
+    /// @param data The hook-specific calldata
+    /// @return amounts Array of amounts (length 1 for single-amount hooks, 2+ for compound hooks)
+    function decodeAmounts(bytes memory data) external pure returns (uint256[] memory amounts);
+
+    /// @notice Returns per-slot metadata (direction + denomination) for each amount
+    /// @dev Must return an array of the same length as decodeAmounts(data).
+    ///      Enables the OMS to know which slots to size (IN vs OUT) and in what
+    ///      denomination (TOKEN vs ASSETS vs SHARES).
+    ///      Takes data so variable-count hooks can return the correct number of slots.
+    /// @param data The hook-specific calldata (same as passed to decodeAmounts)
+    /// @return meta Array of AmountMeta structs aligned index-by-index with decodeAmounts
+    function amountRoles(bytes memory data) external pure returns (AmountMeta[] memory meta);
 }
 
 /// @title ISuperHookOutflow
@@ -110,11 +147,17 @@ interface ISuperHookInflowOutflow {
 /// @notice Interface for hooks that specifically handle outflows (withdrawals)
 /// @dev Provides additional functionality needed only for outflow operations
 interface ISuperHookOutflow {
-    /// @notice Replace the amount in the calldata
-    /// @param data The data to replace the amount in
-    /// @param amount The amount to replace
-    /// @return data The data with the replaced amount
-    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory);
+    /// @notice Replace amounts in the calldata
+    /// @param data The data to replace amounts in
+    /// @param amounts The amounts to replace (must match length from decodeAmounts)
+    /// @return The data with replaced amounts
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        returns (bytes memory);
 }
 
 /// @title ISuperHookResultOutflow

@@ -21,6 +21,11 @@ import {
 /// @dev Requires FFI/Surl network access. Run with:
 ///      forge test --match-contract OpenOceanSparkDexAPIScaleTest --skip CCTPHooksFork -vvv
 contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
+    function _singleAmount(uint256 amt) internal pure returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = amt;
+    }
+
     address internal constant OPENOCEAN_ROUTER = 0x6352a56caadC4F1E25CD6c75970Fa768A3304e64;
     address internal constant OPENOCEAN_CALLER_FLARE = 0x6dd434082EAB5Cd134B33719ec1FF05fE985B97b;
 
@@ -151,7 +156,7 @@ contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
 
     /// @notice decodeAmount + replaceCalldataAmount roundtrip for ApproveAndSwapOpenOceanSparkDexHook
     /// @dev AMOUNT_POSITION = 40 (was incorrectly 52, bugfix validated here)
-    function test_ApproveAndSwapOpenOcean_DecodeAmount_ReplaceCalldataAmount() public {
+    function test_ApproveAndSwapOpenOcean_DecodeAmounts_ReplaceCalldataAmounts() public {
         ApproveAndSwapOpenOceanSparkDexHook hook =
             new ApproveAndSwapOpenOceanSparkDexHook(OPENOCEAN_ROUTER, OPENOCEAN_CALLER_FLARE, address(0));
 
@@ -170,12 +175,12 @@ contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
         );
 
         // Verify decodeAmount
-        assertEq(hook.decodeAmount(hookData), originalAmount, "decodeAmount mismatch");
+        assertEq(hook.decodeAmounts(hookData)[0], originalAmount, "decodeAmount mismatch");
 
         // Replace and verify roundtrip
         uint256 newAmount = 0.5 ether;
-        bytes memory replaced = hook.replaceCalldataAmount(hookData, newAmount);
-        assertEq(hook.decodeAmount(replaced), newAmount, "replaced amount mismatch");
+        bytes memory replaced = hook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(hook.decodeAmounts(replaced)[0], newAmount, "replaced amount mismatch");
 
         // Verify other fields preserved
         assertFalse(hook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
@@ -183,7 +188,7 @@ contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
 
     /// @notice decodeAmount + replaceCalldataAmount roundtrip for SwapOpenOceanSparkDexHook
     /// @dev SwapHook layout: outputToken(20) | value(32) | inputAmount(32) | outputMin(32) | usePrevHookAmount(1) | txDataLength(32) | txData
-    function test_SwapOpenOcean_DecodeAmount_ReplaceCalldataAmount() public {
+    function test_SwapOpenOcean_DecodeAmounts_ReplaceCalldataAmounts() public {
         SwapOpenOceanSparkDexHook hook =
             new SwapOpenOceanSparkDexHook(OPENOCEAN_ROUTER, OPENOCEAN_CALLER_FLARE, address(0));
 
@@ -201,10 +206,10 @@ contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
             dummyTxData
         );
 
-        assertEq(hook.decodeAmount(hookData), originalAmount, "SwapHook decodeAmount mismatch");
+        assertEq(hook.decodeAmounts(hookData)[0], originalAmount, "SwapHook decodeAmount mismatch");
 
         uint256 newAmount = 1 ether;
-        bytes memory replaced = hook.replaceCalldataAmount(hookData, newAmount);
-        assertEq(hook.decodeAmount(replaced), newAmount, "SwapHook replaced amount mismatch");
+        bytes memory replaced = hook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(hook.decodeAmounts(replaced)[0], newAmount, "SwapHook replaced amount mismatch");
     }
 }

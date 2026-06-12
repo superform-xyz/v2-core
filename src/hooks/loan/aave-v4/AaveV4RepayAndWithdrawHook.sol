@@ -7,10 +7,15 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IAaveV4Spoke } from "../../../vendor/aave-v4/IAaveV4Spoke.sol";
 
 // Superform
+import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseAaveV4LoanHook } from "./BaseAaveV4LoanHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookResult,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow
+} from "../../../interfaces/ISuperHook.sol";
 
 /// @title AaveV4RepayAndWithdrawHook
 /// @author Superform Labs
@@ -112,6 +117,43 @@ contract AaveV4RepayAndWithdrawHook is BaseAaveV4LoanHook {
                 callData: abi.encodeCall(IAaveV4Spoke.withdraw, (vars.supplyReserveId, vars.withdrawAmount, account))
             });
         }
+    }
+
+    /// @inheritdoc BaseAaveV4LoanHook
+    function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](2);
+        amounts[0] = BytesLib.toUint256(data, AAVE_V4_AMOUNT_OFFSET);
+        amounts[1] = BytesLib.toUint256(data, WITHDRAW_AMOUNT_OFFSET);
+    }
+
+    /// @inheritdoc BaseAaveV4LoanHook
+    /// @dev IMPORTANT: When isFullRepayment is true in the data, build() uses type(uint256).max
+    ///      for both repay and withdraw amounts — the amount fields are ignored at execution time.
+    ///      The OMS should check isFullRepayment before relying on replaced amounts.
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 2) revert INVALID_AMOUNTS_LENGTH();
+        data = _replaceCalldataAmount(data, amounts[0], AAVE_V4_AMOUNT_OFFSET);
+        return _replaceCalldataAmount(data, amounts[1], WITHDRAW_AMOUNT_OFFSET);
+    }
+
+    /// @inheritdoc BaseAaveV4LoanHook
+    function amountRoles(bytes memory)
+        external
+        pure
+        override
+        returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
+    {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](2);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+        meta[1] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.OUT, ISuperHookInflowOutflow.Denomination.TOKEN);
     }
 
     /// @inheritdoc ISuperHookInspector

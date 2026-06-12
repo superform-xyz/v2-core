@@ -17,9 +17,8 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 /// @dev rFLR tokens are non-transferable, so fee collection is not supported at the claim stage.
 ///      Fees should be collected at the WFLR withdrawal stage via WithdrawRFLRHook.
 /// @dev data has the following structure:
-/// @notice         uint256 month = BytesLib.toUint256(data, 0);
-/// @notice         uint256 projectIdsLength = BytesLib.toUint256(data, 32);
-/// @notice         uint256[] projectIds = [BytesLib.toUint256(data, 64 + i*32) for i in 0..projectIdsLength-1]
+/// @notice         uint256 projectIdsLength = BytesLib.toUint256(data, 0);
+/// @notice         uint256[] projectIds = [BytesLib.toUint256(data, 32 + i*32) for i in 0..projectIdsLength-1]
 contract ClaimRFLRHook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
@@ -40,9 +39,8 @@ contract ClaimRFLRHook is BaseHook {
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    uint256 private constant MONTH_POSITION = 0;
-    uint256 private constant PROJECT_IDS_LENGTH_POSITION = 32;
-    uint256 private constant PROJECT_IDS_START_POSITION = 64;
+    uint256 private constant PROJECT_IDS_LENGTH_POSITION = 0;
+    uint256 private constant PROJECT_IDS_START_POSITION = 32;
     uint256 private constant MAX_PROJECT_IDS = 50;
 
     /*//////////////////////////////////////////////////////////////
@@ -73,7 +71,7 @@ contract ClaimRFLRHook is BaseHook {
         if (data.length < PROJECT_IDS_START_POSITION) revert INVALID_DATA_LENGTH();
 
         // 2. Decode claim params
-        uint256 month = BytesLib.toUint256(data, MONTH_POSITION);
+        uint256 month = IRNat(RNAT).getCurrentMonth();
         uint256[] memory projectIds = _decodeProjectIds(data);
 
         // 3. Validate

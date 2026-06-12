@@ -29,7 +29,7 @@ contract TestHook is BaseHook {
         return _decodeBool(data, offset);
     }
 
-    function testReplaceCalldataAmount(
+    function testReplaceCalldataAmounts(
         bytes memory data,
         uint256 amount,
         uint256 offset
@@ -116,15 +116,15 @@ contract BaseHookTest is Helpers {
         assertFalse(hook.testDecodeBool(data, 0));
     }
 
-    function test_ReplaceCalldataAmount() public view {
+    function test_ReplaceCalldataAmounts() public view {
         bytes memory data = abi.encodePacked(uint256(100));
-        bytes memory newData = hook.testReplaceCalldataAmount(data, 200, 0);
+        bytes memory newData = hook.testReplaceCalldataAmounts(data, 200, 0);
         assertEq(abi.decode(newData, (uint256)), 200);
     }
 
-    function test_ReplaceCalldataAmount_Offset() public view {
+    function test_ReplaceCalldataAmounts_Offset() public view {
         bytes memory data = abi.encodePacked(uint256(100), uint256(200));
-        bytes memory newData = hook.testReplaceCalldataAmount(data, 300, 32);
+        bytes memory newData = hook.testReplaceCalldataAmounts(data, 300, 32);
 
         // Create a new bytes array with just the second uint256
         bytes memory secondValue = new bytes(32);

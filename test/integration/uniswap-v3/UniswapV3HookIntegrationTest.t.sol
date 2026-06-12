@@ -868,30 +868,30 @@ contract UniswapV3HookEdgeCaseTests is MinimalBaseIntegrationTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice decodeAmount + replaceCalldataAmount roundtrip for UniswapV3 hooks
-    function test_UniswapV3_DecodeAmount_ReplaceCalldataAmount() external view {
+    function test_UniswapV3_DecodeAmounts_ReplaceCalldataAmounts() external view {
         uint256 originalAmount = 1000e6;
         bytes memory hookData = _buildHookData(
             CHAIN_1_USDC, CHAIN_1_WETH, FEE_MEDIUM, accountEth, block.timestamp + 1 hours, 0, originalAmount, 0.2 ether, false
         );
 
         // Verify decodeAmount
-        assertEq(swapHook.decodeAmount(hookData), originalAmount, "SwapHook decodeAmount mismatch");
-        assertEq(approveAndSwapHook.decodeAmount(hookData), originalAmount, "ApproveAndSwapHook decodeAmount mismatch");
+        assertEq(swapHook.decodeAmounts(hookData)[0], originalAmount, "SwapHook decodeAmount mismatch");
+        assertEq(approveAndSwapHook.decodeAmounts(hookData)[0], originalAmount, "ApproveAndSwapHook decodeAmount mismatch");
 
         // Replace and verify roundtrip
         uint256 newAmount = 500e6;
-        bytes memory replacedSwap = swapHook.replaceCalldataAmount(hookData, newAmount);
-        bytes memory replacedApproveAndSwap = approveAndSwapHook.replaceCalldataAmount(hookData, newAmount);
+        bytes memory replacedSwap = swapHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        bytes memory replacedApproveAndSwap = approveAndSwapHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
 
-        assertEq(swapHook.decodeAmount(replacedSwap), newAmount, "SwapHook replaced amount mismatch");
-        assertEq(approveAndSwapHook.decodeAmount(replacedApproveAndSwap), newAmount, "ApproveAndSwapHook replaced amount mismatch");
+        assertEq(swapHook.decodeAmounts(replacedSwap)[0], newAmount, "SwapHook replaced amount mismatch");
+        assertEq(approveAndSwapHook.decodeAmounts(replacedApproveAndSwap)[0], newAmount, "ApproveAndSwapHook replaced amount mismatch");
 
         // Verify other fields preserved
         assertFalse(swapHook.decodeUsePrevHookAmount(replacedSwap), "usePrevHookAmount should be preserved");
     }
 
     /// @notice ApproveAndSwap: build with 1000 USDC, replace to 500 USDC, execute, verify only 500 spent
-    function test_UniswapV3_ApproveAndSwap_ReplaceCalldataAmount_ExecutesCorrectly() public {
+    function test_UniswapV3_ApproveAndSwap_ReplaceCalldataAmounts_ExecutesCorrectly() public {
         address account = instanceOnEth.account;
         uint256 originalAmount = 1000e6;
         uint256 newAmount = 500e6;
@@ -903,8 +903,8 @@ contract UniswapV3HookEdgeCaseTests is MinimalBaseIntegrationTest {
         );
 
         // Replace with new amount
-        bytes memory replaced = approveAndSwapHook.replaceCalldataAmount(hookData, newAmount);
-        assertEq(approveAndSwapHook.decodeAmount(replaced), newAmount, "Amount not replaced correctly");
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(approveAndSwapHook.decodeAmounts(replaced)[0], newAmount, "Amount not replaced correctly");
 
         uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(account);
 

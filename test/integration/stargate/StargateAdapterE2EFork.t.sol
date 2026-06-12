@@ -1226,11 +1226,11 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
 
         // Bundler flow: build original hook data, decode amount, replace with adjusted amount
         bytes memory hookData = abi.encodePacked(address(localAdapter), USDC_BASE, originalAmount);
-        uint256 decoded = hook.decodeAmount(hookData);
+        uint256 decoded = hook.decodeAmounts(hookData)[0];
         assertEq(decoded, originalAmount, "decodeAmount should read original amount");
 
-        bytes memory adjustedData = hook.replaceCalldataAmount(hookData, adjustedAmount);
-        uint256 decodedAdjusted = hook.decodeAmount(adjustedData);
+        bytes memory adjustedData = hook.replaceCalldataAmounts(hookData, _singleAmount(adjustedAmount));
+        uint256 decodedAdjusted = hook.decodeAmounts(adjustedData)[0];
         assertEq(decodedAdjusted, adjustedAmount, "decodeAmount after replace should read adjusted amount");
 
         // Execute claim with adjusted amount (500 out of 800)
@@ -1321,7 +1321,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
         assertEq(BytesLib.toAddress(inspected, 20), USDC_BASE, "Inspect token mismatch");
 
         // Also verify decodeAmount on the same data
-        assertEq(hook.decodeAmount(hookData), amount, "decodeAmount mismatch");
+        assertEq(hook.decodeAmounts(hookData)[0], amount, "decodeAmount mismatch");
 
         // Execute claim to confirm the inspected data is actionable
         _executeHookClaim(hook, address(localAdapter), USDC_BASE, amount, user);

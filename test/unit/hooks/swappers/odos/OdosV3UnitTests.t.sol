@@ -1196,69 +1196,69 @@ contract OdosV3UnitTests is Helpers {
         }
     }
 
-    // ========================== DecodeAmount/ReplaceCalldataAmount ==========================
+    // ========================== DecodeAmounts/ReplaceCalldataAmounts ==========================
 
-    function test_SwapOdosV3_DecodeAmount() public view {
+    function test_SwapOdosV3_DecodeAmounts() public view {
         bytes memory data = _buildSwapOdosV3Data(false);
-        assertEq(swapOdosV3Hook.decodeAmount(data), inputAmount);
+        assertEq(swapOdosV3Hook.decodeAmounts(data)[0], inputAmount);
     }
 
-    function test_SwapOdosV3_ReplaceCalldataAmount() public view {
+    function test_SwapOdosV3_ReplaceCalldataAmounts() public view {
         bytes memory data = _buildSwapOdosV3Data(false);
         uint256 newAmount = 2e18;
-        bytes memory result = swapOdosV3Hook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = swapOdosV3Hook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(swapOdosV3Hook.decodeAmount(result), newAmount);
+        assertEq(swapOdosV3Hook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_SwapOdosV3_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_SwapOdosV3_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _buildSwapOdosV3Data(false);
-        bytes memory result = swapOdosV3Hook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(swapOdosV3Hook.decodeAmount(result), fuzzAmount);
+        bytes memory result = swapOdosV3Hook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(swapOdosV3Hook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_ApproveAndSwapOdosV3_DecodeAmount() public view {
+    function test_ApproveAndSwapOdosV3_DecodeAmounts() public view {
         bytes memory data = _buildApproveAndSwapOdosV3Data(false);
-        assertEq(approveAndSwapOdosV3Hook.decodeAmount(data), inputAmount);
+        assertEq(approveAndSwapOdosV3Hook.decodeAmounts(data)[0], inputAmount);
     }
 
-    function test_ApproveAndSwapOdosV3_ReplaceCalldataAmount() public view {
+    function test_ApproveAndSwapOdosV3_ReplaceCalldataAmounts() public view {
         bytes memory data = _buildApproveAndSwapOdosV3Data(false);
         uint256 newAmount = 2e18;
-        bytes memory result = approveAndSwapOdosV3Hook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = approveAndSwapOdosV3Hook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(approveAndSwapOdosV3Hook.decodeAmount(result), newAmount);
+        assertEq(approveAndSwapOdosV3Hook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_ApproveAndSwapOdosV3_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_ApproveAndSwapOdosV3_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _buildApproveAndSwapOdosV3Data(false);
-        bytes memory result = approveAndSwapOdosV3Hook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(approveAndSwapOdosV3Hook.decodeAmount(result), fuzzAmount);
+        bytes memory result = approveAndSwapOdosV3Hook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(approveAndSwapOdosV3Hook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_SwapOdosV3_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_SwapOdosV3_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _buildSwapOdosV3Data(false);
         uint256 newAmount = 500;
-        bytes memory replaced = swapOdosV3Hook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = swapOdosV3Hook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = swapOdosV3Hook.build(address(prevHook), account, replaced);
         assertEq(executions.length, 3);
-        assertEq(swapOdosV3Hook.decodeAmount(replaced), newAmount);
+        assertEq(swapOdosV3Hook.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_ApproveAndSwapOdosV3_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_ApproveAndSwapOdosV3_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _buildApproveAndSwapOdosV3Data(false);
         uint256 newAmount = 500;
-        bytes memory replaced = approveAndSwapOdosV3Hook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = approveAndSwapOdosV3Hook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = approveAndSwapOdosV3Hook.build(address(prevHook), account, replaced);
         assertEq(executions.length, 6);
-        assertEq(approveAndSwapOdosV3Hook.decodeAmount(replaced), newAmount);
+        assertEq(approveAndSwapOdosV3Hook.decodeAmounts(replaced)[0], newAmount);
     }
 
-    function test_SwapOdosV3_ReplaceCalldataAmount_PreservesOtherFields() public view {
+    function test_SwapOdosV3_ReplaceCalldataAmounts_PreservesOtherFields() public view {
         bytes memory data = _buildSwapOdosV3Data(false);
-        bytes memory replaced = swapOdosV3Hook.replaceCalldataAmount(data, 999);
+        bytes memory replaced = swapOdosV3Hook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
         for (uint256 i = 0; i < 20; i++) {
             assertEq(replaced[i], data[i]);

@@ -97,13 +97,42 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory data) external pure override returns (uint256) {
-        return BytesLib.toUint256(data, ASSETS_OFFSET);
+    /// @dev Returns both assets and shares slots; exactly one must be nonzero (XOR invariant)
+    function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](2);
+        amounts[0] = BytesLib.toUint256(data, ASSETS_OFFSET);
+        amounts[1] = BytesLib.toUint256(data, SHARES_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    /// @dev Slot 0 = assets (IN, ASSETS), Slot 1 = shares (IN, SHARES)
+    ///      OMS picks the slot matching the intent's denomination
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](2);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.ASSETS);
+        meta[1] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.SHARES);
     }
 
     /// @inheritdoc ISuperHookOutflow
-    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure override returns (bytes memory) {
-        return _replaceCalldataAmount(data, amount, ASSETS_OFFSET);
+    /// @dev Enforces assets-XOR-shares invariant: after replacement, exactly one of
+    ///      assets/shares must be nonzero (Morpho requires exactly one to be set)
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 2) revert INVALID_AMOUNTS_LENGTH();
+
+        // Enforce assets-XOR-shares BEFORE mutating data: exactly one must be nonzero
+        if (amounts[0] != 0 && amounts[1] != 0) revert AMOUNT_NOT_VALID();
+        if (amounts[0] == 0 && amounts[1] == 0) revert AMOUNT_NOT_VALID();
+
+        data = _replaceCalldataAmount(data, amounts[0], ASSETS_OFFSET);
+        return _replaceCalldataAmount(data, amounts[1], SHARES_OFFSET);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -382,33 +382,33 @@ contract BridgeHooks is Helpers {
         assertFalse(deBridgehook.decodeUsePrevHookAmount(data));
     }
 
-    function test_DeBridge_DecodeAmount() public view {
+    function test_DeBridge_DecodeAmounts() public view {
         bytes memory data = _encodeDebridgeData(false, 100, 0, address(mockInputToken));
-        assertEq(deBridgehook.decodeAmount(data), 100);
+        assertEq(deBridgehook.decodeAmounts(data)[0], 100);
     }
 
-    function test_DeBridge_ReplaceCalldataAmount() public view {
+    function test_DeBridge_ReplaceCalldataAmounts() public view {
         bytes memory data = _encodeDebridgeData(false, 100, 0, address(mockInputToken));
         uint256 newAmount = 200;
-        bytes memory result = deBridgehook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = deBridgehook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(deBridgehook.decodeAmount(result), newAmount);
+        assertEq(deBridgehook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_DeBridge_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_DeBridge_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _encodeDebridgeData(false, 100, 0, address(mockInputToken));
-        bytes memory result = deBridgehook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(deBridgehook.decodeAmount(result), fuzzAmount);
+        bytes memory result = deBridgehook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(deBridgehook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_DeBridge_ReplaceCalldataAmount_ThenBuild() public view {
+    function test_DeBridge_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory data = _encodeDebridgeData(false, 100, 0, address(mockInputToken));
         uint256 newAmount = 500;
-        bytes memory replaced = deBridgehook.replaceCalldataAmount(data, newAmount);
+        bytes memory replaced = deBridgehook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         Execution[] memory executions = deBridgehook.build(address(0), mockAccount, replaced);
         assertEq(executions.length, 3);
-        assertEq(deBridgehook.decodeAmount(replaced), newAmount);
+        assertEq(deBridgehook.decodeAmounts(replaced)[0], newAmount);
     }
 
     // DeBridge Cancel Order Hook Tests
@@ -464,44 +464,44 @@ contract BridgeHooks is Helpers {
                     DECODE/REPLACE AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_AcrossV3_DecodeAmount() public view {
+    function test_AcrossV3_DecodeAmounts() public view {
         bytes memory data = _encodeAcrossData(false);
-        assertEq(acrossV3hook.decodeAmount(data), mockInputAmount);
+        assertEq(acrossV3hook.decodeAmounts(data)[0], mockInputAmount);
     }
 
-    function test_AcrossV3_ReplaceCalldataAmount() public view {
+    function test_AcrossV3_ReplaceCalldataAmounts() public view {
         bytes memory data = _encodeAcrossData(false);
         uint256 newAmount = 2e18;
-        bytes memory result = acrossV3hook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = acrossV3hook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(acrossV3hook.decodeAmount(result), newAmount);
+        assertEq(acrossV3hook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_AcrossV3_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_AcrossV3_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _encodeAcrossData(false);
-        bytes memory result = acrossV3hook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(acrossV3hook.decodeAmount(result), fuzzAmount);
+        bytes memory result = acrossV3hook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(acrossV3hook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function test_ApproveAndAcrossV3_DecodeAmount() public view {
+    function test_ApproveAndAcrossV3_DecodeAmounts() public view {
         bytes memory data = _encodeAcrossData(false);
-        assertEq(approveAndAcrossV3hook.decodeAmount(data), mockInputAmount);
+        assertEq(approveAndAcrossV3hook.decodeAmounts(data)[0], mockInputAmount);
     }
 
-    function test_ApproveAndAcrossV3_ReplaceCalldataAmount() public view {
+    function test_ApproveAndAcrossV3_ReplaceCalldataAmounts() public view {
         bytes memory data = _encodeAcrossData(false);
         uint256 newAmount = 2e18;
-        bytes memory result = approveAndAcrossV3hook.replaceCalldataAmount(data, newAmount);
+        bytes memory result = approveAndAcrossV3hook.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(result.length, data.length);
-        assertEq(approveAndAcrossV3hook.decodeAmount(result), newAmount);
+        assertEq(approveAndAcrossV3hook.decodeAmounts(result)[0], newAmount);
     }
 
-    function testFuzz_ApproveAndAcrossV3_ReplaceCalldataAmount(uint256 fuzzAmount) public view {
+    function testFuzz_ApproveAndAcrossV3_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = _encodeAcrossData(false);
-        bytes memory result = approveAndAcrossV3hook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(approveAndAcrossV3hook.decodeAmount(result), fuzzAmount);
+        bytes memory result = approveAndAcrossV3hook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(approveAndAcrossV3hook.decodeAmounts(result)[0], fuzzAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
