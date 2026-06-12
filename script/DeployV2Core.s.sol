@@ -985,6 +985,20 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             revert("ACROSS_V3_ADAPTER_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
         }
 
+        // AcrossV3AdapterV2 (compact 2-field message format)
+        if (availability.acrossV3AdapterV2 && superDestExecutor != address(0)) {
+            __checkContract(
+                ACROSS_V3_ADAPTER_V2_KEY,
+                __getSalt(ACROSS_V3_ADAPTER_V2_KEY),
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], superDestExecutor),
+                env
+            );
+        } else if (!availability.acrossV3AdapterV2) {
+            console2.log("SKIPPED AcrossV3AdapterV2: Across Spoke Pool not configured for chain", chainId);
+        } else {
+            revert("ACROSS_V3_ADAPTER_V2_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
+        }
+
         // DebridgeAdapter (requires debridgeDstDln and superDestinationExecutor)
         if (availability.debridgeAdapter && superDestExecutor != address(0)) {
             __checkContract(
@@ -1152,6 +1166,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         __checkContract(REDEEM_7540_VAULT_HOOK_KEY, __getSalt(REDEEM_7540_VAULT_HOOK_KEY), "", env);
         __checkContract(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, __getSalt(REQUEST_REDEEM_7540_VAULT_HOOK_KEY), "", env);
         __checkContract(DEPOSIT_7540_VAULT_HOOK_KEY, __getSalt(DEPOSIT_7540_VAULT_HOOK_KEY), "", env);
+        __checkContract(WITHDRAW_7540_VAULT_HOOK_KEY, __getSalt(WITHDRAW_7540_VAULT_HOOK_KEY), "", env);
         __checkContract(SET_OPERATOR_7540_HOOK_KEY, __getSalt(SET_OPERATOR_7540_HOOK_KEY), "", env);
         __checkContract(SET_SLIPPAGE_HOOK_KEY, __getSalt(SET_SLIPPAGE_HOOK_KEY), "", env);
         __checkContract(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, __getSalt(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY), "", env);
@@ -1427,6 +1442,38 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             revert("APPROVE_AND_ACROSS_HOOK_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
+        }
+
+        // Across Bridge Hooks V2 (compact 2-field message format)
+        if (availability.acrossV3AdapterV2 && superValidator != address(0)) {
+            __checkContract(
+                ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY,
+                __getSalt(ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY),
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator),
+                env
+            );
+        } else if (!availability.acrossV3AdapterV2) {
+            console2.log(
+                "SKIPPED AcrossSendFundsAndExecuteOnDstHookV2: Across Spoke Pool not configured for chain", chainId
+            );
+        } else {
+            revert("ACROSS_HOOK_V2_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
+        }
+
+        if (availability.acrossV3AdapterV2 && superValidator != address(0)) {
+            __checkContract(
+                APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY,
+                __getSalt(APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY),
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator),
+                env
+            );
+        } else if (!availability.acrossV3AdapterV2) {
+            console2.log(
+                "SKIPPED ApproveAndAcrossSendFundsAndExecuteOnDstHookV2: Across Spoke Pool not configured for chain",
+                chainId
+            );
+        } else {
+            revert("APPROVE_AND_ACROSS_HOOK_V2_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
         }
 
         if (availability.deBridgeSendOrderHook && superValidator != address(0)) {

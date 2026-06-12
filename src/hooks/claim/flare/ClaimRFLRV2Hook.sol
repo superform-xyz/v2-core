@@ -10,7 +10,7 @@ import { IRNat } from "../../../vendor/flare/IRNat.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 
-/// @title ClaimRFLV2Hook
+/// @title ClaimRFLRV2Hook
 /// @author Superform Labs
 /// @notice Claims rFLR rewards from Flare's RNat contract using fully on-chain enumeration.
 ///         No offchain data packing needed -- the hook discovers claimable projects automatically.
@@ -18,7 +18,7 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 ///      Fees should be collected at the WFLR withdrawal stage via WithdrawRFLRHook.
 /// @dev data has the following structure:
 /// @notice         (empty -- this hook is parameterless and ignores calldata)
-contract ClaimRFLV2Hook is BaseHook {
+contract ClaimRFLRV2Hook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
