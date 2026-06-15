@@ -40,6 +40,17 @@ contract ClaimAssetsDETHHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCon
 
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ERC4626) { }
 
+    /// @inheritdoc ISuperHook
+    function name() external pure override returns (string memory) {
+        return "Claim Assets DETH";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Claims redeemed assets from a DETH vault";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

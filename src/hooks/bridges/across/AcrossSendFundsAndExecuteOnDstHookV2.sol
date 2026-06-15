@@ -76,6 +76,17 @@ contract AcrossSendFundsAndExecuteOnDstHookV2 is BaseHook, ISuperHookContextAwar
         VALIDATOR = validator_;
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Across Bridge V2";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Bridges tokens via Across V2 and executes on destination chain";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

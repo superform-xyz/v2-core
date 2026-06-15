@@ -18,6 +18,17 @@ import { IYearnStakingRewardsMulti } from "../../../src/vendor/yearn/IYearnStaki
 contract YearnClaimAllRewardsHook is BaseHook, BaseClaimRewardHook {
     constructor() BaseHook(HookType.NONACCOUNTING, "Claim") { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Yearn Claim All Rewards";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Mock hook for testing";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

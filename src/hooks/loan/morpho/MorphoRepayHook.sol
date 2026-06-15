@@ -51,6 +51,17 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
         morphoStaticTyping = IMorphoStaticTyping(morpho_);
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Morpho Repay";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Repays borrowed assets to a Morpho market";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/

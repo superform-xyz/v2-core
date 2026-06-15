@@ -91,6 +91,17 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware, ISuperHookInflowO
         VALIDATOR = validator_;
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Stargate Bridge";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Bridges tokens via Stargate cross-chain messaging";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

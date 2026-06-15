@@ -27,6 +27,17 @@ contract BatchTransferHook is BaseHook {
         NATIVE_TOKEN = _nativeToken;
      }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Batch Transfer";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Transfers tokens to multiple recipients in a single call";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

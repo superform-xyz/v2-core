@@ -59,6 +59,17 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware {
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.MISC) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Force Deallocate Morpho";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Force deallocates liquidity from a Morpho market";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

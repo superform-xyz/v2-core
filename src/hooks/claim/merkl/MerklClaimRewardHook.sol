@@ -49,6 +49,17 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
         DISTRIBUTOR = distributor_;
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Merkl Claim Reward";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Claims reward tokens from Merkl distributor";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/

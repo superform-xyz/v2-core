@@ -76,6 +76,17 @@ contract DeBridgeCancelOrderHook is BaseHook {
         DLN_DESTINATION = dlnDestination_;
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "deBridge Cancel Order";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Cancels a pending deBridge cross-chain order";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

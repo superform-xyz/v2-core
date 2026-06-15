@@ -41,6 +41,7 @@ contract ApproveAndSwapKyberSwapHook is BaseHook, ISuperHookContextAware, ISuper
 
     constructor(
         address router_,
+
         address scaleHelper_,
         address nativeToken_
     )
@@ -50,6 +51,16 @@ contract ApproveAndSwapKyberSwapHook is BaseHook, ISuperHookContextAware, ISuper
         KYBER_ROUTER = IMetaAggregationRouterV2(router_);
         SCALE_HELPER = IScaleHelper(scaleHelper_);
         NATIVE = nativeToken_;
+    }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Approve and Swap KyberSwap";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Approves and swaps tokens via KyberSwap aggregator";
     }
 
     /*//////////////////////////////////////////////////////////////

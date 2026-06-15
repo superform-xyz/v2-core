@@ -44,6 +44,17 @@ contract ApproveAndDeposit5115VaultHook is
 
     constructor() BaseHook(HookType.INFLOW, HookSubTypes.ERC5115) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Approve and Deposit ERC-5115 Vault";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Approves and deposits assets into an ERC-5115 vault";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

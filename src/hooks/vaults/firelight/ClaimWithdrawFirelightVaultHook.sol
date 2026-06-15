@@ -38,6 +38,17 @@ contract ClaimWithdrawFirelightVaultHook is BaseHook, ISuperHookInflowOutflow, I
 
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ERC4626) { }
 
+    /// @inheritdoc ISuperHook
+    function name() external pure override returns (string memory) {
+        return "Claim Withdraw Firelight Vault";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Claims withdrawn assets from a Firelight vault";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

@@ -41,6 +41,7 @@ contract SwapKyberSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInflow
 
     constructor(
         address router_,
+
         address scaleHelper_,
         address nativeToken_
     )
@@ -50,6 +51,16 @@ contract SwapKyberSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInflow
         KYBER_ROUTER = IMetaAggregationRouterV2(router_);
         SCALE_HELPER = IScaleHelper(scaleHelper_);
         NATIVE = nativeToken_;
+    }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Swap KyberSwap";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Swaps tokens via KyberSwap aggregator";
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -281,6 +281,14 @@ interface ISuperHook {
     /// @param data The hook-specific parameters and configuration data
     function postExecute(address prevHook, address account, bytes memory data) external;
 
+    /// @notice Human-readable name for UI display
+    /// @return The hook's friendly name
+    function name() external pure returns (string memory);
+
+    /// @notice One-sentence description of what this hook does
+    /// @return A human-readable description for UI display
+    function description() external pure returns (string memory);
+
     /// @notice Returns the specific subtype identification for this hook
     /// @dev Used to categorize hooks beyond the basic HookType
     ///      For example, a hook might be of type INFLOW but subtype VAULT_DEPOSIT

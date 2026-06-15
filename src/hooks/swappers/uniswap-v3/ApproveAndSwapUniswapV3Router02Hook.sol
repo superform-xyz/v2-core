@@ -71,6 +71,17 @@ contract ApproveAndSwapUniswapV3Router02Hook is BaseHook, ISuperHookContextAware
         SWAP_ROUTER = IV3SwapRouter(swapRouter_);
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Approve and Swap Uniswap V3 Router02";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Approves and swaps tokens via Uniswap V3 Router02";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                             HOOK IMPLEMENTATION
     //////////////////////////////////////////////////////////////*/

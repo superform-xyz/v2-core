@@ -50,6 +50,17 @@ contract FetchNativeFeeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutf
         SPONSORSHIP = sponsorship_;
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Fetch Native Fee";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Fetches native gas fee for sponsored transactions";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/

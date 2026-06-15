@@ -60,6 +60,17 @@ contract ClaimFailedTransferHook is BaseHook, ISuperHookInflowOutflow, ISuperHoo
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Claim Failed Transfer";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Claims tokens from a failed Stargate transfer";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                              VIEW METHODS
     //////////////////////////////////////////////////////////////*/

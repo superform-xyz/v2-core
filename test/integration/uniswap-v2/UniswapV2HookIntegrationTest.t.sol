@@ -571,6 +571,14 @@ contract MockPrevHookV2 is BaseHook {
         _outAmount = outAmount_;
     }
 
+    function name() external pure override returns (string memory) {
+        return "Mock Prev Hook V2";
+    }
+
+    function description() external pure override returns (string memory) {
+        return "Mock hook for testing";
+    }
+
     function _buildHookExecutions(address, address, bytes calldata)
         internal
         pure

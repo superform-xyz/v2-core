@@ -76,6 +76,17 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
         PENDLE_ROUTER_V4 = IPendleRouterV4(pendleRouterV4_);
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Pendle Router Redeem";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Redeems Pendle PT tokens for underlying assets";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

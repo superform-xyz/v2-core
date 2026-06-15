@@ -9,6 +9,14 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 contract TestHook is BaseHook {
     constructor(ISuperHook.HookType hookType_, bytes32 subType_) BaseHook(hookType_, subType_) { }
 
+    function name() external pure override returns (string memory) {
+        return "Test Hook";
+    }
+
+    function description() external pure override returns (string memory) {
+        return "Mock hook for testing";
+    }
+
     function _preExecute(address prevHook, address account, bytes calldata data) internal override { }
 
     function _postExecute(address prevHook, address account, bytes calldata data) internal override { }

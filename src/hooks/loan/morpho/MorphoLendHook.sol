@@ -52,6 +52,17 @@ contract MorphoLendHook is BaseMorphoLoanHook {
     /// @param morpho_ Address of the Morpho Blue protocol
     constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Morpho Lend";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Lends assets to a Morpho market";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/

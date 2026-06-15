@@ -88,6 +88,17 @@ contract SwapOdosV3Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowOut
         ODOS_ROUTER_V3 = IOdosRouterV3(_routerV3);
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Swap Odos V3";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Swaps tokens via Odos V3 aggregator";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

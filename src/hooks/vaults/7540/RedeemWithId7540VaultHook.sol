@@ -37,6 +37,17 @@ contract RedeemWithId7540VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperH
 
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ERC7540) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Redeem with ID ERC-7540 Vault";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Redeems shares from an ERC-7540 async vault using a request ID";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

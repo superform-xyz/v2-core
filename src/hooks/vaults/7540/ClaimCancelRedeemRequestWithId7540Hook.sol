@@ -31,6 +31,17 @@ contract ClaimCancelRedeemRequestWithId7540Hook is BaseHook, VaultBankLockableHo
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM_CANCEL_REDEEM_REQUEST) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Claim Cancel Redeem Request with ID ERC-7540";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Claims shares from a cancelled redeem request on an ERC-7540 vault using a request ID";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

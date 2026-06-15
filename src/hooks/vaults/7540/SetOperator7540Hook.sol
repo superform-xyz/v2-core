@@ -34,6 +34,17 @@ contract SetOperator7540Hook is BaseHook {
     //////////////////////////////////////////////////////////////*/
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.ERC7540) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Set Operator ERC-7540";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Sets an operator for an ERC-7540 vault";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                 VIEW METHODS
     //////////////////////////////////////////////////////////////*/

@@ -31,6 +31,17 @@ contract ApproveERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowO
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Approve ERC-20";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Approves an ERC-20 token spending allowance";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

@@ -176,6 +176,17 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
         POOL_MANAGER = IPoolManager(poolManager_);
     }
 
+    /// @inheritdoc ISuperHook
+    function name() external pure override returns (string memory) {
+        return "Swap Uniswap V4";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Swaps tokens via Uniswap V4";
+    }
+
+
     /// @notice Allows contract to receive native ETH for native token swaps
     receive() external payable { }
 

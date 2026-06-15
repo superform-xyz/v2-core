@@ -59,6 +59,17 @@ contract SwapSparkPSMExactInHook is BaseHook, ISuperHookContextAware, ISuperHook
         PSM = IPSM3(psmAddress_);
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Swap Spark PSM Exact In";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Swaps exact input tokens via Spark PSM";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                             HOOK IMPLEMENTATION
     //////////////////////////////////////////////////////////////*/

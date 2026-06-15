@@ -89,6 +89,17 @@ contract ApproveAndStargateSendHookV2 is BaseHook, ISuperHookContextAware, ISupe
         VALIDATOR = validator_;
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Approve and Stargate Bridge V2";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Approves and bridges tokens via Stargate V2";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

@@ -3480,6 +3480,505 @@ contract HookSizingInterfaceTest is Helpers {
             assertEq(morphoSupply.decodeAmounts(r)[0], 7e18);
         }
     }
+
+    /*//////////////////////////////////////////////////////////////
+                    name() — NON-EMPTY + UNIQUENESS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Every deployed hook MUST return a non-empty name
+    function test_Name_AllHooks_NonEmpty() public view {
+        // Token hooks
+        assertTrue(bytes(transferERC20.name()).length > 0, "transferERC20");
+        assertTrue(bytes(approveERC20.name()).length > 0, "approveERC20");
+        assertTrue(bytes(transferHook.name()).length > 0, "transferHook");
+        assertTrue(bytes(nativeTransfer.name()).length > 0, "nativeTransfer");
+        assertTrue(bytes(depositWETH.name()).length > 0, "depositWETH");
+        assertTrue(bytes(withdrawWETH.name()).length > 0, "withdrawWETH");
+        assertTrue(bytes(fetchNativeFee.name()).length > 0, "fetchNativeFee");
+        assertTrue(bytes(claimFailedTransfer.name()).length > 0, "claimFailedTransfer");
+
+        // Swappers
+        assertTrue(bytes(swapUniV3.name()).length > 0, "swapUniV3");
+        assertTrue(bytes(approveSwapUniV3.name()).length > 0, "approveSwapUniV3");
+        assertTrue(bytes(swapUniV3Router02.name()).length > 0, "swapUniV3Router02");
+        assertTrue(bytes(approveSwapUniV3Router02.name()).length > 0, "approveSwapUniV3Router02");
+        assertTrue(bytes(swapUniV2.name()).length > 0, "swapUniV2");
+        assertTrue(bytes(approveSwapUniV2.name()).length > 0, "approveSwapUniV2");
+        assertTrue(bytes(swapUniV4.name()).length > 0, "swapUniV4");
+        assertTrue(bytes(swapOdosV2.name()).length > 0, "swapOdosV2");
+        assertTrue(bytes(approveSwapOdosV2.name()).length > 0, "approveSwapOdosV2");
+        assertTrue(bytes(swapOdosV3.name()).length > 0, "swapOdosV3");
+        assertTrue(bytes(approveSwapOdosV3.name()).length > 0, "approveSwapOdosV3");
+        assertTrue(bytes(swapKyber.name()).length > 0, "swapKyber");
+        assertTrue(bytes(approveSwapKyber.name()).length > 0, "approveSwapKyber");
+        assertTrue(bytes(swapSparkIn.name()).length > 0, "swapSparkIn");
+        assertTrue(bytes(approveSwapSparkIn.name()).length > 0, "approveSwapSparkIn");
+        assertTrue(bytes(swapSparkOut.name()).length > 0, "swapSparkOut");
+        assertTrue(bytes(approveSwapSparkOut.name()).length > 0, "approveSwapSparkOut");
+        assertTrue(bytes(swapAlgebra.name()).length > 0, "swapAlgebra");
+        assertTrue(bytes(approveSwapAlgebra.name()).length > 0, "approveSwapAlgebra");
+        assertTrue(bytes(swapOpenOcean.name()).length > 0, "swapOpenOcean");
+        assertTrue(bytes(approveSwapOpenOcean.name()).length > 0, "approveSwapOpenOcean");
+        assertTrue(bytes(spectraRedeem.name()).length > 0, "spectraRedeem");
+        assertTrue(bytes(pendleRedeem.name()).length > 0, "pendleRedeem");
+
+        // Bridges
+        assertTrue(bytes(acrossV1.name()).length > 0, "acrossV1");
+        assertTrue(bytes(approveAcrossV1.name()).length > 0, "approveAcrossV1");
+        assertTrue(bytes(acrossV2.name()).length > 0, "acrossV2");
+        assertTrue(bytes(approveAcrossV2.name()).length > 0, "approveAcrossV2");
+        assertTrue(bytes(stargate.name()).length > 0, "stargate");
+        assertTrue(bytes(approveStargate.name()).length > 0, "approveStargate");
+        assertTrue(bytes(stargateV2.name()).length > 0, "stargateV2");
+        assertTrue(bytes(approveStargateV2.name()).length > 0, "approveStargateV2");
+        assertTrue(bytes(debridge.name()).length > 0, "debridge");
+        assertTrue(bytes(cctp.name()).length > 0, "cctp");
+        assertTrue(bytes(approveCctp.name()).length > 0, "approveCctp");
+        assertTrue(bytes(circleGateway.name()).length > 0, "circleGateway");
+
+        // Stake
+        assertTrue(bytes(fluidStake.name()).length > 0, "fluidStake");
+        assertTrue(bytes(approveFluidStake.name()).length > 0, "approveFluidStake");
+        assertTrue(bytes(fluidUnstake.name()).length > 0, "fluidUnstake");
+        assertTrue(bytes(gearboxStake.name()).length > 0, "gearboxStake");
+        assertTrue(bytes(approveGearboxStake.name()).length > 0, "approveGearboxStake");
+        assertTrue(bytes(gearboxUnstake.name()).length > 0, "gearboxUnstake");
+
+        // Assets denomination
+        assertTrue(bytes(deposit4626.name()).length > 0, "deposit4626");
+        assertTrue(bytes(approveDeposit4626.name()).length > 0, "approveDeposit4626");
+        assertTrue(bytes(deposit5115.name()).length > 0, "deposit5115");
+        assertTrue(bytes(approveDeposit5115.name()).length > 0, "approveDeposit5115");
+        assertTrue(bytes(deposit7540.name()).length > 0, "deposit7540");
+        assertTrue(bytes(requestDeposit7540.name()).length > 0, "requestDeposit7540");
+        assertTrue(bytes(approveRequestDeposit7540.name()).length > 0, "approveRequestDeposit7540");
+        assertTrue(bytes(withdraw7540.name()).length > 0, "withdraw7540");
+        assertTrue(bytes(withdrawWithId7540.name()).length > 0, "withdrawWithId7540");
+
+        // Shares denomination
+        assertTrue(bytes(redeem4626.name()).length > 0, "redeem4626");
+        assertTrue(bytes(redeem5115.name()).length > 0, "redeem5115");
+        assertTrue(bytes(redeem7540.name()).length > 0, "redeem7540");
+        assertTrue(bytes(redeemWithId7540.name()).length > 0, "redeemWithId7540");
+        assertTrue(bytes(requestRedeem7540.name()).length > 0, "requestRedeem7540");
+        assertTrue(bytes(requestRedeemDETH.name()).length > 0, "requestRedeemDETH");
+        assertTrue(bytes(approveRequestRedeemDETH.name()).length > 0, "approveRequestRedeemDETH");
+        assertTrue(bytes(ethenaCooldown.name()).length > 0, "ethenaCooldown");
+        assertTrue(bytes(redeemFirelight.name()).length > 0, "redeemFirelight");
+        assertTrue(bytes(mintSP.name()).length > 0, "mintSP");
+        assertTrue(bytes(burnSP.name()).length > 0, "burnSP");
+
+        // Sizeless hooks
+        assertTrue(bytes(fluidClaim.name()).length > 0, "fluidClaim");
+        assertTrue(bytes(gearboxClaim.name()).length > 0, "gearboxClaim");
+        assertTrue(bytes(yearnClaim.name()).length > 0, "yearnClaim");
+        assertTrue(bytes(merklClaim.name()).length > 0, "merklClaim");
+        assertTrue(bytes(batchTransfer.name()).length > 0, "batchTransfer");
+        assertTrue(bytes(claimAssetsDETH.name()).length > 0, "claimAssetsDETH");
+        assertTrue(bytes(claimWithdrawFirelight.name()).length > 0, "claimWithdrawFirelight");
+
+        // Loan hooks
+        assertTrue(bytes(morphoSupply.name()).length > 0, "morphoSupply");
+        assertTrue(bytes(morphoLend.name()).length > 0, "morphoLend");
+        assertTrue(bytes(morphoBorrow.name()).length > 0, "morphoBorrow");
+        assertTrue(bytes(morphoRepay.name()).length > 0, "morphoRepay");
+        assertTrue(bytes(morphoSupplyAndBorrow.name()).length > 0, "morphoSupplyAndBorrow");
+        assertTrue(bytes(morphoRepayAndWithdraw.name()).length > 0, "morphoRepayAndWithdraw");
+        assertTrue(bytes(morphoWithdraw.name()).length > 0, "morphoWithdraw");
+
+        // Aave V4 loan hooks
+        assertTrue(bytes(aaveSupply.name()).length > 0, "aaveSupply");
+        assertTrue(bytes(aaveWithdraw.name()).length > 0, "aaveWithdraw");
+        assertTrue(bytes(aaveBorrow.name()).length > 0, "aaveBorrow");
+        assertTrue(bytes(aaveRepay.name()).length > 0, "aaveRepay");
+        assertTrue(bytes(aaveSupplyAndBorrow.name()).length > 0, "aaveSupplyAndBorrow");
+        assertTrue(bytes(aaveRepayAndWithdraw.name()).length > 0, "aaveRepayAndWithdraw");
+    }
+
+    /// @dev No two deployed hooks may share the same name
+    function test_Name_AllHooks_Unique() public view {
+        string[] memory names = new string[](89);
+        uint256 i = 0;
+
+        // Token hooks
+        names[i++] = transferERC20.name();
+        names[i++] = approveERC20.name();
+        names[i++] = transferHook.name();
+        names[i++] = nativeTransfer.name();
+        names[i++] = depositWETH.name();
+        names[i++] = withdrawWETH.name();
+        names[i++] = fetchNativeFee.name();
+        names[i++] = claimFailedTransfer.name();
+
+        // Swappers
+        names[i++] = swapUniV3.name();
+        names[i++] = approveSwapUniV3.name();
+        names[i++] = swapUniV3Router02.name();
+        names[i++] = approveSwapUniV3Router02.name();
+        names[i++] = swapUniV2.name();
+        names[i++] = approveSwapUniV2.name();
+        names[i++] = swapUniV4.name();
+        names[i++] = swapOdosV2.name();
+        names[i++] = approveSwapOdosV2.name();
+        names[i++] = swapOdosV3.name();
+        names[i++] = approveSwapOdosV3.name();
+        names[i++] = swapKyber.name();
+        names[i++] = approveSwapKyber.name();
+        names[i++] = swapSparkIn.name();
+        names[i++] = approveSwapSparkIn.name();
+        names[i++] = swapSparkOut.name();
+        names[i++] = approveSwapSparkOut.name();
+        names[i++] = swapAlgebra.name();
+        names[i++] = approveSwapAlgebra.name();
+        names[i++] = swapOpenOcean.name();
+        names[i++] = approveSwapOpenOcean.name();
+        names[i++] = spectraRedeem.name();
+        names[i++] = pendleRedeem.name();
+
+        // Bridges
+        names[i++] = acrossV1.name();
+        names[i++] = approveAcrossV1.name();
+        names[i++] = acrossV2.name();
+        names[i++] = approveAcrossV2.name();
+        names[i++] = stargate.name();
+        names[i++] = approveStargate.name();
+        names[i++] = stargateV2.name();
+        names[i++] = approveStargateV2.name();
+        names[i++] = debridge.name();
+        names[i++] = cctp.name();
+        names[i++] = approveCctp.name();
+        names[i++] = circleGateway.name();
+
+        // Stake
+        names[i++] = fluidStake.name();
+        names[i++] = approveFluidStake.name();
+        names[i++] = fluidUnstake.name();
+        names[i++] = gearboxStake.name();
+        names[i++] = approveGearboxStake.name();
+        names[i++] = gearboxUnstake.name();
+
+        // Vaults - Assets
+        names[i++] = deposit4626.name();
+        names[i++] = approveDeposit4626.name();
+        names[i++] = deposit5115.name();
+        names[i++] = approveDeposit5115.name();
+        names[i++] = deposit7540.name();
+        names[i++] = requestDeposit7540.name();
+        names[i++] = approveRequestDeposit7540.name();
+        names[i++] = withdraw7540.name();
+        names[i++] = withdrawWithId7540.name();
+
+        // Vaults - Shares
+        names[i++] = redeem4626.name();
+        names[i++] = redeem5115.name();
+        names[i++] = redeem7540.name();
+        names[i++] = redeemWithId7540.name();
+        names[i++] = requestRedeem7540.name();
+        names[i++] = requestRedeemDETH.name();
+        names[i++] = approveRequestRedeemDETH.name();
+        names[i++] = ethenaCooldown.name();
+        names[i++] = redeemFirelight.name();
+        names[i++] = mintSP.name();
+        names[i++] = burnSP.name();
+
+        // Sizeless
+        names[i++] = fluidClaim.name();
+        names[i++] = gearboxClaim.name();
+        names[i++] = yearnClaim.name();
+        names[i++] = merklClaim.name();
+        names[i++] = batchTransfer.name();
+        names[i++] = claimAssetsDETH.name();
+        names[i++] = claimWithdrawFirelight.name();
+
+        // Loans
+        names[i++] = morphoSupply.name();
+        names[i++] = morphoLend.name();
+        names[i++] = morphoBorrow.name();
+        names[i++] = morphoRepay.name();
+        names[i++] = morphoSupplyAndBorrow.name();
+        names[i++] = morphoRepayAndWithdraw.name();
+        names[i++] = morphoWithdraw.name();
+
+        // Aave V4
+        names[i++] = aaveSupply.name();
+        names[i++] = aaveWithdraw.name();
+        names[i++] = aaveBorrow.name();
+        names[i++] = aaveRepay.name();
+        names[i++] = aaveSupplyAndBorrow.name();
+        names[i++] = aaveRepayAndWithdraw.name();
+
+        assertEq(i, 89, "count mismatch");
+
+        // O(n^2) uniqueness check (acceptable for 83 items)
+        for (uint256 a = 0; a < i; a++) {
+            for (uint256 b = a + 1; b < i; b++) {
+                assertFalse(
+                    keccak256(bytes(names[a])) == keccak256(bytes(names[b])),
+                    string.concat("Duplicate name: ", names[a])
+                );
+            }
+        }
+    }
+
+    /// @dev Spot-check: verify specific hooks return their expected names
+    function test_Name_SpotCheck() public view {
+        assertEq(deposit4626.name(), "Deposit ERC-4626 Vault");
+        assertEq(swapUniV3.name(), "Swap Uniswap V3");
+        assertEq(acrossV1.name(), "Across Bridge");
+        assertEq(morphoSupply.name(), "Morpho Supply");
+        assertEq(aaveSupply.name(), "Aave V4 Supply");
+        assertEq(fluidClaim.name(), "Fluid Claim Reward");
+        assertEq(redeem7540.name(), "Redeem ERC-7540 Vault");
+        assertEq(circleGateway.name(), "Circle Gateway Wallet");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         DESCRIPTION TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Every deployed hook MUST return a non-empty description
+    function test_Description_AllHooks_NonEmpty() public view {
+        // Token hooks
+        assertTrue(bytes(transferERC20.description()).length > 0, "transferERC20");
+        assertTrue(bytes(approveERC20.description()).length > 0, "approveERC20");
+        assertTrue(bytes(transferHook.description()).length > 0, "transferHook");
+        assertTrue(bytes(nativeTransfer.description()).length > 0, "nativeTransfer");
+        assertTrue(bytes(depositWETH.description()).length > 0, "depositWETH");
+        assertTrue(bytes(withdrawWETH.description()).length > 0, "withdrawWETH");
+        assertTrue(bytes(fetchNativeFee.description()).length > 0, "fetchNativeFee");
+        assertTrue(bytes(claimFailedTransfer.description()).length > 0, "claimFailedTransfer");
+
+        // Swappers
+        assertTrue(bytes(swapUniV3.description()).length > 0, "swapUniV3");
+        assertTrue(bytes(approveSwapUniV3.description()).length > 0, "approveSwapUniV3");
+        assertTrue(bytes(swapUniV3Router02.description()).length > 0, "swapUniV3Router02");
+        assertTrue(bytes(approveSwapUniV3Router02.description()).length > 0, "approveSwapUniV3Router02");
+        assertTrue(bytes(swapUniV2.description()).length > 0, "swapUniV2");
+        assertTrue(bytes(approveSwapUniV2.description()).length > 0, "approveSwapUniV2");
+        assertTrue(bytes(swapUniV4.description()).length > 0, "swapUniV4");
+        assertTrue(bytes(swapOdosV2.description()).length > 0, "swapOdosV2");
+        assertTrue(bytes(approveSwapOdosV2.description()).length > 0, "approveSwapOdosV2");
+        assertTrue(bytes(swapOdosV3.description()).length > 0, "swapOdosV3");
+        assertTrue(bytes(approveSwapOdosV3.description()).length > 0, "approveSwapOdosV3");
+        assertTrue(bytes(swapKyber.description()).length > 0, "swapKyber");
+        assertTrue(bytes(approveSwapKyber.description()).length > 0, "approveSwapKyber");
+        assertTrue(bytes(swapSparkIn.description()).length > 0, "swapSparkIn");
+        assertTrue(bytes(approveSwapSparkIn.description()).length > 0, "approveSwapSparkIn");
+        assertTrue(bytes(swapSparkOut.description()).length > 0, "swapSparkOut");
+        assertTrue(bytes(approveSwapSparkOut.description()).length > 0, "approveSwapSparkOut");
+        assertTrue(bytes(swapAlgebra.description()).length > 0, "swapAlgebra");
+        assertTrue(bytes(approveSwapAlgebra.description()).length > 0, "approveSwapAlgebra");
+        assertTrue(bytes(swapOpenOcean.description()).length > 0, "swapOpenOcean");
+        assertTrue(bytes(approveSwapOpenOcean.description()).length > 0, "approveSwapOpenOcean");
+        assertTrue(bytes(spectraRedeem.description()).length > 0, "spectraRedeem");
+        assertTrue(bytes(pendleRedeem.description()).length > 0, "pendleRedeem");
+
+        // Bridges
+        assertTrue(bytes(acrossV1.description()).length > 0, "acrossV1");
+        assertTrue(bytes(approveAcrossV1.description()).length > 0, "approveAcrossV1");
+        assertTrue(bytes(acrossV2.description()).length > 0, "acrossV2");
+        assertTrue(bytes(approveAcrossV2.description()).length > 0, "approveAcrossV2");
+        assertTrue(bytes(stargate.description()).length > 0, "stargate");
+        assertTrue(bytes(approveStargate.description()).length > 0, "approveStargate");
+        assertTrue(bytes(stargateV2.description()).length > 0, "stargateV2");
+        assertTrue(bytes(approveStargateV2.description()).length > 0, "approveStargateV2");
+        assertTrue(bytes(debridge.description()).length > 0, "debridge");
+        assertTrue(bytes(cctp.description()).length > 0, "cctp");
+        assertTrue(bytes(approveCctp.description()).length > 0, "approveCctp");
+        assertTrue(bytes(circleGateway.description()).length > 0, "circleGateway");
+
+        // Stake
+        assertTrue(bytes(fluidStake.description()).length > 0, "fluidStake");
+        assertTrue(bytes(approveFluidStake.description()).length > 0, "approveFluidStake");
+        assertTrue(bytes(fluidUnstake.description()).length > 0, "fluidUnstake");
+        assertTrue(bytes(gearboxStake.description()).length > 0, "gearboxStake");
+        assertTrue(bytes(approveGearboxStake.description()).length > 0, "approveGearboxStake");
+        assertTrue(bytes(gearboxUnstake.description()).length > 0, "gearboxUnstake");
+
+        // Assets denomination
+        assertTrue(bytes(deposit4626.description()).length > 0, "deposit4626");
+        assertTrue(bytes(approveDeposit4626.description()).length > 0, "approveDeposit4626");
+        assertTrue(bytes(deposit5115.description()).length > 0, "deposit5115");
+        assertTrue(bytes(approveDeposit5115.description()).length > 0, "approveDeposit5115");
+        assertTrue(bytes(deposit7540.description()).length > 0, "deposit7540");
+        assertTrue(bytes(requestDeposit7540.description()).length > 0, "requestDeposit7540");
+        assertTrue(bytes(approveRequestDeposit7540.description()).length > 0, "approveRequestDeposit7540");
+        assertTrue(bytes(withdraw7540.description()).length > 0, "withdraw7540");
+        assertTrue(bytes(withdrawWithId7540.description()).length > 0, "withdrawWithId7540");
+
+        // Shares denomination
+        assertTrue(bytes(redeem4626.description()).length > 0, "redeem4626");
+        assertTrue(bytes(redeem5115.description()).length > 0, "redeem5115");
+        assertTrue(bytes(redeem7540.description()).length > 0, "redeem7540");
+        assertTrue(bytes(redeemWithId7540.description()).length > 0, "redeemWithId7540");
+        assertTrue(bytes(requestRedeem7540.description()).length > 0, "requestRedeem7540");
+        assertTrue(bytes(requestRedeemDETH.description()).length > 0, "requestRedeemDETH");
+        assertTrue(bytes(approveRequestRedeemDETH.description()).length > 0, "approveRequestRedeemDETH");
+        assertTrue(bytes(ethenaCooldown.description()).length > 0, "ethenaCooldown");
+        assertTrue(bytes(redeemFirelight.description()).length > 0, "redeemFirelight");
+        assertTrue(bytes(mintSP.description()).length > 0, "mintSP");
+        assertTrue(bytes(burnSP.description()).length > 0, "burnSP");
+
+        // Sizeless hooks
+        assertTrue(bytes(fluidClaim.description()).length > 0, "fluidClaim");
+        assertTrue(bytes(gearboxClaim.description()).length > 0, "gearboxClaim");
+        assertTrue(bytes(yearnClaim.description()).length > 0, "yearnClaim");
+        assertTrue(bytes(merklClaim.description()).length > 0, "merklClaim");
+        assertTrue(bytes(batchTransfer.description()).length > 0, "batchTransfer");
+        assertTrue(bytes(claimAssetsDETH.description()).length > 0, "claimAssetsDETH");
+        assertTrue(bytes(claimWithdrawFirelight.description()).length > 0, "claimWithdrawFirelight");
+
+        // Loan hooks
+        assertTrue(bytes(morphoSupply.description()).length > 0, "morphoSupply");
+        assertTrue(bytes(morphoLend.description()).length > 0, "morphoLend");
+        assertTrue(bytes(morphoBorrow.description()).length > 0, "morphoBorrow");
+        assertTrue(bytes(morphoRepay.description()).length > 0, "morphoRepay");
+        assertTrue(bytes(morphoSupplyAndBorrow.description()).length > 0, "morphoSupplyAndBorrow");
+        assertTrue(bytes(morphoRepayAndWithdraw.description()).length > 0, "morphoRepayAndWithdraw");
+        assertTrue(bytes(morphoWithdraw.description()).length > 0, "morphoWithdraw");
+
+        // Aave V4 loan hooks
+        assertTrue(bytes(aaveSupply.description()).length > 0, "aaveSupply");
+        assertTrue(bytes(aaveWithdraw.description()).length > 0, "aaveWithdraw");
+        assertTrue(bytes(aaveBorrow.description()).length > 0, "aaveBorrow");
+        assertTrue(bytes(aaveRepay.description()).length > 0, "aaveRepay");
+        assertTrue(bytes(aaveSupplyAndBorrow.description()).length > 0, "aaveSupplyAndBorrow");
+        assertTrue(bytes(aaveRepayAndWithdraw.description()).length > 0, "aaveRepayAndWithdraw");
+    }
+
+    /// @dev No two deployed hooks may share the same description
+    function test_Description_AllHooks_Unique() public view {
+        string[] memory descs = new string[](89);
+        uint256 i = 0;
+
+        // Token hooks
+        descs[i++] = transferERC20.description();
+        descs[i++] = approveERC20.description();
+        descs[i++] = transferHook.description();
+        descs[i++] = nativeTransfer.description();
+        descs[i++] = depositWETH.description();
+        descs[i++] = withdrawWETH.description();
+        descs[i++] = fetchNativeFee.description();
+        descs[i++] = claimFailedTransfer.description();
+
+        // Swappers
+        descs[i++] = swapUniV3.description();
+        descs[i++] = approveSwapUniV3.description();
+        descs[i++] = swapUniV3Router02.description();
+        descs[i++] = approveSwapUniV3Router02.description();
+        descs[i++] = swapUniV2.description();
+        descs[i++] = approveSwapUniV2.description();
+        descs[i++] = swapUniV4.description();
+        descs[i++] = swapOdosV2.description();
+        descs[i++] = approveSwapOdosV2.description();
+        descs[i++] = swapOdosV3.description();
+        descs[i++] = approveSwapOdosV3.description();
+        descs[i++] = swapKyber.description();
+        descs[i++] = approveSwapKyber.description();
+        descs[i++] = swapSparkIn.description();
+        descs[i++] = approveSwapSparkIn.description();
+        descs[i++] = swapSparkOut.description();
+        descs[i++] = approveSwapSparkOut.description();
+        descs[i++] = swapAlgebra.description();
+        descs[i++] = approveSwapAlgebra.description();
+        descs[i++] = swapOpenOcean.description();
+        descs[i++] = approveSwapOpenOcean.description();
+        descs[i++] = spectraRedeem.description();
+        descs[i++] = pendleRedeem.description();
+
+        // Bridges
+        descs[i++] = acrossV1.description();
+        descs[i++] = approveAcrossV1.description();
+        descs[i++] = acrossV2.description();
+        descs[i++] = approveAcrossV2.description();
+        descs[i++] = stargate.description();
+        descs[i++] = approveStargate.description();
+        descs[i++] = stargateV2.description();
+        descs[i++] = approveStargateV2.description();
+        descs[i++] = debridge.description();
+        descs[i++] = cctp.description();
+        descs[i++] = approveCctp.description();
+        descs[i++] = circleGateway.description();
+
+        // Stake
+        descs[i++] = fluidStake.description();
+        descs[i++] = approveFluidStake.description();
+        descs[i++] = fluidUnstake.description();
+        descs[i++] = gearboxStake.description();
+        descs[i++] = approveGearboxStake.description();
+        descs[i++] = gearboxUnstake.description();
+
+        // Vaults - Assets
+        descs[i++] = deposit4626.description();
+        descs[i++] = approveDeposit4626.description();
+        descs[i++] = deposit5115.description();
+        descs[i++] = approveDeposit5115.description();
+        descs[i++] = deposit7540.description();
+        descs[i++] = requestDeposit7540.description();
+        descs[i++] = approveRequestDeposit7540.description();
+        descs[i++] = withdraw7540.description();
+        descs[i++] = withdrawWithId7540.description();
+
+        // Vaults - Shares
+        descs[i++] = redeem4626.description();
+        descs[i++] = redeem5115.description();
+        descs[i++] = redeem7540.description();
+        descs[i++] = redeemWithId7540.description();
+        descs[i++] = requestRedeem7540.description();
+        descs[i++] = requestRedeemDETH.description();
+        descs[i++] = approveRequestRedeemDETH.description();
+        descs[i++] = ethenaCooldown.description();
+        descs[i++] = redeemFirelight.description();
+        descs[i++] = mintSP.description();
+        descs[i++] = burnSP.description();
+
+        // Sizeless
+        descs[i++] = fluidClaim.description();
+        descs[i++] = gearboxClaim.description();
+        descs[i++] = yearnClaim.description();
+        descs[i++] = merklClaim.description();
+        descs[i++] = batchTransfer.description();
+        descs[i++] = claimAssetsDETH.description();
+        descs[i++] = claimWithdrawFirelight.description();
+
+        // Loans
+        descs[i++] = morphoSupply.description();
+        descs[i++] = morphoLend.description();
+        descs[i++] = morphoBorrow.description();
+        descs[i++] = morphoRepay.description();
+        descs[i++] = morphoSupplyAndBorrow.description();
+        descs[i++] = morphoRepayAndWithdraw.description();
+        descs[i++] = morphoWithdraw.description();
+
+        // Aave V4
+        descs[i++] = aaveSupply.description();
+        descs[i++] = aaveWithdraw.description();
+        descs[i++] = aaveBorrow.description();
+        descs[i++] = aaveRepay.description();
+        descs[i++] = aaveSupplyAndBorrow.description();
+        descs[i++] = aaveRepayAndWithdraw.description();
+
+        assertEq(i, 89, "count mismatch");
+
+        // O(n^2) uniqueness check
+        for (uint256 a = 0; a < i; a++) {
+            for (uint256 b = a + 1; b < i; b++) {
+                assertFalse(
+                    keccak256(bytes(descs[a])) == keccak256(bytes(descs[b])),
+                    string.concat("Duplicate description: ", descs[a])
+                );
+            }
+        }
+    }
+
+    /// @dev Spot-check: verify specific hooks return their expected descriptions
+    function test_Description_SpotCheck() public view {
+        assertEq(deposit4626.description(), "Deposits assets into an ERC-4626 vault and receives shares");
+        assertEq(swapUniV3.description(), "Swaps tokens via Uniswap V3 exact input single");
+        assertEq(acrossV1.description(), "Bridges tokens via Across and executes on destination chain");
+        assertEq(morphoSupply.description(), "Supplies collateral to a Morpho market");
+        assertEq(aaveSupply.description(), "Supplies assets to an Aave V4 lending pool");
+    }
 }
 
 /// @dev Dummy libraries to avoid "unused" warnings on enum types

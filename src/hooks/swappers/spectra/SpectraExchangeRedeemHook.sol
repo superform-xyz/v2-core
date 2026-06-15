@@ -72,6 +72,17 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
         ROUTER = router_;
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Spectra Exchange Redeem";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Redeems principal tokens via Spectra exchange";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/

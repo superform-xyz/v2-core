@@ -42,6 +42,7 @@ contract SwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware, ISuperHo
 
     constructor(
         address router_,
+
         address caller_,
         address nativeToken_
     )
@@ -51,6 +52,16 @@ contract SwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware, ISuperHo
         OPENOCEAN_ROUTER = IOpenOceanExchange(router_);
         OPENOCEAN_CALLER = IOpenOceanCaller(caller_);
         NATIVE = nativeToken_;
+    }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Swap OpenOcean SparkDex";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Swaps tokens via OpenOcean SparkDex aggregator";
     }
 
     function _buildHookExecutions(

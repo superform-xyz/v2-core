@@ -35,6 +35,17 @@ contract ApproveAndFluidStakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.STAKE) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Approve and Fluid Stake";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Approves and stakes tokens in Fluid protocol";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

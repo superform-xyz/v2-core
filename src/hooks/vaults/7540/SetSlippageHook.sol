@@ -34,6 +34,17 @@ contract SetSlippageHook is BaseHook {
     //////////////////////////////////////////////////////////////*/
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.ERC7540) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Set Slippage ERC-7540";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Sets slippage tolerance for an ERC-7540 vault operation";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                 VIEW METHODS
     //////////////////////////////////////////////////////////////*/

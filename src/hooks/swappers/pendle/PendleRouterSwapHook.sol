@@ -60,6 +60,17 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
         PENDLE_ROUTER_V4 = IPendleRouterV4(pendleRouterV4_);
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Pendle Router Swap";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Swaps tokens via Pendle router";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

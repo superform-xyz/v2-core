@@ -33,6 +33,17 @@ contract Deposit4626VaultHook is BaseHook, VaultBankLockableHook, ISuperHookInfl
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 84;
 
     constructor() BaseHook(HookType.INFLOW, HookSubTypes.ERC4626) { }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Deposit ERC-4626 Vault";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Deposits assets into an ERC-4626 vault and receives shares";
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

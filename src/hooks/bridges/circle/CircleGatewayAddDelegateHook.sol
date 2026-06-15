@@ -32,6 +32,17 @@ contract CircleGatewayAddDelegateHook is BaseHook {
         GATEWAY_WALLET = gatewayWalletAddress;
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Circle Gateway Add Delegate";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Adds a delegate to a Circle Gateway wallet";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

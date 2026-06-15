@@ -52,6 +52,17 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
         ROUTER = ISpectraRouter(router_);
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Spectra Exchange Deposit";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Deposits into a yield position via Spectra exchange";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

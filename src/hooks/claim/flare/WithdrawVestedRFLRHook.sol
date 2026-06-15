@@ -62,6 +62,17 @@ contract WithdrawVestedRFLRHook is BaseHook {
         WFLR = wflr_;
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Withdraw Vested RFLR";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Withdraws vested RFLR tokens from the Flare network";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/

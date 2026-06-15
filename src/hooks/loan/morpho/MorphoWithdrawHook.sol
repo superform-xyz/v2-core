@@ -57,6 +57,17 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
     /// @param morpho_ Address of the Morpho Blue protocol
     constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN_REPAY) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Morpho Withdraw";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Withdraws collateral from a Morpho market";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/

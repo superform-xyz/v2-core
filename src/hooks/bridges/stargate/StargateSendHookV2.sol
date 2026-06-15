@@ -85,6 +85,17 @@ contract StargateSendHookV2 is BaseHook, ISuperHookContextAware, ISuperHookInflo
         VALIDATOR = validator_;
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Stargate Bridge V2";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Bridges tokens via Stargate V2 cross-chain messaging";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

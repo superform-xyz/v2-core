@@ -24,6 +24,15 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         asset = _asset;
     }
 
+    function name() external pure override returns (string memory) {
+        return "Mock Hook";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Mock hook for testing";
+    }
+
     function setOverrideLastCaller(bool _overrideLastCaller) external {
         overrideLastCaller = _overrideLastCaller;
     }

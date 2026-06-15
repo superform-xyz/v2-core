@@ -42,6 +42,17 @@ contract BurnSuperPositionsHook is BaseHook, VaultBankLockableHook, ISuperHookIn
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.VAULT_BANK) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Burn SuperPositions";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Burns SuperPosition tokens to release vault shares";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

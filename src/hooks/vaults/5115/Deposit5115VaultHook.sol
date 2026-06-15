@@ -36,6 +36,17 @@ contract Deposit5115VaultHook is BaseHook, VaultBankLockableHook, ISuperHookInfl
 
     constructor() BaseHook(HookType.INFLOW, HookSubTypes.ERC5115) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Deposit ERC-5115 Vault";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Deposits assets into an ERC-5115 vault and receives shares";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

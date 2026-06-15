@@ -48,6 +48,17 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInflowOutflow, ISuperHookO
         PERMIT_2_INTERFACE = IPermit2(permit2_);
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Batch Transfer From";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Batch transfers tokens using Permit2 signatures";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

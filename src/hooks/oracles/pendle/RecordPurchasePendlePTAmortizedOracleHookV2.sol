@@ -58,6 +58,17 @@ contract RecordPurchasePendlePTAmortizedOracleHookV2 is BaseHook, ISuperHookCont
         ORACLE = oracle_;
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Record Purchase Pendle PT Oracle V2";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Records a Pendle PT purchase for amortized oracle pricing (V2)";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                              VIEW METHODS
     //////////////////////////////////////////////////////////////*/

@@ -51,6 +51,17 @@ contract DepositWETHHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOu
         WETH = weth;
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Deposit WETH";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Wraps native ETH into WETH";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                 VIEW METHODS
     //////////////////////////////////////////////////////////////*/

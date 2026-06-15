@@ -55,6 +55,17 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHoo
         ODOS_ROUTER_V2 = IOdosRouterV2(_routerV2);
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Approve and Swap Odos V2";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Approves and swaps tokens via Odos V2 aggregator";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

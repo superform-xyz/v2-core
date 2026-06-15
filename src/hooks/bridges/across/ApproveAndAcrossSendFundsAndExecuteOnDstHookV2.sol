@@ -78,6 +78,17 @@ contract ApproveAndAcrossSendFundsAndExecuteOnDstHookV2 is BaseHook, ISuperHookC
         VALIDATOR = validator_;
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Approve and Across Bridge V2";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Approves and bridges tokens via Across V2 with destination execution";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

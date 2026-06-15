@@ -41,6 +41,17 @@ contract ApproveAndRequestRedeemDETHHook is BaseHook, ISuperHookInflowOutflow, I
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.ERC4626) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Approve and Request Redeem DETH";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Approves and requests a redemption from a DETH vault";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

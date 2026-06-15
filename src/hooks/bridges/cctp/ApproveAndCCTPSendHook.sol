@@ -73,11 +73,22 @@ contract ApproveAndCCTPSendHook is BaseHook, ISuperHookContextAware, ISuperHookI
     /// @param validator_ The validator contract address for signature retrieval
     constructor(
         address tokenMessenger_,
+
         address validator_
     ) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
         if (tokenMessenger_ == address(0) || validator_ == address(0)) revert ADDRESS_NOT_VALID();
         TOKEN_MESSENGER = tokenMessenger_;
         VALIDATOR = validator_;
+    }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Approve and CCTP Send";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Approves and bridges USDC via Circle CCTP";
     }
 
     /*//////////////////////////////////////////////////////////////

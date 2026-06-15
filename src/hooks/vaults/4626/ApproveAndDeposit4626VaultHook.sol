@@ -43,6 +43,17 @@ contract ApproveAndDeposit4626VaultHook is
 
     constructor() BaseHook(HookType.INFLOW, HookSubTypes.ERC4626) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Approve and Deposit ERC-4626 Vault";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Approves and deposits assets into an ERC-4626 vault";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

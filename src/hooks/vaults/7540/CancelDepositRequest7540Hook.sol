@@ -21,6 +21,17 @@ contract CancelDepositRequest7540Hook is BaseHook {
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CANCEL_DEPOSIT_REQUEST) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Cancel Deposit Request ERC-7540";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Cancels a pending deposit request on an ERC-7540 vault";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

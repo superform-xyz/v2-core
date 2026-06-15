@@ -29,6 +29,17 @@ contract AaveV4SupplyHook is BaseAaveV4LoanHook {
 
     constructor() BaseAaveV4LoanHook(HookSubTypes.LOAN) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Aave V4 Supply";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Supplies assets to an Aave V4 lending pool";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/

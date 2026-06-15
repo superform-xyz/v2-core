@@ -38,6 +38,17 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookInflowOutflow, ISuperHoo
         GATEWAY_WALLET = gatewayWalletAddress;
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Circle Gateway Wallet";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Interacts with Circle Gateway wallet for cross-chain transfers";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

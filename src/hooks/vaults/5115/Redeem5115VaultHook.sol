@@ -36,6 +36,17 @@ contract Redeem5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOut
 
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ERC5115) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Redeem ERC-5115 Vault";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Redeems shares from an ERC-5115 vault for underlying assets";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

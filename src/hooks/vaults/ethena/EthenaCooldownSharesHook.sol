@@ -29,6 +29,17 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.COOLDOWN) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Ethena Cooldown Shares";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Initiates cooldown for Ethena staked shares";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

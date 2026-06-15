@@ -36,6 +36,17 @@ contract FluidClaimRewardHook is
 
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.CLAIM) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Fluid Claim Reward";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Claims reward tokens from Fluid protocol";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

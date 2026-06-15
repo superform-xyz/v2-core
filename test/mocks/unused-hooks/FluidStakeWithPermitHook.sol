@@ -31,6 +31,17 @@ contract FluidStakeWithPermitHook is BaseHook, ISuperHookInflowOutflow {
 
     constructor() BaseHook(HookType.INFLOW, "Stake") { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Fluid Stake with Permit";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Mock hook for testing";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

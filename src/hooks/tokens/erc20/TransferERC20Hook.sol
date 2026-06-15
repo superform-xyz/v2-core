@@ -30,6 +30,17 @@ contract TransferERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInflow
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Transfer ERC-20";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Transfers ERC-20 tokens to a recipient";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
