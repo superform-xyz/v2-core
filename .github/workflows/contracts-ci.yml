@@ -279,6 +279,34 @@ jobs:
           cat ./script/output/10/Optimism-latest.json | jq . >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
+  lint-manifest:
+    needs: ["build"]
+    runs-on: "SuperformCore3"
+    steps:
+      - name: "Check out the repo"
+        uses: "actions/checkout@v4"
+        with:
+          submodules: true
+
+      - name: "Install Python"
+        uses: "actions/setup-python@v5"
+        with:
+          python-version: "3.12"
+
+      - name: "Install Python dependencies"
+        run: pip install pyyaml
+
+      - name: "Generate hook manifest"
+        run: python3 tooling/generate_hook_manifest.py
+
+      - name: "Lint hook manifest"
+        run: python3 tooling/lint_hook_manifest.py
+
+      - name: "Add manifest lint summary"
+        run: |
+          echo "## Hook Manifest Lint" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
+
   coverage:
     runs-on: SuperformCore3
     needs: ["test"]

@@ -1,0 +1,6250 @@
+{
+  "$schema": "hook-manifest-v1",
+  "generatedAt": "2026-06-15T12:09:41Z",
+  "vocabulary": {
+    "intents": [
+      "deposit",
+      "withdraw",
+      "rewards",
+      "swap",
+      "bridge",
+      "stake",
+      "unstake",
+      "lend",
+      "borrow",
+      "repay",
+      "transfer",
+      "config",
+      "permissions"
+    ],
+    "stages": [
+      "instant",
+      "request",
+      "fulfill",
+      "claim",
+      "cancel"
+    ]
+  },
+  "hooks": {
+    "Deposit4626VaultHook": {
+      "name": "Deposit ERC-4626 Vault",
+      "description": "Deposits assets into an ERC-4626 vault and receives shares",
+      "hookType": "INFLOW",
+      "subtype": "ERC4626",
+      "actionTypes": [
+        {
+          "intent": "deposit",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xe3FFf64A14A38a5b082502779ae6f6a9a273b02C",
+          "999": "0xe3FFf64A14A38a5b082502779ae6f6a9a273b02C",
+          "8453": "0xe3FFf64A14A38a5b082502779ae6f6a9a273b02C",
+          "43114": "0xe3FFf64A14A38a5b082502779ae6f6a9a273b02C",
+          "1": "0xe3FFf64A14A38a5b082502779ae6f6a9a273b02C",
+          "42161": "0xe3FFf64A14A38a5b082502779ae6f6a9a273b02C",
+          "988": "0xe3FFf64A14A38a5b082502779ae6f6a9a273b02C",
+          "14": "0xe3FFf64A14A38a5b082502779ae6f6a9a273b02C"
+        },
+        "prod": {
+          "56": "0xa067037B29431C1ff23dEB9b10CC8a1669B0698E",
+          "999": "0xa067037B29431C1ff23dEB9b10CC8a1669B0698E",
+          "8453": "0xa067037B29431C1ff23dEB9b10CC8a1669B0698E",
+          "80094": "0xa067037B29431C1ff23dEB9b10CC8a1669B0698E",
+          "43114": "0xa067037B29431C1ff23dEB9b10CC8a1669B0698E",
+          "1": "0xa067037B29431C1ff23dEB9b10CC8a1669B0698E",
+          "10": "0xa067037B29431C1ff23dEB9b10CC8a1669B0698E",
+          "100": "0xa067037B29431C1ff23dEB9b10CC8a1669B0698E",
+          "137": "0xa067037B29431C1ff23dEB9b10CC8a1669B0698E",
+          "130": "0xa067037B29431C1ff23dEB9b10CC8a1669B0698E",
+          "42161": "0xa067037B29431C1ff23dEB9b10CC8a1669B0698E",
+          "480": "0xa067037B29431C1ff23dEB9b10CC8a1669B0698E",
+          "146": "0xa067037B29431C1ff23dEB9b10CC8a1669B0698E",
+          "988": "0xa067037B29431C1ff23dEB9b10CC8a1669B0698E",
+          "14": "0xa067037B29431C1ff23dEB9b10CC8a1669B0698E"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "ApproveAndDeposit4626VaultHook": {
+      "name": "Approve and Deposit ERC-4626 Vault",
+      "description": "Approves and deposits assets into an ERC-4626 vault",
+      "hookType": "INFLOW",
+      "subtype": "ERC4626",
+      "actionTypes": [
+        {
+          "intent": "deposit",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4",
+          "999": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4",
+          "8453": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4",
+          "43114": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4",
+          "1": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4",
+          "42161": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4",
+          "988": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4",
+          "14": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4"
+        },
+        "prod": {
+          "56": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
+          "999": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
+          "8453": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
+          "80094": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
+          "43114": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
+          "1": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
+          "10": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
+          "100": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
+          "137": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
+          "130": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
+          "42161": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
+          "480": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
+          "146": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
+          "988": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86",
+          "14": "0xF37535D96712FBaEf6D868e721E7b987ad1E6A86"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "Deposit5115VaultHook": {
+      "name": "Deposit ERC-5115 Vault",
+      "description": "Deposits assets into an ERC-5115 vault and receives shares",
+      "hookType": "INFLOW",
+      "subtype": "ERC5115",
+      "actionTypes": [
+        {
+          "intent": "deposit",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x153B77421C844005C9af67cCA8A0469F814e10f8",
+          "999": "0x153B77421C844005C9af67cCA8A0469F814e10f8",
+          "8453": "0x153B77421C844005C9af67cCA8A0469F814e10f8",
+          "43114": "0x153B77421C844005C9af67cCA8A0469F814e10f8",
+          "1": "0x153B77421C844005C9af67cCA8A0469F814e10f8",
+          "42161": "0x153B77421C844005C9af67cCA8A0469F814e10f8",
+          "988": "0x153B77421C844005C9af67cCA8A0469F814e10f8",
+          "14": "0x153B77421C844005C9af67cCA8A0469F814e10f8"
+        },
+        "prod": {
+          "56": "0x32209A2302865784bC1Dc0bd3C55D0A6eB205851",
+          "999": "0x32209A2302865784bC1Dc0bd3C55D0A6eB205851",
+          "8453": "0x32209A2302865784bC1Dc0bd3C55D0A6eB205851",
+          "80094": "0x32209A2302865784bC1Dc0bd3C55D0A6eB205851",
+          "43114": "0x32209A2302865784bC1Dc0bd3C55D0A6eB205851",
+          "1": "0x32209A2302865784bC1Dc0bd3C55D0A6eB205851",
+          "10": "0x32209A2302865784bC1Dc0bd3C55D0A6eB205851",
+          "100": "0x32209A2302865784bC1Dc0bd3C55D0A6eB205851",
+          "137": "0x32209A2302865784bC1Dc0bd3C55D0A6eB205851",
+          "130": "0x32209A2302865784bC1Dc0bd3C55D0A6eB205851",
+          "42161": "0x32209A2302865784bC1Dc0bd3C55D0A6eB205851",
+          "480": "0x32209A2302865784bC1Dc0bd3C55D0A6eB205851",
+          "146": "0x32209A2302865784bC1Dc0bd3C55D0A6eB205851",
+          "988": "0x32209A2302865784bC1Dc0bd3C55D0A6eB205851",
+          "14": "0x32209A2302865784bC1Dc0bd3C55D0A6eB205851"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "ApproveAndDeposit5115VaultHook": {
+      "name": "Approve and Deposit ERC-5115 Vault",
+      "description": "Approves and deposits assets into an ERC-5115 vault",
+      "hookType": "INFLOW",
+      "subtype": "ERC5115",
+      "actionTypes": [
+        {
+          "intent": "deposit",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xDc997F44693d865C68d2321E41716Bdc098016ee",
+          "999": "0xDc997F44693d865C68d2321E41716Bdc098016ee",
+          "8453": "0xDc997F44693d865C68d2321E41716Bdc098016ee",
+          "43114": "0xDc997F44693d865C68d2321E41716Bdc098016ee",
+          "1": "0xDc997F44693d865C68d2321E41716Bdc098016ee",
+          "42161": "0xDc997F44693d865C68d2321E41716Bdc098016ee",
+          "988": "0xDc997F44693d865C68d2321E41716Bdc098016ee",
+          "14": "0xDc997F44693d865C68d2321E41716Bdc098016ee"
+        },
+        "prod": {
+          "56": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
+          "999": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
+          "8453": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
+          "80094": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
+          "43114": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
+          "1": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
+          "10": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
+          "100": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
+          "137": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
+          "130": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
+          "42161": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
+          "480": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
+          "146": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
+          "988": "0x44c7a40f05771FdAEAee61f36902D95cbf593988",
+          "14": "0x44c7a40f05771FdAEAee61f36902D95cbf593988"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "RequestDeposit7540VaultHook": {
+      "name": "Request Deposit ERC-7540 Vault",
+      "description": "Requests a deposit into an ERC-7540 async vault",
+      "hookType": "NONACCOUNTING",
+      "subtype": "ERC7540",
+      "actionTypes": [
+        {
+          "intent": "deposit",
+          "stage": "request"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
+          "999": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
+          "8453": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
+          "43114": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
+          "1": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
+          "42161": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
+          "988": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c",
+          "14": "0x01Af8d98DDA6310D8aE91af7439E1b5836ad3d9c"
+        },
+        "prod": {
+          "56": "0xBE7738b26992a322D53edEb9a39331Bf11b60097",
+          "999": "0xBE7738b26992a322D53edEb9a39331Bf11b60097",
+          "8453": "0xBE7738b26992a322D53edEb9a39331Bf11b60097",
+          "80094": "0xBE7738b26992a322D53edEb9a39331Bf11b60097",
+          "43114": "0xBE7738b26992a322D53edEb9a39331Bf11b60097",
+          "1": "0xBE7738b26992a322D53edEb9a39331Bf11b60097",
+          "10": "0xBE7738b26992a322D53edEb9a39331Bf11b60097",
+          "100": "0xBE7738b26992a322D53edEb9a39331Bf11b60097",
+          "137": "0xBE7738b26992a322D53edEb9a39331Bf11b60097",
+          "130": "0xBE7738b26992a322D53edEb9a39331Bf11b60097",
+          "42161": "0xBE7738b26992a322D53edEb9a39331Bf11b60097",
+          "480": "0xBE7738b26992a322D53edEb9a39331Bf11b60097",
+          "146": "0xBE7738b26992a322D53edEb9a39331Bf11b60097",
+          "988": "0xBE7738b26992a322D53edEb9a39331Bf11b60097",
+          "14": "0xBE7738b26992a322D53edEb9a39331Bf11b60097"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "ApproveAndRequestDeposit7540VaultHook": {
+      "name": "Approve and Request Deposit ERC-7540 Vault",
+      "description": "Approves and requests a deposit into an ERC-7540 async vault",
+      "hookType": "NONACCOUNTING",
+      "subtype": "ERC7540",
+      "actionTypes": [
+        {
+          "intent": "deposit",
+          "stage": "request"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xef56121Af8553C0a534052b6305301E414E79c41",
+          "999": "0xef56121Af8553C0a534052b6305301E414E79c41",
+          "8453": "0xef56121Af8553C0a534052b6305301E414E79c41",
+          "43114": "0xef56121Af8553C0a534052b6305301E414E79c41",
+          "1": "0xef56121Af8553C0a534052b6305301E414E79c41",
+          "42161": "0xef56121Af8553C0a534052b6305301E414E79c41",
+          "988": "0xef56121Af8553C0a534052b6305301E414E79c41",
+          "14": "0xef56121Af8553C0a534052b6305301E414E79c41"
+        },
+        "prod": {
+          "56": "0x840B2b0553683dE46c5e6382D1a405f44773b43F",
+          "999": "0x840B2b0553683dE46c5e6382D1a405f44773b43F",
+          "8453": "0x840B2b0553683dE46c5e6382D1a405f44773b43F",
+          "80094": "0x840B2b0553683dE46c5e6382D1a405f44773b43F",
+          "43114": "0x840B2b0553683dE46c5e6382D1a405f44773b43F",
+          "1": "0x840B2b0553683dE46c5e6382D1a405f44773b43F",
+          "10": "0x840B2b0553683dE46c5e6382D1a405f44773b43F",
+          "100": "0x840B2b0553683dE46c5e6382D1a405f44773b43F",
+          "137": "0x840B2b0553683dE46c5e6382D1a405f44773b43F",
+          "130": "0x840B2b0553683dE46c5e6382D1a405f44773b43F",
+          "42161": "0x840B2b0553683dE46c5e6382D1a405f44773b43F",
+          "480": "0x840B2b0553683dE46c5e6382D1a405f44773b43F",
+          "146": "0x840B2b0553683dE46c5e6382D1a405f44773b43F",
+          "988": "0x840B2b0553683dE46c5e6382D1a405f44773b43F",
+          "14": "0x840B2b0553683dE46c5e6382D1a405f44773b43F"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "Deposit7540VaultHook": {
+      "name": "Deposit ERC-7540 Vault",
+      "description": "Deposits assets into an ERC-7540 async vault",
+      "hookType": "INFLOW",
+      "subtype": "ERC7540",
+      "actionTypes": [
+        {
+          "intent": "deposit",
+          "stage": "fulfill"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xBDF724DA1928988F2891B9B565460161968Fc9d7",
+          "999": "0xBDF724DA1928988F2891B9B565460161968Fc9d7",
+          "8453": "0xBDF724DA1928988F2891B9B565460161968Fc9d7",
+          "43114": "0xBDF724DA1928988F2891B9B565460161968Fc9d7",
+          "1": "0xBDF724DA1928988F2891B9B565460161968Fc9d7",
+          "42161": "0xBDF724DA1928988F2891B9B565460161968Fc9d7",
+          "988": "0xBDF724DA1928988F2891B9B565460161968Fc9d7",
+          "14": "0xBDF724DA1928988F2891B9B565460161968Fc9d7"
+        },
+        "prod": {
+          "56": "0x0aB1b12E090775fA67DF6e1b44DFAEe676C1DC84",
+          "999": "0x0aB1b12E090775fA67DF6e1b44DFAEe676C1DC84",
+          "8453": "0x0aB1b12E090775fA67DF6e1b44DFAEe676C1DC84",
+          "80094": "0x0aB1b12E090775fA67DF6e1b44DFAEe676C1DC84",
+          "43114": "0x0aB1b12E090775fA67DF6e1b44DFAEe676C1DC84",
+          "1": "0x0aB1b12E090775fA67DF6e1b44DFAEe676C1DC84",
+          "10": "0x0aB1b12E090775fA67DF6e1b44DFAEe676C1DC84",
+          "100": "0x0aB1b12E090775fA67DF6e1b44DFAEe676C1DC84",
+          "137": "0x0aB1b12E090775fA67DF6e1b44DFAEe676C1DC84",
+          "130": "0x0aB1b12E090775fA67DF6e1b44DFAEe676C1DC84",
+          "42161": "0x0aB1b12E090775fA67DF6e1b44DFAEe676C1DC84",
+          "480": "0x0aB1b12E090775fA67DF6e1b44DFAEe676C1DC84",
+          "146": "0x0aB1b12E090775fA67DF6e1b44DFAEe676C1DC84",
+          "988": "0x0aB1b12E090775fA67DF6e1b44DFAEe676C1DC84",
+          "14": "0x0aB1b12E090775fA67DF6e1b44DFAEe676C1DC84"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "CancelDepositRequest7540Hook": {
+      "name": "Cancel Deposit Request ERC-7540",
+      "description": "Cancels a pending deposit request on an ERC-7540 vault",
+      "hookType": "NONACCOUNTING",
+      "subtype": "CANCEL_DEPOSIT_REQUEST",
+      "actionTypes": [
+        {
+          "intent": "deposit",
+          "stage": "cancel"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
+          "999": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
+          "8453": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
+          "43114": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
+          "1": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
+          "42161": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
+          "988": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
+          "14": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7"
+        },
+        "prod": {
+          "56": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
+          "999": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
+          "8453": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
+          "80094": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
+          "43114": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
+          "1": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
+          "10": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
+          "100": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
+          "137": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
+          "130": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
+          "42161": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
+          "480": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
+          "146": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
+          "988": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
+          "14": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "CancelDepositRequestWithId7540Hook": {
+      "name": "Cancel Deposit Request with ID ERC-7540",
+      "description": "Cancels a pending deposit request on an ERC-7540 vault using a request ID",
+      "hookType": "NONACCOUNTING",
+      "subtype": "CANCEL_DEPOSIT_REQUEST",
+      "actionTypes": [
+        {
+          "intent": "deposit",
+          "stage": "cancel"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x6EE2299ddB4Cc2579C8Db13f5D28720203d6aB9E",
+          "999": "0x6EE2299ddB4Cc2579C8Db13f5D28720203d6aB9E",
+          "8453": "0x6EE2299ddB4Cc2579C8Db13f5D28720203d6aB9E",
+          "43114": "0x6EE2299ddB4Cc2579C8Db13f5D28720203d6aB9E",
+          "1": "0x6EE2299ddB4Cc2579C8Db13f5D28720203d6aB9E",
+          "42161": "0x6EE2299ddB4Cc2579C8Db13f5D28720203d6aB9E",
+          "988": "0x6EE2299ddB4Cc2579C8Db13f5D28720203d6aB9E",
+          "14": "0x6EE2299ddB4Cc2579C8Db13f5D28720203d6aB9E"
+        },
+        "prod": {
+          "56": "0x1E128aa3aFec70fdeFf28881e6a7A0f1433E894C",
+          "999": "0x1E128aa3aFec70fdeFf28881e6a7A0f1433E894C",
+          "8453": "0x1E128aa3aFec70fdeFf28881e6a7A0f1433E894C",
+          "80094": "0x1E128aa3aFec70fdeFf28881e6a7A0f1433E894C",
+          "43114": "0x1E128aa3aFec70fdeFf28881e6a7A0f1433E894C",
+          "1": "0x1E128aa3aFec70fdeFf28881e6a7A0f1433E894C",
+          "10": "0x1E128aa3aFec70fdeFf28881e6a7A0f1433E894C",
+          "100": "0x1E128aa3aFec70fdeFf28881e6a7A0f1433E894C",
+          "137": "0x1E128aa3aFec70fdeFf28881e6a7A0f1433E894C",
+          "130": "0x1E128aa3aFec70fdeFf28881e6a7A0f1433E894C",
+          "42161": "0x1E128aa3aFec70fdeFf28881e6a7A0f1433E894C",
+          "480": "0x1E128aa3aFec70fdeFf28881e6a7A0f1433E894C",
+          "146": "0x1E128aa3aFec70fdeFf28881e6a7A0f1433E894C",
+          "988": "0x1E128aa3aFec70fdeFf28881e6a7A0f1433E894C",
+          "14": "0x1E128aa3aFec70fdeFf28881e6a7A0f1433E894C"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "ClaimCancelDepositRequest7540Hook": {
+      "name": "Claim Cancel Deposit Request ERC-7540",
+      "description": "Claims assets from a cancelled deposit request on an ERC-7540 vault",
+      "hookType": "NONACCOUNTING",
+      "subtype": "CLAIM_CANCEL_DEPOSIT_REQUEST",
+      "actionTypes": [
+        {
+          "intent": "deposit",
+          "stage": "claim"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x0B515b1344cb9bAe3205B1c846a9a8C942Ef41b0",
+          "999": "0x0B515b1344cb9bAe3205B1c846a9a8C942Ef41b0",
+          "8453": "0x0B515b1344cb9bAe3205B1c846a9a8C942Ef41b0",
+          "43114": "0x0B515b1344cb9bAe3205B1c846a9a8C942Ef41b0",
+          "1": "0x0B515b1344cb9bAe3205B1c846a9a8C942Ef41b0",
+          "42161": "0x0B515b1344cb9bAe3205B1c846a9a8C942Ef41b0",
+          "988": "0x0B515b1344cb9bAe3205B1c846a9a8C942Ef41b0",
+          "14": "0x0B515b1344cb9bAe3205B1c846a9a8C942Ef41b0"
+        },
+        "prod": {
+          "56": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
+          "999": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
+          "8453": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
+          "80094": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
+          "43114": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
+          "1": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
+          "10": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
+          "100": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
+          "137": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
+          "130": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
+          "42161": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
+          "480": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
+          "146": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
+          "988": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
+          "14": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "ClaimCancelDepositRequestWithId7540Hook": {
+      "name": "Claim Cancel Deposit Request with ID ERC-7540",
+      "description": "Claims assets from a cancelled deposit request on an ERC-7540 vault using a request ID",
+      "hookType": "NONACCOUNTING",
+      "subtype": "CLAIM_CANCEL_DEPOSIT_REQUEST",
+      "actionTypes": [
+        {
+          "intent": "deposit",
+          "stage": "claim"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x91D1dEb29Bae6f0F78670dCa00D58C0dB3813879",
+          "999": "0x91D1dEb29Bae6f0F78670dCa00D58C0dB3813879",
+          "8453": "0x91D1dEb29Bae6f0F78670dCa00D58C0dB3813879",
+          "43114": "0x91D1dEb29Bae6f0F78670dCa00D58C0dB3813879",
+          "1": "0x91D1dEb29Bae6f0F78670dCa00D58C0dB3813879",
+          "42161": "0x91D1dEb29Bae6f0F78670dCa00D58C0dB3813879",
+          "988": "0x91D1dEb29Bae6f0F78670dCa00D58C0dB3813879",
+          "14": "0x91D1dEb29Bae6f0F78670dCa00D58C0dB3813879"
+        },
+        "prod": {
+          "56": "0xcfD5eC190302651060A931143c8C31D6a3130233",
+          "999": "0xcfD5eC190302651060A931143c8C31D6a3130233",
+          "8453": "0xcfD5eC190302651060A931143c8C31D6a3130233",
+          "80094": "0xcfD5eC190302651060A931143c8C31D6a3130233",
+          "43114": "0xcfD5eC190302651060A931143c8C31D6a3130233",
+          "1": "0xcfD5eC190302651060A931143c8C31D6a3130233",
+          "10": "0xcfD5eC190302651060A931143c8C31D6a3130233",
+          "100": "0xcfD5eC190302651060A931143c8C31D6a3130233",
+          "137": "0xcfD5eC190302651060A931143c8C31D6a3130233",
+          "130": "0xcfD5eC190302651060A931143c8C31D6a3130233",
+          "42161": "0xcfD5eC190302651060A931143c8C31D6a3130233",
+          "480": "0xcfD5eC190302651060A931143c8C31D6a3130233",
+          "146": "0xcfD5eC190302651060A931143c8C31D6a3130233",
+          "988": "0xcfD5eC190302651060A931143c8C31D6a3130233",
+          "14": "0xcfD5eC190302651060A931143c8C31D6a3130233"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "Redeem4626VaultHook": {
+      "name": "Redeem ERC-4626 Vault",
+      "description": "Redeems shares from an ERC-4626 vault for underlying assets",
+      "hookType": "OUTFLOW",
+      "subtype": "ERC4626",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xB10b1fCE2E4B24C5A988A9932d4Cf9DB37Ba0394",
+          "999": "0xB10b1fCE2E4B24C5A988A9932d4Cf9DB37Ba0394",
+          "8453": "0xB10b1fCE2E4B24C5A988A9932d4Cf9DB37Ba0394",
+          "43114": "0xB10b1fCE2E4B24C5A988A9932d4Cf9DB37Ba0394",
+          "1": "0xB10b1fCE2E4B24C5A988A9932d4Cf9DB37Ba0394",
+          "42161": "0xB10b1fCE2E4B24C5A988A9932d4Cf9DB37Ba0394",
+          "988": "0xB10b1fCE2E4B24C5A988A9932d4Cf9DB37Ba0394",
+          "14": "0xB10b1fCE2E4B24C5A988A9932d4Cf9DB37Ba0394"
+        },
+        "prod": {
+          "56": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69",
+          "999": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69",
+          "8453": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69",
+          "80094": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69",
+          "43114": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69",
+          "1": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69",
+          "10": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69",
+          "100": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69",
+          "137": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69",
+          "130": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69",
+          "42161": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69",
+          "480": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69",
+          "146": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69",
+          "988": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69",
+          "14": "0x5c3edf3F7c43828Bb72a668e2B29f9e2D9Af5A69"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "Redeem5115VaultHook": {
+      "name": "Redeem ERC-5115 Vault",
+      "description": "Redeems shares from an ERC-5115 vault for underlying assets",
+      "hookType": "OUTFLOW",
+      "subtype": "ERC5115",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x421aE0BB3C201959D0B152a87d56BCdB2Ee1cF63",
+          "999": "0x421aE0BB3C201959D0B152a87d56BCdB2Ee1cF63",
+          "8453": "0x421aE0BB3C201959D0B152a87d56BCdB2Ee1cF63",
+          "43114": "0x421aE0BB3C201959D0B152a87d56BCdB2Ee1cF63",
+          "1": "0x421aE0BB3C201959D0B152a87d56BCdB2Ee1cF63",
+          "42161": "0x421aE0BB3C201959D0B152a87d56BCdB2Ee1cF63",
+          "988": "0x421aE0BB3C201959D0B152a87d56BCdB2Ee1cF63",
+          "14": "0x421aE0BB3C201959D0B152a87d56BCdB2Ee1cF63"
+        },
+        "prod": {
+          "56": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5",
+          "999": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5",
+          "8453": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5",
+          "80094": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5",
+          "43114": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5",
+          "1": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5",
+          "10": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5",
+          "100": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5",
+          "137": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5",
+          "130": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5",
+          "42161": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5",
+          "480": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5",
+          "146": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5",
+          "988": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5",
+          "14": "0x6aB1fD107825F9bB3E079d23508A07486b44e6F5"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "Redeem7540VaultHook": {
+      "name": "Redeem ERC-7540 Vault",
+      "description": "Redeems shares from an ERC-7540 async vault",
+      "hookType": "OUTFLOW",
+      "subtype": "ERC7540",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xCa50aB0375b774B2DE12919423Dd0B8e8cAad95f",
+          "999": "0xCa50aB0375b774B2DE12919423Dd0B8e8cAad95f",
+          "8453": "0xCa50aB0375b774B2DE12919423Dd0B8e8cAad95f",
+          "43114": "0xCa50aB0375b774B2DE12919423Dd0B8e8cAad95f",
+          "1": "0xCa50aB0375b774B2DE12919423Dd0B8e8cAad95f",
+          "42161": "0xCa50aB0375b774B2DE12919423Dd0B8e8cAad95f",
+          "988": "0xCa50aB0375b774B2DE12919423Dd0B8e8cAad95f",
+          "14": "0xCa50aB0375b774B2DE12919423Dd0B8e8cAad95f"
+        },
+        "prod": {
+          "56": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
+          "999": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
+          "8453": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
+          "80094": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
+          "43114": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
+          "1": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
+          "10": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
+          "100": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
+          "137": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
+          "130": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
+          "42161": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
+          "480": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
+          "146": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
+          "988": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
+          "14": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "RedeemWithId7540VaultHook": {
+      "name": "Redeem with ID ERC-7540 Vault",
+      "description": "Redeems shares from an ERC-7540 async vault using a request ID",
+      "hookType": "OUTFLOW",
+      "subtype": "ERC7540",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x53d833050721d0cDB2cBd0f5693f92746FAbE3F6",
+          "999": "0x53d833050721d0cDB2cBd0f5693f92746FAbE3F6",
+          "8453": "0x53d833050721d0cDB2cBd0f5693f92746FAbE3F6",
+          "43114": "0x53d833050721d0cDB2cBd0f5693f92746FAbE3F6",
+          "1": "0x53d833050721d0cDB2cBd0f5693f92746FAbE3F6",
+          "42161": "0x53d833050721d0cDB2cBd0f5693f92746FAbE3F6",
+          "988": "0x53d833050721d0cDB2cBd0f5693f92746FAbE3F6",
+          "14": "0x53d833050721d0cDB2cBd0f5693f92746FAbE3F6"
+        },
+        "prod": {
+          "56": "0x61806b698E922348390aa040590FB70edd3A4d31",
+          "999": "0x61806b698E922348390aa040590FB70edd3A4d31",
+          "8453": "0x61806b698E922348390aa040590FB70edd3A4d31",
+          "80094": "0x61806b698E922348390aa040590FB70edd3A4d31",
+          "43114": "0x61806b698E922348390aa040590FB70edd3A4d31",
+          "1": "0x61806b698E922348390aa040590FB70edd3A4d31",
+          "10": "0x61806b698E922348390aa040590FB70edd3A4d31",
+          "100": "0x61806b698E922348390aa040590FB70edd3A4d31",
+          "137": "0x61806b698E922348390aa040590FB70edd3A4d31",
+          "130": "0x61806b698E922348390aa040590FB70edd3A4d31",
+          "42161": "0x61806b698E922348390aa040590FB70edd3A4d31",
+          "480": "0x61806b698E922348390aa040590FB70edd3A4d31",
+          "146": "0x61806b698E922348390aa040590FB70edd3A4d31",
+          "988": "0x61806b698E922348390aa040590FB70edd3A4d31",
+          "14": "0x61806b698E922348390aa040590FB70edd3A4d31"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "Withdraw7540VaultHook": {
+      "name": "Withdraw ERC-7540 Vault",
+      "description": "Withdraws assets from an ERC-7540 async vault",
+      "hookType": "OUTFLOW",
+      "subtype": "ERC7540",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x299912843Df875b21094c5551880C7CaB6277d31",
+          "999": "0x299912843Df875b21094c5551880C7CaB6277d31",
+          "8453": "0x299912843Df875b21094c5551880C7CaB6277d31",
+          "43114": "0x299912843Df875b21094c5551880C7CaB6277d31",
+          "1": "0x299912843Df875b21094c5551880C7CaB6277d31",
+          "42161": "0x299912843Df875b21094c5551880C7CaB6277d31",
+          "14": "0x299912843Df875b21094c5551880C7CaB6277d31"
+        },
+        "prod": {
+          "56": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
+          "999": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
+          "8453": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
+          "80094": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
+          "43114": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
+          "1": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
+          "10": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
+          "100": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
+          "137": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
+          "130": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
+          "42161": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
+          "480": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
+          "146": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
+          "14": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "WithdrawWithId7540VaultHook": {
+      "name": "Withdraw with ID ERC-7540 Vault",
+      "description": "Withdraws assets from an ERC-7540 async vault using a request ID",
+      "hookType": "OUTFLOW",
+      "subtype": "ERC7540",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x077aBdC3310668636448cF5505707990005AbF17",
+          "999": "0x077aBdC3310668636448cF5505707990005AbF17",
+          "8453": "0x077aBdC3310668636448cF5505707990005AbF17",
+          "43114": "0x077aBdC3310668636448cF5505707990005AbF17",
+          "1": "0x077aBdC3310668636448cF5505707990005AbF17",
+          "42161": "0x077aBdC3310668636448cF5505707990005AbF17",
+          "988": "0x077aBdC3310668636448cF5505707990005AbF17",
+          "14": "0x077aBdC3310668636448cF5505707990005AbF17"
+        },
+        "prod": {
+          "56": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
+          "999": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
+          "8453": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
+          "80094": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
+          "43114": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
+          "1": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
+          "10": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
+          "100": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
+          "137": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
+          "130": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
+          "42161": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
+          "480": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
+          "146": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
+          "988": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
+          "14": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "MorphoWithdrawHook": {
+      "name": "Morpho Withdraw",
+      "description": "Withdraws collateral from a Morpho market",
+      "hookType": "NONACCOUNTING",
+      "subtype": "LOAN_REPAY",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized",
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xa6270787f4a7eF9826469069529075cC4057CAFb",
+          "8453": "0xF23dE24Da35a54429861cb96ADB05d364F5B6a4a",
+          "1": "0xF23dE24Da35a54429861cb96ADB05d364F5B6a4a",
+          "42161": "0xc94bFEB35E6c43929f08b54a3eCFc31dd8FE518e"
+        },
+        "prod": {
+          "56": "0x15c75c455cae4d1756eF38aB50E0Fb926aBD9ab1",
+          "8453": "0x2E80aace37Fb7A9C858B9398f23Dd3e771D52B22",
+          "1": "0x2E80aace37Fb7A9C858B9398f23Dd3e771D52B22",
+          "42161": "0x4597b7e2559CE49aFfD430ADfd8A0a0fD959CEB6"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ]
+      }
+    },
+    "AaveV4WithdrawHook": {
+      "name": "Aave V4 Withdraw",
+      "description": "Withdraws assets from an Aave V4 lending pool",
+      "hookType": "NONACCOUNTING",
+      "subtype": "LOAN_REPAY",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "1": "0xE91c603d32dEd7cE95BC21f36A321cF30dE43463"
+        },
+        "prod": {
+          "1": "0xCdD698531DC2B40340Fa918604d9ef890D1F40D7"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1"
+        ],
+        "prod": [
+          "1"
+        ]
+      }
+    },
+    "RequestRedeem7540VaultHook": {
+      "name": "Request Redeem ERC-7540 Vault",
+      "description": "Requests a redemption from an ERC-7540 async vault",
+      "hookType": "NONACCOUNTING",
+      "subtype": "ERC7540",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "request"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
+          "999": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
+          "8453": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
+          "43114": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
+          "1": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
+          "42161": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
+          "988": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0",
+          "14": "0xd9f7c658d3ec52E02e4402fE87e48A36cb9E0dC0"
+        },
+        "prod": {
+          "56": "0x9c21c130aCF3EADd781AE79d75FF5fC4Bd216797",
+          "999": "0x9c21c130aCF3EADd781AE79d75FF5fC4Bd216797",
+          "8453": "0x9c21c130aCF3EADd781AE79d75FF5fC4Bd216797",
+          "80094": "0x9c21c130aCF3EADd781AE79d75FF5fC4Bd216797",
+          "43114": "0x9c21c130aCF3EADd781AE79d75FF5fC4Bd216797",
+          "1": "0x9c21c130aCF3EADd781AE79d75FF5fC4Bd216797",
+          "10": "0x9c21c130aCF3EADd781AE79d75FF5fC4Bd216797",
+          "100": "0x9c21c130aCF3EADd781AE79d75FF5fC4Bd216797",
+          "137": "0x9c21c130aCF3EADd781AE79d75FF5fC4Bd216797",
+          "130": "0x9c21c130aCF3EADd781AE79d75FF5fC4Bd216797",
+          "42161": "0x9c21c130aCF3EADd781AE79d75FF5fC4Bd216797",
+          "480": "0x9c21c130aCF3EADd781AE79d75FF5fC4Bd216797",
+          "146": "0x9c21c130aCF3EADd781AE79d75FF5fC4Bd216797",
+          "988": "0x9c21c130aCF3EADd781AE79d75FF5fC4Bd216797",
+          "14": "0x9c21c130aCF3EADd781AE79d75FF5fC4Bd216797"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "RequestRedeemDETHHook": {
+      "name": "Request Redeem DETH",
+      "description": "Requests a redemption from a DETH vault",
+      "hookType": "NONACCOUNTING",
+      "subtype": "ERC4626",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "request"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "1": "0x512cd0c602707A47A6783808db7366F4038e83Bc"
+        },
+        "prod": {
+          "1": "0xBda834CE23daDf9F51e2f17bF80e533756b65B53"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1"
+        ],
+        "prod": [
+          "1"
+        ]
+      }
+    },
+    "ApproveAndRequestRedeemDETHHook": {
+      "name": "Approve and Request Redeem DETH",
+      "description": "Approves and requests a redemption from a DETH vault",
+      "hookType": "NONACCOUNTING",
+      "subtype": "ERC4626",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "request"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "1": "0x9fD101A8F416703B3D973878594f48eaeC292B24"
+        },
+        "prod": {
+          "1": "0x7cE57D97667F07483a8dB7Ce50B13629beb46b10"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1"
+        ],
+        "prod": [
+          "1"
+        ]
+      }
+    },
+    "RedeemFirelightVaultHook": {
+      "name": "Redeem Firelight Vault",
+      "description": "Redeems shares from a Firelight vault",
+      "hookType": "NONACCOUNTING",
+      "subtype": "ERC4626",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "request"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "14": "0xc36Cd531554a5Fa8579Cf6Cd5f845c837fa24c79"
+        },
+        "prod": {
+          "14": "0x27CD9F9227bb21E4e365ef47F70C73d6B3fF830e"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "14"
+        ],
+        "prod": [
+          "14"
+        ]
+      }
+    },
+    "EthenaCooldownSharesHook": {
+      "name": "Ethena Cooldown Shares",
+      "description": "Initiates cooldown for Ethena staked shares",
+      "hookType": "NONACCOUNTING",
+      "subtype": "COOLDOWN",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "request"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xA1BD126da3d2830fe19eA93c0872aF433B7c04f7",
+          "999": "0xA1BD126da3d2830fe19eA93c0872aF433B7c04f7",
+          "8453": "0xA1BD126da3d2830fe19eA93c0872aF433B7c04f7",
+          "43114": "0xA1BD126da3d2830fe19eA93c0872aF433B7c04f7",
+          "1": "0xA1BD126da3d2830fe19eA93c0872aF433B7c04f7",
+          "42161": "0xA1BD126da3d2830fe19eA93c0872aF433B7c04f7",
+          "988": "0xA1BD126da3d2830fe19eA93c0872aF433B7c04f7",
+          "14": "0xA1BD126da3d2830fe19eA93c0872aF433B7c04f7"
+        },
+        "prod": {
+          "56": "0x1bD7698cc3E3f4cCF5D6CBC74a611bdDEaB18aeF",
+          "999": "0x1bD7698cc3E3f4cCF5D6CBC74a611bdDEaB18aeF",
+          "8453": "0x1bD7698cc3E3f4cCF5D6CBC74a611bdDEaB18aeF",
+          "80094": "0x1bD7698cc3E3f4cCF5D6CBC74a611bdDEaB18aeF",
+          "43114": "0x1bD7698cc3E3f4cCF5D6CBC74a611bdDEaB18aeF",
+          "1": "0x1bD7698cc3E3f4cCF5D6CBC74a611bdDEaB18aeF",
+          "10": "0x1bD7698cc3E3f4cCF5D6CBC74a611bdDEaB18aeF",
+          "100": "0x1bD7698cc3E3f4cCF5D6CBC74a611bdDEaB18aeF",
+          "137": "0x1bD7698cc3E3f4cCF5D6CBC74a611bdDEaB18aeF",
+          "130": "0x1bD7698cc3E3f4cCF5D6CBC74a611bdDEaB18aeF",
+          "42161": "0x1bD7698cc3E3f4cCF5D6CBC74a611bdDEaB18aeF",
+          "480": "0x1bD7698cc3E3f4cCF5D6CBC74a611bdDEaB18aeF",
+          "146": "0x1bD7698cc3E3f4cCF5D6CBC74a611bdDEaB18aeF",
+          "988": "0x1bD7698cc3E3f4cCF5D6CBC74a611bdDEaB18aeF",
+          "14": "0x1bD7698cc3E3f4cCF5D6CBC74a611bdDEaB18aeF"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "ClaimAssetsDETHHook": {
+      "name": "Claim Assets DETH",
+      "description": "Claims redeemed assets from a DETH vault",
+      "hookType": "OUTFLOW",
+      "subtype": "ERC4626",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "fulfill"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "1": "0xA6D7f9945987C502d77f15c7C5565B57D60a7cB1"
+        },
+        "prod": {
+          "1": "0x8e92324FC317f79276409EE519E9B40A67eBE53d"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1"
+        ],
+        "prod": [
+          "1"
+        ]
+      }
+    },
+    "ClaimWithdrawFirelightVaultHook": {
+      "name": "Claim Withdraw Firelight Vault",
+      "description": "Claims withdrawn assets from a Firelight vault",
+      "hookType": "OUTFLOW",
+      "subtype": "ERC4626",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "fulfill"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "14": "0x4e371E2c950ADf9D4c7830438A51bBD703dB7f36"
+        },
+        "prod": {
+          "14": "0x3dc975922951A533DE85F82b1C3aFeCe41d0DE7b"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "14"
+        ],
+        "prod": [
+          "14"
+        ]
+      }
+    },
+    "EthenaUnstakeHook": {
+      "name": "Ethena Unstake",
+      "description": "Unstakes assets from Ethena after cooldown",
+      "hookType": "OUTFLOW",
+      "subtype": "ETHENA",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "fulfill"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xC836797f7b7f645248b73938d0bD2Ab2dc6A9337",
+          "999": "0xC836797f7b7f645248b73938d0bD2Ab2dc6A9337",
+          "8453": "0xC836797f7b7f645248b73938d0bD2Ab2dc6A9337",
+          "43114": "0xC836797f7b7f645248b73938d0bD2Ab2dc6A9337",
+          "1": "0xC836797f7b7f645248b73938d0bD2Ab2dc6A9337",
+          "42161": "0xC836797f7b7f645248b73938d0bD2Ab2dc6A9337",
+          "988": "0xC836797f7b7f645248b73938d0bD2Ab2dc6A9337",
+          "14": "0xC836797f7b7f645248b73938d0bD2Ab2dc6A9337"
+        },
+        "prod": {
+          "56": "0xaEBeEc6548B727fd4f3464B19D99f4676d7e7796",
+          "999": "0xaEBeEc6548B727fd4f3464B19D99f4676d7e7796",
+          "8453": "0xaEBeEc6548B727fd4f3464B19D99f4676d7e7796",
+          "80094": "0xaEBeEc6548B727fd4f3464B19D99f4676d7e7796",
+          "43114": "0xaEBeEc6548B727fd4f3464B19D99f4676d7e7796",
+          "1": "0xaEBeEc6548B727fd4f3464B19D99f4676d7e7796",
+          "10": "0xaEBeEc6548B727fd4f3464B19D99f4676d7e7796",
+          "100": "0xaEBeEc6548B727fd4f3464B19D99f4676d7e7796",
+          "137": "0xaEBeEc6548B727fd4f3464B19D99f4676d7e7796",
+          "130": "0xaEBeEc6548B727fd4f3464B19D99f4676d7e7796",
+          "42161": "0xaEBeEc6548B727fd4f3464B19D99f4676d7e7796",
+          "480": "0xaEBeEc6548B727fd4f3464B19D99f4676d7e7796",
+          "146": "0xaEBeEc6548B727fd4f3464B19D99f4676d7e7796",
+          "988": "0xaEBeEc6548B727fd4f3464B19D99f4676d7e7796",
+          "14": "0xaEBeEc6548B727fd4f3464B19D99f4676d7e7796"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "CancelRedeemRequest7540Hook": {
+      "name": "Cancel Redeem Request ERC-7540",
+      "description": "Cancels a pending redeem request on an ERC-7540 vault",
+      "hookType": "NONACCOUNTING",
+      "subtype": "CANCEL_REDEEM_REQUEST",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "cancel"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
+          "999": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
+          "8453": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
+          "43114": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
+          "1": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
+          "42161": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
+          "988": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
+          "14": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c"
+        },
+        "prod": {
+          "56": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
+          "999": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
+          "8453": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
+          "80094": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
+          "43114": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
+          "1": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
+          "10": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
+          "100": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
+          "137": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
+          "130": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
+          "42161": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
+          "480": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
+          "146": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
+          "988": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
+          "14": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "CancelRedeemRequestWithId7540Hook": {
+      "name": "Cancel Redeem Request with ID ERC-7540",
+      "description": "Cancels a pending redeem request on an ERC-7540 vault using a request ID",
+      "hookType": "NONACCOUNTING",
+      "subtype": "CANCEL_REDEEM_REQUEST",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "cancel"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xB9A161DcAC6BE72F80e0fD84B09f7fF67FA63421",
+          "999": "0xB9A161DcAC6BE72F80e0fD84B09f7fF67FA63421",
+          "8453": "0xB9A161DcAC6BE72F80e0fD84B09f7fF67FA63421",
+          "43114": "0xB9A161DcAC6BE72F80e0fD84B09f7fF67FA63421",
+          "1": "0xB9A161DcAC6BE72F80e0fD84B09f7fF67FA63421",
+          "42161": "0xB9A161DcAC6BE72F80e0fD84B09f7fF67FA63421",
+          "988": "0xB9A161DcAC6BE72F80e0fD84B09f7fF67FA63421",
+          "14": "0xB9A161DcAC6BE72F80e0fD84B09f7fF67FA63421"
+        },
+        "prod": {
+          "56": "0xf4E4235663Ca06C46676102Be2D4d603f84A5543",
+          "999": "0xf4E4235663Ca06C46676102Be2D4d603f84A5543",
+          "8453": "0xf4E4235663Ca06C46676102Be2D4d603f84A5543",
+          "80094": "0xf4E4235663Ca06C46676102Be2D4d603f84A5543",
+          "43114": "0xf4E4235663Ca06C46676102Be2D4d603f84A5543",
+          "1": "0xf4E4235663Ca06C46676102Be2D4d603f84A5543",
+          "10": "0xf4E4235663Ca06C46676102Be2D4d603f84A5543",
+          "100": "0xf4E4235663Ca06C46676102Be2D4d603f84A5543",
+          "137": "0xf4E4235663Ca06C46676102Be2D4d603f84A5543",
+          "130": "0xf4E4235663Ca06C46676102Be2D4d603f84A5543",
+          "42161": "0xf4E4235663Ca06C46676102Be2D4d603f84A5543",
+          "480": "0xf4E4235663Ca06C46676102Be2D4d603f84A5543",
+          "146": "0xf4E4235663Ca06C46676102Be2D4d603f84A5543",
+          "988": "0xf4E4235663Ca06C46676102Be2D4d603f84A5543",
+          "14": "0xf4E4235663Ca06C46676102Be2D4d603f84A5543"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "ClaimCancelRedeemRequest7540Hook": {
+      "name": "Claim Cancel Redeem Request ERC-7540",
+      "description": "Claims shares from a cancelled redeem request on an ERC-7540 vault",
+      "hookType": "NONACCOUNTING",
+      "subtype": "CLAIM_CANCEL_REDEEM_REQUEST",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "claim"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989",
+          "999": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989",
+          "8453": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989",
+          "43114": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989",
+          "1": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989",
+          "42161": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989",
+          "988": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989",
+          "14": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989"
+        },
+        "prod": {
+          "56": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
+          "999": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
+          "8453": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
+          "80094": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
+          "43114": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
+          "1": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
+          "10": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
+          "100": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
+          "137": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
+          "130": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
+          "42161": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
+          "480": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
+          "146": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
+          "988": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
+          "14": "0x0668f9a638f34928f0bD91588E7B157F0699D594"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "ClaimCancelRedeemRequestWithId7540Hook": {
+      "name": "Claim Cancel Redeem Request with ID ERC-7540",
+      "description": "Claims shares from a cancelled redeem request on an ERC-7540 vault using a request ID",
+      "hookType": "NONACCOUNTING",
+      "subtype": "CLAIM_CANCEL_REDEEM_REQUEST",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "claim"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
+          "999": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
+          "8453": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
+          "43114": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
+          "1": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
+          "42161": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
+          "988": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
+          "14": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879"
+        },
+        "prod": {
+          "56": "0x5DBF7B28c10D269EE4Ca7a962DDBC5120d582ab5",
+          "999": "0x5DBF7B28c10D269EE4Ca7a962DDBC5120d582ab5",
+          "8453": "0x5DBF7B28c10D269EE4Ca7a962DDBC5120d582ab5",
+          "80094": "0x5DBF7B28c10D269EE4Ca7a962DDBC5120d582ab5",
+          "43114": "0x5DBF7B28c10D269EE4Ca7a962DDBC5120d582ab5",
+          "1": "0x5DBF7B28c10D269EE4Ca7a962DDBC5120d582ab5",
+          "10": "0x5DBF7B28c10D269EE4Ca7a962DDBC5120d582ab5",
+          "100": "0x5DBF7B28c10D269EE4Ca7a962DDBC5120d582ab5",
+          "137": "0x5DBF7B28c10D269EE4Ca7a962DDBC5120d582ab5",
+          "130": "0x5DBF7B28c10D269EE4Ca7a962DDBC5120d582ab5",
+          "42161": "0x5DBF7B28c10D269EE4Ca7a962DDBC5120d582ab5",
+          "480": "0x5DBF7B28c10D269EE4Ca7a962DDBC5120d582ab5",
+          "146": "0x5DBF7B28c10D269EE4Ca7a962DDBC5120d582ab5",
+          "988": "0x5DBF7B28c10D269EE4Ca7a962DDBC5120d582ab5",
+          "14": "0x5DBF7B28c10D269EE4Ca7a962DDBC5120d582ab5"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "FluidClaimRewardHook": {
+      "name": "Fluid Claim Reward",
+      "description": "Claims reward tokens from Fluid protocol",
+      "hookType": "OUTFLOW",
+      "subtype": "CLAIM",
+      "actionTypes": [
+        {
+          "intent": "rewards",
+          "stage": "claim"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      }
+    },
+    "GearboxClaimRewardHook": {
+      "name": "Gearbox Claim Reward",
+      "description": "Claims reward tokens from Gearbox protocol",
+      "hookType": "OUTFLOW",
+      "subtype": "CLAIM",
+      "actionTypes": [
+        {
+          "intent": "rewards",
+          "stage": "claim"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      }
+    },
+    "YearnClaimOneRewardHook": {
+      "name": "Yearn Claim Reward",
+      "description": "Claims a single reward token from Yearn vault",
+      "hookType": "OUTFLOW",
+      "subtype": "CLAIM",
+      "actionTypes": [
+        {
+          "intent": "rewards",
+          "stage": "claim"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      }
+    },
+    "MerklClaimRewardHook": {
+      "name": "Merkl Claim Reward",
+      "description": "Claims reward tokens from Merkl distributor",
+      "hookType": "NONACCOUNTING",
+      "subtype": "CLAIM",
+      "actionTypes": [
+        {
+          "intent": "rewards",
+          "stage": "claim"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "56": "0x67CcC575D4064418406AE70cC094781837D01777",
+          "999": "0x67CcC575D4064418406AE70cC094781837D01777",
+          "8453": "0x67CcC575D4064418406AE70cC094781837D01777",
+          "43114": "0x67CcC575D4064418406AE70cC094781837D01777",
+          "1": "0x67CcC575D4064418406AE70cC094781837D01777",
+          "42161": "0x67CcC575D4064418406AE70cC094781837D01777",
+          "988": "0x67CcC575D4064418406AE70cC094781837D01777"
+        },
+        "prod": {
+          "56": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
+          "999": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
+          "8453": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
+          "80094": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
+          "43114": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
+          "1": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
+          "10": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
+          "100": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
+          "137": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
+          "130": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
+          "42161": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
+          "480": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
+          "146": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10",
+          "988": "0x96a7939F94bcd57B031AAe01c1e187f3EBaCCa10"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "ClaimRFLRHook": {
+      "name": "Claim RFLR",
+      "description": "Claims RFLR rewards from the Flare network",
+      "hookType": "NONACCOUNTING",
+      "subtype": "CLAIM",
+      "actionTypes": [
+        {
+          "intent": "rewards",
+          "stage": "claim"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "14": "0x3D99E001De266EA4C64C8F37f3027dF6f1F40321"
+        },
+        "prod": {
+          "14": "0x3a40396ebDaa006650Cb5AF9fE9e4A48b51B5f28"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "14"
+        ],
+        "prod": [
+          "14"
+        ]
+      }
+    },
+    "WithdrawRFLRHook": {
+      "name": "Withdraw RFLR",
+      "description": "Withdraws RFLR tokens from the Flare network",
+      "hookType": "NONACCOUNTING",
+      "subtype": "CLAIM",
+      "actionTypes": [
+        {
+          "intent": "rewards",
+          "stage": "claim"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "14": "0x45e8a73a3fCE4C2eD5A64A55680D2f16B2d5023f"
+        },
+        "prod": {
+          "14": "0x845D0435f5F26713Bc0e239C75dDE9e6cfA4101a"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "14"
+        ],
+        "prod": [
+          "14"
+        ]
+      }
+    },
+    "WithdrawVestedRFLRHook": {
+      "name": "Withdraw Vested RFLR",
+      "description": "Withdraws vested RFLR tokens from the Flare network",
+      "hookType": "NONACCOUNTING",
+      "subtype": "CLAIM",
+      "actionTypes": [
+        {
+          "intent": "rewards",
+          "stage": "claim"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "14": "0x2aA7f4E262fB1328a66Cd4406cBdC040aA424A9D"
+        },
+        "prod": {
+          "14": "0xdd63CDFcf845acfA1302a7dAFCa2A7CD2c1a5d32"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "14"
+        ],
+        "prod": [
+          "14"
+        ]
+      }
+    },
+    "SwapUniswapV3Hook": {
+      "name": "Swap Uniswap V3",
+      "description": "Swaps tokens via Uniswap V3 exact input single",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "999": "0xa1949567e0aa704Fa7617bF04e6dE66045b96B7e"
+        },
+        "prod": {
+          "999": "0x5c6FA6540b49C14dDc003f11E043fe2020cF5e76"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "999"
+        ],
+        "prod": [
+          "999"
+        ]
+      }
+    },
+    "ApproveAndSwapUniswapV3Hook": {
+      "name": "Approve and Swap Uniswap V3",
+      "description": "Approves and swaps tokens via Uniswap V3",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "999": "0xB7259282B174d5424dE0f8A3eB398dac9ec75000"
+        },
+        "prod": {
+          "999": "0xe1537482F70014fE10FAa988BA8e238CDae053E3"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "999"
+        ],
+        "prod": [
+          "999"
+        ]
+      }
+    },
+    "SwapUniswapV3Router02Hook": {
+      "name": "Swap Uniswap V3 Router02",
+      "description": "Swaps tokens via Uniswap V3 Router02",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x6bf817F510BeE6E1fE2C9bA6af6B864b5c5cd39d",
+          "8453": "0xae90CCca7D63E326AA1286e402C0faaF36f3ec00",
+          "43114": "0xA73393DFAe00C086179adF54fA573C7189c508c1",
+          "1": "0x27C911Fd9D1FAA3a03541486aF4d21eA5d826312",
+          "42161": "0x27C911Fd9D1FAA3a03541486aF4d21eA5d826312",
+          "988": "0x9c09ce2B436D012B5B02880B95CA8eC1caDfe429"
+        },
+        "prod": {
+          "56": "0x64c5F4dDEa0a4f32D20d52F231bcB978C1F73548",
+          "8453": "0x85E43e3B1EBf577369F6c9C3A22bE87002D40CF7",
+          "43114": "0xc1fE65e9e5266c51B4C6E7590E365A970913a0d9",
+          "1": "0xBa46eDe51AD27172529F82EC4e85595870797a78",
+          "10": "0xBa46eDe51AD27172529F82EC4e85595870797a78",
+          "137": "0xBa46eDe51AD27172529F82EC4e85595870797a78",
+          "130": "0x1B71831b7f2D42edC5b836ba27297bF06dF68dBF",
+          "42161": "0xBa46eDe51AD27172529F82EC4e85595870797a78",
+          "480": "0xcD060EB6e6DefA317bBb94454824A8D0bB72Bf56",
+          "988": "0xdB8D7d389723508FBb6d8A62A833ED81BEb0e5cb"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "988",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "130",
+          "137",
+          "480",
+          "988",
+          "8453",
+          "42161",
+          "43114"
+        ]
+      }
+    },
+    "ApproveAndSwapUniswapV3Router02Hook": {
+      "name": "Approve and Swap Uniswap V3 Router02",
+      "description": "Approves and swaps tokens via Uniswap V3 Router02",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x95F2d32f6752FDF9fB3c961526EAf5200bFB2abb",
+          "8453": "0x94c0706FfbBeaBbbaB6e7b85E303b9525C806F22",
+          "43114": "0x6FE2356d523ca22DdFCC5a647A005F79D8544C7a",
+          "1": "0x1aBc6463fF40bb78Cca8b8F3d2836d2BD0B1bf21",
+          "42161": "0x1aBc6463fF40bb78Cca8b8F3d2836d2BD0B1bf21",
+          "988": "0x9957318E1867D6d89d7Ab79c63b28Dc6c1fcD9C6"
+        },
+        "prod": {
+          "56": "0x9E432626588757AB06F69Ec814f3f3108702e6F9",
+          "8453": "0x3FDBe23A87F1C5514bF6e91171C6bf76ab5deA27",
+          "43114": "0xC720F9269434bd5c4D0F16a628FC0aD6d46B7BF9",
+          "1": "0x22E5A6e370338379aa25C8b7b5c351caB84DaE4B",
+          "10": "0x22E5A6e370338379aa25C8b7b5c351caB84DaE4B",
+          "137": "0x22E5A6e370338379aa25C8b7b5c351caB84DaE4B",
+          "130": "0x673189EA02476A41A7e8af081Ab1865312744bcA",
+          "42161": "0x22E5A6e370338379aa25C8b7b5c351caB84DaE4B",
+          "480": "0xdff353868554ceC3d1fe3CEc2feE47D9354e4215",
+          "988": "0x1c336daae96b5A2f28504453947fABE3758Fe3AB"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "988",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "130",
+          "137",
+          "480",
+          "988",
+          "8453",
+          "42161",
+          "43114"
+        ]
+      }
+    },
+    "SwapUniswapV2Hook": {
+      "name": "Swap Uniswap V2",
+      "description": "Swaps tokens via Uniswap V2",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "14": "0x744D5164e5a206F456B49e276592116BA90199C4"
+        },
+        "prod": {
+          "14": "0xA118D0eB6b343D0aa058A725551C82E1276C7b7A"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "14"
+        ],
+        "prod": [
+          "14"
+        ]
+      }
+    },
+    "ApproveAndSwapUniswapV2Hook": {
+      "name": "Approve and Swap Uniswap V2",
+      "description": "Approves and swaps tokens via Uniswap V2",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "14": "0x0b64fcA7190c3D141eb154D4a7fE0cEF4B2bfEC6"
+        },
+        "prod": {
+          "14": "0x70B3A11e3a4AbeF2046c986eeF21342e019ec073"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "14"
+        ],
+        "prod": [
+          "14"
+        ]
+      }
+    },
+    "SwapUniswapV4Hook": {
+      "name": "Swap Uniswap V4",
+      "description": "Swaps tokens via Uniswap V4",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "8453": "0x2F7F2eaad2734D617b3fD14A92C28929af916cF1",
+          "43114": "0x19AEF162cc077d22375e3e072695D9e50e954C12",
+          "1": "0x08c57a93C225E598B3D596A296F971cA80cF1B84",
+          "42161": "0xBE4407e2fcb049Baa5C667795397b5f0BED5eE6f"
+        },
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": []
+      }
+    },
+    "SwapOdosV2Hook": {
+      "name": "Swap Odos V2",
+      "description": "Swaps tokens via Odos V2 aggregator",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xB6BD55F3CF924D0B17ddCF80D990c056A072cFDc",
+          "8453": "0xA3a87993C802C6Ee82B1F77DF452F310Fa1a5de9",
+          "43114": "0x49774d860b7D3d5B9BdEBD9f8961FDb5B3CeF096",
+          "1": "0x6FD58b83e7518A1ABEFB67a7E32c3Ef316753A11",
+          "42161": "0x4D6205b40aA08b07B703892dbb369646B76BE74a"
+        },
+        "prod": {
+          "56": "0x6AADDD4047E7e9723c3446eb2E538cE88C12A12c",
+          "8453": "0x074F9973EBfB050D7abc75a5cB03491d675DA843",
+          "43114": "0x6B9308Ca3bAF94aC3516Df08e0cd83ed1D7c312d",
+          "1": "0x98313d15797048F60B1bFd41AE7A2B9877056079",
+          "10": "0xF65319b5D299a3B0c29cfAC7579b27845d3461E4",
+          "137": "0x36B84691d3375fDEC79cA5b3142d0bc908e016cC",
+          "130": "0xaB587deCE4E2D5F39bEC2922ED745A97BD2F2a8E",
+          "42161": "0xCCB88A83190257681BC0925e933A19c7Ca0b6d94",
+          "146": "0xF3162BEf5c8f0564a0F7DbC88119BbA453DA58B9"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "130",
+          "137",
+          "146",
+          "8453",
+          "42161",
+          "43114"
+        ]
+      }
+    },
+    "ApproveAndSwapOdosV2Hook": {
+      "name": "Approve and Swap Odos V2",
+      "description": "Approves and swaps tokens via Odos V2 aggregator",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xeB8c37991d77C96BA5B51A3922d770Ac141844f8",
+          "8453": "0x597Dc6f1a9FbB6E0A2BeeBcF98E46E16D940101b",
+          "43114": "0x9a32E76B39B23f5d9e4F17024A70E84EE508c893",
+          "1": "0x914E5063eb4Ae155AFa5fedE042c71d0b3B4b28C",
+          "42161": "0x1827bE7048F4F88039f35eFa8aF4b0992545A34C"
+        },
+        "prod": {
+          "56": "0x13c42c0cfAFE376002AD7D75485Fd199EcA1068C",
+          "8453": "0x3E10d4105F826dFc8929845C94c019CDAF4d93cD",
+          "43114": "0xdDD8A338ddBb6356D1Af22c9715CDB3e4a03b358",
+          "1": "0x067696e1EfBD25cAfD3B55648ED253C20A7d9671",
+          "10": "0xeF64C3bad00beE592c7812937ED1CCc23c11C878",
+          "137": "0x31EA75ABaE28a5A05f514F3812C768b0e6244fc4",
+          "130": "0xC5B690c1C41313A81f891FDf1bBe57Cc85FA0EB9",
+          "42161": "0xE5F934e5eDb77F11A502503f67672fD9252ba339",
+          "146": "0x7088bEFA0AE50B290E42Fb88F1260DBFC0d6e83f"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "130",
+          "137",
+          "146",
+          "8453",
+          "42161",
+          "43114"
+        ]
+      }
+    },
+    "SwapOdosV3Hook": {
+      "name": "Swap Odos V3",
+      "description": "Swaps tokens via Odos V3 aggregator",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x177ecD8a33371654bC419631575605bFE51D9307",
+          "8453": "0x177ecD8a33371654bC419631575605bFE51D9307",
+          "43114": "0x9F9F5b035088d458d796acb9dfaC5707f36a6cAc",
+          "1": "0x177ecD8a33371654bC419631575605bFE51D9307",
+          "42161": "0x177ecD8a33371654bC419631575605bFE51D9307"
+        },
+        "prod": {
+          "56": "0xA987e92641A5677A65EFAa3c87232b41F3E367ca",
+          "8453": "0xA987e92641A5677A65EFAa3c87232b41F3E367ca",
+          "43114": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7",
+          "1": "0xA987e92641A5677A65EFAa3c87232b41F3E367ca",
+          "10": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7",
+          "137": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7",
+          "42161": "0xA987e92641A5677A65EFAa3c87232b41F3E367ca",
+          "146": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "137",
+          "146",
+          "8453",
+          "42161",
+          "43114"
+        ]
+      }
+    },
+    "ApproveAndSwapOdosV3Hook": {
+      "name": "Approve and Swap Odos V3",
+      "description": "Approves and swaps tokens via Odos V3 aggregator",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x29d22B1a3C31461E3D8BAE9102CeBEf5e9E10810",
+          "8453": "0x29d22B1a3C31461E3D8BAE9102CeBEf5e9E10810",
+          "43114": "0x48a3EE7eaB80A4321265916377d0d947892da76c",
+          "1": "0x29d22B1a3C31461E3D8BAE9102CeBEf5e9E10810",
+          "42161": "0x29d22B1a3C31461E3D8BAE9102CeBEf5e9E10810"
+        },
+        "prod": {
+          "56": "0x39a99991c7247E71D7148Db529e720D963103B7F",
+          "8453": "0x39a99991c7247E71D7148Db529e720D963103B7F",
+          "43114": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A",
+          "1": "0x39a99991c7247E71D7148Db529e720D963103B7F",
+          "10": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A",
+          "137": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A",
+          "42161": "0x39a99991c7247E71D7148Db529e720D963103B7F",
+          "146": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "137",
+          "146",
+          "8453",
+          "42161",
+          "43114"
+        ]
+      }
+    },
+    "SwapKyberSwapHook": {
+      "name": "Swap KyberSwap",
+      "description": "Swaps tokens via KyberSwap aggregator",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xCad8Fd276dAf036c8b02136969a37B663b2fEaDd",
+          "999": "0xCad8Fd276dAf036c8b02136969a37B663b2fEaDd",
+          "8453": "0xCad8Fd276dAf036c8b02136969a37B663b2fEaDd",
+          "43114": "0xCad8Fd276dAf036c8b02136969a37B663b2fEaDd",
+          "1": "0xCad8Fd276dAf036c8b02136969a37B663b2fEaDd",
+          "42161": "0xCad8Fd276dAf036c8b02136969a37B663b2fEaDd"
+        },
+        "prod": {
+          "56": "0x828d8a9c015CEf90b373a071500AE463eD204dF9",
+          "999": "0x828d8a9c015CEf90b373a071500AE463eD204dF9",
+          "8453": "0x828d8a9c015CEf90b373a071500AE463eD204dF9",
+          "80094": "0x828d8a9c015CEf90b373a071500AE463eD204dF9",
+          "43114": "0x828d8a9c015CEf90b373a071500AE463eD204dF9",
+          "1": "0x828d8a9c015CEf90b373a071500AE463eD204dF9",
+          "10": "0x828d8a9c015CEf90b373a071500AE463eD204dF9",
+          "137": "0xB6fb01b7114e7dCBC77a1aDED9c321FA6c8455f4",
+          "130": "0x828d8a9c015CEf90b373a071500AE463eD204dF9",
+          "42161": "0x828d8a9c015CEf90b373a071500AE463eD204dF9",
+          "146": "0x828d8a9c015CEf90b373a071500AE463eD204dF9"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "130",
+          "137",
+          "146",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "ApproveAndSwapKyberSwapHook": {
+      "name": "Approve and Swap KyberSwap",
+      "description": "Approves and swaps tokens via KyberSwap aggregator",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x77Cb96800742dF3732314837E7a4D822eE77fCC1",
+          "999": "0x77Cb96800742dF3732314837E7a4D822eE77fCC1",
+          "8453": "0x77Cb96800742dF3732314837E7a4D822eE77fCC1",
+          "43114": "0x77Cb96800742dF3732314837E7a4D822eE77fCC1",
+          "1": "0x77Cb96800742dF3732314837E7a4D822eE77fCC1",
+          "42161": "0x77Cb96800742dF3732314837E7a4D822eE77fCC1"
+        },
+        "prod": {
+          "56": "0xdC9D10d9710DBf82924a3F7733293457Ad12D37D",
+          "999": "0xdC9D10d9710DBf82924a3F7733293457Ad12D37D",
+          "8453": "0xdC9D10d9710DBf82924a3F7733293457Ad12D37D",
+          "80094": "0xdC9D10d9710DBf82924a3F7733293457Ad12D37D",
+          "43114": "0xdC9D10d9710DBf82924a3F7733293457Ad12D37D",
+          "1": "0xdC9D10d9710DBf82924a3F7733293457Ad12D37D",
+          "10": "0xdC9D10d9710DBf82924a3F7733293457Ad12D37D",
+          "137": "0x7Ab50186A2596AB61da2d66C47C9FCc43e7b608F",
+          "130": "0xdC9D10d9710DBf82924a3F7733293457Ad12D37D",
+          "42161": "0xdC9D10d9710DBf82924a3F7733293457Ad12D37D",
+          "146": "0xdC9D10d9710DBf82924a3F7733293457Ad12D37D"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "130",
+          "137",
+          "146",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "SwapSparkPSMExactInHook": {
+      "name": "Swap Spark PSM Exact In",
+      "description": "Swaps exact input tokens via Spark PSM",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "8453": "0xbCdAf81A89CB080c33ca5032AcD312103Be26328"
+        },
+        "prod": {
+          "8453": "0x9B8cc0D7DecF5B90481eA761670b1abB334450Ae"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "8453"
+        ],
+        "prod": [
+          "8453"
+        ]
+      }
+    },
+    "ApproveAndSwapSparkPSMExactInHook": {
+      "name": "Approve and Swap Spark PSM Exact In",
+      "description": "Approves and swaps exact input tokens via Spark PSM",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "8453": "0xDa969cc8B07bAe0c117C89C9a928b507533fDCC9"
+        },
+        "prod": {
+          "8453": "0x3e2E2948AB83CCF5024Dba60D362ee14Beb4346f"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "8453"
+        ],
+        "prod": [
+          "8453"
+        ]
+      }
+    },
+    "SwapSparkPSMExactOutHook": {
+      "name": "Swap Spark PSM Exact Out",
+      "description": "Swaps for exact output tokens via Spark PSM",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "8453": "0x702989555d6174d8E2d5EaAd4071c12C73D22C74"
+        },
+        "prod": {
+          "8453": "0x5D6FFbE88Ffb41BD8252727a461d121692890870"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "8453"
+        ],
+        "prod": [
+          "8453"
+        ]
+      }
+    },
+    "ApproveAndSwapSparkPSMExactOutHook": {
+      "name": "Approve and Swap Spark PSM Exact Out",
+      "description": "Approves and swaps for exact output tokens via Spark PSM",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "8453": "0xa0a600087D4d5a1539A9A8a8C1f1fA039D6FBc55"
+        },
+        "prod": {
+          "8453": "0x9dd7b19c89F5FF980E962aCca76d09d02793c544"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "8453"
+        ],
+        "prod": [
+          "8453"
+        ]
+      }
+    },
+    "SwapAlgebraIntegralHook": {
+      "name": "Swap Algebra Integral",
+      "description": "Swaps tokens via Algebra Integral DEX",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "14": "0xf556ddF8B1fEf149Ae8A4DF9615cE863ABff3BEC"
+        },
+        "prod": {
+          "14": "0xdbA7A6586b3Bf1C9763B5aaAEe860Bd6505dED1C"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "14"
+        ],
+        "prod": [
+          "14"
+        ]
+      }
+    },
+    "ApproveAndSwapAlgebraIntegralHook": {
+      "name": "Approve and Swap Algebra Integral",
+      "description": "Approves and swaps tokens via Algebra Integral DEX",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "14": "0x9ce8A0eB6B2E44b87f05361a112852D76029042D"
+        },
+        "prod": {
+          "14": "0xc59Ee68B274ecA9F64484e25ffeA50Bf32D4Ba01"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "14"
+        ],
+        "prod": [
+          "14"
+        ]
+      }
+    },
+    "SwapOpenOceanSparkDexHook": {
+      "name": "Swap OpenOcean SparkDex",
+      "description": "Swaps tokens via OpenOcean SparkDex aggregator",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "14": "0x38a541df88547C4669Fc1D2e4a87eb1682d92e7b"
+        },
+        "prod": {
+          "14": "0x40d2608C1786244E51aCE7f32d61966d58178FE1"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "14"
+        ],
+        "prod": [
+          "14"
+        ]
+      }
+    },
+    "ApproveAndSwapOpenOceanSparkDexHook": {
+      "name": "Approve and Swap OpenOcean SparkDex",
+      "description": "Approves and swaps tokens via OpenOcean SparkDex aggregator",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "14": "0x878fC783f0e6B42E2ef9909D77036b0921f3f27E"
+        },
+        "prod": {
+          "14": "0xfd2E5b73378121FEC4b874Eeee12304588331C4B"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "14"
+        ],
+        "prod": [
+          "14"
+        ]
+      }
+    },
+    "Swap1InchHook": {
+      "name": "Swap 1inch",
+      "description": "Swaps tokens via 1inch aggregator",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xC7d752FB73BAC0a8eE8719f230F2CB23248fad15",
+          "8453": "0xC7d752FB73BAC0a8eE8719f230F2CB23248fad15",
+          "43114": "0xC7d752FB73BAC0a8eE8719f230F2CB23248fad15",
+          "1": "0xC7d752FB73BAC0a8eE8719f230F2CB23248fad15",
+          "42161": "0xC7d752FB73BAC0a8eE8719f230F2CB23248fad15"
+        },
+        "prod": {
+          "56": "0x0D94a8f3305AdDdB14692266aDb488552F91F660",
+          "8453": "0x0D94a8f3305AdDdB14692266aDb488552F91F660",
+          "43114": "0x0D94a8f3305AdDdB14692266aDb488552F91F660",
+          "1": "0x0D94a8f3305AdDdB14692266aDb488552F91F660",
+          "10": "0x0D94a8f3305AdDdB14692266aDb488552F91F660",
+          "100": "0x0D94a8f3305AdDdB14692266aDb488552F91F660",
+          "137": "0x1a94b274275AD72aB2Eead09722f2443C6aB1882",
+          "130": "0x0D94a8f3305AdDdB14692266aDb488552F91F660",
+          "42161": "0x0D94a8f3305AdDdB14692266aDb488552F91F660",
+          "146": "0x0D94a8f3305AdDdB14692266aDb488552F91F660"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "8453",
+          "42161",
+          "43114"
+        ]
+      }
+    },
+    "PendleRouterRedeemHook": {
+      "name": "Pendle Router Redeem",
+      "description": "Redeems Pendle PT tokens for underlying assets",
+      "hookType": "NONACCOUNTING",
+      "subtype": "PTYT",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
+          "999": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
+          "8453": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
+          "1": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6",
+          "42161": "0x94E7D358e8BAB5fEFb53d20C2D261A579898Eab6"
+        },
+        "prod": {
+          "56": "0xAae2DB58E2f426b910f518cCbB627545aEdaff2F",
+          "999": "0xAae2DB58E2f426b910f518cCbB627545aEdaff2F",
+          "8453": "0xAae2DB58E2f426b910f518cCbB627545aEdaff2F",
+          "80094": "0xAae2DB58E2f426b910f518cCbB627545aEdaff2F",
+          "1": "0xAae2DB58E2f426b910f518cCbB627545aEdaff2F",
+          "10": "0xAae2DB58E2f426b910f518cCbB627545aEdaff2F",
+          "42161": "0xAae2DB58E2f426b910f518cCbB627545aEdaff2F",
+          "146": "0xAae2DB58E2f426b910f518cCbB627545aEdaff2F"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "999",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "146",
+          "999",
+          "8453",
+          "42161",
+          "80094"
+        ]
+      }
+    },
+    "PendleRouterSwapHook": {
+      "name": "Pendle Router Swap",
+      "description": "Swaps tokens via Pendle router",
+      "hookType": "NONACCOUNTING",
+      "subtype": "PTYT",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D",
+          "999": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D",
+          "8453": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D",
+          "1": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D",
+          "42161": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D"
+        },
+        "prod": {
+          "56": "0x02A0A95C379220E9759960A8Ee923cBbC2d305cd",
+          "999": "0x02A0A95C379220E9759960A8Ee923cBbC2d305cd",
+          "8453": "0x02A0A95C379220E9759960A8Ee923cBbC2d305cd",
+          "80094": "0x02A0A95C379220E9759960A8Ee923cBbC2d305cd",
+          "1": "0x02A0A95C379220E9759960A8Ee923cBbC2d305cd",
+          "10": "0x02A0A95C379220E9759960A8Ee923cBbC2d305cd",
+          "42161": "0x02A0A95C379220E9759960A8Ee923cBbC2d305cd",
+          "146": "0x02A0A95C379220E9759960A8Ee923cBbC2d305cd"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "999",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "146",
+          "999",
+          "8453",
+          "42161",
+          "80094"
+        ]
+      }
+    },
+    "PendleUnifiedHook": {
+      "name": "Pendle Unified",
+      "description": "Executes unified Pendle operations (swap or redeem)",
+      "hookType": "NONACCOUNTING",
+      "subtype": "PTYT",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x03cFB56c9E5FeE55A5537b992EdebF9937C88dDA",
+          "999": "0x03cFB56c9E5FeE55A5537b992EdebF9937C88dDA",
+          "8453": "0x03cFB56c9E5FeE55A5537b992EdebF9937C88dDA",
+          "1": "0x03cFB56c9E5FeE55A5537b992EdebF9937C88dDA",
+          "42161": "0x03cFB56c9E5FeE55A5537b992EdebF9937C88dDA"
+        },
+        "prod": {
+          "56": "0x433f9A343e4132a294e02D4a09Da4b575EebA9aD",
+          "999": "0x433f9A343e4132a294e02D4a09Da4b575EebA9aD",
+          "8453": "0x433f9A343e4132a294e02D4a09Da4b575EebA9aD",
+          "80094": "0x433f9A343e4132a294e02D4a09Da4b575EebA9aD",
+          "1": "0x433f9A343e4132a294e02D4a09Da4b575EebA9aD",
+          "10": "0x433f9A343e4132a294e02D4a09Da4b575EebA9aD",
+          "42161": "0x433f9A343e4132a294e02D4a09Da4b575EebA9aD",
+          "146": "0x433f9A343e4132a294e02D4a09Da4b575EebA9aD"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "999",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "146",
+          "999",
+          "8453",
+          "42161",
+          "80094"
+        ]
+      }
+    },
+    "SpectraExchangeDepositHook": {
+      "name": "Spectra Exchange Deposit",
+      "description": "Deposits into a yield position via Spectra exchange",
+      "hookType": "NONACCOUNTING",
+      "subtype": "PTYT",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      }
+    },
+    "SpectraExchangeRedeemHook": {
+      "name": "Spectra Exchange Redeem",
+      "description": "Redeems principal tokens via Spectra exchange",
+      "hookType": "NONACCOUNTING",
+      "subtype": "PTYT",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      }
+    },
+    "DepositWETHHook": {
+      "name": "Deposit WETH",
+      "description": "Wraps native ETH into WETH",
+      "hookType": "NONACCOUNTING",
+      "subtype": "TOKEN",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      }
+    },
+    "WithdrawWETHHook": {
+      "name": "Withdraw WETH",
+      "description": "Unwraps WETH into native ETH",
+      "hookType": "NONACCOUNTING",
+      "subtype": "TOKEN",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      }
+    },
+    "AcrossSendFundsAndExecuteOnDstHook": {
+      "name": "Across Bridge",
+      "description": "Bridges tokens via Across and executes on destination chain",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x2f9914c470485903f96aF29e74c08aC0780Df2f3",
+          "999": "0x00d601aA01270B1707F2A56511aa64783D2d03BC",
+          "8453": "0x445f56C4eE18a1540Ac1d0A438F355DDBFFAf476",
+          "1": "0x913D4b78d8C1c05a0C97AFf832377F82a800cf5A",
+          "42161": "0xF228336375b193E4efF20be6104bb0573331a724"
+        },
+        "prod": {
+          "56": "0x03c551601e099C62812cBC3d5741ebECe1A58476",
+          "999": "0x95b43AbEEdd47FA9f74Ff3586900D79D3E43d282",
+          "8453": "0xd724315eEebefe346985E028A7382158390cB892",
+          "1": "0x39962bE24192d0d6B6e3a19f332e3c825604d16A",
+          "10": "0x70c371683Cc5aB1eE60Da0aC3C7166E49BFf8336",
+          "137": "0xc2FB04Dcd5d2dB4e6d4f67F48604fc554bADa60B",
+          "130": "0xd724315eEebefe346985E028A7382158390cB892",
+          "42161": "0x424d9552825aeE50b0bF34d2Bd8B6f3eEFA46A7f",
+          "480": "0xd724315eEebefe346985E028A7382158390cB892"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "999",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "130",
+          "137",
+          "480",
+          "999",
+          "8453",
+          "42161"
+        ]
+      }
+    },
+    "ApproveAndAcrossSendFundsAndExecuteOnDstHook": {
+      "name": "Approve and Across Bridge",
+      "description": "Approves and bridges tokens via Across with destination execution",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x5E68Bc3bc411525210eE397C53Ed4a68b97A1Cd3",
+          "999": "0x880a2B0B585625D5057a8414998Ba76A33380133",
+          "8453": "0xAfeFab788b2572691F55F140D1A251fabfF31C21",
+          "1": "0x13d20FC6BEb449606D1562654C7d0eF549f76812",
+          "42161": "0x0a08b98Af465c93332D1a4BE813FE0970a25e91E"
+        },
+        "prod": {
+          "56": "0xe27DD18FDa2E8a5A5093f56e60ffD58437C0c132",
+          "999": "0x77c932e8F7A308Ddf0EB4cd94ea0526Ed676eFeE",
+          "8453": "0x2286d45D7dCaE6aabb6B72269Bc07a401C16e481",
+          "1": "0x72422aB917e4a698369767F7AcE667a769E0F3f2",
+          "10": "0x1F7d6D1F3Ed94a7cB88612F90421C1a4c1F90800",
+          "137": "0x5235953F909Aa5A35d534C5ae3037448D1c3BFf9",
+          "130": "0x2286d45D7dCaE6aabb6B72269Bc07a401C16e481",
+          "42161": "0x032eCC92666a9A071F071BCcc07bF5a56E7813f2",
+          "480": "0x2286d45D7dCaE6aabb6B72269Bc07a401C16e481"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "999",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "130",
+          "137",
+          "480",
+          "999",
+          "8453",
+          "42161"
+        ]
+      }
+    },
+    "AcrossSendFundsAndExecuteOnDstHookV2": {
+      "name": "Across Bridge V2",
+      "description": "Bridges tokens via Across V2 and executes on destination chain",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "1": "0x732bE847E95172491Fe76D418454c1ebf7213efD"
+        },
+        "prod": {
+          "8453": "0x9E216BBbD6f4306ab906b7ec02E24849FbcD167C",
+          "1": "0xE973a9D41702Eeac865bA5c8139C66De18E57ae8",
+          "10": "0x9797FE2c4fd71d2FcBF0BD93313145B658d82873",
+          "137": "0x4fBD52E4A503eBc9aCC7D880C027984fC681288f",
+          "130": "0x9E216BBbD6f4306ab906b7ec02E24849FbcD167C",
+          "42161": "0xDa807C7c74794865197d1d1b47Ad1e2FBa2E8084",
+          "480": "0x9E216BBbD6f4306ab906b7ec02E24849FbcD167C"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "130",
+          "137",
+          "480",
+          "8453",
+          "42161"
+        ]
+      }
+    },
+    "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": {
+      "name": "Approve and Across Bridge V2",
+      "description": "Approves and bridges tokens via Across V2 with destination execution",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "1": "0x2C059F170741a41C936D26f1Ac06DbdF23C140D9"
+        },
+        "prod": {
+          "8453": "0x1E639A13D852c02Ac7b7C3F06BC14699C0943b06",
+          "1": "0xe1F5b4e555a194e398225a1d7d0Fb4489Ceb78c9",
+          "10": "0x09e2114A477c2E20B1354BAd8Dc3d5e244E26ED8",
+          "137": "0xe18CFDf90f1f99baDEC76F0c449974BA0eB8CF61",
+          "130": "0x1E639A13D852c02Ac7b7C3F06BC14699C0943b06",
+          "42161": "0x6CD8c63aF50eC521E11cD2323c7389bb4d3813A1",
+          "480": "0x1E639A13D852c02Ac7b7C3F06BC14699C0943b06"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "130",
+          "137",
+          "480",
+          "8453",
+          "42161"
+        ]
+      }
+    },
+    "StargateSendHook": {
+      "name": "Stargate Bridge",
+      "description": "Bridges tokens via Stargate cross-chain messaging",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x37082Da9b4C30485c5Bcd2c5FE367e6708f90dFb",
+          "999": "0x37082Da9b4C30485c5Bcd2c5FE367e6708f90dFb",
+          "8453": "0x37082Da9b4C30485c5Bcd2c5FE367e6708f90dFb",
+          "43114": "0x37082Da9b4C30485c5Bcd2c5FE367e6708f90dFb",
+          "1": "0x37082Da9b4C30485c5Bcd2c5FE367e6708f90dFb",
+          "42161": "0x37082Da9b4C30485c5Bcd2c5FE367e6708f90dFb",
+          "988": "0x37082Da9b4C30485c5Bcd2c5FE367e6708f90dFb",
+          "14": "0x37082Da9b4C30485c5Bcd2c5FE367e6708f90dFb"
+        },
+        "prod": {
+          "56": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
+          "999": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
+          "8453": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
+          "80094": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
+          "43114": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
+          "1": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
+          "10": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
+          "100": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
+          "137": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
+          "130": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
+          "42161": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
+          "480": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
+          "146": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
+          "988": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
+          "14": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "ApproveAndStargateSendHook": {
+      "name": "Approve and Stargate Bridge",
+      "description": "Approves and bridges tokens via Stargate",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x22860E81bd454019d10E12138A3196ae9df1a786",
+          "999": "0x22860E81bd454019d10E12138A3196ae9df1a786",
+          "8453": "0x22860E81bd454019d10E12138A3196ae9df1a786",
+          "43114": "0x22860E81bd454019d10E12138A3196ae9df1a786",
+          "1": "0x22860E81bd454019d10E12138A3196ae9df1a786",
+          "42161": "0x22860E81bd454019d10E12138A3196ae9df1a786",
+          "988": "0x22860E81bd454019d10E12138A3196ae9df1a786",
+          "14": "0x22860E81bd454019d10E12138A3196ae9df1a786"
+        },
+        "prod": {
+          "56": "0xeDDF409516D9E4ba9aC58A7Ea97E1FB1BfeCC027",
+          "999": "0xeDDF409516D9E4ba9aC58A7Ea97E1FB1BfeCC027",
+          "8453": "0xeDDF409516D9E4ba9aC58A7Ea97E1FB1BfeCC027",
+          "80094": "0xeDDF409516D9E4ba9aC58A7Ea97E1FB1BfeCC027",
+          "43114": "0xeDDF409516D9E4ba9aC58A7Ea97E1FB1BfeCC027",
+          "1": "0xeDDF409516D9E4ba9aC58A7Ea97E1FB1BfeCC027",
+          "10": "0xeDDF409516D9E4ba9aC58A7Ea97E1FB1BfeCC027",
+          "100": "0xeDDF409516D9E4ba9aC58A7Ea97E1FB1BfeCC027",
+          "137": "0xeDDF409516D9E4ba9aC58A7Ea97E1FB1BfeCC027",
+          "130": "0xeDDF409516D9E4ba9aC58A7Ea97E1FB1BfeCC027",
+          "42161": "0xeDDF409516D9E4ba9aC58A7Ea97E1FB1BfeCC027",
+          "480": "0xeDDF409516D9E4ba9aC58A7Ea97E1FB1BfeCC027",
+          "146": "0xeDDF409516D9E4ba9aC58A7Ea97E1FB1BfeCC027",
+          "988": "0xeDDF409516D9E4ba9aC58A7Ea97E1FB1BfeCC027",
+          "14": "0xeDDF409516D9E4ba9aC58A7Ea97E1FB1BfeCC027"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "StargateSendHookV2": {
+      "name": "Stargate Bridge V2",
+      "description": "Bridges tokens via Stargate V2 cross-chain messaging",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x3d9C8A576c5B816ce1a821c1BA79a049249A9e13",
+          "999": "0x3d9C8A576c5B816ce1a821c1BA79a049249A9e13",
+          "8453": "0x3d9C8A576c5B816ce1a821c1BA79a049249A9e13",
+          "43114": "0x3d9C8A576c5B816ce1a821c1BA79a049249A9e13",
+          "1": "0x3d9C8A576c5B816ce1a821c1BA79a049249A9e13",
+          "42161": "0x3d9C8A576c5B816ce1a821c1BA79a049249A9e13",
+          "14": "0x3d9C8A576c5B816ce1a821c1BA79a049249A9e13"
+        },
+        "prod": {
+          "56": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
+          "999": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
+          "8453": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
+          "80094": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
+          "43114": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
+          "1": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
+          "10": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
+          "100": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
+          "137": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
+          "130": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
+          "42161": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
+          "480": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
+          "146": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
+          "14": "0xF7cb3da374DA9fedf102451f59CED8810392f241"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "ApproveAndStargateSendHookV2": {
+      "name": "Approve and Stargate Bridge V2",
+      "description": "Approves and bridges tokens via Stargate V2",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xCe71Ab7a79a7fB0d9FfE31FCc4b4ff8FbF139f49",
+          "999": "0xCe71Ab7a79a7fB0d9FfE31FCc4b4ff8FbF139f49",
+          "8453": "0xCe71Ab7a79a7fB0d9FfE31FCc4b4ff8FbF139f49",
+          "43114": "0xCe71Ab7a79a7fB0d9FfE31FCc4b4ff8FbF139f49",
+          "1": "0xCe71Ab7a79a7fB0d9FfE31FCc4b4ff8FbF139f49",
+          "42161": "0xCe71Ab7a79a7fB0d9FfE31FCc4b4ff8FbF139f49",
+          "14": "0xCe71Ab7a79a7fB0d9FfE31FCc4b4ff8FbF139f49"
+        },
+        "prod": {
+          "56": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
+          "999": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
+          "8453": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
+          "80094": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
+          "43114": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
+          "1": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
+          "10": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
+          "100": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
+          "137": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
+          "130": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
+          "42161": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
+          "480": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
+          "146": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
+          "14": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "DeBridgeSendOrderAndExecuteOnDstHook": {
+      "name": "deBridge Send Order",
+      "description": "Sends a cross-chain order via deBridge with destination execution",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x48A5f8319F4a9340D2D2190E03EFa60b262Dd7ae",
+          "999": "0x48A5f8319F4a9340D2D2190E03EFa60b262Dd7ae",
+          "8453": "0x48A5f8319F4a9340D2D2190E03EFa60b262Dd7ae",
+          "43114": "0x48A5f8319F4a9340D2D2190E03EFa60b262Dd7ae",
+          "1": "0x48A5f8319F4a9340D2D2190E03EFa60b262Dd7ae",
+          "42161": "0x48A5f8319F4a9340D2D2190E03EFa60b262Dd7ae"
+        },
+        "prod": {
+          "56": "0x162225095A384787a257bced9b8893b29C8f1795",
+          "999": "0x162225095A384787a257bced9b8893b29C8f1795",
+          "8453": "0x162225095A384787a257bced9b8893b29C8f1795",
+          "80094": "0x162225095A384787a257bced9b8893b29C8f1795",
+          "43114": "0x162225095A384787a257bced9b8893b29C8f1795",
+          "1": "0x162225095A384787a257bced9b8893b29C8f1795",
+          "10": "0x162225095A384787a257bced9b8893b29C8f1795",
+          "100": "0x162225095A384787a257bced9b8893b29C8f1795",
+          "137": "0x162225095A384787a257bced9b8893b29C8f1795",
+          "42161": "0x162225095A384787a257bced9b8893b29C8f1795",
+          "146": "0x162225095A384787a257bced9b8893b29C8f1795"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "100",
+          "137",
+          "146",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "CCTPSendHook": {
+      "name": "CCTP Send",
+      "description": "Bridges USDC via Circle CCTP cross-chain transfer",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xbBaC75840374B571eD4e8e6013761E6fE2B78450",
+          "999": "0xbBaC75840374B571eD4e8e6013761E6fE2B78450",
+          "8453": "0xbBaC75840374B571eD4e8e6013761E6fE2B78450",
+          "43114": "0xbBaC75840374B571eD4e8e6013761E6fE2B78450",
+          "1": "0xbBaC75840374B571eD4e8e6013761E6fE2B78450",
+          "42161": "0xbBaC75840374B571eD4e8e6013761E6fE2B78450",
+          "988": "0xbBaC75840374B571eD4e8e6013761E6fE2B78450",
+          "14": "0xbBaC75840374B571eD4e8e6013761E6fE2B78450"
+        },
+        "prod": {
+          "56": "0xb0b329150D07Fb4fCA999396783AD40d8470d8C4",
+          "999": "0xb0b329150D07Fb4fCA999396783AD40d8470d8C4",
+          "8453": "0xb0b329150D07Fb4fCA999396783AD40d8470d8C4",
+          "80094": "0xb0b329150D07Fb4fCA999396783AD40d8470d8C4",
+          "43114": "0xb0b329150D07Fb4fCA999396783AD40d8470d8C4",
+          "1": "0xb0b329150D07Fb4fCA999396783AD40d8470d8C4",
+          "10": "0xb0b329150D07Fb4fCA999396783AD40d8470d8C4",
+          "100": "0xb0b329150D07Fb4fCA999396783AD40d8470d8C4",
+          "137": "0xb0b329150D07Fb4fCA999396783AD40d8470d8C4",
+          "130": "0xb0b329150D07Fb4fCA999396783AD40d8470d8C4",
+          "42161": "0xb0b329150D07Fb4fCA999396783AD40d8470d8C4",
+          "480": "0xb0b329150D07Fb4fCA999396783AD40d8470d8C4",
+          "146": "0xb0b329150D07Fb4fCA999396783AD40d8470d8C4",
+          "988": "0xb0b329150D07Fb4fCA999396783AD40d8470d8C4",
+          "14": "0xb0b329150D07Fb4fCA999396783AD40d8470d8C4"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "ApproveAndCCTPSendHook": {
+      "name": "Approve and CCTP Send",
+      "description": "Approves and bridges USDC via Circle CCTP",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xB7dDF0d4F2665b04068c28eb2c5cDF5eA158eA6C",
+          "999": "0xB7dDF0d4F2665b04068c28eb2c5cDF5eA158eA6C",
+          "8453": "0xB7dDF0d4F2665b04068c28eb2c5cDF5eA158eA6C",
+          "43114": "0xB7dDF0d4F2665b04068c28eb2c5cDF5eA158eA6C",
+          "1": "0xB7dDF0d4F2665b04068c28eb2c5cDF5eA158eA6C",
+          "42161": "0xB7dDF0d4F2665b04068c28eb2c5cDF5eA158eA6C",
+          "988": "0xB7dDF0d4F2665b04068c28eb2c5cDF5eA158eA6C",
+          "14": "0xB7dDF0d4F2665b04068c28eb2c5cDF5eA158eA6C"
+        },
+        "prod": {
+          "56": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
+          "999": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
+          "8453": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
+          "80094": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
+          "43114": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
+          "1": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
+          "10": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
+          "100": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
+          "137": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
+          "130": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
+          "42161": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
+          "480": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
+          "146": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
+          "988": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837",
+          "14": "0x8aC95e8c40ce2C6D80Fc79e719bC1aca5c2Bf837"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "CircleGatewayWalletHook": {
+      "name": "Circle Gateway Wallet",
+      "description": "Interacts with Circle Gateway wallet for cross-chain transfers",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x7Be37FB4Ad39BDe35c5168Df21f3f1E019462510",
+          "999": "0x7Be37FB4Ad39BDe35c5168Df21f3f1E019462510",
+          "8453": "0x7Be37FB4Ad39BDe35c5168Df21f3f1E019462510",
+          "43114": "0x7Be37FB4Ad39BDe35c5168Df21f3f1E019462510",
+          "1": "0x7Be37FB4Ad39BDe35c5168Df21f3f1E019462510",
+          "42161": "0x7Be37FB4Ad39BDe35c5168Df21f3f1E019462510",
+          "988": "0x7Be37FB4Ad39BDe35c5168Df21f3f1E019462510",
+          "14": "0x7Be37FB4Ad39BDe35c5168Df21f3f1E019462510"
+        },
+        "prod": {
+          "56": "0x6383d09cF761FeAa4108B65130793c7eDA356dB5",
+          "999": "0x6383d09cF761FeAa4108B65130793c7eDA356dB5",
+          "8453": "0x6383d09cF761FeAa4108B65130793c7eDA356dB5",
+          "80094": "0x6383d09cF761FeAa4108B65130793c7eDA356dB5",
+          "43114": "0x6383d09cF761FeAa4108B65130793c7eDA356dB5",
+          "1": "0x6383d09cF761FeAa4108B65130793c7eDA356dB5",
+          "10": "0x6383d09cF761FeAa4108B65130793c7eDA356dB5",
+          "100": "0x6383d09cF761FeAa4108B65130793c7eDA356dB5",
+          "137": "0x6383d09cF761FeAa4108B65130793c7eDA356dB5",
+          "130": "0x6383d09cF761FeAa4108B65130793c7eDA356dB5",
+          "42161": "0x6383d09cF761FeAa4108B65130793c7eDA356dB5",
+          "480": "0x6383d09cF761FeAa4108B65130793c7eDA356dB5",
+          "146": "0x6383d09cF761FeAa4108B65130793c7eDA356dB5",
+          "988": "0x6383d09cF761FeAa4108B65130793c7eDA356dB5",
+          "14": "0x6383d09cF761FeAa4108B65130793c7eDA356dB5"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "CircleGatewayMinterHook": {
+      "name": "Circle Gateway Minter",
+      "description": "Mints tokens via Circle Gateway",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x3A2a1281622Aa704a6480D1745702F6F83727521",
+          "999": "0x3A2a1281622Aa704a6480D1745702F6F83727521",
+          "8453": "0x3A2a1281622Aa704a6480D1745702F6F83727521",
+          "43114": "0x3A2a1281622Aa704a6480D1745702F6F83727521",
+          "1": "0x3A2a1281622Aa704a6480D1745702F6F83727521",
+          "42161": "0x3A2a1281622Aa704a6480D1745702F6F83727521",
+          "988": "0x3A2a1281622Aa704a6480D1745702F6F83727521",
+          "14": "0x3A2a1281622Aa704a6480D1745702F6F83727521"
+        },
+        "prod": {
+          "56": "0x659b720a5E8E08D2c379165D17bA5F74dd104824",
+          "999": "0x659b720a5E8E08D2c379165D17bA5F74dd104824",
+          "8453": "0x659b720a5E8E08D2c379165D17bA5F74dd104824",
+          "80094": "0x659b720a5E8E08D2c379165D17bA5F74dd104824",
+          "43114": "0x659b720a5E8E08D2c379165D17bA5F74dd104824",
+          "1": "0x659b720a5E8E08D2c379165D17bA5F74dd104824",
+          "10": "0x659b720a5E8E08D2c379165D17bA5F74dd104824",
+          "100": "0x659b720a5E8E08D2c379165D17bA5F74dd104824",
+          "137": "0x659b720a5E8E08D2c379165D17bA5F74dd104824",
+          "130": "0x659b720a5E8E08D2c379165D17bA5F74dd104824",
+          "42161": "0x659b720a5E8E08D2c379165D17bA5F74dd104824",
+          "480": "0x659b720a5E8E08D2c379165D17bA5F74dd104824",
+          "146": "0x659b720a5E8E08D2c379165D17bA5F74dd104824",
+          "988": "0x659b720a5E8E08D2c379165D17bA5F74dd104824",
+          "14": "0x659b720a5E8E08D2c379165D17bA5F74dd104824"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "DeBridgeCancelOrderHook": {
+      "name": "deBridge Cancel Order",
+      "description": "Cancels a pending deBridge cross-chain order",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "cancel"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x8A6bc4bA5e6E4330f8f1bE93fe27CC5dd4a3B53c",
+          "999": "0x8A6bc4bA5e6E4330f8f1bE93fe27CC5dd4a3B53c",
+          "8453": "0x8A6bc4bA5e6E4330f8f1bE93fe27CC5dd4a3B53c",
+          "43114": "0x8A6bc4bA5e6E4330f8f1bE93fe27CC5dd4a3B53c",
+          "1": "0x8A6bc4bA5e6E4330f8f1bE93fe27CC5dd4a3B53c",
+          "42161": "0x8A6bc4bA5e6E4330f8f1bE93fe27CC5dd4a3B53c"
+        },
+        "prod": {
+          "56": "0xc5DbbBe2D8B9ff884a7ed33f1352021CD2b482C9",
+          "999": "0xc5DbbBe2D8B9ff884a7ed33f1352021CD2b482C9",
+          "8453": "0xc5DbbBe2D8B9ff884a7ed33f1352021CD2b482C9",
+          "80094": "0xc5DbbBe2D8B9ff884a7ed33f1352021CD2b482C9",
+          "43114": "0xc5DbbBe2D8B9ff884a7ed33f1352021CD2b482C9",
+          "1": "0xc5DbbBe2D8B9ff884a7ed33f1352021CD2b482C9",
+          "10": "0xc5DbbBe2D8B9ff884a7ed33f1352021CD2b482C9",
+          "100": "0xc5DbbBe2D8B9ff884a7ed33f1352021CD2b482C9",
+          "137": "0xc5DbbBe2D8B9ff884a7ed33f1352021CD2b482C9",
+          "42161": "0xc5DbbBe2D8B9ff884a7ed33f1352021CD2b482C9",
+          "146": "0xc5DbbBe2D8B9ff884a7ed33f1352021CD2b482C9"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "100",
+          "137",
+          "146",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "ClaimFailedTransferHook": {
+      "name": "Claim Failed Transfer",
+      "description": "Claims tokens from a failed Stargate transfer",
+      "hookType": "NONACCOUNTING",
+      "subtype": "CLAIM",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "claim"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x994701Fbe7A8072E8dEde902c5a00278F6D72366",
+          "999": "0x994701Fbe7A8072E8dEde902c5a00278F6D72366",
+          "8453": "0x994701Fbe7A8072E8dEde902c5a00278F6D72366",
+          "43114": "0x994701Fbe7A8072E8dEde902c5a00278F6D72366",
+          "1": "0x994701Fbe7A8072E8dEde902c5a00278F6D72366",
+          "42161": "0x994701Fbe7A8072E8dEde902c5a00278F6D72366",
+          "14": "0x994701Fbe7A8072E8dEde902c5a00278F6D72366"
+        },
+        "prod": {
+          "56": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
+          "999": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
+          "8453": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
+          "80094": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
+          "43114": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
+          "1": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
+          "10": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
+          "100": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
+          "137": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
+          "130": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
+          "42161": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
+          "480": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
+          "146": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
+          "14": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "FluidStakeHook": {
+      "name": "Fluid Stake",
+      "description": "Stakes tokens in Fluid protocol",
+      "hookType": "NONACCOUNTING",
+      "subtype": "STAKE",
+      "actionTypes": [
+        {
+          "intent": "stake",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      }
+    },
+    "ApproveAndFluidStakeHook": {
+      "name": "Approve and Fluid Stake",
+      "description": "Approves and stakes tokens in Fluid protocol",
+      "hookType": "NONACCOUNTING",
+      "subtype": "STAKE",
+      "actionTypes": [
+        {
+          "intent": "stake",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      }
+    },
+    "GearboxStakeHook": {
+      "name": "Gearbox Stake",
+      "description": "Stakes tokens in Gearbox protocol",
+      "hookType": "NONACCOUNTING",
+      "subtype": "STAKE",
+      "actionTypes": [
+        {
+          "intent": "stake",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      }
+    },
+    "ApproveAndGearboxStakeHook": {
+      "name": "Approve and Gearbox Stake",
+      "description": "Approves and stakes tokens in Gearbox protocol",
+      "hookType": "NONACCOUNTING",
+      "subtype": "STAKE",
+      "actionTypes": [
+        {
+          "intent": "stake",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      }
+    },
+    "FluidUnstakeHook": {
+      "name": "Fluid Unstake",
+      "description": "Unstakes tokens from Fluid protocol",
+      "hookType": "NONACCOUNTING",
+      "subtype": "UNSTAKE",
+      "actionTypes": [
+        {
+          "intent": "unstake",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      }
+    },
+    "GearboxUnstakeHook": {
+      "name": "Gearbox Unstake",
+      "description": "Unstakes tokens from Gearbox protocol",
+      "hookType": "NONACCOUNTING",
+      "subtype": "UNSTAKE",
+      "actionTypes": [
+        {
+          "intent": "unstake",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      }
+    },
+    "MorphoSupplyHook": {
+      "name": "Morpho Supply",
+      "description": "Supplies collateral to a Morpho market",
+      "hookType": "NONACCOUNTING",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "lend",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x43f23D81559BE18b96BEFc2529896b8d2a339faa",
+          "8453": "0xcab4F708D249B36C02C092e5C76aDaEFA9c741fF",
+          "1": "0xcab4F708D249B36C02C092e5C76aDaEFA9c741fF",
+          "42161": "0xA89fb27c43E5Bc7f1747bB7Bce780881453B34b0"
+        },
+        "prod": {
+          "56": "0x9dA4fc64eC49679663B0C9e5d255A3a9E6Ad7AD3",
+          "8453": "0xa8d51a5E4D774D5FD65a915aF732AC23c388D1dc",
+          "1": "0xa8d51a5E4D774D5FD65a915aF732AC23c388D1dc",
+          "42161": "0xd7af3d9D2FaF3CD2692Df45a53Dbf88D4b456BCf"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ]
+      }
+    },
+    "MorphoLendHook": {
+      "name": "Morpho Lend",
+      "description": "Lends assets to a Morpho market",
+      "hookType": "NONACCOUNTING",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "lend",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x2e48014291754BF4489333Ba8728715B0a3c981F",
+          "8453": "0x3CC9851cf448a23c455b1C08d385653cF27c91aF",
+          "1": "0x3CC9851cf448a23c455b1C08d385653cF27c91aF",
+          "42161": "0xB1833e0392a3Ff0BC400de716175e58D0C2E49D8"
+        },
+        "prod": {
+          "56": "0xBb3B271A096Fb0c0E44bCEAA57D91C53a4c46A11",
+          "8453": "0xFdA77d57d22c7EB62ef768212BA8B08f82c9b5E3",
+          "1": "0xFdA77d57d22c7EB62ef768212BA8B08f82c9b5E3",
+          "42161": "0x606C575CE7F5d167a809f85a1e3803A5391c1213"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ]
+      }
+    },
+    "AaveV4SupplyHook": {
+      "name": "Aave V4 Supply",
+      "description": "Supplies assets to an Aave V4 lending pool",
+      "hookType": "NONACCOUNTING",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "lend",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "1": "0x327D94489D894B4854d02DFEc72294D2e4E0701C"
+        },
+        "prod": {
+          "1": "0xA0b59C9Df3318a8A905540c35a1ea53A82B7E030"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1"
+        ],
+        "prod": [
+          "1"
+        ]
+      }
+    },
+    "MorphoBorrowHook": {
+      "name": "Morpho Borrow",
+      "description": "Borrows assets from a Morpho market",
+      "hookType": "NONACCOUNTING",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "borrow",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x8FA16303CBf8002DE432CF36F60183baC345014E",
+          "8453": "0xcC332adb7B65DCB725ED26002CF9254f91578200",
+          "1": "0xcC332adb7B65DCB725ED26002CF9254f91578200",
+          "42161": "0x6e09e00AA2744F46f312C4520f3a2C7356aa2Da3"
+        },
+        "prod": {
+          "56": "0x0904947bb8aEed34c40601ee2F189aa15531e9Ed",
+          "8453": "0x860EC9cFA60C0FD3c0b5940C2C3376cfc57DaaF1",
+          "1": "0x860EC9cFA60C0FD3c0b5940C2C3376cfc57DaaF1",
+          "42161": "0x7D5192559a17221edadee3F962FEbbd26884B8cC"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ]
+      }
+    },
+    "AaveV4BorrowHook": {
+      "name": "Aave V4 Borrow",
+      "description": "Borrows assets from an Aave V4 lending pool",
+      "hookType": "NONACCOUNTING",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "borrow",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "1": "0xB8A987B2BaEcc1aF352226B2Dc5179C97550D249"
+        },
+        "prod": {
+          "1": "0xE22d17939E33F26C4195521D547a8d0956a819a0"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1"
+        ],
+        "prod": [
+          "1"
+        ]
+      }
+    },
+    "MorphoRepayHook": {
+      "name": "Morpho Repay",
+      "description": "Repays borrowed assets to a Morpho market",
+      "hookType": "NONACCOUNTING",
+      "subtype": "LOAN_REPAY",
+      "actionTypes": [
+        {
+          "intent": "repay",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xDC8160355A5b65f70b46eaB72332c689568AADcD",
+          "8453": "0x922F4A8Cb183c7589590F3F2c5341C4271B27e0F",
+          "1": "0x922F4A8Cb183c7589590F3F2c5341C4271B27e0F",
+          "42161": "0xFA308da8737831044eDE2bFE938689DDfAB74056"
+        },
+        "prod": {
+          "56": "0xf3A5d56876D8397a3bB81856D25e6Be41fD90A49",
+          "8453": "0xF78c9aB2AD1104a0597a1E32e4b2F5e074C5c4a2",
+          "1": "0xF78c9aB2AD1104a0597a1E32e4b2F5e074C5c4a2",
+          "42161": "0x084B280323e8fbaB7C5A31534DCAd3F163252884"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ]
+      }
+    },
+    "AaveV4RepayHook": {
+      "name": "Aave V4 Repay",
+      "description": "Repays borrowed assets to an Aave V4 lending pool",
+      "hookType": "NONACCOUNTING",
+      "subtype": "LOAN_REPAY",
+      "actionTypes": [
+        {
+          "intent": "repay",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "1": "0xa3D99329A6D46aB9d481cD5203a7Bc23de64B068"
+        },
+        "prod": {
+          "1": "0x32C1e288F86F119Fc82963Ae990A7C57d817EADf"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1"
+        ],
+        "prod": [
+          "1"
+        ]
+      }
+    },
+    "TransferERC20Hook": {
+      "name": "Transfer ERC-20",
+      "description": "Transfers ERC-20 tokens to a recipient",
+      "hookType": "NONACCOUNTING",
+      "subtype": "TOKEN",
+      "actionTypes": [
+        {
+          "intent": "transfer",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
+          "999": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
+          "8453": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
+          "43114": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
+          "1": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
+          "42161": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
+          "988": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2",
+          "14": "0x9379C1cfaA3B660855231387F4F3167fee2cE6b2"
+        },
+        "prod": {
+          "56": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+          "999": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+          "8453": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+          "80094": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+          "43114": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+          "1": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+          "10": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+          "100": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+          "137": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+          "130": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+          "42161": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+          "480": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+          "146": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+          "988": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
+          "14": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "TransferHook": {
+      "name": "Transfer",
+      "description": "Transfers tokens to a recipient",
+      "hookType": "NONACCOUNTING",
+      "subtype": "TOKEN",
+      "actionTypes": [
+        {
+          "intent": "transfer",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
+          "999": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
+          "8453": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
+          "43114": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
+          "1": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
+          "42161": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
+          "988": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea",
+          "14": "0xDDBde23fE91FCFd9E6856B17c4A7eE8F444f74Ea"
+        },
+        "prod": {
+          "56": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
+          "999": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
+          "8453": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
+          "80094": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
+          "43114": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
+          "1": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
+          "10": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
+          "100": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
+          "137": "0xafc5789b4D92B2B07f2A943989ac105ec6C69F18",
+          "130": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
+          "42161": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
+          "480": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
+          "146": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
+          "988": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
+          "14": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "NativeTransferHook": {
+      "name": "Native Transfer",
+      "description": "Transfers native ETH to a recipient",
+      "hookType": "NONACCOUNTING",
+      "subtype": "TOKEN",
+      "actionTypes": [
+        {
+          "intent": "transfer",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      }
+    },
+    "BatchTransferHook": {
+      "name": "Batch Transfer",
+      "description": "Transfers tokens to multiple recipients in a single call",
+      "hookType": "NONACCOUNTING",
+      "subtype": "TOKEN",
+      "actionTypes": [
+        {
+          "intent": "transfer",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
+          "999": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
+          "8453": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
+          "43114": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
+          "1": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
+          "42161": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
+          "988": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
+          "14": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458"
+        },
+        "prod": {
+          "56": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
+          "999": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
+          "8453": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
+          "80094": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
+          "43114": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
+          "1": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
+          "10": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
+          "100": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
+          "137": "0x6f0B2f40E44a10C5b6A43f8e60F0CcD128ff83be",
+          "130": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
+          "42161": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
+          "480": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
+          "146": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
+          "988": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC",
+          "14": "0x55475fa30E3EEC5996e9eF32B483E30Ed288CcBC"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "OfframpTokensHook": {
+      "name": "Offramp Tokens",
+      "description": "Offramps tokens for fiat withdrawal",
+      "hookType": "NONACCOUNTING",
+      "subtype": "TOKEN",
+      "actionTypes": [
+        {
+          "intent": "transfer",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x45769A1252B26976896533664454b6e295b88266",
+          "999": "0x45769A1252B26976896533664454b6e295b88266",
+          "8453": "0x45769A1252B26976896533664454b6e295b88266",
+          "43114": "0x45769A1252B26976896533664454b6e295b88266",
+          "1": "0x45769A1252B26976896533664454b6e295b88266",
+          "42161": "0x45769A1252B26976896533664454b6e295b88266",
+          "988": "0x45769A1252B26976896533664454b6e295b88266",
+          "14": "0x45769A1252B26976896533664454b6e295b88266"
+        },
+        "prod": {
+          "56": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
+          "999": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
+          "8453": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
+          "80094": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
+          "43114": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
+          "1": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
+          "10": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
+          "100": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
+          "137": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
+          "130": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
+          "42161": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
+          "480": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
+          "146": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
+          "988": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7",
+          "14": "0x08BA6FF01e651B0c0A0D99AC66563097da2789f7"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "BatchTransferFromHook": {
+      "name": "Batch Transfer From",
+      "description": "Batch transfers tokens using Permit2 signatures",
+      "hookType": "NONACCOUNTING",
+      "subtype": "TOKEN",
+      "actionTypes": [
+        {
+          "intent": "transfer",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "56": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
+          "999": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
+          "8453": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
+          "43114": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
+          "1": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
+          "42161": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
+          "988": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",
+          "14": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a"
+        },
+        "prod": {
+          "56": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
+          "999": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
+          "8453": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
+          "80094": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
+          "43114": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
+          "1": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
+          "10": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
+          "100": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
+          "137": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
+          "130": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
+          "42161": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
+          "480": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
+          "146": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
+          "988": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A",
+          "14": "0x816d5de8835FB7A003896f486fCce46a6DEBB00A"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "MetaMorphoReallocateHook": {
+      "name": "MetaMorpho Reallocate",
+      "description": "Reallocates liquidity across MetaMorpho vault markets",
+      "hookType": "NONACCOUNTING",
+      "subtype": "MISC",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xc25BeF46a12d0fDf66F4e4d8F1E846601f1f55e3",
+          "8453": "0xc25BeF46a12d0fDf66F4e4d8F1E846601f1f55e3",
+          "1": "0xc25BeF46a12d0fDf66F4e4d8F1E846601f1f55e3",
+          "42161": "0xc25BeF46a12d0fDf66F4e4d8F1E846601f1f55e3"
+        },
+        "prod": {
+          "56": "0x0709C6211aDaf33D218275FdaceEA7d8c872Ab79",
+          "8453": "0x0709C6211aDaf33D218275FdaceEA7d8c872Ab79",
+          "1": "0x0709C6211aDaf33D218275FdaceEA7d8c872Ab79",
+          "42161": "0x0709C6211aDaf33D218275FdaceEA7d8c872Ab79"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ]
+      }
+    },
+    "ForceDeallocateMorphoHook": {
+      "name": "Force Deallocate Morpho",
+      "description": "Force deallocates liquidity from a Morpho market",
+      "hookType": "NONACCOUNTING",
+      "subtype": "MISC",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x7864D3bafEFcdb689d9741527932Dd26f0e6040A",
+          "8453": "0x7864D3bafEFcdb689d9741527932Dd26f0e6040A",
+          "1": "0x7864D3bafEFcdb689d9741527932Dd26f0e6040A",
+          "42161": "0x7864D3bafEFcdb689d9741527932Dd26f0e6040A"
+        },
+        "prod": {
+          "56": "0xf9C9B594d1B9038a5400D9989F65b5A5B7EaDdEB",
+          "8453": "0xf9C9B594d1B9038a5400D9989F65b5A5B7EaDdEB",
+          "1": "0xf9C9B594d1B9038a5400D9989F65b5A5B7EaDdEB",
+          "42161": "0xf9C9B594d1B9038a5400D9989F65b5A5B7EaDdEB"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ]
+      }
+    },
+    "MarkRootAsUsedHook": {
+      "name": "Mark Root As Used",
+      "description": "Marks a Merkle root as used to prevent replay",
+      "hookType": "NONACCOUNTING",
+      "subtype": "MISC",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
+          "999": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
+          "8453": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
+          "43114": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
+          "1": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
+          "42161": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
+          "988": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
+          "14": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d"
+        },
+        "prod": {
+          "56": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
+          "999": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
+          "8453": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
+          "80094": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
+          "43114": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
+          "1": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
+          "10": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
+          "100": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
+          "137": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
+          "130": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
+          "42161": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
+          "480": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
+          "146": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
+          "988": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2",
+          "14": "0xE61774Aa87a05fB1B5665158F2b5E0E10C71B5e2"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "FetchNativeFeeHook": {
+      "name": "Fetch Native Fee",
+      "description": "Fetches native gas fee for sponsored transactions",
+      "hookType": "NONACCOUNTING",
+      "subtype": "TOKEN",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x30194C1b09d3090BFcd04EdA2A576129837881b8",
+          "999": "0x30194C1b09d3090BFcd04EdA2A576129837881b8",
+          "8453": "0x30194C1b09d3090BFcd04EdA2A576129837881b8",
+          "43114": "0x30194C1b09d3090BFcd04EdA2A576129837881b8",
+          "1": "0x30194C1b09d3090BFcd04EdA2A576129837881b8",
+          "42161": "0x30194C1b09d3090BFcd04EdA2A576129837881b8",
+          "988": "0x30194C1b09d3090BFcd04EdA2A576129837881b8",
+          "14": "0x30194C1b09d3090BFcd04EdA2A576129837881b8"
+        },
+        "prod": {
+          "56": "0xaFccc880A26ac811267AeB0Ed35Efc5eb8804378",
+          "999": "0xaFccc880A26ac811267AeB0Ed35Efc5eb8804378",
+          "8453": "0xaFccc880A26ac811267AeB0Ed35Efc5eb8804378",
+          "80094": "0xaFccc880A26ac811267AeB0Ed35Efc5eb8804378",
+          "43114": "0xaFccc880A26ac811267AeB0Ed35Efc5eb8804378",
+          "1": "0xaFccc880A26ac811267AeB0Ed35Efc5eb8804378",
+          "10": "0xaFccc880A26ac811267AeB0Ed35Efc5eb8804378",
+          "100": "0xaFccc880A26ac811267AeB0Ed35Efc5eb8804378",
+          "137": "0xaFccc880A26ac811267AeB0Ed35Efc5eb8804378",
+          "130": "0xaFccc880A26ac811267AeB0Ed35Efc5eb8804378",
+          "42161": "0xaFccc880A26ac811267AeB0Ed35Efc5eb8804378",
+          "480": "0xaFccc880A26ac811267AeB0Ed35Efc5eb8804378",
+          "146": "0xaFccc880A26ac811267AeB0Ed35Efc5eb8804378",
+          "988": "0xaFccc880A26ac811267AeB0Ed35Efc5eb8804378",
+          "14": "0xaFccc880A26ac811267AeB0Ed35Efc5eb8804378"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "SetSlippageHook": {
+      "name": "Set Slippage ERC-7540",
+      "description": "Sets slippage tolerance for an ERC-7540 vault operation",
+      "hookType": "NONACCOUNTING",
+      "subtype": "ERC7540",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
+          "999": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
+          "8453": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
+          "43114": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
+          "1": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
+          "42161": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
+          "988": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
+          "14": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d"
+        },
+        "prod": {
+          "56": "0x6551d0140FFdB28920E5e84DC3DA31f4bfe4364E",
+          "999": "0x6551d0140FFdB28920E5e84DC3DA31f4bfe4364E",
+          "8453": "0x6551d0140FFdB28920E5e84DC3DA31f4bfe4364E",
+          "80094": "0x6551d0140FFdB28920E5e84DC3DA31f4bfe4364E",
+          "43114": "0x6551d0140FFdB28920E5e84DC3DA31f4bfe4364E",
+          "1": "0x6551d0140FFdB28920E5e84DC3DA31f4bfe4364E",
+          "10": "0x6551d0140FFdB28920E5e84DC3DA31f4bfe4364E",
+          "100": "0x6551d0140FFdB28920E5e84DC3DA31f4bfe4364E",
+          "137": "0x6551d0140FFdB28920E5e84DC3DA31f4bfe4364E",
+          "130": "0x6551d0140FFdB28920E5e84DC3DA31f4bfe4364E",
+          "42161": "0x6551d0140FFdB28920E5e84DC3DA31f4bfe4364E",
+          "480": "0x6551d0140FFdB28920E5e84DC3DA31f4bfe4364E",
+          "146": "0x6551d0140FFdB28920E5e84DC3DA31f4bfe4364E",
+          "988": "0x6551d0140FFdB28920E5e84DC3DA31f4bfe4364E",
+          "14": "0x6551d0140FFdB28920E5e84DC3DA31f4bfe4364E"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "MintSuperPositionsHook": {
+      "name": "Mint SuperPositions",
+      "description": "Mints SuperPosition tokens representing a vault share",
+      "hookType": "NONACCOUNTING",
+      "subtype": "VAULT_BANK",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      }
+    },
+    "BurnSuperPositionsHook": {
+      "name": "Burn SuperPositions",
+      "description": "Burns SuperPosition tokens to release vault shares",
+      "hookType": "NONACCOUNTING",
+      "subtype": "VAULT_BANK",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      }
+    },
+    "RecordPurchasePendlePTAmortizedOracleHook": {
+      "name": "Record Purchase Pendle PT Oracle",
+      "description": "Records a Pendle PT purchase for amortized oracle pricing",
+      "hookType": "NONACCOUNTING",
+      "subtype": "PTYT",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
+          "999": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
+          "8453": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
+          "43114": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
+          "1": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
+          "42161": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
+          "988": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
+          "14": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA"
+        },
+        "prod": {
+          "56": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3",
+          "999": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3",
+          "8453": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3",
+          "80094": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3",
+          "43114": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3",
+          "1": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3",
+          "10": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3",
+          "100": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3",
+          "137": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3",
+          "130": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3",
+          "42161": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3",
+          "480": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3",
+          "146": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3",
+          "988": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3",
+          "14": "0x771D4fF615F87eA00488a2dbcb70DF98BDA03FA3"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "RecordPurchasePendlePTAmortizedOracleHookV2": {
+      "name": "Record Purchase Pendle PT Oracle V2",
+      "description": "Records a Pendle PT purchase for amortized oracle pricing (V2)",
+      "hookType": "NONACCOUNTING",
+      "subtype": "PTYT",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
+          "999": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
+          "8453": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
+          "43114": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
+          "1": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
+          "42161": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
+          "988": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
+          "14": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950"
+        },
+        "prod": {
+          "56": "0xA0E61eb90817E28aBbb5a40045921B69bb784431",
+          "999": "0xA0E61eb90817E28aBbb5a40045921B69bb784431",
+          "8453": "0xA0E61eb90817E28aBbb5a40045921B69bb784431",
+          "80094": "0xA0E61eb90817E28aBbb5a40045921B69bb784431",
+          "43114": "0xA0E61eb90817E28aBbb5a40045921B69bb784431",
+          "1": "0xA0E61eb90817E28aBbb5a40045921B69bb784431",
+          "10": "0xA0E61eb90817E28aBbb5a40045921B69bb784431",
+          "100": "0xA0E61eb90817E28aBbb5a40045921B69bb784431",
+          "137": "0xA0E61eb90817E28aBbb5a40045921B69bb784431",
+          "130": "0xA0E61eb90817E28aBbb5a40045921B69bb784431",
+          "42161": "0xA0E61eb90817E28aBbb5a40045921B69bb784431",
+          "480": "0xA0E61eb90817E28aBbb5a40045921B69bb784431",
+          "146": "0xA0E61eb90817E28aBbb5a40045921B69bb784431",
+          "988": "0xA0E61eb90817E28aBbb5a40045921B69bb784431",
+          "14": "0xA0E61eb90817E28aBbb5a40045921B69bb784431"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "RecordRedemptionPendlePTAmortizedOracleHook": {
+      "name": "Record Redemption Pendle PT Oracle",
+      "description": "Records a Pendle PT redemption for amortized oracle pricing",
+      "hookType": "NONACCOUNTING",
+      "subtype": "PTYT",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
+          "999": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
+          "8453": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
+          "43114": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
+          "1": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
+          "42161": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
+          "988": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
+          "14": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7"
+        },
+        "prod": {
+          "56": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc",
+          "999": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc",
+          "8453": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc",
+          "80094": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc",
+          "43114": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc",
+          "1": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc",
+          "10": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc",
+          "100": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc",
+          "137": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc",
+          "130": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc",
+          "42161": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc",
+          "480": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc",
+          "146": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc",
+          "988": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc",
+          "14": "0xb68a34AF34E64a8b3bB72983088ACeB2fAE326Fc"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "RecordRedemptionPendlePTAmortizedOracleHookV2": {
+      "name": "Record Redemption Pendle PT Oracle V2",
+      "description": "Records a Pendle PT redemption for amortized oracle pricing (V2)",
+      "hookType": "NONACCOUNTING",
+      "subtype": "PTYT",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0x65133147a37b2d1171f1c164c4C697db34419809",
+          "999": "0x65133147a37b2d1171f1c164c4C697db34419809",
+          "8453": "0x65133147a37b2d1171f1c164c4C697db34419809",
+          "43114": "0x65133147a37b2d1171f1c164c4C697db34419809",
+          "1": "0x65133147a37b2d1171f1c164c4C697db34419809",
+          "42161": "0x65133147a37b2d1171f1c164c4C697db34419809",
+          "988": "0x65133147a37b2d1171f1c164c4C697db34419809",
+          "14": "0x65133147a37b2d1171f1c164c4C697db34419809"
+        },
+        "prod": {
+          "56": "0x2A4F700923324B14bd546630Fe87B1ee08C89634",
+          "999": "0x2A4F700923324B14bd546630Fe87B1ee08C89634",
+          "8453": "0x2A4F700923324B14bd546630Fe87B1ee08C89634",
+          "80094": "0x2A4F700923324B14bd546630Fe87B1ee08C89634",
+          "43114": "0x2A4F700923324B14bd546630Fe87B1ee08C89634",
+          "1": "0x2A4F700923324B14bd546630Fe87B1ee08C89634",
+          "10": "0x2A4F700923324B14bd546630Fe87B1ee08C89634",
+          "100": "0x2A4F700923324B14bd546630Fe87B1ee08C89634",
+          "137": "0x2A4F700923324B14bd546630Fe87B1ee08C89634",
+          "130": "0x2A4F700923324B14bd546630Fe87B1ee08C89634",
+          "42161": "0x2A4F700923324B14bd546630Fe87B1ee08C89634",
+          "480": "0x2A4F700923324B14bd546630Fe87B1ee08C89634",
+          "146": "0x2A4F700923324B14bd546630Fe87B1ee08C89634",
+          "988": "0x2A4F700923324B14bd546630Fe87B1ee08C89634",
+          "14": "0x2A4F700923324B14bd546630Fe87B1ee08C89634"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "ApproveERC20Hook": {
+      "name": "Approve ERC-20",
+      "description": "Approves an ERC-20 token spending allowance",
+      "hookType": "NONACCOUNTING",
+      "subtype": "TOKEN",
+      "actionTypes": [
+        {
+          "intent": "permissions",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
+          "999": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
+          "8453": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
+          "43114": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
+          "1": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
+          "42161": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
+          "988": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
+          "14": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB"
+        },
+        "prod": {
+          "56": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
+          "999": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
+          "8453": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
+          "80094": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
+          "43114": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
+          "1": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
+          "10": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
+          "100": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
+          "137": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
+          "130": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
+          "42161": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
+          "480": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
+          "146": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
+          "988": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306",
+          "14": "0x8b789980dc6cC7d88E30C442D704646ff7F6d306"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "SetOperator7540Hook": {
+      "name": "Set Operator ERC-7540",
+      "description": "Sets an operator for an ERC-7540 vault",
+      "hookType": "NONACCOUNTING",
+      "subtype": "ERC7540",
+      "actionTypes": [
+        {
+          "intent": "permissions",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+          "999": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+          "8453": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+          "43114": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+          "1": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+          "42161": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+          "988": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
+          "14": "0xa31E5013096efE9bDfd590275d80fe724AD269BC"
+        },
+        "prod": {
+          "56": "0x86f9DcE0a1A83C501Ba95a1aB1088d67978636A8",
+          "999": "0x86f9DcE0a1A83C501Ba95a1aB1088d67978636A8",
+          "8453": "0x86f9DcE0a1A83C501Ba95a1aB1088d67978636A8",
+          "80094": "0x86f9DcE0a1A83C501Ba95a1aB1088d67978636A8",
+          "43114": "0x86f9DcE0a1A83C501Ba95a1aB1088d67978636A8",
+          "1": "0x86f9DcE0a1A83C501Ba95a1aB1088d67978636A8",
+          "10": "0x86f9DcE0a1A83C501Ba95a1aB1088d67978636A8",
+          "100": "0x86f9DcE0a1A83C501Ba95a1aB1088d67978636A8",
+          "137": "0x86f9DcE0a1A83C501Ba95a1aB1088d67978636A8",
+          "130": "0x86f9DcE0a1A83C501Ba95a1aB1088d67978636A8",
+          "42161": "0x86f9DcE0a1A83C501Ba95a1aB1088d67978636A8",
+          "480": "0x86f9DcE0a1A83C501Ba95a1aB1088d67978636A8",
+          "146": "0x86f9DcE0a1A83C501Ba95a1aB1088d67978636A8",
+          "988": "0x86f9DcE0a1A83C501Ba95a1aB1088d67978636A8",
+          "14": "0x86f9DcE0a1A83C501Ba95a1aB1088d67978636A8"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "CircleGatewayAddDelegateHook": {
+      "name": "Circle Gateway Add Delegate",
+      "description": "Adds a delegate to a Circle Gateway wallet",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "permissions",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
+          "999": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
+          "8453": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
+          "43114": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
+          "1": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
+          "42161": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
+          "988": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
+          "14": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0"
+        },
+        "prod": {
+          "56": "0xa7aE1263fd7D6017770147393CE130f16E1fE2cC",
+          "999": "0xa7aE1263fd7D6017770147393CE130f16E1fE2cC",
+          "8453": "0xa7aE1263fd7D6017770147393CE130f16E1fE2cC",
+          "80094": "0xa7aE1263fd7D6017770147393CE130f16E1fE2cC",
+          "43114": "0xa7aE1263fd7D6017770147393CE130f16E1fE2cC",
+          "1": "0xa7aE1263fd7D6017770147393CE130f16E1fE2cC",
+          "10": "0xa7aE1263fd7D6017770147393CE130f16E1fE2cC",
+          "100": "0xa7aE1263fd7D6017770147393CE130f16E1fE2cC",
+          "137": "0xa7aE1263fd7D6017770147393CE130f16E1fE2cC",
+          "130": "0xa7aE1263fd7D6017770147393CE130f16E1fE2cC",
+          "42161": "0xa7aE1263fd7D6017770147393CE130f16E1fE2cC",
+          "480": "0xa7aE1263fd7D6017770147393CE130f16E1fE2cC",
+          "146": "0xa7aE1263fd7D6017770147393CE130f16E1fE2cC",
+          "988": "0xa7aE1263fd7D6017770147393CE130f16E1fE2cC",
+          "14": "0xa7aE1263fd7D6017770147393CE130f16E1fE2cC"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "CircleGatewayRemoveDelegateHook": {
+      "name": "Circle Gateway Remove Delegate",
+      "description": "Removes a delegate from a Circle Gateway wallet",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "permissions",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xfC02C7Ec6efaF48DdB5E6DB97d7F95Fd3433Ea0C",
+          "999": "0xfC02C7Ec6efaF48DdB5E6DB97d7F95Fd3433Ea0C",
+          "8453": "0xfC02C7Ec6efaF48DdB5E6DB97d7F95Fd3433Ea0C",
+          "43114": "0xfC02C7Ec6efaF48DdB5E6DB97d7F95Fd3433Ea0C",
+          "1": "0xfC02C7Ec6efaF48DdB5E6DB97d7F95Fd3433Ea0C",
+          "42161": "0xfC02C7Ec6efaF48DdB5E6DB97d7F95Fd3433Ea0C",
+          "988": "0xfC02C7Ec6efaF48DdB5E6DB97d7F95Fd3433Ea0C",
+          "14": "0xfC02C7Ec6efaF48DdB5E6DB97d7F95Fd3433Ea0C"
+        },
+        "prod": {
+          "56": "0x00FbC4e3608A26E0d05905759C2A6188fDa0e2Cd",
+          "999": "0x00FbC4e3608A26E0d05905759C2A6188fDa0e2Cd",
+          "8453": "0x00FbC4e3608A26E0d05905759C2A6188fDa0e2Cd",
+          "80094": "0x00FbC4e3608A26E0d05905759C2A6188fDa0e2Cd",
+          "43114": "0x00FbC4e3608A26E0d05905759C2A6188fDa0e2Cd",
+          "1": "0x00FbC4e3608A26E0d05905759C2A6188fDa0e2Cd",
+          "10": "0x00FbC4e3608A26E0d05905759C2A6188fDa0e2Cd",
+          "100": "0x00FbC4e3608A26E0d05905759C2A6188fDa0e2Cd",
+          "137": "0x00FbC4e3608A26E0d05905759C2A6188fDa0e2Cd",
+          "130": "0x00FbC4e3608A26E0d05905759C2A6188fDa0e2Cd",
+          "42161": "0x00FbC4e3608A26E0d05905759C2A6188fDa0e2Cd",
+          "480": "0x00FbC4e3608A26E0d05905759C2A6188fDa0e2Cd",
+          "146": "0x00FbC4e3608A26E0d05905759C2A6188fDa0e2Cd",
+          "988": "0x00FbC4e3608A26E0d05905759C2A6188fDa0e2Cd",
+          "14": "0x00FbC4e3608A26E0d05905759C2A6188fDa0e2Cd"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "8453",
+          "42161",
+          "43114",
+          "80094"
+        ]
+      }
+    },
+    "MorphoSupplyAndBorrowHook": {
+      "name": "Morpho Supply and Borrow",
+      "description": "Supplies collateral and borrows assets from a Morpho market",
+      "hookType": "NONACCOUNTING",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "lend",
+          "stage": "instant"
+        },
+        {
+          "intent": "borrow",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized",
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xbcfEeC4B4414B525F601b5B43A0615DCFe9b283e",
+          "8453": "0x2ABB3EEd59AeebcAad63ac1DD4e5f4316a5BD5Dc",
+          "1": "0x2ABB3EEd59AeebcAad63ac1DD4e5f4316a5BD5Dc",
+          "42161": "0x42C0D0e0B6F3D19Ecf97eE736A2A79CA1FF7997e"
+        },
+        "prod": {
+          "56": "0xf7ae84e5E8B1D73649B8E40CD17D9Aa8553977e8",
+          "8453": "0xAf77F98fd73524253A19086105c6C3944039053d",
+          "1": "0xAf77F98fd73524253A19086105c6C3944039053d",
+          "42161": "0xE8E3E1bd33E7ad2f90632eA9ae3dB3923F96A95e"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ]
+      }
+    },
+    "AaveV4SupplyAndBorrowHook": {
+      "name": "Aave V4 Supply and Borrow",
+      "description": "Supplies and borrows assets from an Aave V4 lending pool",
+      "hookType": "NONACCOUNTING",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "lend",
+          "stage": "instant"
+        },
+        {
+          "intent": "borrow",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized",
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "1": "0x512649b8bCF6A8B84c4aE64d070aB0b1D3F21384"
+        },
+        "prod": {
+          "1": "0x90Cc51274dA0986d30E627A4866EEd2332Ca3394"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1"
+        ],
+        "prod": [
+          "1"
+        ]
+      }
+    },
+    "MorphoRepayAndWithdrawHook": {
+      "name": "Morpho Repay and Withdraw",
+      "description": "Repays borrowed assets and withdraws collateral from a Morpho market",
+      "hookType": "NONACCOUNTING",
+      "subtype": "LOAN_REPAY",
+      "actionTypes": [
+        {
+          "intent": "repay",
+          "stage": "instant"
+        },
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized",
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "56": "0xC1A7fD2bbBD485FF200AE7b6a5A571E520d420aD",
+          "8453": "0x7F01A4c30013fB012f79dE667d79843bc47A5424",
+          "1": "0x7F01A4c30013fB012f79dE667d79843bc47A5424",
+          "42161": "0x7564416a362f61EdeB8F5A9DEd9D09Dd1e9Aa021"
+        },
+        "prod": {
+          "56": "0x65ecC5E336989064DB4545135b18f18bc8D773bE",
+          "8453": "0x65f289Cdf87b54095401A17af3C3Eb626B8e5e01",
+          "1": "0x65f289Cdf87b54095401A17af3C3Eb626B8e5e01",
+          "42161": "0xc212663A7F730FD7363fD88dc2cA037646834131"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ]
+      }
+    },
+    "AaveV4RepayAndWithdrawHook": {
+      "name": "Aave V4 Repay and Withdraw",
+      "description": "Repays and withdraws assets from an Aave V4 lending pool",
+      "hookType": "NONACCOUNTING",
+      "subtype": "LOAN_REPAY",
+      "actionTypes": [
+        {
+          "intent": "repay",
+          "stage": "instant"
+        },
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized",
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "1": "0xbdFf80647542f52B107aa03Ca3Ac63424f5d8f07"
+        },
+        "prod": {
+          "1": "0xE0E21f6B7f9e13Ee0c09d8FCf5a223Ccb67dA9db"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1"
+        ],
+        "prod": [
+          "1"
+        ]
+      }
+    }
+  }
+}
