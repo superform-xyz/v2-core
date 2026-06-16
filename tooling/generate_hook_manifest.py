@@ -21,6 +21,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 CLASSIFICATION_PATH = ROOT / "tooling" / "hook-classification.yaml"
+ENRICHMENT_PATH = ROOT / "tooling" / "hook-enrichment.yaml"
 OUTPUT_PATH = ROOT / "manifests" / "hooks.json"
 HOOKS_SRC = ROOT / "src" / "hooks"
 DEPLOY_OUTPUT = ROOT / "script" / "output"
@@ -61,6 +62,14 @@ def load_classification() -> dict:
     """Load hook-classification.yaml."""
     with open(CLASSIFICATION_PATH) as f:
         return yaml.safe_load(f)
+
+
+def load_enrichment() -> dict:
+    """Load hook-enrichment.yaml."""
+    if not ENRICHMENT_PATH.exists():
+        return {}
+    with open(ENRICHMENT_PATH) as f:
+        return yaml.safe_load(f) or {}
 
 
 def find_hook_source_files() -> dict[str, Path]:
@@ -153,9 +162,70 @@ def load_deployment_addresses(env: str) -> dict[str, dict[str, str]]:
     return addresses
 
 
+def enrich_hook(hook_name: str, entry: dict, enrichment: dict) -> dict:
+    """Add enrichment fields to a hook entry."""
+    protocols = enrichment.get("compatibleProtocols", {})
+    approve_pairs = enrichment.get("approvePairs", {})
+    approve_reverse = {v: k for k, v in approve_pairs.items()}
+    lifecycle_map = enrichment.get("asyncLifecycleMap", {})
+    lifecycles = enrichment.get("asyncLifecycles", {})
+    amount_meta_overrides = enrichment.get("amountMeta", {})
+    sizeless = set(enrichment.get("sizelessHooks", []))
+    leg_sizing = entry.get("legSizing", [])
+
+    # amountMeta
+    if hook_name in amount_meta_overrides:
+        entry["amountMeta"] = amount_meta_overrides[hook_name]
+    else:
+        entry["amountMeta"] = [{"direction": "IN", "denomination": "TOKEN"}]
+
+    # sized
+    if hook_name in sizeless:
+        entry["sized"] = False
+    else:
+        entry["sized"] = len(leg_sizing) > 0 and any(s == "sized" for s in leg_sizing)
+
+    # erc165
+    if hook_name in sizeless or hook_name in ("ClaimAssetsDETHHook", "ClaimWithdrawFirelightVaultHook"):
+        entry["erc165"] = ["ISuperHookInflowOutflow"]
+    elif len(leg_sizing) > 0:
+        entry["erc165"] = ["ISuperHookInflowOutflow", "ISuperHookOutflow"]
+    else:
+        entry["erc165"] = []
+
+    # requiresApproval
+    if hook_name.startswith("ApproveAnd"):
+        entry["requiresApproval"] = False
+    elif hook_name in approve_pairs:
+        entry["requiresApproval"] = True
+    else:
+        entry["requiresApproval"] = False
+
+    # approveVariant
+    if hook_name in approve_pairs:
+        entry["approveVariant"] = approve_pairs[hook_name]
+    elif hook_name in approve_reverse:
+        entry["approveVariant"] = approve_reverse[hook_name]
+    else:
+        entry["approveVariant"] = None
+
+    # asyncLifecycle
+    if hook_name in lifecycle_map:
+        group_name = lifecycle_map[hook_name]
+        entry["asyncLifecycle"] = lifecycles.get(group_name)
+    else:
+        entry["asyncLifecycle"] = None
+
+    # compatibleProtocols
+    entry["compatibleProtocols"] = protocols.get(hook_name, [])
+
+    return entry
+
+
 def generate_manifest() -> dict:
     """Generate the full hook manifest."""
     classification = load_classification()
+    enrichment = load_enrichment()
     hook_sources = find_hook_source_files()
     staging_addresses = load_deployment_addresses("staging")
     prod_addresses = load_deployment_addresses("prod")
@@ -198,6 +268,10 @@ def generate_manifest() -> dict:
             "prod": sorted(prod_addrs.keys(), key=int),
         }
 
+        # Enrichment fields (off-chain classification)
+        if enrichment:
+            entry = enrich_hook(hook_name, entry, enrichment)
+
         manifest["hooks"][hook_name] = entry
 
     return manifest
@@ -226,11 +300,21 @@ def main():
         json.dump(manifest, f, indent=2)
         f.write("\n")
 
+    # Enrichment stats
+    approve_count = sum(1 for h in manifest["hooks"].values() if h.get("requiresApproval"))
+    async_count = sum(1 for h in manifest["hooks"].values() if h.get("asyncLifecycle"))
+    sized_count = sum(1 for h in manifest["hooks"].values() if h.get("sized"))
+    proto_count = sum(1 for h in manifest["hooks"].values() if h.get("compatibleProtocols"))
+
     print(f"Generated {output_path}")
     print(f"  Total hooks: {total}")
     print(f"  With staging addresses: {staging_count}")
     print(f"  With prod addresses: {prod_count}")
     print(f"  With name(): {with_name}")
+    print(f"  requiresApproval: {approve_count}")
+    print(f"  asyncLifecycle: {async_count}")
+    print(f"  sized: {sized_count}")
+    print(f"  compatibleProtocols: {proto_count}")
 
 
 if __name__ == "__main__":

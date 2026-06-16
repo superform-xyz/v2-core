@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-06-15T12:09:41Z",
+  "generatedAt": "2026-06-16T09:46:45Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -97,7 +97,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "ASSETS"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndDeposit4626VaultHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "erc4626"
+      ]
     },
     "ApproveAndDeposit4626VaultHook": {
       "name": "Approve and Deposit ERC-4626 Vault",
@@ -170,7 +187,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "ASSETS"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "Deposit4626VaultHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "erc4626"
+      ]
     },
     "Deposit5115VaultHook": {
       "name": "Deposit ERC-5115 Vault",
@@ -243,7 +277,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "ASSETS"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndDeposit5115VaultHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "erc5115"
+      ]
     },
     "ApproveAndDeposit5115VaultHook": {
       "name": "Approve and Deposit ERC-5115 Vault",
@@ -316,7 +367,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "ASSETS"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "Deposit5115VaultHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "erc5115"
+      ]
     },
     "RequestDeposit7540VaultHook": {
       "name": "Request Deposit ERC-7540 Vault",
@@ -389,7 +457,29 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "ASSETS"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndRequestDeposit7540VaultHook",
+      "asyncLifecycle": {
+        "request": "RequestDeposit7540VaultHook",
+        "fulfill": "Deposit7540VaultHook",
+        "cancel": "CancelDepositRequest7540Hook",
+        "claimCancel": "ClaimCancelDepositRequest7540Hook"
+      },
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "ApproveAndRequestDeposit7540VaultHook": {
       "name": "Approve and Request Deposit ERC-7540 Vault",
@@ -462,7 +552,29 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "ASSETS"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "RequestDeposit7540VaultHook",
+      "asyncLifecycle": {
+        "request": "RequestDeposit7540VaultHook",
+        "fulfill": "Deposit7540VaultHook",
+        "cancel": "CancelDepositRequest7540Hook",
+        "claimCancel": "ClaimCancelDepositRequest7540Hook"
+      },
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "Deposit7540VaultHook": {
       "name": "Deposit ERC-7540 Vault",
@@ -535,7 +647,29 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "ASSETS"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": {
+        "request": "RequestDeposit7540VaultHook",
+        "fulfill": "Deposit7540VaultHook",
+        "cancel": "CancelDepositRequest7540Hook",
+        "claimCancel": "ClaimCancelDepositRequest7540Hook"
+      },
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "CancelDepositRequest7540Hook": {
       "name": "Cancel Deposit Request ERC-7540",
@@ -608,7 +742,29 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": {
+        "request": "RequestDeposit7540VaultHook",
+        "fulfill": "Deposit7540VaultHook",
+        "cancel": "CancelDepositRequest7540Hook",
+        "claimCancel": "ClaimCancelDepositRequest7540Hook"
+      },
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "CancelDepositRequestWithId7540Hook": {
       "name": "Cancel Deposit Request with ID ERC-7540",
@@ -681,7 +837,29 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": {
+        "request": "RequestDeposit7540VaultHook",
+        "fulfill": "Deposit7540VaultHook",
+        "cancel": "CancelDepositRequestWithId7540Hook",
+        "claimCancel": "ClaimCancelDepositRequestWithId7540Hook"
+      },
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "ClaimCancelDepositRequest7540Hook": {
       "name": "Claim Cancel Deposit Request ERC-7540",
@@ -754,7 +932,29 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": {
+        "request": "RequestDeposit7540VaultHook",
+        "fulfill": "Deposit7540VaultHook",
+        "cancel": "CancelDepositRequest7540Hook",
+        "claimCancel": "ClaimCancelDepositRequest7540Hook"
+      },
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "ClaimCancelDepositRequestWithId7540Hook": {
       "name": "Claim Cancel Deposit Request with ID ERC-7540",
@@ -827,7 +1027,29 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": {
+        "request": "RequestDeposit7540VaultHook",
+        "fulfill": "Deposit7540VaultHook",
+        "cancel": "CancelDepositRequestWithId7540Hook",
+        "claimCancel": "ClaimCancelDepositRequestWithId7540Hook"
+      },
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "Redeem4626VaultHook": {
       "name": "Redeem ERC-4626 Vault",
@@ -900,7 +1122,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "SHARES"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "erc4626"
+      ]
     },
     "Redeem5115VaultHook": {
       "name": "Redeem ERC-5115 Vault",
@@ -973,7 +1212,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "SHARES"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "erc5115"
+      ]
     },
     "Redeem7540VaultHook": {
       "name": "Redeem ERC-7540 Vault",
@@ -1046,7 +1302,29 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "SHARES"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": {
+        "request": "RequestRedeem7540VaultHook",
+        "fulfill": "Redeem7540VaultHook",
+        "cancel": "CancelRedeemRequest7540Hook",
+        "claimCancel": "ClaimCancelRedeemRequest7540Hook"
+      },
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "RedeemWithId7540VaultHook": {
       "name": "Redeem with ID ERC-7540 Vault",
@@ -1119,7 +1397,29 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "SHARES"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": {
+        "request": "RequestRedeem7540VaultHook",
+        "fulfill": "RedeemWithId7540VaultHook",
+        "cancel": "CancelRedeemRequestWithId7540Hook",
+        "claimCancel": "ClaimCancelRedeemRequestWithId7540Hook"
+      },
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "Withdraw7540VaultHook": {
       "name": "Withdraw ERC-7540 Vault",
@@ -1188,7 +1488,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "ASSETS"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "WithdrawWithId7540VaultHook": {
       "name": "Withdraw with ID ERC-7540 Vault",
@@ -1261,7 +1578,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "ASSETS"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "MorphoWithdrawHook": {
       "name": "Morpho Withdraw",
@@ -1305,7 +1639,28 @@
           "8453",
           "42161"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "ASSETS"
+        },
+        {
+          "direction": "IN",
+          "denomination": "SHARES"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "morpho"
+      ]
     },
     "AaveV4WithdrawHook": {
       "name": "Aave V4 Withdraw",
@@ -1336,7 +1691,24 @@
         "prod": [
           "1"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aave-v4"
+      ]
     },
     "RequestRedeem7540VaultHook": {
       "name": "Request Redeem ERC-7540 Vault",
@@ -1409,7 +1781,29 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "SHARES"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": {
+        "request": "RequestRedeem7540VaultHook",
+        "fulfill": "Redeem7540VaultHook",
+        "cancel": "CancelRedeemRequest7540Hook",
+        "claimCancel": "ClaimCancelRedeemRequest7540Hook"
+      },
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "RequestRedeemDETHHook": {
       "name": "Request Redeem DETH",
@@ -1440,7 +1834,29 @@
         "prod": [
           "1"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "SHARES"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndRequestRedeemDETHHook",
+      "asyncLifecycle": {
+        "request": "RequestRedeemDETHHook",
+        "fulfill": "ClaimAssetsDETHHook",
+        "cancel": null,
+        "claimCancel": null
+      },
+      "compatibleProtocols": [
+        "deth"
+      ]
     },
     "ApproveAndRequestRedeemDETHHook": {
       "name": "Approve and Request Redeem DETH",
@@ -1471,7 +1887,29 @@
         "prod": [
           "1"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "SHARES"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "RequestRedeemDETHHook",
+      "asyncLifecycle": {
+        "request": "RequestRedeemDETHHook",
+        "fulfill": "ClaimAssetsDETHHook",
+        "cancel": null,
+        "claimCancel": null
+      },
+      "compatibleProtocols": [
+        "deth"
+      ]
     },
     "RedeemFirelightVaultHook": {
       "name": "Redeem Firelight Vault",
@@ -1502,7 +1940,29 @@
         "prod": [
           "14"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "SHARES"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": {
+        "request": "RedeemFirelightVaultHook",
+        "fulfill": "ClaimWithdrawFirelightVaultHook",
+        "cancel": null,
+        "claimCancel": null
+      },
+      "compatibleProtocols": [
+        "firelight"
+      ]
     },
     "EthenaCooldownSharesHook": {
       "name": "Ethena Cooldown Shares",
@@ -1575,7 +2035,29 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "SHARES"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": {
+        "request": "EthenaCooldownSharesHook",
+        "fulfill": "EthenaUnstakeHook",
+        "cancel": null,
+        "claimCancel": null
+      },
+      "compatibleProtocols": [
+        "ethena"
+      ]
     },
     "ClaimAssetsDETHHook": {
       "name": "Claim Assets DETH",
@@ -1604,7 +2086,23 @@
         "prod": [
           "1"
         ]
-      }
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": {
+        "request": "RequestRedeemDETHHook",
+        "fulfill": "ClaimAssetsDETHHook",
+        "cancel": null,
+        "claimCancel": null
+      },
+      "compatibleProtocols": [
+        "deth"
+      ]
     },
     "ClaimWithdrawFirelightVaultHook": {
       "name": "Claim Withdraw Firelight Vault",
@@ -1633,7 +2131,23 @@
         "prod": [
           "14"
         ]
-      }
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": {
+        "request": "RedeemFirelightVaultHook",
+        "fulfill": "ClaimWithdrawFirelightVaultHook",
+        "cancel": null,
+        "claimCancel": null
+      },
+      "compatibleProtocols": [
+        "firelight"
+      ]
     },
     "EthenaUnstakeHook": {
       "name": "Ethena Unstake",
@@ -1706,7 +2220,29 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": {
+        "request": "EthenaCooldownSharesHook",
+        "fulfill": "EthenaUnstakeHook",
+        "cancel": null,
+        "claimCancel": null
+      },
+      "compatibleProtocols": [
+        "ethena"
+      ]
     },
     "CancelRedeemRequest7540Hook": {
       "name": "Cancel Redeem Request ERC-7540",
@@ -1779,7 +2315,29 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": {
+        "request": "RequestRedeem7540VaultHook",
+        "fulfill": "Redeem7540VaultHook",
+        "cancel": "CancelRedeemRequest7540Hook",
+        "claimCancel": "ClaimCancelRedeemRequest7540Hook"
+      },
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "CancelRedeemRequestWithId7540Hook": {
       "name": "Cancel Redeem Request with ID ERC-7540",
@@ -1852,7 +2410,29 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": {
+        "request": "RequestRedeem7540VaultHook",
+        "fulfill": "RedeemWithId7540VaultHook",
+        "cancel": "CancelRedeemRequestWithId7540Hook",
+        "claimCancel": "ClaimCancelRedeemRequestWithId7540Hook"
+      },
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "ClaimCancelRedeemRequest7540Hook": {
       "name": "Claim Cancel Redeem Request ERC-7540",
@@ -1925,7 +2505,29 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": {
+        "request": "RequestRedeem7540VaultHook",
+        "fulfill": "Redeem7540VaultHook",
+        "cancel": "CancelRedeemRequest7540Hook",
+        "claimCancel": "ClaimCancelRedeemRequest7540Hook"
+      },
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "ClaimCancelRedeemRequestWithId7540Hook": {
       "name": "Claim Cancel Redeem Request with ID ERC-7540",
@@ -1998,7 +2600,29 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": {
+        "request": "RequestRedeem7540VaultHook",
+        "fulfill": "RedeemWithId7540VaultHook",
+        "cancel": "CancelRedeemRequestWithId7540Hook",
+        "claimCancel": "ClaimCancelRedeemRequestWithId7540Hook"
+      },
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "FluidClaimRewardHook": {
       "name": "Fluid Claim Reward",
@@ -2019,7 +2643,18 @@
       "availableChains": {
         "staging": [],
         "prod": []
-      }
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "fluid"
+      ]
     },
     "GearboxClaimRewardHook": {
       "name": "Gearbox Claim Reward",
@@ -2040,7 +2675,18 @@
       "availableChains": {
         "staging": [],
         "prod": []
-      }
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "gearbox"
+      ]
     },
     "YearnClaimOneRewardHook": {
       "name": "Yearn Claim Reward",
@@ -2061,7 +2707,18 @@
       "availableChains": {
         "staging": [],
         "prod": []
-      }
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "yearn"
+      ]
     },
     "MerklClaimRewardHook": {
       "name": "Merkl Claim Reward",
@@ -2128,7 +2785,18 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "merkl"
+      ]
     },
     "ClaimRFLRHook": {
       "name": "Claim RFLR",
@@ -2159,7 +2827,24 @@
         "prod": [
           "14"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "flare-rflr"
+      ]
     },
     "WithdrawRFLRHook": {
       "name": "Withdraw RFLR",
@@ -2190,7 +2875,24 @@
         "prod": [
           "14"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "flare-rflr"
+      ]
     },
     "WithdrawVestedRFLRHook": {
       "name": "Withdraw Vested RFLR",
@@ -2221,7 +2923,24 @@
         "prod": [
           "14"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "flare-rflr"
+      ]
     },
     "SwapUniswapV3Hook": {
       "name": "Swap Uniswap V3",
@@ -2252,7 +2971,24 @@
         "prod": [
           "999"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndSwapUniswapV3Hook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "uniswap-v3"
+      ]
     },
     "ApproveAndSwapUniswapV3Hook": {
       "name": "Approve and Swap Uniswap V3",
@@ -2283,7 +3019,24 @@
         "prod": [
           "999"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "SwapUniswapV3Hook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "uniswap-v3"
+      ]
     },
     "SwapUniswapV3Router02Hook": {
       "name": "Swap Uniswap V3 Router02",
@@ -2342,7 +3095,24 @@
           "42161",
           "43114"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndSwapUniswapV3Router02Hook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "uniswap-v3"
+      ]
     },
     "ApproveAndSwapUniswapV3Router02Hook": {
       "name": "Approve and Swap Uniswap V3 Router02",
@@ -2401,7 +3171,24 @@
           "42161",
           "43114"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "SwapUniswapV3Router02Hook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "uniswap-v3"
+      ]
     },
     "SwapUniswapV2Hook": {
       "name": "Swap Uniswap V2",
@@ -2432,7 +3219,24 @@
         "prod": [
           "14"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndSwapUniswapV2Hook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "uniswap-v2"
+      ]
     },
     "ApproveAndSwapUniswapV2Hook": {
       "name": "Approve and Swap Uniswap V2",
@@ -2463,7 +3267,24 @@
         "prod": [
           "14"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "SwapUniswapV2Hook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "uniswap-v2"
+      ]
     },
     "SwapUniswapV4Hook": {
       "name": "Swap Uniswap V4",
@@ -2495,7 +3316,24 @@
           "43114"
         ],
         "prod": []
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "uniswap-v4"
+      ]
     },
     "SwapOdosV2Hook": {
       "name": "Swap Odos V2",
@@ -2550,7 +3388,24 @@
           "42161",
           "43114"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndSwapOdosV2Hook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "odos-v2"
+      ]
     },
     "ApproveAndSwapOdosV2Hook": {
       "name": "Approve and Swap Odos V2",
@@ -2605,7 +3460,24 @@
           "42161",
           "43114"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "SwapOdosV2Hook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "odos-v2"
+      ]
     },
     "SwapOdosV3Hook": {
       "name": "Swap Odos V3",
@@ -2658,7 +3530,24 @@
           "42161",
           "43114"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndSwapOdosV3Hook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "odos-v3"
+      ]
     },
     "ApproveAndSwapOdosV3Hook": {
       "name": "Approve and Swap Odos V3",
@@ -2711,7 +3600,24 @@
           "42161",
           "43114"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "SwapOdosV3Hook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "odos-v3"
+      ]
     },
     "SwapKyberSwapHook": {
       "name": "Swap KyberSwap",
@@ -2772,7 +3678,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndSwapKyberSwapHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "kyberswap"
+      ]
     },
     "ApproveAndSwapKyberSwapHook": {
       "name": "Approve and Swap KyberSwap",
@@ -2833,7 +3756,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "SwapKyberSwapHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "kyberswap"
+      ]
     },
     "SwapSparkPSMExactInHook": {
       "name": "Swap Spark PSM Exact In",
@@ -2864,7 +3804,24 @@
         "prod": [
           "8453"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndSwapSparkPSMExactInHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "spark-psm"
+      ]
     },
     "ApproveAndSwapSparkPSMExactInHook": {
       "name": "Approve and Swap Spark PSM Exact In",
@@ -2895,7 +3852,24 @@
         "prod": [
           "8453"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "SwapSparkPSMExactInHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "spark-psm"
+      ]
     },
     "SwapSparkPSMExactOutHook": {
       "name": "Swap Spark PSM Exact Out",
@@ -2926,7 +3900,24 @@
         "prod": [
           "8453"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndSwapSparkPSMExactOutHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "spark-psm"
+      ]
     },
     "ApproveAndSwapSparkPSMExactOutHook": {
       "name": "Approve and Swap Spark PSM Exact Out",
@@ -2957,7 +3948,24 @@
         "prod": [
           "8453"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "SwapSparkPSMExactOutHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "spark-psm"
+      ]
     },
     "SwapAlgebraIntegralHook": {
       "name": "Swap Algebra Integral",
@@ -2988,7 +3996,24 @@
         "prod": [
           "14"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndSwapAlgebraIntegralHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "algebra-integral"
+      ]
     },
     "ApproveAndSwapAlgebraIntegralHook": {
       "name": "Approve and Swap Algebra Integral",
@@ -3019,7 +4044,24 @@
         "prod": [
           "14"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "SwapAlgebraIntegralHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "algebra-integral"
+      ]
     },
     "SwapOpenOceanSparkDexHook": {
       "name": "Swap OpenOcean SparkDex",
@@ -3050,7 +4092,24 @@
         "prod": [
           "14"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndSwapOpenOceanSparkDexHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "openocean"
+      ]
     },
     "ApproveAndSwapOpenOceanSparkDexHook": {
       "name": "Approve and Swap OpenOcean SparkDex",
@@ -3081,7 +4140,24 @@
         "prod": [
           "14"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "SwapOpenOceanSparkDexHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "openocean"
+      ]
     },
     "Swap1InchHook": {
       "name": "Swap 1inch",
@@ -3138,7 +4214,24 @@
           "42161",
           "43114"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "1inch"
+      ]
     },
     "PendleRouterRedeemHook": {
       "name": "Pendle Router Redeem",
@@ -3191,7 +4284,24 @@
           "42161",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "pendle"
+      ]
     },
     "PendleRouterSwapHook": {
       "name": "Pendle Router Swap",
@@ -3244,7 +4354,24 @@
           "42161",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "pendle"
+      ]
     },
     "PendleUnifiedHook": {
       "name": "Pendle Unified",
@@ -3297,7 +4424,24 @@
           "42161",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "pendle"
+      ]
     },
     "SpectraExchangeDepositHook": {
       "name": "Spectra Exchange Deposit",
@@ -3320,7 +4464,24 @@
       "availableChains": {
         "staging": [],
         "prod": []
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "spectra"
+      ]
     },
     "SpectraExchangeRedeemHook": {
       "name": "Spectra Exchange Redeem",
@@ -3343,7 +4504,24 @@
       "availableChains": {
         "staging": [],
         "prod": []
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "spectra"
+      ]
     },
     "DepositWETHHook": {
       "name": "Deposit WETH",
@@ -3366,7 +4544,24 @@
       "availableChains": {
         "staging": [],
         "prod": []
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "weth"
+      ]
     },
     "WithdrawWETHHook": {
       "name": "Withdraw WETH",
@@ -3389,7 +4584,24 @@
       "availableChains": {
         "staging": [],
         "prod": []
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "weth"
+      ]
     },
     "AcrossSendFundsAndExecuteOnDstHook": {
       "name": "Across Bridge",
@@ -3444,7 +4656,24 @@
           "8453",
           "42161"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndAcrossSendFundsAndExecuteOnDstHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "across"
+      ]
     },
     "ApproveAndAcrossSendFundsAndExecuteOnDstHook": {
       "name": "Approve and Across Bridge",
@@ -3499,7 +4728,24 @@
           "8453",
           "42161"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "AcrossSendFundsAndExecuteOnDstHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "across"
+      ]
     },
     "AcrossSendFundsAndExecuteOnDstHookV2": {
       "name": "Across Bridge V2",
@@ -3542,7 +4788,24 @@
           "8453",
           "42161"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "across-v2"
+      ]
     },
     "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": {
       "name": "Approve and Across Bridge V2",
@@ -3585,7 +4848,24 @@
           "8453",
           "42161"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "AcrossSendFundsAndExecuteOnDstHookV2",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "across-v2"
+      ]
     },
     "StargateSendHook": {
       "name": "Stargate Bridge",
@@ -3658,7 +4938,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndStargateSendHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "stargate"
+      ]
     },
     "ApproveAndStargateSendHook": {
       "name": "Approve and Stargate Bridge",
@@ -3731,7 +5028,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "StargateSendHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "stargate"
+      ]
     },
     "StargateSendHookV2": {
       "name": "Stargate Bridge V2",
@@ -3800,7 +5114,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndStargateSendHookV2",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "stargate-v2"
+      ]
     },
     "ApproveAndStargateSendHookV2": {
       "name": "Approve and Stargate Bridge V2",
@@ -3869,7 +5200,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "StargateSendHookV2",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "stargate-v2"
+      ]
     },
     "DeBridgeSendOrderAndExecuteOnDstHook": {
       "name": "deBridge Send Order",
@@ -3930,7 +5278,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "debridge"
+      ]
     },
     "CCTPSendHook": {
       "name": "CCTP Send",
@@ -4003,7 +5368,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndCCTPSendHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "circle-cctp"
+      ]
     },
     "ApproveAndCCTPSendHook": {
       "name": "Approve and CCTP Send",
@@ -4076,7 +5458,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "CCTPSendHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "circle-cctp"
+      ]
     },
     "CircleGatewayWalletHook": {
       "name": "Circle Gateway Wallet",
@@ -4149,7 +5548,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "circle-gateway"
+      ]
     },
     "CircleGatewayMinterHook": {
       "name": "Circle Gateway Minter",
@@ -4222,7 +5638,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "circle-gateway"
+      ]
     },
     "DeBridgeCancelOrderHook": {
       "name": "deBridge Cancel Order",
@@ -4283,7 +5716,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "debridge"
+      ]
     },
     "ClaimFailedTransferHook": {
       "name": "Claim Failed Transfer",
@@ -4352,7 +5802,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "stargate"
+      ]
     },
     "FluidStakeHook": {
       "name": "Fluid Stake",
@@ -4375,7 +5842,24 @@
       "availableChains": {
         "staging": [],
         "prod": []
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndFluidStakeHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "fluid"
+      ]
     },
     "ApproveAndFluidStakeHook": {
       "name": "Approve and Fluid Stake",
@@ -4398,7 +5882,24 @@
       "availableChains": {
         "staging": [],
         "prod": []
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "FluidStakeHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "fluid"
+      ]
     },
     "GearboxStakeHook": {
       "name": "Gearbox Stake",
@@ -4421,7 +5922,24 @@
       "availableChains": {
         "staging": [],
         "prod": []
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndGearboxStakeHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "gearbox"
+      ]
     },
     "ApproveAndGearboxStakeHook": {
       "name": "Approve and Gearbox Stake",
@@ -4444,7 +5962,24 @@
       "availableChains": {
         "staging": [],
         "prod": []
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "GearboxStakeHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "gearbox"
+      ]
     },
     "FluidUnstakeHook": {
       "name": "Fluid Unstake",
@@ -4467,7 +6002,24 @@
       "availableChains": {
         "staging": [],
         "prod": []
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "fluid"
+      ]
     },
     "GearboxUnstakeHook": {
       "name": "Gearbox Unstake",
@@ -4490,7 +6042,24 @@
       "availableChains": {
         "staging": [],
         "prod": []
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "gearbox"
+      ]
     },
     "MorphoSupplyHook": {
       "name": "Morpho Supply",
@@ -4533,7 +6102,24 @@
           "8453",
           "42161"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "morpho"
+      ]
     },
     "MorphoLendHook": {
       "name": "Morpho Lend",
@@ -4576,7 +6162,24 @@
           "8453",
           "42161"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "morpho"
+      ]
     },
     "AaveV4SupplyHook": {
       "name": "Aave V4 Supply",
@@ -4607,7 +6210,24 @@
         "prod": [
           "1"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aave-v4"
+      ]
     },
     "MorphoBorrowHook": {
       "name": "Morpho Borrow",
@@ -4650,7 +6270,24 @@
           "8453",
           "42161"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "morpho"
+      ]
     },
     "AaveV4BorrowHook": {
       "name": "Aave V4 Borrow",
@@ -4681,7 +6318,24 @@
         "prod": [
           "1"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aave-v4"
+      ]
     },
     "MorphoRepayHook": {
       "name": "Morpho Repay",
@@ -4724,7 +6378,24 @@
           "8453",
           "42161"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "morpho"
+      ]
     },
     "AaveV4RepayHook": {
       "name": "Aave V4 Repay",
@@ -4755,7 +6426,24 @@
         "prod": [
           "1"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aave-v4"
+      ]
     },
     "TransferERC20Hook": {
       "name": "Transfer ERC-20",
@@ -4828,7 +6516,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "erc20"
+      ]
     },
     "TransferHook": {
       "name": "Transfer",
@@ -4901,7 +6606,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "erc20"
+      ]
     },
     "NativeTransferHook": {
       "name": "Native Transfer",
@@ -4924,7 +6646,24 @@
       "availableChains": {
         "staging": [],
         "prod": []
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "native"
+      ]
     },
     "BatchTransferHook": {
       "name": "Batch Transfer",
@@ -4997,7 +6736,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "erc20"
+      ]
     },
     "OfframpTokensHook": {
       "name": "Offramp Tokens",
@@ -5070,7 +6826,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "offramp"
+      ]
     },
     "BatchTransferFromHook": {
       "name": "Batch Transfer From",
@@ -5141,7 +6914,18 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "permit2"
+      ]
     },
     "MetaMorphoReallocateHook": {
       "name": "MetaMorpho Reallocate",
@@ -5184,7 +6968,24 @@
           "8453",
           "42161"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "morpho-metamorpho"
+      ]
     },
     "ForceDeallocateMorphoHook": {
       "name": "Force Deallocate Morpho",
@@ -5227,7 +7028,24 @@
           "8453",
           "42161"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "morpho-metamorpho"
+      ]
     },
     "MarkRootAsUsedHook": {
       "name": "Mark Root As Used",
@@ -5300,7 +7118,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "superform"
+      ]
     },
     "FetchNativeFeeHook": {
       "name": "Fetch Native Fee",
@@ -5373,7 +7208,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "superform-sponsorship"
+      ]
     },
     "SetSlippageHook": {
       "name": "Set Slippage ERC-7540",
@@ -5446,7 +7298,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "MintSuperPositionsHook": {
       "name": "Mint SuperPositions",
@@ -5469,7 +7338,24 @@
       "availableChains": {
         "staging": [],
         "prod": []
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "SHARES"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "superform"
+      ]
     },
     "BurnSuperPositionsHook": {
       "name": "Burn SuperPositions",
@@ -5492,7 +7378,24 @@
       "availableChains": {
         "staging": [],
         "prod": []
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "SHARES"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "superform"
+      ]
     },
     "RecordPurchasePendlePTAmortizedOracleHook": {
       "name": "Record Purchase Pendle PT Oracle",
@@ -5565,7 +7468,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "pendle"
+      ]
     },
     "RecordPurchasePendlePTAmortizedOracleHookV2": {
       "name": "Record Purchase Pendle PT Oracle V2",
@@ -5638,7 +7558,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "pendle"
+      ]
     },
     "RecordRedemptionPendlePTAmortizedOracleHook": {
       "name": "Record Redemption Pendle PT Oracle",
@@ -5711,7 +7648,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "pendle"
+      ]
     },
     "RecordRedemptionPendlePTAmortizedOracleHookV2": {
       "name": "Record Redemption Pendle PT Oracle V2",
@@ -5784,7 +7738,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "pendle"
+      ]
     },
     "ApproveERC20Hook": {
       "name": "Approve ERC-20",
@@ -5857,7 +7828,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "erc20"
+      ]
     },
     "SetOperator7540Hook": {
       "name": "Set Operator ERC-7540",
@@ -5930,7 +7918,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "erc7540"
+      ]
     },
     "CircleGatewayAddDelegateHook": {
       "name": "Circle Gateway Add Delegate",
@@ -6003,7 +8008,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "circle-gateway"
+      ]
     },
     "CircleGatewayRemoveDelegateHook": {
       "name": "Circle Gateway Remove Delegate",
@@ -6076,7 +8098,24 @@
           "43114",
           "80094"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "circle-gateway"
+      ]
     },
     "MorphoSupplyAndBorrowHook": {
       "name": "Morpho Supply and Borrow",
@@ -6124,7 +8163,28 @@
           "8453",
           "42161"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        },
+        {
+          "direction": "OUT",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "morpho"
+      ]
     },
     "AaveV4SupplyAndBorrowHook": {
       "name": "Aave V4 Supply and Borrow",
@@ -6160,7 +8220,28 @@
         "prod": [
           "1"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        },
+        {
+          "direction": "OUT",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aave-v4"
+      ]
     },
     "MorphoRepayAndWithdrawHook": {
       "name": "Morpho Repay and Withdraw",
@@ -6208,7 +8289,28 @@
           "8453",
           "42161"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        },
+        {
+          "direction": "OUT",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "morpho"
+      ]
     },
     "AaveV4RepayAndWithdrawHook": {
       "name": "Aave V4 Repay and Withdraw",
@@ -6244,7 +8346,28 @@
         "prod": [
           "1"
         ]
-      }
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        },
+        {
+          "direction": "OUT",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aave-v4"
+      ]
     }
   }
 }
