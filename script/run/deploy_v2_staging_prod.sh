@@ -707,6 +707,7 @@ else:
 # Deploy only to networks that need deployment (smart deployment logic)
 deployed_networks=0
 skipped_networks=0
+declare -a FAILED_DEPLOY_NETWORKS=()
 
 for network_def in "${NETWORKS[@]}"; do
     IFS=':' read -r network_id network_name rpc_var <<< "$network_def"
@@ -772,6 +773,7 @@ for network_def in "${NETWORKS[@]}"; do
         cp "$output_json" "$backup_json"
     fi
 
+    local deploy_exit_code
     forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(bool,uint256,uint64)' false $FORGE_ENV $network_id \
         --account $ACCOUNT \
@@ -788,6 +790,25 @@ for network_def in "${NETWORKS[@]}"; do
         $GAS_PRICE_FLAG \
         --timeout 300 \
         -vv
+    deploy_exit_code=$?
+
+    if [[ $deploy_exit_code -ne 0 ]]; then
+        echo -e "${RED}❌ ERROR: Forge deployment FAILED for $network_name (Chain $network_id) with exit code $deploy_exit_code${NC}"
+        echo -e "${RED}   The deployment script reverted or encountered an error.${NC}"
+        echo -e "${YELLOW}   Common causes:${NC}"
+        echo -e "${YELLOW}     • A require() check failed (missing dependency, zero address)${NC}"
+        echo -e "${YELLOW}     • RPC connectivity issue during deployment${NC}"
+        echo -e "${YELLOW}     • Insufficient gas or funds${NC}"
+        echo -e "${YELLOW}     • Contract bytecode mismatch${NC}"
+        echo -e "${RED}   Restoring previous output file and continuing with next network...${NC}"
+        # Restore backup if forge failed (output file may be corrupted or missing)
+        if [[ -f "$backup_json" ]]; then
+            cp "$backup_json" "$output_json"
+        fi
+        rm -f "$backup_json"
+        FAILED_DEPLOY_NETWORKS+=("$network_name (Chain $network_id)")
+        continue
+    fi
 
     # Restore any entries that the forge script dropped (e.g., Nexus contracts)
     preserve_existing_json_entries "$output_json" "$backup_json"
@@ -801,17 +822,29 @@ echo ""
 echo -e "${BLUE}📊 Deployment Summary:${NC}"
 echo -e "${GREEN}   • Networks deployed: $deployed_networks${NC}"
 echo -e "${YELLOW}   • Networks skipped: $skipped_networks${NC}"
-
-# Note: Legacy individual network deployments have been replaced by the centralized 
-# network loop above for better maintainability and consistency.
+if [[ ${#FAILED_DEPLOY_NETWORKS[@]} -gt 0 ]]; then
+    echo -e "${RED}   • Networks FAILED: ${#FAILED_DEPLOY_NETWORKS[@]}${NC}"
+    for failed in "${FAILED_DEPLOY_NETWORKS[@]}"; do
+        echo -e "${RED}     - $failed${NC}"
+    done
+fi
 
 print_separator
-echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║                                                                                      ║${NC}"
-echo -e "${GREEN}║${WHITE}                🎉 All V2 Core $ENVIRONMENT $MODE Operations Completed! 🎉                ${GREEN}║${NC}"
-echo -e "${GREEN}║                                                                                      ║${NC}"
-echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
 
-
-
-print_separator 
+if [[ ${#FAILED_DEPLOY_NETWORKS[@]} -gt 0 ]]; then
+    echo -e "${RED}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║                                                                                      ║${NC}"
+    echo -e "${RED}║${WHITE}          ⚠️  V2 Core $ENVIRONMENT $MODE completed with ERRORS ⚠️                   ${RED}║${NC}"
+    echo -e "${RED}║${WHITE}          ${#FAILED_DEPLOY_NETWORKS[@]} network(s) failed deployment                                    ${RED}║${NC}"
+    echo -e "${RED}║                                                                                      ║${NC}"
+    echo -e "${RED}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    print_separator
+    exit 1
+else
+    echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║                                                                                      ║${NC}"
+    echo -e "${GREEN}║${WHITE}                🎉 All V2 Core $ENVIRONMENT $MODE Operations Completed! 🎉                ${GREEN}║${NC}"
+    echo -e "${GREEN}║                                                                                      ║${NC}"
+    echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    print_separator
+fi
