@@ -121,6 +121,7 @@ abstract contract DeployV2Base is Script, ConfigBase {
             console2.log("      skipping...");
             contractAddresses[chainId][contractName] = predictedAddr;
             _exportContract(contractName, predictedAddr, chainId);
+            _saveContractStatus(chainId, contractName, true, predictedAddr);
             return predictedAddr;
         }
 
@@ -237,6 +238,12 @@ abstract contract DeployV2Base is Script, ConfigBase {
 
         // Store deployment status
         _saveContractStatus(chainId, contractName, isDeployed, contractAddr);
+
+        // Also populate contractAddresses so _writeExportedContracts can use it
+        if (isDeployed) {
+            contractAddresses[chainId][contractName] = contractAddr;
+            _exportContract(contractName, contractAddr, chainId);
+        }
 
         // Update counters
         if (isDeployed) {

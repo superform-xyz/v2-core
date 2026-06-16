@@ -132,8 +132,11 @@
       "vnet_id": "",
       "contracts": {
         "AcrossSendFundsAndExecuteOnDstHook": "0x445f56C4eE18a1540Ac1d0A438F355DDBFFAf476",
+        "AcrossSendFundsAndExecuteOnDstHookV2": "0xeDbBabF4054E9F43c2247DCC64cCde144a6300bD",
         "AcrossV3Adapter": "0xE43Bcd153AD018e4ad3113Bd0A51275968d393B3",
+        "AcrossV3AdapterV2": "0xDEa5a6A13A9BAb72546dC861aaef2044981a802e",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0xAfeFab788b2572691F55F140D1A251fabfF31C21",
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0xF406A477B9A8F66858542d47462f0FFF2D98B703",
         "ApproveAndCCTPSendHook": "0xB7dDF0d4F2665b04068c28eb2c5cDF5eA158eA6C",
         "ApproveAndDeposit4626VaultHook": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4",
         "ApproveAndDeposit5115VaultHook": "0xDc997F44693d865C68d2321E41716Bdc098016ee",
@@ -251,8 +254,11 @@
       "vnet_id": "",
       "contracts": {
         "AcrossSendFundsAndExecuteOnDstHook": "0x2f9914c470485903f96aF29e74c08aC0780Df2f3",
+        "AcrossSendFundsAndExecuteOnDstHookV2": "0xD1D3ffc8746657C66935297e4873153071250D37",
         "AcrossV3Adapter": "0x952767E8991D1b0a37D6212f465ab8153b6f5973",
+        "AcrossV3AdapterV2": "0xb6225C89CD235F3bd26e3796871DAD5d284371db",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0x5E68Bc3bc411525210eE397C53Ed4a68b97A1Cd3",
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0xDb2574b119558A1F22378A87a5fe778e43b143A3",
         "ApproveAndCCTPSendHook": "0xB7dDF0d4F2665b04068c28eb2c5cDF5eA158eA6C",
         "ApproveAndDeposit4626VaultHook": "0xdcAfC76B2f777bBA2d1e6C535F73AcA3dBe558F4",
         "ApproveAndDeposit5115VaultHook": "0xDc997F44693d865C68d2321E41716Bdc098016ee",
@@ -708,6 +714,7 @@
         "ClaimCancelRedeemRequestWithId7540Hook": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
         "ClaimFailedTransferHook": "0x994701Fbe7A8072E8dEde902c5a00278F6D72366",
         "ClaimRFLRHook": "0x3D99E001De266EA4C64C8F37f3027dF6f1F40321",
+        "ClaimRFLRV2Hook": "0xE8C9D9ef46D81d6eE06746EBb8bc6bA847EF5Cc6",
         "ClaimWithdrawFirelightVaultHook": "0x4e371E2c950ADf9D4c7830438A51bBD703dB7f36",
         "DETHYieldSourceOracle": "0x23A783da41218f8796652ec6cbF73DA2dd580d9D",
         "Deposit4626VaultHook": "0xe3FFf64A14A38a5b082502779ae6f6a9a273b02C",
@@ -858,5 +865,5 @@
       }
     }
   },
-  "updated_at": "2026-06-11T15:41:21Z"
+  "updated_at": "2026-06-16T07:38:19Z"
 }
