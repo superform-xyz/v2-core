@@ -306,8 +306,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Max possible skips: 3 adapters + 31 hooks = 34 skipped contracts; keep a little headroom.
         string[] memory potentialSkips = new string[](37);
         uint256 skipCount = 0;
-        // Adapter contracts (4 contracts - conditionally deployed)
-        string[4] memory adapterContracts = ["AcrossV3Adapter", "AcrossV3AdapterV2", "DebridgeAdapter", "StargateAdapter"];
+        // Adapter contracts (5 contracts - conditionally deployed)
+        string[5] memory adapterContracts =
+            ["AcrossV3Adapter", "AcrossV3AdapterV2", "DebridgeAdapter", "StargateAdapter", "StargateAdapterV2"];
 
         // Start with all adapters, then decrement for missing configurations
         uint256 expectedAdapters = adapterContracts.length;
@@ -330,7 +331,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             potentialSkips[skipCount++] = "DebridgeAdapter";
         }
 
-        // StargateAdapter (requires lzEndpointV2 and tokenMessaging)
+        // StargateAdapter + StargateAdapterV2 (requires lzEndpointV2 and tokenMessaging)
         if (
             configuration.lzEndpointV2s[chainId] != address(0)
                 && configuration.stargateTokenMessagings[chainId] != address(0)
@@ -338,7 +339,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             availability.stargateAdapter = true;
             availability.stargateAdapterV2 = true;
         } else {
-            expectedAdapters -= 1; // StargateAdapter
+            expectedAdapters -= 2; // StargateAdapter + StargateAdapterV2
             potentialSkips[skipCount++] = "StargateAdapter";
             potentialSkips[skipCount++] = "StargateAdapterV2";
         }
