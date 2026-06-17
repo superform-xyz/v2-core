@@ -17,26 +17,7 @@ contract SmokeTestDeployment is Script, ConfigBase {
 
     /// @notice Returns true if a contract should be skipped for a given chain
     /// @dev Tracks contracts that are known to be pending deployment (e.g. bytecode regeneration needed)
-    function _isSkipped(uint64 chainId, string memory contractName) internal pure returns (bool) {
-        bytes32 nameHash = keccak256(bytes(contractName));
-
-        // Arbitrum (42161): Morpho hooks pending redeployment with compatible EVM bytecodes
-        if (chainId == 42161) {
-            if (
-                nameHash == keccak256("MorphoSupplyAndBorrowHook")
-                    || nameHash == keccak256("MorphoBorrowHook") || nameHash == keccak256("MorphoRepayHook")
-                    || nameHash == keccak256("MorphoRepayAndWithdrawHook") || nameHash == keccak256("MorphoSupplyHook")
-                    || nameHash == keccak256("MorphoWithdrawHook") || nameHash == keccak256("MorphoLendHook")
-                    || nameHash == keccak256("MetaMorphoReallocateHook")
-                    || nameHash == keccak256("ForceDeallocateMorphoHook")
-            ) return true;
-        }
-
-        // Stable (988): SuperSponsorshipPaymaster pending deployment (forge doesn't support chain 988)
-        if (chainId == 988) {
-            if (nameHash == keccak256("SuperSponsorshipPaymaster")) return true;
-        }
-
+    function _isSkipped(uint64, string memory) internal pure returns (bool) {
         return false;
     }
 
