@@ -9,7 +9,14 @@ import { IDlnDestination, Order } from "../../../vendor/debridge/IDlnDestination
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /// @title DeBridgeCancelOrderHook
 /// @author Superform Labs
@@ -65,7 +72,7 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength +
 /// givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength +
 /// allowedCancelBeneficiarySrc_paramLength);
-contract DeBridgeCancelOrderHook is BaseHook {
+contract DeBridgeCancelOrderHook is BaseHook, ISuperHookInflowOutflow {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -123,6 +130,26 @@ contract DeBridgeCancelOrderHook is BaseHook {
             address(bytes20(order.orderAuthorityAddressDst)),
             address(bytes20(order.allowedCancelBeneficiarySrc))
         );
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](0);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+    }
+
+    /// @inheritdoc IERC165
+    /// @dev S2: implements ISuperHookInflowOutflow (decode-only) but NOT ISuperHookOutflow
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
+        if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
+        return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
+            || interfaceId == type(ISuperHookResult).interfaceId
+            || interfaceId == type(ISuperHookInspector).interfaceId;
     }
 
     /*//////////////////////////////////////////////////////////////

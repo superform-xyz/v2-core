@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-06-16T09:46:45Z",
+  "generatedAt": "2026-06-17T09:42:57Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -682,9 +682,7 @@
           "stage": "cancel"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7",
@@ -743,16 +741,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -777,9 +769,7 @@
           "stage": "cancel"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0x6EE2299ddB4Cc2579C8Db13f5D28720203d6aB9E",
@@ -838,16 +828,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -872,9 +856,7 @@
           "stage": "claim"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0x0B515b1344cb9bAe3205B1c846a9a8C942Ef41b0",
@@ -933,16 +915,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -967,9 +943,7 @@
           "stage": "claim"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0x91D1dEb29Bae6f0F78670dCa00D58C0dB3813879",
@@ -1028,16 +1002,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -2160,9 +2128,7 @@
           "stage": "fulfill"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0xC836797f7b7f645248b73938d0bD2Ab2dc6A9337",
@@ -2221,16 +2187,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -2255,9 +2215,7 @@
           "stage": "cancel"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c",
@@ -2316,16 +2274,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -2350,9 +2302,7 @@
           "stage": "cancel"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0xB9A161DcAC6BE72F80e0fD84B09f7fF67FA63421",
@@ -2411,16 +2361,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -2445,9 +2389,7 @@
           "stage": "claim"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989",
@@ -2506,16 +2448,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -2540,9 +2476,7 @@
           "stage": "claim"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0x7fC812fA5C35839cf1695b6d6b15345E2268F879",
@@ -2601,16 +2535,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -2809,9 +2737,7 @@
           "stage": "claim"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "14": "0x3D99E001De266EA4C64C8F37f3027dF6f1F40321"
@@ -2828,16 +2754,10 @@
           "14"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -2857,9 +2777,7 @@
           "stage": "claim"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "14": "0x45e8a73a3fCE4C2eD5A64A55680D2f16B2d5023f"
@@ -2876,16 +2794,10 @@
           "14"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -2905,9 +2817,7 @@
           "stage": "claim"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "14": "0x2aA7f4E262fB1328a66Cd4406cBdC040aA424A9D"
@@ -2924,16 +2834,10 @@
           "14"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -4170,9 +4074,7 @@
           "stage": "instant"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0xC7d752FB73BAC0a8eE8719f230F2CB23248fad15",
@@ -4215,16 +4117,10 @@
           "43114"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -4314,9 +4210,7 @@
           "stage": "instant"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0xB6894368ffB77a46bE4C8EcAF20f29Cd9219301D",
@@ -4355,16 +4249,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -4384,9 +4272,7 @@
           "stage": "instant"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0x03cFB56c9E5FeE55A5537b992EdebF9937C88dDA",
@@ -4425,16 +4311,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -4454,9 +4334,7 @@
           "stage": "instant"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {},
         "prod": {}
@@ -4465,16 +4343,10 @@
         "staging": [],
         "prod": []
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -5578,9 +5450,7 @@
           "stage": "instant"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0x3A2a1281622Aa704a6480D1745702F6F83727521",
@@ -5639,16 +5509,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -5668,9 +5532,7 @@
           "stage": "cancel"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0x8A6bc4bA5e6E4330f8f1bE93fe27CC5dd4a3B53c",
@@ -5717,16 +5579,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -6676,9 +6532,7 @@
           "stage": "instant"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0x608570eED65750a9cc58bFc6DCbC0cEA25f68458",
@@ -6737,16 +6591,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -6766,9 +6614,7 @@
           "stage": "instant"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0x45769A1252B26976896533664454b6e295b88266",
@@ -6827,16 +6673,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -6938,9 +6778,7 @@
           "stage": "instant"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0xc25BeF46a12d0fDf66F4e4d8F1E846601f1f55e3",
@@ -6969,16 +6807,10 @@
           "42161"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -7058,9 +6890,7 @@
           "stage": "instant"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
@@ -7119,16 +6949,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -7238,9 +7062,7 @@
           "stage": "instant"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0xcad65bEC610d0890d94d98Bd16E220f0DC90a90d",
@@ -7299,16 +7121,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -7408,9 +7224,7 @@
           "stage": "instant"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0x5a64a836c7A8569b7A094Fe7145dd700b5ae1aeA",
@@ -7469,16 +7283,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -7498,9 +7306,7 @@
           "stage": "instant"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0xE23A3051772B0Be4A02661Aadc7a4078b77C1950",
@@ -7559,16 +7365,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -7588,9 +7388,7 @@
           "stage": "instant"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0x9eb907A8591742d6DcF34E0002e870FEd9F794d7",
@@ -7649,16 +7447,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -7678,9 +7470,7 @@
           "stage": "instant"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0x65133147a37b2d1171f1c164c4C697db34419809",
@@ -7739,16 +7529,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -7858,9 +7642,7 @@
           "stage": "instant"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0xa31E5013096efE9bDfd590275d80fe724AD269BC",
@@ -7919,16 +7701,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -7948,9 +7724,7 @@
           "stage": "instant"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0xC8D6A10ea33b48878137E3332556Ca51D455B7c0",
@@ -8009,16 +7783,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -8038,9 +7806,7 @@
           "stage": "instant"
         }
       ],
-      "legSizing": [
-        "sized"
-      ],
+      "legSizing": [],
       "addresses": {
         "staging": {
           "56": "0xfC02C7Ec6efaF48DdB5E6DB97d7F95Fd3433Ea0C",
@@ -8099,16 +7865,10 @@
           "80094"
         ]
       },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
+      "amountMeta": [],
+      "sized": false,
       "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
+        "ISuperHookInflowOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,

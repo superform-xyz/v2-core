@@ -11,6 +11,15 @@ import { IRNat } from "../../../vendor/flare/IRNat.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 
+// Superform
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 /// @title ClaimRFLRHook
 /// @author Superform Labs
 /// @notice Claims rFLR rewards from Flare's RNat contract
@@ -19,7 +28,7 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 /// @dev data has the following structure:
 /// @notice         uint256 projectIdsLength = BytesLib.toUint256(data, 0);
 /// @notice         uint256[] projectIds = [BytesLib.toUint256(data, 32 + i*32) for i in 0..projectIdsLength-1]
-contract ClaimRFLRHook is BaseHook {
+contract ClaimRFLRHook is BaseHook, ISuperHookInflowOutflow {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -100,6 +109,26 @@ contract ClaimRFLRHook is BaseHook {
     /// @inheritdoc BaseHook
     function inspect(bytes calldata) external view override returns (bytes memory) {
         return abi.encodePacked(RNAT);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](0);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+    }
+
+    /// @inheritdoc IERC165
+    /// @dev S2: implements ISuperHookInflowOutflow (decode-only) but NOT ISuperHookOutflow
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
+        if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
+        return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
+            || interfaceId == type(ISuperHookResult).interfaceId
+            || interfaceId == type(ISuperHookInspector).interfaceId;
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -37,6 +37,45 @@ import { RequestRedeemDETHHook } from "../../../src/hooks/vaults/deth/RequestRed
 import { ApproveAndRequestRedeemDETHHook } from "../../../src/hooks/vaults/deth/ApproveAndRequestRedeemDETHHook.sol";
 import { ClaimAssetsDETHHook } from "../../../src/hooks/vaults/deth/ClaimAssetsDETHHook.sol";
 import { EthenaCooldownSharesHook } from "../../../src/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
+import { EthenaUnstakeHook } from "../../../src/hooks/vaults/ethena/EthenaUnstakeHook.sol";
+import { ForceDeallocateMorphoHook } from "../../../src/hooks/vaults/metamorpho/ForceDeallocateMorphoHook.sol";
+import { MetaMorphoReallocateHook } from "../../../src/hooks/vaults/metamorpho/MetaMorphoReallocateHook.sol";
+import { CancelDepositRequest7540Hook } from "../../../src/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
+import {
+    CancelDepositRequestWithId7540Hook
+} from "../../../src/hooks/vaults/7540/CancelDepositRequestWithId7540Hook.sol";
+import { CancelRedeemRequest7540Hook } from "../../../src/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol";
+import {
+    CancelRedeemRequestWithId7540Hook
+} from "../../../src/hooks/vaults/7540/CancelRedeemRequestWithId7540Hook.sol";
+import {
+    ClaimCancelDepositRequest7540Hook
+} from "../../../src/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
+import {
+    ClaimCancelDepositRequestWithId7540Hook
+} from "../../../src/hooks/vaults/7540/ClaimCancelDepositRequestWithId7540Hook.sol";
+import {
+    ClaimCancelRedeemRequest7540Hook
+} from "../../../src/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
+import {
+    ClaimCancelRedeemRequestWithId7540Hook
+} from "../../../src/hooks/vaults/7540/ClaimCancelRedeemRequestWithId7540Hook.sol";
+import { SetOperator7540Hook } from "../../../src/hooks/vaults/7540/SetOperator7540Hook.sol";
+import { SetSlippageHook } from "../../../src/hooks/vaults/7540/SetSlippageHook.sol";
+import { MarkRootAsUsedHook } from "../../../src/hooks/superform/MarkRootAsUsedHook.sol";
+import { OfframpTokensHook } from "../../../src/hooks/tokens/OfframpTokensHook.sol";
+import {
+    RecordPurchasePendlePTAmortizedOracleHook
+} from "../../../src/hooks/oracles/pendle/RecordPurchasePendlePTAmortizedOracleHook.sol";
+import {
+    RecordPurchasePendlePTAmortizedOracleHookV2
+} from "../../../src/hooks/oracles/pendle/RecordPurchasePendlePTAmortizedOracleHookV2.sol";
+import {
+    RecordRedemptionPendlePTAmortizedOracleHook
+} from "../../../src/hooks/oracles/pendle/RecordRedemptionPendlePTAmortizedOracleHook.sol";
+import {
+    RecordRedemptionPendlePTAmortizedOracleHookV2
+} from "../../../src/hooks/oracles/pendle/RecordRedemptionPendlePTAmortizedOracleHookV2.sol";
 import { RedeemFirelightVaultHook } from "../../../src/hooks/vaults/firelight/RedeemFirelightVaultHook.sol";
 import {
     ClaimWithdrawFirelightVaultHook
@@ -99,6 +138,13 @@ import {
 } from "../../../src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol";
 import { SpectraExchangeRedeemHook } from "../../../src/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
 import { PendleRouterRedeemHook } from "../../../src/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
+import { PendleUnifiedHook } from "../../../src/hooks/swappers/pendle/PendleUnifiedHook.sol";
+import { PendleRouterSwapHook } from "../../../src/hooks/swappers/pendle/PendleRouterSwapHook.sol";
+import {
+    SpectraExchangeDepositHook
+} from "../../../src/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
+import { Swap1InchHook } from "../../../src/hooks/swappers/1inch/Swap1InchHook.sol";
+import { BatchTransferHook } from "../../../src/hooks/tokens/BatchTransferHook.sol";
 
 // ═══════════════════════════════════════════════════════
 //  BRIDGE HOOKS
@@ -125,6 +171,12 @@ import {
 import { CCTPSendHook } from "../../../src/hooks/bridges/cctp/CCTPSendHook.sol";
 import { ApproveAndCCTPSendHook } from "../../../src/hooks/bridges/cctp/ApproveAndCCTPSendHook.sol";
 import { CircleGatewayWalletHook } from "../../../src/hooks/bridges/circle/CircleGatewayWalletHook.sol";
+import { CircleGatewayMinterHook } from "../../../src/hooks/bridges/circle/CircleGatewayMinterHook.sol";
+import { CircleGatewayAddDelegateHook } from "../../../src/hooks/bridges/circle/CircleGatewayAddDelegateHook.sol";
+import {
+    CircleGatewayRemoveDelegateHook
+} from "../../../src/hooks/bridges/circle/CircleGatewayRemoveDelegateHook.sol";
+import { DeBridgeCancelOrderHook } from "../../../src/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
 
 // ═══════════════════════════════════════════════════════
 //  STAKE HOOKS
@@ -144,6 +196,9 @@ import { GearboxClaimRewardHook } from "../../../src/hooks/claim/gearbox/Gearbox
 import { YearnClaimOneRewardHook } from "../../../src/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
 import { MerklClaimRewardHook } from "../../../src/hooks/claim/merkl/MerklClaimRewardHook.sol";
 import { ClaimFailedTransferHook } from "../../../src/hooks/claim/stargate/ClaimFailedTransferHook.sol";
+import { ClaimRFLRHook } from "../../../src/hooks/claim/flare/ClaimRFLRHook.sol";
+import { WithdrawRFLRHook } from "../../../src/hooks/claim/flare/WithdrawRFLRHook.sol";
+import { WithdrawVestedRFLRHook } from "../../../src/hooks/claim/flare/WithdrawVestedRFLRHook.sol";
 
 // ═══════════════════════════════════════════════════════
 //  SPONSORSHIP HOOKS
@@ -293,6 +348,41 @@ contract HookSizingInterfaceTest is Helpers {
     AaveV4SupplyAndBorrowHook aaveSupplyAndBorrow;
     AaveV4RepayAndWithdrawHook aaveRepayAndWithdraw;
 
+    // ──────── Newly-S1 hooks ────────
+    ForceDeallocateMorphoHook forceDeallocateMorpho;
+
+    // ──────── Newly-S2 hooks (opaque-blob + sizeless) ────────
+    PendleUnifiedHook pendleUnified;
+    PendleRouterSwapHook pendleRouterSwap;
+    SpectraExchangeDepositHook spectraExchangeDeposit;
+    Swap1InchHook swap1Inch;
+    BatchTransferHook batchTransferBasic;
+    CircleGatewayMinterHook circleGatewayMinter;
+    CircleGatewayAddDelegateHook circleGatewayAddDelegate;
+    CircleGatewayRemoveDelegateHook circleGatewayRemoveDelegate;
+    DeBridgeCancelOrderHook debridgeCancel;
+    RecordPurchasePendlePTAmortizedOracleHook recordPurchaseOracle;
+    RecordPurchasePendlePTAmortizedOracleHookV2 recordPurchaseOracleV2;
+    RecordRedemptionPendlePTAmortizedOracleHook recordRedemptionOracle;
+    RecordRedemptionPendlePTAmortizedOracleHookV2 recordRedemptionOracleV2;
+    ClaimRFLRHook claimRFLR;
+    WithdrawRFLRHook withdrawRFLR;
+    WithdrawVestedRFLRHook withdrawVestedRFLR;
+    CancelDepositRequest7540Hook cancelDeposit7540;
+    CancelDepositRequestWithId7540Hook cancelDepositWithId7540;
+    CancelRedeemRequest7540Hook cancelRedeem7540;
+    CancelRedeemRequestWithId7540Hook cancelRedeemWithId7540;
+    ClaimCancelDepositRequest7540Hook claimCancelDeposit7540;
+    ClaimCancelDepositRequestWithId7540Hook claimCancelDepositWithId7540;
+    ClaimCancelRedeemRequest7540Hook claimCancelRedeem7540;
+    ClaimCancelRedeemRequestWithId7540Hook claimCancelRedeemWithId7540;
+    SetOperator7540Hook setOperator7540;
+    SetSlippageHook setSlippage;
+    MarkRootAsUsedHook markRootAsUsed;
+    OfframpTokensHook offrampTokens;
+    EthenaUnstakeHook ethenaUnstake;
+    MetaMorphoReallocateHook metaMorphoReallocate;
+
     function setUp() public {
         // ── Token denomination hooks ──
         transferERC20 = new TransferERC20Hook();
@@ -400,6 +490,41 @@ contract HookSizingInterfaceTest is Helpers {
         aaveRepay = new AaveV4RepayHook();
         aaveSupplyAndBorrow = new AaveV4SupplyAndBorrowHook();
         aaveRepayAndWithdraw = new AaveV4RepayAndWithdrawHook();
+
+        // ── Newly-S1 hooks ──
+        forceDeallocateMorpho = new ForceDeallocateMorphoHook();
+
+        // ── Newly-S2 hooks ──
+        pendleUnified = new PendleUnifiedHook(DUMMY_ROUTER);
+        pendleRouterSwap = new PendleRouterSwapHook(DUMMY_ROUTER);
+        spectraExchangeDeposit = new SpectraExchangeDepositHook(DUMMY_ROUTER);
+        swap1Inch = new Swap1InchHook(DUMMY_ROUTER, DUMMY_NATIVE);
+        batchTransferBasic = new BatchTransferHook(DUMMY_NATIVE);
+        circleGatewayMinter = new CircleGatewayMinterHook(DUMMY_ROUTER);
+        circleGatewayAddDelegate = new CircleGatewayAddDelegateHook(DUMMY_ROUTER);
+        circleGatewayRemoveDelegate = new CircleGatewayRemoveDelegateHook(DUMMY_ROUTER);
+        debridgeCancel = new DeBridgeCancelOrderHook(DUMMY_ROUTER);
+        recordPurchaseOracle = new RecordPurchasePendlePTAmortizedOracleHook(DUMMY_ROUTER);
+        recordPurchaseOracleV2 = new RecordPurchasePendlePTAmortizedOracleHookV2(DUMMY_ROUTER);
+        recordRedemptionOracle = new RecordRedemptionPendlePTAmortizedOracleHook(DUMMY_ROUTER);
+        recordRedemptionOracleV2 = new RecordRedemptionPendlePTAmortizedOracleHookV2(DUMMY_ROUTER);
+        claimRFLR = new ClaimRFLRHook(DUMMY_ROUTER);
+        withdrawRFLR = new WithdrawRFLRHook(DUMMY_ROUTER, DUMMY_NATIVE);
+        withdrawVestedRFLR = new WithdrawVestedRFLRHook(DUMMY_ROUTER, DUMMY_NATIVE);
+        cancelDeposit7540 = new CancelDepositRequest7540Hook();
+        cancelDepositWithId7540 = new CancelDepositRequestWithId7540Hook();
+        cancelRedeem7540 = new CancelRedeemRequest7540Hook();
+        cancelRedeemWithId7540 = new CancelRedeemRequestWithId7540Hook();
+        claimCancelDeposit7540 = new ClaimCancelDepositRequest7540Hook();
+        claimCancelDepositWithId7540 = new ClaimCancelDepositRequestWithId7540Hook();
+        claimCancelRedeem7540 = new ClaimCancelRedeemRequest7540Hook();
+        claimCancelRedeemWithId7540 = new ClaimCancelRedeemRequestWithId7540Hook();
+        setOperator7540 = new SetOperator7540Hook();
+        setSlippage = new SetSlippageHook();
+        markRootAsUsed = new MarkRootAsUsedHook();
+        offrampTokens = new OfframpTokensHook();
+        ethenaUnstake = new EthenaUnstakeHook();
+        metaMorphoReallocate = new MetaMorphoReallocateHook();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -3969,6 +4094,189 @@ contract HookSizingInterfaceTest is Helpers {
                 );
             }
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+         NEWLY-S1: ForceDeallocateMorphoHook sizing tests
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev ForceDeallocateMorphoHook: supportsInterface(ISuperHookInflowOutflow) == true
+    function test_ForceDeallocateMorpho_SupportsInterface() public view {
+        assertTrue(forceDeallocateMorpho.supportsInterface(type(ISuperHookInflowOutflow).interfaceId));
+        assertTrue(forceDeallocateMorpho.supportsInterface(type(ISuperHookOutflow).interfaceId));
+    }
+
+    /// @dev ForceDeallocateMorphoHook: decodeAmounts reads at offset 72
+    function test_ForceDeallocateMorpho_DecodeAmounts() public view {
+        // Layout: bytes32(0-32) + address(32-52) + address(52-72) + uint256 assets(72-104) + ...
+        bytes memory data = abi.encodePacked(
+            bytes32(0),         // placeholder (32)
+            address(0xAA),      // morphoVaultV2 (20)
+            address(0xBB),      // adapter (20)
+            uint256(42e18),     // assets at offset 72 (32)
+            uint256(0),         // deadline (32)
+            uint256(0),         // maxPenaltyBps (32)
+            false,              // usePrevHookAmount (1)
+            bytes("")           // adapterData (0)
+        );
+        uint256[] memory amounts = forceDeallocateMorpho.decodeAmounts(data);
+        assertEq(amounts.length, 1);
+        assertEq(amounts[0], 42e18);
+    }
+
+    /// @dev ForceDeallocateMorphoHook: amountRoles returns 1 entry (IN, TOKEN)
+    function test_ForceDeallocateMorpho_AmountRoles() public view {
+        ISuperHookInflowOutflow.AmountMeta[] memory meta = forceDeallocateMorpho.amountRoles("");
+        assertEq(meta.length, 1);
+        assertEq(uint8(meta[0].dir), uint8(ISuperHookInflowOutflow.Direction.IN));
+        assertEq(uint8(meta[0].denom), uint8(ISuperHookInflowOutflow.Denomination.TOKEN));
+    }
+
+    /// @dev ForceDeallocateMorphoHook: decode/replace roundtrip
+    function test_ForceDeallocateMorpho_DecodeReplace_Roundtrip() public view {
+        bytes memory data = abi.encodePacked(
+            bytes32(0),
+            address(0xAA),
+            address(0xBB),
+            uint256(100e18),
+            uint256(1000),
+            uint256(500),
+            false,
+            bytes("")
+        );
+        assertEq(forceDeallocateMorpho.decodeAmounts(data)[0], 100e18);
+        bytes memory replaced = forceDeallocateMorpho.replaceCalldataAmounts(data, _singleAmount(200e18));
+        assertEq(forceDeallocateMorpho.decodeAmounts(replaced)[0], 200e18);
+        assertEq(replaced.length, data.length);
+    }
+
+    /// @dev ForceDeallocateMorphoHook: replaceCalldataAmounts reverts on wrong length
+    function test_ForceDeallocateMorpho_ReplaceCalldataAmounts_RevertsWrongLength() public {
+        bytes memory data = abi.encodePacked(
+            bytes32(0), address(0xAA), address(0xBB), uint256(1e18), uint256(0), uint256(0), false, bytes("")
+        );
+        vm.expectRevert(BaseHook.INVALID_AMOUNTS_LENGTH.selector);
+        forceDeallocateMorpho.replaceCalldataAmounts(data, new uint256[](0));
+        vm.expectRevert(BaseHook.INVALID_AMOUNTS_LENGTH.selector);
+        forceDeallocateMorpho.replaceCalldataAmounts(data, _dualAmounts(1, 2));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+         NEWLY-S2: All 30 S2 hooks — InflowOutflow=true, Outflow=false, empty arrays
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev All newly-S2 hooks must support ISuperHookInflowOutflow
+    function test_NewlyS2_SupportsInterface_InflowOutflow() public view {
+        bytes4 iid = type(ISuperHookInflowOutflow).interfaceId;
+        // Opaque-blob hooks
+        assertTrue(pendleUnified.supportsInterface(iid), "pendleUnified");
+        assertTrue(spectraExchangeDeposit.supportsInterface(iid), "spectraExchangeDeposit");
+        assertTrue(swap1Inch.supportsInterface(iid), "swap1Inch");
+        assertTrue(batchTransferBasic.supportsInterface(iid), "batchTransferBasic");
+        assertTrue(circleGatewayMinter.supportsInterface(iid), "circleGatewayMinter");
+        // Oracle hooks
+        assertTrue(recordPurchaseOracle.supportsInterface(iid), "recordPurchaseOracle");
+        assertTrue(recordPurchaseOracleV2.supportsInterface(iid), "recordPurchaseOracleV2");
+        assertTrue(recordRedemptionOracle.supportsInterface(iid), "recordRedemptionOracle");
+        assertTrue(recordRedemptionOracleV2.supportsInterface(iid), "recordRedemptionOracleV2");
+        // Flare claim hooks
+        assertTrue(claimRFLR.supportsInterface(iid), "claimRFLR");
+        assertTrue(withdrawRFLR.supportsInterface(iid), "withdrawRFLR");
+        assertTrue(withdrawVestedRFLR.supportsInterface(iid), "withdrawVestedRFLR");
+        // 7540 cancel/claim hooks
+        assertTrue(cancelDeposit7540.supportsInterface(iid), "cancelDeposit7540");
+        assertTrue(cancelDepositWithId7540.supportsInterface(iid), "cancelDepositWithId7540");
+        assertTrue(cancelRedeem7540.supportsInterface(iid), "cancelRedeem7540");
+        assertTrue(cancelRedeemWithId7540.supportsInterface(iid), "cancelRedeemWithId7540");
+        assertTrue(claimCancelDeposit7540.supportsInterface(iid), "claimCancelDeposit7540");
+        assertTrue(claimCancelDepositWithId7540.supportsInterface(iid), "claimCancelDepositWithId7540");
+        assertTrue(claimCancelRedeem7540.supportsInterface(iid), "claimCancelRedeem7540");
+        assertTrue(claimCancelRedeemWithId7540.supportsInterface(iid), "claimCancelRedeemWithId7540");
+        // Admin/config hooks
+        assertTrue(setOperator7540.supportsInterface(iid), "setOperator7540");
+        assertTrue(setSlippage.supportsInterface(iid), "setSlippage");
+        assertTrue(markRootAsUsed.supportsInterface(iid), "markRootAsUsed");
+        // Other hooks
+        assertTrue(debridgeCancel.supportsInterface(iid), "debridgeCancel");
+        assertTrue(circleGatewayAddDelegate.supportsInterface(iid), "circleGatewayAddDelegate");
+        assertTrue(circleGatewayRemoveDelegate.supportsInterface(iid), "circleGatewayRemoveDelegate");
+        assertTrue(offrampTokens.supportsInterface(iid), "offrampTokens");
+        assertTrue(ethenaUnstake.supportsInterface(iid), "ethenaUnstake");
+        assertTrue(metaMorphoReallocate.supportsInterface(iid), "metaMorphoReallocate");
+        assertTrue(pendleRouterSwap.supportsInterface(iid), "pendleRouterSwap");
+    }
+
+    /// @dev All newly-S2 hooks must NOT support ISuperHookOutflow
+    function test_NewlyS2_DoesNotSupport_Outflow() public view {
+        bytes4 oid = type(ISuperHookOutflow).interfaceId;
+        assertFalse(pendleUnified.supportsInterface(oid), "pendleUnified");
+        assertFalse(spectraExchangeDeposit.supportsInterface(oid), "spectraExchangeDeposit");
+        assertFalse(swap1Inch.supportsInterface(oid), "swap1Inch");
+        assertFalse(batchTransferBasic.supportsInterface(oid), "batchTransferBasic");
+        assertFalse(circleGatewayMinter.supportsInterface(oid), "circleGatewayMinter");
+        assertFalse(recordPurchaseOracle.supportsInterface(oid), "recordPurchaseOracle");
+        assertFalse(recordPurchaseOracleV2.supportsInterface(oid), "recordPurchaseOracleV2");
+        assertFalse(recordRedemptionOracle.supportsInterface(oid), "recordRedemptionOracle");
+        assertFalse(recordRedemptionOracleV2.supportsInterface(oid), "recordRedemptionOracleV2");
+        assertFalse(claimRFLR.supportsInterface(oid), "claimRFLR");
+        assertFalse(withdrawRFLR.supportsInterface(oid), "withdrawRFLR");
+        assertFalse(withdrawVestedRFLR.supportsInterface(oid), "withdrawVestedRFLR");
+        assertFalse(cancelDeposit7540.supportsInterface(oid), "cancelDeposit7540");
+        assertFalse(cancelDepositWithId7540.supportsInterface(oid), "cancelDepositWithId7540");
+        assertFalse(cancelRedeem7540.supportsInterface(oid), "cancelRedeem7540");
+        assertFalse(cancelRedeemWithId7540.supportsInterface(oid), "cancelRedeemWithId7540");
+        assertFalse(claimCancelDeposit7540.supportsInterface(oid), "claimCancelDeposit7540");
+        assertFalse(claimCancelDepositWithId7540.supportsInterface(oid), "claimCancelDepositWithId7540");
+        assertFalse(claimCancelRedeem7540.supportsInterface(oid), "claimCancelRedeem7540");
+        assertFalse(claimCancelRedeemWithId7540.supportsInterface(oid), "claimCancelRedeemWithId7540");
+        assertFalse(setOperator7540.supportsInterface(oid), "setOperator7540");
+        assertFalse(setSlippage.supportsInterface(oid), "setSlippage");
+        assertFalse(markRootAsUsed.supportsInterface(oid), "markRootAsUsed");
+        assertFalse(debridgeCancel.supportsInterface(oid), "debridgeCancel");
+        assertFalse(circleGatewayAddDelegate.supportsInterface(oid), "circleGatewayAddDelegate");
+        assertFalse(circleGatewayRemoveDelegate.supportsInterface(oid), "circleGatewayRemoveDelegate");
+        assertFalse(offrampTokens.supportsInterface(oid), "offrampTokens");
+        assertFalse(ethenaUnstake.supportsInterface(oid), "ethenaUnstake");
+        assertFalse(metaMorphoReallocate.supportsInterface(oid), "metaMorphoReallocate");
+        assertFalse(pendleRouterSwap.supportsInterface(oid), "pendleRouterSwap");
+    }
+
+    /// @dev All newly-S2 hooks must return empty amountRoles
+    function test_NewlyS2_AmountRoles_Empty() public view {
+        assertEq(pendleUnified.amountRoles("").length, 0, "pendleUnified");
+        assertEq(spectraExchangeDeposit.amountRoles("").length, 0, "spectraExchangeDeposit");
+        assertEq(swap1Inch.amountRoles("").length, 0, "swap1Inch");
+        assertEq(batchTransferBasic.amountRoles("").length, 0, "batchTransferBasic");
+        assertEq(circleGatewayMinter.amountRoles("").length, 0, "circleGatewayMinter");
+        assertEq(recordPurchaseOracle.amountRoles("").length, 0, "recordPurchaseOracle");
+        assertEq(cancelDeposit7540.amountRoles("").length, 0, "cancelDeposit7540");
+        assertEq(claimRFLR.amountRoles("").length, 0, "claimRFLR");
+        assertEq(setOperator7540.amountRoles("").length, 0, "setOperator7540");
+        assertEq(markRootAsUsed.amountRoles("").length, 0, "markRootAsUsed");
+        assertEq(debridgeCancel.amountRoles("").length, 0, "debridgeCancel");
+        assertEq(offrampTokens.amountRoles("").length, 0, "offrampTokens");
+        assertEq(ethenaUnstake.amountRoles("").length, 0, "ethenaUnstake");
+        assertEq(metaMorphoReallocate.amountRoles("").length, 0, "metaMorphoReallocate");
+        assertEq(pendleRouterSwap.amountRoles("").length, 0, "pendleRouterSwap");
+    }
+
+    /// @dev All newly-S2 hooks must return empty decodeAmounts
+    function test_NewlyS2_DecodeAmounts_Empty() public view {
+        assertEq(pendleUnified.decodeAmounts("").length, 0, "pendleUnified");
+        assertEq(spectraExchangeDeposit.decodeAmounts("").length, 0, "spectraExchangeDeposit");
+        assertEq(swap1Inch.decodeAmounts("").length, 0, "swap1Inch");
+        assertEq(batchTransferBasic.decodeAmounts("").length, 0, "batchTransferBasic");
+        assertEq(circleGatewayMinter.decodeAmounts("").length, 0, "circleGatewayMinter");
+        assertEq(recordPurchaseOracle.decodeAmounts("").length, 0, "recordPurchaseOracle");
+        assertEq(cancelDeposit7540.decodeAmounts("").length, 0, "cancelDeposit7540");
+        assertEq(claimRFLR.decodeAmounts("").length, 0, "claimRFLR");
+        assertEq(setOperator7540.decodeAmounts("").length, 0, "setOperator7540");
+        assertEq(markRootAsUsed.decodeAmounts("").length, 0, "markRootAsUsed");
+        assertEq(debridgeCancel.decodeAmounts("").length, 0, "debridgeCancel");
+        assertEq(offrampTokens.decodeAmounts("").length, 0, "offrampTokens");
+        assertEq(ethenaUnstake.decodeAmounts("").length, 0, "ethenaUnstake");
+        assertEq(metaMorphoReallocate.decodeAmounts("").length, 0, "metaMorphoReallocate");
+        assertEq(pendleRouterSwap.decodeAmounts("").length, 0, "pendleRouterSwap");
     }
 
     /// @dev Spot-check: verify specific hooks return their expected descriptions

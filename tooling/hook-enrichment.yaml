@@ -281,6 +281,36 @@ amountMeta:
   BatchTransferFromHook: []
   ClaimAssetsDETHHook: []
   ClaimWithdrawFirelightVaultHook: []
+  PendleUnifiedHook: []
+  SpectraExchangeDepositHook: []
+  Swap1InchHook: []
+  BatchTransferHook: []
+  CircleGatewayMinterHook: []
+  RecordPurchasePendlePTAmortizedOracleHook: []
+  RecordPurchasePendlePTAmortizedOracleHookV2: []
+  RecordRedemptionPendlePTAmortizedOracleHook: []
+  RecordRedemptionPendlePTAmortizedOracleHookV2: []
+  ClaimRFLRHook: []
+  WithdrawRFLRHook: []
+  WithdrawVestedRFLRHook: []
+  CancelDepositRequest7540Hook: []
+  CancelDepositRequestWithId7540Hook: []
+  CancelRedeemRequest7540Hook: []
+  CancelRedeemRequestWithId7540Hook: []
+  ClaimCancelDepositRequest7540Hook: []
+  ClaimCancelDepositRequestWithId7540Hook: []
+  ClaimCancelRedeemRequest7540Hook: []
+  ClaimCancelRedeemRequestWithId7540Hook: []
+  SetOperator7540Hook: []
+  SetSlippageHook: []
+  MarkRootAsUsedHook: []
+  DeBridgeCancelOrderHook: []
+  CircleGatewayAddDelegateHook: []
+  CircleGatewayRemoveDelegateHook: []
+  OfframpTokensHook: []
+  EthenaUnstakeHook: []
+  MetaMorphoReallocateHook: []
+  PendleRouterSwapHook: []
   # Compound (dual amount)
   MorphoSupplyAndBorrowHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV4SupplyAndBorrowHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
@@ -298,3 +328,33 @@ sizelessHooks:
   - BatchTransferFromHook
   - ClaimAssetsDETHHook
   - ClaimWithdrawFirelightVaultHook
+  - PendleUnifiedHook
+  - SpectraExchangeDepositHook
+  - Swap1InchHook
+  - BatchTransferHook
+  - CircleGatewayMinterHook
+  - RecordPurchasePendlePTAmortizedOracleHook
+  - RecordPurchasePendlePTAmortizedOracleHookV2
+  - RecordRedemptionPendlePTAmortizedOracleHook
+  - RecordRedemptionPendlePTAmortizedOracleHookV2
+  - ClaimRFLRHook
+  - WithdrawRFLRHook
+  - WithdrawVestedRFLRHook
+  - CancelDepositRequest7540Hook
+  - CancelDepositRequestWithId7540Hook
+  - CancelRedeemRequest7540Hook
+  - CancelRedeemRequestWithId7540Hook
+  - ClaimCancelDepositRequest7540Hook
+  - ClaimCancelDepositRequestWithId7540Hook
+  - ClaimCancelRedeemRequest7540Hook
+  - ClaimCancelRedeemRequestWithId7540Hook
+  - SetOperator7540Hook
+  - SetSlippageHook
+  - MarkRootAsUsedHook
+  - DeBridgeCancelOrderHook
+  - CircleGatewayAddDelegateHook
+  - CircleGatewayRemoveDelegateHook
+  - OfframpTokensHook
+  - EthenaUnstakeHook
+  - MetaMorphoReallocateHook
+  - PendleRouterSwapHook

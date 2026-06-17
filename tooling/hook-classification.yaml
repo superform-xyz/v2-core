@@ -81,20 +81,20 @@ hooks:
   # deposit / cancel (2)
   CancelDepositRequest7540Hook:
     actionTypes: [{intent: deposit, stage: cancel}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — cancel/claim ops with no sizable amount
 
   CancelDepositRequestWithId7540Hook:
     actionTypes: [{intent: deposit, stage: cancel}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — cancel/claim ops with no sizable amount
 
   # deposit / claim (2)
   ClaimCancelDepositRequest7540Hook:
     actionTypes: [{intent: deposit, stage: claim}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — cancel/claim ops with no sizable amount
 
   ClaimCancelDepositRequestWithId7540Hook:
     actionTypes: [{intent: deposit, stage: claim}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — cancel/claim ops with no sizable amount
 
   # ============================================================
   # WITHDRAW (20 hooks)
@@ -165,25 +165,25 @@ hooks:
 
   EthenaUnstakeHook:
     actionTypes: [{intent: withdraw, stage: fulfill}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — amount from cooldown state, not user-supplied
 
   # withdraw / cancel (2)
   CancelRedeemRequest7540Hook:
     actionTypes: [{intent: withdraw, stage: cancel}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — cancel/claim ops with no sizable amount
 
   CancelRedeemRequestWithId7540Hook:
     actionTypes: [{intent: withdraw, stage: cancel}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — cancel/claim ops with no sizable amount
 
   # withdraw / claim (2)
   ClaimCancelRedeemRequest7540Hook:
     actionTypes: [{intent: withdraw, stage: claim}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — cancel/claim ops with no sizable amount
 
   ClaimCancelRedeemRequestWithId7540Hook:
     actionTypes: [{intent: withdraw, stage: claim}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — cancel/claim ops with no sizable amount
 
   # ============================================================
   # REWARDS (7 hooks) — all claim stage, all sizeless
@@ -207,15 +207,15 @@ hooks:
 
   ClaimRFLRHook:
     actionTypes: [{intent: rewards, stage: claim}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — claims with no user-adjustable amount
 
   WithdrawRFLRHook:
     actionTypes: [{intent: rewards, stage: claim}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — claims with no user-adjustable amount
 
   WithdrawVestedRFLRHook:
     actionTypes: [{intent: rewards, stage: claim}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — claims with no user-adjustable amount
 
   # ============================================================
   # SWAP (29 hooks) — all instant stage
@@ -316,7 +316,7 @@ hooks:
   # 1inch
   Swap1InchHook:
     actionTypes: [{intent: swap, stage: instant}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — opaque txData with multiple selectors
 
   # Pendle
   PendleRouterRedeemHook:
@@ -325,16 +325,16 @@ hooks:
 
   PendleRouterSwapHook:
     actionTypes: [{intent: swap, stage: instant}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — deprecated, opaque calldata
 
   PendleUnifiedHook:
     actionTypes: [{intent: swap, stage: instant}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — opaque txData per selector
 
   # Spectra
   SpectraExchangeDepositHook:
     actionTypes: [{intent: swap, stage: instant}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — nested ABI-encoded router commands
 
   SpectraExchangeRedeemHook:
     actionTypes: [{intent: swap, stage: instant}]
@@ -404,12 +404,12 @@ hooks:
 
   CircleGatewayMinterHook:
     actionTypes: [{intent: bridge, stage: instant}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — amount in signed attestation
 
   # bridge / cancel (1)
   DeBridgeCancelOrderHook:
     actionTypes: [{intent: bridge, stage: cancel}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — cancel op
 
   # bridge / claim (1)
   ClaimFailedTransferHook:
@@ -506,11 +506,11 @@ hooks:
 
   BatchTransferHook:
     actionTypes: [{intent: transfer, stage: instant}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — variable-length amounts in ABI data
 
   OfframpTokensHook:
     actionTypes: [{intent: transfer, stage: instant}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — sends full balance
 
   BatchTransferFromHook:
     actionTypes: [{intent: transfer, stage: instant}]
@@ -522,7 +522,7 @@ hooks:
 
   MetaMorphoReallocateHook:
     actionTypes: [{intent: config, stage: instant}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — admin reallocation
 
   ForceDeallocateMorphoHook:
     actionTypes: [{intent: config, stage: instant}]
@@ -530,7 +530,7 @@ hooks:
 
   MarkRootAsUsedHook:
     actionTypes: [{intent: config, stage: instant}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — admin/config op
 
   FetchNativeFeeHook:
     actionTypes: [{intent: config, stage: instant}]
@@ -538,7 +538,7 @@ hooks:
 
   SetSlippageHook:
     actionTypes: [{intent: config, stage: instant}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — admin/config op
 
   MintSuperPositionsHook:
     actionTypes: [{intent: config, stage: instant}]
@@ -550,19 +550,19 @@ hooks:
 
   RecordPurchasePendlePTAmortizedOracleHook:
     actionTypes: [{intent: config, stage: instant}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — oracle recording, no user amount
 
   RecordPurchasePendlePTAmortizedOracleHookV2:
     actionTypes: [{intent: config, stage: instant}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — oracle recording, no user amount
 
   RecordRedemptionPendlePTAmortizedOracleHook:
     actionTypes: [{intent: config, stage: instant}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — oracle recording, no user amount
 
   RecordRedemptionPendlePTAmortizedOracleHookV2:
     actionTypes: [{intent: config, stage: instant}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — oracle recording, no user amount
 
   # ============================================================
   # PERMISSIONS (4 hooks) — all instant
@@ -574,15 +574,15 @@ hooks:
 
   SetOperator7540Hook:
     actionTypes: [{intent: permissions, stage: instant}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — admin/config op
 
   CircleGatewayAddDelegateHook:
     actionTypes: [{intent: permissions, stage: instant}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — delegate management
 
   CircleGatewayRemoveDelegateHook:
     actionTypes: [{intent: permissions, stage: instant}]
-    legSizing: [sized]
+    legSizing: []  # sizeless — delegate management
 
   # ============================================================
   # COMPOUND (4 hooks) — multi-leg, array position = execution order (T1)

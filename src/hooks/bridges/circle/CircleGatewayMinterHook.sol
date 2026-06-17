@@ -9,7 +9,14 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../../hooks/BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 // Circle Gateway
 import { TransferSpecLib } from "../../../../lib/evm-gateway-contracts/src/lib/TransferSpecLib.sol";
@@ -28,7 +35,7 @@ interface IGatewayMinter {
 /// @notice         bytes attestationPayload = BytesLib.slice(data, 32, attestationPayloadLength);
 /// @notice         uint256 signatureLength = BytesLib.toUint256(data, 32 + attestationPayloadLength);
 /// @notice         bytes signature = BytesLib.slice(data, 64 + attestationPayloadLength, signatureLength);
-contract CircleGatewayMinterHook is BaseHook {
+contract CircleGatewayMinterHook is BaseHook, ISuperHookInflowOutflow {
     using TransferSpecLib for bytes29;
     using AttestationLib for bytes29;
     using AttestationLib for Cursor;
@@ -125,6 +132,27 @@ contract CircleGatewayMinterHook is BaseHook {
         returns (bytes memory attestationPayload, bytes memory signature)
     {
         return _decodeAttestationData(data);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    /// @dev Sizeless — amount is inside a cryptographically-signed attestation blob
+    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](0);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+    }
+
+    /// @inheritdoc IERC165
+    /// @dev S2: implements ISuperHookInflowOutflow (decode-only) but NOT ISuperHookOutflow
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
+        if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
+        return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
+            || interfaceId == type(ISuperHookResult).interfaceId
+            || interfaceId == type(ISuperHookInspector).interfaceId;
     }
 
     /*//////////////////////////////////////////////////////////////

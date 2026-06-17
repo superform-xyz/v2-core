@@ -11,6 +11,15 @@ import { BaseHook } from "../../BaseHook.sol";
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 
+// Superform
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 /// @title WithdrawRFLRHook
 /// @author Superform Labs
 /// @notice Withdraws all rFLR from RNat and receives WFLR. WARNING: 50% penalty applies
@@ -23,7 +32,7 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 ///                can be enabled by governance if curators need tighter protection.
 ///        [1:33]  uint256 minOut — minimum WFLR delta the caller will accept (Variant A).
 ///                If omitted (data.length < 33) or zero, no slippage check is enforced.
-contract WithdrawRFLRHook is BaseHook {
+contract WithdrawRFLRHook is BaseHook, ISuperHookInflowOutflow {
     /*//////////////////////////////////////////////////////////////
                               ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -105,6 +114,26 @@ contract WithdrawRFLRHook is BaseHook {
     /// @inheritdoc BaseHook
     function inspect(bytes calldata) external view override returns (bytes memory) {
         return abi.encodePacked(RNAT);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](0);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+    }
+
+    /// @inheritdoc IERC165
+    /// @dev S2: implements ISuperHookInflowOutflow (decode-only) but NOT ISuperHookOutflow
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
+        if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
+        return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
+            || interfaceId == type(ISuperHookResult).interfaceId
+            || interfaceId == type(ISuperHookInspector).interfaceId;
     }
 
     /*//////////////////////////////////////////////////////////////
