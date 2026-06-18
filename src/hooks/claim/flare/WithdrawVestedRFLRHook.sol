@@ -28,9 +28,11 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 ///      The vested amount is computed as rNatBalance - lockedBalance via getBalancesOf().
 ///      Vesting is time-based (rolling 12-month linear per monthly allocation) and is not
 ///      manipulable by third parties.
-///      data layout:
-///        [0:32]  uint256 minOut — minimum WFLR delta the caller will accept.
-///                If omitted (data.length < 32) or zero, no slippage check is enforced.
+///      data layout (standard 52-byte header + hook-specific):
+///        [0:32]  bytes32 placeholder (strategy header — unused by this hook)
+///        [32:52] address yieldSource (strategy header — unused by this hook)
+///        [52:84] uint256 minOut — minimum WFLR delta the caller will accept.
+///                If omitted (data.length < 84) or zero, no slippage check is enforced.
 contract WithdrawVestedRFLRHook is BaseHook, ISuperHookInflowOutflow {
     using SafeCast for uint256;
 
@@ -58,8 +60,8 @@ contract WithdrawVestedRFLRHook is BaseHook, ISuperHookInflowOutflow {
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Minimum data length required for the minOut field (32 bytes uint256)
-    uint256 private constant MIN_DATA_LENGTH_WITH_MIN_OUT = 32;
+    /// @dev Minimum data length required for the minOut field (52 header + 32 uint256)
+    uint256 private constant MIN_DATA_LENGTH_WITH_MIN_OUT = 84;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -157,7 +159,7 @@ contract WithdrawVestedRFLRHook is BaseHook, ISuperHookInflowOutflow {
         uint256 delta = currentBalance > preBalance ? currentBalance - preBalance : 0;
 
         if (data.length >= MIN_DATA_LENGTH_WITH_MIN_OUT) {
-            uint256 minOut = BytesLib.toUint256(data, 0);
+            uint256 minOut = BytesLib.toUint256(data, 52);
             if (minOut > 0 && delta < minOut) revert SLIPPAGE_EXCEEDED();
         }
 

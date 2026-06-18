@@ -26,12 +26,14 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 ///         to any locked (unvested) portion. Only fully-vested rFLR is penalty-free.
 /// @dev Calls IRNat.withdrawAll(true) to receive WFLR (wrapped FLR) instead of native FLR.
 ///      The penalty is enforced by the RNat contract and cannot be bypassed.
-///      data layout:
-///        [0:1]   acknowledge byte — if non-zero AND lockedBalance > 0, caller explicitly
+///      data layout (standard 52-byte header + hook-specific):
+///        [0:32]  bytes32 placeholder (strategy header — unused by this hook)
+///        [32:52] address yieldSource (strategy header — unused by this hook)
+///        [52:53] acknowledge byte — if non-zero AND lockedBalance > 0, caller explicitly
 ///                opts in to the locked-burn penalty (Variant B). Currently a no-op;
 ///                can be enabled by governance if curators need tighter protection.
-///        [1:33]  uint256 minOut — minimum WFLR delta the caller will accept (Variant A).
-///                If omitted (data.length < 33) or zero, no slippage check is enforced.
+///        [53:85] uint256 minOut — minimum WFLR delta the caller will accept (Variant A).
+///                If omitted (data.length < 85) or zero, no slippage check is enforced.
 contract WithdrawRFLRHook is BaseHook, ISuperHookInflowOutflow {
     /*//////////////////////////////////////////////////////////////
                               ERRORS
@@ -58,14 +60,14 @@ contract WithdrawRFLRHook is BaseHook, ISuperHookInflowOutflow {
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Offset of the acknowledge byte in hook data
-    uint256 private constant ACK_POSITION = 0;
+    /// @dev Offset of the acknowledge byte in hook data (after 52-byte strategy header)
+    uint256 private constant ACK_POSITION = 52;
 
-    /// @dev Offset of the minOut uint256 in hook data
-    uint256 private constant MIN_OUT_POSITION = 1;
+    /// @dev Offset of the minOut uint256 in hook data (after 52-byte strategy header)
+    uint256 private constant MIN_OUT_POSITION = 53;
 
-    /// @dev Minimum data length required for the minOut field (1 byte ack + 32 bytes uint256)
-    uint256 private constant MIN_DATA_LENGTH_WITH_MIN_OUT = 33;
+    /// @dev Minimum data length required for the minOut field (52 header + 1 ack + 32 uint256)
+    uint256 private constant MIN_DATA_LENGTH_WITH_MIN_OUT = 85;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR

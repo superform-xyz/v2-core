@@ -162,9 +162,9 @@ contract FlareRFLRSuperVaultE2ETest is Test {
                     HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Encodes claim data: 1 project with id=0 (month fetched on-chain)
+    /// @dev Encodes claim data: 52-byte header + 1 project with id=0 (month fetched on-chain)
     function _claimData() internal pure returns (bytes memory) {
-        return abi.encodePacked(uint256(1), uint256(0));
+        return abi.encodePacked(bytes32(0), bytes20(0), uint256(1), uint256(0));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -259,7 +259,7 @@ contract FlareRFLRSuperVaultE2ETest is Test {
         rNat.mint(address(strategy), 50e18);
 
         // data: ack=0, minOut=50e18
-        bytes memory withdrawData = abi.encodePacked(uint8(0), uint256(50e18));
+        bytes memory withdrawData = abi.encodePacked(bytes32(0), bytes20(0), uint8(0), uint256(50e18));
 
         uint256 outAmount = strategy.executeHook(address(withdrawHook), address(0), withdrawData, 0);
 
@@ -272,7 +272,7 @@ contract FlareRFLRSuperVaultE2ETest is Test {
         rNat.mint(address(strategy), 30e18);
 
         // data: ack=0, minOut=50e18 (but only 30e18 rFLR available)
-        bytes memory withdrawData = abi.encodePacked(uint8(0), uint256(50e18));
+        bytes memory withdrawData = abi.encodePacked(bytes32(0), bytes20(0), uint8(0), uint256(50e18));
 
         // postExecute is execution index 2 (pre=0, withdrawAll=1, post=2)
         vm.expectRevert(abi.encodeWithSelector(MockSuperVaultStrategy.EXECUTION_FAILED.selector, uint256(2)));
@@ -291,7 +291,7 @@ contract FlareRFLRSuperVaultE2ETest is Test {
         // withdraw data: ack=0, minOut=CLAIM_AMOUNT (exact match expected)
         bytes[] memory datas = new bytes[](2);
         datas[0] = _claimData();
-        datas[1] = abi.encodePacked(uint8(0), CLAIM_AMOUNT);
+        datas[1] = abi.encodePacked(bytes32(0), bytes20(0), uint8(0), CLAIM_AMOUNT);
 
         uint256 outAmount = strategy.executeHooks(hooks, datas, 0);
 
@@ -311,7 +311,7 @@ contract FlareRFLRSuperVaultE2ETest is Test {
 
         bytes[] memory datas = new bytes[](2);
         datas[0] = _claimData();
-        datas[1] = abi.encodePacked(uint8(0), uint256(50e18));
+        datas[1] = abi.encodePacked(bytes32(0), bytes20(0), uint8(0), uint256(50e18));
 
         vm.expectRevert(abi.encodeWithSelector(MockSuperVaultStrategy.EXECUTION_FAILED.selector, uint256(2)));
         strategy.executeHooks(hooks, datas, 0);
@@ -333,7 +333,7 @@ contract FlareRFLRSuperVaultE2ETest is Test {
 
         // Expected output: 100 - 25 (50% of 50 locked) = 75 WFLR
         // minOut = 90e18 → should revert
-        bytes memory withdrawData = abi.encodePacked(uint8(0), uint256(90e18));
+        bytes memory withdrawData = abi.encodePacked(bytes32(0), bytes20(0), uint8(0), uint256(90e18));
 
         vm.expectRevert(abi.encodeWithSelector(MockSuperVaultStrategy.EXECUTION_FAILED.selector, uint256(2)));
         strategy.executeHook(address(penaltyWithdrawHook), address(0), withdrawData, 0);
@@ -348,7 +348,7 @@ contract FlareRFLRSuperVaultE2ETest is Test {
         penaltyRNat.setLockedAmount(50e18); // 50% of 50 locked = 25 burned
 
         // Expected: 75 WFLR. minOut = 75e18 → passes
-        bytes memory withdrawData = abi.encodePacked(uint8(0), uint256(75e18));
+        bytes memory withdrawData = abi.encodePacked(bytes32(0), bytes20(0), uint8(0), uint256(75e18));
 
         uint256 outAmount = strategy.executeHook(address(penaltyWithdrawHook), address(0), withdrawData, 0);
 

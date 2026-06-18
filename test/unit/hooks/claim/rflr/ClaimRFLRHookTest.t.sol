@@ -162,8 +162,8 @@ contract ClaimRFLRHookTest is Helpers {
     function test_Build_RevertIf_TooManyProjectIds() public {
         vm.mockCall(rNat, abi.encodeCall(IRNat.getCurrentMonth, ()), abi.encode(uint256(1)));
 
-        // Encode length of 51 (exceeds MAX_PROJECT_IDS=50)
-        bytes memory data = abi.encodePacked(uint256(51));
+        // 52-byte header + length of 51 (exceeds MAX_PROJECT_IDS=50)
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), uint256(51));
         for (uint256 i; i < 51; ++i) {
             data = bytes.concat(data, abi.encodePacked(i));
         }
@@ -217,7 +217,8 @@ contract ClaimRFLRHookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function _createClaimRFLRData(uint256[] memory projectIds_) internal pure returns (bytes memory data) {
-        data = abi.encodePacked(projectIds_.length);
+        // 52-byte strategy header (zeros) + projectIdsLength + projectIds[]
+        data = abi.encodePacked(bytes32(0), bytes20(0), projectIds_.length);
         for (uint256 i; i < projectIds_.length; ++i) {
             data = bytes.concat(data, abi.encodePacked(projectIds_[i]));
         }

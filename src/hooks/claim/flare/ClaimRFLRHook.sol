@@ -25,9 +25,11 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 /// @notice Claims rFLR rewards from Flare's RNat contract
 /// @dev rFLR tokens are non-transferable, so fee collection is not supported at the claim stage.
 ///      Fees should be collected at the WFLR withdrawal stage via WithdrawRFLRHook.
-/// @dev data has the following structure:
-/// @notice         uint256 projectIdsLength = BytesLib.toUint256(data, 0);
-/// @notice         uint256[] projectIds = [BytesLib.toUint256(data, 32 + i*32) for i in 0..projectIdsLength-1]
+/// @dev data layout (standard 52-byte header + hook-specific):
+/// @notice         bytes32 placeholder = bytes32(data[0:32]) (strategy header — unused by this hook)
+/// @notice         address yieldSource = address(data[32:52]) (strategy header — unused by this hook)
+/// @notice         uint256 projectIdsLength = BytesLib.toUint256(data, 52);
+/// @notice         uint256[] projectIds = [BytesLib.toUint256(data, 84 + i*32) for i in 0..projectIdsLength-1]
 contract ClaimRFLRHook is BaseHook, ISuperHookInflowOutflow {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
@@ -48,8 +50,8 @@ contract ClaimRFLRHook is BaseHook, ISuperHookInflowOutflow {
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    uint256 private constant PROJECT_IDS_LENGTH_POSITION = 0;
-    uint256 private constant PROJECT_IDS_START_POSITION = 32;
+    uint256 private constant PROJECT_IDS_LENGTH_POSITION = 52;
+    uint256 private constant PROJECT_IDS_START_POSITION = 84;
     uint256 private constant MAX_PROJECT_IDS = 50;
 
     /*//////////////////////////////////////////////////////////////

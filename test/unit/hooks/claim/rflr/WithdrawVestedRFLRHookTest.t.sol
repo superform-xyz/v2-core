@@ -231,7 +231,7 @@ contract WithdrawVestedRFLRHookTest is Helpers {
             wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance + withdrawnAmount)
         );
 
-        bytes memory data = abi.encode(minOut);
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), minOut);
 
         vm.prank(account);
         hook.postExecute(address(0), account, data);
@@ -253,7 +253,7 @@ contract WithdrawVestedRFLRHookTest is Helpers {
             wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance + withdrawnAmount)
         );
 
-        bytes memory data = abi.encode(minOut);
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), minOut);
 
         vm.prank(account);
         hook.postExecute(address(0), account, data);
@@ -275,7 +275,7 @@ contract WithdrawVestedRFLRHookTest is Helpers {
             wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance + withdrawnAmount)
         );
 
-        bytes memory data = abi.encode(minOut);
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), minOut);
 
         vm.expectRevert(WithdrawVestedRFLRHook.SLIPPAGE_EXCEEDED.selector);
         vm.prank(account);
@@ -295,7 +295,7 @@ contract WithdrawVestedRFLRHookTest is Helpers {
         // Balance unchanged — delta is 0
         vm.mockCall(wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance));
 
-        bytes memory data = abi.encode(minOut);
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), minOut);
 
         vm.expectRevert(WithdrawVestedRFLRHook.SLIPPAGE_EXCEEDED.selector);
         vm.prank(account);
@@ -317,7 +317,7 @@ contract WithdrawVestedRFLRHookTest is Helpers {
         );
 
         // minOut = 0 means no check
-        bytes memory data = abi.encode(uint256(0));
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), uint256(0));
 
         vm.prank(account);
         hook.postExecute(address(0), account, data);
