@@ -462,12 +462,12 @@ print_header
 
 # Source centralized network configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 # Determine which networks file to use based on environment (passed as first argument)
 ENV_ARG="${1:-staging}"
 if [[ "$ENV_ARG" == "staging" ]]; then
-    NETWORKS_FILE="$SCRIPT_DIR/networks-staging.sh"
+    NETWORKS_FILE="$SCRIPT_DIR/../utils/networks-staging.sh"
 else
     echo -e "${RED}❌ Error: Invalid environment '$ENV_ARG'${NC}"
     echo -e "${YELLOW}Expected 'staging'${NC}"

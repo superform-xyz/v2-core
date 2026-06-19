@@ -9,7 +9,7 @@
 #   VNET deployments.
 #
 # Usage:
-#   ./script/run/regenerate_bytecode.sh [CONTRACT_NAME]
+#   ./script/run/tooling/regenerate_bytecode.sh [CONTRACT_NAME]
 #
 # Arguments:
 #   CONTRACT_NAME (optional): Name of specific contract to regenerate.
@@ -201,7 +201,7 @@ ORACLE_CONTRACTS=(
     "SpectraMetaVaultOracle"
 )
 
-# Morpho hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode-other/)
+# Morpho hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
 MORPHO_HOOK_CONTRACTS=(
     "MorphoSupplyAndBorrowHook"
     "MorphoBorrowHook"
@@ -214,7 +214,7 @@ MORPHO_HOOK_CONTRACTS=(
     "ForceDeallocateMorphoHook"
 )
 
-# Aave V4 hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode-other/)
+# Aave V4 hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
 AAVE_V4_HOOK_CONTRACTS=(
     "AaveV4SupplyHook"
     "AaveV4WithdrawHook"
@@ -224,20 +224,20 @@ AAVE_V4_HOOK_CONTRACTS=(
     "AaveV4RepayAndWithdrawHook"
 )
 
-# DETH hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode-other/)
+# DETH hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
 DETH_HOOK_CONTRACTS=(
     "RequestRedeemDETHHook"
     "ApproveAndRequestRedeemDETHHook"
     "ClaimAssetsDETHHook"
 )
 
-# Sponsorship contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode-other/)
+# Sponsorship contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
 SPONSORSHIP_CONTRACTS=(
     "NativeFeeSponsorship"
     "FetchNativeFeeHook"
 )
 
-# rFLR hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode-other/)
+# rFLR hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
 RFLR_HOOK_CONTRACTS=(
     "ClaimRFLRHook"
     "WithdrawRFLRHook"
@@ -309,94 +309,57 @@ else
         fi
     done
 
-    # Copy Morpho hook contracts to generated-bytecode-other/
-    log "INFO" "${BLUE}🪝 Copying Morpho hook contracts to generated-bytecode-other/...${NC}"
-    mkdir -p script/generated-bytecode-other
+    # Copy Morpho hook contracts
+    log "INFO" "${BLUE}🪝 Copying Morpho hook contracts...${NC}"
     failed_morpho=0
     for contract in "${MORPHO_HOOK_CONTRACTS[@]}"; do
-        local_source="out/${contract}.sol/${contract}.json"
-        local_dest="script/generated-bytecode-other/${contract}.json"
-        if [ ! -f "$local_source" ]; then
-            log "ERROR" "${RED}❌ Artifact not found for contract: ${contract} at ${local_source}${NC}"
+        if ! copy_contract "$contract"; then
             failed_morpho=$((failed_morpho + 1))
-        else
-            cp "$local_source" "$local_dest"
-            log "INFO" "${GREEN}✅ Copied ${contract} → generated-bytecode-other/${NC}"
         fi
     done
 
-    # Copy Aave V4 hook contracts to generated-bytecode-other/
-    log "INFO" "${BLUE}🪝 Copying Aave V4 hook contracts to generated-bytecode-other/...${NC}"
+    # Copy Aave V4 hook contracts
+    log "INFO" "${BLUE}🪝 Copying Aave V4 hook contracts...${NC}"
     failed_aavev4=0
     for contract in "${AAVE_V4_HOOK_CONTRACTS[@]}"; do
-        local_source="out/${contract}.sol/${contract}.json"
-        local_dest="script/generated-bytecode-other/${contract}.json"
-        if [ ! -f "$local_source" ]; then
-            log "ERROR" "${RED}❌ Artifact not found for contract: ${contract} at ${local_source}${NC}"
+        if ! copy_contract "$contract"; then
             failed_aavev4=$((failed_aavev4 + 1))
-        else
-            cp "$local_source" "$local_dest"
-            log "INFO" "${GREEN}✅ Copied ${contract} → generated-bytecode-other/${NC}"
         fi
     done
 
-    # Copy DETH hook contracts to generated-bytecode-other/
-    log "INFO" "${BLUE}🪝 Copying DETH hook contracts to generated-bytecode-other/...${NC}"
+    # Copy DETH hook contracts
+    log "INFO" "${BLUE}🪝 Copying DETH hook contracts...${NC}"
     failed_deth=0
     for contract in "${DETH_HOOK_CONTRACTS[@]}"; do
-        local_source="out/${contract}.sol/${contract}.json"
-        local_dest="script/generated-bytecode-other/${contract}.json"
-        if [ ! -f "$local_source" ]; then
-            log "ERROR" "${RED}❌ Artifact not found for contract: ${contract} at ${local_source}${NC}"
+        if ! copy_contract "$contract"; then
             failed_deth=$((failed_deth + 1))
-        else
-            cp "$local_source" "$local_dest"
-            log "INFO" "${GREEN}✅ Copied ${contract} → generated-bytecode-other/${NC}"
         fi
     done
 
-    # Copy Sponsorship contracts to generated-bytecode-other/
-    log "INFO" "${BLUE}🪝 Copying Sponsorship contracts to generated-bytecode-other/...${NC}"
+    # Copy Sponsorship contracts
+    log "INFO" "${BLUE}🪝 Copying Sponsorship contracts...${NC}"
     failed_sponsorship=0
     for contract in "${SPONSORSHIP_CONTRACTS[@]}"; do
-        local_source="out/${contract}.sol/${contract}.json"
-        local_dest="script/generated-bytecode-other/${contract}.json"
-        if [ ! -f "$local_source" ]; then
-            log "ERROR" "${RED}❌ Artifact not found for contract: ${contract} at ${local_source}${NC}"
+        if ! copy_contract "$contract"; then
             failed_sponsorship=$((failed_sponsorship + 1))
-        else
-            cp "$local_source" "$local_dest"
-            log "INFO" "${GREEN}✅ Copied ${contract} → generated-bytecode-other/${NC}"
         fi
     done
 
-    # Copy rFLR hook contracts to generated-bytecode-other/
-    log "INFO" "${BLUE}🪝 Copying rFLR hook contracts to generated-bytecode-other/...${NC}"
+    # Copy rFLR hook contracts
+    log "INFO" "${BLUE}🪝 Copying rFLR hook contracts...${NC}"
     failed_rflr=0
     for contract in "${RFLR_HOOK_CONTRACTS[@]}"; do
-        local_source="out/${contract}.sol/${contract}.json"
-        local_dest="script/generated-bytecode-other/${contract}.json"
-        if [ ! -f "$local_source" ]; then
-            log "ERROR" "${RED}❌ Artifact not found for contract: ${contract} at ${local_source}${NC}"
+        if ! copy_contract "$contract"; then
             failed_rflr=$((failed_rflr + 1))
-        else
-            cp "$local_source" "$local_dest"
-            log "INFO" "${GREEN}✅ Copied ${contract} → generated-bytecode-other/${NC}"
         fi
     done
 
-    # Copy Odos V3 hook contracts to generated-bytecode-other/
-    log "INFO" "${BLUE}🪝 Copying Odos V3 hook contracts to generated-bytecode-other/...${NC}"
+    # Copy Odos V3 hook contracts
+    log "INFO" "${BLUE}🪝 Copying Odos V3 hook contracts...${NC}"
     failed_odosv3=0
     for contract in "${ODOS_V3_HOOK_CONTRACTS[@]}"; do
-        local_source="out/${contract}.sol/${contract}.json"
-        local_dest="script/generated-bytecode-other/${contract}.json"
-        if [ ! -f "$local_source" ]; then
-            log "ERROR" "${RED}❌ Artifact not found for contract: ${contract} at ${local_source}${NC}"
+        if ! copy_contract "$contract"; then
             failed_odosv3=$((failed_odosv3 + 1))
-        else
-            cp "$local_source" "$local_dest"
-            log "INFO" "${GREEN}✅ Copied ${contract} → generated-bytecode-other/${NC}"
         fi
     done
 
@@ -445,7 +408,7 @@ else
     fi
 
     if [ $total_failed -eq 0 ]; then
-        log "INFO" "${GREEN}🎉 All contracts successfully updated in generated-bytecode and generated-bytecode-other!${NC}"
+        log "INFO" "${GREEN}🎉 All contracts successfully updated in generated-bytecode!${NC}"
         exit 0
     else
         log "ERROR" "${RED}❌ ${total_failed} contracts failed to copy. Please check the error messages above.${NC}"

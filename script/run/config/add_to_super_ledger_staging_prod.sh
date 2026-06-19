@@ -2,20 +2,20 @@
 
 # add_to_super_ledger_staging_prod.sh
 # Purpose: Add new oracles to SuperLedgerConfiguration for staging/production deployments
-# Usage: sh script/run/add_to_super_ledger_staging_prod.sh <environment> [simulate]
+# Usage: sh script/run/config/add_to_super_ledger_staging_prod.sh <environment> [simulate]
 
 set -e
 
 # ===== CONFIGURATION =====
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 OUTPUT_DIR="$PROJECT_ROOT/script/output"
 
 # Fireblocks sender address (matches config_v2_ledger_staging_prod.sh)
 FIREBLOCKS_SENDER="0x28b7599f461D104f07D78215Fa6F9B959851f93d"
 
 # ===== LOAD SHARED UTILITIES =====
-source "$SCRIPT_DIR/oracle-utils.sh"
+source "$SCRIPT_DIR/../utils/oracle-utils.sh"
 
 # ===== HELPER FUNCTIONS =====
 log() {
@@ -90,9 +90,9 @@ fi
 # ===== LOAD NETWORK CONFIGURATION =====
 # Map environment to network file name
 if [ "$ENVIRONMENT" = "prod" ]; then
-    NETWORKS_FILE="$SCRIPT_DIR/networks-production.sh"
+    NETWORKS_FILE="$SCRIPT_DIR/../utils/networks-production.sh"
 else
-    NETWORKS_FILE="$SCRIPT_DIR/networks-$ENVIRONMENT.sh"
+    NETWORKS_FILE="$SCRIPT_DIR/../utils/networks-$ENVIRONMENT.sh"
 fi
 
 if [ ! -f "$NETWORKS_FILE" ]; then
@@ -132,7 +132,7 @@ ORACLE_LIST_FILE="$OUTPUT_DIR/$ENV_DIR/new_oracles_to_add"
 if [ ! -f "$ORACLE_LIST_FILE" ]; then
     log "ERROR" "Oracle list file not found: $ORACLE_LIST_FILE"
     log "ERROR" "Please run extract_configurable_oracles.sh first:"
-    log "ERROR" "  sh script/run/extract_configurable_oracles.sh $ENVIRONMENT v2-deployer"
+    log "ERROR" "  sh script/run/tooling/extract_configurable_oracles.sh $ENVIRONMENT v2-deployer"
     exit 1
 fi
 

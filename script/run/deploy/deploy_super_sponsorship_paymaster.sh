@@ -10,7 +10,7 @@
 #   paymaster is already deployed.
 #
 # Usage:
-#   ./script/run/deploy_super_sponsorship_paymaster.sh <environment> <mode> <account> [--slow] [--resume] [--legacy]
+#   ./script/run/deploy/deploy_super_sponsorship_paymaster.sh <environment> <mode> <account> [--slow] [--resume] [--legacy]
 #
 # Arguments:
 #   environment  - staging or prod
@@ -24,16 +24,16 @@
 #
 # Examples:
 #   # Simulate deployment across all staging chains
-#   ./script/run/deploy_super_sponsorship_paymaster.sh staging simulate v2
+#   ./script/run/deploy/deploy_super_sponsorship_paymaster.sh staging simulate v2
 #
 #   # Deploy to all production chains
-#   ./script/run/deploy_super_sponsorship_paymaster.sh prod deploy deployer
+#   ./script/run/deploy/deploy_super_sponsorship_paymaster.sh prod deploy deployer
 #
 #   # Deploy with slow mode
-#   ./script/run/deploy_super_sponsorship_paymaster.sh prod deploy deployer --slow
+#   ./script/run/deploy/deploy_super_sponsorship_paymaster.sh prod deploy deployer --slow
 #
 #   # Resume interrupted deployment
-#   ./script/run/deploy_super_sponsorship_paymaster.sh prod deploy deployer --resume
+#   ./script/run/deploy/deploy_super_sponsorship_paymaster.sh prod deploy deployer --resume
 #
 # Requirements:
 #   - forge: Foundry CLI
@@ -80,7 +80,7 @@ print_network_header() {
 
 # Script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 print_header
 
@@ -141,12 +141,12 @@ if [ "$ENVIRONMENT" = "staging" ]; then
     echo -e "${CYAN}Loading staging network configuration...${NC}"
     LOCKED_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode-dev"
     FORGE_ENV=2
-    source "$SCRIPT_DIR/networks-staging.sh"
+    source "$SCRIPT_DIR/../utils/networks-staging.sh"
 elif [ "$ENVIRONMENT" = "prod" ]; then
     echo -e "${CYAN}Loading production network configuration...${NC}"
     LOCKED_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode"
     FORGE_ENV=0
-    source "$SCRIPT_DIR/networks-production.sh"
+    source "$SCRIPT_DIR/../utils/networks-production.sh"
 else
     echo -e "${RED}Invalid environment: $ENVIRONMENT${NC}"
     echo -e "${YELLOW}Environment must be either 'staging' or 'prod'${NC}"
@@ -222,7 +222,7 @@ if [ ! -f "${LOCKED_BYTECODE_PATH}/SuperSponsorshipPaymaster.json" ]; then
         echo -e "${CYAN}Found in generated-bytecode, copying...${NC}"
         cp "$PROJECT_ROOT/script/generated-bytecode/SuperSponsorshipPaymaster.json" "${LOCKED_BYTECODE_PATH}/SuperSponsorshipPaymaster.json"
     else
-        echo -e "${RED}Cannot find bytecode. Run: ./script/run/regenerate_bytecode.sh SuperSponsorshipPaymaster${NC}"
+        echo -e "${RED}Cannot find bytecode. Run: ./script/run/tooling/regenerate_bytecode.sh SuperSponsorshipPaymaster${NC}"
         exit 1
     fi
 fi

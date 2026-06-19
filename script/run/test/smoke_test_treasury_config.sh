@@ -5,9 +5,8 @@
 
 set -e
 
-# Get the directory where this script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# Source shared deployment library (colors, UI, paths)
+source "$(dirname "${BASH_SOURCE[0]}")/../utils/lib_deploy.sh"
 
 # Default values
 ENVIRONMENT="prod"
@@ -15,13 +14,6 @@ FORGE_ENV=0
 SPECIFIC_NETWORK=""
 VERBOSE=false
 DRY_RUN=false
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
 
 # Usage function
 usage() {
@@ -49,10 +41,10 @@ usage() {
 }
 
 # Parse command line arguments
-parse_args() {
+parse_smoke_args() {
     # First argument must be environment
     if [[ $# -lt 1 ]]; then
-        echo "❌ Missing required argument: environment"
+        echo -e "${RED}Missing required argument: environment${NC}"
         usage
         exit 1
     fi
@@ -67,7 +59,7 @@ parse_args() {
     ENVIRONMENT="$1"
     shift
 
-    # Validate environment and set FORGE_ENV
+    # Validate environment and source network config
     case "$ENVIRONMENT" in
         prod)
             FORGE_ENV=0
@@ -78,7 +70,7 @@ parse_args() {
             source "$SCRIPT_DIR/networks-staging.sh"
             ;;
         *)
-            echo "❌ Invalid environment: $ENVIRONMENT"
+            echo -e "${RED}Invalid environment: $ENVIRONMENT${NC}"
             echo "Environment must be 'staging' or 'prod'"
             exit 1
             ;;
@@ -104,7 +96,7 @@ parse_args() {
                 exit 0
                 ;;
             *)
-                echo "❌ Unknown option: $1"
+                echo -e "${RED}Unknown option: $1${NC}"
                 usage
                 exit 1
                 ;;
@@ -114,7 +106,7 @@ parse_args() {
     # Validate specific network if provided
     if [[ -n "$SPECIFIC_NETWORK" ]]; then
         if ! is_network_supported "$SPECIFIC_NETWORK"; then
-            echo "❌ Network $SPECIFIC_NETWORK is not supported in $ENVIRONMENT"
+            echo -e "${RED}Network $SPECIFIC_NETWORK is not supported in $ENVIRONMENT${NC}"
             echo "Supported networks:"
             get_supported_networks
             exit 1
@@ -127,19 +119,19 @@ log() {
     local level=$1
     shift
     local message="$*"
-    
+
     case $level in
         "INFO")
-            echo -e "${BLUE}ℹ️  $message${NC}"
+            echo -e "${BLUE}$message${NC}"
             ;;
         "SUCCESS")
-            echo -e "${GREEN}✅ $message${NC}"
+            echo -e "${GREEN}$message${NC}"
             ;;
         "WARNING")
-            echo -e "${YELLOW}⚠️  $message${NC}"
+            echo -e "${YELLOW}$message${NC}"
             ;;
         "ERROR")
-            echo -e "${RED}❌ $message${NC}"
+            echo -e "${RED}$message${NC}"
             ;;
         *)
             echo "$message"
@@ -160,47 +152,43 @@ run_network_test() {
         return 1
     fi
 
-    # Build forge command
-    local forge_cmd="forge script script/SmokeTestTreasuryConfig.s.sol:SmokeTestTreasuryConfig"
+    # Build forge command as an array (safer than eval on a string)
+    local forge_cmd=(
+        forge script script/SmokeTestTreasuryConfig.s.sol:SmokeTestTreasuryConfig
+        --sig "run(uint256,uint64)" "$FORGE_ENV" "$network_id"
+        --rpc-url "$rpc_url"
+    )
 
-    # Add function signature with environment and chainId
-    forge_cmd="$forge_cmd --sig \"run(uint256,uint64)\" $FORGE_ENV $network_id"
-
-    # Add RPC URL
-    forge_cmd="$forge_cmd --rpc-url \"$rpc_url\""
-    
-    # Add verbose flag if requested
     if [[ "$VERBOSE" == "true" ]]; then
-        forge_cmd="$forge_cmd -vv"
+        forge_cmd+=(-vv)
     fi
-    
+
     if [[ "$DRY_RUN" == "true" ]]; then
-        log "INFO" "Would run: $forge_cmd"
+        log "INFO" "Would run: ${forge_cmd[*]}"
         return 0
     fi
-    
+
     # Execute the test
     local start_time=$(date +%s)
-    
-    # Temporarily disable set -e for this command to handle forge script exit codes properly
+
+    # Temporarily disable set -e to handle forge script exit codes properly
     set +e
     local output
-    output=$(eval "$forge_cmd" 2>&1)
+    output=$("${forge_cmd[@]}" 2>&1)
     local forge_exit_code=$?
     set -e
-    
+
     # Display the output
     echo "$output"
-    
+
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
-    
-    # Debug: Log the actual exit code
+
     if [[ "$VERBOSE" == "true" ]]; then
-        log "INFO" "Forge command exit code: $forge_exit_code"
+        log "INFO" "Forge exit code: $forge_exit_code"
     fi
-    
-    # Check for explicit failure indicators in the output
+
+    # Check for explicit failure/success indicators in the output
     if echo "$output" | grep -q "TREASURY CONFIGURATION SMOKE TEST FAILED"; then
         log "ERROR" "$network_name treasury configuration test FAILED (${duration}s)"
         return 1
@@ -211,7 +199,6 @@ run_network_test() {
         log "SUCCESS" "$network_name treasury configuration test passed (${duration}s)"
         return 0
     else
-        # If we can't determine success/failure from output, treat as failure
         log "ERROR" "$network_name treasury configuration test failed with exit code $forge_exit_code (${duration}s)"
         return 1
     fi
@@ -219,20 +206,19 @@ run_network_test() {
 
 # Main execution function
 main() {
-    parse_args "$@"
+    parse_smoke_args "$@"
 
-    # Change to project root
     cd "$PROJECT_ROOT"
 
     log "INFO" "Starting Treasury Configuration Smoke Tests"
     log "INFO" "Environment: $(echo "$ENVIRONMENT" | sed 's/prod/Production/;s/staging/Staging/')"
-    
+
     if [[ "$DRY_RUN" == "true" ]]; then
         log "WARNING" "DRY RUN MODE - No tests will be executed"
     fi
-    
+
     echo ""
-    
+
     # Load RPC URLs if not in dry run mode
     if [[ "$DRY_RUN" != "true" ]]; then
         if [[ "${CI:-}" == "true" ]]; then
@@ -248,57 +234,49 @@ main() {
         fi
         echo ""
     fi
-    
+
     # Determine networks to test
     local networks_to_test=()
-    log "INFO" "DEBUG: About to determine networks to test"
     if [[ -n "$SPECIFIC_NETWORK" ]]; then
         networks_to_test=("$SPECIFIC_NETWORK")
         log "INFO" "Testing specific network: $(get_network_name "$SPECIFIC_NETWORK")"
-        log "INFO" "DEBUG: networks_to_test array has ${#networks_to_test[@]} elements: ${networks_to_test[*]}"
     else
-        log "INFO" "DEBUG: Getting all supported networks"
         readarray -t networks_to_test < <(get_supported_networks)
-        log "INFO" "Testing all $(echo "${networks_to_test[@]}" | wc -w) production networks"
-        log "INFO" "DEBUG: networks_to_test array has ${#networks_to_test[@]} elements: ${networks_to_test[*]}"
+        log "INFO" "Testing all ${#networks_to_test[@]} $ENVIRONMENT networks"
     fi
-    
+
     echo ""
-    
+
     # Run tests
     local total_networks=${#networks_to_test[@]}
     local passed_tests=0
     local failed_tests=0
     local failed_networks=()
-    
+
     for network_id in "${networks_to_test[@]}"; do
-        echo "----------------------------------------"
-        log "INFO" "About to test network $network_id ($(get_network_name "$network_id"))"
+        print_separator
         if run_network_test "$network_id"; then
             passed_tests=$((passed_tests + 1))
-            log "INFO" "Network $network_id test completed successfully, continuing to next network"
         else
             failed_tests=$((failed_tests + 1))
             failed_networks+=("$(get_network_name "$network_id") (ID: $network_id)")
-            log "WARNING" "Network $network_id test failed, continuing to next network"
         fi
         echo ""
-        log "INFO" "Completed network $network_id, moving to next network"
     done
-    
+
     # Summary
-    echo "========================================"
+    print_separator
     log "INFO" "Treasury Configuration Smoke Test Summary"
-    echo "========================================"
-    log "INFO" "Total Networks: $total_networks"
-    log "SUCCESS" "Passed: $passed_tests"
-    
+    print_separator
+    echo -e "${CYAN}   Total Networks: ${WHITE}$total_networks${NC}"
+    echo -e "${CYAN}   Passed:         ${GREEN}$passed_tests${NC}"
+
     if [[ $failed_tests -gt 0 ]]; then
-        log "ERROR" "Failed: $failed_tests"
+        echo -e "${CYAN}   Failed:         ${RED}$failed_tests${NC}"
         echo ""
-        log "ERROR" "Failed Networks:"
+        echo -e "${RED}   Failed Networks:${NC}"
         for failed_network in "${failed_networks[@]}"; do
-            echo "  • $failed_network"
+            echo -e "${RED}     - $failed_network${NC}"
         done
         echo ""
         log "ERROR" "Treasury configuration smoke tests completed with failures"

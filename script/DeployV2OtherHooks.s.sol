@@ -187,7 +187,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     /// @notice Get bytecode directory based on environment
     function __getOtherHooksBytecodeDirectory(uint256 env) internal pure returns (string memory) {
         if (env == 1) {
-            return "script/generated-bytecode-other/";
+            return "script/generated-bytecode/";
         } else {
             return "script/locked-bytecode-other/";
         }

@@ -2,21 +2,21 @@
 
 # add_to_super_ledger_vnet.sh
 # Purpose: Add new oracles to SuperLedgerConfiguration for vnet deployments
-# Usage: sh script/run/add_to_super_ledger_vnet.sh <branch_name> [simulate]
+# Usage: sh script/run/config/add_to_super_ledger_vnet.sh <branch_name> [simulate]
 
 set -e
 
 # ===== CONFIGURATION =====
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 OUTPUT_DIR="$PROJECT_ROOT/script/output"
 
 FORGE_ENV=1  # vnet environment
 
 # ===== LOAD SHARED UTILITIES =====
-source "$SCRIPT_DIR/oracle-utils.sh"
-source "$SCRIPT_DIR/networks-staging.sh"
-source "$SCRIPT_DIR/networks-production.sh"
+source "$SCRIPT_DIR/../utils/oracle-utils.sh"
+source "$SCRIPT_DIR/../utils/networks-staging.sh"
+source "$SCRIPT_DIR/../utils/networks-production.sh"
 
 # ===== HELPER FUNCTIONS =====
 log() {
@@ -146,7 +146,7 @@ ORACLE_LIST_FILE="$OUTPUT_DIR/$BRANCH_NAME/new_oracles_to_add"
 if [ ! -f "$ORACLE_LIST_FILE" ]; then
     log "ERROR" "Oracle list file not found: $ORACLE_LIST_FILE"
     log "ERROR" "Please run extract_configurable_oracles.sh first:"
-    log "ERROR" "  sh script/run/extract_configurable_oracles.sh $BRANCH_NAME"
+    log "ERROR" "  sh script/run/tooling/extract_configurable_oracles.sh $BRANCH_NAME"
     exit 1
 fi
 

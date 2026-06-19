@@ -54,7 +54,7 @@ After each sub agent finishes the work, make sure you read the related documenta
 
 ### Contract Compilation & Bindings
 - `make generate` - Regenerate contract bindings (requires ABI extraction)
-- Uses `./script/run/retrieve-abis.sh` and `./script/run/generate-contract-bindings.sh`
+- Uses `./script/run/tooling/retrieve-abis.sh` and `./script/run/tooling/generate-contract-bindings.sh`
 
 ### Dependencies
 Install dependencies in submodules:

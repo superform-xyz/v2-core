@@ -37,7 +37,7 @@ print_header
 
 # Ensure we're running from the repository root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 # Change to repository root if not already there
 if [ "$(pwd)" != "$REPO_ROOT" ]; then
@@ -66,11 +66,11 @@ CHAIN_ID=$3
 # Validate environment and source appropriate network configuration
 if [ "$ENVIRONMENT" = "staging" ]; then
     echo -e "${CYAN}🌐 Loading staging network configuration...${NC}"
-    source "$SCRIPT_DIR/networks-staging.sh"
+    source "$SCRIPT_DIR/../utils/networks-staging.sh"
     FORGE_ENV=2
 elif [ "$ENVIRONMENT" = "prod" ]; then
     echo -e "${CYAN}🌐 Loading production network configuration...${NC}"
-    source "$SCRIPT_DIR/networks-production.sh"
+    source "$SCRIPT_DIR/../utils/networks-production.sh"
     FORGE_ENV=0
 else
     echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"

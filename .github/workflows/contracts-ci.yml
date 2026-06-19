@@ -105,10 +105,10 @@ jobs:
         run: "FOUNDRY_PROFILE=ci-sizes forge build --sizes"
 
       - name: "Make export ABIs script executable"
-        run: chmod +x ./script/run/export_abis_s3.sh
+        run: chmod +x ./script/run/tooling/export_abis_s3.sh
 
       - name: "Export ABIs to S3"
-        run: ./script/run/export_abis_s3.sh "${{ github.ref_name }}" --quiet
+        run: ./script/run/tooling/export_abis_s3.sh "${{ github.ref_name }}" --quiet
         env:
           S3_BUCKET_NAME_ABIS: ${{ secrets.S3_BUCKET_NAME_ABIS }}
 
@@ -230,7 +230,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: "Make deploy script executable"
-        run: chmod +x ./script/run/deploy_v2_vnet_s3.sh
+        run: chmod +x ./script/run/deploy/deploy_v2_vnet_s3.sh
 
       - name: Get branch name and commit hash
         id: branch-info
@@ -239,7 +239,7 @@ jobs:
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
       - name: "Run deploy script"
-        run: ./script/run/deploy_v2_vnet_s3.sh "$BRANCH_NAME"
+        run: ./script/run/deploy/deploy_v2_vnet_s3.sh "$BRANCH_NAME"
         env:
           TENDERLY_ACCESS_KEY: ${{ secrets.TENDERLY_ACCESS_KEY }}
           S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
@@ -387,7 +387,7 @@ jobs:
         run: yarn
 
       - name: "Make smoke test script executable"
-        run: chmod +x ./script/run/smoke_test_treasury_config.sh
+        run: chmod +x ./script/run/test/smoke_test_treasury_config.sh
 
       - name: "Run treasury configuration smoke tests"
         id: treasury-smoke-test
@@ -397,7 +397,7 @@ jobs:
           
           # Run the smoke test and capture output
           set +e
-          ./script/run/smoke_test_treasury_config.sh > treasury_test_output.log 2>&1
+          ./script/run/test/smoke_test_treasury_config.sh > treasury_test_output.log 2>&1
           EXIT_CODE=$?
           set -e
           

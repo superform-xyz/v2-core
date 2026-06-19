@@ -8,11 +8,11 @@ set -e
 
 # ===== CONFIGURATION =====
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 OUTPUT_DIR="$PROJECT_ROOT/script/output"
 
 # ===== LOAD SHARED UTILITIES =====
-source "$SCRIPT_DIR/oracle-utils.sh"
+source "$SCRIPT_DIR/../utils/oracle-utils.sh"
 
 # ===== HELPER FUNCTIONS =====
 log() {
@@ -199,9 +199,9 @@ else
     # Load network configuration for staging/production
     # Map environment to network file name
     if [ "$ENVIRONMENT" = "prod" ]; then
-        NETWORKS_FILE="$SCRIPT_DIR/networks-production.sh"
+        NETWORKS_FILE="$SCRIPT_DIR/../utils/networks-production.sh"
     else
-        NETWORKS_FILE="$SCRIPT_DIR/networks-$ENVIRONMENT.sh"
+        NETWORKS_FILE="$SCRIPT_DIR/../utils/networks-$ENVIRONMENT.sh"
     fi
 
     if [ ! -f "$NETWORKS_FILE" ]; then

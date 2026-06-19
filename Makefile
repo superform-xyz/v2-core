@@ -48,6 +48,6 @@ manifest:
 .PHONY: generate
 generate:
 	rm -rf contract_bindings/*
-	./script/run/retrieve-abis.sh
-	./script/run/generate-contract-bindings.sh
+	./script/run/tooling/retrieve-abis.sh
+	./script/run/tooling/generate-contract-bindings.sh
 	

@@ -15,7 +15,7 @@
 #   Then revokes all roles from DEPLOYER.
 #
 # Usage:
-#   ./script/run/transfer_sponsorship_paymaster_roles.sh <environment> <mode> <account> [--slow] [--legacy] [--check-only]
+#   ./script/run/config/transfer_sponsorship_paymaster_roles.sh <environment> <mode> <account> [--slow] [--legacy] [--check-only]
 #
 # Arguments:
 #   environment - staging or prod
@@ -29,13 +29,13 @@
 #
 # Examples:
 #   # Simulate role transfer across all prod chains
-#   ./script/run/transfer_sponsorship_paymaster_roles.sh prod simulate v2
+#   ./script/run/config/transfer_sponsorship_paymaster_roles.sh prod simulate v2
 #
 #   # Execute role transfer on all prod chains
-#   ./script/run/transfer_sponsorship_paymaster_roles.sh prod execute deployer
+#   ./script/run/config/transfer_sponsorship_paymaster_roles.sh prod execute deployer
 #
 #   # Check current role status only
-#   ./script/run/transfer_sponsorship_paymaster_roles.sh prod simulate v2 --check-only
+#   ./script/run/config/transfer_sponsorship_paymaster_roles.sh prod simulate v2 --check-only
 #
 # Requirements:
 #   - forge: Foundry CLI
@@ -76,7 +76,7 @@ print_network_header() {
 
 # Script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 print_header
 
@@ -136,12 +136,12 @@ if [ "$ENVIRONMENT" = "staging" ]; then
     echo -e "${CYAN}Loading staging network configuration...${NC}"
     FORGE_ENV=2
     OUTPUT_DIR="$PROJECT_ROOT/script/output/staging"
-    source "$SCRIPT_DIR/networks-staging.sh"
+    source "$SCRIPT_DIR/../utils/networks-staging.sh"
 elif [ "$ENVIRONMENT" = "prod" ]; then
     echo -e "${CYAN}Loading production network configuration...${NC}"
     FORGE_ENV=0
     OUTPUT_DIR="$PROJECT_ROOT/script/output/prod"
-    source "$SCRIPT_DIR/networks-production.sh"
+    source "$SCRIPT_DIR/../utils/networks-production.sh"
 else
     echo -e "${RED}Invalid environment: $ENVIRONMENT${NC}"
     echo -e "${YELLOW}Environment must be either 'staging' or 'prod'${NC}"

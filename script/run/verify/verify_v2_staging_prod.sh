@@ -1,60 +1,47 @@
 #!/usr/bin/env bash
 
-# ===== CHAIN FILTER CONFIGURATION =====
-# Specify which chains to verify (comment out to verify all chains)
-# Leave empty array to verify all chains from network configuration
+###################################################################################
+# V2 Core Contract Verification Script
+###################################################################################
+# Description:
+#   Verifies deployed V2 Core contracts on block explorers (Etherscan V2, Blockscout).
+#   Sources lib_deploy.sh for shared utilities (colors, UI, credentials).
+#
+# Usage:
+#   ./script/run/verify/verify_v2_staging_prod.sh <environment>
+#
+# Arguments:
+#   environment: staging or prod
+#
+# Configuration:
+#   CHAINS_TO_VERIFY:     Array of chain IDs to verify (empty = all configured)
+#   CONTRACTS_TO_VERIFY:  Array of contract names to verify (empty = all deployed)
+#   VERIFY_DELAY:         Seconds between verification requests (rate limit protection)
+###################################################################################
+
+# Source shared deployment library (colors, UI, paths, credentials)
+source "$(dirname "${BASH_SOURCE[0]}")/../utils/lib_deploy.sh"
+
+# ===== FILTER CONFIGURATION =====
+# Specify which chains to verify (empty = all chains from network configuration)
 CHAINS_TO_VERIFY=(1 8453 56 42161 43114 14)
 
-# ===== CONTRACT FILTER CONFIGURATION =====
-# Specify which contracts to verify (comment out to verify all contracts)
-# Leave empty array to verify all contracts found in deployment JSON
+# Specify which contracts to verify (empty = all contracts found in deployment JSON)
 CONTRACTS_TO_VERIFY=()
 
-# ===== RATE LIMIT CONFIGURATION =====
 # Delay in seconds between verification requests (prevents Cloudflare rate limiting)
 VERIFY_DELAY=5
 
-# Colors for better visual output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-WHITE='\033[1;37m'
-NC='\033[0m' # No Color
+# ===== TRACKING =====
+declare -a VERIFIED_CONTRACTS=()
+declare -a FAILED_CONTRACTS=()
+declare -a SKIPPED_CONTRACTS=()
 
-# Function to print colored header
-print_header() {
-    echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║                                                                                      ║${NC}"
-    echo -e "${CYAN}║${WHITE}                      🔍 V2 Core Production Contract Verification 🔍                   ${CYAN}║${NC}"
-    echo -e "${CYAN}║                                                                                      ║${NC}"
-    echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-}
+# ── Setup ─────────────────────────────────────────────────────────────────────
+print_header "V2 Core Contract Verification"
 
-# Function to print section separator
-print_separator() {
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-}
-
-# Function to print network header
-print_network_header() {
-    local network=$1
-    echo -e "${PURPLE}╭─────────────────────────────────────────────────────────────────────────────────────╮${NC}"
-    echo -e "${PURPLE}│${WHITE}                         🌐 Verifying on ${network} Network 🌐                          ${PURPLE}│${NC}"
-    echo -e "${PURPLE}╰─────────────────────────────────────────────────────────────────────────────────────╯${NC}"
-}
-
-print_header
-
-# Script directory and project root setup
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-
-# Check if arguments are provided
 if [ $# -lt 1 ]; then
-    echo -e "${RED}❌ Error: Missing required argument${NC}"
+    echo -e "${RED}Error: Missing required argument${NC}"
     echo -e "${YELLOW}Usage: $0 <environment>${NC}"
     echo -e "${CYAN}  environment: staging or prod${NC}"
     echo -e "${CYAN}Examples:${NC}"
@@ -65,145 +52,68 @@ fi
 
 ENVIRONMENT=$1
 
-# Validate environment and source appropriate network configuration
+# Load network configuration (without locked bytecode validation)
 if [ "$ENVIRONMENT" = "staging" ]; then
-    echo -e "${CYAN}🌐 Loading staging network configuration...${NC}"
+    echo -e "${CYAN}Loading staging network configuration...${NC}"
     source "$SCRIPT_DIR/networks-staging.sh"
 elif [ "$ENVIRONMENT" = "prod" ]; then
-    echo -e "${CYAN}🌐 Loading production network configuration...${NC}"
+    echo -e "${CYAN}Loading production network configuration...${NC}"
     source "$SCRIPT_DIR/networks-production.sh"
 else
-    echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"
+    echo -e "${RED}Invalid environment: $ENVIRONMENT${NC}"
     echo -e "${YELLOW}Environment must be either 'staging' or 'prod'${NC}"
     exit 1
 fi
 
-echo -e "${CYAN}✅ Network configuration loaded for $ENVIRONMENT environment${NC}"
-print_network_info
-
-print_separator
-echo -e "${BLUE}🔧 Loading Configuration...${NC}"
-
-# Load RPC URLs using network-specific function
-echo -e "${CYAN}   • Loading RPC URLs...${NC}"
-if ! load_rpc_urls; then
-    echo -e "${YELLOW}⚠️  Failed to load some RPC URLs from credential manager${NC}"
-    echo -e "${YELLOW}   Chains using Blockscout (Flare) can still verify without RPC${NC}"
-    echo -e "${YELLOW}   Other chains may fail if their RPC is missing${NC}"
-fi
-
-# Load Etherscan V2 API key for verification
-echo -e "${CYAN}   • Loading Etherscan V2 API credentials...${NC}"
-if ! load_etherscan_api_key; then
-    echo -e "${RED}❌ Failed to load Etherscan V2 API key${NC}"
-    echo -e "${RED}   Contract verification will not work without this credential${NC}"
+if [[ ${#NETWORKS[@]} -eq 0 ]]; then
+    echo -e "${RED}Error: No networks configured for $ENVIRONMENT environment${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}✅ Configuration loaded successfully${NC}"
-echo -e "${CYAN}   • Using Etherscan V2 verification${NC}"
-echo -e "${CYAN}   • Environment: $ENVIRONMENT${NC}"
+echo -e "${CYAN}Network configuration loaded for $ENVIRONMENT environment (${#NETWORKS[@]} networks)${NC}"
+print_network_info
+cd "$PROJECT_ROOT"
 
-print_separator
+# Load RPC URLs and Etherscan API key
+load_credentials
 
-# Dynamic network configurations will be built from loaded network files
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-# Function to load contract addresses from JSON
-load_contract_addresses() {
+# Get the output JSON file path for a chain (derives filename from network name)
+get_output_json() {
     local chain_id=$1
-    local network_name=""
-    
-    # Get network name from the loaded configuration
-    network_name=$(get_network_name "$chain_id")
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}❌ Unknown network ID: $chain_id${NC}"
-        return 1
-    fi
-    
-    # Convert network name to file suffix format
-    case $chain_id in
-        "1") network_suffix="Ethereum-latest" ;;
-        "8453") network_suffix="Base-latest" ;;
-        "56") network_suffix="BNB-latest" ;;
-        "42161") network_suffix="Arbitrum-latest" ;;
-        "10") network_suffix="Optimism-latest" ;;
-        "137") network_suffix="Polygon-latest" ;;
-        "130") network_suffix="Unichain-latest" ;;
-        "43114") network_suffix="Avalanche-latest" ;;
-        "80094") network_suffix="Berachain-latest" ;;
-        "146") network_suffix="Sonic-latest" ;;
-        "100") network_suffix="Gnosis-latest" ;;
-        "480") network_suffix="Worldchain-latest" ;;
-        "999") network_suffix="HyperEVM-latest" ;;
-        "14") network_suffix="Flare-latest" ;;
-        *) network_suffix="${network_name}-latest" ;;
-    esac
-
-    local json_file="script/output/$ENVIRONMENT/$chain_id/$network_suffix.json"
-
-    if [ ! -f "$json_file" ]; then
-        echo -e "${RED}❌ JSON file not found: $json_file${NC}"
-        echo -e "${RED}   Expected path: $json_file${NC}"
-        echo -e "${YELLOW}   Make sure contracts have been deployed to this network first${NC}"
-        return 1
-    fi
-
-    echo -e "${CYAN}   • Loading addresses from: $json_file${NC}"
-    return 0
+    local network_name
+    network_name=$(get_network_name "$chain_id") || return 1
+    echo "$PROJECT_ROOT/script/output/$ENVIRONMENT/$chain_id/${network_name}-latest.json"
 }
 
-# Function to get contract address from JSON
+# Get a contract address from the deployment JSON
 get_contract_address() {
     local chain_id=$1
     local contract_name=$2
-    local network_suffix=""
-    
-    # Convert network name to file suffix format (same as load_contract_addresses)
-    case $chain_id in
-        "1") network_suffix="Ethereum-latest" ;;
-        "8453") network_suffix="Base-latest" ;;
-        "56") network_suffix="BNB-latest" ;;
-        "42161") network_suffix="Arbitrum-latest" ;;
-        "10") network_suffix="Optimism-latest" ;;
-        "137") network_suffix="Polygon-latest" ;;
-        "130") network_suffix="Unichain-latest" ;;
-        "59144") network_suffix="Linea-latest" ;;
-        "43114") network_suffix="Avalanche-latest" ;;
-        "80094") network_suffix="Berachain-latest" ;;
-        "146") network_suffix="Sonic-latest" ;;
-        "100") network_suffix="Gnosis-latest" ;;
-        "480") network_suffix="Worldchain-latest" ;;
-        "999") network_suffix="HyperEVM-latest" ;;
-        "14") network_suffix="Flare-latest" ;;
-        *)
-            local network_name=$(get_network_name "$chain_id")
-            network_suffix="${network_name}-latest"
-            ;;
-    esac
-
-    local json_file="script/output/$ENVIRONMENT/$chain_id/$network_suffix.json"
-
+    local json_file
+    json_file=$(get_output_json "$chain_id") || return 1
     if [ -f "$json_file" ]; then
-        local address=$(jq -r ".$contract_name // empty" "$json_file")
-        echo "$address"
-    else
-        echo ""
+        jq -r ".$contract_name // empty" "$json_file"
     fi
 }
 
-# Function to generate constructor arguments based on deployment logic
+# ── Constructor Arguments ─────────────────────────────────────────────────────
+# Generate constructor arguments for forge verify-contract based on contract type
+# and chain-specific addresses.
+
 generate_constructor_args() {
     local contract_name=$1
     local chain_id=$2
-    
+
     # Get core contract addresses for this chain
     local super_ledger_config=$(get_contract_address "$chain_id" "SuperLedgerConfiguration")
     local super_executor=$(get_contract_address "$chain_id" "SuperExecutor")
     local super_destination_executor=$(get_contract_address "$chain_id" "SuperDestinationExecutor")
     local super_merkle_validator=$(get_contract_address "$chain_id" "SuperValidator")
     local super_destination_validator=$(get_contract_address "$chain_id" "SuperDestinationValidator")
-    
-    # Network-specific addresses (these would need to be configured per network)
+
+    # Network-specific addresses
     local permit2=""
     local aggregation_router=""
     local odos_router=""
@@ -214,30 +124,23 @@ generate_constructor_args() {
     local merkl_distributor=""
     local debridge_dst_dln="0xE7351Fd770A37282b91D153Ee690B63579D6dd7f"
     local entry_point="0x0000000071727De22E5E9d8BAf0edAc6f37da032"  # EntryPoint v0.7
-    local debridge_dln_src="0xeF4fB24aD0916217251F553c0596F8Edc630EB66"  # Standard DeBridge DLN SRC
-    local debridge_dln_dst="0xE7351Fd770A37282b91D153Ee690B63579D6dd7f"  # Standard DeBridge DLN DST
-    local gateway_wallet="0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE"  # Circle Gateway Wallet
-    local gateway_minter="0x2222222d7164433c4C09B0b0D809a9b52C04C205"  # Circle Gateway Minter
-    # Pendle PT Amortized Oracle addresses (V1)
-    # Staging: 0xE31FD1d26A52B4a958651a8E751e9362B3880524
-    # Production: 0xD64089698f82cbCD91ba5e0422aDFa81D247eB62
+    local debridge_dln_src="0xeF4fB24aD0916217251F553c0596F8Edc630EB66"
+    local debridge_dln_dst="0xE7351Fd770A37282b91D153Ee690B63579D6dd7f"
+    local gateway_wallet="0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE"
+    local gateway_minter="0x2222222d7164433c4C09B0b0D809a9b52C04C205"
     local pendle_pt_amortized_oracle=""
     if [ "$ENVIRONMENT" = "staging" ]; then
         pendle_pt_amortized_oracle="0xE31FD1d26A52B4a958651a8E751e9362B3880524"
     else
         pendle_pt_amortized_oracle="0xD64089698f82cbCD91ba5e0422aDFa81D247eB62"
     fi
-
-    # Pendle PT Amortized Oracle V2 addresses
-    # Staging: 0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e
-    # Production: TBD
     local pendle_pt_amortized_oracle_v2=""
     if [ "$ENVIRONMENT" = "staging" ]; then
         pendle_pt_amortized_oracle_v2="0x1F32A55b20Ee7bA0bC083671c7723dBA1608D66e"
     else
         pendle_pt_amortized_oracle_v2=""  # TBD - update after prod deployment
     fi
-    
+
     # Common addresses (same on all chains via CREATE2)
     local cctp_v2_token_messenger="0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d"
     local kyber_router="0x6131B5fae19EA4f9D964eAc0408E4408b66337b5"
@@ -254,136 +157,134 @@ generate_constructor_args() {
     case $chain_id in
         "1") # Ethereum Mainnet
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
-            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"
             odos_router="0xcf5540fFFCdC3d510B18bFcA6d2b9987b0772559"
             across_spoke_pool_v3="0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
-        "8453") # Base Mainnet
+        "8453") # Base
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
-            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"
             odos_router="0x19cEeAd7105607Cd444F5ad10dd51356436095a1"
             across_spoke_pool_v3="0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
-        "56") # BSC Mainnet
+        "56") # BSC
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
-            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"
             odos_router="0x89b8AA89FDd0507a99d334CBe3C808fAFC7d850E"
             across_spoke_pool_v3="0x4e8E101924eDE233C13e2D8622DC8aED2872d505"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
-        "42161") # Arbitrum Mainnet
+        "42161") # Arbitrum
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
-            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"
             odos_router="0xa32EE1C40594249eb3183c10792BcF573D4Da47C"
             across_spoke_pool_v3="0xe35e9842fceaCA96570B734083f4a58e8F7C5f2A"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
-        "10") # Optimism Mainnet
+        "10") # Optimism
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
-            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"
             odos_router="0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680"
             across_spoke_pool_v3="0x6f26Bf09B1C792e3228e5467807a900A503c0281"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
-        "137") # Polygon Mainnet
+        "137") # Polygon
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
-            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"
             odos_router="0x4E3288c9ca110bCC82bf38F09A7b425c095d92Bf"
             across_spoke_pool_v3="0x9295ee1d8C5b022Be115A2AD3c30C72E34e7F096"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
-            native_token="0x0000000000000000000000000000000000001010"  # Polygon native token
+            native_token="0x0000000000000000000000000000000000001010"
             ;;
-        "130") # Unichain Mainnet
+        "130") # Unichain
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
-            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"
             odos_router="0x6409722F3a1C4486A3b1FE566cBDd5e9D946A1f3"
             across_spoke_pool_v3="0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
-        "43114") # Avalanche Mainnet
+        "43114") # Avalanche
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
-            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"
             odos_router="0x88de50B233052e4Fb783d4F6db78Cc34fEa3e9FC"
-            across_spoke_pool_v3=""  # Not available
+            across_spoke_pool_v3=""
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
-        "80094") # Berachain Mainnet
+        "80094") # Berachain
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
-            aggregation_router=""  # Not deployed
-            odos_router=""  # Not deployed
-            across_spoke_pool_v3=""  # Not deployed
+            aggregation_router=""
+            odos_router=""
+            across_spoke_pool_v3=""
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
-        "146") # Sonic Mainnet
+        "146") # Sonic
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
-            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"
             odos_router="0xaC041Df48dF9791B0654f1Dbbf2CC8450C5f2e9D"
-            across_spoke_pool_v3=""  # Not deployed
+            across_spoke_pool_v3=""
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
-        "100") # Gnosis Mainnet
+        "100") # Gnosis
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
-            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
-            odos_router=""  # Not deployed
-            across_spoke_pool_v3=""  # Not deployed
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"
+            odos_router=""
+            across_spoke_pool_v3=""
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
-        "480") # Worldchain Mainnet
+        "480") # Worldchain
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
-            aggregation_router=""  # Not deployed
-            odos_router=""  # Not deployed
+            aggregation_router=""
+            odos_router=""
             across_spoke_pool_v3="0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
-        "999") # HyperEVM (Hyperliquid)
+        "999") # HyperEVM
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
-            aggregation_router=""  # Not deployed
-            odos_router=""  # Not deployed
-            across_spoke_pool_v3=""  # Not deployed
-            merkl_distributor=""  # Not deployed
+            aggregation_router=""
+            odos_router=""
+            across_spoke_pool_v3=""
+            merkl_distributor=""
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
         "14") # Flare
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
-            aggregation_router=""  # Not deployed
-            odos_router=""  # Not deployed
+            aggregation_router=""
+            odos_router=""
             openocean_router="0x6352a56caadc4f1e25cd6c75970fa768a3304e64"
             openocean_caller="0x6dd434082eab5cd134b33719ec1ff05fe985b97b"
-            across_spoke_pool_v3=""  # Not deployed
-            merkl_distributor=""  # Not deployed
+            across_spoke_pool_v3=""
+            merkl_distributor=""
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
         "988") # Stable
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
-            aggregation_router=""  # Not deployed
-            odos_router=""  # Not deployed
-            across_spoke_pool_v3=""  # Not deployed
+            aggregation_router=""
+            odos_router=""
+            across_spoke_pool_v3=""
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
     esac
-    
+
     # Generate constructor arguments based on contract type
     case $contract_name in
         # Core contracts with no constructor args
         "SuperLedgerConfiguration"|"SuperValidator"|"SuperDestinationValidator"|"SuperYieldSourceOracle")
             echo "$(cast abi-encode "constructor()")"
             ;;
-        
-        # Core contracts with constructor args
         "SuperExecutor")
             echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
             ;;
@@ -402,10 +303,7 @@ generate_constructor_args() {
         "SuperNativePaymaster")
             echo "$(cast abi-encode "constructor(address)" "$entry_point")"
             ;;
-        
-        # Hooks with constructor args
         "BatchTransferHook")
-            # BatchTransferHook takes native token address (network-specific)
             echo "$(cast abi-encode "constructor(address)" "$native_token")"
             ;;
         "BatchTransferFromHook")
@@ -438,16 +336,9 @@ generate_constructor_args() {
         "MerklClaimRewardHook")
             echo "$(cast abi-encode "constructor(address)" "$merkl_distributor")"
             ;;
-
-        # Hooks - Stargate Bridge (constructor arg: SuperValidator)
-        "StargateSendHook"|"ApproveAndStargateSendHook")
+        "StargateSendHook"|"ApproveAndStargateSendHook"|"StargateSendHookV2"|"ApproveAndStargateSendHookV2")
             echo "$(cast abi-encode "constructor(address)" "$super_merkle_validator")"
             ;;
-        "StargateSendHookV2"|"ApproveAndStargateSendHookV2")
-            echo "$(cast abi-encode "constructor(address)" "$super_merkle_validator")"
-            ;;
-
-        # Hooks - Claim (Flare rFLR)
         "ClaimRFLRHook")
             local rnat_flare="0x26d460c3Cf931Fb2014FA436a49e3Af08619810e"
             echo "$(cast abi-encode "constructor(address)" "$rnat_flare")"
@@ -457,12 +348,9 @@ generate_constructor_args() {
             local wflr_flare="0x1D80c49BbBCd1C0911346656B529DF9E5c2F783d"
             echo "$(cast abi-encode "constructor(address,address)" "$rnat_flare" "$wflr_flare")"
             ;;
-
-        # Hooks - Claim (no constructor args)
         "FluidClaimRewardHook"|"GearboxClaimRewardHook"|"YearnClaimOneRewardHook")
             echo "$(cast abi-encode "constructor()")"
             ;;
-
         "CircleGatewayWalletHook"|"CircleGatewayAddDelegateHook"|"CircleGatewayRemoveDelegateHook")
             echo "$(cast abi-encode "constructor(address)" "$gateway_wallet")"
             ;;
@@ -475,84 +363,64 @@ generate_constructor_args() {
         "RecordPurchasePendlePTAmortizedOracleHookV2"|"RecordRedemptionPendlePTAmortizedOracleHookV2")
             echo "$(cast abi-encode "constructor(address)" "$pendle_pt_amortized_oracle_v2")"
             ;;
-
-        # Uniswap V3 Hooks
         "SwapUniswapV3Hook"|"ApproveAndSwapUniswapV3Hook")
             local uniswap_v3_router=""
             case $chain_id in
-                "999") uniswap_v3_router="0x1EbDFC75FfE3ba3de61E7138a3E8706aC841Af9B" ;;  # HyperEVM
-                *) uniswap_v3_router="" ;;  # Not deployed on other chains
+                "999") uniswap_v3_router="0x1EbDFC75FfE3ba3de61E7138a3E8706aC841Af9B" ;;
             esac
             echo "$(cast abi-encode "constructor(address)" "$uniswap_v3_router")"
             ;;
-
-        # Uniswap V3 Router02 Hooks
         "SwapUniswapV3Router02Hook"|"ApproveAndSwapUniswapV3Router02Hook")
             local uniswap_v3_router02=""
             case $chain_id in
-                "1") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;  # Ethereum
-                "8453") uniswap_v3_router02="0x2626664c2603336E57B271c5C0b26F421741e481" ;;  # Base
-                "56") uniswap_v3_router02="0xB971eF87ede563556b2ED4b1C0b0019111Dd85d2" ;;  # BNB
-                "42161") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;  # Arbitrum
-                "10") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;  # Optimism
-                "137") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;  # Polygon
-                "130") uniswap_v3_router02="0x73855d06DE49d0fe4A9c42636Ba96c62da12FF9C" ;;  # Unichain
-                "43114") uniswap_v3_router02="0xbb00FF08d01D300023C629E8fFfFcb65A5a578cE" ;;  # Avalanche
-                "480") uniswap_v3_router02="0x091AD9e2e6e5eD44c1c66dB50e49A601F9f36cF6" ;;  # Worldchain
-                "988") uniswap_v3_router02="0x32eaf9B5d5F2CD7361c5012890C943D7de84C22a" ;;  # Stable
-                *) uniswap_v3_router02="" ;;  # Not deployed on other chains
+                "1") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;
+                "8453") uniswap_v3_router02="0x2626664c2603336E57B271c5C0b26F421741e481" ;;
+                "56") uniswap_v3_router02="0xB971eF87ede563556b2ED4b1C0b0019111Dd85d2" ;;
+                "42161") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;
+                "10") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;
+                "137") uniswap_v3_router02="0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45" ;;
+                "130") uniswap_v3_router02="0x73855d06DE49d0fe4A9c42636Ba96c62da12FF9C" ;;
+                "43114") uniswap_v3_router02="0xbb00FF08d01D300023C629E8fFfFcb65A5a578cE" ;;
+                "480") uniswap_v3_router02="0x091AD9e2e6e5eD44c1c66dB50e49A601F9f36cF6" ;;
+                "988") uniswap_v3_router02="0x32eaf9B5d5F2CD7361c5012890C943D7de84C22a" ;;
             esac
             echo "$(cast abi-encode "constructor(address)" "$uniswap_v3_router02")"
             ;;
-
-        # Uniswap V4 Hook
         "SwapUniswapV4Hook")
             local uniswap_v4_pool_manager=""
             case $chain_id in
-                "1") uniswap_v4_pool_manager="0x000000000004444c5dc75cB358380D2e3dE08A90" ;;  # Ethereum
-                "8453") uniswap_v4_pool_manager="0x498581fF718922c3f8e6A244956aF099B2652b2b" ;;  # Base
-                "42161") uniswap_v4_pool_manager="0x360E68faCcca8cA495c1B759Fd9EEe466db9FB32" ;;  # Arbitrum
-                "10") uniswap_v4_pool_manager="0x9a13F98Cb987694C9F086b1F5eB990EeA8264Ec3" ;;  # Optimism
-                "137") uniswap_v4_pool_manager="0x67366782805870060151383F4BbFF9daB53e5cD6" ;;  # Polygon
-                "130") uniswap_v4_pool_manager="0x1F98400000000000000000000000000000000004" ;;  # Unichain
-                "43114") uniswap_v4_pool_manager="0x06380C0e0912312B5150364B9DC4542BA0DbBc85" ;;  # Avalanche
-                "480") uniswap_v4_pool_manager="0xb1860D529182ac3BC1F51Fa2ABd56662b7D13f33" ;;  # Worldchain
-                *) uniswap_v4_pool_manager="" ;;  # Not deployed
+                "1") uniswap_v4_pool_manager="0x000000000004444c5dc75cB358380D2e3dE08A90" ;;
+                "8453") uniswap_v4_pool_manager="0x498581fF718922c3f8e6A244956aF099B2652b2b" ;;
+                "42161") uniswap_v4_pool_manager="0x360E68faCcca8cA495c1B759Fd9EEe466db9FB32" ;;
+                "10") uniswap_v4_pool_manager="0x9a13F98Cb987694C9F086b1F5eB990EeA8264Ec3" ;;
+                "137") uniswap_v4_pool_manager="0x67366782805870060151383F4BbFF9daB53e5cD6" ;;
+                "130") uniswap_v4_pool_manager="0x1F98400000000000000000000000000000000004" ;;
+                "43114") uniswap_v4_pool_manager="0x06380C0e0912312B5150364B9DC4542BA0DbBc85" ;;
+                "480") uniswap_v4_pool_manager="0xb1860D529182ac3BC1F51Fa2ABd56662b7D13f33" ;;
             esac
             echo "$(cast abi-encode "constructor(address)" "$uniswap_v4_pool_manager")"
             ;;
-
-        # TransferHook - takes native token address
         "TransferHook")
             echo "$(cast abi-encode "constructor(address)" "$native_token")"
             ;;
-
-        # Pendle Hooks - PendleUnifiedHook, PendleRouterSwapHook, PendleRouterRedeemHook
         "PendleUnifiedHook"|"PendleRouterSwapHook"|"PendleRouterRedeemHook")
-            local pendle_router="0x888888888889758F76e7103c6CbF23ABbF58F946"  # Same for all chains
+            local pendle_router="0x888888888889758F76e7103c6CbF23ABbF58F946"
             echo "$(cast abi-encode "constructor(address)" "$pendle_router")"
             ;;
-
-        # ERC7540YieldSourceOracle and SpectraMetaVaultOracle
         "ERC7540YieldSourceOracle"|"SpectraMetaVaultOracle")
             echo "$(cast abi-encode "constructor(address,uint256)" "$super_ledger_config" "0")"
             ;;
-
-        # SuperVaultYieldSourceOracle
         "SuperVaultYieldSourceOracle")
             echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
             ;;
-
-        # Morpho Hooks (all take Morpho Blue address as constructor arg)
         "MorphoSupplyAndBorrowHook"|"MorphoBorrowHook"|"MorphoRepayHook"|"MorphoRepayAndWithdrawHook"|"MorphoSupplyHook"|"MorphoWithdrawHook"|"MorphoLendHook")
             local morpho_address=""
             case $chain_id in
-                "1") morpho_address="0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb" ;;    # Ethereum
-                "8453") morpho_address="0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb" ;; # Base
-                "10") morpho_address="0xce95AfbB8EA029495c66020883F87aaE8864AF92" ;;    # Optimism
-                "42161") morpho_address="0x6c247b1F6182318877311737BaC0844bAa518F5e" ;; # Arbitrum
-                "56") morpho_address="0x01b0Bd309AA75547f7a37Ad7B1219A898E67a83a" ;;    # BNB
-                *) morpho_address="" ;;
+                "1") morpho_address="0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb" ;;
+                "8453") morpho_address="0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb" ;;
+                "10") morpho_address="0xce95AfbB8EA029495c66020883F87aaE8864AF92" ;;
+                "42161") morpho_address="0x6c247b1F6182318877311737BaC0844bAa518F5e" ;;
+                "56") morpho_address="0x01b0Bd309AA75547f7a37Ad7B1219A898E67a83a" ;;
             esac
             if [ -n "$morpho_address" ]; then
                 echo "$(cast abi-encode "constructor(address)" "$morpho_address")"
@@ -560,8 +428,6 @@ generate_constructor_args() {
                 echo "$(cast abi-encode "constructor()")"
             fi
             ;;
-
-        # Sponsorship contracts
         "SuperSponsorshipPaymaster")
             local paymaster_admin="0x22BC97cFac64D6d9BCaDF5dC36e4D01Db9e929c5"
             echo "$(cast abi-encode "constructor(address,address)" "$entry_point" "$paymaster_admin")"
@@ -573,63 +439,42 @@ generate_constructor_args() {
             local native_fee_sponsorship=$(get_contract_address "$chain_id" "NativeFeeSponsorship")
             echo "$(cast abi-encode "constructor(address)" "$native_fee_sponsorship")"
             ;;
-
-        # AaveV4 Loan Hooks (no constructor args - BaseAaveV4LoanHook inherits BaseLoanHook)
         "AaveV4BorrowHook"|"AaveV4RepayAndWithdrawHook"|"AaveV4RepayHook"|"AaveV4SupplyAndBorrowHook"|"AaveV4SupplyHook"|"AaveV4WithdrawHook")
             echo "$(cast abi-encode "constructor()")"
             ;;
-
-        # CCTP V2 Bridge Hooks (TokenMessengerV2 + SuperValidator)
         "CCTPSendHook"|"ApproveAndCCTPSendHook")
             echo "$(cast abi-encode "constructor(address,address)" "$cctp_v2_token_messenger" "$super_merkle_validator")"
             ;;
-
-        # DETH Hooks (no constructor args)
         "RequestRedeemDETHHook"|"ApproveAndRequestRedeemDETHHook"|"ClaimAssetsDETHHook")
             echo "$(cast abi-encode "constructor()")"
             ;;
-
-        # KyberSwap Hooks (router + scaleHelper + nativeToken)
         "SwapKyberSwapHook"|"ApproveAndSwapKyberSwapHook")
             echo "$(cast abi-encode "constructor(address,address,address)" "$kyber_router" "$kyber_scale_helper" "$native_token")"
             ;;
-
-        # Algebra Integral Hooks (swapRouter - Flare only)
         "SwapAlgebraIntegralHook"|"ApproveAndSwapAlgebraIntegralHook")
             local algebra_router=""
             case $chain_id in
                 "14") algebra_router="$algebra_integral_router_flare" ;;
-                *) algebra_router="" ;;
             esac
             echo "$(cast abi-encode "constructor(address)" "$algebra_router")"
             ;;
-
-        # Spark PSM Hooks (psmAddress - Base only)
         "SwapSparkPSMExactInHook"|"ApproveAndSwapSparkPSMExactInHook"|"SwapSparkPSMExactOutHook"|"ApproveAndSwapSparkPSMExactOutHook")
             local psm_address=""
             case $chain_id in
                 "8453") psm_address="$spark_psm3_base" ;;
-                *) psm_address="" ;;
             esac
             echo "$(cast abi-encode "constructor(address)" "$psm_address")"
             ;;
-
-        # UniswapV2 Hooks (router + native - Flare only via SparkDex)
         "SwapUniswapV2Hook"|"ApproveAndSwapUniswapV2Hook")
             local uniswap_v2_router=""
             case $chain_id in
                 "14") uniswap_v2_router="$sparkdex_v2_router_flare" ;;
-                *) uniswap_v2_router="" ;;
             esac
             echo "$(cast abi-encode "constructor(address,address)" "$uniswap_v2_router" "$native_token")"
             ;;
-
-        # 7540 WithId Hooks (no constructor args)
         "CancelDepositRequestWithId7540Hook"|"CancelRedeemRequestWithId7540Hook"|"ClaimCancelDepositRequestWithId7540Hook"|"ClaimCancelRedeemRequestWithId7540Hook"|"RedeemWithId7540VaultHook"|"WithdrawWithId7540VaultHook")
             echo "$(cast abi-encode "constructor()")"
             ;;
-
-        # StargateAdapter (lzEndpoint, tokenMessaging, superDestinationExecutor)
         "StargateAdapter"|"StargateAdapterV2")
             local lz_endpoint=""
             local token_messaging=""
@@ -648,32 +493,18 @@ generate_constructor_args() {
                 "130") token_messaging="0xB1EeAD6959cb5bB9B20417d6689922523B2B86C3" ;;
                 "100") token_messaging="0xAf368c91793CB22739386DFCbBb2F1A9e4bCBeBf" ;;
                 "80094") token_messaging="0xAf5191B0De278C7286d6C7CC6ab6BB8A73bA2Cd6" ;;
-                *) token_messaging="" ;;
             esac
             echo "$(cast abi-encode "constructor(address,address,address)" "$lz_endpoint" "$token_messaging" "$super_destination_executor")"
             ;;
-
-
-        # Oracles - DETHYieldSourceOracle (superLedgerConfig + foundation)
         "DETHYieldSourceOracle")
             echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$deth_foundation")"
             ;;
-
-        # Oracles - FirelightYieldSourceOracle, YoYieldSourceOracle (superLedgerConfig only)
         "FirelightYieldSourceOracle"|"YoYieldSourceOracle")
             echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
             ;;
-
-        # Oracles - PendlePTAmortizedOracle (admin/deployer + superLedgerConfig)
-        "PendlePTAmortizedOracle")
+        "PendlePTAmortizedOracle"|"PendlePTAmortizedOracleV2")
             echo "$(cast abi-encode "constructor(address,address)" "$deployer" "$super_ledger_config")"
             ;;
-
-        # Oracles - PendlePTAmortizedOracleV2 (admin/deployer + superLedgerConfig)
-        "PendlePTAmortizedOracleV2")
-            echo "$(cast abi-encode "constructor(address,address)" "$deployer" "$super_ledger_config")"
-            ;;
-
         # All other contracts (no constructor args)
         *)
             echo "$(cast abi-encode "constructor()")"
@@ -681,10 +512,12 @@ generate_constructor_args() {
     esac
 }
 
-# Function to get contract source file path
+# ── Contract Source Mapping ───────────────────────────────────────────────────
+# Maps contract names to their source file paths for forge verify-contract.
+
 get_contract_source() {
     local contract_name=$1
-    
+
     case $contract_name in
         # Core contracts
         "SuperExecutor") echo "src/executors/SuperExecutor.sol" ;;
@@ -699,7 +532,7 @@ get_contract_source() {
         "SuperDestinationValidator") echo "src/validators/SuperDestinationValidator.sol" ;;
         "SuperNativePaymaster") echo "src/paymaster/SuperNativePaymaster.sol" ;;
         "SuperSenderCreator") echo "src/executors/helpers/SuperSenderCreator.sol" ;;
-        
+
         # Hooks - ERC20 and Token Transfers
         "ApproveERC20Hook") echo "src/hooks/tokens/erc20/ApproveERC20Hook.sol" ;;
         "TransferERC20Hook") echo "src/hooks/tokens/erc20/TransferERC20Hook.sol" ;;
@@ -707,7 +540,7 @@ get_contract_source() {
         "BatchTransferHook") echo "src/hooks/tokens/BatchTransferHook.sol" ;;
         "BatchTransferFromHook") echo "src/hooks/tokens/permit2/BatchTransferFromHook.sol" ;;
         "OfframpTokensHook") echo "src/hooks/tokens/OfframpTokensHook.sol" ;;
-        
+
         # Hooks - Vaults
         "Deposit4626VaultHook") echo "src/hooks/vaults/4626/Deposit4626VaultHook.sol" ;;
         "ApproveAndDeposit4626VaultHook") echo "src/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol" ;;
@@ -753,7 +586,7 @@ get_contract_source() {
         "PendleUnifiedHook") echo "src/hooks/swappers/pendle/PendleUnifiedHook.sol" ;;
         "PendleRouterSwapHook") echo "src/hooks/swappers/pendle/PendleRouterSwapHook.sol" ;;
         "PendleRouterRedeemHook") echo "src/hooks/swappers/pendle/PendleRouterRedeemHook.sol" ;;
-        
+
         # Hooks - Bridges
         "AcrossSendFundsAndExecuteOnDstHook") echo "src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol" ;;
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook") echo "src/hooks/bridges/across/ApproveAndAcrossSendFundsAndExecuteOnDstHook.sol" ;;
@@ -763,7 +596,7 @@ get_contract_source() {
         "DeBridgeCancelOrderHook") echo "src/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol" ;;
         "CCTPSendHook") echo "src/hooks/bridges/cctp/CCTPSendHook.sol" ;;
         "ApproveAndCCTPSendHook") echo "src/hooks/bridges/cctp/ApproveAndCCTPSendHook.sol" ;;
-        
+
         # Hooks - Protocol Specific
         "EthenaCooldownSharesHook") echo "src/hooks/vaults/ethena/EthenaCooldownSharesHook.sol" ;;
         "EthenaUnstakeHook") echo "src/hooks/vaults/ethena/EthenaUnstakeHook.sol" ;;
@@ -866,7 +699,10 @@ get_contract_source() {
     esac
 }
 
-# Function to verify a single contract
+# ── Verification ──────────────────────────────────────────────────────────────
+
+# Verify a single contract on a block explorer.
+# Appends to VERIFIED_CONTRACTS, FAILED_CONTRACTS, or SKIPPED_CONTRACTS.
 verify_contract() {
     local chain_id=$1
     local contract_name=$2
@@ -875,28 +711,29 @@ verify_contract() {
     local source_file=$5
     local rpc_url=$6
 
-    echo -e "${YELLOW}   🔍 Verifying $contract_name...${NC}"
+    echo -e "${YELLOW}   Verifying $contract_name...${NC}"
     echo -e "${CYAN}      Address: $contract_address${NC}"
     echo -e "${CYAN}      Source: $source_file${NC}"
-    echo -e "${CYAN}      Chain ID: $chain_id${NC}"
 
-    # Skip external library contracts that can't be verified from this repo
+    # Skip external library contracts
     if [ "$source_file" = "SKIP_EXTERNAL_LIB" ]; then
-        echo -e "${YELLOW}   ⚠️  Skipping $contract_name (external library contract)${NC}"
+        echo -e "${YELLOW}   Skipping $contract_name (external library contract)${NC}"
+        SKIPPED_CONTRACTS+=("$contract_name @ chain $chain_id")
         return 0
     fi
+
+    local verify_exit_code=0
 
     # Chain-specific verifier configuration
     case $chain_id in
         "14")
             # Flare uses Blockscout explorer
-            # --skip-is-verified-check: Blockscout returns source from bytecode-matched contracts,
-            # which makes forge think the contract is "already verified" when it isn't
             forge verify-contract "$contract_address" "$source_file:$contract_name" \
                 --constructor-args "$constructor_args" \
                 --verifier blockscout \
                 --verifier-url "https://flare-explorer.flare.network/api/" \
                 --skip-is-verified-check
+            verify_exit_code=$?
             ;;
         "988"|"999"|"80094")
             # Chains not in forge's internal registry: use Etherscan V2 API with chainid
@@ -905,6 +742,7 @@ verify_contract() {
                 --etherscan-api-key "$ETHERSCANV2_API_KEY" \
                 --verifier etherscan \
                 --verifier-url "https://api.etherscan.io/v2/api?chainid=${chain_id}"
+            verify_exit_code=$?
             ;;
         *)
             forge verify-contract "$contract_address" "$source_file:$contract_name" \
@@ -913,95 +751,73 @@ verify_contract() {
                 --chain "$chain_id" \
                 --etherscan-api-key "$ETHERSCANV2_API_KEY" \
                 --verifier etherscan
+            verify_exit_code=$?
             ;;
     esac
 
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}   ✅ $contract_name verified successfully${NC}"
+    if [ $verify_exit_code -eq 0 ]; then
+        echo -e "${GREEN}   $contract_name verified successfully${NC}"
+        VERIFIED_CONTRACTS+=("$contract_name @ chain $chain_id")
     else
-        echo -e "${RED}   ❌ $contract_name verification failed${NC}"
+        echo -e "${RED}   $contract_name verification failed${NC}"
+        FAILED_CONTRACTS+=("$contract_name @ chain $chain_id")
     fi
 
     echo ""
 }
 
-# Function to verify all contracts for a network
+# Verify all contracts for a single network.
 verify_network() {
     local chain_id=$1
 
-    # Get network name and RPC URL from loaded configuration
-    local network_name=$(get_network_name "$chain_id")
+    local network_name
+    network_name=$(get_network_name "$chain_id")
     if [ $? -ne 0 ]; then
-        echo -e "${RED}❌ Unknown network ID: $chain_id${NC}"
+        echo -e "${RED}Unknown network ID: $chain_id${NC}"
         return 1
     fi
 
-    local rpc_url=$(get_rpc_url "$chain_id")
-    # Blockscout-verified chains (e.g. Flare) don't need RPC for verification
+    local rpc_url
+    rpc_url=$(get_rpc_url "$chain_id")
+
+    # Blockscout-verified chains don't need RPC
     local uses_blockscout=false
     case $chain_id in
         "14") uses_blockscout=true ;;
     esac
     if [ -z "$rpc_url" ] && [ "$uses_blockscout" = false ]; then
-        echo -e "${RED}❌ RPC URL not found for chain $chain_id${NC}"
+        echo -e "${RED}RPC URL not found for chain $chain_id ($network_name)${NC}"
         return 1
     fi
 
     print_network_header "$network_name"
     echo -e "${CYAN}   Chain ID: ${WHITE}$chain_id${NC}"
-    echo -e "${CYAN}   RPC URL: ${WHITE}$rpc_url${NC}"
     echo -e "${CYAN}   Verification: ${WHITE}Etherscan V2${NC}"
 
-    if ! load_contract_addresses "$chain_id"; then
-        echo -e "${RED}   ❌ Failed to load contract addresses for chain $chain_id${NC}"
-        return 1
-    fi
-
-    echo -e "${CYAN}   📋 Starting contract verification...${NC}"
-
-    # Get network suffix for JSON file
-    local network_suffix=""
-    case $chain_id in
-        "1") network_suffix="Ethereum-latest" ;;
-        "8453") network_suffix="Base-latest" ;;
-        "56") network_suffix="BNB-latest" ;;
-        "42161") network_suffix="Arbitrum-latest" ;;
-        "10") network_suffix="Optimism-latest" ;;
-        "137") network_suffix="Polygon-latest" ;;
-        "130") network_suffix="Unichain-latest" ;;
-        "59144") network_suffix="Linea-latest" ;;
-        "43114") network_suffix="Avalanche-latest" ;;
-        "80094") network_suffix="Berachain-latest" ;;
-        "146") network_suffix="Sonic-latest" ;;
-        "100") network_suffix="Gnosis-latest" ;;
-        "480") network_suffix="Worldchain-latest" ;;
-        "999") network_suffix="HyperEVM-latest" ;;
-        "14") network_suffix="Flare-latest" ;;
-        *) network_suffix="${network_name}-latest" ;;
-    esac
-
-    local json_file="script/output/$ENVIRONMENT/$chain_id/$network_suffix.json"
+    # Get JSON file path using network name (no hardcoded suffix mapping needed)
+    local json_file
+    json_file=$(get_output_json "$chain_id")
 
     if [ ! -f "$json_file" ]; then
-        echo -e "${RED}   ❌ Contract addresses file not found: $json_file${NC}"
+        echo -e "${RED}   Contract addresses file not found: $json_file${NC}"
+        echo -e "${YELLOW}   Make sure contracts have been deployed to this network first${NC}"
         return 1
     fi
 
+    echo -e "${CYAN}   Loading addresses from: $json_file${NC}"
+
     # Extract contract names from JSON
-    local all_contract_names=($(jq -r 'keys[]' "$json_file"))
+    local all_contract_names
+    all_contract_names=($(jq -r 'keys[]' "$json_file"))
     local contract_names=()
 
     # Apply contract filter if specified
     if [ ${#CONTRACTS_TO_VERIFY[@]} -eq 0 ]; then
-        # No filter specified, use all contracts
         contract_names=("${all_contract_names[@]}")
-        echo -e "${CYAN}   📋 No contract filter specified, verifying all deployed contracts...${NC}"
+        echo -e "${CYAN}   Verifying all ${#contract_names[@]} deployed contracts...${NC}"
     else
-        # Use filtered contracts
-        echo -e "${CYAN}   📋 Contract filter active, verifying only specified contracts...${NC}"
-        echo -e "${CYAN}      Filtered contracts: ${CONTRACTS_TO_VERIFY[*]}${NC}"
+        echo -e "${CYAN}   Contract filter active: ${CONTRACTS_TO_VERIFY[*]}${NC}"
         for contract_name in "${CONTRACTS_TO_VERIFY[@]}"; do
-            # Check if the contract exists in the deployed contracts
             local found=false
             for deployed_contract in "${all_contract_names[@]}"; do
                 if [ "$deployed_contract" = "$contract_name" ]; then
@@ -1011,52 +827,206 @@ verify_network() {
                 fi
             done
             if [ "$found" = false ]; then
-                echo -e "${YELLOW}      ⚠️  Warning: Contract $contract_name not found in deployment, skipping...${NC}"
+                echo -e "${YELLOW}      Warning: $contract_name not found in deployment, skipping${NC}"
             fi
         done
     fi
 
-    echo -e "${CYAN}   📋 Verifying ${#contract_names[@]} contracts...${NC}"
+    echo -e "${CYAN}   Verifying ${#contract_names[@]} contracts...${NC}"
 
     for contract_name in "${contract_names[@]}"; do
-        local contract_address=$(get_contract_address "$chain_id" "$contract_name")
+        local contract_address
+        contract_address=$(jq -r ".$contract_name // empty" "$json_file")
 
         if [ -z "$contract_address" ] || [ "$contract_address" = "null" ]; then
-            echo -e "${YELLOW}   ⚠️  Skipping $contract_name (address not found)${NC}"
+            echo -e "${YELLOW}   Skipping $contract_name (address not found)${NC}"
+            SKIPPED_CONTRACTS+=("$contract_name @ chain $chain_id (no address)")
             continue
         fi
 
-        local constructor_args=$(generate_constructor_args "$contract_name" "$chain_id")
-        local source_file=$(get_contract_source "$contract_name")
+        local constructor_args
+        constructor_args=$(generate_constructor_args "$contract_name" "$chain_id")
+        local source_file
+        source_file=$(get_contract_source "$contract_name")
 
         verify_contract "$chain_id" "$contract_name" "$contract_address" "$constructor_args" "$source_file" "$rpc_url"
 
-        # Rate limit protection: wait between verification requests
+        # Rate limit protection
         if [ "$VERIFY_DELAY" -gt 0 ]; then
             sleep "$VERIFY_DELAY"
         fi
     done
 
-    echo -e "${GREEN}✅ Network $network_name verification completed${NC}"
+    echo -e "${GREEN}Network $network_name verification completed${NC}"
 }
 
-# Main verification loop
+# ── Post-Verification Status Check ────────────────────────────────────────────
+# After all forge verify-contract calls, query block explorer APIs to check
+# which contracts are actually verified on-chain vs still unverified.
+
+# Check if a single contract is verified on the block explorer.
+# Returns 0 if verified, 1 if not verified or unknown.
+is_contract_verified() {
+    local chain_id=$1
+    local address=$2
+    local response=""
+
+    case $chain_id in
+        "14")
+            # Flare uses Blockscout
+            response=$(curl -s --max-time 10 \
+                "https://flare-explorer.flare.network/api/?module=contract&action=getsourcecode&address=$address" \
+                2>/dev/null)
+            ;;
+        *)
+            # All other chains use Etherscan V2 API
+            response=$(curl -s --max-time 10 \
+                "https://api.etherscan.io/v2/api?chainid=${chain_id}&module=contract&action=getsourcecode&address=${address}&apikey=${ETHERSCANV2_API_KEY}" \
+                2>/dev/null)
+            ;;
+    esac
+
+    if [[ -z "$response" ]]; then
+        return 1  # Request failed
+    fi
+
+    # Check if SourceCode field is non-empty (verified contract)
+    local source_code
+    source_code=$(echo "$response" | jq -r '.result[0].SourceCode // empty' 2>/dev/null)
+
+    if [[ -n "$source_code" && "$source_code" != "null" ]]; then
+        return 0  # Verified
+    else
+        return 1  # Not verified
+    fi
+}
+
+# Sweep all deployed contracts across all chains and report which are still unverified.
+# Uses the same chain list and contract filters as the verification run.
+check_all_verification_status() {
+    local -n chain_list=$1  # nameref to chains array
+
+    print_separator
+    echo -e "${BLUE}Checking on-chain verification status for all deployed contracts...${NC}"
+    echo ""
+
+    local total_checked=0
+    local total_verified=0
+    local total_unverified=0
+    local total_errors=0
+    declare -a UNVERIFIED_REPORT=()
+    local has_unverified=false
+
+    for chain_id in "${chain_list[@]}"; do
+        local network_name
+        network_name=$(get_network_name "$chain_id" 2>/dev/null) || continue
+
+        local json_file
+        json_file=$(get_output_json "$chain_id") || continue
+        [[ ! -f "$json_file" ]] && continue
+
+        # Get contract list (apply filter if set)
+        local all_contract_names
+        all_contract_names=($(jq -r 'keys[]' "$json_file" 2>/dev/null))
+        local contract_names=()
+
+        if [ ${#CONTRACTS_TO_VERIFY[@]} -eq 0 ]; then
+            contract_names=("${all_contract_names[@]}")
+        else
+            for cn in "${CONTRACTS_TO_VERIFY[@]}"; do
+                for deployed in "${all_contract_names[@]}"; do
+                    if [ "$deployed" = "$cn" ]; then
+                        contract_names+=("$cn")
+                        break
+                    fi
+                done
+            done
+        fi
+
+        local chain_verified=0
+        local chain_unverified=0
+        local chain_errors=0
+        local chain_unverified_list=()
+
+        echo -e "${CYAN}   Checking $network_name (chain $chain_id) — ${#contract_names[@]} contracts...${NC}"
+
+        for contract_name in "${contract_names[@]}"; do
+            local addr
+            addr=$(jq -r ".$contract_name // empty" "$json_file" 2>/dev/null)
+            [[ -z "$addr" || "$addr" == "null" ]] && continue
+
+            # Skip external library contracts
+            local source_file
+            source_file=$(get_contract_source "$contract_name")
+            if [ "$source_file" = "SKIP_EXTERNAL_LIB" ]; then
+                continue
+            fi
+
+            total_checked=$((total_checked + 1))
+
+            if is_contract_verified "$chain_id" "$addr"; then
+                chain_verified=$((chain_verified + 1))
+                total_verified=$((total_verified + 1))
+            else
+                chain_unverified=$((chain_unverified + 1))
+                total_unverified=$((total_unverified + 1))
+                chain_unverified_list+=("$contract_name ($addr)")
+            fi
+
+            # Rate limit: 1 request per second to avoid API throttling
+            sleep 1
+        done
+
+        if [ ${#chain_unverified_list[@]} -gt 0 ]; then
+            has_unverified=true
+            echo -e "${RED}      $network_name: ${chain_unverified} unverified, ${chain_verified} verified${NC}"
+            for entry in "${chain_unverified_list[@]}"; do
+                echo -e "${RED}        - $entry${NC}"
+                UNVERIFIED_REPORT+=("$network_name: $entry")
+            done
+        else
+            echo -e "${GREEN}      $network_name: all ${chain_verified} contracts verified${NC}"
+        fi
+    done
+
+    # ── Verification Status Report ────────────────────────────────────────────
+    echo ""
+    print_separator
+    echo -e "${BLUE}On-Chain Verification Status Report:${NC}"
+    echo -e "${CYAN}   Total checked:    ${WHITE}$total_checked${NC}"
+    echo -e "${CYAN}   Verified:         ${GREEN}$total_verified${NC}"
+    echo -e "${CYAN}   Unverified:       ${RED}$total_unverified${NC}"
+
+    if [ "$has_unverified" = true ]; then
+        echo ""
+        echo -e "${RED}   Unverified contracts:${NC}"
+        for entry in "${UNVERIFIED_REPORT[@]}"; do
+            echo -e "${RED}     - $entry${NC}"
+        done
+        echo ""
+        echo -e "${YELLOW}   These contracts need manual verification or re-running the verify script.${NC}"
+        return 1
+    else
+        echo ""
+        echo -e "${GREEN}   All deployed contracts are verified on their respective block explorers.${NC}"
+        return 0
+    fi
+}
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
 main() {
-    # Get chain IDs from the loaded network configuration or use filter
     local chains=()
 
     if [ ${#CHAINS_TO_VERIFY[@]} -eq 0 ]; then
-        # No filter specified, use all chains from network configuration
-        echo -e "${CYAN}📋 No chain filter specified, verifying all configured networks...${NC}"
+        echo -e "${CYAN}No chain filter specified, verifying all configured networks...${NC}"
         for network_def in "${NETWORKS[@]}"; do
             IFS=':' read -r network_id _ _ <<< "$network_def"
             chains+=("$network_id")
         done
     else
-        # Use filtered chains
-        echo -e "${CYAN}📋 Chain filter active, verifying only specified chains...${NC}"
+        echo -e "${CYAN}Chain filter active: ${CHAINS_TO_VERIFY[*]}${NC}"
         for chain_id in "${CHAINS_TO_VERIFY[@]}"; do
-            # Verify the chain exists in network configuration
             local found=false
             for network_def in "${NETWORKS[@]}"; do
                 IFS=':' read -r network_id _ _ <<< "$network_def"
@@ -1067,18 +1037,16 @@ main() {
                 fi
             done
             if [ "$found" = false ]; then
-                echo -e "${YELLOW}⚠️  Warning: Chain $chain_id not found in network configuration, skipping...${NC}"
+                echo -e "${YELLOW}Warning: Chain $chain_id not found in network configuration, skipping${NC}"
             fi
         done
     fi
 
-    echo -e "${BLUE}🔍 Starting verification for ${#chains[@]} networks in $ENVIRONMENT environment...${NC}"
-    if [ ${#CHAINS_TO_VERIFY[@]} -gt 0 ]; then
-        echo -e "${CYAN}   Filtered chains: ${CHAINS_TO_VERIFY[*]}${NC}"
-    fi
     if [ ${#CONTRACTS_TO_VERIFY[@]} -gt 0 ]; then
-        echo -e "${CYAN}   Filtered contracts: ${CONTRACTS_TO_VERIFY[*]}${NC}"
+        echo -e "${CYAN}Contract filter: ${CONTRACTS_TO_VERIFY[*]}${NC}"
     fi
+
+    echo -e "${BLUE}Starting verification for ${#chains[@]} networks in $ENVIRONMENT environment...${NC}"
     echo ""
 
     local successful_networks=0
@@ -1086,35 +1054,50 @@ main() {
 
     for chain_id in "${chains[@]}"; do
         if verify_network "$chain_id"; then
-            ((successful_networks++))
+            successful_networks=$((successful_networks + 1))
         else
-            ((failed_networks++))
+            failed_networks=$((failed_networks + 1))
         fi
         print_separator
     done
 
-    echo -e "${BLUE}📊 Verification Summary:${NC}"
-    echo -e "${GREEN}   • Networks verified successfully: $successful_networks${NC}"
-    if [ $failed_networks -gt 0 ]; then
-        echo -e "${RED}   • Networks with verification failures: $failed_networks${NC}"
+    # ── Summary ───────────────────────────────────────────────────────────────
+    print_separator
+    echo -e "${BLUE}Verification Summary:${NC}"
+    echo -e "${CYAN}   Networks:   ${GREEN}$successful_networks passed${NC}   ${RED}$failed_networks failed${NC}"
+    echo -e "${CYAN}   Contracts:  ${GREEN}${#VERIFIED_CONTRACTS[@]} verified${NC}   ${RED}${#FAILED_CONTRACTS[@]} failed${NC}   ${YELLOW}${#SKIPPED_CONTRACTS[@]} skipped${NC}"
+
+    if [ ${#FAILED_CONTRACTS[@]} -gt 0 ]; then
+        echo ""
+        echo -e "${RED}   Failed contracts:${NC}"
+        for failed in "${FAILED_CONTRACTS[@]}"; do
+            echo -e "${RED}     - $failed${NC}"
+        done
     fi
+
+    if [ ${#SKIPPED_CONTRACTS[@]} -gt 0 ]; then
+        echo ""
+        echo -e "${YELLOW}   Skipped contracts:${NC}"
+        for skipped in "${SKIPPED_CONTRACTS[@]}"; do
+            echo -e "${YELLOW}     - $skipped${NC}"
+        done
+    fi
+
     echo ""
 
-    if [ $failed_networks -eq 0 ]; then
-        echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-        echo -e "${GREEN}║                                                                                      ║${NC}"
-        echo -e "${GREEN}║${WHITE}            🎉 All V2 Core $ENVIRONMENT Contract Verification Completed! 🎉             ${GREEN}║${NC}"
-        echo -e "${GREEN}║                                                                                      ║${NC}"
-        echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    # ── Post-verification: check actual on-chain verification status ──────
+    local verification_status_ok=true
+    check_all_verification_status chains || verification_status_ok=false
+
+    # ── Final result ──────────────────────────────────────────────────────
+    echo ""
+    if [ $failed_networks -eq 0 ] && [ ${#FAILED_CONTRACTS[@]} -eq 0 ] && [ "$verification_status_ok" = true ]; then
+        echo -e "${GREEN}All V2 Core $ENVIRONMENT contract verification completed successfully${NC}"
     else
-        echo -e "${YELLOW}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-        echo -e "${YELLOW}║                                                                                      ║${NC}"
-        echo -e "${YELLOW}║${WHITE}               ⚠️  V2 Core $ENVIRONMENT Verification Completed with Issues ⚠️               ${YELLOW}║${NC}"
-        echo -e "${YELLOW}║                                                                                      ║${NC}"
-        echo -e "${YELLOW}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+        echo -e "${YELLOW}V2 Core $ENVIRONMENT verification completed with issues${NC}"
         exit 1
     fi
 }
 
-# Run the main function
+# Run
 main
