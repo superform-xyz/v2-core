@@ -124,13 +124,9 @@ is_rflr_supported() {
 
 # ── Other hooks bytecode path ──────────────────────────────────────────────────
 
-# Other hooks use locked-bytecode-other/ for production
-OTHER_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode-other"
-if [ "$ENVIRONMENT" = "staging" ]; then
-    if [ -d "$PROJECT_ROOT/script/generated-bytecode" ]; then
-        OTHER_BYTECODE_PATH="$PROJECT_ROOT/script/generated-bytecode"
-    fi
-fi
+# All environments deploy from locked-bytecode/
+# (use regenerate_bytecode.sh to build, then manually copy to locked-bytecode/)
+OTHER_BYTECODE_PATH="$PROJECT_ROOT/script/locked-bytecode"
 
 # ── Bytecode availability checks ──────────────────────────────────────────────
 
