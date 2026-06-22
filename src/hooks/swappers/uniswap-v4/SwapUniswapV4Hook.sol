@@ -277,6 +277,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
 
         // Set the output amount for the next hook
         _setOutAmount(outputAmount, account);
+        _setOutToken(outputToken, account);
     }
 
     /*//////////////////////////////////////////////////////////////

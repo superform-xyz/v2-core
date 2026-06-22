@@ -141,6 +141,7 @@ contract Deposit5115VaultHook is BaseHook, VaultBankLockableHook, ISuperHookInfl
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
+        _setOutToken(spToken, account);
     }
 
     /*//////////////////////////////////////////////////////////////

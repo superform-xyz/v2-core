@@ -134,6 +134,7 @@ contract ClaimAssetsDETHHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCon
     /// @dev outAmount is the WETH delta (balance after claim minus balance before claim)
     function _postExecute(address, address account, bytes calldata) internal override {
         _setOutAmount(_getBalance(account) - getOutAmount(account), account);
+        _setOutToken(asset, account);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -147,6 +147,7 @@ contract SwapUniswapV3Hook is BaseHook, ISuperHookContextAware, ISuperHookInflow
         uint256 finalBalance = IERC20(tokenOut).balanceOf(account);
         uint256 initialBalance = getOutAmount(account);
         _setOutAmount(finalBalance - initialBalance, account);
+        _setOutToken(tokenOut, account);
     }
 
     /*//////////////////////////////////////////////////////////////

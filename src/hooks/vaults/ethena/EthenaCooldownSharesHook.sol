@@ -122,6 +122,7 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         usedShares = usedShares - _getSharesBalance(account, data);
+        _setOutToken(asset, account);
     }
 
     /*//////////////////////////////////////////////////////////////

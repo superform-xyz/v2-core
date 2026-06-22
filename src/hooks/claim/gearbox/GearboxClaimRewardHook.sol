@@ -113,5 +113,6 @@ contract GearboxClaimRewardHook is
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
+        _setOutToken(asset, account);
     }
 }

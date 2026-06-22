@@ -131,6 +131,7 @@ contract ClaimWithdrawFirelightVaultHook is BaseHook, ISuperHookInflowOutflow, I
     /// @dev outAmount may be 0 if the request is not yet claimable or vault is paused
     function _postExecute(address, address account, bytes calldata) internal override {
         _setOutAmount(_getBalance(account) - getOutAmount(account), account);
+        _setOutToken(asset, account);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -151,5 +151,6 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookInflowOutflow, ISuperHoo
         uint256 amount = BytesLib.toUint256(data, AMOUNT_POSITION);
         // Set the deposited amount as output
         _setOutAmount(amount, account);
+        _setOutToken(BytesLib.toAddress(data, 0), account);
     }
 }

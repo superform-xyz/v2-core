@@ -151,6 +151,7 @@ contract SwapAlgebraIntegralHook is BaseHook, ISuperHookContextAware, ISuperHook
         uint256 initialBalance = getOutAmount(account);
         if (finalBalance < initialBalance) revert AMOUNT_NOT_VALID();
         _setOutAmount(finalBalance - initialBalance, account);
+        _setOutToken(tokenOut, account);
     }
 
     /*//////////////////////////////////////////////////////////////

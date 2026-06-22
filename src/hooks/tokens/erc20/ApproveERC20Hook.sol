@@ -126,9 +126,20 @@ contract ApproveERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowO
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _postExecute(address, address account, bytes calldata data) internal override {
-        address token = BytesLib.toAddress(data, 0);
-        address spender = BytesLib.toAddress(data, 20);
-        _setOutAmount(IERC20(token).allowance(account, spender), account);
+
+    /// @dev Side-effect only hook — forwards previous hook's outAmount + outToken
+    function _pipeMode() internal pure override returns (PipeMode) {
+        return PipeMode.PASSTHROUGH;
+    }
+
+    /// @dev When at position 0 (no prevHook), report the approved amount + token so downstream
+    ///      hooks with usePrevHookAmount=true can read them. When mid-chain, PASSTHROUGH from BaseHook.
+    function _preExecute(address prevHook, address account, bytes calldata data) internal override {
+        if (prevHook != address(0)) {
+            super._preExecute(prevHook, account, data);
+        } else {
+            _setOutAmount(BytesLib.toUint256(data, AMOUNT_POSITION), account);
+            _setOutToken(BytesLib.toAddress(data, 0), account);
+        }
     }
 }

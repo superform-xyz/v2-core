@@ -155,6 +155,7 @@ contract ApproveAndRequestRedeemDETHHook is BaseHook, ISuperHookInflowOutflow, I
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(getOutAmount(account) - _getBalance(account, data), account);
+        _setOutToken(asset, account);
     }
 
     /*//////////////////////////////////////////////////////////////

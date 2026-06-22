@@ -179,6 +179,7 @@ contract ApproveAndSwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
+        _setOutToken(BytesLib.toAddress(data, 20), account);
     }
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {

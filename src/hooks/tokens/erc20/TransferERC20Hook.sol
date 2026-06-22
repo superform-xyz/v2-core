@@ -129,6 +129,7 @@ contract TransferERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInflow
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data) - getOutAmount(account), account);
+        _setOutToken(BytesLib.toAddress(data, 0), account);
     }
 
     /*//////////////////////////////////////////////////////////////

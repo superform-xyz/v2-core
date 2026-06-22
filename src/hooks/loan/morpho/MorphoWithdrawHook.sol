@@ -160,6 +160,7 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
     /// @dev Computes loanToken received by account (post - pre) and sets as outAmount
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(getLoanTokenBalance(account, data) - getOutAmount(account), account);
+        _setOutToken(asset, account);
     }
 
     /// @dev Decodes the hook data for withdraw operations

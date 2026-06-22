@@ -166,5 +166,6 @@ contract WithdrawWETHHook is BaseHook, ISuperHookContextAware, ISuperHookInflowO
         
         // The difference should equal the amount withdrawn from WETH (converted to ETH)
         _setOutAmount(previousWethBalance - currentWethBalance, account);
+        _setOutToken(WETH, account);
     }
 }

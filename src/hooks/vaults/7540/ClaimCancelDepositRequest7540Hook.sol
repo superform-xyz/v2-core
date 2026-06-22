@@ -123,6 +123,7 @@ contract ClaimCancelDepositRequest7540Hook is BaseHook, ISuperHookAsyncCancelati
         address receiver = BytesLib.toAddress(data, 52);
 
         _setOutAmount(_getBalance(receiver, data) - getOutAmount(account), account);
+        _setOutToken(asset, account);
     }
 
     /*//////////////////////////////////////////////////////////////

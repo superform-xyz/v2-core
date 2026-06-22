@@ -258,5 +258,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(getCollateralTokenBalance(account, data) - getOutAmount(account), account);
+        _setOutToken(asset, account);
     }
 }

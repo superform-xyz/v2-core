@@ -145,6 +145,7 @@ contract RequestRedeemDETHHook is BaseHook, ISuperHookInflowOutflow, ISuperHookO
 
     function _postExecute(address, address account, bytes calldata) internal override {
         usedShares = usedShares - IERC20(spToken).balanceOf(account);
+        _setOutToken(asset, account);
     }
 
     /*//////////////////////////////////////////////////////////////

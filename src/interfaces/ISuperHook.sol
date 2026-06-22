@@ -79,6 +79,14 @@ interface ISuperHookResult {
     /// @param caller The caller address for context identification
     /// @return The amount of tokens (assets or shares) processed
     function getOutAmount(address caller) external view returns (uint256);
+
+    /// @notice The output token address produced by the hook in a given caller context
+    /// @dev Used by subsequent hooks to determine what token the previous hook produced
+    ///      PASSTHROUGH hooks auto-forward the previous hook's outToken
+    ///      TRANSFORM hooks set this to their specific output token
+    /// @param caller The caller address for context identification
+    /// @return The address of the output token, or address(0) if not set
+    function getOutToken(address caller) external view returns (address);
 }
 
 /// @title ISuperHookContextAware

@@ -171,4 +171,8 @@ contract RecordPurchasePendlePTAmortizedOracleHookV2 is BaseHook, ISuperHookCont
             || interfaceId == type(ISuperHookInspector).interfaceId;
     }
 
+    /// @dev Side-effect only hook — forwards previous hook's outAmount + outToken
+    function _pipeMode() internal pure override returns (PipeMode) {
+        return PipeMode.PASSTHROUGH;
+    }
 }

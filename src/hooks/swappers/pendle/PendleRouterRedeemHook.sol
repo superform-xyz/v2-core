@@ -179,6 +179,7 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
+        _setOutToken(BytesLib.toAddress(data, 72), account);
     }
 
     /*//////////////////////////////////////////////////////////////

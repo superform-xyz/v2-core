@@ -20,6 +20,7 @@ interface ManifestEntry {
   hookKey: string;
   hookValue: string;
   mode: "offset" | "replaceCalldata" | "sizeless" | "external";
+  pipeMode: "transform" | "passthrough" | "source";
   amountPosition?: number;
   secondaryAmountPosition?: number;
   sizing?: "exclusive-or" | "dual";
@@ -95,6 +96,22 @@ function hasReplaceCalldataAmount(hookSolName: string): boolean {
     );
   }
   return false;
+}
+
+function detectPipeMode(hookSolName: string): "transform" | "passthrough" | "source" {
+  const hookDir = path.join(ROOT, "src/hooks");
+  const files = findSolFiles(hookDir);
+
+  for (const file of files) {
+    if (path.basename(file) !== `${hookSolName}.sol`) continue;
+    const content = fs.readFileSync(file, "utf-8");
+
+    if (content.includes("PipeMode.PASSTHROUGH")) return "passthrough";
+    if (content.includes("PipeMode.SOURCE")) return "source";
+    return "transform";
+  }
+  // Hook source not found — default to transform
+  return "transform";
 }
 
 function findSolFiles(dir: string): string[] {
@@ -323,6 +340,7 @@ function buildManifest(): ManifestEntry[] {
         hookKey: def.constantName,
         hookValue,
         mode: override.mode!,
+        pipeMode: detectPipeMode(hookValue),
       };
       if (override.amountPosition !== undefined) entry.amountPosition = override.amountPosition;
       if (override.secondaryAmountPosition !== undefined) entry.secondaryAmountPosition = override.secondaryAmountPosition;
@@ -341,6 +359,7 @@ function buildManifest(): ManifestEntry[] {
         hookKey: def.constantName,
         hookValue,
         mode: "replaceCalldata",
+        pipeMode: detectPipeMode(hookValue),
         denom: inferDenom(hookValue),
       });
       continue;
@@ -353,6 +372,7 @@ function buildManifest(): ManifestEntry[] {
         hookKey: def.constantName,
         hookValue,
         mode: "offset",
+        pipeMode: detectPipeMode(hookValue),
         amountPosition: amtPos,
         denom: inferDenom(hookValue),
         track: "deprecate->replaceCalldata",
@@ -368,6 +388,7 @@ function buildManifest(): ManifestEntry[] {
       hookKey: def.constantName,
       hookValue,
       mode: "sizeless",
+      pipeMode: detectPipeMode(hookValue),
     });
   }
 
@@ -400,3 +421,4 @@ console.log(
 console.log(
   `  sizeless: ${manifest.filter((m) => m.mode === "sizeless").length}`
 );
+console.log(`  pipeMode: transform=${manifest.filter((m) => m.pipeMode === "transform").length}, passthrough=${manifest.filter((m) => m.pipeMode === "passthrough").length}, source=${manifest.filter((m) => m.pipeMode === "source").length}`);

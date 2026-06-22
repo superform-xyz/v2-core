@@ -132,6 +132,7 @@ contract GearboxUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutf
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
+        _setOutToken(asset, account);
     }
 
     /*//////////////////////////////////////////////////////////////

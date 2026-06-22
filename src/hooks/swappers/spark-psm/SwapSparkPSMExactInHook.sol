@@ -124,6 +124,7 @@ contract SwapSparkPSMExactInHook is BaseHook, ISuperHookContextAware, ISuperHook
         uint256 finalBalance = IERC20(assetOut).balanceOf(account);
         uint256 initialBalance = getOutAmount(account);
         _setOutAmount(finalBalance - initialBalance, account);
+        _setOutToken(assetOut, account);
     }
 
     /*//////////////////////////////////////////////////////////////

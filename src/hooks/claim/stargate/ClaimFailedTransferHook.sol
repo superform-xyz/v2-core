@@ -161,6 +161,7 @@ contract ClaimFailedTransferHook is BaseHook, ISuperHookInflowOutflow, ISuperHoo
     /// @dev Computes the delta (post - pre) as the net tokens claimed
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
+        _setOutToken(asset, account);
     }
 
     /*//////////////////////////////////////////////////////////////

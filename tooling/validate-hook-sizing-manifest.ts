@@ -17,6 +17,7 @@ const ROOT = path.resolve(__dirname, "..");
 interface ManifestEntry {
   hookKey: string;
   mode: "offset" | "replaceCalldata" | "sizeless" | "external";
+  pipeMode?: "transform" | "passthrough" | "source";
   amountPosition?: number;
   secondaryAmountPosition?: number;
   sizing?: string;
@@ -220,7 +221,29 @@ for (const entry of manifest) {
   }
 }
 
-// Check 5: Validate entry count
+// Check 8: Validate pipeMode field present and valid
+const validPipeModes = new Set(["transform", "passthrough", "source"]);
+for (const entry of manifest) {
+  if (!entry.pipeMode) {
+    error(`${entry.hookKey} missing pipeMode field`);
+  } else if (!validPipeModes.has(entry.pipeMode)) {
+    error(`${entry.hookKey} has invalid pipeMode: "${entry.pipeMode}"`);
+  }
+}
+
+// Check 9: Cross-validate — PASSTHROUGH hooks should be sizeless
+for (const entry of manifest) {
+  if (entry.pipeMode === "passthrough" && entry.mode !== "sizeless") {
+    // ApproveERC20Hook is passthrough but has offset mode (legacy sizing for the allowance amount)
+    // CircleGatewayWalletHook is passthrough but has offset mode
+    // These are valid — passthrough means no token flow, but OMS may still size the data field
+    warn(
+      `${entry.hookKey} is passthrough but mode="${entry.mode}" (expected sizeless — verify this is intentional)`
+    );
+  }
+}
+
+// Check 10: Validate entry count
 console.log(`\nManifest: ${manifest.length} entries`);
 console.log(`Constants: ${uniqueValues.size} unique hook key values (${allConstants.size} constants)`);
 console.log(
@@ -235,6 +258,7 @@ console.log(
 console.log(
   `  sizeless: ${manifest.filter((m) => m.mode === "sizeless").length}`
 );
+console.log(`  pipeMode: transform=${manifest.filter((m) => m.pipeMode === "transform").length}, passthrough=${manifest.filter((m) => m.pipeMode === "passthrough").length}, source=${manifest.filter((m) => m.pipeMode === "source").length}`);
 
 if (manifest.length !== uniqueValues.size) {
   error(

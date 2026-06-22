@@ -167,6 +167,7 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
 
     function _postExecute(address, address account, bytes calldata) internal override {
         _setOutAmount(0, account);
+        _setOutToken(asset, account);
     }
 
     function _decodeClaimParams(bytes calldata data)

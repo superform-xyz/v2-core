@@ -682,4 +682,8 @@ contract MockPrevHookForE2E is ISuperHookResult {
     function getOutAmount(address account) external view override returns (uint256) {
         return _outAmounts[account];
     }
+
+    function getOutToken(address) external pure override returns (address) {
+        return address(0);
+    }
 }

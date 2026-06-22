@@ -176,6 +176,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutf
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
+        _setOutToken(address(bytes20(data[:20])), account);
     }
 
     /*//////////////////////////////////////////////////////////////

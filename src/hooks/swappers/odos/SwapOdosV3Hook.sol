@@ -217,6 +217,7 @@ contract SwapOdosV3Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowOut
     /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
+        _setOutToken(BytesLib.toAddress(data, OUTPUT_TOKEN_POSITION), account);
     }
 
     /*//////////////////////////////////////////////////////////////

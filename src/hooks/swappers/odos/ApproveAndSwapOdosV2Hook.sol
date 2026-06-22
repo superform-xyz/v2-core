@@ -181,6 +181,7 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHoo
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
+        _setOutToken(BytesLib.toAddress(data, 72), account);
     }
 
     /*//////////////////////////////////////////////////////////////

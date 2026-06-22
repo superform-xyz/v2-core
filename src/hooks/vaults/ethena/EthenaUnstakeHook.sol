@@ -112,6 +112,7 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow {
         address yieldSource = data.extractYieldSource(); // sUSDE
         uint256 outAmount = getOutAmount(account);
         _setOutAmount(_getBalance(account, data) - outAmount, account);
+        _setOutToken(asset, account);
         // this is how cooldownShares converts the shares to underlying.
         // might not match the exact pps when cooldownShares was called.
         // will likely underestimate the actual shares burned

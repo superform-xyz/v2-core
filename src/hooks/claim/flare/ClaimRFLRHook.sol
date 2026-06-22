@@ -151,6 +151,7 @@ contract ClaimRFLRHook is BaseHook, ISuperHookInflowOutflow {
         uint256 preBalance = getOutAmount(account);
         uint256 delta = currentBalance > preBalance ? currentBalance - preBalance : 0;
         _setOutAmount(delta, account);
+        _setOutToken(asset, account);
     }
 
     /// @dev Decodes project IDs from packed calldata

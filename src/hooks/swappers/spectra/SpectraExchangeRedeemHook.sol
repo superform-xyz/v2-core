@@ -183,6 +183,7 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
+        _setOutToken(BytesLib.toAddress(data, 32), account);
     }
 
     /*//////////////////////////////////////////////////////////////

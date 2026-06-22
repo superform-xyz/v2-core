@@ -157,5 +157,6 @@ contract DepositWETHHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOu
         
         // The difference should equal the amount deposited to WETH
         _setOutAmount(previousBalance - currentBalance, account);
+        _setOutToken(WETH, account);
     }
 }

@@ -132,6 +132,7 @@ contract FluidStakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow,
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
+        _setOutToken(data.extractYieldSource(), account);
     }
 
     /*//////////////////////////////////////////////////////////////

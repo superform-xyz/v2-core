@@ -126,6 +126,7 @@ contract ClaimCancelRedeemRequestWithId7540Hook is BaseHook, VaultBankLockableHo
     function _postExecute(address, address account, bytes calldata data) internal override {
         address receiver = BytesLib.toAddress(data, RECEIVER_POSITION);
         _setOutAmount(_getBalance(receiver, data) - getOutAmount(account), account);
+        _setOutToken(asset, account);
     }
 
     /*//////////////////////////////////////////////////////////////

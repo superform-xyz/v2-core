@@ -188,6 +188,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInf
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
+        _setOutToken(_decodeTokenOut(data[85:]), account);
     }
 
     /*//////////////////////////////////////////////////////////////

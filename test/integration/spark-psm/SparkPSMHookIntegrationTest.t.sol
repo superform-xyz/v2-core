@@ -202,6 +202,8 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
         uint256 amountIn = 1000e6; // 1000 USDC
 
         deal(USDC, account, amountIn);
+        // Ensure PSM has enough sUSDS liquidity
+        deal(SUSDS, PSM_ADDRESS, 10_000e18);
 
         // Preview to get expected output
         uint256 expectedOut = psm.previewSwapExactIn(USDC, SUSDS, amountIn);
@@ -268,6 +270,9 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
     /// @notice Test ApproveAndSwapExactOut: want sUSDS, pay USDC (oracle rate)
     function test_ApproveAndSwapExactOut_USDC_to_sUSDS() public {
         uint256 amountOut = 500e18; // Want 500 sUSDS
+
+        // Ensure PSM has enough sUSDS liquidity
+        deal(SUSDS, PSM_ADDRESS, 10_000e18);
 
         uint256 expectedIn = psm.previewSwapExactOut(USDC, SUSDS, amountOut);
         uint256 maxAmountIn = expectedIn + 2; // Buffer for rounding
@@ -348,6 +353,8 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
         uint256 minAmountOut = 999_999e18;
 
         deal(USDC, account, amountIn);
+        // Ensure PSM has enough USDS liquidity to fulfill the swap
+        deal(USDS, PSM_ADDRESS, 2_000_000e18);
 
         bytes memory hookData = _buildExactInHookData(USDC, USDS, amountIn, minAmountOut, false);
 
@@ -437,6 +444,8 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
         uint256 amountIn = 1000e18; // 1000 USDS
 
         deal(USDS, account, amountIn);
+        // Ensure PSM has enough sUSDS liquidity
+        deal(SUSDS, PSM_ADDRESS, 10_000e18);
 
         uint256 expectedOut = psm.previewSwapExactIn(USDS, SUSDS, amountIn);
         uint256 minAmountOut = expectedOut > 0 ? expectedOut - 1 : 0;

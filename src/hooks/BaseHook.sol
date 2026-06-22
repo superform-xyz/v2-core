@@ -52,6 +52,21 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     uint256 private constant OUT_AMOUNT_OFFSET = 1;
     uint256 private constant PRE_EXECUTE_MUTEX_OFFSET = 2;
     uint256 private constant POST_EXECUTE_MUTEX_OFFSET = 3;
+    uint256 private constant OUT_TOKEN_OFFSET = 4;
+
+    /*//////////////////////////////////////////////////////////////
+                                 ENUMS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Declares how a hook handles its output (outAmount + outToken) relative to the previous hook
+    /// @dev TRANSFORM: Hook converts input to output (balance-diff pattern). Default.
+    ///      PASSTHROUGH: Hook performs a side-effect only, auto-forwards prev hook's output.
+    ///      SOURCE: Hook creates output from external state, ignores prev hook. Reserved for future use.
+    enum PipeMode {
+        TRANSFORM,
+        PASSTHROUGH,
+        SOURCE
+    }
 
     /// @notice Base storage key for hook execution state
     bytes32 private constant HOOK_EXECUTION_STORAGE = keccak256("hook.execution.state");
@@ -202,6 +217,10 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
         return _getOutAmount(_getCurrentExecutionContext(caller));
     }
 
+    function getOutToken(address caller) public view returns (address) {
+        return _getOutToken(_getCurrentExecutionContext(caller));
+    }
+
     /// @inheritdoc ISuperHook
     function resetExecutionState(address caller) external onlyLastCaller {
         uint256 context = _getCurrentExecutionContext(caller);
@@ -267,14 +286,17 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
         returns (Execution[] memory executions);
 
     /// @notice Internal implementation of preExecute
-    /// @dev Abstract function to be implemented by derived hooks
-    ///      Called before execution to validate inputs and prepare the hook's state
-    ///      Typically sets up the hook context by parsing parameters from data
-    ///      May check balances, permissions, or other preconditions
+    /// @dev Default behavior for PASSTHROUGH hooks: auto-forward prevHook's outAmount + outToken.
+    ///      TRANSFORM and SOURCE hooks override this entirely.
     /// @param prevHook The previous hook in the chain, or address(0) if first hook
     /// @param account The account that operations will be performed for
     /// @param data Hook-specific parameters and configuration data
-    function _preExecute(address prevHook, address account, bytes calldata data) internal virtual { }
+    function _preExecute(address prevHook, address account, bytes calldata data) internal virtual {
+        if (_pipeMode() == PipeMode.PASSTHROUGH && prevHook != address(0)) {
+            _setOutAmount(ISuperHookResult(prevHook).getOutAmount(account), account);
+            _setOutToken(ISuperHookResult(prevHook).getOutToken(account), account);
+        }
+    }
 
     /// @notice Internal implementation of postExecute
     /// @dev Abstract function to be implemented by derived hooks
@@ -320,6 +342,24 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
         return data;
     }
 
+    /// @notice Declares the pipe semantics for this hook
+    /// @dev Override to return PASSTHROUGH for side-effect-only hooks.
+    ///      Default: TRANSFORM. Inlined by the compiler (pure virtual).
+    function _pipeMode() internal pure virtual returns (PipeMode) {
+        return PipeMode.TRANSFORM;
+    }
+
+    /// @notice Sets the output token address for this hook execution
+    /// @param token The output token address
+    /// @param caller The caller address for context identification
+    function _setOutToken(address token, address caller) internal {
+        uint256 context = _getCurrentExecutionContext(caller);
+        bytes32 key = _makeKey(context, OUT_TOKEN_OFFSET);
+        assembly {
+            tstore(key, token)
+        }
+    }
+
     function _makeAccountContextKey(address account) private pure returns (bytes32) {
         return keccak256(abi.encodePacked(ACCOUNT_CONTEXT_STORAGE, account));
     }
@@ -351,6 +391,13 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
 
     function _getOutAmount(uint256 context) private view returns (uint256 value) {
         bytes32 key = _makeKey(context, OUT_AMOUNT_OFFSET);
+        assembly {
+            value := tload(key)
+        }
+    }
+
+    function _getOutToken(uint256 context) private view returns (address value) {
+        bytes32 key = _makeKey(context, OUT_TOKEN_OFFSET);
         assembly {
             value := tload(key)
         }

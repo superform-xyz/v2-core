@@ -1608,6 +1608,10 @@ contract MockPrevHook is ISuperHookResult {
         return _outAmount;
     }
 
+    function getOutToken(address) external pure returns (address) {
+        return address(0);
+    }
+
     function asset() external view returns (address) {
         return _asset;
     }

@@ -224,4 +224,9 @@ contract DeBridgeCancelOrderHook is BaseHook, ISuperHookInflowOutflow {
 
         executionFee = BytesLib.toUint256(data, offset);
     }
+
+    /// @dev Side-effect only hook — forwards previous hook's outAmount + outToken
+    function _pipeMode() internal pure override returns (PipeMode) {
+        return PipeMode.PASSTHROUGH;
+    }
 }

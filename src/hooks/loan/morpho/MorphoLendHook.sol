@@ -168,6 +168,7 @@ contract MorphoLendHook is BaseMorphoLoanHook {
     /// @param data Encoded hook calldata containing market parameters
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getSupplyShares(account, data) - getOutAmount(account), account);
+        _setOutToken(asset, account);
     }
 
     /// @notice Queries the account's current Morpho supply shares for the market

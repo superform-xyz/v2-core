@@ -155,6 +155,7 @@ contract ApproveAndDeposit5115VaultHook is
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
+        _setOutToken(spToken, account);
     }
 
     /*//////////////////////////////////////////////////////////////

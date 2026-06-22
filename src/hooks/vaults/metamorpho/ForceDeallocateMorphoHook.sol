@@ -216,6 +216,7 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHo
             assets = ISuperHookResult(prevHook).getOutAmount(account);
         }
         _setOutAmount(assets, account);
+        _setOutToken(data.extractYieldSource(), account);
     }
 
     /// @inheritdoc ISuperHookInspector

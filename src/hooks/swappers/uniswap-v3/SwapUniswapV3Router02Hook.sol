@@ -142,6 +142,7 @@ contract SwapUniswapV3Router02Hook is BaseHook, ISuperHookContextAware, ISuperHo
         uint256 initialBalance = getOutAmount(account);
         if (finalBalance < initialBalance) revert AMOUNT_NOT_VALID();
         _setOutAmount(finalBalance - initialBalance, account);
+        _setOutToken(tokenOut, account);
     }
 
     /*//////////////////////////////////////////////////////////////

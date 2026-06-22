@@ -181,6 +181,7 @@ contract CircleGatewayMinterHook is BaseHook, ISuperHookInflowOutflow {
 
         // Update outAmount to reflect the minted amount
         _setOutAmount(mintedAmount, account);
+        _setOutToken(asset, account);
     }
 
     /// @notice Internal function to decode attestation payload and signature from data

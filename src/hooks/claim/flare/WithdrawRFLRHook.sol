@@ -176,5 +176,6 @@ contract WithdrawRFLRHook is BaseHook, ISuperHookInflowOutflow {
         }
 
         _setOutAmount(delta, account);
+        _setOutToken(asset, account);
     }
 }

@@ -132,4 +132,9 @@ contract FetchNativeFeeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutf
     function inspect(bytes calldata) external view override returns (bytes memory) {
         return abi.encodePacked(SPONSORSHIP);
     }
+
+    /// @dev Side-effect only hook — forwards previous hook's outAmount + outToken
+    function _pipeMode() internal pure override returns (PipeMode) {
+        return PipeMode.PASSTHROUGH;
+    }
 }
