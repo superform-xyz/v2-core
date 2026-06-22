@@ -284,10 +284,11 @@ check_v2_addresses() {
     local forge_exit_code
     
     # Run forge script and capture both output and exit code
+    # Note: --chain is intentionally omitted; forge auto-detects from --rpc-url
+    local rpc_value="${!rpc_url_var}"
     check_output=$(forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(bool,uint256,uint64)' true $FORGE_ENV $network_id \
-        --rpc-url ${!rpc_url_var} \
-        --chain $network_id \
+        --rpc-url "$rpc_value" \
         -vv 2>&1)
     forge_exit_code=$?
     
@@ -538,26 +539,9 @@ echo ""
 declare -a FAILED_NETWORKS=()
 declare -a SUCCESSFUL_NETWORKS=()
 
-# Chains where forge doesn't support --chain (not in forge's internal registry)
-FORGE_UNSUPPORTED_CHAINS=("988")
-
 # Check addresses on all networks using current configuration
 for network_def in "${NETWORKS[@]}"; do
     IFS=':' read -r network_id network_name rpc_var <<< "$network_def"
-
-    # Skip chains not supported by forge's --chain flag
-    skip_chain=false
-    for unsupported in "${FORGE_UNSUPPORTED_CHAINS[@]}"; do
-        if [[ "$network_id" == "$unsupported" ]]; then
-            skip_chain=true
-            break
-        fi
-    done
-    if [[ "$skip_chain" == "true" ]]; then
-        echo -e "${YELLOW}⚠️  Skipping $network_name (Chain $network_id) - not supported by forge --chain${NC}"
-        SUCCESSFUL_NETWORKS+=("$network_name (Chain $network_id) [skipped]")
-        continue
-    fi
 
     if check_v2_addresses "$network_id" "$network_name" "$rpc_var"; then
         SUCCESSFUL_NETWORKS+=("$network_name (Chain $network_id)")
@@ -711,20 +695,6 @@ declare -a FAILED_DEPLOY_NETWORKS=()
 
 for network_def in "${NETWORKS[@]}"; do
     IFS=':' read -r network_id network_name rpc_var <<< "$network_def"
-    
-    # Skip chains not supported by forge's --chain flag
-    skip_chain=false
-    for unsupported in "${FORGE_UNSUPPORTED_CHAINS[@]}"; do
-        if [[ "$network_id" == "$unsupported" ]]; then
-            skip_chain=true
-            break
-        fi
-    done
-    if [[ "$skip_chain" == "true" ]]; then
-        echo -e "${YELLOW}⏭️  Skipping ${network_name^^} MAINNET - Chain $network_id not supported by forge --chain${NC}"
-        ((skipped_networks++))
-        continue
-    fi
 
     # Check deployment status for this network
     if [[ -n "${NETWORK_DEPLOYMENT_STATUS[$network_id]}" ]]; then
@@ -755,7 +725,7 @@ for network_def in "${NETWORKS[@]}"; do
     local chain_verify_flag="$VERIFY_FLAG"
     local chain_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan"
     case $network_id in
-        14|999) # Flare, HyperEVM - aggressive Cloudflare rate limiting
+        14|999|988) # Flare, HyperEVM, Stable - no etherscan support or rate limiting
             chain_verify_flag=""
             chain_etherscan_flags=""
             echo -e "${CYAN}   Verification: ${WHITE}Skipped (rate-limited explorer, use verify script separately)${NC}"
@@ -774,12 +744,12 @@ for network_def in "${NETWORKS[@]}"; do
     fi
 
     local deploy_exit_code
+    # Note: --chain is intentionally omitted; forge auto-detects from --rpc-url
     forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(bool,uint256,uint64)' false $FORGE_ENV $network_id \
         --account $ACCOUNT \
         --password "$KEYSTORE_PASSWORD" \
-        --rpc-url ${!rpc_var} \
-        --chain $network_id \
+        --rpc-url "${!rpc_var}" \
         $chain_etherscan_flags \
         $BROADCAST_FLAG \
         $chain_verify_flag \
