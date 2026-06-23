@@ -33,7 +33,7 @@ abstract contract ConfigBase is Constants {
         mapping(uint64 chainId => address kyberRouter) kyberSwapRouters;
         mapping(uint64 chainId => address kyberScaleHelper) kyberSwapScaleHelpers;
         mapping(uint64 chainId => address openOceanRouter) openOceanRouters;
-        mapping(uint64 chainId => address openOceanCaller) openOceanCallers;
+        mapping(uint64 chainId => address openOceanReferrer) openOceanReferrers;
         mapping(uint64 chainId => address swapRouter) uniswapV2SwapRouters;
         mapping(uint64 chainId => address lzEndpointV2) lzEndpointV2s;
         mapping(uint64 chainId => address tokenMessaging) stargateTokenMessagings;

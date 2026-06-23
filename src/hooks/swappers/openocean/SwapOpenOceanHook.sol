@@ -9,10 +9,10 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { IOpenOceanCaller } from "../../../vendor/openocean/IOpenOceanCaller.sol";
 import { IOpenOceanExchange } from "../../../vendor/openocean/IOpenOceanExchange.sol";
-import { OpenOceanSparkDexScaler } from "../../../libraries/OpenOceanSparkDexScaler.sol";
+import { OpenOceanDynamicAmountUpdater } from "../../../libraries/OpenOceanDynamicAmountUpdater.sol";
 import { ISuperHookContextAware, ISuperHookInspector, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
-/// @title SwapOpenOceanSparkDexHook
+/// @title SwapOpenOceanHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address outputToken = BytesLib.toAddress(data, 0);
@@ -22,9 +22,9 @@ import { ISuperHookContextAware, ISuperHookInspector, ISuperHookResult } from ".
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 116);
 /// @notice         uint256 txDataLength = BytesLib.toUint256(data, 117);
 /// @notice         bytes txData_ = BytesLib.slice(data, 149, txDataLength);
-contract SwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware {
+contract SwapOpenOceanHook is BaseHook, ISuperHookContextAware {
     IOpenOceanExchange public immutable OPENOCEAN_ROUTER;
-    IOpenOceanCaller public immutable OPENOCEAN_CALLER;
+    address public immutable OPENOCEAN_REFERRER;
 
     address public immutable NATIVE;
 
@@ -33,16 +33,22 @@ contract SwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware {
     /// @notice Thrown when inputToken and outputToken are the same address
     error SAME_INPUT_OUTPUT_TOKEN();
 
+    /// @notice Thrown when dstToken in txData does not match the expected outputToken
+    error OUTPUT_TOKEN_MISMATCH();
+
+    /// @notice Thrown when resolved execution amount is zero
+    error ZERO_EXECUTION_AMOUNT();
+
     constructor(
         address router_,
-        address caller_,
+        address referrer_,
         address nativeToken_
     )
         BaseHook(HookType.NONACCOUNTING, HookSubTypes.SWAP)
     {
-        if (router_ == address(0) || caller_ == address(0)) revert ADDRESS_NOT_VALID();
+        if (router_ == address(0) || referrer_ == address(0)) revert ADDRESS_NOT_VALID();
         OPENOCEAN_ROUTER = IOpenOceanExchange(router_);
-        OPENOCEAN_CALLER = IOpenOceanCaller(caller_);
+        OPENOCEAN_REFERRER = referrer_;
         NATIVE = nativeToken_;
     }
 
@@ -62,20 +68,23 @@ contract SwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware {
         uint256 txDataLength = BytesLib.toUint256(data, 117);
         bytes memory txData_ = BytesLib.slice(data, 149, txDataLength);
 
-        _validateTokenPair(_getInputToken(txData_), outputToken);
-
         uint256 executionAmount = inputAmount;
         if (usePrevHookAmount) {
             executionAmount = ISuperHookResult(prevHook).getOutAmount(account);
+            if (executionAmount == 0) revert ZERO_EXECUTION_AMOUNT();
         }
 
-        txData_ = OpenOceanSparkDexScaler.updateTxDataAmounts(
-            txData_, address(OPENOCEAN_CALLER), executionAmount, inputAmount
+        (bytes memory updatedTxData, address srcToken, address dstToken) = OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
+            txData_, OPENOCEAN_REFERRER, account, executionAmount, inputAmount
         );
-        uint256 value = _isNativeInput(txData_) ? executionAmount : 0;
+
+        _validateTokenPair(srcToken, outputToken);
+        if (!_isSameToken(dstToken, outputToken)) revert OUTPUT_TOKEN_MISMATCH();
+
+        uint256 value = _isNative(srcToken) ? executionAmount : 0;
 
         executions = new Execution[](1);
-        executions[0] = Execution({ target: address(OPENOCEAN_ROUTER), value: value, callData: txData_ });
+        executions[0] = Execution({ target: address(OPENOCEAN_ROUTER), value: value, callData: updatedTxData });
     }
 
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
@@ -87,19 +96,12 @@ contract SwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware {
         uint256 txDataLength = BytesLib.toUint256(data, 117);
         bytes memory txData_ = BytesLib.slice(data, 149, txDataLength);
 
-        (
-            IOpenOceanCaller caller,
-            IOpenOceanExchange.SwapDescription memory desc,
-            IOpenOceanCaller.CallDescription[] memory calls
-        ) = abi.decode(
+        (, IOpenOceanExchange.SwapDescription memory desc,) = abi.decode(
             BytesLib.slice(txData_, 4, txData_.length - 4),
             (IOpenOceanCaller, IOpenOceanExchange.SwapDescription, IOpenOceanCaller.CallDescription[])
         );
-        calls;
 
-        return abi.encodePacked(
-            address(caller), address(desc.srcToken), address(desc.dstToken), desc.srcReceiver, desc.dstReceiver
-        );
+        return abi.encodePacked(desc.dstReceiver);
     }
 
     function _preExecute(address, address account, bytes calldata data) internal override {
@@ -120,18 +122,6 @@ contract SwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware {
 
     function _isNative(address token_) private view returns (bool) {
         return token_ == address(0) || token_ == NATIVE;
-    }
-
-    function _isNativeInput(bytes memory txData_) private view returns (bool) {
-        return _isNative(_getInputToken(txData_));
-    }
-
-    function _getInputToken(bytes memory txData_) private pure returns (address) {
-        (, IOpenOceanExchange.SwapDescription memory desc,) = abi.decode(
-            BytesLib.slice(txData_, 4, txData_.length - 4),
-            (IOpenOceanCaller, IOpenOceanExchange.SwapDescription, IOpenOceanCaller.CallDescription[])
-        );
-        return address(desc.srcToken);
     }
 
     function _validateTokenPair(address inputToken_, address outputToken_) private view {

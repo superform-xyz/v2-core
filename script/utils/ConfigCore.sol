@@ -235,7 +235,7 @@ abstract contract ConfigCore is ConfigBase {
         // ===== OPENOCEAN SPARKDEX V4 ADDRESSES =====
         // OpenOcean V4 SparkDexV4 routing is used only on Flare.
         configuration.openOceanRouters[FLARE_CHAIN_ID] = OPENOCEAN_ROUTER;
-        configuration.openOceanCallers[FLARE_CHAIN_ID] = OPENOCEAN_CALLER_FLARE;
+        configuration.openOceanReferrers[FLARE_CHAIN_ID] = OPENOCEAN_REFERRER_FLARE;
 
         // ===== PENDLE ROUTER ADDRESSES =====
         configuration.pendleRouters[MAINNET_CHAIN_ID] = PENDLE_ROUTER_MAINNET;
