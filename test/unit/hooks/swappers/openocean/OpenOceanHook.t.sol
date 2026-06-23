@@ -560,6 +560,28 @@ contract OpenOceanHookTest is Test {
         approveAndSwapHook.build(address(0), account, data);
     }
 
+    // ==================== Inspect Tests ====================
+
+    function test_SwapHook_InspectReturnsDstReceiver() public view {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 0);
+        bytes memory data = _swapHookData(outputToken, 0, 1000, 900, false, txData);
+
+        bytes memory inspected = swapHook.inspect(data);
+
+        assertEq(inspected.length, 20);
+        assertEq(address(bytes20(inspected)), account);
+    }
+
+    function test_ApproveAndSwapHook_InspectReturnsDstReceiver() public view {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 0);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, false, txData);
+
+        bytes memory inspected = approveAndSwapHook.inspect(data);
+
+        assertEq(inspected.length, 20);
+        assertEq(address(bytes20(inspected)), account);
+    }
+
     // ==================== Helpers ====================
 
     function _buildErc20RouteTxData(
