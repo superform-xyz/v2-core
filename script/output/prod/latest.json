@@ -1539,7 +1539,8 @@
         "SpectraMetaVaultOracle": "0x7564485A51213443CdCa944B768c56606A028974",
         "SpectraPTYieldSourceOracle": "0xF7DB5389ED49DfB3F260dB6e3389C7d28076E601",
         "StakingYieldSourceOracle": "0x985A6B8DDD9AacEA06ffbF3fc69DaEF48bC819ce",
-        "StargateAdapter": "0xa2cCAA51627cAe4C3EbB129Eb6D81F01273fadF4",
+        "StargateAdapter": "0x2883261F7bf9cc83ce5faC1C89648acDd1cE13e8",
+        "StargateAdapterV2": "0x1C491704678bD42b76c78D41106Df1B81D8A133a",
         "StargateSendHook": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
         "StargateSendHookV2": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
         "SuperDestinationExecutor": "0x6ac58e854798D4aae5989B18ad5a1C0fF17817EF",
@@ -1556,10 +1557,11 @@
         "SwapUniswapV3Router02Hook": "0xdB8D7d389723508FBb6d8A62A833ED81BEb0e5cb",
         "TransferERC20Hook": "0x6031c3953BC12D9Af4651B7ed517190A31a67ca4",
         "TransferHook": "0x0d54e1b4060bBD598eE6ec8F7A587fF1789164E9",
+        "Withdraw7540VaultHook": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
         "WithdrawWithId7540VaultHook": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
         "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4"
       }
     }
   },
-  "updated_at": "2026-06-23T08:42:34Z"
+  "updated_at": "2026-06-23T12:14:04Z"
 }
