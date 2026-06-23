@@ -26,7 +26,7 @@ abstract contract OpenOceanAPIParser is StdUtils, BaseAPIParser {
         uint256 minOutAmount;
     }
 
-    function surlCallOpenOceanSparkDexSwap(
+    function surlCallOpenOceanSwap(
         address tokenIn_,
         address tokenOut_,
         string memory amount_,

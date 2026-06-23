@@ -297,8 +297,7 @@ contract OpenOceanDynamicAmountValidationTest is Test, OpenOceanAPIParser {
         );
 
         // This call succeeds because dstReceiver == address(this) as passed to the API
-        (bytes memory scaled, address srcToken, address dstToken) = OpenOceanDynamicAmountUpdater
-            .updateTxDataAmounts(
+        (bytes memory scaled, address srcToken, address dstToken) = OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
             quote.txData, OPENOCEAN_DYNAMIC_REFERRER, address(this), quote.inAmount, quote.inAmount
         );
 
@@ -320,8 +319,7 @@ contract OpenOceanDynamicAmountValidationTest is Test, OpenOceanAPIParser {
             WFLR, SPRK, ONE_TOKEN, address(this), OPENOCEAN_DYNAMIC_REFERRER, WIDE_SLIPPAGE
         );
 
-        (bytes memory scaled, address srcToken, address dstToken) = OpenOceanDynamicAmountUpdater
-            .updateTxDataAmounts(
+        (bytes memory scaled, address srcToken, address dstToken) = OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
             quote.txData, OPENOCEAN_DYNAMIC_REFERRER, address(this), quote.inAmount, quote.inAmount
         );
 

@@ -422,7 +422,7 @@ generate_constructor_args() {
         "SwapOdosV3Hook"|"ApproveAndSwapOdosV3Hook")
             echo "$(cast abi-encode "constructor(address)" "$odos_router_v3")"
             ;;
-        "SwapOpenOceanSparkDexHook"|"ApproveAndSwapOpenOceanSparkDexHook")
+        "SwapOpenOceanHook"|"ApproveAndSwapOpenOceanHook")
             echo "$(cast abi-encode "constructor(address,address,address)" "$openocean_router" "$openocean_referrer" "$native_token")"
             ;;
         "AcrossSendFundsAndExecuteOnDstHook")
@@ -731,8 +731,8 @@ get_contract_source() {
         "ApproveAndSwapOdosV2Hook") echo "src/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol" ;;
         "SwapOdosV3Hook") echo "src/hooks/swappers/odos/SwapOdosV3Hook.sol" ;;
         "ApproveAndSwapOdosV3Hook") echo "src/hooks/swappers/odos/ApproveAndSwapOdosV3Hook.sol" ;;
-        "SwapOpenOceanSparkDexHook") echo "src/hooks/swappers/openocean/SwapOpenOceanSparkDexHook.sol" ;;
-        "ApproveAndSwapOpenOceanSparkDexHook") echo "src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol" ;;
+        "SwapOpenOceanHook") echo "src/hooks/swappers/openocean/SwapOpenOceanHook.sol" ;;
+        "ApproveAndSwapOpenOceanHook") echo "src/hooks/swappers/openocean/ApproveAndSwapOpenOceanHook.sol" ;;
         "SwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Hook.sol" ;;
         "ApproveAndSwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/ApproveAndSwapUniswapV3Hook.sol" ;;
         "SwapUniswapV3Router02Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Router02Hook.sol" ;;

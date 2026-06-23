@@ -9,11 +9,11 @@ import { IOpenOceanCaller } from "../../../src/vendor/openocean/IOpenOceanCaller
 import { IOpenOceanExchange } from "../../../src/vendor/openocean/IOpenOceanExchange.sol";
 import { OpenOceanAPIParser } from "../../utils/parsers/OpenOceanAPIParser.sol";
 
-/// @title OpenOceanSparkDexAPIScaleTest
+/// @title OpenOceanAPIScaleTest
 /// @notice Uses real OpenOcean V4 calldata and verifies the dynamic updater only changes owned fields.
 /// @dev Requires FFI/Surl network access. Run with:
-///      forge test --match-contract OpenOceanSparkDexAPIScaleTest --skip CCTPHooksFork -vvv
-contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
+///      forge test --match-contract OpenOceanAPIScaleTest --skip CCTPHooksFork -vvv
+contract OpenOceanAPIScaleTest is Test, OpenOceanAPIParser {
     address internal constant OPENOCEAN_ROUTER = 0x6352a56caadC4F1E25CD6c75970Fa768A3304e64;
     address internal constant OPENOCEAN_REFERRER_FLARE = 0x0E24b0F342F034446Ec814281AD1a7653cBd85e9;
 
@@ -22,7 +22,7 @@ contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
     string internal constant ONE_TOKEN = "1000000000000000000";
     string internal constant SLIPPAGE = "1";
 
-    function test_OpenOceanAPI_SparkDexCalldataScalesUp() public {
+    function test_OpenOceanAPI_OpenOceanCalldataScalesUp() public {
         OpenOceanSwapResponse memory quote =
             surlCallOpenOceanDynamicSwap(FLR, SPRK, ONE_TOKEN, address(this), OPENOCEAN_REFERRER_FLARE, SLIPPAGE);
 
@@ -34,7 +34,7 @@ contract OpenOceanSparkDexAPIScaleTest is Test, OpenOceanAPIParser {
         _assertScaledSwap(quote, updated, newAmount);
     }
 
-    function test_OpenOceanAPI_SparkDexCalldataScalesDown() public {
+    function test_OpenOceanAPI_OpenOceanCalldataScalesDown() public {
         OpenOceanSwapResponse memory quote =
             surlCallOpenOceanDynamicSwap(FLR, SPRK, ONE_TOKEN, address(this), OPENOCEAN_REFERRER_FLARE, SLIPPAGE);
 

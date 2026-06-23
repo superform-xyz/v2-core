@@ -90,8 +90,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address approveAndSwapSparkPsmExactOutHook;
         address swapKyberSwapHook;
         address approveAndSwapKyberSwapHook;
-        address swapOpenOceanSparkDexHook;
-        address approveAndSwapOpenOceanSparkDexHook;
+        address swapOpenOceanHook;
+        address approveAndSwapOpenOceanHook;
         address swapUniswapV2Hook;
         address approveAndSwapUniswapV2Hook;
         address swapOdosV3Hook;
@@ -260,7 +260,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool swapUniswapV3Router02Hooks;
         bool swapSparkPsmHooks;
         bool swapKyberSwapHooks;
-        bool swapOpenOceanSparkDexHooks;
+        bool swapOpenOceanHooks;
         bool swapUniswapV2Hooks;
         bool pendleRouterHooks;
         bool pendlePTAmortizedOracleHooks;
@@ -403,8 +403,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "ApproveAndSwapSparkPSMExactOutHook",
             "SwapKyberSwapHook",
             "ApproveAndSwapKyberSwapHook",
-            "SwapOpenOceanSparkDexHook",
-            "ApproveAndSwapOpenOceanSparkDexHook",
+            "SwapOpenOceanHook",
+            "ApproveAndSwapOpenOceanHook",
             "SwapUniswapV2Hook",
             "ApproveAndSwapUniswapV2Hook",
             "StargateSendHook",
@@ -530,11 +530,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             configuration.openOceanRouters[chainId] != address(0)
                 && configuration.openOceanReferrers[chainId] != address(0)
         ) {
-            availability.swapOpenOceanSparkDexHooks = true;
+            availability.swapOpenOceanHooks = true;
         } else {
-            expectedHooks -= 2; // SwapOpenOceanSparkDexHook + ApproveAndSwapOpenOceanSparkDexHook
-            potentialSkips[skipCount++] = "SwapOpenOceanSparkDexHook";
-            potentialSkips[skipCount++] = "ApproveAndSwapOpenOceanSparkDexHook";
+            expectedHooks -= 2; // SwapOpenOceanHook + ApproveAndSwapOpenOceanHook
+            potentialSkips[skipCount++] = "SwapOpenOceanHook";
+            potentialSkips[skipCount++] = "ApproveAndSwapOpenOceanHook";
         }
 
         if (configuration.uniswapV2SwapRouters[chainId] != address(0)) {
@@ -1285,10 +1285,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         }
 
-        if (availability.swapOpenOceanSparkDexHooks) {
+        if (availability.swapOpenOceanHooks) {
             __checkContract(
-                SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY,
-                __getSalt(SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY),
+                SWAP_OPENOCEAN_HOOK_KEY,
+                __getSalt(SWAP_OPENOCEAN_HOOK_KEY),
                 abi.encode(
                     configuration.openOceanRouters[chainId],
                     configuration.openOceanReferrers[chainId],
@@ -1297,8 +1297,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 env
             );
             __checkContract(
-                APPROVE_AND_SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY,
-                __getSalt(APPROVE_AND_SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY),
+                APPROVE_AND_SWAP_OPENOCEAN_HOOK_KEY,
+                __getSalt(APPROVE_AND_SWAP_OPENOCEAN_HOOK_KEY),
                 abi.encode(
                     configuration.openOceanRouters[chainId],
                     configuration.openOceanReferrers[chainId],
@@ -1307,9 +1307,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 env
             );
         } else {
-            console2.log(
-                "SKIPPED OpenOcean SparkDexV4 hooks: OpenOcean Router/Referrer not configured for chain", chainId
-            );
+            console2.log("SKIPPED OpenOcean hooks: OpenOcean Router/Referrer not configured for chain", chainId);
         }
 
         if (availability.swapUniswapV2Hooks) {
@@ -1931,14 +1929,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" SKIPPED KyberSwap Router validation: Not available on chain", chainId);
         }
 
-        if (availability.swapOpenOceanSparkDexHooks) {
+        if (availability.swapOpenOceanHooks) {
             require(configuration.openOceanRouters[chainId] != address(0), "OPENOCEAN_ROUTER_ADDRESS_ZERO");
             require(configuration.openOceanRouters[chainId].code.length > 0, "OPENOCEAN_ROUTER_NOT_DEPLOYED");
             require(configuration.openOceanReferrers[chainId] != address(0), "OPENOCEAN_REFERRER_ADDRESS_ZERO");
             console2.log(" OpenOcean Router:", configuration.openOceanRouters[chainId]);
             console2.log(" OpenOcean Referrer:", configuration.openOceanReferrers[chainId]);
         } else {
-            console2.log(" SKIPPED OpenOcean SparkDexV4 validation: Not available on chain", chainId);
+            console2.log(" SKIPPED OpenOcean validation: Not available on chain", chainId);
         }
 
         if (availability.swapUniswapV2Hooks) {
@@ -3164,14 +3162,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[67] = HookDeployment("", "", ""); // Empty deployment
         }
 
-        // OpenOcean SparkDexV4 Hooks - Only deploy if available on this chain
-        if (availability.swapOpenOceanSparkDexHooks) {
+        // OpenOcean Hooks - Only deploy if available on this chain
+        if (availability.swapOpenOceanHooks) {
             require(configuration.openOceanRouters[chainId] != address(0), "OPENOCEAN_HOOK_ROUTER_PARAM_ZERO");
             require(configuration.openOceanRouters[chainId].code.length > 0, "OPENOCEAN_HOOK_ROUTER_NOT_DEPLOYED");
             require(configuration.openOceanReferrers[chainId] != address(0), "OPENOCEAN_HOOK_REFERRER_PARAM_ZERO");
             hooks[68] = _createSafeHookDeploymentWithArgs(
-                SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY,
-                "SwapOpenOceanSparkDexHook",
+                SWAP_OPENOCEAN_HOOK_KEY,
+                "SwapOpenOceanHook",
                 env,
                 abi.encode(
                     configuration.openOceanRouters[chainId],
@@ -3180,8 +3178,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 )
             );
             hooks[69] = _createSafeHookDeploymentWithArgs(
-                APPROVE_AND_SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY,
-                "ApproveAndSwapOpenOceanSparkDexHook",
+                APPROVE_AND_SWAP_OPENOCEAN_HOOK_KEY,
+                "ApproveAndSwapOpenOceanHook",
                 env,
                 abi.encode(
                     configuration.openOceanRouters[chainId],
@@ -3190,7 +3188,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 )
             );
         } else {
-            console2.log(" SKIPPED OpenOcean SparkDexV4 Hooks deployment: Not available on chain", chainId);
+            console2.log(" SKIPPED OpenOcean Hooks deployment: Not available on chain", chainId);
             hooks[68] = HookDeployment("", "", ""); // Empty deployment
             hooks[69] = HookDeployment("", "", ""); // Empty deployment
         }
@@ -3412,10 +3410,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hookAddresses.swapOdosV3Hook = Strings.equal(hooks[66].name, SWAP_ODOSV3_HOOK_KEY) ? addresses[66] : address(0);
         hookAddresses.approveAndSwapOdosV3Hook =
             Strings.equal(hooks[67].name, APPROVE_AND_SWAP_ODOSV3_HOOK_KEY) ? addresses[67] : address(0);
-        hookAddresses.swapOpenOceanSparkDexHook =
-            Strings.equal(hooks[68].name, SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY) ? addresses[68] : address(0);
-        hookAddresses.approveAndSwapOpenOceanSparkDexHook =
-            Strings.equal(hooks[69].name, APPROVE_AND_SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY) ? addresses[69] : address(0);
+        hookAddresses.swapOpenOceanHook =
+            Strings.equal(hooks[68].name, SWAP_OPENOCEAN_HOOK_KEY) ? addresses[68] : address(0);
+        hookAddresses.approveAndSwapOpenOceanHook =
+            Strings.equal(hooks[69].name, APPROVE_AND_SWAP_OPENOCEAN_HOOK_KEY) ? addresses[69] : address(0);
         hookAddresses.swapUniswapV3Router02Hook =
             Strings.equal(hooks[71].name, SWAP_UNISWAPV3_ROUTER02_HOOK_KEY) ? addresses[71] : address(0);
         hookAddresses.approveAndSwapUniswapV3Router02Hook =
@@ -3514,11 +3512,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             require(hookAddresses.swapOdosV3Hook != address(0), "SWAP_ODOSV3_HOOK_NOT_ASSIGNED");
             require(hookAddresses.approveAndSwapOdosV3Hook != address(0), "APPROVE_AND_SWAP_ODOSV3_HOOK_NOT_ASSIGNED");
         }
-        if (availability.swapOpenOceanSparkDexHooks) {
-            require(hookAddresses.swapOpenOceanSparkDexHook != address(0), "SWAP_OPENOCEAN_SPARKDEX_HOOK_NOT_ASSIGNED");
+        if (availability.swapOpenOceanHooks) {
+            require(hookAddresses.swapOpenOceanHook != address(0), "SWAP_OPENOCEAN_HOOK_NOT_ASSIGNED");
             require(
-                hookAddresses.approveAndSwapOpenOceanSparkDexHook != address(0),
-                "APPROVE_AND_SWAP_OPENOCEAN_SPARKDEX_HOOK_NOT_ASSIGNED"
+                hookAddresses.approveAndSwapOpenOceanHook != address(0), "APPROVE_AND_SWAP_OPENOCEAN_HOOK_NOT_ASSIGNED"
             );
         }
         if (availability.acrossV3Adapter) {

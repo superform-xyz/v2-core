@@ -12,7 +12,7 @@ import { IOpenOceanExchange } from "../../../vendor/openocean/IOpenOceanExchange
 import { OpenOceanDynamicAmountUpdater } from "../../../libraries/OpenOceanDynamicAmountUpdater.sol";
 import { ISuperHookContextAware, ISuperHookInspector, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
-/// @title ApproveAndSwapOpenOceanSparkDexHook
+/// @title ApproveAndSwapOpenOceanHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address inputToken = BytesLib.toAddress(data, 0);
@@ -22,7 +22,7 @@ import { ISuperHookContextAware, ISuperHookInspector, ISuperHookResult } from ".
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
 /// @notice         uint256 txDataLength = BytesLib.toUint256(data, 105);
 /// @notice         bytes txData_ = BytesLib.slice(data, 137, txDataLength);
-contract ApproveAndSwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware {
+contract ApproveAndSwapOpenOceanHook is BaseHook, ISuperHookContextAware {
     IOpenOceanExchange public immutable OPENOCEAN_ROUTER;
     address public immutable OPENOCEAN_REFERRER;
 

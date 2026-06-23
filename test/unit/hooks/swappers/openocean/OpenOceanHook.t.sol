@@ -6,9 +6,9 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 import {
-    ApproveAndSwapOpenOceanSparkDexHook
-} from "../../../../../src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol";
-import { SwapOpenOceanSparkDexHook } from "../../../../../src/hooks/swappers/openocean/SwapOpenOceanSparkDexHook.sol";
+    ApproveAndSwapOpenOceanHook
+} from "../../../../../src/hooks/swappers/openocean/ApproveAndSwapOpenOceanHook.sol";
+import { SwapOpenOceanHook } from "../../../../../src/hooks/swappers/openocean/SwapOpenOceanHook.sol";
 import { OpenOceanDynamicAmountUpdater } from "../../../../../src/libraries/OpenOceanDynamicAmountUpdater.sol";
 import { IOpenOceanCaller } from "../../../../../src/vendor/openocean/IOpenOceanCaller.sol";
 import { IOpenOceanExchange } from "../../../../../src/vendor/openocean/IOpenOceanExchange.sol";
@@ -65,7 +65,7 @@ contract MockOpenOceanRouter is IOpenOceanExchange {
     }
 }
 
-contract OpenOceanSparkDexHookTest is Test {
+contract OpenOceanHookTest is Test {
     uint256 private constant DISTRIBUTION_SENTINEL = (uint256(1) << 128) + 1;
     uint256 private constant COLLECT_SLIPPAGE_HIGH_BITS = uint256(0x32) << 240;
 
@@ -80,8 +80,8 @@ contract OpenOceanSparkDexHookTest is Test {
     bytes4 private constant MAKE_CALL_SELECTOR = 0x0c7e1209;
 
     OpenOceanDynamicAmountUpdaterHarness private harness;
-    SwapOpenOceanSparkDexHook private swapHook;
-    ApproveAndSwapOpenOceanSparkDexHook private approveAndSwapHook;
+    SwapOpenOceanHook private swapHook;
+    ApproveAndSwapOpenOceanHook private approveAndSwapHook;
     MockOpenOceanRouter private mockRouter;
     MockHook private prevHook;
 
@@ -106,8 +106,8 @@ contract OpenOceanSparkDexHookTest is Test {
         outputToken = address(new MockERC20("Output", "OUT", 18));
 
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, inputToken);
-        swapHook = new SwapOpenOceanSparkDexHook(router, referrer, NATIVE);
-        approveAndSwapHook = new ApproveAndSwapOpenOceanSparkDexHook(router, referrer, NATIVE);
+        swapHook = new SwapOpenOceanHook(router, referrer, NATIVE);
+        approveAndSwapHook = new ApproveAndSwapOpenOceanHook(router, referrer, NATIVE);
     }
 
     function test_Updater_ScalesDescFieldsAndLeavesErc20CallsUntouched() public {
@@ -265,7 +265,7 @@ contract OpenOceanSparkDexHookTest is Test {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 0);
         bytes memory data = _swapHookData(inputToken, 0, 1000, 900, false, txData);
 
-        vm.expectRevert(SwapOpenOceanSparkDexHook.SAME_INPUT_OUTPUT_TOKEN.selector);
+        vm.expectRevert(SwapOpenOceanHook.SAME_INPUT_OUTPUT_TOKEN.selector);
         swapHook.build(address(0), account, data);
     }
 
@@ -374,7 +374,7 @@ contract OpenOceanSparkDexHookTest is Test {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 0);
         bytes memory data = _approveAndSwapHookData(inputToken, inputToken, 1000, 900, false, txData);
 
-        vm.expectRevert(ApproveAndSwapOpenOceanSparkDexHook.SAME_INPUT_OUTPUT_TOKEN.selector);
+        vm.expectRevert(ApproveAndSwapOpenOceanHook.SAME_INPUT_OUTPUT_TOKEN.selector);
         approveAndSwapHook.build(address(0), account, data);
     }
 
@@ -459,7 +459,7 @@ contract OpenOceanSparkDexHookTest is Test {
         bytes memory txData = _buildTxData(caller, inputToken, inputToken, 1000, 900, 950, 0, calls);
         bytes memory data = _swapHookData(outputToken, 0, 1000, 900, false, txData);
 
-        vm.expectRevert(SwapOpenOceanSparkDexHook.OUTPUT_TOKEN_MISMATCH.selector);
+        vm.expectRevert(SwapOpenOceanHook.OUTPUT_TOKEN_MISMATCH.selector);
         swapHook.build(address(0), account, data);
     }
 
@@ -470,7 +470,7 @@ contract OpenOceanSparkDexHookTest is Test {
         bytes memory txData = _buildTxData(caller, inputToken, inputToken, 1000, 900, 950, 0, calls);
         bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, false, txData);
 
-        vm.expectRevert(ApproveAndSwapOpenOceanSparkDexHook.OUTPUT_TOKEN_MISMATCH.selector);
+        vm.expectRevert(ApproveAndSwapOpenOceanHook.OUTPUT_TOKEN_MISMATCH.selector);
         approveAndSwapHook.build(address(0), account, data);
     }
 
@@ -480,7 +480,7 @@ contract OpenOceanSparkDexHookTest is Test {
 
         prevHook.setOutAmount(0, account);
 
-        vm.expectRevert(SwapOpenOceanSparkDexHook.ZERO_EXECUTION_AMOUNT.selector);
+        vm.expectRevert(SwapOpenOceanHook.ZERO_EXECUTION_AMOUNT.selector);
         swapHook.build(address(prevHook), account, data);
     }
 
@@ -490,7 +490,7 @@ contract OpenOceanSparkDexHookTest is Test {
 
         prevHook.setOutAmount(0, account);
 
-        vm.expectRevert(ApproveAndSwapOpenOceanSparkDexHook.ZERO_EXECUTION_AMOUNT.selector);
+        vm.expectRevert(ApproveAndSwapOpenOceanHook.ZERO_EXECUTION_AMOUNT.selector);
         approveAndSwapHook.build(address(prevHook), account, data);
     }
 
@@ -502,7 +502,7 @@ contract OpenOceanSparkDexHookTest is Test {
         bytes memory txData = _buildTxData(caller, thirdToken, outputToken, 1000, 900, 950, 0, calls);
         bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, false, txData);
 
-        vm.expectRevert(ApproveAndSwapOpenOceanSparkDexHook.INPUT_TOKEN_MISMATCH.selector);
+        vm.expectRevert(ApproveAndSwapOpenOceanHook.INPUT_TOKEN_MISMATCH.selector);
         approveAndSwapHook.build(address(0), account, data);
     }
 
@@ -510,8 +510,9 @@ contract OpenOceanSparkDexHookTest is Test {
         // Simulate attack: txData has dstReceiver pointing to attacker
         IOpenOceanCaller.CallDescription[] memory calls = new IOpenOceanCaller.CallDescription[](1);
         calls[0] = _call(0, 0, hex"12345678");
-        bytes memory txData =
-            _buildTxDataWithReceiver(caller, referrer, inputToken, outputToken, 1000, 900, 950, 0, calls, makeAddr("attacker"));
+        bytes memory txData = _buildTxDataWithReceiver(
+            caller, referrer, inputToken, outputToken, 1000, 900, 950, 0, calls, makeAddr("attacker")
+        );
         bytes memory data = _swapHookData(outputToken, 0, 1000, 900, false, txData);
 
         vm.expectRevert(OpenOceanDynamicAmountUpdater.INVALID_DST_RECEIVER.selector);
@@ -522,8 +523,9 @@ contract OpenOceanSparkDexHookTest is Test {
         // Simulate attack: txData has dstReceiver pointing to attacker
         IOpenOceanCaller.CallDescription[] memory calls = new IOpenOceanCaller.CallDescription[](1);
         calls[0] = _call(0, 0, hex"12345678");
-        bytes memory txData =
-            _buildTxDataWithReceiver(caller, referrer, inputToken, outputToken, 1000, 900, 950, 0, calls, makeAddr("attacker"));
+        bytes memory txData = _buildTxDataWithReceiver(
+            caller, referrer, inputToken, outputToken, 1000, 900, 950, 0, calls, makeAddr("attacker")
+        );
         bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, false, txData);
 
         vm.expectRevert(OpenOceanDynamicAmountUpdater.INVALID_DST_RECEIVER.selector);

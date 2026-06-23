@@ -5,10 +5,8 @@ import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import {
-    ApproveAndSwapOpenOceanSparkDexHook
-} from "../../../src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol";
-import { SwapOpenOceanSparkDexHook } from "../../../src/hooks/swappers/openocean/SwapOpenOceanSparkDexHook.sol";
+import { ApproveAndSwapOpenOceanHook } from "../../../src/hooks/swappers/openocean/ApproveAndSwapOpenOceanHook.sol";
+import { SwapOpenOceanHook } from "../../../src/hooks/swappers/openocean/SwapOpenOceanHook.sol";
 import { HookDataUpdater } from "../../../src/libraries/HookDataUpdater.sol";
 import { IOpenOceanCaller } from "../../../src/vendor/openocean/IOpenOceanCaller.sol";
 import { IOpenOceanExchange } from "../../../src/vendor/openocean/IOpenOceanExchange.sol";
@@ -72,8 +70,8 @@ contract OpenOceanProAPIHookSimulationTest is Test, OpenOceanAPIParser {
     uint256 internal constant SCALE_PERCENT = 90;
     uint256 internal constant MAX_OUTPUT_SCALE_DEVIATION = 2e16; // 2%
 
-    SwapOpenOceanSparkDexHook internal swapHook;
-    ApproveAndSwapOpenOceanSparkDexHook internal approveAndSwapHook;
+    SwapOpenOceanHook internal swapHook;
+    ApproveAndSwapOpenOceanHook internal approveAndSwapHook;
     MockHook internal prevHook;
     OpenOceanHookSimulationAccount internal account;
 
@@ -90,8 +88,8 @@ contract OpenOceanProAPIHookSimulationTest is Test, OpenOceanAPIParser {
     function setUp() public {
         vm.createSelectFork(FLARE_RPC);
 
-        swapHook = new SwapOpenOceanSparkDexHook(OPENOCEAN_ROUTER, OPENOCEAN_REFERRER, NATIVE);
-        approveAndSwapHook = new ApproveAndSwapOpenOceanSparkDexHook(OPENOCEAN_ROUTER, OPENOCEAN_REFERRER, NATIVE);
+        swapHook = new SwapOpenOceanHook(OPENOCEAN_ROUTER, OPENOCEAN_REFERRER, NATIVE);
+        approveAndSwapHook = new ApproveAndSwapOpenOceanHook(OPENOCEAN_ROUTER, OPENOCEAN_REFERRER, NATIVE);
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, WFLR);
         account = new OpenOceanHookSimulationAccount();
     }

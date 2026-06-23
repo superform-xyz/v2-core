@@ -121,7 +121,7 @@ abstract contract Constants {
     address internal constant KYBER_ROUTER = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
     address internal constant KYBER_SCALE_HELPER = 0x2f577A41BeC1BE1152AeEA12e73b7391d15f655D;
 
-    // OpenOcean V4 SparkDexV4 routing on Flare
+    // OpenOcean V4 routing on Flare
     address internal constant OPENOCEAN_ROUTER = 0x6352a56caadC4F1E25CD6c75970Fa768A3304e64;
     address internal constant OPENOCEAN_REFERRER_FLARE = 0x0E24b0F342F034446Ec814281AD1a7653cBd85e9;
 
@@ -219,8 +219,8 @@ abstract contract Constants {
     string internal constant APPROVE_AND_SWAP_ODOSV2_HOOK_KEY = "ApproveAndSwapOdosV2Hook";
     string internal constant SWAP_KYBERSWAP_HOOK_KEY = "SwapKyberSwapHook";
     string internal constant APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY = "ApproveAndSwapKyberSwapHook";
-    string internal constant SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY = "SwapOpenOceanSparkDexHook";
-    string internal constant APPROVE_AND_SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY = "ApproveAndSwapOpenOceanSparkDexHook";
+    string internal constant SWAP_OPENOCEAN_HOOK_KEY = "SwapOpenOceanHook";
+    string internal constant APPROVE_AND_SWAP_OPENOCEAN_HOOK_KEY = "ApproveAndSwapOpenOceanHook";
     string internal constant SWAP_UNISWAPV2_HOOK_KEY = "SwapUniswapV2Hook";
     string internal constant APPROVE_AND_SWAP_UNISWAPV2_HOOK_KEY = "ApproveAndSwapUniswapV2Hook";
     string internal constant APPROVE_AND_FLUID_STAKE_HOOK_KEY = "ApproveAndFluidStakeHook";

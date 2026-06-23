@@ -12,7 +12,7 @@ import { IOpenOceanExchange } from "../../../vendor/openocean/IOpenOceanExchange
 import { OpenOceanDynamicAmountUpdater } from "../../../libraries/OpenOceanDynamicAmountUpdater.sol";
 import { ISuperHookContextAware, ISuperHookInspector, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
-/// @title SwapOpenOceanSparkDexHook
+/// @title SwapOpenOceanHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address outputToken = BytesLib.toAddress(data, 0);
@@ -22,7 +22,7 @@ import { ISuperHookContextAware, ISuperHookInspector, ISuperHookResult } from ".
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 116);
 /// @notice         uint256 txDataLength = BytesLib.toUint256(data, 117);
 /// @notice         bytes txData_ = BytesLib.slice(data, 149, txDataLength);
-contract SwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware {
+contract SwapOpenOceanHook is BaseHook, ISuperHookContextAware {
     IOpenOceanExchange public immutable OPENOCEAN_ROUTER;
     address public immutable OPENOCEAN_REFERRER;
 
@@ -74,10 +74,9 @@ contract SwapOpenOceanSparkDexHook is BaseHook, ISuperHookContextAware {
             if (executionAmount == 0) revert ZERO_EXECUTION_AMOUNT();
         }
 
-        (bytes memory updatedTxData, address srcToken, address dstToken) =
-            OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
-                txData_, OPENOCEAN_REFERRER, account, executionAmount, inputAmount
-            );
+        (bytes memory updatedTxData, address srcToken, address dstToken) = OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
+            txData_, OPENOCEAN_REFERRER, account, executionAmount, inputAmount
+        );
 
         _validateTokenPair(srcToken, outputToken);
         if (!_isSameToken(dstToken, outputToken)) revert OUTPUT_TOKEN_MISMATCH();

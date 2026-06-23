@@ -1,7 +1,7 @@
 # Security Analysis Report
 
 ## Metadata
-- **Target:** `src/libraries/OpenOceanDynamicAmountUpdater.sol`, `src/hooks/swappers/openocean/SwapOpenOceanSparkDexHook.sol`, `src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol`
+- **Target:** `src/libraries/OpenOceanDynamicAmountUpdater.sol`, `src/hooks/swappers/openocean/SwapOpenOceanHook.sol`, `src/hooks/swappers/openocean/ApproveAndSwapOpenOceanHook.sol`
 - **Mode:** review
 - **Date:** 2026-06-09
 - **Contract Types Detected:** DEX/Swapper hooks, Library
@@ -64,7 +64,7 @@ None found.
 
 ### [P1-2] No Validation of `desc.dstToken` Against Expected `outputToken`
 
-- **File:** `src/hooks/swappers/openocean/SwapOpenOceanSparkDexHook.sol:59-65`, `src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol:59-67`
+- **File:** `src/hooks/swappers/openocean/SwapOpenOceanHook.sol:59-65`, `src/hooks/swappers/openocean/ApproveAndSwapOpenOceanHook.sol:59-67`
 - **SWC:** N/A
 - **Category:** Logic
 - **Description:** Both hooks decode `outputToken` from the hook data (used for balance tracking in `_preExecute`/`_postExecute`) but never validate that `desc.dstToken` inside the OpenOcean txData matches this expected `outputToken`. If they diverge, the swap may output a different token than what the hook tracks, causing incorrect `outAmount` accounting and potential fund loss in subsequent hooks.
@@ -135,7 +135,7 @@ None found.
 
 ### [P2-2] Missing Zero-Amount Check After `usePrevHookAmount` Resolution
 
-- **File:** `src/hooks/swappers/openocean/SwapOpenOceanSparkDexHook.sol:67-70`, `src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol:69-73`
+- **File:** `src/hooks/swappers/openocean/SwapOpenOceanHook.sol:67-70`, `src/hooks/swappers/openocean/ApproveAndSwapOpenOceanHook.sol:69-73`
 - **SWC:** N/A
 - **Category:** Logic
 - **Description:** When `usePrevHookAmount` is true, `executionAmount` is set from `prevHook.getOutAmount(account)`. If the previous hook returned zero (e.g., failed silently), the swap proceeds with zero input amount. While `OpenOceanDynamicAmountUpdater` reverts on zero, adding explicit validation in the hook provides defense-in-depth.
@@ -158,7 +158,7 @@ None found.
 
 ### [P2-3] `inputToken` from Hook Data Not Validated Against `desc.srcToken` in ApproveAndSwap
 
-- **File:** `src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol:59-67`
+- **File:** `src/hooks/swappers/openocean/ApproveAndSwapOpenOceanHook.sol:59-67`
 - **SWC:** N/A
 - **Category:** Logic
 - **Description:** The `ApproveAndSwap` variant decodes `inputToken` from hookData offset 0 and uses it for ERC20 approval. It validates `inputToken != outputToken` and `_getInputToken(txData_) != outputToken`, but never validates that `inputToken == _getInputToken(txData_)`. If they differ, the hook approves token A but the swap pulls token B.
@@ -181,7 +181,7 @@ None found.
 
 ### [P2-4] Redundant Triple ABI Decoding of `txData` (Gas Optimization)
 
-- **File:** `src/hooks/swappers/openocean/SwapOpenOceanSparkDexHook.sol:65,72-74,75`
+- **File:** `src/hooks/swappers/openocean/SwapOpenOceanHook.sol:65,72-74,75`
 - **SWC:** N/A
 - **Category:** Gas
 - **Description:** Both hooks decode txData's ABI-encoded parameters up to 3 times per call: once in `_getInputToken()` for validation, once in `OpenOceanDynamicAmountUpdater.updateTxDataAmounts()`, and once in `_isNativeInput()`. Each decode allocates fresh memory for the full SwapDescription struct and CallDescription[] array.
@@ -201,7 +201,7 @@ None found.
 
 ### [P3-2] `_postExecute` Underflow Risk with Fee-on-Transfer Tokens
 
-- **File:** `src/hooks/swappers/openocean/SwapOpenOceanSparkDexHook.sol:110`, `src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol:132`
+- **File:** `src/hooks/swappers/openocean/SwapOpenOceanHook.sol:110`, `src/hooks/swappers/openocean/ApproveAndSwapOpenOceanHook.sol:132`
 - **Category:** Token
 - **Description:** `_postExecute` computes `_getBalance(account, data) - getOutAmount(account)`. If the output token is fee-on-transfer and the post-swap balance is less than the pre-swap balance stored in `outAmount`, this underflows. Solidity 0.8.30 would revert, causing a permanent DoS for that hook execution.
 - **Reference:** vulnerabilities.md Section 10 (Token Integration)
@@ -214,14 +214,14 @@ None found.
 
 ### [P3-4] `abi.encodePacked` in `inspect()` — No Current Collision Risk
 
-- **File:** `src/hooks/swappers/openocean/SwapOpenOceanSparkDexHook.sol:100-102`
+- **File:** `src/hooks/swappers/openocean/SwapOpenOceanHook.sol:100-102`
 - **Category:** Code Quality
 - **Description:** `inspect()` uses `abi.encodePacked` with multiple `address` values. Since all values are fixed-width (20 bytes), there's no collision risk. However, `abi.encode` would be safer if the return format ever changes.
 - **Reference:** vulnerabilities.md Section 9
 
 ### [P3-5] Unused Variable Silencing Pattern
 
-- **File:** `src/hooks/swappers/openocean/SwapOpenOceanSparkDexHook.sol:98`, `src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol:120`
+- **File:** `src/hooks/swappers/openocean/SwapOpenOceanHook.sol:98`, `src/hooks/swappers/openocean/ApproveAndSwapOpenOceanHook.sol:120`
 - **Category:** Code Quality
 - **Description:** `calls;` used as a bare statement to silence the unused variable warning. Standard Solidity convention is to leave unnamed: `(, , ) = abi.decode(...)` or comment the variable name.
 
