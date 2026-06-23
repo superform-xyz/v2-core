@@ -110,6 +110,34 @@ contract OpenOceanHookTest is Test {
         approveAndSwapHook = new ApproveAndSwapOpenOceanHook(router, referrer, NATIVE);
     }
 
+    function test_SwapHook_InspectReturnsDstReceiverOnly() public {
+        address dstReceiver = makeAddr("openOceanDstReceiver");
+        IOpenOceanCaller.CallDescription[] memory calls = new IOpenOceanCaller.CallDescription[](1);
+        calls[0] = _call(0, 0, hex"12345678");
+        bytes memory txData =
+            _buildTxDataWithReceiver(caller, referrer, inputToken, outputToken, 1000, 900, 950, 0, calls, dstReceiver);
+        bytes memory data = _swapHookData(outputToken, 0, 1000, 900, false, txData);
+
+        bytes memory argsEncoded = swapHook.inspect(data);
+
+        assertEq(argsEncoded, abi.encodePacked(dstReceiver));
+        assertEq(argsEncoded.length, 20);
+    }
+
+    function test_ApproveAndSwapHook_InspectReturnsDstReceiverOnly() public {
+        address dstReceiver = makeAddr("approveAndSwapOpenOceanDstReceiver");
+        IOpenOceanCaller.CallDescription[] memory calls = new IOpenOceanCaller.CallDescription[](1);
+        calls[0] = _call(0, 0, hex"12345678");
+        bytes memory txData =
+            _buildTxDataWithReceiver(caller, referrer, inputToken, outputToken, 1000, 900, 950, 0, calls, dstReceiver);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, false, txData);
+
+        bytes memory argsEncoded = approveAndSwapHook.inspect(data);
+
+        assertEq(argsEncoded, abi.encodePacked(dstReceiver));
+        assertEq(argsEncoded.length, 20);
+    }
+
     function test_Updater_ScalesDescFieldsAndLeavesErc20CallsUntouched() public {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
         (,, IOpenOceanCaller.CallDescription[] memory originalCalls) = _decodeSwap(txData);

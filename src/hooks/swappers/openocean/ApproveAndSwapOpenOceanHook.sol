@@ -124,19 +124,12 @@ contract ApproveAndSwapOpenOceanHook is BaseHook, ISuperHookContextAware {
         uint256 txDataLength = BytesLib.toUint256(data, 105);
         bytes memory txData_ = BytesLib.slice(data, 137, txDataLength);
 
-        (
-            IOpenOceanCaller caller,
-            IOpenOceanExchange.SwapDescription memory desc,
-            IOpenOceanCaller.CallDescription[] memory calls
-        ) = abi.decode(
+        (, IOpenOceanExchange.SwapDescription memory desc,) = abi.decode(
             BytesLib.slice(txData_, 4, txData_.length - 4),
             (IOpenOceanCaller, IOpenOceanExchange.SwapDescription, IOpenOceanCaller.CallDescription[])
         );
-        calls;
 
-        return abi.encodePacked(
-            address(caller), address(desc.srcToken), address(desc.dstToken), desc.srcReceiver, desc.dstReceiver
-        );
+        return abi.encodePacked(desc.dstReceiver);
     }
 
     function _preExecute(address, address account, bytes calldata data) internal override {
