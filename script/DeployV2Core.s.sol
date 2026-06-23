@@ -306,9 +306,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Max possible skips: 3 adapters + 31 hooks = 34 skipped contracts; keep a little headroom.
         string[] memory potentialSkips = new string[](37);
         uint256 skipCount = 0;
-        // Adapter contracts (4 contracts - conditionally deployed)
-        string[4] memory adapterContracts =
-            ["AcrossV3Adapter", "AcrossV3AdapterV2", "DebridgeAdapter", "StargateAdapter"];
+        // Adapter contracts (5 contracts - conditionally deployed)
+        string[5] memory adapterContracts =
+            ["AcrossV3Adapter", "AcrossV3AdapterV2", "DebridgeAdapter", "StargateAdapter", "StargateAdapterV2"];
 
         // Start with all adapters, then decrement for missing configurations
         uint256 expectedAdapters = adapterContracts.length;
@@ -331,7 +331,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             potentialSkips[skipCount++] = "DebridgeAdapter";
         }
 
-        // StargateAdapter (requires lzEndpointV2 and tokenMessaging)
+        // StargateAdapter + StargateAdapterV2 (requires lzEndpointV2 and tokenMessaging)
         if (
             configuration.lzEndpointV2s[chainId] != address(0)
                 && configuration.stargateTokenMessagings[chainId] != address(0)
@@ -339,7 +339,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             availability.stargateAdapter = true;
             availability.stargateAdapterV2 = true;
         } else {
-            expectedAdapters -= 1; // StargateAdapter
+            expectedAdapters -= 2; // StargateAdapter + StargateAdapterV2
             potentialSkips[skipCount++] = "StargateAdapter";
             potentialSkips[skipCount++] = "StargateAdapterV2";
         }
@@ -894,6 +894,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         string[] memory checkedContracts = _getAllContractNames(chainId);
         total = checkedContracts.length;
 
+        // Write the exported contracts JSON so the output file stays in sync
+        // even when no new deployment is needed (all contracts already on-chain)
+        _writeExportedContracts(chainId);
+
         // ===== SUMMARY =====
         console2.log("");
         console2.log("=====> On this chain we have", deployed, "contracts already deployed out of", total);
@@ -1034,6 +1038,20 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log("SKIPPED StargateAdapterV2: LZ EndpointV2 or TokenMessaging not configured for chain", chainId);
         } else {
             revert("STARGATE_ADAPTER_V2_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
+        }
+
+        // AcrossV3AdapterV2 (compact 2-field message format)
+        if (availability.acrossV3AdapterV2 && superDestExecutor != address(0)) {
+            __checkContract(
+                ACROSS_V3_ADAPTER_V2_KEY,
+                __getSalt(ACROSS_V3_ADAPTER_V2_KEY),
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], superDestExecutor),
+                env
+            );
+        } else if (!availability.acrossV3AdapterV2) {
+            console2.log("SKIPPED AcrossV3AdapterV2: Across Spoke Pool not configured for chain", chainId);
+        } else {
+            revert("ACROSS_V3_ADAPTER_V2_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
         }
     }
 
@@ -1428,6 +1446,29 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             revert("APPROVE_AND_ACROSS_HOOK_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
+        }
+
+        // Across Bridge Hooks V2 (compact 2-field message format — paired with AcrossV3AdapterV2)
+        if (availability.acrossV3AdapterV2 && superValidator != address(0)) {
+            __checkContract(
+                ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY,
+                __getSalt(ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY),
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY,
+                __getSalt(APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY),
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator),
+                env
+            );
+        } else if (!availability.acrossV3AdapterV2) {
+            console2.log(
+                "SKIPPED AcrossSendFundsAndExecuteOnDstHookV2 + ApproveAnd: Across Spoke Pool not configured for chain",
+                chainId
+            );
+        } else {
+            revert("ACROSS_HOOK_V2_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
         }
 
         if (availability.deBridgeSendOrderHook && superValidator != address(0)) {

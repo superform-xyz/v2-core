@@ -284,10 +284,11 @@ check_v2_addresses() {
     local forge_exit_code
     
     # Run forge script and capture both output and exit code
+    # Note: --chain is intentionally omitted; forge auto-detects from --rpc-url
+    local rpc_value="${!rpc_url_var}"
     check_output=$(forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(bool,uint256,uint64)' true $FORGE_ENV $network_id \
-        --rpc-url ${!rpc_url_var} \
-        --chain $network_id \
+        --rpc-url "$rpc_value" \
         -vv 2>&1)
     forge_exit_code=$?
     
@@ -538,26 +539,9 @@ echo ""
 declare -a FAILED_NETWORKS=()
 declare -a SUCCESSFUL_NETWORKS=()
 
-# Chains where forge doesn't support --chain (not in forge's internal registry)
-FORGE_UNSUPPORTED_CHAINS=("988")
-
 # Check addresses on all networks using current configuration
 for network_def in "${NETWORKS[@]}"; do
     IFS=':' read -r network_id network_name rpc_var <<< "$network_def"
-
-    # Skip chains not supported by forge's --chain flag
-    skip_chain=false
-    for unsupported in "${FORGE_UNSUPPORTED_CHAINS[@]}"; do
-        if [[ "$network_id" == "$unsupported" ]]; then
-            skip_chain=true
-            break
-        fi
-    done
-    if [[ "$skip_chain" == "true" ]]; then
-        echo -e "${YELLOW}⚠️  Skipping $network_name (Chain $network_id) - not supported by forge --chain${NC}"
-        SUCCESSFUL_NETWORKS+=("$network_name (Chain $network_id) [skipped]")
-        continue
-    fi
 
     if check_v2_addresses "$network_id" "$network_name" "$rpc_var"; then
         SUCCESSFUL_NETWORKS+=("$network_name (Chain $network_id)")
@@ -707,23 +691,10 @@ else:
 # Deploy only to networks that need deployment (smart deployment logic)
 deployed_networks=0
 skipped_networks=0
+declare -a FAILED_DEPLOY_NETWORKS=()
 
 for network_def in "${NETWORKS[@]}"; do
     IFS=':' read -r network_id network_name rpc_var <<< "$network_def"
-    
-    # Skip chains not supported by forge's --chain flag
-    skip_chain=false
-    for unsupported in "${FORGE_UNSUPPORTED_CHAINS[@]}"; do
-        if [[ "$network_id" == "$unsupported" ]]; then
-            skip_chain=true
-            break
-        fi
-    done
-    if [[ "$skip_chain" == "true" ]]; then
-        echo -e "${YELLOW}⏭️  Skipping ${network_name^^} MAINNET - Chain $network_id not supported by forge --chain${NC}"
-        ((skipped_networks++))
-        continue
-    fi
 
     # Check deployment status for this network
     if [[ -n "${NETWORK_DEPLOYMENT_STATUS[$network_id]}" ]]; then
@@ -754,7 +725,7 @@ for network_def in "${NETWORKS[@]}"; do
     local chain_verify_flag="$VERIFY_FLAG"
     local chain_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan"
     case $network_id in
-        14|999) # Flare, HyperEVM - aggressive Cloudflare rate limiting
+        14|999|988) # Flare, HyperEVM, Stable - no etherscan support or rate limiting
             chain_verify_flag=""
             chain_etherscan_flags=""
             echo -e "${CYAN}   Verification: ${WHITE}Skipped (rate-limited explorer, use verify script separately)${NC}"
@@ -772,12 +743,13 @@ for network_def in "${NETWORKS[@]}"; do
         cp "$output_json" "$backup_json"
     fi
 
+    local deploy_exit_code
+    # Note: --chain is intentionally omitted; forge auto-detects from --rpc-url
     forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(bool,uint256,uint64)' false $FORGE_ENV $network_id \
         --account $ACCOUNT \
         --password "$KEYSTORE_PASSWORD" \
-        --rpc-url ${!rpc_var} \
-        --chain $network_id \
+        --rpc-url "${!rpc_var}" \
         $chain_etherscan_flags \
         $BROADCAST_FLAG \
         $chain_verify_flag \
@@ -788,6 +760,25 @@ for network_def in "${NETWORKS[@]}"; do
         $GAS_PRICE_FLAG \
         --timeout 300 \
         -vv
+    deploy_exit_code=$?
+
+    if [[ $deploy_exit_code -ne 0 ]]; then
+        echo -e "${RED}❌ ERROR: Forge deployment FAILED for $network_name (Chain $network_id) with exit code $deploy_exit_code${NC}"
+        echo -e "${RED}   The deployment script reverted or encountered an error.${NC}"
+        echo -e "${YELLOW}   Common causes:${NC}"
+        echo -e "${YELLOW}     • A require() check failed (missing dependency, zero address)${NC}"
+        echo -e "${YELLOW}     • RPC connectivity issue during deployment${NC}"
+        echo -e "${YELLOW}     • Insufficient gas or funds${NC}"
+        echo -e "${YELLOW}     • Contract bytecode mismatch${NC}"
+        echo -e "${RED}   Restoring previous output file and continuing with next network...${NC}"
+        # Restore backup if forge failed (output file may be corrupted or missing)
+        if [[ -f "$backup_json" ]]; then
+            cp "$backup_json" "$output_json"
+        fi
+        rm -f "$backup_json"
+        FAILED_DEPLOY_NETWORKS+=("$network_name (Chain $network_id)")
+        continue
+    fi
 
     # Restore any entries that the forge script dropped (e.g., Nexus contracts)
     preserve_existing_json_entries "$output_json" "$backup_json"
@@ -801,17 +792,29 @@ echo ""
 echo -e "${BLUE}📊 Deployment Summary:${NC}"
 echo -e "${GREEN}   • Networks deployed: $deployed_networks${NC}"
 echo -e "${YELLOW}   • Networks skipped: $skipped_networks${NC}"
-
-# Note: Legacy individual network deployments have been replaced by the centralized 
-# network loop above for better maintainability and consistency.
+if [[ ${#FAILED_DEPLOY_NETWORKS[@]} -gt 0 ]]; then
+    echo -e "${RED}   • Networks FAILED: ${#FAILED_DEPLOY_NETWORKS[@]}${NC}"
+    for failed in "${FAILED_DEPLOY_NETWORKS[@]}"; do
+        echo -e "${RED}     - $failed${NC}"
+    done
+fi
 
 print_separator
-echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║                                                                                      ║${NC}"
-echo -e "${GREEN}║${WHITE}                🎉 All V2 Core $ENVIRONMENT $MODE Operations Completed! 🎉                ${GREEN}║${NC}"
-echo -e "${GREEN}║                                                                                      ║${NC}"
-echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
 
-
-
-print_separator 
+if [[ ${#FAILED_DEPLOY_NETWORKS[@]} -gt 0 ]]; then
+    echo -e "${RED}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║                                                                                      ║${NC}"
+    echo -e "${RED}║${WHITE}          ⚠️  V2 Core $ENVIRONMENT $MODE completed with ERRORS ⚠️                   ${RED}║${NC}"
+    echo -e "${RED}║${WHITE}          ${#FAILED_DEPLOY_NETWORKS[@]} network(s) failed deployment                                    ${RED}║${NC}"
+    echo -e "${RED}║                                                                                      ║${NC}"
+    echo -e "${RED}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    print_separator
+    exit 1
+else
+    echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║                                                                                      ║${NC}"
+    echo -e "${GREEN}║${WHITE}                🎉 All V2 Core $ENVIRONMENT $MODE Operations Completed! 🎉                ${GREEN}║${NC}"
+    echo -e "${GREEN}║                                                                                      ║${NC}"
+    echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    print_separator
+fi

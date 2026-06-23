@@ -463,6 +463,7 @@ echo -e "${BLUE}🔍 Checking rFLR hook bytecode availability...${NC}"
 
 RFLR_HOOKS=(
     "ClaimRFLRHook"
+    "ClaimRFLRV2Hook"
     "WithdrawRFLRHook"
     "WithdrawVestedRFLRHook"
 )
@@ -528,8 +529,10 @@ for network_def in "${NETWORKS[@]}"; do
     has_hooks=false
 
     # Per-chain verification flags (some chains don't support Etherscan V2)
+    # Per-chain --chain flag (some chains not in forge's registry)
     local_etherscan_flags=""
     local_verify_flag="$VERIFY_FLAG"
+    local_chain_flag="--chain $network_id"
     case $network_id in
         14|999|988) # Flare, HyperEVM, Stable - no Etherscan support or rate-limited
             local_verify_flag=""
@@ -539,6 +542,11 @@ for network_def in "${NETWORKS[@]}"; do
             if [[ -n "$VERIFY_FLAG" ]]; then
                 local_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan"
             fi
+            ;;
+    esac
+    case $network_id in
+        988) # Stable chain not in forge's chain registry
+            local_chain_flag=""
             ;;
     esac
 
@@ -562,7 +570,7 @@ for network_def in "${NETWORKS[@]}"; do
             --account $ACCOUNT \
             $KEYSTORE_PASSWORD_FLAG \
             --rpc-url ${!rpc_var} \
-            --chain $network_id \
+            $local_chain_flag \
             $local_etherscan_flags \
             $BROADCAST_FLAG \
             $local_verify_flag \
@@ -592,7 +600,7 @@ for network_def in "${NETWORKS[@]}"; do
             --account $ACCOUNT \
             $KEYSTORE_PASSWORD_FLAG \
             --rpc-url ${!rpc_var} \
-            --chain $network_id \
+            $local_chain_flag \
             $local_etherscan_flags \
             $BROADCAST_FLAG \
             $local_verify_flag \
@@ -622,7 +630,7 @@ for network_def in "${NETWORKS[@]}"; do
             --account $ACCOUNT \
             $KEYSTORE_PASSWORD_FLAG \
             --rpc-url ${!rpc_var} \
-            --chain $network_id \
+            $local_chain_flag \
             $local_etherscan_flags \
             $BROADCAST_FLAG \
             $local_verify_flag \
@@ -652,7 +660,7 @@ for network_def in "${NETWORKS[@]}"; do
             --account $ACCOUNT \
             $KEYSTORE_PASSWORD_FLAG \
             --rpc-url ${!rpc_var} \
-            --chain $network_id \
+            $local_chain_flag \
             $local_etherscan_flags \
             $BROADCAST_FLAG \
             $local_verify_flag \
@@ -682,7 +690,7 @@ for network_def in "${NETWORKS[@]}"; do
             --account $ACCOUNT \
             $KEYSTORE_PASSWORD_FLAG \
             --rpc-url ${!rpc_var} \
-            --chain $network_id \
+            $local_chain_flag \
             $local_etherscan_flags \
             $BROADCAST_FLAG \
             $local_verify_flag \
@@ -712,7 +720,7 @@ for network_def in "${NETWORKS[@]}"; do
             --account $ACCOUNT \
             $KEYSTORE_PASSWORD_FLAG \
             --rpc-url ${!rpc_var} \
-            --chain $network_id \
+            $local_chain_flag \
             $local_etherscan_flags \
             $BROADCAST_FLAG \
             $local_verify_flag \

@@ -44,4 +44,8 @@ interface IRNat {
     /// @param owner The address to query
     /// @return The claimable amount
     function getClaimableRewards(uint256 projectId, address owner) external view returns (uint128);
+
+    /// @notice Returns the total number of registered projects
+    /// @return The number of projects
+    function getProjectsCount() external view returns (uint256);
 }

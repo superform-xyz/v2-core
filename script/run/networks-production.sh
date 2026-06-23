@@ -6,9 +6,9 @@
 # Define production networks
 # Format: "CHAIN_ID:NetworkName:RPC_VAR"
 NETWORKS=(
+    "56:BNB:BSC_MAINNET"
     "1:Ethereum:ETH_MAINNET"
     "8453:Base:BASE_MAINNET"
-    "56:BNB:BSC_MAINNET"
     "42161:Arbitrum:ARBITRUM_MAINNET"
     "10:Optimism:OPTIMISM_MAINNET"
     "137:Polygon:POLYGON_MAINNET"
