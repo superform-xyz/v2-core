@@ -621,7 +621,7 @@ contract PendlePTAmortizedOracleV2Test is Test {
                     IYIELDSOURCEORACLE IMPLEMENTATION TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_GetPricePerShare_UsesDefaultDuration() public {
+    function test_GetPricePerShare_UsesDefaultDuration() public view {
         // V2: Uses DEFAULT_TWAP_DURATION constant for IYieldSourceOracle compatibility
         uint256 price = oracle.getPricePerShare(address(market));
         assertApproxEqRel(price, 0.9e18, 0.02e18);

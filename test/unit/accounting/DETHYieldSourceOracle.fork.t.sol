@@ -43,14 +43,14 @@ contract DETHYieldSourceOracleForkTest is Test {
                     CONSTRUCTOR / IMMUTABLE RESOLUTION
     //////////////////////////////////////////////////////////////*/
 
-    function test_fork_dynamicResolution() public onlyFork {
+    function test_fork_dynamicResolution() public view onlyFork {
         // Verify dynamic resolution reaches correct Machine and token addresses
         assertEq(oracle.decimals(ASYNC_REDEEMER), 18);
         uint256 pps = oracle.getPricePerShare(ASYNC_REDEEMER);
         assertGt(pps, 0, "PPS should be non-zero via dynamic resolution");
     }
 
-    function test_fork_decimals() public onlyFork {
+    function test_fork_decimals() public view onlyFork {
         assertEq(oracle.decimals(ASYNC_REDEEMER), 18);
         assertEq(oracle.decimals(ASYNC_REDEEMER), IERC20Metadata(DETH).decimals());
     }
@@ -60,7 +60,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Oracle PPS must exactly equal Machine.convertToAssets(1e18)
-    function test_fork_pps_exactMatchesMachine() public onlyFork {
+    function test_fork_pps_exactMatchesMachine() public view onlyFork {
         uint256 oraclePPS = oracle.getPricePerShare(ASYNC_REDEEMER);
         uint256 machinePPS = IMachine(MACHINE).convertToAssets(1e18);
 
@@ -72,14 +72,14 @@ contract DETHYieldSourceOracleForkTest is Test {
     }
 
     /// @notice PPS sanity: should be between 0.9 and 2.0 WETH/DETH (yield-bearing, not depegged)
-    function test_fork_pps_sanityBounds() public onlyFork {
+    function test_fork_pps_sanityBounds() public view onlyFork {
         uint256 pps = oracle.getPricePerShare(ASYNC_REDEEMER);
         assertGt(pps, 0.9e18, "PPS below 0.9 - possible depeg or exploit");
         assertLt(pps, 2e18, "PPS above 2.0 - suspicious appreciation");
     }
 
     /// @notice Inverse PPS consistency: convertToAssets(convertToShares(X)) ≈ X
-    function test_fork_pps_inverseConsistency() public onlyFork {
+    function test_fork_pps_inverseConsistency() public view onlyFork {
         uint256 oneETH = 1e18;
 
         // WETH → DETH → WETH round-trip
@@ -102,7 +102,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Compare oracle vs Machine at various deposit sizes
-    function test_fork_getShareOutput_matchesMachine_variousAmounts() public onlyFork {
+    function test_fork_getShareOutput_matchesMachine_variousAmounts() public view onlyFork {
         uint256[5] memory amounts = [uint256(0.01e18), 1e18, 10e18, 100e18, 1000e18];
 
         for (uint256 i; i < amounts.length; ++i) {
@@ -113,7 +113,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     }
 
     /// @notice Compare oracle vs Machine asset output at various redemption sizes
-    function test_fork_getAssetOutput_matchesMachine_variousAmounts() public onlyFork {
+    function test_fork_getAssetOutput_matchesMachine_variousAmounts() public view onlyFork {
         uint256[5] memory amounts = [uint256(0.01e18), 1e18, 10e18, 100e18, 1000e18];
 
         for (uint256 i; i < amounts.length; ++i) {
@@ -128,7 +128,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice getWithdrawalShareOutput ceil rounding: redeemed assets must cover the requested amount
-    function test_fork_withdrawalShares_ceilGuarantee() public onlyFork {
+    function test_fork_withdrawalShares_ceilGuarantee() public view onlyFork {
         uint256[5] memory amounts = [uint256(0.01e18), 1e18, 7.77e18, 100e18, 999.99e18];
 
         for (uint256 i; i < amounts.length; ++i) {
@@ -144,7 +144,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     }
 
     /// @notice getWithdrawalShareOutput >= getShareOutput for same assets (ceil >= floor)
-    function test_fork_withdrawalShares_geRegularShares() public onlyFork {
+    function test_fork_withdrawalShares_geRegularShares() public view onlyFork {
         uint256 assetsIn = 50e18;
 
         uint256 withdrawalShares = oracle.getWithdrawalShareOutput(ASYNC_REDEEMER, address(0), assetsIn);
@@ -158,7 +158,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice getTVL must exactly equal Machine.lastTotalAum()
-    function test_fork_tvl_matchesMachineAum() public onlyFork {
+    function test_fork_tvl_matchesMachineAum() public view onlyFork {
         uint256 oracleTVL = oracle.getTVL(ASYNC_REDEEMER);
         uint256 machineAum = IMachine(MACHINE).lastTotalAum();
 
@@ -168,7 +168,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     }
 
     /// @notice TVL cross-check: lastTotalAum ≈ totalSupply * PPS (within rounding)
-    function test_fork_tvl_crossCheckWithSupplyAndPPS() public onlyFork {
+    function test_fork_tvl_crossCheckWithSupplyAndPPS() public view onlyFork {
         uint256 machineAum = IMachine(MACHINE).lastTotalAum();
         uint256 dethSupply = IERC20(DETH).totalSupply();
         uint256 pps = oracle.getPricePerShare(ASYNC_REDEEMER);
@@ -193,7 +193,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Test with a real DETH holder who has only held shares (no pending)
-    function test_fork_tvlByOwner_realHolderHeldOnly() public onlyFork {
+    function test_fork_tvlByOwner_realHolderHeldOnly() public view onlyFork {
         // Find a DETH holder by checking known addresses
         // Use the Machine contract itself or any holder with balance > 0
         IDETHAsyncRedeemer redeemer = IDETHAsyncRedeemer(ASYNC_REDEEMER);
@@ -221,7 +221,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     }
 
     /// @notice Test with a real address that has BOTH held DETH and pending redemptions
-    function test_fork_tvlByOwner_realHolderWithPending() public onlyFork {
+    function test_fork_tvlByOwner_realHolderWithPending() public view onlyFork {
         IDETHAsyncRedeemer redeemer = IDETHAsyncRedeemer(ASYNC_REDEEMER);
         uint256 lastFinalized = redeemer.lastFinalizedRequestId();
         uint256 nextId = redeemer.nextRequestId();
@@ -262,7 +262,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     }
 
     /// @notice Test with a real address that has ONLY pending (zero held DETH)
-    function test_fork_tvlByOwner_realHolderOnlyPending() public onlyFork {
+    function test_fork_tvlByOwner_realHolderOnlyPending() public view onlyFork {
         IDETHAsyncRedeemer redeemer = IDETHAsyncRedeemer(ASYNC_REDEEMER);
         uint256 lastFinalized = redeemer.lastFinalizedRequestId();
         uint256 nextId = redeemer.nextRequestId();
@@ -298,7 +298,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     }
 
     /// @notice Verify every pending request owner's TVL is >= their pending value
-    function test_fork_tvlByOwner_allPendingOwnersIncluded() public onlyFork {
+    function test_fork_tvlByOwner_allPendingOwnersIncluded() public view onlyFork {
         IDETHAsyncRedeemer redeemer = IDETHAsyncRedeemer(ASYNC_REDEEMER);
         uint256 lastFinalized = redeemer.lastFinalizedRequestId();
         uint256 nextId = redeemer.nextRequestId();
@@ -375,7 +375,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice getPricePerShareMultiple returns same as individual calls
-    function test_fork_batchPPS_matchesSingle() public onlyFork {
+    function test_fork_batchPPS_matchesSingle() public view onlyFork {
         address[] memory sources = new address[](3);
         sources[0] = ASYNC_REDEEMER;
         sources[1] = ASYNC_REDEEMER;
@@ -390,7 +390,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     }
 
     /// @notice getTVLMultiple returns same as individual calls
-    function test_fork_batchTVL_matchesSingle() public onlyFork {
+    function test_fork_batchTVL_matchesSingle() public view onlyFork {
         address[] memory sources = new address[](2);
         sources[0] = ASYNC_REDEEMER;
         sources[1] = ASYNC_REDEEMER;
@@ -408,7 +408,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Verify PPS derived from getAssetOutput matches getPricePerShare
-    function test_fork_pps_derivedFromGetAssetOutput() public onlyFork {
+    function test_fork_pps_derivedFromGetAssetOutput() public view onlyFork {
         uint256 pps = oracle.getPricePerShare(ASYNC_REDEEMER);
         uint256 derivedPPS = oracle.getAssetOutput(ASYNC_REDEEMER, address(0), 1e18);
 
@@ -419,7 +419,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     /// @dev Machine's convertToAssets uses mulDiv(shares, totalAum, totalSupply) internally.
     ///      Our PPS = convertToAssets(1e18), so shares * PPS / 1e18 can differ from convertToAssets(shares)
     ///      due to intermediate rounding. The delta scales with share count but stays negligible.
-    function test_fork_pps_consistentWithConversion() public onlyFork {
+    function test_fork_pps_consistentWithConversion() public view onlyFork {
         uint256 pps = oracle.getPricePerShare(ASYNC_REDEEMER);
         uint256 shares = 50e18;
 
@@ -437,7 +437,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Fuzz: oracle getShareOutput always matches Machine.convertToShares
-    function testFuzz_fork_getShareOutput_matchesMachine(uint256 assetsIn) public onlyFork {
+    function testFuzz_fork_getShareOutput_matchesMachine(uint256 assetsIn) public view onlyFork {
         assetsIn = bound(assetsIn, 0, type(uint128).max);
 
         uint256 oracleResult = oracle.getShareOutput(ASYNC_REDEEMER, address(0), assetsIn);
@@ -451,7 +451,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     }
 
     /// @notice Fuzz: oracle getAssetOutput always matches Machine.convertToAssets
-    function testFuzz_fork_getAssetOutput_matchesMachine(uint256 sharesIn) public onlyFork {
+    function testFuzz_fork_getAssetOutput_matchesMachine(uint256 sharesIn) public view onlyFork {
         sharesIn = bound(sharesIn, 0, type(uint128).max);
 
         uint256 oracleResult = oracle.getAssetOutput(ASYNC_REDEEMER, address(0), sharesIn);
@@ -465,7 +465,7 @@ contract DETHYieldSourceOracleForkTest is Test {
     }
 
     /// @notice Fuzz: withdrawal shares always cover requested assets
-    function testFuzz_fork_withdrawalShares_coverAssets(uint256 assetsIn) public onlyFork {
+    function testFuzz_fork_withdrawalShares_coverAssets(uint256 assetsIn) public view onlyFork {
         assetsIn = bound(assetsIn, 1, type(uint64).max);
 
         uint256 withdrawalShares = oracle.getWithdrawalShareOutput(ASYNC_REDEEMER, address(0), assetsIn);

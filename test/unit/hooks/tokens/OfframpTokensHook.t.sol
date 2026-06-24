@@ -188,7 +188,7 @@ contract OfframpTokensHookTest is Helpers {
         MockERC20 token4 = new MockERC20("Mock Token 4", "MTK4", 18);
         
         uint256 amount3 = 3000;
-        uint256 amount4 = 4000;
+
         
         // Mint to token1 and token3 only
         MockERC20(token1).mint(mockAccount, amount1);
@@ -210,7 +210,7 @@ contract OfframpTokensHookTest is Helpers {
         
         // Verify first transfer is token1
         assertEq(executions[1].target, token1, "First transfer should be token1");
-        (address recipient1, uint256 transferAmount1) = abi.decode(
+        (, uint256 transferAmount1) = abi.decode(
             BytesLib.slice(executions[1].callData, 4, executions[1].callData.length - 4),
             (address, uint256)
         );
@@ -218,14 +218,14 @@ contract OfframpTokensHookTest is Helpers {
         
         // Verify second transfer is token3
         assertEq(executions[2].target, address(token3), "Second transfer should be token3");
-        (address recipient3, uint256 transferAmount3) = abi.decode(
+        (, uint256 transferAmount3) = abi.decode(
             BytesLib.slice(executions[2].callData, 4, executions[2].callData.length - 4),
             (address, uint256)
         );
         assertEq(transferAmount3, amount3, "Token3 amount should match");
     }
     
-    function test_Build_AllZeroBalances() public {
+    function test_Build_AllZeroBalances() public view {
         // Edge case: all tokens have zero balances
         // Should only return hook callbacks, no transfers
         
@@ -278,7 +278,7 @@ contract OfframpTokensHookTest is Helpers {
         
         // Verify token1 transfer
         assertEq(executions[1].target, token1, "Second transfer should be token1");
-        (address recipient, uint256 transferAmount) = abi.decode(
+        (, uint256 transferAmount) = abi.decode(
             BytesLib.slice(executions[1].callData, 4, executions[1].callData.length - 4),
             (address, uint256)
         );

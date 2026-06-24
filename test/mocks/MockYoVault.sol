@@ -152,7 +152,7 @@ contract MockYoVault is ERC20, IYoVault {
     ///      Pending is tracked by owner (not receiver) to match pendingRedeemRequest(owner) semantics.
     ///      The receiver parameter indicates who will receive assets when fulfilled, but the
     ///      pending request is associated with the owner for TVL tracking purposes.
-    function requestRedeem(uint256 shares, address receiver, address owner) external override returns (uint256) {
+    function requestRedeem(uint256 shares, address /* receiver */, address owner) external override returns (uint256) {
         require(balanceOf(owner) >= shares, "Insufficient shares");
         uint256 assets_ = convertToAssets(shares);
         _burn(owner, shares);

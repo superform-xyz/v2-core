@@ -138,7 +138,7 @@ contract OpenOceanHookTest is Test {
         assertEq(argsEncoded.length, 20);
     }
 
-    function test_Updater_ScalesDescFieldsAndLeavesErc20CallsUntouched() public {
+    function test_Updater_ScalesDescFieldsAndLeavesErc20CallsUntouched() public view {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
         (,, IOpenOceanCaller.CallDescription[] memory originalCalls) = _decodeSwap(txData);
 
@@ -154,7 +154,7 @@ contract OpenOceanHookTest is Test {
         _assertCallsUnchanged(originalCalls, calls);
     }
 
-    function test_Updater_ScalesNativeValuesAndLeavesNativeCallDataUntouched() public {
+    function test_Updater_ScalesNativeValuesAndLeavesNativeCallDataUntouched() public view {
         bytes memory txData = _buildNativeSplitTxData(1001, 900, 950);
         (,, IOpenOceanCaller.CallDescription[] memory originalCalls) = _decodeSwap(txData);
 
@@ -173,7 +173,7 @@ contract OpenOceanHookTest is Test {
         _assertCallDataUnchanged(originalCalls, calls);
     }
 
-    function test_Updater_LeavesZeroValueNativeCallsUntouched() public {
+    function test_Updater_LeavesZeroValueNativeCallsUntouched() public view {
         bytes memory txData = _buildNativeZeroValueTxData(1000, 900, 950);
         (,, IOpenOceanCaller.CallDescription[] memory originalCalls) = _decodeSwap(txData);
 
@@ -440,7 +440,7 @@ contract OpenOceanHookTest is Test {
         harness.updateTxDataAmounts(txData, referrer, account, 2000, 1000);
     }
 
-    function test_Updater_AllowsUnknownErc20RouteSelectors() public {
+    function test_Updater_AllowsUnknownErc20RouteSelectors() public view {
         IOpenOceanCaller.CallDescription[] memory calls = new IOpenOceanCaller.CallDescription[](1);
         calls[0] = _call(0, 0, hex"12345678");
         bytes memory txData = _buildTxData(caller, inputToken, outputToken, 1000, 900, 950, 0, calls);
@@ -455,7 +455,7 @@ contract OpenOceanHookTest is Test {
 
     // ==================== Security Fix Tests ====================
 
-    function test_Updater_ReturnsSrcAndDstTokens() public {
+    function test_Updater_ReturnsSrcAndDstTokens() public view {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 0);
 
         (, address srcToken, address dstToken) = harness.updateTxDataAmounts(txData, referrer, account, 2000, 1000);
@@ -464,7 +464,7 @@ contract OpenOceanHookTest is Test {
         assertEq(dstToken, outputToken);
     }
 
-    function test_Updater_ReturnsNativeSrcToken() public {
+    function test_Updater_ReturnsNativeSrcToken() public view {
         bytes memory txData = _buildNativeSplitTxData(1001, 900, 950);
 
         (, address srcToken, address dstToken) = harness.updateTxDataAmounts(txData, referrer, account, 2000, 1001);

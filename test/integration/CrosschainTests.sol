@@ -4365,6 +4365,7 @@ contract CrosschainTests is BaseTest {
 
     function _prepareOPDeposit4626Message(uint256 amountPerVault)
         internal
+        view
         returns (bytes memory message, address accountToUse, TargetExecutorMessage memory messageData)
     {
         {

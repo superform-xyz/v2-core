@@ -117,7 +117,7 @@ contract SuperDestinationExecutorSimulations is SuperExecutorBaseSimulations, IS
             abi.encode(executorCalldata, uint64(block.chainid), account, address(this), dstTokens, intentAmounts);
 
         // The userSignatureData is passed directly from the adapter
-        bytes4 validationResult = ISuperDestinationValidator(SUPER_DESTINATION_VALIDATOR).isValidDestinationSignature(
+        ISuperDestinationValidator(SUPER_DESTINATION_VALIDATOR).isValidDestinationSignature(
             account, abi.encode(userSignatureData, destinationData)
         );
 

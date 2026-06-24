@@ -381,7 +381,7 @@ contract CCTPHooks is Helpers {
                        PRE/POST EXECUTE TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_CCTP_PreExecute() public {
+    function test_CCTP_PreExecute() public view {
         // preExecute is a no-op in the hook itself (handled by BaseHook)
         // Just verify it doesn't revert
         bytes memory data = _encodeCCTPData(false, false);
@@ -389,7 +389,7 @@ contract CCTPHooks is Helpers {
         assertTrue(executions.length > 0);
     }
 
-    function test_CCTP_PostExecute() public {
+    function test_CCTP_PostExecute() public view {
         // postExecute is a no-op in the hook itself (handled by BaseHook)
         bytes memory data = _encodeCCTPData(false, false);
         Execution[] memory executions = cctpHook.build(address(0), mockAccount, data);

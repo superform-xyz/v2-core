@@ -677,7 +677,7 @@ contract BridgeHooks is Helpers {
         new ApproveAndAcrossSendFundsAndExecuteOnDstHook(address(this), address(0));
     }
 
-    function test_ApproveAndAcrossV3_Build_ERC20() public {
+    function test_ApproveAndAcrossV3_Build_ERC20() public view {
         bytes memory data = _encodeAcrossData(false);
 
         Execution[] memory executions = approveAndAcrossV3hook.build(address(0), mockAccount, data);
@@ -811,7 +811,7 @@ contract BridgeHooks is Helpers {
     }
 
 
-    function test_ApproveAndAcrossV3_Build_WithMessage() public {
+    function test_ApproveAndAcrossV3_Build_WithMessage() public view {
         bytes memory data = _encodeAcrossData(false);
 
         Execution[] memory executions = approveAndAcrossV3hook.build(address(0), mockAccount, data);

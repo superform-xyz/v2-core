@@ -199,6 +199,7 @@ contract StargateHooks is Helpers {
     }
 
     function test_StargateSend_Build_RevertIf_PoolZero() public {
+
         address originalPool = mockStargatePool;
         mockStargatePool = address(0);
         bytes memory data = _encodeStargateData(false, 0, false);
@@ -660,7 +661,7 @@ contract StargateHooks is Helpers {
         approveAndStargateHook.build(address(0), mockAccount, data);
     }
 
-    function test_StargateSend_Build_ComposeMsgExactlyMinLength() public {
+    function test_StargateSend_Build_ComposeMsgExactlyMinLength() public view {
         // Create a valid composeMsg that's exactly at the boundary (>= 160 bytes)
         // Using proper ABI encoding which produces > 160 bytes
         address[] memory dstTokens = new address[](1);
@@ -1738,7 +1739,6 @@ contract StargateHooks is Helpers {
     function test_StargateSend_Build_LzMulticallMode_PoolValidationSkipped() public {
         // No token() mock needed for mode 3 - pool validation is skipped
         address lzMulticallAddr = makeAddr("lzMulticall");
-        address originalPool = mockStargatePool;
 
         bytes memory executeCalldata = _buildMockExecuteCalldata();
         bytes memory fixedPart = abi.encodePacked(
