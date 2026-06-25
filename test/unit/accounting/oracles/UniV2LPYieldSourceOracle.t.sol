@@ -38,10 +38,11 @@ contract UniV2LPYieldSourceOracleTest is Test {
         feed0.setLatestAnswer(1e8); // $1
         feed1.setLatestAnswer(1e8); // $1
 
-        // Create ledger config and oracle
+        // Create ledger config and oracle (sequencer disabled, no grace period)
         ledgerConfig = address(new SuperLedgerConfiguration());
         oracle = new UniV2LPYieldSourceOracle(
-            ledgerConfig, address(feed0), address(feed1), address(token0), address(token1), MAX_STALENESS
+            ledgerConfig, address(feed0), address(feed1), address(token0), address(token1),
+            MAX_STALENESS, address(0), 0
         );
 
         // Default pool state: 1000 token0, 1000 token1, 1000 LP
@@ -62,26 +63,48 @@ contract UniV2LPYieldSourceOracleTest is Test {
         assertEq(oracle.TOKEN0_SCALE(), 1e18);
         assertEq(oracle.TOKEN1_DECIMALS(), 18);
         assertEq(oracle.MAX_STALENESS(), MAX_STALENESS);
+        assertEq(address(oracle.SEQUENCER_UPTIME_FEED()), address(0));
+        assertEq(oracle.GRACE_PERIOD(), 0);
     }
 
     function test_constructor_revertsOnZeroFeed0() public {
         vm.expectRevert(UniV2LPYieldSourceOracle.ZERO_ADDRESS.selector);
-        new UniV2LPYieldSourceOracle(ledgerConfig, address(0), address(feed1), address(token0), address(token1), MAX_STALENESS);
+        new UniV2LPYieldSourceOracle(
+            ledgerConfig, address(0), address(feed1), address(token0), address(token1),
+            MAX_STALENESS, address(0), 0
+        );
     }
 
     function test_constructor_revertsOnZeroFeed1() public {
         vm.expectRevert(UniV2LPYieldSourceOracle.ZERO_ADDRESS.selector);
-        new UniV2LPYieldSourceOracle(ledgerConfig, address(feed0), address(0), address(token0), address(token1), MAX_STALENESS);
+        new UniV2LPYieldSourceOracle(
+            ledgerConfig, address(feed0), address(0), address(token0), address(token1),
+            MAX_STALENESS, address(0), 0
+        );
     }
 
     function test_constructor_revertsOnZeroToken0() public {
         vm.expectRevert(UniV2LPYieldSourceOracle.ZERO_ADDRESS.selector);
-        new UniV2LPYieldSourceOracle(ledgerConfig, address(feed0), address(feed1), address(0), address(token1), MAX_STALENESS);
+        new UniV2LPYieldSourceOracle(
+            ledgerConfig, address(feed0), address(feed1), address(0), address(token1),
+            MAX_STALENESS, address(0), 0
+        );
     }
 
     function test_constructor_revertsOnZeroToken1() public {
         vm.expectRevert(UniV2LPYieldSourceOracle.ZERO_ADDRESS.selector);
-        new UniV2LPYieldSourceOracle(ledgerConfig, address(feed0), address(feed1), address(token0), address(0), MAX_STALENESS);
+        new UniV2LPYieldSourceOracle(
+            ledgerConfig, address(feed0), address(feed1), address(token0), address(0),
+            MAX_STALENESS, address(0), 0
+        );
+    }
+
+    function test_constructor_revertsOnZeroMaxStaleness() public {
+        vm.expectRevert(UniV2LPYieldSourceOracle.INVALID_STALENESS.selector);
+        new UniV2LPYieldSourceOracle(
+            ledgerConfig, address(feed0), address(feed1), address(token0), address(token1),
+            0, address(0), 0
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -137,25 +160,14 @@ contract UniV2LPYieldSourceOracleTest is Test {
         wethFeed.setLatestAnswer(4000e8);
 
         UniV2LPYieldSourceOracle localOracle = new UniV2LPYieldSourceOracle(
-            ledgerConfig, address(usdcFeed), address(wethFeed), address(usdc), address(weth), MAX_STALENESS
+            ledgerConfig, address(usdcFeed), address(wethFeed), address(usdc), address(weth),
+            MAX_STALENESS, address(0), 0
         );
 
         // 4M USDC and 1000 WETH
         usdcWethPair.setReserves(4_000_000e6, 1000e18);
         usdcWethPair.setTotalSupply(2e18);
 
-        // p1InToken0 = 4000e8 * 1e8 * 1e6 / (1e8 * 1e8) = 4000e6
-        // r1ValueInToken0 = 1000e18 * 4000e6 / 1e18 = 4000e6 = 4e9
-        // sqrt(4e12 * 4e9) = sqrt(1.6e22) ... let me recalculate
-        // r0 = 4_000_000e6 = 4e12, r1ValueInToken0 = 1000e18 * 4000e6 / 1e18 = 4e9
-        // Wait: r1ValueInToken0 = mulDiv(1000e18, 4000e6, 1e18) = 4000e6 = 4e9
-        // sqrt(4e12 * 4e9) = sqrt(16e21) = 4e10.xxx -- let me just check the final
-        // Actually: r1ValueInToken0 = 1000 * 4000e6 / 1 = 4_000_000e6 = 4e12
-        // Hmm. Let me redo: mulDiv(1000e18, 4000e6, 1e18) = 1000 * 4000e6 = 4_000_000e6 = 4e12
-        // No wait: mulDiv(a,b,c) = a*b/c = 1000e18 * 4000e6 / 1e18 = 4000e6 = 4e9
-        // 1000e18 = 1e21. 1e21 * 4e9 / 1e18 = 4e12. Yes that's right.
-        // sqrt(4e12 * 4e12) = sqrt(16e24) = 4e12
-        // PPS = 2 * 4e12 * 1e18 / 2e18 = 4e12
         uint256 pps = localOracle.getPricePerShare(address(usdcWethPair));
         assertEq(pps, 4e12, "PPS should be 4M USDC (6-dec) per LP token");
     }
@@ -173,17 +185,14 @@ contract UniV2LPYieldSourceOracleTest is Test {
         usdcFeed.setLatestAnswer(1e8);
 
         UniV2LPYieldSourceOracle localOracle = new UniV2LPYieldSourceOracle(
-            ledgerConfig, address(wethFeed), address(usdcFeed), address(weth), address(usdc), MAX_STALENESS
+            ledgerConfig, address(wethFeed), address(usdcFeed), address(weth), address(usdc),
+            MAX_STALENESS, address(0), 0
         );
 
         // 1000 WETH and 4M USDC
         wethUsdcPair.setReserves(1000e18, 4_000_000e6);
         wethUsdcPair.setTotalSupply(2e18);
 
-        // p1InToken0 = 1e8 * 4000e8 * 1e18 / (4000e8 * 1e8) = 1e18 / 4000 = 2.5e14
-        // r1ValueInToken0 = mulDiv(4_000_000e6, 2.5e14, 1e6) = 4e12 * 2.5e14 / 1e6 = 1e21
-        // sqrt(1e21 * 1e21) = 1e21
-        // PPS = 2 * 1e21 * 1e18 / 2e18 = 1e21
         uint256 pps = localOracle.getPricePerShare(address(wethUsdcPair));
         assertEq(pps, 1e21, "PPS should be 1000 WETH (18-dec) per LP token");
     }
@@ -201,16 +210,13 @@ contract UniV2LPYieldSourceOracleTest is Test {
         usdtFeed.setLatestAnswer(1e8);
 
         UniV2LPYieldSourceOracle localOracle = new UniV2LPYieldSourceOracle(
-            ledgerConfig, address(usdcFeed), address(usdtFeed), address(usdc), address(usdt), MAX_STALENESS
+            ledgerConfig, address(usdcFeed), address(usdtFeed), address(usdc), address(usdt),
+            MAX_STALENESS, address(0), 0
         );
 
         stablePair.setReserves(1000e6, 1000e6);
         stablePair.setTotalSupply(1000e18);
 
-        // p1InToken0 = 1e8 * 1e8 * 1e6 / (1e8 * 1e8) = 1e6
-        // r1ValueInToken0 = mulDiv(1000e6, 1e6, 1e6) = 1000e6 = 1e9
-        // sqrt(1e9 * 1e9) = 1e9
-        // PPS = 2 * 1e9 * 1e18 / 1000e18 = 2e6
         uint256 pps = localOracle.getPricePerShare(address(stablePair));
         assertEq(pps, 2e6, "PPS should be 2 USDC (6-dec) per LP");
     }
@@ -228,20 +234,14 @@ contract UniV2LPYieldSourceOracleTest is Test {
         wethFeed.setLatestAnswer(4000e8);
 
         UniV2LPYieldSourceOracle localOracle = new UniV2LPYieldSourceOracle(
-            ledgerConfig, address(wbtcFeed), address(wethFeed), address(wbtc), address(weth), MAX_STALENESS
+            ledgerConfig, address(wbtcFeed), address(wethFeed), address(wbtc), address(weth),
+            MAX_STALENESS, address(0), 0
         );
 
         // 100 WBTC + 2500 WETH (1 BTC = 25 ETH)
         btcEthPair.setReserves(100e8, 2500e18);
         btcEthPair.setTotalSupply(1e18);
 
-        // p1InToken0 = 4000e8 * 1e8 * 1e8 / (100000e8 * 1e8) = 4e18 * 1e8 / (1e13 * 1e8) = 4e18 / 1e13 = 4e5
-        // Wait: mulDiv(4000e8 * 1e8, 1e8, 100000e8 * 1e8)
-        //     = mulDiv(4e11 * 1e8, 1e8, 1e13 * 1e8)
-        //     = mulDiv(4e19, 1e8, 1e21) = 4e27 / 1e21 = 4e6
-        // r1ValueInToken0 = mulDiv(2500e18, 4e6, 1e18) = 2500 * 4e6 = 1e10
-        // sqrt(100e8 * 1e10) = sqrt(1e10 * 1e10) = 1e10
-        // PPS = 2 * 1e10 * 1e18 / 1e18 = 2e10
         uint256 pps = localOracle.getPricePerShare(address(btcEthPair));
         assertEq(pps, 2e10, "PPS should be 200 WBTC (8-dec) per LP");
     }
@@ -343,7 +343,8 @@ contract UniV2LPYieldSourceOracleTest is Test {
         feed1_18dec.setLatestAnswer(1e18);
 
         UniV2LPYieldSourceOracle localOracle = new UniV2LPYieldSourceOracle(
-            ledgerConfig, address(feed0_8dec), address(feed1_18dec), address(token0), address(token1), MAX_STALENESS
+            ledgerConfig, address(feed0_8dec), address(feed1_18dec), address(token0), address(token1),
+            MAX_STALENESS, address(0), 0
         );
 
         // p1InToken0 = 1e18 * 1e8 * 1e18 / (1e8 * 1e18) = 1e18 (correct 1:1 cross-rate)
@@ -376,7 +377,8 @@ contract UniV2LPYieldSourceOracleTest is Test {
         wethFeed.setLatestAnswer(4000e8);
 
         UniV2LPYieldSourceOracle localOracle = new UniV2LPYieldSourceOracle(
-            ledgerConfig, address(usdcFeed), address(wethFeed), address(usdc), address(weth), MAX_STALENESS
+            ledgerConfig, address(usdcFeed), address(wethFeed), address(usdc), address(weth),
+            MAX_STALENESS, address(0), 0
         );
 
         // Before: 4M USDC + 1000 WETH
@@ -599,8 +601,7 @@ contract UniV2LPYieldSourceOracleTest is Test {
 
     function test_getPricePerShare_revertsOnZeroCrossRate() public {
         // Use 0-decimal token0 so TOKEN0_SCALE = 1
-        // p1InToken0 = mulDiv(price1 * FEED0_SCALE, TOKEN0_SCALE, price0 * FEED1_SCALE)
-        //            = mulDiv(1 * 1e8, 1, 1e8 * 1e8) = 1e8 / 1e16 = 0 (truncation)
+        // p1InToken0 = mulDiv(1, 1e8 * 1, 1e8 * 1e8) = 1e8 / 1e16 = 0 (truncation)
         MockERC20 zeroDecToken = new MockERC20("ZERO", "ZERO", 0);
         MockERC20 normalToken = new MockERC20("NORM", "NORM", 18);
         MockUniswapV2Pair localPair = new MockUniswapV2Pair(address(zeroDecToken), address(normalToken));
@@ -613,7 +614,8 @@ contract UniV2LPYieldSourceOracleTest is Test {
         localFeed1.setLatestAnswer(1);   // $0.00000001 -- very cheap token1
 
         UniV2LPYieldSourceOracle localOracle = new UniV2LPYieldSourceOracle(
-            ledgerConfig, address(localFeed0), address(localFeed1), address(zeroDecToken), address(normalToken), MAX_STALENESS
+            ledgerConfig, address(localFeed0), address(localFeed1), address(zeroDecToken), address(normalToken),
+            MAX_STALENESS, address(0), 0
         );
 
         vm.expectRevert(UniV2LPYieldSourceOracle.INVALID_PRICE.selector);
@@ -642,13 +644,9 @@ contract UniV2LPYieldSourceOracleTest is Test {
         localFeed1.setLatestAnswer(1e8); // $1
 
         UniV2LPYieldSourceOracle localOracle = new UniV2LPYieldSourceOracle(
-            ledgerConfig, address(localFeed0), address(localFeed1), address(tk0_18), address(tk1_6), MAX_STALENESS
+            ledgerConfig, address(localFeed0), address(localFeed1), address(tk0_18), address(tk1_6),
+            MAX_STALENESS, address(0), 0
         );
-
-        // p1InToken0 = 1e8 * 1e8 * 1e18 / (1e8 * 1e8) = 1e18
-        // r1ValueInToken0 = maxReserve * 1e18 / 1e6 = maxReserve * 1e12 (~5.19e45)
-        // r0 * r1ValueInToken0 = 5.19e33 * 5.19e45 ~ 2.69e79 > type(uint256).max
-        // -> takes overflow fallback path: sqrt(r0) * sqrt(r1ValueInToken0)
 
         uint256 pps = localOracle.getPricePerShare(address(localPair));
         assertGt(pps, 0, "PPS must be positive via overflow fallback");
@@ -765,5 +763,144 @@ contract UniV2LPYieldSourceOracleTest is Test {
 
     function test_superLedgerConfiguration() public view {
         assertEq(oracle.SUPER_LEDGER_CONFIGURATION(), ledgerConfig);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            P3-3: ROUND ID VALIDATION (answeredInRound < roundId)
+    //////////////////////////////////////////////////////////////*/
+
+    function test_getPricePerShare_revertsOnStaleRound_feed0() public {
+        // Set answeredInRound < roundId → stale round
+        feed0.setRoundData(10, 5);
+        vm.expectRevert(UniV2LPYieldSourceOracle.STALE_PRICE.selector);
+        oracle.getPricePerShare(address(pair));
+    }
+
+    function test_getPricePerShare_revertsOnStaleRound_feed1() public {
+        // Feed0 has valid round, feed1 has stale round
+        feed1.setRoundData(10, 5);
+        vm.expectRevert(UniV2LPYieldSourceOracle.STALE_PRICE.selector);
+        oracle.getPricePerShare(address(pair));
+    }
+
+    function test_getPricePerShare_succeedsWhenAnsweredInRoundEqualsRoundId() public view {
+        // answeredInRound == roundId is valid (default mock state)
+        uint256 pps = oracle.getPricePerShare(address(pair));
+        assertEq(pps, 2e18);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            P2-3: CIRCUIT BREAKER (minAnswer / maxAnswer)
+    //////////////////////////////////////////////////////////////*/
+
+    function test_getPricePerShare_revertsWhenPriceAtMinBound_feed0() public {
+        // Set circuit breaker bounds on feed0
+        feed0.setCircuitBreakerBounds(1e6, 1e12); // min=$0.01, max=$10000 in 8-dec
+        feed0.setLatestAnswer(1e6); // exactly at min bound
+
+        // Redeploy oracle to pick up bounds from constructor
+        UniV2LPYieldSourceOracle localOracle = new UniV2LPYieldSourceOracle(
+            ledgerConfig, address(feed0), address(feed1), address(token0), address(token1),
+            MAX_STALENESS, address(0), 0
+        );
+
+        vm.expectRevert(UniV2LPYieldSourceOracle.INVALID_PRICE.selector);
+        localOracle.getPricePerShare(address(pair));
+    }
+
+    function test_getPricePerShare_revertsWhenPriceAtMaxBound_feed1() public {
+        // Set circuit breaker bounds on feed1
+        feed1.setCircuitBreakerBounds(1e6, 1e12);
+        feed1.setLatestAnswer(1e12); // exactly at max bound
+
+        UniV2LPYieldSourceOracle localOracle = new UniV2LPYieldSourceOracle(
+            ledgerConfig, address(feed0), address(feed1), address(token0), address(token1),
+            MAX_STALENESS, address(0), 0
+        );
+
+        vm.expectRevert(UniV2LPYieldSourceOracle.INVALID_PRICE.selector);
+        localOracle.getPricePerShare(address(pair));
+    }
+
+    function test_circuitBreakerBounds_storedCorrectly() public {
+        feed0.setCircuitBreakerBounds(100, 1e12);
+        feed1.setCircuitBreakerBounds(200, 2e12);
+
+        UniV2LPYieldSourceOracle localOracle = new UniV2LPYieldSourceOracle(
+            ledgerConfig, address(feed0), address(feed1), address(token0), address(token1),
+            MAX_STALENESS, address(0), 0
+        );
+
+        assertEq(localOracle.FEED0_MIN_ANSWER(), 100);
+        assertEq(localOracle.FEED0_MAX_ANSWER(), 1e12);
+        assertEq(localOracle.FEED1_MIN_ANSWER(), 200);
+        assertEq(localOracle.FEED1_MAX_ANSWER(), 2e12);
+    }
+
+    function test_circuitBreakerBounds_defaultToZeroWhenUnavailable() public view {
+        // Default MockAggregator has bounds at 0 (disabled)
+        assertEq(oracle.FEED0_MIN_ANSWER(), 0);
+        assertEq(oracle.FEED0_MAX_ANSWER(), 0);
+        assertEq(oracle.FEED1_MIN_ANSWER(), 0);
+        assertEq(oracle.FEED1_MAX_ANSWER(), 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            P3-2: L2 SEQUENCER UPTIME CHECK
+    //////////////////////////////////////////////////////////////*/
+
+    function test_getPricePerShare_revertsWhenSequencerDown() public {
+        // Create a mock sequencer feed that reports "down" (answer = 1)
+        MockAggregator seqFeed = new MockAggregator(0);
+        seqFeed.setLatestAnswer(1); // 1 = sequencer is down
+
+        UniV2LPYieldSourceOracle localOracle = new UniV2LPYieldSourceOracle(
+            ledgerConfig, address(feed0), address(feed1), address(token0), address(token1),
+            MAX_STALENESS, address(seqFeed), 3600
+        );
+
+        vm.expectRevert(UniV2LPYieldSourceOracle.SEQUENCER_DOWN.selector);
+        localOracle.getPricePerShare(address(pair));
+    }
+
+    function test_getPricePerShare_revertsWhenGracePeriodNotOver() public {
+        // Create a mock sequencer feed that just came back up (answer = 0, startedAt = now)
+        MockAggregator seqFeed = new MockAggregator(0);
+        seqFeed.setLatestAnswer(0); // 0 = sequencer is up
+
+        UniV2LPYieldSourceOracle localOracle = new UniV2LPYieldSourceOracle(
+            ledgerConfig, address(feed0), address(feed1), address(token0), address(token1),
+            MAX_STALENESS, address(seqFeed), 3600 // 1 hour grace period
+        );
+
+        // startedAt = block.timestamp (just restarted), grace period hasn't elapsed
+        vm.expectRevert(UniV2LPYieldSourceOracle.GRACE_PERIOD_NOT_OVER.selector);
+        localOracle.getPricePerShare(address(pair));
+    }
+
+    function test_getPricePerShare_succeedsAfterGracePeriod() public {
+        MockAggregator seqFeed = new MockAggregator(0);
+        seqFeed.setLatestAnswer(0); // sequencer is up
+
+        uint256 gracePeriod = 3600;
+        UniV2LPYieldSourceOracle localOracle = new UniV2LPYieldSourceOracle(
+            ledgerConfig, address(feed0), address(feed1), address(token0), address(token1),
+            MAX_STALENESS, address(seqFeed), gracePeriod
+        );
+
+        // Warp past grace period
+        vm.warp(block.timestamp + gracePeriod + 1);
+        // Refresh feed timestamps after warp
+        feed0.setLatestAnswer(1e8);
+        feed1.setLatestAnswer(1e8);
+
+        uint256 pps = localOracle.getPricePerShare(address(pair));
+        assertEq(pps, 2e18, "Should work after grace period");
+    }
+
+    function test_sequencerCheck_noOpWhenDisabled() public view {
+        // Default oracle has sequencer feed = address(0), should just work
+        uint256 pps = oracle.getPricePerShare(address(pair));
+        assertEq(pps, 2e18, "Should work when sequencer check is disabled");
     }
 }

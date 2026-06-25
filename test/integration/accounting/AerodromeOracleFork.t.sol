@@ -74,19 +74,20 @@ contract AerodromeOracleForkTest is Test {
         ledgerConfig = address(new SuperLedgerConfiguration());
 
         // WETH/USDC volatile: token0=WETH(18), token1=USDC(6)
+        // On Base L2 but sequencer check disabled for historical fork block
         oracleWethUsdc = new UniV2LPYieldSourceOracle(
-            ledgerConfig, ETH_USD_FEED, USDC_USD_FEED, WETH, USDC, MAX_STALENESS
+            ledgerConfig, ETH_USD_FEED, USDC_USD_FEED, WETH, USDC, MAX_STALENESS, address(0), 0
         );
 
         // WETH/cbBTC volatile: token0=WETH(18), token1=cbBTC(8)
         oracleWethCbbtc = new UniV2LPYieldSourceOracle(
-            ledgerConfig, ETH_USD_FEED, BTC_USD_FEED, WETH, CBBTC, MAX_STALENESS
+            ledgerConfig, ETH_USD_FEED, BTC_USD_FEED, WETH, CBBTC, MAX_STALENESS, address(0), 0
         );
 
         // USDC/USDbC stable: token0=USDC(6), token1=USDbC(6)
         // Deployed to show oracle WORKS but gives inaccurate PPS for stable pools
         oracleStable = new UniV2LPYieldSourceOracle(
-            ledgerConfig, USDC_USD_FEED, USDC_USD_FEED, USDC, USDBC, MAX_STALENESS
+            ledgerConfig, USDC_USD_FEED, USDC_USD_FEED, USDC, USDBC, MAX_STALENESS, address(0), 0
         );
     }
 

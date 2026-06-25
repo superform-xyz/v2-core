@@ -68,14 +68,20 @@ contract UniV2LPYieldSourceOracleFork is Test {
         SuperLedgerConfiguration ledgerConfig = new SuperLedgerConfiguration();
         address cfg = address(ledgerConfig);
 
-        // USDC/WETH: token0=USDC, token1=WETH
-        oracleUsdcWeth = new UniV2LPYieldSourceOracle(cfg, USDC_USD_FEED, ETH_USD_FEED, USDC, WETH, MAX_STALENESS);
+        // USDC/WETH: token0=USDC, token1=WETH (L1, no sequencer check)
+        oracleUsdcWeth = new UniV2LPYieldSourceOracle(
+            cfg, USDC_USD_FEED, ETH_USD_FEED, USDC, WETH, MAX_STALENESS, address(0), 0
+        );
 
         // DAI/USDC: token0=DAI, token1=USDC
-        oracleDaiUsdc = new UniV2LPYieldSourceOracle(cfg, DAI_USD_FEED, USDC_USD_FEED, DAI, USDC, MAX_STALENESS);
+        oracleDaiUsdc = new UniV2LPYieldSourceOracle(
+            cfg, DAI_USD_FEED, USDC_USD_FEED, DAI, USDC, MAX_STALENESS, address(0), 0
+        );
 
         // WBTC/WETH: token0=WBTC, token1=WETH
-        oracleWbtcWeth = new UniV2LPYieldSourceOracle(cfg, BTC_USD_FEED, ETH_USD_FEED, WBTC, WETH, MAX_STALENESS);
+        oracleWbtcWeth = new UniV2LPYieldSourceOracle(
+            cfg, BTC_USD_FEED, ETH_USD_FEED, WBTC, WETH, MAX_STALENESS, address(0), 0
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

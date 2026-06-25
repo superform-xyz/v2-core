@@ -199,6 +199,81 @@ Added 12 tests to cover all remaining lines:
 - Cross-pool: TVL=PPS*supply, batch PPS, constructor immutables, zero inputs (4)
 - Note on Aerodrome stable pool swap fee: 0.3% for volatile, configurable for stable
 
+## Security Audit Fixes Applied (all 8 findings)
+
+### Report
+`specs/security-reports/2026-06-25-univ2-lp-oracle.md`
+
+### Changes Made
+
+**P1-1: Intermediate overflow in cross-rate (line 209)**
+- Before: `Math.mulDiv(price1 * FEED0_SCALE, TOKEN0_SCALE, price0 * FEED1_SCALE)`
+- After: `Math.mulDiv(price1, FEED0_SCALE * TOKEN0_SCALE, price0 * FEED1_SCALE)`
+- Moves `price1` into mulDiv's first arg (512-bit intermediate), preventing overflow for high-precision feeds
+
+**P1-2: `2 * sqrtValue` overflow (line 230)**
+- Before: `Math.mulDiv(2 * sqrtValue, ONE_LP, totalSupply)`
+- After: `Math.mulDiv(sqrtValue, 2 * ONE_LP, totalSupply)`
+- `2 * ONE_LP = 2e18` is a compile-time constant, always safe
+
+**P2-1: maxStaleness validation**
+- Added `if (maxStaleness_ == 0) revert INVALID_STALENESS()` in constructor
+
+**P2-2: Deployment documentation**
+- Enhanced contract NatSpec with deployment requirements (token ordering, Aerodrome volatile-only, L2 sequencer)
+
+**P2-3: Circuit breaker bounds**
+- Reads `minAnswer`/`maxAnswer` from Chainlink aggregator behind proxy via try/catch in constructor
+- Stores as immutables: `FEED0_MIN_ANSWER`, `FEED0_MAX_ANSWER`, `FEED1_MIN_ANSWER`, `FEED1_MAX_ANSWER`
+- Checks in `_getChainlinkPrice`: reverts if price <= minAnswer or >= maxAnswer
+- Gracefully degrades: if feed doesn't expose these, bounds = 0 (check disabled)
+
+**P3-1: Overflow fallback precision documentation**
+- Enhanced NatSpec: "up to 1 wei in sqrt result, < 1 part in 1e15 relative error for realistic inputs"
+
+**P3-2: L2 sequencer uptime check**
+- New constructor params: `sequencerUptimeFeed_` (address(0) to disable), `gracePeriod_`
+- New immutables: `SEQUENCER_UPTIME_FEED`, `GRACE_PERIOD`
+- New errors: `SEQUENCER_DOWN()`, `GRACE_PERIOD_NOT_OVER()`
+- `_checkSequencer()` called at top of `getPricePerShare()` (no-op when feed is address(0))
+
+**P3-3: roundId validation**
+- `_getChainlinkPrice` now reads all 5 return values from `latestRoundData()`
+- Added: `if (answeredInRound < roundId) revert STALE_PRICE()`
+
+### New Interfaces Added
+- `IChainlinkProxy`: `aggregator() → address` (for reading underlying aggregator)
+- `IChainlinkAggregator`: `minAnswer() → int192`, `maxAnswer() → int192` (circuit breaker bounds)
+
+### MockAggregator Updated
+- Added `_roundId`, `_answeredInRound` tracking (defaults: 1/1)
+- Added `setRoundData(uint80, uint80)` for stale round testing
+- Added `aggregator()` → self, `minAnswer()`, `maxAnswer()`, `setCircuitBreakerBounds()` for circuit breaker testing
+
+### Constructor Signature Change
+```solidity
+constructor(
+    address superLedgerConfiguration_,
+    address feed0_,
+    address feed1_,
+    address token0_,
+    address token1_,
+    uint256 maxStaleness_,
+    address sequencerUptimeFeed_,  // NEW: address(0) to disable
+    uint256 gracePeriod_           // NEW: seconds after sequencer restart
+)
+```
+
+### Test Results: 68/68 PASSING (unit)
+12 new tests added:
+- Constructor: revert on zero maxStaleness (1)
+- P3-3 roundId: stale round feed0, stale round feed1, valid round (3)
+- P2-3 circuit breaker: price at min bound, price at max bound, bounds stored, defaults to zero (4)
+- P3-2 sequencer: down revert, grace period revert, success after grace, no-op when disabled (4)
+
+### Fork tests: compile-verified (ETH mainnet + Base Aerodrome)
+- All constructor calls updated with `address(0), 0` for sequencer params
+
 ## Not Yet Done (Deployment)
 - script/utils/Constants.sol - Add oracle key/salt
 - script/DeployV2Core.s.sol - Add to deployment

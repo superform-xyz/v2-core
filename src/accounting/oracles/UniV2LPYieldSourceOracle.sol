@@ -10,10 +10,21 @@ import { IAggregatorV3 } from "modulekit/integrations/interfaces/chainlink/IAggr
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 import { IUniswapV2Pair } from "../../vendor/uniswap/IUniswapV2Pair.sol";
 
+/// @dev Minimal interface for Chainlink proxy to access underlying aggregator
+interface IChainlinkProxy {
+    function aggregator() external view returns (address);
+}
+
+/// @dev Minimal interface for Chainlink aggregator circuit breaker bounds
+interface IChainlinkAggregator {
+    function minAnswer() external view returns (int192);
+    function maxAnswer() external view returns (int192);
+}
+
 /// @title UniV2LPYieldSourceOracle
 /// @author Superform Labs
 /// @notice Oracle for Uniswap V2 LP tokens using Alpha Homora fair pricing formula
-/// @dev Supports all V2-compatible DEX forks (SushiSwap, PancakeSwap, etc.)
+/// @dev Supports all V2-compatible DEX forks (SushiSwap, PancakeSwap, Aerodrome volatile, etc.)
 ///      Prices LP tokens in token0 terms using:
 ///        LP_price = 2 * sqrt(r0 * r1 * p1_in_token0) / totalSupply
 ///      where p1_in_token0 is derived from two Chainlink USD feeds: price1USD / price0USD
@@ -23,6 +34,16 @@ import { IUniswapV2Pair } from "../../vendor/uniswap/IUniswapV2Pair.sol";
 ///
 ///      Fully immutable, no admin functions, no state changes.
 ///      All external calls are view functions. Oracle reverts propagate (hard revert pattern).
+///
+///      DEPLOYMENT NOTES:
+///        - token0_ and token1_ MUST match the pair's token0() and token1() in order.
+///          If swapped, the cross-rate is inverted and PPS will be incorrect.
+///        - feed0_ must be the Chainlink X/USD feed for token0, feed1_ for token1.
+///        - For Aerodrome/Solidly forks, this oracle is ONLY valid for volatile pools (x*y=k).
+///          Stable pools use a different invariant (x^3*y + x*y^3 = k) and will return
+///          approximate but not exact values.
+///        - On L2 chains (Base, Arbitrum, Optimism), pass the Chainlink sequencer uptime
+///          feed address to enable sequencer liveness checks. Set to address(0) to disable.
 contract UniV2LPYieldSourceOracle is AbstractYieldSourceOracle {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
@@ -34,11 +55,20 @@ contract UniV2LPYieldSourceOracle is AbstractYieldSourceOracle {
     /// @notice Thrown when the pool has zero total supply
     error ZERO_TOTAL_SUPPLY();
 
-    /// @notice Thrown when a Chainlink price is non-positive or the cross-rate is zero
+    /// @notice Thrown when a Chainlink price is non-positive, at circuit breaker bounds, or the cross-rate is zero
     error INVALID_PRICE();
 
-    /// @notice Thrown when a Chainlink feed has not been updated within MAX_STALENESS
+    /// @notice Thrown when a Chainlink feed has not been updated within MAX_STALENESS or answeredInRound < roundId
     error STALE_PRICE();
+
+    /// @notice Thrown when maxStaleness is set to zero (would make all reads revert)
+    error INVALID_STALENESS();
+
+    /// @notice Thrown when the L2 sequencer is currently down
+    error SEQUENCER_DOWN();
+
+    /// @notice Thrown when the L2 sequencer just restarted and the grace period has not elapsed
+    error GRACE_PERIOD_NOT_OVER();
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -75,30 +105,49 @@ contract UniV2LPYieldSourceOracle is AbstractYieldSourceOracle {
     /// @notice Maximum allowed seconds since last Chainlink update
     uint256 public immutable MAX_STALENESS;
 
+    /// @notice L2 sequencer uptime feed (address(0) to disable on L1 or if not needed)
+    IAggregatorV3 public immutable SEQUENCER_UPTIME_FEED;
+
+    /// @notice Grace period (seconds) after sequencer restart before accepting prices
+    uint256 public immutable GRACE_PERIOD;
+
+    /// @notice Chainlink aggregator circuit breaker bounds for feed0 (0 if unavailable)
+    int192 public immutable FEED0_MIN_ANSWER;
+    int192 public immutable FEED0_MAX_ANSWER;
+
+    /// @notice Chainlink aggregator circuit breaker bounds for feed1 (0 if unavailable)
+    int192 public immutable FEED1_MIN_ANSWER;
+    int192 public immutable FEED1_MAX_ANSWER;
+
     /*//////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Constructs the UniV2 LP oracle with dual Chainlink feeds
     /// @param superLedgerConfiguration_ Address of the SuperLedgerConfiguration contract
-    /// @param feed0_ Chainlink price feed for token0/USD
-    /// @param feed1_ Chainlink price feed for token1/USD
-    /// @param token0_ Address of token0 in the pair
-    /// @param token1_ Address of token1 in the pair
-    /// @param maxStaleness_ Maximum seconds since last Chainlink update before reverting
+    /// @param feed0_ Chainlink price feed for token0/USD (must match pair's token0)
+    /// @param feed1_ Chainlink price feed for token1/USD (must match pair's token1)
+    /// @param token0_ Address of token0 in the pair (must match pair.token0())
+    /// @param token1_ Address of token1 in the pair (must match pair.token1())
+    /// @param maxStaleness_ Maximum seconds since last Chainlink update before reverting (must be > 0)
+    /// @param sequencerUptimeFeed_ L2 sequencer uptime feed address (address(0) to disable)
+    /// @param gracePeriod_ Seconds to wait after sequencer restart before accepting prices
     constructor(
         address superLedgerConfiguration_,
         address feed0_,
         address feed1_,
         address token0_,
         address token1_,
-        uint256 maxStaleness_
+        uint256 maxStaleness_,
+        address sequencerUptimeFeed_,
+        uint256 gracePeriod_
     )
         AbstractYieldSourceOracle(superLedgerConfiguration_)
     {
         if (feed0_ == address(0) || feed1_ == address(0) || token0_ == address(0) || token1_ == address(0)) {
             revert ZERO_ADDRESS();
         }
+        if (maxStaleness_ == 0) revert INVALID_STALENESS();
 
         FEED0 = IAggregatorV3(feed0_);
         FEED1 = IAggregatorV3(feed1_);
@@ -107,6 +156,14 @@ contract UniV2LPYieldSourceOracle is AbstractYieldSourceOracle {
         TOKEN0_SCALE = 10 ** IERC20Metadata(token0_).decimals();
         TOKEN1_DECIMALS = IERC20Metadata(token1_).decimals();
         MAX_STALENESS = maxStaleness_;
+        SEQUENCER_UPTIME_FEED = IAggregatorV3(sequencerUptimeFeed_);
+        GRACE_PERIOD = gracePeriod_;
+
+        // Read circuit breaker bounds from Chainlink aggregator behind proxy
+        // If the feed doesn't expose these (non-proxy feed or different implementation),
+        // bounds default to 0 which disables the circuit breaker check
+        (FEED0_MIN_ANSWER, FEED0_MAX_ANSWER) = _readCircuitBreakerBounds(feed0_);
+        (FEED1_MIN_ANSWER, FEED1_MAX_ANSWER) = _readCircuitBreakerBounds(feed1_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -189,10 +246,15 @@ contract UniV2LPYieldSourceOracle is AbstractYieldSourceOracle {
     ///                     = price1 * FEED0_SCALE * TOKEN0_SCALE / (price0 * FEED1_SCALE)
     ///
     ///      Overflow handling:
+    ///        All intermediate products use Math.mulDiv (512-bit) to prevent overflow.
     ///        r0 * r1ValueInToken0 can overflow uint256 for extreme reserve/price combos.
     ///        When overflow would occur, falls back to sqrt(r0) * sqrt(r1ValueInToken0)
-    ///        which is slightly less precise but safe for all uint256 inputs.
+    ///        which is slightly less precise (up to 1 wei in sqrt result, < 1 part in 1e15
+    ///        relative error for realistic inputs) but safe for all uint256 inputs.
     function getPricePerShare(address yieldSourceAddress) public view override returns (uint256) {
+        // Check L2 sequencer liveness (no-op if SEQUENCER_UPTIME_FEED is address(0))
+        _checkSequencer();
+
         IUniswapV2Pair pair = IUniswapV2Pair(yieldSourceAddress);
 
         // Get pool state
@@ -200,13 +262,15 @@ contract UniV2LPYieldSourceOracle is AbstractYieldSourceOracle {
         uint256 totalSupply = pair.totalSupply();
         if (totalSupply == 0) revert ZERO_TOTAL_SUPPLY();
 
-        // Get Chainlink prices
-        uint256 price0 = _getChainlinkPrice(FEED0);
-        uint256 price1 = _getChainlinkPrice(FEED1);
+        // Get Chainlink prices with staleness, round, and circuit breaker validation
+        uint256 price0 = _getChainlinkPrice(FEED0, FEED0_MIN_ANSWER, FEED0_MAX_ANSWER);
+        uint256 price1 = _getChainlinkPrice(FEED1, FEED1_MIN_ANSWER, FEED1_MAX_ANSWER);
 
         // Cross-rate: p1InToken0 = price1 * FEED0_SCALE * TOKEN0_SCALE / (price0 * FEED1_SCALE)
-        // This gives the price of 1 full unit of token1 expressed in token0 units
-        uint256 p1InToken0 = Math.mulDiv(price1 * FEED0_SCALE, TOKEN0_SCALE, price0 * FEED1_SCALE);
+        // This gives the price of 1 full unit of token1 expressed in token0 units.
+        // Uses mulDiv to keep price1 as a separate factor, avoiding intermediate overflow
+        // in price1 * FEED0_SCALE (which could overflow for high-precision feeds).
+        uint256 p1InToken0 = Math.mulDiv(price1, FEED0_SCALE * TOKEN0_SCALE, price0 * FEED1_SCALE);
         if (p1InToken0 == 0) revert INVALID_PRICE();
 
         // Step 1: Convert r1 to token0 terms
@@ -227,7 +291,9 @@ contract UniV2LPYieldSourceOracle is AbstractYieldSourceOracle {
         }
 
         // Step 3: PPS = 2 * sqrtValue * 1e18 / totalSupply
-        return Math.mulDiv(2 * sqrtValue, ONE_LP, totalSupply);
+        // Uses mulDiv(sqrtValue, 2 * ONE_LP, totalSupply) instead of mulDiv(2 * sqrtValue, ONE_LP, totalSupply)
+        // to avoid potential overflow of 2 * sqrtValue for extreme values
+        return Math.mulDiv(sqrtValue, 2 * ONE_LP, totalSupply);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -274,11 +340,62 @@ contract UniV2LPYieldSourceOracle is AbstractYieldSourceOracle {
 
     /// @notice Fetches and validates a Chainlink price feed answer
     /// @param feed The Chainlink aggregator to query
-    /// @return The price as a uint256 (guaranteed positive)
-    function _getChainlinkPrice(IAggregatorV3 feed) internal view returns (uint256) {
-        (, int256 answer,, uint256 updatedAt,) = feed.latestRoundData();
+    /// @param minAnswer Circuit breaker lower bound (0 to skip check)
+    /// @param maxAnswer Circuit breaker upper bound (0 to skip check)
+    /// @return The price as a uint256 (guaranteed positive and within bounds)
+    function _getChainlinkPrice(
+        IAggregatorV3 feed,
+        int192 minAnswer,
+        int192 maxAnswer
+    )
+        internal
+        view
+        returns (uint256)
+    {
+        (uint80 roundId, int256 answer,, uint256 updatedAt, uint80 answeredInRound) = feed.latestRoundData();
         if (answer <= 0) revert INVALID_PRICE();
+        if (answeredInRound < roundId) revert STALE_PRICE();
         if (block.timestamp - updatedAt > MAX_STALENESS) revert STALE_PRICE();
+
+        // Circuit breaker: if price is at aggregator bounds, the feed is returning
+        // a clamped value instead of the actual price (e.g., during a depeg event)
+        if (minAnswer > 0 && answer <= int256(minAnswer)) revert INVALID_PRICE();
+        if (maxAnswer > 0 && answer >= int256(maxAnswer)) revert INVALID_PRICE();
+
         return uint256(answer);
+    }
+
+    /// @notice Checks L2 sequencer liveness (no-op on L1 or when feed is address(0))
+    /// @dev On L2 chains, if the sequencer goes down and comes back up, stale prices
+    ///      may appear fresh. This check ensures we wait GRACE_PERIOD seconds after
+    ///      sequencer restart before accepting Chainlink prices.
+    function _checkSequencer() internal view {
+        if (address(SEQUENCER_UPTIME_FEED) == address(0)) return;
+
+        (, int256 answer,, uint256 startedAt,) = SEQUENCER_UPTIME_FEED.latestRoundData();
+
+        // answer == 0: sequencer is up, answer == 1: sequencer is down
+        if (answer != 0) revert SEQUENCER_DOWN();
+
+        // Ensure enough time has passed since sequencer came back up
+        if (block.timestamp - startedAt <= GRACE_PERIOD) revert GRACE_PERIOD_NOT_OVER();
+    }
+
+    /// @notice Reads circuit breaker bounds from the Chainlink aggregator behind a proxy
+    /// @dev Chainlink feed proxies expose aggregator() which returns the underlying aggregator.
+    ///      The underlying has minAnswer/maxAnswer bounds. If either call fails (non-proxy feed
+    ///      or different implementation), returns (0, 0) which disables the circuit breaker check.
+    /// @param feed The Chainlink feed proxy address
+    /// @return minAns The minimum valid answer (0 if unavailable)
+    /// @return maxAns The maximum valid answer (0 if unavailable)
+    function _readCircuitBreakerBounds(address feed) private view returns (int192 minAns, int192 maxAns) {
+        try IChainlinkProxy(feed).aggregator() returns (address agg) {
+            try IChainlinkAggregator(agg).minAnswer() returns (int192 min) {
+                minAns = min;
+            } catch { }
+            try IChainlinkAggregator(agg).maxAnswer() returns (int192 max) {
+                maxAns = max;
+            } catch { }
+        } catch { }
     }
 }
