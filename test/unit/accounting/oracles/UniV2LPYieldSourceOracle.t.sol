@@ -567,4 +567,203 @@ contract UniV2LPYieldSourceOracleTest is Test {
         uint256 assetsOut = oracle.getAssetOutput(address(pair), address(0), shares);
         assertLe(assetsOut, assetsIn, "Round trip must not create value");
     }
+
+    /*//////////////////////////////////////////////////////////////
+                    getShareOutput - PPS == 0 BRANCH
+    //////////////////////////////////////////////////////////////*/
+
+    function test_getShareOutput_returnsZeroWhenPpsIsZero() public {
+        // When reserves are zero but totalSupply > 0, PPS = 0
+        pair.setReserves(0, 0);
+        pair.setTotalSupply(1e18);
+
+        uint256 shares = oracle.getShareOutput(address(pair), address(0), 100e18);
+        assertEq(shares, 0, "Should return 0 when PPS is 0");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                getWithdrawalShareOutput - PPS == 0 BRANCH
+    //////////////////////////////////////////////////////////////*/
+
+    function test_getWithdrawalShareOutput_returnsZeroWhenPpsIsZero() public {
+        pair.setReserves(0, 0);
+        pair.setTotalSupply(1e18);
+
+        uint256 shares = oracle.getWithdrawalShareOutput(address(pair), address(0), 100e18);
+        assertEq(shares, 0, "Should return 0 when PPS is 0");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                getPricePerShare - ZERO CROSS-RATE REVERT
+    //////////////////////////////////////////////////////////////*/
+
+    function test_getPricePerShare_revertsOnZeroCrossRate() public {
+        // Use 0-decimal token0 so TOKEN0_SCALE = 1
+        // p1InToken0 = mulDiv(price1 * FEED0_SCALE, TOKEN0_SCALE, price0 * FEED1_SCALE)
+        //            = mulDiv(1 * 1e8, 1, 1e8 * 1e8) = 1e8 / 1e16 = 0 (truncation)
+        MockERC20 zeroDecToken = new MockERC20("ZERO", "ZERO", 0);
+        MockERC20 normalToken = new MockERC20("NORM", "NORM", 18);
+        MockUniswapV2Pair localPair = new MockUniswapV2Pair(address(zeroDecToken), address(normalToken));
+        localPair.setReserves(1000, 1000e18);
+        localPair.setTotalSupply(1e18);
+
+        MockAggregator localFeed0 = new MockAggregator(8);
+        MockAggregator localFeed1 = new MockAggregator(8);
+        localFeed0.setLatestAnswer(1e8); // $1
+        localFeed1.setLatestAnswer(1);   // $0.00000001 -- very cheap token1
+
+        UniV2LPYieldSourceOracle localOracle = new UniV2LPYieldSourceOracle(
+            ledgerConfig, address(localFeed0), address(localFeed1), address(zeroDecToken), address(normalToken), MAX_STALENESS
+        );
+
+        vm.expectRevert(UniV2LPYieldSourceOracle.INVALID_PRICE.selector);
+        localOracle.getPricePerShare(address(localPair));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            getPricePerShare - OVERFLOW FALLBACK PATH
+    //////////////////////////////////////////////////////////////*/
+
+    function test_getPricePerShare_overflowFallback() public {
+        // Use 6-decimal token1 so division by 1e6 amplifies r1ValueInToken0
+        // With max reserves and equal prices, r0 * r1ValueInToken0 overflows uint256
+        MockERC20 tk0_18 = new MockERC20("TK0", "TK0", 18);
+        MockERC20 tk1_6 = new MockERC20("TK1", "TK1", 6);
+        MockUniswapV2Pair localPair = new MockUniswapV2Pair(address(tk0_18), address(tk1_6));
+
+        // Max uint112 reserves
+        uint112 maxReserve = type(uint112).max;
+        localPair.setReserves(maxReserve, maxReserve);
+        localPair.setTotalSupply(1e18);
+
+        MockAggregator localFeed0 = new MockAggregator(8);
+        MockAggregator localFeed1 = new MockAggregator(8);
+        localFeed0.setLatestAnswer(1e8); // $1
+        localFeed1.setLatestAnswer(1e8); // $1
+
+        UniV2LPYieldSourceOracle localOracle = new UniV2LPYieldSourceOracle(
+            ledgerConfig, address(localFeed0), address(localFeed1), address(tk0_18), address(tk1_6), MAX_STALENESS
+        );
+
+        // p1InToken0 = 1e8 * 1e8 * 1e18 / (1e8 * 1e8) = 1e18
+        // r1ValueInToken0 = maxReserve * 1e18 / 1e6 = maxReserve * 1e12 (~5.19e45)
+        // r0 * r1ValueInToken0 = 5.19e33 * 5.19e45 ~ 2.69e79 > type(uint256).max
+        // -> takes overflow fallback path: sqrt(r0) * sqrt(r1ValueInToken0)
+
+        uint256 pps = localOracle.getPricePerShare(address(localPair));
+        assertGt(pps, 0, "PPS must be positive via overflow fallback");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                ABSTRACT BASE: getAssetOutputWithFees
+    //////////////////////////////////////////////////////////////*/
+
+    function test_getAssetOutputWithFees_noConfig() public view {
+        // With no fee config set, getAssetOutputWithFees should fall through
+        // to the catch block and return base assetOutput
+        bytes32 fakeOracleId = keccak256("nonexistent");
+        uint256 result = oracle.getAssetOutputWithFees(fakeOracleId, address(pair), address(0), OWNER, 5e18);
+        uint256 baseResult = oracle.getAssetOutput(address(pair), address(0), 5e18);
+        assertEq(result, baseResult, "Should return base assetOutput when no config");
+    }
+
+    function test_getAssetOutputWithFees_zeroShares() public view {
+        bytes32 fakeOracleId = keccak256("nonexistent");
+        uint256 result = oracle.getAssetOutputWithFees(fakeOracleId, address(pair), address(0), OWNER, 0);
+        assertEq(result, 0, "Should return 0 for 0 shares");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                ABSTRACT BASE: getPricePerShareMultiple
+    //////////////////////////////////////////////////////////////*/
+
+    function test_getPricePerShareMultiple() public {
+        // Create a second pair with different reserves
+        MockUniswapV2Pair pair2 = new MockUniswapV2Pair(address(token0), address(token1));
+        pair2.setReserves(2000e18, 2000e18);
+        pair2.setTotalSupply(2000e18);
+
+        address[] memory pairs = new address[](2);
+        pairs[0] = address(pair);
+        pairs[1] = address(pair2);
+
+        uint256[] memory prices = oracle.getPricePerShareMultiple(pairs);
+        assertEq(prices.length, 2);
+        assertEq(prices[0], oracle.getPricePerShare(address(pair)));
+        assertEq(prices[1], oracle.getPricePerShare(address(pair2)));
+    }
+
+    function test_getPricePerShareMultiple_empty() public view {
+        address[] memory pairs = new address[](0);
+        uint256[] memory prices = oracle.getPricePerShareMultiple(pairs);
+        assertEq(prices.length, 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    ABSTRACT BASE: getTVLMultiple
+    //////////////////////////////////////////////////////////////*/
+
+    function test_getTVLMultiple() public {
+        MockUniswapV2Pair pair2 = new MockUniswapV2Pair(address(token0), address(token1));
+        pair2.setReserves(500e18, 500e18);
+        pair2.setTotalSupply(500e18);
+
+        address[] memory pairs = new address[](2);
+        pairs[0] = address(pair);
+        pairs[1] = address(pair2);
+
+        uint256[] memory tvls = oracle.getTVLMultiple(pairs);
+        assertEq(tvls.length, 2);
+        assertEq(tvls[0], oracle.getTVL(address(pair)));
+        assertEq(tvls[1], oracle.getTVL(address(pair2)));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            ABSTRACT BASE: getTVLByOwnerOfSharesMultiple
+    //////////////////////////////////////////////////////////////*/
+
+    function test_getTVLByOwnerOfSharesMultiple() public {
+        MockUniswapV2Pair pair2 = new MockUniswapV2Pair(address(token0), address(token1));
+        pair2.setReserves(500e18, 500e18);
+        pair2.setTotalSupply(500e18);
+        pair2.setBalance(USER_A, 50e18);
+
+        address[] memory pairs = new address[](2);
+        pairs[0] = address(pair);
+        pairs[1] = address(pair2);
+
+        address[][] memory owners = new address[][](2);
+        owners[0] = new address[](1);
+        owners[0][0] = OWNER;
+        owners[1] = new address[](1);
+        owners[1][0] = USER_A;
+
+        uint256[][] memory tvls = oracle.getTVLByOwnerOfSharesMultiple(pairs, owners);
+        assertEq(tvls.length, 2);
+        assertEq(tvls[0].length, 1);
+        assertEq(tvls[1].length, 1);
+        assertEq(tvls[0][0], oracle.getTVLByOwnerOfShares(address(pair), OWNER));
+        assertEq(tvls[1][0], oracle.getTVLByOwnerOfShares(address(pair2), USER_A));
+    }
+
+    function test_getTVLByOwnerOfSharesMultiple_revertsOnArrayLengthMismatch() public {
+        address[] memory pairs = new address[](2);
+        pairs[0] = address(pair);
+        pairs[1] = address(pair);
+
+        address[][] memory owners = new address[][](1); // mismatch: 1 vs 2
+        owners[0] = new address[](1);
+        owners[0][0] = OWNER;
+
+        vm.expectRevert(abi.encodeWithSignature("ARRAY_LENGTH_MISMATCH()"));
+        oracle.getTVLByOwnerOfSharesMultiple(pairs, owners);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                ABSTRACT BASE: SUPER_LEDGER_CONFIGURATION
+    //////////////////////////////////////////////////////////////*/
+
+    function test_superLedgerConfiguration() public view {
+        assertEq(oracle.SUPER_LEDGER_CONFIGURATION(), ledgerConfig);
+    }
 }
