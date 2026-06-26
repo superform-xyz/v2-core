@@ -343,6 +343,9 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
         uint256 minAmountOut = 999_999e18;
 
         deal(USDC, account, amountIn);
+        // Ensure the PSM has enough USDS liquidity for the 1M USDC whale swap.
+        // On a live fork the PSM's USDS balance varies; top it up so the transfer succeeds.
+        deal(USDS, PSM_ADDRESS, 2_000_000e18);
 
         bytes memory hookData = _buildExactInHookData(USDC, USDS, amountIn, minAmountOut, false);
 
