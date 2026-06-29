@@ -229,6 +229,94 @@ contract ClaimRFLRV2HookTest is Helpers {
         assertEq(hook.getOutAmount(account), 0);
     }
 
+    /// @dev New account: balanceOf reverts in _preExecute because no RNatAccount clone exists yet.
+    ///      The hook must not revert and must leave outAmount at transient-storage default (0)
+    ///      rather than storing an explicit 0 via _setOutAmount.
+    function test_PreExecute_NewAccount_DoesNotRevert() public {
+        vm.mockCallRevert(rNat, abi.encodeCall(IERC20.balanceOf, (account)), "RNat: no account");
+
+        hook.setExecutionContext(account);
+
+        vm.prank(account);
+        hook.preExecute(address(0), account, "");
+
+        assertEq(hook.asset(), rNat);
+        assertEq(hook.getOutAmount(account), 0);
+    }
+
+    /// @dev New account full flow: _preExecute sees a revert (no account), then claimRewards
+    ///      lazily creates the RNatAccount. _postExecute reads the resulting balance and
+    ///      reports it as the full outAmount (delta = claimedAmount - 0).
+    function test_PreAndPostExecute_NewAccount_SetsFullClaimedBalance() public {
+        uint256 claimedAmount = 200 ether;
+
+        // preExecute: balanceOf reverts — no RNatAccount yet
+        vm.mockCallRevert(rNat, abi.encodeCall(IERC20.balanceOf, (account)), "RNat: no account");
+
+        hook.setExecutionContext(account);
+
+        vm.prank(account);
+        hook.preExecute(address(0), account, "");
+        assertEq(hook.getOutAmount(account), 0);
+
+        // postExecute: claimRewards created the RNatAccount, balanceOf now succeeds
+        vm.mockCall(rNat, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(claimedAmount));
+
+        vm.prank(account);
+        hook.postExecute(address(0), account, "");
+
+        // delta = claimedAmount - 0 (preBalance) = claimedAmount
+        assertEq(hook.getOutAmount(account), claimedAmount);
+    }
+
+    /// @dev Existing account with 0 rFLR balance (ok=true, balance=0): _preExecute takes the
+    ///      "existing account" code path and explicitly stores 0. Subsequent postExecute correctly
+    ///      computes delta = claimedAmount - 0 = claimedAmount.
+    function test_PreAndPostExecute_ExistingAccountZeroBalance_SetsDelta() public {
+        uint256 claimedAmount = 50 ether;
+
+        // balanceOf succeeds but returns 0 (account exists, no accumulated rFLR yet)
+        vm.mockCall(rNat, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(0));
+
+        hook.setExecutionContext(account);
+
+        vm.prank(account);
+        hook.preExecute(address(0), account, "");
+        assertEq(hook.getOutAmount(account), 0);
+
+        // After claim, balance increases
+        vm.mockCall(rNat, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(claimedAmount));
+
+        vm.prank(account);
+        hook.postExecute(address(0), account, "");
+
+        assertEq(hook.getOutAmount(account), claimedAmount);
+    }
+
+    /// @dev Defensive: if _snapshotRNatBalance fails in _postExecute (unexpected edge case),
+    ///      the hook reports delta = 0 instead of reverting.
+    function test_PostExecute_SnapshotFails_DeltaIsZero() public {
+        uint256 preBalance = 300 ether;
+
+        // preExecute: existing account with balance
+        vm.mockCall(rNat, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(preBalance));
+
+        hook.setExecutionContext(account);
+
+        vm.prank(account);
+        hook.preExecute(address(0), account, "");
+        assertEq(hook.getOutAmount(account), preBalance);
+
+        // postExecute: balanceOf reverts unexpectedly
+        vm.mockCallRevert(rNat, abi.encodeCall(IERC20.balanceOf, (account)), "unexpected");
+
+        vm.prank(account);
+        hook.postExecute(address(0), account, "");
+
+        // currentBalance = 0 (snapshot failed), preBalance = 300e18 → delta = 0 (no underflow)
+        assertEq(hook.getOutAmount(account), 0);
+    }
+
     /*//////////////////////////////////////////////////////////////
                            INSPECT TESTS
     //////////////////////////////////////////////////////////////*/
