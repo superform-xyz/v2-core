@@ -10,7 +10,7 @@ import { IRNat } from "../../../vendor/flare/IRNat.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 
-/// @title ClaimRFLRV2Hook
+/// @title ClaimRFLRV3Hook
 /// @author Superform Labs
 /// @notice Claims rFLR rewards from Flare's RNat contract using fully on-chain enumeration.
 ///         No offchain data packing needed -- the hook discovers claimable projects automatically.
@@ -18,7 +18,7 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 ///      Fees should be collected at the WFLR withdrawal stage via WithdrawRFLRHook.
 /// @dev data has the following structure:
 /// @notice         (empty -- this hook is parameterless and ignores calldata)
-contract ClaimRFLRV2Hook is BaseHook {
+contract ClaimRFLRV3Hook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -110,18 +110,48 @@ contract ClaimRFLRV2Hook is BaseHook {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc BaseHook
-    /// @dev Snapshots the rFLR balance before claim execution
+    /// @dev Reads the pre-claim rFLR balance for EXISTING accounts only.
+    ///      When balanceOf succeeds (ok = true), we snapshot the balance so _postExecute
+    ///      can compute the claimed delta.
+    ///      When balanceOf reverts (ok = false = new account, no RNatAccount yet), we skip
+    ///      _setOutAmount: transient storage defaults to 0, which is the correct pre-balance
+    ///      for a brand-new account. _postExecute sets the full claimed amount after
+    ///      claimRewards lazily creates the RNatAccount.
     function _preExecute(address, address account, bytes calldata) internal override {
         asset = RNAT;
-        _setOutAmount(IERC20(RNAT).balanceOf(account), account);
+        (bool ok, uint256 balance) = _snapshotRNatBalance(account);
+        if (ok) {
+            // Existing account: snapshot actual pre-balance for delta computation in _postExecute
+            _setOutAmount(balance, account);
+        }
+        // New account (!ok): RNatAccount doesn't exist yet — leave outAmount at default 0
     }
 
     /// @inheritdoc BaseHook
-    /// @dev outAmount is the rFLR delta (balance after claim minus balance before claim)
+    /// @dev outAmount is the rFLR delta (balance after claim minus balance before claim).
+    ///      Safe staticcall used to handle any edge-case where the account still doesn't
+    ///      exist post-execution (delta would be 0 — no revert noise).
     function _postExecute(address, address account, bytes calldata) internal override {
-        uint256 currentBalance = IERC20(RNAT).balanceOf(account);
+        (, uint256 currentBalance) = _snapshotRNatBalance(account);
         uint256 preBalance = getOutAmount(account);
         uint256 delta = currentBalance > preBalance ? currentBalance - preBalance : 0;
         _setOutAmount(delta, account);
+    }
+
+    /// @notice Safely reads the rFLR (RNat) balance of an account without reverting.
+    /// @dev RNat.balanceOf reverts when no RNatAccount clone exists (created lazily on first
+    ///      claimRewards call). Returning (false, 0) lets callers distinguish "no account yet"
+    ///      from "account exists with 0 balance", which matters for _preExecute semantics.
+    /// @param account The account whose balance to read
+    /// @return ok      True if the account has an RNatAccount and the balance was readable
+    /// @return balance The rFLR balance; 0 when ok is false
+    function _snapshotRNatBalance(address account) internal view returns (bool ok, uint256 balance) {
+        bytes memory data;
+        (ok, data) = RNAT.staticcall(abi.encodeWithSelector(IERC20.balanceOf.selector, account));
+        if (ok && data.length >= 32) {
+            balance = abi.decode(data, (uint256));
+        } else {
+            ok = false;
+        }
     }
 }

@@ -241,6 +241,7 @@ SPONSORSHIP_CONTRACTS=(
 RFLR_HOOK_CONTRACTS=(
     "ClaimRFLRHook"
     "ClaimRFLRV2Hook"
+    "ClaimRFLRV3Hook"
     "WithdrawRFLRHook"
     "WithdrawVestedRFLRHook"
 )
