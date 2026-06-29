@@ -6,14 +6,7 @@
 # Define staging networks
 # Format: "CHAIN_ID:NetworkName:RPC_VAR"
 NETWORKS=(
-    "56:BNB:BSC_MAINNET"
-    "1:Ethereum:ETH_MAINNET"
-    "8453:Base:BASE_MAINNET"
-    "42161:Arbitrum:ARBITRUM_MAINNET"
-    "43114:Avalanche:AVALANCHE_MAINNET"
-    "999:HyperEVM:HYPEREVM_MAINNET"
     "14:Flare:FLARE_MAINNET"
-    "988:Stable:STABLE_MAINNET"
 )
 
 # Network name mapping function
@@ -196,7 +189,7 @@ load_rpc_urls() {
         return 1
     fi
     
-    echo "✅ Staging RPC URLs loaded successfully (all 7 networks)"
+    echo "✅ Staging RPC URLs loaded successfully (Flare)"
 }
 
 # Load Etherscan V2 API key for verification
