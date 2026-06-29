@@ -56,6 +56,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address withdrawVestedRFLRHook;
     }
 
+    struct RFLRHookV2Addresses {
+        address withdrawRFLRHookV2;
+        address withdrawVestedRFLRHookV2;
+    }
+
     struct OdosV3HookAddresses {
         address swapOdosV3Hook;
         address approveAndSwapOdosV3Hook;
@@ -127,6 +132,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    function runRFLRV2(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying rFLR V2 Hooks on chainId: ", chainId);
+
+        _deployRFLRV2Hooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
     function runOdosV3(uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
         console2.log("Deploying Odos V3 Hooks on chainId: ", chainId);
@@ -175,6 +188,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         if (chainId == FLARE_CHAIN_ID) {
             console2.log("Deploying rFLR Hooks on chainId: ", chainId);
             _deployRFLRHooks(chainId, env);
+            console2.log("Deploying rFLR V2 Hooks on chainId: ", chainId);
+            _deployRFLRV2Hooks(chainId, env);
         }
 
         // Odos V3 hooks — on chains where Odos V3 router is deployed
@@ -597,6 +612,43 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(hookAddresses.withdrawVestedRFLRHook != address(0), "WithdrawVestedRFLRHook not assigned");
 
         console2.log("All rFLR hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    /// @notice Deploy 2 rFLR V2 withdraw hooks (WithdrawRFLRHookV2 + WithdrawVestedRFLRHookV2)
+    function _deployRFLRV2Hooks(uint64 chainId, uint256 env) internal returns (RFLRHookV2Addresses memory) {
+        uint256 len = 2;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        bytes memory rnatWflrArgs = abi.encode(RNAT_FLARE, WFLR_FLARE);
+
+        hooks[0] = HookDeployment(
+            WITHDRAW_RFLR_HOOK_V2_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("WithdrawRFLRHookV2", env), rnatWflrArgs)
+        );
+        hooks[1] = HookDeployment(
+            WITHDRAW_VESTED_RFLR_HOOK_V2_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("WithdrawVestedRFLRHookV2", env), rnatWflrArgs)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        RFLRHookV2Addresses memory hookAddresses;
+        hookAddresses.withdrawRFLRHookV2 = addresses[0];
+        hookAddresses.withdrawVestedRFLRHookV2 = addresses[1];
+
+        require(hookAddresses.withdrawRFLRHookV2 != address(0), "WithdrawRFLRHookV2 not assigned");
+        require(hookAddresses.withdrawVestedRFLRHookV2 != address(0), "WithdrawVestedRFLRHookV2 not assigned");
+
+        console2.log("All rFLR V2 hooks deployed and validated successfully.");
 
         return hookAddresses;
     }

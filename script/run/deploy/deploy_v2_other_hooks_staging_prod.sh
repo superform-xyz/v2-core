@@ -308,11 +308,35 @@ if [ $missing_rflr -gt 0 ]; then
 fi
 
 echo ""
+
+echo -e "${BLUE}Checking rFLR V2 hook bytecode availability...${NC}"
+
+RFLR_V2_HOOKS=(
+    "WithdrawRFLRHookV2"
+    "WithdrawVestedRFLRHookV2"
+)
+
+missing_rflr_v2=0
+for hook in "${RFLR_V2_HOOKS[@]}"; do
+    if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
+        echo -e "${GREEN}   ${hook}${NC}"
+    else
+        echo -e "${YELLOW}   ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
+        missing_rflr_v2=$((missing_rflr_v2 + 1))
+    fi
+done
+
+if [ $missing_rflr_v2 -gt 0 ]; then
+    echo -e "${YELLOW}${missing_rflr_v2} rFLR V2 hook(s) missing bytecode. They will be skipped during deployment.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/tooling/regenerate_bytecode.sh to generate missing bytecode.${NC}"
+fi
+
+echo ""
 print_separator
 
 # ── Confirmation ───────────────────────────────────────────────────────────────
 
-echo -e "${WHITE}Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral + DETH + Sponsorship + rFLR) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
+echo -e "${WHITE}Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral + DETH + Sponsorship + rFLR + rFLR V2) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
 read -r proceed
 
 if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
@@ -558,6 +582,37 @@ for network_def in "${NETWORKS[@]}"; do
         else
             echo -e "${RED}   rFLR hooks deployment failed on $network_name, continuing...${NC}"
             FAILED_HOOK_DEPLOYS+=("rFLR @ $network_name")
+        fi
+    fi
+
+    # Deploy rFLR V2 hooks if supported on this chain
+    if is_rflr_supported "$network_id"; then
+        has_hooks=true
+        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
+        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
+        echo -e "${YELLOW}   Deploying rFLR V2 hooks...${NC}"
+
+        if forge script "$FORGE_SCRIPT" \
+            --sig 'runRFLRV2(uint256,uint64)' $FORGE_ENV $network_id \
+            --account "$ACCOUNT" \
+            $KEYSTORE_PASSWORD_FLAG \
+            --rpc-url "${!rpc_var}" \
+            --chain $network_id \
+            $local_etherscan_flags \
+            $BROADCAST_FLAG \
+            $local_verify_flag \
+            $SLOW_FLAG \
+            $BATCH_SIZE_FLAG \
+            $RESUME_FLAG \
+            $LEGACY_FLAG \
+            $GAS_PRICE_FLAG \
+            --timeout 300 \
+            -vv; then
+            echo -e "${GREEN}   rFLR V2 hooks deployment completed!${NC}"
+        else
+            echo -e "${RED}   rFLR V2 hooks deployment failed on $network_name, continuing...${NC}"
+            FAILED_HOOK_DEPLOYS+=("rFLR V2 @ $network_name")
         fi
     fi
 
