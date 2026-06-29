@@ -342,6 +342,9 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
         uint256 amountIn = 1_000_000e6; // 1M USDC
         uint256 minAmountOut = 999_999e18;
 
+        // Skip if PSM doesn't hold enough USDS to fulfill the swap at the current fork block
+        if (IERC20(USDS).balanceOf(PSM_ADDRESS) < 1_000_000e18) vm.skip(true);
+
         deal(USDC, account, amountIn);
 
         bytes memory hookData = _buildExactInHookData(USDC, USDS, amountIn, minAmountOut, false);
