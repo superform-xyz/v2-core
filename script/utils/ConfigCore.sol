@@ -104,6 +104,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.stargateTokenMessagings[UNICHAIN_CHAIN_ID] = 0xB1EeAD6959cb5bB9B20417d6689922523B2B86C3;
         configuration.stargateTokenMessagings[BERACHAIN_CHAIN_ID] = 0xAf5191B0De278C7286d6C7CC6ab6BB8A73bA2Cd6;
         configuration.stargateTokenMessagings[SONIC_CHAIN_ID] = 0x2086f755A6d9254045C257ea3d382ef854849B0f;
+        configuration.stargateTokenMessagings[STABLE_CHAIN_ID] = 0xd027aFcc69ffA2bCB288BA68da6B71EC90d7B1d2;
         configuration.stargateTokenMessagings[WORLDCHAIN_CHAIN_ID] = address(0); // Not available yet
 
         // ===== PERMIT2 ADDRESSES =====
@@ -235,7 +236,7 @@ abstract contract ConfigCore is ConfigBase {
         // ===== OPENOCEAN SPARKDEX V4 ADDRESSES =====
         // OpenOcean V4 SparkDexV4 routing is used only on Flare.
         configuration.openOceanRouters[FLARE_CHAIN_ID] = OPENOCEAN_ROUTER;
-        configuration.openOceanCallers[FLARE_CHAIN_ID] = OPENOCEAN_CALLER_FLARE;
+        configuration.openOceanReferrers[FLARE_CHAIN_ID] = OPENOCEAN_REFERRER_FLARE;
 
         // ===== PENDLE ROUTER ADDRESSES =====
         configuration.pendleRouters[MAINNET_CHAIN_ID] = PENDLE_ROUTER_MAINNET;

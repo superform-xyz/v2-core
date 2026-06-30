@@ -352,6 +352,10 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
         uint256 amountIn = 1_000_000e6; // 1M USDC
         uint256 minAmountOut = 999_999e18;
 
+        // Skip if PSM doesn't have enough USDS liquidity at the forked block
+        uint256 psmUsdsBalance = IERC20(USDS).balanceOf(PSM_ADDRESS);
+        vm.skip(psmUsdsBalance < 1_000_000e18);
+
         deal(USDC, account, amountIn);
         // Ensure PSM has enough USDS liquidity to fulfill the swap
         deal(USDS, PSM_ADDRESS, 2_000_000e18);

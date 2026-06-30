@@ -165,8 +165,8 @@ HOOK_CONTRACTS=(
     "ApproveAndSwapSparkPSMExactOutHook"
     "SwapKyberSwapHook"
     "ApproveAndSwapKyberSwapHook"
-    "SwapOpenOceanSparkDexHook"
-    "ApproveAndSwapOpenOceanSparkDexHook"
+    "SwapOpenOceanHook"
+    "ApproveAndSwapOpenOceanHook"
     "SwapUniswapV2Hook"
     "ApproveAndSwapUniswapV2Hook"
     "RedeemFirelightVaultHook"
@@ -240,6 +240,8 @@ SPONSORSHIP_CONTRACTS=(
 # rFLR hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
 RFLR_HOOK_CONTRACTS=(
     "ClaimRFLRHook"
+    "ClaimRFLRV2Hook"
+    "ClaimRFLRV3Hook"
     "WithdrawRFLRHook"
     "WithdrawVestedRFLRHook"
     "WithdrawRFLRHookV2"

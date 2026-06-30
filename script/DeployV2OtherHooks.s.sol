@@ -52,6 +52,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
     struct RFLRHookAddresses {
         address claimRFLRHook;
+        address claimRFLRV2Hook;
+        address claimRFLRV3Hook;
         address withdrawRFLRHook;
         address withdrawVestedRFLRHook;
     }
@@ -572,9 +574,9 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
                         RFLR HOOKS DEPLOYMENT
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Deploy 3 rFLR hooks (constructor args: RNAT address, and RNAT+WFLR for withdraw hooks)
+    /// @notice Deploy 5 rFLR hooks (constructor args: RNAT address, and RNAT+WFLR for withdraw hooks)
     function _deployRFLRHooks(uint64 chainId, uint256 env) internal returns (RFLRHookAddresses memory) {
-        uint256 len = 3;
+        uint256 len = 5;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -584,11 +586,21 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             abi.encodePacked(__getOtherHooksBytecode("ClaimRFLRHook", env), abi.encode(RNAT_FLARE))
         );
         hooks[1] = HookDeployment(
+            CLAIM_RFLRV2_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("ClaimRFLRV2Hook", env), abi.encode(RNAT_FLARE))
+        );
+        hooks[2] = HookDeployment(
+            CLAIM_RFLRV3_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("ClaimRFLRV3Hook", env), abi.encode(RNAT_FLARE))
+        );
+        hooks[3] = HookDeployment(
             WITHDRAW_RFLR_HOOK_KEY,
             "",
             abi.encodePacked(__getOtherHooksBytecode("WithdrawRFLRHook", env), abi.encode(RNAT_FLARE, WFLR_FLARE))
         );
-        hooks[2] = HookDeployment(
+        hooks[4] = HookDeployment(
             WITHDRAW_VESTED_RFLR_HOOK_KEY,
             "",
             abi.encodePacked(
@@ -604,10 +616,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
         RFLRHookAddresses memory hookAddresses;
         hookAddresses.claimRFLRHook = addresses[0];
-        hookAddresses.withdrawRFLRHook = addresses[1];
-        hookAddresses.withdrawVestedRFLRHook = addresses[2];
+        hookAddresses.claimRFLRV2Hook = addresses[1];
+        hookAddresses.claimRFLRV3Hook = addresses[2];
+        hookAddresses.withdrawRFLRHook = addresses[3];
+        hookAddresses.withdrawVestedRFLRHook = addresses[4];
 
         require(hookAddresses.claimRFLRHook != address(0), "ClaimRFLRHook not assigned");
+        require(hookAddresses.claimRFLRV2Hook != address(0), "ClaimRFLRV2Hook not assigned");
+        require(hookAddresses.claimRFLRV3Hook != address(0), "ClaimRFLRV3Hook not assigned");
         require(hookAddresses.withdrawRFLRHook != address(0), "WithdrawRFLRHook not assigned");
         require(hookAddresses.withdrawVestedRFLRHook != address(0), "WithdrawVestedRFLRHook not assigned");
 

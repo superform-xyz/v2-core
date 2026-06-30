@@ -121,9 +121,9 @@ abstract contract Constants {
     address internal constant KYBER_ROUTER = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
     address internal constant KYBER_SCALE_HELPER = 0x2f577A41BeC1BE1152AeEA12e73b7391d15f655D;
 
-    // OpenOcean V4 SparkDexV4 routing on Flare
+    // OpenOcean V4 routing on Flare
     address internal constant OPENOCEAN_ROUTER = 0x6352a56caadC4F1E25CD6c75970Fa768A3304e64;
-    address internal constant OPENOCEAN_CALLER_FLARE = 0x6dd434082EAB5Cd134B33719ec1FF05fE985B97b;
+    address internal constant OPENOCEAN_REFERRER_FLARE = 0x0E24b0F342F034446Ec814281AD1a7653cBd85e9;
 
     // Pendle Router addresses per chain
     address internal constant PENDLE_ROUTER_MAINNET = 0x888888888889758F76e7103c6CbF23ABbF58F946;
@@ -162,8 +162,7 @@ abstract contract Constants {
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
     string internal constant APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY =
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook";
-    string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY =
-        "AcrossSendFundsAndExecuteOnDstHookV2";
+    string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY = "AcrossSendFundsAndExecuteOnDstHookV2";
     string internal constant APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY =
         "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2";
     string internal constant FLUID_CLAIM_REWARD_HOOK_KEY = "FluidClaimRewardHook";
@@ -220,8 +219,8 @@ abstract contract Constants {
     string internal constant APPROVE_AND_SWAP_ODOSV2_HOOK_KEY = "ApproveAndSwapOdosV2Hook";
     string internal constant SWAP_KYBERSWAP_HOOK_KEY = "SwapKyberSwapHook";
     string internal constant APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY = "ApproveAndSwapKyberSwapHook";
-    string internal constant SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY = "SwapOpenOceanSparkDexHook";
-    string internal constant APPROVE_AND_SWAP_OPENOCEAN_SPARKDEX_HOOK_KEY = "ApproveAndSwapOpenOceanSparkDexHook";
+    string internal constant SWAP_OPENOCEAN_HOOK_KEY = "SwapOpenOceanHook";
+    string internal constant APPROVE_AND_SWAP_OPENOCEAN_HOOK_KEY = "ApproveAndSwapOpenOceanHook";
     string internal constant SWAP_UNISWAPV2_HOOK_KEY = "SwapUniswapV2Hook";
     string internal constant APPROVE_AND_SWAP_UNISWAPV2_HOOK_KEY = "ApproveAndSwapUniswapV2Hook";
     string internal constant APPROVE_AND_FLUID_STAKE_HOOK_KEY = "ApproveAndFluidStakeHook";

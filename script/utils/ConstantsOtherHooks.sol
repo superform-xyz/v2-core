@@ -20,6 +20,8 @@ abstract contract ConstantsOtherHooks {
 
     // rFLR hook keys
     string internal constant CLAIM_RFLR_HOOK_KEY = "ClaimRFLRHook";
+    string internal constant CLAIM_RFLRV2_HOOK_KEY = "ClaimRFLRV2Hook";
+    string internal constant CLAIM_RFLRV3_HOOK_KEY = "ClaimRFLRV3Hook";
     string internal constant WITHDRAW_RFLR_HOOK_KEY = "WithdrawRFLRHook";
     string internal constant WITHDRAW_VESTED_RFLR_HOOK_KEY = "WithdrawVestedRFLRHook";
     string internal constant WITHDRAW_RFLR_HOOK_V2_KEY = "WithdrawRFLRHookV2";

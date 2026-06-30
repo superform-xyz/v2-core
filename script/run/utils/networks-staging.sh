@@ -196,7 +196,7 @@ load_rpc_urls() {
         return 1
     fi
     
-    echo "✅ Staging RPC URLs loaded successfully (all 7 networks)"
+    echo "✅ Staging RPC URLs loaded successfully (Flare)"
 }
 
 # Load Etherscan V2 API key for verification

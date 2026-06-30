@@ -119,7 +119,7 @@ generate_constructor_args() {
     local odos_router=""
     local odos_router_v3="0x0D05a7D3448512B78fa8A9e46c4872C88C4a0D05"  # Same CREATE2 on all EVM chains
     local openocean_router=""
-    local openocean_caller=""
+    local openocean_referrer=""
     local across_spoke_pool_v3=""
     local merkl_distributor=""
     local debridge_dst_dln="0xE7351Fd770A37282b91D153Ee690B63579D6dd7f"
@@ -264,9 +264,9 @@ generate_constructor_args() {
             aggregation_router=""
             odos_router=""
             openocean_router="0x6352a56caadc4f1e25cd6c75970fa768a3304e64"
-            openocean_caller="0x6dd434082eab5cd134b33719ec1ff05fe985b97b"
-            across_spoke_pool_v3=""
-            merkl_distributor=""
+            openocean_referrer="0x0e24b0f342f034446ec814281ad1a7653cbd85e9"
+            across_spoke_pool_v3=""  # Not deployed
+            merkl_distributor=""  # Not deployed
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
         "988") # Stable
@@ -318,8 +318,8 @@ generate_constructor_args() {
         "SwapOdosV3Hook"|"ApproveAndSwapOdosV3Hook")
             echo "$(cast abi-encode "constructor(address)" "$odos_router_v3")"
             ;;
-        "SwapOpenOceanSparkDexHook"|"ApproveAndSwapOpenOceanSparkDexHook")
-            echo "$(cast abi-encode "constructor(address,address,address)" "$openocean_router" "$openocean_caller" "$native_token")"
+        "SwapOpenOceanHook"|"ApproveAndSwapOpenOceanHook")
+            echo "$(cast abi-encode "constructor(address,address,address)" "$openocean_router" "$openocean_referrer" "$native_token")"
             ;;
         "AcrossSendFundsAndExecuteOnDstHook"|"AcrossSendFundsAndExecuteOnDstHookV2")
             echo "$(cast abi-encode "constructor(address,address)" "$across_spoke_pool_v3" "$super_merkle_validator")"
@@ -339,7 +339,9 @@ generate_constructor_args() {
         "StargateSendHook"|"ApproveAndStargateSendHook"|"StargateSendHookV2"|"ApproveAndStargateSendHookV2")
             echo "$(cast abi-encode "constructor(address)" "$super_merkle_validator")"
             ;;
-        "ClaimRFLRHook")
+
+        # Hooks - Claim (Flare rFLR)
+        "ClaimRFLRHook"|"ClaimRFLRV2Hook")
             local rnat_flare="0x26d460c3Cf931Fb2014FA436a49e3Af08619810e"
             echo "$(cast abi-encode "constructor(address)" "$rnat_flare")"
             ;;
@@ -566,8 +568,8 @@ get_contract_source() {
         "ApproveAndSwapOdosV2Hook") echo "src/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol" ;;
         "SwapOdosV3Hook") echo "src/hooks/swappers/odos/SwapOdosV3Hook.sol" ;;
         "ApproveAndSwapOdosV3Hook") echo "src/hooks/swappers/odos/ApproveAndSwapOdosV3Hook.sol" ;;
-        "SwapOpenOceanSparkDexHook") echo "src/hooks/swappers/openocean/SwapOpenOceanSparkDexHook.sol" ;;
-        "ApproveAndSwapOpenOceanSparkDexHook") echo "src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol" ;;
+        "SwapOpenOceanHook") echo "src/hooks/swappers/openocean/SwapOpenOceanHook.sol" ;;
+        "ApproveAndSwapOpenOceanHook") echo "src/hooks/swappers/openocean/ApproveAndSwapOpenOceanHook.sol" ;;
         "SwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Hook.sol" ;;
         "ApproveAndSwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/ApproveAndSwapUniswapV3Hook.sol" ;;
         "SwapUniswapV3Router02Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Router02Hook.sol" ;;
@@ -635,6 +637,7 @@ get_contract_source() {
         "GearboxClaimRewardHook") echo "src/hooks/claim/gearbox/GearboxClaimRewardHook.sol" ;;
         "YearnClaimOneRewardHook") echo "src/hooks/claim/yearn/YearnClaimOneRewardHook.sol" ;;
         "ClaimRFLRHook") echo "src/hooks/claim/flare/ClaimRFLRHook.sol" ;;
+        "ClaimRFLRV2Hook") echo "src/hooks/claim/flare/ClaimRFLRV2Hook.sol" ;;
         "WithdrawRFLRHook") echo "src/hooks/claim/flare/WithdrawRFLRHook.sol" ;;
         "WithdrawVestedRFLRHook") echo "src/hooks/claim/flare/WithdrawVestedRFLRHook.sol" ;;
 
