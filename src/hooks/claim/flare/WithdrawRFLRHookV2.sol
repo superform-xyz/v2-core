@@ -26,14 +26,11 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 ///         to any locked (unvested) portion. Only fully-vested rFLR is penalty-free.
 /// @dev Calls IRNat.withdrawAll(true) to receive WFLR (wrapped FLR) instead of native FLR.
 ///      The penalty is enforced by the RNat contract and cannot be bypassed.
-///      data layout (standard 52-byte header + hook-specific):
-///        [0:32]  bytes32 placeholder (strategy header — unused by this hook)
-///        [32:52] address yieldSource (strategy header — unused by this hook)
-///        [52:53] acknowledge byte — if non-zero AND lockedBalance > 0, caller explicitly
-///                opts in to the locked-burn penalty (Variant B). Currently a no-op;
-///                can be enabled by governance if curators need tighter protection.
-///        [53:85] uint256 minOut — minimum WFLR delta the caller will accept (Variant A).
-///                If omitted (data.length < 85) or zero, no slippage check is enforced.
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes32 placeholder = BytesLib.toBytes32(data, 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         uint8 acknowledge = BytesLib.toUint8(data, 52);
+/// @notice         uint256 minOut = BytesLib.toUint256(data, 53);
 contract WithdrawRFLRHookV2 is BaseHook, ISuperHookInflowOutflow {
     /*//////////////////////////////////////////////////////////////
                               ERRORS

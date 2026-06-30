@@ -28,11 +28,10 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 ///      The vested amount is computed as rNatBalance - lockedBalance via getBalancesOf().
 ///      Vesting is time-based (rolling 12-month linear per monthly allocation) and is not
 ///      manipulable by third parties.
-///      data layout (standard 52-byte header + hook-specific):
-///        [0:32]  bytes32 placeholder (strategy header — unused by this hook)
-///        [32:52] address yieldSource (strategy header — unused by this hook)
-///        [52:84] uint256 minOut — minimum WFLR delta the caller will accept.
-///                If omitted (data.length < 84) or zero, no slippage check is enforced.
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes32 placeholder = BytesLib.toBytes32(data, 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         uint256 minOut = BytesLib.toUint256(data, 52);
 contract WithdrawVestedRFLRHook is BaseHook, ISuperHookInflowOutflow {
     using SafeCast for uint256;
 

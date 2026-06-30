@@ -325,3 +325,48 @@ Added `pipeMode` field (`"transform"` | `"passthrough"` | `"source"`) to every e
 - `"transform"`: 100 hooks
 - `"passthrough"`: 16 hooks (ApproveERC20, MarkRootAsUsed, FetchNativeFee, CircleGateway Add/Remove Delegate, DeBridgeCancel, RecordPurchase/Redemption Pendle V1/V2, Cancel/ClaimCancel 7540 Deposit/Redeem, SetOperator, SetSlippage)
 - `"source"`: 0 hooks (none currently override to SOURCE)
+
+---
+
+## Dev Merge + Standardization + NatSpec Fixes (2026-06-30)
+
+### Summary
+Three tasks completed in this session:
+
+### Task 1: Compiler Warning Fix
+- `src/hooks/BaseHook.sol:294`: Renamed `bytes calldata data` → `bytes calldata` (unnamed) in `_preExecute` virtual function to silence unused-parameter warning
+- Removed stale `/// @param data Hook-specific parameters and configuration data` NatSpec line
+
+### Task 2: Merge `origin/dev` → `feat/hook-sizing-manifest`
+- 13 commits from dev merged; 27+ conflict files resolved
+- New hooks from dev (`ClaimRFLRV2Hook`, `ClaimRFLRV3Hook`, `ApproveAndSwapOpenOceanHook`, `SwapOpenOceanHook`) received full standardization:
+  - `name()` and `description()` functions
+  - `ISuperHookInflowOutflow + ISuperHookOutflow` for OpenOcean hooks
+  - `decodeAmounts`, `amountRoles`, `replaceCalldataAmounts`, `_supportsSizingInterface`
+- Deleted `test/integration/openocean/OpenOceanSparkDexAPIScale.t.sol` (deps removed on dev)
+- Updated `test/unit/hooks/HookSizingInterface.t.sol` to use new hook names
+- JSON output files updated with both dev ClaimRFLR addresses and our V2 hook addresses
+
+### Task 3: NatSpec Style Fix in RFLR Withdraw Hooks
+Replaced bracket-style `[offset:end] type name — description` notation with mandatory BytesLib-style:
+```
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes32 placeholder = BytesLib.toBytes32(data, 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         uint8 acknowledge = BytesLib.toUint8(data, 52);
+/// @notice         uint256 minOut = BytesLib.toUint256(data, 53);
+```
+
+**Files fixed:**
+- `src/hooks/claim/flare/WithdrawRFLRHook.sol`
+- `src/hooks/claim/flare/WithdrawRFLRHookV2.sol`
+- `src/hooks/claim/flare/WithdrawVestedRFLRHook.sol`
+- `src/hooks/claim/flare/WithdrawVestedRFLRHookV2.sol`
+
+### Task 4: Agent Rule Added
+Updated `.claude/agents/hooks-master.md` with:
+- **MANDATORY FORMAT** section specifying the BytesLib decode expression per type
+- Rule: dynamic `bytes` must have a `uint256 lengthField` immediately before `BytesLib.slice`
+- "Pattern with all primitive types" example
+
+### Status: ALL COMPLETE

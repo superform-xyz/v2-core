@@ -127,6 +127,27 @@ Your core expertise includes:
 - **Error Handling**: Define custom errors for each hook type with descriptive names
 - **Coverage Optimization**: Use optimized structs to hold local variables in integration tests to avoid "stack too deep" errors during coverage compilation. Define structs to group related variables and reduce stack depth. This is CRITICAL for `make coverage-genhtml` to pass.
 
+**NatSpec Data Layout Documentation Rules**:
+
+**MANDATORY FORMAT**: Always use `/// @notice type name = BytesLib.toType(data, offset);` style — NEVER use `[offset:end] type name — description` bracket notation. The `@notice` lines must mirror exactly how the code decodes the field.
+
+Supported decode expressions per type:
+- `address` → `BytesLib.toAddress(data, offset)`
+- `uint256` → `BytesLib.toUint256(data, offset)`
+- `uint128` → `BytesLib.toUint128(data, offset)`
+- `uint64` → `BytesLib.toUint64(data, offset)`
+- `uint32` → `BytesLib.toUint32(data, offset)`
+- `uint16` → `BytesLib.toUint16(data, offset)`
+- `uint8` → `BytesLib.toUint8(data, offset)`
+- `bool` → `_decodeBool(data, offset)`
+- `bytes32` → `BytesLib.toBytes32(data, offset)`
+- `bytes` (dynamic, fixed slice) → `BytesLib.slice(data, offset, length)`
+- `bytes` (dynamic, variable length) → must be preceded by a uint256 length field immediately before:
+  ```
+  /// @notice uint256 payloadLength = BytesLib.toUint256(data, offset);
+  /// @notice bytes payload = BytesLib.slice(data, offset + 32, payloadLength);
+  ```
+
 **NatSpec Data Layout Documentation Examples**:
 
 **Simple Encoding Pattern (Sequential Fields)**:
@@ -136,6 +157,20 @@ Your core expertise includes:
 /// @notice         uint256 amount = BytesLib.toUint256(data, 20);
 /// @notice         address recipient = BytesLib.toAddress(data, 52);
 /// @notice         bool useMaxAmount = _decodeBool(data, 72);
+```
+
+**Pattern with all primitive types**:
+```solidity
+/// @dev data has the following structure
+/// @notice         address token = BytesLib.toAddress(data, 0);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 20);
+/// @notice         uint32 id = BytesLib.toUint32(data, 52);
+/// @notice         uint16 slippage = BytesLib.toUint16(data, 56);
+/// @notice         uint8 mode = BytesLib.toUint8(data, 58);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 59);
+/// @notice         bytes32 key = BytesLib.toBytes32(data, 60);
+/// @notice         uint256 payloadLength = BytesLib.toUint256(data, 92);
+/// @notice         bytes payload = BytesLib.slice(data, 124, payloadLength);
 ```
 
 **Complex Encoding Pattern (Mixed Types + Dynamic Data)**:
