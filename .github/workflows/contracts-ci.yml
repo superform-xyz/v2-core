@@ -301,10 +301,13 @@ jobs:
 
       - name: "Check manifests/hooks.json is up-to-date"
         run: |
-          if ! git diff --exit-code manifests/hooks.json; then
+          # Exclude the generatedAt timestamp line — it changes on every run by design.
+          # Any other diff means the committed manifest is stale.
+          if git diff manifests/hooks.json | grep -v '"generatedAt"' | grep -q '^[+-][^+-]'; then
             echo ""
             echo "ERROR: manifests/hooks.json is stale — committed file differs from generated output." >&2
             echo "Run 'python3 tooling/generate_hook_manifest.py' locally and commit the result." >&2
+            git diff manifests/hooks.json | grep -v '"generatedAt"' >&2
             exit 1
           fi
 
