@@ -291,7 +291,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     /// @param prevHook The previous hook in the chain, or address(0) if first hook
     /// @param account The account that operations will be performed for
     /// @param data Hook-specific parameters and configuration data
-    function _preExecute(address prevHook, address account, bytes calldata data) internal virtual {
+    function _preExecute(address prevHook, address account, bytes calldata) internal virtual {
         if (_pipeMode() == PipeMode.PASSTHROUGH && prevHook != address(0)) {
             _setOutAmount(ISuperHookResult(prevHook).getOutAmount(account), account);
             _setOutToken(ISuperHookResult(prevHook).getOutToken(account), account);
