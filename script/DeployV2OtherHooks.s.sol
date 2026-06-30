@@ -68,6 +68,10 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address approveAndSwapOdosV3Hook;
     }
 
+    struct DepositWFLRHookAddress {
+        address depositWFLRHook;
+    }
+
     struct HookDeployment {
         string name;
         string saltOverride; // Optional custom salt (empty = use name for salt)
@@ -150,6 +154,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    function runDepositWFLR(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying DepositWFLRHook on chainId: ", chainId);
+
+        _deployDepositWFLRHook(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
     /// @notice Deploy all applicable hooks for the given chain
     function _deployAllHooks(uint64 chainId, uint256 env) internal {
         // Morpho hooks — only on chains where Morpho is deployed
@@ -192,6 +204,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             _deployRFLRHooks(chainId, env);
             console2.log("Deploying rFLR V2 Hooks on chainId: ", chainId);
             _deployRFLRV2Hooks(chainId, env);
+            console2.log("Deploying DepositWFLRHook on chainId: ", chainId);
+            _deployDepositWFLRHook(chainId, env);
         }
 
         // Odos V3 hooks — on chains where Odos V3 router is deployed
@@ -707,5 +721,30 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         console2.log("All Odos V3 hooks deployed and validated successfully.");
 
         return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    DEPOSIT WFLR HOOK DEPLOYMENT (FLARE ONLY)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Deploy DepositWETHHook with WFLR address on Flare — wraps native FLR into WFLR
+    /// @dev DepositWETHHook is generic: WFLR.deposit() shares the same ABI as WETH.deposit()
+    function _deployDepositWFLRHook(uint64 chainId, uint256 env) internal returns (DepositWFLRHookAddress memory) {
+        bytes memory wflrArg = abi.encode(WFLR_FLARE);
+
+        address depositWFLRHook = __deployContract(
+            DEPOSIT_WFLR_HOOK_KEY,
+            chainId,
+            __getSalt(DEPOSIT_WFLR_HOOK_KEY),
+            abi.encodePacked(__getOtherHooksBytecode("DepositWETHHook", env), wflrArg)
+        );
+
+        require(depositWFLRHook != address(0), "DepositWFLRHook not assigned");
+
+        console2.log("DepositWFLRHook deployed and validated successfully at:", depositWFLRHook);
+
+        DepositWFLRHookAddress memory hookAddress;
+        hookAddress.depositWFLRHook = depositWFLRHook;
+        return hookAddress;
     }
 }

@@ -12,7 +12,7 @@ import subprocess
 import sys
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-LOCKED_BYTECODE_DIR = os.path.join(PROJECT_ROOT, "script/locked-bytecode-other")
+LOCKED_BYTECODE_DIR = os.path.join(PROJECT_ROOT, "script/locked-bytecode")
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "script/output/prod")
 
 DEPLOYER = "0x4e59b44847b379578588920cA78FbF26c0B4956C"
@@ -95,7 +95,7 @@ def compute_salt(hook_name: str) -> str:
 
 
 def get_bytecode(hook_name: str) -> str:
-    """Get bytecode from locked-bytecode-other/<hookName>.json"""
+    """Get bytecode from locked-bytecode/<hookName>.json"""
     path = os.path.join(LOCKED_BYTECODE_DIR, f"{hook_name}.json")
     with open(path) as f:
         data = json.load(f)

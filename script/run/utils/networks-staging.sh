@@ -7,42 +7,14 @@
 # Format: "CHAIN_ID:NetworkName:RPC_VAR"
 NETWORKS=(
     "14:Flare:FLARE_MAINNET"
-    "1:Ethereum:ETH_MAINNET"
-    "8453:Base:BASE_MAINNET"
-    "56:BNB:BSC_MAINNET"
-    "42161:Arbitrum:ARBITRUM_MAINNET"
-    "43114:Avalanche:AVALANCHE_MAINNET"
-    "999:HyperEVM:HYPEREVM_MAINNET"
-    "988:Stable:STABLE_MAINNET"
 )
 
 # Network name mapping function
 get_network_name() {
     local network_id=$1
     case "$network_id" in
-        1)
-            echo "Ethereum"
-            ;;
-        8453)
-            echo "Base"
-            ;;
-        56)
-            echo "BNB"
-            ;;
-        42161)
-            echo "Arbitrum"
-            ;;
-        43114)
-            echo "Avalanche"
-            ;;
-        999)
-            echo "HyperEVM"
-            ;;
         14)
             echo "Flare"
-            ;;
-        988)
-            echo "Stable"
             ;;
         *)
             echo "ERROR: Unknown staging network ID: $network_id" >&2
@@ -55,29 +27,8 @@ get_network_name() {
 get_rpc_var() {
     local network_id=$1
     case "$network_id" in
-        1)
-            echo "ETH_MAINNET"
-            ;;
-        8453)
-            echo "BASE_MAINNET"
-            ;;
-        56)
-            echo "BSC_MAINNET"
-            ;;
-        42161)
-            echo "ARBITRUM_MAINNET"
-            ;;
-        43114)
-            echo "AVALANCHE_MAINNET"
-            ;;
-        999)
-            echo "HYPEREVM_MAINNET"
-            ;;
         14)
             echo "FLARE_MAINNET"
-            ;;
-        988)
-            echo "STABLE_MAINNET"
             ;;
         *)
             echo "ERROR: Unknown staging network ID for RPC: $network_id" >&2
@@ -90,29 +41,8 @@ get_rpc_var() {
 get_rpc_url() {
     local network_id=$1
     case "$network_id" in
-        1)
-            echo "$ETH_MAINNET"
-            ;;
-        8453)
-            echo "$BASE_MAINNET"
-            ;;
-        56)
-            echo "$BSC_MAINNET"
-            ;;
-        42161)
-            echo "$ARBITRUM_MAINNET"
-            ;;
-        43114)
-            echo "$AVALANCHE_MAINNET"
-            ;;
-        999)
-            echo "$HYPEREVM_MAINNET"
-            ;;
         14)
             echo "$FLARE_MAINNET"
-            ;;
-        988)
-            echo "$STABLE_MAINNET"
             ;;
         *)
             echo "ERROR: Unknown staging network ID for RPC: $network_id" >&2
@@ -144,47 +74,12 @@ get_supported_networks() {
 # Load RPC URLs from credential manager for staging networks
 load_rpc_urls() {
     echo "Loading staging RPC URLs from credential manager..."
-    
-    local failed_rpcs=()
-    
-    echo "  • Loading Ethereum RPC..."
-    if ! export ETH_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHEREUM_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("ETHEREUM_RPC_URL")
-    fi
-    
-    echo "  • Loading Base RPC..."
-    if ! export BASE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("BASE_RPC_URL")
-    fi
-    
-    echo "  • Loading BSC RPC..."
-    if ! export BSC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BSC_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("BSC_RPC_URL")
-    fi
-    
-    echo "  • Loading Arbitrum RPC..."
-    if ! export ARBITRUM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ARBITRUM_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("ARBITRUM_RPC_URL")
-    fi
-    
-    echo "  • Loading Avalanche RPC..."
-    if ! export AVALANCHE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/AVALANCHE_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("AVALANCHE_RPC_URL")
-    fi
 
-    echo "  • Loading HyperEVM RPC..."
-    if ! export HYPEREVM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/HYPEREVM_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
-        failed_rpcs+=("HYPEREVM_RPC_URL")
-    fi
+    local failed_rpcs=()
 
     echo "  • Loading Flare RPC..."
     if ! export FLARE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/FLARE_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
         failed_rpcs+=("FLARE_RPC_URL")
-    fi
-
-    echo "  • Loading Stable RPC..."
-    if ! export STABLE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/STABLE_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
-        failed_rpcs+=("STABLE_RPC_URL")
     fi
 
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then
@@ -195,7 +90,7 @@ load_rpc_urls() {
         echo "⚠️  Some networks may not be accessible during deployment"
         return 1
     fi
-    
+
     echo "✅ Staging RPC URLs loaded successfully (Flare)"
 }
 

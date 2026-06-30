@@ -5,7 +5,7 @@
 ###################################################################################
 # Description:
 #   Deploys other hooks (Morpho, Aave V4, Firelight, Algebra Integral, DETH,
-#   Sponsorship, rFLR) via DeployV2OtherHooks.s.sol across configured networks.
+#   Sponsorship, rFLR, DepositWFLR) via DeployV2OtherHooks.s.sol across configured networks.
 #   Sources lib_deploy.sh for shared deployment utilities.
 #
 # Usage:
@@ -115,6 +115,19 @@ RFLR_SUPPORTED_CHAINS=("14")
 is_rflr_supported() {
     local chain_id=$1
     for supported in "${RFLR_SUPPORTED_CHAINS[@]}"; do
+        if [ "$supported" = "$chain_id" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# DepositWFLRHook (DepositWETHHook deployed with WFLR) is only deployed on Flare
+DEPOSIT_WFLR_SUPPORTED_CHAINS=("14")
+
+is_deposit_wflr_supported() {
+    local chain_id=$1
+    for supported in "${DEPOSIT_WFLR_SUPPORTED_CHAINS[@]}"; do
         if [ "$supported" = "$chain_id" ]; then
             return 0
         fi
@@ -334,11 +347,34 @@ if [ $missing_rflr_v2 -gt 0 ]; then
 fi
 
 echo ""
+
+echo -e "${BLUE}Checking DepositWFLRHook bytecode availability...${NC}"
+
+DEPOSIT_WFLR_HOOKS=(
+    "DepositWETHHook"
+)
+
+missing_deposit_wflr=0
+for hook in "${DEPOSIT_WFLR_HOOKS[@]}"; do
+    if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
+        echo -e "${GREEN}   ${hook}${NC}"
+    else
+        echo -e "${YELLOW}   ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
+        missing_deposit_wflr=$((missing_deposit_wflr + 1))
+    fi
+done
+
+if [ $missing_deposit_wflr -gt 0 ]; then
+    echo -e "${YELLOW}${missing_deposit_wflr} DepositWFLR hook(s) missing bytecode. They will be skipped during deployment.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/tooling/regenerate_bytecode.sh DepositWETHHook to generate missing bytecode.${NC}"
+fi
+
+echo ""
 print_separator
 
 # ── Confirmation ───────────────────────────────────────────────────────────────
 
-echo -e "${WHITE}Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral + DETH + Sponsorship + rFLR + rFLR V2) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
+echo -e "${WHITE}Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral + DETH + Sponsorship + rFLR + rFLR V2 + DepositWFLR) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
 read -r proceed
 
 if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
@@ -622,6 +658,37 @@ for network_def in "${NETWORKS[@]}"; do
         else
             echo -e "${RED}   rFLR V2 hooks deployment failed on $network_name, continuing...${NC}"
             FAILED_HOOK_DEPLOYS+=("rFLR V2 @ $network_name")
+        fi
+    fi
+
+    # Deploy DepositWFLRHook (DepositWETHHook with WFLR address) if supported on this chain
+    if is_deposit_wflr_supported "$network_id"; then
+        has_hooks=true
+        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
+        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
+        echo -e "${YELLOW}   Deploying DepositWFLRHook...${NC}"
+
+        if forge script "$FORGE_SCRIPT" \
+            --sig 'runDepositWFLR(uint256,uint64)' $FORGE_ENV $network_id \
+            --account "$ACCOUNT" \
+            $KEYSTORE_PASSWORD_FLAG \
+            --rpc-url "${!rpc_var}" \
+            $local_chain_flag \
+            $local_etherscan_flags \
+            $BROADCAST_FLAG \
+            $local_verify_flag \
+            $SLOW_FLAG \
+            $BATCH_SIZE_FLAG \
+            $RESUME_FLAG \
+            $LEGACY_FLAG \
+            $GAS_PRICE_FLAG \
+            --timeout 300 \
+            -vv; then
+            echo -e "${GREEN}   DepositWFLRHook deployment completed!${NC}"
+        else
+            echo -e "${RED}   DepositWFLRHook deployment failed on $network_name, continuing...${NC}"
+            FAILED_HOOK_DEPLOYS+=("DepositWFLR @ $network_name")
         fi
     fi
 
