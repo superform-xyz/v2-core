@@ -378,4 +378,19 @@ contract FirelightHooksTests is Helpers {
     {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, requestId, usePrevHook);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                         GET OUT TOKEN TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_RedeemFirelightVaultHook_GetOutToken() public {
+        bytes memory data = _encodeRedeemData(address(stXRP), amount, false);
+        // deal stXRP (yieldSource) to account before redeem
+        deal(address(stXRP), address(this), amount);
+        redeemHook.preExecute(address(0), address(this), data);
+        // simulate redeem consuming stXRP shares
+        deal(address(stXRP), address(this), 0);
+        redeemHook.postExecute(address(0), address(this), data);
+        assertEq(redeemHook.getOutToken(address(this)), address(stXRP));
+    }
 }

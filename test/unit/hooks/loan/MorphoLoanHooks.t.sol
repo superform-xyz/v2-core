@@ -1726,4 +1726,81 @@ contract MorphoLoanHooksTest is Helpers {
             loanToken, collateralToken, address(mockOracle), address(mockIRM), amount, lltv, usePrevHook
         );
     }
+
+    /*//////////////////////////////////////////////////////////////
+                         GET OUT TOKEN TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_LendHook_GetOutToken() public {
+        bytes memory data = _encodeLendData(false);
+        // preExecute stores current supply shares (100e18 from setUp mock)
+        lendHook.preExecute(address(0), address(this), data);
+        // postExecute: shares unchanged → outToken is set to loanToken
+        lendHook.postExecute(address(0), address(this), data);
+        assertEq(lendHook.getOutToken(address(this)), loanToken);
+    }
+
+    function test_BorrowHookB_GetOutToken() public {
+        bytes memory data = _encodeBorrowData(false);
+        // preExecute: loanToken balance = 0
+        borrowHookB.preExecute(address(0), address(this), data);
+        // simulate borrow receiving loan tokens
+        deal(loanToken, address(this), amount);
+        borrowHookB.postExecute(address(0), address(this), data);
+        assertEq(borrowHookB.getOutToken(address(this)), loanToken);
+    }
+
+    function test_RepayHook_GetOutToken() public {
+        bytes memory data = _encodeRepayData(false, false);
+        // deal loan tokens to account before repay
+        deal(loanToken, address(this), amount);
+        repayHook.preExecute(address(0), address(this), data);
+        // simulate repay consuming loan tokens
+        deal(loanToken, address(this), 0);
+        repayHook.postExecute(address(0), address(this), data);
+        assertEq(repayHook.getOutToken(address(this)), loanToken);
+    }
+
+    function test_WithdrawHook_GetOutToken() public {
+        bytes memory data =
+            _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, 0);
+        // preExecute: loanToken balance = 0
+        withdrawHook.preExecute(address(0), address(this), data);
+        // simulate withdraw receiving loan tokens
+        deal(loanToken, address(this), amount);
+        withdrawHook.postExecute(address(0), address(this), data);
+        assertEq(withdrawHook.getOutToken(address(this)), loanToken);
+    }
+
+    function test_SupplyHook_GetOutToken() public {
+        bytes memory data = _encodeSupplyData(false);
+        // deal collateral tokens to account before supply
+        deal(collateralToken, address(this), amount);
+        supplyHook.preExecute(address(0), address(this), data);
+        // simulate supply consuming collateral tokens
+        deal(collateralToken, address(this), 0);
+        supplyHook.postExecute(address(0), address(this), data);
+        assertEq(supplyHook.getOutToken(address(this)), collateralToken);
+    }
+
+    function test_BorrowHook_GetOutToken() public {
+        bytes memory data = _encodeBorrowData(false);
+        // deal collateral tokens to account before supply+borrow
+        deal(collateralToken, address(this), amount);
+        borrowHook.preExecute(address(0), address(this), data);
+        // simulate supply consuming collateral tokens
+        deal(collateralToken, address(this), 0);
+        borrowHook.postExecute(address(0), address(this), data);
+        assertEq(borrowHook.getOutToken(address(this)), collateralToken);
+    }
+
+    function test_RepayAndWithdrawHook_GetOutToken() public {
+        bytes memory data = _encodeRepayAndWithdrawData(false, false);
+        // preExecute: collateralToken balance = 0
+        repayAndWithdrawHook.preExecute(address(0), address(this), data);
+        // simulate withdraw receiving collateral tokens back
+        deal(collateralToken, address(this), amount);
+        repayAndWithdrawHook.postExecute(address(0), address(this), data);
+        assertEq(repayAndWithdrawHook.getOutToken(address(this)), collateralToken);
+    }
 }

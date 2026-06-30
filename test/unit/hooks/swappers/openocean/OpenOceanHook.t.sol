@@ -12,7 +12,7 @@ import { SwapOpenOceanHook } from "../../../../../src/hooks/swappers/openocean/S
 import { OpenOceanDynamicAmountUpdater } from "../../../../../src/libraries/OpenOceanDynamicAmountUpdater.sol";
 import { IOpenOceanCaller } from "../../../../../src/vendor/openocean/IOpenOceanCaller.sol";
 import { IOpenOceanExchange } from "../../../../../src/vendor/openocean/IOpenOceanExchange.sol";
-import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookInflowOutflow } from "../../../../../src/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
 
@@ -1097,5 +1097,43 @@ contract OpenOceanHookTest is Test {
         for (uint256 i; i < result.length; ++i) {
             result[i] = data_[i + 4];
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         NAME / DESCRIPTION
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SwapHook_Name() public view {
+        assertEq(swapHook.name(), "Swap OpenOcean");
+    }
+
+    function test_SwapHook_Description() public view {
+        assertEq(swapHook.description(), "Swaps tokens via OpenOcean aggregator");
+    }
+
+    function test_ApproveAndSwapHook_Name() public view {
+        assertEq(approveAndSwapHook.name(), "Approve and Swap OpenOcean");
+    }
+
+    function test_ApproveAndSwapHook_Description() public view {
+        assertEq(approveAndSwapHook.description(), "Approves and swaps tokens via OpenOcean aggregator");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            AMOUNT ROLES
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SwapHook_AmountRoles() public view {
+        ISuperHookInflowOutflow.AmountMeta[] memory meta = swapHook.amountRoles("");
+        assertEq(meta.length, 1);
+        assertEq(uint256(meta[0].dir), uint256(ISuperHookInflowOutflow.Direction.IN));
+        assertEq(uint256(meta[0].denom), uint256(ISuperHookInflowOutflow.Denomination.TOKEN));
+    }
+
+    function test_ApproveAndSwapHook_AmountRoles() public view {
+        ISuperHookInflowOutflow.AmountMeta[] memory meta = approveAndSwapHook.amountRoles("");
+        assertEq(meta.length, 1);
+        assertEq(uint256(meta[0].dir), uint256(ISuperHookInflowOutflow.Direction.IN));
+        assertEq(uint256(meta[0].denom), uint256(ISuperHookInflowOutflow.Denomination.TOKEN));
     }
 }

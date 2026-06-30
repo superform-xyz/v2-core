@@ -1680,6 +1680,73 @@ contract AaveV4LoanHooksTest is Helpers {
             withdrawAmt
         );
     }
+
+    /*//////////////////////////////////////////////////////////////
+                         GET OUT TOKEN TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SupplyHook_GetOutToken() public {
+        bytes memory data = _encodeSupplyData(false);
+        // deal collateral to account before supply
+        deal(collateralToken, address(this), amount);
+        supplyHook.preExecute(address(0), address(this), data);
+        // simulate supply consuming collateral tokens
+        deal(collateralToken, address(this), 0);
+        supplyHook.postExecute(address(0), address(this), data);
+        assertEq(supplyHook.getOutToken(address(this)), collateralToken);
+    }
+
+    function test_WithdrawHook_GetOutToken() public {
+        bytes memory data = _encodeWithdrawData(false);
+        // preExecute: collateralToken balance = 0
+        withdrawHook.preExecute(address(0), address(this), data);
+        // simulate withdraw receiving collateral tokens
+        deal(collateralToken, address(this), amount);
+        withdrawHook.postExecute(address(0), address(this), data);
+        assertEq(withdrawHook.getOutToken(address(this)), collateralToken);
+    }
+
+    function test_BorrowHook_GetOutToken() public {
+        bytes memory data = _encodeBorrowData(false);
+        // preExecute: loanToken balance = 0
+        borrowHook.preExecute(address(0), address(this), data);
+        // simulate borrow receiving loan tokens
+        deal(loanToken, address(this), amount);
+        borrowHook.postExecute(address(0), address(this), data);
+        assertEq(borrowHook.getOutToken(address(this)), loanToken);
+    }
+
+    function test_RepayHook_GetOutToken() public {
+        bytes memory data = _encodeRepayData(false, false);
+        // deal loan tokens to account before repay
+        deal(loanToken, address(this), amount);
+        repayHook.preExecute(address(0), address(this), data);
+        // simulate repay consuming loan tokens
+        deal(loanToken, address(this), 0);
+        repayHook.postExecute(address(0), address(this), data);
+        assertEq(repayHook.getOutToken(address(this)), loanToken);
+    }
+
+    function test_SupplyAndBorrowHook_GetOutToken() public {
+        bytes memory data = _encodeSupplyAndBorrowData(false, borrowAmount);
+        // deal collateral to account before supply
+        deal(collateralToken, address(this), amount);
+        supplyAndBorrowHook.preExecute(address(0), address(this), data);
+        // simulate supply consuming collateral tokens
+        deal(collateralToken, address(this), 0);
+        supplyAndBorrowHook.postExecute(address(0), address(this), data);
+        assertEq(supplyAndBorrowHook.getOutToken(address(this)), collateralToken);
+    }
+
+    function test_RepayAndWithdrawHook_GetOutToken() public {
+        bytes memory data = _encodeRepayAndWithdrawData(false, false, withdrawAmount);
+        // preExecute: collateralToken balance = 0
+        repayAndWithdrawHook.preExecute(address(0), address(this), data);
+        // simulate withdraw receiving collateral tokens back
+        deal(collateralToken, address(this), amount);
+        repayAndWithdrawHook.postExecute(address(0), address(this), data);
+        assertEq(repayAndWithdrawHook.getOutToken(address(this)), collateralToken);
+    }
 }
 
 /// @dev Helper interface for asserting approve calldata

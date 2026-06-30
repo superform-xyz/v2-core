@@ -10,7 +10,14 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
 import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
 import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
-import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../../../src/interfaces/ISuperHook.sol";
 import { WithdrawVestedRFLRHookV2 } from "../../../../../src/hooks/claim/flare/WithdrawVestedRFLRHookV2.sol";
 import { IRNat } from "../../../../../src/vendor/flare/IRNat.sol";
 
@@ -375,5 +382,63 @@ contract WithdrawVestedRFLRHookV2Test is Helpers {
 
         assertEq(argsEncoded.length, 20);
         assertEq(BytesLib.toAddress(argsEncoded, 0), rNat);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         NAME / DESCRIPTION
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Name() public view {
+        assertEq(hook.name(), "Withdraw Vested RFLR V2");
+    }
+
+    function test_Description() public view {
+        assertEq(hook.description(), "Withdraws vested RFLR tokens from the Flare network");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                       ERC-165 SUPPORTS INTERFACE
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SupportsInterface_ISuperHookInflowOutflow() public view {
+        assertTrue(hook.supportsInterface(type(ISuperHookInflowOutflow).interfaceId));
+    }
+
+    function test_SupportsInterface_ISuperHookOutflow_ReturnsFalse() public view {
+        assertFalse(hook.supportsInterface(type(ISuperHookOutflow).interfaceId));
+    }
+
+    function test_SupportsInterface_IERC165() public view {
+        assertTrue(hook.supportsInterface(type(IERC165).interfaceId));
+    }
+
+    function test_SupportsInterface_ISuperHook() public view {
+        assertTrue(hook.supportsInterface(type(ISuperHook).interfaceId));
+    }
+
+    function test_SupportsInterface_ISuperHookResult() public view {
+        assertTrue(hook.supportsInterface(type(ISuperHookResult).interfaceId));
+    }
+
+    function test_SupportsInterface_ISuperHookInspector() public view {
+        assertTrue(hook.supportsInterface(type(ISuperHookInspector).interfaceId));
+    }
+
+    function test_SupportsInterface_UnknownId_ReturnsFalse() public view {
+        assertFalse(hook.supportsInterface(bytes4(0xdeadbeef)));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      DECODE AMOUNTS / AMOUNT ROLES
+    //////////////////////////////////////////////////////////////*/
+
+    function test_DecodeAmounts_ReturnsEmptyArray() public view {
+        uint256[] memory amounts = hook.decodeAmounts("");
+        assertEq(amounts.length, 0);
+    }
+
+    function test_AmountRoles_ReturnsEmptyArray() public view {
+        ISuperHookInflowOutflow.AmountMeta[] memory meta = hook.amountRoles("");
+        assertEq(meta.length, 0);
     }
 }
