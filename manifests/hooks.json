@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-06-30T15:36:15Z",
+  "generatedAt": "2026-06-30T15:46:15Z",
   "vocabulary": {
     "intents": [
       "deposit",
