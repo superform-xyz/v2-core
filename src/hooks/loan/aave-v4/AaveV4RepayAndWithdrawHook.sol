@@ -185,6 +185,6 @@ contract AaveV4RepayAndWithdrawHook is BaseAaveV4LoanHook {
     /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(getCollateralTokenBalance(account, data) - getOutAmount(account), account);
-        _setOutToken(asset, account);
+        _setOutToken(getCollateralTokenAddress(data), account);
     }
 }

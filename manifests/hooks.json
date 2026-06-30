@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-06-17T09:42:57Z",
+  "generatedAt": "2026-06-30T14:09:17Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -1411,6 +1411,7 @@
           "43114": "0x299912843Df875b21094c5551880C7CaB6277d31",
           "1": "0x299912843Df875b21094c5551880C7CaB6277d31",
           "42161": "0x299912843Df875b21094c5551880C7CaB6277d31",
+          "988": "0x299912843Df875b21094c5551880C7CaB6277d31",
           "14": "0x299912843Df875b21094c5551880C7CaB6277d31"
         },
         "prod": {
@@ -1427,6 +1428,7 @@
           "42161": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
           "480": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
           "146": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
+          "988": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
           "14": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b"
         }
       },
@@ -1435,6 +1437,7 @@
           "1",
           "14",
           "56",
+          "988",
           "999",
           "8453",
           "42161",
@@ -1450,6 +1453,7 @@
           "137",
           "146",
           "480",
+          "988",
           "999",
           "8453",
           "42161",
@@ -1567,9 +1571,9 @@
     },
     "MorphoWithdrawHook": {
       "name": "Morpho Withdraw",
-      "description": "Withdraws collateral from a Morpho market",
+      "description": "Withdraws supplied assets from a Morpho market",
       "hookType": "NONACCOUNTING",
-      "subtype": "LOAN_REPAY",
+      "subtype": "LOAN",
       "actionTypes": [
         {
           "intent": "withdraw",
@@ -1582,16 +1586,16 @@
       ],
       "addresses": {
         "staging": {
-          "56": "0xa6270787f4a7eF9826469069529075cC4057CAFb",
-          "8453": "0xF23dE24Da35a54429861cb96ADB05d364F5B6a4a",
-          "1": "0xF23dE24Da35a54429861cb96ADB05d364F5B6a4a",
-          "42161": "0xc94bFEB35E6c43929f08b54a3eCFc31dd8FE518e"
+          "56": "0xA03bA33C3e9162D321673fe66Ec0C55bC97fE352",
+          "8453": "0xDc6e157f713736cAf89f71751A1dE7AF5878261E",
+          "1": "0xDc6e157f713736cAf89f71751A1dE7AF5878261E",
+          "42161": "0x8D1Af6E676c8195eF31e6693C4c85d13A154264F"
         },
         "prod": {
-          "56": "0x15c75c455cae4d1756eF38aB50E0Fb926aBD9ab1",
-          "8453": "0x2E80aace37Fb7A9C858B9398f23Dd3e771D52B22",
-          "1": "0x2E80aace37Fb7A9C858B9398f23Dd3e771D52B22",
-          "42161": "0x4597b7e2559CE49aFfD430ADfd8A0a0fD959CEB6"
+          "56": "0x360af57b08589D6cAD89017C9F7E307BE565a332",
+          "8453": "0x7bf485506BB9E86Ef2E886E23e28f1C7BDDC4173",
+          "1": "0x5662f2ff842ecB7cFCac7451dAa1f4D24B701fB6",
+          "42161": "0x950b77c7C6c65De3a847E3feF5C5A38966d5ad57"
         }
       },
       "availableChains": {
@@ -2740,10 +2744,10 @@
       "legSizing": [],
       "addresses": {
         "staging": {
-          "14": "0x3D99E001De266EA4C64C8F37f3027dF6f1F40321"
+          "14": "0x98b6217AefacF77379AF779b07Bac2ACfFcC9E54"
         },
         "prod": {
-          "14": "0x3a40396ebDaa006650Cb5AF9fE9e4A48b51B5f28"
+          "14": "0x930B4c9379474D3Cba04c7Ab3d0f858180A3Efbc"
         }
       },
       "availableChains": {
@@ -2765,6 +2769,88 @@
       "compatibleProtocols": [
         "flare-rflr"
       ]
+    },
+    "ClaimRFLRV2Hook": {
+      "name": "Claim RFLR V2",
+      "description": "Claims rFLR rewards from Flare's RNat contract using on-chain enumeration",
+      "hookType": "NONACCOUNTING",
+      "subtype": "CLAIM",
+      "actionTypes": [
+        {
+          "intent": "rewards",
+          "stage": "claim"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "14": "0xE8C9D9ef46D81d6eE06746EBb8bc6bA847EF5Cc6"
+        },
+        "prod": {
+          "14": "0x6D2cE8DEa182A3cdD4933523F41600aF993F9597"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "14"
+        ],
+        "prod": [
+          "14"
+        ]
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": false,
+      "erc165": [],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
+    "ClaimRFLRV3Hook": {
+      "name": "Claim RFLR V3",
+      "description": "Claims rFLR rewards from Flare's RNat contract with safe balance snapshot",
+      "hookType": "NONACCOUNTING",
+      "subtype": "CLAIM",
+      "actionTypes": [
+        {
+          "intent": "rewards",
+          "stage": "claim"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "14": "0xb3Af594085a0Fa269B8E706cf84D25eA1C45D2B7"
+        },
+        "prod": {
+          "14": "0x04F83BF33a71b44f916B5529828f7C22890F9d00"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "14"
+        ],
+        "prod": [
+          "14"
+        ]
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": false,
+      "erc165": [],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
     },
     "WithdrawRFLRHook": {
       "name": "Withdraw RFLR",
@@ -2780,10 +2866,10 @@
       "legSizing": [],
       "addresses": {
         "staging": {
-          "14": "0x45e8a73a3fCE4C2eD5A64A55680D2f16B2d5023f"
+          "14": "0xf613dF22474e3c80f312FB287580dA0dfb29d684"
         },
         "prod": {
-          "14": "0x845D0435f5F26713Bc0e239C75dDE9e6cfA4101a"
+          "14": "0x0C095F4E8A45642F678688AD333c6bd56592ea26"
         }
       },
       "availableChains": {
@@ -2806,6 +2892,47 @@
         "flare-rflr"
       ]
     },
+    "WithdrawRFLRHookV2": {
+      "name": "Withdraw RFLR V2",
+      "description": "Withdraws RFLR tokens from the Flare network",
+      "hookType": "NONACCOUNTING",
+      "subtype": "CLAIM",
+      "actionTypes": [
+        {
+          "intent": "rewards",
+          "stage": "claim"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "14": "0x2bd803f100d94937b1F1016d1C4e060514a7C980"
+        },
+        "prod": {
+          "14": "0x2b590CFfBF63A58722744CBB9FDd24fdeBCD9Fe9"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "14"
+        ],
+        "prod": [
+          "14"
+        ]
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": false,
+      "erc165": [],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
     "WithdrawVestedRFLRHook": {
       "name": "Withdraw Vested RFLR",
       "description": "Withdraws vested RFLR tokens from the Flare network",
@@ -2820,10 +2947,10 @@
       "legSizing": [],
       "addresses": {
         "staging": {
-          "14": "0x2aA7f4E262fB1328a66Cd4406cBdC040aA424A9D"
+          "14": "0xDdCB41f8680864C77f6d282E33962E1055c1ac05"
         },
         "prod": {
-          "14": "0xdd63CDFcf845acfA1302a7dAFCa2A7CD2c1a5d32"
+          "14": "0xE87f318A1C215DE411bEbAEaE32a0498dEd11e35"
         }
       },
       "availableChains": {
@@ -2845,6 +2972,47 @@
       "compatibleProtocols": [
         "flare-rflr"
       ]
+    },
+    "WithdrawVestedRFLRHookV2": {
+      "name": "Withdraw Vested RFLR V2",
+      "description": "Withdraws vested RFLR tokens from the Flare network",
+      "hookType": "NONACCOUNTING",
+      "subtype": "CLAIM",
+      "actionTypes": [
+        {
+          "intent": "rewards",
+          "stage": "claim"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "14": "0xF131953518Dd47b28451C33Ed252CE0B862a9a03"
+        },
+        "prod": {
+          "14": "0xB6Dfa4efA5F401E1b7C914c8A3510b2EFf64c06e"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "14"
+        ],
+        "prod": [
+          "14"
+        ]
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": false,
+      "erc165": [],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
     },
     "SwapUniswapV3Hook": {
       "name": "Swap Uniswap V3",
@@ -3399,20 +3567,20 @@
       ],
       "addresses": {
         "staging": {
-          "56": "0x177ecD8a33371654bC419631575605bFE51D9307",
-          "8453": "0x177ecD8a33371654bC419631575605bFE51D9307",
+          "56": "0x9F9F5b035088d458d796acb9dfaC5707f36a6cAc",
+          "8453": "0x9F9F5b035088d458d796acb9dfaC5707f36a6cAc",
           "43114": "0x9F9F5b035088d458d796acb9dfaC5707f36a6cAc",
-          "1": "0x177ecD8a33371654bC419631575605bFE51D9307",
-          "42161": "0x177ecD8a33371654bC419631575605bFE51D9307"
+          "1": "0x9F9F5b035088d458d796acb9dfaC5707f36a6cAc",
+          "42161": "0x9F9F5b035088d458d796acb9dfaC5707f36a6cAc"
         },
         "prod": {
-          "56": "0xA987e92641A5677A65EFAa3c87232b41F3E367ca",
-          "8453": "0xA987e92641A5677A65EFAa3c87232b41F3E367ca",
+          "56": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7",
+          "8453": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7",
           "43114": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7",
-          "1": "0xA987e92641A5677A65EFAa3c87232b41F3E367ca",
+          "1": "0x88cb92F13cceE4B8F5F3c1C839e80EB3dB7e3500",
           "10": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7",
           "137": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7",
-          "42161": "0xA987e92641A5677A65EFAa3c87232b41F3E367ca",
+          "42161": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7",
           "146": "0x3543A87cA462D69D54677B24279bcB64a66D7bd7"
         }
       },
@@ -3469,20 +3637,20 @@
       ],
       "addresses": {
         "staging": {
-          "56": "0x29d22B1a3C31461E3D8BAE9102CeBEf5e9E10810",
-          "8453": "0x29d22B1a3C31461E3D8BAE9102CeBEf5e9E10810",
+          "56": "0x48a3EE7eaB80A4321265916377d0d947892da76c",
+          "8453": "0x48a3EE7eaB80A4321265916377d0d947892da76c",
           "43114": "0x48a3EE7eaB80A4321265916377d0d947892da76c",
-          "1": "0x29d22B1a3C31461E3D8BAE9102CeBEf5e9E10810",
-          "42161": "0x29d22B1a3C31461E3D8BAE9102CeBEf5e9E10810"
+          "1": "0x48a3EE7eaB80A4321265916377d0d947892da76c",
+          "42161": "0x48a3EE7eaB80A4321265916377d0d947892da76c"
         },
         "prod": {
-          "56": "0x39a99991c7247E71D7148Db529e720D963103B7F",
-          "8453": "0x39a99991c7247E71D7148Db529e720D963103B7F",
+          "56": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A",
+          "8453": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A",
           "43114": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A",
-          "1": "0x39a99991c7247E71D7148Db529e720D963103B7F",
+          "1": "0xFb11a0cf304103312475F2512d7B3EAE66747A68",
           "10": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A",
           "137": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A",
-          "42161": "0x39a99991c7247E71D7148Db529e720D963103B7F",
+          "42161": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A",
           "146": "0x6Fa4B7a931c53Fd2944646311fe5a71CA2C9112A"
         }
       },
@@ -3967,9 +4135,9 @@
         "algebra-integral"
       ]
     },
-    "SwapOpenOceanSparkDexHook": {
-      "name": "Swap OpenOcean SparkDex",
-      "description": "Swaps tokens via OpenOcean SparkDex aggregator",
+    "SwapOpenOceanHook": {
+      "name": "Swap OpenOcean",
+      "description": "Swaps tokens via OpenOcean aggregator",
       "hookType": "NONACCOUNTING",
       "subtype": "SWAP",
       "actionTypes": [
@@ -3983,58 +4151,10 @@
       ],
       "addresses": {
         "staging": {
-          "14": "0x38a541df88547C4669Fc1D2e4a87eb1682d92e7b"
+          "14": "0x17A5877e8a4950BB6028C518aCEf2C5546CF77ec"
         },
         "prod": {
-          "14": "0x40d2608C1786244E51aCE7f32d61966d58178FE1"
-        }
-      },
-      "availableChains": {
-        "staging": [
-          "14"
-        ],
-        "prod": [
-          "14"
-        ]
-      },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
-      "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
-      ],
-      "requiresApproval": true,
-      "approveVariant": "ApproveAndSwapOpenOceanSparkDexHook",
-      "asyncLifecycle": null,
-      "compatibleProtocols": [
-        "openocean"
-      ]
-    },
-    "ApproveAndSwapOpenOceanSparkDexHook": {
-      "name": "Approve and Swap OpenOcean SparkDex",
-      "description": "Approves and swaps tokens via OpenOcean SparkDex aggregator",
-      "hookType": "NONACCOUNTING",
-      "subtype": "SWAP",
-      "actionTypes": [
-        {
-          "intent": "swap",
-          "stage": "instant"
-        }
-      ],
-      "legSizing": [
-        "sized"
-      ],
-      "addresses": {
-        "staging": {
-          "14": "0x878fC783f0e6B42E2ef9909D77036b0921f3f27E"
-        },
-        "prod": {
-          "14": "0xfd2E5b73378121FEC4b874Eeee12304588331C4B"
+          "14": "0xF4EC4E9B1529104AA7bcc970fD262F488F5E4337"
         }
       },
       "availableChains": {
@@ -4057,11 +4177,55 @@
         "ISuperHookOutflow"
       ],
       "requiresApproval": false,
-      "approveVariant": "SwapOpenOceanSparkDexHook",
+      "approveVariant": null,
       "asyncLifecycle": null,
-      "compatibleProtocols": [
-        "openocean"
-      ]
+      "compatibleProtocols": []
+    },
+    "ApproveAndSwapOpenOceanHook": {
+      "name": "Approve and Swap OpenOcean",
+      "description": "Approves and swaps tokens via OpenOcean aggregator",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "14": "0x57f3dB139cF644477Bd654854Cf9D8E39c3b81CE"
+        },
+        "prod": {
+          "14": "0x5147932fEf0103Af148aB25f073f94Db8B85E76D"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "14"
+        ],
+        "prod": [
+          "14"
+        ]
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
     },
     "Swap1InchHook": {
       "name": "Swap 1inch",
@@ -4635,9 +4799,15 @@
       ],
       "addresses": {
         "staging": {
-          "1": "0x732bE847E95172491Fe76D418454c1ebf7213efD"
+          "56": "0xD1D3ffc8746657C66935297e4873153071250D37",
+          "999": "0xb33d031b74f5F5eaae5C459B105A6bdee91aD0E0",
+          "8453": "0xeDbBabF4054E9F43c2247DCC64cCde144a6300bD",
+          "1": "0x732bE847E95172491Fe76D418454c1ebf7213efD",
+          "42161": "0xB5666f1c2733DD60d43632926775C0631504A711"
         },
         "prod": {
+          "56": "0x89D5C68C3026E8864d365021B1d212Eb043A4732",
+          "999": "0xDEa7a9c5fd5dd86aB1789529928166Cec29Fa9b6",
           "8453": "0x9E216BBbD6f4306ab906b7ec02E24849FbcD167C",
           "1": "0xE973a9D41702Eeac865bA5c8139C66De18E57ae8",
           "10": "0x9797FE2c4fd71d2FcBF0BD93313145B658d82873",
@@ -4649,14 +4819,20 @@
       },
       "availableChains": {
         "staging": [
-          "1"
+          "1",
+          "56",
+          "999",
+          "8453",
+          "42161"
         ],
         "prod": [
           "1",
           "10",
+          "56",
           "130",
           "137",
           "480",
+          "999",
           "8453",
           "42161"
         ]
@@ -4695,9 +4871,15 @@
       ],
       "addresses": {
         "staging": {
-          "1": "0x2C059F170741a41C936D26f1Ac06DbdF23C140D9"
+          "56": "0xDb2574b119558A1F22378A87a5fe778e43b143A3",
+          "999": "0x5b2447fc54C0D6556B44B4EbDA82243108D7d121",
+          "8453": "0xF406A477B9A8F66858542d47462f0FFF2D98B703",
+          "1": "0x2C059F170741a41C936D26f1Ac06DbdF23C140D9",
+          "42161": "0x298cBB822aEeC319a5433D8ade49A6D5Ccf9f8e4"
         },
         "prod": {
+          "56": "0xCCbDf528b9059d4eD19255c44B582f3ff21C552f",
+          "999": "0x08a2e491C92Fe2A74cbE5e4072679c03a01a3CF2",
           "8453": "0x1E639A13D852c02Ac7b7C3F06BC14699C0943b06",
           "1": "0xe1F5b4e555a194e398225a1d7d0Fb4489Ceb78c9",
           "10": "0x09e2114A477c2E20B1354BAd8Dc3d5e244E26ED8",
@@ -4709,14 +4891,20 @@
       },
       "availableChains": {
         "staging": [
-          "1"
+          "1",
+          "56",
+          "999",
+          "8453",
+          "42161"
         ],
         "prod": [
           "1",
           "10",
+          "56",
           "130",
           "137",
           "480",
+          "999",
           "8453",
           "42161"
         ]
@@ -4941,6 +5129,7 @@
           "43114": "0x3d9C8A576c5B816ce1a821c1BA79a049249A9e13",
           "1": "0x3d9C8A576c5B816ce1a821c1BA79a049249A9e13",
           "42161": "0x3d9C8A576c5B816ce1a821c1BA79a049249A9e13",
+          "988": "0x3d9C8A576c5B816ce1a821c1BA79a049249A9e13",
           "14": "0x3d9C8A576c5B816ce1a821c1BA79a049249A9e13"
         },
         "prod": {
@@ -4957,6 +5146,7 @@
           "42161": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
           "480": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
           "146": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
+          "988": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
           "14": "0xF7cb3da374DA9fedf102451f59CED8810392f241"
         }
       },
@@ -4965,6 +5155,7 @@
           "1",
           "14",
           "56",
+          "988",
           "999",
           "8453",
           "42161",
@@ -4980,6 +5171,7 @@
           "137",
           "146",
           "480",
+          "988",
           "999",
           "8453",
           "42161",
@@ -5027,6 +5219,7 @@
           "43114": "0xCe71Ab7a79a7fB0d9FfE31FCc4b4ff8FbF139f49",
           "1": "0xCe71Ab7a79a7fB0d9FfE31FCc4b4ff8FbF139f49",
           "42161": "0xCe71Ab7a79a7fB0d9FfE31FCc4b4ff8FbF139f49",
+          "988": "0xCe71Ab7a79a7fB0d9FfE31FCc4b4ff8FbF139f49",
           "14": "0xCe71Ab7a79a7fB0d9FfE31FCc4b4ff8FbF139f49"
         },
         "prod": {
@@ -5043,6 +5236,7 @@
           "42161": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
           "480": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
           "146": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
+          "988": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457",
           "14": "0xAE3e1e2709D9B580Aa3a9e8BA8e5B9dDA1fbB457"
         }
       },
@@ -5051,6 +5245,7 @@
           "1",
           "14",
           "56",
+          "988",
           "999",
           "8453",
           "42161",
@@ -5066,6 +5261,7 @@
           "137",
           "146",
           "480",
+          "988",
           "999",
           "8453",
           "42161",
@@ -5613,6 +5809,7 @@
           "43114": "0x994701Fbe7A8072E8dEde902c5a00278F6D72366",
           "1": "0x994701Fbe7A8072E8dEde902c5a00278F6D72366",
           "42161": "0x994701Fbe7A8072E8dEde902c5a00278F6D72366",
+          "988": "0x994701Fbe7A8072E8dEde902c5a00278F6D72366",
           "14": "0x994701Fbe7A8072E8dEde902c5a00278F6D72366"
         },
         "prod": {
@@ -5629,6 +5826,7 @@
           "42161": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
           "480": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
           "146": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
+          "988": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
           "14": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6"
         }
       },
@@ -5637,6 +5835,7 @@
           "1",
           "14",
           "56",
+          "988",
           "999",
           "8453",
           "42161",
@@ -5652,6 +5851,7 @@
           "137",
           "146",
           "480",
+          "988",
           "999",
           "8453",
           "42161",
@@ -5933,16 +6133,16 @@
       ],
       "addresses": {
         "staging": {
-          "56": "0x43f23D81559BE18b96BEFc2529896b8d2a339faa",
-          "8453": "0xcab4F708D249B36C02C092e5C76aDaEFA9c741fF",
-          "1": "0xcab4F708D249B36C02C092e5C76aDaEFA9c741fF",
-          "42161": "0xA89fb27c43E5Bc7f1747bB7Bce780881453B34b0"
+          "56": "0x6e56E41e001da77E0aaBdD4082d2ad06e61075Cb",
+          "8453": "0xF01F5112e51869b2d32940B8589587A1e8aB6DEf",
+          "1": "0xF01F5112e51869b2d32940B8589587A1e8aB6DEf",
+          "42161": "0xb8794FBD858F68e689Cc46bA2e4aBED714E0ec90"
         },
         "prod": {
-          "56": "0x9dA4fc64eC49679663B0C9e5d255A3a9E6Ad7AD3",
-          "8453": "0xa8d51a5E4D774D5FD65a915aF732AC23c388D1dc",
-          "1": "0xa8d51a5E4D774D5FD65a915aF732AC23c388D1dc",
-          "42161": "0xd7af3d9D2FaF3CD2692Df45a53Dbf88D4b456BCf"
+          "56": "0xC2ed3f575f5e53698fB1A2e1DFe37896Dcb20F62",
+          "8453": "0xE5F3349B0dB87564ef9Ed86Aa8F84C4D26396e0d",
+          "1": "0x4D5AFf79b405DaFBf1B1D91C2a3390a51F3716cF",
+          "42161": "0x00a408babd2e9e28C500eB1e3eFA3C96bB641Cc4"
         }
       },
       "availableChains": {
@@ -5993,16 +6193,16 @@
       ],
       "addresses": {
         "staging": {
-          "56": "0x2e48014291754BF4489333Ba8728715B0a3c981F",
-          "8453": "0x3CC9851cf448a23c455b1C08d385653cF27c91aF",
-          "1": "0x3CC9851cf448a23c455b1C08d385653cF27c91aF",
-          "42161": "0xB1833e0392a3Ff0BC400de716175e58D0C2E49D8"
+          "56": "0x7491A07E503150a7D84F022D6fF01f539Fa39B8c",
+          "8453": "0xDc5B554655858bbccBdF450809f4b7e7BEd9fD7f",
+          "1": "0xDc5B554655858bbccBdF450809f4b7e7BEd9fD7f",
+          "42161": "0x6D4b535Ef78d8d1E3e83cFAd4b0f57b81c4BEb04"
         },
         "prod": {
-          "56": "0xBb3B271A096Fb0c0E44bCEAA57D91C53a4c46A11",
-          "8453": "0xFdA77d57d22c7EB62ef768212BA8B08f82c9b5E3",
-          "1": "0xFdA77d57d22c7EB62ef768212BA8B08f82c9b5E3",
-          "42161": "0x606C575CE7F5d167a809f85a1e3803A5391c1213"
+          "56": "0xb95FCd7c3915412AB3F42a3c3dbfa886c24D35E3",
+          "8453": "0x89bBA6c4FFA1753aA0D601520aD447E40eBA1D05",
+          "1": "0xa43b1e9Bae4Fb3d68E79B52a118D89914346CBcd",
+          "42161": "0x230526A88FF3B2e763a1D7b101727cf249E7b695"
         }
       },
       "availableChains": {
@@ -6101,16 +6301,16 @@
       ],
       "addresses": {
         "staging": {
-          "56": "0x8FA16303CBf8002DE432CF36F60183baC345014E",
-          "8453": "0xcC332adb7B65DCB725ED26002CF9254f91578200",
-          "1": "0xcC332adb7B65DCB725ED26002CF9254f91578200",
-          "42161": "0x6e09e00AA2744F46f312C4520f3a2C7356aa2Da3"
+          "56": "0x450a062882Da7983A8D0c7e5A82287309c14939D",
+          "8453": "0x2d580e48B8c89A0A9DA682465648F074D45D971D",
+          "1": "0x2d580e48B8c89A0A9DA682465648F074D45D971D",
+          "42161": "0xD6cf1a1cB605e0bF1543a909C6F0096da6B158Bd"
         },
         "prod": {
-          "56": "0x0904947bb8aEed34c40601ee2F189aa15531e9Ed",
-          "8453": "0x860EC9cFA60C0FD3c0b5940C2C3376cfc57DaaF1",
-          "1": "0x860EC9cFA60C0FD3c0b5940C2C3376cfc57DaaF1",
-          "42161": "0x7D5192559a17221edadee3F962FEbbd26884B8cC"
+          "56": "0xf4f76bb717aB5E8Bc5b92E9eeaC80AdAf0ad1034",
+          "8453": "0xaf69D0b820d9Efa0670BBD3392d41683840D02Fa",
+          "1": "0x645fdB33F391F69ba37ee59a3845fB1F508837Fe",
+          "42161": "0x602EBA0663Ab5bE8159Abb22f01b350c29dfb9ec"
         }
       },
       "availableChains": {
@@ -6209,16 +6409,16 @@
       ],
       "addresses": {
         "staging": {
-          "56": "0xDC8160355A5b65f70b46eaB72332c689568AADcD",
-          "8453": "0x922F4A8Cb183c7589590F3F2c5341C4271B27e0F",
-          "1": "0x922F4A8Cb183c7589590F3F2c5341C4271B27e0F",
-          "42161": "0xFA308da8737831044eDE2bFE938689DDfAB74056"
+          "56": "0x5A1130AD325D0929bAdDFa9A76619AE234E2fdc1",
+          "8453": "0x71D5Deeb6cE550DCC54AE27F0f466Bf54EFD02D2",
+          "1": "0x71D5Deeb6cE550DCC54AE27F0f466Bf54EFD02D2",
+          "42161": "0xB71205a80C55f2C2696475C923d68165737AE0D5"
         },
         "prod": {
-          "56": "0xf3A5d56876D8397a3bB81856D25e6Be41fD90A49",
-          "8453": "0xF78c9aB2AD1104a0597a1E32e4b2F5e074C5c4a2",
-          "1": "0xF78c9aB2AD1104a0597a1E32e4b2F5e074C5c4a2",
-          "42161": "0x084B280323e8fbaB7C5A31534DCAd3F163252884"
+          "56": "0x37E67A358629718131d60602861F87754A6d5baD",
+          "8453": "0xe3B6716FE9D20DC19F3f3fdc3999df7B964c91A4",
+          "1": "0xb3CC5c48638E6c3eC0d97BEB41fe58Dd9574c375",
+          "42161": "0x51c7C54A5D68A9E67Ab5f1904E6f4e9101c200d4"
         }
       },
       "availableChains": {
@@ -6789,7 +6989,7 @@
         "prod": {
           "56": "0x0709C6211aDaf33D218275FdaceEA7d8c872Ab79",
           "8453": "0x0709C6211aDaf33D218275FdaceEA7d8c872Ab79",
-          "1": "0x0709C6211aDaf33D218275FdaceEA7d8c872Ab79",
+          "1": "0xC2c6F475182691a085e138b7358f882DfD55bF8A",
           "42161": "0x0709C6211aDaf33D218275FdaceEA7d8c872Ab79"
         }
       },
@@ -6843,7 +7043,7 @@
         "prod": {
           "56": "0xf9C9B594d1B9038a5400D9989F65b5A5B7EaDdEB",
           "8453": "0xf9C9B594d1B9038a5400D9989F65b5A5B7EaDdEB",
-          "1": "0xf9C9B594d1B9038a5400D9989F65b5A5B7EaDdEB",
+          "1": "0xF41147305A6e90E3cF011eE94b7c6C6171373dCf",
           "42161": "0xf9C9B594d1B9038a5400D9989F65b5A5B7EaDdEB"
         }
       },
@@ -7898,16 +8098,16 @@
       ],
       "addresses": {
         "staging": {
-          "56": "0xbcfEeC4B4414B525F601b5B43A0615DCFe9b283e",
-          "8453": "0x2ABB3EEd59AeebcAad63ac1DD4e5f4316a5BD5Dc",
-          "1": "0x2ABB3EEd59AeebcAad63ac1DD4e5f4316a5BD5Dc",
-          "42161": "0x42C0D0e0B6F3D19Ecf97eE736A2A79CA1FF7997e"
+          "56": "0xdCF2A9b56541B55bf6a41fB5b00Fae7F365F7C16",
+          "8453": "0x9793E930d7ed52cF68f3cf0FEaB5e0e184bA9698",
+          "1": "0x9793E930d7ed52cF68f3cf0FEaB5e0e184bA9698",
+          "42161": "0x5C27B974bF9253b40f023973a8f1Eb858aDd9e86"
         },
         "prod": {
-          "56": "0xf7ae84e5E8B1D73649B8E40CD17D9Aa8553977e8",
-          "8453": "0xAf77F98fd73524253A19086105c6C3944039053d",
-          "1": "0xAf77F98fd73524253A19086105c6C3944039053d",
-          "42161": "0xE8E3E1bd33E7ad2f90632eA9ae3dB3923F96A95e"
+          "56": "0x05d55d05f6C9226922C7dC986c01a98b696b8BcF",
+          "8453": "0xeC5D1EaCf6DfD2ebD687708058Aa2Da5eE997528",
+          "1": "0x26930bE5e3b9fdE97E4d7F28170933959822AE08",
+          "42161": "0xd353A36ff2eFDCdd9f916577403B6c67d32409A3"
         }
       },
       "availableChains": {
@@ -8024,16 +8224,16 @@
       ],
       "addresses": {
         "staging": {
-          "56": "0xC1A7fD2bbBD485FF200AE7b6a5A571E520d420aD",
-          "8453": "0x7F01A4c30013fB012f79dE667d79843bc47A5424",
-          "1": "0x7F01A4c30013fB012f79dE667d79843bc47A5424",
-          "42161": "0x7564416a362f61EdeB8F5A9DEd9D09Dd1e9Aa021"
+          "56": "0x3c57C74471f0DAF53BA550B33CC608dBF7F8cc62",
+          "8453": "0x3DC9775803Fb1386DeE8E6182DB348F0E488f343",
+          "1": "0x3DC9775803Fb1386DeE8E6182DB348F0E488f343",
+          "42161": "0x2B62bd7aD969C2D346fd16501a9DA38e0EdB6694"
         },
         "prod": {
-          "56": "0x65ecC5E336989064DB4545135b18f18bc8D773bE",
-          "8453": "0x65f289Cdf87b54095401A17af3C3Eb626B8e5e01",
-          "1": "0x65f289Cdf87b54095401A17af3C3Eb626B8e5e01",
-          "42161": "0xc212663A7F730FD7363fD88dc2cA037646834131"
+          "56": "0xFc6d17988cB6EE294fBFb8131C4890d60e51F16f",
+          "8453": "0xde5ADa3Da53e8B79d125322562D54d1994b72De9",
+          "1": "0x0ad14E221213C2797AD41F59eE7e45cE43C3092f",
+          "42161": "0x154E60Cbe586c95dF8063C735ef551BCe87a0718"
         }
       },
       "availableChains": {

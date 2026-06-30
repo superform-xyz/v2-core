@@ -209,13 +209,29 @@ hooks:
     actionTypes: [{intent: rewards, stage: claim}]
     legSizing: []  # sizeless — claims with no user-adjustable amount
 
+  ClaimRFLRV2Hook:
+    actionTypes: [{intent: rewards, stage: claim}]
+    legSizing: []  # sizeless — parameterless, on-chain enumeration
+
+  ClaimRFLRV3Hook:
+    actionTypes: [{intent: rewards, stage: claim}]
+    legSizing: []  # sizeless — parameterless, safe balance snapshot
+
   WithdrawRFLRHook:
     actionTypes: [{intent: rewards, stage: claim}]
     legSizing: []  # sizeless — claims with no user-adjustable amount
 
+  WithdrawRFLRHookV2:
+    actionTypes: [{intent: rewards, stage: claim}]
+    legSizing: []  # sizeless — withdrawAll, amount from contract state
+
   WithdrawVestedRFLRHook:
     actionTypes: [{intent: rewards, stage: claim}]
     legSizing: []  # sizeless — claims with no user-adjustable amount
+
+  WithdrawVestedRFLRHookV2:
+    actionTypes: [{intent: rewards, stage: claim}]
+    legSizing: []  # sizeless — vested amount from contract state
 
   # ============================================================
   # SWAP (29 hooks) — all instant stage
@@ -305,11 +321,11 @@ hooks:
     legSizing: [sized]
 
   # OpenOcean
-  SwapOpenOceanSparkDexHook:
+  SwapOpenOceanHook:
     actionTypes: [{intent: swap, stage: instant}]
     legSizing: [sized]
 
-  ApproveAndSwapOpenOceanSparkDexHook:
+  ApproveAndSwapOpenOceanHook:
     actionTypes: [{intent: swap, stage: instant}]
     legSizing: [sized]
 

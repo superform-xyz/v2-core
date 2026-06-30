@@ -21,7 +21,6 @@ interface ManifestEntry {
   amountPosition?: number;
   secondaryAmountPosition?: number;
   sizing?: string;
-  denom?: string;
   track?: string;
   reason?: string;
 }
@@ -182,13 +181,6 @@ for (const entry of manifest) {
   }
 }
 
-// Check 4: Validate denom is present on non-sizeless entries
-for (const entry of manifest) {
-  if (entry.mode !== "sizeless" && !entry.denom) {
-    warn(`${entry.hookKey} (${entry.mode}) missing denom field`);
-  }
-}
-
 // Check 5: Validate offset entries carry deprecation track
 for (const entry of manifest) {
   if (entry.mode === "offset" && !entry.track) {
@@ -203,7 +195,11 @@ for (const entry of manifest) {
   }
 }
 
-// Check 7: For offset entries, verify amountPosition against source AMOUNT_POSITION constant
+// Check 7: For offset entries, verify amountPosition against source AMOUNT_POSITION constant.
+// Entries where the source has no named AMOUNT_POSITION constant (inlined offset or inherited from
+// a base class) cannot be auto-verified — they are collected and reported as a single warning so
+// engineers know which entries require manual review when the offset changes.
+const unverifiableOffsetEntries: string[] = [];
 for (const entry of manifest) {
   if (entry.mode !== "offset") continue;
 
@@ -212,13 +208,23 @@ for (const entry of manifest) {
   if (!hookValue) continue;
 
   const sourcePos = findAmountPositionInSource(hookValue);
-  if (sourcePos === null) continue; // No constant in source, skip (uses inline offset)
+  if (sourcePos === null) {
+    // No AMOUNT_POSITION constant found in the hook's .sol file.
+    // Position is either inlined (e.g. BytesLib.toUint256(data, 20)) or inherited from a base class.
+    unverifiableOffsetEntries.push(`${entry.hookKey}@${entry.amountPosition}`);
+    continue;
+  }
 
   if (sourcePos !== entry.amountPosition) {
     error(
       `amountPosition mismatch for ${entry.hookKey}: manifest=${entry.amountPosition}, source AMOUNT_POSITION=${sourcePos}`
     );
   }
+}
+if (unverifiableOffsetEntries.length > 0) {
+  warn(
+    `${unverifiableOffsetEntries.length} offset entries have inlined/inherited amountPosition — cannot be auto-verified against source (update manifest manually if offset changes):\n  ${unverifiableOffsetEntries.join(", ")}`
+  );
 }
 
 // Check 8: Validate pipeMode field present and valid

@@ -125,7 +125,7 @@ library OpenOceanDynamicAmountUpdater {
 
     function _selector(bytes memory data_) private pure returns (bytes4 selector) {
         if (data_.length < 4) return bytes4(0);
-        assembly {
+        assembly ("memory-safe") {
             selector := mload(add(data_, 0x20))
         }
     }

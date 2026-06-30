@@ -179,6 +179,6 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
     /// @dev Computes loanToken consumed during repay (pre - post) and sets as outAmount
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(getOutAmount(account) - getLoanTokenBalance(account, data), account);
-        _setOutToken(asset, account);
+        _setOutToken(getLoanTokenAddress(data), account);
     }
 }

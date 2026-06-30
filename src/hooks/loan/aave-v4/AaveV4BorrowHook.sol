@@ -88,6 +88,6 @@ contract AaveV4BorrowHook is BaseAaveV4LoanHook {
     /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(getLoanTokenBalance(account, data) - getOutAmount(account), account);
-        _setOutToken(asset, account);
+        _setOutToken(getLoanTokenAddress(data), account);
     }
 }

@@ -159,6 +159,42 @@ def lint_manifest(manifest: dict, classification: dict) -> list[LintError]:
     return errors
 
 
+def lint_sizing_invariant(manifest: dict) -> list[LintError]:
+    """
+    P3: Universal sizing-interface conformance invariant.
+
+    INFLOW/OUTFLOW ⟹ ISuperHookInflowOutflow in erc165.
+
+    Every hook whose hookType is INFLOW or OUTFLOW MUST declare the sizing interface
+    (ISuperHookInflowOutflow).  The erc165 field is synthesised from legSizing entries and
+    the sizelessHooks enrichment list, so failing this check means the hook-classification.yaml
+    entry is missing legSizing (or the hook needs to be added to sizelessHooks in
+    hook-enrichment.yaml).
+
+    This is the universal gate that auto-catches newly added INFLOW/OUTFLOW hooks that forget
+    to wire up the sizing interface — no test file update required.
+    """
+    errors = []
+    hooks = manifest.get("hooks", {})
+
+    for hook_name, data in hooks.items():
+        hook_type = data.get("hookType")
+        erc165 = data.get("erc165", [])
+
+        if not hook_type:
+            continue  # can't validate without hookType
+
+        if hook_type in ("INFLOW", "OUTFLOW") and "ISuperHookInflowOutflow" not in erc165:
+            errors.append(LintError(
+                hook_name, "P3-sizing-interface",
+                f"hookType={hook_type} but ISuperHookInflowOutflow absent from erc165={erc165}; "
+                f"INFLOW/OUTFLOW hooks must implement the sizing interface — add legSizing entries "
+                f"to hook-classification.yaml or list in sizelessHooks in hook-enrichment.yaml",
+            ))
+
+    return errors
+
+
 def lint_completeness(classification: dict) -> list[LintError]:
     """Check that every source hook has a classification entry and vice versa."""
     errors = []
@@ -208,8 +244,10 @@ def main():
         with open(manifest_path) as f:
             manifest = json.load(f)
         all_errors.extend(lint_manifest(manifest, classification))
+        print("Checking sizing-interface conformance invariant (P3)...")
+        all_errors.extend(lint_sizing_invariant(manifest))
     else:
-        print(f"Manifest not found at {manifest_path}, skipping P2 hookType validation")
+        print(f"Manifest not found at {manifest_path}, skipping P2/P3 hookType validation")
         print("  Run `python tooling/generate_hook_manifest.py` first to generate it")
 
     # Report

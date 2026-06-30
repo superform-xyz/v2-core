@@ -113,6 +113,6 @@ contract AaveV4SupplyHook is BaseAaveV4LoanHook {
     /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(getOutAmount(account) - getCollateralTokenBalance(account, data), account);
-        _setOutToken(asset, account);
+        _setOutToken(getCollateralTokenAddress(data), account);
     }
 }

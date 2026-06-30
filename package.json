@@ -1,8 +1,8 @@
 {
   "private": true,
   "scripts": {
-    "generate:hook-sizing": "tsx scripts/generate-hook-sizing-manifest.ts",
-    "validate:hook-sizing": "tsx scripts/validate-hook-sizing-manifest.ts"
+    "generate:hook-sizing": "tsx tooling/generate-hook-sizing-manifest.ts",
+    "validate:hook-sizing": "tsx tooling/validate-hook-sizing-manifest.ts"
   },
   "devDependencies": {
     "tsx": "^4.19.0",

@@ -299,13 +299,45 @@ jobs:
       - name: "Generate hook manifest"
         run: python3 tooling/generate_hook_manifest.py
 
+      - name: "Check manifests/hooks.json is up-to-date"
+        run: |
+          if ! git diff --exit-code manifests/hooks.json; then
+            echo ""
+            echo "ERROR: manifests/hooks.json is stale — committed file differs from generated output." >&2
+            echo "Run 'python3 tooling/generate_hook_manifest.py' locally and commit the result." >&2
+            exit 1
+          fi
+
       - name: "Lint hook manifest"
         run: python3 tooling/lint_hook_manifest.py
+
+      - name: "Set up Node"
+        uses: "actions/setup-node@v4"
+        with:
+          node-version: "20"
+
+      - name: "Install tsx"
+        run: npm install -g tsx
+
+      - name: "Generate hook sizing manifest"
+        run: tsx tooling/generate-hook-sizing-manifest.ts
+
+      - name: "Check hook-sizing-manifest.json is up-to-date"
+        run: |
+          if ! git diff --exit-code hook-sizing-manifest.json; then
+            echo ""
+            echo "ERROR: hook-sizing-manifest.json is stale — committed file differs from generated output." >&2
+            echo "Run 'tsx tooling/generate-hook-sizing-manifest.ts' locally and commit the result." >&2
+            exit 1
+          fi
+
+      - name: "Validate hook sizing manifest"
+        run: tsx tooling/validate-hook-sizing-manifest.ts
 
       - name: "Add manifest lint summary"
         run: |
           echo "## Hook Manifest Lint" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Passed (manifests/hooks.json and hook-sizing-manifest.json verified up-to-date)" >> $GITHUB_STEP_SUMMARY
 
   coverage:
     runs-on: SuperformCore3

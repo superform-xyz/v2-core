@@ -24,7 +24,6 @@ interface ManifestEntry {
   amountPosition?: number;
   secondaryAmountPosition?: number;
   sizing?: "exclusive-or" | "dual";
-  denom?: "assets" | "shares" | "units" | "perIntent" | "assets|shares" | "native" | "token" | "fee";
   track?: string;
   reason?: string; // for external mode: why OMS must not splice
 }
@@ -134,7 +133,10 @@ function findSolFiles(dir: string): string[] {
 
 // ─── Step 3: Manual overrides ────────────────────────────────────────────────
 
-// Overrides for hooks where auto-detection doesn't work or special semantics apply
+// Overrides for hooks where auto-detection doesn't work or special semantics apply.
+// NOTE: denom is intentionally absent — denomination lives exclusively in manifests/hooks.json
+// where it is derived from on-chain amountRoles(). Keeping it here would create a dual-authorship
+// contradiction.
 const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
   // == sizeless hooks (truly no amount concept) ==
   SetOperator7540Hook: { mode: "sizeless" },
@@ -153,8 +155,12 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
   DeBridgeCancelOrderHook: { mode: "sizeless" },  // cancel by orderId
   OfframpTokensHook: { mode: "sizeless" },         // sends all available
   ClaimRFLRHook: { mode: "sizeless" },             // claims all
+  ClaimRFLRV2Hook: { mode: "sizeless" },           // claims all
+  ClaimRFLRV3Hook: { mode: "sizeless" },           // claims all
   WithdrawRFLRHook: { mode: "sizeless" },          // withdraws all
+  WithdrawRFLRHookV2: { mode: "sizeless" },        // withdraws all
   WithdrawVestedRFLRHook: { mode: "sizeless" },    // withdraws all vested
+  WithdrawVestedRFLRHookV2: { mode: "sizeless" },  // withdraws all vested
   CircleGatewayMinterHook: { mode: "sizeless" },   // governance, no amount
   CircleGatewayAddDelegateHook: { mode: "sizeless" },
   CircleGatewayRemoveDelegateHook: { mode: "sizeless" },
@@ -173,79 +179,78 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
   // Amount is embedded in aggregator txData, ABI-encoded structs, or dynamic arrays.
   // OMS must not splice — amount is set off-chain by bundler/aggregator.
   // Priority backlog for replaceCalldataAmount migration.
-  Swap1InchHook: { mode: "external", denom: "assets", reason: "amount inside aggregator txData; resize = re-quote" },
-  PendleRouterSwapHook: { mode: "external", denom: "assets", reason: "amount inside aggregator txData" },
-  PendleRouterRedeemHook: { mode: "external", denom: "shares", reason: "TokenOutput ABI-encoded struct" },
-  PendleUnifiedHook: { mode: "external", denom: "assets", reason: "amount inside aggregator txData" },
-  BatchTransferHook: { mode: "external", denom: "token", reason: "amounts in variable-length array" },
-  BatchTransferFromHook: { mode: "external", denom: "token", reason: "amounts in variable-length array" },
-  MerklClaimRewardHook: { mode: "external", denom: "token", reason: "variable-length claim data" },
-  MetaMorphoReallocateHook: { mode: "external", denom: "assets", reason: "amounts in MarketAllocation[]" },
-  ForceDeallocateMorphoHook: { mode: "external", denom: "assets", reason: "amounts in allocations array" },
-  DeBridgeSendOrderAndExecuteOnDstHook: { mode: "external", denom: "assets", reason: "complex variable layout" },
+  Swap1InchHook: { mode: "external", reason: "amount inside aggregator txData; resize = re-quote" },
+  PendleRouterSwapHook: { mode: "external", reason: "amount inside aggregator txData" },
+  PendleRouterRedeemHook: { mode: "external", reason: "TokenOutput ABI-encoded struct" },
+  PendleUnifiedHook: { mode: "external", reason: "amount inside aggregator txData" },
+  BatchTransferHook: { mode: "external", reason: "amounts in variable-length array" },
+  BatchTransferFromHook: { mode: "external", reason: "amounts in variable-length array" },
+  MerklClaimRewardHook: { mode: "external", reason: "variable-length claim data" },
+  MetaMorphoReallocateHook: { mode: "external", reason: "amounts in MarketAllocation[]" },
+  ForceDeallocateMorphoHook: { mode: "external", reason: "amounts in allocations array" },
+  DeBridgeSendOrderAndExecuteOnDstHook: { mode: "external", reason: "complex variable layout" },
 
   // == offset hooks with inherited AMOUNT_POSITION from base classes ==
   // Morpho hooks: AMOUNT_POSITION = 80 from BaseLoanHook
-  MorphoSupplyHook: { mode: "offset", amountPosition: 80, denom: "assets", track: "deprecate->replaceCalldata" },
-  MorphoLendHook: { mode: "offset", amountPosition: 80, denom: "assets", track: "deprecate->replaceCalldata" },
-  MorphoBorrowHook: { mode: "offset", amountPosition: 80, denom: "assets", track: "deprecate->replaceCalldata" },
-  MorphoRepayHook: { mode: "offset", amountPosition: 80, denom: "assets", track: "deprecate->replaceCalldata" },
-  MorphoSupplyAndBorrowHook: { mode: "offset", amountPosition: 80, denom: "assets", track: "deprecate->replaceCalldata" },
-  MorphoRepayAndWithdrawHook: { mode: "offset", amountPosition: 80, denom: "assets", track: "deprecate->replaceCalldata" },
+  MorphoSupplyHook: { mode: "offset", amountPosition: 80, track: "deprecate->replaceCalldata" },
+  MorphoLendHook: { mode: "offset", amountPosition: 80, track: "deprecate->replaceCalldata" },
+  MorphoBorrowHook: { mode: "offset", amountPosition: 80, track: "deprecate->replaceCalldata" },
+  MorphoRepayHook: { mode: "offset", amountPosition: 80, track: "deprecate->replaceCalldata" },
+  MorphoSupplyAndBorrowHook: { mode: "offset", amountPosition: 80, track: "deprecate->replaceCalldata" },
+  MorphoRepayAndWithdrawHook: { mode: "offset", amountPosition: 80, track: "deprecate->replaceCalldata" },
   // Aave V4 hooks: amount at 124, from BaseAaveV4LoanHook
-  AaveV4SupplyHook: { mode: "offset", amountPosition: 124, denom: "assets", track: "deprecate->replaceCalldata" },
-  AaveV4WithdrawHook: { mode: "offset", amountPosition: 124, denom: "assets", track: "deprecate->replaceCalldata" },
-  AaveV4BorrowHook: { mode: "offset", amountPosition: 124, denom: "assets", track: "deprecate->replaceCalldata" },
-  AaveV4RepayHook: { mode: "offset", amountPosition: 124, denom: "assets", track: "deprecate->replaceCalldata" },
+  AaveV4SupplyHook: { mode: "offset", amountPosition: 124, track: "deprecate->replaceCalldata" },
+  AaveV4WithdrawHook: { mode: "offset", amountPosition: 124, track: "deprecate->replaceCalldata" },
+  AaveV4BorrowHook: { mode: "offset", amountPosition: 124, track: "deprecate->replaceCalldata" },
+  AaveV4RepayHook: { mode: "offset", amountPosition: 124, track: "deprecate->replaceCalldata" },
   // Gearbox approve-and-stake: AMOUNT_POSITION = 72
-  GearboxApproveAndStakeHook: { mode: "offset", amountPosition: 72, denom: "assets", track: "deprecate->replaceCalldata" },
+  GearboxApproveAndStakeHook: { mode: "offset", amountPosition: 72, track: "deprecate->replaceCalldata" },
 
   // == replaceCalldata hooks (implement both decodeAmount and replaceCalldataAmount for real) ==
   // ClaimFailedTransferHook: real decodeAmount + real replaceCalldataAmount at AMOUNT_POSITION=40
-  ClaimFailedTransferHook: { mode: "replaceCalldata", denom: "assets" },
-  // Outflow/redeem family: shares-denominated
-  Redeem4626VaultHook: { mode: "replaceCalldata", denom: "shares" },
-  Redeem5115VaultHook: { mode: "replaceCalldata", denom: "shares" },
-  Redeem7540VaultHook: { mode: "replaceCalldata", denom: "shares" },
-  Withdraw7540VaultHook: { mode: "replaceCalldata", denom: "assets" },
-  RedeemWithId7540VaultHook: { mode: "replaceCalldata", denom: "shares" },
-  WithdrawWithId7540VaultHook: { mode: "replaceCalldata", denom: "assets" },
+  ClaimFailedTransferHook: { mode: "replaceCalldata" },
+  // Outflow/redeem family: shares-denominated (denomination in manifests/hooks.json)
+  Redeem4626VaultHook: { mode: "replaceCalldata" },
+  Redeem5115VaultHook: { mode: "replaceCalldata" },
+  Redeem7540VaultHook: { mode: "replaceCalldata" },
+  Withdraw7540VaultHook: { mode: "replaceCalldata" },
+  RedeemWithId7540VaultHook: { mode: "replaceCalldata" },
+  WithdrawWithId7540VaultHook: { mode: "replaceCalldata" },
 
   // == offset hooks with inlined positions (no AMOUNT_POSITION constant) ==
   // All offset entries carry track: "deprecate->replaceCalldata" — offset is the legacy bridge
-  SwapOdosV2Hook: { mode: "offset", amountPosition: 20, denom: "assets", track: "deprecate->replaceCalldata" },
-  ApproveAndSwapOdosV2Hook: { mode: "offset", amountPosition: 20, denom: "assets", track: "deprecate->replaceCalldata" },
-  CCTPSendHook: { mode: "offset", amountPosition: 20, denom: "assets", track: "deprecate->replaceCalldata" },
-  ApproveAndCCTPSendHook: { mode: "offset", amountPosition: 20, denom: "assets", track: "deprecate->replaceCalldata" },
-  CircleGatewayWalletHook: { mode: "offset", amountPosition: 20, denom: "assets", track: "deprecate->replaceCalldata" },
-  ApproveERC20Hook: { mode: "offset", amountPosition: 40, denom: "token", track: "deprecate->replaceCalldata" },
-  TransferERC20Hook: { mode: "offset", amountPosition: 40, denom: "token", track: "deprecate->replaceCalldata" },
-  TransferHook: { mode: "offset", amountPosition: 40, denom: "native", track: "deprecate->replaceCalldata" },
-  AcrossSendFundsAndExecuteOnDstHook: { mode: "offset", amountPosition: 92, denom: "assets", track: "deprecate->replaceCalldata" },
-  ApproveAndAcrossSendFundsAndExecuteOnDstHook: { mode: "offset", amountPosition: 92, denom: "assets", track: "deprecate->replaceCalldata" },
-  AcrossSendFundsAndExecuteOnDstHookV2: { mode: "offset", amountPosition: 92, denom: "assets", track: "deprecate->replaceCalldata" },
-  ApproveAndAcrossSendFundsAndExecuteOnDstHookV2: { mode: "offset", amountPosition: 92, denom: "assets", track: "deprecate->replaceCalldata" },
-  StargateSendHook: { mode: "offset", amountPosition: 108, denom: "assets", track: "deprecate->replaceCalldata" },
-  ApproveAndStargateSendHook: { mode: "offset", amountPosition: 108, denom: "assets", track: "deprecate->replaceCalldata" },
-  StargateSendHookV2: { mode: "offset", amountPosition: 108, denom: "assets", track: "deprecate->replaceCalldata" },
-  ApproveAndStargateSendHookV2: { mode: "offset", amountPosition: 108, denom: "assets", track: "deprecate->replaceCalldata" },
-  SwapUniswapV4Hook: { mode: "offset", amountPosition: 120, denom: "assets", track: "deprecate->replaceCalldata" },
-  SwapUniswapV3Hook: { mode: "offset", amountPosition: 128, denom: "assets", track: "deprecate->replaceCalldata" },
-  ApproveAndSwapUniswapV3Hook: { mode: "offset", amountPosition: 128, denom: "assets", track: "deprecate->replaceCalldata" },
-  SwapUniswapV3Router02Hook: { mode: "offset", amountPosition: 128, denom: "assets", track: "deprecate->replaceCalldata" },
-  ApproveAndSwapUniswapV3Router02Hook: { mode: "offset", amountPosition: 128, denom: "assets", track: "deprecate->replaceCalldata" },
-  SwapUniswapV2Hook: { mode: "offset", amountPosition: 72, denom: "assets", track: "deprecate->replaceCalldata" },
-  ApproveAndSwapUniswapV2Hook: { mode: "offset", amountPosition: 72, denom: "assets", track: "deprecate->replaceCalldata" },
-  SwapAlgebraIntegralHook: { mode: "offset", amountPosition: 144, denom: "assets", track: "deprecate->replaceCalldata" },
-  ApproveAndSwapAlgebraIntegralHook: { mode: "offset", amountPosition: 144, denom: "assets", track: "deprecate->replaceCalldata" },
-  SwapSparkPSMExactInHook: { mode: "offset", amountPosition: 40, denom: "assets", track: "deprecate->replaceCalldata" },
-  ApproveAndSwapSparkPSMExactInHook: { mode: "offset", amountPosition: 40, denom: "assets", track: "deprecate->replaceCalldata" },
-  SwapSparkPSMExactOutHook: { mode: "offset", amountPosition: 40, denom: "assets", track: "deprecate->replaceCalldata" },
-  ApproveAndSwapSparkPSMExactOutHook: { mode: "offset", amountPosition: 40, denom: "assets", track: "deprecate->replaceCalldata" },
-  SwapKyberSwapHook: { mode: "offset", amountPosition: 52, denom: "assets", track: "deprecate->replaceCalldata" },
-  ApproveAndSwapKyberSwapHook: { mode: "offset", amountPosition: 52, denom: "assets", track: "deprecate->replaceCalldata" },
-  SwapOpenOceanSparkDexHook: { mode: "offset", amountPosition: 52, denom: "assets", track: "deprecate->replaceCalldata" },
-  ApproveAndSwapOpenOceanSparkDexHook: { mode: "offset", amountPosition: 52, denom: "assets", track: "deprecate->replaceCalldata" },
+  SwapOdosV2Hook: { mode: "offset", amountPosition: 20, track: "deprecate->replaceCalldata" },
+  ApproveAndSwapOdosV2Hook: { mode: "offset", amountPosition: 20, track: "deprecate->replaceCalldata" },
+  CCTPSendHook: { mode: "offset", amountPosition: 20, track: "deprecate->replaceCalldata" },
+  ApproveAndCCTPSendHook: { mode: "offset", amountPosition: 20, track: "deprecate->replaceCalldata" },
+  CircleGatewayWalletHook: { mode: "offset", amountPosition: 20, track: "deprecate->replaceCalldata" },
+  ApproveERC20Hook: { mode: "offset", amountPosition: 40, track: "deprecate->replaceCalldata" },
+  TransferERC20Hook: { mode: "offset", amountPosition: 40, track: "deprecate->replaceCalldata" },
+  TransferHook: { mode: "offset", amountPosition: 40, track: "deprecate->replaceCalldata" },
+  AcrossSendFundsAndExecuteOnDstHook: { mode: "offset", amountPosition: 92, track: "deprecate->replaceCalldata" },
+  ApproveAndAcrossSendFundsAndExecuteOnDstHook: { mode: "offset", amountPosition: 92, track: "deprecate->replaceCalldata" },
+  AcrossSendFundsAndExecuteOnDstHookV2: { mode: "offset", amountPosition: 92, track: "deprecate->replaceCalldata" },
+  ApproveAndAcrossSendFundsAndExecuteOnDstHookV2: { mode: "offset", amountPosition: 92, track: "deprecate->replaceCalldata" },
+  StargateSendHook: { mode: "offset", amountPosition: 108, track: "deprecate->replaceCalldata" },
+  ApproveAndStargateSendHook: { mode: "offset", amountPosition: 108, track: "deprecate->replaceCalldata" },
+  StargateSendHookV2: { mode: "offset", amountPosition: 108, track: "deprecate->replaceCalldata" },
+  ApproveAndStargateSendHookV2: { mode: "offset", amountPosition: 108, track: "deprecate->replaceCalldata" },
+  SwapUniswapV4Hook: { mode: "offset", amountPosition: 120, track: "deprecate->replaceCalldata" },
+  SwapUniswapV3Hook: { mode: "offset", amountPosition: 128, track: "deprecate->replaceCalldata" },
+  ApproveAndSwapUniswapV3Hook: { mode: "offset", amountPosition: 128, track: "deprecate->replaceCalldata" },
+  SwapUniswapV2Hook: { mode: "offset", amountPosition: 72, track: "deprecate->replaceCalldata" },
+  ApproveAndSwapUniswapV2Hook: { mode: "offset", amountPosition: 72, track: "deprecate->replaceCalldata" },
+  SwapAlgebraIntegralHook: { mode: "offset", amountPosition: 144, track: "deprecate->replaceCalldata" },
+  ApproveAndSwapAlgebraIntegralHook: { mode: "offset", amountPosition: 144, track: "deprecate->replaceCalldata" },
+  SwapSparkPSMExactInHook: { mode: "offset", amountPosition: 40, track: "deprecate->replaceCalldata" },
+  ApproveAndSwapSparkPSMExactInHook: { mode: "offset", amountPosition: 40, track: "deprecate->replaceCalldata" },
+  SwapSparkPSMExactOutHook: { mode: "offset", amountPosition: 40, track: "deprecate->replaceCalldata" },
+  ApproveAndSwapSparkPSMExactOutHook: { mode: "offset", amountPosition: 40, track: "deprecate->replaceCalldata" },
+  // Note: SwapKyberSwapHook, ApproveAndSwapKyberSwapHook, SwapUniswapV3Router02Hook,
+  // ApproveAndSwapUniswapV3Router02Hook removed from OVERRIDES — all implement replaceCalldataAmount
+  // and are correctly auto-detected. Previously had stale offset values.
+  // Note: SwapOpenOceanSparkDexHook / ApproveAndSwapOpenOceanSparkDexHook removed (renamed to
+  // SwapOpenOceanHook / ApproveAndSwapOpenOceanHook) — auto-detected as replaceCalldata from source
 
   // == special: dual-amount hooks ==
   MorphoWithdrawHook: {
@@ -253,7 +258,6 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
     amountPosition: 112,
     secondaryAmountPosition: 144,
     sizing: "exclusive-or",
-    denom: "assets|shares",
     track: "deprecate->replaceCalldata",
   },
   AaveV4SupplyAndBorrowHook: {
@@ -261,7 +265,6 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
     amountPosition: 124,
     secondaryAmountPosition: 157,
     sizing: "dual",
-    denom: "assets",
     track: "deprecate->replaceCalldata",
   },
   AaveV4RepayAndWithdrawHook: {
@@ -269,46 +272,9 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
     amountPosition: 124,
     secondaryAmountPosition: 158,
     sizing: "dual",
-    denom: "assets",
     track: "deprecate->replaceCalldata",
   },
 };
-
-// ─── Step 3b: Denomination inference ─────────────────────────────────────────
-
-// Infer denomination from hook name for auto-detected hooks.
-// Static per-hook: deposit family = assets, redeem family = shares, etc.
-function inferDenom(hookValue: string): ManifestEntry["denom"] {
-  const lc = hookValue.toLowerCase();
-
-  // Redeem / cooldown shares / request redeem → shares
-  if (lc.includes("redeem") || lc.includes("cooldownshares")) return "shares";
-
-  // Deposit / supply / lend / repay / borrow / withdraw → assets
-  if (lc.includes("deposit") || lc.includes("supply") || lc.includes("lend") ||
-      lc.includes("repay") || lc.includes("borrow") || lc.includes("withdraw")) return "assets";
-
-  // Stake / unstake → assets
-  if (lc.includes("stake")) return "assets";
-
-  // Swap → assets (input amount)
-  if (lc.includes("swap")) return "assets";
-
-  // Bridge sends → assets
-  if (lc.includes("send") || lc.includes("across") || lc.includes("stargate") ||
-      lc.includes("cctp") || lc.includes("bridge") || lc.includes("gateway")) return "assets";
-
-  // Token transfers → token
-  if (lc.includes("transfer") || lc.includes("approve")) return "token";
-
-  // Mint → assets
-  if (lc.includes("mint")) return "assets";
-
-  // Fee → fee
-  if (lc.includes("fee")) return "fee";
-
-  return undefined;
-}
 
 // ─── Step 4: Build manifest ─────────────────────────────────────────────────
 
@@ -345,7 +311,6 @@ function buildManifest(): ManifestEntry[] {
       if (override.amountPosition !== undefined) entry.amountPosition = override.amountPosition;
       if (override.secondaryAmountPosition !== undefined) entry.secondaryAmountPosition = override.secondaryAmountPosition;
       if (override.sizing) entry.sizing = override.sizing;
-      if (override.denom) entry.denom = override.denom;
       if (override.track) entry.track = override.track;
       if (override.reason) entry.reason = override.reason;
       manifest.push(entry);
@@ -360,7 +325,6 @@ function buildManifest(): ManifestEntry[] {
         hookValue,
         mode: "replaceCalldata",
         pipeMode: detectPipeMode(hookValue),
-        denom: inferDenom(hookValue),
       });
       continue;
     }
@@ -374,7 +338,6 @@ function buildManifest(): ManifestEntry[] {
         mode: "offset",
         pipeMode: detectPipeMode(hookValue),
         amountPosition: amtPos,
-        denom: inferDenom(hookValue),
         track: "deprecate->replaceCalldata",
       });
       continue;

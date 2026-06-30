@@ -174,6 +174,7 @@ abstract contract Constants {
     string internal constant TRANSFER_HOOK_KEY = "TransferHook";
     string internal constant BATCH_TRANSFER_HOOK_KEY = "BatchTransferHook";
     string internal constant BATCH_TRANSFER_FROM_HOOK_KEY = "BatchTransferFromHook";
+    string internal constant NATIVE_TRANSFER_HOOK_KEY = "NativeTransferHook";
     string internal constant OFFRAMP_TOKENS_HOOK_KEY = "OfframpTokensHook";
     string internal constant MINT_SUPERPOSITIONS_HOOK_KEY = "MintSuperPositionsHook";
     string internal constant DEPOSIT_4626_VAULT_HOOK_KEY = "Deposit4626VaultHook";
