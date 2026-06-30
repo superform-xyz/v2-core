@@ -52,6 +52,16 @@ contract ClaimRFLRV2Hook is BaseHook {
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Claim RFLR V2";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Claims rFLR rewards from Flare's RNat contract using on-chain enumeration";
+    }
+
     /// @inheritdoc BaseHook
     function _buildHookExecutions(
         address,

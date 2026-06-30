@@ -130,12 +130,10 @@ import {
 import {
     ApproveAndSwapAlgebraIntegralHook
 } from "../../../src/hooks/swappers/algebra-integral/ApproveAndSwapAlgebraIntegralHook.sol";
+import { SwapOpenOceanHook } from "../../../src/hooks/swappers/openocean/SwapOpenOceanHook.sol";
 import {
-    SwapOpenOceanSparkDexHook
-} from "../../../src/hooks/swappers/openocean/SwapOpenOceanSparkDexHook.sol";
-import {
-    ApproveAndSwapOpenOceanSparkDexHook
-} from "../../../src/hooks/swappers/openocean/ApproveAndSwapOpenOceanSparkDexHook.sol";
+    ApproveAndSwapOpenOceanHook
+} from "../../../src/hooks/swappers/openocean/ApproveAndSwapOpenOceanHook.sol";
 import { SpectraExchangeRedeemHook } from "../../../src/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
 import { PendleRouterRedeemHook } from "../../../src/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
 import { PendleUnifiedHook } from "../../../src/hooks/swappers/pendle/PendleUnifiedHook.sol";
@@ -269,8 +267,8 @@ contract HookSizingInterfaceTest is Helpers {
     ApproveAndSwapSparkPSMExactOutHook approveSwapSparkOut;
     SwapAlgebraIntegralHook swapAlgebra;
     ApproveAndSwapAlgebraIntegralHook approveSwapAlgebra;
-    SwapOpenOceanSparkDexHook swapOpenOcean;
-    ApproveAndSwapOpenOceanSparkDexHook approveSwapOpenOcean;
+    SwapOpenOceanHook swapOpenOcean;
+    ApproveAndSwapOpenOceanHook approveSwapOpenOcean;
     SpectraExchangeRedeemHook spectraRedeem;
     PendleRouterRedeemHook pendleRedeem;
 
@@ -414,8 +412,8 @@ contract HookSizingInterfaceTest is Helpers {
         approveSwapSparkOut = new ApproveAndSwapSparkPSMExactOutHook(DUMMY_ROUTER);
         swapAlgebra = new SwapAlgebraIntegralHook(DUMMY_ROUTER);
         approveSwapAlgebra = new ApproveAndSwapAlgebraIntegralHook(DUMMY_ROUTER);
-        swapOpenOcean = new SwapOpenOceanSparkDexHook(DUMMY_ROUTER, DUMMY_ROUTER, DUMMY_NATIVE);
-        approveSwapOpenOcean = new ApproveAndSwapOpenOceanSparkDexHook(DUMMY_ROUTER, DUMMY_ROUTER, DUMMY_NATIVE);
+        swapOpenOcean = new SwapOpenOceanHook(DUMMY_ROUTER, DUMMY_ROUTER, DUMMY_NATIVE);
+        approveSwapOpenOcean = new ApproveAndSwapOpenOceanHook(DUMMY_ROUTER, DUMMY_ROUTER, DUMMY_NATIVE);
         spectraRedeem = new SpectraExchangeRedeemHook(DUMMY_ROUTER);
         pendleRedeem = new PendleRouterRedeemHook(DUMMY_ROUTER);
 
