@@ -260,8 +260,8 @@ def generate_manifest() -> dict:
         staging_addrs = staging_addresses.get(hook_name, {})
         prod_addrs = prod_addresses.get(hook_name, {})
         entry["addresses"] = {
-            "staging": staging_addrs,
-            "prod": prod_addrs,
+            "staging": {k: staging_addrs[k] for k in sorted(staging_addrs.keys(), key=int)},
+            "prod": {k: prod_addrs[k] for k in sorted(prod_addrs.keys(), key=int)},
         }
         entry["availableChains"] = {
             "staging": sorted(staging_addrs.keys(), key=int),

@@ -23,6 +23,16 @@ import { ISwapRouter } from "./interfaces/ISwapRouter.sol";
 contract ApproveAndSwapUniswapV3Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using BytesLib for bytes;
 
+    struct UniswapV3SwapParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee;
+        uint256 deadline;
+        uint160 sqrtPriceLimitX96;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -89,61 +99,56 @@ contract ApproveAndSwapUniswapV3Hook is BaseHook, ISuperHookContextAware, ISuper
     {
         if (data.length < 193) revert INVALID_HOOK_DATA();
 
-        (
-            address tokenIn,
-            address tokenOut,
-            uint24 fee,
-            address recipient,
-            uint256 deadline,
-            uint160 sqrtPriceLimitX96,
-            uint256 amountIn,
-            uint256 amountOutMinimum
-        ) = _decodeSwapParams(prevHook, account, data);
+        UniswapV3SwapParams memory p = _decodeSwapParams(data);
+
+        if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) {
+            uint256 prevAmountIn = ISuperHookResult(prevHook).getOutAmount(account);
+            p.amountOutMinimum =
+                HookDataUpdater.getUpdatedOutputAmount(prevAmountIn, p.amountIn, p.amountOutMinimum);
+            p.amountIn = prevAmountIn;
+        }
 
         // Build: approve(0) -> approve(amount) -> swap -> approve(0)
         executions = new Execution[](4);
 
-        // Reset approval to 0 (handles USDT-like tokens)
         executions[0] = Execution({
-            target: tokenIn,
+            target: p.tokenIn,
             value: 0,
             callData: abi.encodeCall(IERC20.approve, (address(SWAP_ROUTER), 0))
         });
 
-        // Set approval to exact amount
         executions[1] = Execution({
-            target: tokenIn,
+            target: p.tokenIn,
             value: 0,
-            callData: abi.encodeCall(IERC20.approve, (address(SWAP_ROUTER), amountIn))
+            callData: abi.encodeCall(IERC20.approve, (address(SWAP_ROUTER), p.amountIn))
         });
 
-        // Execute swap
-        executions[2] = Execution({
-            target: address(SWAP_ROUTER),
-            value: 0,
-            callData: abi.encodeCall(
-                ISwapRouter.exactInputSingle,
-                (
-                    ISwapRouter.ExactInputSingleParams({
-                        tokenIn: tokenIn,
-                        tokenOut: tokenOut,
-                        fee: fee,
-                        recipient: recipient,
-                        deadline: deadline,
-                        amountIn: amountIn,
-                        amountOutMinimum: amountOutMinimum,
-                        sqrtPriceLimitX96: sqrtPriceLimitX96
-                    })
-                )
-            )
-        });
+        executions[2] =
+            Execution({ target: address(SWAP_ROUTER), value: 0, callData: _encodeSwapCall(p, account) });
 
-        // Clear approval after swap
         executions[3] = Execution({
-            target: tokenIn,
+            target: p.tokenIn,
             value: 0,
             callData: abi.encodeCall(IERC20.approve, (address(SWAP_ROUTER), 0))
         });
+    }
+
+    function _encodeSwapCall(UniswapV3SwapParams memory p, address account) private pure returns (bytes memory) {
+        return abi.encodeCall(
+            ISwapRouter.exactInputSingle,
+            (
+                ISwapRouter.ExactInputSingleParams({
+                    tokenIn: p.tokenIn,
+                    tokenOut: p.tokenOut,
+                    fee: p.fee,
+                    recipient: account,
+                    deadline: p.deadline,
+                    amountIn: p.amountIn,
+                    amountOutMinimum: p.amountOutMinimum,
+                    sqrtPriceLimitX96: p.sqrtPriceLimitX96
+                })
+            )
+        );
     }
 
     /// @inheritdoc BaseHook
@@ -212,60 +217,21 @@ contract ApproveAndSwapUniswapV3Hook is BaseHook, ISuperHookContextAware, ISuper
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Decodes swap parameters from hook data
-    /// @param prevHook The previous hook in the chain
-    /// @param account The account executing the swap
     /// @param data The encoded hook data
-    /// @dev recipient is forced to account to ensure balance tracking works correctly for hook chaining
-    function _decodeSwapParams(
-        address prevHook,
-        address account,
-        bytes calldata data
-    )
-        internal
-        view
-        returns (
-            address tokenIn,
-            address tokenOut,
-            uint24 fee,
-            address recipient,
-            uint256 deadline,
-            uint160 sqrtPriceLimitX96,
-            uint256 amountIn,
-            uint256 amountOutMinimum
-        )
-    {
-        tokenIn = data.toAddress(0);
-        tokenOut = data.toAddress(20);
+    /// @dev prevHook/account handling is done in _buildHookExecutions to reduce stack depth
+    function _decodeSwapParams(bytes calldata data) private view returns (UniswapV3SwapParams memory p) {
+        p.tokenIn = data.toAddress(0);
+        p.tokenOut = data.toAddress(20);
 
-        // Native ETH not supported - use WETH instead
-        if (tokenIn == address(0) || tokenOut == address(0)) revert NATIVE_ETH_NOT_SUPPORTED();
+        if (p.tokenIn == address(0) || p.tokenOut == address(0)) revert NATIVE_ETH_NOT_SUPPORTED();
 
-        fee = uint24(data.toUint32(40));
-        // Force recipient to account - balance tracking in _preExecute/_postExecute
-        // requires output tokens to go to account for usePrevHookAmount to work
-        recipient = account;
-        deadline = data.toUint256(64);
+        p.fee = uint24(data.toUint32(40));
+        p.deadline = data.toUint256(64);
 
-        // Validate deadline hasn't passed
-        if (deadline < block.timestamp) revert EXPIRED_DEADLINE(deadline, block.timestamp);
+        if (p.deadline < block.timestamp) revert EXPIRED_DEADLINE(p.deadline, block.timestamp);
 
-        // sqrtPriceLimitX96: 0 means no price limit (swap executes at any price)
-        sqrtPriceLimitX96 = uint160(data.toUint256(96));
-
-        uint256 originalAmountIn = data.toUint256(128);
-        uint256 originalMinAmountOut = data.toUint256(160);
-        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-
-        if (usePrevHookAmount) {
-            amountIn = ISuperHookResult(prevHook).getOutAmount(account);
-            amountOutMinimum = HookDataUpdater.getUpdatedOutputAmount(
-                amountIn,
-                originalAmountIn,
-                originalMinAmountOut
-            );
-        } else {
-            amountIn = originalAmountIn;
-            amountOutMinimum = originalMinAmountOut;
-        }
+        p.sqrtPriceLimitX96 = uint160(data.toUint256(96));
+        p.amountIn = data.toUint256(128);
+        p.amountOutMinimum = data.toUint256(160);
     }
 }

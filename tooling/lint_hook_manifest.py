@@ -173,6 +173,17 @@ def lint_sizing_invariant(manifest: dict) -> list[LintError]:
 
     This is the universal gate that auto-catches newly added INFLOW/OUTFLOW hooks that forget
     to wire up the sizing interface — no test file update required.
+
+    IMPORTANT — scope of this check:
+    This check is manifest-level only. It catches a missing YAML entry (legSizing absent or
+    hook not in sizelessHooks), because the `erc165` field in the manifest is synthesised from
+    those YAML entries. It does NOT catch a .sol that correctly has legSizing in YAML but
+    forgot to override `_supportsSizingInterface() → true` in the contract itself.
+
+    For full coverage, this must be paired with an on-chain Foundry invariant that instantiates
+    each INFLOW/OUTFLOW hook and calls supportsInterface(ISuperHookInflowOutflow.interfaceId).
+    See: test/unit/hooks/HookSizingInterface.t.sol — which performs this check per hook.
+    SUP-19991 is only fully closed when BOTH checks pass.
     """
     errors = []
     hooks = manifest.get("hooks", {})

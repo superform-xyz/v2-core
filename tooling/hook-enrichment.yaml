@@ -316,6 +316,14 @@ amountMeta:
   AaveV4SupplyAndBorrowHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   MorphoRepayAndWithdrawHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV4RepayAndWithdrawHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  # MorphoLendHook: input is loan-token amount (TOKEN denomination is correct).
+  # outAmount is Morpho supply shares — non-transferable internal accounting units distinct from
+  # ERC-4626 vault shares. A "UNITS" denomination for output is deferred because amountRoles()
+  # expresses input denomination only; there is no denom field on outAmount in ISuperHookResult.
+  # Note: SHARES does exist in the Denomination enum (ISuperHook.sol) and is used by Redeem hooks;
+  # the deferral of UNITS is not because SHARES is absent, but because UNITS would describe outAmount
+  # semantics that amountRoles does not expose.
+
   # MorphoWithdraw: dual-slot with XOR invariant
   MorphoWithdrawHook: [{direction: IN, denomination: ASSETS}, {direction: IN, denomination: SHARES}]
 
