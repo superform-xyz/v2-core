@@ -99,14 +99,17 @@ contract UniswapV2HookIntegrationTest is MinimalBaseIntegrationTest {
         pure
         returns (bytes memory)
     {
+        // Prepend 52-byte strategy header (bytes32 yieldSourceOracleId + address yieldSource)
         bytes memory data = abi.encodePacked(
-            tokenIn, // 20 bytes
-            tokenOut, // 20 bytes
-            deadline, // 32 bytes
-            amountIn, // 32 bytes
-            amountOutMin, // 32 bytes
-            usePrevHookAmount, // 1 byte
-            uint256(path.length) // 32 bytes
+            bytes32(0), // yieldSourceOracleId placeholder (32 bytes)
+            bytes20(address(0)), // yieldSource placeholder (20 bytes)
+            tokenIn, // 20 bytes at offset 52
+            tokenOut, // 20 bytes at offset 72
+            deadline, // 32 bytes at offset 92
+            amountIn, // 32 bytes at offset 124
+            amountOutMin, // 32 bytes at offset 156
+            usePrevHookAmount, // 1 byte at offset 188
+            uint256(path.length) // 32 bytes at offset 189
         );
         for (uint256 i = 0; i < path.length; i++) {
             data = bytes.concat(data, bytes20(path[i]));

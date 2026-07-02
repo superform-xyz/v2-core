@@ -100,10 +100,11 @@ contract UniswapV2UnitTests is Helpers {
         bytes memory data = _buildHookData(false);
         bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        for (uint256 i = 0; i < 72; i++) {
+        // AMOUNT_POSITION = 124, amountIn occupies bytes 124–155
+        for (uint256 i = 0; i < 124; i++) {
             assertEq(replaced[i], data[i]);
         }
-        for (uint256 i = 104; i < data.length; i++) {
+        for (uint256 i = 156; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
@@ -112,11 +113,13 @@ contract UniswapV2UnitTests is Helpers {
                               HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Builds hook data matching the UniswapV2 layout:
-    /// tokenIn(0) | tokenOut(20) | deadline(40) | originalAmountIn(72) | originalMinAmountOut(104) |
-    /// usePrevHookAmount(136) | pathLength(137) | path(169+)
+    /// @dev Builds hook data matching the UniswapV2 layout (with 52-byte strategy header):
+    /// header(0,52) | tokenIn(52) | tokenOut(72) | deadline(92) | originalAmountIn(124) |
+    /// originalMinAmountOut(156) | usePrevHookAmount(188) | pathLength(189) | path(221+)
     function _buildHookData(bool usePrevHookAmount) internal view returns (bytes memory) {
         return bytes.concat(
+            bytes32(0),          // yieldSourceOracleId placeholder (header bytes 0-31)
+            bytes20(address(0)), // yieldSource placeholder (header bytes 32-51)
             bytes20(tokenIn),
             bytes20(tokenOut),
             bytes32(deadline),

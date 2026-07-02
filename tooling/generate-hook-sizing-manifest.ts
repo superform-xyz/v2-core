@@ -191,20 +191,20 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
   DeBridgeSendOrderAndExecuteOnDstHook: { mode: "external", reason: "complex variable layout" },
 
   // == offset hooks with inherited AMOUNT_POSITION from base classes ==
-  // Morpho hooks: AMOUNT_POSITION = 80 from BaseLoanHook
-  MorphoSupplyHook: { mode: "offset", amountPosition: 80, track: "deprecate->replaceCalldata" },
-  MorphoLendHook: { mode: "offset", amountPosition: 80, track: "deprecate->replaceCalldata" },
-  MorphoBorrowHook: { mode: "offset", amountPosition: 80, track: "deprecate->replaceCalldata" },
-  MorphoRepayHook: { mode: "offset", amountPosition: 80, track: "deprecate->replaceCalldata" },
-  MorphoSupplyAndBorrowHook: { mode: "offset", amountPosition: 80, track: "deprecate->replaceCalldata" },
-  MorphoRepayAndWithdrawHook: { mode: "offset", amountPosition: 80, track: "deprecate->replaceCalldata" },
-  // Aave V4 hooks: amount at 124, from BaseAaveV4LoanHook
-  AaveV4SupplyHook: { mode: "offset", amountPosition: 124, track: "deprecate->replaceCalldata" },
-  AaveV4WithdrawHook: { mode: "offset", amountPosition: 124, track: "deprecate->replaceCalldata" },
-  AaveV4BorrowHook: { mode: "offset", amountPosition: 124, track: "deprecate->replaceCalldata" },
-  AaveV4RepayHook: { mode: "offset", amountPosition: 124, track: "deprecate->replaceCalldata" },
-  // Gearbox approve-and-stake: AMOUNT_POSITION = 72
-  GearboxApproveAndStakeHook: { mode: "offset", amountPosition: 72, track: "deprecate->replaceCalldata" },
+  // Morpho hooks: AMOUNT_POSITION = 132 from BaseLoanHook (80 + 52 header)
+  MorphoSupplyHook: { mode: "offset", amountPosition: 132, track: "deprecate->replaceCalldata" },
+  MorphoLendHook: { mode: "offset", amountPosition: 132, track: "deprecate->replaceCalldata" },
+  MorphoBorrowHook: { mode: "offset", amountPosition: 132, track: "deprecate->replaceCalldata" },
+  MorphoRepayHook: { mode: "offset", amountPosition: 132, track: "deprecate->replaceCalldata" },
+  MorphoSupplyAndBorrowHook: { mode: "offset", amountPosition: 132, track: "deprecate->replaceCalldata" },
+  MorphoRepayAndWithdrawHook: { mode: "offset", amountPosition: 132, track: "deprecate->replaceCalldata" },
+  // Aave V4 hooks: amount at 176, from BaseAaveV4LoanHook (124 + 52 header)
+  AaveV4SupplyHook: { mode: "offset", amountPosition: 176, track: "deprecate->replaceCalldata" },
+  AaveV4WithdrawHook: { mode: "offset", amountPosition: 176, track: "deprecate->replaceCalldata" },
+  AaveV4BorrowHook: { mode: "offset", amountPosition: 176, track: "deprecate->replaceCalldata" },
+  AaveV4RepayHook: { mode: "offset", amountPosition: 176, track: "deprecate->replaceCalldata" },
+  // Gearbox approve-and-stake: AMOUNT_POSITION = 124 (72 + 52 header)
+  GearboxApproveAndStakeHook: { mode: "offset", amountPosition: 124, track: "deprecate->replaceCalldata" },
 
   // == replaceCalldata hooks (implement both decodeAmount and replaceCalldataAmount for real) ==
   // ClaimFailedTransferHook: real decodeAmount + real replaceCalldataAmount at AMOUNT_POSITION=40
@@ -219,33 +219,34 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
 
   // == offset hooks with inlined positions (no AMOUNT_POSITION constant) ==
   // All offset entries carry track: "deprecate->replaceCalldata" — offset is the legacy bridge
-  SwapOdosV2Hook: { mode: "offset", amountPosition: 20, track: "deprecate->replaceCalldata" },
-  ApproveAndSwapOdosV2Hook: { mode: "offset", amountPosition: 20, track: "deprecate->replaceCalldata" },
-  CCTPSendHook: { mode: "offset", amountPosition: 20, track: "deprecate->replaceCalldata" },
-  ApproveAndCCTPSendHook: { mode: "offset", amountPosition: 20, track: "deprecate->replaceCalldata" },
-  CircleGatewayWalletHook: { mode: "offset", amountPosition: 20, track: "deprecate->replaceCalldata" },
-  ApproveERC20Hook: { mode: "offset", amountPosition: 40, track: "deprecate->replaceCalldata" },
-  TransferERC20Hook: { mode: "offset", amountPosition: 40, track: "deprecate->replaceCalldata" },
-  TransferHook: { mode: "offset", amountPosition: 40, track: "deprecate->replaceCalldata" },
-  AcrossSendFundsAndExecuteOnDstHook: { mode: "offset", amountPosition: 92, track: "deprecate->replaceCalldata" },
-  ApproveAndAcrossSendFundsAndExecuteOnDstHook: { mode: "offset", amountPosition: 92, track: "deprecate->replaceCalldata" },
-  AcrossSendFundsAndExecuteOnDstHookV2: { mode: "offset", amountPosition: 92, track: "deprecate->replaceCalldata" },
-  ApproveAndAcrossSendFundsAndExecuteOnDstHookV2: { mode: "offset", amountPosition: 92, track: "deprecate->replaceCalldata" },
-  StargateSendHook: { mode: "offset", amountPosition: 108, track: "deprecate->replaceCalldata" },
-  ApproveAndStargateSendHook: { mode: "offset", amountPosition: 108, track: "deprecate->replaceCalldata" },
-  StargateSendHookV2: { mode: "offset", amountPosition: 108, track: "deprecate->replaceCalldata" },
-  ApproveAndStargateSendHookV2: { mode: "offset", amountPosition: 108, track: "deprecate->replaceCalldata" },
-  SwapUniswapV4Hook: { mode: "offset", amountPosition: 120, track: "deprecate->replaceCalldata" },
-  SwapUniswapV3Hook: { mode: "offset", amountPosition: 128, track: "deprecate->replaceCalldata" },
-  ApproveAndSwapUniswapV3Hook: { mode: "offset", amountPosition: 128, track: "deprecate->replaceCalldata" },
-  SwapUniswapV2Hook: { mode: "offset", amountPosition: 72, track: "deprecate->replaceCalldata" },
-  ApproveAndSwapUniswapV2Hook: { mode: "offset", amountPosition: 72, track: "deprecate->replaceCalldata" },
-  SwapAlgebraIntegralHook: { mode: "offset", amountPosition: 144, track: "deprecate->replaceCalldata" },
-  ApproveAndSwapAlgebraIntegralHook: { mode: "offset", amountPosition: 144, track: "deprecate->replaceCalldata" },
-  SwapSparkPSMExactInHook: { mode: "offset", amountPosition: 40, track: "deprecate->replaceCalldata" },
-  ApproveAndSwapSparkPSMExactInHook: { mode: "offset", amountPosition: 40, track: "deprecate->replaceCalldata" },
-  SwapSparkPSMExactOutHook: { mode: "offset", amountPosition: 40, track: "deprecate->replaceCalldata" },
-  ApproveAndSwapSparkPSMExactOutHook: { mode: "offset", amountPosition: 40, track: "deprecate->replaceCalldata" },
+  // All positions are +52 from pre-header values (52-byte strategy header added)
+  SwapOdosV2Hook: { mode: "offset", amountPosition: 72, track: "deprecate->replaceCalldata" },
+  ApproveAndSwapOdosV2Hook: { mode: "offset", amountPosition: 72, track: "deprecate->replaceCalldata" },
+  CCTPSendHook: { mode: "offset", amountPosition: 72, track: "deprecate->replaceCalldata" },
+  ApproveAndCCTPSendHook: { mode: "offset", amountPosition: 72, track: "deprecate->replaceCalldata" },
+  CircleGatewayWalletHook: { mode: "offset", amountPosition: 72, track: "deprecate->replaceCalldata" },
+  ApproveERC20Hook: { mode: "offset", amountPosition: 92, track: "deprecate->replaceCalldata" },
+  TransferERC20Hook: { mode: "offset", amountPosition: 92, track: "deprecate->replaceCalldata" },
+  TransferHook: { mode: "offset", amountPosition: 92, track: "deprecate->replaceCalldata" },
+  AcrossSendFundsAndExecuteOnDstHook: { mode: "offset", amountPosition: 144, track: "deprecate->replaceCalldata" },
+  ApproveAndAcrossSendFundsAndExecuteOnDstHook: { mode: "offset", amountPosition: 144, track: "deprecate->replaceCalldata" },
+  AcrossSendFundsAndExecuteOnDstHookV2: { mode: "offset", amountPosition: 144, track: "deprecate->replaceCalldata" },
+  ApproveAndAcrossSendFundsAndExecuteOnDstHookV2: { mode: "offset", amountPosition: 144, track: "deprecate->replaceCalldata" },
+  StargateSendHook: { mode: "offset", amountPosition: 160, track: "deprecate->replaceCalldata" },
+  ApproveAndStargateSendHook: { mode: "offset", amountPosition: 160, track: "deprecate->replaceCalldata" },
+  StargateSendHookV2: { mode: "offset", amountPosition: 160, track: "deprecate->replaceCalldata" },
+  ApproveAndStargateSendHookV2: { mode: "offset", amountPosition: 160, track: "deprecate->replaceCalldata" },
+  SwapUniswapV4Hook: { mode: "offset", amountPosition: 172, track: "deprecate->replaceCalldata" },
+  SwapUniswapV3Hook: { mode: "offset", amountPosition: 180, track: "deprecate->replaceCalldata" },
+  ApproveAndSwapUniswapV3Hook: { mode: "offset", amountPosition: 180, track: "deprecate->replaceCalldata" },
+  SwapUniswapV2Hook: { mode: "offset", amountPosition: 124, track: "deprecate->replaceCalldata" },
+  ApproveAndSwapUniswapV2Hook: { mode: "offset", amountPosition: 124, track: "deprecate->replaceCalldata" },
+  SwapAlgebraIntegralHook: { mode: "offset", amountPosition: 196, track: "deprecate->replaceCalldata" },
+  ApproveAndSwapAlgebraIntegralHook: { mode: "offset", amountPosition: 196, track: "deprecate->replaceCalldata" },
+  SwapSparkPSMExactInHook: { mode: "offset", amountPosition: 92, track: "deprecate->replaceCalldata" },
+  ApproveAndSwapSparkPSMExactInHook: { mode: "offset", amountPosition: 92, track: "deprecate->replaceCalldata" },
+  SwapSparkPSMExactOutHook: { mode: "offset", amountPosition: 92, track: "deprecate->replaceCalldata" },
+  ApproveAndSwapSparkPSMExactOutHook: { mode: "offset", amountPosition: 92, track: "deprecate->replaceCalldata" },
   // Note: SwapKyberSwapHook, ApproveAndSwapKyberSwapHook, SwapUniswapV3Router02Hook,
   // ApproveAndSwapUniswapV3Router02Hook removed from OVERRIDES — all implement replaceCalldataAmount
   // and are correctly auto-detected. Previously had stale offset values.
@@ -253,24 +254,25 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
   // SwapOpenOceanHook / ApproveAndSwapOpenOceanHook) — auto-detected as replaceCalldata from source
 
   // == special: dual-amount hooks ==
+  // All positions are +52 from pre-header values (52-byte strategy header added)
   MorphoWithdrawHook: {
     mode: "offset",
-    amountPosition: 112,
-    secondaryAmountPosition: 144,
+    amountPosition: 164,
+    secondaryAmountPosition: 196,
     sizing: "exclusive-or",
     track: "deprecate->replaceCalldata",
   },
   AaveV4SupplyAndBorrowHook: {
     mode: "offset",
-    amountPosition: 124,
-    secondaryAmountPosition: 157,
+    amountPosition: 176,
+    secondaryAmountPosition: 209,
     sizing: "dual",
     track: "deprecate->replaceCalldata",
   },
   AaveV4RepayAndWithdrawHook: {
     mode: "offset",
-    amountPosition: 124,
-    secondaryAmountPosition: 158,
+    amountPosition: 176,
+    secondaryAmountPosition: 210,
     sizing: "dual",
     track: "deprecate->replaceCalldata",
   },

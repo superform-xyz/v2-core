@@ -3,15 +3,15 @@
     "hookKey": "AAVE_V4_BORROW_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 124,
+    "amountPosition": 176,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "AAVE_V4_REPAY_AND_WITHDRAW_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 124,
-    "secondaryAmountPosition": 158,
+    "amountPosition": 176,
+    "secondaryAmountPosition": 210,
     "sizing": "dual",
     "track": "deprecate->replaceCalldata"
   },
@@ -19,15 +19,15 @@
     "hookKey": "AAVE_V4_REPAY_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 124,
+    "amountPosition": 176,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "AAVE_V4_SUPPLY_AND_BORROW_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 124,
-    "secondaryAmountPosition": 157,
+    "amountPosition": 176,
+    "secondaryAmountPosition": 209,
     "sizing": "dual",
     "track": "deprecate->replaceCalldata"
   },
@@ -35,49 +35,49 @@
     "hookKey": "AAVE_V4_SUPPLY_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 124,
+    "amountPosition": 176,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "AAVE_V4_WITHDRAW_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 124,
+    "amountPosition": 176,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 92,
+    "amountPosition": 144,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 92,
+    "amountPosition": 144,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 92,
+    "amountPosition": 144,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 92,
+    "amountPosition": 144,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "APPROVE_AND_CCTP_SEND_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 20,
+    "amountPosition": 72,
     "track": "deprecate->replaceCalldata"
   },
   {
@@ -109,21 +109,21 @@
     "hookKey": "APPROVE_AND_STARGATE_SEND_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 108,
+    "amountPosition": 160,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "APPROVE_AND_STARGATE_SEND_HOOK_V2_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 108,
+    "amountPosition": 160,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "APPROVE_AND_SWAP_ALGEBRA_INTEGRAL_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 144,
+    "amountPosition": 196,
     "track": "deprecate->replaceCalldata"
   },
   {
@@ -135,7 +135,7 @@
     "hookKey": "APPROVE_AND_SWAP_ODOSV2_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 20,
+    "amountPosition": 72,
     "track": "deprecate->replaceCalldata"
   },
   {
@@ -152,28 +152,28 @@
     "hookKey": "APPROVE_AND_SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 40,
+    "amountPosition": 92,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "APPROVE_AND_SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 40,
+    "amountPosition": 92,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "APPROVE_AND_SWAP_UNISWAPV2_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 72,
+    "amountPosition": 124,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "APPROVE_AND_SWAP_UNISWAPV3_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 128,
+    "amountPosition": 180,
     "track": "deprecate->replaceCalldata"
   },
   {
@@ -185,7 +185,7 @@
     "hookKey": "APPROVE_ERC20_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "passthrough",
-    "amountPosition": 40,
+    "amountPosition": 92,
     "track": "deprecate->replaceCalldata"
   },
   {
@@ -229,7 +229,7 @@
     "hookKey": "CCTP_SEND_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 20,
+    "amountPosition": 72,
     "track": "deprecate->replaceCalldata"
   },
   {
@@ -251,7 +251,7 @@
     "hookKey": "CIRCLE_GATEWAY_WALLET_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 20,
+    "amountPosition": 72,
     "track": "deprecate->replaceCalldata"
   },
   {
@@ -370,7 +370,7 @@
     "hookKey": "GEARBOX_APPROVE_AND_STAKE_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 72,
+    "amountPosition": 124,
     "track": "deprecate->replaceCalldata"
   },
   {
@@ -414,50 +414,50 @@
     "hookKey": "MORPHO_BORROW_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 80,
+    "amountPosition": 132,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "MORPHO_LEND_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 80,
+    "amountPosition": 132,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 80,
+    "amountPosition": 132,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "MORPHO_REPAY_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 80,
+    "amountPosition": 132,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "MORPHO_SUPPLY_AND_BORROW_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 80,
+    "amountPosition": 132,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "MORPHO_SUPPLY_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 80,
+    "amountPosition": 132,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "MORPHO_WITHDRAW_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 112,
-    "secondaryAmountPosition": 144,
+    "amountPosition": 164,
+    "secondaryAmountPosition": 196,
     "sizing": "exclusive-or",
     "track": "deprecate->replaceCalldata"
   },
@@ -563,14 +563,14 @@
     "hookKey": "STARGATE_SEND_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 108,
+    "amountPosition": 160,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "STARGATE_SEND_HOOK_V2_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 108,
+    "amountPosition": 160,
     "track": "deprecate->replaceCalldata"
   },
   {
@@ -583,7 +583,7 @@
     "hookKey": "SWAP_ALGEBRA_INTEGRAL_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 144,
+    "amountPosition": 196,
     "track": "deprecate->replaceCalldata"
   },
   {
@@ -595,7 +595,7 @@
     "hookKey": "SWAP_ODOSV2_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 20,
+    "amountPosition": 72,
     "track": "deprecate->replaceCalldata"
   },
   {
@@ -612,28 +612,28 @@
     "hookKey": "SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 40,
+    "amountPosition": 92,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "SWAP_SPARK_PSM_EXACT_OUT_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 40,
+    "amountPosition": 92,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "SWAP_UNISWAPV2_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 72,
+    "amountPosition": 124,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "SWAP_UNISWAPV3_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 128,
+    "amountPosition": 180,
     "track": "deprecate->replaceCalldata"
   },
   {
@@ -645,21 +645,21 @@
     "hookKey": "SWAP_UNISWAPV4_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 120,
+    "amountPosition": 172,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "TRANSFER_ERC20_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 40,
+    "amountPosition": 92,
     "track": "deprecate->replaceCalldata"
   },
   {
     "hookKey": "TRANSFER_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
-    "amountPosition": 40,
+    "amountPosition": 92,
     "track": "deprecate->replaceCalldata"
   },
   {
