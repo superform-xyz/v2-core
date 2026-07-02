@@ -1475,10 +1475,12 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(swapUniV3Router02.decodeAmounts(replaced)[0], 3e18);
     }
 
-    /// @dev UniswapV2: AMOUNT@72
+    /// @dev UniswapV2: AMOUNT@124 (52-byte header + addr(20) + addr(20) + uint256(32))
     function test_DecodeReplace_Roundtrip_SwapUniswapV2() public view {
-        // addr(20) + addr(20) + uint256(32) = 72 prefix, then amount
-        bytes memory data = abi.encodePacked(address(0xA), address(0xB), uint256(0), uint256(1e18), uint256(0), false);
+        bytes memory data = abi.encodePacked(
+            bytes32(0), bytes20(address(0)), // 52-byte header
+            address(0xA), address(0xB), uint256(0), uint256(1e18), uint256(0), false
+        );
         assertEq(swapUniV2.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = swapUniV2.replaceCalldataAmounts(data, _singleAmount(9e18));
@@ -2302,9 +2304,12 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(approveSwapAlgebra.decodeAmounts(replaced)[0], 9e18);
     }
 
-    /// @dev ApproveAndSwapUniswapV2: AMOUNT@72
+    /// @dev ApproveAndSwapUniswapV2: AMOUNT@124 (52-byte header + addr(20) + addr(20) + uint256(32))
     function test_DecodeReplace_Roundtrip_ApproveSwapUniswapV2() public view {
-        bytes memory data = abi.encodePacked(address(0xA), address(0xB), uint256(0), uint256(1e18), uint256(0), false);
+        bytes memory data = abi.encodePacked(
+            bytes32(0), bytes20(address(0)), // 52-byte header
+            address(0xA), address(0xB), uint256(0), uint256(1e18), uint256(0), false
+        );
         assertEq(approveSwapUniV2.decodeAmounts(data)[0], 1e18);
         bytes memory replaced = approveSwapUniV2.replaceCalldataAmounts(data, _singleAmount(2e18));
         assertEq(approveSwapUniV2.decodeAmounts(replaced)[0], 2e18);

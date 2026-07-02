@@ -635,7 +635,10 @@ contract UniswapV2HookEdgeCaseTests is MinimalBaseIntegrationTest {
         pure
         returns (bytes memory)
     {
+        // Prepend 52-byte strategy header (bytes32 yieldSourceOracleId + address yieldSource)
         bytes memory data = abi.encodePacked(
+            bytes32(0),          // yieldSourceOracleId placeholder (header bytes 0-31)
+            bytes20(address(0)), // yieldSource placeholder (header bytes 32-51)
             tokenIn,
             tokenOut,
             deadline,
@@ -1064,15 +1067,15 @@ contract UniswapV2HookEdgeCaseTests is MinimalBaseIntegrationTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Test revert when path has only 1 element (too short)
-    /// @dev pathLength=1 with 1 address = 189 bytes total, which is < 209 minimum,
+    /// @dev pathLength=1 with 1 address = 241 bytes total, which is < 261 minimum,
     ///      so INVALID_HOOK_DATA fires before _decodeSwapParams can check pathLength.
-    ///      We manually craft 209+ bytes with pathLength=1 to hit the path length check.
+    ///      We manually craft 261+ bytes with pathLength=1 to hit the path length check.
     function test_UniswapV2_RevertIf_PathTooShort() public {
         address account = instanceOnEth.account;
 
-        // Build data with pathLength=1 but pad to pass the 209-byte minimum check.
-        // Normal _buildHookData with 1-element path yields 189 bytes (under 209).
-        // Instead, encode pathLength=1 with extra padding so data.length >= 209.
+        // Build data with pathLength=1 but pad to pass the 261-byte minimum check.
+        // Normal _buildHookData with 1-element path yields 241 bytes (under 261).
+        // Instead, encode pathLength=1 with extra padding so data.length >= 261.
         address[] memory path = _buildPath(CHAIN_1_USDC, CHAIN_1_WETH);
         bytes memory hookData = _buildHookData(
             CHAIN_1_USDC,
@@ -1083,14 +1086,14 @@ contract UniswapV2HookEdgeCaseTests is MinimalBaseIntegrationTest {
             false,
             path
         );
-        // Overwrite pathLength at offset 137 (32 bytes) to 1 instead of 2.
-        // The data still has 2 addresses appended (209 bytes total), so it passes the
+        // Overwrite pathLength at offset 189 (32 bytes) to 1 instead of 2.
+        // The data still has 2 addresses appended (261 bytes total), so it passes the
         // minimum length check, but _decodeSwapParams sees pathLength < 2 and reverts.
         assembly {
             // hookData is a bytes variable: first 32 bytes = length, data starts at +32
-            // pathLength is at byte offset 137 in the data, stored as uint256 (32 bytes)
-            // So it occupies bytes [137..168], which is at memory offset 32 + 137 = 169
-            mstore(add(hookData, 169), 1)
+            // pathLength is at byte offset 189 in the data, stored as uint256 (32 bytes)
+            // So it occupies bytes [189..220], which is at memory offset 32 + 189 = 221
+            mstore(add(hookData, 221), 1)
         }
 
         vm.expectRevert(SwapUniswapV2Hook.INVALID_PATH_LENGTH.selector);
@@ -1200,11 +1203,11 @@ contract UniswapV2HookEdgeCaseTests is MinimalBaseIntegrationTest {
                     HOOK DATA VALIDATION TESTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Test revert when hook data is too short (< 209 bytes)
+    /// @notice Test revert when hook data is too short (< 261 bytes)
     function test_UniswapV2_RevertIf_HookDataTooShort() public {
         address account = instanceOnEth.account;
 
-        // 100 bytes of garbage data — well under the 209 byte minimum
+        // 100 bytes of garbage data — well under the 261 byte minimum
         bytes memory shortData = new bytes(100);
 
         vm.expectRevert(SwapUniswapV2Hook.INVALID_HOOK_DATA.selector);
