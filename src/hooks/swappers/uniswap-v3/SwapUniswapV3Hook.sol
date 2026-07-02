@@ -7,6 +7,8 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
+import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
+import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
 import {
     ISuperHookResult,
     ISuperHookContextAware,
@@ -19,18 +21,21 @@ import { ISwapRouter } from "./interfaces/ISwapRouter.sol";
 /// @author Superform Labs
 /// @notice Hook for executing swaps via Uniswap V3 SwapRouter.exactInputSingle
 /// @dev Assumes tokens are already approved to the router
-/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
-/// @notice         address tokenIn = BytesLib.toAddress(data, 52);
-/// @notice         address tokenOut = BytesLib.toAddress(data, 72);
-/// @notice         uint24 fee = uint24(BytesLib.toUint32(data, 92));
-/// @notice         address recipient = BytesLib.toAddress(data, 96);
-/// @notice         uint256 deadline = BytesLib.toUint256(data, 116);
-/// @notice         uint160 sqrtPriceLimitX96 = uint160(BytesLib.toUint256(data, 148));
-/// @notice         uint256 originalAmountIn = BytesLib.toUint256(data, 180);
-/// @notice         uint256 originalMinAmountOut = BytesLib.toUint256(data, 212);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 244);
-contract SwapUniswapV3Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
+/// @dev data has the following structure (3-layer calldata standard):
+/// @notice Layer 0 (bytes[0:52]):    zero-filled 52-byte strategy header
+/// @notice Layer 1 (bytes[52:221]):  standard swap tail
+/// @notice         address inputToken        = BytesLib.toAddress(data, 52);
+/// @notice         address outputToken       = BytesLib.toAddress(data, 72);
+/// @notice         uint256 inputAmount       = BytesLib.toUint256(data, 92);
+/// @notice         uint256 outputQuote       = BytesLib.toUint256(data, 124);
+/// @notice         uint256 outputMin         = BytesLib.toUint256(data, 156);
+/// @notice         bool    usePrevHookAmount = _decodeBool(data, 188);
+/// @notice         uint256 payloadLength     = BytesLib.toUint256(data, 189);
+/// @notice Layer 2 (bytes[221:289]): protocol-specific payload (68 bytes)
+/// @notice         uint24  fee               = uint24(BytesLib.toUint32(data, 221));
+/// @notice         uint256 deadline          = BytesLib.toUint256(data, 225);
+/// @notice         uint160 sqrtPriceLimitX96 = uint160(BytesLib.toUint256(data, 257));
+contract SwapUniswapV3Hook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using BytesLib for bytes;
 
     struct UniswapV3SwapParams {
@@ -50,10 +55,13 @@ contract SwapUniswapV3Hook is BaseHook, ISuperHookContextAware, ISuperHookInflow
     /// @notice The Uniswap V3 SwapRouter contract
     ISwapRouter public immutable SWAP_ROUTER;
 
-    /// @notice Position of usePrevHookAmount flag in hook data
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 244;
+    uint256 private constant AMOUNT_POSITION = SwapCalldataLayout.AMOUNT_POSITION;
 
-    uint256 private constant AMOUNT_POSITION = 180;
+    // ─── Layer 2 payload offsets ──────────────────────────────────────────────
+    uint256 private constant PAYLOAD_FEE_OFFSET = SwapCalldataLayout.PAYLOAD_DATA_OFFSET; // 221
+    uint256 private constant PAYLOAD_DEADLINE_OFFSET = PAYLOAD_FEE_OFFSET + 4; // 225
+    uint256 private constant PAYLOAD_SQRTPRICE_OFFSET = PAYLOAD_DEADLINE_OFFSET + 32; // 257
+    uint256 private constant PAYLOAD_SIZE = 68; // 4 (fee) + 32 (deadline) + 32 (sqrtPriceLimitX96)
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -91,7 +99,6 @@ contract SwapUniswapV3Hook is BaseHook, ISuperHookContextAware, ISuperHookInflow
         return "Swaps tokens via Uniswap V3 exact input single";
     }
 
-
     /*//////////////////////////////////////////////////////////////
                             HOOK IMPLEMENTATION
     //////////////////////////////////////////////////////////////*/
@@ -107,11 +114,11 @@ contract SwapUniswapV3Hook is BaseHook, ISuperHookContextAware, ISuperHookInflow
         override
         returns (Execution[] memory executions)
     {
-        if (data.length < 245) revert INVALID_HOOK_DATA();
+        if (data.length < SwapCalldataLayout.MIN_DATA_LENGTH + PAYLOAD_SIZE) revert INVALID_HOOK_DATA();
 
         UniswapV3SwapParams memory p = _decodeSwapParams(data);
 
-        if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) {
+        if (_decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET)) {
             uint256 prevAmountIn = ISuperHookResult(prevHook).getOutAmount(account);
             p.amountOutMinimum =
                 HookDataUpdater.getUpdatedOutputAmount(prevAmountIn, p.amountIn, p.amountOutMinimum);
@@ -142,15 +149,13 @@ contract SwapUniswapV3Hook is BaseHook, ISuperHookContextAware, ISuperHookInflow
 
     /// @inheritdoc BaseHook
     function _preExecute(address, address account, bytes calldata data) internal override {
-        // Store initial balance of output token
-        address tokenOut = data.toAddress(72);
+        address tokenOut = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
         _setOutAmount(IERC20(tokenOut).balanceOf(account), account);
     }
 
     /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
-        // Calculate delta (final - initial balance)
-        address tokenOut = data.toAddress(72);
+        address tokenOut = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
         uint256 finalBalance = IERC20(tokenOut).balanceOf(account);
         uint256 initialBalance = getOutAmount(account);
         _setOutAmount(finalBalance - initialBalance, account);
@@ -163,7 +168,7 @@ contract SwapUniswapV3Hook is BaseHook, ISuperHookContextAware, ISuperHookInflow
 
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
-        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        return _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -199,30 +204,83 @@ contract SwapUniswapV3Hook is BaseHook, ISuperHookContextAware, ISuperHookInflow
 
     /// @inheritdoc BaseHook
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        address tokenOut = data.toAddress(72);
+        address tokenOut = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
         return abi.encodePacked(tokenOut);
+    }
+
+    // ─── ISuperHookSwap ──────────────────────────────────────────────────────
+
+    /// @inheritdoc ISuperHookSwap
+    function encodeSwapData(
+        ISuperHookSwap.SwapHeader calldata header,
+        bytes calldata payload
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        return bytes.concat(
+            bytes(new bytes(SwapCalldataLayout.HEADER_SIZE)),
+            bytes20(header.inputToken),
+            bytes20(header.outputToken),
+            bytes32(header.inputAmount),
+            bytes32(header.outputQuote),
+            bytes32(header.outputMin),
+            bytes1(header.usePrevHookAmount ? uint8(1) : uint8(0)),
+            bytes32(payload.length),
+            payload
+        );
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputAmount(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputQuote(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_QUOTE_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputMin(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_MIN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodePayload(bytes calldata data) external pure override returns (bytes memory) {
+        uint256 payloadLen = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        return BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLen);
     }
 
     /*//////////////////////////////////////////////////////////////
                            INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Decodes swap parameters from hook data
-    /// @param data The encoded hook data
-    /// @dev prevHook/account handling is done in _buildHookExecutions to reduce stack depth
     function _decodeSwapParams(bytes calldata data) private view returns (UniswapV3SwapParams memory p) {
-        p.tokenIn = data.toAddress(52);
-        p.tokenOut = data.toAddress(72);
+        p.tokenIn = data.toAddress(SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+        p.tokenOut = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
 
         if (p.tokenIn == address(0) || p.tokenOut == address(0)) revert NATIVE_ETH_NOT_SUPPORTED();
 
-        p.fee = uint24(data.toUint32(92));
-        p.deadline = data.toUint256(116);
+        p.fee = uint24(data.toUint32(PAYLOAD_FEE_OFFSET));
+        p.deadline = data.toUint256(PAYLOAD_DEADLINE_OFFSET);
 
         if (p.deadline < block.timestamp) revert EXPIRED_DEADLINE(p.deadline, block.timestamp);
 
-        p.sqrtPriceLimitX96 = uint160(data.toUint256(148));
-        p.amountIn = data.toUint256(180);
-        p.amountOutMinimum = data.toUint256(212);
+        p.sqrtPriceLimitX96 = uint160(data.toUint256(PAYLOAD_SQRTPRICE_OFFSET));
+        p.amountIn = data.toUint256(SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+        p.amountOutMinimum = data.toUint256(SwapCalldataLayout.OUTPUT_MIN_OFFSET);
     }
 }

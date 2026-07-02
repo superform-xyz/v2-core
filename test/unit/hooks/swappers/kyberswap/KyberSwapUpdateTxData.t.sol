@@ -62,9 +62,10 @@ contract KyberSwapUpdateTxDataTest is Helpers {
         bytes memory txData_ = _buildKyberTxDataWithAmounts(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(inputToken),
             bytes20(outputToken),
-            bytes32(uint256(0)), // value
             bytes32(originalAmount),
+            bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)), // usePrevHookAmount = true
             bytes32(txData_.length),
@@ -100,9 +101,10 @@ contract KyberSwapUpdateTxDataTest is Helpers {
         bytes memory txData_ = _buildKyberTxDataWithAmounts(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(inputToken),
             bytes20(outputToken),
-            bytes32(uint256(0)),
             bytes32(originalAmount),
+            bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)),
             bytes32(txData_.length),
@@ -132,9 +134,10 @@ contract KyberSwapUpdateTxDataTest is Helpers {
         bytes memory txData_ = _buildKyberTxDataWithAmounts(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(inputToken),
             bytes20(outputToken),
-            bytes32(uint256(0)),
             bytes32(originalAmount),
+            bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(0)), // usePrevHookAmount = false
             bytes32(txData_.length),
@@ -164,6 +167,7 @@ contract KyberSwapUpdateTxDataTest is Helpers {
             bytes20(inputToken),
             bytes20(outputToken),
             bytes32(originalAmount),
+            bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)), // usePrevHookAmount = true
             bytes32(txData_.length),
@@ -193,9 +197,10 @@ contract KyberSwapUpdateTxDataTest is Helpers {
         bytes memory txData_ = _buildKyberTxDataWithAmounts(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(inputToken),
             bytes20(outputToken),
-            bytes32(uint256(0)),
             bytes32(originalAmount),
+            bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)),
             bytes32(txData_.length),
@@ -229,9 +234,10 @@ contract KyberSwapUpdateTxDataTest is Helpers {
         bytes memory txData_ = _buildKyberTxDataWithAmounts(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(inputToken),
             bytes20(outputToken),
-            bytes32(uint256(0)),
             bytes32(originalAmount),
+            bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)),
             bytes32(txData_.length),
@@ -264,9 +270,10 @@ contract KyberSwapUpdateTxDataTest is Helpers {
         bytes memory txData_ = _buildKyberTxDataWithSplitRoute(originalAmount, originalMinReturn, 600, 400);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(inputToken),
             bytes20(outputToken),
-            bytes32(uint256(0)),
             bytes32(originalAmount),
+            bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)),
             bytes32(txData_.length),
@@ -490,9 +497,10 @@ contract KyberSwapScaleHelperTest is Helpers {
         bytes memory txData_ = _buildKyberTxData(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(inputToken),
             bytes20(outputToken),
-            bytes32(uint256(0)),
             bytes32(originalAmount),
+            bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)), // usePrevHookAmount = true
             bytes32(txData_.length),
@@ -523,9 +531,10 @@ contract KyberSwapScaleHelperTest is Helpers {
         bytes memory txData_ = _buildKyberTxData(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(inputToken),
             bytes20(outputToken),
-            bytes32(uint256(0)),
             bytes32(originalAmount),
+            bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)),
             bytes32(txData_.length),
@@ -558,9 +567,10 @@ contract KyberSwapScaleHelperTest is Helpers {
         bytes memory txData_ = _buildKyberTxData(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(inputToken),
             bytes20(outputToken),
-            bytes32(uint256(0)),
             bytes32(originalAmount),
+            bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)),
             bytes32(txData_.length),
@@ -592,6 +602,7 @@ contract KyberSwapScaleHelperTest is Helpers {
             bytes20(inputToken),
             bytes20(outputToken),
             bytes32(originalAmount),
+            bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)),
             bytes32(txData_.length),

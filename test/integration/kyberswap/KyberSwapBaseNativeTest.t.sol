@@ -104,8 +104,8 @@ contract KyberSwapBaseNativeTest is Test, Constants {
     }
 
     function _buildSwapHookData(
+        address inputToken,
         address outputToken,
-        uint256 value,
         uint256 inputAmount,
         uint256 outputMin,
         bool usePrevHookAmount,
@@ -116,12 +116,13 @@ contract KyberSwapBaseNativeTest is Test, Constants {
         returns (bytes memory)
     {
         return bytes.concat(
-            bytes32(0), // yieldSourceOracleId (52-byte header part 1)
-            bytes20(address(0)), // yieldSource (52-byte header part 2)
-            bytes20(outputToken),
-            bytes32(value),
-            bytes32(inputAmount),
-            bytes32(outputMin),
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(inputToken), // @52
+            bytes20(outputToken), // @72
+            bytes32(inputAmount), // @92
+            bytes32(uint256(0)), // outputQuote @124
+            bytes32(outputMin), // @156
             usePrevHookAmount ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(txData_.length),
             txData_
@@ -141,12 +142,13 @@ contract KyberSwapBaseNativeTest is Test, Constants {
         returns (bytes memory)
     {
         return bytes.concat(
-            bytes32(0), // yieldSourceOracleId (52-byte header part 1)
-            bytes20(address(0)), // yieldSource (52-byte header part 2)
-            bytes20(inputToken),
-            bytes20(outputToken),
-            bytes32(inputAmount),
-            bytes32(outputMin),
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(inputToken), // @52
+            bytes20(outputToken), // @72
+            bytes32(inputAmount), // @92
+            bytes32(uint256(0)), // outputQuote @124
+            bytes32(outputMin), // @156
             usePrevHookAmount ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(txData_.length),
             txData_
@@ -170,7 +172,7 @@ contract KyberSwapBaseNativeTest is Test, Constants {
     /// @notice SwapHook: preExecute captures ETH balance when outputToken == NATIVE
     function test_SwapHook_PreExecute_NativeOutput_Base() public {
         bytes memory txData_ = _buildKyberSwapTxData(USDC, NATIVE, 1000e6, 0, KYBER_ROUTER, KYBER_ROUTER);
-        bytes memory hookData = _buildSwapHookData(NATIVE, 0, 1000e6, 0, false, txData_);
+        bytes memory hookData = _buildSwapHookData(USDC, NATIVE, 1000e6, 0, false, txData_);
 
         vm.deal(account, 5 ether);
 
@@ -181,7 +183,7 @@ contract KyberSwapBaseNativeTest is Test, Constants {
     /// @notice SwapHook: postExecute computes correct ETH delta when outputToken == NATIVE
     function test_SwapHook_PostExecute_NativeOutput_Base() public {
         bytes memory txData_ = _buildKyberSwapTxData(USDC, NATIVE, 1000e6, 0, KYBER_ROUTER, KYBER_ROUTER);
-        bytes memory hookData = _buildSwapHookData(NATIVE, 0, 1000e6, 0, false, txData_);
+        bytes memory hookData = _buildSwapHookData(USDC, NATIVE, 1000e6, 0, false, txData_);
 
         vm.deal(account, 5 ether);
         swapHook.preExecute(address(0), account, hookData);
@@ -232,7 +234,7 @@ contract KyberSwapBaseNativeTest is Test, Constants {
     ///         This is the regression case: before the fix, address(0) was treated as native ETH.
     function test_SwapHook_AddressZero_IsNotNative_Base() public {
         bytes memory txData_ = _buildKyberSwapTxData(USDC, address(0), 1000e6, 0, KYBER_ROUTER, KYBER_ROUTER);
-        bytes memory hookData = _buildSwapHookData(address(0), 0, 1000e6, 0, false, txData_);
+        bytes memory hookData = _buildSwapHookData(USDC, address(0), 1000e6, 0, false, txData_);
 
         vm.deal(account, 10 ether);
 
@@ -263,7 +265,7 @@ contract KyberSwapBaseNativeTest is Test, Constants {
     function test_SwapHook_Build_NativeValueForwarded_Base() public view {
         uint256 ethAmount = 1 ether;
         bytes memory txData_ = _buildKyberSwapTxData(NATIVE, USDC, ethAmount, 1000e6, KYBER_ROUTER, KYBER_ROUTER);
-        bytes memory hookData = _buildSwapHookData(USDC, ethAmount, ethAmount, 1000e6, false, txData_);
+        bytes memory hookData = _buildSwapHookData(NATIVE, USDC, ethAmount, 1000e6, false, txData_);
 
         Execution[] memory executions = swapHook.build(address(0), account, hookData);
 

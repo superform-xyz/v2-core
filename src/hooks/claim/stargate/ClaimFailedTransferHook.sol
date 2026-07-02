@@ -30,20 +30,26 @@ interface IStargateAdapterClaim {
 /// @dev Supports both ERC20 tokens and native ETH (token = address(0))
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
 /// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
-/// @dev         address adapter = BytesLib.toAddress(data, 0);
-/// @dev         address token = BytesLib.toAddress(data, 20);
-/// @dev         uint256 amount = BytesLib.toUint256(data, 40);
+/// @notice         address adapter = BytesLib.toAddress(data, 52);
+/// @notice         address token = BytesLib.toAddress(data, 72);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 92);
 contract ClaimFailedTransferHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow {
 
     /*//////////////////////////////////////////////////////////////
                                  CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Minimum data length: adapter(20) + token(20) + amount(32) = 72 bytes
-    uint256 private constant MIN_DATA_LENGTH = 72;
+    /// @dev Minimum data length: 52-byte header + adapter(20) + token(20) + amount(32) = 124 bytes
+    uint256 private constant MIN_DATA_LENGTH = 124;
+
+    /// @dev Byte offset of the adapter address field in hook data (after 52-byte header)
+    uint256 private constant ADAPTER_POSITION = 52;
+
+    /// @dev Byte offset of the token address field in hook data
+    uint256 private constant TOKEN_POSITION = 72;
 
     /// @dev Byte offset of the uint256 amount field in hook data
-    uint256 private constant AMOUNT_POSITION = 40;
+    uint256 private constant AMOUNT_POSITION = 92;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -89,8 +95,8 @@ contract ClaimFailedTransferHook is BaseHook, ISuperHookInflowOutflow, ISuperHoo
     {
         if (data.length < MIN_DATA_LENGTH) revert DATA_NOT_VALID();
 
-        address adapter = BytesLib.toAddress(data, 0);
-        address token = BytesLib.toAddress(data, 20);
+        address adapter = BytesLib.toAddress(data, ADAPTER_POSITION);
+        address token = BytesLib.toAddress(data, TOKEN_POSITION);
         uint256 amount = BytesLib.toUint256(data, AMOUNT_POSITION);
 
         if (adapter == address(0)) revert ADDRESS_NOT_VALID();
@@ -143,8 +149,8 @@ contract ClaimFailedTransferHook is BaseHook, ISuperHookInflowOutflow, ISuperHoo
     /// @dev Returns the packed (adapter, token) pair for off-chain inspection and indexing
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(
-            BytesLib.toAddress(data, 0), // adapter
-            BytesLib.toAddress(data, 20) // token
+            BytesLib.toAddress(data, ADAPTER_POSITION), // adapter
+            BytesLib.toAddress(data, TOKEN_POSITION)    // token
         );
     }
 
@@ -162,7 +168,7 @@ contract ClaimFailedTransferHook is BaseHook, ISuperHookInflowOutflow, ISuperHoo
     /// @dev Computes the delta (post - pre) as the net tokens claimed
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
-        _setOutToken(asset, account);
+        _setOutToken(BytesLib.toAddress(data, TOKEN_POSITION), account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -172,11 +178,11 @@ contract ClaimFailedTransferHook is BaseHook, ISuperHookInflowOutflow, ISuperHoo
     /// @notice Gets the balance of the token for a given account
     /// @dev For native ETH (token = address(0)), returns the ETH balance
     /// @dev For ERC20 tokens, returns the ERC20 balance
-    /// @param data The hook data containing the token address at offset 20
+    /// @param data The hook data containing the token address at offset TOKEN_POSITION
     /// @param account The account to check the balance for
     /// @return The token balance of the account
     function _getBalance(bytes calldata data, address account) private view returns (uint256) {
-        address token = BytesLib.toAddress(data, 20);
+        address token = BytesLib.toAddress(data, TOKEN_POSITION);
         if (token == address(0)) {
             return account.balance;
         } else {

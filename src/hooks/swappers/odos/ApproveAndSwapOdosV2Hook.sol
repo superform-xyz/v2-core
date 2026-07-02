@@ -6,12 +6,13 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { IOdosRouterV2 } from "../../../vendor/odos/IOdosRouterV2.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
+import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
+import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
 import {
     ISuperHookResult,
     ISuperHookContextAware,
@@ -22,25 +23,42 @@ import {
 
 /// @title ApproveAndSwapOdosV2Hook
 /// @author Superform Labs
-/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
-/// @notice         address inputToken = BytesLib.toAddress(data, 52);
-/// @notice         uint256 inputAmount = BytesLib.toUint256(data, 72);
-/// @notice         address inputReceiver = BytesLib.toAddress(data, 104);
-/// @notice         address outputToken = BytesLib.toAddress(data, 124);
-/// @notice         uint256 outputQuote = BytesLib.toUint256(data, 144);
-/// @notice         uint256 outputMin = BytesLib.toUint256(data, 176);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 208);
-/// @notice         uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 209);
-/// @notice         bytes pathDefinition = BytesLib.slice(data, 241, pathDefinition_paramLength);
-/// @notice         address executor = BytesLib.toAddress(data, 241 + pathDefinition_paramLength);
-/// @notice         uint32 referralCode = BytesLib.toUint32(data, 241 + pathDefinition_paramLength + 20);
-contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
+/// @dev data has the following structure (standard 52-byte strategy header + Layer 1 + Layer 2):
+/// @notice         bytes     placeholder      = BytesLib.slice(data, 0, 52);
+/// @notice         address   inputToken       = BytesLib.toAddress(data, 52);
+/// @notice         address   outputToken      = BytesLib.toAddress(data, 72);
+/// @notice         uint256   inputAmount      = BytesLib.toUint256(data, 92);
+/// @notice         uint256   outputQuote      = BytesLib.toUint256(data, 124);
+/// @notice         uint256   outputMin        = BytesLib.toUint256(data, 156);
+/// @notice         bool      usePrevHookAmount = _decodeBool(data, 188);
+/// @notice         uint256   payloadLength    = BytesLib.toUint256(data, 189);
+/// @notice         address   inputReceiver    = BytesLib.toAddress(data, 221);
+/// @notice         uint256   pathDefinition_paramLength = BytesLib.toUint256(data, 241);
+/// @notice         bytes     pathDefinition   = BytesLib.slice(data, 273, pathDefinition_paramLength);
+/// @notice         address   executor         = BytesLib.toAddress(data, 273 + pathDefinition_paramLength);
+/// @notice         uint32    referralCode     = BytesLib.toUint32(data, 273 + pathDefinition_paramLength + 20);
+contract ApproveAndSwapOdosV2Hook is
+    BaseHook,
+    ISuperHookSwap,
+    ISuperHookContextAware,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+{
     IOdosRouterV2 public immutable ODOS_ROUTER_V2;
 
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 208;
-    uint256 private constant AMOUNT_POSITION = 72;
-    uint256 private constant PRECISION = 1e5;
+    /*//////////////////////////////////////////////////////////////
+                        DATA LAYOUT POSITIONS
+    //////////////////////////////////////////////////////////////*/
+    uint256 private constant AMOUNT_POSITION = SwapCalldataLayout.AMOUNT_POSITION;
+
+    // Layer 2 (payload) absolute positions
+    uint256 private constant INPUT_RECEIVER_POSITION = SwapCalldataLayout.PAYLOAD_DATA_OFFSET; // 221
+    uint256 private constant PATH_DEF_LENGTH_POSITION = SwapCalldataLayout.PAYLOAD_DATA_OFFSET + 20; // 241
+    uint256 private constant PATH_DEF_DATA_POSITION = SwapCalldataLayout.PAYLOAD_DATA_OFFSET + 52; // 273
+
+    /// @dev Tail field offsets relative to (PATH_DEF_DATA_POSITION + pathDefinitionLength)
+    uint256 private constant EXECUTOR_TAIL_OFFSET = 0;
+    uint256 private constant REFERRAL_CODE_TAIL_OFFSET = 20;
 
     struct HookParams {
         address inputToken;
@@ -82,15 +100,16 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHoo
     {
         HookParams memory params;
 
-        uint256 pathDefinitionLength = BytesLib.toUint256(data, 209);
-        params.pathDefinition = BytesLib.slice(data, 241, pathDefinitionLength);
-        params.executor = BytesLib.toAddress(data, 241 + pathDefinitionLength);
-        params.referralCode = BytesLib.toUint32(data, 241 + pathDefinitionLength + 20);
+        uint256 pathDefinitionLength = BytesLib.toUint256(data, PATH_DEF_LENGTH_POSITION);
+        params.pathDefinition = BytesLib.slice(data, PATH_DEF_DATA_POSITION, pathDefinitionLength);
+        uint256 tailOffset = PATH_DEF_DATA_POSITION + pathDefinitionLength;
+        params.executor = BytesLib.toAddress(data, tailOffset + EXECUTOR_TAIL_OFFSET);
+        params.referralCode = BytesLib.toUint32(data, tailOffset + REFERRAL_CODE_TAIL_OFFSET);
 
-        params.inputToken = BytesLib.toAddress(data, 52);
-        params.inputAmount = BytesLib.toUint256(data, 72);
+        params.inputToken = BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+        params.inputAmount = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
 
-        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
         if (usePrevHookAmount) {
             params.inputAmount = ISuperHookResult(prevHook).getOutAmount(account);
         }
@@ -132,7 +151,7 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHoo
 
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
-        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        return _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -168,9 +187,66 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHoo
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        uint256 pathDefinitionLength = BytesLib.toUint256(data, 209);
-        address executor = BytesLib.toAddress(data, 241 + pathDefinitionLength);
+        uint256 pathDefinitionLength = BytesLib.toUint256(data, PATH_DEF_LENGTH_POSITION);
+        uint256 tailOffset = PATH_DEF_DATA_POSITION + pathDefinitionLength;
+        address executor = BytesLib.toAddress(data, tailOffset + EXECUTOR_TAIL_OFFSET);
         return abi.encodePacked(executor);
+    }
+
+    // ─── ISuperHookSwap ──────────────────────────────────────────────────────
+
+    /// @inheritdoc ISuperHookSwap
+    function encodeSwapData(
+        ISuperHookSwap.SwapHeader calldata header,
+        bytes calldata payload
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        return bytes.concat(
+            bytes(new bytes(SwapCalldataLayout.HEADER_SIZE)),
+            bytes20(header.inputToken),
+            bytes20(header.outputToken),
+            bytes32(header.inputAmount),
+            bytes32(header.outputQuote),
+            bytes32(header.outputMin),
+            bytes1(header.usePrevHookAmount ? uint8(1) : uint8(0)),
+            bytes32(payload.length),
+            payload
+        );
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputAmount(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputQuote(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_QUOTE_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputMin(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_MIN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodePayload(bytes calldata data) external pure override returns (bytes memory) {
+        uint256 payloadLen = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        return BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLen);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -182,14 +258,14 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHoo
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
-        _setOutToken(BytesLib.toAddress(data, 124), account);
+        _setOutToken(BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET), account);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        address outputToken = BytesLib.toAddress(data, 124);
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
 
         if (outputToken == address(0)) {
             return account.balance;
@@ -207,13 +283,13 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHoo
         view
         returns (IOdosRouterV2.swapTokenInfo memory)
     {
-        address inputToken = BytesLib.toAddress(data, 52);
-        uint256 inputAmount = BytesLib.toUint256(data, 72);
-        address inputReceiver = BytesLib.toAddress(data, 104);
-        address outputToken = BytesLib.toAddress(data, 124);
-        uint256 outputQuote = BytesLib.toUint256(data, 144);
-        uint256 outputAmount = BytesLib.toUint256(data, 176);
-        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        address inputToken = BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+        uint256 inputAmount = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+        address inputReceiver = BytesLib.toAddress(data, INPUT_RECEIVER_POSITION);
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        uint256 outputQuote = BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_QUOTE_OFFSET);
+        uint256 outputAmount = BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_MIN_OFFSET);
+        bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
 
         if (usePrevHookAmount) {
             uint256 _prevAmount = inputAmount;

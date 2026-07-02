@@ -191,7 +191,7 @@ contract FlareWrappedNativeHookE2E is Test, Constants {
         assertEq(wflrBefore - wflrAfter, WRAP_AMOUNT, "WFLR should decrease by unwrap amount");
         assertEq(flrAfter - flrBefore, WRAP_AMOUNT, "Native FLR should increase by unwrap amount");
         assertEq(wrappedNativeHook.getOutAmount(account), WRAP_AMOUNT, "outAmount should equal unwrapped amount");
-        assertEq(wrappedNativeHook.getOutToken(account), FLARE_WFLR, "outToken should be WFLR");
+        assertEq(wrappedNativeHook.getOutToken(account), address(0), "outToken should be native (address(0)) for unwrap");
 
         console2.log("WFLR unwrapped:", WRAP_AMOUNT);
         console2.log("FLR received:", flrAfter - flrBefore);

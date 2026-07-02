@@ -12,6 +12,8 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { KyberSwapScaler } from "../../../libraries/KyberSwapScaler.sol";
+import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
+import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
 import {
     ISuperHookResult,
     ISuperHookContextAware,
@@ -22,27 +24,35 @@ import {
 
 /// @title SwapKyberSwapHook
 /// @author Superform Labs
-/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
-/// @notice         address outputToken = BytesLib.toAddress(data, 52);
-/// @notice         uint256 value = BytesLib.toUint256(data, 72);
-/// @notice         uint256 inputAmount = BytesLib.toUint256(data, 104);
-/// @notice         uint256 outputMin = BytesLib.toUint256(data, 136);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 168);
-/// @notice         uint256 txDataLength = BytesLib.toUint256(data, 169);
-/// @notice         bytes txData_ = BytesLib.slice(data, 201, txDataLength);
-contract SwapKyberSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
+/// @dev data has the following structure (standard 52-byte strategy header + Layer 1 + Layer 2):
+/// @notice         bytes     placeholder      = BytesLib.slice(data, 0, 52);
+/// @notice         address   inputToken       = BytesLib.toAddress(data, 52);
+/// @notice         address   outputToken      = BytesLib.toAddress(data, 72);
+/// @notice         uint256   inputAmount      = BytesLib.toUint256(data, 92);
+/// @notice         uint256   outputQuote      = BytesLib.toUint256(data, 124);
+/// @notice         uint256   outputMin        = BytesLib.toUint256(data, 156);
+/// @notice         bool      usePrevHookAmount = _decodeBool(data, 188);
+/// @notice         uint256   payloadLength    = BytesLib.toUint256(data, 189);
+/// @notice         bytes     txData           = BytesLib.slice(data, 221, payloadLength);
+contract SwapKyberSwapHook is
+    BaseHook,
+    ISuperHookSwap,
+    ISuperHookContextAware,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+{
     IMetaAggregationRouterV2 public immutable KYBER_ROUTER;
     IScaleHelper public immutable SCALE_HELPER;
 
     address public immutable NATIVE;
 
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 168;
-    uint256 private constant AMOUNT_POSITION = 104;
+    /*//////////////////////////////////////////////////////////////
+                        DATA LAYOUT POSITIONS
+    //////////////////////////////////////////////////////////////*/
+    uint256 private constant AMOUNT_POSITION = SwapCalldataLayout.AMOUNT_POSITION;
 
     constructor(
         address router_,
-
         address scaleHelper_,
         address nativeToken_
     )
@@ -79,10 +89,10 @@ contract SwapKyberSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInflow
         override
         returns (Execution[] memory executions)
     {
-        uint256 inputAmount = BytesLib.toUint256(data, 104);
-        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        uint256 txDataLength = BytesLib.toUint256(data, 169);
-        bytes memory txData_ = BytesLib.slice(data, 201, txDataLength);
+        uint256 inputAmount = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+        bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
+        uint256 txDataLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        bytes memory txData_ = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, txDataLength);
 
         uint256 executionAmount = inputAmount;
         if (usePrevHookAmount) {
@@ -102,7 +112,7 @@ contract SwapKyberSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInflow
 
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
-        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        return _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -138,13 +148,69 @@ contract SwapKyberSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInflow
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        uint256 txDataLength = BytesLib.toUint256(data, 169);
-        bytes memory txData_ = BytesLib.slice(data, 201, txDataLength);
+        uint256 txDataLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        bytes memory txData_ = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, txDataLength);
 
         IMetaAggregationRouterV2.SwapExecutionParams memory params =
             abi.decode(BytesLib.slice(txData_, 4, txData_.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams));
 
         return abi.encodePacked(address(params.desc.dstToken));
+    }
+
+    // ─── ISuperHookSwap ──────────────────────────────────────────────────────
+
+    /// @inheritdoc ISuperHookSwap
+    function encodeSwapData(
+        ISuperHookSwap.SwapHeader calldata header,
+        bytes calldata payload
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        return bytes.concat(
+            bytes(new bytes(SwapCalldataLayout.HEADER_SIZE)),
+            bytes20(header.inputToken),
+            bytes20(header.outputToken),
+            bytes32(header.inputAmount),
+            bytes32(header.outputQuote),
+            bytes32(header.outputMin),
+            bytes1(header.usePrevHookAmount ? uint8(1) : uint8(0)),
+            bytes32(payload.length),
+            payload
+        );
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputAmount(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputQuote(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_QUOTE_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputMin(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_MIN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodePayload(bytes calldata data) external pure override returns (bytes memory) {
+        uint256 payloadLen = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        return BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLen);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -157,7 +223,7 @@ contract SwapKyberSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInflow
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
-        _setOutToken(BytesLib.toAddress(data, 52), account);
+        _setOutToken(BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET), account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -165,7 +231,7 @@ contract SwapKyberSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInflow
     //////////////////////////////////////////////////////////////*/
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        address outputToken = BytesLib.toAddress(data, 52);
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
         if (outputToken == NATIVE) {
             return account.balance;
         }

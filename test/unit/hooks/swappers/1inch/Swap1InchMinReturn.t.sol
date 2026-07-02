@@ -122,7 +122,18 @@ contract Swap1InchHookBugTest is Test {
 
         bytes4 selector = I1InchAggregationRouterV6.unoswapTo.selector;
         bytes memory callData = abi.encodePacked(selector, unoswapData);
-        return abi.encodePacked(bytes(new bytes(52)), dstToken, dstReceiver, uint256(0), usePrevHookAmount, callData);
+        bytes memory p = abi.encodePacked(bytes20(dstReceiver), callData);
+        return abi.encodePacked(
+            bytes(new bytes(52)),
+            bytes20(srcToken),
+            bytes20(dstToken),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes1(usePrevHookAmount ? uint8(1) : uint8(0)),
+            bytes32(p.length),
+            p
+        );
     }
 
     function decodeUnoswapData(bytes memory data) public pure returns (ExecData memory rst) {

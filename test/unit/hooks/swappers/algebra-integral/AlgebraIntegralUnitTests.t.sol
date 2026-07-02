@@ -10,6 +10,7 @@ import {
 } from "../../../../../src/hooks/swappers/algebra-integral/ApproveAndSwapAlgebraIntegralHook.sol";
 import { IAlgebraSwapRouter } from "../../../../../src/vendor/algebra-integral/IAlgebraSwapRouter.sol";
 import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
+import { ISuperHookSwap } from "../../../../../src/interfaces/ISuperHookSwap.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
@@ -31,7 +32,6 @@ contract AlgebraIntegralHookTest is Helpers {
     address tokenOut;
     address account;
     address deployer;
-    address recipient;
 
     uint256 deadline;
     uint160 limitSqrtPrice = 0;
@@ -43,7 +43,6 @@ contract AlgebraIntegralHookTest is Helpers {
     function setUp() public {
         account = address(this);
         deployer = address(0xDEAD);
-        recipient = address(this);
         deadline = block.timestamp + 3600;
 
         router = new MockAlgebraSwapRouter();
@@ -107,7 +106,7 @@ contract AlgebraIntegralHookTest is Helpers {
     }
 
     function test_SwapHook_Build_RevertIf_InvalidHookData() public {
-        bytes memory shortData = new bytes(208); // Less than 209
+        bytes memory shortData = new bytes(250); // Less than 305
         vm.expectRevert(SwapAlgebraIntegralHook.INVALID_HOOK_DATA.selector);
         swapHook.build(address(prevHook), account, shortData);
     }
@@ -204,7 +203,7 @@ contract AlgebraIntegralHookTest is Helpers {
     }
 
     function test_ApproveAndSwapHook_Build_RevertIf_InvalidHookData() public {
-        bytes memory shortData = new bytes(208); // Less than 209
+        bytes memory shortData = new bytes(250); // Less than 305
         vm.expectRevert(ApproveAndSwapAlgebraIntegralHook.INVALID_HOOK_DATA.selector);
         approveAndSwapHook.build(address(prevHook), account, shortData);
     }
@@ -251,9 +250,9 @@ contract AlgebraIntegralHookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_SwapHook_Build_ExactMinimumDataLength() public view {
-        // Test with exactly 261 bytes (minimum valid length: 52-byte header + 208 bytes params + 1 byte flag)
+        // Test with exactly 305 bytes (minimum valid length)
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 261);
+        assertEq(data.length, 305);
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
@@ -261,7 +260,7 @@ contract AlgebraIntegralHookTest is Helpers {
 
     function test_ApproveAndSwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 261);
+        assertEq(data.length, 305);
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
@@ -285,12 +284,12 @@ contract AlgebraIntegralHookTest is Helpers {
         // tokenIn (32), tokenOut (32), deployer (32), recipient (32),
         // deadline (32), amountIn (32), amountOutMinimum (32), limitSqrtPrice (32)
 
-        // amountIn is at offset 4 + 32*5 = 164
+        // amountIn is at offset 4 + 32*5 = 164 from start of calldata → swapCalldata + 32 + 164 = swapCalldata + 196
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
         assembly {
-            decodedAmountIn := mload(add(swapCalldata, 196)) // 4 + 32*6
-            decodedAmountOutMinimum := mload(add(swapCalldata, 228)) // 4 + 32*7
+            decodedAmountIn := mload(add(swapCalldata, 196)) // 32 + 4 + 32*5
+            decodedAmountOutMinimum := mload(add(swapCalldata, 228)) // 32 + 4 + 32*6
         }
 
         // newAmountIn should be prevHookAmount = 2000
@@ -390,7 +389,7 @@ contract AlgebraIntegralHookTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         address decodedDeployer;
         assembly {
-            // deployer is at offset 4 + 32*2 = 68 (after selector + tokenIn + tokenOut)
+            // deployer is at offset 4 + 32*2 = 68 from start of calldata → swapCalldata + 32 + 68 = swapCalldata + 100
             decodedDeployer := mload(add(swapCalldata, 100))
         }
 
@@ -484,70 +483,26 @@ contract AlgebraIntegralHookTest is Helpers {
         bytes memory data = _buildHookData(false);
         bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        // AMOUNT_POSITION is 196 (52-byte placeholder + tokenIn(20) + tokenOut(20) + deployer(20) + recipient(20) + deadline(32) + limitSqrtPrice(32))
-        for (uint256 i = 0; i < 196; i++) {
+        // AMOUNT_POSITION is 92 (52-byte header + tokenIn(20) + tokenOut(20))
+        for (uint256 i = 0; i < 92; i++) {
             assertEq(replaced[i], data[i]);
         }
-        for (uint256 i = 228; i < data.length; i++) {
+        for (uint256 i = 124; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
 
-    /*//////////////////////////////////////////////////////////////
-                              Helpers
-    //////////////////////////////////////////////////////////////*/
-
-    function _buildHookData(bool usePrevHookAmount) internal view returns (bytes memory) {
-        return bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(tokenIn), // 52-71
-            bytes20(tokenOut), // 72-91
-            bytes20(deployer), // 92-111
-            bytes20(recipient), // 112-131
-            bytes32(deadline), // 132-163
-            bytes32(uint256(limitSqrtPrice)), // 164-195
-            bytes32(originalAmountIn), // 196-227
-            bytes32(originalMinAmountOut), // 228-259
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00) // 260
-        );
-    }
-
-    function _buildHookDataWithDeployer(address _deployer) internal view returns (bytes memory) {
-        return bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(tokenIn),
-            bytes20(tokenOut),
-            bytes20(_deployer),
-            bytes20(recipient),
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice)),
-            bytes32(originalAmountIn),
-            bytes32(originalMinAmountOut),
-            bytes1(0x00)
-        );
-    }
-
-    function _buildHookDataCustomAmounts(
-        uint256 _amountIn,
-        uint256 _minAmountOut,
-        bool _usePrevHookAmount
-    )
-        internal
-        view
-        returns (bytes memory)
-    {
-        return bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(tokenIn),
-            bytes20(tokenOut),
-            bytes20(deployer),
-            bytes20(recipient),
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice)),
-            bytes32(_amountIn),
-            bytes32(_minAmountOut),
-            _usePrevHookAmount ? bytes1(0x01) : bytes1(0x00)
-        );
+    function test_ApproveAndSwapAlgebraIntegral_ReplaceCalldataAmounts_PreservesOtherFields() public view {
+        bytes memory data = _buildHookData(false);
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(999));
+        assertEq(replaced.length, data.length);
+        // AMOUNT_POSITION is 92 (52-byte header + tokenIn(20) + tokenOut(20))
+        for (uint256 i = 0; i < 92; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        for (uint256 i = 124; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -712,16 +667,17 @@ contract AlgebraIntegralHookTest is Helpers {
 
     function test_SwapHook_RevertIf_TokenInEqualsTokenOut() public {
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes(new bytes(52)),
             bytes20(tokenIn),
             bytes20(tokenIn), // tokenOut == tokenIn
-            bytes20(deployer),
-            bytes20(recipient),
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice)),
             bytes32(originalAmountIn),
+            bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
-            bytes1(0x00)
+            bytes1(0x00),
+            bytes32(uint256(84)),
+            bytes20(deployer),
+            bytes32(deadline),
+            bytes32(uint256(limitSqrtPrice))
         );
 
         vm.expectRevert(SwapAlgebraIntegralHook.INVALID_HOOK_DATA.selector);
@@ -730,16 +686,17 @@ contract AlgebraIntegralHookTest is Helpers {
 
     function test_ApproveAndSwapHook_RevertIf_TokenInEqualsTokenOut() public {
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes(new bytes(52)),
             bytes20(tokenIn),
             bytes20(tokenIn), // tokenOut == tokenIn
-            bytes20(deployer),
-            bytes20(recipient),
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice)),
             bytes32(originalAmountIn),
+            bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
-            bytes1(0x00)
+            bytes1(0x00),
+            bytes32(uint256(84)),
+            bytes20(deployer),
+            bytes32(deadline),
+            bytes32(uint256(limitSqrtPrice))
         );
 
         vm.expectRevert(ApproveAndSwapAlgebraIntegralHook.INVALID_HOOK_DATA.selector);
@@ -851,16 +808,17 @@ contract AlgebraIntegralHookTest is Helpers {
 
     function test_SwapHook_RevertIf_NativeETH_TokenIn() public {
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes(new bytes(52)),
             bytes20(address(0)), // tokenIn = native ETH
             bytes20(tokenOut),
-            bytes20(deployer),
-            bytes20(recipient),
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice)),
             bytes32(originalAmountIn),
+            bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
-            bytes1(0x00)
+            bytes1(0x00),
+            bytes32(uint256(84)),
+            bytes20(deployer),
+            bytes32(deadline),
+            bytes32(uint256(limitSqrtPrice))
         );
 
         vm.expectRevert(SwapAlgebraIntegralHook.NATIVE_ETH_NOT_SUPPORTED.selector);
@@ -869,16 +827,17 @@ contract AlgebraIntegralHookTest is Helpers {
 
     function test_SwapHook_RevertIf_NativeETH_TokenOut() public {
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes(new bytes(52)),
             bytes20(tokenIn),
             bytes20(address(0)), // tokenOut = native ETH
-            bytes20(deployer),
-            bytes20(recipient),
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice)),
             bytes32(originalAmountIn),
+            bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
-            bytes1(0x00)
+            bytes1(0x00),
+            bytes32(uint256(84)),
+            bytes20(deployer),
+            bytes32(deadline),
+            bytes32(uint256(limitSqrtPrice))
         );
 
         vm.expectRevert(SwapAlgebraIntegralHook.NATIVE_ETH_NOT_SUPPORTED.selector);
@@ -887,16 +846,17 @@ contract AlgebraIntegralHookTest is Helpers {
 
     function test_ApproveAndSwapHook_RevertIf_NativeETH_TokenIn() public {
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes(new bytes(52)),
             bytes20(address(0)), // tokenIn = native ETH
             bytes20(tokenOut),
-            bytes20(deployer),
-            bytes20(recipient),
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice)),
             bytes32(originalAmountIn),
+            bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
-            bytes1(0x00)
+            bytes1(0x00),
+            bytes32(uint256(84)),
+            bytes20(deployer),
+            bytes32(deadline),
+            bytes32(uint256(limitSqrtPrice))
         );
 
         vm.expectRevert(ApproveAndSwapAlgebraIntegralHook.NATIVE_ETH_NOT_SUPPORTED.selector);
@@ -905,16 +865,17 @@ contract AlgebraIntegralHookTest is Helpers {
 
     function test_ApproveAndSwapHook_RevertIf_NativeETH_TokenOut() public {
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes(new bytes(52)),
             bytes20(tokenIn),
             bytes20(address(0)), // tokenOut = native ETH
-            bytes20(deployer),
-            bytes20(recipient),
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice)),
             bytes32(originalAmountIn),
+            bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
-            bytes1(0x00)
+            bytes1(0x00),
+            bytes32(uint256(84)),
+            bytes20(deployer),
+            bytes32(deadline),
+            bytes32(uint256(limitSqrtPrice))
         );
 
         vm.expectRevert(ApproveAndSwapAlgebraIntegralHook.NATIVE_ETH_NOT_SUPPORTED.selector);
@@ -929,16 +890,17 @@ contract AlgebraIntegralHookTest is Helpers {
         uint256 expiredDeadline = block.timestamp - 1;
 
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes(new bytes(52)),
             bytes20(tokenIn),
             bytes20(tokenOut),
-            bytes20(deployer),
-            bytes20(recipient),
-            bytes32(expiredDeadline), // Expired deadline
-            bytes32(uint256(limitSqrtPrice)),
             bytes32(originalAmountIn),
+            bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
-            bytes1(0x00)
+            bytes1(0x00),
+            bytes32(uint256(84)),
+            bytes20(deployer),
+            bytes32(expiredDeadline), // Expired deadline at [241:273]
+            bytes32(uint256(limitSqrtPrice))
         );
 
         vm.expectRevert(
@@ -951,16 +913,17 @@ contract AlgebraIntegralHookTest is Helpers {
         uint256 expiredDeadline = block.timestamp - 1;
 
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes(new bytes(52)),
             bytes20(tokenIn),
             bytes20(tokenOut),
-            bytes20(deployer),
-            bytes20(recipient),
-            bytes32(expiredDeadline), // Expired deadline
-            bytes32(uint256(limitSqrtPrice)),
             bytes32(originalAmountIn),
+            bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
-            bytes1(0x00)
+            bytes1(0x00),
+            bytes32(uint256(84)),
+            bytes20(deployer),
+            bytes32(expiredDeadline), // Expired deadline at [241:273]
+            bytes32(uint256(limitSqrtPrice))
         );
 
         vm.expectRevert(
@@ -976,16 +939,17 @@ contract AlgebraIntegralHookTest is Helpers {
         uint256 exactDeadline = block.timestamp;
 
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes(new bytes(52)),
             bytes20(tokenIn),
             bytes20(tokenOut),
-            bytes20(deployer),
-            bytes20(recipient),
-            bytes32(exactDeadline),
-            bytes32(uint256(limitSqrtPrice)),
             bytes32(originalAmountIn),
+            bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
-            bytes1(0x00)
+            bytes1(0x00),
+            bytes32(uint256(84)),
+            bytes20(deployer),
+            bytes32(exactDeadline),
+            bytes32(uint256(limitSqrtPrice))
         );
 
         // Should not revert
@@ -996,16 +960,17 @@ contract AlgebraIntegralHookTest is Helpers {
     function test_SwapHook_ZeroLimitSqrtPriceMeansNoLimit() public view {
         // limitSqrtPrice = 0 means no price limit, should work fine
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes(new bytes(52)),
             bytes20(tokenIn),
             bytes20(tokenOut),
-            bytes20(deployer),
-            bytes20(recipient),
-            bytes32(deadline),
-            bytes32(uint256(0)), // Zero = no price limit
             bytes32(originalAmountIn),
+            bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
-            bytes1(0x00)
+            bytes1(0x00),
+            bytes32(uint256(84)),
+            bytes20(deployer),
+            bytes32(deadline),
+            bytes32(uint256(0)) // Zero = no price limit at [273:305]
         );
 
         // Should not revert - 0 is valid (means no limit)
@@ -1018,66 +983,38 @@ contract AlgebraIntegralHookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_SwapHook_RecipientForcedToAccount() public view {
-        // Use a different recipient in hook data
-        address differentRecipient = address(0xBEEF);
-
-        bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(tokenIn),
-            bytes20(tokenOut),
-            bytes20(deployer),
-            bytes20(differentRecipient), // Different from account
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice)),
-            bytes32(originalAmountIn),
-            bytes32(originalMinAmountOut),
-            bytes1(0x00)
-        );
+        // In the new standard layout there is no recipient field in the hook data.
+        // The hook always hardcodes recipient = account. Verify the encoded calldata.
+        bytes memory data = _buildHookData(false);
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
 
-        // Decode recipient from swap calldata
         bytes memory swapCalldata = executions[1].callData;
         address decodedRecipient;
         assembly {
-            // recipient is at offset 4 + 32*3 = 100 (after selector + tokenIn + tokenOut + deployer)
+            // recipient is at 4 (selector) + 32*3 (tokenIn+tokenOut+deployer) = 100 from calldata start
+            // In memory bytes: swapCalldata ptr + 32 (length slot) + 100 = swapCalldata + 132
             decodedRecipient := mload(add(swapCalldata, 132))
         }
 
-        // Recipient should be forced to account, not differentRecipient
         assertEq(decodedRecipient, account);
-        assertTrue(decodedRecipient != differentRecipient);
     }
 
     function test_ApproveAndSwapHook_RecipientForcedToAccount() public view {
-        // Use a different recipient in hook data
-        address differentRecipient = address(0xBEEF);
-
-        bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(tokenIn),
-            bytes20(tokenOut),
-            bytes20(deployer),
-            bytes20(differentRecipient), // Different from account
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice)),
-            bytes32(originalAmountIn),
-            bytes32(originalMinAmountOut),
-            bytes1(0x00)
-        );
+        // In the new standard layout there is no recipient field in the hook data.
+        // The hook always hardcodes recipient = account. Verify the encoded calldata.
+        bytes memory data = _buildHookData(false);
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
 
-        // Decode recipient from swap calldata (swap is at index 3)
+        // Swap is at index 3
         bytes memory swapCalldata = executions[3].callData;
         address decodedRecipient;
         assembly {
             decodedRecipient := mload(add(swapCalldata, 132))
         }
 
-        // Recipient should be forced to account, not differentRecipient
         assertEq(decodedRecipient, account);
-        assertTrue(decodedRecipient != differentRecipient);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1088,16 +1025,17 @@ contract AlgebraIntegralHookTest is Helpers {
         uint256 exactDeadline = block.timestamp;
 
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes(new bytes(52)),
             bytes20(tokenIn),
             bytes20(tokenOut),
-            bytes20(deployer),
-            bytes20(recipient),
-            bytes32(exactDeadline),
-            bytes32(uint256(limitSqrtPrice)),
             bytes32(originalAmountIn),
+            bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
-            bytes1(0x00)
+            bytes1(0x00),
+            bytes32(uint256(84)),
+            bytes20(deployer),
+            bytes32(exactDeadline),
+            bytes32(uint256(limitSqrtPrice))
         );
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
@@ -1106,16 +1044,17 @@ contract AlgebraIntegralHookTest is Helpers {
 
     function test_ApproveAndSwapHook_ZeroLimitSqrtPriceMeansNoLimit() public view {
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes(new bytes(52)),
             bytes20(tokenIn),
             bytes20(tokenOut),
-            bytes20(deployer),
-            bytes20(recipient),
-            bytes32(deadline),
-            bytes32(uint256(0)),
             bytes32(originalAmountIn),
+            bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
-            bytes1(0x00)
+            bytes1(0x00),
+            bytes32(uint256(84)),
+            bytes20(deployer),
+            bytes32(deadline),
+            bytes32(uint256(0))
         );
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
@@ -1144,6 +1083,74 @@ contract AlgebraIntegralHookTest is Helpers {
         approveAndSwapHook.postExecute(address(0), account, data);
 
         assertEq(approveAndSwapHook.getOutAmount(account), 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    ISuperHookSwap Interface Tests
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SwapAlgebra_EncodeSwapData_RoundTrip() public view {
+        bytes memory payload = bytes.concat(bytes20(deployer), bytes32(deadline), bytes32(uint256(limitSqrtPrice)));
+
+        ISuperHookSwap.SwapHeader memory header = ISuperHookSwap.SwapHeader({
+            inputToken: tokenIn,
+            outputToken: tokenOut,
+            inputAmount: originalAmountIn,
+            outputQuote: 0,
+            outputMin: originalMinAmountOut,
+            usePrevHookAmount: false
+        });
+
+        bytes memory encoded = swapHook.encodeSwapData(header, payload);
+
+        assertEq(swapHook.decodeInputToken(encoded), tokenIn);
+        assertEq(swapHook.decodeOutputToken(encoded), tokenOut);
+        assertEq(swapHook.decodeInputAmount(encoded), originalAmountIn);
+        assertEq(swapHook.decodeOutputQuote(encoded), 0);
+        assertEq(swapHook.decodeOutputMin(encoded), originalMinAmountOut);
+
+        bytes memory decodedPayload = swapHook.decodePayload(encoded);
+        assertEq(decodedPayload.length, 84);
+    }
+
+    function test_ApproveAndSwapAlgebra_EncodeSwapData_RoundTrip() public view {
+        bytes memory payload = bytes.concat(bytes20(deployer), bytes32(deadline), bytes32(uint256(limitSqrtPrice)));
+
+        ISuperHookSwap.SwapHeader memory header = ISuperHookSwap.SwapHeader({
+            inputToken: tokenIn,
+            outputToken: tokenOut,
+            inputAmount: originalAmountIn,
+            outputQuote: 0,
+            outputMin: originalMinAmountOut,
+            usePrevHookAmount: false
+        });
+
+        bytes memory encoded = approveAndSwapHook.encodeSwapData(header, payload);
+
+        assertEq(approveAndSwapHook.decodeInputToken(encoded), tokenIn);
+        assertEq(approveAndSwapHook.decodeOutputToken(encoded), tokenOut);
+        assertEq(approveAndSwapHook.decodeInputAmount(encoded), originalAmountIn);
+        assertEq(approveAndSwapHook.decodeOutputQuote(encoded), 0);
+        assertEq(approveAndSwapHook.decodeOutputMin(encoded), originalMinAmountOut);
+
+        bytes memory decodedPayload = approveAndSwapHook.decodePayload(encoded);
+        assertEq(decodedPayload.length, 84);
+    }
+
+    function test_SwapAlgebra_EncodeDecodeUsePrevHookAmount_True() public view {
+        bytes memory payload = bytes.concat(bytes20(deployer), bytes32(deadline), bytes32(uint256(limitSqrtPrice)));
+
+        ISuperHookSwap.SwapHeader memory header = ISuperHookSwap.SwapHeader({
+            inputToken: tokenIn,
+            outputToken: tokenOut,
+            inputAmount: originalAmountIn,
+            outputQuote: 0,
+            outputMin: originalMinAmountOut,
+            usePrevHookAmount: true
+        });
+
+        bytes memory encoded = swapHook.encodeSwapData(header, payload);
+        assertTrue(swapHook.decodeUsePrevHookAmount(encoded));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1179,12 +1186,12 @@ contract AlgebraIntegralHookTest is Helpers {
     }
 
     function testFuzz_SwapHook_DataLength(uint8 extraBytes) public view {
-        // Test with various data lengths >= 209
+        // Test with various data lengths >= 305
         bytes memory baseData = _buildHookData(false);
         bytes memory extraData = new bytes(extraBytes);
         bytes memory data = bytes.concat(baseData, extraData);
 
-        // Should not revert for any length >= 209
+        // Should not revert for any length >= 305
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
     }
@@ -1221,5 +1228,78 @@ contract AlgebraIntegralHookTest is Helpers {
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              Helpers
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Builds standard 305-byte hook data (3-layer calldata standard)
+    /// Layout:
+    ///   [0:52]    Layer 0 placeholder
+    ///   [52:72]   inputToken
+    ///   [72:92]   outputToken
+    ///   [92:124]  inputAmount      (AMOUNT_POSITION = 92)
+    ///   [124:156] outputQuote      (0 for AMMs)
+    ///   [156:188] outputMin
+    ///   [188]     usePrevHookAmount
+    ///   [189:221] payloadLength = 84
+    ///   [221:241] deployer
+    ///   [241:273] deadline
+    ///   [273:305] limitSqrtPrice
+    function _buildHookData(bool usePrevHookAmount) internal view returns (bytes memory) {
+        return bytes.concat(
+            bytes(new bytes(52)),
+            bytes20(tokenIn), // [52:72]
+            bytes20(tokenOut), // [72:92]
+            bytes32(originalAmountIn), // [92:124] inputAmount
+            bytes32(uint256(0)), // [124:156] outputQuote (0 for AMMs)
+            bytes32(originalMinAmountOut), // [156:188] outputMin
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // [188]
+            bytes32(uint256(84)), // [189:221] payloadLength
+            bytes20(deployer), // [221:241]
+            bytes32(deadline), // [241:273]
+            bytes32(uint256(limitSqrtPrice)) // [273:305]
+        );
+    }
+
+    function _buildHookDataWithDeployer(address _deployer) internal view returns (bytes memory) {
+        return bytes.concat(
+            bytes(new bytes(52)),
+            bytes20(tokenIn),
+            bytes20(tokenOut),
+            bytes32(originalAmountIn),
+            bytes32(uint256(0)),
+            bytes32(originalMinAmountOut),
+            bytes1(0x00),
+            bytes32(uint256(84)),
+            bytes20(_deployer),
+            bytes32(deadline),
+            bytes32(uint256(limitSqrtPrice))
+        );
+    }
+
+    function _buildHookDataCustomAmounts(
+        uint256 _amountIn,
+        uint256 _minAmountOut,
+        bool _usePrevHookAmount
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        return bytes.concat(
+            bytes(new bytes(52)),
+            bytes20(tokenIn),
+            bytes20(tokenOut),
+            bytes32(_amountIn),
+            bytes32(uint256(0)),
+            bytes32(_minAmountOut),
+            _usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
+            bytes32(uint256(84)),
+            bytes20(deployer),
+            bytes32(deadline),
+            bytes32(uint256(limitSqrtPrice))
+        );
     }
 }

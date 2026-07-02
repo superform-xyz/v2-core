@@ -200,12 +200,21 @@ contract HookSizingInterfaceIntegration is Helpers {
 
     /// @dev Build SwapUniswapV3 data with real router, verify sizing interface
     function test_Fork_SwapUniswapV3_RealRouter_DecodeReplace() public view {
-        // UniV3 data: header(52) + tokenIn@52(20) + tokenOut@72(20) + fee@92(4) + recipient@96(20) + deadline@116(32) + sqrtPriceX96@148(32) + amount@180(32) + minAmountOut@212(32) + usePrev@244(1)
+        // 3-layer format: header(52) + inputToken@52(20) + outputToken@72(20) + amount@92(32) + outputQuote@124(32) + outputMin@156(32) + usePrev@188(1) + payloadLen@189(32) + fee@221(4) + deadline@225(32) + sqrtPrice@257(32)
         uint256 amount = 1e18; // 1 WETH
-        address recipient = address(0); // 0 means let router find pool
 
         bytes memory data = abi.encodePacked(
-            bytes32(0), address(0), WETH, USDC, uint32(3000), recipient, uint256(0), uint256(block.timestamp + 3600), amount, uint256(0), false
+            bytes32(0), address(0),         // 52-byte header
+            WETH,                           // inputToken @52
+            USDC,                           // outputToken @72
+            amount,                         // inputAmount @92 (AMOUNT_POSITION)
+            uint256(0),                     // outputQuote @124
+            uint256(0),                     // outputMin @156
+            false,                          // usePrevHookAmount @188
+            uint256(68),                    // payloadLength @189
+            uint32(3000),                   // fee @221
+            uint256(block.timestamp + 3600), // deadline @225
+            uint256(0)                      // sqrtPriceLimitX96 @257
         );
 
         assertEq(swapUniV3.decodeAmounts(data)[0], amount);
@@ -304,14 +313,24 @@ contract HookSizingInterfaceIntegration is Helpers {
         uint256 origAmount = 1e18;
         uint256 newAmount = 123e18;
 
-        // UniV3 data: header(52) + tokenIn@52(20) + tokenOut@72(20) + fee@92(4) + recipient@96(20) + sqrtPriceX96@116(32) + deadline@148(32) + amount@180(32) + minAmountOut@212(32) + usePrev@244(1)
+        // 3-layer format: header(52) + inputToken@52(20) + outputToken@72(20) + amount@92(32) + outputQuote@124(32) + outputMin@156(32) + usePrev@188(1) + payloadLen@189(32) + fee@221(4) + deadline@225(32) + sqrtPrice@257(32)
         bytes memory data = abi.encodePacked(
-            bytes32(0), address(0), WETH, USDC, uint32(3000), address(0), uint256(0), uint256(block.timestamp + 3600), origAmount, uint256(0), false
+            bytes32(0), address(0),         // 52-byte header
+            WETH,                           // inputToken @52
+            USDC,                           // outputToken @72
+            origAmount,                     // inputAmount @92 (AMOUNT_POSITION)
+            uint256(0),                     // outputQuote @124
+            uint256(0),                     // outputMin @156
+            false,                          // usePrevHookAmount @188
+            uint256(68),                    // payloadLength @189
+            uint32(3000),                   // fee @221
+            uint256(block.timestamp + 3600), // deadline @225
+            uint256(0)                      // sqrtPriceLimitX96 @257
         );
         bytes memory replaced = swapUniV3.replaceCalldataAmounts(data, _singleAmount(newAmount));
 
-        // Independently verify: amount at offset 180
-        uint256 rawAmount = BytesLib.toUint256(replaced, 180);
+        // Independently verify: amount at offset 92 (AMOUNT_POSITION)
+        uint256 rawAmount = BytesLib.toUint256(replaced, 92);
         assertEq(rawAmount, newAmount);
     }
 

@@ -116,20 +116,21 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
             QuoteOutputToken[] memory quoteOutputTokens = new QuoteOutputToken[](1);
             quoteOutputTokens[0] = QuoteOutputToken({ tokenAddress: token, proportion: 1 });
 
-            bytes memory odosCalldata = abi.encodePacked(
-                bytes32(0), address(0), // 52-byte strategy header
-                address(0),
-                amount,
-                accountEth,
-                token,
-                amount,
-                amount - amount * 1e4 / 1e5,
-                true,
-                uint256(0),
-                bytes(""),
-                address(0),
-                uint32(0),
-                false
+            bytes memory odosCalldata = bytes.concat(
+                bytes32(0),
+                bytes20(address(0)), // 52-byte strategy header
+                bytes20(address(0)), // inputToken @52 (native ETH)
+                bytes20(token), // outputToken @72
+                bytes32(amount), // inputAmount @92
+                bytes32(amount), // outputQuote @124
+                bytes32(amount - amount * 1e4 / 1e5), // outputMin @156
+                bytes1(uint8(1)), // usePrevHookAmount @188
+                bytes32(uint256(20 + 32 + 0 + 20 + 4)), // payloadLength @189 = 76
+                bytes20(accountEth), // inputReceiver @221
+                bytes32(uint256(0)), // pathDefLength @241
+                // empty pathDefinition
+                bytes20(address(0)), // executor
+                bytes4(uint32(0)) // referralCode
             );
             hookData[1] = odosCalldata;
 
@@ -218,20 +219,21 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
             QuoteOutputToken[] memory quoteOutputTokens = new QuoteOutputToken[](1);
             quoteOutputTokens[0] = QuoteOutputToken({ tokenAddress: token, proportion: 1 });
 
-            bytes memory odosCalldata = abi.encodePacked(
-                bytes32(0), address(0), // 52-byte strategy header
-                address(0),
-                amount,
-                accountEth,
-                token,
-                amount,
-                amount - amount * 1e4 / 1e5,
-                true,
-                uint256(0),
-                bytes(""),
-                address(0),
-                uint32(0),
-                false
+            bytes memory odosCalldata = bytes.concat(
+                bytes32(0),
+                bytes20(address(0)), // 52-byte strategy header
+                bytes20(address(0)), // inputToken @52 (native ETH)
+                bytes20(token), // outputToken @72
+                bytes32(amount), // inputAmount @92
+                bytes32(amount), // outputQuote @124
+                bytes32(amount - amount * 1e4 / 1e5), // outputMin @156
+                bytes1(uint8(1)), // usePrevHookAmount @188
+                bytes32(uint256(20 + 32 + 0 + 20 + 4)), // payloadLength @189 = 76
+                bytes20(accountEth), // inputReceiver @221
+                bytes32(uint256(0)), // pathDefLength @241
+                // empty pathDefinition
+                bytes20(address(0)), // executor
+                bytes4(uint32(0)) // referralCode
             );
             hookData[1] = odosCalldata;
 

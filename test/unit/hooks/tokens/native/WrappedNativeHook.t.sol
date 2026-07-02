@@ -102,6 +102,7 @@ contract WrappedNativeHookTest is Helpers {
 
         hook.postExecute(address(0), address(this), _encodeData(true, false));
         assertEq(hook.getOutAmount(address(this)), amount);
+        assertEq(hook.getOutToken(address(this)), wrappedNative, "Wrap: outToken should be WRAPPED_NATIVE");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -227,6 +228,7 @@ contract WrappedNativeHookTest is Helpers {
 
         hook.postExecute(address(0), address(this), _encodeData(false, false));
         assertEq(hook.getOutAmount(address(this)), amount);
+        assertEq(hook.getOutToken(address(this)), address(0), "Unwrap: outToken should be address(0) for native");
     }
 
     /*//////////////////////////////////////////////////////////////

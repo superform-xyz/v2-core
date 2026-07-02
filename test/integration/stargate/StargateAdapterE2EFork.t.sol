@@ -1225,7 +1225,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
         assertEq(localAdapter.failedTransfers(user, USDC_BASE), originalAmount);
 
         // Bundler flow: build original hook data, decode amount, replace with adjusted amount
-        bytes memory hookData = abi.encodePacked(address(localAdapter), USDC_BASE, originalAmount);
+        bytes memory hookData = abi.encodePacked(bytes32(0), address(0), address(localAdapter), USDC_BASE, originalAmount);
         uint256 decoded = hook.decodeAmounts(hookData)[0];
         assertEq(decoded, originalAmount, "decodeAmount should read original amount");
 
@@ -1313,7 +1313,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
         assertEq(localAdapter.failedTransfers(user, USDC_BASE), amount);
 
         // Verify inspect returns correct adapter + token
-        bytes memory hookData = abi.encodePacked(address(localAdapter), USDC_BASE, amount);
+        bytes memory hookData = abi.encodePacked(bytes32(0), address(0), address(localAdapter), USDC_BASE, amount);
         bytes memory inspected = hook.inspect(hookData);
 
         assertEq(inspected.length, 40, "Inspect output should be 40 bytes");
@@ -1566,7 +1566,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     )
         internal
     {
-        bytes memory hookData = abi.encodePacked(adapter, token, amount);
+        bytes memory hookData = abi.encodePacked(bytes32(0), address(0), adapter, token, amount);
         Execution[] memory execs = hook.build(address(0), user, hookData);
         hook.setExecutionContext(user);
         for (uint256 i = 0; i < execs.length; i++) {

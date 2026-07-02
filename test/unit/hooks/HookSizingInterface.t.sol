@@ -1450,7 +1450,7 @@ contract HookSizingInterfaceTest is Helpers {
          DECODE + REPLACE: Swapper hooks roundtrip
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev UniswapV3: AMOUNT@128
+    /// @dev UniswapV3: AMOUNT@92
     function test_DecodeReplace_Roundtrip_SwapUniswapV3() public view {
         bytes memory data = _buildSwapperData_128(1e18);
         assertEq(swapUniV3.decodeAmounts(data)[0], 1e18);
@@ -1496,27 +1496,27 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(swapUniV4.decodeAmounts(replaced)[0], 2e18);
     }
 
-    /// @dev OdosV2: AMOUNT@72 — 52-byte header + address(inputToken) + uint256(inputAmount)
+    /// @dev OdosV2: AMOUNT@92 — 52-byte header + address(inputToken) + address(outputToken) + uint256(inputAmount)
     function test_DecodeReplace_Roundtrip_SwapOdosV2() public view {
-        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), uint256(1e18), address(0xB), address(0xC), uint256(0));
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(1e18), uint256(0), uint256(0));
         assertEq(swapOdosV2.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = swapOdosV2.replaceCalldataAmounts(data, _singleAmount(6e18));
         assertEq(swapOdosV2.decodeAmounts(replaced)[0], 6e18);
     }
 
-    /// @dev OdosV3: AMOUNT@72 — 52-byte header + address(inputToken) + uint256(inputAmount)
+    /// @dev OdosV3: AMOUNT@92 — 52-byte header + address(inputToken) + address(outputToken) + uint256(inputAmount)
     function test_DecodeReplace_Roundtrip_SwapOdosV3() public view {
-        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), uint256(1e18), address(0xB), address(0xC), uint256(0));
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(1e18), uint256(0), uint256(0));
         assertEq(swapOdosV3.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = swapOdosV3.replaceCalldataAmounts(data, _singleAmount(4e18));
         assertEq(swapOdosV3.decodeAmounts(replaced)[0], 4e18);
     }
 
-    /// @dev KyberSwap: AMOUNT@104 — 52-byte header + bytes32 + address + uint256(amount)
+    /// @dev KyberSwap: AMOUNT@92 — 52-byte header + address(inputToken) + address(outputToken) + uint256(amount)
     function test_DecodeReplace_Roundtrip_SwapKyberSwap() public view {
-        bytes memory data = abi.encodePacked(bytes32(0), address(0), bytes32(0), address(0xA), uint256(1e18), uint256(0), uint256(0), false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(1e18), uint256(0), uint256(0), false);
         assertEq(swapKyber.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = swapKyber.replaceCalldataAmounts(data, _singleAmount(8e18));
@@ -1550,7 +1550,7 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(swapSparkOut.decodeAmounts(replaced)[0], 2e18);
     }
 
-    /// @dev AlgebraIntegral: AMOUNT@144
+    /// @dev AlgebraIntegral: AMOUNT@92
     function test_DecodeReplace_Roundtrip_SwapAlgebraIntegral() public view {
         bytes memory data = _buildSwapperData_144(1e18);
         assertEq(swapAlgebra.decodeAmounts(data)[0], 1e18);
@@ -1559,9 +1559,9 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(swapAlgebra.decodeAmounts(replaced)[0], 5e18);
     }
 
-    /// @dev OpenOcean: AMOUNT@104 — 52-byte header + bytes32 + addr + uint256(amount)
+    /// @dev OpenOcean: AMOUNT@92 — 52-byte header + address(inputToken) + address(outputToken) + uint256(amount)
     function test_DecodeReplace_Roundtrip_SwapOpenOcean() public view {
-        bytes memory data = abi.encodePacked(bytes32(0), address(0), bytes32(0), address(0xA), uint256(1e18), uint256(0), uint256(0), false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(1e18), uint256(0), uint256(0), false);
         assertEq(swapOpenOcean.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = swapOpenOcean.replaceCalldataAmounts(data, _singleAmount(4e18));
@@ -1929,9 +1929,9 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(fetchNativeFee.decodeAmounts(replaced)[0], 5e16);
     }
 
-    /// @dev ClaimFailedTransfer: AMOUNT@40 — addr(adapter) + addr(token) + uint256(amt) = 72
+    /// @dev ClaimFailedTransfer: AMOUNT@92 — 52-byte header + addr(adapter)@52 + addr(token)@72 + uint256(amt)@92 = 124
     function test_DecodeReplace_Roundtrip_ClaimFailedTransfer() public view {
-        bytes memory data = abi.encodePacked(address(0xA), address(0xB), uint256(1e18));
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(1e18));
         assertEq(claimFailedTransfer.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = claimFailedTransfer.replaceCalldataAmounts(data, _singleAmount(3e18));
@@ -2085,12 +2085,12 @@ contract HookSizingInterfaceTest is Helpers {
         bytes memory data = _buildSwapperData_128(1e18);
         bytes memory replaced = swapUniV3.replaceCalldataAmounts(data, _singleAmount(5e18));
 
-        // Everything before amount (bytes [0:180]) preserved (AMOUNT_POSITION=180)
-        for (uint256 i; i < 180; ++i) {
+        // Everything before amount (bytes [0:92]) preserved (AMOUNT_POSITION=92)
+        for (uint256 i; i < 92; ++i) {
             assertEq(replaced[i], data[i], "prefix bytes mismatch");
         }
-        // Everything after amount (bytes [212:]) preserved
-        for (uint256 i = 212; i < data.length; ++i) {
+        // Everything after amount (bytes [124:]) preserved
+        for (uint256 i = 124; i < data.length; ++i) {
             assertEq(replaced[i], data[i], "suffix bytes mismatch");
         }
     }
@@ -2264,17 +2264,17 @@ contract HookSizingInterfaceTest is Helpers {
             MISSING APPROVE-HOOK ROUNDTRIPS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev ApproveAndSwapOdosV2: AMOUNT@72 — 52-byte header + address(inputToken) + uint256(inputAmount)
+    /// @dev ApproveAndSwapOdosV2: AMOUNT@92 — 52-byte header + inputToken@52 + outputToken@72 + inputAmount@92
     function test_DecodeReplace_Roundtrip_ApproveSwapOdosV2() public view {
-        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), uint256(1e18), address(0xB), address(0xC), uint256(0));
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(1e18), uint256(0), uint256(0));
         assertEq(approveSwapOdosV2.decodeAmounts(data)[0], 1e18);
         bytes memory replaced = approveSwapOdosV2.replaceCalldataAmounts(data, _singleAmount(5e18));
         assertEq(approveSwapOdosV2.decodeAmounts(replaced)[0], 5e18);
     }
 
-    /// @dev ApproveAndSwapOdosV3: AMOUNT@72 — 52-byte header + address(inputToken) + uint256(inputAmount)
+    /// @dev ApproveAndSwapOdosV3: AMOUNT@92 — 52-byte header + inputToken@52 + outputToken@72 + inputAmount@92
     function test_DecodeReplace_Roundtrip_ApproveSwapOdosV3() public view {
-        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), uint256(1e18), address(0xB), address(0xC), uint256(0));
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(1e18), uint256(0), uint256(0));
         assertEq(approveSwapOdosV3.decodeAmounts(data)[0], 1e18);
         bytes memory replaced = approveSwapOdosV3.replaceCalldataAmounts(data, _singleAmount(3e18));
         assertEq(approveSwapOdosV3.decodeAmounts(replaced)[0], 3e18);
@@ -2368,7 +2368,7 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(swapUniV3.amountRoles(swapData128).length, swapUniV3.decodeAmounts(swapData128).length);
         assertEq(approveSwapUniV3.amountRoles(swapData128).length, approveSwapUniV3.decodeAmounts(swapData128).length);
 
-        bytes memory odosData = abi.encodePacked(bytes32(0), address(0), address(0xA), uint256(1e18), address(0xB), address(0xC), uint256(0));
+        bytes memory odosData = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(1e18), uint256(0), uint256(0));
         assertEq(swapOdosV2.amountRoles(odosData).length, swapOdosV2.decodeAmounts(odosData).length);
         assertEq(swapOdosV3.amountRoles(odosData).length, swapOdosV3.decodeAmounts(odosData).length);
         assertEq(approveSwapOdosV2.amountRoles(odosData).length, approveSwapOdosV2.decodeAmounts(odosData).length);
@@ -3165,19 +3165,20 @@ contract HookSizingInterfaceTest is Helpers {
         );
     }
 
-    /// @dev Build swapper data with AMOUNT@180: placeholder(52) + addr + addr + uint32 + addr + uint256 + uint256 + uint256(amt) + uint256 + bool
+    /// @dev Build UniswapV3 swapper data (3-layer format): header(52) + inputToken(20) + outputToken(20) + AMOUNT@92(32) + outputQuote(32) + outputMin(32) + usePrev(1) + payloadLen(32) + fee(4) + deadline(32) + sqrtPrice(32)
     function _buildSwapperData_128(uint256 amt) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            bytes32(0), address(0), // 52-byte placeholder (bytes32 + address = 32+20)
-            address(0xAA),      // tokenIn (20)
-            address(0xBB),      // tokenOut (20)
-            uint32(3000),       // fee (4)
-            address(0xCC),      // pool (20)
-            uint256(0),         // sqrtPriceX96 (32)
-            uint256(1000),      // deadline (32)
-            amt,                // amount at offset 180 (32)
-            uint256(0),         // minAmountOut (32)
-            false               // usePrev (1)
+            bytes32(0), address(0), // 52-byte header
+            address(0xAA),          // inputToken @52
+            address(0xBB),          // outputToken @72
+            amt,                    // inputAmount @92 (AMOUNT_POSITION)
+            uint256(0),             // outputQuote @124
+            uint256(0),             // outputMin @156
+            false,                  // usePrevHookAmount @188
+            uint256(68),            // payloadLength @189 (fee=4 + deadline=32 + sqrtPrice=32)
+            uint32(3000),           // fee @221
+            uint256(9999999999),    // deadline @225 (far future)
+            uint256(0)              // sqrtPriceLimitX96 @257
         );
     }
 
@@ -3204,19 +3205,20 @@ contract HookSizingInterfaceTest is Helpers {
         );
     }
 
-    /// @dev Build swapper data with AMOUNT@196: placeholder(52) + addr + addr + addr + addr + uint256 + uint256 + uint256(amt) + uint256 + bool
+    /// @dev Build AlgebraIntegral swapper data (3-layer format): header(52) + inputToken(20) + outputToken(20) + AMOUNT@92(32) + outputQuote(32) + outputMin(32) + usePrev(1) + payloadLen(32) + deployer(20) + deadline(32) + limitSqrtPrice(32)
     function _buildSwapperData_144(uint256 amt) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            bytes32(0), address(0), // 52-byte placeholder (bytes32 + address = 32+20)
-            address(0xAA),      // tokenIn (20)
-            address(0xBB),      // tokenOut (20)
-            address(0xCC),      // pool (20)
-            address(0xDD),      // recipient (20)
-            uint256(0),         // sqrtPriceX96 (32)
-            uint256(1000),      // deadline (32)
-            amt,                // amount at offset 196 (32)
-            uint256(0),         // minAmountOut (32)
-            false               // usePrev (1)
+            bytes32(0), address(0), // 52-byte header
+            address(0xAA),          // inputToken @52
+            address(0xBB),          // outputToken @72
+            amt,                    // inputAmount @92 (AMOUNT_POSITION)
+            uint256(0),             // outputQuote @124
+            uint256(0),             // outputMin @156
+            false,                  // usePrevHookAmount @188
+            uint256(84),            // payloadLength @189 (deployer=20 + deadline=32 + sqrtPrice=32)
+            address(0),             // deployer @221
+            uint256(9999999999),    // deadline @241 (far future)
+            uint256(0)              // limitSqrtPrice @273
         );
     }
 
@@ -3306,15 +3308,16 @@ contract HookSizingInterfaceTest is Helpers {
     function test_Combined_SwapUniV3_DecodeReplaceUsePrev() public view {
         bytes memory data = abi.encodePacked(
             bytes32(0), address(0),     // 52-byte header
-            address(0xAA),              // tokenIn (20)
-            address(0xBB),              // tokenOut (20)
-            uint32(3000),               // fee (4)
-            address(0xCC),              // recipient (20)
-            uint256(block.timestamp + 100), // deadline (32)
-            uint256(0),                 // sqrtPriceLimitX96 (32)
-            uint256(5 ether),           // amountIn at offset 180 (32)
-            uint256(4 ether),           // minAmountOut at offset 212 (32)
-            true                        // usePrevHookAmount at offset 244 (1)
+            address(0xAA),              // inputToken @52
+            address(0xBB),              // outputToken @72
+            uint256(5 ether),           // inputAmount @92 (AMOUNT_POSITION)
+            uint256(0),                 // outputQuote @124
+            uint256(4 ether),           // outputMin @156
+            true,                       // usePrevHookAmount @188
+            uint256(68),                // payloadLength @189
+            uint32(3000),               // fee @221
+            uint256(block.timestamp + 100), // deadline @225
+            uint256(0)                  // sqrtPriceLimitX96 @257
         );
 
         assertTrue(ISuperHookContextAware(address(swapUniV3)).decodeUsePrevHookAmount(data));
@@ -3484,15 +3487,16 @@ contract HookSizingInterfaceTest is Helpers {
     function test_Fuzz_Combined_SwapUniV3(uint256 origAmt, uint256 newAmt, bool usePrev) public view {
         bytes memory data = abi.encodePacked(
             bytes32(0), address(0),     // 52-byte header
-            address(0xAA),
-            address(0xBB),
-            uint32(3000),
-            address(0xCC),
-            uint256(block.timestamp + 100),
-            uint256(0),
-            origAmt,
-            uint256(0),
-            usePrev
+            address(0xAA),              // inputToken @52
+            address(0xBB),              // outputToken @72
+            origAmt,                    // inputAmount @92
+            uint256(0),                 // outputQuote @124
+            uint256(0),                 // outputMin @156
+            usePrev,                    // usePrevHookAmount @188
+            uint256(68),                // payloadLength @189
+            uint32(3000),               // fee @221
+            uint256(block.timestamp + 100), // deadline @225
+            uint256(0)                  // sqrtPriceLimitX96 @257
         );
 
         assertEq(ISuperHookContextAware(address(swapUniV3)).decodeUsePrevHookAmount(data), usePrev);
@@ -3628,8 +3632,10 @@ contract HookSizingInterfaceTest is Helpers {
         {
             bytes memory d = abi.encodePacked(
                 bytes32(0), address(0),
-                address(0xAA), address(0xBB), uint32(500), address(0xCC),
-                uint256(block.timestamp + 100), uint256(0), uint256(1e18), uint256(0), true
+                address(0xAA), address(0xBB), // inputToken@52, outputToken@72
+                uint256(1e18), uint256(0), uint256(0), // amount@92, outputQuote@124, outputMin@156
+                true, uint256(68), // usePrev@188, payloadLen@189
+                uint32(500), uint256(block.timestamp + 100), uint256(0) // fee@221, deadline@225, sqrtPrice@257
             );
             bytes memory r = swapUniV3.replaceCalldataAmounts(d, _singleAmount(3e18));
             assertTrue(ISuperHookContextAware(address(swapUniV3)).decodeUsePrevHookAmount(r));

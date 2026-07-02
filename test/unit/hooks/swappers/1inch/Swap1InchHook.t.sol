@@ -138,14 +138,19 @@ contract Swap1InchHookTest is Helpers {
         );
         bytes memory callData = abi.encodePacked(I1InchAggregationRouterV6.swap.selector, swapCalldata);
 
-        // 3.  Full hook payload: [52-byte header][dstToken][dstReceiver][value=0][usePrev=1][callData]
+        // 3.  Full hook payload — new standard layout
+        //     Layer 2 payload = dstReceiver (20 bytes) + txData
+        bytes memory p = abi.encodePacked(bytes20(account), callData);
         bytes memory hookData = abi.encodePacked(
-            bytes(new bytes(52)), // 52-byte strategy header
-            bytes20(dstToken), // dstToken (an ERC-20)
-            bytes20(account), // dstReceiver
-            uint256(1), //  static "value" field is ZERO (the bug)
-            bytes1(0x01), // usePrevHookAmount = true
-            callData
+            bytes(new bytes(52)),   // [0:52]   Layer 0 header
+            bytes20(srcToken),      // [52:72]  inputToken
+            bytes20(dstToken),      // [72:92]  outputToken
+            bytes32(uint256(1)),    // [92:124] inputAmount (ETH value = 1)
+            bytes32(uint256(0)),    // [124:156] outputQuote
+            bytes32(uint256(0)),    // [156:188] outputMin
+            bytes1(uint8(1)),       // [188]    usePrevHookAmount = true
+            bytes32(p.length),      // [189:221] payloadLength
+            p                       // [221:]   dstReceiver + txData
         );
 
         // 4.  Call build(); this contract itself acts as the previous hook and returns 1_000
@@ -165,7 +170,19 @@ contract Swap1InchHookTest is Helpers {
     }
 
     function test_Build_RevertIf_CalldataIsNotValid() public {
-        bytes memory data = abi.encodePacked(bytes(new bytes(52)), dstToken, dstReceiver, value, false, bytes4(0xaaaaaaaa));
+        // Invalid selector inside the payload (after dstReceiver)
+        bytes memory p = abi.encodePacked(bytes20(dstReceiver), bytes4(0xaaaaaaaa));
+        bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)),
+            bytes20(srcToken),
+            bytes20(dstToken),
+            bytes32(value),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes1(uint8(0)),
+            bytes32(p.length),
+            p
+        );
         vm.expectRevert(Swap1InchHook.INVALID_SELECTOR.selector);
         hook.build(address(0), address(this), data);
     }
@@ -285,7 +302,18 @@ contract Swap1InchHookTest is Helpers {
         MockERC20 token = new MockERC20("Test Token", "TT", 18);
         token.mint(dstReceiver, 500);
 
-        bytes memory data = abi.encodePacked(bytes(new bytes(52)), address(token), dstReceiver, uint256(0));
+        bytes memory p = abi.encodePacked(bytes20(dstReceiver));
+        bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)),
+            bytes20(address(0)),        // inputToken (unused in _getBalance)
+            bytes20(address(token)),    // outputToken
+            bytes32(uint256(0)),        // inputAmount
+            bytes32(uint256(0)),        // outputQuote
+            bytes32(uint256(0)),        // outputMin
+            bytes1(uint8(0)),           // usePrevHookAmount
+            bytes32(p.length),          // payloadLength
+            p                           // dstReceiver
+        );
 
         hook.preExecute(address(0), address(this), data);
 
@@ -296,7 +324,18 @@ contract Swap1InchHookTest is Helpers {
         MockERC20 token = new MockERC20("Test Token", "TT", 18);
         token.mint(dstReceiver, 500);
 
-        bytes memory data = abi.encodePacked(bytes(new bytes(52)), address(token), dstReceiver, uint256(0));
+        bytes memory p = abi.encodePacked(bytes20(dstReceiver));
+        bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)),
+            bytes20(address(0)),        // inputToken (unused in _getBalance)
+            bytes20(address(token)),    // outputToken
+            bytes32(uint256(0)),        // inputAmount
+            bytes32(uint256(0)),        // outputQuote
+            bytes32(uint256(0)),        // outputMin
+            bytes1(uint8(0)),           // usePrevHookAmount
+            bytes32(p.length),          // payloadLength
+            p                           // dstReceiver
+        );
 
         hook.preExecute(address(0), address(this), data);
 
@@ -413,13 +452,17 @@ contract Swap1InchHookTest is Helpers {
         bytes4 selector = I1InchAggregationRouterV6.unoswapTo.selector;
         bytes memory callData = abi.encodePacked(selector, unoswapData);
 
+        bytes memory p = abi.encodePacked(bytes20(dstReceiver), callData);
         bytes memory hookData = abi.encodePacked(
-            bytes(new bytes(52)), // 52-byte strategy header
-            dstToken, // dstToken (20 bytes) - should match token0 from the pair
-            dstReceiver, // dstReceiver (20 bytes)
-            value, // value (32 bytes)
-            false, // usePrevHookAmount (1 byte)
-            callData // 1inch transaction data with selector
+            bytes(new bytes(52)),
+            bytes20(srcToken),      // inputToken
+            bytes20(dstToken),      // outputToken - should match token0 from the pair
+            bytes32(value),         // inputAmount
+            bytes32(uint256(0)),    // outputQuote
+            bytes32(uint256(0)),    // outputMin
+            bytes1(uint8(0)),       // usePrevHookAmount = false
+            bytes32(p.length),
+            p
         );
 
         // Mock the pair to return values that will trigger the else if branch
@@ -488,13 +531,17 @@ contract Swap1InchHookTest is Helpers {
         bytes4 selector = I1InchAggregationRouterV6.unoswapTo.selector;
         bytes memory callData = abi.encodePacked(selector, unoswapData);
 
+        bytes memory p = abi.encodePacked(bytes20(dstReceiver), callData);
         bytes memory hookData = abi.encodePacked(
-            bytes(new bytes(52)), // 52-byte strategy header
-            dstToken, // dstToken (20 bytes)
-            dstReceiver, // dstReceiver (20 bytes)
-            value, // value (32 bytes)
-            false, // usePrevHookAmount (1 byte)
-            callData // 1inch transaction data with selector
+            bytes(new bytes(52)),
+            bytes20(srcToken),      // inputToken
+            bytes20(dstToken),      // outputToken
+            bytes32(value),         // inputAmount
+            bytes32(uint256(0)),    // outputQuote
+            bytes32(uint256(0)),    // outputMin
+            bytes1(uint8(0)),       // usePrevHookAmount = false
+            bytes32(p.length),
+            p
         );
 
         // This should revert with INVALID_SELECTOR_OFFSET
@@ -526,7 +573,18 @@ contract Swap1InchHookTest is Helpers {
         );
         bytes4 selector = bytes4(0);
         bytes memory callData = abi.encodePacked(selector, clipperData);
-        return abi.encodePacked(bytes(new bytes(52)), dstToken, dstReceiver, value, usePrev, callData);
+        bytes memory p = abi.encodePacked(bytes20(dstReceiver), callData);
+        return abi.encodePacked(
+            bytes(new bytes(52)),
+            bytes20(srcToken),
+            bytes20(dstToken),
+            bytes32(value),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes1(usePrev ? uint8(1) : uint8(0)),
+            bytes32(p.length),
+            p
+        );
     }
 
     function _buildClipperData(
@@ -553,7 +611,18 @@ contract Swap1InchHookTest is Helpers {
         );
         bytes4 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
         bytes memory callData = abi.encodePacked(selector, clipperData);
-        return abi.encodePacked(bytes(new bytes(52)), dstToken, dstReceiver, value, usePrev, callData);
+        bytes memory p = abi.encodePacked(bytes20(dstReceiver), callData);
+        return abi.encodePacked(
+            bytes(new bytes(52)),
+            bytes20(srcToken),
+            bytes20(dstToken),
+            bytes32(value),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes1(usePrev ? uint8(1) : uint8(0)),
+            bytes32(p.length),
+            p
+        );
     }
 
     function _buildClipperDataInvalidReceiver(
@@ -569,7 +638,7 @@ contract Swap1InchHookTest is Helpers {
     {
         bytes memory clipperData = abi.encode(
             address(0), // exchange
-            _dstReceiver, // receiver
+            _dstReceiver, // receiver (in clipper calldata)
             bytes32(0), // srcToken
             IERC20(_dstToken), // dstToken
             _amount, // amount
@@ -580,7 +649,19 @@ contract Swap1InchHookTest is Helpers {
         );
         bytes4 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
         bytes memory callData = abi.encodePacked(selector, clipperData);
-        return abi.encodePacked(bytes(new bytes(52)), dstToken, address(this), value, usePrev, callData);
+        // Put address(this) as the payload dstReceiver — does not match _dstReceiver → INVALID_RECEIVER
+        bytes memory p = abi.encodePacked(bytes20(address(this)), callData);
+        return abi.encodePacked(
+            bytes(new bytes(52)),
+            bytes20(srcToken),
+            bytes20(dstToken),
+            bytes32(value),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes1(usePrev ? uint8(1) : uint8(0)),
+            bytes32(p.length),
+            p
+        );
     }
 
     function _buildClipperDataWithNative(
@@ -606,7 +687,18 @@ contract Swap1InchHookTest is Helpers {
         );
         bytes4 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
         bytes memory callData = abi.encodePacked(selector, clipperData);
-        return abi.encodePacked(bytes(new bytes(52)), NATIVE, _dstReceiver, value, usePrev, callData);
+        bytes memory p = abi.encodePacked(bytes20(_dstReceiver), callData);
+        return abi.encodePacked(
+            bytes(new bytes(52)),
+            bytes20(srcToken),
+            bytes20(NATIVE),        // outputToken = NATIVE
+            bytes32(value),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes1(usePrev ? uint8(1) : uint8(0)),
+            bytes32(p.length),
+            p
+        );
     }
 
     function _buildInvalidSelectorData() private view returns (bytes memory) {
@@ -623,7 +715,18 @@ contract Swap1InchHookTest is Helpers {
         );
         bytes4 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
         bytes memory callData = abi.encodePacked(selector, clipperData);
-        return abi.encodePacked(bytes(new bytes(52)), dstToken, dstReceiver, value, false, callData);
+        bytes memory p = abi.encodePacked(bytes20(dstReceiver), callData);
+        return abi.encodePacked(
+            bytes(new bytes(52)),
+            bytes20(srcToken),
+            bytes20(dstToken),
+            bytes32(value),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes1(uint8(0)),
+            bytes32(p.length),
+            p
+        );
     }
 
     function getOutAmount(address) external pure returns (uint256) {
@@ -668,7 +771,18 @@ contract Swap1InchHookTest is Helpers {
 
         bytes4 selector = I1InchAggregationRouterV6.swap.selector;
         bytes memory callData = abi.encodePacked(selector, swapData);
-        bytes memory hookData = abi.encodePacked(bytes(new bytes(52)), IERC20(DAI), destinationReceiver, uint256(0), false, callData);
+        bytes memory p = abi.encodePacked(bytes20(address(destinationReceiver)), callData);
+        bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)),
+            bytes20(USDC),          // inputToken
+            bytes20(DAI),           // outputToken
+            bytes32(uint256(0)),    // inputAmount
+            bytes32(uint256(0)),    // outputQuote
+            bytes32(uint256(0)),    // outputMin
+            bytes1(uint8(0)),       // usePrevHookAmount = false
+            bytes32(p.length),
+            p
+        );
 
         // Trigger preexecute
         testHook.preExecute(address(0), address(this), hookData);
@@ -746,7 +860,18 @@ contract Swap1InchHookTest is Helpers {
 
         bytes4 selector = I1InchAggregationRouterV6.unoswapTo.selector;
         bytes memory callData = abi.encodePacked(selector, unoswapData);
-        return abi.encodePacked(bytes(new bytes(52)), dstToken, dstReceiver, uint256(0), usePrev, callData);
+        bytes memory p = abi.encodePacked(bytes20(dstReceiver), callData);
+        return abi.encodePacked(
+            bytes(new bytes(52)),
+            bytes20(srcToken),
+            bytes20(dstToken),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes1(usePrev ? uint8(1) : uint8(0)),
+            bytes32(p.length),
+            p
+        );
     }
 
     function _buildUnoswapUniswap(
@@ -769,7 +894,18 @@ contract Swap1InchHookTest is Helpers {
 
         bytes4 selector = I1InchAggregationRouterV6.unoswapTo.selector;
         bytes memory callData = abi.encodePacked(selector, unoswapData);
-        return abi.encodePacked(bytes(new bytes(52)), dstToken, dstReceiver, uint256(0), false, callData);
+        bytes memory p = abi.encodePacked(bytes20(dstReceiver), callData);
+        return abi.encodePacked(
+            bytes(new bytes(52)),
+            bytes20(srcToken),
+            bytes20(dstToken),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes1(uint8(0)),
+            bytes32(p.length),
+            p
+        );
     }
 
     function _buildGenericSwapData(
@@ -801,6 +937,17 @@ contract Swap1InchHookTest is Helpers {
         );
         bytes4 selector = I1InchAggregationRouterV6.swap.selector;
         bytes memory callData = abi.encodePacked(selector, swapData);
-        return abi.encodePacked(bytes(new bytes(52)), dstToken, dstReceiver, uint256(0), usePrev, callData);
+        bytes memory p = abi.encodePacked(bytes20(dstReceiver), callData);
+        return abi.encodePacked(
+            bytes(new bytes(52)),
+            bytes20(srcToken),
+            bytes20(dstToken),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes1(usePrev ? uint8(1) : uint8(0)),
+            bytes32(p.length),
+            p
+        );
     }
 }

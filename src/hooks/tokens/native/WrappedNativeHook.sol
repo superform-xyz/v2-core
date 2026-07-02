@@ -43,9 +43,6 @@ contract WrappedNativeHook is BaseHook, ISuperHookContextAware, ISuperHookInflow
     /// @notice Position of the usePrevHookAmount flag in the hook data
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 85;
 
-    /// @notice Minimum required data length
-    uint256 private constant MIN_DATA_LENGTH = 86;
-
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -183,11 +180,12 @@ contract WrappedNativeHook is BaseHook, ISuperHookContextAware, ISuperHookInflow
 
     /// @notice Updates outAmount with the balance difference after execution
     /// @dev For wrap: ETH spent equals amount deposited. For unwrap: wrapped native spent equals amount withdrawn.
+    /// @dev outToken is WRAPPED_NATIVE for wrap, address(0) for unwrap (native ETH/FLR/etc.)
     function _postExecute(address, address account, bytes calldata data) internal override {
         bool wrap = _decodeBool(data, WRAP_POSITION);
         uint256 previousBalance = getOutAmount(account);
         uint256 currentBalance = wrap ? account.balance : IERC20(WRAPPED_NATIVE).balanceOf(account);
         _setOutAmount(previousBalance - currentBalance, account);
-        _setOutToken(WRAPPED_NATIVE, account);
+        _setOutToken(wrap ? WRAPPED_NATIVE : address(0), account);
     }
 }

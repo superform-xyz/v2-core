@@ -145,6 +145,20 @@ contract ClaimFailedTransferHookTest is Helpers {
         vm.prank(account);
         hook.postExecute(address(0), account, _encodeData(adapter, token, amount));
         assertEq(hook.getOutAmount(account), 500, "OutAmount should be the balance delta");
+        assertEq(hook.getOutToken(account), token, "OutToken should be the claimed ERC20 token");
+    }
+
+    function test_PostExecute_SetsOutToken_NativeETH() public {
+        hook.setExecutionContext(account);
+
+        vm.prank(account);
+        hook.preExecute(address(0), account, _encodeData(adapter, address(0), amount));
+
+        vm.deal(account, 750);
+
+        vm.prank(account);
+        hook.postExecute(address(0), account, _encodeData(adapter, address(0), amount));
+        assertEq(hook.getOutToken(account), address(0), "OutToken should be address(0) for native ETH");
     }
 
     function test_PreAndPostExecute_NativeETH_BalanceIncrease() public {
@@ -204,13 +218,14 @@ contract ClaimFailedTransferHookTest is Helpers {
         address testToken = address(0xABcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD);
         uint256 testAmount = 12_345e18;
 
-        bytes memory data = abi.encodePacked(testAdapter, testToken, testAmount);
+        // 52-byte header + adapter(20) + token(20) + amount(32) = 124 bytes
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), testAdapter, testToken, testAmount);
 
         Execution[] memory executions = hook.build(address(0), account, data);
 
         // Check adapter is correctly used as target
         assertEq(executions[1].target, testAdapter, "Adapter address not correctly decoded");
-        assertEq(data.length, 72, "Calldata length is incorrect");
+        assertEq(data.length, 124, "Calldata length is incorrect");
     }
 
     // --- Fuzz Tests ---
@@ -258,7 +273,7 @@ contract ClaimFailedTransferHookTest is Helpers {
     function test_DecodeAmounts() public view {
         bytes memory data = _encodeData(adapter, token, 42_000e18);
         uint256 decoded = hook.decodeAmounts(data)[0];
-        assertEq(decoded, 42_000e18, "decodeAmount should extract amount at offset 40");
+        assertEq(decoded, 42_000e18, "decodeAmount should extract amount at offset 92");
     }
 
     function test_DecodeAmounts_Zero() public view {
@@ -279,9 +294,9 @@ contract ClaimFailedTransferHookTest is Helpers {
         // Verify amount was replaced
         assertEq(hook.decodeAmounts(replaced)[0], 5000, "Amount should be replaced");
 
-        // Verify adapter and token are unchanged
-        assertEq(BytesLib.toAddress(replaced, 0), adapter, "Adapter should be unchanged");
-        assertEq(BytesLib.toAddress(replaced, 20), token, "Token should be unchanged");
+        // Verify adapter and token are unchanged (at header-offset positions 52 and 72)
+        assertEq(BytesLib.toAddress(replaced, 52), adapter, "Adapter should be unchanged");
+        assertEq(BytesLib.toAddress(replaced, 72), token, "Token should be unchanged");
     }
 
     function testFuzz_ReplaceCalldataAmounts(
@@ -297,8 +312,8 @@ contract ClaimFailedTransferHookTest is Helpers {
         bytes memory replaced = hook.replaceCalldataAmounts(data, _singleAmount(newAmount));
 
         assertEq(hook.decodeAmounts(replaced)[0], newAmount, "Amount should be replaced");
-        assertEq(BytesLib.toAddress(replaced, 0), fuzzAdapter, "Adapter unchanged");
-        assertEq(BytesLib.toAddress(replaced, 20), fuzzToken, "Token unchanged");
+        assertEq(BytesLib.toAddress(replaced, 52), fuzzAdapter, "Adapter unchanged");
+        assertEq(BytesLib.toAddress(replaced, 72), fuzzToken, "Token unchanged");
     }
 
     // --- Data Validation Tests ---
@@ -325,6 +340,7 @@ contract ClaimFailedTransferHookTest is Helpers {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(_adapter, _token, _amount);
+        // 52-byte header (yieldSourceOracleId[32] + yieldSource[20]) + adapter[20] + token[20] + amount[32]
+        return abi.encodePacked(bytes32(0), address(0), _adapter, _token, _amount);
     }
 }

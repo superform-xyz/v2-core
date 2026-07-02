@@ -7,9 +7,11 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { BytesLib } from "../../../vendor/BytesLib.sol";
+import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
 import { IOpenOceanCaller } from "../../../vendor/openocean/IOpenOceanCaller.sol";
 import { IOpenOceanExchange } from "../../../vendor/openocean/IOpenOceanExchange.sol";
 import { OpenOceanDynamicAmountUpdater } from "../../../libraries/OpenOceanDynamicAmountUpdater.sol";
+import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
 import {
     ISuperHookContextAware,
     ISuperHookInspector,
@@ -20,23 +22,30 @@ import {
 
 /// @title ApproveAndSwapOpenOceanHook
 /// @author Superform Labs
-/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
-/// @notice         address inputToken = BytesLib.toAddress(data, 52);
-/// @notice         address outputToken = BytesLib.toAddress(data, 72);
-/// @notice         uint256 inputAmount = BytesLib.toUint256(data, 92);
-/// @notice         uint256 outputMin = BytesLib.toUint256(data, 124);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
-/// @notice         uint256 txDataLength = BytesLib.toUint256(data, 157);
-/// @notice         bytes txData_ = BytesLib.slice(data, 189, txDataLength);
-contract ApproveAndSwapOpenOceanHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
+/// @dev data has the following structure (standard 52-byte strategy header + Layer 1 + Layer 2):
+/// @notice         bytes     placeholder      = BytesLib.slice(data, 0, 52);
+/// @notice         address   inputToken       = BytesLib.toAddress(data, 52);
+/// @notice         address   outputToken      = BytesLib.toAddress(data, 72);
+/// @notice         uint256   inputAmount      = BytesLib.toUint256(data, 92);
+/// @notice         uint256   outputQuote      = BytesLib.toUint256(data, 124);
+/// @notice         uint256   outputMin        = BytesLib.toUint256(data, 156);
+/// @notice         bool      usePrevHookAmount = _decodeBool(data, 188);
+/// @notice         uint256   payloadLength    = BytesLib.toUint256(data, 189);
+/// @notice         bytes     txData_          = BytesLib.slice(data, 221, payloadLength);
+contract ApproveAndSwapOpenOceanHook is
+    BaseHook,
+    ISuperHookSwap,
+    ISuperHookContextAware,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+{
     IOpenOceanExchange public immutable OPENOCEAN_ROUTER;
     address public immutable OPENOCEAN_REFERRER;
 
     address public immutable NATIVE;
 
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
-    uint256 private constant AMOUNT_POSITION = 92;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = SwapCalldataLayout.USE_PREV_HOOK_OFFSET;
+    uint256 private constant AMOUNT_POSITION = SwapCalldataLayout.AMOUNT_POSITION;
 
     /// @notice Thrown when inputToken and outputToken are the same address
     error SAME_INPUT_OUTPUT_TOKEN();
@@ -83,10 +92,11 @@ contract ApproveAndSwapOpenOceanHook is BaseHook, ISuperHookContextAware, ISuper
         override
         returns (Execution[] memory executions)
     {
-        address inputToken = BytesLib.toAddress(data, 52);
-        address outputToken = BytesLib.toAddress(data, 72);
-        uint256 inputAmount = BytesLib.toUint256(data, 92);
-        bytes memory txData_ = BytesLib.slice(data, 189, BytesLib.toUint256(data, 157));
+        address inputToken = BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        uint256 inputAmount = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+        bytes memory txData_ =
+            BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET));
 
         uint256 executionAmount = inputAmount;
         if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) {
@@ -99,7 +109,7 @@ contract ApproveAndSwapOpenOceanHook is BaseHook, ISuperHookContextAware, ISuper
             address srcToken;
             address dstToken;
             (txData_, srcToken, dstToken) = OpenOceanDynamicAmountUpdater.updateTxDataAmounts(
-                txData_, OPENOCEAN_REFERRER, account, executionAmount, BytesLib.toUint256(data, 92)
+                txData_, OPENOCEAN_REFERRER, account, executionAmount, BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET)
             );
 
             _validateTokenPair(inputToken, outputToken);
@@ -133,6 +143,7 @@ contract ApproveAndSwapOpenOceanHook is BaseHook, ISuperHookContextAware, ISuper
         });
     }
 
+    /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
@@ -170,8 +181,8 @@ contract ApproveAndSwapOpenOceanHook is BaseHook, ISuperHookContextAware, ISuper
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        uint256 txDataLength = BytesLib.toUint256(data, 157);
-        bytes memory txData_ = BytesLib.slice(data, 189, txDataLength);
+        uint256 txDataLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        bytes memory txData_ = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, txDataLength);
 
         (, IOpenOceanExchange.SwapDescription memory desc,) = abi.decode(
             BytesLib.slice(txData_, 4, txData_.length - 4),
@@ -181,17 +192,75 @@ contract ApproveAndSwapOpenOceanHook is BaseHook, ISuperHookContextAware, ISuper
         return abi.encodePacked(desc.dstReceiver);
     }
 
+    // ─── ISuperHookSwap ──────────────────────────────────────────────────────
+
+    /// @inheritdoc ISuperHookSwap
+    function encodeSwapData(
+        ISuperHookSwap.SwapHeader calldata header,
+        bytes calldata payload
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        return bytes.concat(
+            bytes(new bytes(SwapCalldataLayout.HEADER_SIZE)),
+            bytes20(header.inputToken),
+            bytes20(header.outputToken),
+            bytes32(header.inputAmount),
+            bytes32(header.outputQuote),
+            bytes32(header.outputMin),
+            bytes1(header.usePrevHookAmount ? uint8(1) : uint8(0)),
+            bytes32(payload.length),
+            payload
+        );
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputAmount(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputQuote(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_QUOTE_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputMin(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_MIN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodePayload(bytes calldata data) external pure override returns (bytes memory) {
+        uint256 payloadLen = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        return BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLen);
+    }
+
+    // ─── Internal ────────────────────────────────────────────────────────────
+
     function _preExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
-        _setOutToken(BytesLib.toAddress(data, 72), account);
+        _setOutToken(BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET), account);
     }
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        address outputToken = BytesLib.toAddress(data, 72);
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
         if (_isNative(outputToken)) {
             return account.balance;
         }

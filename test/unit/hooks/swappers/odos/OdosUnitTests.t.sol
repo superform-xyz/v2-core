@@ -188,23 +188,23 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     function test_BytesLengthDecoding() public view {
         bytes memory testPathDefinition = abi.encode("test_path_longer_than_before");
 
-        bytes memory header = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(inputToken),
-            bytes32(inputAmount),
+        bytes memory payload = bytes.concat(
             bytes20(inputReceiver),
-            bytes20(outputToken),
-            bytes32(outputQuote),
-            bytes32(outputMin)
-        );
-        bytes memory data = bytes.concat(
-            header,
-            bytes1(uint8(0)),
-            bytes20(address(0)),
             bytes32(testPathDefinition.length),
             testPathDefinition,
             bytes20(executor),
             bytes4(referralCode)
+        );
+        bytes memory data = bytes.concat(
+            bytes(new bytes(52)),
+            bytes20(inputToken),
+            bytes20(outputToken),
+            bytes32(inputAmount),
+            bytes32(outputQuote),
+            bytes32(outputMin),
+            bytes1(uint8(0)),
+            bytes32(payload.length),
+            payload
         );
 
         Execution[] memory executions = approveAndSwapOdosHook.build(address(prevHook), account, data);
@@ -231,23 +231,23 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     }
 
     function test_ZeroValue() public view {
-        bytes memory header = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(inputToken),
-            bytes32(uint256(0)), // Zero input amount
+        bytes memory payload = bytes.concat(
             bytes20(inputReceiver),
-            bytes20(outputToken),
-            bytes32(outputQuote),
-            bytes32(outputMin)
-        );
-        bytes memory data = bytes.concat(
-            header,
-            bytes1(uint8(0)),
-            bytes20(address(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
             bytes20(executor),
             bytes4(referralCode)
+        );
+        bytes memory data = bytes.concat(
+            bytes(new bytes(52)),
+            bytes20(inputToken),
+            bytes20(outputToken),
+            bytes32(uint256(0)), // Zero input amount
+            bytes32(outputQuote),
+            bytes32(outputMin),
+            bytes1(uint8(0)),
+            bytes32(payload.length),
+            payload
         );
 
         Execution[] memory executions = approveAndSwapOdosHook.build(address(prevHook), account, data);
@@ -283,33 +283,33 @@ contract ApproveAndSwapOdosHookTest is Helpers {
         bytes memory data = _buildSwapOdosData(false);
         bytes memory replaced = swapOdosHook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        // AMOUNT_POSITION is 72 (52-byte placeholder + inputToken(20))
-        for (uint256 i = 0; i < 72; i++) {
+        // AMOUNT_POSITION is 92 (52-byte placeholder + inputToken(20) + outputToken(20))
+        for (uint256 i = 0; i < 92; i++) {
             assertEq(replaced[i], data[i]);
         }
-        for (uint256 i = 104; i < data.length; i++) {
+        for (uint256 i = 124; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
 
     function _buildApproveAndSwapOdosData(bool usePrevious) internal view returns (bytes memory) {
-        bytes memory header = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(inputToken),
-            bytes32(inputAmount),
+        bytes memory payload = bytes.concat(
             bytes20(inputReceiver),
-            bytes20(outputToken),
-            bytes32(outputQuote),
-            bytes32(outputMin)
-        );
-        return bytes.concat(
-            header,
-            usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
-            bytes20(address(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
             bytes20(executor),
             bytes4(referralCode)
+        );
+        return bytes.concat(
+            bytes(new bytes(52)), // Layer 0
+            bytes20(inputToken),  // Layer 1
+            bytes20(outputToken),
+            bytes32(inputAmount),
+            bytes32(outputQuote),
+            bytes32(outputMin),
+            usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
+            bytes32(payload.length),
+            payload               // Layer 2
         );
     }
 
@@ -384,22 +384,23 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     function test_SwapOdosHook_BytesLengthDecoding() public view {
         bytes memory testPathDefinition = abi.encode("test_path_longer_than_before");
 
-        bytes memory header = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(inputToken),
-            bytes32(inputAmount),
+        bytes memory payload = bytes.concat(
             bytes20(inputReceiver),
-            bytes20(outputToken),
-            bytes32(outputQuote),
-            bytes32(outputMin)
-        );
-        bytes memory data = bytes.concat(
-            header,
-            bytes1(uint8(0)),
             bytes32(testPathDefinition.length),
             testPathDefinition,
             bytes20(executor),
             bytes4(referralCode)
+        );
+        bytes memory data = bytes.concat(
+            bytes(new bytes(52)),
+            bytes20(inputToken),
+            bytes20(outputToken),
+            bytes32(inputAmount),
+            bytes32(outputQuote),
+            bytes32(outputMin),
+            bytes1(uint8(0)),
+            bytes32(payload.length),
+            payload
         );
 
         Execution[] memory executions = swapOdosHook.build(address(prevHook), account, data);
@@ -426,22 +427,23 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     }
 
     function test_SwapOdosHook_ZeroValue() public view {
-        bytes memory header = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(inputToken),
-            bytes32(0), // Zero input amount
+        bytes memory payload = bytes.concat(
             bytes20(inputReceiver),
-            bytes20(outputToken),
-            bytes32(outputQuote),
-            bytes32(outputMin)
-        );
-        bytes memory data = bytes.concat(
-            header,
-            bytes1(uint8(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
             bytes20(executor),
             bytes4(referralCode)
+        );
+        bytes memory data = bytes.concat(
+            bytes(new bytes(52)),
+            bytes20(inputToken),
+            bytes20(outputToken),
+            bytes32(0), // Zero input amount
+            bytes32(outputQuote),
+            bytes32(outputMin),
+            bytes1(uint8(0)),
+            bytes32(payload.length),
+            payload
         );
 
         Execution[] memory executions = swapOdosHook.build(address(prevHook), account, data);
@@ -516,42 +518,44 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     }
 
     function _buildSwapOdosData(bool usePrevious) internal view returns (bytes memory) {
-        bytes memory header = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(inputToken),
-            bytes32(inputAmount),
+        bytes memory payload = bytes.concat(
             bytes20(inputReceiver),
-            bytes20(outputToken),
-            bytes32(outputQuote),
-            bytes32(outputMin)
-        );
-        return bytes.concat(
-            header,
-            usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
             bytes20(executor),
             bytes4(referralCode)
+        );
+        return bytes.concat(
+            bytes(new bytes(52)), // Layer 0
+            bytes20(inputToken),  // Layer 1
+            bytes20(outputToken),
+            bytes32(inputAmount),
+            bytes32(outputQuote),
+            bytes32(outputMin),
+            usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
+            bytes32(payload.length),
+            payload               // Layer 2
         );
     }
 
     function _buildNativeSwapOdosData(bool usePrevious) internal view returns (bytes memory) {
-        bytes memory header = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(inputToken),
-            bytes32(inputAmount),
+        bytes memory payload = bytes.concat(
             bytes20(inputReceiver),
-            bytes20(address(0)),
-            bytes32(outputQuote),
-            bytes32(outputMin)
-        );
-        return bytes.concat(
-            header,
-            usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
             bytes20(executor),
             bytes4(referralCode)
+        );
+        return bytes.concat(
+            bytes(new bytes(52)), // Layer 0
+            bytes20(inputToken),  // Layer 1
+            bytes20(address(0)),  // native ETH output
+            bytes32(inputAmount),
+            bytes32(outputQuote),
+            bytes32(outputMin),
+            usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
+            bytes32(payload.length),
+            payload               // Layer 2
         );
     }
 }

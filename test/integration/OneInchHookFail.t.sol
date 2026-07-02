@@ -50,13 +50,17 @@ contract OneInchHookFail is MinimalBaseIntegrationTest {
 
         bytes4 selector = I1InchAggregationRouterV6.unoswapTo.selector;
         bytes memory callData = abi.encodePacked(selector, unoswapData);
-        hooksData[1] = abi.encodePacked(
+        hooksData[1] = bytes.concat(
             bytes32(0), // yieldSourceOracleId (52-byte header part 1)
             bytes20(address(0)), // yieldSource (52-byte header part 2)
-            address(dai),
-            accountEth,
-            uint256(0),
-            false, //use prev hook
+            bytes20(address(usdc)), // inputToken @52
+            bytes20(address(dai)), // outputToken @72
+            bytes32(uint256(0)), // inputAmount @92
+            bytes32(uint256(0)), // outputQuote @124
+            bytes32(uint256(0)), // outputMin @156
+            bytes1(uint8(0)), // usePrevHookAmount @188
+            bytes32(uint256(20 + callData.length)), // payloadLength @189
+            bytes20(accountEth), // dstReceiver @221
             callData
         );
         ISuperExecutor.ExecutorEntry memory entry =
@@ -83,13 +87,17 @@ contract OneInchHookFail is MinimalBaseIntegrationTest {
 
         bytes4 selector = I1InchAggregationRouterV6.unoswapTo.selector;
         bytes memory callData = abi.encodePacked(selector, unoswapData);
-        hooksData[1] = abi.encodePacked(
+        hooksData[1] = bytes.concat(
             bytes32(0), // yieldSourceOracleId (52-byte header part 1)
             bytes20(address(0)), // yieldSource (52-byte header part 2)
-            address(dai),
-            accountEth,
-            uint256(0),
-            true, //use prev hook
+            bytes20(address(usdc)), // inputToken @52
+            bytes20(address(dai)), // outputToken @72
+            bytes32(uint256(0)), // inputAmount @92
+            bytes32(uint256(0)), // outputQuote @124
+            bytes32(uint256(0)), // outputMin @156
+            bytes1(uint8(1)), // usePrevHookAmount @188
+            bytes32(uint256(20 + callData.length)), // payloadLength @189
+            bytes20(accountEth), // dstReceiver @221
             callData
         );
         ISuperExecutor.ExecutorEntry memory entry =

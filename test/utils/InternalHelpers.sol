@@ -132,8 +132,58 @@ abstract contract InternalHelpers is Test {
     /*//////////////////////////////////////////////////////////////
                                  SWAPPERS
     //////////////////////////////////////////////////////////////*/
+
+    /// @dev Private helper: encodes the 221-byte standard swap hook prefix (header + Layer 1)
+    /// Used to break stack-too-deep when calling swap hook helpers with many parameters.
+    function _swapHookLayer1(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputQuote,
+        uint256 outputMin,
+        bool usePrevHookAmount,
+        uint256 payloadLength
+    )
+        private
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(inputToken),
+            bytes20(outputToken),
+            inputAmount,
+            outputQuote,
+            outputMin,
+            usePrevHookAmount,
+            payloadLength
+        );
+    }
+
     function _createMarkRootAsUsedHookData(address exec, bytes memory data) internal pure returns (bytes memory) {
         return abi.encodePacked(bytes32(0), exec, data);
+    }
+
+    /// @dev Private helper: assembles the final 1inch hook data from pre-built parts.
+    /// Keeping this separate avoids stack-too-deep when callers already hold 8 params.
+    function _1inchHookData(
+        address inputToken,
+        address outputToken,
+        bool usePrevHookAmount,
+        uint256 payloadLength,
+        address dstReceiver,
+        bytes memory calldata_
+    )
+        private
+        pure
+        returns (bytes memory)
+    {
+        return bytes.concat(
+            _swapHookLayer1(inputToken, outputToken, 0, 0, 0, usePrevHookAmount, payloadLength),
+            bytes20(dstReceiver),
+            calldata_
+        );
     }
 
     function _create1InchGenericRouterSwapHookData(
@@ -150,8 +200,7 @@ abstract contract InternalHelpers is Test {
     {
         bytes memory _calldata =
             abi.encodeWithSelector(I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, data);
-
-        return abi.encodePacked(bytes(new bytes(52)), dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
+        return _1inchHookData(address(desc.srcToken), dstToken, usePrevHookAmount, 20 + _calldata.length, dstReceiver, _calldata);
     }
 
     function _create1InchUnoswapToHookData(
@@ -169,15 +218,9 @@ abstract contract InternalHelpers is Test {
         returns (bytes memory)
     {
         bytes memory _calldata = abi.encodeWithSelector(
-            I1InchAggregationRouterV6.unoswapTo.selector,
-            receiverUint256,
-            fromTokenUint256,
-            decodedFromAmount,
-            minReturn,
-            dex
+            I1InchAggregationRouterV6.unoswapTo.selector, receiverUint256, fromTokenUint256, decodedFromAmount, minReturn, dex
         );
-
-        return abi.encodePacked(bytes(new bytes(52)), dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
+        return _1inchHookData(AddressLib.get(fromTokenUint256), dstToken, usePrevHookAmount, 20 + _calldata.length, dstReceiver, _calldata);
     }
 
     function _create1InchClipperSwapToHookData(
@@ -194,18 +237,9 @@ abstract contract InternalHelpers is Test {
     {
         bytes memory _calldata = abi.encodeWithSelector(
             I1InchAggregationRouterV6.clipperSwapTo.selector,
-            exchange,
-            payable(dstReceiver),
-            srcToken,
-            dstToken,
-            amount,
-            amount,
-            0,
-            bytes32(0),
-            bytes32(0)
+            exchange, payable(dstReceiver), srcToken, dstToken, amount, amount, 0, bytes32(0), bytes32(0)
         );
-
-        return abi.encodePacked(bytes(new bytes(52)), dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
+        return _1inchHookData(AddressLib.get(srcToken), dstToken, usePrevHookAmount, 20 + _calldata.length, dstReceiver, _calldata);
     }
 
     function _createOdosSwapHookData(
@@ -224,19 +258,17 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(
-            bytes32(0), address(0), // 52-byte strategy header
-            inputToken,
-            inputAmount,
-            inputReceiver,
-            outputToken,
-            outputQuote,
-            outputMin,
-            usePrevHookAmount,
-            pathDefinition.length,
+        // New 3-layer format: header(52) + inputToken@52 + outputToken@72 + inputAmount@92 + outputQuote@124 +
+        // outputMin@156 + usePrev@188 + payloadLength@189 + inputReceiver@221 + pathDefLength@241 + pathDef@273 +
+        // executor@273+L + referralCode@273+L+20
+        hookData = bytes.concat(
+            _swapHookLayer1(inputToken, outputToken, inputAmount, outputQuote, outputMin, usePrevHookAmount,
+                20 + 32 + pathDefinition.length + 20 + 4),
+            bytes20(inputReceiver),
+            bytes32(pathDefinition.length),
             pathDefinition,
-            executor,
-            referralCode
+            bytes20(executor),
+            bytes4(uint32(referralCode))
         );
     }
 
@@ -258,21 +290,17 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory hookData)
     {
-        // Split into two parts to avoid stack-too-deep with 15 arguments
+        // New 3-layer format: header(52) + inputToken@52 + outputToken@72 + inputAmount@92 + outputQuote@124 +
+        // outputMin@156 + usePrev@188 + payloadLength@189 + inputReceiver@221 + pathDefLength@241 + pathDef@273 +
+        // executor@273+L + referralCode(8)@273+L+20 + referralFee(8)@273+L+28 + feeRecipient@273+L+36
         bytes memory part1 = bytes.concat(
-            bytes32(0), // yieldSourceOracleId (52-byte strategy header)
-            bytes20(address(0)), // yieldSource (52-byte strategy header)
-            bytes20(inputToken),
-            bytes32(inputAmount),
+            _swapHookLayer1(inputToken, outputToken, inputAmount, outputQuote, outputMin, usePrevHookAmount,
+                20 + 32 + pathDefinition.length + 20 + 8 + 8 + 20),
             bytes20(inputReceiver),
-            bytes20(outputToken),
-            bytes32(outputQuote),
-            bytes32(outputMin)
+            bytes32(pathDefinition.length)
         );
         hookData = bytes.concat(
             part1,
-            bytes1(usePrevHookAmount ? uint8(1) : uint8(0)),
-            bytes32(pathDefinition.length),
             pathDefinition,
             bytes20(executor),
             bytes8(referralCode),

@@ -91,14 +91,15 @@ contract KyberSwapBaseNativeE2E is Test, Constants, KyberSwapAPIParser {
             console2.log("Attempt", attempt, "- Expected ETH out:", expectedOut);
 
             bytes memory hookData = bytes.concat(
-                bytes32(0), // yieldSourceOracleId (52-byte header part 1)
-                bytes20(address(0)), // yieldSource (52-byte header part 2)
-                bytes20(USDC),
-                bytes20(NATIVE), // outputToken = native ETH
-                bytes32(inputAmount),
-                bytes32(expectedOut * 90 / 100),
-                bytes1(uint8(0)),
-                bytes32(txData_.length),
+                bytes32(0),
+                bytes20(address(0)),
+                bytes20(USDC), // inputToken @52
+                bytes20(NATIVE), // outputToken @72
+                bytes32(inputAmount), // inputAmount @92
+                bytes32(uint256(0)), // outputQuote @124
+                bytes32(expectedOut * 90 / 100), // outputMin @156
+                bytes1(uint8(0)), // usePrevHookAmount @188
+                bytes32(txData_.length), // payloadLength @189
                 txData_
             );
 
@@ -157,14 +158,15 @@ contract KyberSwapBaseNativeE2E is Test, Constants, KyberSwapAPIParser {
             }
 
             bytes memory hookData = bytes.concat(
-                bytes32(0), // yieldSourceOracleId (52-byte header part 1)
-                bytes20(address(0)), // yieldSource (52-byte header part 2)
-                bytes20(NATIVE), // outputToken = native ETH
-                bytes32(uint256(0)), // value = 0 (not sending ETH)
-                bytes32(inputAmount),
-                bytes32(expectedOut * 90 / 100),
-                bytes1(uint8(0)),
-                bytes32(txData_.length),
+                bytes32(0),
+                bytes20(address(0)),
+                bytes20(USDC), // inputToken @52
+                bytes20(NATIVE), // outputToken @72
+                bytes32(inputAmount), // inputAmount @92
+                bytes32(uint256(0)), // outputQuote @124
+                bytes32(expectedOut * 90 / 100), // outputMin @156
+                bytes1(uint8(0)), // usePrevHookAmount @188
+                bytes32(txData_.length), // payloadLength @189
                 txData_
             );
 
@@ -211,14 +213,15 @@ contract KyberSwapBaseNativeE2E is Test, Constants, KyberSwapAPIParser {
             console2.log("Attempt", attempt, "- Expected ETH out:", expectedOut);
 
             bytes memory hookData = bytes.concat(
-                bytes32(0), // yieldSourceOracleId (52-byte header part 1)
-                bytes20(address(0)), // yieldSource (52-byte header part 2)
-                bytes20(WETH),
-                bytes20(NATIVE), // outputToken = native ETH
-                bytes32(inputAmount),
-                bytes32(expectedOut * 95 / 100),
-                bytes1(uint8(0)),
-                bytes32(txData_.length),
+                bytes32(0),
+                bytes20(address(0)),
+                bytes20(WETH), // inputToken @52
+                bytes20(NATIVE), // outputToken @72
+                bytes32(inputAmount), // inputAmount @92
+                bytes32(uint256(0)), // outputQuote @124
+                bytes32(expectedOut * 95 / 100), // outputMin @156
+                bytes1(uint8(0)), // usePrevHookAmount @188
+                bytes32(txData_.length), // payloadLength @189
                 txData_
             );
 
