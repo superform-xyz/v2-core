@@ -22,23 +22,24 @@ import {
 
 /// @title ApproveAndSwapOdosV2Hook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         address inputToken = BytesLib.toAddress(data, 0);
-/// @notice         uint256 inputAmount = BytesLib.toUint256(data, 20);
-/// @notice         address inputReceiver = BytesLib.toAddress(data, 52);
-/// @notice         address outputToken = BytesLib.toAddress(data, 72);
-/// @notice         uint256 outputQuote = BytesLib.toUint256(data, 92);
-/// @notice         uint256 outputMin = BytesLib.toUint256(data, 124);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
-/// @notice         uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 157);
-/// @notice         bytes pathDefinition = BytesLib.slice(data, 189, pathDefinition_paramLength);
-/// @notice         address executor = BytesLib.toAddress(data, 189 + pathDefinition_paramLength);
-/// @notice         uint32 referralCode = BytesLib.toUint32(data, 189 + pathDefinition_paramLength + 20);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address inputToken = BytesLib.toAddress(data, 52);
+/// @notice         uint256 inputAmount = BytesLib.toUint256(data, 72);
+/// @notice         address inputReceiver = BytesLib.toAddress(data, 104);
+/// @notice         address outputToken = BytesLib.toAddress(data, 124);
+/// @notice         uint256 outputQuote = BytesLib.toUint256(data, 144);
+/// @notice         uint256 outputMin = BytesLib.toUint256(data, 176);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 208);
+/// @notice         uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 209);
+/// @notice         bytes pathDefinition = BytesLib.slice(data, 241, pathDefinition_paramLength);
+/// @notice         address executor = BytesLib.toAddress(data, 241 + pathDefinition_paramLength);
+/// @notice         uint32 referralCode = BytesLib.toUint32(data, 241 + pathDefinition_paramLength + 20);
 contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     IOdosRouterV2 public immutable ODOS_ROUTER_V2;
 
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
-    uint256 private constant AMOUNT_POSITION = 20;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 208;
+    uint256 private constant AMOUNT_POSITION = 72;
     uint256 private constant PRECISION = 1e5;
 
     struct HookParams {
@@ -81,13 +82,13 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHoo
     {
         HookParams memory params;
 
-        uint256 pathDefinitionLength = BytesLib.toUint256(data, 157);
-        params.pathDefinition = BytesLib.slice(data, 189, pathDefinitionLength);
-        params.executor = BytesLib.toAddress(data, 189 + pathDefinitionLength);
-        params.referralCode = BytesLib.toUint32(data, 189 + pathDefinitionLength + 20);
+        uint256 pathDefinitionLength = BytesLib.toUint256(data, 209);
+        params.pathDefinition = BytesLib.slice(data, 241, pathDefinitionLength);
+        params.executor = BytesLib.toAddress(data, 241 + pathDefinitionLength);
+        params.referralCode = BytesLib.toUint32(data, 241 + pathDefinitionLength + 20);
 
-        params.inputToken = BytesLib.toAddress(data, 0);
-        params.inputAmount = BytesLib.toUint256(data, 20);
+        params.inputToken = BytesLib.toAddress(data, 52);
+        params.inputAmount = BytesLib.toUint256(data, 72);
 
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         if (usePrevHookAmount) {
@@ -167,8 +168,8 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHoo
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        uint256 pathDefinitionLength = BytesLib.toUint256(data, 157);
-        address executor = BytesLib.toAddress(data, 189 + pathDefinitionLength);
+        uint256 pathDefinitionLength = BytesLib.toUint256(data, 209);
+        address executor = BytesLib.toAddress(data, 241 + pathDefinitionLength);
         return abi.encodePacked(executor);
     }
 
@@ -181,14 +182,14 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHoo
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
-        _setOutToken(BytesLib.toAddress(data, 72), account);
+        _setOutToken(BytesLib.toAddress(data, 124), account);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        address outputToken = BytesLib.toAddress(data, 72);
+        address outputToken = BytesLib.toAddress(data, 124);
 
         if (outputToken == address(0)) {
             return account.balance;
@@ -206,12 +207,12 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHoo
         view
         returns (IOdosRouterV2.swapTokenInfo memory)
     {
-        address inputToken = BytesLib.toAddress(data, 0);
-        uint256 inputAmount = BytesLib.toUint256(data, 20);
-        address inputReceiver = BytesLib.toAddress(data, 52);
-        address outputToken = BytesLib.toAddress(data, 72);
-        uint256 outputQuote = BytesLib.toUint256(data, 92);
-        uint256 outputAmount = BytesLib.toUint256(data, 124);
+        address inputToken = BytesLib.toAddress(data, 52);
+        uint256 inputAmount = BytesLib.toUint256(data, 72);
+        address inputReceiver = BytesLib.toAddress(data, 104);
+        address outputToken = BytesLib.toAddress(data, 124);
+        uint256 outputQuote = BytesLib.toUint256(data, 144);
+        uint256 outputAmount = BytesLib.toUint256(data, 176);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {

@@ -110,15 +110,17 @@ contract UniswapV3SuperVaultIntegrationTest is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            tokenIn, // 20 bytes
-            tokenOut, // 20 bytes
-            uint32(fee), // 4 bytes (using uint32 for fee encoding)
-            recipient, // 20 bytes
-            deadline, // 32 bytes
-            uint256(sqrtPriceLimitX96), // 32 bytes
-            amountIn, // 32 bytes
-            amountOutMinimum, // 32 bytes
-            usePrevHookAmount // 1 byte
+            bytes32(0), // 32 bytes: yieldSourceOracleId (header)
+            address(0), // 20 bytes: yieldSource (header)
+            tokenIn, // 20 bytes (offset 52)
+            tokenOut, // 20 bytes (offset 72)
+            uint32(fee), // 4 bytes (offset 92, using uint32 for fee encoding)
+            recipient, // 20 bytes (offset 96)
+            deadline, // 32 bytes (offset 116)
+            uint256(sqrtPriceLimitX96), // 32 bytes (offset 148)
+            amountIn, // 32 bytes (offset 180)
+            amountOutMinimum, // 32 bytes (offset 212)
+            usePrevHookAmount // 1 byte (offset 244)
         );
     }
 

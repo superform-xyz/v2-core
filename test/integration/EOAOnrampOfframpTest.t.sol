@@ -140,7 +140,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         bytes[] memory hookDataArray = new bytes[](1);
         hookDataArray[0] = hookData;
 
-        uint256 expectedLength = 20 + 32 + 32 + (20 * 3) + (32 * 3) + (6 * 3) + 65;
+        uint256 expectedLength = 52 + 20 + 32 + 32 + (20 * 3) + (32 * 3) + (6 * 3) + 65;
         assertEq(hookData.length, expectedLength);
 
         ISuperExecutor.ExecutorEntry memory entry =

@@ -74,6 +74,8 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
         returns (bytes memory)
     {
         return bytes.concat(
+            bytes32(0), // yieldSourceOracleId (52-byte header)
+            bytes20(address(0)), // yieldSource (52-byte header)
             bytes20(assetIn),
             bytes20(assetOut),
             bytes32(amountIn),
@@ -96,6 +98,8 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
         returns (bytes memory)
     {
         return bytes.concat(
+            bytes32(0), // yieldSourceOracleId (52-byte header)
+            bytes20(address(0)), // yieldSource (52-byte header)
             bytes20(assetIn),
             bytes20(assetOut),
             bytes32(amountOut),

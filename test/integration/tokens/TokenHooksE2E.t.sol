@@ -77,7 +77,7 @@ contract TokenHooksE2E is Test, Constants {
         amounts[0] = usdcAmount;
         amounts[1] = wethAmount;
 
-        bytes memory hookData = bytes.concat(bytes20(recipient), abi.encode(tokens, amounts));
+        bytes memory hookData = bytes.concat(bytes32(0), bytes20(address(0)), bytes20(recipient), abi.encode(tokens, amounts));
 
         Execution[] memory executions = batchTransferHook.build(address(0), account, hookData);
         _executeAll(executions);
@@ -105,8 +105,9 @@ contract TokenHooksE2E is Test, Constants {
 
         uint256 recipientBefore = IERC20(CHAIN_1_USDC).balanceOf(recipient);
 
-        // Data: address token + address to + uint256 amount + bool usePrevHookAmount
+        // Data: 52-byte header + address token + address to + uint256 amount + bool usePrevHookAmount
         bytes memory hookData = bytes.concat(
+            bytes32(0), bytes20(address(0)), // 52-byte strategy header
             bytes20(CHAIN_1_USDC), bytes20(recipient), bytes32(amount), bytes1(0x00) // usePrevHookAmount = false
         );
 
@@ -129,9 +130,9 @@ contract TokenHooksE2E is Test, Constants {
 
         uint256 recipientBefore = recipient.balance;
 
-        // Data: address token(NATIVE) + address to + uint256 amount + bool usePrevHookAmount
+        // Data: 52-byte header + address token(NATIVE) + address to + uint256 amount + bool usePrevHookAmount
         bytes memory hookData =
-            bytes.concat(bytes20(NATIVE_TOKEN), bytes20(recipient), bytes32(amount), bytes1(0x00));
+            bytes.concat(bytes32(0), bytes20(address(0)), bytes20(NATIVE_TOKEN), bytes20(recipient), bytes32(amount), bytes1(0x00));
 
         Execution[] memory executions = transferHook.build(address(0), account, hookData);
         _executeAll(executions);
@@ -150,8 +151,9 @@ contract TokenHooksE2E is Test, Constants {
 
         uint256 recipientBefore = IERC20(CHAIN_1_USDC).balanceOf(recipient);
 
-        // Data: address token + address to + uint256 amount + bool usePrevHookAmount
+        // Data: 52-byte header + address token + address to + uint256 amount + bool usePrevHookAmount
         bytes memory hookData = bytes.concat(
+            bytes32(0), bytes20(address(0)), // 52-byte strategy header
             bytes20(CHAIN_1_USDC), bytes20(recipient), bytes32(amount), bytes1(0x00) // usePrevHookAmount = false
         );
 
@@ -174,8 +176,8 @@ contract TokenHooksE2E is Test, Constants {
 
         uint256 recipientBefore = recipient.balance;
 
-        // Data: address to + uint256 amount
-        bytes memory hookData = bytes.concat(bytes20(recipient), bytes32(amount));
+        // Data: 52-byte header + address to + uint256 amount
+        bytes memory hookData = bytes.concat(bytes32(0), bytes20(address(0)), bytes20(recipient), bytes32(amount));
 
         Execution[] memory executions = nativeTransferHook.build(address(0), account, hookData);
         _executeAll(executions);

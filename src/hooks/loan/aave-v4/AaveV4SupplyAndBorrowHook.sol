@@ -19,15 +19,16 @@ import {
 
 /// @title AaveV4SupplyAndBorrowHook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         address loanToken = BytesLib.toAddress(data, 0);
-/// @notice         address collateralToken = BytesLib.toAddress(data, 20);
-/// @notice         address spoke = BytesLib.toAddress(data, 40);
-/// @notice         uint256 supplyReserveId = BytesLib.toUint256(data, 60);
-/// @notice         uint256 borrowReserveId = BytesLib.toUint256(data, 92);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 124);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
-/// @notice         uint256 borrowAmount = BytesLib.toUint256(data, 157);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address loanToken = BytesLib.toAddress(data, 52);
+/// @notice         address collateralToken = BytesLib.toAddress(data, 72);
+/// @notice         address spoke = BytesLib.toAddress(data, 92);
+/// @notice         uint256 supplyReserveId = BytesLib.toUint256(data, 112);
+/// @notice         uint256 borrowReserveId = BytesLib.toUint256(data, 144);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 176);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 208);
+/// @notice         uint256 borrowAmount = BytesLib.toUint256(data, 209);
 /// @dev outAmount tracks collateral tokens consumed (pre-balance - post-balance).
 ///      NOTE: This is NOT the borrowed loanToken amount. Downstream hooks using usePrevHookAmount
 ///      will receive the collateral amount spent, not the loan amount received.

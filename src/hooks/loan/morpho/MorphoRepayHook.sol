@@ -16,15 +16,16 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 
 /// @title MorphoRepayHook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         address loanToken = BytesLib.toAddress(data, 0);
-/// @notice         address collateralToken = BytesLib.toAddress(data, 20);
-/// @notice         address oracle = BytesLib.toAddress(data, 40);
-/// @notice         address irm = BytesLib.toAddress(data, 60);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 80);
-/// @notice         uint256 lltv = BytesLib.toUint256(data, 112);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
-/// @notice         bool isFullRepayment = _decodeBool(data, 145);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address loanToken = BytesLib.toAddress(data, 52);
+/// @notice         address collateralToken = BytesLib.toAddress(data, 72);
+/// @notice         address oracle = BytesLib.toAddress(data, 92);
+/// @notice         address irm = BytesLib.toAddress(data, 112);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 132);
+/// @notice         uint256 lltv = BytesLib.toUint256(data, 164);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 196);
+/// @notice         bool isFullRepayment = _decodeBool(data, 197);
 /// @dev KNOWN LIMITATION (P1-2): An attacker can front-run full repayment by repaying 1 wei of shares
 ///      on behalf of the borrower, causing the victim's transaction to revert. Mitigate by using
 ///      private mempools or adding slippage tolerance to share amounts.

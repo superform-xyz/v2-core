@@ -329,13 +329,15 @@ contract MerklClaimRewardsHookTest is Helpers, InternalHelpers, BaseTest {
         proofsSingle[0] = new bytes32[](1);
         proofsSingle[0][0] = keccak256(abi.encodePacked(makeAddr("user"), tokensSingle[0], uint256(1000)));
 
-        // Create invalid data by adding extra bytes in the middle to cause cursor mismatch
-        // This will make the cursor calculation wrong but won't cause out-of-bounds errors
+        // Create invalid data by adding extra bytes at the end to cause cursor mismatch
+        // Uses the correct 52-byte header prefix so fee/array decoding succeeds,
+        // but the extra trailing uint256 makes cursor != data.length
         bytes memory invalidData = bytes.concat(
-            bytes20(address(0x1)), // feeReceiver
-            abi.encodePacked(uint256(0)), // feePercent
-            abi.encodePacked(uint256(1)), // array length = 1
-            bytes20(tokensSingle[0]), // token address
+            new bytes(52), // 52-byte strategy header placeholder
+            bytes20(address(0x1)), // feeReceiver at offset 52
+            abi.encodePacked(uint256(0)), // feePercent at offset 72
+            abi.encodePacked(uint256(1)), // array length at offset 104
+            bytes20(tokensSingle[0]), // token at offset 136
             abi.encodePacked(amountsSingle[0]), // amount
             abi.encodePacked(uint256(1)), // proof array length = 1
             proofsSingle[0][0], // proof bytes32

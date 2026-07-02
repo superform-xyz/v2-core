@@ -281,14 +281,18 @@ contract StargateHooksV2 is Helpers {
         // composeMsg present but < 64 bytes (too short for V2 abi.decode(bytes))
         bytes memory shortCompose = hex"deadbeef"; // 4 bytes
 
-        bytes memory data = abi.encodePacked(
+        bytes memory header = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee,
             mockStargatePool,
             mockInputToken,
             mockDstEid,
             mockTo,
             mockAmountLD,
-            mockMinAmountLD,
+            mockMinAmountLD
+        );
+        bytes memory data = abi.encodePacked(
+            header,
             false,
             uint8(0),
             uint256(mockExtraOptions.length),
@@ -302,14 +306,18 @@ contract StargateHooksV2 is Helpers {
     }
 
     function test_StargateSendV2_Build_RevertIf_ExtraOptionsLengthExceedsData() public {
-        bytes memory data = abi.encodePacked(
+        bytes memory header = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee,
             mockStargatePool,
             mockInputToken,
             mockDstEid,
             mockTo,
             mockAmountLD,
-            mockMinAmountLD,
+            mockMinAmountLD
+        );
+        bytes memory data = abi.encodePacked(
+            header,
             false,
             uint8(0),
             uint256(100), // extraOptionsLength = 100 (but only 2 bytes follow)
@@ -377,35 +385,43 @@ contract StargateHooksV2 is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_StargateSendV2_Build_ExactMinimumDataLength() public view {
-        // Exactly 238 bytes with 0-length variable fields
-        bytes memory data = abi.encodePacked(
+        // Exactly 290 bytes with 0-length variable fields (238 + 52-byte placeholder)
+        bytes memory header = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, // 32
             mockStargatePool, // 20
             mockInputToken, // 20
             mockDstEid, // 4
             mockTo, // 32
             mockAmountLD, // 32
-            mockMinAmountLD, // 32
+            mockMinAmountLD // 32
+        );
+        bytes memory data = abi.encodePacked(
+            header,
             false, // 1
             uint8(0), // 1
             uint256(0), // 32 (extraOptionsLength)
             uint256(0) // 32 (composeMsgLength)
         );
 
-        assertEq(data.length, 238);
+        assertEq(data.length, 290);
         Execution[] memory executions = stargateHookV2.build(address(0), mockAccount, data);
         assertEq(executions.length, 3);
     }
 
     function test_StargateSendV2_Build_ZeroExtraOptionsAndZeroComposeMsg() public view {
-        bytes memory data = abi.encodePacked(
+        bytes memory header = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee,
             mockStargatePool,
             mockInputToken,
             mockDstEid,
             mockTo,
             mockAmountLD,
-            mockMinAmountLD,
+            mockMinAmountLD
+        );
+        bytes memory data = abi.encodePacked(
+            header,
             false,
             uint8(0),
             uint256(0),
@@ -637,10 +653,10 @@ contract StargateHooksV2 is Helpers {
         bytes memory data = _encodeStargateV2Data(false, 0, false);
         bytes memory replaced = stargateHookV2.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        for (uint256 i = 0; i < 108; i++) {
+        for (uint256 i = 0; i < 160; i++) {
             assertEq(replaced[i], data[i]);
         }
-        for (uint256 i = 140; i < data.length; i++) {
+        for (uint256 i = 192; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
@@ -672,6 +688,7 @@ contract StargateHooksV2 is Helpers {
             mockLzNativeFee, mockStargatePool, mockInputToken, mockDstEid, mockTo, mockAmountLD, mockMinAmountLD
         );
         return abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             fixedPart, usePrevHookAmount, mode, uint256(mockExtraOptions.length), mockExtraOptions,
             uint256(composeMsg.length), composeMsg
         );

@@ -77,6 +77,8 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
     /// usePrevHookAmount(1)
     function _createSupplyData(uint256 amount, bool usePrevHookAmount) internal pure returns (bytes memory) {
         return abi.encodePacked(
+            bytes32(0), // yieldSourceOracleId (52-byte header: bytes 0-31)
+            address(0), // yieldSource (52-byte header: bytes 32-51)
             CHAIN_1_USDC, // loanToken
             CHAIN_1_WETH, // collateralToken
             SPOKE_ADDR, // spoke
@@ -89,13 +91,15 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
 
     function _createWithdrawData(uint256 amount, bool usePrevHookAmount) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            CHAIN_1_USDC, CHAIN_1_WETH, SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID, amount, usePrevHookAmount
+            bytes32(0), address(0), CHAIN_1_USDC, CHAIN_1_WETH, SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID, amount,
+            usePrevHookAmount
         );
     }
 
     function _createBorrowData(uint256 amount, bool usePrevHookAmount) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            CHAIN_1_USDC, CHAIN_1_WETH, SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID, amount, usePrevHookAmount
+            bytes32(0), address(0), CHAIN_1_USDC, CHAIN_1_WETH, SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID, amount,
+            usePrevHookAmount
         );
     }
 
@@ -109,6 +113,8 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
         returns (bytes memory)
     {
         return abi.encodePacked(
+            bytes32(0),
+            address(0),
             CHAIN_1_USDC,
             CHAIN_1_WETH,
             SPOKE_ADDR,
@@ -130,6 +136,8 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
         returns (bytes memory)
     {
         return abi.encodePacked(
+            bytes32(0),
+            address(0),
             CHAIN_1_USDC,
             CHAIN_1_WETH,
             SPOKE_ADDR,
@@ -152,6 +160,8 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
         returns (bytes memory)
     {
         return abi.encodePacked(
+            bytes32(0),
+            address(0),
             CHAIN_1_USDC,
             CHAIN_1_WETH,
             SPOKE_ADDR,

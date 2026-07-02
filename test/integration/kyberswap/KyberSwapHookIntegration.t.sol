@@ -133,6 +133,8 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         returns (bytes memory)
     {
         return bytes.concat(
+            bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+            bytes20(address(0)), // yieldSource (52-byte header part 2)
             bytes20(outputToken),
             bytes32(value),
             bytes32(inputAmount),
@@ -157,6 +159,8 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         returns (bytes memory)
     {
         return bytes.concat(
+            bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+            bytes20(address(0)), // yieldSource (52-byte header part 2)
             bytes20(inputToken),
             bytes20(outputToken),
             bytes32(inputAmount),
@@ -1121,6 +1125,8 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, inputAmount, minReturn, KYBER_ROUTER, KYBER_ROUTER, "");
 
         bytes memory hookData = abi.encodePacked(
+            bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+            bytes20(address(0)), // yieldSource (52-byte header part 2)
             WETH, // outputToken (20 bytes)
             uint256(0), // value (32 bytes)
             inputAmount, // inputAmount (32 bytes)
@@ -1144,6 +1150,8 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, inputAmount, minReturn, KYBER_ROUTER, KYBER_ROUTER, "");
 
         bytes memory hookData = abi.encodePacked(
+            bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+            bytes20(address(0)), // yieldSource (52-byte header part 2)
             USDC, // inputToken (20 bytes)
             WETH, // outputToken (20 bytes)
             inputAmount, // inputAmount (32 bytes)
@@ -1168,6 +1176,8 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
             _buildKyberSwapTxData(USDC, WETH, inputAmount, minReturn, KYBER_ROUTER, KYBER_ROUTER, "");
 
         bytes memory hookData = abi.encodePacked(
+            bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+            bytes20(address(0)), // yieldSource (52-byte header part 2)
             WETH, // outputToken (20 bytes)
             uint256(0), // value (32 bytes)
             inputAmount, // inputAmount=0 (32 bytes)
@@ -1215,11 +1225,13 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         uint256 originalAmount = 2000e6;
         bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, originalAmount, 0, KYBER_ROUTER, KYBER_ROUTER, "");
 
-        // Build data matching SwapKyberSwapHook layout: outputToken(20) | value(32) | inputAmount(32) | ...
+        // Build data matching SwapKyberSwapHook layout: header(52) | outputToken(20) | value(32) | inputAmount(32) | ...
         bytes memory hookData = bytes.concat(
+            bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+            bytes20(address(0)), // yieldSource (52-byte header part 2)
             bytes20(WETH), // outputToken
             bytes32(uint256(0)), // value (ETH value for swap, 0 for ERC20)
-            bytes32(originalAmount), // inputAmount @ offset 52
+            bytes32(originalAmount), // inputAmount @ offset 104
             bytes32(uint256(0.2 ether)), // outputMin
             bytes1(uint8(0)), // usePrevHookAmount
             bytes32(txData_.length),

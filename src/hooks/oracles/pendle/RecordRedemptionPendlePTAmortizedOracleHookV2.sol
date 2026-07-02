@@ -24,10 +24,11 @@ import { IPendlePTAmortizedOracle } from "../../../vendor/pendle/IPendlePTAmorti
 /// @notice V2 Hook to record PT redemptions in the PendlePTAmortizedOracle
 /// @dev Called AFTER a redeem/swap hook that sells PT
 /// @dev The strategy (msg.sender during execution) will be recorded as the position holder
-/// @dev data has the following structure
-/// @notice         address market = BytesLib.toAddress(data, 0);
-/// @notice         uint256 ptSold = BytesLib.toUint256(data, 20);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address market = BytesLib.toAddress(data, 52);
+/// @notice         uint256 ptSold = BytesLib.toUint256(data, 72);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
 contract RecordRedemptionPendlePTAmortizedOracleHookV2 is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow {
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -36,9 +37,9 @@ contract RecordRedemptionPendlePTAmortizedOracleHookV2 is BaseHook, ISuperHookCo
     /// @notice Hook version
     uint256 public constant VERSION = 2;
 
-    uint256 private constant MARKET_POSITION = 0;
-    uint256 private constant PT_SOLD_POSITION = 20;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
+    uint256 private constant MARKET_POSITION = 52;
+    uint256 private constant PT_SOLD_POSITION = 72;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 104;
 
     /*//////////////////////////////////////////////////////////////
                                 STORAGE

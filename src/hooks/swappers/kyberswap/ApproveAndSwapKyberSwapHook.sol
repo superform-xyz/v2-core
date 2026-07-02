@@ -22,22 +22,23 @@ import {
 
 /// @title ApproveAndSwapKyberSwapHook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         address inputToken = BytesLib.toAddress(data, 0);
-/// @notice         address outputToken = BytesLib.toAddress(data, 20);
-/// @notice         uint256 inputAmount = BytesLib.toUint256(data, 40);
-/// @notice         uint256 outputMin = BytesLib.toUint256(data, 72);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
-/// @notice         uint256 txDataLength = BytesLib.toUint256(data, 105);
-/// @notice         bytes txData_ = BytesLib.slice(data, 137, txDataLength);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address inputToken = BytesLib.toAddress(data, 52);
+/// @notice         address outputToken = BytesLib.toAddress(data, 72);
+/// @notice         uint256 inputAmount = BytesLib.toUint256(data, 92);
+/// @notice         uint256 outputMin = BytesLib.toUint256(data, 124);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
+/// @notice         uint256 txDataLength = BytesLib.toUint256(data, 157);
+/// @notice         bytes txData_ = BytesLib.slice(data, 189, txDataLength);
 contract ApproveAndSwapKyberSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     IMetaAggregationRouterV2 public immutable KYBER_ROUTER;
     IScaleHelper public immutable SCALE_HELPER;
 
     address public immutable NATIVE;
 
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 104;
-    uint256 private constant AMOUNT_POSITION = 40;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
+    uint256 private constant AMOUNT_POSITION = 92;
 
     constructor(
         address router_,
@@ -78,11 +79,11 @@ contract ApproveAndSwapKyberSwapHook is BaseHook, ISuperHookContextAware, ISuper
         override
         returns (Execution[] memory executions)
     {
-        address inputToken = BytesLib.toAddress(data, 0);
-        uint256 inputAmount = BytesLib.toUint256(data, 40);
+        address inputToken = BytesLib.toAddress(data, 52);
+        uint256 inputAmount = BytesLib.toUint256(data, 92);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        uint256 txDataLength = BytesLib.toUint256(data, 105);
-        bytes memory txData_ = BytesLib.slice(data, 137, txDataLength);
+        uint256 txDataLength = BytesLib.toUint256(data, 157);
+        bytes memory txData_ = BytesLib.slice(data, 189, txDataLength);
 
         // Extract approveTarget before scaling to avoid double-decoding SwapExecutionParams
         address approveTarget = _getApproveTarget(txData_);
@@ -157,8 +158,8 @@ contract ApproveAndSwapKyberSwapHook is BaseHook, ISuperHookContextAware, ISuper
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        uint256 txDataLength = BytesLib.toUint256(data, 105);
-        bytes memory txData_ = BytesLib.slice(data, 137, txDataLength);
+        uint256 txDataLength = BytesLib.toUint256(data, 157);
+        bytes memory txData_ = BytesLib.slice(data, 189, txDataLength);
 
         IMetaAggregationRouterV2.SwapExecutionParams memory params =
             abi.decode(BytesLib.slice(txData_, 4, txData_.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams));
@@ -176,7 +177,7 @@ contract ApproveAndSwapKyberSwapHook is BaseHook, ISuperHookContextAware, ISuper
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
-        _setOutToken(BytesLib.toAddress(data, 20), account);
+        _setOutToken(BytesLib.toAddress(data, 72), account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -184,7 +185,7 @@ contract ApproveAndSwapKyberSwapHook is BaseHook, ISuperHookContextAware, ISuper
     //////////////////////////////////////////////////////////////*/
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        address outputToken = BytesLib.toAddress(data, 20);
+        address outputToken = BytesLib.toAddress(data, 72);
         if (outputToken == NATIVE) {
             return account.balance;
         }

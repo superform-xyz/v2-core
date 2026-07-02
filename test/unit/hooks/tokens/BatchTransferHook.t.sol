@@ -153,11 +153,13 @@ contract BatchTransferHookTest is Helpers {
         amounts[1] = amount2;
 
         // Encode the data in the format expected by inspect:
-        // First 20 bytes: to address
+        // First 52 bytes: placeholder
+        // Next 20 bytes: to address
         // Then abi encoded (address[] tokens, uint256[] amounts)
         bytes memory tokensData = abi.encode(tokens, amounts);
         bytes memory data = abi.encodePacked(
-            abi.encodePacked(to), // First 20 bytes: to address
+            bytes(new bytes(52)), // 52-byte placeholder
+            abi.encodePacked(to), // Next 20 bytes: to address
             tokensData // Then the encoded tokens and amounts
         );
 
@@ -177,9 +179,10 @@ contract BatchTransferHookTest is Helpers {
 
     function _encodeData(address[] memory tokens, uint256[] memory amounts) internal view returns (bytes memory) {
         // The hook expects the data to be in the format:
-        // 1. First 20 bytes: recipient address
-        // 2. Remaining bytes: abi encoded (address[] tokens, uint256[] amounts)
+        // 1. First 52 bytes: placeholder
+        // 2. Next 20 bytes: recipient address
+        // 3. Remaining bytes: abi encoded (address[] tokens, uint256[] amounts)
         bytes memory tokensData = abi.encode(tokens, amounts);
-        return abi.encodePacked(to, tokensData);
+        return abi.encodePacked(bytes(new bytes(52)), to, tokensData);
     }
 }

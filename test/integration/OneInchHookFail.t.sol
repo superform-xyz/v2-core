@@ -51,6 +51,8 @@ contract OneInchHookFail is MinimalBaseIntegrationTest {
         bytes4 selector = I1InchAggregationRouterV6.unoswapTo.selector;
         bytes memory callData = abi.encodePacked(selector, unoswapData);
         hooksData[1] = abi.encodePacked(
+            bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+            bytes20(address(0)), // yieldSource (52-byte header part 2)
             address(dai),
             accountEth,
             uint256(0),
@@ -82,6 +84,8 @@ contract OneInchHookFail is MinimalBaseIntegrationTest {
         bytes4 selector = I1InchAggregationRouterV6.unoswapTo.selector;
         bytes memory callData = abi.encodePacked(selector, unoswapData);
         hooksData[1] = abi.encodePacked(
+            bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+            bytes20(address(0)), // yieldSource (52-byte header part 2)
             address(dai),
             accountEth,
             uint256(0),

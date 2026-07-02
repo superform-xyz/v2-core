@@ -90,8 +90,7 @@ import { TransferERC20Hook } from "../../../src/hooks/tokens/erc20/TransferERC20
 import { ApproveERC20Hook } from "../../../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { TransferHook } from "../../../src/hooks/tokens/TransferHook.sol";
 import { NativeTransferHook } from "../../../src/hooks/tokens/NativeTransferHook.sol";
-import { DepositWETHHook } from "../../../src/hooks/tokens/weth/DepositWETHHook.sol";
-import { WithdrawWETHHook } from "../../../src/hooks/tokens/weth/WithdrawWETHHook.sol";
+import { WrappedNativeHook } from "../../../src/hooks/tokens/native/WrappedNativeHook.sol";
 import { BatchTransferFromHook } from "../../../src/hooks/tokens/permit2/BatchTransferFromHook.sol";
 
 // ═══════════════════════════════════════════════════════
@@ -242,8 +241,7 @@ contract HookSizingInterfaceTest is Helpers {
     ApproveERC20Hook approveERC20;
     TransferHook transferHook;
     NativeTransferHook nativeTransfer;
-    DepositWETHHook depositWETH;
-    WithdrawWETHHook withdrawWETH;
+    WrappedNativeHook wrappedNative;
     FetchNativeFeeHook fetchNativeFee;
     ClaimFailedTransferHook claimFailedTransfer;
 
@@ -387,8 +385,7 @@ contract HookSizingInterfaceTest is Helpers {
         approveERC20 = new ApproveERC20Hook();
         transferHook = new TransferHook(DUMMY_NATIVE);
         nativeTransfer = new NativeTransferHook();
-        depositWETH = new DepositWETHHook(DUMMY_NATIVE);
-        withdrawWETH = new WithdrawWETHHook(DUMMY_NATIVE);
+        wrappedNative = new WrappedNativeHook(DUMMY_NATIVE);
         fetchNativeFee = new FetchNativeFeeHook(DUMMY_SPONSORSHIP);
         claimFailedTransfer = new ClaimFailedTransferHook();
 
@@ -605,8 +602,7 @@ contract HookSizingInterfaceTest is Helpers {
         _assertSingleMeta(approveERC20.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
         _assertSingleMeta(transferHook.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
         _assertSingleMeta(nativeTransfer.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
-        _assertSingleMeta(depositWETH.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
-        _assertSingleMeta(withdrawWETH.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+        _assertSingleMeta(wrappedNative.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
         _assertSingleMeta(fetchNativeFee.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
         _assertSingleMeta(claimFailedTransfer.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
     }
@@ -774,8 +770,8 @@ contract HookSizingInterfaceTest is Helpers {
         bytes memory depositData = abi.encodePacked(bytes32(0), address(1), uint256(1e18), false);
         assertEq(deposit4626.amountRoles(depositData).length, deposit4626.decodeAmounts(depositData).length);
 
-        // TransferERC20: address + address + uint256 + bool = 73 bytes
-        bytes memory transferData = abi.encodePacked(address(1), address(2), uint256(1e18), false);
+        // TransferERC20: header(52) + address(20) + address(20) + uint256(32) + bool(1) = 125 bytes
+        bytes memory transferData = abi.encodePacked(bytes32(0), address(0), address(1), address(2), uint256(1e18), false);
         assertEq(transferERC20.amountRoles(transferData).length, transferERC20.decodeAmounts(transferData).length);
     }
 
@@ -789,17 +785,17 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev For dual-amount hooks, both must return length 2
     function test_AmountRolesLength_MatchesDecodeAmountsLength_DualAmount() public view {
-        // AaveV4SupplyAndBorrow: loanToken + collateralToken + spoke + supplyReserveId + borrowReserveId + amount + usePrevHookAmount + borrowAmount
+        // AaveV4SupplyAndBorrow: header(52) + loanToken + collateralToken + spoke + supplyReserveId + borrowReserveId + amount + usePrevHookAmount + borrowAmount
         bytes memory aaveData = abi.encodePacked(
-            address(1), address(2), address(3), uint256(1), uint256(2), uint256(1e18), false, uint256(5e17)
+            bytes32(0), address(0), address(1), address(2), address(3), uint256(1), uint256(2), uint256(1e18), false, uint256(5e17)
         );
         assertEq(
             aaveSupplyAndBorrow.amountRoles(aaveData).length, aaveSupplyAndBorrow.decodeAmounts(aaveData).length
         );
 
-        // MorphoWithdraw: loanToken + collateralToken + oracle + irm + lltv + assets + shares
+        // MorphoWithdraw: header(52) + loanToken + collateralToken + oracle + irm + lltv + assets + shares
         bytes memory morphoData = abi.encodePacked(
-            address(1), address(2), address(3), address(4), uint256(86e16), uint256(1e18), uint256(0)
+            bytes32(0), address(0), address(1), address(2), address(3), address(4), uint256(86e16), uint256(1e18), uint256(0)
         );
         assertEq(morphoWithdraw.amountRoles(morphoData).length, morphoWithdraw.decodeAmounts(morphoData).length);
     }
@@ -826,7 +822,7 @@ contract HookSizingInterfaceTest is Helpers {
     }
 
     function test_DecodeReplace_Roundtrip_TransferERC20() public view {
-        bytes memory data = abi.encodePacked(address(1), address(2), uint256(42), false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(1), address(2), uint256(42), false);
         assertEq(transferERC20.decodeAmounts(data)[0], 42);
 
         bytes memory replaced = transferERC20.replaceCalldataAmounts(data, _singleAmount(100));
@@ -846,7 +842,7 @@ contract HookSizingInterfaceTest is Helpers {
     }
 
     function testFuzz_DecodeReplace_Roundtrip_TransferERC20(uint256 amt) public view {
-        bytes memory data = abi.encodePacked(address(1), address(2), uint256(0), false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(1), address(2), uint256(0), false);
         bytes memory replaced = transferERC20.replaceCalldataAmounts(data, _singleAmount(amt));
         assertEq(transferERC20.decodeAmounts(replaced)[0], amt);
     }
@@ -857,7 +853,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     function test_DecodeReplace_Roundtrip_AaveV4SupplyAndBorrow() public view {
         bytes memory data = abi.encodePacked(
-            address(1), address(2), address(3), uint256(1), uint256(2), uint256(1e18), false, uint256(5e17)
+            bytes32(0), address(0), address(1), address(2), address(3), uint256(1), uint256(2), uint256(1e18), false, uint256(5e17)
         );
         uint256[] memory amounts = aaveSupplyAndBorrow.decodeAmounts(data);
         assertEq(amounts.length, 2);
@@ -871,9 +867,9 @@ contract HookSizingInterfaceTest is Helpers {
     }
 
     function test_DecodeReplace_Roundtrip_AaveV4RepayAndWithdraw() public view {
-        // loanToken + collateralToken + spoke + supplyReserveId + borrowReserveId + amount + usePrevHookAmount + isFullRepayment + withdrawAmount
+        // header(52) + loanToken + collateralToken + spoke + supplyReserveId + borrowReserveId + amount + usePrevHookAmount + isFullRepayment + withdrawAmount
         bytes memory data = abi.encodePacked(
-            address(1), address(2), address(3), uint256(1), uint256(2), uint256(1e18), false, false, uint256(8e17)
+            bytes32(0), address(0), address(1), address(2), address(3), uint256(1), uint256(2), uint256(1e18), false, false, uint256(8e17)
         );
         uint256[] memory amounts = aaveRepayAndWithdraw.decodeAmounts(data);
         assertEq(amounts.length, 2);
@@ -888,7 +884,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     function testFuzz_DecodeReplace_Roundtrip_AaveV4SupplyAndBorrow(uint256 a, uint256 b) public view {
         bytes memory data = abi.encodePacked(
-            address(1), address(2), address(3), uint256(1), uint256(2), uint256(0), false, uint256(0)
+            bytes32(0), address(0), address(1), address(2), address(3), uint256(1), uint256(2), uint256(0), false, uint256(0)
         );
         bytes memory replaced = aaveSupplyAndBorrow.replaceCalldataAmounts(data, _dualAmounts(a, b));
         uint256[] memory amounts = aaveSupplyAndBorrow.decodeAmounts(replaced);
@@ -902,7 +898,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     function test_MorphoWithdraw_DecodeAmounts_Assets() public view {
         bytes memory data = abi.encodePacked(
-            address(1), address(2), address(3), address(4), uint256(86e16), uint256(1e18), uint256(0)
+            bytes32(0), address(0), address(1), address(2), address(3), address(4), uint256(86e16), uint256(1e18), uint256(0)
         );
         uint256[] memory amounts = morphoWithdraw.decodeAmounts(data);
         assertEq(amounts.length, 2);
@@ -912,7 +908,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     function test_MorphoWithdraw_DecodeAmounts_Shares() public view {
         bytes memory data = abi.encodePacked(
-            address(1), address(2), address(3), address(4), uint256(86e16), uint256(0), uint256(5e17)
+            bytes32(0), address(0), address(1), address(2), address(3), address(4), uint256(86e16), uint256(0), uint256(5e17)
         );
         uint256[] memory amounts = morphoWithdraw.decodeAmounts(data);
         assertEq(amounts[0], 0); // assets
@@ -921,7 +917,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     function test_MorphoWithdraw_ReplaceCalldataAmounts_AssetsOnly() public view {
         bytes memory data = abi.encodePacked(
-            address(1), address(2), address(3), address(4), uint256(86e16), uint256(1e18), uint256(0)
+            bytes32(0), address(0), address(1), address(2), address(3), address(4), uint256(86e16), uint256(1e18), uint256(0)
         );
         // Replace with assets=2e18, shares=0 → valid
         bytes memory replaced = morphoWithdraw.replaceCalldataAmounts(data, _dualAmounts(2e18, 0));
@@ -932,7 +928,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     function test_MorphoWithdraw_ReplaceCalldataAmounts_SharesOnly() public view {
         bytes memory data = abi.encodePacked(
-            address(1), address(2), address(3), address(4), uint256(86e16), uint256(0), uint256(5e17)
+            bytes32(0), address(0), address(1), address(2), address(3), address(4), uint256(86e16), uint256(0), uint256(5e17)
         );
         // Replace with assets=0, shares=1e18 → valid
         bytes memory replaced = morphoWithdraw.replaceCalldataAmounts(data, _dualAmounts(0, 1e18));
@@ -943,7 +939,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     function test_MorphoWithdraw_ReplaceCalldataAmounts_RevertsBothNonzero() public {
         bytes memory data = abi.encodePacked(
-            address(1), address(2), address(3), address(4), uint256(86e16), uint256(1e18), uint256(0)
+            bytes32(0), address(0), address(1), address(2), address(3), address(4), uint256(86e16), uint256(1e18), uint256(0)
         );
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         morphoWithdraw.replaceCalldataAmounts(data, _dualAmounts(1e18, 1e18));
@@ -951,7 +947,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     function test_MorphoWithdraw_ReplaceCalldataAmounts_RevertsBothZero() public {
         bytes memory data = abi.encodePacked(
-            address(1), address(2), address(3), address(4), uint256(86e16), uint256(1e18), uint256(0)
+            bytes32(0), address(0), address(1), address(2), address(3), address(4), uint256(86e16), uint256(1e18), uint256(0)
         );
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         morphoWithdraw.replaceCalldataAmounts(data, _dualAmounts(0, 0));
@@ -959,7 +955,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     function testFuzz_MorphoWithdraw_XOR_Invariant(uint256 a, uint256 b) public {
         bytes memory data = abi.encodePacked(
-            address(1), address(2), address(3), address(4), uint256(86e16), uint256(0), uint256(0)
+            bytes32(0), address(0), address(1), address(2), address(3), address(4), uint256(86e16), uint256(0), uint256(0)
         );
 
         bool bothZero = (a == 0 && b == 0);
@@ -1057,7 +1053,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     function test_ReplaceCalldataAmounts_RevertsWrongLength_DualAmountHook() public {
         bytes memory data = abi.encodePacked(
-            address(1), address(2), address(3), uint256(1), uint256(2), uint256(1e18), false, uint256(5e17)
+            bytes32(0), address(0), address(1), address(2), address(3), uint256(1), uint256(2), uint256(1e18), false, uint256(5e17)
         );
 
         // Passing 1 amount to a hook that expects 2
@@ -1071,7 +1067,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     function test_ReplaceCalldataAmounts_RevertsWrongLength_MorphoWithdraw() public {
         bytes memory data = abi.encodePacked(
-            address(1), address(2), address(3), address(4), uint256(86e16), uint256(1e18), uint256(0)
+            bytes32(0), address(0), address(1), address(2), address(3), address(4), uint256(86e16), uint256(1e18), uint256(0)
         );
 
         vm.expectRevert(BaseHook.INVALID_AMOUNTS_LENGTH.selector);
@@ -1103,19 +1099,24 @@ contract HookSizingInterfaceTest is Helpers {
     }
 
     function test_ReplaceCalldataAmounts_PreservesOtherFields_TransferERC20() public view {
-        bytes memory data = abi.encodePacked(address(0xBEEF), address(0xCAFE), uint256(42), true);
+        // header(52) + token(20) + to(20) + amount(32) + usePrevHookAmount(1) = 125 bytes
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xBEEF), address(0xCAFE), uint256(42), true);
         bytes memory replaced = transferERC20.replaceCalldataAmounts(data, _singleAmount(999));
 
-        // address token at [0:20] preserved
-        for (uint256 i; i < 20; ++i) {
+        // 52-byte header at [0:52] preserved
+        for (uint256 i; i < 52; ++i) {
             assertEq(replaced[i], data[i]);
         }
-        // address to at [20:40] preserved
-        for (uint256 i = 20; i < 40; ++i) {
+        // address token at [52:72] preserved
+        for (uint256 i = 52; i < 72; ++i) {
             assertEq(replaced[i], data[i]);
         }
-        // bool usePrevHookAmount at [72] preserved
-        assertEq(replaced[72], data[72]);
+        // address to at [72:92] preserved
+        for (uint256 i = 72; i < 92; ++i) {
+            assertEq(replaced[i], data[i]);
+        }
+        // bool usePrevHookAmount at [124] preserved
+        assertEq(replaced[124], data[124]);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1131,8 +1132,7 @@ contract HookSizingInterfaceTest is Helpers {
         assertTrue(approveERC20.supportsInterface(iid));
         assertTrue(transferHook.supportsInterface(iid));
         assertTrue(nativeTransfer.supportsInterface(iid));
-        assertTrue(depositWETH.supportsInterface(iid));
-        assertTrue(withdrawWETH.supportsInterface(iid));
+        assertTrue(wrappedNative.supportsInterface(iid));
         assertTrue(fetchNativeFee.supportsInterface(iid));
         assertTrue(claimFailedTransfer.supportsInterface(iid));
 
@@ -1241,8 +1241,7 @@ contract HookSizingInterfaceTest is Helpers {
         assertTrue(approveERC20.supportsInterface(oid));
         assertTrue(transferHook.supportsInterface(oid));
         assertTrue(nativeTransfer.supportsInterface(oid));
-        assertTrue(depositWETH.supportsInterface(oid));
-        assertTrue(withdrawWETH.supportsInterface(oid));
+        assertTrue(wrappedNative.supportsInterface(oid));
         assertTrue(fetchNativeFee.supportsInterface(oid));
         assertTrue(claimFailedTransfer.supportsInterface(oid));
 
@@ -1413,19 +1412,19 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(approveStargateV2.decodeAmounts(replaced)[0], 7e18);
     }
 
-    /// @dev deBridge: AMOUNT@53
+    /// @dev deBridge: header(52) + usePrevHookAmount(1) + value(32) + giveTokenAddress(20) + giveAmount(32) + ...
     function test_DecodeReplace_Roundtrip_DeBridge() public view {
-        // bool(1) + uint256(32) + address(20) = 53 prefix, then amount
-        bytes memory data = abi.encodePacked(false, uint256(1), address(0xA), uint256(2e18), bytes32(0));
+        // header(52) + bool(1) + uint256(32) + address(20) = 105 prefix, then amount
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), false, uint256(1), address(0xA), uint256(2e18), bytes32(0));
         assertEq(debridge.decodeAmounts(data)[0], 2e18);
 
         bytes memory replaced = debridge.replaceCalldataAmounts(data, _singleAmount(5e18));
         assertEq(debridge.decodeAmounts(replaced)[0], 5e18);
     }
 
-    /// @dev CCTP: AMOUNT@20
+    /// @dev CCTP: AMOUNT@72 — 52-byte header + address(burnToken) + uint256(amount) + ...
     function test_DecodeReplace_Roundtrip_CCTP() public view {
-        bytes memory data = abi.encodePacked(address(0xA), uint256(1e18), bytes32(0));
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), uint256(1e18), bytes32(0));
         assertEq(cctp.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = cctp.replaceCalldataAmounts(data, _singleAmount(3e18));
@@ -1433,14 +1432,14 @@ contract HookSizingInterfaceTest is Helpers {
     }
 
     function test_DecodeReplace_Roundtrip_ApproveCCTP() public view {
-        bytes memory data = abi.encodePacked(address(0xA), uint256(1e18), bytes32(0));
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), uint256(1e18), bytes32(0));
         bytes memory replaced = approveCctp.replaceCalldataAmounts(data, _singleAmount(8e18));
         assertEq(approveCctp.decodeAmounts(replaced)[0], 8e18);
     }
 
-    /// @dev CircleGateway: AMOUNT@20
+    /// @dev CircleGateway: AMOUNT@72 — 52-byte header + address + uint256 + bool
     function test_DecodeReplace_Roundtrip_CircleGateway() public view {
-        bytes memory data = abi.encodePacked(address(0xA), uint256(1e6), false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), uint256(1e6), false);
         assertEq(circleGateway.decodeAmounts(data)[0], 1e6);
 
         bytes memory replaced = circleGateway.replaceCalldataAmounts(data, _singleAmount(5e6));
@@ -1466,10 +1465,10 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(approveSwapUniV3.decodeAmounts(replaced)[0], 4e18);
     }
 
-    /// @dev UniswapV3Router02: AMOUNT@76
+    /// @dev UniswapV3Router02: AMOUNT@128 — 52-byte header + bytes32 + addr + addr + uint32 + uint256
     function test_DecodeReplace_Roundtrip_SwapUniswapV3Router02() public view {
-        // 76 bytes prefix: bytes32 + addr + addr + uint32 = 32+20+20+4 = 76
-        bytes memory data = abi.encodePacked(bytes32(0), address(0xA), address(0xB), uint32(3000), uint256(1e18), uint256(0), uint256(0), false);
+        // 128 = 52(header) + 32(bytes32) + 20(addr) + 20(addr) + 4(uint32)
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), bytes32(0), address(0xA), address(0xB), uint32(3000), uint256(1e18), uint256(0), uint256(0), false);
         assertEq(swapUniV3Router02.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = swapUniV3Router02.replaceCalldataAmounts(data, _singleAmount(3e18));
@@ -1495,54 +1494,54 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(swapUniV4.decodeAmounts(replaced)[0], 2e18);
     }
 
-    /// @dev OdosV2: AMOUNT@20
+    /// @dev OdosV2: AMOUNT@72 — 52-byte header + address(inputToken) + uint256(inputAmount)
     function test_DecodeReplace_Roundtrip_SwapOdosV2() public view {
-        bytes memory data = abi.encodePacked(address(0xA), uint256(1e18), address(0xB), address(0xC), uint256(0));
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), uint256(1e18), address(0xB), address(0xC), uint256(0));
         assertEq(swapOdosV2.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = swapOdosV2.replaceCalldataAmounts(data, _singleAmount(6e18));
         assertEq(swapOdosV2.decodeAmounts(replaced)[0], 6e18);
     }
 
-    /// @dev OdosV3: AMOUNT@20
+    /// @dev OdosV3: AMOUNT@72 — 52-byte header + address(inputToken) + uint256(inputAmount)
     function test_DecodeReplace_Roundtrip_SwapOdosV3() public view {
-        bytes memory data = abi.encodePacked(address(0xA), uint256(1e18), address(0xB), address(0xC), uint256(0));
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), uint256(1e18), address(0xB), address(0xC), uint256(0));
         assertEq(swapOdosV3.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = swapOdosV3.replaceCalldataAmounts(data, _singleAmount(4e18));
         assertEq(swapOdosV3.decodeAmounts(replaced)[0], 4e18);
     }
 
-    /// @dev KyberSwap: AMOUNT@52
+    /// @dev KyberSwap: AMOUNT@104 — 52-byte header + bytes32 + address + uint256(amount)
     function test_DecodeReplace_Roundtrip_SwapKyberSwap() public view {
-        bytes memory data = abi.encodePacked(bytes32(0), address(0xA), uint256(1e18), uint256(0), uint256(0), false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), bytes32(0), address(0xA), uint256(1e18), uint256(0), uint256(0), false);
         assertEq(swapKyber.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = swapKyber.replaceCalldataAmounts(data, _singleAmount(8e18));
         assertEq(swapKyber.decodeAmounts(replaced)[0], 8e18);
     }
 
-    /// @dev ApproveAndSwapKyberSwap: AMOUNT@40
+    /// @dev ApproveAndSwapKyberSwap: AMOUNT@92 — 52-byte header + addr + addr + uint256(amount)
     function test_DecodeReplace_Roundtrip_ApproveSwapKyberSwap() public view {
-        bytes memory data = abi.encodePacked(address(0xA), address(0xB), uint256(1e18), uint256(0), uint256(0), false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(1e18), uint256(0), uint256(0), false);
         assertEq(approveSwapKyber.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = approveSwapKyber.replaceCalldataAmounts(data, _singleAmount(3e18));
         assertEq(approveSwapKyber.decodeAmounts(replaced)[0], 3e18);
     }
 
-    /// @dev SparkPSM ExactIn: AMOUNT@40
+    /// @dev SparkPSM ExactIn: AMOUNT@92 — 52-byte header + addr + addr + uint256(amount)
     function test_DecodeReplace_Roundtrip_SwapSparkPSMExactIn() public view {
-        bytes memory data = abi.encodePacked(address(0xA), address(0xB), uint256(1e18), uint256(0), address(0xC), uint256(0), false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(1e18), uint256(0), address(0xC), uint256(0), false);
         assertEq(swapSparkIn.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = swapSparkIn.replaceCalldataAmounts(data, _singleAmount(2e18));
         assertEq(swapSparkIn.decodeAmounts(replaced)[0], 2e18);
     }
 
-    /// @dev SparkPSM ExactOut: AMOUNT@40
+    /// @dev SparkPSM ExactOut: AMOUNT@92 — 52-byte header + addr + addr + uint256(amount)
     function test_DecodeReplace_Roundtrip_SwapSparkPSMExactOut() public view {
-        bytes memory data = abi.encodePacked(address(0xA), address(0xB), uint256(1e18), uint256(0), address(0xC), uint256(0), false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(1e18), uint256(0), address(0xC), uint256(0), false);
         assertEq(swapSparkOut.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = swapSparkOut.replaceCalldataAmounts(data, _singleAmount(2e18));
@@ -1558,18 +1557,18 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(swapAlgebra.decodeAmounts(replaced)[0], 5e18);
     }
 
-    /// @dev OpenOcean: AMOUNT@52
+    /// @dev OpenOcean: AMOUNT@104 — 52-byte header + bytes32 + addr + uint256(amount)
     function test_DecodeReplace_Roundtrip_SwapOpenOcean() public view {
-        bytes memory data = abi.encodePacked(bytes32(0), address(0xA), uint256(1e18), uint256(0), uint256(0), false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), bytes32(0), address(0xA), uint256(1e18), uint256(0), uint256(0), false);
         assertEq(swapOpenOcean.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = swapOpenOcean.replaceCalldataAmounts(data, _singleAmount(4e18));
         assertEq(swapOpenOcean.decodeAmounts(replaced)[0], 4e18);
     }
 
-    /// @dev ApproveAndSwapOpenOcean: AMOUNT@40
+    /// @dev ApproveAndSwapOpenOcean: AMOUNT@92 — 52-byte header + addr + addr + uint256(amount)
     function test_DecodeReplace_Roundtrip_ApproveSwapOpenOcean() public view {
-        bytes memory data = abi.encodePacked(address(0xA), address(0xB), uint256(1e18), uint256(0), uint256(0), false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(1e18), uint256(0), uint256(0), false);
         assertEq(approveSwapOpenOcean.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = approveSwapOpenOcean.replaceCalldataAmounts(data, _singleAmount(7e18));
@@ -1586,9 +1585,9 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(spectraRedeem.decodeAmounts(replaced)[0], 3e18);
     }
 
-    /// @dev PendleRouterRedeem: AMOUNT@0
+    /// @dev PendleRouterRedeem: AMOUNT@52 — 52-byte header + uint256(amount) + ...
     function test_DecodeReplace_Roundtrip_PendleRouterRedeem() public view {
-        bytes memory data = abi.encodePacked(uint256(1e18), address(0xA), address(0xB), address(0xC), uint256(0), false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), uint256(1e18), address(0xA), address(0xB), address(0xC), uint256(0), false);
         assertEq(pendleRedeem.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = pendleRedeem.replaceCalldataAmounts(data, _singleAmount(8e18));
@@ -1599,49 +1598,49 @@ contract HookSizingInterfaceTest is Helpers {
          DECODE + REPLACE: Token hooks roundtrip
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev ApproveERC20: AMOUNT@40 — address + address + uint256 + bool = 73
+    /// @dev ApproveERC20: AMOUNT@92 — 52-byte header + address(token) + address(spender) + uint256 + bool = 125
     function test_DecodeReplace_Roundtrip_ApproveERC20() public view {
-        bytes memory data = abi.encodePacked(address(0xA), address(0xB), uint256(100), false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(100), false);
         assertEq(approveERC20.decodeAmounts(data)[0], 100);
 
         bytes memory replaced = approveERC20.replaceCalldataAmounts(data, _singleAmount(200));
         assertEq(approveERC20.decodeAmounts(replaced)[0], 200);
     }
 
-    /// @dev TransferHook: AMOUNT@40 — same layout as TransferERC20
+    /// @dev TransferHook: AMOUNT@92 — 52-byte header + address(token) + address(to) + uint256 + bool = 125
     function test_DecodeReplace_Roundtrip_TransferHook() public view {
-        bytes memory data = abi.encodePacked(address(0xA), address(0xB), uint256(50), true);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(50), true);
         assertEq(transferHook.decodeAmounts(data)[0], 50);
 
         bytes memory replaced = transferHook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(transferHook.decodeAmounts(replaced)[0], 999);
     }
 
-    /// @dev NativeTransferHook: AMOUNT@20 — address + uint256 = 52
+    /// @dev NativeTransferHook: AMOUNT@72 — 52-byte header + address(to) + uint256 = 104
     function test_DecodeReplace_Roundtrip_NativeTransfer() public view {
-        bytes memory data = abi.encodePacked(address(0xDEAD), uint256(1e18));
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xDEAD), uint256(1e18));
         assertEq(nativeTransfer.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = nativeTransfer.replaceCalldataAmounts(data, _singleAmount(2e18));
         assertEq(nativeTransfer.decodeAmounts(replaced)[0], 2e18);
     }
 
-    /// @dev DepositWETH: AMOUNT@0 — uint256 + bool = 33
-    function test_DecodeReplace_Roundtrip_DepositWETH() public view {
-        bytes memory data = abi.encodePacked(uint256(5e18), false);
-        assertEq(depositWETH.decodeAmounts(data)[0], 5e18);
+    /// @dev WrappedNative wrap: header(52) + uint256(32) + bool(wrap) + bool(usePrevHookAmount) = 86
+    function test_DecodeReplace_Roundtrip_WrappedNative_Wrap() public view {
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), uint256(5e18), true, false);
+        assertEq(wrappedNative.decodeAmounts(data)[0], 5e18);
 
-        bytes memory replaced = depositWETH.replaceCalldataAmounts(data, _singleAmount(10e18));
-        assertEq(depositWETH.decodeAmounts(replaced)[0], 10e18);
+        bytes memory replaced = wrappedNative.replaceCalldataAmounts(data, _singleAmount(10e18));
+        assertEq(wrappedNative.decodeAmounts(replaced)[0], 10e18);
     }
 
-    /// @dev WithdrawWETH: AMOUNT@0 — uint256 + bool = 33
-    function test_DecodeReplace_Roundtrip_WithdrawWETH() public view {
-        bytes memory data = abi.encodePacked(uint256(3e18), true);
-        assertEq(withdrawWETH.decodeAmounts(data)[0], 3e18);
+    /// @dev WrappedNative unwrap: header(52) + uint256(32) + bool(wrap) + bool(usePrevHookAmount) = 86
+    function test_DecodeReplace_Roundtrip_WrappedNative_Unwrap() public view {
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), uint256(3e18), false, true);
+        assertEq(wrappedNative.decodeAmounts(data)[0], 3e18);
 
-        bytes memory replaced = withdrawWETH.replaceCalldataAmounts(data, _singleAmount(7e18));
-        assertEq(withdrawWETH.decodeAmounts(replaced)[0], 7e18);
+        bytes memory replaced = wrappedNative.replaceCalldataAmounts(data, _singleAmount(7e18));
+        assertEq(wrappedNative.decodeAmounts(replaced)[0], 7e18);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1919,9 +1918,9 @@ contract HookSizingInterfaceTest is Helpers {
          DECODE + REPLACE: Special hooks roundtrip
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev FetchNativeFee: AMOUNT@20 — address(sponsor) + uint256(amt) = 52
+    /// @dev FetchNativeFee: AMOUNT@72 — 52-byte header + address(sponsor) + uint256(amt) = 104
     function test_DecodeReplace_Roundtrip_FetchNativeFee() public view {
-        bytes memory data = abi.encodePacked(address(0xDEAD), uint256(1e16));
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xDEAD), uint256(1e16));
         assertEq(fetchNativeFee.decodeAmounts(data)[0], 1e16);
 
         bytes memory replaced = fetchNativeFee.replaceCalldataAmounts(data, _singleAmount(5e16));
@@ -1985,6 +1984,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     function testFuzz_DecodeReplace_AaveV4RepayAndWithdraw(uint256 a, uint256 b) public view {
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte placeholder (bytes32 + address = 32+20)
             address(1), address(2), address(3), uint256(1), uint256(2), uint256(0), false, false, uint256(0)
         );
         bytes memory replaced = aaveRepayAndWithdraw.replaceCalldataAmounts(data, _dualAmounts(a, b));
@@ -2009,15 +2009,20 @@ contract HookSizingInterfaceTest is Helpers {
         address oracle = address(0xCCCC);
         address irm = address(0xDDDD);
         uint256 lltv = 86e16;
-        bytes memory data = abi.encodePacked(loanTk, collTk, oracle, irm, lltv, uint256(1e18), uint256(0));
+        // 52-byte header + 4 addrs(80) + lltv(32) + assets(32) + shares(32)
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), loanTk, collTk, oracle, irm, lltv, uint256(1e18), uint256(0));
         bytes memory replaced = morphoWithdraw.replaceCalldataAmounts(data, _dualAmounts(5e18, 0));
 
-        // All 4 addresses (bytes [0:80]) preserved
-        for (uint256 i; i < 80; ++i) {
+        // 52-byte header (bytes [0:52]) preserved
+        for (uint256 i; i < 52; ++i) {
+            assertEq(replaced[i], data[i], "header bytes mismatch");
+        }
+        // All 4 addresses (bytes [52:132]) preserved
+        for (uint256 i = 52; i < 132; ++i) {
             assertEq(replaced[i], data[i], "address bytes mismatch");
         }
-        // LLTV (bytes [80:112]) preserved
-        for (uint256 i = 80; i < 112; ++i) {
+        // LLTV (bytes [132:164]) preserved
+        for (uint256 i = 132; i < 164; ++i) {
             assertEq(replaced[i], data[i], "lltv bytes mismatch");
         }
     }
@@ -2028,19 +2033,24 @@ contract HookSizingInterfaceTest is Helpers {
         address spoke = address(0x3333);
         uint256 supplyResId = 10;
         uint256 borrowResId = 20;
-        bytes memory data = abi.encodePacked(loanTk, collTk, spoke, supplyResId, borrowResId, uint256(1e18), false, uint256(5e17));
+        // 52-byte header + 3 addrs(60) + 2 reserveIds(64) + amount(32) + usePrev(1) + borrowAmount(32)
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), loanTk, collTk, spoke, supplyResId, borrowResId, uint256(1e18), false, uint256(5e17));
         bytes memory replaced = aaveSupplyAndBorrow.replaceCalldataAmounts(data, _dualAmounts(9e18, 2e18));
 
-        // 3 addresses (bytes [0:60]) preserved
-        for (uint256 i; i < 60; ++i) {
+        // 52-byte header (bytes [0:52]) preserved
+        for (uint256 i; i < 52; ++i) {
+            assertEq(replaced[i], data[i], "header bytes mismatch");
+        }
+        // 3 addresses (bytes [52:112]) preserved
+        for (uint256 i = 52; i < 112; ++i) {
             assertEq(replaced[i], data[i], "address bytes mismatch");
         }
-        // 2 reserve IDs (bytes [60:124]) preserved
-        for (uint256 i = 60; i < 124; ++i) {
+        // 2 reserve IDs (bytes [112:176]) preserved
+        for (uint256 i = 112; i < 176; ++i) {
             assertEq(replaced[i], data[i], "reserveId bytes mismatch");
         }
-        // usePrevHookAmount bool at [156] preserved
-        assertEq(replaced[156], data[156], "usePrev mismatch");
+        // usePrevHookAmount bool at [208] preserved
+        assertEq(replaced[208], data[208], "usePrev mismatch");
     }
 
     function test_FieldPreservation_MorphoSupply() public view {
@@ -2049,31 +2059,36 @@ contract HookSizingInterfaceTest is Helpers {
         address oracle = address(0xCC33);
         address irm = address(0xDD44);
         uint256 lltv = 75e16;
-        bytes memory data = abi.encodePacked(loanTk, collTk, oracle, irm, uint256(1e18), lltv, false);
+        // 52-byte header + 4 addrs(80) + amount(32) + lltv(32) + usePrev(1)
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), loanTk, collTk, oracle, irm, uint256(1e18), lltv, false);
         bytes memory replaced = morphoSupply.replaceCalldataAmounts(data, _singleAmount(8e18));
 
-        // 4 addresses (bytes [0:80]) preserved
-        for (uint256 i; i < 80; ++i) {
+        // 52-byte header (bytes [0:52]) preserved
+        for (uint256 i; i < 52; ++i) {
+            assertEq(replaced[i], data[i], "header bytes mismatch");
+        }
+        // 4 addresses (bytes [52:132]) preserved
+        for (uint256 i = 52; i < 132; ++i) {
             assertEq(replaced[i], data[i], "address bytes mismatch");
         }
-        // LLTV at bytes [112:144] preserved
-        for (uint256 i = 112; i < 144; ++i) {
+        // LLTV at bytes [164:196] preserved
+        for (uint256 i = 164; i < 196; ++i) {
             assertEq(replaced[i], data[i], "lltv bytes mismatch");
         }
-        // usePrev bool at [144] preserved
-        assertEq(replaced[144], data[144], "usePrev mismatch");
+        // usePrev bool at [196] preserved
+        assertEq(replaced[196], data[196], "usePrev mismatch");
     }
 
     function test_FieldPreservation_SwapUniswapV3() public view {
         bytes memory data = _buildSwapperData_128(1e18);
         bytes memory replaced = swapUniV3.replaceCalldataAmounts(data, _singleAmount(5e18));
 
-        // Everything before amount (bytes [0:128]) preserved
-        for (uint256 i; i < 128; ++i) {
+        // Everything before amount (bytes [0:180]) preserved (AMOUNT_POSITION=180)
+        for (uint256 i; i < 180; ++i) {
             assertEq(replaced[i], data[i], "prefix bytes mismatch");
         }
-        // Everything after amount (bytes [160:]) preserved
-        for (uint256 i = 160; i < data.length; ++i) {
+        // Everything after amount (bytes [212:]) preserved
+        for (uint256 i = 212; i < data.length; ++i) {
             assertEq(replaced[i], data[i], "suffix bytes mismatch");
         }
     }
@@ -2211,7 +2226,9 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev Idempotent for dual-amount hook
     function test_ReplaceCalldataAmounts_Idempotent_DualAmount() public view {
+        // MorphoWithdraw: header(52) + 4 addrs(80) + lltv@132(32) + assets@164(32) + shares@196(32)
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0),
             address(1), address(2), address(3), address(4), uint256(86e16), uint256(1e18), uint256(0)
         );
         bytes memory replaced = morphoWithdraw.replaceCalldataAmounts(data, _dualAmounts(1e18, 0));
@@ -2224,12 +2241,12 @@ contract HookSizingInterfaceTest is Helpers {
         bytes memory d1 = abi.encodePacked(bytes32(0), address(1), uint256(1e18), false);
         assertEq(deposit4626.replaceCalldataAmounts(d1, _singleAmount(2e18)).length, d1.length);
 
-        // MorphoWithdraw
-        bytes memory d2 = abi.encodePacked(address(1), address(2), address(3), address(4), uint256(86e16), uint256(1e18), uint256(0));
+        // MorphoWithdraw: header(52) + 4 addrs(80) + lltv@132(32) + assets@164(32) + shares@196(32)
+        bytes memory d2 = abi.encodePacked(bytes32(0), address(0), address(1), address(2), address(3), address(4), uint256(86e16), uint256(1e18), uint256(0));
         assertEq(morphoWithdraw.replaceCalldataAmounts(d2, _dualAmounts(5e18, 0)).length, d2.length);
 
-        // AaveV4SupplyAndBorrow
-        bytes memory d3 = abi.encodePacked(address(1), address(2), address(3), uint256(1), uint256(2), uint256(1e18), false, uint256(5e17));
+        // AaveV4SupplyAndBorrow: header(52) + 3 addrs(60) + 2 resIds(64) + supply@176(32) + usePrev@208(1) + borrow@209(32)
+        bytes memory d3 = abi.encodePacked(bytes32(0), address(0), address(1), address(2), address(3), uint256(1), uint256(2), uint256(1e18), false, uint256(5e17));
         assertEq(aaveSupplyAndBorrow.replaceCalldataAmounts(d3, _dualAmounts(2e18, 1e18)).length, d3.length);
 
         // Bridge
@@ -2245,33 +2262,33 @@ contract HookSizingInterfaceTest is Helpers {
             MISSING APPROVE-HOOK ROUNDTRIPS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev ApproveAndSwapOdosV2: AMOUNT@20 (same layout as SwapOdosV2)
+    /// @dev ApproveAndSwapOdosV2: AMOUNT@72 — 52-byte header + address(inputToken) + uint256(inputAmount)
     function test_DecodeReplace_Roundtrip_ApproveSwapOdosV2() public view {
-        bytes memory data = abi.encodePacked(address(0xA), uint256(1e18), address(0xB), address(0xC), uint256(0));
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), uint256(1e18), address(0xB), address(0xC), uint256(0));
         assertEq(approveSwapOdosV2.decodeAmounts(data)[0], 1e18);
         bytes memory replaced = approveSwapOdosV2.replaceCalldataAmounts(data, _singleAmount(5e18));
         assertEq(approveSwapOdosV2.decodeAmounts(replaced)[0], 5e18);
     }
 
-    /// @dev ApproveAndSwapOdosV3: AMOUNT@20
+    /// @dev ApproveAndSwapOdosV3: AMOUNT@72 — 52-byte header + address(inputToken) + uint256(inputAmount)
     function test_DecodeReplace_Roundtrip_ApproveSwapOdosV3() public view {
-        bytes memory data = abi.encodePacked(address(0xA), uint256(1e18), address(0xB), address(0xC), uint256(0));
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), uint256(1e18), address(0xB), address(0xC), uint256(0));
         assertEq(approveSwapOdosV3.decodeAmounts(data)[0], 1e18);
         bytes memory replaced = approveSwapOdosV3.replaceCalldataAmounts(data, _singleAmount(3e18));
         assertEq(approveSwapOdosV3.decodeAmounts(replaced)[0], 3e18);
     }
 
-    /// @dev ApproveAndSwapSparkPSMExactIn: AMOUNT@40
+    /// @dev ApproveAndSwapSparkPSMExactIn: AMOUNT@92 — 52-byte header + addr + addr + uint256(amount)
     function test_DecodeReplace_Roundtrip_ApproveSwapSparkPSMExactIn() public view {
-        bytes memory data = abi.encodePacked(address(0xA), address(0xB), uint256(1e18), uint256(0), address(0xC), uint256(0), false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(1e18), uint256(0), address(0xC), uint256(0), false);
         assertEq(approveSwapSparkIn.decodeAmounts(data)[0], 1e18);
         bytes memory replaced = approveSwapSparkIn.replaceCalldataAmounts(data, _singleAmount(7e18));
         assertEq(approveSwapSparkIn.decodeAmounts(replaced)[0], 7e18);
     }
 
-    /// @dev ApproveAndSwapSparkPSMExactOut: AMOUNT@40
+    /// @dev ApproveAndSwapSparkPSMExactOut: AMOUNT@92 — 52-byte header + addr + addr + uint256(amount)
     function test_DecodeReplace_Roundtrip_ApproveSwapSparkPSMExactOut() public view {
-        bytes memory data = abi.encodePacked(address(0xA), address(0xB), uint256(1e18), uint256(0), address(0xC), uint256(0), false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(1e18), uint256(0), address(0xC), uint256(0), false);
         assertEq(approveSwapSparkOut.decodeAmounts(data)[0], 1e18);
         bytes memory replaced = approveSwapSparkOut.replaceCalldataAmounts(data, _singleAmount(4e18));
         assertEq(approveSwapSparkOut.decodeAmounts(replaced)[0], 4e18);
@@ -2293,9 +2310,9 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(approveSwapUniV2.decodeAmounts(replaced)[0], 2e18);
     }
 
-    /// @dev ApproveAndSwapUniswapV3Router02: AMOUNT@76
+    /// @dev ApproveAndSwapUniswapV3Router02: AMOUNT@128 — 52-byte header + bytes32 + addr + addr + uint32 + uint256
     function test_DecodeReplace_Roundtrip_ApproveSwapUniswapV3Router02() public view {
-        bytes memory data = abi.encodePacked(bytes32(0), address(0xA), address(0xB), uint32(3000), uint256(1e18), uint256(0), uint256(0), false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), bytes32(0), address(0xA), address(0xB), uint32(3000), uint256(1e18), uint256(0), uint256(0), false);
         assertEq(approveSwapUniV3Router02.decodeAmounts(data)[0], 1e18);
         bytes memory replaced = approveSwapUniV3Router02.replaceCalldataAmounts(data, _singleAmount(6e18));
         assertEq(approveSwapUniV3Router02.decodeAmounts(replaced)[0], 6e18);
@@ -2307,41 +2324,24 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev Verify length consistency for ALL sized hooks in a single pass
     function test_AmountRolesLength_Equals_DecodeAmountsLength_AllHooks() public view {
-        // TOKEN hooks — all use same simple data layout (just needs enough bytes)
-        bytes memory tokenData = abi.encodePacked(address(0xA), address(0xB), uint256(1e18), uint256(0), uint256(0), false);
+        _assertAmountRoles_Tokens();
+        _assertAmountRoles_Swappers();
+        _assertAmountRoles_Bridges();
+        _assertAmountRoles_Loans();
+        _assertAmountRoles_Misc();
+    }
+
+    function _assertAmountRoles_Tokens() internal view {
+        // TOKEN hooks — all use 52-byte header + data layout (just needs enough bytes for amount offset)
+        bytes memory tokenData = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(1e18), uint256(0), uint256(0), false);
 
         assertEq(transferERC20.amountRoles(tokenData).length, transferERC20.decodeAmounts(tokenData).length);
         assertEq(approveERC20.amountRoles(tokenData).length, approveERC20.decodeAmounts(tokenData).length);
         assertEq(transferHook.amountRoles(tokenData).length, transferHook.decodeAmounts(tokenData).length);
         assertEq(nativeTransfer.amountRoles(tokenData).length, nativeTransfer.decodeAmounts(tokenData).length);
 
-        bytes memory wethData = abi.encodePacked(uint256(1e18));
-        assertEq(depositWETH.amountRoles(wethData).length, depositWETH.decodeAmounts(wethData).length);
-        assertEq(withdrawWETH.amountRoles(wethData).length, withdrawWETH.decodeAmounts(wethData).length);
-
-        // Swappers
-        bytes memory swapData128 = _buildSwapperData_128(1e18);
-        assertEq(swapUniV3.amountRoles(swapData128).length, swapUniV3.decodeAmounts(swapData128).length);
-        assertEq(approveSwapUniV3.amountRoles(swapData128).length, approveSwapUniV3.decodeAmounts(swapData128).length);
-
-        bytes memory odosData = abi.encodePacked(address(0xA), uint256(1e18), address(0xB), address(0xC), uint256(0));
-        assertEq(swapOdosV2.amountRoles(odosData).length, swapOdosV2.decodeAmounts(odosData).length);
-        assertEq(swapOdosV3.amountRoles(odosData).length, swapOdosV3.decodeAmounts(odosData).length);
-        assertEq(approveSwapOdosV2.amountRoles(odosData).length, approveSwapOdosV2.decodeAmounts(odosData).length);
-        assertEq(approveSwapOdosV3.amountRoles(odosData).length, approveSwapOdosV3.decodeAmounts(odosData).length);
-
-        // Bridges
-        bytes memory bridgeData92 = _buildBridgeData_92(1e18);
-        assertEq(acrossV1.amountRoles(bridgeData92).length, acrossV1.decodeAmounts(bridgeData92).length);
-        assertEq(acrossV2.amountRoles(bridgeData92).length, acrossV2.decodeAmounts(bridgeData92).length);
-        assertEq(approveAcrossV1.amountRoles(bridgeData92).length, approveAcrossV1.decodeAmounts(bridgeData92).length);
-        assertEq(approveAcrossV2.amountRoles(bridgeData92).length, approveAcrossV2.decodeAmounts(bridgeData92).length);
-
-        bytes memory bridgeData108 = _buildBridgeData_108(1e18);
-        assertEq(stargate.amountRoles(bridgeData108).length, stargate.decodeAmounts(bridgeData108).length);
-        assertEq(stargateV2.amountRoles(bridgeData108).length, stargateV2.decodeAmounts(bridgeData108).length);
-        assertEq(approveStargate.amountRoles(bridgeData108).length, approveStargate.decodeAmounts(bridgeData108).length);
-        assertEq(approveStargateV2.amountRoles(bridgeData108).length, approveStargateV2.decodeAmounts(bridgeData108).length);
+        bytes memory wrappedNativeData = abi.encodePacked(bytes32(0), address(0), uint256(1e18), true, false);
+        assertEq(wrappedNative.amountRoles(wrappedNativeData).length, wrappedNative.decodeAmounts(wrappedNativeData).length);
 
         // Stake
         bytes memory stakeData = abi.encodePacked(bytes32(0), address(0xA), uint256(1e18), false);
@@ -2355,7 +2355,37 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(deposit4626.amountRoles(vaultData).length, deposit4626.decodeAmounts(vaultData).length);
         assertEq(redeem4626.amountRoles(vaultData).length, redeem4626.decodeAmounts(vaultData).length);
         assertEq(approveDeposit4626.amountRoles(vaultData).length, approveDeposit4626.decodeAmounts(vaultData).length);
+    }
 
+    function _assertAmountRoles_Swappers() internal view {
+        // Swappers
+        bytes memory swapData128 = _buildSwapperData_128(1e18);
+        assertEq(swapUniV3.amountRoles(swapData128).length, swapUniV3.decodeAmounts(swapData128).length);
+        assertEq(approveSwapUniV3.amountRoles(swapData128).length, approveSwapUniV3.decodeAmounts(swapData128).length);
+
+        bytes memory odosData = abi.encodePacked(bytes32(0), address(0), address(0xA), uint256(1e18), address(0xB), address(0xC), uint256(0));
+        assertEq(swapOdosV2.amountRoles(odosData).length, swapOdosV2.decodeAmounts(odosData).length);
+        assertEq(swapOdosV3.amountRoles(odosData).length, swapOdosV3.decodeAmounts(odosData).length);
+        assertEq(approveSwapOdosV2.amountRoles(odosData).length, approveSwapOdosV2.decodeAmounts(odosData).length);
+        assertEq(approveSwapOdosV3.amountRoles(odosData).length, approveSwapOdosV3.decodeAmounts(odosData).length);
+    }
+
+    function _assertAmountRoles_Bridges() internal view {
+        // Bridges
+        bytes memory bridgeData92 = _buildBridgeData_92(1e18);
+        assertEq(acrossV1.amountRoles(bridgeData92).length, acrossV1.decodeAmounts(bridgeData92).length);
+        assertEq(acrossV2.amountRoles(bridgeData92).length, acrossV2.decodeAmounts(bridgeData92).length);
+        assertEq(approveAcrossV1.amountRoles(bridgeData92).length, approveAcrossV1.decodeAmounts(bridgeData92).length);
+        assertEq(approveAcrossV2.amountRoles(bridgeData92).length, approveAcrossV2.decodeAmounts(bridgeData92).length);
+
+        bytes memory bridgeData108 = _buildBridgeData_108(1e18);
+        assertEq(stargate.amountRoles(bridgeData108).length, stargate.decodeAmounts(bridgeData108).length);
+        assertEq(stargateV2.amountRoles(bridgeData108).length, stargateV2.decodeAmounts(bridgeData108).length);
+        assertEq(approveStargate.amountRoles(bridgeData108).length, approveStargate.decodeAmounts(bridgeData108).length);
+        assertEq(approveStargateV2.amountRoles(bridgeData108).length, approveStargateV2.decodeAmounts(bridgeData108).length);
+    }
+
+    function _assertAmountRoles_Loans() internal view {
         // Loan: Morpho
         bytes memory morphoData = _buildMorphoSingleData(1e18);
         assertEq(morphoSupply.amountRoles(morphoData).length, morphoSupply.decodeAmounts(morphoData).length);
@@ -2363,8 +2393,9 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(morphoBorrow.amountRoles(morphoData).length, morphoBorrow.decodeAmounts(morphoData).length);
         assertEq(morphoRepay.amountRoles(morphoData).length, morphoRepay.decodeAmounts(morphoData).length);
 
-        // Loan: MorphoWithdraw (dual)
+        // Loan: MorphoWithdraw (dual) — 52-byte header + 4 addrs(80) + lltv(32) + assets(32) + shares(32)
         bytes memory mwData = abi.encodePacked(
+            bytes32(0), address(0),
             address(0xA), address(0xB), address(0xC), address(0xD),
             uint256(86e16), uint256(1e18), uint256(0)
         );
@@ -2377,19 +2408,24 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(aaveBorrow.amountRoles(aaveData).length, aaveBorrow.decodeAmounts(aaveData).length);
         assertEq(aaveRepay.amountRoles(aaveData).length, aaveRepay.decodeAmounts(aaveData).length);
 
-        // Aave V4 compound
+        // Aave V4 compound — 52-byte header + 3 addrs(60) + 2 reserveIds(64) + amount(32) + usePrev(1) + borrowAmount(32)
         bytes memory aaveDualData = abi.encodePacked(
+            bytes32(0), address(0),
             address(0xAA), address(0xBB), address(0xCC),
             uint256(1), uint256(2), uint256(1e18), false, uint256(5e17)
         );
         assertEq(aaveSupplyAndBorrow.amountRoles(aaveDualData).length, aaveSupplyAndBorrow.decodeAmounts(aaveDualData).length);
 
+        // Aave V4 repay+withdraw — 52-byte header + 3 addrs(60) + 2 reserveIds(64) + amount(32) + usePrev(1) + isFullRepayment(1) + withdrawAmount(32)
         bytes memory aaveRwData = abi.encodePacked(
+            bytes32(0), address(0),
             address(0xAA), address(0xBB), address(0xCC),
             uint256(1), uint256(2), uint256(1e18), false, false, uint256(5e17)
         );
         assertEq(aaveRepayAndWithdraw.amountRoles(aaveRwData).length, aaveRepayAndWithdraw.decodeAmounts(aaveRwData).length);
+    }
 
+    function _assertAmountRoles_Misc() internal view {
         // Sizeless (true sizeless — decodeAmounts returns [] too)
         bytes memory emptyData = "";
         assertEq(fluidClaim.amountRoles(emptyData).length, fluidClaim.decodeAmounts(emptyData).length);
@@ -2473,8 +2509,9 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev Replace assets-only → shares-only should work (toggle denominations)
     function test_MorphoWithdraw_ReplaceCalldataAmounts_ToggleDenomination() public view {
-        // Start with assets=1e18, shares=0
+        // Start with assets=1e18, shares=0 (with 52-byte header)
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0),
             address(0xA), address(0xB), address(0xC), address(0xD),
             uint256(86e16), uint256(1e18), uint256(0)
         );
@@ -2492,6 +2529,7 @@ contract HookSizingInterfaceTest is Helpers {
     /// @dev Max uint256 in assets slot should still work (XOR with shares=0)
     function test_MorphoWithdraw_ReplaceCalldataAmounts_MaxAssets() public view {
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0),
             address(0xA), address(0xB), address(0xC), address(0xD),
             uint256(86e16), uint256(1e18), uint256(0)
         );
@@ -2507,11 +2545,12 @@ contract HookSizingInterfaceTest is Helpers {
     /// @dev Across bridge: replacing amount preserves all other fields
     function test_FieldPreservation_AcrossV1() public view {
         bytes memory data = abi.encodePacked(
-            uint256(42),        // value
-            address(0xAA),      // recipient
-            address(0xBB),      // inputToken
-            address(0xCC),      // outputToken
-            uint256(1e18),      // inputAmount at 92
+            bytes32(0), address(0), // 52-byte placeholder header
+            uint256(42),        // value (at 52)
+            address(0xAA),      // recipient (at 84)
+            address(0xBB),      // inputToken (at 104)
+            address(0xCC),      // outputToken (at 124)
+            uint256(1e18),      // inputAmount at 144
             uint256(999),       // outputAmount
             uint32(137),        // destinationChainId
             address(0xDD),      // exclusiveRelayer
@@ -2523,36 +2562,37 @@ contract HookSizingInterfaceTest is Helpers {
         bytes memory replaced = acrossV1.replaceCalldataAmounts(data, _singleAmount(7e18));
         // Check amount was replaced
         assertEq(acrossV1.decodeAmounts(replaced)[0], 7e18);
-        // Check non-amount fields preserved (first 92 bytes untouched)
-        for (uint256 i; i < 92; ++i) {
+        // Check non-amount fields preserved (first 144 bytes untouched)
+        for (uint256 i; i < 144; ++i) {
             assertEq(replaced[i], data[i], "prefix byte mismatch");
         }
         // Check bytes after the 32-byte amount field are preserved
-        for (uint256 i = 124; i < data.length; ++i) {
+        for (uint256 i = 176; i < data.length; ++i) {
             assertEq(replaced[i], data[i], "suffix byte mismatch");
         }
     }
 
-    /// @dev AaveV4RepayAndWithdraw: replacing both amounts preserves isFullRepayment flag at byte 157
+    /// @dev AaveV4RepayAndWithdraw: replacing both amounts preserves isFullRepayment flag at byte 209
     function test_FieldPreservation_AaveV4RepayAndWithdraw_IsFullRepaymentFlag() public view {
         bytes memory data = abi.encodePacked(
-            address(0xAA),      // loanToken (20)
-            address(0xBB),      // collateralToken (20)
-            address(0xCC),      // spoke (20)
-            uint256(1),         // supplyReserveId (32)
-            uint256(2),         // borrowReserveId (32)
-            uint256(1e18),      // repay amount at 124 (32)
-            false,              // usePrevHookAmount at 156 (1)
-            true,               // isFullRepayment at 157 (1) ← MUST be preserved
-            uint256(5e17)       // withdraw amount at 158 (32)
+            bytes32(0), address(0), // 52-byte placeholder header
+            address(0xAA),      // loanToken (at 52)
+            address(0xBB),      // collateralToken (at 72)
+            address(0xCC),      // spoke (at 92)
+            uint256(1),         // supplyReserveId (at 112)
+            uint256(2),         // borrowReserveId (at 144)
+            uint256(1e18),      // repay amount at 176 (32)
+            false,              // usePrevHookAmount at 208 (1)
+            true,               // isFullRepayment at 209 (1) ← MUST be preserved
+            uint256(5e17)       // withdraw amount at 210 (32)
         );
 
         bytes memory replaced = aaveRepayAndWithdraw.replaceCalldataAmounts(data, _dualAmounts(2e18, 3e17));
         assertEq(aaveRepayAndWithdraw.decodeAmounts(replaced)[0], 2e18);
         assertEq(aaveRepayAndWithdraw.decodeAmounts(replaced)[1], 3e17);
-        // Byte 156 (usePrevHookAmount=false) and byte 157 (isFullRepayment=true) must be preserved
-        assertEq(uint8(replaced[156]), 0x00, "usePrevHookAmount corrupted");
-        assertEq(uint8(replaced[157]), 0x01, "isFullRepayment corrupted");
+        // Byte 208 (usePrevHookAmount=false) and byte 209 (isFullRepayment=true) must be preserved
+        assertEq(uint8(replaced[208]), 0x00, "usePrevHookAmount corrupted");
+        assertEq(uint8(replaced[209]), 0x01, "isFullRepayment corrupted");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -2565,6 +2605,7 @@ contract HookSizingInterfaceTest is Helpers {
     ///      (check-before-mutate pattern)
     function test_MorphoWithdraw_XOR_DataUnmodifiedOnRevert() public {
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0),
             address(1), address(2), address(3), address(4),
             uint256(86e16), uint256(7e18), uint256(0)
         );
@@ -2585,6 +2626,7 @@ contract HookSizingInterfaceTest is Helpers {
         vm.assume((a == 0 && b == 0) || (a != 0 && b != 0));
 
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0),
             address(1), address(2), address(3), address(4),
             uint256(86e16), uint256(42), uint256(0)
         );
@@ -2601,6 +2643,7 @@ contract HookSizingInterfaceTest is Helpers {
         vm.assume(val != 0);
 
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0),
             address(1), address(2), address(3), address(4),
             uint256(86e16), uint256(0), uint256(0)
         );
@@ -2622,12 +2665,13 @@ contract HookSizingInterfaceTest is Helpers {
     ///      but the flag itself is preserved and amounts are irrelevant to build()
     function test_AaveV4RepayAndWithdraw_FullRepayment_ReplacePreservesFlag() public view {
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte placeholder header
             address(0xAA), address(0xBB), address(0xCC),
             uint256(1), uint256(2),
-            uint256(1e18),      // repay amount at 124
-            false,              // usePrevHookAmount at 156
-            true,               // isFullRepayment at 157
-            uint256(5e17)       // withdraw amount at 158
+            uint256(1e18),      // repay amount at 176
+            false,              // usePrevHookAmount at 208
+            true,               // isFullRepayment at 209
+            uint256(5e17)       // withdraw amount at 210
         );
 
         // Replace both amounts
@@ -2638,32 +2682,34 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(aaveRepayAndWithdraw.decodeAmounts(replaced)[1], 888);
 
         // Flags preserved
-        assertEq(uint8(replaced[156]), 0x00, "usePrevHookAmount corrupted");
-        assertEq(uint8(replaced[157]), 0x01, "isFullRepayment must survive");
+        assertEq(uint8(replaced[208]), 0x00, "usePrevHookAmount corrupted");
+        assertEq(uint8(replaced[209]), 0x01, "isFullRepayment must survive");
     }
 
     /// @dev When isFullRepayment=false, amounts and flag are all preserved correctly
     function test_AaveV4RepayAndWithdraw_NotFullRepayment_ReplacePreservesFlag() public view {
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte placeholder header
             address(0xAA), address(0xBB), address(0xCC),
             uint256(1), uint256(2),
-            uint256(1e18),      // repay amount at 124
-            false,              // usePrevHookAmount at 156
-            false,              // isFullRepayment at 157
-            uint256(5e17)       // withdraw amount at 158
+            uint256(1e18),      // repay amount at 176
+            false,              // usePrevHookAmount at 208
+            false,              // isFullRepayment at 209
+            uint256(5e17)       // withdraw amount at 210
         );
 
         bytes memory replaced = aaveRepayAndWithdraw.replaceCalldataAmounts(data, _dualAmounts(3e18, 2e18));
 
         assertEq(aaveRepayAndWithdraw.decodeAmounts(replaced)[0], 3e18);
         assertEq(aaveRepayAndWithdraw.decodeAmounts(replaced)[1], 2e18);
-        assertEq(uint8(replaced[156]), 0x00);
-        assertEq(uint8(replaced[157]), 0x00, "isFullRepayment=false must survive");
+        assertEq(uint8(replaced[208]), 0x00);
+        assertEq(uint8(replaced[209]), 0x00, "isFullRepayment=false must survive");
     }
 
     /// @dev Fuzz: isFullRepayment flag is never corrupted regardless of amount values
     function testFuzz_AaveV4RepayAndWithdraw_FlagPreservation(uint256 repay, uint256 withdraw, bool fullRepay) public view {
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte placeholder header
             address(0xAA), address(0xBB), address(0xCC),
             uint256(1), uint256(2),
             uint256(1e18),
@@ -2677,8 +2723,8 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(aaveRepayAndWithdraw.decodeAmounts(replaced)[0], repay);
         assertEq(aaveRepayAndWithdraw.decodeAmounts(replaced)[1], withdraw);
         // The critical flag must survive any amount replacement
-        assertEq(uint8(replaced[157]), fullRepay ? 0x01 : 0x00, "isFullRepayment corrupted by replace");
-        assertEq(uint8(replaced[156]), 0x00, "usePrevHookAmount corrupted by replace");
+        assertEq(uint8(replaced[209]), fullRepay ? 0x01 : 0x00, "isFullRepayment corrupted by replace");
+        assertEq(uint8(replaced[208]), 0x00, "usePrevHookAmount corrupted by replace");
     }
 
     // ─── ClaimAssetsDETH / ClaimWithdrawFirelight: ERC-165 correctness ───
@@ -2757,23 +2803,24 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev Verify decode→replace→decode roundtrip for representative hooks from EACH denomination
     function test_Roundtrip_AllDenominations() public view {
-        // TOKEN
-        bytes memory tokenData = abi.encodePacked(address(0xA), address(0xB), uint256(1e18), false);
+        // TOKEN — 52-byte header + addr(token) + addr(to) + uint256(amount) + bool
+        bytes memory tokenData = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(1e18), false);
         bytes memory tokenReplaced = transferERC20.replaceCalldataAmounts(tokenData, _singleAmount(2e18));
         assertEq(transferERC20.decodeAmounts(tokenReplaced)[0], 2e18, "TOKEN roundtrip");
 
-        // ASSETS
+        // ASSETS — bytes32(oracleId) + addr(vault) + uint256(amount) + bool (first 52 bytes = header)
         bytes memory assetData = abi.encodePacked(bytes32(0), address(0xA), uint256(1e18), false);
         bytes memory assetReplaced = deposit4626.replaceCalldataAmounts(assetData, _singleAmount(3e18));
         assertEq(deposit4626.decodeAmounts(assetReplaced)[0], 3e18, "ASSETS roundtrip");
 
-        // SHARES
+        // SHARES — bytes32(oracleId) + addr(vault) + addr(owner) + uint256(shares) + bool
         bytes memory shareData = abi.encodePacked(bytes32(0), address(0xA), address(0xB), uint256(1e18), false);
         bytes memory shareReplaced = redeem4626.replaceCalldataAmounts(shareData, _singleAmount(4e18));
         assertEq(redeem4626.decodeAmounts(shareReplaced)[0], 4e18, "SHARES roundtrip");
 
-        // DUAL (Morpho assets+shares)
+        // DUAL (Morpho assets+shares) — 52-byte header + 4 addrs + lltv + assets + shares
         bytes memory dualData = abi.encodePacked(
+            bytes32(0), address(0),
             address(1), address(2), address(3), address(4),
             uint256(86e16), uint256(5e18), uint256(0)
         );
@@ -2781,8 +2828,9 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(morphoWithdraw.decodeAmounts(dualReplaced)[0], 6e18, "DUAL assets roundtrip");
         assertEq(morphoWithdraw.decodeAmounts(dualReplaced)[1], 0, "DUAL shares roundtrip");
 
-        // DUAL (Aave repay+withdraw)
+        // DUAL (Aave repay+withdraw) — 52-byte header + 3 addrs + 2 reserveIds + amount + usePrev + isFullRepayment + withdrawAmount
         bytes memory aaveData = abi.encodePacked(
+            bytes32(0), address(0),
             address(0xAA), address(0xBB), address(0xCC),
             uint256(1), uint256(2), uint256(1e18), false, false, uint256(5e17)
         );
@@ -2793,8 +2841,8 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev Verify length preservation across ALL hook categories after replace
     function test_LengthPreservation_AllCategories() public view {
-        // Token
-        bytes memory d1 = abi.encodePacked(address(0xA), address(0xB), uint256(1e18), false);
+        // Token: header(52) + token(20) + to(20) + amount@92(32) + usePrev(1)
+        bytes memory d1 = abi.encodePacked(bytes32(0), address(0), address(0xA), address(0xB), uint256(1e18), false);
         assertEq(transferERC20.replaceCalldataAmounts(d1, _singleAmount(2e18)).length, d1.length);
 
         // Swapper
@@ -2817,8 +2865,9 @@ contract HookSizingInterfaceTest is Helpers {
         bytes memory d6 = _buildMorphoSingleData(1e18);
         assertEq(morphoSupply.replaceCalldataAmounts(d6, _singleAmount(2e18)).length, d6.length);
 
-        // MorphoWithdraw dual
+        // MorphoWithdraw dual: header(52) + 4 addrs(80) + lltv@132(32) + assets@164(32) + shares@196(32)
         bytes memory d7 = abi.encodePacked(
+            bytes32(0), address(0),
             address(1), address(2), address(3), address(4), uint256(86e16), uint256(1e18), uint256(0)
         );
         assertEq(morphoWithdraw.replaceCalldataAmounts(d7, _dualAmounts(2e18, 0)).length, d7.length);
@@ -2827,8 +2876,9 @@ contract HookSizingInterfaceTest is Helpers {
         bytes memory d8 = _buildAaveV4SingleData(1e18);
         assertEq(aaveSupply.replaceCalldataAmounts(d8, _singleAmount(2e18)).length, d8.length);
 
-        // Aave V4 dual
+        // Aave V4 dual: header(52) + 3 addrs(60) + 2 resIds(64) + repay@176(32) + usePrev@208(1) + isFullRepay@209(1) + withdraw@210(32)
         bytes memory d9 = abi.encodePacked(
+            bytes32(0), address(0),
             address(0xAA), address(0xBB), address(0xCC),
             uint256(1), uint256(2), uint256(1e18), false, false, uint256(5e17)
         );
@@ -3006,7 +3056,7 @@ contract HookSizingInterfaceTest is Helpers {
     /// @dev Replace dual amounts: morpho XOR remains enforced on second replace
     function test_DoubleReplace_MorphoWithdraw_XORStillEnforced() public {
         bytes memory data = abi.encodePacked(
-            address(1), address(2), address(3), address(4),
+            bytes32(0), address(0), address(1), address(2), address(3), address(4),
             uint256(86e16), uint256(1e18), uint256(0)
         );
         bytes memory r1 = morphoWithdraw.replaceCalldataAmounts(data, _dualAmounts(2e18, 0));
@@ -3033,14 +3083,14 @@ contract HookSizingInterfaceTest is Helpers {
 
         // Dual-amount: MorphoWithdraw (assets slot only)
         bytes memory d2 = abi.encodePacked(
-            address(1), address(2), address(3), address(4), uint256(86e16), uint256(0), uint256(0)
+            bytes32(0), address(0), address(1), address(2), address(3), address(4), uint256(86e16), uint256(0), uint256(0)
         );
         bytes memory r2 = morphoWithdraw.replaceCalldataAmounts(d2, _dualAmounts(maxVal, 0));
         assertEq(morphoWithdraw.decodeAmounts(r2)[0], maxVal, "morpho max");
 
         // Dual-amount: Aave V4 RepayAndWithdraw
         bytes memory d3 = abi.encodePacked(
-            address(0xAA), address(0xBB), address(0xCC),
+            bytes32(0), address(0), address(0xAA), address(0xBB), address(0xCC),
             uint256(1), uint256(2), uint256(0), false, false, uint256(0)
         );
         bytes memory r3 = aaveRepayAndWithdraw.replaceCalldataAmounts(d3, _dualAmounts(maxVal, maxVal));
@@ -3057,7 +3107,7 @@ contract HookSizingInterfaceTest is Helpers {
 
         // Dual-amount: aave (both zero is allowed — no XOR constraint)
         bytes memory d2 = abi.encodePacked(
-            address(0xAA), address(0xBB), address(0xCC),
+            bytes32(0), address(0), address(0xAA), address(0xBB), address(0xCC),
             uint256(1), uint256(2), uint256(1e18), false, false, uint256(5e17)
         );
         bytes memory r2 = aaveRepayAndWithdraw.replaceCalldataAmounts(d2, _dualAmounts(0, 0));
@@ -3082,102 +3132,113 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(uint8(meta[0].denom), uint8(expectedDenom));
     }
 
-    /// @dev Build bridge data with AMOUNT@92: uint256(32) + addr(20) + addr(20) + addr(20) + uint256(amt) + padding
+    /// @dev Build bridge data with AMOUNT@144: placeholder(52) + uint256(32) + addr(20) + addr(20) + addr(20) + uint256(amt) + padding
     function _buildBridgeData_92(uint256 amt) internal pure returns (bytes memory) {
         return abi.encodePacked(
+            bytes32(0), address(0), // 52-byte placeholder (bytes32 + address = 32+20)
             uint256(1),         // dstChainId (32)
             address(0xAA),      // recipient (20)
             address(0xBB),      // inputToken (20)
             address(0xCC),      // outputToken (20)
-            amt,                // amount at offset 92 (32)
+            amt,                // amount at offset 144 (32)
             uint256(0),         // outputAmount (32)
             uint256(0)          // fillDeadline (32)
         );
     }
 
-    /// @dev Build bridge data with AMOUNT@108: uint256(32) + addr(20) + addr(20) + uint32(4) + bytes32(32) + uint256(amt) + padding
+    /// @dev Build bridge data with AMOUNT@160: placeholder(52) + uint256(32) + addr(20) + addr(20) + uint32(4) + bytes32(32) + uint256(amt) + padding
     function _buildBridgeData_108(uint256 amt) internal pure returns (bytes memory) {
         return abi.encodePacked(
+            bytes32(0), address(0), // 52-byte placeholder (bytes32 + address = 32+20)
             uint256(1),         // dstChainId (32)
             address(0xAA),      // pool (20)
             address(0xBB),      // token (20)
             uint32(1),          // dstEid (4)
             bytes32(0),         // to (32)
-            amt,                // amount at offset 108 (32)
+            amt,                // amount at offset 160 (32)
             uint256(0)          // minAmountLD (32)
         );
     }
 
-    /// @dev Build swapper data with AMOUNT@128: addr + addr + uint32 + addr + uint256 + uint256 + uint256(amt) + uint256 + bool
+    /// @dev Build swapper data with AMOUNT@180: placeholder(52) + addr + addr + uint32 + addr + uint256 + uint256 + uint256(amt) + uint256 + bool
     function _buildSwapperData_128(uint256 amt) internal pure returns (bytes memory) {
         return abi.encodePacked(
+            bytes32(0), address(0), // 52-byte placeholder (bytes32 + address = 32+20)
             address(0xAA),      // tokenIn (20)
             address(0xBB),      // tokenOut (20)
             uint32(3000),       // fee (4)
             address(0xCC),      // pool (20)
             uint256(0),         // sqrtPriceX96 (32)
             uint256(1000),      // deadline (32)
-            amt,                // amount at offset 128 (32)
+            amt,                // amount at offset 180 (32)
             uint256(0),         // minAmountOut (32)
             false               // usePrev (1)
         );
     }
 
-    /// @dev Build swapper data with AMOUNT@120: 5 addrs + uint32 + uint32 = 108 + uint256(12 padding) = 120
-    ///      addr(20) + addr(20) + uint32(4) + uint32(4) + addr(20) + addr(20) + uint256(32) = 120
+    /// @dev Build swapper data with AMOUNT@172: placeholder(52) + addr + addr + uint32 + uint32 + addr + addr + uint256 + uint256(amt) + uint256 + uint256 + bool + bool
     function _buildSwapperData_120(uint256 amt) internal pure returns (bytes memory) {
-        return abi.encodePacked(
+        bytes memory part1 = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte placeholder (bytes32 + address = 32+20)
             address(0xAA),      // currency0 (20)
-            address(0xBB),      // currency1 (20)
+            address(0xBB)       // currency1 (20)
+        );
+        bytes memory part2 = abi.encodePacked(
             uint32(3000),       // fee (4)
             uint32(60),         // tickSpacing (4)
             address(0xCC),      // hookAddr (20)
             address(0xDD),      // permit2 (20)
             uint256(0),         // deadline (32)
-            amt,                // amount at offset 120 (32)
+            amt                 // amount at offset 172 (32)
+        );
+        return abi.encodePacked(
+            part1, part2,
             uint256(0),         // minAmountOut (32)
             uint256(0),         // sqrtPriceX96 (32)
             false, false        // booleans (2)
         );
     }
 
-    /// @dev Build swapper data with AMOUNT@144: addr + addr + addr + addr + uint256 + uint256 + uint256(amt) + uint256 + bool
+    /// @dev Build swapper data with AMOUNT@196: placeholder(52) + addr + addr + addr + addr + uint256 + uint256 + uint256(amt) + uint256 + bool
     function _buildSwapperData_144(uint256 amt) internal pure returns (bytes memory) {
         return abi.encodePacked(
+            bytes32(0), address(0), // 52-byte placeholder (bytes32 + address = 32+20)
             address(0xAA),      // tokenIn (20)
             address(0xBB),      // tokenOut (20)
             address(0xCC),      // pool (20)
             address(0xDD),      // recipient (20)
             uint256(0),         // sqrtPriceX96 (32)
             uint256(1000),      // deadline (32)
-            amt,                // amount at offset 144 (32)
+            amt,                // amount at offset 196 (32)
             uint256(0),         // minAmountOut (32)
             false               // usePrev (1)
         );
     }
 
-    /// @dev Build Morpho single-amount data: 4 addrs(80) + uint256(amt@80) + uint256(lltv) + bool
+    /// @dev Build Morpho single-amount data: placeholder(52) + 4 addrs(80) + uint256(amt@132) + uint256(lltv) + bool
     function _buildMorphoSingleData(uint256 amt) internal pure returns (bytes memory) {
         return abi.encodePacked(
+            bytes32(0), address(0), // 52-byte placeholder (bytes32 + address = 32+20)
             address(0xAA),      // loanToken (20)
             address(0xBB),      // collateralToken (20)
             address(0xCC),      // oracle (20)
             address(0xDD),      // irm (20)
-            amt,                // amount at offset 80 (32)
+            amt,                // amount at offset 132 (32)
             uint256(86e16),     // lltv (32)
             false               // usePrev (1)
         );
     }
 
-    /// @dev Build Aave V4 single-amount data: 3 addrs(60) + 2 uint256s(64) + uint256(amt@124) + bool
+    /// @dev Build Aave V4 single-amount data: placeholder(52) + 3 addrs(60) + 2 uint256s(64) + uint256(amt@176) + bool
     function _buildAaveV4SingleData(uint256 amt) internal pure returns (bytes memory) {
         return abi.encodePacked(
+            bytes32(0), address(0), // 52-byte placeholder (bytes32 + address = 32+20)
             address(0xAA),      // loanToken (20)
             address(0xBB),      // collateralToken (20)
             address(0xCC),      // spoke (20)
             uint256(1),         // supplyReserveId (32)
             uint256(2),         // borrowReserveId (32)
-            amt,                // amount at offset 124 (32)
+            amt,                // amount at offset 176 (32)
             false               // usePrev (1)
         );
     }
@@ -3239,15 +3300,16 @@ contract HookSizingInterfaceTest is Helpers {
     /// @notice SwapUniswapV3: decode, replace, verify usePrevHookAmount preserved
     function test_Combined_SwapUniV3_DecodeReplaceUsePrev() public view {
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0),     // 52-byte header
             address(0xAA),              // tokenIn (20)
             address(0xBB),              // tokenOut (20)
             uint32(3000),               // fee (4)
             address(0xCC),              // recipient (20)
             uint256(block.timestamp + 100), // deadline (32)
             uint256(0),                 // sqrtPriceLimitX96 (32)
-            uint256(5 ether),           // amountIn at offset 128 (32)
-            uint256(4 ether),           // minAmountOut at offset 160 (32)
-            true                        // usePrevHookAmount at offset 192 (1)
+            uint256(5 ether),           // amountIn at offset 180 (32)
+            uint256(4 ether),           // minAmountOut at offset 212 (32)
+            true                        // usePrevHookAmount at offset 244 (1)
         );
 
         assertTrue(ISuperHookContextAware(address(swapUniV3)).decodeUsePrevHookAmount(data));
@@ -3267,17 +3329,18 @@ contract HookSizingInterfaceTest is Helpers {
     /// @notice Bridge AcrossV2: decode, replace, verify usePrevHookAmount preserved
     function test_Combined_AcrossV2_DecodeReplaceUsePrev() public view {
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0),     // 52-byte header
             uint256(0),                 // value (32)
             address(0xAA),              // recipient (20)
             address(0xBB),              // inputToken (20)
             address(0xCC),              // outputToken (20)
-            uint256(100 ether),         // inputAmount at offset 92 (32)
+            uint256(100 ether),         // inputAmount at offset 144 (32)
             uint256(99 ether),          // outputAmount (32)
             uint256(42161),             // destinationChainId (32)
             address(0xDD),              // exclusiveRelayer (20)
             uint32(3600),               // fillDeadlineOffset (4)
             uint32(0),                  // exclusivityPeriod (4)
-            true,                       // usePrevHookAmount at offset 216 (1)
+            true,                       // usePrevHookAmount at offset 268 (1)
             abi.encode(bytes("initData")) // destinationMessage (variable)
         );
 
@@ -3318,13 +3381,14 @@ contract HookSizingInterfaceTest is Helpers {
     /// @notice Aave V4 single (Supply): decode, replace, verify usePrevHookAmount preserved
     function test_Combined_AaveV4Supply_DecodeReplaceUsePrev() public view {
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0),     // 52-byte header
             address(0xAA),              // loanToken (20)
             address(0xBB),              // collateralToken (20)
             address(0xCC),              // spoke (20)
             uint256(1),                 // supplyReserveId (32)
             uint256(2),                 // borrowReserveId (32)
-            uint256(300 ether),         // amount at offset 124 (32)
-            true                        // usePrevHookAmount at offset 156 (1)
+            uint256(300 ether),         // amount at offset 176 (32)
+            true                        // usePrevHookAmount at offset 208 (1)
         );
 
         assertTrue(ISuperHookContextAware(address(aaveSupply)).decodeUsePrevHookAmount(data));
@@ -3342,14 +3406,15 @@ contract HookSizingInterfaceTest is Helpers {
     /// @notice Aave V4 dual (SupplyAndBorrow): decode, replace both amounts, verify usePrevHookAmount preserved
     function test_Combined_AaveV4SupplyAndBorrow_DecodeReplaceUsePrev() public view {
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0),     // 52-byte header
             address(0xAA),              // loanToken (20)
             address(0xBB),              // collateralToken (20)
             address(0xCC),              // spoke (20)
             uint256(1),                 // supplyReserveId (32)
             uint256(2),                 // borrowReserveId (32)
-            uint256(1000 ether),        // supply amount at offset 124 (32)
-            true,                       // usePrevHookAmount at offset 156 (1)
-            uint256(500 ether)          // borrowAmount at offset 157 (32)
+            uint256(1000 ether),        // supply amount at offset 176 (32)
+            true,                       // usePrevHookAmount at offset 208 (1)
+            uint256(500 ether)          // borrowAmount at offset 209 (32)
         );
 
         assertTrue(ISuperHookContextAware(address(aaveSupplyAndBorrow)).decodeUsePrevHookAmount(data));
@@ -3371,13 +3436,14 @@ contract HookSizingInterfaceTest is Helpers {
     /// @notice Morpho single (MorphoSupply): decode, replace, verify usePrevHookAmount preserved
     function test_Combined_MorphoSupply_DecodeReplaceUsePrev() public view {
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0),     // 52-byte header
             address(0xAA),              // loanToken (20)
             address(0xBB),              // collateralToken (20)
             address(0xCC),              // oracle (20)
             address(0xDD),              // irm (20)
-            uint256(600 ether),         // amount at offset 80 (32)
+            uint256(600 ether),         // amount at offset 132 (32)
             uint256(86e16),             // lltv (32)
-            true                        // usePrevHookAmount at offset 144 (1)
+            true                        // usePrevHookAmount at offset 196 (1)
         );
 
         assertTrue(ISuperHookContextAware(address(morphoSupply)).decodeUsePrevHookAmount(data));
@@ -3412,6 +3478,7 @@ contract HookSizingInterfaceTest is Helpers {
     /// @notice Fuzz: SwapUniswapV3 combined decode/replace/usePrev roundtrip
     function test_Fuzz_Combined_SwapUniV3(uint256 origAmt, uint256 newAmt, bool usePrev) public view {
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0),     // 52-byte header
             address(0xAA),
             address(0xBB),
             uint32(3000),
@@ -3440,6 +3507,7 @@ contract HookSizingInterfaceTest is Helpers {
         bool usePrev
     ) public view {
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0),     // 52-byte header
             address(0xAA),
             address(0xBB),
             address(0xCC),
@@ -3465,6 +3533,7 @@ contract HookSizingInterfaceTest is Helpers {
     /// @notice Fuzz: AcrossV2 combined decode/replace/usePrev roundtrip
     function test_Fuzz_Combined_AcrossV2(uint256 origAmt, uint256 newAmt, bool usePrev) public view {
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0),     // 52-byte header
             uint256(0),
             address(0xAA),
             address(0xBB),
@@ -3490,6 +3559,7 @@ contract HookSizingInterfaceTest is Helpers {
     /// @notice Fuzz: MorphoSupply combined decode/replace/usePrev roundtrip
     function test_Fuzz_Combined_MorphoSupply(uint256 origAmt, uint256 newAmt, bool usePrev) public view {
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0),     // 52-byte header
             address(0xAA),
             address(0xBB),
             address(0xCC),
@@ -3552,6 +3622,7 @@ contract HookSizingInterfaceTest is Helpers {
         // Swapper UniV3
         {
             bytes memory d = abi.encodePacked(
+                bytes32(0), address(0),
                 address(0xAA), address(0xBB), uint32(500), address(0xCC),
                 uint256(block.timestamp + 100), uint256(0), uint256(1e18), uint256(0), true
             );
@@ -3563,6 +3634,7 @@ contract HookSizingInterfaceTest is Helpers {
         // Bridge AcrossV2
         {
             bytes memory d = abi.encodePacked(
+                bytes32(0), address(0),
                 uint256(0), address(0xAA), address(0xBB), address(0xCC),
                 uint256(1e18), uint256(9e17), uint256(42161),
                 address(0xDD), uint32(3600), uint32(0), true,
@@ -3584,6 +3656,7 @@ contract HookSizingInterfaceTest is Helpers {
         // Aave V4 Supply
         {
             bytes memory d = abi.encodePacked(
+                bytes32(0), address(0),
                 address(0xAA), address(0xBB), address(0xCC),
                 uint256(1), uint256(2), uint256(1e18), true
             );
@@ -3595,6 +3668,7 @@ contract HookSizingInterfaceTest is Helpers {
         // Morpho Supply
         {
             bytes memory d = abi.encodePacked(
+                bytes32(0), address(0),
                 address(0xAA), address(0xBB), address(0xCC), address(0xDD),
                 uint256(1e18), uint256(86e16), true
             );
@@ -3615,8 +3689,7 @@ contract HookSizingInterfaceTest is Helpers {
         assertTrue(bytes(approveERC20.name()).length > 0, "approveERC20");
         assertTrue(bytes(transferHook.name()).length > 0, "transferHook");
         assertTrue(bytes(nativeTransfer.name()).length > 0, "nativeTransfer");
-        assertTrue(bytes(depositWETH.name()).length > 0, "depositWETH");
-        assertTrue(bytes(withdrawWETH.name()).length > 0, "withdrawWETH");
+        assertTrue(bytes(wrappedNative.name()).length > 0, "wrappedNative");
         assertTrue(bytes(fetchNativeFee.name()).length > 0, "fetchNativeFee");
         assertTrue(bytes(claimFailedTransfer.name()).length > 0, "claimFailedTransfer");
 
@@ -3720,7 +3793,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev No two deployed hooks may share the same name
     function test_Name_AllHooks_Unique() public view {
-        string[] memory names = new string[](89);
+        string[] memory names = new string[](88);
         uint256 i = 0;
 
         // Token hooks
@@ -3728,8 +3801,7 @@ contract HookSizingInterfaceTest is Helpers {
         names[i++] = approveERC20.name();
         names[i++] = transferHook.name();
         names[i++] = nativeTransfer.name();
-        names[i++] = depositWETH.name();
-        names[i++] = withdrawWETH.name();
+        names[i++] = wrappedNative.name();
         names[i++] = fetchNativeFee.name();
         names[i++] = claimFailedTransfer.name();
 
@@ -3830,7 +3902,7 @@ contract HookSizingInterfaceTest is Helpers {
         names[i++] = aaveSupplyAndBorrow.name();
         names[i++] = aaveRepayAndWithdraw.name();
 
-        assertEq(i, 89, "count mismatch");
+        assertEq(i, 88, "count mismatch");
 
         // O(n^2) uniqueness check (acceptable for 83 items)
         for (uint256 a = 0; a < i; a++) {
@@ -3866,8 +3938,7 @@ contract HookSizingInterfaceTest is Helpers {
         assertTrue(bytes(approveERC20.description()).length > 0, "approveERC20");
         assertTrue(bytes(transferHook.description()).length > 0, "transferHook");
         assertTrue(bytes(nativeTransfer.description()).length > 0, "nativeTransfer");
-        assertTrue(bytes(depositWETH.description()).length > 0, "depositWETH");
-        assertTrue(bytes(withdrawWETH.description()).length > 0, "withdrawWETH");
+        assertTrue(bytes(wrappedNative.description()).length > 0, "wrappedNative");
         assertTrue(bytes(fetchNativeFee.description()).length > 0, "fetchNativeFee");
         assertTrue(bytes(claimFailedTransfer.description()).length > 0, "claimFailedTransfer");
 
@@ -3971,7 +4042,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev No two deployed hooks may share the same description
     function test_Description_AllHooks_Unique() public view {
-        string[] memory descs = new string[](89);
+        string[] memory descs = new string[](88);
         uint256 i = 0;
 
         // Token hooks
@@ -3979,8 +4050,7 @@ contract HookSizingInterfaceTest is Helpers {
         descs[i++] = approveERC20.description();
         descs[i++] = transferHook.description();
         descs[i++] = nativeTransfer.description();
-        descs[i++] = depositWETH.description();
-        descs[i++] = withdrawWETH.description();
+        descs[i++] = wrappedNative.description();
         descs[i++] = fetchNativeFee.description();
         descs[i++] = claimFailedTransfer.description();
 
@@ -4081,7 +4151,7 @@ contract HookSizingInterfaceTest is Helpers {
         descs[i++] = aaveSupplyAndBorrow.description();
         descs[i++] = aaveRepayAndWithdraw.description();
 
-        assertEq(i, 89, "count mismatch");
+        assertEq(i, 88, "count mismatch");
 
         // O(n^2) uniqueness check
         for (uint256 a = 0; a < i; a++) {

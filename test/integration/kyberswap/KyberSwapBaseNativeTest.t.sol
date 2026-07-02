@@ -116,6 +116,8 @@ contract KyberSwapBaseNativeTest is Test, Constants {
         returns (bytes memory)
     {
         return bytes.concat(
+            bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+            bytes20(address(0)), // yieldSource (52-byte header part 2)
             bytes20(outputToken),
             bytes32(value),
             bytes32(inputAmount),
@@ -139,6 +141,8 @@ contract KyberSwapBaseNativeTest is Test, Constants {
         returns (bytes memory)
     {
         return bytes.concat(
+            bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+            bytes20(address(0)), // yieldSource (52-byte header part 2)
             bytes20(inputToken),
             bytes20(outputToken),
             bytes32(inputAmount),

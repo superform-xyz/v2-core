@@ -508,13 +508,17 @@ contract BridgeHooks is Helpers {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _encodeAcrossData(bool usePrevHookAmount) internal view returns (bytes memory) {
-        return abi.encodePacked(
+        bytes memory header = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockValue,
             mockRecipient,
             mockInputToken,
             mockOutputToken,
             mockInputAmount,
-            mockOutputAmount,
+            mockOutputAmount
+        );
+        return abi.encodePacked(
+            header,
             mockDestinationChainId,
             mockExclusiveRelayer,
             mockFillDeadlineOffset,
@@ -621,6 +625,7 @@ contract BridgeHooks is Helpers {
 
     function _encodeDebridgePart1(DebridgeOrderData memory d) internal pure returns (bytes memory) {
         return abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             d.usePrevHookAmount,
             d.value,
             d.giveTokenAddress,
@@ -681,13 +686,17 @@ contract BridgeHooks is Helpers {
         uint256 giveAmount = mockInputAmount;
         uint256 takeAmount = mockOutputAmount;
 
-        return abi.encodePacked(
+        bytes memory part1a = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockValue, // value
             makerOrderNonce, // makerOrderNonce
             uint256(makerSrc.length), // makerSrc length
             makerSrc, // makerSrc
             uint256(giveTokenAddress.length), // giveTokenAddress length
-            giveTokenAddress, // giveTokenAddress
+            giveTokenAddress // giveTokenAddress
+        );
+        return abi.encodePacked(
+            part1a,
             giveAmount, // giveAmount
             uint256(1), // giveChainId
             mockDestinationChainId, // takeChainId

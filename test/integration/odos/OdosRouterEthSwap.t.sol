@@ -117,6 +117,7 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
             quoteOutputTokens[0] = QuoteOutputToken({ tokenAddress: token, proportion: 1 });
 
             bytes memory odosCalldata = abi.encodePacked(
+                bytes32(0), address(0), // 52-byte strategy header
                 address(0),
                 amount,
                 accountEth,
@@ -218,6 +219,7 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
             quoteOutputTokens[0] = QuoteOutputToken({ tokenAddress: token, proportion: 1 });
 
             bytes memory odosCalldata = abi.encodePacked(
+                bytes32(0), address(0), // 52-byte strategy header
                 address(0),
                 amount,
                 accountEth,

@@ -120,6 +120,7 @@ contract KyberSwapUnitTests is Helpers {
     function test_SwapHook_Build_DerivesZeroValueForErc20Input() public view {
         bytes memory txData_ = _buildKyberTxData();
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(outputToken),
             bytes32(uint256(1 ether)),
             bytes32(inputAmount),
@@ -140,6 +141,7 @@ contract KyberSwapUnitTests is Helpers {
         address native = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         bytes memory txData_ = _buildKyberTxDataWithTokens(native, outputToken, 1 ether, outputMin, approveTarget);
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(outputToken),
             bytes32(uint256(2 ether)),
             bytes32(uint256(1 ether)),
@@ -172,6 +174,7 @@ contract KyberSwapUnitTests is Helpers {
         address native = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         bytes memory txData_ = _buildKyberTxDataWithTokens(native, outputToken, 1 ether, outputMin, approveTarget);
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(outputToken),
             bytes32(uint256(0)),
             bytes32(uint256(1 ether)),
@@ -236,6 +239,7 @@ contract KyberSwapUnitTests is Helpers {
         // Build txData with approveTarget = address(0), should fallback to KYBER_ROUTER
         bytes memory txData_ = _buildKyberTxDataWithApproveTarget(address(0));
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
             bytes20(outputToken),
             bytes32(inputAmount),
@@ -314,6 +318,7 @@ contract KyberSwapUnitTests is Helpers {
         address NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         bytes memory txData_ = _buildKyberTxData();
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(NATIVE), // outputToken = native ETH
             bytes32(swapValue),
             bytes32(inputAmount),
@@ -334,6 +339,7 @@ contract KyberSwapUnitTests is Helpers {
         address NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         bytes memory txData_ = _buildKyberTxData();
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
             bytes20(NATIVE), // outputToken = native ETH at offset 20
             bytes32(inputAmount),
@@ -378,6 +384,7 @@ contract KyberSwapUnitTests is Helpers {
         // Build data with inputAmount=0 and usePrevHookAmount=true
         bytes memory txData_ = _buildKyberTxData();
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(outputToken),
             bytes32(swapValue),
             bytes32(uint256(0)), // inputAmount = 0 (originalAmount)
@@ -528,12 +535,12 @@ contract KyberSwapUnitTests is Helpers {
     function test_ApproveAndSwapKyberSwap_ReplaceCalldataAmounts_PreservesOtherFields() public view {
         bytes memory data = _buildApproveAndSwapData(false);
         bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(999));
-        // Verify bytes before AMOUNT_POSITION (40) are unchanged
-        for (uint256 i = 0; i < 40; i++) {
+        // Verify bytes before AMOUNT_POSITION (92) are unchanged (52-byte placeholder + inputToken(20) + outputToken(20))
+        for (uint256 i = 0; i < 92; i++) {
             assertEq(replaced[i], data[i]);
         }
-        // Verify bytes after AMOUNT_POSITION + 32 (72) are unchanged
-        for (uint256 i = 72; i < data.length; i++) {
+        // Verify bytes after AMOUNT_POSITION + 32 (124) are unchanged
+        for (uint256 i = 124; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
@@ -541,13 +548,13 @@ contract KyberSwapUnitTests is Helpers {
     function test_SwapKyberSwap_ReplaceCalldataAmounts_PreservesOtherFields() public view {
         bytes memory data = _buildSwapData(false);
         bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(999));
-        // SwapKyberSwapHook layout: outputToken(20) + value(32) + inputAmount(52,32) + ...
-        // Verify bytes before AMOUNT_POSITION (52) are unchanged
-        for (uint256 i = 0; i < 52; i++) {
+        // SwapKyberSwapHook layout: placeholder(52) + outputToken(20) + value(32) + inputAmount(32) + ...
+        // Verify bytes before AMOUNT_POSITION (104) are unchanged
+        for (uint256 i = 0; i < 104; i++) {
             assertEq(replaced[i], data[i]);
         }
-        // Verify bytes after AMOUNT_POSITION + 32 (84) are unchanged
-        for (uint256 i = 84; i < data.length; i++) {
+        // Verify bytes after AMOUNT_POSITION + 32 (136) are unchanged
+        for (uint256 i = 136; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
@@ -559,6 +566,7 @@ contract KyberSwapUnitTests is Helpers {
         bytes memory txData_ = _buildKyberTxData();
 
         return bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(outputToken),
             bytes32(swapValue),
             bytes32(inputAmount),
@@ -576,6 +584,7 @@ contract KyberSwapUnitTests is Helpers {
         bytes memory txData_ = _buildKyberTxData();
 
         return bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
             bytes20(outputToken),
             bytes32(inputAmount),

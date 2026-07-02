@@ -25,7 +25,8 @@ import {
 /// @notice Hook for executing swaps via any Uniswap V2-compatible router with approval handling
 /// @dev Handles: approve(0) -> approve(amount) -> swap -> approve(0) for ERC-20 inputs
 /// @dev Skips approval steps entirely when input is native token
-/// @dev data has the following structure:
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
 /// @dev         address tokenIn = BytesLib.toAddress(data, 0);
 /// @dev         address tokenOut = BytesLib.toAddress(data, 20);
 /// @dev         uint256 deadline = BytesLib.toUint256(data, 40);

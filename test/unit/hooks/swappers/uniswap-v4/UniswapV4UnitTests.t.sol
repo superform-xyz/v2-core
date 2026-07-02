@@ -64,10 +64,11 @@ contract UniswapV4UnitTests is Helpers {
         bytes memory data = _buildHookData(false);
         bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        for (uint256 i = 0; i < 120; i++) {
+        // AMOUNT_POSITION is 172 (52-byte placeholder + currency0(20) + currency1(20) + fee(4) + tickSpacing(4) + hooks(20) + dstReceiver(20) + sqrtPriceLimit(32))
+        for (uint256 i = 0; i < 172; i++) {
             assertEq(replaced[i], data[i]);
         }
-        for (uint256 i = 152; i < data.length; i++) {
+        for (uint256 i = 204; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
@@ -76,19 +77,23 @@ contract UniswapV4UnitTests is Helpers {
                               HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Builds hook data matching the UniswapV4 layout:
-    /// currency0(0) | currency1(20) | fee(40) | tickSpacing(44) | hooks(48) | dstReceiver(68) |
-    /// sqrtPriceLimitX96(88) | originalAmountIn(120) | originalMinAmountOut(152) |
-    /// maxSlippageDeviationBps(184) | zeroForOne(216) | usePrevHookAmount(217)
+    /// @dev Builds hook data matching the UniswapV4 layout (with 52-byte placeholder):
+    /// placeholder(0-51) | currency0(52) | currency1(72) | fee(92) | tickSpacing(96) | hooks(100) | dstReceiver(120) |
+    /// sqrtPriceLimitX96(140) | originalAmountIn(172) | originalMinAmountOut(204) |
+    /// maxSlippageDeviationBps(236) | zeroForOne(268) | usePrevHookAmount(269)
     function _buildHookData(bool usePrevHookAmount) internal view returns (bytes memory) {
-        return bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(currency0),
             bytes20(currency1),
             bytes4(fee),
             bytes4(uint32(tickSpacing)),
             bytes20(hooks),
             bytes20(dstReceiver),
-            bytes32(sqrtPriceLimitX96),
+            bytes32(sqrtPriceLimitX96)
+        );
+        return bytes.concat(
+            header,
             bytes32(originalAmountIn),
             bytes32(originalMinAmountOut),
             bytes32(maxSlippageDeviationBps),

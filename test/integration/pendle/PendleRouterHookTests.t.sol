@@ -368,6 +368,7 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
         returns (bytes memory)
     {
         return abi.encodePacked(
+            bytes32(0), address(0), // 52-byte strategy header
             amount,
             yt,
             pt,

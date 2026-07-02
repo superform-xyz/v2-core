@@ -150,6 +150,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_SupplyHook_Build_RevertIf_ZeroAmount() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, uint256(0), false
         );
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
@@ -158,6 +159,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_SupplyHook_Build_RevertIf_ZeroSpoke() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, address(0), supplyReserveId, borrowReserveId, amount, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -166,7 +168,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_SupplyHook_Build_RevertIf_ZeroLoanToken() public {
         bytes memory data = abi.encodePacked(
-            address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false
+            bytes(new bytes(52)), address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         supplyHook.build(address(0), address(this), data);
@@ -174,6 +176,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_SupplyHook_Build_RevertIf_ZeroCollateralToken() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, address(0), spoke, supplyReserveId, borrowReserveId, amount, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -194,7 +197,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_SupplyHook_Inspect_RevertIf_ZeroAddress() public {
         bytes memory data = abi.encodePacked(
-            address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false
+            bytes(new bytes(52)), address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         supplyHook.inspect(data);
@@ -270,6 +273,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_WithdrawHook_Build_RevertIf_ZeroAmount() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, uint256(0), false
         );
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
@@ -278,6 +282,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_WithdrawHook_Build_RevertIf_ZeroSpoke() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, address(0), supplyReserveId, borrowReserveId, amount, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -298,7 +303,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_WithdrawHook_Inspect_RevertIf_ZeroAddress() public {
         bytes memory data = abi.encodePacked(
-            address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false
+            bytes(new bytes(52)), address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         withdrawHook.inspect(data);
@@ -352,6 +357,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_BorrowHook_Build_RevertIf_ZeroAmount() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, uint256(0), false
         );
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
@@ -360,6 +366,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_BorrowHook_Build_RevertIf_ZeroSpoke() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, address(0), supplyReserveId, borrowReserveId, amount, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -380,7 +387,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_BorrowHook_Inspect_RevertIf_ZeroAddress() public {
         bytes memory data = abi.encodePacked(
-            address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false
+            bytes(new bytes(52)), address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         borrowHook.inspect(data);
@@ -453,6 +460,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_RepayHook_Build_RevertIf_ZeroAmount() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, uint256(0), false, false
         );
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
@@ -461,6 +469,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_RepayHook_Build_RevertIf_ZeroSpoke() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, address(0), supplyReserveId, borrowReserveId, amount, false, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -481,7 +490,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_RepayHook_Inspect_RevertIf_ZeroAddress() public {
         bytes memory data = abi.encodePacked(
-            address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false, false
+            bytes(new bytes(52)), address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         repayHook.inspect(data);
@@ -563,6 +572,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_SupplyAndBorrowHook_Build_RevertIf_ZeroSupplyAmount() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, uint256(0), false, borrowAmount
         );
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
@@ -571,6 +581,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_SupplyAndBorrowHook_Build_RevertIf_ZeroBorrowAmount() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false, uint256(0)
         );
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
@@ -579,6 +590,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_SupplyAndBorrowHook_Build_RevertIf_ZeroSpoke() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, address(0), supplyReserveId, borrowReserveId, amount, false, borrowAmount
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -599,7 +611,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_SupplyAndBorrowHook_Inspect_RevertIf_ZeroAddress() public {
         bytes memory data = abi.encodePacked(
-            address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false, borrowAmount
+            bytes(new bytes(52)), address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false, borrowAmount
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         supplyAndBorrowHook.inspect(data);
@@ -683,6 +695,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_RepayAndWithdrawHook_Build_RevertIf_ZeroRepayAmount() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, uint256(0), false, false, withdrawAmount
         );
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
@@ -691,6 +704,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_RepayAndWithdrawHook_Build_RevertIf_ZeroWithdrawAmount() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false, false, uint256(0)
         );
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
@@ -699,6 +713,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_RepayAndWithdrawHook_Build_RevertIf_ZeroSpoke() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken,
             collateralToken,
             address(0),
@@ -727,6 +742,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_RepayAndWithdrawHook_Inspect_RevertIf_ZeroAddress() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(0),
             collateralToken,
             spoke,
@@ -840,7 +856,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_WithdrawHook_Build_RevertIf_ZeroLoanToken() public {
         bytes memory data = abi.encodePacked(
-            address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false
+            bytes(new bytes(52)), address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         withdrawHook.build(address(0), address(this), data);
@@ -848,6 +864,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_WithdrawHook_Build_RevertIf_ZeroCollateralToken() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, address(0), spoke, supplyReserveId, borrowReserveId, amount, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -887,6 +904,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_WithdrawHook_Inspect_RevertIf_ZeroCollateralToken() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, address(0), spoke, supplyReserveId, borrowReserveId, amount, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -895,6 +913,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_WithdrawHook_Inspect_RevertIf_ZeroSpoke() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, address(0), supplyReserveId, borrowReserveId, amount, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -907,7 +926,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_BorrowHook_Build_RevertIf_ZeroLoanToken() public {
         bytes memory data = abi.encodePacked(
-            address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false
+            bytes(new bytes(52)), address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         borrowHook.build(address(0), address(this), data);
@@ -915,6 +934,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_BorrowHook_Build_RevertIf_ZeroCollateralToken() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, address(0), spoke, supplyReserveId, borrowReserveId, amount, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -954,6 +974,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_BorrowHook_Inspect_RevertIf_ZeroCollateralToken() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, address(0), spoke, supplyReserveId, borrowReserveId, amount, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -962,6 +983,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_BorrowHook_Inspect_RevertIf_ZeroSpoke() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, address(0), supplyReserveId, borrowReserveId, amount, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -987,7 +1009,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_RepayHook_Build_RevertIf_ZeroLoanToken() public {
         bytes memory data = abi.encodePacked(
-            address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false, false
+            bytes(new bytes(52)), address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         repayHook.build(address(0), address(this), data);
@@ -995,6 +1017,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_RepayHook_Build_RevertIf_ZeroCollateralToken() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, address(0), spoke, supplyReserveId, borrowReserveId, amount, false, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -1038,6 +1061,7 @@ contract AaveV4LoanHooksTest is Helpers {
     /// @notice Full repayment path should NOT check usePrevHookAmount or amount==0
     function test_RepayHook_Build_FullRepayment_IgnoresZeroAmount() public view {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, uint256(0), false, true
         );
         // Should NOT revert — full repayment path skips amount/prevHookAmount checks
@@ -1069,6 +1093,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_RepayHook_Inspect_RevertIf_ZeroCollateralToken() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, address(0), spoke, supplyReserveId, borrowReserveId, amount, false, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -1077,6 +1102,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_RepayHook_Inspect_RevertIf_ZeroSpoke() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, address(0), supplyReserveId, borrowReserveId, amount, false, false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -1089,7 +1115,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_SupplyAndBorrowHook_Build_RevertIf_ZeroLoanToken() public {
         bytes memory data = abi.encodePacked(
-            address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false, borrowAmount
+            bytes(new bytes(52)), address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false, borrowAmount
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         supplyAndBorrowHook.build(address(0), address(this), data);
@@ -1097,6 +1123,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_SupplyAndBorrowHook_Build_RevertIf_ZeroCollateralToken() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, address(0), spoke, supplyReserveId, borrowReserveId, amount, false, borrowAmount
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -1167,6 +1194,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_SupplyAndBorrowHook_Inspect_RevertIf_ZeroCollateralToken() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, address(0), spoke, supplyReserveId, borrowReserveId, amount, false, borrowAmount
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -1175,6 +1203,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_SupplyAndBorrowHook_Inspect_RevertIf_ZeroSpoke() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, address(0), supplyReserveId, borrowReserveId, amount, false, borrowAmount
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -1187,7 +1216,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_RepayAndWithdrawHook_Build_RevertIf_ZeroLoanToken() public {
         bytes memory data = abi.encodePacked(
-            address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false, false, withdrawAmount
+            bytes(new bytes(52)), address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, false, false, withdrawAmount
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         repayAndWithdrawHook.build(address(0), address(this), data);
@@ -1195,6 +1224,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_RepayAndWithdrawHook_Build_RevertIf_ZeroCollateralToken() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, address(0), spoke, supplyReserveId, borrowReserveId, amount, false, false, withdrawAmount
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -1248,6 +1278,7 @@ contract AaveV4LoanHooksTest is Helpers {
     /// @notice Full repayment path should NOT check usePrevHookAmount or amount/withdrawAmount==0
     function test_RepayAndWithdrawHook_Build_FullRepayment_IgnoresZeroAmounts() public view {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken,
             collateralToken,
             spoke,
@@ -1289,6 +1320,7 @@ contract AaveV4LoanHooksTest is Helpers {
         mockPrevHook.setOutAmount(0, address(this));
 
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, uint256(0), true, false, withdrawAmount
         );
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
@@ -1332,6 +1364,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_RepayAndWithdrawHook_Inspect_RevertIf_ZeroCollateralToken() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken,
             address(0),
             spoke,
@@ -1348,6 +1381,7 @@ contract AaveV4LoanHooksTest is Helpers {
 
     function test_RepayAndWithdrawHook_Inspect_RevertIf_ZeroSpoke() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken,
             collateralToken,
             address(0),
@@ -1372,6 +1406,7 @@ contract AaveV4LoanHooksTest is Helpers {
         mockPrevHook.setOutAmount(0, address(this));
 
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, uint256(0), true, false
         );
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
@@ -1629,19 +1664,29 @@ contract AaveV4LoanHooksTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function _encodeSupplyData(bool usePrevHook) internal view returns (bytes memory) {
-        return abi.encodePacked(loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, amount, usePrevHook);
+        return abi.encodePacked(
+            address(loanToken), address(collateralToken), bytes12(0),
+            loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, amount, usePrevHook
+        );
     }
 
     function _encodeWithdrawData(bool usePrevHook) internal view returns (bytes memory) {
-        return abi.encodePacked(loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, amount, usePrevHook);
+        return abi.encodePacked(
+            address(loanToken), address(collateralToken), bytes12(0),
+            loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, amount, usePrevHook
+        );
     }
 
     function _encodeBorrowData(bool usePrevHook) internal view returns (bytes memory) {
-        return abi.encodePacked(loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, amount, usePrevHook);
+        return abi.encodePacked(
+            address(loanToken), address(collateralToken), bytes12(0),
+            loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, amount, usePrevHook
+        );
     }
 
     function _encodeRepayData(bool usePrevHook, bool isFullRepayment) internal view returns (bytes memory) {
         return abi.encodePacked(
+            address(loanToken), address(collateralToken), bytes12(0),
             loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, amount, usePrevHook, isFullRepayment
         );
     }
@@ -1655,6 +1700,7 @@ contract AaveV4LoanHooksTest is Helpers {
         returns (bytes memory)
     {
         return abi.encodePacked(
+            address(loanToken), address(collateralToken), bytes12(0),
             loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, amount, usePrevHook, borrowAmt
         );
     }
@@ -1669,6 +1715,7 @@ contract AaveV4LoanHooksTest is Helpers {
         returns (bytes memory)
     {
         return abi.encodePacked(
+            address(loanToken), address(collateralToken), bytes12(0),
             loanToken,
             collateralToken,
             spoke,

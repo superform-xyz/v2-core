@@ -16,14 +16,15 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 /// @author Superform Labs
 /// @dev Withdraws supplied loan assets (lend-side) via IMorphoBase.withdraw.
 ///      To withdraw posted collateral use MorphoRepayAndWithdrawHook (IMorphoBase.withdrawCollateral).
-/// @dev data has the following structure
-/// @notice         address loanToken = BytesLib.toAddress(data, 0);
-/// @notice         address collateralToken = BytesLib.toAddress(data, 20);
-/// @notice         address oracle = BytesLib.toAddress(data, 40);
-/// @notice         address irm = BytesLib.toAddress(data, 60);
-/// @notice         uint256 lltv = BytesLib.toUint256(data, 80);
-/// @notice         uint256 assets = BytesLib.toUint256(data, 112);
-/// @notice         uint256 shares = BytesLib.toUint256(data, 144);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address loanToken = BytesLib.toAddress(data, 52);
+/// @notice         address collateralToken = BytesLib.toAddress(data, 72);
+/// @notice         address oracle = BytesLib.toAddress(data, 92);
+/// @notice         address irm = BytesLib.toAddress(data, 112);
+/// @notice         uint256 lltv = BytesLib.toUint256(data, 132);
+/// @notice         uint256 assets = BytesLib.toUint256(data, 164);
+/// @notice         uint256 shares = BytesLib.toUint256(data, 196);
 /// @dev NOTE: This hook has no usePrevHookAmount field. The inherited decodeUsePrevHookAmount
 ///      is overridden to return false — offset 144 is the shares uint256, not a bool.
 /// @dev Both onBehalf and receiver are always set to account (consistent with all other Morpho hooks)
@@ -36,13 +37,13 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
     uint256 private constant MIN_DATA_LENGTH = 176;
 
     /// @notice Byte offset for lltv uint256
-    uint256 private constant WITHDRAW_LLTV_OFFSET = 80;
+    uint256 private constant WITHDRAW_LLTV_OFFSET = 132;
 
     /// @notice Byte offset for assets uint256
-    uint256 private constant ASSETS_OFFSET = 112;
+    uint256 private constant ASSETS_OFFSET = 164;
 
     /// @notice Byte offset for shares uint256
-    uint256 private constant SHARES_OFFSET = 144;
+    uint256 private constant SHARES_OFFSET = 196;
 
     /*//////////////////////////////////////////////////////////////
                                STRUCTS

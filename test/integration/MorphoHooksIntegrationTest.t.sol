@@ -163,7 +163,7 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         repayAndWithdrawHookAddresses[0] = repayAndWithdrawHookAddress;
 
         bytes[] memory repayAndWithdrawHookData = new bytes[](1);
-        repayAndWithdrawHookData[0] = abi.encodePacked(
+        repayAndWithdrawHookData[0] = _createMorphoRepayAndWithdrawHookData(
             loanToken,
             collateralToken,
             MORPHO_ORACLE_WBTC_USDC,
@@ -225,7 +225,7 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         address collateralToken = CHAIN_1_WBTC;
         uint256 originalAmount = 500_000;
 
-        bytes memory hookData = abi.encodePacked(
+        bytes memory hookData = _createMorphoRepayAndWithdrawHookData(
             loanToken,
             collateralToken,
             MORPHO_ORACLE_WBTC_USDC,

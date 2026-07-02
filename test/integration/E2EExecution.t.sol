@@ -248,38 +248,14 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             //   but test demonstrates you can now pass 2 different proofs
             //   for 2 different chains
             // Build across data.
-            testData.hooksData[2] = abi.encodePacked(
-                testData.zero,
-                /// uint256 value = BytesLib.toUint256(data, 0);
+            testData.hooksData[2] = _buildAcrossHookDataInline(
                 nexusAccount,
-                /// address recipient = BytesLib.toAddress(data, 32);
                 CHAIN_1_USDC,
-                /// address inputToken = BytesLib.toAddress(data, 52);
-                CHAIN_1_USDC,
-                /// address outputToken = BytesLib.toAddress(data, 72);
                 uint256(100e6),
-                /// uint256 inputAmount = BytesLib.toUint256(data, 92);
-                uint256(100e6),
-                /// uint256 outputAmount = BytesLib.toUint256(data, 124);
+                testData.zero,
                 testData.ten,
-                /// uint256 destinationChainId = BytesLib.toUint256(data, 156);
-                address(0),
-                /// address exclusiveRelayer = BytesLib.toAddress(data, 188);
-                uint32(testData.zero),
-                /// uint32 fillDeadlineOffset = BytesLib.toUint32(data, 208);
-                uint32(testData.zero),
-                /// uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
-                false,
-                /// bool usePrevHookAmount = _decodeBool(data, 216);
-                abi.encode(
-                    message.initData,
-                    message.executorCalldata,
-                    message._account,
-                    message.dstTokens,
-                    message.intentAmounts
-                )
+                message
             );
-            /// bytes destinationMessage = BytesLib.slice(data, 217, data.length - 217);
         }
 
         {
@@ -288,38 +264,14 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             message.executorCalldata = hex"dddddddd"; // executor callData changes for destination
 
             testData.ten = 11;
-            testData.hooksData[3] = abi.encodePacked(
-                testData.zero,
-                /// uint256 value = BytesLib.toUint256(data, 0);
+            testData.hooksData[3] = _buildAcrossHookDataInline(
                 nexusAccount,
-                /// address recipient = BytesLib.toAddress(data, 32);
                 CHAIN_1_WETH,
-                /// address inputToken = BytesLib.toAddress(data, 52);
-                CHAIN_1_WETH,
-                /// address outputToken = BytesLib.toAddress(data, 72);
                 uint256(100e6),
-                /// uint256 inputAmount = BytesLib.toUint256(data, 92);
-                uint256(100e6),
-                /// uint256 outputAmount = BytesLib.toUint256(data, 124);
+                testData.zero,
                 testData.ten,
-                /// uint256 destinationChainId = BytesLib.toUint256(data, 156);
-                address(0),
-                /// address exclusiveRelayer = BytesLib.toAddress(data, 188);
-                uint32(testData.zero),
-                /// uint32 fillDeadlineOffset = BytesLib.toUint32(data, 208);
-                uint32(testData.zero),
-                /// uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
-                false,
-                /// bool usePrevHookAmount = _decodeBool(data, 216);
-                abi.encode(
-                    message.initData,
-                    message.executorCalldata,
-                    message._account,
-                    message.dstTokens,
-                    message.intentAmounts
-                )
+                message
             );
-            /// bytes destinationMessage = BytesLib.slice(data, 217, data.length - 217);
         }
 
         // prepare data & execute through entry point
@@ -630,18 +582,20 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     {
         bytes memory messageData = _encodeMessageData(message);
         return abi.encodePacked(
-            zero,
-            nexusAccount,
-            token,
-            token,
-            amount,
-            amount,
-            ten,
-            address(0),
-            uint32(zero),
-            uint32(zero),
-            false,
-            messageData
+            zero,       // bytes32 yieldSourceOracleId (52-byte header start)
+            nexusAccount, // address yieldSource (52-byte header end, 20 bytes)
+            zero,       // uint256 value at position 52
+            nexusAccount, // address recipient at position 84
+            token,      // address inputToken at position 104
+            token,      // address outputToken at position 124
+            amount,     // uint256 inputAmount at position 144
+            amount,     // uint256 outputAmount at position 176
+            ten,        // uint256 destinationChainId at position 208
+            address(0), // address exclusiveRelayer at position 240
+            uint32(zero), // uint32 fillDeadlineOffset at position 260
+            uint32(zero), // uint32 exclusivityPeriod at position 264
+            false,      // bool usePrevHookAmount at position 268
+            messageData // bytes destinationMessage at position 269+
         );
     }
 
@@ -719,6 +673,45 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         proofDst[0] = ISuperValidator.DstProof({ proof: proof[1], dstChainId: uint64(block.chainid), info: dstInfo });
 
         sigData = abi.encode(chainsWithDestExecution, validUntil, 0, root, proof[0], proofDst, signature);
+    }
+
+    /// @dev Builds Across hook data with the mandatory 52-byte strategy header prepended.
+    /// Layout (after 52-byte header): value(32) | recipient(20) | inputToken(20) | outputToken(20) |
+    ///   inputAmount(32) | outputAmount(32) | destinationChainId(32) | exclusiveRelayer(20) |
+    ///   fillDeadlineOffset(4) | exclusivityPeriod(4) | usePrevHookAmount(1) | destinationMessage
+    function _buildAcrossHookDataInline(
+        address nexusAccount,
+        address token,
+        uint256 amount,
+        uint256 zero,
+        uint256 destinationChainId,
+        DestinationMessage memory message
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory header = abi.encodePacked(
+            bytes32(0), // yieldSourceOracleId (32 bytes)
+            address(0)  // yieldSource (20 bytes) = 52 bytes total header
+        );
+        bytes memory body1 = abi.encodePacked(
+            zero,           // uint256 value at offset 52
+            nexusAccount,   // address recipient at offset 84
+            token,          // address inputToken at offset 104
+            token,          // address outputToken at offset 124
+            amount,         // uint256 inputAmount at offset 144
+            amount          // uint256 outputAmount at offset 176
+        );
+        bytes memory body2 = abi.encodePacked(
+            destinationChainId,   // uint256 destinationChainId at offset 208
+            address(0),           // address exclusiveRelayer at offset 240
+            uint32(zero),         // uint32 fillDeadlineOffset at offset 260
+            uint32(zero),         // uint32 exclusivityPeriod at offset 264
+            false,                // bool usePrevHookAmount at offset 268
+            abi.encode(message.initData, message.executorCalldata, message._account, message.dstTokens, message.intentAmounts)
+        );
+        return bytes.concat(header, body1, body2);
     }
 
     function _prepareUserOpNonce(address nexusAccount, address token) internal view returns (uint256 nonce) {

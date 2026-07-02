@@ -846,6 +846,8 @@ contract CCTPHooksFork is Helpers {
         returns (bytes memory)
     {
         return abi.encodePacked(
+            bytes32(0),
+            address(0),
             burnToken,
             amount,
             destinationDomain,
@@ -1200,6 +1202,8 @@ contract CCTPHooksForkE2E is Helpers {
         returns (bytes memory)
     {
         return abi.encodePacked(
+            bytes32(0),
+            address(0),
             burnToken,
             amount,
             destinationDomain,

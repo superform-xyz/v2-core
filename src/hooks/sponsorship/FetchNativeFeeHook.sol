@@ -15,9 +15,10 @@ import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../interfaces/ISu
 /// @author Superform Labs
 /// @notice Withdraws sponsored native ETH from NativeFeeSponsorship before bridge operations
 /// @dev Designed to be placed immediately before a Stargate bridge hook in the execution chain
-/// @dev data layout (52 bytes, abi.encodePacked):
-///      address sponsor = BytesLib.toAddress(data, 0);
-///      uint256 amount = BytesLib.toUint256(data, 20);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address sponsor = BytesLib.toAddress(data, 52);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 72);
 contract FetchNativeFeeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -37,9 +38,9 @@ contract FetchNativeFeeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutf
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    uint256 private constant SPONSOR_POSITION = 0;
-    uint256 private constant AMOUNT_POSITION = 20;
-    uint256 private constant MIN_DATA_LENGTH = 52; // 20 (address) + 32 (uint256)
+    uint256 private constant SPONSOR_POSITION = 52;
+    uint256 private constant AMOUNT_POSITION = 72;
+    uint256 private constant MIN_DATA_LENGTH = 104; // 52 (header) + 20 (address) + 32 (uint256)
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR

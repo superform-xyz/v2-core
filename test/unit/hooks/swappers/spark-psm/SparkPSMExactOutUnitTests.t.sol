@@ -97,7 +97,7 @@ contract SparkPSMExactOutTest is Helpers {
     }
 
     function test_SwapHook_Build_RevertIf_InvalidHookData() public {
-        bytes memory shortData = new bytes(156); // Less than 157
+        bytes memory shortData = new bytes(208); // Less than 209
         vm.expectRevert(SwapSparkPSMExactOutHook.INVALID_HOOK_DATA.selector);
         swapHook.build(address(prevHook), account, shortData);
     }
@@ -191,7 +191,7 @@ contract SparkPSMExactOutTest is Helpers {
     }
 
     function test_ApproveAndSwapHook_Build_RevertIf_InvalidHookData() public {
-        bytes memory shortData = new bytes(156);
+        bytes memory shortData = new bytes(208);
         vm.expectRevert(ApproveAndSwapSparkPSMExactOutHook.INVALID_HOOK_DATA.selector);
         approveAndSwapHook.build(address(prevHook), account, shortData);
     }
@@ -240,7 +240,7 @@ contract SparkPSMExactOutTest is Helpers {
 
     function test_SwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 157);
+        assertEq(data.length, 209);
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
@@ -248,7 +248,7 @@ contract SparkPSMExactOutTest is Helpers {
 
     function test_ApproveAndSwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 157);
+        assertEq(data.length, 209);
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
@@ -484,6 +484,7 @@ contract SparkPSMExactOutTest is Helpers {
         address differentReceiver = address(0xBEEF);
 
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(assetIn),
             bytes20(assetOut),
             bytes32(originalAmountOut),
@@ -509,6 +510,7 @@ contract SparkPSMExactOutTest is Helpers {
         address differentReceiver = address(0xBEEF);
 
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(assetIn),
             bytes20(assetOut),
             bytes32(originalAmountOut),
@@ -742,10 +744,11 @@ contract SparkPSMExactOutTest is Helpers {
         bytes memory data = _buildHookData(false);
         bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        for (uint256 i = 0; i < 40; i++) {
+        // AMOUNT_POSITION is 92 (52-byte placeholder + assetIn(20) + assetOut(20))
+        for (uint256 i = 0; i < 92; i++) {
             assertEq(replaced[i], data[i]);
         }
-        for (uint256 i = 72; i < data.length; i++) {
+        for (uint256 i = 124; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
@@ -768,13 +771,14 @@ contract SparkPSMExactOutTest is Helpers {
         returns (bytes memory)
     {
         return bytes.concat(
-            bytes20(_assetIn), // 0-19
-            bytes20(_assetOut), // 20-39
-            bytes32(originalAmountOut), // 40-71
-            bytes32(originalMaxAmountIn), // 72-103
-            bytes20(receiver), // 104-123
-            bytes32(referralCode), // 124-155
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00) // 156
+            bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(_assetIn), // 52-71
+            bytes20(_assetOut), // 72-91
+            bytes32(originalAmountOut), // 92-123
+            bytes32(originalMaxAmountIn), // 124-155
+            bytes20(receiver), // 156-175
+            bytes32(referralCode), // 176-207
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00) // 208
         );
     }
 
@@ -788,6 +792,7 @@ contract SparkPSMExactOutTest is Helpers {
         returns (bytes memory)
     {
         return bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(assetIn),
             bytes20(assetOut),
             bytes32(_amountOut),

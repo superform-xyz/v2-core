@@ -137,9 +137,8 @@ compatibleProtocols:
   ClaimRFLRHook: [flare-rflr]
   WithdrawRFLRHook: [flare-rflr]
   WithdrawVestedRFLRHook: [flare-rflr]
-  # WETH
-  DepositWETHHook: [weth]
-  WithdrawWETHHook: [weth]
+  # WETH/WFLR
+  WrappedNativeHook: [weth]
   # Token ops
   TransferERC20Hook: [erc20]
   ApproveERC20Hook: [erc20]

@@ -19,7 +19,17 @@ import { IAlgebraSwapRouter } from "../../../vendor/algebra-integral/IAlgebraSwa
 /// @author Superform Labs
 /// @notice Hook for executing swaps via Algebra Integral with approval handling
 /// @dev Handles: approve(0) -> approve(amount) -> swap -> approve(0)
-/// @dev data structure same as SwapAlgebraIntegralHook
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address tokenIn = BytesLib.toAddress(data, 52);
+/// @notice         address tokenOut = BytesLib.toAddress(data, 72);
+/// @notice         address deployer = BytesLib.toAddress(data, 92);
+/// @notice         address recipient = BytesLib.toAddress(data, 112);
+/// @notice         uint256 deadline = BytesLib.toUint256(data, 132);
+/// @notice         uint160 limitSqrtPrice = uint160(BytesLib.toUint256(data, 164));
+/// @notice         uint256 originalAmountIn = BytesLib.toUint256(data, 196);
+/// @notice         uint256 originalMinAmountOut = BytesLib.toUint256(data, 228);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 260);
 contract ApproveAndSwapAlgebraIntegralHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using BytesLib for bytes;
 
@@ -31,12 +41,12 @@ contract ApproveAndSwapAlgebraIntegralHook is BaseHook, ISuperHookContextAware, 
     IAlgebraSwapRouter public immutable SWAP_ROUTER;
 
     /// @notice Position of usePrevHookAmount flag in hook data
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 208;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 260;
 
-    uint256 private constant AMOUNT_POSITION = 144;
+    uint256 private constant AMOUNT_POSITION = 196;
 
-    /// @notice Minimum required hook data length (208 bytes of params + 1 byte for usePrevHookAmount flag)
-    uint256 private constant MIN_HOOK_DATA_LENGTH = 209;
+    /// @notice Minimum required hook data length (52-byte header + 208 bytes of params + 1 byte for usePrevHookAmount flag)
+    uint256 private constant MIN_HOOK_DATA_LENGTH = 261;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -151,13 +161,13 @@ contract ApproveAndSwapAlgebraIntegralHook is BaseHook, ISuperHookContextAware, 
 
     /// @inheritdoc BaseHook
     function _preExecute(address, address account, bytes calldata data) internal override {
-        address tokenOut = data.toAddress(20);
+        address tokenOut = data.toAddress(72);
         _setOutAmount(IERC20(tokenOut).balanceOf(account), account);
     }
 
     /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
-        address tokenOut = data.toAddress(20);
+        address tokenOut = data.toAddress(72);
         uint256 finalBalance = IERC20(tokenOut).balanceOf(account);
         uint256 initialBalance = getOutAmount(account);
         if (finalBalance < initialBalance) revert AMOUNT_NOT_VALID();
@@ -207,7 +217,7 @@ contract ApproveAndSwapAlgebraIntegralHook is BaseHook, ISuperHookContextAware, 
 
     /// @inheritdoc BaseHook
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        address tokenOut = data.toAddress(20);
+        address tokenOut = data.toAddress(72);
         return abi.encodePacked(tokenOut);
     }
 
@@ -238,27 +248,27 @@ contract ApproveAndSwapAlgebraIntegralHook is BaseHook, ISuperHookContextAware, 
             uint256 amountOutMinimum
         )
     {
-        tokenIn = data.toAddress(0);
-        tokenOut = data.toAddress(20);
+        tokenIn = data.toAddress(52);
+        tokenOut = data.toAddress(72);
 
         // Native ETH not supported - use WETH instead
         if (tokenIn == address(0) || tokenOut == address(0)) revert NATIVE_ETH_NOT_SUPPORTED();
         if (tokenIn == tokenOut) revert INVALID_HOOK_DATA();
 
-        deployer = data.toAddress(40);
+        deployer = data.toAddress(92);
         // Force recipient to account - balance tracking in _preExecute/_postExecute
         // requires output tokens to go to account for usePrevHookAmount to work
         recipient = account;
-        deadline = data.toUint256(80);
+        deadline = data.toUint256(132);
 
         // Validate deadline hasn't passed
         if (deadline < block.timestamp) revert EXPIRED_DEADLINE(deadline, block.timestamp);
 
         // limitSqrtPrice: 0 means no price limit (swap executes at any price)
-        limitSqrtPrice = uint160(data.toUint256(112));
+        limitSqrtPrice = uint160(data.toUint256(164));
 
-        uint256 originalAmountIn = data.toUint256(144);
-        uint256 originalMinAmountOut = data.toUint256(176);
+        uint256 originalAmountIn = data.toUint256(196);
+        uint256 originalMinAmountOut = data.toUint256(228);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {

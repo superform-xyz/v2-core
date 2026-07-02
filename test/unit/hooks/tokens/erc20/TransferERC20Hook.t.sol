@@ -126,15 +126,15 @@ contract TransferERC20HookTest is Helpers {
         bytes memory data = _encodeData(false);
         bytes memory replaced = hook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        for (uint256 i = 0; i < 40; i++) {
+        for (uint256 i = 0; i < 92; i++) {
             assertEq(replaced[i], data[i]);
         }
-        for (uint256 i = 72; i < data.length; i++) {
+        for (uint256 i = 124; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
 
     function _encodeData(bool usePrev) internal view returns (bytes memory) {
-        return abi.encodePacked(token, to, amount, usePrev);
+        return abi.encodePacked(bytes(new bytes(52)), token, to, amount, usePrev);
     }
 }

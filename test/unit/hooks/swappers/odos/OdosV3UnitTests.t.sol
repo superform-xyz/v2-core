@@ -993,13 +993,17 @@ contract OdosV3UnitTests is Helpers {
         uint64 testFee = 1e16;
         address testRecipient = address(0xCAFE);
 
-        bytes memory data = bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(address(0)), // native ETH
             bytes32(inputAmount),
             bytes20(inputReceiver),
             bytes20(outputToken),
             bytes32(outputQuote),
-            bytes32(outputMin),
+            bytes32(outputMin)
+        );
+        bytes memory data = bytes.concat(
+            header,
             bytes1(uint8(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
@@ -1260,10 +1264,11 @@ contract OdosV3UnitTests is Helpers {
         bytes memory data = _buildSwapOdosV3Data(false);
         bytes memory replaced = swapOdosV3Hook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        for (uint256 i = 0; i < 20; i++) {
+        // AMOUNT_POSITION is 72 (52-byte placeholder + inputToken(20))
+        for (uint256 i = 0; i < 72; i++) {
             assertEq(replaced[i], data[i]);
         }
-        for (uint256 i = 52; i < data.length; i++) {
+        for (uint256 i = 104; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
@@ -1271,13 +1276,17 @@ contract OdosV3UnitTests is Helpers {
     // ========================== Data Builders ==========================
 
     function _buildSwapOdosV3Data(bool usePrevious) internal view returns (bytes memory) {
-        return bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
             bytes32(inputAmount),
             bytes20(inputReceiver),
             bytes20(outputToken),
             bytes32(outputQuote),
-            bytes32(outputMin),
+            bytes32(outputMin)
+        );
+        return bytes.concat(
+            header,
             usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
@@ -1289,13 +1298,17 @@ contract OdosV3UnitTests is Helpers {
     }
 
     function _buildApproveAndSwapOdosV3Data(bool usePrevious) internal view returns (bytes memory) {
-        return bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
             bytes32(inputAmount),
             bytes20(inputReceiver),
             bytes20(outputToken),
             bytes32(outputQuote),
-            bytes32(outputMin),
+            bytes32(outputMin)
+        );
+        return bytes.concat(
+            header,
             usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
@@ -1307,13 +1320,17 @@ contract OdosV3UnitTests is Helpers {
     }
 
     function _buildNativeInputV3Data(bool usePrevious) internal view returns (bytes memory) {
-        return bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(address(0)), // native ETH input
             bytes32(inputAmount),
             bytes20(inputReceiver),
             bytes20(outputToken),
             bytes32(outputQuote),
-            bytes32(outputMin),
+            bytes32(outputMin)
+        );
+        return bytes.concat(
+            header,
             usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
@@ -1329,13 +1346,17 @@ contract OdosV3UnitTests is Helpers {
     }
 
     function _buildNativeOutputV3Data(bool usePrevious) internal view returns (bytes memory) {
-        return bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
             bytes32(inputAmount),
             bytes20(inputReceiver),
             bytes20(address(0)), // native ETH output
             bytes32(outputQuote),
-            bytes32(outputMin),
+            bytes32(outputMin)
+        );
+        return bytes.concat(
+            header,
             usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
@@ -1357,13 +1378,17 @@ contract OdosV3UnitTests is Helpers {
         view
         returns (bytes memory)
     {
-        return bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(_inputToken),
             bytes32(_inputAmount),
             bytes20(inputReceiver),
             bytes20(outputToken),
             bytes32(_outputQuote),
-            bytes32(_outputMin),
+            bytes32(_outputMin)
+        );
+        return bytes.concat(
+            header,
             usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
@@ -1385,13 +1410,17 @@ contract OdosV3UnitTests is Helpers {
         view
         returns (bytes memory)
     {
-        return bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(_inputToken),
             bytes32(_inputAmount),
             bytes20(inputReceiver),
             bytes20(outputToken),
             bytes32(_outputQuote),
-            bytes32(_outputMin),
+            bytes32(_outputMin)
+        );
+        return bytes.concat(
+            header,
             usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
@@ -1412,13 +1441,17 @@ contract OdosV3UnitTests is Helpers {
         view
         returns (bytes memory)
     {
-        return bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(_inputToken),
             bytes32(inputAmount),
             bytes20(inputReceiver),
             bytes20(outputToken),
             bytes32(outputQuote),
-            bytes32(outputMin),
+            bytes32(outputMin)
+        );
+        return bytes.concat(
+            header,
             usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
@@ -1440,13 +1473,17 @@ contract OdosV3UnitTests is Helpers {
         view
         returns (bytes memory)
     {
-        return bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(_inputToken),
             bytes32(inputAmount),
             bytes20(inputReceiver),
             bytes20(outputToken),
             bytes32(outputQuote),
-            bytes32(outputMin),
+            bytes32(outputMin)
+        );
+        return bytes.concat(
+            header,
             usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
@@ -1466,13 +1503,17 @@ contract OdosV3UnitTests is Helpers {
         view
         returns (bytes memory)
     {
-        return bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(_inputToken),
             bytes32(inputAmount),
             bytes20(inputReceiver),
             bytes20(outputToken),
             bytes32(outputQuote),
-            bytes32(outputMin),
+            bytes32(outputMin)
+        );
+        return bytes.concat(
+            header,
             usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(_pathDefinition.length),
             _pathDefinition,

@@ -151,7 +151,7 @@ abstract contract InternalHelpers is Test {
         bytes memory _calldata =
             abi.encodeWithSelector(I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, data);
 
-        return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
+        return abi.encodePacked(bytes(new bytes(52)), dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
     }
 
     function _create1InchUnoswapToHookData(
@@ -177,7 +177,7 @@ abstract contract InternalHelpers is Test {
             dex
         );
 
-        return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
+        return abi.encodePacked(bytes(new bytes(52)), dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
     }
 
     function _create1InchClipperSwapToHookData(
@@ -205,7 +205,7 @@ abstract contract InternalHelpers is Test {
             bytes32(0)
         );
 
-        return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
+        return abi.encodePacked(bytes(new bytes(52)), dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
     }
 
     function _createOdosSwapHookData(
@@ -225,6 +225,7 @@ abstract contract InternalHelpers is Test {
         returns (bytes memory hookData)
     {
         hookData = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte strategy header
             inputToken,
             inputAmount,
             inputReceiver,
@@ -257,13 +258,19 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory hookData)
     {
-        hookData = bytes.concat(
+        // Split into two parts to avoid stack-too-deep with 15 arguments
+        bytes memory part1 = bytes.concat(
+            bytes32(0), // yieldSourceOracleId (52-byte strategy header)
+            bytes20(address(0)), // yieldSource (52-byte strategy header)
             bytes20(inputToken),
             bytes32(inputAmount),
             bytes20(inputReceiver),
             bytes20(outputToken),
             bytes32(outputQuote),
-            bytes32(outputMin),
+            bytes32(outputMin)
+        );
+        hookData = bytes.concat(
+            part1,
             bytes1(usePrevHookAmount ? uint8(1) : uint8(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
@@ -394,7 +401,7 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(token, spender, amount, usePrevHookAmount);
+        hookData = abi.encodePacked(bytes(new bytes(52)), token, spender, amount, usePrevHookAmount);
     }
 
     function _createApproveAndLockVaultBankHookData(
@@ -671,8 +678,9 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory)
     {
-        return
-            abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, ltvRatio, usePrevHookAmount, lltv, false);
+        return abi.encodePacked(
+            loanToken, collateralToken, bytes12(0), loanToken, collateralToken, oracle, irm, amount, ltvRatio, usePrevHookAmount, lltv, false
+        );
     }
 
     function _createMorphoBorrowHookData(
@@ -689,8 +697,9 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory)
     {
-        return
-            abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, ltvRatio, usePrevHookAmount, lltv, false);
+        return abi.encodePacked(
+            loanToken, collateralToken, bytes12(0), loanToken, collateralToken, oracle, irm, amount, ltvRatio, usePrevHookAmount, lltv, false
+        );
     }
 
     function _createMorphoRepayHookData(
@@ -707,8 +716,9 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory)
     {
-        return
-            abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment);
+        return abi.encodePacked(
+            loanToken, collateralToken, bytes12(0), loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment
+        );
     }
 
     function _createMorphoRepayAndWithdrawHookData(
@@ -725,8 +735,9 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory)
     {
-        return
-            abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment);
+        return abi.encodePacked(
+            loanToken, collateralToken, bytes12(0), loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment
+        );
     }
 
     function _createBatchTransferFromHookData(
@@ -758,7 +769,8 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory data)
     {
-        data = abi.encodePacked(from, arrayLength, sigDeadline);
+        // 52-byte strategy header (bytes32 yieldSourceOracleId + address yieldSource)
+        data = abi.encodePacked(bytes32(0), address(0), from, arrayLength, sigDeadline);
 
         // Directly encode the token addresses as bytes
         for (uint256 i = 0; i < arrayLength; i++) {
@@ -788,7 +800,8 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory data)
     {
-        data = abi.encodePacked(token, to, amount, usePrevHookAmount);
+        // 52-byte strategy header (bytes32 yieldSourceOracleId + address yieldSource)
+        data = abi.encodePacked(bytes32(0), address(0), token, to, amount, usePrevHookAmount);
     }
 
     function _createOfframpTokensHookData(
@@ -799,9 +812,8 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory data)
     {
-        // First 20 bytes: to address
-        // Rest: abi encoded tokens array
-        data = abi.encodePacked(to, abi.encode(tokens));
+        // 52-byte strategy header (bytes 0-51) + to address (bytes 52-71) + abi encoded tokens array (bytes 72+)
+        data = abi.encodePacked(bytes32(0), address(0), to, abi.encode(tokens));
     }
 
     function _createDebrigeCancelOrderData(
@@ -958,8 +970,8 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory data)
     {
-        // Encode feeReceiver and feePercent first
-        data = bytes.concat(bytes20(feeReceiver), abi.encodePacked(feePercent));
+        // Encode 52-byte placeholder prefix, then feeReceiver and feePercent
+        data = bytes.concat(bytes(new bytes(52)), bytes20(feeReceiver), abi.encodePacked(feePercent));
         
         // Then encode the array length
         data = bytes.concat(data, abi.encodePacked(uint256(tokens.length)));

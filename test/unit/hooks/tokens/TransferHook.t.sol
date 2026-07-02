@@ -95,7 +95,7 @@ contract TransferHookTest is Helpers {
 
     function test_Build_RevertIf_AmountZero() public {
         uint256 zeroAmount = 0;
-        bytes memory data = abi.encodePacked(token, to, zeroAmount, false);
+        bytes memory data = abi.encodePacked(bytes(new bytes(52)), token, to, zeroAmount, false);
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         hook.build(address(0), address(this), data);
     }
@@ -171,15 +171,15 @@ contract TransferHookTest is Helpers {
         bytes memory data = _encodeData(token, false);
         bytes memory replaced = hook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        for (uint256 i = 0; i < 40; i++) {
+        for (uint256 i = 0; i < 92; i++) {
             assertEq(replaced[i], data[i]);
         }
-        for (uint256 i = 72; i < data.length; i++) {
+        for (uint256 i = 124; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
 
     function _encodeData(address tokenAddress, bool usePrev) internal view returns (bytes memory) {
-        return abi.encodePacked(tokenAddress, to, amount, usePrev);
+        return abi.encodePacked(bytes(new bytes(52)), tokenAddress, to, amount, usePrev);
     }
 }

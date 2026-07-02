@@ -248,9 +248,9 @@ contract UniswapV3HookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_SwapHook_Build_ExactMinimumDataLength() public view {
-        // Test with exactly 193 bytes (minimum valid length)
+        // Test with exactly 245 bytes (minimum valid length: 52-byte header + 193 hook-specific bytes)
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 193);
+        assertEq(data.length, 245);
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
@@ -258,7 +258,7 @@ contract UniswapV3HookTest is Helpers {
 
     function test_ApproveAndSwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 193);
+        assertEq(data.length, 245);
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
@@ -464,10 +464,11 @@ contract UniswapV3HookTest is Helpers {
         bytes memory data = _buildHookData(false);
         bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        for (uint256 i = 0; i < 128; i++) {
+        // AMOUNT_POSITION is 180 (52-byte placeholder + tokenIn(20) + tokenOut(20) + fee(4) + recipient(20) + deadline(32) + sqrtPriceLimit(32))
+        for (uint256 i = 0; i < 180; i++) {
             assertEq(replaced[i], data[i]);
         }
-        for (uint256 i = 160; i < data.length; i++) {
+        for (uint256 i = 212; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
@@ -478,20 +479,22 @@ contract UniswapV3HookTest is Helpers {
 
     function _buildHookData(bool usePrevHookAmount) internal view returns (bytes memory) {
         return bytes.concat(
-            bytes20(tokenIn), // 0-19
-            bytes20(tokenOut), // 20-39
-            bytes4(uint32(fee)), // 40-43
-            bytes20(recipient), // 44-63
-            bytes32(deadline), // 64-95
-            bytes32(uint256(sqrtPriceLimitX96)), // 96-127
-            bytes32(originalAmountIn), // 128-159
-            bytes32(originalMinAmountOut), // 160-191
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00) // 192
+            bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(tokenIn), // 52-71
+            bytes20(tokenOut), // 72-91
+            bytes4(uint32(fee)), // 92-95
+            bytes20(recipient), // 96-115
+            bytes32(deadline), // 116-147
+            bytes32(uint256(sqrtPriceLimitX96)), // 148-179
+            bytes32(originalAmountIn), // 180-211
+            bytes32(originalMinAmountOut), // 212-243
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00) // 244
         );
     }
 
     function _buildHookDataWithFee(uint24 _fee) internal view returns (bytes memory) {
         return bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(tokenOut),
             bytes4(uint32(_fee)),
@@ -514,6 +517,7 @@ contract UniswapV3HookTest is Helpers {
         returns (bytes memory)
     {
         return bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(tokenOut),
             bytes4(uint32(fee)),
@@ -759,6 +763,7 @@ contract UniswapV3HookTest is Helpers {
 
     function test_SwapHook_RevertIf_NativeETH_TokenIn() public {
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(address(0)), // tokenIn = native ETH
             bytes20(tokenOut),
             bytes4(uint32(fee)),
@@ -776,6 +781,7 @@ contract UniswapV3HookTest is Helpers {
 
     function test_SwapHook_RevertIf_NativeETH_TokenOut() public {
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(address(0)), // tokenOut = native ETH
             bytes4(uint32(fee)),
@@ -793,6 +799,7 @@ contract UniswapV3HookTest is Helpers {
 
     function test_ApproveAndSwapHook_RevertIf_NativeETH_TokenIn() public {
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(address(0)), // tokenIn = native ETH
             bytes20(tokenOut),
             bytes4(uint32(fee)),
@@ -810,6 +817,7 @@ contract UniswapV3HookTest is Helpers {
 
     function test_ApproveAndSwapHook_RevertIf_NativeETH_TokenOut() public {
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(address(0)), // tokenOut = native ETH
             bytes4(uint32(fee)),
@@ -833,6 +841,7 @@ contract UniswapV3HookTest is Helpers {
         uint256 expiredDeadline = block.timestamp - 1;
 
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(tokenOut),
             bytes4(uint32(fee)),
@@ -852,6 +861,7 @@ contract UniswapV3HookTest is Helpers {
         uint256 expiredDeadline = block.timestamp - 1;
 
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(tokenOut),
             bytes4(uint32(fee)),
@@ -872,6 +882,7 @@ contract UniswapV3HookTest is Helpers {
         uint256 exactDeadline = block.timestamp;
 
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(tokenOut),
             bytes4(uint32(fee)),
@@ -891,6 +902,7 @@ contract UniswapV3HookTest is Helpers {
     function test_SwapHook_ZeroSqrtPriceLimitMeansNoLimit() public view {
         // sqrtPriceLimitX96 = 0 means no price limit, should work fine
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(tokenOut),
             bytes4(uint32(fee)),
@@ -916,6 +928,7 @@ contract UniswapV3HookTest is Helpers {
         address differentRecipient = address(0xBEEF);
 
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(tokenOut),
             bytes4(uint32(fee)),
@@ -947,6 +960,7 @@ contract UniswapV3HookTest is Helpers {
         address differentRecipient = address(0xBEEF);
 
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(tokenOut),
             bytes4(uint32(fee)),

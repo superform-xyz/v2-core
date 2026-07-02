@@ -23,9 +23,10 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 /// @title CircleGatewayAddDelegateHook
 /// @author Superform Labs
 /// @notice Hook for adding a delegate to Circle Gateway Wallet
-/// @dev data has the following structure:
-/// @notice         address token = BytesLib.toAddress(data, 0);
-/// @notice         address delegate = BytesLib.toAddress(data, 20);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address token = BytesLib.toAddress(data, 52);
+/// @notice         address delegate = BytesLib.toAddress(data, 72);
 contract CircleGatewayAddDelegateHook is BaseHook, ISuperHookInflowOutflow {
     using BytesLib for bytes;
 
@@ -67,8 +68,8 @@ contract CircleGatewayAddDelegateHook is BaseHook, ISuperHookInflowOutflow {
         override
         returns (Execution[] memory executions)
     {
-        address token = BytesLib.toAddress(data, 0);
-        address delegate = BytesLib.toAddress(data, 20);
+        address token = BytesLib.toAddress(data, 52);
+        address delegate = BytesLib.toAddress(data, 72);
 
         if (delegate == address(0)) revert ADDRESS_NOT_VALID();
 

@@ -15,13 +15,14 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title MerklClaimRewardHook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         address feeReceiver = BytesLib.toAddress(data, 0);
-/// @notice         uint256 feePercent = BytesLib.toUint256(data, 20);
-/// @notice         uint256 arraysLength = BytesLib.toUint256(data, 52);
-/// @notice         bytes tokens = BytesLib.slice(data, 84, arraysLength * 20);
-/// @notice         bytes amounts = BytesLib.slice(data, 84 + arraysLength * 20, arraysLength * 32);
-/// @notice         bytes proofBlob = BytesLib.slice(data, 84 + arraysLength * 20 + arraysLength * 32, data.length - (84
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address feeReceiver = BytesLib.toAddress(data, 52);
+/// @notice         uint256 feePercent = BytesLib.toUint256(data, 72);
+/// @notice         uint256 arraysLength = BytesLib.toUint256(data, 104);
+/// @notice         bytes tokens = BytesLib.slice(data, 136, arraysLength * 20);
+/// @notice         bytes amounts = BytesLib.slice(data, 136 + arraysLength * 20, arraysLength * 32);
+/// @notice         bytes proofBlob = BytesLib.slice(data, 136 + arraysLength * 20 + arraysLength * 32, data.length - (136
 /// + arraysLength * 20 + arraysLength * 32));
 contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
@@ -187,12 +188,12 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
     }
 
     function _decodeFeeParams(bytes calldata data) internal pure returns (address feeReceiver, uint256 feePercent) {
-        feeReceiver = BytesLib.toAddress(data, 0);
-        feePercent = BytesLib.toUint256(data, 20);
+        feeReceiver = BytesLib.toAddress(data, 52);
+        feePercent = BytesLib.toUint256(data, 72);
     }
 
     function _setUsersArray(address account, bytes calldata data) internal pure returns (address[] memory users) {
-        uint256 arrayLength = BytesLib.toUint256(data, 52);
+        uint256 arrayLength = BytesLib.toUint256(data, 104);
 
         users = new address[](arrayLength);
         for (uint256 i; i < arrayLength; i++) {
@@ -205,8 +206,8 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
         pure
         returns (uint256 cursor, address[] memory tokens, uint256[] memory amounts)
     {
-        uint256 arrayLength = BytesLib.toUint256(data, 52);
-        cursor = 84; // Start after feeReceiver (20) + feePercent (32) + arrayLength (32)
+        uint256 arrayLength = BytesLib.toUint256(data, 104);
+        cursor = 136; // Start after header (52) + feeReceiver (20) + feePercent (32) + arrayLength (32)
 
         tokens = new address[](arrayLength);
         for (uint256 i; i < arrayLength; i++) {
@@ -228,7 +229,7 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
     }
 
     function _decodeProofs(bytes calldata data, uint256 cursor) internal pure returns (bytes32[][] memory proofs) {
-        uint256 arrayLength = BytesLib.toUint256(data, 52);
+        uint256 arrayLength = BytesLib.toUint256(data, 104);
         proofs = new bytes32[][](arrayLength);
 
         for (uint256 i; i < arrayLength; ++i) {

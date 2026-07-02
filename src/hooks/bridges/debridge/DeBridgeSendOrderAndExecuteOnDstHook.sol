@@ -25,55 +25,56 @@ import {
 /// @dev      signature is retrieved from the validator contract transient storage
 /// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to
 /// sign it
-/// @dev data has the following structure
-/// @notice         bool usePrevHookAmount = _decodeBool(0);
-/// @notice         uint256 value = BytesLib.toUint256(data, 1);
-/// @notice         address giveTokenAddress = BytesLib.toAddress(data, 33);
-/// @notice         uint256 giveAmount = BytesLib.toUint256(data, 53);
-/// @notice         uint8 version = BytesLib.toUint8(data, 85);
-/// @notice         address fallbackAddress = BytesLib.toAddress(data, 86);
-/// @notice         address executorAddress = BytesLib.toAddress(data, 106);
-/// @notice         uint256 executionFee = BytesLib.toUint256(data, 126);
-/// @notice         bool allowDelayedExecution = _decodeBool(data, 158);
-/// @notice         bool requireSuccessfullExecution = _decodeBool(data, 159);
-/// @notice         uint256 destinationMessage_paramLength = BytesLib.toUint256(data, 160);
-/// @notice         bytes destinationMessage = BytesLib.slice(data, 192, destinationMessage_paramLength);
-/// @notice         uint256 takeTokenAddress_paramLength = BytesLib.toUint256(data, 192 +
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
+/// @notice         uint256 value = BytesLib.toUint256(data, 53);
+/// @notice         address giveTokenAddress = BytesLib.toAddress(data, 85);
+/// @notice         uint256 giveAmount = BytesLib.toUint256(data, 105);
+/// @notice         uint8 version = BytesLib.toUint8(data, 137);
+/// @notice         address fallbackAddress = BytesLib.toAddress(data, 138);
+/// @notice         address executorAddress = BytesLib.toAddress(data, 158);
+/// @notice         uint256 executionFee = BytesLib.toUint256(data, 178);
+/// @notice         bool allowDelayedExecution = _decodeBool(data, 210);
+/// @notice         bool requireSuccessfullExecution = _decodeBool(data, 211);
+/// @notice         uint256 destinationMessage_paramLength = BytesLib.toUint256(data, 212);
+/// @notice         bytes destinationMessage = BytesLib.slice(data, 244, destinationMessage_paramLength);
+/// @notice         uint256 takeTokenAddress_paramLength = BytesLib.toUint256(data, 244 +
 /// destinationMessage_paramLength);
-/// @notice         bytes takeTokenAddress = BytesLib.slice(data, 224 + destinationMessage_paramLength,
+/// @notice         bytes takeTokenAddress = BytesLib.slice(data, 276 + destinationMessage_paramLength,
 /// takeTokenAddress_paramLength);
-/// @notice         uint256 takeAmount = BytesLib.toUint256(data, 224 + destinationMessage_paramLength +
+/// @notice         uint256 takeAmount = BytesLib.toUint256(data, 276 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength);
-/// @notice         uint256 takeChainId = BytesLib.toUint256(data, 256 + destinationMessage_paramLength +
+/// @notice         uint256 takeChainId = BytesLib.toUint256(data, 308 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength);
-/// @notice         uint256 receiverDst_paramLength = BytesLib.toUint256(data, 288 + destinationMessage_paramLength +
+/// @notice         uint256 receiverDst_paramLength = BytesLib.toUint256(data, 340 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength);
-/// @notice         bytes receiverDst = BytesLib.slice(data, 320 + destinationMessage_paramLength +
+/// @notice         bytes receiverDst = BytesLib.slice(data, 372 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength, receiverDst_paramLength);
-/// @notice         address givePatchAuthoritySrc = BytesLib.toAddress(data, 320 + destinationMessage_paramLength +
+/// @notice         address givePatchAuthoritySrc = BytesLib.toAddress(data, 372 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength);
-/// @notice         uint256 orderAuthorityAddressDst_paramLength = BytesLib.toUint256(data, 340 +
+/// @notice         uint256 orderAuthorityAddressDst_paramLength = BytesLib.toUint256(data, 392 +
 /// destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength);
-/// @notice         bytes orderAuthorityAddressDst = BytesLib.slice(data, 372 + destinationMessage_paramLength +
+/// @notice         bytes orderAuthorityAddressDst = BytesLib.slice(data, 424 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength, orderAuthorityAddressDst_paramLength);
-/// @notice         uint256 allowedTakerDst_paramLength = BytesLib.toUint256(data, 372 + destinationMessage_paramLength
+/// @notice         uint256 allowedTakerDst_paramLength = BytesLib.toUint256(data, 424 + destinationMessage_paramLength
 /// + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength);
-/// @notice         bytes allowedTakerDst = BytesLib.slice(data, 404 + destinationMessage_paramLength +
+/// @notice         bytes allowedTakerDst = BytesLib.slice(data, 456 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength,
 /// allowedTakerDst_paramLength);
-/// @notice         uint256 allowedCancelBeneficiarySrc_paramLength = BytesLib.toUint256(data, 404 +
+/// @notice         uint256 allowedCancelBeneficiarySrc_paramLength = BytesLib.toUint256(data, 456 +
 /// destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength +
 /// orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength);
-/// @notice         bytes allowedCancelBeneficiarySrc = BytesLib.slice(data, 436 + destinationMessage_paramLength +
+/// @notice         bytes allowedCancelBeneficiarySrc = BytesLib.slice(data, 488 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
 /// allowedTakerDst_paramLength, allowedCancelBeneficiarySrc_paramLength);
-/// @notice         uint256 affiliateFee_paramLength = BytesLib.toUint256(data, 436 + destinationMessage_paramLength +
+/// @notice         uint256 affiliateFee_paramLength = BytesLib.toUint256(data, 488 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
 /// allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength);
-/// @notice         bytes affiliateFee = BytesLib.slice(data, 468 + destinationMessage_paramLength +
+/// @notice         bytes affiliateFee = BytesLib.slice(data, 520 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
 /// allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength, affiliateFee_paramLength);
-/// @notice         uint256 referralCode = BytesLib.toUint256(data, 468 + destinationMessage_paramLength +
+/// @notice         uint256 referralCode = BytesLib.toUint256(data, 520 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
 /// allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength);
 contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
@@ -82,8 +83,8 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     //////////////////////////////////////////////////////////////*/
     address public immutable DLN_SOURCE;
     address private immutable VALIDATOR;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
-    uint256 private constant AMOUNT_POSITION = 53;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
+    uint256 private constant AMOUNT_POSITION = 105;
 
     error AMOUNT_UNDERFLOW();
 
@@ -254,7 +255,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         )
     {
         LocalVars memory vars;
-        vars.offset = 1; // skip usePrevHookAmount (bool)
+        vars.offset = 53; // skip 52-byte placeholder + 1-byte usePrevHookAmount bool
 
         value = BytesLib.toUint256(data, vars.offset);
         vars.offset += 32;

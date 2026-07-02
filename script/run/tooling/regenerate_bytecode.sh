@@ -246,7 +246,7 @@ RFLR_HOOK_CONTRACTS=(
     "WithdrawVestedRFLRHook"
     "WithdrawRFLRHookV2"
     "WithdrawVestedRFLRHookV2"
-    "DepositWETHHook"
+    "WrappedNativeHook"
 )
 
 # Odos V3 hook contracts - now deployed via DeployV2Core (kept here for reference)

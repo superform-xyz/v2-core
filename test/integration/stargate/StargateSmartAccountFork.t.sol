@@ -257,7 +257,9 @@ contract StargateSmartAccountFork is MinimalBaseNexusIntegrationTest {
         returns (bytes memory)
     {
         // Split encoding to avoid stack too deep
+        // Prepend mandatory 52-byte strategy header: bytes32(0) + address(0)
         bytes memory fixedPart = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte strategy header
             lzNativeFee, stargatePool, inputToken, dstEid, to, amountLD, minAmountLD
         );
         return abi.encodePacked(

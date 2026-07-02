@@ -167,7 +167,7 @@ contract NativeFeeSponsorshipE2E is Test {
         assertEq(sponsorship.sponsoredAmount(bundler, address(account)), sponsorAmount);
 
         // 2. Build hook executions
-        bytes memory hookData = abi.encodePacked(bundler, sponsorAmount);
+        bytes memory hookData = abi.encodePacked(bytes32(0), address(0), bundler, sponsorAmount);
         Execution[] memory executions = fetchHook.build(address(0), address(account), hookData);
 
         // 3. Account executes the hook chain
@@ -198,7 +198,7 @@ contract NativeFeeSponsorshipE2E is Test {
         usdc.approve(address(stargatePool), bridgeAmount);
 
         // 3. Build & execute FetchNativeFeeHook
-        bytes memory hookData = abi.encodePacked(bundler, nativeFee);
+        bytes memory hookData = abi.encodePacked(bytes32(0), address(0), bundler, nativeFee);
         Execution[] memory fetchExecs = fetchHook.build(address(0), address(account), hookData);
         _executePrank(fetchExecs, address(account));
 
@@ -275,7 +275,7 @@ contract NativeFeeSponsorshipE2E is Test {
         assertEq(sponsorship.sponsoredAmount(bundler, address(account)), nativeAmount);
 
         // 3. Account withdraws via FetchNativeFeeHook (sponsor = bundler)
-        bytes memory hookData = abi.encodePacked(bundler, nativeAmount);
+        bytes memory hookData = abi.encodePacked(bytes32(0), address(0), bundler, nativeAmount);
         Execution[] memory executions = fetchHook.build(address(0), address(account), hookData);
 
         uint256 accountBalBefore = address(account).balance;
@@ -314,7 +314,7 @@ contract NativeFeeSponsorshipE2E is Test {
 
         // 3. Account1 withdraws via hook (set execution context like SuperExecutor does)
         fetchHook.setExecutionContext(address(account));
-        bytes memory hookData1 = abi.encodePacked(bundler, amount1);
+        bytes memory hookData1 = abi.encodePacked(bytes32(0), address(0), bundler, amount1);
         Execution[] memory execs1 = fetchHook.build(address(0), address(account), hookData1);
         _executePrank(execs1, address(account));
 
@@ -326,7 +326,7 @@ contract NativeFeeSponsorshipE2E is Test {
 
         // 5. Account2 withdraws via hook (fresh execution context)
         fetchHook.setExecutionContext(address(account2));
-        bytes memory hookData2 = abi.encodePacked(bundler, amount2);
+        bytes memory hookData2 = abi.encodePacked(bytes32(0), address(0), bundler, amount2);
         Execution[] memory execs2 = fetchHook.build(address(0), address(account2), hookData2);
         _executePrank(execs2, address(account2));
 
@@ -371,7 +371,7 @@ contract NativeFeeSponsorshipE2E is Test {
         sponsorship.depositForAccount{ value: depositAmount }(bundler, address(account));
 
         // 2. Build hook with larger amount
-        bytes memory hookData = abi.encodePacked(bundler, requestAmount);
+        bytes memory hookData = abi.encodePacked(bytes32(0), address(0), bundler, requestAmount);
         Execution[] memory executions = fetchHook.build(address(0), address(account), hookData);
 
         // 3. Execute: preExecute succeeds, but withdrawal call (index 1) reverts
@@ -408,7 +408,7 @@ contract NativeFeeSponsorshipE2E is Test {
         usdc.approve(address(stargatePool), bridgeAmount);
 
         // 3. Withdraw full sponsored amount via hook
-        bytes memory hookData = abi.encodePacked(bundler, sponsorAmount);
+        bytes memory hookData = abi.encodePacked(bytes32(0), address(0), bundler, sponsorAmount);
         Execution[] memory execs = fetchHook.build(address(0), address(account), hookData);
         _executePrank(execs, address(account));
 

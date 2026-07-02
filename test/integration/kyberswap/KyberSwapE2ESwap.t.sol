@@ -153,6 +153,8 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             console2.log("Attempt", attempt, "- Expected WETH out:", expectedOut);
 
             bytes memory hookData = bytes.concat(
+                bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+                bytes20(address(0)), // yieldSource (52-byte header part 2)
                 bytes20(USDC),
                 bytes20(WETH),
                 bytes32(inputAmount),
@@ -216,6 +218,8 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             }
 
             bytes memory hookData = bytes.concat(
+                bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+                bytes20(address(0)), // yieldSource (52-byte header part 2)
                 bytes20(USDC),
                 bytes32(uint256(0)),
                 bytes32(inputAmount),
@@ -266,6 +270,8 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             console2.log("Attempt", attempt, "- Expected USDC out:", expectedOut);
 
             bytes memory hookData = bytes.concat(
+                bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+                bytes20(address(0)), // yieldSource (52-byte header part 2)
                 bytes20(LINK),
                 bytes20(USDC),
                 bytes32(inputAmount),
@@ -326,6 +332,8 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             console2.log("Attempt", attempt, "- Expected WETH out (for 1000 USDC):", expectedOut);
 
             bytes memory hookData = bytes.concat(
+                bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+                bytes20(address(0)), // yieldSource (52-byte header part 2)
                 bytes20(USDC),
                 bytes20(WETH),
                 bytes32(quotedAmount),
@@ -428,6 +436,8 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             console2.log("[KyberSwap] Attempt", attempt, "- Expected USDC out:", expectedOut);
 
             bytes memory hookData = bytes.concat(
+                bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+                bytes20(address(0)), // yieldSource (52-byte header part 2)
                 bytes20(DAM),
                 bytes20(USDC),
                 bytes32(inputAmount),
@@ -545,6 +555,8 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
                 kyberExpectedOut = expectedOut;
 
                 bytes memory hookData = bytes.concat(
+                    bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+                    bytes20(address(0)), // yieldSource (52-byte header part 2)
                     bytes20(DAM),
                     bytes20(USDC),
                     bytes32(inputAmount),

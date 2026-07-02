@@ -5,7 +5,7 @@
 ###################################################################################
 # Description:
 #   Deploys other hooks (Morpho, Aave V4, Firelight, Algebra Integral, DETH,
-#   Sponsorship, rFLR, DepositWFLR) via DeployV2OtherHooks.s.sol across configured networks.
+#   Sponsorship, rFLR, WrappedNative) via DeployV2OtherHooks.s.sol across configured networks.
 #   Sources lib_deploy.sh for shared deployment utilities.
 #
 # Usage:
@@ -122,12 +122,12 @@ is_rflr_supported() {
     return 1
 }
 
-# DepositWFLRHook (DepositWETHHook deployed with WFLR) is only deployed on Flare
-DEPOSIT_WFLR_SUPPORTED_CHAINS=("14")
+# WrappedNativeHook is deployed on Ethereum (WETH) and Flare (WFLR)
+WRAPPED_NATIVE_SUPPORTED_CHAINS=("1" "14")
 
-is_deposit_wflr_supported() {
+is_wrapped_native_supported() {
     local chain_id=$1
-    for supported in "${DEPOSIT_WFLR_SUPPORTED_CHAINS[@]}"; do
+    for supported in "${WRAPPED_NATIVE_SUPPORTED_CHAINS[@]}"; do
         if [ "$supported" = "$chain_id" ]; then
             return 0
         fi
@@ -348,25 +348,25 @@ fi
 
 echo ""
 
-echo -e "${BLUE}Checking DepositWFLRHook bytecode availability...${NC}"
+echo -e "${BLUE}Checking WrappedNativeHook bytecode availability...${NC}"
 
-DEPOSIT_WFLR_HOOKS=(
-    "DepositWETHHook"
+WRAPPED_NATIVE_HOOKS=(
+    "WrappedNativeHook"
 )
 
-missing_deposit_wflr=0
-for hook in "${DEPOSIT_WFLR_HOOKS[@]}"; do
+missing_wrapped_native=0
+for hook in "${WRAPPED_NATIVE_HOOKS[@]}"; do
     if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
         echo -e "${GREEN}   ${hook}${NC}"
     else
         echo -e "${YELLOW}   ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
-        missing_deposit_wflr=$((missing_deposit_wflr + 1))
+        missing_wrapped_native=$((missing_wrapped_native + 1))
     fi
 done
 
-if [ $missing_deposit_wflr -gt 0 ]; then
-    echo -e "${YELLOW}${missing_deposit_wflr} DepositWFLR hook(s) missing bytecode. They will be skipped during deployment.${NC}"
-    echo -e "${YELLOW}   Run ./script/run/tooling/regenerate_bytecode.sh DepositWETHHook to generate missing bytecode.${NC}"
+if [ $missing_wrapped_native -gt 0 ]; then
+    echo -e "${YELLOW}${missing_wrapped_native} WrappedNative hook(s) missing bytecode. They will be skipped during deployment.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/tooling/regenerate_bytecode.sh WrappedNativeHook to generate missing bytecode.${NC}"
 fi
 
 echo ""
@@ -374,7 +374,7 @@ print_separator
 
 # ── Confirmation ───────────────────────────────────────────────────────────────
 
-echo -e "${WHITE}Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral + DETH + Sponsorship + rFLR + rFLR V2 + DepositWFLR) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
+echo -e "${WHITE}Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral + DETH + Sponsorship + rFLR + rFLR V2 + WrappedNative) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
 read -r proceed
 
 if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
@@ -661,16 +661,16 @@ for network_def in "${NETWORKS[@]}"; do
         fi
     fi
 
-    # Deploy DepositWFLRHook (DepositWETHHook with WFLR address) if supported on this chain
-    if is_deposit_wflr_supported "$network_id"; then
+    # Deploy WrappedNativeHook (with WFLR address) if supported on this chain
+    if is_wrapped_native_supported "$network_id"; then
         has_hooks=true
         echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
         echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
         echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-        echo -e "${YELLOW}   Deploying DepositWFLRHook...${NC}"
+        echo -e "${YELLOW}   Deploying WrappedNativeHook...${NC}"
 
         if forge script "$FORGE_SCRIPT" \
-            --sig 'runDepositWFLR(uint256,uint64)' $FORGE_ENV $network_id \
+            --sig 'runWrappedNative(uint256,uint64)' $FORGE_ENV $network_id \
             --account "$ACCOUNT" \
             $KEYSTORE_PASSWORD_FLAG \
             --rpc-url "${!rpc_var}" \
@@ -685,10 +685,10 @@ for network_def in "${NETWORKS[@]}"; do
             $GAS_PRICE_FLAG \
             --timeout 300 \
             -vv; then
-            echo -e "${GREEN}   DepositWFLRHook deployment completed!${NC}"
+            echo -e "${GREEN}   WrappedNativeHook deployment completed!${NC}"
         else
-            echo -e "${RED}   DepositWFLRHook deployment failed on $network_name, continuing...${NC}"
-            FAILED_HOOK_DEPLOYS+=("DepositWFLR @ $network_name")
+            echo -e "${RED}   WrappedNativeHook deployment failed on $network_name, continuing...${NC}"
+            FAILED_HOOK_DEPLOYS+=("WrappedNative @ $network_name")
         fi
     fi
 

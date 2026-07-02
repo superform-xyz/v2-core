@@ -191,8 +191,8 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         hookAddresses[1] = address(uniswapV4Hook);
 
         bytes[] memory hookDataArray = new bytes[](2);
-        // NativeTransferHook data: transfer ETH to SwapUniswapV4Hook
-        hookDataArray[0] = abi.encodePacked(address(uniswapV4Hook), ethAmount);
+        // NativeTransferHook data: 52-byte header + transfer ETH to SwapUniswapV4Hook
+        hookDataArray[0] = abi.encodePacked(bytes32(0), address(0), address(uniswapV4Hook), ethAmount);
         // SwapUniswapV4Hook data: existing swap calldata
         hookDataArray[1] = swapCalldata;
 
@@ -927,16 +927,16 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
 
     /// @notice Test decodeUsePrevHookAmount with various data lengths
     function test_DecodeUsePrevHookAmount_EdgeCases() public view {
-        // Test minimum valid length (218 bytes)
-        bytes memory minValidData = new bytes(218);
-        minValidData[217] = 0x01; // Set usePrevHookAmount to true
+        // Test minimum valid length (270 bytes: 52-byte header + 218 bytes of hook-specific data)
+        bytes memory minValidData = new bytes(270);
+        minValidData[269] = 0x01; // Set usePrevHookAmount to true (offset 269)
 
         bool result = uniswapV4Hook.decodeUsePrevHookAmount(minValidData);
         assertTrue(result, "Should decode true from minimum valid data");
 
         // Test with additional data
         bytes memory dataWithExtra = new bytes(300);
-        dataWithExtra[217] = 0x00; // Set usePrevHookAmount to false
+        dataWithExtra[269] = 0x00; // Set usePrevHookAmount to false (offset 269)
 
         result = uniswapV4Hook.decodeUsePrevHookAmount(dataWithExtra);
         assertFalse(result, "Should decode false from data with extra bytes");
@@ -945,18 +945,20 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
     /// @notice Test inspect function with different token orderings
     function test_InspectTokenExtraction() public view {
         bytes memory testData = abi.encodePacked(
-            CHAIN_1_USDC, // currency0
-            CHAIN_1_WETH, // currency1
-            uint32(3000), // fee
-            uint32(int32(60)), // tickSpacing
-            address(0), // hooks
-            instanceOnEth.account, // dstReceiver
-            uint256(TickMath.MIN_SQRT_PRICE + 1), // sqrtPriceLimitX96
-            uint256(1000e6), // originalAmountIn
-            uint256(950e6), // originalMinAmountOut
-            uint256(500), // maxSlippageDeviationBps
-            bytes1(0x01), // zeroForOne
-            bytes1(0x00) // usePrevHookAmount
+            bytes32(0), // yieldSourceOracleId (header)
+            address(0), // yieldSource (header)
+            CHAIN_1_USDC, // currency0 (offset 52)
+            CHAIN_1_WETH, // currency1 (offset 72)
+            uint32(3000), // fee (offset 92)
+            uint32(int32(60)), // tickSpacing (offset 96)
+            address(0), // hooks (offset 100)
+            instanceOnEth.account, // dstReceiver (offset 120)
+            uint256(TickMath.MIN_SQRT_PRICE + 1), // sqrtPriceLimitX96 (offset 140)
+            uint256(1000e6), // originalAmountIn (offset 172)
+            uint256(950e6), // originalMinAmountOut (offset 204)
+            uint256(500), // maxSlippageDeviationBps (offset 236)
+            bytes1(0x01), // zeroForOne (offset 268)
+            bytes1(0x00) // usePrevHookAmount (offset 269)
         );
 
         bytes memory result = uniswapV4Hook.inspect(testData);

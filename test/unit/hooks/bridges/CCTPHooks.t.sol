@@ -146,6 +146,7 @@ contract CCTPHooks is Helpers {
 
     function test_CCTP_Build_RevertIf_ZeroAmount() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockBurnToken, // address (20 bytes)
             uint256(0), // amount = 0
             mockDestinationDomain, // uint32 (4 bytes)
@@ -162,6 +163,7 @@ contract CCTPHooks is Helpers {
 
     function test_CCTP_Build_RevertIf_ZeroBurnToken() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(0), // burnToken = 0
             mockAmount,
             mockDestinationDomain,
@@ -178,6 +180,7 @@ contract CCTPHooks is Helpers {
 
     function test_CCTP_Build_RevertIf_ZeroRecipient() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockBurnToken,
             mockAmount,
             mockDestinationDomain,
@@ -311,6 +314,7 @@ contract CCTPHooks is Helpers {
         bytes memory shortHookCallData = hex"aabbccdd";
 
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockBurnToken,
             mockAmount,
             mockDestinationDomain,
@@ -412,6 +416,7 @@ contract CCTPHooks is Helpers {
         vm.assume(amount > 0);
 
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockBurnToken,
             amount,
             mockDestinationDomain,
@@ -431,6 +436,7 @@ contract CCTPHooks is Helpers {
 
     function testFuzz_CCTP_Build_VariableDomains(uint32 domain) public view {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockBurnToken,
             mockAmount,
             domain,
@@ -482,10 +488,10 @@ contract CCTPHooks is Helpers {
         bytes memory data = _encodeCCTPData(false, false);
         bytes memory replaced = cctpHook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        for (uint256 i = 0; i < 20; i++) {
+        for (uint256 i = 0; i < 72; i++) {
             assertEq(replaced[i], data[i]);
         }
-        for (uint256 i = 52; i < data.length; i++) {
+        for (uint256 i = 104; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
@@ -513,6 +519,7 @@ contract CCTPHooks is Helpers {
         }
 
         return abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockBurnToken, // address (20 bytes)
             mockAmount, // uint256 (32 bytes)
             mockDestinationDomain, // uint32 (4 bytes)
@@ -638,6 +645,7 @@ contract CCTPSendHookTests is Helpers {
 
     function test_CCTPSend_Build_RevertIf_ZeroAmount() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockBurnToken,
             uint256(0),
             mockDestinationDomain,
@@ -654,6 +662,7 @@ contract CCTPSendHookTests is Helpers {
 
     function test_CCTPSend_Build_RevertIf_ZeroBurnToken() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(0),
             mockAmount,
             mockDestinationDomain,
@@ -670,6 +679,7 @@ contract CCTPSendHookTests is Helpers {
 
     function test_CCTPSend_Build_RevertIf_ZeroRecipient() public {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockBurnToken,
             mockAmount,
             mockDestinationDomain,
@@ -789,6 +799,7 @@ contract CCTPSendHookTests is Helpers {
         bytes memory shortHookCallData = hex"aabbccdd";
 
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockBurnToken,
             mockAmount,
             mockDestinationDomain,
@@ -846,6 +857,7 @@ contract CCTPSendHookTests is Helpers {
         vm.assume(amount > 0);
 
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockBurnToken,
             amount,
             mockDestinationDomain,
@@ -862,6 +874,7 @@ contract CCTPSendHookTests is Helpers {
 
     function testFuzz_CCTPSend_Build_VariableDomains(uint32 domain) public view {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockBurnToken,
             mockAmount,
             domain,
@@ -932,6 +945,7 @@ contract CCTPSendHookTests is Helpers {
         }
 
         return abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockBurnToken,
             mockAmount,
             mockDestinationDomain,

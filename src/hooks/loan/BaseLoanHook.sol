@@ -20,8 +20,8 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 abstract contract BaseLoanHook is BaseHook, ISuperHookLoans, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
-    uint256 internal constant AMOUNT_POSITION = 80;
-    uint256 internal constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
+    uint256 internal constant AMOUNT_POSITION = 132;
+    uint256 internal constant USE_PREV_HOOK_AMOUNT_POSITION = 196;
 
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
@@ -74,23 +74,23 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans, ISuperHookInflowOut
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHookLoans
     function getLoanTokenAddress(bytes memory data) public pure returns (address) {
-        return BytesLib.toAddress(data, 0);
+        return BytesLib.toAddress(data, 52);
     }
 
     /// @inheritdoc ISuperHookLoans
     function getCollateralTokenAddress(bytes memory data) public pure returns (address) {
-        return BytesLib.toAddress(data, 20);
+        return BytesLib.toAddress(data, 72);
     }
 
     /// @inheritdoc ISuperHookLoans
     function getCollateralTokenBalance(address account, bytes memory data) public view returns (uint256) {
-        address collateralToken = BytesLib.toAddress(data, 20);
+        address collateralToken = BytesLib.toAddress(data, 72);
         return IERC20(collateralToken).balanceOf(account);
     }
 
     /// @inheritdoc ISuperHookLoans
     function getLoanTokenBalance(address account, bytes memory data) public view returns (uint256) {
-        address loanToken = BytesLib.toAddress(data, 0);
+        address loanToken = BytesLib.toAddress(data, 52);
         return IERC20(loanToken).balanceOf(account);
     }
 

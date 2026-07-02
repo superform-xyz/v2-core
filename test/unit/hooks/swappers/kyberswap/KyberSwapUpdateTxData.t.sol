@@ -61,6 +61,7 @@ contract KyberSwapUpdateTxDataTest is Helpers {
 
         bytes memory txData_ = _buildKyberTxDataWithAmounts(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(outputToken),
             bytes32(uint256(0)), // value
             bytes32(originalAmount),
@@ -98,6 +99,7 @@ contract KyberSwapUpdateTxDataTest is Helpers {
 
         bytes memory txData_ = _buildKyberTxDataWithAmounts(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(outputToken),
             bytes32(uint256(0)),
             bytes32(originalAmount),
@@ -129,6 +131,7 @@ contract KyberSwapUpdateTxDataTest is Helpers {
 
         bytes memory txData_ = _buildKyberTxDataWithAmounts(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(outputToken),
             bytes32(uint256(0)),
             bytes32(originalAmount),
@@ -157,6 +160,7 @@ contract KyberSwapUpdateTxDataTest is Helpers {
 
         bytes memory txData_ = _buildKyberTxDataWithAmounts(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
             bytes20(outputToken),
             bytes32(originalAmount),
@@ -188,6 +192,7 @@ contract KyberSwapUpdateTxDataTest is Helpers {
 
         bytes memory txData_ = _buildKyberTxDataWithAmounts(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(outputToken),
             bytes32(uint256(0)),
             bytes32(originalAmount),
@@ -223,6 +228,7 @@ contract KyberSwapUpdateTxDataTest is Helpers {
 
         bytes memory txData_ = _buildKyberTxDataWithAmounts(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(outputToken),
             bytes32(uint256(0)),
             bytes32(originalAmount),
@@ -257,6 +263,7 @@ contract KyberSwapUpdateTxDataTest is Helpers {
         // Build txData with multiple srcReceivers (simulating a split route: 60/40 split)
         bytes memory txData_ = _buildKyberTxDataWithSplitRoute(originalAmount, originalMinReturn, 600, 400);
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(outputToken),
             bytes32(uint256(0)),
             bytes32(originalAmount),
@@ -482,6 +489,7 @@ contract KyberSwapScaleHelperTest is Helpers {
 
         bytes memory txData_ = _buildKyberTxData(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(outputToken),
             bytes32(uint256(0)),
             bytes32(originalAmount),
@@ -514,6 +522,7 @@ contract KyberSwapScaleHelperTest is Helpers {
 
         bytes memory txData_ = _buildKyberTxData(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(outputToken),
             bytes32(uint256(0)),
             bytes32(originalAmount),
@@ -548,6 +557,7 @@ contract KyberSwapScaleHelperTest is Helpers {
 
         bytes memory txData_ = _buildKyberTxData(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(outputToken),
             bytes32(uint256(0)),
             bytes32(originalAmount),
@@ -578,6 +588,7 @@ contract KyberSwapScaleHelperTest is Helpers {
 
         bytes memory txData_ = _buildKyberTxData(originalAmount, originalMinReturn);
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
             bytes20(outputToken),
             bytes32(originalAmount),

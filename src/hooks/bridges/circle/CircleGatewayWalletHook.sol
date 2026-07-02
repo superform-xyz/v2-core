@@ -16,10 +16,11 @@ import { IGatewayWallet } from "../../../vendor/circle/IGatewayWallet.sol";
 /// @title CircleGatewayWalletHook
 /// @author Superform Labs
 /// @notice Hook for approving and depositing tokens to Circle Gateway Wallet
-/// @dev data has the following structure:
-/// @notice         address usdc = BytesLib.toAddress(data, 0);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 20);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address usdc = BytesLib.toAddress(data, 52);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 72);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
 contract CircleGatewayWalletHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
     using BytesLib for bytes;
 
@@ -30,8 +31,8 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookInflowOutflow, ISuperHoo
     /// @notice Circle Gateway Wallet contract address
     address public immutable GATEWAY_WALLET;
 
-    uint256 private constant AMOUNT_POSITION = 20;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
+    uint256 private constant AMOUNT_POSITION = 72;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 104;
 
     constructor(address gatewayWalletAddress) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
         if (gatewayWalletAddress == address(0)) revert ADDRESS_NOT_VALID();
@@ -64,7 +65,7 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookInflowOutflow, ISuperHoo
         override
         returns (Execution[] memory executions)
     {
-        address usdc = BytesLib.toAddress(data, 0);
+        address usdc = BytesLib.toAddress(data, 52);
         uint256 amount = BytesLib.toUint256(data, AMOUNT_POSITION);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
@@ -141,7 +142,7 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookInflowOutflow, ISuperHoo
     /// @param data The hook data to decode
     /// @return The usdc address
     function decodeToken(bytes memory data) external pure returns (address) {
-        return BytesLib.toAddress(data, 0);
+        return BytesLib.toAddress(data, 52);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -151,6 +152,6 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookInflowOutflow, ISuperHoo
         uint256 amount = BytesLib.toUint256(data, AMOUNT_POSITION);
         // Set the deposited amount as output
         _setOutAmount(amount, account);
-        _setOutToken(BytesLib.toAddress(data, 0), account);
+        _setOutToken(BytesLib.toAddress(data, 52), account);
     }
 }

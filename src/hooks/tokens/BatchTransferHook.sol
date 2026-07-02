@@ -20,9 +20,10 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 
 /// @title BatchTransferHook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         address to = BytesLib.toAddress(data, 0);
-/// @notice         bytes tokensArr = BytesLib.slice(data, 20, data.length - 20);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address to = BytesLib.toAddress(data, 52);
+/// @notice         bytes tokensArr = BytesLib.slice(data, 72, data.length - 72);
 contract BatchTransferHook is BaseHook, ISuperHookInflowOutflow {
     error LENGTH_MISMATCH();
 
@@ -59,8 +60,8 @@ contract BatchTransferHook is BaseHook, ISuperHookInflowOutflow {
         override
         returns (Execution[] memory executions)
     {
-        address to = BytesLib.toAddress(data, 0);
-        bytes memory tokensData = BytesLib.slice(data, 20, data.length - 20);
+        address to = BytesLib.toAddress(data, 52);
+        bytes memory tokensData = BytesLib.slice(data, 72, data.length - 72);
 
         (address[] memory tokens, uint256[] memory amounts) = abi.decode(tokensData, (address[], uint256[]));
 
@@ -109,6 +110,6 @@ contract BatchTransferHook is BaseHook, ISuperHookInflowOutflow {
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        return abi.encodePacked(BytesLib.toAddress(data, 0)); //to
+        return abi.encodePacked(BytesLib.toAddress(data, 52)); //to
     }
 }

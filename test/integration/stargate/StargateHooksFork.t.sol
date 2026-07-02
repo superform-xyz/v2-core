@@ -1311,6 +1311,7 @@ contract StargateHooksFork is Helpers {
         uint256 lzNativeFee = 0.01 ether;
 
         bytes memory fixedPart = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte strategy header
             lzNativeFee, LZ_MULTICALL, USDC_ETH, uint32(0), bytes32(0), uint256(1000e6), uint256(995e6)
         );
         bytes memory hookData = abi.encodePacked(
@@ -1345,6 +1346,7 @@ contract StargateHooksFork is Helpers {
         uint256 lzNativeFee = 0.01 ether;
 
         bytes memory fixedPart = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte strategy header
             lzNativeFee, LZ_MULTICALL, USDC_ETH, uint32(0), bytes32(0), amountLD, uint256(995e6)
         );
         bytes memory hookData = abi.encodePacked(
@@ -1392,6 +1394,7 @@ contract StargateHooksFork is Helpers {
         uint256 lzNativeFee = 0.001 ether;
 
         bytes memory fixedPart = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte strategy header
             lzNativeFee, LZ_MULTICALL, USDC_ETH, uint32(0), bytes32(0), amountLD, uint256(995e6)
         );
         bytes memory hookData = abi.encodePacked(
@@ -1452,6 +1455,7 @@ contract StargateHooksFork is Helpers {
 
         // Use lzMulticall as pool — token() would revert if called
         bytes memory fixedPart = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte strategy header
             uint256(0.01 ether), LZ_MULTICALL, USDC_ETH, uint32(0), bytes32(0), uint256(1000e6), uint256(995e6)
         );
         bytes memory hookData = abi.encodePacked(
@@ -1476,6 +1480,7 @@ contract StargateHooksFork is Helpers {
         );
 
         bytes memory fixedPart = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte strategy header
             lzNativeFee, LZ_MULTICALL, USDC_ETH, uint32(0), bytes32(0), uint256(1000e6), uint256(995e6)
         );
         bytes memory hookData = abi.encodePacked(
@@ -1508,6 +1513,7 @@ contract StargateHooksFork is Helpers {
     /// @notice Mode 3 revert if executeCalldata is empty
     function test_Fork_StargateSend_LzMulticallMode_RevertIf_EmptyCalldata() public {
         bytes memory fixedPart = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte strategy header
             uint256(0.01 ether), LZ_MULTICALL, USDC_ETH, uint32(0), bytes32(0), uint256(1000e6), uint256(995e6)
         );
         bytes memory hookData = abi.encodePacked(
@@ -1646,7 +1652,9 @@ contract StargateHooksFork is Helpers {
         returns (bytes memory)
     {
         // Split encoding to avoid stack too deep
+        // Prepend mandatory 52-byte strategy header: bytes32(0) + address(0)
         bytes memory fixedPart = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte strategy header
             lzNativeFee, stargatePool, inputToken, dstEid, to, amountLD, minAmountLD
         );
         return abi.encodePacked(
@@ -1666,7 +1674,9 @@ contract StargateHooksFork is Helpers {
         pure
         returns (bytes memory)
     {
+        // Prepend mandatory 52-byte strategy header: bytes32(0) + address(0)
         bytes memory fixedPart = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte strategy header
             lzNativeFee, LZ_MULTICALL, inputToken, uint32(0), bytes32(0), amountLD, minAmountLD
         );
         return abi.encodePacked(

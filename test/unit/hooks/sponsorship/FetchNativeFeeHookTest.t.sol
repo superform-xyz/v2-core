@@ -132,6 +132,6 @@ contract FetchNativeFeeHookTest is Helpers {
     }
 
     function _createHookData(address sponsor_, uint256 amount_) internal pure returns (bytes memory) {
-        return abi.encodePacked(sponsor_, amount_);
+        return abi.encodePacked(bytes(new bytes(52)), sponsor_, amount_);
     }
 }

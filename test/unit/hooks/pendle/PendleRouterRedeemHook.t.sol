@@ -253,6 +253,7 @@ contract PendleRouterRedeemHookTest is Helpers {
         
         // Pack the data with explicit tokenOut that differs from struct tokenOut
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             amount,
             address(ytToken),
             address(ptToken),
@@ -283,6 +284,7 @@ contract PendleRouterRedeemHookTest is Helpers {
         
         // Pack the data with explicit minTokenOut that differs from struct minTokenOut
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             amount,
             address(ytToken),
             address(ptToken),
@@ -525,7 +527,7 @@ contract PendleRouterRedeemHookTest is Helpers {
                 swapData: swapData
             })
         );
-        return abi.encodePacked(amount_, yt_, pt_, tokenOut_, minTokenOut_, usePrevHookAmount_, tokenOutput);
+        return abi.encodePacked(bytes(new bytes(52)), amount_, yt_, pt_, tokenOut_, minTokenOut_, usePrevHookAmount_, tokenOutput);
     }
 
     function test_PendleRouterRedeem_ReplaceCalldataAmounts_ThenBuild() public view {

@@ -25,9 +25,8 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 /// @notice Claims rFLR rewards from Flare's RNat contract
 /// @dev rFLR tokens are non-transferable, so fee collection is not supported at the claim stage.
 ///      Fees should be collected at the WFLR withdrawal stage via WithdrawRFLRHook.
-/// @dev data layout (standard 52-byte header + hook-specific):
-/// @notice         bytes32 placeholder = bytes32(data[0:32]) (strategy header — unused by this hook)
-/// @notice         address yieldSource = address(data[32:52]) (strategy header — unused by this hook)
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
 /// @notice         uint256 projectIdsLength = BytesLib.toUint256(data, 52);
 /// @notice         uint256[] projectIds = [BytesLib.toUint256(data, 84 + i*32) for i in 0..projectIdsLength-1]
 contract ClaimRFLRHook is BaseHook, ISuperHookInflowOutflow {

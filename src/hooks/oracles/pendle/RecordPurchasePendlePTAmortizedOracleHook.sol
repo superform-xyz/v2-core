@@ -24,11 +24,12 @@ import { IPendlePTAmortizedOracle } from "../../../vendor/pendle/IPendlePTAmorti
 /// @notice Hook to record PT purchases in the PendlePTAmortizedOracle
 /// @dev Called AFTER a deposit/swap hook that outputs PT amount
 /// @dev The strategy (msg.sender during execution) will be recorded as the position holder
-/// @dev data has the following structure
-/// @notice         address market = BytesLib.toAddress(data, 0);
-/// @notice         uint256 syAccountingAssetSpent = BytesLib.toUint256(data, 20);
-/// @notice         uint256 ptAmount = BytesLib.toUint256(data, 52);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address market = BytesLib.toAddress(data, 52);
+/// @notice         uint256 syAccountingAssetSpent = BytesLib.toUint256(data, 72);
+/// @notice         uint256 ptAmount = BytesLib.toUint256(data, 104);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
 contract RecordPurchasePendlePTAmortizedOracleHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow {
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -37,10 +38,10 @@ contract RecordPurchasePendlePTAmortizedOracleHook is BaseHook, ISuperHookContex
     /// @notice Contract version for bytecode differentiation
     uint256 public constant VERSION = 2;
 
-    uint256 private constant MARKET_POSITION = 0;
-    uint256 private constant SY_ACCOUNTING_ASSET_SPENT_POSITION = 20;
-    uint256 private constant PT_AMOUNT_POSITION = 52;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 84;
+    uint256 private constant MARKET_POSITION = 52;
+    uint256 private constant SY_ACCOUNTING_ASSET_SPENT_POSITION = 72;
+    uint256 private constant PT_AMOUNT_POSITION = 104;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 136;
 
     /*//////////////////////////////////////////////////////////////
                                 STORAGE

@@ -122,11 +122,13 @@ contract OfframpTokensHookTest is Helpers {
         tokens[1] = token2;
 
         // Encode the data in the format expected by inspect:
-        // First 20 bytes: to address
+        // First 52 bytes: placeholder
+        // Next 20 bytes: to address
         // Then abi encoded (address[] tokens)
         bytes memory tokensData = abi.encode(tokens);
         bytes memory data = abi.encodePacked(
-            to, // First 20 bytes: to address
+            bytes(new bytes(52)), // 52-byte placeholder
+            to, // Next 20 bytes: to address
             tokensData // Then the encoded tokens
         );
 
@@ -330,6 +332,6 @@ contract OfframpTokensHookTest is Helpers {
 
     function _encodeData(address[] memory tokens) internal view returns (bytes memory) {
         bytes memory tokensData = abi.encode(tokens);
-        return abi.encodePacked(to, tokensData);
+        return abi.encodePacked(bytes(new bytes(52)), to, tokensData);
     }
 }

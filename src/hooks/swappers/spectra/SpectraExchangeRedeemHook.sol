@@ -22,7 +22,7 @@ import { SpectraCommands } from "../../../vendor/spectra/SpectraCommands.sol";
 /// @title SpectraExchangeRedeemHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         bytes32 placeholder_yieldSourceOracleId = BytesLib.toBytes32(data, 0);
 /// @notice         address asset = BytesLib.toAddress(data, 32);
 /// @notice         address pt = BytesLib.toAddress(data, 52);
 /// @notice         address recipient = BytesLib.toAddress(data, 72);

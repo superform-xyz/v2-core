@@ -1004,11 +1004,12 @@ contract StargateAdapterFork is Helpers {
         pure
         returns (bytes memory)
     {
-        // Layout: lzNativeFee(32) + stargatePool(20) + inputToken(20)
+        // Layout: header(52) + lzNativeFee(32) + stargatePool(20) + inputToken(20)
         //       + dstEid(4) + to(32) + amountLD(32) + minAmountLD(32)
         //       + usePrevHookAmount(1) + mode(1)
         //       + extraOptionsLength(32) + extraOptions + composeMsgLength(32) + composeMsg
         bytes memory fixedPart = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte strategy header
             lzNativeFee,
             stargatePool,
             inputToken,

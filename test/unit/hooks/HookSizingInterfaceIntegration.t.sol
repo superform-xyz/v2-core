@@ -133,9 +133,9 @@ contract HookSizingInterfaceIntegration is Helpers {
 
     /// @dev Build MorphoSupply data with real Morpho market params
     function test_Fork_MorphoSupply_RealMarket_DecodeReplace() public view {
-        // BaseLoanHook data: loanToken(20) + collateralToken(20) + oracle(20) + irm(20) + amount(32) + lltv(32) + usePrev(1)
+        // BaseLoanHook data: header(52) + loanToken@52(20) + collateralToken@72(20) + oracle@92(20) + irm@112(20) + amount@132(32) + lltv@164(32) + usePrev@196(1)
         uint256 amount = 1e8; // 1 WBTC in WBTC decimals
-        bytes memory data = abi.encodePacked(WBTC, USDC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, amount, MORPHO_LLTV, false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), WBTC, USDC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, amount, MORPHO_LLTV, false);
 
         // Verify decode with real addresses
         assertEq(morphoSupply.decodeAmounts(data)[0], amount);
@@ -145,14 +145,14 @@ contract HookSizingInterfaceIntegration is Helpers {
         bytes memory replaced = morphoSupply.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(morphoSupply.decodeAmounts(replaced)[0], newAmount);
 
-        // Verify all real market param addresses preserved
-        assertEq(BytesLib.toAddress(replaced, 0), WBTC, "loanToken mismatch");
-        assertEq(BytesLib.toAddress(replaced, 20), USDC, "collateralToken mismatch");
-        assertEq(BytesLib.toAddress(replaced, 40), MORPHO_ORACLE_WBTC, "oracle mismatch");
-        assertEq(BytesLib.toAddress(replaced, 60), MORPHO_IRM_WBTC, "irm mismatch");
+        // Verify all real market param addresses preserved (with 52-byte header offset)
+        assertEq(BytesLib.toAddress(replaced, 52), WBTC, "loanToken mismatch");
+        assertEq(BytesLib.toAddress(replaced, 72), USDC, "collateralToken mismatch");
+        assertEq(BytesLib.toAddress(replaced, 92), MORPHO_ORACLE_WBTC, "oracle mismatch");
+        assertEq(BytesLib.toAddress(replaced, 112), MORPHO_IRM_WBTC, "irm mismatch");
 
-        // Verify LLTV preserved (at offset 112)
-        assertEq(BytesLib.toUint256(replaced, 112), MORPHO_LLTV, "lltv mismatch");
+        // Verify LLTV preserved (at offset 164)
+        assertEq(BytesLib.toUint256(replaced, 164), MORPHO_LLTV, "lltv mismatch");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -161,10 +161,10 @@ contract HookSizingInterfaceIntegration is Helpers {
 
     /// @dev MorphoWithdraw with real market — verify XOR invariant with real data layout
     function test_Fork_MorphoWithdraw_RealMarket_XOR() public view {
-        // MorphoWithdraw: loanToken(20) + collateralToken(20) + oracle(20) + irm(20) + lltv(32) + assets(32) + shares(32) = 176
+        // MorphoWithdraw: header(52) + loanToken@52(20) + collateralToken@72(20) + oracle@92(20) + irm@112(20) + lltv@132(32) + assets@164(32) + shares@196(32)
         uint256 assets = 1000e6; // 1000 USDC
 
-        bytes memory data = abi.encodePacked(WBTC, USDC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV, assets, uint256(0));
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), WBTC, USDC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV, assets, uint256(0));
 
         uint256[] memory decoded = morphoWithdraw.decodeAmounts(data);
         assertEq(decoded.length, 2);
@@ -178,17 +178,17 @@ contract HookSizingInterfaceIntegration is Helpers {
         assertEq(newDecoded[0], 0);
         assertEq(newDecoded[1], shares);
 
-        // Verify real addresses preserved
-        assertEq(BytesLib.toAddress(replaced, 0), WBTC);
-        assertEq(BytesLib.toAddress(replaced, 20), USDC);
-        assertEq(BytesLib.toAddress(replaced, 40), MORPHO_ORACLE_WBTC);
-        assertEq(BytesLib.toAddress(replaced, 60), MORPHO_IRM_WBTC);
-        assertEq(BytesLib.toUint256(replaced, 80), MORPHO_LLTV);
+        // Verify real addresses preserved (with 52-byte header offset)
+        assertEq(BytesLib.toAddress(replaced, 52), WBTC);
+        assertEq(BytesLib.toAddress(replaced, 72), USDC);
+        assertEq(BytesLib.toAddress(replaced, 92), MORPHO_ORACLE_WBTC);
+        assertEq(BytesLib.toAddress(replaced, 112), MORPHO_IRM_WBTC);
+        assertEq(BytesLib.toUint256(replaced, 132), MORPHO_LLTV);
     }
 
     /// @dev MorphoWithdraw XOR — both nonzero reverts even with real market data
     function test_Fork_MorphoWithdraw_RealMarket_RevertsBothNonzero() public {
-        bytes memory data = abi.encodePacked(WBTC, USDC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV, uint256(1e18), uint256(0));
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), WBTC, USDC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV, uint256(1e18), uint256(0));
 
         vm.expectRevert();
         morphoWithdraw.replaceCalldataAmounts(data, _dualAmounts(1e18, 1e18));
@@ -200,12 +200,12 @@ contract HookSizingInterfaceIntegration is Helpers {
 
     /// @dev Build SwapUniswapV3 data with real router, verify sizing interface
     function test_Fork_SwapUniswapV3_RealRouter_DecodeReplace() public view {
-        // UniV3 data: tokenIn(20) + tokenOut(20) + fee(4) + pool(20) + sqrtPriceX96(32) + deadline(32) + amount(32) + minAmountOut(32) + usePrev(1)
+        // UniV3 data: header(52) + tokenIn@52(20) + tokenOut@72(20) + fee@92(4) + recipient@96(20) + deadline@116(32) + sqrtPriceX96@148(32) + amount@180(32) + minAmountOut@212(32) + usePrev@244(1)
         uint256 amount = 1e18; // 1 WETH
-        address pool = address(0); // 0 means let router find pool
+        address recipient = address(0); // 0 means let router find pool
 
         bytes memory data = abi.encodePacked(
-            WETH, USDC, uint32(3000), pool, uint256(0), uint256(block.timestamp + 3600), amount, uint256(0), false
+            bytes32(0), address(0), WETH, USDC, uint32(3000), recipient, uint256(0), uint256(block.timestamp + 3600), amount, uint256(0), false
         );
 
         assertEq(swapUniV3.decodeAmounts(data)[0], amount);
@@ -214,9 +214,9 @@ contract HookSizingInterfaceIntegration is Helpers {
         bytes memory replaced = swapUniV3.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(swapUniV3.decodeAmounts(replaced)[0], newAmount);
 
-        // Verify token addresses preserved
-        assertEq(BytesLib.toAddress(replaced, 0), WETH, "tokenIn mismatch");
-        assertEq(BytesLib.toAddress(replaced, 20), USDC, "tokenOut mismatch");
+        // Verify token addresses preserved (with 52-byte header offset)
+        assertEq(BytesLib.toAddress(replaced, 52), WETH, "tokenIn mismatch");
+        assertEq(BytesLib.toAddress(replaced, 72), USDC, "tokenOut mismatch");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -225,16 +225,17 @@ contract HookSizingInterfaceIntegration is Helpers {
 
     /// @dev Build AcrossV2 data with real SpokePool address
     function test_Fork_AcrossV2_RealSpokePool_DecodeReplace() public view {
-        // AcrossV2 data: uint256(dstChainId) + addr(recipient) + addr(inputToken) + addr(outputToken) + uint256(amount@92) + ...
+        // AcrossV2 data: header(52) + value@52(32) + recipient@84(20) + inputToken@104(20) + outputToken@124(20) + inputAmount@144(32) + ...
         address recipient = address(this);
         uint256 amount = 1000e6; // 1000 USDC
 
         bytes memory data = abi.encodePacked(
-            uint256(8453), // Base chain
+            bytes32(0), address(0), // 52-byte header
+            uint256(8453), // Base chain (value at offset 52)
             recipient,
             USDC, // inputToken
             USDC, // outputToken (same for CCTP)
-            amount, // at offset 92
+            amount, // at offset 144
             uint256(990e6), // outputAmount
             uint256(block.timestamp + 7200) // fillDeadline
         );
@@ -245,11 +246,11 @@ contract HookSizingInterfaceIntegration is Helpers {
         bytes memory replaced = acrossV2.replaceCalldataAmounts(data, _singleAmount(newAmount));
         assertEq(acrossV2.decodeAmounts(replaced)[0], newAmount);
 
-        // Verify dstChainId, recipient, tokens preserved
-        assertEq(BytesLib.toUint256(replaced, 0), 8453, "dstChainId mismatch");
-        assertEq(BytesLib.toAddress(replaced, 32), recipient, "recipient mismatch");
-        assertEq(BytesLib.toAddress(replaced, 52), USDC, "inputToken mismatch");
-        assertEq(BytesLib.toAddress(replaced, 72), USDC, "outputToken mismatch");
+        // Verify dstChainId, recipient, tokens preserved (with 52-byte header offset)
+        assertEq(BytesLib.toUint256(replaced, 52), 8453, "dstChainId mismatch");
+        assertEq(BytesLib.toAddress(replaced, 84), recipient, "recipient mismatch");
+        assertEq(BytesLib.toAddress(replaced, 104), USDC, "inputToken mismatch");
+        assertEq(BytesLib.toAddress(replaced, 124), USDC, "outputToken mismatch");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -275,11 +276,12 @@ contract HookSizingInterfaceIntegration is Helpers {
         uint256 origAmount = 1e8;
         uint256 newAmount = 42e8;
 
-        bytes memory data = abi.encodePacked(WBTC, USDC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, origAmount, MORPHO_LLTV, false);
+        // BaseLoanHook data: header(52) + 4 addresses(80) + amount@132(32) + lltv@164(32) + usePrev@196(1)
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), WBTC, USDC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, origAmount, MORPHO_LLTV, false);
         bytes memory replaced = morphoSupply.replaceCalldataAmounts(data, _singleAmount(newAmount));
 
-        // Independently verify: amount sits at byte offset 80 (4 * 20 byte addresses)
-        uint256 rawAmount = BytesLib.toUint256(replaced, 80);
+        // Independently verify: amount sits at byte offset 132 (52 header + 4 * 20 byte addresses)
+        uint256 rawAmount = BytesLib.toUint256(replaced, 132);
         assertEq(rawAmount, newAmount);
     }
 
@@ -287,13 +289,14 @@ contract HookSizingInterfaceIntegration is Helpers {
         uint256 origAmount = 1000e6;
         uint256 newAmount = 9999e6;
 
+        // AcrossV2 data: header(52) + value@52(32) + recipient@84(20) + inputToken@104(20) + outputToken@124(20) + amount@144(32) + ...
         bytes memory data = abi.encodePacked(
-            uint256(8453), address(this), USDC, USDC, origAmount, uint256(0), uint256(0)
+            bytes32(0), address(0), uint256(8453), address(this), USDC, USDC, origAmount, uint256(0), uint256(0)
         );
         bytes memory replaced = acrossV2.replaceCalldataAmounts(data, _singleAmount(newAmount));
 
-        // Independently verify: amount at offset 92
-        uint256 rawAmount = BytesLib.toUint256(replaced, 92);
+        // Independently verify: amount at offset 144
+        uint256 rawAmount = BytesLib.toUint256(replaced, 144);
         assertEq(rawAmount, newAmount);
     }
 
@@ -301,13 +304,14 @@ contract HookSizingInterfaceIntegration is Helpers {
         uint256 origAmount = 1e18;
         uint256 newAmount = 123e18;
 
+        // UniV3 data: header(52) + tokenIn@52(20) + tokenOut@72(20) + fee@92(4) + recipient@96(20) + sqrtPriceX96@116(32) + deadline@148(32) + amount@180(32) + minAmountOut@212(32) + usePrev@244(1)
         bytes memory data = abi.encodePacked(
-            WETH, USDC, uint32(3000), address(0), uint256(0), uint256(1000), origAmount, uint256(0), false
+            bytes32(0), address(0), WETH, USDC, uint32(3000), address(0), uint256(0), uint256(block.timestamp + 3600), origAmount, uint256(0), false
         );
         bytes memory replaced = swapUniV3.replaceCalldataAmounts(data, _singleAmount(newAmount));
 
-        // Independently verify: amount at offset 128
-        uint256 rawAmount = BytesLib.toUint256(replaced, 128);
+        // Independently verify: amount at offset 180
+        uint256 rawAmount = BytesLib.toUint256(replaced, 180);
         assertEq(rawAmount, newAmount);
     }
 
@@ -324,16 +328,16 @@ contract HookSizingInterfaceIntegration is Helpers {
     }
 
     function testFuzz_Fork_MorphoSupply_RealMarket(uint256 amt) public view {
-        bytes memory data = abi.encodePacked(WBTC, USDC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, uint256(0), MORPHO_LLTV, false);
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), WBTC, USDC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, uint256(0), MORPHO_LLTV, false);
         bytes memory replaced = morphoSupply.replaceCalldataAmounts(data, _singleAmount(amt));
         assertEq(morphoSupply.decodeAmounts(replaced)[0], amt);
-        // All real market addresses preserved
-        assertEq(BytesLib.toAddress(replaced, 0), WBTC);
-        assertEq(BytesLib.toAddress(replaced, 20), USDC);
+        // All real market addresses preserved (with 52-byte header offset)
+        assertEq(BytesLib.toAddress(replaced, 52), WBTC);
+        assertEq(BytesLib.toAddress(replaced, 72), USDC);
     }
 
     function testFuzz_Fork_MorphoWithdraw_RealMarket_XOR(uint256 a, uint256 b) public {
-        bytes memory data = abi.encodePacked(WBTC, USDC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV, uint256(0), uint256(0));
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), WBTC, USDC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV, uint256(0), uint256(0));
 
         bool bothZero = (a == 0 && b == 0);
         bool bothNonzero = (a != 0 && b != 0);
@@ -346,9 +350,9 @@ contract HookSizingInterfaceIntegration is Helpers {
             uint256[] memory amounts = morphoWithdraw.decodeAmounts(replaced);
             assertEq(amounts[0], a);
             assertEq(amounts[1], b);
-            // Real addresses always preserved
-            assertEq(BytesLib.toAddress(replaced, 0), WBTC);
-            assertEq(BytesLib.toAddress(replaced, 20), USDC);
+            // Real addresses always preserved (with 52-byte header offset)
+            assertEq(BytesLib.toAddress(replaced, 52), WBTC);
+            assertEq(BytesLib.toAddress(replaced, 72), USDC);
         }
     }
 

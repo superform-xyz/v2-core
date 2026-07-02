@@ -188,13 +188,17 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     function test_BytesLengthDecoding() public view {
         bytes memory testPathDefinition = abi.encode("test_path_longer_than_before");
 
-        bytes memory data = bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
             bytes32(inputAmount),
             bytes20(inputReceiver),
             bytes20(outputToken),
             bytes32(outputQuote),
-            bytes32(outputMin),
+            bytes32(outputMin)
+        );
+        bytes memory data = bytes.concat(
+            header,
             bytes1(uint8(0)),
             bytes20(address(0)),
             bytes32(testPathDefinition.length),
@@ -227,13 +231,17 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     }
 
     function test_ZeroValue() public view {
-        bytes memory data = bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
             bytes32(uint256(0)), // Zero input amount
             bytes20(inputReceiver),
             bytes20(outputToken),
             bytes32(outputQuote),
-            bytes32(outputMin),
+            bytes32(outputMin)
+        );
+        bytes memory data = bytes.concat(
+            header,
             bytes1(uint8(0)),
             bytes20(address(0)),
             bytes32(pathDefinition.length),
@@ -275,22 +283,27 @@ contract ApproveAndSwapOdosHookTest is Helpers {
         bytes memory data = _buildSwapOdosData(false);
         bytes memory replaced = swapOdosHook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        for (uint256 i = 0; i < 20; i++) {
+        // AMOUNT_POSITION is 72 (52-byte placeholder + inputToken(20))
+        for (uint256 i = 0; i < 72; i++) {
             assertEq(replaced[i], data[i]);
         }
-        for (uint256 i = 52; i < data.length; i++) {
+        for (uint256 i = 104; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
 
     function _buildApproveAndSwapOdosData(bool usePrevious) internal view returns (bytes memory) {
-        bytes memory data = bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
             bytes32(inputAmount),
             bytes20(inputReceiver),
             bytes20(outputToken),
             bytes32(outputQuote),
-            bytes32(outputMin),
+            bytes32(outputMin)
+        );
+        return bytes.concat(
+            header,
             usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes20(address(0)),
             bytes32(pathDefinition.length),
@@ -298,8 +311,6 @@ contract ApproveAndSwapOdosHookTest is Helpers {
             bytes20(executor),
             bytes4(referralCode)
         );
-
-        return data;
     }
 
     // ------------ SwapOdosV2Hook --------------
@@ -373,13 +384,17 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     function test_SwapOdosHook_BytesLengthDecoding() public view {
         bytes memory testPathDefinition = abi.encode("test_path_longer_than_before");
 
-        bytes memory data = bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
             bytes32(inputAmount),
             bytes20(inputReceiver),
             bytes20(outputToken),
             bytes32(outputQuote),
-            bytes32(outputMin),
+            bytes32(outputMin)
+        );
+        bytes memory data = bytes.concat(
+            header,
             bytes1(uint8(0)),
             bytes32(testPathDefinition.length),
             testPathDefinition,
@@ -411,13 +426,17 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     }
 
     function test_SwapOdosHook_ZeroValue() public view {
-        bytes memory data = bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
             bytes32(0), // Zero input amount
             bytes20(inputReceiver),
             bytes20(outputToken),
             bytes32(outputQuote),
-            bytes32(outputMin),
+            bytes32(outputMin)
+        );
+        bytes memory data = bytes.concat(
+            header,
             bytes1(uint8(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
@@ -497,38 +516,42 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     }
 
     function _buildSwapOdosData(bool usePrevious) internal view returns (bytes memory) {
-        bytes memory data = bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
             bytes32(inputAmount),
             bytes20(inputReceiver),
             bytes20(outputToken),
             bytes32(outputQuote),
-            bytes32(outputMin),
+            bytes32(outputMin)
+        );
+        return bytes.concat(
+            header,
             usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
             bytes20(executor),
             bytes4(referralCode)
         );
-
-        return data;
     }
 
     function _buildNativeSwapOdosData(bool usePrevious) internal view returns (bytes memory) {
-        bytes memory data = bytes.concat(
+        bytes memory header = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
             bytes32(inputAmount),
             bytes20(inputReceiver),
             bytes20(address(0)),
             bytes32(outputQuote),
-            bytes32(outputMin),
+            bytes32(outputMin)
+        );
+        return bytes.concat(
+            header,
             usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
             bytes20(executor),
             bytes4(referralCode)
         );
-
-        return data;
     }
 }

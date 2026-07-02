@@ -16,14 +16,15 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 
 /// @title MorphoLendHook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         address loanToken = BytesLib.toAddress(data, 0);
-/// @notice         address collateralToken = BytesLib.toAddress(data, 20);
-/// @notice         address oracle = BytesLib.toAddress(data, 40);
-/// @notice         address irm = BytesLib.toAddress(data, 60);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 80);
-/// @notice         uint256 lltv = BytesLib.toUint256(data, 112);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address loanToken = BytesLib.toAddress(data, 52);
+/// @notice         address collateralToken = BytesLib.toAddress(data, 72);
+/// @notice         address oracle = BytesLib.toAddress(data, 92);
+/// @notice         address irm = BytesLib.toAddress(data, 112);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 132);
+/// @notice         uint256 lltv = BytesLib.toUint256(data, 164);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 196);
 /// @dev WARNING: outAmount is Morpho supply shares (not assets). Unlike ERC-4626 vault shares,
 ///      Morpho shares are non-transferable internal accounting units. Downstream hooks using
 ///      usePrevHookAmount will receive a share count, not a token amount. The bundler MUST NOT

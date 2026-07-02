@@ -350,7 +350,7 @@ contract PendlePTAmortizedOracleHooksForkTest is Test {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(market, sySpent, ptAmount, usePrevHookAmount);
+        return abi.encodePacked(bytes32(0), address(0), market, sySpent, ptAmount, usePrevHookAmount);
     }
 
     function _encodeRedemptionData(
@@ -362,7 +362,7 @@ contract PendlePTAmortizedOracleHooksForkTest is Test {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(market, ptSold, usePrevHookAmount);
+        return abi.encodePacked(bytes32(0), address(0), market, ptSold, usePrevHookAmount);
     }
 
     /// @notice Encode V2 purchase data: market + ptAmount + twapDuration + usePrevHookAmount
@@ -377,7 +377,7 @@ contract PendlePTAmortizedOracleHooksForkTest is Test {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(market, ptAmount, twapDuration, usePrevHookAmount);
+        return abi.encodePacked(bytes32(0), address(0), market, ptAmount, twapDuration, usePrevHookAmount);
     }
 
     /*//////////////////////////////////////////////////////////////

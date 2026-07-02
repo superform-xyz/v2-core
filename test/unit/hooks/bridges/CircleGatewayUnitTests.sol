@@ -75,6 +75,7 @@ contract CircleGatewayUnitTests is BaseTest {
     function test_RemoveDelegateHook_BuildExecutions() public view {
         // Prepare hook data: token, delegate
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             address(0x123) // delegate (20 bytes)
         );
@@ -104,6 +105,7 @@ contract CircleGatewayUnitTests is BaseTest {
     function test_AddDelegateHook_BuildExecutions() public view {
         // Prepare hook data: token, delegate
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             address(0x123) // delegate (20 bytes)
         );
@@ -133,6 +135,7 @@ contract CircleGatewayUnitTests is BaseTest {
     function test_AddDelegateHook_BuildExecutions_InvalidDelegate() public {
         // Prepare hook data: token, amount, usePrevHookAmount=false
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             address(0) // delegate (20 bytes)
         );
@@ -144,6 +147,7 @@ contract CircleGatewayUnitTests is BaseTest {
     function test_RemoveDelegateHook_BuildExecutions_InvalidDelegate() public {
         // Prepare hook data: token, amount, usePrevHookAmount=false
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             address(0) // delegate (20 bytes)
         );
@@ -155,6 +159,7 @@ contract CircleGatewayUnitTests is BaseTest {
     function test_WalletHook_BuildExecutions_WithFixedAmount() public view {
         // Prepare hook data: token, amount, usePrevHookAmount=false
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes)
             false // usePrevHookAmount (1 byte)
@@ -192,6 +197,7 @@ contract CircleGatewayUnitTests is BaseTest {
 
         // Prepare hook data: token, amount, usePrevHookAmount=true
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes, will be overridden)
             true // usePrevHookAmount (1 byte)
@@ -210,6 +216,7 @@ contract CircleGatewayUnitTests is BaseTest {
 
     function test_WalletHook_DecodeUsePrevHookAmount_True() public view {
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes)
             true // usePrevHookAmount (1 byte)
@@ -221,6 +228,7 @@ contract CircleGatewayUnitTests is BaseTest {
 
     function test_WalletHook_DecodeUsePrevHookAmount_False() public view {
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes)
             false // usePrevHookAmount (1 byte)
@@ -233,6 +241,7 @@ contract CircleGatewayUnitTests is BaseTest {
     function test_WalletHook_DecodeUsePrevHookAmount_ShortData() public {
         // Data shorter than expected position
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT // amount (32 bytes) - missing bool
         );
@@ -244,6 +253,7 @@ contract CircleGatewayUnitTests is BaseTest {
 
     function test_WalletHook_DecodeAmounts() public view {
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes)
             true // usePrevHookAmount (1 byte)
@@ -255,6 +265,7 @@ contract CircleGatewayUnitTests is BaseTest {
 
     function test_WalletHook_ReplaceCalldataAmounts() public view {
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes)
             false // usePrevHookAmount (1 byte)
@@ -269,6 +280,7 @@ contract CircleGatewayUnitTests is BaseTest {
     function testFuzz_WalletHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes)
             false // usePrevHookAmount (1 byte)
@@ -280,6 +292,7 @@ contract CircleGatewayUnitTests is BaseTest {
 
     function test_WalletHook_ReplaceCalldataAmounts_ThenBuild() public view {
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes)
             false // usePrevHookAmount (1 byte)
@@ -293,22 +306,26 @@ contract CircleGatewayUnitTests is BaseTest {
 
     function test_WalletHook_ReplaceCalldataAmounts_PreservesOtherFields() public view {
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes)
             false // usePrevHookAmount (1 byte)
         );
         bytes memory replaced = walletHook.replaceCalldataAmounts(hookData, _singleAmount(999));
         assertEq(replaced.length, hookData.length);
-        for (uint256 i = 0; i < 20; i++) {
+        // AMOUNT_POSITION is 72 (52-byte placeholder + token(20))
+        for (uint256 i = 0; i < 72; i++) {
             assertEq(replaced[i], hookData[i]);
         }
-        for (uint256 i = 52; i < hookData.length; i++) {
+        // Skip bytes 72-103 (the amount field that was replaced)
+        for (uint256 i = 104; i < hookData.length; i++) {
             assertEq(replaced[i], hookData[i]);
         }
     }
 
     function test_WalletHook_DecodeToken() public view {
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes)
             true // usePrevHookAmount (1 byte)
@@ -320,6 +337,7 @@ contract CircleGatewayUnitTests is BaseTest {
 
     function test_WalletHook_RevertZeroAddress() public {
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(0), // invalid token
             DEPOSIT_AMOUNT, // amount (32 bytes)
             false // usePrevHookAmount (1 byte)
@@ -331,6 +349,7 @@ contract CircleGatewayUnitTests is BaseTest {
 
     function test_WalletHook_RevertZeroAmount() public {
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             uint256(0), // zero amount
             false // usePrevHookAmount (1 byte)
@@ -560,7 +579,12 @@ contract CircleGatewayUnitTests is BaseTest {
     function test_WalletHook_LargeAmount() public view {
         uint256 largeAmount = type(uint256).max;
 
-        bytes memory hookData = abi.encodePacked(address(mockToken), largeAmount, false);
+        bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
+            address(mockToken),
+            largeAmount,
+            false
+        );
 
         Execution[] memory executions = walletHook.build(address(0), ACCOUNT, hookData);
 
@@ -605,12 +629,13 @@ contract CircleGatewayUnitTests is BaseTest {
 
     function testFuzz_WalletHook_DecodeUsePrevHookAmount(uint8 boolByte, uint256 dataLength) public view {
         // Bound data length to reasonable range, ensuring minimum length for valid data
-        dataLength = bound(dataLength, 53, 1000); // Minimum 53 bytes to access position 52
+        // USE_PREV_HOOK_AMOUNT_POSITION = 104, so need at least 105 bytes
+        dataLength = bound(dataLength, 105, 1000);
 
         bytes memory hookData = new bytes(dataLength);
 
-        // Set the boolean byte at position 52
-        hookData[52] = bytes1(boolByte);
+        // Set the boolean byte at position 104 (USE_PREV_HOOK_AMOUNT_POSITION)
+        hookData[104] = bytes1(boolByte);
 
         bool result = walletHook.decodeUsePrevHookAmount(hookData);
         assertEq(result, boolByte != 0, "Should match boolean conversion");
@@ -645,6 +670,7 @@ contract CircleGatewayUnitTests is BaseTest {
         MockPrevHook mockPrevHook = new MockPrevHook(0);
 
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes, will be overridden)
             true // usePrevHookAmount (1 byte)
@@ -659,6 +685,7 @@ contract CircleGatewayUnitTests is BaseTest {
         MockPrevHook mockPrevHook = new MockPrevHook(MINT_AMOUNT);
 
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(0), // zero address token
             DEPOSIT_AMOUNT, // amount (32 bytes, will be overridden)
             true // usePrevHookAmount (1 byte)
@@ -673,6 +700,7 @@ contract CircleGatewayUnitTests is BaseTest {
         MockPrevHook mockPrevHook = new MockPrevHook(MINT_AMOUNT);
 
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes, will be overridden)
             true // usePrevHookAmount (1 byte)
@@ -692,6 +720,7 @@ contract CircleGatewayUnitTests is BaseTest {
     function test_WalletHook_PostExecute_WithoutPrevHookAmount() public {
         // Test postExecute with usePrevHookAmount = false
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes)
             false // usePrevHookAmount (1 byte)
@@ -973,6 +1002,7 @@ contract CircleGatewayUnitTests is BaseTest {
     function test_WalletHook_FullExecutionFlow() public {
         // Test the complete execution flow for wallet hook
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount (32 bytes)
             false // usePrevHookAmount (1 byte)
@@ -1021,6 +1051,7 @@ contract CircleGatewayUnitTests is BaseTest {
         MockPrevHook mockPrevHook = new MockPrevHook(MINT_AMOUNT);
 
         bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(mockToken), // token (20 bytes)
             DEPOSIT_AMOUNT, // amount in data (32 bytes)
             true // usePrevHookAmount (1 byte)

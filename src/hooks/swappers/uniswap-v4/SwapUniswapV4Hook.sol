@@ -33,20 +33,21 @@ import { TickMath } from "v4-core/libraries/TickMath.sol";
 /// @author Superform Labs
 /// @notice Hook for executing swaps via Uniswap V4 with dynamic minAmountOut recalculation
 /// @dev Implements dynamic slippage protection and on-chain quote generation
-/// @dev data has the following structure
-/// @notice         address currency0 = BytesLib.toAddress(data, 0);
-/// @notice         address currency1 = BytesLib.toAddress(data, 20);
-/// @notice         uint24 fee = uint24(BytesLib.toUint32(data, 40));
-/// @notice         int24 tickSpacing = int24(BytesLib.toUint32(data, 44));
-/// @notice         address hooks = BytesLib.toAddress(data, 48);
-/// @notice         address dstReceiver = BytesLib.toAddress(data, 68);
-/// @notice         uint160 sqrtPriceLimitX96 = uint160(BytesLib.toUint256(data, 88));
-/// @notice         uint256 originalAmountIn = BytesLib.toUint256(data, 120);
-/// @notice         uint256 originalMinAmountOut = BytesLib.toUint256(data, 152);
-/// @notice         uint256 maxSlippageDeviationBps = BytesLib.toUint256(data, 184);
-/// @notice         bool zeroForOne = _decodeBool(data, 216);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 217);
-/// @notice         bytes additionalData = BytesLib.slice(data, 218, data.length - 218);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address currency0 = BytesLib.toAddress(data, 52);
+/// @notice         address currency1 = BytesLib.toAddress(data, 72);
+/// @notice         uint24 fee = uint24(BytesLib.toUint32(data, 92));
+/// @notice         int24 tickSpacing = int24(BytesLib.toUint32(data, 96));
+/// @notice         address hooks = BytesLib.toAddress(data, 100);
+/// @notice         address dstReceiver = BytesLib.toAddress(data, 120);
+/// @notice         uint160 sqrtPriceLimitX96 = uint160(BytesLib.toUint256(data, 140));
+/// @notice         uint256 originalAmountIn = BytesLib.toUint256(data, 172);
+/// @notice         uint256 originalMinAmountOut = BytesLib.toUint256(data, 204);
+/// @notice         uint256 maxSlippageDeviationBps = BytesLib.toUint256(data, 236);
+/// @notice         bool zeroForOne = _decodeBool(data, 268);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 269);
+/// @notice         bytes additionalData = BytesLib.slice(data, 270, data.length - 270);
 contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow, ISuperHookOutflow {
     using PoolIdLibrary for PoolKey;
     using CurrencyLibrary for Currency;
@@ -66,7 +67,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
 
     uint256 private transient initialBalance;
 
-    uint256 private constant AMOUNT_POSITION = 120;
+    uint256 private constant AMOUNT_POSITION = 172;
     uint256 private constant MAX_BPS = 10_000; // 100%
     uint256 private constant MAX_ADDITIONAL_DATA_LEN = 4096; // hard cap to bound gas on user-controlled data
 
@@ -224,7 +225,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
 
         // Get initial balance (handle native ETH vs ERC-20)
         address outputToken = _getOutputToken(data);
-        address dstReceiver = data.toAddress(68);
+        address dstReceiver = data.toAddress(120);
         if (outputToken == address(0)) {
             // Native ETH
             initialBalance = dstReceiver.balance;
@@ -262,7 +263,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
 
         // Calculate true output amount (handle native ETH vs ERC-20)
         address outputToken = _getOutputToken(data);
-        address dstReceiver = data.toAddress(68);
+        address dstReceiver = data.toAddress(120);
         uint256 currentBalance;
         if (outputToken == address(0)) {
             // Native ETH
@@ -453,8 +454,8 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
     /// @inheritdoc BaseHook
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         // Decode token addresses directly using BytesLib
-        address currency0 = data.toAddress(0);
-        address currency1 = data.toAddress(20);
+        address currency0 = data.toAddress(52);
+        address currency1 = data.toAddress(72);
 
         // Return packed token addresses for inspection
         return abi.encodePacked(
@@ -467,10 +468,10 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
     /// @param data The encoded hook data
     /// @return usePrevHookAmount Whether to use the previous hook's output amount
     function decodeUsePrevHookAmount(bytes calldata data) external pure returns (bool usePrevHookAmount) {
-        if (data.length < 218) {
+        if (data.length < 270) {
             revert INVALID_HOOK_DATA();
         }
-        usePrevHookAmount = _decodeBool(data, 217);
+        usePrevHookAmount = _decodeBool(data, 269);
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -574,10 +575,10 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
         returns (address inputToken, uint256 amountIn)
     {
         // Decode minimal data needed for transfer using BytesLib
-        address currency0 = data.toAddress(0);
-        address currency1 = data.toAddress(20);
-        bool zeroForOne = _decodeBool(data, 216);
-        bool usePrevHookAmount = _decodeBool(data, 217);
+        address currency0 = data.toAddress(52);
+        address currency1 = data.toAddress(72);
+        bool zeroForOne = _decodeBool(data, 268);
+        bool usePrevHookAmount = _decodeBool(data, 269);
 
         // Get input token address (native ETH = address(0))
         inputToken = zeroForOne ? currency0 : currency1;
@@ -585,8 +586,8 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
         if (usePrevHookAmount) {
             amountIn = ISuperHookResult(prevHook).getOutAmount(account);
         } else {
-            // Extract originalAmountIn from new position 120-152
-            amountIn = data.toUint256(120);
+            // Extract originalAmountIn from position 172 (52-byte header + 120 bytes of pool key + dstReceiver + sqrtPriceLimit)
+            amountIn = data.toUint256(172);
         }
     }
 
@@ -661,17 +662,17 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
             bytes memory additionalData
         )
     {
-        if (data.length < 218) {
+        if (data.length < 270) {
             revert INVALID_HOOK_DATA();
         }
 
         // Construct PoolKey from individual components to avoid stack too deep
         poolKey = PoolKey({
-            currency0: Currency.wrap(data.toAddress(0)),
-            currency1: Currency.wrap(data.toAddress(20)),
-            fee: uint24(data.toUint32(40)),
-            tickSpacing: int24(int32(data.toUint32(44))),
-            hooks: IHooks(data.toAddress(48))
+            currency0: Currency.wrap(data.toAddress(52)),
+            currency1: Currency.wrap(data.toAddress(72)),
+            fee: uint24(data.toUint32(92)),
+            tickSpacing: int24(int32(data.toUint32(96))),
+            hooks: IHooks(data.toAddress(100))
         });
 
         // Validate PoolKey components
@@ -680,21 +681,21 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
         if (poolKey.tickSpacing == 0) revert INVALID_HOOK_DATA();
 
         // Decode remaining fields using BytesLib
-        dstReceiver = data.toAddress(68);
-        sqrtPriceLimitX96 = uint160(data.toUint256(88));
-        originalAmountIn = data.toUint256(120);
-        originalMinAmountOut = data.toUint256(152);
-        maxSlippageDeviationBps = data.toUint256(184);
-        zeroForOne = _decodeBool(data, 216);
-        usePrevHookAmount = _decodeBool(data, 217);
+        dstReceiver = data.toAddress(120);
+        sqrtPriceLimitX96 = uint160(data.toUint256(140));
+        originalAmountIn = data.toUint256(172);
+        originalMinAmountOut = data.toUint256(204);
+        maxSlippageDeviationBps = data.toUint256(236);
+        zeroForOne = _decodeBool(data, 268);
+        usePrevHookAmount = _decodeBool(data, 269);
 
         // Additional data is everything after the fixed structure
         uint256 dataLength = data.length;
-        if (dataLength > 218) {
-            if (dataLength - 218 > MAX_ADDITIONAL_DATA_LEN) {
+        if (dataLength > 270) {
+            if (dataLength - 270 > MAX_ADDITIONAL_DATA_LEN) {
                 revert EXCESSIVE_ADDITIONAL_DATA();
             }
-            additionalData = data.slice(218, data.length - 218);
+            additionalData = data.slice(270, data.length - 270);
         }
     }
 
@@ -703,9 +704,9 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
     /// @return outputToken The output token address
     function _getOutputToken(bytes calldata data) internal pure returns (address outputToken) {
         // Decode just the needed fields using BytesLib
-        address currency0 = data.toAddress(0);
-        address currency1 = data.toAddress(20);
-        bool zeroForOne = _decodeBool(data, 216);
+        address currency0 = data.toAddress(52);
+        address currency1 = data.toAddress(72);
+        bool zeroForOne = _decodeBool(data, 268);
 
         // Get output token address (native ETH = address(0))
         outputToken = zeroForOne ? currency1 : currency0;

@@ -271,13 +271,17 @@ contract AcrossHooksV2 is Helpers {
         // destinationMessage present but < 64 bytes (too short for V2 abi.decode(bytes))
         bytes memory shortDstMsg = hex"deadbeef"; // 4 bytes
 
-        bytes memory data = abi.encodePacked(
+        bytes memory header = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockValue,
             mockRecipient,
             mockInputToken,
             mockOutputToken,
             mockInputAmount,
-            mockOutputAmount,
+            mockOutputAmount
+        );
+        bytes memory data = abi.encodePacked(
+            header,
             mockDestinationChainId,
             mockExclusiveRelayer,
             mockFillDeadlineOffset,
@@ -483,10 +487,11 @@ contract AcrossHooksV2 is Helpers {
         bytes memory data = _encodeAcrossV2Data(false, false);
         bytes memory replaced = acrossHookV2.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        for (uint256 i = 0; i < 92; i++) {
+        // inputAmount is at AMOUNT_POSITION = 144 (uint256 = 32 bytes, ends at byte 175)
+        for (uint256 i = 0; i < 144; i++) {
             assertEq(replaced[i], data[i]);
         }
-        for (uint256 i = 124; i < data.length; i++) {
+        for (uint256 i = 176; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
@@ -512,13 +517,17 @@ contract AcrossHooksV2 is Helpers {
             destinationMessage = abi.encode(initData);
         }
 
-        return abi.encodePacked(
+        bytes memory header = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockValue,
             mockRecipient,
             mockInputToken,
             mockOutputToken,
             mockInputAmount,
-            mockOutputAmount,
+            mockOutputAmount
+        );
+        return abi.encodePacked(
+            header,
             mockDestinationChainId,
             mockExclusiveRelayer,
             mockFillDeadlineOffset,

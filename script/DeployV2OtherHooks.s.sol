@@ -68,8 +68,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address approveAndSwapOdosV3Hook;
     }
 
-    struct DepositWFLRHookAddress {
-        address depositWFLRHook;
+    struct WrappedNativeHookAddress {
+        address wrappedNativeHook;
     }
 
     struct HookDeployment {
@@ -154,11 +154,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
-    function runDepositWFLR(uint256 env, uint64 chainId) public broadcast(env) {
+    function runWrappedNative(uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
-        console2.log("Deploying DepositWFLRHook on chainId: ", chainId);
+        console2.log("Deploying WrappedNativeHook on chainId: ", chainId);
 
-        _deployDepositWFLRHook(chainId, env);
+        _deployWrappedNativeHook(chainId, env);
         _writeExportedContracts(chainId);
     }
 
@@ -204,8 +204,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             _deployRFLRHooks(chainId, env);
             console2.log("Deploying rFLR V2 Hooks on chainId: ", chainId);
             _deployRFLRV2Hooks(chainId, env);
-            console2.log("Deploying DepositWFLRHook on chainId: ", chainId);
-            _deployDepositWFLRHook(chainId, env);
+            console2.log("Deploying WrappedNativeHook on chainId: ", chainId);
+            _deployWrappedNativeHook(chainId, env);
         }
 
         // Odos V3 hooks — on chains where Odos V3 router is deployed
@@ -724,27 +724,28 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     }
 
     /*//////////////////////////////////////////////////////////////
-                    DEPOSIT WFLR HOOK DEPLOYMENT (FLARE ONLY)
+              WRAPPED NATIVE HOOK DEPLOYMENT (ETHEREUM + FLARE)
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Deploy DepositWETHHook with WFLR address on Flare — wraps native FLR into WFLR
-    /// @dev DepositWETHHook is generic: WFLR.deposit() shares the same ABI as WETH.deposit()
-    function _deployDepositWFLRHook(uint64 chainId, uint256 env) internal returns (DepositWFLRHookAddress memory) {
-        bytes memory wflrArg = abi.encode(WFLR_FLARE);
+    /// @notice Deploy WrappedNativeHook with chain-specific wrapped native address
+    /// @dev Ethereum → WETH, Flare → WFLR (same ABI for deposit/withdraw)
+    function _deployWrappedNativeHook(uint64 chainId, uint256 env) internal returns (WrappedNativeHookAddress memory) {
+        address wrappedNativeToken = chainId == MAINNET_CHAIN_ID ? WETH_ETHEREUM : WFLR_FLARE;
+        bytes memory wflrArg = abi.encode(wrappedNativeToken);
 
-        address depositWFLRHook = __deployContract(
-            DEPOSIT_WFLR_HOOK_KEY,
+        address wrappedNativeHook = __deployContract(
+            WRAPPED_NATIVE_HOOK_KEY,
             chainId,
-            __getSalt(DEPOSIT_WFLR_HOOK_KEY),
-            abi.encodePacked(__getOtherHooksBytecode("DepositWETHHook", env), wflrArg)
+            __getSalt(WRAPPED_NATIVE_HOOK_KEY),
+            abi.encodePacked(__getOtherHooksBytecode("WrappedNativeHook", env), wflrArg)
         );
 
-        require(depositWFLRHook != address(0), "DepositWFLRHook not assigned");
+        require(wrappedNativeHook != address(0), "WrappedNativeHook not assigned");
 
-        console2.log("DepositWFLRHook deployed and validated successfully at:", depositWFLRHook);
+        console2.log("WrappedNativeHook deployed and validated successfully at:", wrappedNativeHook);
 
-        DepositWFLRHookAddress memory hookAddress;
-        hookAddress.depositWFLRHook = depositWFLRHook;
+        WrappedNativeHookAddress memory hookAddress;
+        hookAddress.wrappedNativeHook = wrappedNativeHook;
         return hookAddress;
     }
 }

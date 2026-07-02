@@ -23,23 +23,24 @@ import { IStandardizedYield } from "../../../vendor/pendle/IStandardizedYield.so
 /// @title PendleRouterRedeemHook
 /// @author Superform Labs
 /// @notice Hook for redeeming PT+YT via Pendle Router V4
-/// @dev data has the following structure
-/// @notice         uint256 amount = BytesLib.toUint256(data, 0);
-/// @notice         address yt = BytesLib.toAddress(data, 32);
-/// @notice         address pt = BytesLib.toAddress(data, 52);
-/// @notice         address tokenOut = BytesLib.toAddress(data, 72);
-/// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 92);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
-/// @notice         bytes output = BytesLib.slice(data, 125, data.length - 125);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 52);
+/// @notice         address yt = BytesLib.toAddress(data, 84);
+/// @notice         address pt = BytesLib.toAddress(data, 104);
+/// @notice         address tokenOut = BytesLib.toAddress(data, 124);
+/// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 144);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 176);
+/// @notice         bytes output = BytesLib.slice(data, 177, data.length - 177);
 /// @custom:deprecated Use PendleUnifiedHook instead which supports swap routing for tokenOut that is not directly redeemable from SY
 contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
     // Offset for bool usePrevHookAmount (after packed amount, yt, tokenOut, minTokenOut)
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 124; // 0+32+20+20+32+20
-    uint256 private constant AMOUNT_POSITION = 0;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 176; // 0+32+20+20+32+20
+    uint256 private constant AMOUNT_POSITION = 52;
     // Offset for abi.encoded TokenOutput struct (after packed bool)
-    uint256 private constant TOKEN_OUTPUT_OFFSET = 125; // USE_PREV_HOOK_AMOUNT_POSITION + 1
+    uint256 private constant TOKEN_OUTPUT_OFFSET = 177; // USE_PREV_HOOK_AMOUNT_POSITION + 1
 
     // Struct for decoded parameters
     struct DecodedParams {
@@ -179,7 +180,7 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
-        _setOutToken(BytesLib.toAddress(data, 72), account);
+        _setOutToken(BytesLib.toAddress(data, 124), account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -192,11 +193,11 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
         if (data.length < TOKEN_OUTPUT_OFFSET) revert INVALID_DATA_LENGTH();
 
         // Decode fixed-size parameters using BytesLib and packed offsets
-        params.amountFromData = BytesLib.toUint256(data, 0); // Offset 0, size 32
-        params.yt = BytesLib.toAddress(data, 32); // Offset 32, size 20
-        params.pt = BytesLib.toAddress(data, 52); // Offset 52, size 20
-        params.tokenOut = BytesLib.toAddress(data, 72); // Offset 72, size 20
-        params.minTokenOut = BytesLib.toUint256(data, 92); // Offset 92, size 32
+        params.amountFromData = BytesLib.toUint256(data, 52); // Offset 0, size 32
+        params.yt = BytesLib.toAddress(data, 84); // Offset 32, size 20
+        params.pt = BytesLib.toAddress(data, 104); // Offset 52, size 20
+        params.tokenOut = BytesLib.toAddress(data, 124); // Offset 72, size 20
+        params.minTokenOut = BytesLib.toUint256(data, 144); // Offset 92, size 32
         params.usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION); // Offset 124, size 1
 
         // Basic validation of decoded fixed params (excluding amount check for now)
@@ -247,7 +248,7 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
         uint256 endOfTokenOutOffset = 92;
         if (data.length < endOfTokenOutOffset) revert INVALID_DATA_LENGTH();
         // Decode tokenOut from its correct packed offset [72:92]
-        address tokenOut = BytesLib.toAddress(data, 72);
+        address tokenOut = BytesLib.toAddress(data, 124);
 
         if (tokenOut == address(0)) {
             return account.balance;

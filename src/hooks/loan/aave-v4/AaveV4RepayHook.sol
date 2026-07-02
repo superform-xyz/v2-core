@@ -14,15 +14,16 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 
 /// @title AaveV4RepayHook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         address loanToken = BytesLib.toAddress(data, 0);
-/// @notice         address collateralToken = BytesLib.toAddress(data, 20);
-/// @notice         address spoke = BytesLib.toAddress(data, 40);
-/// @notice         uint256 supplyReserveId = BytesLib.toUint256(data, 60);
-/// @notice         uint256 borrowReserveId = BytesLib.toUint256(data, 92);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 124);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
-/// @notice         bool isFullRepayment = _decodeBool(data, 157);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address loanToken = BytesLib.toAddress(data, 52);
+/// @notice         address collateralToken = BytesLib.toAddress(data, 72);
+/// @notice         address spoke = BytesLib.toAddress(data, 92);
+/// @notice         uint256 supplyReserveId = BytesLib.toUint256(data, 112);
+/// @notice         uint256 borrowReserveId = BytesLib.toUint256(data, 144);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 176);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 208);
+/// @notice         bool isFullRepayment = _decodeBool(data, 209);
 /// @dev KNOWN LIMITATION (P1-2): An attacker can front-run full repayment by repaying a small amount
 ///      on behalf of the borrower, causing the victim's transaction to revert. Mitigate by using
 ///      private mempools or adding slippage tolerance.

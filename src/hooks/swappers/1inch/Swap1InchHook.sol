@@ -23,12 +23,13 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 
 /// @title Swap1InchHook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         address dstToken = BytesLib.toAddress(data, 0);
-/// @notice         address dstReceiver = BytesLib.toAddress(data, 20);
-/// @notice         uint256 value = BytesLib.toUint256(data, 40);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
-/// @notice         bytes txData_ = BytesLib.slice(data, 73, data.length - 73);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address dstToken = BytesLib.toAddress(data, 52);
+/// @notice         address dstReceiver = BytesLib.toAddress(data, 72);
+/// @notice         uint256 value = BytesLib.toUint256(data, 92);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
+/// @notice         bytes txData_ = BytesLib.slice(data, 125, data.length - 125);
 contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow {
     using ProtocolLib for Address;
     using AddressLib for Address;
@@ -39,7 +40,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutf
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     I1InchAggregationRouterV6 public immutable AGGREGATION_ROUTER;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 124;
     uint256 private constant PRECISION = 1e5;
 
     address public immutable NATIVE;
@@ -91,11 +92,11 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutf
         override
         returns (Execution[] memory executions)
     {
-        address dstToken = address(bytes20(data[:20]));
-        address dstReceiver = address(bytes20(data[20:40]));
-        uint256 value = uint256(bytes32(data[40:USE_PREV_HOOK_AMOUNT_POSITION]));
+        address dstToken = address(bytes20(data[52:72]));
+        address dstReceiver = address(bytes20(data[72:92]));
+        uint256 value = uint256(bytes32(data[92:USE_PREV_HOOK_AMOUNT_POSITION]));
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        bytes calldata txData_ = data[73:];
+        bytes calldata txData_ = data[125:];
 
         bytes memory updatedTxData =
             _validateTxData(dstToken, dstReceiver, prevHook, account, usePrevHookAmount, txData_);
@@ -119,7 +120,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutf
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory packed) {
-        bytes calldata txData_ = data[73:];
+        bytes calldata txData_ = data[125:];
         bytes4 selector = bytes4(txData_[:4]);
 
         if (selector == I1InchAggregationRouterV6.unoswapTo.selector) {
@@ -176,7 +177,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutf
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
-        _setOutToken(address(bytes20(data[:20])), account);
+        _setOutToken(address(bytes20(data[52:72])), account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -403,8 +404,8 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutf
     }
 
     function _getBalance(bytes calldata data, address account) private view returns (uint256) {
-        address dstToken = address(bytes20(data[:20]));
-        address dstReceiver = address(bytes20(data[20:40]));
+        address dstToken = address(bytes20(data[52:72]));
+        address dstReceiver = address(bytes20(data[72:92]));
         if (dstReceiver == address(0)) {
             dstReceiver = account;
         }

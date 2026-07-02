@@ -16,7 +16,8 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 ///         No offchain data packing needed -- the hook discovers claimable projects automatically.
 /// @dev rFLR tokens are non-transferable, so fee collection is not supported at the claim stage.
 ///      Fees should be collected at the WFLR withdrawal stage via WithdrawRFLRHook.
-/// @dev data has the following structure:
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
 /// @notice         (empty -- this hook is parameterless and ignores calldata)
 contract ClaimRFLRV2Hook is BaseHook {
     /*//////////////////////////////////////////////////////////////

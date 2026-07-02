@@ -34,28 +34,29 @@ import {
 /// @dev For native token transfers, use StargateSendHookV2 instead
 /// @dev WARNING: refundAddress is set to the account. If the native fee is overestimated, Stargate synchronously
 /// @dev refunds the excess to the account during sendToken.
-/// @dev data has the following structure:
-/// @notice         uint256 lzNativeFee = BytesLib.toUint256(data, 0);
-/// @notice         address stargatePool = BytesLib.toAddress(data, 32);
-/// @notice         address inputToken = BytesLib.toAddress(data, 52);
-/// @notice         uint32 dstEid = BytesLib.toUint32(data, 72);
-/// @notice         bytes32 to = BytesLib.toBytes32(data, 76);
-/// @notice         uint256 amountLD = BytesLib.toUint256(data, 108);
-/// @notice         uint256 minAmountLD = BytesLib.toUint256(data, 140);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 172);
-/// @notice         uint8 mode = BytesLib.toUint8(data, 173);
-/// @notice         uint256 extraOptionsLength = BytesLib.toUint256(data, 174);
-/// @notice         bytes extraOptions = BytesLib.slice(data, 206, extraOptionsLength);
-/// @notice         uint256 composeMsgLength = BytesLib.toUint256(data, 206 + extraOptionsLength);
-/// @notice         bytes composeMsg = BytesLib.slice(data, 238 + extraOptionsLength, composeMsgLength);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         uint256 lzNativeFee = BytesLib.toUint256(data, 52);
+/// @notice         address stargatePool = BytesLib.toAddress(data, 84);
+/// @notice         address inputToken = BytesLib.toAddress(data, 104);
+/// @notice         uint32 dstEid = BytesLib.toUint32(data, 124);
+/// @notice         bytes32 to = BytesLib.toBytes32(data, 128);
+/// @notice         uint256 amountLD = BytesLib.toUint256(data, 160);
+/// @notice         uint256 minAmountLD = BytesLib.toUint256(data, 192);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 224);
+/// @notice         uint8 mode = BytesLib.toUint8(data, 225);
+/// @notice         uint256 extraOptionsLength = BytesLib.toUint256(data, 226);
+/// @notice         bytes extraOptions = BytesLib.slice(data, 258, extraOptionsLength);
+/// @notice         uint256 composeMsgLength = BytesLib.toUint256(data, 258 + extraOptionsLength);
+/// @notice         bytes composeMsg = BytesLib.slice(data, 290 + extraOptionsLength, composeMsgLength);
 ///                 V2: composeMsg = abi.encode(initData) — 1-field only, no executorCalldata/account/dstTokens/intentAmounts
 contract ApproveAndStargateSendHookV2 is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     address private immutable VALIDATOR;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 172;
-    uint256 private constant AMOUNT_POSITION = 108;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 224;
+    uint256 private constant AMOUNT_POSITION = 160;
 
     struct StargateSendData {
         uint256 lzNativeFee;
@@ -114,17 +115,17 @@ contract ApproveAndStargateSendHookV2 is BaseHook, ISuperHookContextAware, ISupe
         override
         returns (Execution[] memory executions)
     {
-        if (data.length < 238) revert DATA_NOT_VALID();
+        if (data.length < 290) revert DATA_NOT_VALID();
 
         StargateSendData memory s;
-        s.lzNativeFee = BytesLib.toUint256(data, 0);
-        s.stargatePool = BytesLib.toAddress(data, 32);
-        s.inputToken = BytesLib.toAddress(data, 52);
-        s.dstEid = BytesLib.toUint32(data, 72);
-        s.to = BytesLib.toBytes32(data, 76);
-        s.amountLD = BytesLib.toUint256(data, 108);
-        s.minAmountLD = BytesLib.toUint256(data, 140);
-        s.mode = BytesLib.toUint8(data, 173);
+        s.lzNativeFee = BytesLib.toUint256(data, 52);
+        s.stargatePool = BytesLib.toAddress(data, 84);
+        s.inputToken = BytesLib.toAddress(data, 104);
+        s.dstEid = BytesLib.toUint32(data, 124);
+        s.to = BytesLib.toBytes32(data, 128);
+        s.amountLD = BytesLib.toUint256(data, 160);
+        s.minAmountLD = BytesLib.toUint256(data, 192);
+        s.mode = BytesLib.toUint8(data, 225);
         if (s.mode > 2) revert MODE_NOT_VALID();
 
         // Fail-fast validation on fixed fields before external calls
@@ -136,11 +137,11 @@ contract ApproveAndStargateSendHookV2 is BaseHook, ISuperHookContextAware, ISupe
         if (IStargate(s.stargatePool).token() != s.inputToken) revert POOL_NOT_VALID();
 
         // Validate variable-length field bounds
-        uint256 extraOptionsLength = BytesLib.toUint256(data, 174);
-        if (data.length < 238 + extraOptionsLength) revert DATA_NOT_VALID();
-        s.extraOptions = BytesLib.slice(data, 206, extraOptionsLength);
+        uint256 extraOptionsLength = BytesLib.toUint256(data, 226);
+        if (data.length < 290 + extraOptionsLength) revert DATA_NOT_VALID();
+        s.extraOptions = BytesLib.slice(data, 258, extraOptionsLength);
 
-        uint256 composeMsgOffset = 206 + extraOptionsLength;
+        uint256 composeMsgOffset = 258 + extraOptionsLength;
         uint256 composeMsgLength = BytesLib.toUint256(data, composeMsgOffset);
         if (data.length < composeMsgOffset + 32 + composeMsgLength) revert DATA_NOT_VALID();
         s.composeMsg = BytesLib.slice(data, composeMsgOffset + 32, composeMsgLength);
@@ -222,9 +223,9 @@ contract ApproveAndStargateSendHookV2 is BaseHook, ISuperHookContextAware, ISupe
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(
-            BytesLib.toAddress(data, 32), // stargatePool
-            BytesLib.toAddress(data, 52), // inputToken
-            address(uint160(uint256(BytesLib.toBytes32(data, 76)))) // to (as address)
+            BytesLib.toAddress(data, 84), // stargatePool
+            BytesLib.toAddress(data, 104), // inputToken
+            address(uint160(uint256(BytesLib.toBytes32(data, 128)))) // to (as address)
         );
     }
 

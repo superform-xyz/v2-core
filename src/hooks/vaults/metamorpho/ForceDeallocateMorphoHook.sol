@@ -22,7 +22,7 @@ import { IMorphoVaultV2 } from "../../../vendor/morpho/IMorphoVaultV2.sol";
 /// @author Superform Labs
 /// @notice NONACCOUNTING hook that calls Morpho Vault V2's forceDeallocate() for emergency asset extraction
 /// @dev data has the following structure
-/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         bytes32 placeholder_yieldSourceOracleId = BytesLib.toBytes32(data, 0);
 /// @notice         address morphoVaultV2 = BytesLib.toAddress(data, 32);
 /// @notice         address adapter = BytesLib.toAddress(data, 52);
 /// @notice         uint256 assets = BytesLib.toUint256(data, 72);

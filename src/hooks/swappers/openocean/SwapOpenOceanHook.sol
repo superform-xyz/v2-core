@@ -20,22 +20,23 @@ import {
 
 /// @title SwapOpenOceanHook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         address outputToken = BytesLib.toAddress(data, 0);
-/// @notice         uint256 value = BytesLib.toUint256(data, 20);
-/// @notice         uint256 inputAmount = BytesLib.toUint256(data, 52);
-/// @notice         uint256 outputMin = BytesLib.toUint256(data, 84);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 116);
-/// @notice         uint256 txDataLength = BytesLib.toUint256(data, 117);
-/// @notice         bytes txData_ = BytesLib.slice(data, 149, txDataLength);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address outputToken = BytesLib.toAddress(data, 52);
+/// @notice         uint256 value = BytesLib.toUint256(data, 72);
+/// @notice         uint256 inputAmount = BytesLib.toUint256(data, 104);
+/// @notice         uint256 outputMin = BytesLib.toUint256(data, 136);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 168);
+/// @notice         uint256 txDataLength = BytesLib.toUint256(data, 169);
+/// @notice         bytes txData_ = BytesLib.slice(data, 201, txDataLength);
 contract SwapOpenOceanHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     IOpenOceanExchange public immutable OPENOCEAN_ROUTER;
     address public immutable OPENOCEAN_REFERRER;
 
     address public immutable NATIVE;
 
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 116;
-    uint256 private constant AMOUNT_POSITION = 52;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 168;
+    uint256 private constant AMOUNT_POSITION = 104;
 
     /// @notice Thrown when inputToken and outputToken are the same address
     error SAME_INPUT_OUTPUT_TOKEN();
@@ -79,11 +80,11 @@ contract SwapOpenOceanHook is BaseHook, ISuperHookContextAware, ISuperHookInflow
         override
         returns (Execution[] memory executions)
     {
-        address outputToken = BytesLib.toAddress(data, 0);
-        uint256 inputAmount = BytesLib.toUint256(data, 52);
+        address outputToken = BytesLib.toAddress(data, 52);
+        uint256 inputAmount = BytesLib.toUint256(data, 104);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        uint256 txDataLength = BytesLib.toUint256(data, 117);
-        bytes memory txData_ = BytesLib.slice(data, 149, txDataLength);
+        uint256 txDataLength = BytesLib.toUint256(data, 169);
+        bytes memory txData_ = BytesLib.slice(data, 201, txDataLength);
 
         uint256 executionAmount = inputAmount;
         if (usePrevHookAmount) {
@@ -141,8 +142,8 @@ contract SwapOpenOceanHook is BaseHook, ISuperHookContextAware, ISuperHookInflow
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        uint256 txDataLength = BytesLib.toUint256(data, 117);
-        bytes memory txData_ = BytesLib.slice(data, 149, txDataLength);
+        uint256 txDataLength = BytesLib.toUint256(data, 169);
+        bytes memory txData_ = BytesLib.slice(data, 201, txDataLength);
 
         (, IOpenOceanExchange.SwapDescription memory desc,) = abi.decode(
             BytesLib.slice(txData_, 4, txData_.length - 4),
@@ -158,11 +159,11 @@ contract SwapOpenOceanHook is BaseHook, ISuperHookContextAware, ISuperHookInflow
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
-        _setOutToken(BytesLib.toAddress(data, 0), account);
+        _setOutToken(BytesLib.toAddress(data, 52), account);
     }
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        address outputToken = BytesLib.toAddress(data, 0);
+        address outputToken = BytesLib.toAddress(data, 52);
         if (_isNative(outputToken)) {
             return account.balance;
         }

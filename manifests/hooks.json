@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-07-01T06:55:24Z",
+  "generatedAt": "2026-07-01T20:40:08Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -4559,49 +4559,9 @@
         "spectra"
       ]
     },
-    "DepositWETHHook": {
-      "name": "Deposit WETH",
-      "description": "Wraps native ETH into WETH",
-      "hookType": "NONACCOUNTING",
-      "subtype": "TOKEN",
-      "actionTypes": [
-        {
-          "intent": "swap",
-          "stage": "instant"
-        }
-      ],
-      "legSizing": [
-        "sized"
-      ],
-      "addresses": {
-        "staging": {},
-        "prod": {}
-      },
-      "availableChains": {
-        "staging": [],
-        "prod": []
-      },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
-      "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
-      ],
-      "requiresApproval": false,
-      "approveVariant": null,
-      "asyncLifecycle": null,
-      "compatibleProtocols": [
-        "weth"
-      ]
-    },
-    "WithdrawWETHHook": {
-      "name": "Withdraw WETH",
-      "description": "Unwraps WETH into native ETH",
+    "WrappedNativeHook": {
+      "name": "Wrapped Native",
+      "description": "Wraps native tokens into their ERC-20 equivalent or unwraps them back",
       "hookType": "NONACCOUNTING",
       "subtype": "TOKEN",
       "actionTypes": [

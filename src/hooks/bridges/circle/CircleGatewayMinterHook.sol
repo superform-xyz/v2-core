@@ -30,11 +30,12 @@ interface IGatewayMinter {
 /// @title CircleGatewayMinterHook
 /// @author Superform Labs
 /// @notice Hook for minting tokens from Circle Gateway Minter
-/// @dev data has the following structure:
-/// @notice         uint256 attestationPayloadLength = BytesLib.toUint256(data, 0);
-/// @notice         bytes attestationPayload = BytesLib.slice(data, 32, attestationPayloadLength);
-/// @notice         uint256 signatureLength = BytesLib.toUint256(data, 32 + attestationPayloadLength);
-/// @notice         bytes signature = BytesLib.slice(data, 64 + attestationPayloadLength, signatureLength);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         uint256 attestationPayloadLength = BytesLib.toUint256(data, 52);
+/// @notice         bytes attestationPayload = BytesLib.slice(data, 84, attestationPayloadLength);
+/// @notice         uint256 signatureLength = BytesLib.toUint256(data, 84 + attestationPayloadLength);
+/// @notice         bytes signature = BytesLib.slice(data, 116 + attestationPayloadLength, signatureLength);
 contract CircleGatewayMinterHook is BaseHook, ISuperHookInflowOutflow {
     using TransferSpecLib for bytes29;
     using AttestationLib for bytes29;

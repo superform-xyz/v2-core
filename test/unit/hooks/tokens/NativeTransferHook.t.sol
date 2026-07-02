@@ -67,13 +67,13 @@ contract NativeTransferHookTest is Helpers {
         bytes memory data = _encodeData();
         bytes memory replaced = hook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        // AMOUNT_POSITION=20, check "to" address bytes [0..20) unchanged
-        for (uint256 i = 0; i < 20; i++) {
+        // AMOUNT_POSITION=72, check bytes [0..72) unchanged (placeholder + "to" address)
+        for (uint256 i = 0; i < 72; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
 
     function _encodeData() internal view returns (bytes memory) {
-        return abi.encodePacked(to, amount);
+        return abi.encodePacked(bytes(new bytes(52)), to, amount);
     }
 }

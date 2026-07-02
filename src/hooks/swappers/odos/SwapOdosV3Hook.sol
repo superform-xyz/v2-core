@@ -21,20 +21,21 @@ import {
 
 /// @title SwapOdosV3Hook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         address inputToken = BytesLib.toAddress(data, 0);
-/// @notice         uint256 inputAmount = BytesLib.toUint256(data, 20);
-/// @notice         address inputReceiver = BytesLib.toAddress(data, 52);
-/// @notice         address outputToken = BytesLib.toAddress(data, 72);
-/// @notice         uint256 outputQuote = BytesLib.toUint256(data, 92);
-/// @notice         uint256 outputMin = BytesLib.toUint256(data, 124);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
-/// @notice         uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 157);
-/// @notice         bytes pathDefinition = BytesLib.slice(data, 189, pathDefinition_paramLength);
-/// @notice         address executor = BytesLib.toAddress(data, 189 + pathDefinition_paramLength);
-/// @notice         uint64 referralCode = BytesLib.toUint64(data, 189 + pathDefinition_paramLength + 20);
-/// @notice         uint64 referralFee = BytesLib.toUint64(data, 189 + pathDefinition_paramLength + 28);
-/// @notice         address feeRecipient = BytesLib.toAddress(data, 189 + pathDefinition_paramLength + 36);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address inputToken = BytesLib.toAddress(data, 52);
+/// @notice         uint256 inputAmount = BytesLib.toUint256(data, 72);
+/// @notice         address inputReceiver = BytesLib.toAddress(data, 104);
+/// @notice         address outputToken = BytesLib.toAddress(data, 124);
+/// @notice         uint256 outputQuote = BytesLib.toUint256(data, 144);
+/// @notice         uint256 outputMin = BytesLib.toUint256(data, 176);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 208);
+/// @notice         uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 209);
+/// @notice         bytes pathDefinition = BytesLib.slice(data, 241, pathDefinition_paramLength);
+/// @notice         address executor = BytesLib.toAddress(data, 241 + pathDefinition_paramLength);
+/// @notice         uint64 referralCode = BytesLib.toUint64(data, 241 + pathDefinition_paramLength + 20);
+/// @notice         uint64 referralFee = BytesLib.toUint64(data, 241 + pathDefinition_paramLength + 28);
+/// @notice         address feeRecipient = BytesLib.toAddress(data, 241 + pathDefinition_paramLength + 36);
 /// @dev The executor address is passed directly to the Odos Router V3, which delegate-calls into it
 ///      for swap execution. The executor must be trusted -- off-chain validation via inspect() is recommended.
 contract SwapOdosV3Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
@@ -43,16 +44,16 @@ contract SwapOdosV3Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowOut
     /*//////////////////////////////////////////////////////////////
                         DATA LAYOUT POSITIONS
     //////////////////////////////////////////////////////////////*/
-    uint256 private constant INPUT_TOKEN_POSITION = 0;
-    uint256 private constant INPUT_AMOUNT_POSITION = 20;
-    uint256 private constant AMOUNT_POSITION = 20;
-    uint256 private constant INPUT_RECEIVER_POSITION = 52;
-    uint256 private constant OUTPUT_TOKEN_POSITION = 72;
-    uint256 private constant OUTPUT_QUOTE_POSITION = 92;
-    uint256 private constant OUTPUT_MIN_POSITION = 124;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
-    uint256 private constant PATH_DEF_LENGTH_POSITION = 157;
-    uint256 private constant PATH_DEF_DATA_POSITION = 189;
+    uint256 private constant INPUT_TOKEN_POSITION = 52;
+    uint256 private constant INPUT_AMOUNT_POSITION = 72;
+    uint256 private constant AMOUNT_POSITION = 72;
+    uint256 private constant INPUT_RECEIVER_POSITION = 104;
+    uint256 private constant OUTPUT_TOKEN_POSITION = 124;
+    uint256 private constant OUTPUT_QUOTE_POSITION = 144;
+    uint256 private constant OUTPUT_MIN_POSITION = 176;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 208;
+    uint256 private constant PATH_DEF_LENGTH_POSITION = 209;
+    uint256 private constant PATH_DEF_DATA_POSITION = 241;
 
     /// @dev Tail field offsets relative to (PATH_DEF_DATA_POSITION + pathDefinitionLength)
     uint256 private constant EXECUTOR_TAIL_OFFSET = 0;

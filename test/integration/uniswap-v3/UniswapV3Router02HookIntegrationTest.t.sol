@@ -97,13 +97,15 @@ contract UniswapV3Router02HookIntegrationTest is MinimalBaseIntegrationTest {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            tokenIn, // 20 bytes (offset 0)
-            tokenOut, // 20 bytes (offset 20)
-            uint32(fee), // 4 bytes (offset 40)
-            uint256(sqrtPriceLimitX96), // 32 bytes (offset 44)
-            amountIn, // 32 bytes (offset 76)
-            amountOutMinimum, // 32 bytes (offset 108)
-            usePrevHookAmount // 1 byte (offset 140)
+            bytes32(0), // 32 bytes: yieldSourceOracleId (header)
+            address(0), // 20 bytes: yieldSource (header)
+            tokenIn, // 20 bytes (offset 52)
+            tokenOut, // 20 bytes (offset 72)
+            uint32(fee), // 4 bytes (offset 92)
+            uint256(sqrtPriceLimitX96), // 32 bytes (offset 96)
+            amountIn, // 32 bytes (offset 128)
+            amountOutMinimum, // 32 bytes (offset 160)
+            usePrevHookAmount // 1 byte (offset 192)
         );
     }
 
@@ -117,7 +119,14 @@ contract UniswapV3Router02HookIntegrationTest is MinimalBaseIntegrationTest {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(token, spender, amount, usePrevHookAmount);
+        return abi.encodePacked(
+            bytes32(0), // 32 bytes: yieldSourceOracleId (header)
+            address(0), // 20 bytes: yieldSource (header)
+            token, // offset 52
+            spender, // offset 72
+            amount, // offset 92
+            usePrevHookAmount // offset 124
+        );
     }
 
     function _executeSingleHook(address hook, bytes memory hookData) private {

@@ -18,14 +18,15 @@ import { IPSM3 } from "../../../vendor/spark/IPSM3.sol";
 /// @title SwapSparkPSMExactInHook
 /// @author Superform Labs
 /// @notice Hook for executing exact-input swaps via Spark PSM (assumes pre-approved)
-/// @dev data has the following structure:
-/// @notice         address assetIn = BytesLib.toAddress(data, 0);
-/// @notice         address assetOut = BytesLib.toAddress(data, 20);
-/// @notice         uint256 amountIn = BytesLib.toUint256(data, 40);
-/// @notice         uint256 minAmountOut = BytesLib.toUint256(data, 72);
-/// @notice         address receiver = BytesLib.toAddress(data, 104); // IGNORED - forced to account
-/// @notice         uint256 referralCode = BytesLib.toUint256(data, 124);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address assetIn = BytesLib.toAddress(data, 52);
+/// @notice         address assetOut = BytesLib.toAddress(data, 72);
+/// @notice         uint256 amountIn = BytesLib.toUint256(data, 92);
+/// @notice         uint256 minAmountOut = BytesLib.toUint256(data, 124);
+/// @notice         address receiver = BytesLib.toAddress(data, 156); // IGNORED - forced to account
+/// @notice         uint256 referralCode = BytesLib.toUint256(data, 176);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 208);
 contract SwapSparkPSMExactInHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using BytesLib for bytes;
 
@@ -37,9 +38,10 @@ contract SwapSparkPSMExactInHook is BaseHook, ISuperHookContextAware, ISuperHook
     IPSM3 public immutable PSM;
 
     /// @notice Position of usePrevHookAmount flag in hook data
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 208;
 
-    uint256 private constant AMOUNT_POSITION = 40;
+    uint256 private constant AMOUNT_POSITION = 92;
+
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -85,15 +87,15 @@ contract SwapSparkPSMExactInHook is BaseHook, ISuperHookContextAware, ISuperHook
         override
         returns (Execution[] memory executions)
     {
-        if (data.length < 157) revert INVALID_HOOK_DATA();
+        if (data.length < 209) revert INVALID_HOOK_DATA();
 
-        address assetIn = data.toAddress(0);
-        address assetOut = data.toAddress(20);
+        address assetIn = data.toAddress(52);
+        address assetOut = data.toAddress(72);
         if (assetIn == address(0) || assetOut == address(0)) revert ADDRESS_NOT_VALID();
-        uint256 amountIn = data.toUint256(40);
-        uint256 minAmountOut = data.toUint256(72);
-        // receiver at offset 104 is IGNORED - forced to account
-        uint256 referralCode = data.toUint256(124);
+        uint256 amountIn = data.toUint256(92);
+        uint256 minAmountOut = data.toUint256(124);
+        // receiver at offset 156 is IGNORED - forced to account
+        uint256 referralCode = data.toUint256(176);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
@@ -114,13 +116,13 @@ contract SwapSparkPSMExactInHook is BaseHook, ISuperHookContextAware, ISuperHook
 
     /// @inheritdoc BaseHook
     function _preExecute(address, address account, bytes calldata data) internal override {
-        address assetOut = data.toAddress(20);
+        address assetOut = data.toAddress(72);
         _setOutAmount(IERC20(assetOut).balanceOf(account), account);
     }
 
     /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
-        address assetOut = data.toAddress(20);
+        address assetOut = data.toAddress(72);
         uint256 finalBalance = IERC20(assetOut).balanceOf(account);
         uint256 initialBalance = getOutAmount(account);
         _setOutAmount(finalBalance - initialBalance, account);
@@ -169,8 +171,8 @@ contract SwapSparkPSMExactInHook is BaseHook, ISuperHookContextAware, ISuperHook
 
     /// @inheritdoc BaseHook
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        address assetOut = data.toAddress(20);
-        address receiver = data.toAddress(104);
+        address assetOut = data.toAddress(72);
+        address receiver = data.toAddress(156);
         return abi.encodePacked(assetOut, receiver);
     }
 }

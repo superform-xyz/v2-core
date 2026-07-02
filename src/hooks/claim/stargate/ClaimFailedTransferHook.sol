@@ -28,7 +28,8 @@ interface IStargateAdapterClaim {
 /// @dev The StargateAdapter stores failed transfers when lzCompose token delivery fails.
 ///      This hook allows smart accounts to recover those tokens.
 /// @dev Supports both ERC20 tokens and native ETH (token = address(0))
-/// @dev data has the following structure:
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
 /// @dev         address adapter = BytesLib.toAddress(data, 0);
 /// @dev         address token = BytesLib.toAddress(data, 20);
 /// @dev         uint256 amount = BytesLib.toUint256(data, 40);

@@ -356,12 +356,8 @@ hooks:
     actionTypes: [{intent: swap, stage: instant}]
     legSizing: [sized]
 
-  # WETH (1:1 token conversion = swap)
-  DepositWETHHook:
-    actionTypes: [{intent: swap, stage: instant}]
-    legSizing: [sized]
-
-  WithdrawWETHHook:
+  # WETH/WFLR (1:1 token conversion = swap)
+  WrappedNativeHook:
     actionTypes: [{intent: swap, stage: instant}]
     legSizing: [sized]
 

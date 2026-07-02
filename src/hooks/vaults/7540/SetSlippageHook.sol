@@ -24,7 +24,7 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 /// @dev Allows users to configure slippage tolerance for redeem operations
 /// @dev The following hook does not need a _postExecute or a _preExecute definition
 /// @dev data has the following structure
-/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32));
+/// @notice         bytes32 placeholder_yieldSourceOracleId = BytesLib.toBytes32(data, 0);
 /// @notice         address vault = BytesLib.toAddress(data, 32);
 /// @notice         uint16 slippageBps = BytesLib.toUint16(data, 52);
 contract SetSlippageHook is BaseHook, ISuperHookInflowOutflow {

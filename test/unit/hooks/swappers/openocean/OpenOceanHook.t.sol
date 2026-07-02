@@ -578,12 +578,12 @@ contract OpenOceanHookTest is Test {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
         bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, false, txData);
         bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(999));
-        // Verify bytes before AMOUNT_POSITION (40) are unchanged
-        for (uint256 i = 0; i < 40; i++) {
+        // Verify bytes before AMOUNT_POSITION (92) are unchanged (52-byte placeholder + inputToken(20) + outputToken(20))
+        for (uint256 i = 0; i < 92; i++) {
             assertEq(replaced[i], data[i]);
         }
-        // Verify bytes after AMOUNT_POSITION + 32 (72) are unchanged
-        for (uint256 i = 72; i < data.length; i++) {
+        // Verify bytes after AMOUNT_POSITION + 32 (124) are unchanged
+        for (uint256 i = 124; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
@@ -974,6 +974,7 @@ contract OpenOceanHookTest is Test {
         returns (bytes memory)
     {
         return bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(outputToken_),
             bytes32(value_),
             bytes32(inputAmount_),
@@ -997,6 +998,7 @@ contract OpenOceanHookTest is Test {
         returns (bytes memory)
     {
         return bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken_),
             bytes20(outputToken_),
             bytes32(inputAmount_),

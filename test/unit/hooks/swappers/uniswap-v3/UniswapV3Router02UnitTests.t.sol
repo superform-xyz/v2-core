@@ -246,9 +246,9 @@ contract UniswapV3Router02HookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_SwapHook_Build_ExactMinimumDataLength() public view {
-        // Test with exactly 141 bytes (minimum valid length)
+        // Test with exactly 193 bytes (minimum valid length: 52-byte header + 141 hook-specific bytes)
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 141);
+        assertEq(data.length, 193);
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
@@ -256,7 +256,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
     function test_ApproveAndSwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 141);
+        assertEq(data.length, 193);
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
@@ -549,6 +549,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
     function test_SwapHook_RevertIf_SameToken() public {
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(tokenIn), // tokenOut == tokenIn
             bytes4(uint32(fee)),
@@ -564,6 +565,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
     function test_ApproveAndSwapHook_RevertIf_SameToken() public {
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(tokenIn), // tokenOut == tokenIn
             bytes4(uint32(fee)),
@@ -683,6 +685,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
     function test_SwapHook_RevertIf_NativeETH_TokenIn() public {
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(address(0)), // tokenIn = native ETH
             bytes20(tokenOut),
             bytes4(uint32(fee)),
@@ -698,6 +701,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
     function test_SwapHook_RevertIf_NativeETH_TokenOut() public {
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(address(0)), // tokenOut = native ETH
             bytes4(uint32(fee)),
@@ -713,6 +717,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
     function test_ApproveAndSwapHook_RevertIf_NativeETH_TokenIn() public {
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(address(0)), // tokenIn = native ETH
             bytes20(tokenOut),
             bytes4(uint32(fee)),
@@ -728,6 +733,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
     function test_ApproveAndSwapHook_RevertIf_NativeETH_TokenOut() public {
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(address(0)), // tokenOut = native ETH
             bytes4(uint32(fee)),
@@ -900,12 +906,12 @@ contract UniswapV3Router02HookTest is Helpers {
         bytes memory data = _buildHookData(false);
         bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        // bytes before AMOUNT_POSITION (76) unchanged
-        for (uint256 i = 0; i < 76; i++) {
+        // AMOUNT_POSITION is 128 (52-byte placeholder + tokenIn(20) + tokenOut(20) + fee(4) + sqrtPrice(32))
+        for (uint256 i = 0; i < 128; i++) {
             assertEq(replaced[i], data[i]);
         }
-        // bytes after amount (108+) unchanged
-        for (uint256 i = 108; i < data.length; i++) {
+        // bytes after amount (160+) unchanged
+        for (uint256 i = 160; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
         assertEq(swapHook.decodeAmounts(replaced)[0], 999);
@@ -915,10 +921,11 @@ contract UniswapV3Router02HookTest is Helpers {
         bytes memory data = _buildHookData(false);
         bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        for (uint256 i = 0; i < 76; i++) {
+        // AMOUNT_POSITION is 128 (52-byte placeholder + tokenIn(20) + tokenOut(20) + fee(4) + sqrtPrice(32))
+        for (uint256 i = 0; i < 128; i++) {
             assertEq(replaced[i], data[i]);
         }
-        for (uint256 i = 108; i < data.length; i++) {
+        for (uint256 i = 160; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
         assertEq(approveAndSwapHook.decodeAmounts(replaced)[0], 999);
@@ -930,18 +937,20 @@ contract UniswapV3Router02HookTest is Helpers {
 
     function _buildHookData(bool usePrevHookAmount) internal view returns (bytes memory) {
         return bytes.concat(
-            bytes20(tokenIn), // 0-19
-            bytes20(tokenOut), // 20-39
-            bytes4(uint32(fee)), // 40-43
-            bytes32(uint256(sqrtPriceLimitX96)), // 44-75
-            bytes32(originalAmountIn), // 76-107
-            bytes32(originalMinAmountOut), // 108-139
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00) // 140
+            bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(tokenIn), // 52-71
+            bytes20(tokenOut), // 72-91
+            bytes4(uint32(fee)), // 92-95
+            bytes32(uint256(sqrtPriceLimitX96)), // 96-127
+            bytes32(originalAmountIn), // 128-159
+            bytes32(originalMinAmountOut), // 160-191
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00) // 192
         );
     }
 
     function _buildHookDataWithFee(uint24 _fee) internal view returns (bytes memory) {
         return bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(tokenOut),
             bytes4(uint32(_fee)),
@@ -962,6 +971,7 @@ contract UniswapV3Router02HookTest is Helpers {
         returns (bytes memory)
     {
         return bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(tokenOut),
             bytes4(uint32(fee)),

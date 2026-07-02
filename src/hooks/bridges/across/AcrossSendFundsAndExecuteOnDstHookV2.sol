@@ -27,19 +27,20 @@ import {
 /// @dev The hook retrieves sigData from the validator's transient storage and appends it.
 /// @dev This eliminates duplicate data (executorCalldata, account, dstTokens, intentAmounts) per message.
 /// @dev inputAmount and outputAmount have to be predicted by the SuperBundler
-/// @dev data has the following structure
-/// @notice         uint256 value = BytesLib.toUint256(data, 0);
-/// @notice         address recipient = BytesLib.toAddress(data, 32);
-/// @notice         address inputToken = BytesLib.toAddress(data, 52);
-/// @notice         address outputToken = BytesLib.toAddress(data, 72);
-/// @notice         uint256 inputAmount = BytesLib.toUint256(data, 92);
-/// @notice         uint256 outputAmount = BytesLib.toUint256(data, 124);
-/// @notice         uint256 destinationChainId = BytesLib.toUint256(data, 156);
-/// @notice         address exclusiveRelayer = BytesLib.toAddress(data, 188);
-/// @notice         uint32 fillDeadlineOffset = BytesLib.toUint32(data, 208);
-/// @notice         uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 216);
-/// @notice         bytes destinationMessage = BytesLib.slice(data, 217, data.length - 217);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         uint256 value = BytesLib.toUint256(data, 52);
+/// @notice         address recipient = BytesLib.toAddress(data, 84);
+/// @notice         address inputToken = BytesLib.toAddress(data, 104);
+/// @notice         address outputToken = BytesLib.toAddress(data, 124);
+/// @notice         uint256 inputAmount = BytesLib.toUint256(data, 144);
+/// @notice         uint256 outputAmount = BytesLib.toUint256(data, 176);
+/// @notice         uint256 destinationChainId = BytesLib.toUint256(data, 208);
+/// @notice         address exclusiveRelayer = BytesLib.toAddress(data, 240);
+/// @notice         uint32 fillDeadlineOffset = BytesLib.toUint32(data, 260);
+/// @notice         uint32 exclusivityPeriod = BytesLib.toUint32(data, 264);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 268);
+/// @notice         bytes destinationMessage = BytesLib.slice(data, 269, data.length - 269);
 ///                 V2: destinationMessage = abi.encode(initData) — 1-field only
 contract AcrossSendFundsAndExecuteOnDstHookV2 is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     /*//////////////////////////////////////////////////////////////
@@ -47,8 +48,8 @@ contract AcrossSendFundsAndExecuteOnDstHookV2 is BaseHook, ISuperHookContextAwar
     //////////////////////////////////////////////////////////////*/
     address public immutable SPOKE_POOL_V3;
     address private immutable VALIDATOR;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 216;
-    uint256 private constant AMOUNT_POSITION = 92;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 268;
+    uint256 private constant AMOUNT_POSITION = 144;
 
     struct AcrossV3DepositAndExecuteData {
         uint256 value;
@@ -101,21 +102,21 @@ contract AcrossSendFundsAndExecuteOnDstHookV2 is BaseHook, ISuperHookContextAwar
         override
         returns (Execution[] memory executions)
     {
-        if (data.length < 217) revert DATA_NOT_VALID();
+        if (data.length < 269) revert DATA_NOT_VALID();
 
         AcrossV3DepositAndExecuteData memory d;
-        d.value = BytesLib.toUint256(data, 0);
-        d.recipient = BytesLib.toAddress(data, 32);
-        d.inputToken = BytesLib.toAddress(data, 52);
-        d.outputToken = BytesLib.toAddress(data, 72);
-        d.inputAmount = BytesLib.toUint256(data, 92);
-        d.outputAmount = BytesLib.toUint256(data, 124);
-        d.destinationChainId = BytesLib.toUint256(data, 156);
-        d.exclusiveRelayer = BytesLib.toAddress(data, 188);
-        d.fillDeadlineOffset = BytesLib.toUint32(data, 208);
-        d.exclusivityPeriod = BytesLib.toUint32(data, 212);
+        d.value = BytesLib.toUint256(data, 52);
+        d.recipient = BytesLib.toAddress(data, 84);
+        d.inputToken = BytesLib.toAddress(data, 104);
+        d.outputToken = BytesLib.toAddress(data, 124);
+        d.inputAmount = BytesLib.toUint256(data, 144);
+        d.outputAmount = BytesLib.toUint256(data, 176);
+        d.destinationChainId = BytesLib.toUint256(data, 208);
+        d.exclusiveRelayer = BytesLib.toAddress(data, 240);
+        d.fillDeadlineOffset = BytesLib.toUint32(data, 260);
+        d.exclusivityPeriod = BytesLib.toUint32(data, 264);
         d.usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        d.destinationMessage = BytesLib.slice(data, 217, data.length - 217);
+        d.destinationMessage = BytesLib.slice(data, 269, data.length - 269);
 
         if (d.usePrevHookAmount) {
             uint256 outAmount = ISuperHookResult(prevHook).getOutAmount(account);
@@ -221,10 +222,10 @@ contract AcrossSendFundsAndExecuteOnDstHookV2 is BaseHook, ISuperHookContextAwar
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(
-            BytesLib.toAddress(data, 32), // recipient
-            BytesLib.toAddress(data, 52), // inputToken
-            BytesLib.toAddress(data, 72), // outputToken
-            BytesLib.toAddress(data, 188) // exclusiveRelayer
+            BytesLib.toAddress(data, 84), // recipient
+            BytesLib.toAddress(data, 104), // inputToken
+            BytesLib.toAddress(data, 124), // outputToken
+            BytesLib.toAddress(data, 240) // exclusiveRelayer
         );
     }
 }

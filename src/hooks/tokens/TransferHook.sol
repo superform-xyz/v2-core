@@ -19,18 +19,19 @@ import {
 
 /// @title TransferHook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         address token = BytesLib.toAddress(data, 0);
-/// @notice         address to = BytesLib.toAddress(data, 20);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 40);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address token = BytesLib.toAddress(data, 52);
+/// @notice         address to = BytesLib.toAddress(data, 72);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 92);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
 contract TransferHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     /// @dev Bytecode version for redeployment tracking
     ///      New version to be deployed on polygon with 0xeee as the native token
     uint256 public constant VERSION = 2;
 
-    uint256 private constant AMOUNT_POSITION = 40;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
+    uint256 private constant AMOUNT_POSITION = 92;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 124;
 
     /// @dev This is not a constant because some chains have different representations for the native token
     ///      https://github.com/d-xo/weird-erc20?tab=readme-ov-file#erc-20-representation-of-native-currency
@@ -65,9 +66,9 @@ contract TransferHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutfl
         override
         returns (Execution[] memory executions)
     {
-        address token = BytesLib.toAddress(data, 0);
-        address to = BytesLib.toAddress(data, 20);
-        uint256 amount = BytesLib.toUint256(data, 40);
+        address token = BytesLib.toAddress(data, 52);
+        address to = BytesLib.toAddress(data, 72);
+        uint256 amount = BytesLib.toUint256(data, 92);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
@@ -132,8 +133,8 @@ contract TransferHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutfl
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(
-            BytesLib.toAddress(data, 0), //token
-            BytesLib.toAddress(data, 20) //to
+            BytesLib.toAddress(data, 52), //token
+            BytesLib.toAddress(data, 72) //to
         );
     }
 
@@ -146,15 +147,15 @@ contract TransferHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutfl
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data) - getOutAmount(account), account);
-        _setOutToken(BytesLib.toAddress(data, 0), account);
+        _setOutToken(BytesLib.toAddress(data, 52), account);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address token = BytesLib.toAddress(data, 0);
-        address to = BytesLib.toAddress(data, 20);
+        address token = BytesLib.toAddress(data, 52);
+        address to = BytesLib.toAddress(data, 72);
         if (token == NATIVE_TOKEN) {
             return to.balance;
         } else {
