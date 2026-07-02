@@ -204,10 +204,6 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     function testOrion_multipleCrossChainTransactionsCanBeSent() public {
         TestData memory testData;
 
-        AcrossSendFundsAndExecuteOnDstHook acrossHook = new AcrossSendFundsAndExecuteOnDstHook(
-            0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5, address(superMerkleValidator)
-        );
-
         // Step 1: Create account
         address nexusAccount = _createWithNexus(attesters, threshold, 1e18);
 
@@ -220,58 +216,19 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         // - Approve the bridge for WETH
         // - Bridge USDC
         // - Bridge WETH
-        DestinationMessage memory message;
+        // NOTE:
+        // Test execution will fail because `executionData` is not valid
+        //   but test demonstrates you can now pass 2 different proofs
+        //   for 2 different chains
+        uint256[] memory intentAmounts;
         {
-            testData.hooksAddresses = new address[](4);
-            testData.hooksAddresses[0] = approveHook;
-            testData.hooksAddresses[1] = approveHook;
-            testData.hooksAddresses[2] = address(acrossHook);
-            testData.hooksAddresses[3] = address(acrossHook);
-
-            testData.hooksData = new bytes[](4);
-            // Build approval data
-            testData.hooksData[0] =
-                _createApproveHookData(CHAIN_1_USDC, 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5, 100e6, false);
-            testData.hooksData[1] =
-                _createApproveHookData(CHAIN_1_WETH, 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5, 100e6, false);
-
-            message.initData = hex"aaaaaaaa"; // not important for the test
-            message.executorCalldata = hex"eeeeeeee";
-            message.dstTokens = new address[](1);
-            message.dstTokens[0] = CHAIN_1_USDC;
-            message.intentAmounts = new uint256[](1);
-            message.intentAmounts[0] = uint256(100e6);
-
-            testData.ten = 10;
-            // NOTE:
-            // Test execution will fail because `executionData` is not valid
-            //   but test demonstrates you can now pass 2 different proofs
-            //   for 2 different chains
-            // Build across data.
-            testData.hooksData[2] = _buildAcrossHookDataInline(
-                nexusAccount,
-                CHAIN_1_USDC,
-                uint256(100e6),
-                testData.zero,
-                testData.ten,
-                message
+            address acrossHookAddr = address(
+                new AcrossSendFundsAndExecuteOnDstHook(
+                    0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5, address(superMerkleValidator)
+                )
             );
-        }
-
-        {
-            message.dstTokens = new address[](1);
-            message.dstTokens[0] = CHAIN_1_WETH;
-            message.executorCalldata = hex"dddddddd"; // executor callData changes for destination
-
-            testData.ten = 11;
-            testData.hooksData[3] = _buildAcrossHookDataInline(
-                nexusAccount,
-                CHAIN_1_WETH,
-                uint256(100e6),
-                testData.zero,
-                testData.ten,
-                message
-            );
+            (testData.hooksAddresses, testData.hooksData, intentAmounts) =
+                _setupMultipleCCTestHooks(nexusAccount, acrossHookAddr);
         }
 
         // prepare data & execute through entry point
@@ -311,76 +268,71 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         );
 
         // Leaf for cross-chain USDC
-        message.dstTokens = new address[](1);
-        message.dstTokens[0] = CHAIN_1_USDC;
-        testData.leaves[1] = _createDestinationValidatorLeaf(
-            hex"eeeeeeee", // executionData
-            uint64(10),
-            nexusAccount,
-            params._executor,
-            message.dstTokens,
-            message.intentAmounts,
-            params.validUntil,
-            address(this)
-        );
+        {
+            address[] memory usdcTokens = new address[](1);
+            usdcTokens[0] = CHAIN_1_USDC;
+            testData.leaves[1] = _createDestinationValidatorLeaf(
+                hex"eeeeeeee", // executionData
+                uint64(10),
+                nexusAccount,
+                params._executor,
+                usdcTokens,
+                intentAmounts,
+                params.validUntil,
+                address(this)
+            );
+        }
 
         // Leaf for cross-chain WETH
-        message.dstTokens = new address[](1);
-        message.dstTokens[0] = CHAIN_1_WETH;
-        testData.leaves[2] = _createDestinationValidatorLeaf(
-            hex"dddddddd", // executionData
-            uint64(11),
-            nexusAccount,
-            params._executor,
-            message.dstTokens,
-            message.intentAmounts,
-            params.validUntil,
-            address(this)
-        );
+        {
+            address[] memory wethTokens = new address[](1);
+            wethTokens[0] = CHAIN_1_WETH;
+            testData.leaves[2] = _createDestinationValidatorLeaf(
+                hex"dddddddd", // executionData
+                uint64(11),
+                nexusAccount,
+                params._executor,
+                wethTokens,
+                intentAmounts,
+                params.validUntil,
+                address(this)
+            );
+        }
 
         (testData.proof, testData.root) = _createValidatorMerkleTree(testData.leaves);
 
         // Sign root
         testData.signature = _getSignature(testData.root);
 
-        /////////////////////////////////////////////////////
-        //  HERE COMES THE PROBLEM: Which proof should we  //
-        //  set as destination? We can only choose one!    //
-        //  In this case, we choose proof[1], which leaves //
-        //  proof[2] outside of the signature data, making //
-        //  it impossible to provide the proof for WETH's  //
-        // cross-chain message                             //
-        /////////////////////////////////////////////////////
-
-        // ^ NOT A PROBLEM ANYMORE
+        // NOT A PROBLEM ANYMORE - multiple proofs can be provided
         {
             ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](2);
 
-            message.dstTokens = new address[](1);
-            message.dstTokens[0] = CHAIN_1_USDC;
+            address[] memory usdcTokens = new address[](1);
+            usdcTokens[0] = CHAIN_1_USDC;
             proofDst[0] = ISuperValidator.DstProof({
                 proof: testData.proof[1],
                 dstChainId: uint64(10),
                 info: ISuperValidator.DstInfo({
                     account: nexusAccount,
                     executor: params._executor,
-                    dstTokens: message.dstTokens,
-                    intentAmounts: message.intentAmounts,
+                    dstTokens: usdcTokens,
+                    intentAmounts: intentAmounts,
                     data: hex"eeeeeeee",
                     validator: address(this)
                 })
             });
 
-            message.dstTokens = new address[](1);
-            message.dstTokens[0] = CHAIN_1_WETH;
+            address[] memory wethTokens = new address[](1);
+            wethTokens[0] = CHAIN_1_WETH;
             proofDst[1] = ISuperValidator.DstProof({
                 proof: testData.proof[2],
                 dstChainId: uint64(11),
                 info: ISuperValidator.DstInfo({
                     account: nexusAccount,
                     executor: params._executor,
-                    dstTokens: message.dstTokens,
-                    intentAmounts: message.intentAmounts,
+                    dstTokens: wethTokens,
+                    intentAmounts: intentAmounts,
                     data: hex"dddddddd",
                     validator: address(this)
                 })
@@ -396,6 +348,43 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         testData.userOps[0] = userOp;
         _assertAndExecuteMultileProofs(testData, nexusAccount);
         // This demonstrates that multiple cross-chain transactions CAN be sent in the same tx
+    }
+
+    /// @dev Extracted to avoid "stack too deep" in testOrion_multipleCrossChainTransactionsCanBeSent
+    function _setupMultipleCCTestHooks(
+        address nexusAccount,
+        address acrossHookAddr
+    )
+        internal
+        view
+        returns (address[] memory hookAddresses, bytes[] memory hooksData, uint256[] memory intentAmounts)
+    {
+        hookAddresses = new address[](4);
+        hookAddresses[0] = approveHook;
+        hookAddresses[1] = approveHook;
+        hookAddresses[2] = acrossHookAddr;
+        hookAddresses[3] = acrossHookAddr;
+
+        hooksData = new bytes[](4);
+        hooksData[0] = _createApproveHookData(CHAIN_1_USDC, 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5, 100e6, false);
+        hooksData[1] = _createApproveHookData(CHAIN_1_WETH, 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5, 100e6, false);
+
+        DestinationMessage memory message;
+        message.initData = hex"aaaaaaaa";
+        message.executorCalldata = hex"eeeeeeee";
+        message.dstTokens = new address[](1);
+        message.dstTokens[0] = CHAIN_1_USDC;
+        message.intentAmounts = new uint256[](1);
+        message.intentAmounts[0] = uint256(100e6);
+
+        hooksData[2] = _buildAcrossHookDataInline(nexusAccount, CHAIN_1_USDC, uint256(100e6), 0, 10, message);
+
+        message.dstTokens = new address[](1);
+        message.dstTokens[0] = CHAIN_1_WETH;
+        message.executorCalldata = hex"dddddddd";
+        hooksData[3] = _buildAcrossHookDataInline(nexusAccount, CHAIN_1_WETH, uint256(100e6), 0, 11, message);
+
+        intentAmounts = message.intentAmounts;
     }
 
     /*//////////////////////////////////////////////////////////////
