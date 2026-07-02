@@ -94,5 +94,6 @@
   "WithdrawVestedRFLRHook": "0xdd63CDFcf845acfA1302a7dAFCa2A7CD2c1a5d32",
   "WithdrawVestedRFLRHookV2": "0xB6Dfa4efA5F401E1b7C914c8A3510b2EFf64c06e",
   "WithdrawWithId7540VaultHook": "0xA823bAD77e776376c80d637cdbD5EAa3Ee96f968",
+  "WrappedNativeHook": "0x70c40DC8D8928C0Bba51120A98297Cf7Ca33Bc39",
   "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4"
 }
