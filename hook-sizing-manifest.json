@@ -331,11 +331,6 @@
     "pipeMode": "transform"
   },
   {
-    "hookKey": "DEPOSIT_WFLR_HOOK_KEY",
-    "mode": "sizeless",
-    "pipeMode": "transform"
-  },
-  {
     "hookKey": "ETHENA_COOLDOWN_SHARES_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "transform"
@@ -694,6 +689,11 @@
   },
   {
     "hookKey": "WITHDRAW_WITH_ID_7540_VAULT_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "WRAPPED_NATIVE_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "transform"
   },
