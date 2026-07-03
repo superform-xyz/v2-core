@@ -32,7 +32,7 @@ import {
 /// @notice         uint256   outputQuote      = BytesLib.toUint256(data, 124);
 /// @notice         uint256   outputMin        = BytesLib.toUint256(data, 156);
 /// @notice         bool      usePrevHookAmount = _decodeBool(data, 188);
-/// @notice         uint256   payloadLength    = BytesLib.toUint256(data, 189);
+/// @notice         uint256   payload_paramLength    = BytesLib.toUint256(data, 189);
 /// @notice         address   inputReceiver    = BytesLib.toAddress(data, 221);
 /// @notice         uint256   pathDefinition_paramLength = BytesLib.toUint256(data, 241);
 /// @notice         bytes     pathDefinition   = BytesLib.slice(data, 273, pathDefinition_paramLength);

@@ -34,8 +34,8 @@ import {
 /// @notice         uint256 originalAmountIn = BytesLib.toUint256(data, 124);
 /// @notice         uint256 originalMinAmountOut = BytesLib.toUint256(data, 156);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 188);
-/// @notice         uint256 pathLength = BytesLib.toUint256(data, 189);
-/// @notice         address[] path = decoded from (221, pathLength * 20);
+/// @notice         uint256 path_paramLength = BytesLib.toUint256(data, 189);
+/// @notice         address[] path = decoded from (221, path_paramLength * 20);
 /// @dev Fee-on-transfer tokens are NOT supported
 /// @dev Rebasing tokens are NOT supported as output tokens
 contract SwapUniswapV2Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {

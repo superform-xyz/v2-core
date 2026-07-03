@@ -35,9 +35,9 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 /// @notice         uint256   outputQuote        = BytesLib.toUint256(data, 124);
 /// @notice         uint256   outputMin          = BytesLib.toUint256(data, 156);
 /// @notice         bool      usePrevHookAmount  = _decodeBool(data, 188);
-/// @notice         uint256   payloadLength      = BytesLib.toUint256(data, 189);
+/// @notice         uint256   payload_paramLength      = BytesLib.toUint256(data, 189);
 /// @notice         address   dstReceiver        = BytesLib.toAddress(data, 221);
-/// @notice         bytes     txData_            = BytesLib.slice(data, 241, payloadLength - 20);
+/// @notice         bytes     txData_            = BytesLib.slice(data, 241, payload_paramLength - 20);
 contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISuperHookInflowOutflow {
     using ProtocolLib for Address;
     using AddressLib for Address;

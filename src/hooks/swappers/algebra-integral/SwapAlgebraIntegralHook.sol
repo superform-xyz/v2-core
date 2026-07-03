@@ -30,7 +30,7 @@ import { IAlgebraSwapRouter } from "../../../vendor/algebra-integral/IAlgebraSwa
 /// @notice         uint256 outputQuote       = BytesLib.toUint256(data, 124);
 /// @notice         uint256 outputMin         = BytesLib.toUint256(data, 156);
 /// @notice         bool    usePrevHookAmount = _decodeBool(data, 188);
-/// @notice         uint256 payloadLength     = BytesLib.toUint256(data, 189);
+/// @notice         uint256 payload_paramLength     = BytesLib.toUint256(data, 189);
 /// @notice Layer 2 (bytes[221:305]): protocol-specific payload (84 bytes)
 /// @notice         address deployer          = BytesLib.toAddress(data, 221);
 /// @notice         uint256 deadline          = BytesLib.toUint256(data, 241);

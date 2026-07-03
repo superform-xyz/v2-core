@@ -33,8 +33,8 @@ import {
 /// @notice         uint256   outputQuote      = BytesLib.toUint256(data, 124);
 /// @notice         uint256   outputMin        = BytesLib.toUint256(data, 156);
 /// @notice         bool      usePrevHookAmount = _decodeBool(data, 188);
-/// @notice         uint256   payloadLength    = BytesLib.toUint256(data, 189);
-/// @notice         bytes     txData           = BytesLib.slice(data, 221, payloadLength);
+/// @notice         uint256   txData_paramLength    = BytesLib.toUint256(data, 189);
+/// @notice         bytes     txData           = BytesLib.slice(data, 221, txData_paramLength);
 contract SwapKyberSwapHook is
     BaseHook,
     ISuperHookSwap,
