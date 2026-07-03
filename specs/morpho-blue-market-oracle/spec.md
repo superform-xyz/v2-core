@@ -27,7 +27,8 @@ Scope: supply-side only, all chains where Morpho Blue is deployed, standalone (n
 
 1. A `MorphoBlueMarketWrapper` can be deployed by anyone for any valid Morpho Blue market; it stores `MarketParams` as immutables and reverts construction for non-existent markets
 2. `MorphoBlueYieldSourceOracle` implements all 8 abstract methods of `AbstractYieldSourceOracle` using accrued (not stale) market state
-3. Price-per-share reflects real accrued interest at `block.timestamp` even when Morpho's stored state hasn't been updated
+3. `decimals()` returns `loanToken.decimals() + 6` to account for Morpho's `VIRTUAL_SHARES = 1e6` offset, ensuring PPS has sufficient precision for low-decimal tokens
+4. Price-per-share reflects real accrued interest at `block.timestamp` even when Morpho's stored state hasn't been updated
 4. Rounding favors the protocol in all conversions: `toSharesDown` for deposits, `toSharesUp` for withdrawals, `toAssetsDown` for value display
 5. Zero-IRM markets (no borrowers) return stored state without reverting
 6. The oracle is chain-agnostic — one deployment per chain, works for any market via its wrapper

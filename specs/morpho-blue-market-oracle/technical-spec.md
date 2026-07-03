@@ -81,11 +81,11 @@ AccruedState:
 
 | Method | Implementation | Rounding |
 |---|---|---|
-| `decimals()` | `IERC20Metadata(loanToken).decimals()` | — |
+| `decimals()` | `IERC20Metadata(loanToken).decimals() + 6` (accounts for `VIRTUAL_SHARES = 1e6`) | — |
 | `getShareOutput()` | `assetsIn.toSharesDown(accrued.totalSupplyAssets, accrued.totalSupplyShares)` | Down (user gets fewer shares) |
 | `getWithdrawalShareOutput()` | `assetsIn.toSharesUp(...)` | Up (user burns more shares) |
 | `getAssetOutput()` | `sharesIn.toAssetsDown(...)` | Down (conservative) |
-| `getPricePerShare()` | `(10^dec).toAssetsDown(...)` | Down (= getAssetOutput of 1 share unit) |
+| `getPricePerShare()` | `(10^(dec+6)).toAssetsDown(...)` (prices one full share unit with virtual offset) | Down (= getAssetOutput of 1 share unit) |
 | `getBalanceOfOwner()` | `position(id, owner).supplyShares` | — (raw shares, not assets) |
 | `getTVLByOwnerOfShares()` | `shares.toAssetsDown(...)` | Down |
 | `getTVL()` | `accrued.totalSupplyAssets` | — |
@@ -161,7 +161,7 @@ if (elapsed > 0 && s.totalBorrowAssets > 0 && mp.irm != address(0)) {
 - [ ] `test_wrapper_computesCorrectId` — ID matches `MarketParamsLib.id()`
 - [ ] `test_wrapper_rejectsInvalidMarket` — `MARKET_DOES_NOT_EXIST` for bad LLTV
 - [ ] `test_wrapper_immutable_noStorageSlots` — storage slot 0 is zero
-- [ ] `test_fork_decimals` — 6 for USDC, 18 for WETH
+- [ ] `test_fork_decimals` — 12 for USDC (6+6), 24 for WETH (18+6)
 - [ ] `test_fork_pps_nonZero` — PPS > 0 and >= 1 token unit
 - [ ] `test_fork_pps_withInterestAccrual` — PPS after `vm.warp(+1 day)` >= PPS before
 - [ ] `test_fork_tvl_nonZero` — TVL > 0 for active market
@@ -263,8 +263,10 @@ contract MorphoBlueYieldSourceOracle is AbstractYieldSourceOracle {
     constructor(address superLedgerConfiguration_)
         AbstractYieldSourceOracle(superLedgerConfiguration_) { }
 
-    // decimals, getShareOutput, getWithdrawalShareOutput, getAssetOutput (public),
-    // getPricePerShare, getBalanceOfOwner, getTVLByOwnerOfShares, getTVL
+    // decimals: returns loanToken.decimals() + 6 (accounts for VIRTUAL_SHARES = 1e6)
+    // getPricePerShare: prices 10^(loanDec+6) shares via toAssetsDown
+    // getShareOutput, getWithdrawalShareOutput, getAssetOutput (public),
+    // getBalanceOfOwner, getTVLByOwnerOfShares, getTVL
     // all delegate to _getAccruedMarketState
 
     function _getAccruedMarketState(address yieldSourceAddress)

@@ -84,9 +84,14 @@ contract MorphoBlueYieldSourceOracle is AbstractYieldSourceOracle {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc AbstractYieldSourceOracle
+    /// @dev Morpho Blue supply shares carry a virtual offset of VIRTUAL_SHARES = 1e6
+    ///      (SharesMathLib.sol), so shares effectively have `loanDecimals + 6` decimals
+    ///      of precision. Returning `loanDecimals + 6` here matches MetaMorpho's
+    ///      DECIMALS_OFFSET philosophy and ensures getPricePerShare() has enough
+    ///      resolution for low-decimal tokens (e.g. USDC with 6 decimals).
     function decimals(address yieldSourceAddress) external view override returns (uint8) {
         (MarketParams memory mp,) = REGISTRY.getMarketInfo(yieldSourceAddress);
-        return IERC20Metadata(mp.loanToken).decimals();
+        return IERC20Metadata(mp.loanToken).decimals() + 6;
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -135,10 +140,13 @@ contract MorphoBlueYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
+    /// @dev Prices `10^(loanDecimals + 6)` shares (one "full" share unit accounting for
+    ///      VIRTUAL_SHARES = 1e6) to match the `decimals()` return value. The cast to
+    ///      uint256 before `+ 6` prevents intermediate uint8 overflow in the exponent.
     function getPricePerShare(address yieldSourceAddress) public view override returns (uint256) {
         (AccruedState memory s, MarketParams memory mp) = _getAccruedMarketState(yieldSourceAddress);
         uint8 dec = IERC20Metadata(mp.loanToken).decimals();
-        return (10 ** dec).toAssetsDown(s.totalSupplyAssets, s.totalSupplyShares);
+        return (10 ** (uint256(dec) + 6)).toAssetsDown(s.totalSupplyAssets, s.totalSupplyShares);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle

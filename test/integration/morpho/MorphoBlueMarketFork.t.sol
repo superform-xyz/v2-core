@@ -179,14 +179,14 @@ contract MorphoBlueMarketFork is Test, Constants {
 
     function test_fork_morphoWbtcUsdc_decimals() public view {
         uint8 dec = oracle.decimals(wbtcUsdcKey);
-        assertEq(dec, 6, "USDC has 6 decimals");
+        assertEq(dec, 12, "USDC (6) + VIRTUAL_SHARES offset (6) = 12 decimals");
     }
 
     function test_fork_morphoWbtcUsdc_pps_nonZero() public view {
         uint256 pps = oracle.getPricePerShare(wbtcUsdcKey);
         console2.log("WBTC/USDC PPS:", pps);
         assertGt(pps, 0, "PPS must be > 0");
-        // Morpho supply shares use VIRTUAL_SHARES=1e6, so PPS for a 6-decimal token is ~1 atomic unit (not 1e6)
+        // With decimals() = 12, PPS prices 1e12 shares → ~1e6 (i.e. "1.0" in 6-decimal USDC units)
     }
 
     function test_fork_morphoWbtcUsdc_pps_withInterestAccrual() public {
@@ -241,14 +241,14 @@ contract MorphoBlueMarketFork is Test, Constants {
 
     function test_fork_morphoWstethWeth_decimals() public view {
         uint8 dec = oracle.decimals(wstethWethKey);
-        assertEq(dec, 18, "WETH has 18 decimals");
+        assertEq(dec, 24, "WETH (18) + VIRTUAL_SHARES offset (6) = 24 decimals");
     }
 
     function test_fork_morphoWstethWeth_pps_nonZero() public view {
         uint256 pps = oracle.getPricePerShare(wstethWethKey);
         console2.log("wstETH/WETH PPS:", pps);
         assertGt(pps, 0, "PPS must be > 0");
-        // Morpho supply shares use VIRTUAL_SHARES=1e6, so PPS for an 18-decimal token is ~1e12 (not 1e18)
+        // With decimals() = 24, PPS prices 1e24 shares → ~1e18 (i.e. "1.0" in 18-decimal WETH units)
     }
 
     function test_fork_morphoWstethWeth_pps_withInterestAccrual() public {
