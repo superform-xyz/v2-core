@@ -16,9 +16,12 @@
 
 ## 1. Contract Deployment
 
+Deployment is integrated into `DeployV2Core.s.sol` → `_deployOracles()`. Run via existing
+`deploy_v2_staging_prod.sh` — no separate script needed.
+
 | Step | Chain | Status | Notes |
 |------|-------|--------|-------|
-| Deploy `MorphoBlueMarketRegistry` | Ethereum | `[ ]` | Deterministic address via CREATE2 |
+| Deploy `MorphoBlueMarketRegistry` | Ethereum | `[ ]` | Deterministic address via CREATE2, admin=DEPLOYER |
 | Deploy `MorphoBlueMarketRegistry` | Base | `[ ]` | Same bytecode, same address |
 | Deploy `MorphoBlueYieldSourceOracle` | Ethereum | `[ ]` | Constructor: `(superLedgerConfig, registry)` |
 | Deploy `MorphoBlueYieldSourceOracle` | Base | `[ ]` | Constructor: `(superLedgerConfig, registry)` |
@@ -56,10 +59,8 @@
 
 | Step | Status | Notes |
 |------|--------|-------|
-| Transfer `DEFAULT_ADMIN_ROLE` on registry to multisig | `[ ]` | Deployer retains temporarily for setup |
-| Grant `MARKET_MANAGER_ROLE` to ops multisig | `[ ]` | For register/deregister operations |
-| Revoke `MARKET_MANAGER_ROLE` from deployer EOA | `[ ]` | After setup complete |
-| Verify role assignments via `hasRole` | `[ ]` | |
+| Transfer roles via `TransferMorphoBlueMarketRegistryRoles.s.sol` | `[ ]` | Transfers DEFAULT_ADMIN_ROLE + MARKET_MANAGER_ROLE to SUPER_GOVERNOR, revokes from DEPLOYER |
+| Verify role assignments via `runCheck()` | `[ ]` | Idempotent read-only check |
 
 ---
 
