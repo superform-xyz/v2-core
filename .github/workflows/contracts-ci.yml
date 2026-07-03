@@ -342,53 +342,6 @@ jobs:
           echo "## Hook Manifest Lint" >> $GITHUB_STEP_SUMMARY
           echo "✅ Passed (manifests/hooks.json and hook-sizing-manifest.json verified up-to-date)" >> $GITHUB_STEP_SUMMARY
 
-  coverage:
-    runs-on: SuperformCore3
-    needs: ["test"]
-    steps:
-      - name: "Check out the repo"
-        uses: "actions/checkout@v4"
-        with:
-          submodules: "recursive"
-
-      - name: "Install Foundry"
-        uses: "foundry-rs/foundry-toolchain@v1"
-        with:
-          version: "v1.4.4"
-
-      - name: "Install Foundry dependencies"
-        run: forge install
-
-      - name: "Install pnpm"
-        run: npm install -g pnpm@8
-
-      - name: "Install ModuleKit"
-        working-directory: ./lib/modulekit
-        run: pnpm install
-
-      - name: "Install Safe7579"
-        working-directory: ./lib/safe7579
-        run: pnpm install
-
-      - name: "Install Nexus"
-        working-directory: ./lib/nexus
-        run: yarn
-
-      - name: "Generate the coverage report using unit and integration tests"
-        run: "make coverage"
-
-      - name: "Upload coverage report to Codecov"
-        uses: "codecov/codecov-action@v5"
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        with:
-          files: "./lcov.info"
-
-      - name: "Add coverage summary"
-        run: |
-          echo "## Coverage result" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Uploaded to Codecov" >> $GITHUB_STEP_SUMMARY
-
   treasury-config-smoke-test:
     runs-on: SuperformCore3
     needs: ["test"]
