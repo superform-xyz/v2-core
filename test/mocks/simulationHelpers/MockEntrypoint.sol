@@ -39,7 +39,7 @@ contract MockedEntrypoint {
         if (!callSuccess) {
             // Bubble up the actual revert reason
             if (returnData.length > 0) {
-                assembly {
+                assembly ("memory-safe") {
                     revert(add(returnData, 32), mload(returnData))
                 }
             } else {

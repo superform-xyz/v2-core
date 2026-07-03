@@ -205,7 +205,7 @@ contract UniswapV3HookIntegrationTest is MinimalBaseIntegrationTest {
 
         // Extract tokenOut address
         address extractedTokenOut;
-        assembly {
+        assembly ("memory-safe") {
             extractedTokenOut := mload(add(inspectResult, 20))
         }
         assertEq(extractedTokenOut, CHAIN_1_WETH, "Should extract correct tokenOut");

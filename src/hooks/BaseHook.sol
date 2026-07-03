@@ -208,7 +208,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
         }
 
         bytes32 key = _makeKey(context, OUT_AMOUNT_OFFSET);
-        assembly {
+        assembly ("memory-safe") {
             tstore(key, _outAmount)
         }
     }
@@ -354,7 +354,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     function _setOutToken(address token, address caller) internal {
         uint256 context = _getCurrentExecutionContext(caller);
         bytes32 key = _makeKey(context, OUT_TOKEN_OFFSET);
-        assembly {
+        assembly ("memory-safe") {
             tstore(key, token)
         }
     }
@@ -370,7 +370,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
 
         // Store this context for the current caller
         uint256 currentNonce = executionNonce; // Load into local variable for assembly
-        assembly {
+        assembly ("memory-safe") {
             tstore(key, currentNonce)
         }
 
@@ -379,7 +379,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
 
     function _getCurrentExecutionContext(address caller) private view returns (uint256 context) {
         bytes32 key = _makeAccountContextKey(caller);
-        assembly {
+        assembly ("memory-safe") {
             context := tload(key)
         }
     }
@@ -390,14 +390,14 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
 
     function _getOutAmount(uint256 context) private view returns (uint256 value) {
         bytes32 key = _makeKey(context, OUT_AMOUNT_OFFSET);
-        assembly {
+        assembly ("memory-safe") {
             value := tload(key)
         }
     }
 
     function _getOutToken(uint256 context) private view returns (address value) {
         bytes32 key = _makeKey(context, OUT_TOKEN_OFFSET);
-        assembly {
+        assembly ("memory-safe") {
             value := tload(key)
         }
     }
@@ -405,35 +405,35 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     function _setOutAmount(uint256 value, address caller) internal {
         uint256 context = _getCurrentExecutionContext(caller);
         bytes32 key = _makeKey(context, OUT_AMOUNT_OFFSET);
-        assembly {
+        assembly ("memory-safe") {
             tstore(key, value)
         }
     }
 
     function _getPreExecuteMutex(uint256 context) private view returns (bool value) {
         bytes32 key = _makeKey(context, PRE_EXECUTE_MUTEX_OFFSET);
-        assembly {
+        assembly ("memory-safe") {
             value := tload(key)
         }
     }
 
     function _setPreExecuteMutex(uint256 context, bool value) private {
         bytes32 key = _makeKey(context, PRE_EXECUTE_MUTEX_OFFSET);
-        assembly {
+        assembly ("memory-safe") {
             tstore(key, value)
         }
     }
 
     function _getPostExecuteMutex(uint256 context) private view returns (bool value) {
         bytes32 key = _makeKey(context, POST_EXECUTE_MUTEX_OFFSET);
-        assembly {
+        assembly ("memory-safe") {
             value := tload(key)
         }
     }
 
     function _setPostExecuteMutex(uint256 context, bool value) private {
         bytes32 key = _makeKey(context, POST_EXECUTE_MUTEX_OFFSET);
-        assembly {
+        assembly ("memory-safe") {
             tstore(key, value)
         }
     }

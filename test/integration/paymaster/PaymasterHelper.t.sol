@@ -154,7 +154,7 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         address validator = address(superMerkleValidator);
         bytes32 batchId = bytes3(0);
         bytes1 vMode = MODE_VALIDATION;
-        assembly {
+        assembly ("memory-safe") {
             nonceKey := or(shr(88, vMode), validator)
             nonceKey := or(shr(64, batchId), nonceKey)
         }

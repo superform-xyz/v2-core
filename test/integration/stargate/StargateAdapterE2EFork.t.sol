@@ -859,21 +859,18 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
         uint256 amountC = 1250e6;
         deal(USDC_BASE, address(localAdapter), amountA + amountB + amountC);
 
-        bytes memory innerA = _buildInnerComposeMsg(userA);
-        bytes memory innerB = _buildInnerComposeMsg(userB);
-        bytes memory innerC = _buildInnerComposeMsg(userC);
-
+        // Inline _buildInnerComposeMsg to reduce stack depth for coverage --ir-minimum
         vm.prank(LZ_ENDPOINT_BASE);
         ILayerZeroComposer(address(localAdapter)).lzCompose(
-            STARGATE_USDC_POOL_BASE, bytes32(0), _wrapComposeMsgCodec(amountA, sender, innerA), address(0), bytes("")
+            STARGATE_USDC_POOL_BASE, bytes32(0), _wrapComposeMsgCodec(amountA, sender, _buildInnerComposeMsg(userA)), address(0), bytes("")
         );
         vm.prank(LZ_ENDPOINT_BASE);
         ILayerZeroComposer(address(localAdapter)).lzCompose(
-            STARGATE_USDC_POOL_BASE, bytes32(0), _wrapComposeMsgCodec(amountB, sender, innerB), address(0), bytes("")
+            STARGATE_USDC_POOL_BASE, bytes32(0), _wrapComposeMsgCodec(amountB, sender, _buildInnerComposeMsg(userB)), address(0), bytes("")
         );
         vm.prank(LZ_ENDPOINT_BASE);
         ILayerZeroComposer(address(localAdapter)).lzCompose(
-            STARGATE_USDC_POOL_BASE, bytes32(0), _wrapComposeMsgCodec(amountC, sender, innerC), address(0), bytes("")
+            STARGATE_USDC_POOL_BASE, bytes32(0), _wrapComposeMsgCodec(amountC, sender, _buildInnerComposeMsg(userC)), address(0), bytes("")
         );
 
         // All tokens transferred — adapter empty, no failed transfers
@@ -903,30 +900,9 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
         // Only mock failure for userB
         vm.mockCall(USDC_BASE, abi.encodeCall(IERC20.transfer, (userB, amountB)), abi.encode(false));
 
-        vm.prank(LZ_ENDPOINT_BASE);
-        ILayerZeroComposer(address(localAdapter)).lzCompose(
-            STARGATE_USDC_POOL_BASE,
-            bytes32(0),
-            _wrapComposeMsgCodec(amountA, sender, _buildInnerComposeMsg(userA)),
-            address(0),
-            bytes("")
-        );
-        vm.prank(LZ_ENDPOINT_BASE);
-        ILayerZeroComposer(address(localAdapter)).lzCompose(
-            STARGATE_USDC_POOL_BASE,
-            bytes32(0),
-            _wrapComposeMsgCodec(amountB, sender, _buildInnerComposeMsg(userB)),
-            address(0),
-            bytes("")
-        );
-        vm.prank(LZ_ENDPOINT_BASE);
-        ILayerZeroComposer(address(localAdapter)).lzCompose(
-            STARGATE_USDC_POOL_BASE,
-            bytes32(0),
-            _wrapComposeMsgCodec(amountC, sender, _buildInnerComposeMsg(userC)),
-            address(0),
-            bytes("")
-        );
+        _sendCompose(localAdapter, amountA, sender, _buildInnerComposeMsg(userA));
+        _sendCompose(localAdapter, amountB, sender, _buildInnerComposeMsg(userB));
+        _sendCompose(localAdapter, amountC, sender, _buildInnerComposeMsg(userC));
 
         vm.clearMockedCalls();
 
@@ -1406,6 +1382,25 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
         returns (bytes memory)
     {
         return abi.encodePacked(uint64(0), uint32(EID_ETHEREUM), amountLD, bytes32(uint256(uint160(composeFrom))), innerMsg);
+    }
+
+    /// @dev Sends a compose via LZ_ENDPOINT_BASE to reduce stack depth in multi-user tests
+    function _sendCompose(
+        StargateAdapter adapter,
+        uint256 amountLD,
+        address composeFrom,
+        bytes memory innerMsg
+    )
+        internal
+    {
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapter)).lzCompose(
+            STARGATE_USDC_POOL_BASE,
+            bytes32(0),
+            _wrapComposeMsgCodec(amountLD, composeFrom, innerMsg),
+            address(0),
+            bytes("")
+        );
     }
 
     /// @dev Builds merkle tree, sigData, and 6-field composeMsg. Stores to _merkleRoot and _composeMsg.

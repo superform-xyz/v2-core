@@ -101,7 +101,7 @@ abstract contract Helpers is Test, Constants {
 
     function _toEthSignedMessageHash(bytes32 hash) internal pure returns (bytes32 result) {
         /// @solidity memory-safe-assembly
-        assembly {
+        assembly ("memory-safe") {
             mstore(0x20, hash) // Store into scratch space for keccak256.
             mstore(0x00, "\x00\x00\x00\x00\x19Ethereum Signed Message:\n32") // 28 bytes.
             result := keccak256(0x04, 0x3c) // `32 * 2 - (32 - 28) = 60 = 0x3c`.

@@ -599,14 +599,14 @@ contract CCTPHooksFork is Helpers {
                 //   | destinationCaller (32) | messageBody (variable)
                 // Verify destinationDomain is encoded in the message at offset 8 (after version + sourceDomain)
                 uint32 msgDestDomain;
-                assembly {
+                assembly ("memory-safe") {
                     msgDestDomain := shr(224, mload(add(message, 40)))
                 }
                 assertEq(msgDestDomain, DOMAIN_BASE, "Message: destinationDomain should be Base (6)");
 
                 // Verify sourceDomain (Ethereum = 0)
                 uint32 msgSrcDomain;
-                assembly {
+                assembly ("memory-safe") {
                     msgSrcDomain := shr(224, mload(add(message, 36)))
                 }
                 assertEq(msgSrcDomain, DOMAIN_ETHEREUM, "Message: sourceDomain should be Ethereum (0)");
@@ -773,7 +773,7 @@ contract CCTPHooksFork is Helpers {
         bytes32 destCaller;
         uint256 maxFee;
 
-        assembly {
+        assembly ("memory-safe") {
             let base := add(eventData, 32) // skip bytes length prefix
             amount := mload(base) // slot 0
             mintRecipient := mload(add(base, 0x20)) // slot 1

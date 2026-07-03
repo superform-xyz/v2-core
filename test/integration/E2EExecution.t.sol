@@ -723,7 +723,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         address validator = address(superMerkleValidator);
         bytes32 batchId = customBatchId;
         bytes1 vMode = MODE_VALIDATION;
-        assembly {
+        assembly ("memory-safe") {
             nonceKey := or(shr(88, vMode), validator)
             nonceKey := or(shr(64, batchId), nonceKey)
         }

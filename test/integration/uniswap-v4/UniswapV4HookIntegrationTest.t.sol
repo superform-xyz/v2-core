@@ -303,7 +303,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         // Extract addresses using assembly for slice operations
         address token0;
         address token1;
-        assembly {
+        assembly ("memory-safe") {
             // Load 32 bytes starting from offset 0x20 (skip length prefix)
             let firstWord := mload(add(inspectResult, 0x20))
             // Extract first address (first 20 bytes) by shifting right 12 bytes (96 bits)
@@ -969,7 +969,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         // Extract and verify addresses
         address extractedCurrency0;
         address extractedCurrency1;
-        assembly {
+        assembly ("memory-safe") {
             extractedCurrency0 := mload(add(result, 0x14))
             extractedCurrency1 := mload(add(result, 0x28))
         }

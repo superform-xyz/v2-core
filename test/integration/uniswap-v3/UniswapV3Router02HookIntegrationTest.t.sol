@@ -795,7 +795,7 @@ contract UniswapV3Router02HookIntegrationTest is MinimalBaseIntegrationTest {
 
         address tokenOut1;
         address tokenOut2;
-        assembly {
+        assembly ("memory-safe") {
             tokenOut1 := mload(add(result1, 20))
             tokenOut2 := mload(add(result2, 20))
         }

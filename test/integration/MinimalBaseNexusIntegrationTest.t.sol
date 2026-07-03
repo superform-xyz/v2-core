@@ -280,7 +280,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         address validator = address(superMerkleValidator);
         bytes32 batchId = bytes3(0);
         bytes1 vMode = MODE_VALIDATION;
-        assembly {
+        assembly ("memory-safe") {
             nonceKey := or(shr(88, vMode), validator)
             nonceKey := or(shr(64, batchId), nonceKey)
         }
@@ -291,7 +291,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         uint192 nonceKey;
         bytes32 batchId = bytes3(0);
         bytes1 vMode = MODE_VALIDATION;
-        assembly {
+        assembly ("memory-safe") {
             nonceKey := or(shr(88, vMode), validator)
             nonceKey := or(shr(64, batchId), nonceKey)
         }
@@ -356,7 +356,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
                     // Extract selector
                     bytes4 actualSelector;
                     if (revertReason.length >= 4) {
-                        assembly {
+                        assembly ("memory-safe") {
                             actualSelector := mload(add(revertReason, 32))
                         }
                     }
@@ -392,7 +392,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
                     // Extract selector
                     bytes4 actualSelector;
                     if (revertReason.length >= 4) {
-                        assembly {
+                        assembly ("memory-safe") {
                             actualSelector := mload(add(revertReason, 32))
                         }
                     }

@@ -64,7 +64,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
             (bool success, bytes memory returndata) =
                 executions[i].target.call{ value: executions[i].value }(executions[i].callData);
             if (!success) {
-                assembly {
+                assembly ("memory-safe") {
                     revert(add(returndata, 32), mload(returndata))
                 }
             }
@@ -245,7 +245,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
         // Decode packed address
         address decodedDstToken;
-        assembly {
+        assembly ("memory-safe") {
             decodedDstToken := mload(add(result, 20))
         }
 
@@ -266,7 +266,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         assertEq(result.length, 20);
 
         address decodedDstToken;
-        assembly {
+        assembly ("memory-safe") {
             decodedDstToken := mload(add(result, 20))
         }
 
@@ -415,7 +415,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
         // First 4 bytes should be swap selector: 0xe21fd0e9
         bytes4 selector;
-        assembly {
+        assembly ("memory-safe") {
             selector := mload(add(txData_, 32))
         }
         assertEq(selector, IMetaAggregationRouterV2.swap.selector, "should have correct swap selector");
@@ -494,7 +494,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
     function test_ScaleHelper_RealContract_Exists() public view {
         uint256 codeSize;
         address sh = SCALE_HELPER;
-        assembly {
+        assembly ("memory-safe") {
             codeSize := extcodesize(sh)
         }
         assertGt(codeSize, 0, "ScaleHelper should be deployed on mainnet");

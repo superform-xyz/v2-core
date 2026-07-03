@@ -599,7 +599,7 @@ contract SpectraExchangeHooksTests is Helpers {
         uint256 offset = 32;
         uint256 sharesToBurn;
         bytes memory inputData = vars.updatedInputs[0];
-        assembly {
+        assembly ("memory-safe") {
             sharesToBurn := mload(add(inputData, add(0x20, offset)))
         }
 

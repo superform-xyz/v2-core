@@ -37,7 +37,7 @@ contract YearnHooksE2E is Test, Constants {
             (bool success, bytes memory returndata) =
                 executions[i].target.call{ value: executions[i].value }(executions[i].callData);
             if (!success) {
-                assembly {
+                assembly ("memory-safe") {
                     revert(add(returndata, 32), mload(returndata))
                 }
             }

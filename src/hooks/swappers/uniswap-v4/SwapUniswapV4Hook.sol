@@ -287,10 +287,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
 
     /// @inheritdoc IUnlockCallback
     function unlockCallback(bytes calldata data) external override returns (bytes memory) {
-        // Ensure only the Pool Manager can call this
-        if (msg.sender != address(POOL_MANAGER)) {
-            revert UNAUTHORIZED_CALLBACK();
-        }
+        if (msg.sender != address(POOL_MANAGER)) revert UNAUTHORIZED_CALLBACK();
 
         // Decode unlock data
         (
@@ -308,7 +305,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
             ? (zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1)
             : sqrtPriceLimitX96;
 
-        // Determine swap direction and currencies
+        // Populate params struct
         SwapExecutionParams memory params;
         params.poolKey = poolKey;
         params.amountIn = amountIn;
@@ -321,134 +318,99 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
         params.effectivePriceLimitX96 = effectivePriceLimitX96;
         params.currency1Token = Currency.unwrap(poolKey.currency1);
 
-        // STEP 1: Execute swap FIRST (before any transfers)
-        // For exact-input swaps, the swap only accounts deltas - it doesn't require tokens to be present
-        // This allows us to see the exact delta amounts (which may differ from amountIn due to protocol fees)
-        // before transferring tokens
-        IPoolManager.SwapParams memory swapParams = IPoolManager.SwapParams({
-            zeroForOne: params.zeroForOne,
-            amountSpecified: -int256(params.amountIn), // Exact input (negative for exact input)
-            sqrtPriceLimitX96: params.effectivePriceLimitX96
-        });
+        // Execute swap
+        params.swapDelta = POOL_MANAGER.swap(
+            params.poolKey,
+            IPoolManager.SwapParams({
+                zeroForOne: params.zeroForOne,
+                amountSpecified: -int256(params.amountIn),
+                sqrtPriceLimitX96: params.effectivePriceLimitX96
+            }),
+            additionalData
+        );
 
-        params.swapDelta = POOL_MANAGER.swap(params.poolKey, swapParams, additionalData);
-
-        // STEP 2: Extract deltas for BOTH currencies (CRITICAL: handle both explicitly)
-        // After swap, both currencies have deltas accounted to this hook contract
-        // - Negative delta = we owe tokens (need to settle)
-        // - Positive delta = we receive tokens (need to take)
         params.delta0 = params.swapDelta.amount0();
         params.delta1 = params.swapDelta.amount1();
 
-        // STEP 3: Handle currency0 delta
-        // IMPORTANT: For exact-input swaps with protocol fees, delta0 might be less than -amountIn
-        // We must settle exactly -delta0, not amountIn, to avoid residual delta causing CurrencyNotSettled()
-        if (params.delta0 < 0) {
-            // Negative delta: we owe currency0, need to settle
-            uint256 amountToSettle = uint256(uint128(-params.delta0));
+        // Settle/take deltas and refund excess via helpers (avoids stack-too-deep under --ir-minimum)
+        _settleCurrencyDelta(params.delta0, params.poolKey.currency0, params.inputToken, params);
+        _settleCurrencyDelta(params.delta1, params.poolKey.currency1, params.currency1Token, params);
 
-            if (params.poolKey.currency0.isAddressZero()) {
-                // Native token: settle with exact amount needed
-                // Excess (if any) remains in hook contract for postExecute handling
-                if (address(this).balance < amountToSettle) {
-                    revert INVALID_PREVIOUS_NATIVE_TRANSFER_HOOK_USAGE();
-                }
-                POOL_MANAGER.settle{ value: amountToSettle }();
-            } else {
-                // ERC-20: Sync AFTER swap to reset the CurrencyReserves state
-                // settle() accounts balance increase from last sync, so we sync now to reset
-                POOL_MANAGER.sync(params.poolKey.currency0);
-
-                // Transfer exactly amountToSettle tokens
-                // settle() will calculate: balanceAfter - balanceBefore = amountToSettle
-                IERC20(params.inputToken).transfer(address(POOL_MANAGER), amountToSettle);
-
-                // settle() accounts +amountToSettle delta, canceling -delta0 exactly
-                POOL_MANAGER.settle();
-            }
-        } else if (params.delta0 > 0) {
-            // Positive delta: we receive currency0, need to take
-            uint256 amountToTake = uint256(int256(params.delta0));
-            // Enforce minAmountOut when output is currency0 (zeroForOne == false)
-            if (!params.zeroForOne && amountToTake < params.minAmountOut) {
-                revert INSUFFICIENT_OUTPUT_AMOUNT(amountToTake, params.minAmountOut);
-            }
-            POOL_MANAGER.take(params.poolKey.currency0, params.dstReceiver, amountToTake);
-        }
-        // If delta0 == 0, nothing to do
-
-        // STEP 4: Handle currency1 delta - this is our output
-        if (params.delta1 < 0) {
-            // Negative delta: we owe currency1 (shouldn't happen for exact-input zeroForOne swap)
-            // But handle it for completeness
-            uint256 amountToSettle = uint256(uint128(-params.delta1));
-            if (params.poolKey.currency1.isAddressZero()) {
-                POOL_MANAGER.settle{ value: amountToSettle }();
-            } else {
-                POOL_MANAGER.sync(params.poolKey.currency1);
-                IERC20(params.currency1Token).transfer(address(POOL_MANAGER), amountToSettle);
-                POOL_MANAGER.settle();
-            }
-        } else if (params.delta1 > 0) {
-            // Positive delta: we receive currency1, need to take (this is our output)
-            uint256 amountToTake = uint256(int256(params.delta1));
-            if (amountToTake < params.minAmountOut) {
-                revert INSUFFICIENT_OUTPUT_AMOUNT(amountToTake, params.minAmountOut);
-            }
-            POOL_MANAGER.take(params.poolKey.currency1, params.dstReceiver, amountToTake);
-        }
-        // If delta1 == 0, nothing to do
-
-        // STEP 5: Compute and enforce min output for all outcomes (including zero output)
-        // For zeroForOne: output is currency1 (delta1); for !zeroForOne: output is currency0 (delta0)
+        // Compute and enforce output minimum
         params.outDelta = params.zeroForOne ? params.delta1 : params.delta0;
         params.amountOut = params.outDelta > 0 ? uint256(uint128(params.outDelta)) : 0;
         if (params.amountOut < params.minAmountOut) {
             revert INSUFFICIENT_OUTPUT_AMOUNT(params.amountOut, params.minAmountOut);
         }
 
-        // STEP 6: Handle refund of unconsumed input (if any)
-        // Edge cases that require refund:
-        // 1. Partial execution due to price limits hitting before full amount is swapped
-        // 2. Zero-output swaps (now handled by minAmountOut check, but still need refund)
-        // 3. Protocol fees causing small excess (rare, but possible)
-        // IMPORTANT: We refund based on actual hook balance remaining after settlement,
-        // not by comparing amountIn to delta, as the delta reflects what was actually swapped
-        if (params.delta0 < 0) {
-            // We owed currency0 - check for any remaining balance after settlement
-            if (params.poolKey.currency0.isAddressZero()) {
-                // Native ETH: refund any remaining balance
-                params.balance = address(this).balance;
-                if (params.balance > 0) {
-                    (bool success,) = params.dstReceiver.call{ value: params.balance }("");
-                    if (!success) revert INVALID_REMAINING_NATIVE_AMOUNT();
-                }
-            } else {
-                // ERC-20: refund any remaining balance after settlement
-                params.balance = IERC20(params.inputToken).balanceOf(address(this));
-                if (params.balance > 0) {
-                    IERC20(params.inputToken).transfer(params.dstReceiver, params.balance);
-                }
-            }
-        } else if (params.delta1 < 0) {
-            // We owed currency1 - check for any remaining balance after settlement
-            if (params.poolKey.currency1.isAddressZero()) {
-                // Native ETH: refund any remaining balance
-                params.balance = address(this).balance;
-                if (params.balance > 0) {
-                    (bool success,) = params.dstReceiver.call{ value: params.balance }("");
-                    if (!success) revert INVALID_REMAINING_NATIVE_AMOUNT();
-                }
-            } else {
-                // ERC-20: refund any remaining balance after settlement
-                params.balance = IERC20(params.currency1Token).balanceOf(address(this));
-                if (params.balance > 0) {
-                    IERC20(params.currency1Token).transfer(params.dstReceiver, params.balance);
-                }
-            }
-        }
+        // Refund unconsumed input
+        _refundExcessInput(params);
 
         return abi.encode(params.amountOut);
+    }
+
+    /// @notice Settle or take a single currency delta with the pool manager
+    /// @param delta The delta for this currency (negative = owe, positive = receive)
+    /// @param currency The currency to settle/take
+    /// @param token The ERC-20 address (or address(0) for native)
+    /// @param params The swap execution params (for minAmountOut and dstReceiver)
+    function _settleCurrencyDelta(
+        int128 delta,
+        Currency currency,
+        address token,
+        SwapExecutionParams memory params
+    )
+        private
+    {
+        if (delta < 0) {
+            uint256 amountToSettle = uint256(uint128(-delta));
+            if (currency.isAddressZero()) {
+                if (address(this).balance < amountToSettle) revert INVALID_PREVIOUS_NATIVE_TRANSFER_HOOK_USAGE();
+                POOL_MANAGER.settle{ value: amountToSettle }();
+            } else {
+                POOL_MANAGER.sync(currency);
+                IERC20(token).transfer(address(POOL_MANAGER), amountToSettle);
+                POOL_MANAGER.settle();
+            }
+        } else if (delta > 0) {
+            uint256 amountToTake = uint256(int256(delta));
+            // Enforce minAmountOut on the output currency
+            bool isOutputCurrency = Currency.unwrap(currency) == Currency.unwrap(params.outputCurrency);
+            if (isOutputCurrency && amountToTake < params.minAmountOut) {
+                revert INSUFFICIENT_OUTPUT_AMOUNT(amountToTake, params.minAmountOut);
+            }
+            POOL_MANAGER.take(currency, params.dstReceiver, amountToTake);
+        }
+    }
+
+    /// @notice Refund unconsumed input tokens after settlement
+    /// @param params The swap execution params
+    function _refundExcessInput(SwapExecutionParams memory params) private {
+        // Identify which currency we owed (the input side)
+        Currency inputCurrency;
+        address inputToken;
+        if (params.delta0 < 0) {
+            inputCurrency = params.poolKey.currency0;
+            inputToken = params.inputToken;
+        } else if (params.delta1 < 0) {
+            inputCurrency = params.poolKey.currency1;
+            inputToken = params.currency1Token;
+        } else {
+            return; // No settlement was needed
+        }
+
+        if (inputCurrency.isAddressZero()) {
+            params.balance = address(this).balance;
+            if (params.balance > 0) {
+                (bool success,) = params.dstReceiver.call{ value: params.balance }("");
+                if (!success) revert INVALID_REMAINING_NATIVE_AMOUNT();
+            }
+        } else {
+            params.balance = IERC20(inputToken).balanceOf(address(this));
+            if (params.balance > 0) {
+                IERC20(inputToken).transfer(params.dstReceiver, params.balance);
+            }
+        }
     }
 
     /// @inheritdoc BaseHook
@@ -724,14 +686,14 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
         uint256 len = data.length;
 
         // Store the length first
-        assembly {
+        assembly ("memory-safe") {
             tstore(storageKey, len)
         }
 
         // Store data in 32-byte chunks
         for (uint256 i; i < len; i += 32) {
             bytes32 word;
-            assembly {
+            assembly ("memory-safe") {
                 word := mload(add(add(data, 0x20), i))
                 tstore(add(storageKey, div(add(i, 32), 32)), word)
             }
@@ -746,7 +708,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
         uint256 len;
 
         // Load the length first
-        assembly {
+        assembly ("memory-safe") {
             len := tload(storageKey)
         }
 
@@ -755,12 +717,12 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
         // Load data from 32-byte chunks
         for (uint256 i; i < len; i += 32) {
             bytes32 word;
-            assembly {
+            assembly ("memory-safe") {
                 word := tload(add(storageKey, div(add(i, 32), 32)))
             }
 
             // Copy word to output bytes
-            assembly {
+            assembly ("memory-safe") {
                 mstore(add(add(out, 0x20), i), word)
             }
         }
@@ -770,7 +732,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow
     /// @dev Clears the length slot (data chunks will be automatically cleared)
     function _clearUnlockData() private {
         bytes32 storageKey = PENDING_UNLOCK_DATA_SLOT;
-        assembly {
+        assembly ("memory-safe") {
             tstore(storageKey, 0)
         }
     }

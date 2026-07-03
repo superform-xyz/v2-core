@@ -210,7 +210,7 @@ contract UniswapV2HookIntegrationTest is MinimalBaseIntegrationTest {
 
         // Extract tokenOut address
         address extractedTokenOut;
-        assembly {
+        assembly ("memory-safe") {
             extractedTokenOut := mload(add(inspectResult, 20))
         }
         assertEq(extractedTokenOut, CHAIN_1_WETH, "Should extract correct tokenOut");
@@ -1089,7 +1089,7 @@ contract UniswapV2HookEdgeCaseTests is MinimalBaseIntegrationTest {
         // Overwrite pathLength at offset 189 (32 bytes) to 1 instead of 2.
         // The data still has 2 addresses appended (261 bytes total), so it passes the
         // minimum length check, but _decodeSwapParams sees pathLength < 2 and reverts.
-        assembly {
+        assembly ("memory-safe") {
             // hookData is a bytes variable: first 32 bytes = length, data starts at +32
             // pathLength is at byte offset 189 in the data, stored as uint256 (32 bytes)
             // So it occupies bytes [189..220], which is at memory offset 32 + 189 = 221

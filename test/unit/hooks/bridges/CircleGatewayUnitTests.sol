@@ -827,7 +827,7 @@ contract CircleGatewayUnitTests is BaseTest {
         // Test the branch where data.length == 64 (exact minimum)
         bytes memory hookData = new bytes(64);
         // Set valid lengths in the first 64 bytes
-        assembly {
+        assembly ("memory-safe") {
             mstore(add(hookData, 32), 1) // payload length = 1
             mstore(add(hookData, 64), 65) // signature length = 65
         }
@@ -964,7 +964,7 @@ contract CircleGatewayUnitTests is BaseTest {
         // The inspect function returns abi.encodePacked(usdc), which is a 20-byte packed address
         require(result.length == 20, "Expected 20 bytes for address");
         address decodedToken;
-        assembly {
+        assembly ("memory-safe") {
             decodedToken := shr(96, mload(add(result, 0x20)))
         }
 
@@ -1146,7 +1146,7 @@ contract CircleGatewayUnitTests is BaseTest {
         // Verify the result is correct
         require(result.length == 20, "Expected 20 bytes for address");
         address decodedToken;
-        assembly {
+        assembly ("memory-safe") {
             decodedToken := shr(96, mload(add(result, 0x20)))
         }
         assertEq(decodedToken, address(mockToken), "Should extract correct token address");
@@ -1210,7 +1210,7 @@ contract CircleGatewayUnitTests is BaseTest {
         // The inspect function returns abi.encodePacked(usdc), which is a 20-byte packed address
         require(inspectResult.length == 20, "Expected 20 bytes for address");
         address decodedToken;
-        assembly {
+        assembly ("memory-safe") {
             decodedToken := shr(96, mload(add(inspectResult, 0x20)))
         }
 

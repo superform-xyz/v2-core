@@ -141,7 +141,7 @@ contract AlgebraIntegralHookTest is Helpers {
         assertEq(inspected.length, 20);
 
         address decodedTokenOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedTokenOut := mload(add(inspected, 20))
         }
 
@@ -238,7 +238,7 @@ contract AlgebraIntegralHookTest is Helpers {
         assertEq(inspected.length, 20);
 
         address decodedTokenOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedTokenOut := mload(add(inspected, 20))
         }
 
@@ -287,7 +287,7 @@ contract AlgebraIntegralHookTest is Helpers {
         // amountIn is at offset 4 + 32*5 = 164 from start of calldata → swapCalldata + 32 + 164 = swapCalldata + 196
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196)) // 32 + 4 + 32*5
             decodedAmountOutMinimum := mload(add(swapCalldata, 228)) // 32 + 4 + 32*6
         }
@@ -311,7 +311,7 @@ contract AlgebraIntegralHookTest is Helpers {
 
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
             decodedAmountOutMinimum := mload(add(swapCalldata, 228))
         }
@@ -330,7 +330,7 @@ contract AlgebraIntegralHookTest is Helpers {
 
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
             decodedAmountOutMinimum := mload(add(swapCalldata, 228))
         }
@@ -349,7 +349,7 @@ contract AlgebraIntegralHookTest is Helpers {
 
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
             decodedAmountOutMinimum := mload(add(swapCalldata, 228))
         }
@@ -388,7 +388,7 @@ contract AlgebraIntegralHookTest is Helpers {
         // Decode deployer from swap calldata
         bytes memory swapCalldata = executions[1].callData;
         address decodedDeployer;
-        assembly {
+        assembly ("memory-safe") {
             // deployer is at offset 4 + 32*2 = 68 from start of calldata → swapCalldata + 32 + 68 = swapCalldata + 100
             decodedDeployer := mload(add(swapCalldata, 100))
         }
@@ -521,7 +521,7 @@ contract AlgebraIntegralHookTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
             decodedAmountOutMinimum := mload(add(swapCalldata, 228))
         }
@@ -544,7 +544,7 @@ contract AlgebraIntegralHookTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
             decodedAmountOutMinimum := mload(add(swapCalldata, 228))
         }
@@ -569,7 +569,7 @@ contract AlgebraIntegralHookTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
             decodedAmountOutMinimum := mload(add(swapCalldata, 228))
         }
@@ -591,7 +591,7 @@ contract AlgebraIntegralHookTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
             decodedAmountOutMinimum := mload(add(swapCalldata, 228))
         }
@@ -613,7 +613,7 @@ contract AlgebraIntegralHookTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
             decodedAmountOutMinimum := mload(add(swapCalldata, 228))
         }
@@ -748,7 +748,7 @@ contract AlgebraIntegralHookTest is Helpers {
         // Verify approve amount matches prevHookAmount
         bytes memory approveCalldata = executions[2].callData; // approve(amount) is at index 2
         uint256 approveAmount;
-        assembly {
+        assembly ("memory-safe") {
             // Skip selector (4 bytes), skip spender address (32 bytes), get amount
             approveAmount := mload(add(approveCalldata, 68))
         }
@@ -775,7 +775,7 @@ contract AlgebraIntegralHookTest is Helpers {
         assertEq(executions[1].target, tokenIn);
         bytes memory approve0Calldata = executions[1].callData;
         uint256 approve0Amount;
-        assembly {
+        assembly ("memory-safe") {
             approve0Amount := mload(add(approve0Calldata, 68))
         }
         assertEq(approve0Amount, 0);
@@ -784,7 +784,7 @@ contract AlgebraIntegralHookTest is Helpers {
         assertEq(executions[2].target, tokenIn);
         bytes memory approveAmountCalldata = executions[2].callData;
         uint256 approvedAmount;
-        assembly {
+        assembly ("memory-safe") {
             approvedAmount := mload(add(approveAmountCalldata, 68))
         }
         assertEq(approvedAmount, originalAmountIn);
@@ -796,7 +796,7 @@ contract AlgebraIntegralHookTest is Helpers {
         assertEq(executions[4].target, tokenIn);
         bytes memory cleanupCalldata = executions[4].callData;
         uint256 cleanupAmount;
-        assembly {
+        assembly ("memory-safe") {
             cleanupAmount := mload(add(cleanupCalldata, 68))
         }
         assertEq(cleanupAmount, 0);
@@ -991,7 +991,7 @@ contract AlgebraIntegralHookTest is Helpers {
 
         bytes memory swapCalldata = executions[1].callData;
         address decodedRecipient;
-        assembly {
+        assembly ("memory-safe") {
             // recipient is at 4 (selector) + 32*3 (tokenIn+tokenOut+deployer) = 100 from calldata start
             // In memory bytes: swapCalldata ptr + 32 (length slot) + 100 = swapCalldata + 132
             decodedRecipient := mload(add(swapCalldata, 132))
@@ -1010,7 +1010,7 @@ contract AlgebraIntegralHookTest is Helpers {
         // Swap is at index 3
         bytes memory swapCalldata = executions[3].callData;
         address decodedRecipient;
-        assembly {
+        assembly ("memory-safe") {
             decodedRecipient := mload(add(swapCalldata, 132))
         }
 
@@ -1177,7 +1177,7 @@ contract AlgebraIntegralHookTest is Helpers {
 
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
         }
 
@@ -1214,7 +1214,7 @@ contract AlgebraIntegralHookTest is Helpers {
 
         bytes memory swapCalldata = executions[3].callData;
         uint256 decodedAmountIn;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
         }
 

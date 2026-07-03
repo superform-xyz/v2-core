@@ -171,7 +171,7 @@ contract BatchTransferHookTest is Helpers {
 
         // Extract the recipient address (first 20 bytes)
         address recipient;
-        assembly {
+        assembly ("memory-safe") {
             recipient := mload(add(result, 20))
         }
         assertEq(recipient, to);

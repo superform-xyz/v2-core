@@ -95,7 +95,7 @@ contract OfframpTokensHook is BaseHook, ISuperHookInflowOutflow {
             executionIndex++;
         }
 
-        assembly {
+        assembly ("memory-safe") {
             mstore(executions, executionIndex)
         } 
     }

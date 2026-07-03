@@ -834,7 +834,7 @@ contract StargateHooks is Helpers {
         // 237 bytes - one short of minimum
         bytes memory data = new bytes(237);
         // Fill first 32 bytes with lzNativeFee
-        assembly {
+        assembly ("memory-safe") {
             mstore(add(data, 32), 10000000000000000) // 0.01 ether
         }
 
@@ -1296,7 +1296,7 @@ contract StargateHooks is Helpers {
     /// @dev ApproveAndStargate: one byte short of minimum
     function test_ApproveAndStargateSend_Build_RevertIf_OneByteShort() public {
         bytes memory data = new bytes(237);
-        assembly {
+        assembly ("memory-safe") {
             mstore(add(data, 32), 10000000000000000) // 0.01 ether
         }
 
@@ -1367,7 +1367,7 @@ contract StargateHooks is Helpers {
         address pool;
         address token;
         address to;
-        assembly {
+        assembly ("memory-safe") {
             pool := mload(add(inspected, 20))
             token := mload(add(inspected, 40))
             to := mload(add(inspected, 60))
@@ -1386,7 +1386,7 @@ contract StargateHooks is Helpers {
         address pool;
         address token;
         address to;
-        assembly {
+        assembly ("memory-safe") {
             pool := mload(add(inspected, 20))
             token := mload(add(inspected, 40))
             to := mload(add(inspected, 60))

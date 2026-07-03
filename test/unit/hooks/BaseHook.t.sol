@@ -53,13 +53,13 @@ contract TestHook is BaseHook {
     function getPreExecuteMutexState(address account) external view returns (bool) {
         bytes32 accountKey = keccak256(abi.encodePacked(keccak256("hook.account.context"), account));
         uint256 context;
-        assembly {
+        assembly ("memory-safe") {
             context := tload(accountKey)
         }
 
         bytes32 mutexKey = keccak256(abi.encodePacked(keccak256("hook.execution.state"), context, uint256(2)));
         bool value;
-        assembly {
+        assembly ("memory-safe") {
             value := tload(mutexKey)
         }
         return value;
@@ -68,13 +68,13 @@ contract TestHook is BaseHook {
     function getPostExecuteMutexState(address account) external view returns (bool) {
         bytes32 accountKey = keccak256(abi.encodePacked(keccak256("hook.account.context"), account));
         uint256 context;
-        assembly {
+        assembly ("memory-safe") {
             context := tload(accountKey)
         }
 
         bytes32 mutexKey = keccak256(abi.encodePacked(keccak256("hook.execution.state"), context, uint256(3)));
         bool value;
-        assembly {
+        assembly ("memory-safe") {
             value := tload(mutexKey)
         }
         return value;

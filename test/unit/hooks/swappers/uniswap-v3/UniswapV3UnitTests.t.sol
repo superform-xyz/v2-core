@@ -137,7 +137,7 @@ contract UniswapV3HookTest is Helpers {
         assertEq(inspected.length, 20);
 
         address decodedTokenOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedTokenOut := mload(add(inspected, 20))
         }
 
@@ -234,7 +234,7 @@ contract UniswapV3HookTest is Helpers {
         assertEq(inspected.length, 20);
 
         address decodedTokenOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedTokenOut := mload(add(inspected, 20))
         }
 
@@ -283,7 +283,7 @@ contract UniswapV3HookTest is Helpers {
         // amountIn is at offset 4 + 32*5 = 164
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196)) // 4 + 32*6
             decodedAmountOutMinimum := mload(add(swapCalldata, 228)) // 4 + 32*7
         }
@@ -307,7 +307,7 @@ contract UniswapV3HookTest is Helpers {
 
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
             decodedAmountOutMinimum := mload(add(swapCalldata, 228))
         }
@@ -326,7 +326,7 @@ contract UniswapV3HookTest is Helpers {
 
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
             decodedAmountOutMinimum := mload(add(swapCalldata, 228))
         }
@@ -345,7 +345,7 @@ contract UniswapV3HookTest is Helpers {
 
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
             decodedAmountOutMinimum := mload(add(swapCalldata, 228))
         }
@@ -547,7 +547,7 @@ contract UniswapV3HookTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
             decodedAmountOutMinimum := mload(add(swapCalldata, 228))
         }
@@ -570,7 +570,7 @@ contract UniswapV3HookTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
             decodedAmountOutMinimum := mload(add(swapCalldata, 228))
         }
@@ -595,7 +595,7 @@ contract UniswapV3HookTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
             decodedAmountOutMinimum := mload(add(swapCalldata, 228))
         }
@@ -617,7 +617,7 @@ contract UniswapV3HookTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
             decodedAmountOutMinimum := mload(add(swapCalldata, 228))
         }
@@ -639,7 +639,7 @@ contract UniswapV3HookTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
             decodedAmountOutMinimum := mload(add(swapCalldata, 228))
         }
@@ -662,7 +662,7 @@ contract UniswapV3HookTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
             decodedAmountOutMinimum := mload(add(swapCalldata, 228))
         }
@@ -681,7 +681,7 @@ contract UniswapV3HookTest is Helpers {
 
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
         }
 
@@ -704,7 +704,7 @@ contract UniswapV3HookTest is Helpers {
         // Verify approve amount matches prevHookAmount
         bytes memory approveCalldata = executions[2].callData; // approve(amount) is at index 2
         uint256 approveAmount;
-        assembly {
+        assembly ("memory-safe") {
             // Skip selector (4 bytes), skip spender address (32 bytes), get amount
             approveAmount := mload(add(approveCalldata, 68))
         }
@@ -731,7 +731,7 @@ contract UniswapV3HookTest is Helpers {
         assertEq(executions[1].target, tokenIn);
         bytes memory approve0Calldata = executions[1].callData;
         uint256 approve0Amount;
-        assembly {
+        assembly ("memory-safe") {
             approve0Amount := mload(add(approve0Calldata, 68))
         }
         assertEq(approve0Amount, 0);
@@ -740,7 +740,7 @@ contract UniswapV3HookTest is Helpers {
         assertEq(executions[2].target, tokenIn);
         bytes memory approveAmountCalldata = executions[2].callData;
         uint256 approvedAmount;
-        assembly {
+        assembly ("memory-safe") {
             approvedAmount := mload(add(approveAmountCalldata, 68))
         }
         assertEq(approvedAmount, originalAmountIn);
@@ -752,7 +752,7 @@ contract UniswapV3HookTest is Helpers {
         assertEq(executions[4].target, tokenIn);
         bytes memory cleanupCalldata = executions[4].callData;
         uint256 cleanupAmount;
-        assembly {
+        assembly ("memory-safe") {
             cleanupAmount := mload(add(cleanupCalldata, 68))
         }
         assertEq(cleanupAmount, 0);
@@ -941,7 +941,7 @@ contract UniswapV3HookTest is Helpers {
         // Decode recipient from swap calldata
         bytes memory swapCalldata = executions[1].callData;
         address decodedRecipient;
-        assembly {
+        assembly ("memory-safe") {
             // recipient is at offset 4 + 32*3 = 100 (after selector + tokenIn + tokenOut + fee)
             decodedRecipient := mload(add(swapCalldata, 132))
         }
@@ -959,7 +959,7 @@ contract UniswapV3HookTest is Helpers {
         // Decode recipient from swap calldata (swap is at index 3)
         bytes memory swapCalldata = executions[3].callData;
         address decodedRecipient;
-        assembly {
+        assembly ("memory-safe") {
             decodedRecipient := mload(add(swapCalldata, 132))
         }
 
@@ -991,7 +991,7 @@ contract UniswapV3HookTest is Helpers {
 
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 196))
         }
 

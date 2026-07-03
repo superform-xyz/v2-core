@@ -1255,7 +1255,7 @@ contract StargateHooksFork is Helpers {
         address inspectedPool;
         address inspectedToken;
         address inspectedTo;
-        assembly {
+        assembly ("memory-safe") {
             inspectedPool := mload(add(inspected, 20))
             inspectedToken := mload(add(inspected, 40))
             inspectedTo := mload(add(inspected, 60))
@@ -1275,7 +1275,7 @@ contract StargateHooksFork is Helpers {
     /// @notice Verify the LZMultiCall contract is deployed on Ethereum mainnet
     function test_Fork_LzMulticall_ContractExists() public view {
         uint256 codeSize;
-        assembly {
+        assembly ("memory-safe") {
             codeSize := extcodesize(LZ_MULTICALL)
         }
         assertGt(codeSize, 0, "LZMultiCall contract should be deployed on Ethereum mainnet");

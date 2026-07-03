@@ -246,7 +246,7 @@ contract CCTPHooks is Helpers {
         //                  + burnToken(32) + destinationCaller(32) + maxFee(32) + ...
         bytes memory callData = executions[3].callData;
         uint256 encodedMaxFee;
-        assembly {
+        assembly ("memory-safe") {
             // skip 4 bytes selector + 5*32 bytes (amount, dstDomain, recipient, burnToken, dstCaller) = 164 offset
             // from start of callData memory: +32 (length) + 4 (selector) + 160 (5 params) = 196
             encodedMaxFee := mload(add(callData, 196))
@@ -349,7 +349,7 @@ contract CCTPHooks is Helpers {
 
         // Extract burnToken (first 20 bytes)
         address burnTokenResult;
-        assembly {
+        assembly ("memory-safe") {
             burnTokenResult := mload(add(result, 20))
         }
         assertEq(burnTokenResult, mockBurnToken);
@@ -361,7 +361,7 @@ contract CCTPHooks is Helpers {
 
         // Extract mintRecipient (bytes 20-39)
         address recipientResult;
-        assembly {
+        assembly ("memory-safe") {
             recipientResult := mload(add(result, 40))
         }
         assertEq(recipientResult, address(uint160(uint256(mockMintRecipient))));
@@ -758,7 +758,7 @@ contract CCTPSendHookTests is Helpers {
         // For CCTPSendHook: executions[1] is the depositForBurnWithHook (no approve pattern)
         bytes memory callData = executions[1].callData;
         uint256 encodedMaxFee;
-        assembly {
+        assembly ("memory-safe") {
             // skip 4 bytes selector + 5*32 bytes (amount, dstDomain, recipient, burnToken, dstCaller) = 164 offset
             // from start of callData memory: +32 (length) + 4 (selector) + 160 (5 params) = 196
             encodedMaxFee := mload(add(callData, 196))

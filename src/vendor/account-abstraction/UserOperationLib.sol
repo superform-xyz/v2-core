@@ -43,7 +43,7 @@ library UserOperationLib {
     function getSender(PackedUserOperation calldata userOp) internal pure returns (address) {
         address data;
         //read sender from userOp, which is first userOp member (saves 800 gas...)
-        assembly {
+        assembly ("memory-safe") {
             data := calldataload(userOp)
         }
         return address(uint160(data));

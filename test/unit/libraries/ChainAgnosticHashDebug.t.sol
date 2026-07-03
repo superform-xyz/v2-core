@@ -146,7 +146,7 @@ contract ChainAgnosticHashDebugTest is Test {
         uint8 v;
         bytes32 r;
         bytes32 s;
-        assembly {
+        assembly ("memory-safe") {
             r := mload(add(signature, 0x20))
             s := mload(add(signature, 0x40))
             v := byte(0, mload(add(signature, 0x60)))

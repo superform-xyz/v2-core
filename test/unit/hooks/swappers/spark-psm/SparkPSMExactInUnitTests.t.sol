@@ -133,7 +133,7 @@ contract SparkPSMExactInTest is Helpers {
 
         address decodedAssetOut;
         address decodedReceiver;
-        assembly {
+        assembly ("memory-safe") {
             decodedAssetOut := mload(add(inspected, 20))
             decodedReceiver := mload(add(inspected, 40))
         }
@@ -233,7 +233,7 @@ contract SparkPSMExactInTest is Helpers {
 
         address decodedAssetOut;
         address decodedReceiver;
-        assembly {
+        assembly ("memory-safe") {
             decodedAssetOut := mload(add(inspected, 20))
             decodedReceiver := mload(add(inspected, 40))
         }
@@ -312,7 +312,7 @@ contract SparkPSMExactInTest is Helpers {
 
         uint256 decodedAmountIn;
         uint256 decodedMinAmountOut;
-        assembly {
+        assembly ("memory-safe") {
             // amountIn at offset: 4 + 32 + 32 = 68
             decodedAmountIn := mload(add(swapCalldata, 100)) // 68 + 32
             // minAmountOut at offset: 4 + 32 + 32 + 32 = 100
@@ -338,7 +338,7 @@ contract SparkPSMExactInTest is Helpers {
 
         uint256 decodedAmountIn;
         uint256 decodedMinAmountOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
             decodedMinAmountOut := mload(add(swapCalldata, 132))
         }
@@ -356,7 +356,7 @@ contract SparkPSMExactInTest is Helpers {
 
         uint256 decodedAmountIn;
         uint256 decodedMinAmountOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
             decodedMinAmountOut := mload(add(swapCalldata, 132))
         }
@@ -376,7 +376,7 @@ contract SparkPSMExactInTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedMinAmountOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
             decodedMinAmountOut := mload(add(swapCalldata, 132))
         }
@@ -397,7 +397,7 @@ contract SparkPSMExactInTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedMinAmountOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
             decodedMinAmountOut := mload(add(swapCalldata, 132))
         }
@@ -418,7 +418,7 @@ contract SparkPSMExactInTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedMinAmountOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
             decodedMinAmountOut := mload(add(swapCalldata, 132))
         }
@@ -453,7 +453,7 @@ contract SparkPSMExactInTest is Helpers {
         // Selector (4) + assetIn (32) + assetOut (32) + amountIn (32) + minAmountOut (32) + receiver (32)
         bytes memory swapCalldata = executions[1].callData;
         address decodedReceiver;
-        assembly {
+        assembly ("memory-safe") {
             // receiver at offset: 4 + 32*4 = 132, so mload at 132+32 = 164
             decodedReceiver := mload(add(swapCalldata, 164))
         }
@@ -482,7 +482,7 @@ contract SparkPSMExactInTest is Helpers {
         // Swap is at index 3
         bytes memory swapCalldata = executions[3].callData;
         address decodedReceiver;
-        assembly {
+        assembly ("memory-safe") {
             decodedReceiver := mload(add(swapCalldata, 164))
         }
 
@@ -513,7 +513,7 @@ contract SparkPSMExactInTest is Helpers {
         assertEq(executions[1].target, assetIn);
         bytes memory approve0Calldata = executions[1].callData;
         uint256 approve0Amount;
-        assembly {
+        assembly ("memory-safe") {
             approve0Amount := mload(add(approve0Calldata, 68))
         }
         assertEq(approve0Amount, 0);
@@ -522,7 +522,7 @@ contract SparkPSMExactInTest is Helpers {
         assertEq(executions[2].target, assetIn);
         bytes memory approveAmountCalldata = executions[2].callData;
         uint256 approvedAmount;
-        assembly {
+        assembly ("memory-safe") {
             approvedAmount := mload(add(approveAmountCalldata, 68))
         }
         assertEq(approvedAmount, originalAmountIn);
@@ -534,7 +534,7 @@ contract SparkPSMExactInTest is Helpers {
         assertEq(executions[4].target, assetIn);
         bytes memory cleanupCalldata = executions[4].callData;
         uint256 cleanupAmount;
-        assembly {
+        assembly ("memory-safe") {
             cleanupAmount := mload(add(cleanupCalldata, 68))
         }
         assertEq(cleanupAmount, 0);
@@ -551,7 +551,7 @@ contract SparkPSMExactInTest is Helpers {
         // Verify approve amount matches prevHookAmount
         bytes memory approveCalldata = executions[2].callData;
         uint256 approveAmount;
-        assembly {
+        assembly ("memory-safe") {
             approveAmount := mload(add(approveCalldata, 68))
         }
 
@@ -570,7 +570,7 @@ contract SparkPSMExactInTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedMinAmountOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
             decodedMinAmountOut := mload(add(swapCalldata, 132))
         }
@@ -588,7 +588,7 @@ contract SparkPSMExactInTest is Helpers {
 
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
         }
 
@@ -606,7 +606,7 @@ contract SparkPSMExactInTest is Helpers {
 
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedReferralCode;
-        assembly {
+        assembly ("memory-safe") {
             // referralCode at offset: 4 + 32*5 = 164, so mload at 164+32 = 196
             decodedReferralCode := mload(add(swapCalldata, 196))
         }
@@ -632,7 +632,7 @@ contract SparkPSMExactInTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedMinAmountOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
             decodedMinAmountOut := mload(add(swapCalldata, 132))
         }
@@ -664,7 +664,7 @@ contract SparkPSMExactInTest is Helpers {
 
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
         }
 

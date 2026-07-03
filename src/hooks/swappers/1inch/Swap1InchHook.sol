@@ -137,7 +137,7 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
         bytes memory txData_ = BytesLib.slice(data, TXDATA_POSITION, payloadLength - 20);
 
         bytes4 selector;
-        assembly {
+        assembly ("memory-safe") {
             selector := mload(add(txData_, 32))
         }
 
@@ -271,7 +271,7 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
         returns (bytes memory updatedTxData)
     {
         bytes4 selector;
-        assembly {
+        assembly ("memory-safe") {
             selector := mload(add(txData_, 32))
         }
 
@@ -478,7 +478,7 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
             // outputAmount is at position: 32 (clipperExchange) + 32 (recipient) + 32 (srcToken) + 32 (dstToken) + 32
             // (inputAmount) = 160
             // bytes
-            assembly {
+            assembly ("memory-safe") {
                 mstore(add(updatedTxData, add(0x20, 128)), inputAmount)
                 mstore(add(updatedTxData, add(0x20, 160)), outputAmount)
             }

@@ -136,7 +136,7 @@ contract OdosV3UnitTests is Helpers {
 
         bytes memory cd = executions[1].callData;
         address decodedOutputReceiver;
-        assembly {
+        assembly ("memory-safe") {
             decodedOutputReceiver := mload(add(cd, 228)) // offset 192 after selector
         }
         assertEq(decodedOutputReceiver, account);
@@ -166,7 +166,7 @@ contract OdosV3UnitTests is Helpers {
 
         bytes memory cd = executions[1].callData;
         address decodedExecutor;
-        assembly {
+        assembly ("memory-safe") {
             decodedExecutor := mload(add(cd, 292)) // offset 256 after selector
         }
         assertEq(decodedExecutor, executor);
@@ -180,7 +180,7 @@ contract OdosV3UnitTests is Helpers {
 
         bytes memory cd = executions[1].callData;
         uint256 decodedInputAmount;
-        assembly {
+        assembly ("memory-safe") {
             decodedInputAmount := mload(add(cd, 68))
         }
         assertEq(decodedInputAmount, 0);
@@ -687,7 +687,7 @@ contract OdosV3UnitTests is Helpers {
 
         bytes memory cd = executions[3].callData;
         address decodedOutputReceiver;
-        assembly {
+        assembly ("memory-safe") {
             decodedOutputReceiver := mload(add(cd, 228))
         }
         assertEq(decodedOutputReceiver, account);
@@ -717,7 +717,7 @@ contract OdosV3UnitTests is Helpers {
 
         bytes memory cd = executions[3].callData;
         address decodedExecutor;
-        assembly {
+        assembly ("memory-safe") {
             decodedExecutor := mload(add(cd, 292))
         }
         assertEq(decodedExecutor, executor);
@@ -1153,7 +1153,7 @@ contract OdosV3UnitTests is Helpers {
             uint256 decodedOutputMin
         )
     {
-        assembly {
+        assembly ("memory-safe") {
             let base := add(cd, 36) // skip 32-byte length + 4-byte selector
             decodedInputToken := mload(base)
             decodedInputAmount := mload(add(base, 32))
@@ -1169,7 +1169,7 @@ contract OdosV3UnitTests is Helpers {
         pure
         returns (uint256 decodedInputAmount, uint256 decodedOutputMin)
     {
-        assembly {
+        assembly ("memory-safe") {
             let base := add(cd, 36)
             decodedInputAmount := mload(add(base, 32))
             decodedOutputMin := mload(add(base, 160))
@@ -1181,7 +1181,7 @@ contract OdosV3UnitTests is Helpers {
         pure
         returns (uint64 decodedCode, uint64 decodedFee, address decodedRecipient)
     {
-        assembly {
+        assembly ("memory-safe") {
             let base := add(cd, 36)
             decodedCode := mload(add(base, 288))
             decodedFee := mload(add(base, 320))
@@ -1194,7 +1194,7 @@ contract OdosV3UnitTests is Helpers {
         pure
         returns (address spender, uint256 amount)
     {
-        assembly {
+        assembly ("memory-safe") {
             let base := add(cd, 36)
             spender := mload(base)
             amount := mload(add(base, 32))

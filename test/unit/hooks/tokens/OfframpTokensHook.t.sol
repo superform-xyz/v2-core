@@ -137,7 +137,7 @@ contract OfframpTokensHookTest is Helpers {
         assertGt(result.length, 0);
 
         address recipient;
-        assembly {
+        assembly ("memory-safe") {
             recipient := mload(add(result, 20))
         }
         assertEq(recipient, to);

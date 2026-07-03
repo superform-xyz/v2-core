@@ -116,7 +116,7 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
             (bool success, bytes memory returndata) =
                 executions[i].target.call{ value: executions[i].value }(executions[i].callData);
             if (!success) {
-                assembly {
+                assembly ("memory-safe") {
                     revert(add(returndata, 32), mload(returndata))
                 }
             }
@@ -485,7 +485,7 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
 
         address decodedAssetOut;
         address decodedReceiver;
-        assembly {
+        assembly ("memory-safe") {
             decodedAssetOut := mload(add(inspectResult, 20))
             decodedReceiver := mload(add(inspectResult, 40))
         }
