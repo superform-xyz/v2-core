@@ -22,6 +22,7 @@ import {
 
 /// @title SwapOpenOceanHook
 /// @author Superform Labs
+/// @dev Payload: abi.encode(bytes txData_)
 /// @dev data has the following structure (standard 52-byte strategy header + Layer 1 + Layer 2):
 /// @notice         uint256   placeholder0     = BytesLib.toUint256(data, 0);
 /// @notice         address   placeholder1     = BytesLib.toAddress(data, 32);
@@ -31,8 +32,8 @@ import {
 /// @notice         uint256   outputQuote      = BytesLib.toUint256(data, 124);
 /// @notice         uint256   outputMin        = BytesLib.toUint256(data, 156);
 /// @notice         bool      usePrevHookAmount = _decodeBool(data, 188);
-/// @notice         uint256   txData__paramLength    = BytesLib.toUint256(data, 189);
-/// @notice         bytes     txData_          = BytesLib.slice(data, 221, txData__paramLength);
+/// @notice         uint256   payload_paramLength = BytesLib.toUint256(data, 189);
+/// @notice         bytes     payload          = BytesLib.slice(data, 221, payload_paramLength);
 contract SwapOpenOceanHook is
     BaseHook,
     ISuperHookSwap,

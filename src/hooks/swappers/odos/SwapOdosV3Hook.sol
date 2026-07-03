@@ -23,6 +23,7 @@ import {
 
 /// @title SwapOdosV3Hook
 /// @author Superform Labs
+/// @dev Payload: abi.encode(address inputReceiver, bytes pathDefinition, address executor, uint64 referralCode, uint64 referralFee, address feeRecipient)
 /// @dev data has the following structure (standard 52-byte strategy header + Layer 1 + Layer 2):
 /// @notice         uint256   placeholder0     = BytesLib.toUint256(data, 0);
 /// @notice         address   placeholder1     = BytesLib.toAddress(data, 32);
@@ -32,14 +33,8 @@ import {
 /// @notice         uint256   outputQuote      = BytesLib.toUint256(data, 124);
 /// @notice         uint256   outputMin        = BytesLib.toUint256(data, 156);
 /// @notice         bool      usePrevHookAmount = _decodeBool(data, 188);
-/// @notice         uint256   payload_paramLength    = BytesLib.toUint256(data, 189);
-/// @notice         address   inputReceiver    = BytesLib.toAddress(data, 221);
-/// @notice         uint256   pathDefinition_paramLength = BytesLib.toUint256(data, 241);
-/// @notice         bytes     pathDefinition   = BytesLib.slice(data, 273, pathDefinition_paramLength);
-/// @notice         address   executor         = BytesLib.toAddress(data, 273 + pathDefinition_paramLength);
-/// @notice         uint64    referralCode     = BytesLib.toUint64(data, 273 + pathDefinition_paramLength + 20);
-/// @notice         uint64    referralFee      = BytesLib.toUint64(data, 273 + pathDefinition_paramLength + 28);
-/// @notice         address   feeRecipient     = BytesLib.toAddress(data, 273 + pathDefinition_paramLength + 36);
+/// @notice         uint256   payload_paramLength = BytesLib.toUint256(data, 189);
+/// @notice         bytes     payload          = BytesLib.slice(data, 221, payload_paramLength);
 /// @dev The executor address is passed directly to the Odos Router V3, which delegate-calls into it
 ///      for swap execution. The executor must be trusted -- off-chain validation via inspect() is recommended.
 contract SwapOdosV3Hook is

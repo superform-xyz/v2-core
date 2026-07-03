@@ -199,20 +199,17 @@ When a hook's data layout contains a length field that describes the size of a s
 Rules:
 - The length field name is `{exactNameOfDynamicField}_paramLength`
 - If the dynamic field name itself contains a trailing underscore (e.g., `txData_`), the result has a double underscore: `txData__paramLength`
+- **Exception**: All ISuperHookSwap hooks use the standardized name `payload_paramLength` regardless of internal variable names (see "Standardized ISuperHookSwap NatSpec" below)
 - This convention applies ONLY to NatSpec documentation — code variables keep their original names (e.g., `payloadLength`, `pathLength`, `pathDefinitionLength`)
 
-**Examples from existing swap hooks**:
+**Examples from existing hooks**:
 
 | Hook | NatSpec Length Field | NatSpec Dynamic Field | Code Variable |
 |------|---------------------|----------------------|---------------|
-| KyberSwap | `txData_paramLength` | `txData` | `txDataLength` |
-| OpenOcean | `txData__paramLength` | `txData_` | `txDataLength` |
-| 1inch | `payload_paramLength` | `txData_` (payload wraps dstReceiver+txData) | `payloadLength` |
+| All ISuperHookSwap hooks | `payload_paramLength` | `payload` | `txDataLength` / `payloadLength` |
 | UniswapV2 | `path_paramLength` | `path` (address[]) | `pathLength` |
-| UniswapV3 | `payload_paramLength` | (payload bytes) | `payloadLength` |
-| Odos | `payload_paramLength` + `pathDefinition_paramLength` | payload + `pathDefinition` | `payloadLen` + `pathDefinitionLength` |
 
-**Example NatSpec with `_paramLength`**:
+**Example NatSpec with `_paramLength`** (non-swap hook):
 ```solidity
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
 /// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
@@ -226,6 +223,45 @@ Rules:
 /// @notice         uint256 path_paramLength = BytesLib.toUint256(data, 189);
 /// @notice         address[] path = decoded from (221, path_paramLength * 20);
 ```
+
+**Standardized ISuperHookSwap NatSpec (MANDATORY for all swap hooks)**:
+
+ALL hooks implementing `ISuperHookSwap` MUST use exactly 10 NatSpec params in their data layout. Protocol-specific fields are packed inside the single `bytes payload` parameter, NOT listed as separate top-level params.
+
+The `@dev Payload:` line documents what the payload is composed of using `abi.encode(...)`. The `@notice bytes payload` line MUST use `BytesLib.slice` format (required by the automated off-chain parser).
+
+```solidity
+/// @dev Payload: abi.encode(type1 field1, type2 field2, ...)
+/// @dev data has the following structure (standard 52-byte strategy header + Layer 1 + Layer 2):
+/// @notice         uint256   placeholder0     = BytesLib.toUint256(data, 0);
+/// @notice         address   placeholder1     = BytesLib.toAddress(data, 32);
+/// @notice         address   inputToken       = BytesLib.toAddress(data, 52);
+/// @notice         address   outputToken      = BytesLib.toAddress(data, 72);
+/// @notice         uint256   inputAmount      = BytesLib.toUint256(data, 92);
+/// @notice         uint256   outputQuote      = BytesLib.toUint256(data, 124);
+/// @notice         uint256   outputMin        = BytesLib.toUint256(data, 156);
+/// @notice         bool      usePrevHookAmount = _decodeBool(data, 188);
+/// @notice         uint256   payload_paramLength = BytesLib.toUint256(data, 189);
+/// @notice         bytes     payload           = BytesLib.slice(data, 221, payload_paramLength);
+```
+
+**Key rules**:
+- The 10 params are: `placeholder0`, `placeholder1`, `inputToken`, `outputToken`, `inputAmount`, `outputQuote`, `outputMin`, `usePrevHookAmount`, `payload_paramLength`, `payload`
+- The length field is ALWAYS named `payload_paramLength` (never `txData_paramLength`, `txData__paramLength`, etc.)
+- The dynamic field is ALWAYS named `payload` (never `txData`, `txData_`, etc.)
+- Protocol-specific Layer 2 fields go inside `payload`, documented in the `@dev Payload:` line
+- The `@dev Payload:` line uses `abi.encode(...)` to describe composition
+- The `@notice bytes payload` line uses `BytesLib.slice(data, 221, payload_paramLength)` (NOT `abi.encode`)
+- All offsets use `SwapCalldataLayout` constants from `src/libraries/SwapCalldataLayout.sol`
+
+**Examples of `@dev Payload:` lines for existing swap hooks**:
+- UniswapV3: `/// @dev Payload: abi.encode(uint24 fee, uint256 deadline, uint160 sqrtPriceLimitX96)`
+- AlgebraIntegral: `/// @dev Payload: abi.encode(address deployer, uint256 deadline, uint160 limitSqrtPrice)`
+- 1inch: `/// @dev Payload: abi.encode(address dstReceiver, bytes txData_)`
+- OdosV2: `/// @dev Payload: abi.encode(address inputReceiver, bytes pathDefinition, address executor, uint32 referralCode)`
+- OdosV3: `/// @dev Payload: abi.encode(address inputReceiver, bytes pathDefinition, address executor, uint64 referralCode, uint64 referralFee, address feeRecipient)`
+- OpenOcean: `/// @dev Payload: abi.encode(bytes txData_)`
+- KyberSwap: `/// @dev Payload: abi.encode(bytes txData)`
 
 # Comprehensive Complex Swap Hooks Guide: Production-Ready Implementation
 

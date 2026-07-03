@@ -21,6 +21,7 @@ import { ISwapRouter } from "./interfaces/ISwapRouter.sol";
 /// @author Superform Labs
 /// @notice Hook for executing swaps via Uniswap V3 SwapRouter.exactInputSingle
 /// @dev Assumes tokens are already approved to the router
+/// @dev Payload: abi.encode(uint24 fee, uint256 deadline, uint160 sqrtPriceLimitX96)
 /// @dev data has the following structure (3-layer calldata standard):
 /// @notice         uint256 placeholder0      = BytesLib.toUint256(data, 0);
 /// @notice         address placeholder1      = BytesLib.toAddress(data, 32);
@@ -30,11 +31,8 @@ import { ISwapRouter } from "./interfaces/ISwapRouter.sol";
 /// @notice         uint256 outputQuote       = BytesLib.toUint256(data, 124);
 /// @notice         uint256 outputMin         = BytesLib.toUint256(data, 156);
 /// @notice         bool    usePrevHookAmount = _decodeBool(data, 188);
-/// @notice         uint256 payload_paramLength     = BytesLib.toUint256(data, 189);
-/// @notice Layer 2 (bytes[221:289]): protocol-specific payload (68 bytes)
-/// @notice         uint24  fee               = uint24(BytesLib.toUint32(data, 221));
-/// @notice         uint256 deadline          = BytesLib.toUint256(data, 225);
-/// @notice         uint160 sqrtPriceLimitX96 = uint160(BytesLib.toUint256(data, 257));
+/// @notice         uint256 payload_paramLength = BytesLib.toUint256(data, 189);
+/// @notice         bytes   payload           = BytesLib.slice(data, 221, payload_paramLength);
 contract SwapUniswapV3Hook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using BytesLib for bytes;
 

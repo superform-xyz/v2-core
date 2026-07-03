@@ -21,6 +21,7 @@ import { IAlgebraSwapRouter } from "../../../vendor/algebra-integral/IAlgebraSwa
 /// @author Superform Labs
 /// @notice Hook for executing swaps via Algebra Integral with approval handling
 /// @dev Handles: approve(0) -> approve(amount) -> swap -> approve(0)
+/// @dev Payload: abi.encode(address deployer, uint256 deadline, uint160 limitSqrtPrice)
 /// @dev data has the following structure (3-layer calldata standard):
 /// @notice         uint256 placeholder0      = BytesLib.toUint256(data, 0);
 /// @notice         address placeholder1      = BytesLib.toAddress(data, 32);
@@ -30,11 +31,8 @@ import { IAlgebraSwapRouter } from "../../../vendor/algebra-integral/IAlgebraSwa
 /// @notice         uint256 outputQuote       = BytesLib.toUint256(data, 124);
 /// @notice         uint256 outputMin         = BytesLib.toUint256(data, 156);
 /// @notice         bool    usePrevHookAmount = _decodeBool(data, 188);
-/// @notice         uint256 payload_paramLength     = BytesLib.toUint256(data, 189);
-/// @notice Layer 2 (bytes[221:305]): protocol-specific payload (84 bytes)
-/// @notice         address deployer          = BytesLib.toAddress(data, 221);
-/// @notice         uint256 deadline          = BytesLib.toUint256(data, 241);
-/// @notice         uint160 limitSqrtPrice    = uint160(BytesLib.toUint256(data, 273));
+/// @notice         uint256 payload_paramLength = BytesLib.toUint256(data, 189);
+/// @notice         bytes   payload           = BytesLib.slice(data, 221, payload_paramLength);
 contract ApproveAndSwapAlgebraIntegralHook is
     BaseHook,
     ISuperHookSwap,
