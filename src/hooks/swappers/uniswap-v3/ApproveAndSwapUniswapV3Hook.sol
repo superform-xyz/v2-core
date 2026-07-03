@@ -22,8 +22,8 @@ import { ISwapRouter } from "./interfaces/ISwapRouter.sol";
 /// @notice Hook for executing swaps via Uniswap V3 with approval handling
 /// @dev Handles: approve(0) -> approve(amount) -> swap -> approve(0)
 /// @dev data has the following structure (3-layer calldata standard):
-/// @notice Layer 0 (bytes[0:52]):    zero-filled 52-byte strategy header
-/// @notice Layer 1 (bytes[52:221]):  standard swap tail
+/// @notice         uint256 placeholder0      = BytesLib.toUint256(data, 0);
+/// @notice         address placeholder1      = BytesLib.toAddress(data, 32);
 /// @notice         address inputToken        = BytesLib.toAddress(data, 52);
 /// @notice         address outputToken       = BytesLib.toAddress(data, 72);
 /// @notice         uint256 inputAmount       = BytesLib.toUint256(data, 92);

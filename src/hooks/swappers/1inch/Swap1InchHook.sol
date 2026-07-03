@@ -27,11 +27,11 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 /// @title Swap1InchHook
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + Layer 1 + Layer 2):
-/// @notice         uint256   placeholder0      = BytesLib.toUint256(data, 0);
-/// @notice         address   placeholder1      = BytesLib.toAddress(data, 32);
+/// @notice         uint256   placeholder0       = BytesLib.toUint256(data, 0);
+/// @notice         address   placeholder1       = BytesLib.toAddress(data, 32);
 /// @notice         address   inputToken         = BytesLib.toAddress(data, 52);
 /// @notice         address   outputToken        = BytesLib.toAddress(data, 72);
-/// @notice         uint256   value              = BytesLib.toUint256(data, 92);
+/// @notice         uint256   inputAmount        = BytesLib.toUint256(data, 92);
 /// @notice         uint256   outputQuote        = BytesLib.toUint256(data, 124);
 /// @notice         uint256   outputMin          = BytesLib.toUint256(data, 156);
 /// @notice         bool      usePrevHookAmount  = _decodeBool(data, 188);
@@ -106,7 +106,7 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
         returns (Execution[] memory executions)
     {
         address dstToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
-        uint256 value = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+        uint256 inputAmount = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
         bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
         uint256 payloadLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
         address dstReceiver = BytesLib.toAddress(data, DST_RECEIVER_POSITION);
@@ -118,7 +118,7 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(AGGREGATION_ROUTER),
-            value: usePrevHookAmount && value > 0 ? ISuperHookResult(prevHook).getOutAmount(account) : value,
+            value: usePrevHookAmount && inputAmount > 0 ? ISuperHookResult(prevHook).getOutAmount(account) : inputAmount,
             callData: usePrevHookAmount ? updatedTxData : txData_
         });
     }
