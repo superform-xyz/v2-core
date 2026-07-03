@@ -26,7 +26,8 @@ import {
 /// @dev Handles: approve(0) -> approve(amount) -> swap -> approve(0) for ERC-20 inputs
 /// @dev Skips approval steps entirely when input is native token
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address tokenIn = BytesLib.toAddress(data, 52);
 /// @notice         address tokenOut = BytesLib.toAddress(data, 72);
 /// @notice         uint256 deadline = BytesLib.toUint256(data, 92);

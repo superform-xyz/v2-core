@@ -38,7 +38,7 @@ import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
 /// @notice Unified hook supporting all Pendle router operations: swaps (pre-maturity) and redemptions (post-maturity)
 /// @dev Merges PendleRouterSwapHook and PendleRouterRedeemHook with fix for tokenRedeemSy validation
 /// @dev Data layout (same for all selectors):
-/// @notice         bytes32 placeholder_yieldSourceOracleId = BytesLib.toBytes32(data, 0);
+/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);  // market for swaps, YT for redeem
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
 /// @notice         uint256 value = BytesLib.toUint256(data, 53);

@@ -34,7 +34,8 @@ import { TickMath } from "v4-core/libraries/TickMath.sol";
 /// @notice Hook for executing swaps via Uniswap V4 with dynamic minAmountOut recalculation
 /// @dev Implements dynamic slippage protection and on-chain quote generation
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address currency0 = BytesLib.toAddress(data, 52);
 /// @notice         address currency1 = BytesLib.toAddress(data, 72);
 /// @notice         uint24 fee = uint24(BytesLib.toUint32(data, 92));

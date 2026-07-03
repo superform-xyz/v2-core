@@ -24,7 +24,8 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 /// @author Superform Labs
 /// @notice Hook for removing a delegate from Circle Gateway Wallet
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address token = BytesLib.toAddress(data, 52);
 /// @notice         address delegate = BytesLib.toAddress(data, 72);
 contract CircleGatewayRemoveDelegateHook is BaseHook, ISuperHookInflowOutflow {

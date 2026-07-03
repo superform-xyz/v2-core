@@ -17,7 +17,8 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 /// @title MorphoRepayHook
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address oracle = BytesLib.toAddress(data, 92);

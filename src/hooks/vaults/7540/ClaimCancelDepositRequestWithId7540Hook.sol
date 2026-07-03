@@ -26,7 +26,7 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 /// @author Superform Labs
 /// @notice Same as ClaimCancelDepositRequest7540Hook but with requestId from calldata (non-zero support)
 /// @dev data has the following structure
-/// @notice         bytes32 placeholder_yieldSourceOracleId = BytesLib.toBytes32(data, 0);
+/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         address receiver = BytesLib.toAddress(data, 52);
 /// @notice         uint256 requestId = BytesLib.toUint256(data, 72);

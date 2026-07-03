@@ -17,7 +17,8 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 /// @title MorphoSupplyAndBorrowHook
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address oracle = BytesLib.toAddress(data, 92);
@@ -26,7 +27,7 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 /// @notice         uint256 ltvRatio = BytesLib.toUint256(data, 164);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 196);
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 197);
-/// @notice         bool placeholder = _decodeBool(data, 229);
+/// @notice         bool placeholder2 = _decodeBool(data, 229);
 /// @dev outAmount tracks collateral tokens consumed (pre-balance - post-balance).
 ///      NOTE: This is NOT the borrowed loanToken amount. Downstream hooks using usePrevHookAmount
 ///      will receive the collateral amount spent, not the loan amount received.

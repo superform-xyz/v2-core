@@ -25,7 +25,8 @@ import { IV3SwapRouter } from "./interfaces/IV3SwapRouter.sol";
 /// @dev Assumes tokens are already approved to the router
 /// @dev Fee-on-transfer and rebasing tokens are NOT supported (Uniswap V3 limitation)
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address tokenIn = BytesLib.toAddress(data, 52);
 /// @notice         address tokenOut = BytesLib.toAddress(data, 72);
 /// @notice         uint24 fee = uint24(BytesLib.toUint32(data, 92));

@@ -27,7 +27,8 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 /// @dev Called AFTER a deposit/swap hook that outputs PT amount
 /// @dev The strategy (msg.sender during execution) will be recorded as the position holder
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address market = BytesLib.toAddress(data, 52);
 /// @notice         uint256 ptAmount = BytesLib.toUint256(data, 72);
 /// @notice         uint32 twapDuration = BytesLib.toUint32(data, 104);

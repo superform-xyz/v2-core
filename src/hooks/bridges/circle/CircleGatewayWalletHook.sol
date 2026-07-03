@@ -17,7 +17,8 @@ import { IGatewayWallet } from "../../../vendor/circle/IGatewayWallet.sol";
 /// @author Superform Labs
 /// @notice Hook for approving and depositing tokens to Circle Gateway Wallet
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address usdc = BytesLib.toAddress(data, 52);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 72);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 104);

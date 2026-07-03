@@ -21,7 +21,8 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 /// @title DeBridgeCancelOrderHook
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         uint256 value = BytesLib.toUint256(data, 52);
 /// @notice         uint64 makerOrderNonce = BytesLib.toUint64(data, 84);
 /// @notice         uint256 makerSrc_paramLength = BytesLib.toUint256(data, 92);

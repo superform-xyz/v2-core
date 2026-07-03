@@ -22,7 +22,7 @@ import { ISuperDestinationExecutor } from "../../interfaces/ISuperDestinationExe
 /// @title MarkRootAsUsedHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes32 placeholder_yieldSourceOracleId = BytesLib.toBytes32(data, 0);
+/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
 /// @notice         address destinationExecutor = BytesLib.toAddress(data, 32);
 /// @notice         bytes merkleRootData = BytesLib.slice(data, 52, data.length - 52);
 contract MarkRootAsUsedHook is BaseHook, ISuperHookInflowOutflow {

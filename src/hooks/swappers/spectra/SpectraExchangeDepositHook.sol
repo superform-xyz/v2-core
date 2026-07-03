@@ -25,7 +25,7 @@ import { SpectraCommands } from "../../../vendor/spectra/SpectraCommands.sol";
 /// @title SpectraExchangeDepositHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes32 placeholder_yieldSourceOracleId = BytesLib.toBytes32(data, 0);
+/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
 /// @notice         uint256 value = BytesLib.toUint256(data, 53);
