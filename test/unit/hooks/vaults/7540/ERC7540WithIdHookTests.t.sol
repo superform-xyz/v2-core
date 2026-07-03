@@ -395,15 +395,15 @@ contract ERC7540WithIdHookTests is Helpers, InternalHelpers {
                             DECODE AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_RedeemWithIdHook_DecodeAmount() public view {
+    function test_RedeemWithIdHook_DecodeAmounts() public view {
         bytes memory data = _encodeRedeemWithdrawWithIdData(false, requestId);
-        uint256 decodedAmount = redeemWithIdHook.decodeAmount(data);
+        uint256 decodedAmount = redeemWithIdHook.decodeAmounts(data)[0];
         assertEq(decodedAmount, amount);
     }
 
-    function test_WithdrawWithIdHook_DecodeAmount() public view {
+    function test_WithdrawWithIdHook_DecodeAmounts() public view {
         bytes memory data = _encodeRedeemWithdrawWithIdData(false, requestId);
-        uint256 decodedAmount = withdrawWithIdHook.decodeAmount(data);
+        uint256 decodedAmount = withdrawWithIdHook.decodeAmounts(data)[0];
         assertEq(decodedAmount, amount);
     }
 
@@ -433,17 +433,17 @@ contract ERC7540WithIdHookTests is Helpers, InternalHelpers {
 
     function test_RedeemWithIdHook_ReplaceCallData() public view {
         bytes memory data = _encodeRedeemWithdrawWithIdData(false, requestId);
-        bytes memory replacedData = redeemWithIdHook.replaceCalldataAmount(data, 1);
+        bytes memory replacedData = redeemWithIdHook.replaceCalldataAmounts(data, _singleAmount(1));
         assertEq(replacedData.length, data.length);
-        uint256 replacedAmount = redeemWithIdHook.decodeAmount(replacedData);
+        uint256 replacedAmount = redeemWithIdHook.decodeAmounts(replacedData)[0];
         assertEq(replacedAmount, 1);
     }
 
     function test_WithdrawWithIdHook_ReplaceCallData() public view {
         bytes memory data = _encodeRedeemWithdrawWithIdData(false, requestId);
-        bytes memory replacedData = withdrawWithIdHook.replaceCalldataAmount(data, 1);
+        bytes memory replacedData = withdrawWithIdHook.replaceCalldataAmounts(data, _singleAmount(1));
         assertEq(replacedData.length, data.length);
-        uint256 replacedAmount = withdrawWithIdHook.decodeAmount(replacedData);
+        uint256 replacedAmount = withdrawWithIdHook.decodeAmounts(replacedData)[0];
         assertEq(replacedAmount, 1);
     }
 
@@ -590,18 +590,48 @@ contract ERC7540WithIdHookTests is Helpers, InternalHelpers {
         );
     }
 
-    function testFuzz_RedeemWithIdHook_DecodeAmount(uint256 fuzzAmount) public view {
+    function testFuzz_RedeemWithIdHook_DecodeAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, fuzzAmount, false, requestId);
-        uint256 decodedAmount = redeemWithIdHook.decodeAmount(data);
+        uint256 decodedAmount = redeemWithIdHook.decodeAmounts(data)[0];
         assertEq(decodedAmount, fuzzAmount);
     }
 
-    function testFuzz_WithdrawWithIdHook_DecodeAmount(uint256 fuzzAmount) public view {
+    function testFuzz_WithdrawWithIdHook_DecodeAmounts(uint256 fuzzAmount) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, fuzzAmount, false, requestId);
-        uint256 decodedAmount = withdrawWithIdHook.decodeAmount(data);
+        uint256 decodedAmount = withdrawWithIdHook.decodeAmounts(data)[0];
         assertEq(decodedAmount, fuzzAmount);
+    }
+
+    function test_RedeemWithIdHook_ReplaceCalldataAmounts() public view {
+        bytes memory data = _encodeRedeemWithdrawWithIdData(false, requestId);
+        uint256 newAmount = 2e18;
+        bytes memory result = redeemWithIdHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(redeemWithIdHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_RedeemWithIdHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeRedeemWithdrawWithIdData(false, requestId);
+        bytes memory result = redeemWithIdHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(redeemWithIdHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_WithdrawWithIdHook_ReplaceCalldataAmounts() public view {
+        bytes memory data = _encodeRedeemWithdrawWithIdData(false, requestId);
+        uint256 newAmount = 2e18;
+        bytes memory result = withdrawWithIdHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(withdrawWithIdHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_WithdrawWithIdHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeRedeemWithdrawWithIdData(false, requestId);
+        bytes memory result = withdrawWithIdHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(withdrawWithIdHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
     /// @dev Fuzz: redeem build with arbitrary amount and requestId
@@ -700,8 +730,8 @@ contract ERC7540WithIdHookTests is Helpers, InternalHelpers {
     function testFuzz_RedeemWithIdHook_ReplaceCallData(uint256 fuzzAmount, uint256 fuzzRequestId) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false, fuzzRequestId);
-        bytes memory replacedData = redeemWithIdHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(redeemWithIdHook.decodeAmount(replacedData), fuzzAmount);
+        bytes memory replacedData = redeemWithIdHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(redeemWithIdHook.decodeAmounts(replacedData)[0], fuzzAmount);
         assertEq(replacedData.length, data.length);
     }
 
@@ -709,8 +739,8 @@ contract ERC7540WithIdHookTests is Helpers, InternalHelpers {
     function testFuzz_WithdrawWithIdHook_ReplaceCallData(uint256 fuzzAmount, uint256 fuzzRequestId) public view {
         vm.assume(fuzzAmount > 0);
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false, fuzzRequestId);
-        bytes memory replacedData = withdrawWithIdHook.replaceCalldataAmount(data, fuzzAmount);
-        assertEq(withdrawWithIdHook.decodeAmount(replacedData), fuzzAmount);
+        bytes memory replacedData = withdrawWithIdHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(withdrawWithIdHook.decodeAmounts(replacedData)[0], fuzzAmount);
         assertEq(replacedData.length, data.length);
     }
 
@@ -744,6 +774,15 @@ contract ERC7540WithIdHookTests is Helpers, InternalHelpers {
         assertTrue(redeemWithIdHook.decodeUsePrevHookAmount(dataTrue));
         assertFalse(withdrawWithIdHook.decodeUsePrevHookAmount(dataFalse));
         assertTrue(withdrawWithIdHook.decodeUsePrevHookAmount(dataTrue));
+    }
+
+    function test_RedeemWithId7540_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _encodeRedeemWithdrawWithIdData(false, 1);
+        uint256 newAmount = 500;
+        bytes memory replaced = redeemWithIdHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = redeemWithIdHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(redeemWithIdHook.decodeAmounts(replaced)[0], newAmount);
     }
 
     /*//////////////////////////////////////////////////////////////

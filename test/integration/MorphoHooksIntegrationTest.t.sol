@@ -163,7 +163,7 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         repayAndWithdrawHookAddresses[0] = repayAndWithdrawHookAddress;
 
         bytes[] memory repayAndWithdrawHookData = new bytes[](1);
-        repayAndWithdrawHookData[0] = abi.encodePacked(
+        repayAndWithdrawHookData[0] = _createMorphoRepayAndWithdrawHookData(
             loanToken,
             collateralToken,
             MORPHO_ORACLE_WBTC_USDC,
@@ -189,5 +189,59 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         uint256 finalLtv = (repayAndWithdrawHook.sharesToAssets(marketParams, accountEth) * 1e18) / collateralAfter;
 
         assertApproxEqRel(finalLtv, initialLtv, 1e16);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    DECODE AMOUNT / REPLACE CALLDATA AMOUNT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice decodeAmount + replaceCalldataAmount roundtrip for MorphoSupplyAndBorrowHook (AMOUNT_POSITION = 80)
+    function test_MorphoSupplyAndBorrow_DecodeAmounts_ReplaceCalldataAmounts() external view {
+        address loanToken = CHAIN_1_USDC;
+        address collateralToken = CHAIN_1_WBTC;
+        uint256 originalAmount = 1_000_000;
+
+        bytes memory hookData = _createMorphoSupplyAndBorrowHookData(
+            loanToken, collateralToken, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, originalAmount, lltvRatio, false, lltv
+        );
+
+        MorphoSupplyAndBorrowHook morphoHook = MorphoSupplyAndBorrowHook(morphoSupplyAndBorrowHook);
+
+        // Verify decodeAmount
+        assertEq(morphoHook.decodeAmounts(hookData)[0], originalAmount, "decodeAmount mismatch");
+
+        // Replace and verify roundtrip
+        uint256 newAmount = 500_000;
+        bytes memory replaced = morphoHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(morphoHook.decodeAmounts(replaced)[0], newAmount, "replaced amount mismatch");
+
+        // Verify other fields preserved
+        assertFalse(morphoHook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
+    }
+
+    /// @notice decodeAmount + replaceCalldataAmount roundtrip for MorphoRepayAndWithdrawHook
+    function test_MorphoRepayAndWithdraw_DecodeAmounts_ReplaceCalldataAmounts() external view {
+        address loanToken = CHAIN_1_USDC;
+        address collateralToken = CHAIN_1_WBTC;
+        uint256 originalAmount = 500_000;
+
+        bytes memory hookData = _createMorphoRepayAndWithdrawHookData(
+            loanToken,
+            collateralToken,
+            MORPHO_ORACLE_WBTC_USDC,
+            MORPHO_IRM_WBTC_USDC,
+            originalAmount,
+            lltv,
+            false, // usePrevHookAmount
+            false // isFullRepayment
+        );
+
+        // Verify decodeAmount
+        assertEq(repayAndWithdrawHook.decodeAmounts(hookData)[0], originalAmount, "decodeAmount mismatch");
+
+        // Replace and verify roundtrip
+        uint256 newAmount = 250_000;
+        bytes memory replaced = repayAndWithdrawHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(repayAndWithdrawHook.decodeAmounts(replaced)[0], newAmount, "replaced amount mismatch");
     }
 }

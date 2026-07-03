@@ -9,6 +9,14 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 contract TestHook is BaseHook {
     constructor(ISuperHook.HookType hookType_, bytes32 subType_) BaseHook(hookType_, subType_) { }
 
+    function name() external pure override returns (string memory) {
+        return "Test Hook";
+    }
+
+    function description() external pure override returns (string memory) {
+        return "Mock hook for testing";
+    }
+
     function _preExecute(address prevHook, address account, bytes calldata data) internal override { }
 
     function _postExecute(address prevHook, address account, bytes calldata data) internal override { }
@@ -29,7 +37,7 @@ contract TestHook is BaseHook {
         return _decodeBool(data, offset);
     }
 
-    function testReplaceCalldataAmount(
+    function testReplaceCalldataAmounts(
         bytes memory data,
         uint256 amount,
         uint256 offset
@@ -45,13 +53,13 @@ contract TestHook is BaseHook {
     function getPreExecuteMutexState(address account) external view returns (bool) {
         bytes32 accountKey = keccak256(abi.encodePacked(keccak256("hook.account.context"), account));
         uint256 context;
-        assembly {
+        assembly ("memory-safe") {
             context := tload(accountKey)
         }
 
         bytes32 mutexKey = keccak256(abi.encodePacked(keccak256("hook.execution.state"), context, uint256(2)));
         bool value;
-        assembly {
+        assembly ("memory-safe") {
             value := tload(mutexKey)
         }
         return value;
@@ -60,13 +68,13 @@ contract TestHook is BaseHook {
     function getPostExecuteMutexState(address account) external view returns (bool) {
         bytes32 accountKey = keccak256(abi.encodePacked(keccak256("hook.account.context"), account));
         uint256 context;
-        assembly {
+        assembly ("memory-safe") {
             context := tload(accountKey)
         }
 
         bytes32 mutexKey = keccak256(abi.encodePacked(keccak256("hook.execution.state"), context, uint256(3)));
         bool value;
-        assembly {
+        assembly ("memory-safe") {
             value := tload(mutexKey)
         }
         return value;
@@ -116,15 +124,15 @@ contract BaseHookTest is Helpers {
         assertFalse(hook.testDecodeBool(data, 0));
     }
 
-    function test_ReplaceCalldataAmount() public view {
+    function test_ReplaceCalldataAmounts() public view {
         bytes memory data = abi.encodePacked(uint256(100));
-        bytes memory newData = hook.testReplaceCalldataAmount(data, 200, 0);
+        bytes memory newData = hook.testReplaceCalldataAmounts(data, 200, 0);
         assertEq(abi.decode(newData, (uint256)), 200);
     }
 
-    function test_ReplaceCalldataAmount_Offset() public view {
+    function test_ReplaceCalldataAmounts_Offset() public view {
         bytes memory data = abi.encodePacked(uint256(100), uint256(200));
-        bytes memory newData = hook.testReplaceCalldataAmount(data, 300, 32);
+        bytes memory newData = hook.testReplaceCalldataAmounts(data, 300, 32);
 
         // Create a new bytes array with just the second uint256
         bytes memory secondValue = new bytes(32);

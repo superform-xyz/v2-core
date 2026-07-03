@@ -9,18 +9,19 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../../hooks/BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 import { IGatewayWallet } from "../../../vendor/circle/IGatewayWallet.sol";
 
 /// @title CircleGatewayWalletHook
 /// @author Superform Labs
 /// @notice Hook for approving and depositing tokens to Circle Gateway Wallet
-/// @dev data has the following structure:
-/// @notice         address usdc = BytesLib.toAddress(data, 0);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 20);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
-contract CircleGatewayWalletHook is BaseHook, ISuperHookContextAware {
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address usdc = BytesLib.toAddress(data, 52);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 72);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
+contract CircleGatewayWalletHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
     using BytesLib for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -30,13 +31,24 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookContextAware {
     /// @notice Circle Gateway Wallet contract address
     address public immutable GATEWAY_WALLET;
 
-    uint256 private constant AMOUNT_POSITION = 20;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
+    uint256 private constant AMOUNT_POSITION = 72;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 104;
 
     constructor(address gatewayWalletAddress) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
         if (gatewayWalletAddress == address(0)) revert ADDRESS_NOT_VALID();
         GATEWAY_WALLET = gatewayWalletAddress;
     }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Circle Gateway Wallet";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Interacts with Circle Gateway wallet for cross-chain transfers";
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -53,7 +65,7 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookContextAware {
         override
         returns (Execution[] memory executions)
     {
-        address usdc = BytesLib.toAddress(data, 0);
+        address usdc = BytesLib.toAddress(data, 52);
         uint256 amount = BytesLib.toUint256(data, AMOUNT_POSITION);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
@@ -95,18 +107,42 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookContextAware {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
-    /// @notice Decode the amount from hook data
-    /// @param data The hook data to decode
-    /// @return The amount value
-    function decodeAmount(bytes memory data) external pure returns (uint256) {
-        return BytesLib.toUint256(data, AMOUNT_POSITION);
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](1);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+    }
+
+    /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
+    function _supportsSizingInterface() internal pure override returns (bool) {
+        return true;
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 1) revert INVALID_AMOUNTS_LENGTH();
+        return _replaceCalldataAmount(data, amounts[0], AMOUNT_POSITION);
     }
 
     /// @notice Decode the usdc from hook data
     /// @param data The hook data to decode
     /// @return The usdc address
     function decodeToken(bytes memory data) external pure returns (address) {
-        return BytesLib.toAddress(data, 0);
+        return BytesLib.toAddress(data, 52);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -116,5 +152,6 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookContextAware {
         uint256 amount = BytesLib.toUint256(data, AMOUNT_POSITION);
         // Set the deposited amount as output
         _setOutAmount(amount, account);
+        _setOutToken(BytesLib.toAddress(data, 52), account);
     }
 }

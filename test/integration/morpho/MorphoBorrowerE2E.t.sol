@@ -177,6 +177,9 @@ contract MorphoBorrowerE2E is Test, Constants {
         return abi.encodePacked(
             marketParams.loanToken,
             marketParams.collateralToken,
+            bytes12(0),
+            marketParams.loanToken,
+            marketParams.collateralToken,
             marketParams.oracle,
             marketParams.irm,
             amount,
@@ -188,6 +191,9 @@ contract MorphoBorrowerE2E is Test, Constants {
     /// @notice Build hook data for MorphoBorrowHook
     function _buildBorrowHookData(uint256 amount, bool usePrevHookAmount) internal view returns (bytes memory) {
         return abi.encodePacked(
+            marketParams.loanToken,
+            marketParams.collateralToken,
+            bytes12(0),
             marketParams.loanToken,
             marketParams.collateralToken,
             marketParams.oracle,
@@ -213,6 +219,9 @@ contract MorphoBorrowerE2E is Test, Constants {
         return abi.encodePacked(
             marketParams.loanToken,
             marketParams.collateralToken,
+            bytes12(0),
+            marketParams.loanToken,
+            marketParams.collateralToken,
             marketParams.oracle,
             marketParams.irm,
             amount,
@@ -233,6 +242,9 @@ contract MorphoBorrowerE2E is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
+            marketParams.loanToken,
+            marketParams.collateralToken,
+            bytes12(0),
             marketParams.loanToken,
             marketParams.collateralToken,
             marketParams.oracle,
@@ -607,7 +619,10 @@ contract MorphoBorrowerE2E is Test, Constants {
     /// @notice Test: Revert when supply address is zero
     function test_Supply_RevertsWhenAddressZero() public {
         bytes memory hookData = abi.encodePacked(
-            address(0), // loanToken = zero
+            address(0), // header: loanToken = zero (offset 0)
+            marketParams.collateralToken, // header: collateralToken (offset 20)
+            bytes12(0), // header padding (offset 40)
+            address(0), // loanToken = zero (offset 52)
             marketParams.collateralToken,
             marketParams.oracle,
             marketParams.irm,

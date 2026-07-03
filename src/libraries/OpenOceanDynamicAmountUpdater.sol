@@ -12,6 +12,12 @@ import { IOpenOceanExchange } from "../vendor/openocean/IOpenOceanExchange.sol";
 /// @author Superform Labs
 /// @notice Applies OpenOcean referrer-gated dynamic amount updates without decoding route internals.
 library OpenOceanDynamicAmountUpdater {
+    struct DecodedSwapData {
+        IOpenOceanCaller caller;
+        IOpenOceanExchange.SwapDescription desc;
+        IOpenOceanCaller.CallDescription[] calls;
+    }
+
     uint256 private constant PARTIAL_FILL = 0x01;
 
     address private constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -38,41 +44,38 @@ library OpenOceanDynamicAmountUpdater {
         if (newAmount_ == 0 || originalAmount_ == 0) revert ZERO_AMOUNT();
         if (_selector(txData_) != IOpenOceanExchange.swap.selector) revert INVALID_SELECTOR();
 
-        (
-            IOpenOceanCaller caller,
-            IOpenOceanExchange.SwapDescription memory desc,
-            IOpenOceanCaller.CallDescription[] memory calls
-        ) = abi.decode(
+        DecodedSwapData memory d;
+        (d.caller, d.desc, d.calls) = abi.decode(
             BytesLib.slice(txData_, 4, txData_.length - 4),
             (IOpenOceanCaller, IOpenOceanExchange.SwapDescription, IOpenOceanCaller.CallDescription[])
         );
 
-        if (desc.referrer != expectedReferrer_) revert INVALID_OPENOCEAN_REFERRER();
-        if (desc.dstReceiver != expectedReceiver_) revert INVALID_DST_RECEIVER();
-        if ((desc.flags & PARTIAL_FILL) != 0) revert PARTIAL_FILL_NOT_ALLOWED();
+        if (d.desc.referrer != expectedReferrer_) revert INVALID_OPENOCEAN_REFERRER();
+        if (d.desc.dstReceiver != expectedReceiver_) revert INVALID_DST_RECEIVER();
+        if ((d.desc.flags & PARTIAL_FILL) != 0) revert PARTIAL_FILL_NOT_ALLOWED();
 
-        srcToken = address(desc.srcToken);
-        dstToken = address(desc.dstToken);
+        srcToken = address(d.desc.srcToken);
+        dstToken = address(d.desc.dstToken);
         bool isNativeInput = _isNative(srcToken);
 
-        desc.amount = newAmount_;
+        d.desc.amount = newAmount_;
 
-        uint256 originalMinReturn = desc.minReturnAmount;
-        desc.minReturnAmount = HookDataUpdater.getUpdatedOutputAmount(newAmount_, originalAmount_, originalMinReturn);
-        if (originalMinReturn > 0 && desc.minReturnAmount == 0) revert ZERO_MIN_RETURN();
+        uint256 originalMinReturn = d.desc.minReturnAmount;
+        d.desc.minReturnAmount = HookDataUpdater.getUpdatedOutputAmount(newAmount_, originalAmount_, originalMinReturn);
+        if (originalMinReturn > 0 && d.desc.minReturnAmount == 0) revert ZERO_MIN_RETURN();
 
-        uint256 originalGuaranteed = desc.guaranteedAmount;
-        desc.guaranteedAmount =
+        uint256 originalGuaranteed = d.desc.guaranteedAmount;
+        d.desc.guaranteedAmount =
             HookDataUpdater.getUpdatedOutputAmount(newAmount_, originalAmount_, originalGuaranteed);
 
         if (isNativeInput) {
-            _scaleNativeCallValues(calls, newAmount_, originalAmount_);
+            _scaleNativeCallValues(d.calls, newAmount_, originalAmount_);
         } else {
-            _validateNoCallValues(calls);
+            _validateNoCallValues(d.calls);
         }
 
         return (
-            abi.encodePacked(IOpenOceanExchange.swap.selector, abi.encode(caller, desc, calls)),
+            abi.encodePacked(IOpenOceanExchange.swap.selector, abi.encode(d.caller, d.desc, d.calls)),
             srcToken,
             dstToken
         );
@@ -125,7 +128,7 @@ library OpenOceanDynamicAmountUpdater {
 
     function _selector(bytes memory data_) private pure returns (bytes4 selector) {
         if (data_.length < 4) return bytes4(0);
-        assembly {
+        assembly ("memory-safe") {
             selector := mload(add(data_, 0x20))
         }
     }

@@ -176,7 +176,7 @@ contract MorphoSuperVaultE2E is Test, Constants {
 
     /// @dev Encode data for MorphoSupplyHook
     function _createSupplyHookData(uint256 amount, bool usePrevHookAmount) internal pure returns (bytes memory) {
-        return abi.encodePacked(LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, amount, LLTV, usePrevHookAmount);
+        return abi.encodePacked(LOAN_TOKEN, COLLATERAL_TOKEN, bytes12(0), LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, amount, LLTV, usePrevHookAmount);
     }
 
     /// @dev Encode data for MorphoSupplyAndBorrowHook
@@ -190,7 +190,7 @@ contract MorphoSuperVaultE2E is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, amount, ltvRatio, usePrevHookAmount, LLTV, false
+            LOAN_TOKEN, COLLATERAL_TOKEN, bytes12(0), LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, amount, ltvRatio, usePrevHookAmount, LLTV, false
         );
     }
 
@@ -205,7 +205,7 @@ contract MorphoSuperVaultE2E is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, amount, LLTV, usePrevHookAmount, isFullRepayment
+            LOAN_TOKEN, COLLATERAL_TOKEN, bytes12(0), LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, amount, LLTV, usePrevHookAmount, isFullRepayment
         );
     }
 
@@ -220,7 +220,7 @@ contract MorphoSuperVaultE2E is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, amount, LLTV, usePrevHookAmount, isFullRepayment
+            LOAN_TOKEN, COLLATERAL_TOKEN, bytes12(0), LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, amount, LLTV, usePrevHookAmount, isFullRepayment
         );
     }
 
@@ -323,7 +323,7 @@ contract MorphoSuperVaultE2E is Test, Constants {
         uint256 borrowAmount = supplyAndBorrowHook.deriveLoanAmount(COLLATERAL_AMOUNT, LTV_RATIO, LLTV, ORACLE);
 
         bytes memory borrowData = abi.encodePacked(
-            LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, borrowAmount, LTV_RATIO, false, LLTV, false
+            LOAN_TOKEN, COLLATERAL_TOKEN, bytes12(0), LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, borrowAmount, LTV_RATIO, false, LLTV, false
         );
 
         vm.prank(MANAGER);
@@ -450,7 +450,7 @@ contract MorphoSuperVaultE2E is Test, Constants {
         uint256 borrowAmount = supplyAndBorrowHook.deriveLoanAmount(COLLATERAL_AMOUNT, LTV_RATIO, LLTV, ORACLE);
 
         bytes memory borrowData = abi.encodePacked(
-            LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, borrowAmount, LTV_RATIO, false, LLTV, false
+            LOAN_TOKEN, COLLATERAL_TOKEN, bytes12(0), LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, borrowAmount, LTV_RATIO, false, LLTV, false
         );
 
         vm.prank(MANAGER);

@@ -11,6 +11,7 @@ import { BaseHook } from "../../BaseHook.sol";
 import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
+    ISuperHookOutflow,
     ISuperHookContextAware,
     ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
@@ -33,7 +34,7 @@ import { IMachine } from "../../../vendor/vaults/deth/IMachine.sol";
 /// @notice         uint256 shares = BytesLib.toUint256(data, 52);
 /// @notice         uint256 minAssets = BytesLib.toUint256(data, 84);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 116);
-contract RequestRedeemDETHHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware {
+contract RequestRedeemDETHHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 52;
@@ -41,6 +42,17 @@ contract RequestRedeemDETHHook is BaseHook, ISuperHookInflowOutflow, ISuperHookC
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 116;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.ERC4626) { }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Request Redeem DETH";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Requests a redemption from a DETH vault";
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -86,8 +98,34 @@ contract RequestRedeemDETHHook is BaseHook, ISuperHookInflowOutflow, ISuperHookC
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory data) external pure returns (uint256) {
-        return _decodeAmount(data);
+    function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](1);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.SHARES);
+    }
+
+    /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
+    function _supportsSizingInterface() internal pure override returns (bool) {
+        return true;
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 1) revert INVALID_AMOUNTS_LENGTH();
+        return _replaceCalldataAmount(data, amounts[0], AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookContextAware
@@ -107,6 +145,7 @@ contract RequestRedeemDETHHook is BaseHook, ISuperHookInflowOutflow, ISuperHookC
 
     function _postExecute(address, address account, bytes calldata) internal override {
         usedShares = usedShares - IERC20(spToken).balanceOf(account);
+        _setOutToken(asset, account);
     }
 
     /*//////////////////////////////////////////////////////////////

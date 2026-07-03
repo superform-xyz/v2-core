@@ -382,6 +382,35 @@ contract BridgeHooks is Helpers {
         assertFalse(deBridgehook.decodeUsePrevHookAmount(data));
     }
 
+    function test_DeBridge_DecodeAmounts() public view {
+        bytes memory data = _encodeDebridgeData(false, 100, 0, address(mockInputToken));
+        assertEq(deBridgehook.decodeAmounts(data)[0], 100);
+    }
+
+    function test_DeBridge_ReplaceCalldataAmounts() public view {
+        bytes memory data = _encodeDebridgeData(false, 100, 0, address(mockInputToken));
+        uint256 newAmount = 200;
+        bytes memory result = deBridgehook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(deBridgehook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_DeBridge_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeDebridgeData(false, 100, 0, address(mockInputToken));
+        bytes memory result = deBridgehook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(deBridgehook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_DeBridge_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _encodeDebridgeData(false, 100, 0, address(mockInputToken));
+        uint256 newAmount = 500;
+        bytes memory replaced = deBridgehook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = deBridgehook.build(address(0), mockAccount, replaced);
+        assertEq(executions.length, 3);
+        assertEq(deBridgehook.decodeAmounts(replaced)[0], newAmount);
+    }
+
     // DeBridge Cancel Order Hook Tests
     function test_CancelOrderHook_Constructor() public view {
         assertEq(address(cancelOrderHook.DLN_DESTINATION()), address(this));
@@ -432,16 +461,64 @@ contract BridgeHooks is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    DECODE/REPLACE AMOUNT TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_AcrossV3_DecodeAmounts() public view {
+        bytes memory data = _encodeAcrossData(false);
+        assertEq(acrossV3hook.decodeAmounts(data)[0], mockInputAmount);
+    }
+
+    function test_AcrossV3_ReplaceCalldataAmounts() public view {
+        bytes memory data = _encodeAcrossData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = acrossV3hook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(acrossV3hook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_AcrossV3_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeAcrossData(false);
+        bytes memory result = acrossV3hook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(acrossV3hook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_ApproveAndAcrossV3_DecodeAmounts() public view {
+        bytes memory data = _encodeAcrossData(false);
+        assertEq(approveAndAcrossV3hook.decodeAmounts(data)[0], mockInputAmount);
+    }
+
+    function test_ApproveAndAcrossV3_ReplaceCalldataAmounts() public view {
+        bytes memory data = _encodeAcrossData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndAcrossV3hook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(approveAndAcrossV3hook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_ApproveAndAcrossV3_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeAcrossData(false);
+        bytes memory result = approveAndAcrossV3hook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(approveAndAcrossV3hook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _encodeAcrossData(bool usePrevHookAmount) internal view returns (bytes memory) {
-        return abi.encodePacked(
+        bytes memory header = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockValue,
             mockRecipient,
             mockInputToken,
             mockOutputToken,
             mockInputAmount,
-            mockOutputAmount,
+            mockOutputAmount
+        );
+        return abi.encodePacked(
+            header,
             mockDestinationChainId,
             mockExclusiveRelayer,
             mockFillDeadlineOffset,
@@ -548,6 +625,7 @@ contract BridgeHooks is Helpers {
 
     function _encodeDebridgePart1(DebridgeOrderData memory d) internal pure returns (bytes memory) {
         return abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             d.usePrevHookAmount,
             d.value,
             d.giveTokenAddress,
@@ -608,13 +686,17 @@ contract BridgeHooks is Helpers {
         uint256 giveAmount = mockInputAmount;
         uint256 takeAmount = mockOutputAmount;
 
-        return abi.encodePacked(
+        bytes memory part1a = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockValue, // value
             makerOrderNonce, // makerOrderNonce
             uint256(makerSrc.length), // makerSrc length
             makerSrc, // makerSrc
             uint256(giveTokenAddress.length), // giveTokenAddress length
-            giveTokenAddress, // giveTokenAddress
+            giveTokenAddress // giveTokenAddress
+        );
+        return abi.encodePacked(
+            part1a,
             giveAmount, // giveAmount
             uint256(1), // giveChainId
             mockDestinationChainId, // takeChainId

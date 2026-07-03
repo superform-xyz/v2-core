@@ -16,6 +16,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
+    ISuperHookOutflow,
     ISuperHookContextAware,
     ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
@@ -30,7 +31,7 @@ import {
 ///         bool usePrevHookAmount = BytesLib.toBool(data, 84);
 ///         address vaultBank = BytesLib.toAddress(data, 85);
 ///         uint256 dstChainId = BytesLib.toUint256(data, 105);
-contract BurnSuperPositionsHook is BaseHook, VaultBankLockableHook, ISuperHookInflowOutflow, ISuperHookContextAware {
+contract BurnSuperPositionsHook is BaseHook, VaultBankLockableHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
     using SafeCast for uint256;
     using HookDataDecoder for bytes;
 
@@ -40,6 +41,17 @@ contract BurnSuperPositionsHook is BaseHook, VaultBankLockableHook, ISuperHookIn
     error ID_NOT_VALID();
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.VAULT_BANK) { }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Burn SuperPositions";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Burns SuperPosition tokens to release vault shares";
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -100,8 +112,34 @@ contract BurnSuperPositionsHook is BaseHook, VaultBankLockableHook, ISuperHookIn
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory data) external pure returns (uint256) {
-        return _decodeAmount(data);
+    function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](1);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.SHARES);
+    }
+
+    /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
+    function _supportsSizingInterface() internal pure override returns (bool) {
+        return true;
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 1) revert INVALID_AMOUNTS_LENGTH();
+        return _replaceCalldataAmount(data, amounts[0], AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookContextAware

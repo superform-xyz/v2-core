@@ -52,7 +52,7 @@ contract CurveTest is Test {
     }
 
     function curve_toToken(uint256 dex) internal view returns (address toToken) {
-        assembly {
+        assembly ("memory-safe") {
             function curveCoins(pool, selectorOffset, index) -> coin {
                 mstore(0, _CURVE_COINS_SELECTORS)
                 mstore(add(selectorOffset, 4), index)

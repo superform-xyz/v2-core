@@ -21,7 +21,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title GearboxClaimRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         bytes32 placeholder_yieldSourceOracleId = BytesLib.toBytes32(data, 0);
 /// @notice         address farmingPool = BytesLib.toAddress(data, 32);
 /// @notice         address rewardToken = BytesLib.toAddress(data, 52);
 /// @notice         address account = BytesLib.toAddress(data, 72);
@@ -35,6 +35,17 @@ contract GearboxClaimRewardHook is
     using HookDataDecoder for bytes;
 
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.CLAIM) { }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Gearbox Claim Reward";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Claims reward tokens from Gearbox protocol";
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -57,8 +68,18 @@ contract GearboxClaimRewardHook is
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory) external pure returns (uint256) {
-        return 0;
+    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](0);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+    }
+
+    /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
+    function _supportsSizingInterface() internal pure override returns (bool) {
+        return true;
     }
 
     /// @inheritdoc ISuperHookContextAware
@@ -67,7 +88,8 @@ contract GearboxClaimRewardHook is
     }
 
     /// @inheritdoc ISuperHookOutflow
-    function replaceCalldataAmount(bytes memory data, uint256) external pure returns (bytes memory) {
+    function replaceCalldataAmounts(bytes memory data, uint256[] memory amounts) external pure override returns (bytes memory) {
+        if (amounts.length != 0) revert INVALID_AMOUNTS_LENGTH();
         return data;
     }
 
@@ -91,5 +113,6 @@ contract GearboxClaimRewardHook is
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
+        _setOutToken(asset, account);
     }
 }

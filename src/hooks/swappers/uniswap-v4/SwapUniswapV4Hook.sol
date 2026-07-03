@@ -9,7 +9,12 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 
 // Superform imports
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 
 // Real Uniswap V4 imports
@@ -28,21 +33,22 @@ import { TickMath } from "v4-core/libraries/TickMath.sol";
 /// @author Superform Labs
 /// @notice Hook for executing swaps via Uniswap V4 with dynamic minAmountOut recalculation
 /// @dev Implements dynamic slippage protection and on-chain quote generation
-/// @dev data has the following structure
-/// @notice         address currency0 = BytesLib.toAddress(data, 0);
-/// @notice         address currency1 = BytesLib.toAddress(data, 20);
-/// @notice         uint24 fee = uint24(BytesLib.toUint32(data, 40));
-/// @notice         int24 tickSpacing = int24(BytesLib.toUint32(data, 44));
-/// @notice         address hooks = BytesLib.toAddress(data, 48);
-/// @notice         address dstReceiver = BytesLib.toAddress(data, 68);
-/// @notice         uint160 sqrtPriceLimitX96 = uint160(BytesLib.toUint256(data, 88));
-/// @notice         uint256 originalAmountIn = BytesLib.toUint256(data, 120);
-/// @notice         uint256 originalMinAmountOut = BytesLib.toUint256(data, 152);
-/// @notice         uint256 maxSlippageDeviationBps = BytesLib.toUint256(data, 184);
-/// @notice         bool zeroForOne = _decodeBool(data, 216);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 217);
-/// @notice         bytes additionalData = BytesLib.slice(data, 218, data.length - 218);
-contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address currency0 = BytesLib.toAddress(data, 52);
+/// @notice         address currency1 = BytesLib.toAddress(data, 72);
+/// @notice         uint24 fee = uint24(BytesLib.toUint32(data, 92));
+/// @notice         int24 tickSpacing = int24(BytesLib.toUint32(data, 96));
+/// @notice         address hooks = BytesLib.toAddress(data, 100);
+/// @notice         address dstReceiver = BytesLib.toAddress(data, 120);
+/// @notice         uint160 sqrtPriceLimitX96 = uint160(BytesLib.toUint256(data, 140));
+/// @notice         uint256 originalAmountIn = BytesLib.toUint256(data, 172);
+/// @notice         uint256 originalMinAmountOut = BytesLib.toUint256(data, 204);
+/// @notice         uint256 maxSlippageDeviationBps = BytesLib.toUint256(data, 236);
+/// @notice         bool zeroForOne = _decodeBool(data, 268);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 269);
+/// @notice         bytes additionalData = BytesLib.slice(data, 270, data.length - 270);
+contract SwapUniswapV4Hook is BaseHook, IUnlockCallback, ISuperHookInflowOutflow, ISuperHookOutflow {
     using PoolIdLibrary for PoolKey;
     using CurrencyLibrary for Currency;
     using BalanceDeltaLibrary for BalanceDelta;
@@ -61,6 +67,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
     uint256 private transient initialBalance;
 
+    uint256 private constant AMOUNT_POSITION = 172;
     uint256 private constant MAX_BPS = 10_000; // 100%
     uint256 private constant MAX_ADDITIONAL_DATA_LEN = 4096; // hard cap to bound gas on user-controlled data
 
@@ -170,6 +177,17 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         POOL_MANAGER = IPoolManager(poolManager_);
     }
 
+    /// @inheritdoc ISuperHook
+    function name() external pure override returns (string memory) {
+        return "Swap Uniswap V4";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Swaps tokens via Uniswap V4";
+    }
+
+
     /// @notice Allows contract to receive native ETH for native token swaps
     receive() external payable { }
 
@@ -207,7 +225,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
         // Get initial balance (handle native ETH vs ERC-20)
         address outputToken = _getOutputToken(data);
-        address dstReceiver = data.toAddress(68);
+        address dstReceiver = data.toAddress(120);
         if (outputToken == address(0)) {
             // Native ETH
             initialBalance = dstReceiver.balance;
@@ -245,7 +263,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
         // Calculate true output amount (handle native ETH vs ERC-20)
         address outputToken = _getOutputToken(data);
-        address dstReceiver = data.toAddress(68);
+        address dstReceiver = data.toAddress(120);
         uint256 currentBalance;
         if (outputToken == address(0)) {
             // Native ETH
@@ -260,6 +278,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
         // Set the output amount for the next hook
         _setOutAmount(outputAmount, account);
+        _setOutToken(outputToken, account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -268,10 +287,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
 
     /// @inheritdoc IUnlockCallback
     function unlockCallback(bytes calldata data) external override returns (bytes memory) {
-        // Ensure only the Pool Manager can call this
-        if (msg.sender != address(POOL_MANAGER)) {
-            revert UNAUTHORIZED_CALLBACK();
-        }
+        if (msg.sender != address(POOL_MANAGER)) revert UNAUTHORIZED_CALLBACK();
 
         // Decode unlock data
         (
@@ -289,7 +305,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
             ? (zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1)
             : sqrtPriceLimitX96;
 
-        // Determine swap direction and currencies
+        // Populate params struct
         SwapExecutionParams memory params;
         params.poolKey = poolKey;
         params.amountIn = amountIn;
@@ -302,141 +318,106 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         params.effectivePriceLimitX96 = effectivePriceLimitX96;
         params.currency1Token = Currency.unwrap(poolKey.currency1);
 
-        // STEP 1: Execute swap FIRST (before any transfers)
-        // For exact-input swaps, the swap only accounts deltas - it doesn't require tokens to be present
-        // This allows us to see the exact delta amounts (which may differ from amountIn due to protocol fees)
-        // before transferring tokens
-        IPoolManager.SwapParams memory swapParams = IPoolManager.SwapParams({
-            zeroForOne: params.zeroForOne,
-            amountSpecified: -int256(params.amountIn), // Exact input (negative for exact input)
-            sqrtPriceLimitX96: params.effectivePriceLimitX96
-        });
+        // Execute swap
+        params.swapDelta = POOL_MANAGER.swap(
+            params.poolKey,
+            IPoolManager.SwapParams({
+                zeroForOne: params.zeroForOne,
+                amountSpecified: -int256(params.amountIn),
+                sqrtPriceLimitX96: params.effectivePriceLimitX96
+            }),
+            additionalData
+        );
 
-        params.swapDelta = POOL_MANAGER.swap(params.poolKey, swapParams, additionalData);
-
-        // STEP 2: Extract deltas for BOTH currencies (CRITICAL: handle both explicitly)
-        // After swap, both currencies have deltas accounted to this hook contract
-        // - Negative delta = we owe tokens (need to settle)
-        // - Positive delta = we receive tokens (need to take)
         params.delta0 = params.swapDelta.amount0();
         params.delta1 = params.swapDelta.amount1();
 
-        // STEP 3: Handle currency0 delta
-        // IMPORTANT: For exact-input swaps with protocol fees, delta0 might be less than -amountIn
-        // We must settle exactly -delta0, not amountIn, to avoid residual delta causing CurrencyNotSettled()
-        if (params.delta0 < 0) {
-            // Negative delta: we owe currency0, need to settle
-            uint256 amountToSettle = uint256(uint128(-params.delta0));
+        // Settle/take deltas and refund excess via helpers (avoids stack-too-deep under --ir-minimum)
+        _settleCurrencyDelta(params.delta0, params.poolKey.currency0, params.inputToken, params);
+        _settleCurrencyDelta(params.delta1, params.poolKey.currency1, params.currency1Token, params);
 
-            if (params.poolKey.currency0.isAddressZero()) {
-                // Native token: settle with exact amount needed
-                // Excess (if any) remains in hook contract for postExecute handling
-                if (address(this).balance < amountToSettle) {
-                    revert INVALID_PREVIOUS_NATIVE_TRANSFER_HOOK_USAGE();
-                }
-                POOL_MANAGER.settle{ value: amountToSettle }();
-            } else {
-                // ERC-20: Sync AFTER swap to reset the CurrencyReserves state
-                // settle() accounts balance increase from last sync, so we sync now to reset
-                POOL_MANAGER.sync(params.poolKey.currency0);
-
-                // Transfer exactly amountToSettle tokens
-                // settle() will calculate: balanceAfter - balanceBefore = amountToSettle
-                IERC20(params.inputToken).transfer(address(POOL_MANAGER), amountToSettle);
-
-                // settle() accounts +amountToSettle delta, canceling -delta0 exactly
-                POOL_MANAGER.settle();
-            }
-        } else if (params.delta0 > 0) {
-            // Positive delta: we receive currency0, need to take
-            uint256 amountToTake = uint256(int256(params.delta0));
-            // Enforce minAmountOut when output is currency0 (zeroForOne == false)
-            if (!params.zeroForOne && amountToTake < params.minAmountOut) {
-                revert INSUFFICIENT_OUTPUT_AMOUNT(amountToTake, params.minAmountOut);
-            }
-            POOL_MANAGER.take(params.poolKey.currency0, params.dstReceiver, amountToTake);
-        }
-        // If delta0 == 0, nothing to do
-
-        // STEP 4: Handle currency1 delta - this is our output
-        if (params.delta1 < 0) {
-            // Negative delta: we owe currency1 (shouldn't happen for exact-input zeroForOne swap)
-            // But handle it for completeness
-            uint256 amountToSettle = uint256(uint128(-params.delta1));
-            if (params.poolKey.currency1.isAddressZero()) {
-                POOL_MANAGER.settle{ value: amountToSettle }();
-            } else {
-                POOL_MANAGER.sync(params.poolKey.currency1);
-                IERC20(params.currency1Token).transfer(address(POOL_MANAGER), amountToSettle);
-                POOL_MANAGER.settle();
-            }
-        } else if (params.delta1 > 0) {
-            // Positive delta: we receive currency1, need to take (this is our output)
-            uint256 amountToTake = uint256(int256(params.delta1));
-            if (amountToTake < params.minAmountOut) {
-                revert INSUFFICIENT_OUTPUT_AMOUNT(amountToTake, params.minAmountOut);
-            }
-            POOL_MANAGER.take(params.poolKey.currency1, params.dstReceiver, amountToTake);
-        }
-        // If delta1 == 0, nothing to do
-
-        // STEP 5: Compute and enforce min output for all outcomes (including zero output)
-        // For zeroForOne: output is currency1 (delta1); for !zeroForOne: output is currency0 (delta0)
+        // Compute and enforce output minimum
         params.outDelta = params.zeroForOne ? params.delta1 : params.delta0;
         params.amountOut = params.outDelta > 0 ? uint256(uint128(params.outDelta)) : 0;
         if (params.amountOut < params.minAmountOut) {
             revert INSUFFICIENT_OUTPUT_AMOUNT(params.amountOut, params.minAmountOut);
         }
 
-        // STEP 6: Handle refund of unconsumed input (if any)
-        // Edge cases that require refund:
-        // 1. Partial execution due to price limits hitting before full amount is swapped
-        // 2. Zero-output swaps (now handled by minAmountOut check, but still need refund)
-        // 3. Protocol fees causing small excess (rare, but possible)
-        // IMPORTANT: We refund based on actual hook balance remaining after settlement,
-        // not by comparing amountIn to delta, as the delta reflects what was actually swapped
-        if (params.delta0 < 0) {
-            // We owed currency0 - check for any remaining balance after settlement
-            if (params.poolKey.currency0.isAddressZero()) {
-                // Native ETH: refund any remaining balance
-                params.balance = address(this).balance;
-                if (params.balance > 0) {
-                    (bool success,) = params.dstReceiver.call{ value: params.balance }("");
-                    if (!success) revert INVALID_REMAINING_NATIVE_AMOUNT();
-                }
-            } else {
-                // ERC-20: refund any remaining balance after settlement
-                params.balance = IERC20(params.inputToken).balanceOf(address(this));
-                if (params.balance > 0) {
-                    IERC20(params.inputToken).transfer(params.dstReceiver, params.balance);
-                }
-            }
-        } else if (params.delta1 < 0) {
-            // We owed currency1 - check for any remaining balance after settlement
-            if (params.poolKey.currency1.isAddressZero()) {
-                // Native ETH: refund any remaining balance
-                params.balance = address(this).balance;
-                if (params.balance > 0) {
-                    (bool success,) = params.dstReceiver.call{ value: params.balance }("");
-                    if (!success) revert INVALID_REMAINING_NATIVE_AMOUNT();
-                }
-            } else {
-                // ERC-20: refund any remaining balance after settlement
-                params.balance = IERC20(params.currency1Token).balanceOf(address(this));
-                if (params.balance > 0) {
-                    IERC20(params.currency1Token).transfer(params.dstReceiver, params.balance);
-                }
-            }
-        }
+        // Refund unconsumed input
+        _refundExcessInput(params);
 
         return abi.encode(params.amountOut);
+    }
+
+    /// @notice Settle or take a single currency delta with the pool manager
+    /// @param delta The delta for this currency (negative = owe, positive = receive)
+    /// @param currency The currency to settle/take
+    /// @param token The ERC-20 address (or address(0) for native)
+    /// @param params The swap execution params (for minAmountOut and dstReceiver)
+    function _settleCurrencyDelta(
+        int128 delta,
+        Currency currency,
+        address token,
+        SwapExecutionParams memory params
+    )
+        private
+    {
+        if (delta < 0) {
+            uint256 amountToSettle = uint256(uint128(-delta));
+            if (currency.isAddressZero()) {
+                if (address(this).balance < amountToSettle) revert INVALID_PREVIOUS_NATIVE_TRANSFER_HOOK_USAGE();
+                POOL_MANAGER.settle{ value: amountToSettle }();
+            } else {
+                POOL_MANAGER.sync(currency);
+                IERC20(token).transfer(address(POOL_MANAGER), amountToSettle);
+                POOL_MANAGER.settle();
+            }
+        } else if (delta > 0) {
+            uint256 amountToTake = uint256(int256(delta));
+            // Enforce minAmountOut on the output currency
+            bool isOutputCurrency = Currency.unwrap(currency) == Currency.unwrap(params.outputCurrency);
+            if (isOutputCurrency && amountToTake < params.minAmountOut) {
+                revert INSUFFICIENT_OUTPUT_AMOUNT(amountToTake, params.minAmountOut);
+            }
+            POOL_MANAGER.take(currency, params.dstReceiver, amountToTake);
+        }
+    }
+
+    /// @notice Refund unconsumed input tokens after settlement
+    /// @param params The swap execution params
+    function _refundExcessInput(SwapExecutionParams memory params) private {
+        // Identify which currency we owed (the input side)
+        Currency inputCurrency;
+        address inputToken;
+        if (params.delta0 < 0) {
+            inputCurrency = params.poolKey.currency0;
+            inputToken = params.inputToken;
+        } else if (params.delta1 < 0) {
+            inputCurrency = params.poolKey.currency1;
+            inputToken = params.currency1Token;
+        } else {
+            return; // No settlement was needed
+        }
+
+        if (inputCurrency.isAddressZero()) {
+            params.balance = address(this).balance;
+            if (params.balance > 0) {
+                (bool success,) = params.dstReceiver.call{ value: params.balance }("");
+                if (!success) revert INVALID_REMAINING_NATIVE_AMOUNT();
+            }
+        } else {
+            params.balance = IERC20(inputToken).balanceOf(address(this));
+            if (params.balance > 0) {
+                IERC20(inputToken).transfer(params.dstReceiver, params.balance);
+            }
+        }
     }
 
     /// @inheritdoc BaseHook
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         // Decode token addresses directly using BytesLib
-        address currency0 = data.toAddress(0);
-        address currency1 = data.toAddress(20);
+        address currency0 = data.toAddress(52);
+        address currency1 = data.toAddress(72);
 
         // Return packed token addresses for inspection
         return abi.encodePacked(
@@ -449,10 +430,41 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
     /// @param data The encoded hook data
     /// @return usePrevHookAmount Whether to use the previous hook's output amount
     function decodeUsePrevHookAmount(bytes calldata data) external pure returns (bool usePrevHookAmount) {
-        if (data.length < 218) {
+        if (data.length < 270) {
             revert INVALID_HOOK_DATA();
         }
-        usePrevHookAmount = _decodeBool(data, 217);
+        usePrevHookAmount = _decodeBool(data, 269);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](1);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+    }
+
+    /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
+    function _supportsSizingInterface() internal pure override returns (bool) {
+        return true;
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 1) revert INVALID_AMOUNTS_LENGTH();
+        return _replaceCalldataAmount(data, amounts[0], AMOUNT_POSITION);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -525,10 +537,10 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         returns (address inputToken, uint256 amountIn)
     {
         // Decode minimal data needed for transfer using BytesLib
-        address currency0 = data.toAddress(0);
-        address currency1 = data.toAddress(20);
-        bool zeroForOne = _decodeBool(data, 216);
-        bool usePrevHookAmount = _decodeBool(data, 217);
+        address currency0 = data.toAddress(52);
+        address currency1 = data.toAddress(72);
+        bool zeroForOne = _decodeBool(data, 268);
+        bool usePrevHookAmount = _decodeBool(data, 269);
 
         // Get input token address (native ETH = address(0))
         inputToken = zeroForOne ? currency0 : currency1;
@@ -536,8 +548,8 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         if (usePrevHookAmount) {
             amountIn = ISuperHookResult(prevHook).getOutAmount(account);
         } else {
-            // Extract originalAmountIn from new position 120-152
-            amountIn = data.toUint256(120);
+            // Extract originalAmountIn from position 172 (52-byte header + 120 bytes of pool key + dstReceiver + sqrtPriceLimit)
+            amountIn = data.toUint256(172);
         }
     }
 
@@ -612,17 +624,17 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
             bytes memory additionalData
         )
     {
-        if (data.length < 218) {
+        if (data.length < 270) {
             revert INVALID_HOOK_DATA();
         }
 
         // Construct PoolKey from individual components to avoid stack too deep
         poolKey = PoolKey({
-            currency0: Currency.wrap(data.toAddress(0)),
-            currency1: Currency.wrap(data.toAddress(20)),
-            fee: uint24(data.toUint32(40)),
-            tickSpacing: int24(int32(data.toUint32(44))),
-            hooks: IHooks(data.toAddress(48))
+            currency0: Currency.wrap(data.toAddress(52)),
+            currency1: Currency.wrap(data.toAddress(72)),
+            fee: uint24(data.toUint32(92)),
+            tickSpacing: int24(int32(data.toUint32(96))),
+            hooks: IHooks(data.toAddress(100))
         });
 
         // Validate PoolKey components
@@ -631,21 +643,21 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         if (poolKey.tickSpacing == 0) revert INVALID_HOOK_DATA();
 
         // Decode remaining fields using BytesLib
-        dstReceiver = data.toAddress(68);
-        sqrtPriceLimitX96 = uint160(data.toUint256(88));
-        originalAmountIn = data.toUint256(120);
-        originalMinAmountOut = data.toUint256(152);
-        maxSlippageDeviationBps = data.toUint256(184);
-        zeroForOne = _decodeBool(data, 216);
-        usePrevHookAmount = _decodeBool(data, 217);
+        dstReceiver = data.toAddress(120);
+        sqrtPriceLimitX96 = uint160(data.toUint256(140));
+        originalAmountIn = data.toUint256(172);
+        originalMinAmountOut = data.toUint256(204);
+        maxSlippageDeviationBps = data.toUint256(236);
+        zeroForOne = _decodeBool(data, 268);
+        usePrevHookAmount = _decodeBool(data, 269);
 
         // Additional data is everything after the fixed structure
         uint256 dataLength = data.length;
-        if (dataLength > 218) {
-            if (dataLength - 218 > MAX_ADDITIONAL_DATA_LEN) {
+        if (dataLength > 270) {
+            if (dataLength - 270 > MAX_ADDITIONAL_DATA_LEN) {
                 revert EXCESSIVE_ADDITIONAL_DATA();
             }
-            additionalData = data.slice(218, data.length - 218);
+            additionalData = data.slice(270, data.length - 270);
         }
     }
 
@@ -654,9 +666,9 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
     /// @return outputToken The output token address
     function _getOutputToken(bytes calldata data) internal pure returns (address outputToken) {
         // Decode just the needed fields using BytesLib
-        address currency0 = data.toAddress(0);
-        address currency1 = data.toAddress(20);
-        bool zeroForOne = _decodeBool(data, 216);
+        address currency0 = data.toAddress(52);
+        address currency1 = data.toAddress(72);
+        bool zeroForOne = _decodeBool(data, 268);
 
         // Get output token address (native ETH = address(0))
         outputToken = zeroForOne ? currency1 : currency0;
@@ -674,14 +686,14 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         uint256 len = data.length;
 
         // Store the length first
-        assembly {
+        assembly ("memory-safe") {
             tstore(storageKey, len)
         }
 
         // Store data in 32-byte chunks
         for (uint256 i; i < len; i += 32) {
             bytes32 word;
-            assembly {
+            assembly ("memory-safe") {
                 word := mload(add(add(data, 0x20), i))
                 tstore(add(storageKey, div(add(i, 32), 32)), word)
             }
@@ -696,7 +708,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         uint256 len;
 
         // Load the length first
-        assembly {
+        assembly ("memory-safe") {
             len := tload(storageKey)
         }
 
@@ -705,12 +717,12 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
         // Load data from 32-byte chunks
         for (uint256 i; i < len; i += 32) {
             bytes32 word;
-            assembly {
+            assembly ("memory-safe") {
                 word := tload(add(storageKey, div(add(i, 32), 32)))
             }
 
             // Copy word to output bytes
-            assembly {
+            assembly ("memory-safe") {
                 mstore(add(add(out, 0x20), i), word)
             }
         }
@@ -720,7 +732,7 @@ contract SwapUniswapV4Hook is BaseHook, IUnlockCallback {
     /// @dev Clears the length slot (data chunks will be automatically cleared)
     function _clearUnlockData() private {
         bytes32 storageKey = PENDING_UNLOCK_DATA_SLOT;
-        assembly {
+        assembly ("memory-safe") {
             tstore(storageKey, 0)
         }
     }

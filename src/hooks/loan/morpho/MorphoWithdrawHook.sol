@@ -10,18 +10,23 @@ import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoWithdrawHook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         address loanToken = BytesLib.toAddress(data, 0);
-/// @notice         address collateralToken = BytesLib.toAddress(data, 20);
-/// @notice         address oracle = BytesLib.toAddress(data, 40);
-/// @notice         address irm = BytesLib.toAddress(data, 60);
-/// @notice         uint256 lltv = BytesLib.toUint256(data, 80);
-/// @notice         uint256 assets = BytesLib.toUint256(data, 112);
-/// @notice         uint256 shares = BytesLib.toUint256(data, 144);
+/// @dev Withdraws supplied loan assets (lend-side) via IMorphoBase.withdraw.
+///      To withdraw posted collateral use MorphoRepayAndWithdrawHook (IMorphoBase.withdrawCollateral).
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address loanToken = BytesLib.toAddress(data, 52);
+/// @notice         address collateralToken = BytesLib.toAddress(data, 72);
+/// @notice         address oracle = BytesLib.toAddress(data, 92);
+/// @notice         address irm = BytesLib.toAddress(data, 112);
+/// @notice         uint256 lltv = BytesLib.toUint256(data, 132);
+/// @notice         uint256 assets = BytesLib.toUint256(data, 164);
+/// @notice         uint256 shares = BytesLib.toUint256(data, 196);
+/// @dev NOTE: This hook has no usePrevHookAmount field. The inherited decodeUsePrevHookAmount
+///      is overridden to return false — offset 144 is the shares uint256, not a bool.
 /// @dev Both onBehalf and receiver are always set to account (consistent with all other Morpho hooks)
 contract MorphoWithdrawHook is BaseMorphoLoanHook {
     /*//////////////////////////////////////////////////////////////
@@ -32,13 +37,13 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
     uint256 private constant MIN_DATA_LENGTH = 176;
 
     /// @notice Byte offset for lltv uint256
-    uint256 private constant WITHDRAW_LLTV_OFFSET = 80;
+    uint256 private constant WITHDRAW_LLTV_OFFSET = 132;
 
     /// @notice Byte offset for assets uint256
-    uint256 private constant ASSETS_OFFSET = 112;
+    uint256 private constant ASSETS_OFFSET = 164;
 
     /// @notice Byte offset for shares uint256
-    uint256 private constant SHARES_OFFSET = 144;
+    uint256 private constant SHARES_OFFSET = 196;
 
     /*//////////////////////////////////////////////////////////////
                                STRUCTS
@@ -55,7 +60,24 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
     //////////////////////////////////////////////////////////////*/
 
     /// @param morpho_ Address of the Morpho Blue protocol
-    constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN_REPAY) { }
+    constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN) { }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Morpho Withdraw";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Withdraws supplied assets from a Morpho market";
+    }
+
+    /// @notice This hook has no usePrevHookAmount field — offset 144 is the shares uint256.
+    /// @dev Override to prevent the inherited function from misreading shares[0] as a boolean.
+    function decodeUsePrevHookAmount(bytes memory) external pure override returns (bool) {
+        return false;
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
@@ -96,6 +118,45 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
         );
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    /// @dev Returns both assets and shares slots; exactly one must be nonzero (XOR invariant)
+    function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](2);
+        amounts[0] = BytesLib.toUint256(data, ASSETS_OFFSET);
+        amounts[1] = BytesLib.toUint256(data, SHARES_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    /// @dev Slot 0 = assets (IN, ASSETS), Slot 1 = shares (IN, SHARES)
+    ///      OMS picks the slot matching the intent's denomination
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](2);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.ASSETS);
+        meta[1] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.SHARES);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    /// @dev Enforces assets-XOR-shares invariant: after replacement, exactly one of
+    ///      assets/shares must be nonzero (Morpho requires exactly one to be set)
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 2) revert INVALID_AMOUNTS_LENGTH();
+
+        // Enforce assets-XOR-shares BEFORE mutating data: exactly one must be nonzero
+        if (amounts[0] != 0 && amounts[1] != 0) revert AMOUNT_NOT_VALID();
+        if (amounts[0] == 0 && amounts[1] == 0) revert AMOUNT_NOT_VALID();
+
+        data = _replaceCalldataAmount(data, amounts[0], ASSETS_OFFSET);
+        return _replaceCalldataAmount(data, amounts[1], SHARES_OFFSET);
+    }
+
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -110,6 +171,7 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
     /// @dev Computes loanToken received by account (post - pre) and sets as outAmount
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(getLoanTokenBalance(account, data) - getOutAmount(account), account);
+        _setOutToken(getLoanTokenAddress(data), account);
     }
 
     /// @dev Decodes the hook data for withdraw operations

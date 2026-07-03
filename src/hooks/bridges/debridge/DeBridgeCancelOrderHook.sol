@@ -9,63 +9,71 @@ import { IDlnDestination, Order } from "../../../vendor/debridge/IDlnDestination
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /// @title DeBridgeCancelOrderHook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         uint256 value = BytesLib.toUint256(data, 0);
-/// @notice         uint64 makerOrderNonce = BytesLib.toUint64(data, 32);
-/// @notice         uint256 makerSrc_paramLength = BytesLib.toUint256(data, 40);
-/// @notice         bytes makerSrc = BytesLib.slice(data, 72, makerSrc_paramLength);
-/// @notice         uint256 giveTokenAddress_paramLength = BytesLib.toUint256(data, 72 + makerSrc_paramLength);
-/// @notice         bytes giveTokenAddress = BytesLib.slice(data, 104 + makerSrc_paramLength,
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         uint256 value = BytesLib.toUint256(data, 52);
+/// @notice         uint64 makerOrderNonce = BytesLib.toUint64(data, 84);
+/// @notice         uint256 makerSrc_paramLength = BytesLib.toUint256(data, 92);
+/// @notice         bytes makerSrc = BytesLib.slice(data, 124, makerSrc_paramLength);
+/// @notice         uint256 giveTokenAddress_paramLength = BytesLib.toUint256(data, 124 + makerSrc_paramLength);
+/// @notice         bytes giveTokenAddress = BytesLib.slice(data, 156 + makerSrc_paramLength,
 /// giveTokenAddress_paramLength);
-/// @notice         uint256 giveAmount = BytesLib.toUint256(data, 104 + makerSrc_paramLength +
+/// @notice         uint256 giveAmount = BytesLib.toUint256(data, 156 + makerSrc_paramLength +
 /// giveTokenAddress_paramLength);
-/// @notice         uint256 giveChainId = BytesLib.toUint256(data, 136 + makerSrc_paramLength +
+/// @notice         uint256 giveChainId = BytesLib.toUint256(data, 188 + makerSrc_paramLength +
 /// giveTokenAddress_paramLength);
-/// @notice         uint256 takeChainId = BytesLib.toUint256(data, 168 + makerSrc_paramLength +
+/// @notice         uint256 takeChainId = BytesLib.toUint256(data, 220 + makerSrc_paramLength +
 /// giveTokenAddress_paramLength);
-/// @notice         uint256 takeTokenAddress_paramLength = BytesLib.toUint256(data, 200 + makerSrc_paramLength +
+/// @notice         uint256 takeTokenAddress_paramLength = BytesLib.toUint256(data, 252 + makerSrc_paramLength +
 /// giveTokenAddress_paramLength);
-/// @notice         bytes takeTokenAddress = BytesLib.slice(data, 232 + makerSrc_paramLength +
+/// @notice         bytes takeTokenAddress = BytesLib.slice(data, 284 + makerSrc_paramLength +
 /// giveTokenAddress_paramLength + takeTokenAddress_paramLength);
-/// @notice         uint256 takeAmount = BytesLib.toUint256(data, 232 + makerSrc_paramLength +
+/// @notice         uint256 takeAmount = BytesLib.toUint256(data, 284 + makerSrc_paramLength +
 /// giveTokenAddress_paramLength + takeTokenAddress_paramLength);
-/// @notice         uint256 receiverDst_paramLength = BytesLib.toUint256(data, 264 + makerSrc_paramLength +
+/// @notice         uint256 receiverDst_paramLength = BytesLib.toUint256(data, 316 + makerSrc_paramLength +
 /// giveTokenAddress_paramLength + takeTokenAddress_paramLength);
-/// @notice         bytes receiverDst = BytesLib.slice(data, 296 + makerSrc_paramLength + giveTokenAddress_paramLength +
+/// @notice         bytes receiverDst = BytesLib.slice(data, 348 + makerSrc_paramLength + giveTokenAddress_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength);
-/// @notice         uint256 givePatchAuthoritySrc_paramLength = BytesLib.toUint256(data, 296 + makerSrc_paramLength +
+/// @notice         uint256 givePatchAuthoritySrc_paramLength = BytesLib.toUint256(data, 348 + makerSrc_paramLength +
 /// giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength);
-/// @notice         bytes givePatchAuthoritySrc = BytesLib.slice(data, 328 + makerSrc_paramLength +
+/// @notice         bytes givePatchAuthoritySrc = BytesLib.slice(data, 380 + makerSrc_paramLength +
 /// giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength +
 /// givePatchAuthoritySrc_paramLength);
-/// @notice         uint256 orderAuthorityAddressDst_paramLength = BytesLib.toUint256(data, 328 + makerSrc_paramLength +
+/// @notice         uint256 orderAuthorityAddressDst_paramLength = BytesLib.toUint256(data, 380 + makerSrc_paramLength +
 /// giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength +
 /// givePatchAuthoritySrc_paramLength);
-/// @notice         bytes orderAuthorityAddressDst = BytesLib.slice(data, 360 + makerSrc_paramLength +
+/// @notice         bytes orderAuthorityAddressDst = BytesLib.slice(data, 412 + makerSrc_paramLength +
 /// giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength +
 /// givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength);
-/// @notice         uint256 allowedTakerDst_paramLength = BytesLib.toUint256(data, 360 + makerSrc_paramLength +
+/// @notice         uint256 allowedTakerDst_paramLength = BytesLib.toUint256(data, 412 + makerSrc_paramLength +
 /// giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength +
 /// givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength);
-/// @notice         bytes allowedTakerDst = BytesLib.slice(data, 392 + makerSrc_paramLength +
+/// @notice         bytes allowedTakerDst = BytesLib.slice(data, 444 + makerSrc_paramLength +
 /// giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength +
 /// givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength);
-/// @notice         uint256 allowedCancelBeneficiarySrc_paramLength = BytesLib.toUint256(data, 392 +
+/// @notice         uint256 allowedCancelBeneficiarySrc_paramLength = BytesLib.toUint256(data, 444 +
 /// makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength +
 /// givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength);
-/// @notice         bytes allowedCancelBeneficiarySrc = BytesLib.slice(data, 424 + makerSrc_paramLength +
+/// @notice         bytes allowedCancelBeneficiarySrc = BytesLib.slice(data, 476 + makerSrc_paramLength +
 /// giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength +
 /// givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength +
 /// allowedCancelBeneficiarySrc_paramLength);
-/// @notice         uint256 executionFee = BytesLib.toUint256(data, 424 + makerSrc_paramLength +
+/// @notice         uint256 executionFee = BytesLib.toUint256(data, 476 + makerSrc_paramLength +
 /// giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength +
 /// givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength +
 /// allowedCancelBeneficiarySrc_paramLength);
-contract DeBridgeCancelOrderHook is BaseHook {
+contract DeBridgeCancelOrderHook is BaseHook, ISuperHookInflowOutflow {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -75,6 +83,17 @@ contract DeBridgeCancelOrderHook is BaseHook {
         if (dlnDestination_ == address(0)) revert ADDRESS_NOT_VALID();
         DLN_DESTINATION = dlnDestination_;
     }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "deBridge Cancel Order";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Cancels a pending deBridge cross-chain order";
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -114,6 +133,26 @@ contract DeBridgeCancelOrderHook is BaseHook {
         );
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](0);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+    }
+
+    /// @inheritdoc IERC165
+    /// @dev S2: implements ISuperHookInflowOutflow (decode-only) but NOT ISuperHookOutflow
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
+        if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
+        return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
+            || interfaceId == type(ISuperHookResult).interfaceId
+            || interfaceId == type(ISuperHookInspector).interfaceId;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -122,7 +161,7 @@ contract DeBridgeCancelOrderHook is BaseHook {
         pure
         returns (Order memory vars, uint256 value, uint256 executionFee)
     {
-        uint256 offset = 0;
+        uint256 offset = 52; // skip 52-byte placeholder
 
         value = BytesLib.toUint256(data, offset);
         offset += 32;
@@ -185,5 +224,10 @@ contract DeBridgeCancelOrderHook is BaseHook {
         vars.externalCall = ""; // Hook is used only for cancelling an order
 
         executionFee = BytesLib.toUint256(data, offset);
+    }
+
+    /// @dev Side-effect only hook — forwards previous hook's outAmount + outToken
+    function _pipeMode() internal pure override returns (PipeMode) {
+        return PipeMode.PASSTHROUGH;
     }
 }

@@ -1795,7 +1795,7 @@ contract AllAccountTypesTest is Safe7579Precompiles, BaseTest {
     // -- modulekit helpers
     function _getFactory(string memory factoryType) internal view returns (address factory) {
         bytes32 slot = keccak256(abi.encode("ModuleKit.", factoryType, "FactorySlot"));
-        assembly {
+        assembly ("memory-safe") {
             factory := sload(slot)
         }
     }

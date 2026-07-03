@@ -30,7 +30,7 @@ library SignatureTransientStorage {
 
         // only one userOp per account is being executed
         uint256 stored;
-        assembly {
+        assembly ("memory-safe") {
             stored := tload(storageKey)
         }
 
@@ -38,13 +38,13 @@ library SignatureTransientStorage {
 
         uint256 len = data.length;
 
-        assembly {
+        assembly ("memory-safe") {
             tstore(storageKey, len)
         }
 
         for (uint256 i; i < len; i += 32) {
             bytes32 word;
-            assembly {
+            assembly ("memory-safe") {
                 word := calldataload(add(data.offset, i))
                 tstore(add(storageKey, div(add(i, 32), 32)), word)
             }
@@ -59,7 +59,7 @@ library SignatureTransientStorage {
     function loadSignature(uint256 identifier) internal view returns (bytes memory out) {
         bytes32 storageKey = _makeKey(identifier);
         uint256 len;
-        assembly {
+        assembly ("memory-safe") {
             len := tload(storageKey)
         }
 
@@ -67,11 +67,11 @@ library SignatureTransientStorage {
 
         for (uint256 i; i < len; i += 32) {
             bytes32 word;
-            assembly {
+            assembly ("memory-safe") {
                 word := tload(add(storageKey, div(add(i, 32), 32)))
             }
 
-            assembly {
+            assembly ("memory-safe") {
                 mstore(add(add(out, 0x20), i), word)
             }
         }

@@ -99,14 +99,17 @@ contract UniswapV2HookIntegrationTest is MinimalBaseIntegrationTest {
         pure
         returns (bytes memory)
     {
+        // Prepend 52-byte strategy header (bytes32 yieldSourceOracleId + address yieldSource)
         bytes memory data = abi.encodePacked(
-            tokenIn, // 20 bytes
-            tokenOut, // 20 bytes
-            deadline, // 32 bytes
-            amountIn, // 32 bytes
-            amountOutMin, // 32 bytes
-            usePrevHookAmount, // 1 byte
-            uint256(path.length) // 32 bytes
+            bytes32(0), // yieldSourceOracleId placeholder (32 bytes)
+            bytes20(address(0)), // yieldSource placeholder (20 bytes)
+            tokenIn, // 20 bytes at offset 52
+            tokenOut, // 20 bytes at offset 72
+            deadline, // 32 bytes at offset 92
+            amountIn, // 32 bytes at offset 124
+            amountOutMin, // 32 bytes at offset 156
+            usePrevHookAmount, // 1 byte at offset 188
+            uint256(path.length) // 32 bytes at offset 189
         );
         for (uint256 i = 0; i < path.length; i++) {
             data = bytes.concat(data, bytes20(path[i]));
@@ -207,7 +210,7 @@ contract UniswapV2HookIntegrationTest is MinimalBaseIntegrationTest {
 
         // Extract tokenOut address
         address extractedTokenOut;
-        assembly {
+        assembly ("memory-safe") {
             extractedTokenOut := mload(add(inspectResult, 20))
         }
         assertEq(extractedTokenOut, CHAIN_1_WETH, "Should extract correct tokenOut");
@@ -571,6 +574,14 @@ contract MockPrevHookV2 is BaseHook {
         _outAmount = outAmount_;
     }
 
+    function name() external pure override returns (string memory) {
+        return "Mock Prev Hook V2";
+    }
+
+    function description() external pure override returns (string memory) {
+        return "Mock hook for testing";
+    }
+
     function _buildHookExecutions(address, address, bytes calldata)
         internal
         pure
@@ -624,7 +635,10 @@ contract UniswapV2HookEdgeCaseTests is MinimalBaseIntegrationTest {
         pure
         returns (bytes memory)
     {
+        // Prepend 52-byte strategy header (bytes32 yieldSourceOracleId + address yieldSource)
         bytes memory data = abi.encodePacked(
+            bytes32(0),          // yieldSourceOracleId placeholder (header bytes 0-31)
+            bytes20(address(0)), // yieldSource placeholder (header bytes 32-51)
             tokenIn,
             tokenOut,
             deadline,
@@ -1053,15 +1067,15 @@ contract UniswapV2HookEdgeCaseTests is MinimalBaseIntegrationTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Test revert when path has only 1 element (too short)
-    /// @dev pathLength=1 with 1 address = 189 bytes total, which is < 209 minimum,
+    /// @dev pathLength=1 with 1 address = 241 bytes total, which is < 261 minimum,
     ///      so INVALID_HOOK_DATA fires before _decodeSwapParams can check pathLength.
-    ///      We manually craft 209+ bytes with pathLength=1 to hit the path length check.
+    ///      We manually craft 261+ bytes with pathLength=1 to hit the path length check.
     function test_UniswapV2_RevertIf_PathTooShort() public {
         address account = instanceOnEth.account;
 
-        // Build data with pathLength=1 but pad to pass the 209-byte minimum check.
-        // Normal _buildHookData with 1-element path yields 189 bytes (under 209).
-        // Instead, encode pathLength=1 with extra padding so data.length >= 209.
+        // Build data with pathLength=1 but pad to pass the 261-byte minimum check.
+        // Normal _buildHookData with 1-element path yields 241 bytes (under 261).
+        // Instead, encode pathLength=1 with extra padding so data.length >= 261.
         address[] memory path = _buildPath(CHAIN_1_USDC, CHAIN_1_WETH);
         bytes memory hookData = _buildHookData(
             CHAIN_1_USDC,
@@ -1072,14 +1086,14 @@ contract UniswapV2HookEdgeCaseTests is MinimalBaseIntegrationTest {
             false,
             path
         );
-        // Overwrite pathLength at offset 137 (32 bytes) to 1 instead of 2.
-        // The data still has 2 addresses appended (209 bytes total), so it passes the
+        // Overwrite pathLength at offset 189 (32 bytes) to 1 instead of 2.
+        // The data still has 2 addresses appended (261 bytes total), so it passes the
         // minimum length check, but _decodeSwapParams sees pathLength < 2 and reverts.
-        assembly {
+        assembly ("memory-safe") {
             // hookData is a bytes variable: first 32 bytes = length, data starts at +32
-            // pathLength is at byte offset 137 in the data, stored as uint256 (32 bytes)
-            // So it occupies bytes [137..168], which is at memory offset 32 + 137 = 169
-            mstore(add(hookData, 169), 1)
+            // pathLength is at byte offset 189 in the data, stored as uint256 (32 bytes)
+            // So it occupies bytes [189..220], which is at memory offset 32 + 189 = 221
+            mstore(add(hookData, 221), 1)
         }
 
         vm.expectRevert(SwapUniswapV2Hook.INVALID_PATH_LENGTH.selector);
@@ -1189,11 +1203,11 @@ contract UniswapV2HookEdgeCaseTests is MinimalBaseIntegrationTest {
                     HOOK DATA VALIDATION TESTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Test revert when hook data is too short (< 209 bytes)
+    /// @notice Test revert when hook data is too short (< 261 bytes)
     function test_UniswapV2_RevertIf_HookDataTooShort() public {
         address account = instanceOnEth.account;
 
-        // 100 bytes of garbage data — well under the 209 byte minimum
+        // 100 bytes of garbage data — well under the 261 byte minimum
         bytes memory shortData = new bytes(100);
 
         vm.expectRevert(SwapUniswapV2Hook.INVALID_HOOK_DATA.selector);
@@ -1263,5 +1277,69 @@ contract UniswapV2HookEdgeCaseTests is MinimalBaseIntegrationTest {
     function test_UniswapV2_ApproveAndSwap_RevertIf_RouterZero() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         new ApproveAndSwapUniswapV2Hook(address(0), NATIVE);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    DECODE AMOUNT / REPLACE CALLDATA AMOUNT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice decodeAmount + replaceCalldataAmount roundtrip for UniswapV2 hooks
+    function test_UniswapV2_DecodeAmounts_ReplaceCalldataAmounts() external view {
+        address account = instanceOnEth.account;
+        uint256 originalAmount = 1000e6;
+        address[] memory path = _buildPath(CHAIN_1_USDC, CHAIN_1_WETH);
+
+        bytes memory hookData =
+            _buildHookData(CHAIN_1_USDC, CHAIN_1_WETH, block.timestamp + 1 hours, originalAmount, 0.2 ether, false, path);
+
+        // Verify decodeAmount
+        assertEq(swapHook.decodeAmounts(hookData)[0], originalAmount, "SwapHook decodeAmount mismatch");
+        assertEq(approveAndSwapHook.decodeAmounts(hookData)[0], originalAmount, "ApproveAndSwapHook decodeAmount mismatch");
+
+        // Replace and verify roundtrip
+        uint256 newAmount = 500e6;
+        bytes memory replacedSwap = swapHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        bytes memory replacedApproveAndSwap = approveAndSwapHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+
+        assertEq(swapHook.decodeAmounts(replacedSwap)[0], newAmount, "SwapHook replaced amount mismatch");
+        assertEq(approveAndSwapHook.decodeAmounts(replacedApproveAndSwap)[0], newAmount, "ApproveAndSwapHook replaced amount mismatch");
+        assertFalse(swapHook.decodeUsePrevHookAmount(replacedSwap), "usePrevHookAmount should be preserved");
+    }
+
+    /// @notice ApproveAndSwap: build with 1000 USDC, replace to 500 USDC, execute, verify only 500 spent
+    function test_UniswapV2_ApproveAndSwap_ReplaceCalldataAmounts_ExecutesCorrectly() public {
+        address account = instanceOnEth.account;
+        uint256 originalAmount = 1000e6;
+        uint256 newAmount = 500e6;
+        address[] memory path = _buildPath(CHAIN_1_USDC, CHAIN_1_WETH);
+
+        deal(CHAIN_1_USDC, account, originalAmount);
+
+        bytes memory hookData =
+            _buildHookData(CHAIN_1_USDC, CHAIN_1_WETH, block.timestamp + 1 hours, originalAmount, 0, false, path);
+
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(approveAndSwapHook.decodeAmounts(replaced)[0], newAmount, "Amount not replaced correctly");
+
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(account);
+
+        // Execute via SuperExecutor
+        address[] memory hookAddresses = new address[](1);
+        hookAddresses[0] = address(approveAndSwapHook);
+
+        bytes[] memory hookDataArray = new bytes[](1);
+        hookDataArray[0] = replaced;
+
+        ISuperExecutor.ExecutorEntry memory entryToExecute =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookDataArray });
+
+        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
+        executeOp(opData);
+
+        uint256 usdcAfter = IERC20(CHAIN_1_USDC).balanceOf(account);
+        uint256 wethAfter = IERC20(CHAIN_1_WETH).balanceOf(account);
+
+        assertEq(usdcAfter, originalAmount - newAmount, "Should only spend replaced amount");
+        assertGt(wethAfter - wethBefore, 0, "Should receive WETH");
     }
 }

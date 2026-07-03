@@ -566,33 +566,33 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     /*//////////////////////////////////////////////////////////////
                             DECODE AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_ApproveAndRequestDepositHook_DecodeAmount() public view {
+    function test_ApproveAndRequestDepositHook_DecodeAmounts() public view {
         bytes memory data = _encodeData(false);
-        uint256 decodedAmount = approveAndRequestDepositHook.decodeAmount(data);
+        uint256 decodedAmount = approveAndRequestDepositHook.decodeAmounts(data)[0];
         assertEq(decodedAmount, amount);
     }
 
-    function test_RequestDepositHook_DecodeAmount() public view {
+    function test_RequestDepositHook_DecodeAmounts() public view {
         bytes memory data = _encodeRequestData(false);
-        uint256 decodedAmount = requestDepositHook.decodeAmount(data);
+        uint256 decodedAmount = requestDepositHook.decodeAmounts(data)[0];
         assertEq(decodedAmount, amount);
     }
 
-    function test_DepositHook_DecodeAmount() public view {
+    function test_DepositHook_DecodeAmounts() public view {
         bytes memory data = _encodeData(false, false);
-        uint256 decodedAmount = depositHook.decodeAmount(data);
+        uint256 decodedAmount = depositHook.decodeAmounts(data)[0];
         assertEq(decodedAmount, amount);
     }
 
-    function test_RequestRedeemHook_DecodeAmount() public view {
+    function test_RequestRedeemHook_DecodeAmounts() public view {
         bytes memory data = _encodeRequestData(false);
-        uint256 decodedAmount = reqRedeemHook.decodeAmount(data);
+        uint256 decodedAmount = reqRedeemHook.decodeAmounts(data)[0];
         assertEq(decodedAmount, amount);
     }
 
-    function test_WithdrawHook_DecodeAmount() public view {
+    function test_WithdrawHook_DecodeAmounts() public view {
         bytes memory data = _encodeData(false, false);
-        uint256 decodedAmount = withdrawHook.decodeAmount(data);
+        uint256 decodedAmount = withdrawHook.decodeAmounts(data)[0];
         assertEq(decodedAmount, amount);
     }
 
@@ -612,21 +612,94 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     function test_ApproveAndRedeemHook_ReplaceCallData() public view {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false, false);
 
-        bytes memory replacedData = redeemHook.replaceCalldataAmount(data, 1);
+        bytes memory replacedData = redeemHook.replaceCalldataAmounts(data, _singleAmount(1));
         assertEq(replacedData.length, data.length);
 
-        uint256 replacedAmount = redeemHook.decodeAmount(replacedData);
+        uint256 replacedAmount = redeemHook.decodeAmounts(replacedData)[0];
         assertEq(replacedAmount, 1);
     }
 
     function test_WithdrawHook_ReplaceCallData() public view {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false, false);
 
-        bytes memory replacedData = withdrawHook.replaceCalldataAmount(data, 1);
+        bytes memory replacedData = withdrawHook.replaceCalldataAmounts(data, _singleAmount(1));
         assertEq(replacedData.length, data.length);
 
-        uint256 replacedAmount = withdrawHook.decodeAmount(replacedData);
+        uint256 replacedAmount = withdrawHook.decodeAmounts(replacedData)[0];
         assertEq(replacedAmount, 1);
+    }
+
+    function test_ApproveAndRequestDepositHook_ReplaceCallData() public view {
+        bytes memory data = _encodeData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndRequestDepositHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(approveAndRequestDepositHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_ApproveAndRequestDepositHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeData(false);
+        bytes memory result = approveAndRequestDepositHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(approveAndRequestDepositHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_RequestDepositHook_ReplaceCallData() public view {
+        bytes memory data = _encodeRequestData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = requestDepositHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(requestDepositHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_RequestDepositHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeRequestData(false);
+        bytes memory result = requestDepositHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(requestDepositHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_DepositHook_ReplaceCallData() public view {
+        bytes memory data = _encodeData(false, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = depositHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(depositHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_DepositHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeData(false, false);
+        bytes memory result = depositHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(depositHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_RequestRedeemHook_ReplaceCallData() public view {
+        bytes memory data = _encodeRequestData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = reqRedeemHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(reqRedeemHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_RequestRedeemHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeRequestData(false);
+        bytes memory result = reqRedeemHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(reqRedeemHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function testFuzz_RedeemHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, fuzzAmount, false);
+        assertEq(redeemHook.decodeAmounts(data)[0], fuzzAmount);
+    }
+
+    function testFuzz_WithdrawHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false, false);
+        bytes memory result = withdrawHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(withdrawHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -771,6 +844,42 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         assertEq(
             uint256(requestDepositHook.isAsyncCancelHook()), uint256(ISuperHookAsyncCancelations.CancelationType.NONE)
         );
+    }
+
+    function test_ApproveAndRequestDeposit7540_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _encodeData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndRequestDepositHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = approveAndRequestDepositHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndRequestDepositHook.decodeAmounts(replaced)[0], newAmount);
+    }
+
+    function test_RequestDeposit7540_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _encodeRequestData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = requestDepositHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = requestDepositHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(requestDepositHook.decodeAmounts(replaced)[0], newAmount);
+    }
+
+    function test_Deposit7540_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _encodeData(false, false);
+        uint256 newAmount = 500;
+        bytes memory replaced = depositHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = depositHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(depositHook.decodeAmounts(replaced)[0], newAmount);
+    }
+
+    function test_RequestRedeem7540_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _encodeRedeemData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = reqRedeemHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = reqRedeemHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(reqRedeemHook.decodeAmounts(replaced)[0], newAmount);
     }
 
     /*//////////////////////////////////////////////////////////////

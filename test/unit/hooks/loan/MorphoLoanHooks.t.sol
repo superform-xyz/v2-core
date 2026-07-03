@@ -253,7 +253,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken),
+                bytes(new bytes(52)), address(loanToken),
                 address(collateralToken),
                 address(mockOracle),
                 address(mockIRM),
@@ -270,7 +270,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(0), address(collateralToken), address(mockOracle), address(mockIRM), amount, lltv, false
+                bytes(new bytes(52)), address(0), address(collateralToken), address(mockOracle), address(mockIRM), amount, lltv, false
             )
         );
     }
@@ -281,7 +281,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken), address(0), address(mockOracle), address(mockIRM), amount, lltv, false
+                bytes(new bytes(52)), address(loanToken), address(0), address(mockOracle), address(mockIRM), amount, lltv, false
             )
         );
     }
@@ -292,7 +292,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken), address(collateralToken), address(0), address(mockIRM), amount, lltv, false
+                bytes(new bytes(52)), address(loanToken), address(collateralToken), address(0), address(mockIRM), amount, lltv, false
             )
         );
     }
@@ -303,7 +303,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken), address(collateralToken), address(mockOracle), address(0), amount, lltv, false
+                bytes(new bytes(52)), address(loanToken), address(collateralToken), address(mockOracle), address(0), amount, lltv, false
             )
         );
     }
@@ -400,7 +400,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken),
+                bytes(new bytes(52)), address(loanToken),
                 address(collateralToken),
                 address(0),
                 MORPHO_IRM,
@@ -419,7 +419,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(0),
+                bytes(new bytes(52)), address(0),
                 address(collateralToken),
                 address(mockOracle),
                 MORPHO_IRM,
@@ -438,7 +438,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken), address(0), address(mockOracle), MORPHO_IRM, amount, lltvRatio, false, lltv, false
+                bytes(new bytes(52)), address(loanToken), address(0), address(mockOracle), MORPHO_IRM, amount, lltvRatio, false, lltv, false
             )
         );
     }
@@ -449,7 +449,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken),
+                bytes(new bytes(52)), address(loanToken),
                 address(collateralToken),
                 address(mockOracle),
                 MORPHO_IRM,
@@ -567,7 +567,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken),
+                bytes(new bytes(52)), address(loanToken),
                 address(collateralToken),
                 address(0),
                 MORPHO_IRM,
@@ -586,7 +586,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken), address(collateralToken), address(0), MORPHO_IRM, amount, lltv, false, false
+                bytes(new bytes(52)), address(loanToken), address(collateralToken), address(0), MORPHO_IRM, amount, lltv, false, false
             )
         );
     }
@@ -597,7 +597,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(0),
+                bytes(new bytes(52)), address(0),
                 address(collateralToken),
                 address(mockOracle),
                 MORPHO_IRM,
@@ -616,7 +616,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(0), address(collateralToken), address(mockOracle), MORPHO_IRM, amount, lltv, false, false
+                bytes(new bytes(52)), address(0), address(collateralToken), address(mockOracle), MORPHO_IRM, amount, lltv, false, false
             )
         );
     }
@@ -627,7 +627,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken), address(0), address(mockOracle), MORPHO_IRM, amount, lltvRatio, false, lltv, false
+                bytes(new bytes(52)), address(loanToken), address(0), address(mockOracle), MORPHO_IRM, amount, lltvRatio, false, lltv, false
             )
         );
     }
@@ -638,7 +638,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken), address(0), address(mockOracle), MORPHO_IRM, amount, lltv, false, false
+                bytes(new bytes(52)), address(loanToken), address(0), address(mockOracle), MORPHO_IRM, amount, lltv, false, false
             )
         );
     }
@@ -649,7 +649,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken),
+                bytes(new bytes(52)), address(loanToken),
                 address(collateralToken),
                 address(mockOracle),
                 MORPHO_IRM,
@@ -668,7 +668,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken),
+                bytes(new bytes(52)), address(loanToken),
                 address(collateralToken),
                 address(mockOracle),
                 MORPHO_IRM,
@@ -686,7 +686,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken),
+                bytes(new bytes(52)), address(loanToken),
                 address(collateralToken),
                 address(mockOracle),
                 address(0),
@@ -700,6 +700,7 @@ contract MorphoLoanHooksTest is Helpers {
 
     function test_SupplyHook_Build() public view {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(loanToken),
             address(collateralToken),
             address(mockOracle),
@@ -727,6 +728,7 @@ contract MorphoLoanHooksTest is Helpers {
         MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             address(loanToken),
             address(collateralToken),
             address(mockOracle),
@@ -752,7 +754,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltv, false, false
+                bytes(new bytes(52)), address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltv, false, false
             )
         );
     }
@@ -770,7 +772,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken), address(0), address(mockOracle), address(mockIRM), amount, lltv, false, false
+                bytes(new bytes(52)), address(loanToken), address(0), address(mockOracle), address(mockIRM), amount, lltv, false, false
             )
         );
     }
@@ -781,7 +783,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken),
+                bytes(new bytes(52)), address(loanToken),
                 address(collateralToken),
                 address(mockOracle),
                 address(mockIRM),
@@ -832,7 +834,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltv, false, false
+                bytes(new bytes(52)), address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltv, false, false
             )
         );
     }
@@ -843,7 +845,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken), address(0), address(mockOracle), address(mockIRM), amount, lltv, false, false
+                bytes(new bytes(52)), address(loanToken), address(0), address(mockOracle), address(mockIRM), amount, lltv, false, false
             )
         );
     }
@@ -854,7 +856,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken),
+                bytes(new bytes(52)), address(loanToken),
                 address(collateralToken),
                 address(mockOracle),
                 address(mockIRM),
@@ -1231,6 +1233,7 @@ contract MorphoLoanHooksTest is Helpers {
         vm.warp(block.timestamp + 1 days); // Accrue interest for 1 day
 
         bytes memory data = abi.encodePacked(
+            address(loanToken), address(collateralToken), bytes12(0), // 52-byte header
             address(loanToken),
             address(collateralToken),
             address(mockOracle),
@@ -1344,6 +1347,7 @@ contract MorphoLoanHooksTest is Helpers {
         MockZeroOracle zeroOracle = new MockZeroOracle();
 
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             loanToken, collateralToken, address(zeroOracle), address(mockIRM), amount, lltvRatio, false, lltv, false
         );
 
@@ -1397,7 +1401,7 @@ contract MorphoLoanHooksTest is Helpers {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         borrowHookB.inspect(
             abi.encodePacked(
-                address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltvRatio, false, lltv, false
+                bytes(new bytes(52)), address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltvRatio, false, lltv, false
             )
         );
     }
@@ -1406,7 +1410,7 @@ contract MorphoLoanHooksTest is Helpers {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         borrowHook.inspect(
             abi.encodePacked(
-                address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltvRatio, false, lltv, false
+                bytes(new bytes(52)), address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltvRatio, false, lltv, false
             )
         );
     }
@@ -1414,14 +1418,14 @@ contract MorphoLoanHooksTest is Helpers {
     function test_SupplyHook_Inspector_RevertIf_InvalidAddresses() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         supplyHook.inspect(
-            abi.encodePacked(address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltv, false)
+            abi.encodePacked(bytes(new bytes(52)), address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltv, false)
         );
     }
 
     function test_LendHook_Inspector_RevertIf_InvalidAddresses() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         lendHook.inspect(
-            abi.encodePacked(address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltv, false)
+            abi.encodePacked(bytes(new bytes(52)), address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltv, false)
         );
     }
 
@@ -1429,7 +1433,7 @@ contract MorphoLoanHooksTest is Helpers {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         repayHook.inspect(
             abi.encodePacked(
-                address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltv, false, false
+                bytes(new bytes(52)), address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltv, false, false
             )
         );
     }
@@ -1438,7 +1442,7 @@ contract MorphoLoanHooksTest is Helpers {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         repayAndWithdrawHook.inspect(
             abi.encodePacked(
-                address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltv, false, false
+                bytes(new bytes(52)), address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltv, false, false
             )
         );
     }
@@ -1449,7 +1453,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken), address(collateralToken), address(mockOracle), address(0), amount, lltv, false, false
+                bytes(new bytes(52)), address(loanToken), address(collateralToken), address(mockOracle), address(0), amount, lltv, false, false
             )
         );
     }
@@ -1460,9 +1464,187 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken), address(collateralToken), address(mockOracle), address(0), amount, lltv, false, false
+                bytes(new bytes(52)), address(loanToken), address(collateralToken), address(mockOracle), address(0), amount, lltv, false, false
             )
         );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              DECODE AMOUNT / REPLACE CALLDATA AMOUNT TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_SupplyHook_DecodeAmounts() public view {
+        bytes memory data = _encodeSupplyData(false);
+        assertEq(supplyHook.decodeAmounts(data)[0], amount);
+    }
+
+    function test_SupplyHook_ReplaceCalldataAmounts() public view {
+        bytes memory data = _encodeSupplyData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = supplyHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(supplyHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_SupplyHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeSupplyData(false);
+        bytes memory result = supplyHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(supplyHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_LendHook_DecodeAmounts() public view {
+        bytes memory data = _encodeLendData(false);
+        assertEq(lendHook.decodeAmounts(data)[0], amount);
+    }
+
+    function test_LendHook_ReplaceCalldataAmounts() public view {
+        bytes memory data = _encodeLendData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = lendHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(lendHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_LendHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeLendData(false);
+        bytes memory result = lendHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(lendHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_BorrowHook_DecodeAmounts() public view {
+        bytes memory data = _encodeBorrowData(false);
+        assertEq(borrowHook.decodeAmounts(data)[0], amount);
+    }
+
+    function test_BorrowHook_ReplaceCalldataAmounts() public view {
+        bytes memory data = _encodeBorrowData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = borrowHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(borrowHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_BorrowHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeBorrowData(false);
+        bytes memory result = borrowHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(borrowHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_RepayHook_DecodeAmounts() public view {
+        bytes memory data = _encodeRepayData(false, false);
+        assertEq(repayHook.decodeAmounts(data)[0], amount);
+    }
+
+    function test_RepayHook_ReplaceCalldataAmounts() public view {
+        bytes memory data = _encodeRepayData(false, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = repayHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(repayHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_RepayHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeRepayData(false, false);
+        bytes memory result = repayHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(repayHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_SupplyAndBorrowHook_DecodeAmounts() public view {
+        bytes memory data = _encodeBorrowData(false);
+        assertEq(borrowHook.decodeAmounts(data)[0], amount);
+    }
+
+    function test_SupplyAndBorrowHook_ReplaceCalldataAmounts() public view {
+        bytes memory data = _encodeBorrowData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = borrowHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(borrowHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_SupplyAndBorrowHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeBorrowData(false);
+        bytes memory result = borrowHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(borrowHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_RepayAndWithdrawHook_DecodeAmounts() public view {
+        bytes memory data = _encodeRepayAndWithdrawData(false, false);
+        assertEq(repayAndWithdrawHook.decodeAmounts(data)[0], amount);
+    }
+
+    function test_RepayAndWithdrawHook_ReplaceCalldataAmounts() public view {
+        bytes memory data = _encodeRepayAndWithdrawData(false, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = repayAndWithdrawHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(repayAndWithdrawHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_RepayAndWithdrawHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeRepayAndWithdrawData(false, false);
+        bytes memory result = repayAndWithdrawHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(repayAndWithdrawHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_WithdrawHook_DecodeAmounts() public view {
+        bytes memory data =
+            _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, 0);
+        assertEq(withdrawHook.decodeAmounts(data)[0], amount);
+    }
+
+    function test_WithdrawHook_ReplaceCalldataAmounts() public view {
+        bytes memory data =
+            _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, 0);
+        uint256 newAmount = 2e18;
+        // MorphoWithdrawHook has dual-slot: [assets, shares] with XOR invariant
+        bytes memory result = withdrawHook.replaceCalldataAmounts(data, _dualAmounts(newAmount, 0));
+        assertEq(result.length, data.length);
+        assertEq(withdrawHook.decodeAmounts(result)[0], newAmount);
+        assertEq(withdrawHook.decodeAmounts(result)[1], 0);
+    }
+
+    function testFuzz_WithdrawHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data =
+            _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, 0);
+        // MorphoWithdrawHook has dual-slot: [assets, shares] with XOR invariant
+        bytes memory result = withdrawHook.replaceCalldataAmounts(data, _dualAmounts(fuzzAmount, 0));
+        assertEq(withdrawHook.decodeAmounts(result)[0], fuzzAmount);
+        assertEq(withdrawHook.decodeAmounts(result)[1], 0);
+    }
+
+    function test_MorphoSupply_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _encodeSupplyData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = supplyHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = supplyHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 6);
+        assertEq(supplyHook.decodeAmounts(replaced)[0], newAmount);
+    }
+
+    function test_MorphoLend_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _encodeLendData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = lendHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = lendHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 6);
+        assertEq(lendHook.decodeAmounts(replaced)[0], newAmount);
+    }
+
+    function test_MorphoWithdraw_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, 0);
+        uint256 newAmount = 500;
+        // MorphoWithdrawHook has dual-slot: [assets, shares] with XOR invariant
+        bytes memory replaced = withdrawHook.replaceCalldataAmounts(data, _dualAmounts(newAmount, 0));
+        Execution[] memory executions = withdrawHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(withdrawHook.decodeAmounts(replaced)[0], newAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1470,6 +1652,7 @@ contract MorphoLoanHooksTest is Helpers {
     //////////////////////////////////////////////////////////////*/
     function _encodeBorrowData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(
+            address(loanToken), address(collateralToken), bytes12(0), // 52-byte header
             loanToken,
             collateralToken,
             address(mockOracle),
@@ -1484,6 +1667,7 @@ contract MorphoLoanHooksTest is Helpers {
 
     function _encodeSupplyData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(
+            address(loanToken), address(collateralToken), bytes12(0), // 52-byte header
             loanToken,
             collateralToken,
             address(mockOracle),
@@ -1497,6 +1681,7 @@ contract MorphoLoanHooksTest is Helpers {
 
     function _encodeRepayData(bool usePrevHook, bool isFullRepayment) internal view returns (bytes memory) {
         return abi.encodePacked(
+            address(loanToken), address(collateralToken), bytes12(0), // 52-byte header
             loanToken,
             collateralToken,
             address(mockOracle),
@@ -1510,6 +1695,7 @@ contract MorphoLoanHooksTest is Helpers {
 
     function _encodeRepayAndWithdrawData(bool usePrevHook, bool isFullRepayment) internal view returns (bytes memory) {
         return abi.encodePacked(
+            address(loanToken), address(collateralToken), bytes12(0), // 52-byte header
             loanToken,
             collateralToken,
             address(mockOracle),
@@ -1534,18 +1720,100 @@ contract MorphoLoanHooksTest is Helpers {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(_loanToken, _collateralToken, _oracle, _irm, _lltv, _assets, _shares);
+        return abi.encodePacked(
+            address(_loanToken), address(_collateralToken), bytes12(0), // 52-byte header
+            _loanToken, _collateralToken, _oracle, _irm, _lltv, _assets, _shares
+        );
     }
 
     function _encodeBorrowOnlyData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(
+            address(loanToken), address(collateralToken), bytes12(0), // 52-byte header
             loanToken, collateralToken, address(mockOracle), MORPHO_IRM, amount, lltvRatio, usePrevHook, lltv, false
         );
     }
 
     function _encodeLendData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(
+            address(loanToken), address(collateralToken), bytes12(0), // 52-byte header
             loanToken, collateralToken, address(mockOracle), address(mockIRM), amount, lltv, usePrevHook
         );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         GET OUT TOKEN TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_LendHook_GetOutToken() public {
+        bytes memory data = _encodeLendData(false);
+        // preExecute stores current supply shares (100e18 from setUp mock)
+        lendHook.preExecute(address(0), address(this), data);
+        // postExecute: shares unchanged → outToken is set to loanToken
+        lendHook.postExecute(address(0), address(this), data);
+        assertEq(lendHook.getOutToken(address(this)), loanToken);
+    }
+
+    function test_BorrowHookB_GetOutToken() public {
+        bytes memory data = _encodeBorrowData(false);
+        // preExecute: loanToken balance = 0
+        borrowHookB.preExecute(address(0), address(this), data);
+        // simulate borrow receiving loan tokens
+        deal(loanToken, address(this), amount);
+        borrowHookB.postExecute(address(0), address(this), data);
+        assertEq(borrowHookB.getOutToken(address(this)), loanToken);
+    }
+
+    function test_RepayHook_GetOutToken() public {
+        bytes memory data = _encodeRepayData(false, false);
+        // deal loan tokens to account before repay
+        deal(loanToken, address(this), amount);
+        repayHook.preExecute(address(0), address(this), data);
+        // simulate repay consuming loan tokens
+        deal(loanToken, address(this), 0);
+        repayHook.postExecute(address(0), address(this), data);
+        assertEq(repayHook.getOutToken(address(this)), loanToken);
+    }
+
+    function test_WithdrawHook_GetOutToken() public {
+        bytes memory data =
+            _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, 0);
+        // preExecute: loanToken balance = 0
+        withdrawHook.preExecute(address(0), address(this), data);
+        // simulate withdraw receiving loan tokens
+        deal(loanToken, address(this), amount);
+        withdrawHook.postExecute(address(0), address(this), data);
+        assertEq(withdrawHook.getOutToken(address(this)), loanToken);
+    }
+
+    function test_SupplyHook_GetOutToken() public {
+        bytes memory data = _encodeSupplyData(false);
+        // deal collateral tokens to account before supply
+        deal(collateralToken, address(this), amount);
+        supplyHook.preExecute(address(0), address(this), data);
+        // simulate supply consuming collateral tokens
+        deal(collateralToken, address(this), 0);
+        supplyHook.postExecute(address(0), address(this), data);
+        assertEq(supplyHook.getOutToken(address(this)), collateralToken);
+    }
+
+    function test_BorrowHook_GetOutToken() public {
+        bytes memory data = _encodeBorrowData(false);
+        // deal collateral tokens to account before supply+borrow
+        deal(collateralToken, address(this), amount);
+        borrowHook.preExecute(address(0), address(this), data);
+        // simulate supply consuming collateral tokens
+        deal(collateralToken, address(this), 0);
+        borrowHook.postExecute(address(0), address(this), data);
+        assertEq(borrowHook.getOutToken(address(this)), collateralToken);
+    }
+
+    function test_RepayAndWithdrawHook_GetOutToken() public {
+        bytes memory data = _encodeRepayAndWithdrawData(false, false);
+        // preExecute: collateralToken balance = 0
+        repayAndWithdrawHook.preExecute(address(0), address(this), data);
+        // simulate withdraw receiving collateral tokens back
+        deal(collateralToken, address(this), amount);
+        repayAndWithdrawHook.postExecute(address(0), address(this), data);
+        assertEq(repayAndWithdrawHook.getOutToken(address(this)), collateralToken);
     }
 }

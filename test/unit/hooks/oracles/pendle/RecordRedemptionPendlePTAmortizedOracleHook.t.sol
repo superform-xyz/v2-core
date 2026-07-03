@@ -24,9 +24,9 @@ contract RecordRedemptionPendlePTAmortizedOracleHookTest is Test {
     address public account = makeAddr("account");
 
     // Data structure offsets
-    uint256 constant MARKET_POSITION = 0;
+    uint256 constant MARKET_POSITION = 52;
     uint256 constant PT_SOLD_POSITION = 20;
-    uint256 constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
+    uint256 constant USE_PREV_HOOK_AMOUNT_POSITION = 104;
 
     function setUp() public {
         oracle = new MockPendlePTAmortizedOracle();
@@ -220,6 +220,6 @@ contract RecordRedemptionPendlePTAmortizedOracleHookTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function _encodeData(address _market, uint256 _ptSold, bool _usePrevHookAmount) internal pure returns (bytes memory) {
-        return abi.encodePacked(_market, _ptSold, _usePrevHookAmount);
+        return abi.encodePacked(bytes(new bytes(52)), _market, _ptSold, _usePrevHookAmount);
     }
 }

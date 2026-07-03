@@ -137,7 +137,7 @@ contract UniswapV3Router02HookTest is Helpers {
         assertEq(inspected.length, 20);
 
         address decodedTokenOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedTokenOut := mload(add(inspected, 20))
         }
 
@@ -234,7 +234,7 @@ contract UniswapV3Router02HookTest is Helpers {
         assertEq(inspected.length, 20);
 
         address decodedTokenOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedTokenOut := mload(add(inspected, 20))
         }
 
@@ -246,9 +246,9 @@ contract UniswapV3Router02HookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_SwapHook_Build_ExactMinimumDataLength() public view {
-        // Test with exactly 141 bytes (minimum valid length)
+        // Test with exactly 193 bytes (minimum valid length: 52-byte header + 141 hook-specific bytes)
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 141);
+        assertEq(data.length, 193);
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
@@ -256,7 +256,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
     function test_ApproveAndSwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 141);
+        assertEq(data.length, 193);
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
@@ -281,7 +281,7 @@ contract UniswapV3Router02HookTest is Helpers {
         // amountOutMinimum memory offset: 4 + 32*5 + 32(length prefix) = 196
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 164))
             decodedAmountOutMinimum := mload(add(swapCalldata, 196))
         }
@@ -305,7 +305,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 164))
             decodedAmountOutMinimum := mload(add(swapCalldata, 196))
         }
@@ -324,7 +324,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 164))
             decodedAmountOutMinimum := mload(add(swapCalldata, 196))
         }
@@ -343,7 +343,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 164))
             decodedAmountOutMinimum := mload(add(swapCalldata, 196))
         }
@@ -407,7 +407,7 @@ contract UniswapV3Router02HookTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 164))
             decodedAmountOutMinimum := mload(add(swapCalldata, 196))
         }
@@ -430,7 +430,7 @@ contract UniswapV3Router02HookTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 164))
             decodedAmountOutMinimum := mload(add(swapCalldata, 196))
         }
@@ -455,7 +455,7 @@ contract UniswapV3Router02HookTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 164))
             decodedAmountOutMinimum := mload(add(swapCalldata, 196))
         }
@@ -476,7 +476,7 @@ contract UniswapV3Router02HookTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 164))
             decodedAmountOutMinimum := mload(add(swapCalldata, 196))
         }
@@ -498,7 +498,7 @@ contract UniswapV3Router02HookTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedAmountOutMinimum;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 164))
             decodedAmountOutMinimum := mload(add(swapCalldata, 196))
         }
@@ -549,6 +549,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
     function test_SwapHook_RevertIf_SameToken() public {
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(tokenIn), // tokenOut == tokenIn
             bytes4(uint32(fee)),
@@ -564,6 +565,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
     function test_ApproveAndSwapHook_RevertIf_SameToken() public {
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(tokenIn), // tokenOut == tokenIn
             bytes4(uint32(fee)),
@@ -623,7 +625,7 @@ contract UniswapV3Router02HookTest is Helpers {
         // Verify approve amount matches prevHookAmount
         bytes memory approveCalldata = executions[2].callData; // approve(amount) is at index 2
         uint256 approveAmount;
-        assembly {
+        assembly ("memory-safe") {
             // Skip selector (4 bytes), skip spender address (32 bytes), get amount
             approveAmount := mload(add(approveCalldata, 68))
         }
@@ -650,7 +652,7 @@ contract UniswapV3Router02HookTest is Helpers {
         assertEq(executions[1].target, tokenIn);
         bytes memory approve0Calldata = executions[1].callData;
         uint256 approve0Amount;
-        assembly {
+        assembly ("memory-safe") {
             approve0Amount := mload(add(approve0Calldata, 68))
         }
         assertEq(approve0Amount, 0);
@@ -659,7 +661,7 @@ contract UniswapV3Router02HookTest is Helpers {
         assertEq(executions[2].target, tokenIn);
         bytes memory approveAmountCalldata = executions[2].callData;
         uint256 approvedAmount;
-        assembly {
+        assembly ("memory-safe") {
             approvedAmount := mload(add(approveAmountCalldata, 68))
         }
         assertEq(approvedAmount, originalAmountIn);
@@ -671,7 +673,7 @@ contract UniswapV3Router02HookTest is Helpers {
         assertEq(executions[4].target, tokenIn);
         bytes memory cleanupCalldata = executions[4].callData;
         uint256 cleanupAmount;
-        assembly {
+        assembly ("memory-safe") {
             cleanupAmount := mload(add(cleanupCalldata, 68))
         }
         assertEq(cleanupAmount, 0);
@@ -683,6 +685,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
     function test_SwapHook_RevertIf_NativeETH_TokenIn() public {
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(address(0)), // tokenIn = native ETH
             bytes20(tokenOut),
             bytes4(uint32(fee)),
@@ -698,6 +701,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
     function test_SwapHook_RevertIf_NativeETH_TokenOut() public {
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(address(0)), // tokenOut = native ETH
             bytes4(uint32(fee)),
@@ -713,6 +717,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
     function test_ApproveAndSwapHook_RevertIf_NativeETH_TokenIn() public {
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(address(0)), // tokenIn = native ETH
             bytes20(tokenOut),
             bytes4(uint32(fee)),
@@ -728,6 +733,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
     function test_ApproveAndSwapHook_RevertIf_NativeETH_TokenOut() public {
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(address(0)), // tokenOut = native ETH
             bytes4(uint32(fee)),
@@ -753,7 +759,7 @@ contract UniswapV3Router02HookTest is Helpers {
         // Decode recipient from swap calldata
         bytes memory swapCalldata = executions[1].callData;
         address decodedRecipient;
-        assembly {
+        assembly ("memory-safe") {
             // recipient is at offset 4 + 32*3 = 100 (after selector + tokenIn + tokenOut + fee)
             // memory offset: 100 + 32 = 132
             decodedRecipient := mload(add(swapCalldata, 132))
@@ -771,7 +777,7 @@ contract UniswapV3Router02HookTest is Helpers {
         // Decode recipient from swap calldata (swap is at index 3)
         bytes memory swapCalldata = executions[3].callData;
         address decodedRecipient;
-        assembly {
+        assembly ("memory-safe") {
             decodedRecipient := mload(add(swapCalldata, 132))
         }
 
@@ -811,7 +817,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 164))
         }
 
@@ -831,23 +837,120 @@ contract UniswapV3Router02HookTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    DECODE/REPLACE AMOUNT TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SwapUniV3Router02_DecodeAmounts() public view {
+        bytes memory data = _buildHookData(false);
+        assertEq(swapHook.decodeAmounts(data)[0], originalAmountIn);
+    }
+
+    function test_SwapUniV3Router02_ReplaceCalldataAmounts() public view {
+        bytes memory data = _buildHookData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = swapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(swapHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_SwapUniV3Router02_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _buildHookData(false);
+        bytes memory result = swapHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(swapHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_ApproveAndSwapUniV3Router02_DecodeAmounts() public view {
+        bytes memory data = _buildHookData(false);
+        assertEq(approveAndSwapHook.decodeAmounts(data)[0], originalAmountIn);
+    }
+
+    function test_ApproveAndSwapUniV3Router02_ReplaceCalldataAmounts() public view {
+        bytes memory data = _buildHookData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(approveAndSwapHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_ApproveAndSwapUniV3Router02_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _buildHookData(false);
+        bytes memory result = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(approveAndSwapHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    REPLACE + BUILD ROUNDTRIP TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SwapUniV3Router02_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _buildHookData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = swapHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 3);
+        assertEq(swapHook.decodeAmounts(replaced)[0], newAmount);
+    }
+
+    function test_ApproveAndSwapUniV3Router02_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _buildHookData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndSwapHook.decodeAmounts(replaced)[0], newAmount);
+    }
+
+    function test_SwapUniV3Router02_ReplaceCalldataAmounts_PreservesOtherFields() public view {
+        bytes memory data = _buildHookData(false);
+        bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(999));
+        assertEq(replaced.length, data.length);
+        // AMOUNT_POSITION is 128 (52-byte placeholder + tokenIn(20) + tokenOut(20) + fee(4) + sqrtPrice(32))
+        for (uint256 i = 0; i < 128; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        // bytes after amount (160+) unchanged
+        for (uint256 i = 160; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        assertEq(swapHook.decodeAmounts(replaced)[0], 999);
+    }
+
+    function test_ApproveAndSwapUniV3Router02_ReplaceCalldataAmounts_PreservesOtherFields() public view {
+        bytes memory data = _buildHookData(false);
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(999));
+        assertEq(replaced.length, data.length);
+        // AMOUNT_POSITION is 128 (52-byte placeholder + tokenIn(20) + tokenOut(20) + fee(4) + sqrtPrice(32))
+        for (uint256 i = 0; i < 128; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        for (uint256 i = 160; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        assertEq(approveAndSwapHook.decodeAmounts(replaced)[0], 999);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                               Helpers
     //////////////////////////////////////////////////////////////*/
 
     function _buildHookData(bool usePrevHookAmount) internal view returns (bytes memory) {
         return bytes.concat(
-            bytes20(tokenIn), // 0-19
-            bytes20(tokenOut), // 20-39
-            bytes4(uint32(fee)), // 40-43
-            bytes32(uint256(sqrtPriceLimitX96)), // 44-75
-            bytes32(originalAmountIn), // 76-107
-            bytes32(originalMinAmountOut), // 108-139
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00) // 140
+            bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(tokenIn), // 52-71
+            bytes20(tokenOut), // 72-91
+            bytes4(uint32(fee)), // 92-95
+            bytes32(uint256(sqrtPriceLimitX96)), // 96-127
+            bytes32(originalAmountIn), // 128-159
+            bytes32(originalMinAmountOut), // 160-191
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00) // 192
         );
     }
 
     function _buildHookDataWithFee(uint24 _fee) internal view returns (bytes memory) {
         return bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(tokenOut),
             bytes4(uint32(_fee)),
@@ -868,6 +971,7 @@ contract UniswapV3Router02HookTest is Helpers {
         returns (bytes memory)
     {
         return bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(tokenIn),
             bytes20(tokenOut),
             bytes4(uint32(fee)),

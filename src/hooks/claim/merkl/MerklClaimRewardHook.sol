@@ -8,22 +8,23 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/ISuperHook.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title MerklClaimRewardHook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         address feeReceiver = BytesLib.toAddress(data, 0);
-/// @notice         uint256 feePercent = BytesLib.toUint256(data, 20);
-/// @notice         uint256 arraysLength = BytesLib.toUint256(data, 52);
-/// @notice         bytes tokens = BytesLib.slice(data, 84, arraysLength * 20);
-/// @notice         bytes amounts = BytesLib.slice(data, 84 + arraysLength * 20, arraysLength * 32);
-/// @notice         bytes proofBlob = BytesLib.slice(data, 84 + arraysLength * 20 + arraysLength * 32, data.length - (84
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address feeReceiver = BytesLib.toAddress(data, 52);
+/// @notice         uint256 feePercent = BytesLib.toUint256(data, 72);
+/// @notice         uint256 arraysLength = BytesLib.toUint256(data, 104);
+/// @notice         bytes tokens = BytesLib.slice(data, 136, arraysLength * 20);
+/// @notice         bytes amounts = BytesLib.slice(data, 136 + arraysLength * 20, arraysLength * 32);
+/// @notice         bytes proofBlob = BytesLib.slice(data, 136 + arraysLength * 20 + arraysLength * 32, data.length - (136
 /// + arraysLength * 20 + arraysLength * 32));
-contract MerklClaimRewardHook is BaseHook {
+contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -48,6 +49,17 @@ contract MerklClaimRewardHook is BaseHook {
         if (distributor_ == address(0)) revert ADDRESS_NOT_VALID();
         DISTRIBUTOR = distributor_;
     }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Merkl Claim Reward";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Claims reward tokens from Merkl distributor";
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
@@ -109,6 +121,38 @@ contract MerklClaimRewardHook is BaseHook {
         });
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    /// @dev Sizeless — merkle proof-bound cumulative amounts cannot be rewritten without invalidating proofs
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+    }
+
+    /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
+    function _supportsSizingInterface() internal pure override returns (bool) {
+        return true;
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    /// @dev Sizeless — returns empty; amounts are commitment-bound (merkle proofs)
+    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](0);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    /// @dev Sizeless — no amounts to replace
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 0) revert INVALID_AMOUNTS_LENGTH();
+        return data;
+    }
+
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         (address feeReceiver,) = _decodeFeeParams(data);
@@ -124,6 +168,7 @@ contract MerklClaimRewardHook is BaseHook {
 
     function _postExecute(address, address account, bytes calldata) internal override {
         _setOutAmount(0, account);
+        // Multi-token claim: no single outToken to report; omit _setOutToken to avoid forwarding address(0)
     }
 
     function _decodeClaimParams(bytes calldata data)
@@ -143,12 +188,12 @@ contract MerklClaimRewardHook is BaseHook {
     }
 
     function _decodeFeeParams(bytes calldata data) internal pure returns (address feeReceiver, uint256 feePercent) {
-        feeReceiver = BytesLib.toAddress(data, 0);
-        feePercent = BytesLib.toUint256(data, 20);
+        feeReceiver = BytesLib.toAddress(data, 52);
+        feePercent = BytesLib.toUint256(data, 72);
     }
 
     function _setUsersArray(address account, bytes calldata data) internal pure returns (address[] memory users) {
-        uint256 arrayLength = BytesLib.toUint256(data, 52);
+        uint256 arrayLength = BytesLib.toUint256(data, 104);
 
         users = new address[](arrayLength);
         for (uint256 i; i < arrayLength; i++) {
@@ -161,8 +206,8 @@ contract MerklClaimRewardHook is BaseHook {
         pure
         returns (uint256 cursor, address[] memory tokens, uint256[] memory amounts)
     {
-        uint256 arrayLength = BytesLib.toUint256(data, 52);
-        cursor = 84; // Start after feeReceiver (20) + feePercent (32) + arrayLength (32)
+        uint256 arrayLength = BytesLib.toUint256(data, 104);
+        cursor = 136; // Start after header (52) + feeReceiver (20) + feePercent (32) + arrayLength (32)
 
         tokens = new address[](arrayLength);
         for (uint256 i; i < arrayLength; i++) {
@@ -184,7 +229,7 @@ contract MerklClaimRewardHook is BaseHook {
     }
 
     function _decodeProofs(bytes calldata data, uint256 cursor) internal pure returns (bytes32[][] memory proofs) {
-        uint256 arrayLength = BytesLib.toUint256(data, 52);
+        uint256 arrayLength = BytesLib.toUint256(data, 104);
         proofs = new bytes32[][](arrayLength);
 
         for (uint256 i; i < arrayLength; ++i) {

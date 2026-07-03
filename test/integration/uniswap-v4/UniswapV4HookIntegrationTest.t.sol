@@ -191,8 +191,8 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         hookAddresses[1] = address(uniswapV4Hook);
 
         bytes[] memory hookDataArray = new bytes[](2);
-        // NativeTransferHook data: transfer ETH to SwapUniswapV4Hook
-        hookDataArray[0] = abi.encodePacked(address(uniswapV4Hook), ethAmount);
+        // NativeTransferHook data: 52-byte header + transfer ETH to SwapUniswapV4Hook
+        hookDataArray[0] = abi.encodePacked(bytes32(0), address(0), address(uniswapV4Hook), ethAmount);
         // SwapUniswapV4Hook data: existing swap calldata
         hookDataArray[1] = swapCalldata;
 
@@ -303,7 +303,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         // Extract addresses using assembly for slice operations
         address token0;
         address token1;
-        assembly {
+        assembly ("memory-safe") {
             // Load 32 bytes starting from offset 0x20 (skip length prefix)
             let firstWord := mload(add(inspectResult, 0x20))
             // Extract first address (first 20 bytes) by shifting right 12 bytes (96 bits)
@@ -927,16 +927,16 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
 
     /// @notice Test decodeUsePrevHookAmount with various data lengths
     function test_DecodeUsePrevHookAmount_EdgeCases() public view {
-        // Test minimum valid length (218 bytes)
-        bytes memory minValidData = new bytes(218);
-        minValidData[217] = 0x01; // Set usePrevHookAmount to true
+        // Test minimum valid length (270 bytes: 52-byte header + 218 bytes of hook-specific data)
+        bytes memory minValidData = new bytes(270);
+        minValidData[269] = 0x01; // Set usePrevHookAmount to true (offset 269)
 
         bool result = uniswapV4Hook.decodeUsePrevHookAmount(minValidData);
         assertTrue(result, "Should decode true from minimum valid data");
 
         // Test with additional data
         bytes memory dataWithExtra = new bytes(300);
-        dataWithExtra[217] = 0x00; // Set usePrevHookAmount to false
+        dataWithExtra[269] = 0x00; // Set usePrevHookAmount to false (offset 269)
 
         result = uniswapV4Hook.decodeUsePrevHookAmount(dataWithExtra);
         assertFalse(result, "Should decode false from data with extra bytes");
@@ -945,18 +945,20 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
     /// @notice Test inspect function with different token orderings
     function test_InspectTokenExtraction() public view {
         bytes memory testData = abi.encodePacked(
-            CHAIN_1_USDC, // currency0
-            CHAIN_1_WETH, // currency1
-            uint32(3000), // fee
-            uint32(int32(60)), // tickSpacing
-            address(0), // hooks
-            instanceOnEth.account, // dstReceiver
-            uint256(TickMath.MIN_SQRT_PRICE + 1), // sqrtPriceLimitX96
-            uint256(1000e6), // originalAmountIn
-            uint256(950e6), // originalMinAmountOut
-            uint256(500), // maxSlippageDeviationBps
-            bytes1(0x01), // zeroForOne
-            bytes1(0x00) // usePrevHookAmount
+            bytes32(0), // yieldSourceOracleId (header)
+            address(0), // yieldSource (header)
+            CHAIN_1_USDC, // currency0 (offset 52)
+            CHAIN_1_WETH, // currency1 (offset 72)
+            uint32(3000), // fee (offset 92)
+            uint32(int32(60)), // tickSpacing (offset 96)
+            address(0), // hooks (offset 100)
+            instanceOnEth.account, // dstReceiver (offset 120)
+            uint256(TickMath.MIN_SQRT_PRICE + 1), // sqrtPriceLimitX96 (offset 140)
+            uint256(1000e6), // originalAmountIn (offset 172)
+            uint256(950e6), // originalMinAmountOut (offset 204)
+            uint256(500), // maxSlippageDeviationBps (offset 236)
+            bytes1(0x01), // zeroForOne (offset 268)
+            bytes1(0x00) // usePrevHookAmount (offset 269)
         );
 
         bytes memory result = uniswapV4Hook.inspect(testData);
@@ -967,7 +969,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
         // Extract and verify addresses
         address extractedCurrency0;
         address extractedCurrency1;
-        assembly {
+        assembly ("memory-safe") {
             extractedCurrency0 := mload(add(result, 0x14))
             extractedCurrency1 := mload(add(result, 0x28))
         }
@@ -1082,6 +1084,69 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
 
         // Expected dynamic minOut ~ (originalMinOut * actualAmount / originalAmount)
     }
+
+    /*//////////////////////////////////////////////////////////////
+                    DECODE AMOUNT / REPLACE CALLDATA AMOUNT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice decodeAmount + replaceCalldataAmount roundtrip for SwapUniswapV4Hook
+    function test_UniswapV4_DecodeAmounts_ReplaceCalldataAmounts() external view {
+        uint256 originalAmount = 1000e6;
+
+        bytes memory swapCalldata = parser.generateSingleHopSwapCalldata(
+            UniswapV4Parser.SingleHopParams({
+                poolKey: testPoolKey,
+                dstReceiver: accountEth,
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1,
+                originalAmountIn: originalAmount,
+                originalMinAmountOut: 0.2 ether,
+                maxSlippageDeviationBps: 500,
+                zeroForOne: true,
+                additionalData: ""
+            }),
+            false
+        );
+
+        // Verify decodeAmount
+        assertEq(uniswapV4Hook.decodeAmounts(swapCalldata)[0], originalAmount, "decodeAmount mismatch");
+
+        // Replace and verify roundtrip
+        uint256 newAmount = 500e6;
+        bytes memory replaced = uniswapV4Hook.replaceCalldataAmounts(swapCalldata, _singleAmount(newAmount));
+        assertEq(uniswapV4Hook.decodeAmounts(replaced)[0], newAmount, "replaced amount mismatch");
+
+        // Verify other fields preserved
+        assertFalse(uniswapV4Hook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
+    }
+
+    /// @notice Verify replaceCalldataAmount preserves data structure across multiple field types
+    function test_UniswapV4_ReplaceCalldataAmounts_PreservesAllFields() external view {
+        uint256 originalAmount = 1000e6;
+        uint256 newAmount = 500e6;
+
+        bytes memory swapCalldata = parser.generateSingleHopSwapCalldata(
+            UniswapV4Parser.SingleHopParams({
+                poolKey: testPoolKey,
+                dstReceiver: accountEth,
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1,
+                originalAmountIn: originalAmount,
+                originalMinAmountOut: 0.2 ether,
+                maxSlippageDeviationBps: 500,
+                zeroForOne: true,
+                additionalData: ""
+            }),
+            false
+        );
+
+        bytes memory replaced = uniswapV4Hook.replaceCalldataAmounts(swapCalldata, _singleAmount(newAmount));
+
+        // Amount is replaced
+        assertEq(uniswapV4Hook.decodeAmounts(replaced)[0], newAmount, "Amount should be replaced");
+        // usePrevHookAmount is preserved
+        assertFalse(uniswapV4Hook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
+        // Data length is preserved
+        assertEq(replaced.length, swapCalldata.length, "Data length should be preserved");
+    }
 }
 
 /// @notice Mock contract to simulate previous hook returning specific amounts
@@ -1090,6 +1155,14 @@ contract MockPrevHook is BaseHook {
 
     constructor(uint256 outAmount) BaseHook(ISuperHook.HookType.NONACCOUNTING, 0) {
         _outAmount = outAmount;
+    }
+
+    function name() external pure override returns (string memory) {
+        return "Mock Prev Hook V4";
+    }
+
+    function description() external pure override returns (string memory) {
+        return "Mock hook for testing";
     }
 
     // BaseHook implementation

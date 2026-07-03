@@ -57,7 +57,7 @@ if [ -z "$RPC_URL" ]; then
     exit 1
 fi
 
-BYTECODE_DIR="script/locked-bytecode-other"
+BYTECODE_DIR="script/locked-bytecode"
 
 compute_salt() {
     local name=$1

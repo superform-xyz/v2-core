@@ -3279,7 +3279,7 @@ contract CrosschainTests is BaseTest {
 
             bytes[] memory dstHooksData = new bytes[](4);
             dstHooksData[0] = _createApproveHookData(underlyingBase_USDC, mockOdosRouters[BASE], intentAmount, false);
-            dstHooksData[1] = _createOdosSwapHookData(
+            dstHooksData[1] = _createMockOdosSwapHookData(
                 underlyingBase_USDC,
                 intentAmount,
                 address(this),
@@ -4327,7 +4327,7 @@ contract CrosschainTests is BaseTest {
         uint192 nonceKey;
         bytes32 batchId = bytes3(0);
         bytes1 vMode = MODE_VALIDATION;
-        assembly {
+        assembly ("memory-safe") {
             nonceKey := or(shr(88, vMode), validator)
             nonceKey := or(shr(64, batchId), nonceKey)
         }
@@ -5048,6 +5048,10 @@ contract CrosschainTests is BaseTest {
         view
         returns (bytes memory)
     {
+        // Pre-compute abi.encodePacked values to reduce stack depth during struct literal construction
+        bytes memory orderAuth = abi.encodePacked(accountETH);
+        bytes memory takerDst = abi.encodePacked(accountETH);
+        bytes memory cancelBen = abi.encodePacked(accountBase);
         return _createDebridgeSendFundsAndExecuteHookData(
             DebridgeOrderData({
                 usePrevHookAmount: false,
@@ -5066,9 +5070,9 @@ contract CrosschainTests is BaseTest {
                 takeChainId: ETH,
                 receiverDst: address(debridgeAdapterOnETH),
                 givePatchAuthoritySrc: address(0),
-                orderAuthorityAddressDst: abi.encodePacked(accountETH),
-                allowedTakerDst: abi.encodePacked(accountETH),
-                allowedCancelBeneficiarySrc: abi.encodePacked(accountBase),
+                orderAuthorityAddressDst: orderAuth,
+                allowedTakerDst: takerDst,
+                allowedCancelBeneficiarySrc: cancelBen,
                 affiliateFee: "",
                 referralCode: 0
             })

@@ -13,7 +13,13 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperSignatureStorage } from "../../../interfaces/ISuperSignatureStorage.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookResult,
+    ISuperHookContextAware,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 
 /// @title StargateSendHook
 /// @author Superform Labs
@@ -27,30 +33,32 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @dev      signature is retrieved from the validator contract transient storage
 /// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to
 /// sign it
-/// @dev data has the following structure
-/// @notice         uint256 lzNativeFee = BytesLib.toUint256(data, 0);
-/// @notice         address stargatePool = BytesLib.toAddress(data, 32);
-/// @notice         address inputToken = BytesLib.toAddress(data, 52);
-/// @notice         uint32 dstEid = BytesLib.toUint32(data, 72);
-/// @notice         bytes32 to = BytesLib.toBytes32(data, 76);
-/// @notice         uint256 amountLD = BytesLib.toUint256(data, 108);
-/// @notice         uint256 minAmountLD = BytesLib.toUint256(data, 140);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 172);
-/// @notice         uint8 mode = BytesLib.toUint8(data, 173);
-/// @notice         uint256 extraOptionsLength = BytesLib.toUint256(data, 174);
-/// @notice         bytes extraOptions = BytesLib.slice(data, 206, extraOptionsLength);
-/// @notice         uint256 composeMsgLength = BytesLib.toUint256(data, 206 + extraOptionsLength);
-/// @notice         bytes composeMsg = BytesLib.slice(data, 238 + extraOptionsLength, composeMsgLength);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         uint256 lzNativeFee = BytesLib.toUint256(data, 52);
+/// @notice         address stargatePool = BytesLib.toAddress(data, 84);
+/// @notice         address inputToken = BytesLib.toAddress(data, 104);
+/// @notice         uint32 dstEid = BytesLib.toUint32(data, 124);
+/// @notice         bytes32 to = BytesLib.toBytes32(data, 128);
+/// @notice         uint256 amountLD = BytesLib.toUint256(data, 160);
+/// @notice         uint256 minAmountLD = BytesLib.toUint256(data, 192);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 224);
+/// @notice         uint8 mode = BytesLib.toUint8(data, 225);
+/// @notice         uint256 extraOptionsLength = BytesLib.toUint256(data, 226);
+/// @notice         bytes extraOptions = BytesLib.slice(data, 258, extraOptionsLength);
+/// @notice         uint256 composeMsgLength = BytesLib.toUint256(data, 258 + extraOptionsLength);
+/// @notice         bytes composeMsg = BytesLib.slice(data, 290 + extraOptionsLength, composeMsgLength);
 /// @notice         --- mode 3 only (after composeMsg) ---
 /// @notice         uint256 executeCalldataLength = BytesLib.toUint256(data, composeMsgOffset + 32 + composeMsgLength);
 /// @notice         bytes executeCalldata = BytesLib.slice(data, composeMsgOffset + 64 + composeMsgLength,
 /// executeCalldataLength);
-contract StargateSendHook is BaseHook, ISuperHookContextAware {
+contract StargateSendHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     address private immutable VALIDATOR;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 172;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 224;
+    uint256 private constant AMOUNT_POSITION = 160;
 
     struct StargateSendData {
         uint256 lzNativeFee;
@@ -84,6 +92,17 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
         VALIDATOR = validator_;
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Stargate Bridge";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Bridges tokens via Stargate cross-chain messaging";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -98,16 +117,16 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
         override
         returns (Execution[] memory executions)
     {
-        if (data.length < 238) revert DATA_NOT_VALID();
+        if (data.length < 290) revert DATA_NOT_VALID();
 
         StargateSendData memory s;
-        s.lzNativeFee = BytesLib.toUint256(data, 0);
-        s.stargatePool = BytesLib.toAddress(data, 32);
-        s.dstEid = BytesLib.toUint32(data, 72);
-        s.to = BytesLib.toBytes32(data, 76);
-        s.amountLD = BytesLib.toUint256(data, 108);
-        s.minAmountLD = BytesLib.toUint256(data, 140);
-        s.mode = BytesLib.toUint8(data, 173);
+        s.lzNativeFee = BytesLib.toUint256(data, 52);
+        s.stargatePool = BytesLib.toAddress(data, 84);
+        s.dstEid = BytesLib.toUint32(data, 124);
+        s.to = BytesLib.toBytes32(data, 128);
+        s.amountLD = BytesLib.toUint256(data, 160);
+        s.minAmountLD = BytesLib.toUint256(data, 192);
+        s.mode = BytesLib.toUint8(data, 225);
         if (s.mode > 3) revert MODE_NOT_VALID();
 
         // Fail-fast validation on fixed fields before external calls
@@ -121,11 +140,11 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
         }
 
         // Validate variable-length field bounds
-        uint256 extraOptionsLength = BytesLib.toUint256(data, 174);
-        if (data.length < 238 + extraOptionsLength) revert DATA_NOT_VALID();
-        s.extraOptions = BytesLib.slice(data, 206, extraOptionsLength);
+        uint256 extraOptionsLength = BytesLib.toUint256(data, 226);
+        if (data.length < 290 + extraOptionsLength) revert DATA_NOT_VALID();
+        s.extraOptions = BytesLib.slice(data, 258, extraOptionsLength);
 
-        uint256 composeMsgOffset = 206 + extraOptionsLength;
+        uint256 composeMsgOffset = 258 + extraOptionsLength;
         uint256 composeMsgLength = BytesLib.toUint256(data, composeMsgOffset);
         if (data.length < composeMsgOffset + 32 + composeMsgLength) revert DATA_NOT_VALID();
         s.composeMsg = BytesLib.slice(data, composeMsgOffset + 32, composeMsgLength);
@@ -242,12 +261,43 @@ contract StargateSendHook is BaseHook, ISuperHookContextAware {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](1);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+    }
+
+    /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
+    function _supportsSizingInterface() internal pure override returns (bool) {
+        return true;
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 1) revert INVALID_AMOUNTS_LENGTH();
+        return _replaceCalldataAmount(data, amounts[0], AMOUNT_POSITION);
+    }
+
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(
-            BytesLib.toAddress(data, 32), // stargatePool
-            BytesLib.toAddress(data, 52), // inputToken
-            address(uint160(uint256(BytesLib.toBytes32(data, 76)))) // to (as address)
+            BytesLib.toAddress(data, 84), // stargatePool
+            BytesLib.toAddress(data, 104), // inputToken
+            address(uint160(uint256(BytesLib.toBytes32(data, 128)))) // to (as address)
         );
     }
 }

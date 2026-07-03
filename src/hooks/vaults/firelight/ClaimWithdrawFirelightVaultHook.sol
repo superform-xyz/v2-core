@@ -7,8 +7,16 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow,
+    ISuperHookContextAware,
+    ISuperHookInspector
+} from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { IFirelightVault } from "../../../vendor/vaults/firelight/IFirelightVault.sol";
@@ -29,6 +37,17 @@ contract ClaimWithdrawFirelightVaultHook is BaseHook, ISuperHookInflowOutflow, I
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 84;
 
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ERC4626) { }
+
+    /// @inheritdoc ISuperHook
+    function name() external pure override returns (string memory) {
+        return "Claim Withdraw Firelight Vault";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Claims withdrawn assets from a Firelight vault";
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -72,8 +91,25 @@ contract ClaimWithdrawFirelightVaultHook is BaseHook, ISuperHookInflowOutflow, I
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory data) external pure returns (uint256) {
-        return _decodeRequestId(data);
+    /// @dev Returns empty — requestId is not a sizable amount (it's a withdrawal receipt ID)
+    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](0);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+    }
+
+    /// @inheritdoc IERC165
+    /// @dev This hook implements ISuperHookInflowOutflow (decode-only) but NOT ISuperHookOutflow
+    ///      (no replaceCalldataAmounts). Override base to distinguish the two interfaces.
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
+        if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
+        return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
+            || interfaceId == type(ISuperHookResult).interfaceId
+            || interfaceId == type(ISuperHookInspector).interfaceId;
     }
 
     /// @inheritdoc ISuperHookContextAware
@@ -95,6 +131,7 @@ contract ClaimWithdrawFirelightVaultHook is BaseHook, ISuperHookInflowOutflow, I
     /// @dev outAmount may be 0 if the request is not yet claimable or vault is paused
     function _postExecute(address, address account, bytes calldata) internal override {
         _setOutAmount(_getBalance(account) - getOutAmount(account), account);
+        _setOutToken(asset, account);
     }
 
     /*//////////////////////////////////////////////////////////////

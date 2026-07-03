@@ -57,22 +57,20 @@ contract OdosV3RouterSwap is MinimalBaseIntegrationTest {
         bytes[] memory hookData = new bytes[](2);
         hookData[0] = _createApproveHookData(swapInputToken, address(odosRouterV3), amount, false);
 
-        // Build V3 hook data: encode as packed bytes
-        bytes memory pathDef = bytes("");
-        hookData[1] = bytes.concat(
-            bytes20(swapInputToken),
-            bytes32(amount),
-            bytes20(accountEth), // inputReceiver
-            bytes20(swapOutputToken),
-            bytes32(amount), // outputQuote
-            bytes32(amount - amount * 50 / 10_000), // outputMin (0.5% slippage)
-            bytes1(uint8(0)), // usePrevHookAmount = false
-            bytes32(pathDef.length),
-            pathDef,
-            bytes20(address(0)), // executor
-            bytes8(uint64(0)), // referralCode
-            bytes8(uint64(0)), // referralFee
-            bytes20(address(0)) // feeRecipient
+        // Build V3 hook data using helper (which prepends the 52-byte strategy header)
+        hookData[1] = _createOdosV3SwapHookData(
+            swapInputToken,
+            amount,
+            accountEth,
+            swapOutputToken,
+            amount,
+            amount - amount * 50 / 10_000,
+            bytes(""),
+            address(0),
+            uint64(0),
+            uint64(0),
+            address(0),
+            false
         );
 
         ISuperExecutor.ExecutorEntry memory entryToExecute =
@@ -105,21 +103,20 @@ contract OdosV3RouterSwap is MinimalBaseIntegrationTest {
 
         bytes[] memory hookData = new bytes[](1);
 
-        bytes memory pathDef = bytes("");
-        hookData[0] = bytes.concat(
-            bytes20(swapInputToken),
-            bytes32(amount),
-            bytes20(accountEth), // inputReceiver
-            bytes20(swapOutputToken),
-            bytes32(amount), // outputQuote
-            bytes32(amount - amount * 50 / 10_000), // outputMin
-            bytes1(uint8(0)), // usePrevHookAmount = false
-            bytes32(pathDef.length),
-            pathDef,
-            bytes20(address(0)), // executor
-            bytes8(uint64(0)), // referralCode
-            bytes8(uint64(0)), // referralFee
-            bytes20(address(0)) // feeRecipient
+        // Build V3 hook data using helper (which prepends the 52-byte strategy header)
+        hookData[0] = _createOdosV3SwapHookData(
+            swapInputToken,
+            amount,
+            accountEth,
+            swapOutputToken,
+            amount,
+            amount - amount * 50 / 10_000,
+            bytes(""),
+            address(0),
+            uint64(0),
+            uint64(0),
+            address(0),
+            false
         );
 
         ISuperExecutor.ExecutorEntry memory entryToExecute =
@@ -152,21 +149,20 @@ contract OdosV3RouterSwap is MinimalBaseIntegrationTest {
 
         bytes[] memory hookData = new bytes[](1);
 
-        bytes memory pathDef = bytes("");
-        hookData[0] = bytes.concat(
-            bytes20(address(0)), // native ETH input
-            bytes32(amount),
-            bytes20(accountEth), // inputReceiver
-            bytes20(swapOutputToken),
-            bytes32(amount), // outputQuote
-            bytes32(amount - amount * 50 / 10_000), // outputMin
-            bytes1(uint8(0)), // usePrevHookAmount = false
-            bytes32(pathDef.length),
-            pathDef,
-            bytes20(address(0)), // executor
-            bytes8(uint64(0)), // referralCode
-            bytes8(uint64(0)), // referralFee
-            bytes20(address(0)) // feeRecipient
+        // Build V3 hook data using helper (native ETH: inputToken = address(0))
+        hookData[0] = _createOdosV3SwapHookData(
+            address(0), // native ETH input
+            amount,
+            accountEth,
+            swapOutputToken,
+            amount,
+            amount - amount * 50 / 10_000,
+            bytes(""),
+            address(0),
+            uint64(0),
+            uint64(0),
+            address(0),
+            false
         );
 
         ISuperExecutor.ExecutorEntry memory entryToExecute =
@@ -201,21 +197,20 @@ contract OdosV3RouterSwap is MinimalBaseIntegrationTest {
         address referralRecipient = makeAddr("referralRecipient");
         uint64 referralFee = 1e16; // 1% (within 2% cap)
 
-        bytes memory pathDef = bytes("");
-        hookData[1] = bytes.concat(
-            bytes20(swapInputToken),
-            bytes32(amount),
-            bytes20(accountEth),
-            bytes20(swapOutputToken),
-            bytes32(amount),
-            bytes32(amount - amount * 50 / 10_000),
-            bytes1(uint8(0)),
-            bytes32(pathDef.length),
-            pathDef,
-            bytes20(address(0)), // executor
-            bytes8(uint64(123)), // referralCode
-            bytes8(referralFee),
-            bytes20(referralRecipient)
+        // Build V3 hook data using helper (which prepends the 52-byte strategy header)
+        hookData[1] = _createOdosV3SwapHookData(
+            swapInputToken,
+            amount,
+            accountEth,
+            swapOutputToken,
+            amount,
+            amount - amount * 50 / 10_000,
+            bytes(""),
+            address(0),
+            uint64(123),
+            referralFee,
+            referralRecipient,
+            false
         );
 
         ISuperExecutor.ExecutorEntry memory entryToExecute =

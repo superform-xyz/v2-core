@@ -85,11 +85,13 @@ contract BatchTransferFromReplayTest is Test {
     function testReplayOnSingleTokenBatch() public {
         // Build hook data for 1 token
         bytes memory data = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte header (yieldSourceOracleId + yieldSource)
             address(this),
             uint256(1),
             block.timestamp + 1 days,
             abi.encodePacked(address(tokenA)),
             abi.encodePacked(uint256(100)),
+            new bytes(6), // nonces (6 bytes * 1 token)
             new bytes(65)
         );
         Execution[] memory execs = hook.build(address(0), address(this), data);
