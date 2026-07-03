@@ -212,6 +212,10 @@ contract MorphoBlueMarketRegistry is AccessControl {
     /// @notice Execute a previously proposed market deregistration after the 2-day timelock
     /// @dev After deregistration the oracle will revert with MARKET_NOT_REGISTERED for this key.
     ///      Reverts if no deregistration is pending or the timelock has not elapsed.
+    /// @dev OPS: Before executing, verify no active Superform positions reference this marketKey.
+    ///      If the oracle is registered in SuperLedgerConfiguration and positions exist,
+    ///      deregistration will brick fee-charging outflow accounting (performance fee
+    ///      calculation requires PPS from the oracle, which reverts for deregistered keys).
     /// @param marketKey The pseudo-address to deregister
     function executeDeregisterMarket(address marketKey) external onlyRole(MARKET_MANAGER_ROLE) {
         uint256 executeAfter = pendingDeregistrations[marketKey];

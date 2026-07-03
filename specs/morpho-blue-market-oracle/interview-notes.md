@@ -1,9 +1,18 @@
 # Interview Notes — Morpho Blue Market Oracle
 
 **Date:** 2026-06-26
-**Feature:** MorphoBlueMarketWrapper + MorphoBlueYieldSourceOracle
+**Feature:** MorphoBlueMarketRegistry + MorphoBlueYieldSourceOracle
 **Interviewer:** Claude Code
 **Security mode:** Auto-enabled (on-chain oracle feature)
+
+> **Design evolution note (2026-07-03):** These notes were captured during the original interview
+> which discussed a permissionless `MorphoBlueMarketWrapper` per-market design. The shipped
+> implementation uses a permissioned `MorphoBlueMarketRegistry` singleton instead. Key changes:
+> - "Permissionless wrapper" → Permissioned registry with `MARKET_MANAGER_ROLE`
+> - No IRM safety mechanism → Explicit IRM whitelist (`setIrmApproval`)
+> - Immutable (no deregistration) → 2-day timelocked deregistration
+>
+> The technical decisions about interest accrual, rounding, precision, and scope remain valid.
 
 ---
 
@@ -51,14 +60,14 @@ A: **Generic — any market via wrapper.** The wrapper design means any existing
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Position side | Supply-side only | Lenders earn yield; borrow tracking is different concern |
-| Wrapper deployment | Permissionless | Anyone can create a wrapper for any valid market |
+| Market registration | **Permissioned registry** (shipped) | `MARKET_MANAGER_ROLE` controls which markets are registered; IRM whitelist prevents rogue IRMs |
 | Interest accrual | View replication of Morpho math | No state change, always fresh, bit-exact |
 | Chains | All Morpho Blue chains | Chain-agnostic architecture |
 | Zero-IRM markets | Skip accrual, return stored state | No borrowers = no interest = stale is accurate |
 | Test coverage | Full E2E hook + oracle lifecycle | Validate integration, not just oracle isolation |
 | Precision | Bit-exact parity with on-chain | Fork-test validated at specific blocks |
 | Registration | Standalone only | No fee calculation yet |
-| Market scope | Generic via wrapper | Zero code changes per new market |
+| Market scope | Generic via registry | Register any valid market via `MARKET_MANAGER_ROLE` |
 
 ---
 
@@ -76,5 +85,5 @@ A: **Generic — any market via wrapper.** The wrapper design means any existing
 ## Risks Noted
 
 - View replication of Morpho math must stay in sync with Morpho protocol upgrades (though Morpho Blue is immutable, so this risk is low)
-- Custom IRMs without `borrowRateView` will cause revert — acceptable known limitation
-- Permissionless wrappers mean malicious wrappers could point to valid markets with wrong params — but the constructor validates via `idToMarketParams`, so this is mitigated
+- Custom IRMs without `borrowRateView` will cause revert — acceptable known limitation; mitigated by IRM whitelist in shipped registry
+- ~~Permissionless wrappers mean malicious wrappers could point to valid markets with wrong params~~ — **Resolved:** Shipped design uses permissioned registry with `MARKET_MANAGER_ROLE`, eliminating this attack vector entirely

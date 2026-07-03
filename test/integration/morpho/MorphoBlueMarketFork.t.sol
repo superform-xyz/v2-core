@@ -14,6 +14,7 @@ import { MorphoBlueYieldSourceOracle } from "../../../src/accounting/oracles/Mor
 import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
 import { MorphoLendHook } from "../../../src/hooks/loan/morpho/MorphoLendHook.sol";
 import { MorphoWithdrawHook } from "../../../src/hooks/loan/morpho/MorphoWithdrawHook.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { Constants } from "../../utils/Constants.sol";
 
 /// @title MorphoBlueMarketFork
@@ -200,6 +201,65 @@ contract MorphoBlueMarketFork is Test, Constants {
         console2.log("PPS before:", ppsBefore, "PPS after 1d:", ppsAfter);
         // After more time, PPS should be >= (interest accrues)
         assertGe(ppsAfter, ppsBefore, "PPS must not decrease after time passes");
+    }
+
+    /// @notice Bit-exact parity: oracle's view-replicated accrual must match Morpho's on-chain state
+    ///         after accrueInterest() is called in the same block.
+    function test_fork_morphoWbtcUsdc_bitExactParity() public {
+        MarketParams memory mp = MarketParams({
+            loanToken: WBTC_USDC_LOAN_TOKEN,
+            collateralToken: WBTC_USDC_COLLATERAL_TOKEN,
+            oracle: WBTC_USDC_ORACLE,
+            irm: WBTC_USDC_IRM,
+            lltv: WBTC_USDC_LLTV
+        });
+        Id id = mp.id();
+
+        // Warp so there is pending interest to accrue
+        vm.warp(block.timestamp + 1 days);
+
+        // 1. Snapshot oracle's view-replicated values BEFORE on-chain accrual
+        uint256 oracleTVL = oracle.getTVL(wbtcUsdcKey);
+        uint256 oraclePPS = oracle.getPricePerShare(wbtcUsdcKey);
+
+        // 2. Call accrueInterest on-chain — updates stored state to block.timestamp
+        IMorphoBase(MORPHO).accrueInterest(mp);
+
+        // 3. Read the now-updated on-chain state
+        (uint128 totalSupplyAssets,,,,,) = IMorphoStaticTyping(MORPHO).market(id);
+
+        // 4. Oracle TVL must be bit-exact with on-chain totalSupplyAssets
+        assertEq(oracleTVL, uint256(totalSupplyAssets), "TVL must be bit-exact with on-chain totalSupplyAssets");
+
+        // 5. PPS must also match (oracle re-reads the now-current state, elapsed=0 → no accrual)
+        uint256 ppsAfterAccrual = oracle.getPricePerShare(wbtcUsdcKey);
+        assertEq(oraclePPS, ppsAfterAccrual, "PPS must be bit-exact: view-replicated == post-accrual stored");
+    }
+
+    /// @notice Bit-exact parity for wstETH/WETH (18-decimal) market
+    function test_fork_morphoWstethWeth_bitExactParity() public {
+        MarketParams memory mp = MarketParams({
+            loanToken: WSTETH_WETH_LOAN_TOKEN,
+            collateralToken: WSTETH_WETH_COLLATERAL_TOKEN,
+            oracle: WSTETH_WETH_ORACLE,
+            irm: WSTETH_WETH_IRM,
+            lltv: WSTETH_WETH_LLTV
+        });
+        Id id = mp.id();
+
+        vm.warp(block.timestamp + 1 days);
+
+        uint256 oracleTVL = oracle.getTVL(wstethWethKey);
+        uint256 oraclePPS = oracle.getPricePerShare(wstethWethKey);
+
+        IMorphoBase(MORPHO).accrueInterest(mp);
+
+        (uint128 totalSupplyAssets,,,,,) = IMorphoStaticTyping(MORPHO).market(id);
+
+        assertEq(oracleTVL, uint256(totalSupplyAssets), "TVL must be bit-exact with on-chain totalSupplyAssets");
+
+        uint256 ppsAfterAccrual = oracle.getPricePerShare(wstethWethKey);
+        assertEq(oraclePPS, ppsAfterAccrual, "PPS must be bit-exact: view-replicated == post-accrual stored");
     }
 
     function test_fork_morphoWbtcUsdc_tvl_nonZero() public view {
@@ -1326,7 +1386,7 @@ contract MorphoBlueMarketFork is Test, Constants {
         vm.stopPrank();
     }
 
-    /// @dev Encodes data for MorphoLendHook (145-byte layout)
+    /// @dev Encodes data for MorphoLendHook (197-byte layout: 52-byte strategy header + hook fields)
     function _encodeLendHookData(
         address loanToken,
         address collateralToken,
@@ -1341,17 +1401,18 @@ contract MorphoBlueMarketFork is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            loanToken, // 20 bytes, offset 0
-            collateralToken, // 20 bytes, offset 20
-            mOracle, // 20 bytes, offset 40
-            mIrm, // 20 bytes, offset 60
-            amount, // 32 bytes, offset 80
-            lltv, // 32 bytes, offset 112
-            usePrevHookAmount // 1 byte, offset 144
+            new bytes(52), // 52-byte strategy header (zero-filled placeholder)
+            loanToken, // 20 bytes, offset 52
+            collateralToken, // 20 bytes, offset 72
+            mOracle, // 20 bytes, offset 92
+            mIrm, // 20 bytes, offset 112
+            amount, // 32 bytes, offset 132
+            lltv, // 32 bytes, offset 164
+            usePrevHookAmount // 1 byte, offset 196
         );
     }
 
-    /// @dev Encodes data for MorphoWithdrawHook (176-byte layout)
+    /// @dev Encodes data for MorphoWithdrawHook (228-byte layout: 52-byte strategy header + hook fields)
     function _encodeWithdrawHookData(
         address loanToken,
         address collateralToken,
@@ -1366,19 +1427,29 @@ contract MorphoBlueMarketFork is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            loanToken, // 20 bytes, offset 0
-            collateralToken, // 20 bytes, offset 20
-            mOracle, // 20 bytes, offset 40
-            mIrm, // 20 bytes, offset 60
-            lltv, // 32 bytes, offset 80
-            assets, // 32 bytes, offset 112
-            shares // 32 bytes, offset 144
+            new bytes(52), // 52-byte strategy header (zero-filled placeholder)
+            loanToken, // 20 bytes, offset 52
+            collateralToken, // 20 bytes, offset 72
+            mOracle, // 20 bytes, offset 92
+            mIrm, // 20 bytes, offset 112
+            lltv, // 32 bytes, offset 132
+            assets, // 32 bytes, offset 164
+            shares // 32 bytes, offset 196
         );
     }
 
-    /// @dev Full MorphoLendHook lifecycle: setExecutionContext → preExecute → approve+supply → postExecute
-    /// @dev Gives `user` exactly `amount` of loanToken via deal, then runs the full hook lifecycle.
-    ///      Mirrors the execution sequence the SuperExecutor builds via lendHook.build().
+    /// @dev Executes an array of Execution structs as `user`, matching SuperExecutor behavior.
+    function _executeAsUser(Execution[] memory executions, address user) internal {
+        for (uint256 i = 0; i < executions.length; i++) {
+            vm.prank(user);
+            (bool success, bytes memory ret) = executions[i].target.call(executions[i].callData);
+            require(success, string(abi.encodePacked("Execution[", vm.toString(i), "] failed: ", ret)));
+        }
+    }
+
+    /// @dev Full MorphoLendHook lifecycle using build() output.
+    /// @dev Gives `user` exactly `amount` of loanToken via deal, then executes the Execution[] from build().
+    ///      If build() drifts (e.g., adds/removes approval steps), this test automatically follows.
     /// @return outAmount Supply shares received, as reported by lendHook.getOutAmount(user)
     function _supplyViaLendHook(
         address loanToken,
@@ -1396,43 +1467,19 @@ contract MorphoBlueMarketFork is Test, Constants {
 
         deal(loanToken, user, amount);
 
-        // Create execution context for user (test contract becomes lastCaller)
+        // setExecutionContext is called by SuperExecutor before build() output is executed
         lendHook.setExecutionContext(user);
 
-        // preExecute: snapshots pre-supply shares into transient outAmount slot
-        vm.prank(user);
-        lendHook.preExecute(address(0), user, hookData);
-
-        // Replicate the executions built by lendHook.build(): reset approval, approve, supply, reset approval
-        vm.startPrank(user);
-        IERC20(loanToken).approve(MORPHO, 0);
-        IERC20(loanToken).approve(MORPHO, amount);
-        IMorphoBase(MORPHO).supply(
-            MarketParams({
-                loanToken: loanToken,
-                collateralToken: collateralToken,
-                oracle: mOracle,
-                irm: mIrm,
-                lltv: lltv
-            }),
-            amount,
-            0,
-            user,
-            ""
-        );
-        IERC20(loanToken).approve(MORPHO, 0);
-        vm.stopPrank();
-
-        // postExecute: computes delta (post_shares - pre_shares) → shares received
-        vm.prank(user);
-        lendHook.postExecute(address(0), user, hookData);
+        // build() returns: [preExecute, ...hookExecutions, postExecute]
+        Execution[] memory executions = lendHook.build(address(0), user, hookData);
+        _executeAsUser(executions, user);
 
         outAmount = lendHook.getOutAmount(user);
     }
 
-    /// @dev Full MorphoWithdrawHook lifecycle: setExecutionContext → preExecute → withdraw → postExecute
+    /// @dev Full MorphoWithdrawHook lifecycle using build() output.
     /// @dev Pass either assets>0,shares=0 (withdraw by asset amount) or assets=0,shares>0 (withdraw by share count).
-    ///      Mirrors the execution sequence the SuperExecutor builds via withdrawHook.build().
+    ///      If build() drifts, this test automatically follows.
     /// @return outAmount Loan tokens received, as reported by withdrawHook.getOutAmount(user)
     function _withdrawViaWithdrawHook(
         address loanToken,
@@ -1450,32 +1497,12 @@ contract MorphoBlueMarketFork is Test, Constants {
         bytes memory hookData =
             _encodeWithdrawHookData(loanToken, collateralToken, mOracle, mIrm, lltv, assets, shares);
 
-        // Create execution context for user (test contract becomes lastCaller)
+        // setExecutionContext is called by SuperExecutor before build() output is executed
         withdrawHook.setExecutionContext(user);
 
-        // preExecute: snapshots pre-withdraw loanToken balance into transient outAmount slot
-        vm.prank(user);
-        withdrawHook.preExecute(address(0), user, hookData);
-
-        // Replicate the single execution built by withdrawHook.build(): Morpho.withdraw
-        vm.prank(user);
-        IMorphoBase(MORPHO).withdraw(
-            MarketParams({
-                loanToken: loanToken,
-                collateralToken: collateralToken,
-                oracle: mOracle,
-                irm: mIrm,
-                lltv: lltv
-            }),
-            assets,
-            shares,
-            user,
-            user
-        );
-
-        // postExecute: computes delta (post_balance - pre_balance) → loanToken received
-        vm.prank(user);
-        withdrawHook.postExecute(address(0), user, hookData);
+        // build() returns: [preExecute, ...hookExecutions, postExecute]
+        Execution[] memory executions = withdrawHook.build(address(0), user, hookData);
+        _executeAsUser(executions, user);
 
         outAmount = withdrawHook.getOutAmount(user);
     }
