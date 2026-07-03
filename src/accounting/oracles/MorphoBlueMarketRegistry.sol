@@ -26,6 +26,15 @@ import { MarketParamsLib } from "../../vendor/morpho/MarketParamsLib.sol";
 ///      Morpho address trust: `morpho_` is trusted by the MARKET_MANAGER_ROLE operator; it must
 ///      be the canonical Morpho Blue singleton for this chain. No on-chain whitelist is enforced
 ///      because the permissioned role is sufficient to gate registration.
+///
+///      SAFETY INVARIANT — deregistration:
+///      A deregistered market makes the oracle revert for that key. If any Superform-managed
+///      position still references the market (SuperLedger, SuperVault, monitoring), deregistration
+///      bricks PPS/TVL reads and fee-charging outflow accounting — users cannot withdraw through
+///      SuperLedger without the oracle returning a valid PPS.
+///      **Do NOT deregister a market with active Superform accounting positions.** The market must
+///      first be fully migrated or deprecated (all positions withdrawn / oracle unregistered from
+///      SuperLedgerConfiguration) before deregistration is executed.
 contract MorphoBlueMarketRegistry is AccessControl {
     using MarketParamsLib for MarketParams;
 
@@ -201,6 +210,9 @@ contract MorphoBlueMarketRegistry is AccessControl {
     /// @dev Call `executeDeregisterMarket` after the timelock to complete removal.
     ///      Call `cancelDeregisterMarket` to abort before execution.
     ///      Re-proposing an already-pending deregistration resets the timelock.
+    /// @dev SAFETY: Before proposing, confirm no active Superform positions reference this
+    ///      marketKey and the oracle is not registered in SuperLedgerConfiguration.
+    ///      See contract-level SAFETY INVARIANT.
     /// @param marketKey The pseudo-address to deregister
     function proposeDeregisterMarket(address marketKey) external onlyRole(MARKET_MANAGER_ROLE) {
         if (!_markets[marketKey].registered) revert MARKET_NOT_REGISTERED();
@@ -212,10 +224,14 @@ contract MorphoBlueMarketRegistry is AccessControl {
     /// @notice Execute a previously proposed market deregistration after the 2-day timelock
     /// @dev After deregistration the oracle will revert with MARKET_NOT_REGISTERED for this key.
     ///      Reverts if no deregistration is pending or the timelock has not elapsed.
-    /// @dev OPS: Before executing, verify no active Superform positions reference this marketKey.
-    ///      If the oracle is registered in SuperLedgerConfiguration and positions exist,
-    ///      deregistration will brick fee-charging outflow accounting (performance fee
-    ///      calculation requires PPS from the oracle, which reverts for deregistered keys).
+    /// @dev SAFETY: Executing this with active Superform positions will brick PPS/TVL reads and
+    ///      fee-charging outflow accounting. Users cannot withdraw through SuperLedger without
+    ///      the oracle returning a valid PPS. See contract-level SAFETY INVARIANT.
+    ///      Pre-execution checklist:
+    ///        1. Oracle is NOT registered in SuperLedgerConfiguration for this marketKey
+    ///        2. No SuperVault or monitoring config references this marketKey
+    ///        3. All user positions have been withdrawn or migrated
+    ///      If unsure, call `cancelDeregisterMarket` to abort.
     /// @param marketKey The pseudo-address to deregister
     function executeDeregisterMarket(address marketKey) external onlyRole(MARKET_MANAGER_ROLE) {
         uint256 executeAfter = pendingDeregistrations[marketKey];

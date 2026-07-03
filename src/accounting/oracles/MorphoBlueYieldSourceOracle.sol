@@ -18,6 +18,16 @@ import { MorphoBlueMarketRegistry } from "./MorphoBlueMarketRegistry.sol";
 /// @title MorphoBlueYieldSourceOracle
 /// @author Superform Labs
 /// @notice Oracle for Morpho Blue lending markets (supply-side).
+/// @dev ACCOUNTING UNIT: All values (PPS, TVL, asset conversions) are denominated in the
+///      market's **loanToken** — the token suppliers deposit and earn interest on. This oracle
+///      tracks supply-side lender positions only. It does NOT report:
+///        - Collateral token value or equity NAV
+///        - USD-denominated prices
+///        - Morpho market oracle prices (the on-chain oracle used for LTV calculations)
+///      Downstream consumers (SuperLedger, monitoring, fee calculations) receive loanToken-
+///      denominated figures. If USD or collateral-denominated values are needed, an additional
+///      price feed must be composed on top.
+///
 /// @dev Reads market identity from a MorphoBlueMarketRegistry, then queries Morpho
 ///      on-chain state and replicates interest accrual in a view context to return
 ///      accurate (non-stale) share/asset conversions.

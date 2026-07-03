@@ -19,6 +19,8 @@ Morpho Blue markets have no contract address — they are identified by a `Marke
 
 Scope: supply-side only, all chains where Morpho Blue is deployed, standalone (no `SuperLedgerConfiguration` registration yet).
 
+**Accounting unit:** All values (PPS, TVL, asset conversions) are denominated in the market's **loanToken** — the token suppliers deposit and earn interest on. This is a Morpho supply-position oracle, not an equity/NAV oracle. It does not report collateral token value, USD prices, or the Morpho market oracle price used for LTV calculations. If downstream surfaces need USD or collateral-denominated values, an additional price feed must be composed on top.
+
 ---
 
 ## Requirements
@@ -122,14 +124,23 @@ Markets are keyed by a pseudo-address: `address(uint160(uint256(Id.unwrap(market
 
 ## Ops Runbook — Market Deregistration
 
-Before executing `executeDeregisterMarket(marketKey)`:
+**Invariant: Do NOT deregister a market with active Superform accounting positions.**
 
-1. **Check SuperLedgerConfiguration**: Is this oracle registered for fee calculation on any SuperVault referencing this `marketKey`?
-2. **Check active positions**: Query `oracle.getBalanceOfOwner(marketKey, account)` for all accounts with positions. If any return non-zero supply shares, those accounts hold active positions.
-3. **If positions exist**: Do NOT deregister. The oracle reverting post-deregistration will brick performance fee calculations on outflows — users cannot withdraw through SuperLedger without the oracle returning a valid PPS.
-4. **Safe to proceed**: Only deregister when no active Superform-managed positions reference the market, OR the oracle is not registered in SuperLedgerConfiguration.
+A deregistered market makes the oracle revert `MARKET_NOT_REGISTERED` for that key. Any live read — PPS, TVL, fee preview, outflow accounting — will fail. Users cannot withdraw through SuperLedger without the oracle returning a valid PPS. The market must be fully migrated or deprecated before deregistration.
 
-The 2-day timelock provides a window to catch mistakes via monitoring alerts on `MarketDeregistrationProposed` events.
+### Pre-execution checklist
+
+Before calling `executeDeregisterMarket(marketKey)`, all of the following must be true:
+
+1. **SuperLedgerConfiguration**: The oracle is NOT registered for fee calculation on any SuperVault referencing this `marketKey`. Unregister it first.
+2. **SuperVault / monitoring configs**: No SuperVault strategy or monitoring config references this `marketKey`.
+3. **Active positions**: Query `oracle.getBalanceOfOwner(marketKey, account)` for all accounts with positions. All must return zero supply shares (fully withdrawn or migrated).
+4. **If any check fails**: Call `cancelDeregisterMarket(marketKey)` to abort.
+
+### Monitoring
+
+- Alert on `MarketDeregistrationProposed` events — the 2-day timelock window is the safety net.
+- If a `MarketDeregistered` event fires for a market with active positions, immediately re-register the market via `registerMarket` with the same params to restore oracle reads.
 
 ---
 

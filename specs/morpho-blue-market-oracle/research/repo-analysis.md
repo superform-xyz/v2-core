@@ -15,7 +15,7 @@ IYieldSourceOracle  (interface)
 | `src/interfaces/accounting/IYieldSourceOracle.sol` | Full interface |
 | `src/accounting/oracles/AbstractYieldSourceOracle.sol` | Base class with batch plumbing |
 | `src/accounting/oracles/ERC4626YieldSourceOracle.sol` | Simplest reference oracle |
-| `src/accounting/oracles/MorphoBlueMarketWrapper.sol` | **Implemented — wrapper** |
+| `src/accounting/oracles/MorphoBlueMarketRegistry.sol` | **Implemented — permissioned registry** (replaced `MorphoBlueMarketWrapper`) |
 | `src/accounting/oracles/MorphoBlueYieldSourceOracle.sol` | **Implemented — oracle** |
 
 ## Oracle Interface Methods
@@ -81,26 +81,30 @@ toAssetsUp(shares, totalAssets, totalShares)   // repayment
 
 ## Hook Data Layouts
 
-**MorphoLendHook (145 bytes)**:
+> Updated post hooks-standardization (#923). All hooks now carry a 52-byte strategy header.
+
+**MorphoLendHook (197 bytes)**:
 ```
-[0-20):   loanToken
-[20-40):  collateralToken
-[40-60):  oracle
-[60-80):  irm
-[80-112): amount (uint256)
-[112-144): lltv (uint256)
-[144]:    usePrevHookAmount (bool)
+[0-52):    strategy header (placeholder)
+[52-72):   loanToken
+[72-92):   collateralToken
+[92-112):  oracle
+[112-132): irm
+[132-164): amount (uint256)
+[164-196): lltv (uint256)
+[196]:     usePrevHookAmount (bool)
 ```
 
-**MorphoWithdrawHook (176 bytes)**:
+**MorphoWithdrawHook (228 bytes)**:
 ```
-[0-20):   loanToken
-[20-40):  collateralToken
-[40-60):  oracle
-[60-80):  irm
-[80-112): lltv (uint256)   ← different position than LendHook
-[112-144): assets (uint256)
-[144-176): shares (uint256)
+[0-52):    strategy header (placeholder)
+[52-72):   loanToken
+[72-92):   collateralToken
+[92-112):  oracle
+[112-132): irm
+[132-164): lltv (uint256)   ← different position than LendHook
+[164-196): assets (uint256)
+[196-228): shares (uint256)
 ```
 
 `inspect()` on both returns `abi.encodePacked(loanToken, collateralToken, oracle, irm)` = 80 bytes.
