@@ -11,7 +11,13 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperSignatureStorage } from "../../../interfaces/ISuperSignatureStorage.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookResult,
+    ISuperHookContextAware,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 
 /// @title CCTPSendHook
 /// @author Superform Labs
@@ -23,23 +29,25 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @dev      signature is retrieved from the validator contract transient storage
 /// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to
 /// sign it
-/// @dev data has the following structure
-/// @notice         address burnToken = BytesLib.toAddress(data, 0);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 20);
-/// @notice         uint32 destinationDomain = BytesLib.toUint32(data, 52);
-/// @notice         bytes32 mintRecipient = BytesLib.toBytes32(data, 56);
-/// @notice         bytes32 destinationCaller = BytesLib.toBytes32(data, 88);
-/// @notice         uint256 maxFee = BytesLib.toUint256(data, 120);
-/// @notice         uint32 minFinalityThreshold = BytesLib.toUint32(data, 152);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
-/// @notice         bytes hookCallData = BytesLib.slice(data, 157, data.length - 157);
-contract CCTPSendHook is BaseHook, ISuperHookContextAware {
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address burnToken = BytesLib.toAddress(data, 52);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 72);
+/// @notice         uint32 destinationDomain = BytesLib.toUint32(data, 104);
+/// @notice         bytes32 mintRecipient = BytesLib.toBytes32(data, 108);
+/// @notice         bytes32 destinationCaller = BytesLib.toBytes32(data, 140);
+/// @notice         uint256 maxFee = BytesLib.toUint256(data, 172);
+/// @notice         uint32 minFinalityThreshold = BytesLib.toUint32(data, 204);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 208);
+/// @notice         bytes hookCallData = BytesLib.slice(data, 209, data.length - 209);
+contract CCTPSendHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     address public immutable TOKEN_MESSENGER;
     address private immutable VALIDATOR;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 208;
+    uint256 private constant AMOUNT_POSITION = 72;
 
     struct CCTPSendData {
         address burnToken;
@@ -66,11 +74,22 @@ contract CCTPSendHook is BaseHook, ISuperHookContextAware {
     /// @param validator_ The validator contract address for signature retrieval
     constructor(
         address tokenMessenger_,
+
         address validator_
     ) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
         if (tokenMessenger_ == address(0) || validator_ == address(0)) revert ADDRESS_NOT_VALID();
         TOKEN_MESSENGER = tokenMessenger_;
         VALIDATOR = validator_;
+    }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "CCTP Send";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Bridges USDC via Circle CCTP cross-chain transfer";
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -87,24 +106,24 @@ contract CCTPSendHook is BaseHook, ISuperHookContextAware {
         override
         returns (Execution[] memory executions)
     {
-        if (data.length < 157) revert DATA_NOT_VALID();
+        if (data.length < 209) revert DATA_NOT_VALID();
 
         CCTPSendData memory s;
-        s.burnToken = BytesLib.toAddress(data, 0);
-        s.amount = BytesLib.toUint256(data, 20);
-        s.destinationDomain = BytesLib.toUint32(data, 52);
-        s.mintRecipient = BytesLib.toBytes32(data, 56);
-        s.destinationCaller = BytesLib.toBytes32(data, 88);
-        s.maxFee = BytesLib.toUint256(data, 120);
-        s.minFinalityThreshold = BytesLib.toUint32(data, 152);
+        s.burnToken = BytesLib.toAddress(data, 52);
+        s.amount = BytesLib.toUint256(data, 72);
+        s.destinationDomain = BytesLib.toUint32(data, 104);
+        s.mintRecipient = BytesLib.toBytes32(data, 108);
+        s.destinationCaller = BytesLib.toBytes32(data, 140);
+        s.maxFee = BytesLib.toUint256(data, 172);
+        s.minFinalityThreshold = BytesLib.toUint32(data, 204);
 
         // Fail-fast validation on fixed fields before external calls
         if (s.burnToken == address(0)) revert ADDRESS_NOT_VALID();
         if (s.mintRecipient == bytes32(0)) revert RECIPIENT_NOT_VALID();
 
         // Decode variable-length hookCallData (last field — length derived from total data length)
-        if (data.length > 157) {
-            s.hookCallData = BytesLib.slice(data, 157, data.length - 157);
+        if (data.length > 209) {
+            s.hookCallData = BytesLib.slice(data, 209, data.length - 209);
         }
 
         if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) {
@@ -170,11 +189,42 @@ contract CCTPSendHook is BaseHook, ISuperHookContextAware {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](1);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+    }
+
+    /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
+    function _supportsSizingInterface() internal pure override returns (bool) {
+        return true;
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 1) revert INVALID_AMOUNTS_LENGTH();
+        return _replaceCalldataAmount(data, amounts[0], AMOUNT_POSITION);
+    }
+
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(
-            BytesLib.toAddress(data, 0), // burnToken
-            address(uint160(uint256(BytesLib.toBytes32(data, 56)))) // mintRecipient (as address from bytes32)
+            BytesLib.toAddress(data, 52), // burnToken
+            address(uint160(uint256(BytesLib.toBytes32(data, 108)))) // mintRecipient (as address from bytes32)
         );
     }
 }

@@ -64,6 +64,20 @@ abstract contract Helpers is Test, Constants {
     }
 
     /*//////////////////////////////////////////////////////////////
+                                 AMOUNT ARRAY HELPERS
+    //////////////////////////////////////////////////////////////*/
+    function _singleAmount(uint256 amt) internal pure returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = amt;
+    }
+
+    function _dualAmounts(uint256 a, uint256 b) internal pure returns (uint256[] memory amounts) {
+        amounts = new uint256[](2);
+        amounts[0] = a;
+        amounts[1] = b;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  GENERIC HELPER METHODS
     //////////////////////////////////////////////////////////////*/
     function _bound(uint256 amount_) internal pure returns (uint256) {
@@ -87,7 +101,7 @@ abstract contract Helpers is Test, Constants {
 
     function _toEthSignedMessageHash(bytes32 hash) internal pure returns (bytes32 result) {
         /// @solidity memory-safe-assembly
-        assembly {
+        assembly ("memory-safe") {
             mstore(0x20, hash) // Store into scratch space for keccak256.
             mstore(0x00, "\x00\x00\x00\x00\x19Ethereum Signed Message:\n32") // 28 bytes.
             result := keccak256(0x04, 0x3c) // `32 * 2 - (32 - 28) = 60 = 0x3c`.

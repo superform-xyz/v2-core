@@ -13,20 +13,32 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 
 /// @title AaveV4WithdrawHook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         address loanToken = BytesLib.toAddress(data, 0);
-/// @notice         address collateralToken = BytesLib.toAddress(data, 20);
-/// @notice         address spoke = BytesLib.toAddress(data, 40);
-/// @notice         uint256 supplyReserveId = BytesLib.toUint256(data, 60);
-/// @notice         uint256 borrowReserveId = BytesLib.toUint256(data, 92);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 124);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address loanToken = BytesLib.toAddress(data, 52);
+/// @notice         address collateralToken = BytesLib.toAddress(data, 72);
+/// @notice         address spoke = BytesLib.toAddress(data, 92);
+/// @notice         uint256 supplyReserveId = BytesLib.toUint256(data, 112);
+/// @notice         uint256 borrowReserveId = BytesLib.toUint256(data, 144);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 176);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 208);
 contract AaveV4WithdrawHook is BaseAaveV4LoanHook {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
     constructor() BaseAaveV4LoanHook(HookSubTypes.LOAN_REPAY) { }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Aave V4 Withdraw";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Withdraws assets from an Aave V4 lending pool";
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
@@ -77,5 +89,6 @@ contract AaveV4WithdrawHook is BaseAaveV4LoanHook {
     /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(getCollateralTokenBalance(account, data) - getOutAmount(account), account);
+        _setOutToken(getCollateralTokenAddress(data), account);
     }
 }

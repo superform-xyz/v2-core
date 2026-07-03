@@ -25,6 +25,11 @@ import "forge-std/console2.sol";
 ///      KyberSwap MetaAggregationRouterV2 at 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5
 ///      Requires ETHEREUM_RPC_URL environment variable
 contract KyberSwapHookIntegrationTest is Test, Constants {
+    function _singleAmount(uint256 amt) internal pure returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = amt;
+    }
+
     SwapKyberSwapHook public swapHook;
     ApproveAndSwapKyberSwapHook public approveAndSwapHook;
 
@@ -59,7 +64,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
             (bool success, bytes memory returndata) =
                 executions[i].target.call{ value: executions[i].value }(executions[i].callData);
             if (!success) {
-                assembly {
+                assembly ("memory-safe") {
                     revert(add(returndata, 32), mload(returndata))
                 }
             }
@@ -114,10 +119,10 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         return abi.encodePacked(IMetaAggregationRouterV2.swap.selector, abi.encode(params));
     }
 
-    /// @dev Build SwapKyberSwapHook data layout
+    /// @dev Build SwapKyberSwapHook data layout (3-layer standard)
     function _buildSwapHookData(
+        address inputToken,
         address outputToken,
-        uint256 value,
         uint256 inputAmount,
         uint256 outputMin,
         bool usePrevHookAmount,
@@ -128,17 +133,20 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         returns (bytes memory)
     {
         return bytes.concat(
-            bytes20(outputToken),
-            bytes32(value),
-            bytes32(inputAmount),
-            bytes32(outputMin),
+            bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+            bytes20(address(0)), // yieldSource (52-byte header part 2)
+            bytes20(inputToken), // inputToken @52
+            bytes20(outputToken), // outputToken @72
+            bytes32(inputAmount), // inputAmount @92
+            bytes32(uint256(0)), // outputQuote @124
+            bytes32(outputMin), // outputMin @156
             usePrevHookAmount ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(txData_.length),
             txData_
         );
     }
 
-    /// @dev Build ApproveAndSwapKyberSwapHook data layout
+    /// @dev Build ApproveAndSwapKyberSwapHook data layout (3-layer standard)
     function _buildApproveAndSwapHookData(
         address inputToken,
         address outputToken,
@@ -152,10 +160,13 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         returns (bytes memory)
     {
         return bytes.concat(
-            bytes20(inputToken),
-            bytes20(outputToken),
-            bytes32(inputAmount),
-            bytes32(outputMin),
+            bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+            bytes20(address(0)), // yieldSource (52-byte header part 2)
+            bytes20(inputToken), // inputToken @52
+            bytes20(outputToken), // outputToken @72
+            bytes32(inputAmount), // inputAmount @92
+            bytes32(uint256(0)), // outputQuote @124
+            bytes32(outputMin), // outputMin @156
             usePrevHookAmount ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(txData_.length),
             txData_
@@ -180,7 +191,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
     function test_SwapHook_Build_TargetsRealRouter() public view {
         bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, 1000e6, 0.3 ether, KYBER_ROUTER, KYBER_ROUTER, "");
 
-        bytes memory hookData = _buildSwapHookData(WETH, 0, 1000e6, 0.3 ether, false, txData_);
+        bytes memory hookData = _buildSwapHookData(USDC, WETH, 1000e6, 0.3 ether, false, txData_);
 
         Execution[] memory executions = swapHook.build(address(0), account, hookData);
 
@@ -226,7 +237,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
         bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, 1000e6, 0.3 ether, callTarget_, approveTarget_, "");
 
-        bytes memory hookData = _buildSwapHookData(WETH, 0, 1000e6, 0.3 ether, false, txData_);
+        bytes memory hookData = _buildSwapHookData(USDC, WETH, 1000e6, 0.3 ether, false, txData_);
 
         bytes memory result = swapHook.inspect(hookData);
 
@@ -234,7 +245,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
         // Decode packed address
         address decodedDstToken;
-        assembly {
+        assembly ("memory-safe") {
             decodedDstToken := mload(add(result, 20))
         }
 
@@ -255,7 +266,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         assertEq(result.length, 20);
 
         address decodedDstToken;
-        assembly {
+        assembly ("memory-safe") {
             decodedDstToken := mload(add(result, 20))
         }
 
@@ -344,7 +355,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
     function test_SwapHook_BalanceTracking_RealWETH() public {
         bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, 1000e6, 0, KYBER_ROUTER, KYBER_ROUTER, "");
 
-        bytes memory hookData = _buildSwapHookData(WETH, 0, 1000e6, 0, false, txData_);
+        bytes memory hookData = _buildSwapHookData(USDC, WETH, 1000e6, 0, false, txData_);
 
         // Give account some WETH to simulate initial balance
         deal(WETH, account, 5 ether);
@@ -364,7 +375,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         bytes memory txData_ = _buildKyberSwapTxData(USDC, NATIVE, 1000e6, 0, KYBER_ROUTER, KYBER_ROUTER, "");
 
         // outputToken = NATIVE for native ETH
-        bytes memory hookData = _buildSwapHookData(NATIVE, 0, 1000e6, 0, false, txData_);
+        bytes memory hookData = _buildSwapHookData(USDC, NATIVE, 1000e6, 0, false, txData_);
 
         vm.deal(account, 10 ether);
 
@@ -404,7 +415,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
         // First 4 bytes should be swap selector: 0xe21fd0e9
         bytes4 selector;
-        assembly {
+        assembly ("memory-safe") {
             selector := mload(add(txData_, 32))
         }
         assertEq(selector, IMetaAggregationRouterV2.swap.selector, "should have correct swap selector");
@@ -483,7 +494,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
     function test_ScaleHelper_RealContract_Exists() public view {
         uint256 codeSize;
         address sh = SCALE_HELPER;
-        assembly {
+        assembly ("memory-safe") {
             codeSize := extcodesize(sh)
         }
         assertGt(codeSize, 0, "ScaleHelper should be deployed on mainnet");
@@ -503,7 +514,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         bytes memory txData_ =
             _buildKyberSwapTxData(USDC, WETH, originalAmount, 0.3 ether, KYBER_ROUTER, KYBER_ROUTER, "");
 
-        bytes memory hookData = _buildSwapHookData(WETH, 0, originalAmount, 0.3 ether, true, txData_);
+        bytes memory hookData = _buildSwapHookData(USDC, WETH, originalAmount, 0.3 ether, true, txData_);
 
         // Should NOT revert — hook falls back to proportional scaling
         Execution[] memory executions = swapHook.build(address(prevHookMock), account, hookData);
@@ -605,7 +616,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         bytes memory txData_ =
             _buildKyberSwapTxData(USDC, WETH, originalAmount, 0.3 ether, KYBER_ROUTER, KYBER_ROUTER, "");
 
-        bytes memory hookData = _buildSwapHookData(WETH, 0, originalAmount, 0.3 ether, true, txData_);
+        bytes memory hookData = _buildSwapHookData(USDC, WETH, originalAmount, 0.3 ether, true, txData_);
 
         Execution[] memory executions = swapHook.build(address(prevHookMock), account, hookData);
 
@@ -636,7 +647,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
             ""
         );
 
-        bytes memory hookData = _buildSwapHookData(USDC, ethAmount, ethAmount, 1000e6, false, txData_);
+        bytes memory hookData = _buildSwapHookData(NATIVE, USDC, ethAmount, 1000e6, false, txData_);
 
         Execution[] memory executions = swapHook.build(address(0), account, hookData);
 
@@ -655,7 +666,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         bytes memory txData_ =
             _buildKyberSwapTxData(NATIVE, USDC, originalAmount, 1000e6, KYBER_ROUTER, KYBER_ROUTER, "");
 
-        bytes memory hookData = _buildSwapHookData(USDC, originalAmount, originalAmount, 1000e6, true, txData_);
+        bytes memory hookData = _buildSwapHookData(NATIVE, USDC, originalAmount, 1000e6, true, txData_);
 
         Execution[] memory executions = swapHook.build(address(prevHookMock), account, hookData);
 
@@ -766,7 +777,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
         bytes memory txData_ = abi.encodePacked(IMetaAggregationRouterV2.swap.selector, abi.encode(params));
 
-        bytes memory hookData = _buildSwapHookData(WETH, 0, originalAmount, 0.3 ether, true, txData_);
+        bytes memory hookData = _buildSwapHookData(USDC, WETH, originalAmount, 0.3 ether, true, txData_);
 
         Execution[] memory executions = swapHook.build(address(prevHookMock), account, hookData);
 
@@ -938,7 +949,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
         bytes memory txData_ = abi.encodePacked(IMetaAggregationRouterV2.swap.selector, abi.encode(params));
 
-        bytes memory hookData = _buildSwapHookData(WETH, 0, originalAmount, 0.3 ether, true, txData_);
+        bytes memory hookData = _buildSwapHookData(USDC, WETH, originalAmount, 0.3 ether, true, txData_);
 
         Execution[] memory executions = swapHook.build(address(prevHookMock), account, hookData);
 
@@ -965,8 +976,8 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         bytes memory txData_ =
             _buildKyberSwapTxData(USDC, WETH, 1000e6, 0.3 ether, KYBER_ROUTER, KYBER_ROUTER, "");
 
-        bytes memory hookDataFalse = _buildSwapHookData(WETH, 0, 1000e6, 0.3 ether, false, txData_);
-        bytes memory hookDataTrue = _buildSwapHookData(WETH, 0, 1000e6, 0.3 ether, true, txData_);
+        bytes memory hookDataFalse = _buildSwapHookData(USDC, WETH, 1000e6, 0.3 ether, false, txData_);
+        bytes memory hookDataTrue = _buildSwapHookData(USDC, WETH, 1000e6, 0.3 ether, true, txData_);
 
         assertFalse(swapHook.decodeUsePrevHookAmount(hookDataFalse), "should decode false");
         assertTrue(swapHook.decodeUsePrevHookAmount(hookDataTrue), "should decode true");
@@ -1010,7 +1021,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         bytes memory txData_ =
             _buildKyberSwapTxData(USDC, WETH, 1000e6, 0.3 ether, differentCallTarget, KYBER_ROUTER, "");
 
-        bytes memory hookData = _buildSwapHookData(WETH, 0, 1000e6, 0.3 ether, false, txData_);
+        bytes memory hookData = _buildSwapHookData(USDC, WETH, 1000e6, 0.3 ether, false, txData_);
 
         Execution[] memory executions = swapHook.build(address(0), account, hookData);
 
@@ -1050,7 +1061,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         bytes memory txData_ =
             _buildKyberSwapTxData(USDC, WETH, originalAmount, 25_000 ether, KYBER_ROUTER, KYBER_ROUTER, "");
 
-        bytes memory hookData = _buildSwapHookData(WETH, 0, originalAmount, 25_000 ether, true, txData_);
+        bytes memory hookData = _buildSwapHookData(USDC, WETH, originalAmount, 25_000 ether, true, txData_);
 
         // Should not revert
         Execution[] memory executions = swapHook.build(address(prevHookMock), account, hookData);
@@ -1115,15 +1126,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         uint256 minReturn = 0.4 ether;
         bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, inputAmount, minReturn, KYBER_ROUTER, KYBER_ROUTER, "");
 
-        bytes memory hookData = abi.encodePacked(
-            WETH, // outputToken (20 bytes)
-            uint256(0), // value (32 bytes)
-            inputAmount, // inputAmount (32 bytes)
-            minReturn, // outputMin (32 bytes)
-            uint8(1), // usePrevHookAmount = true (1 byte)
-            txData_.length, // txDataLength (32 bytes)
-            txData_ // txData
-        );
+        bytes memory hookData = _buildSwapHookData(USDC, WETH, inputAmount, minReturn, true, txData_);
 
         MockHook prevHookMock = new MockHook(ISuperHook.HookType.NONACCOUNTING, USDC);
         prevHookMock.setOutAmount(0, account); // zero amount
@@ -1138,15 +1141,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         uint256 minReturn = 0.4 ether;
         bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, inputAmount, minReturn, KYBER_ROUTER, KYBER_ROUTER, "");
 
-        bytes memory hookData = abi.encodePacked(
-            USDC, // inputToken (20 bytes)
-            WETH, // outputToken (20 bytes)
-            inputAmount, // inputAmount (32 bytes)
-            minReturn, // outputMin (32 bytes)
-            uint8(1), // usePrevHookAmount = true (1 byte)
-            txData_.length, // txDataLength (32 bytes)
-            txData_ // txData
-        );
+        bytes memory hookData = _buildApproveAndSwapHookData(USDC, WETH, inputAmount, minReturn, true, txData_);
 
         MockHook prevHookMock = new MockHook(ISuperHook.HookType.NONACCOUNTING, USDC);
         prevHookMock.setOutAmount(0, account); // zero amount
@@ -1162,21 +1157,53 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         bytes memory txData_ =
             _buildKyberSwapTxData(USDC, WETH, inputAmount, minReturn, KYBER_ROUTER, KYBER_ROUTER, "");
 
-        bytes memory hookData = abi.encodePacked(
-            WETH, // outputToken (20 bytes)
-            uint256(0), // value (32 bytes)
-            inputAmount, // inputAmount=0 (32 bytes)
-            minReturn, // outputMin (32 bytes)
-            uint8(1), // usePrevHookAmount = true (1 byte)
-            txData_.length, // txDataLength (32 bytes)
-            txData_ // txData
-        );
+        bytes memory hookData = _buildSwapHookData(USDC, WETH, inputAmount, minReturn, true, txData_);
 
         MockHook prevHookMock = new MockHook(ISuperHook.HookType.NONACCOUNTING, USDC);
         prevHookMock.setOutAmount(500e6, account); // non-zero prev amount
 
         vm.expectRevert(); // ZERO_AMOUNT from originalAmount=0 check
         swapHook.build(address(prevHookMock), account, hookData);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    DECODE AMOUNT / REPLACE CALLDATA AMOUNT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice decodeAmount + replaceCalldataAmount roundtrip for ApproveAndSwapKyberSwapHook
+    function test_ApproveAndSwap_DecodeAmounts_ReplaceCalldataAmounts() public {
+        uint256 originalAmount = 1000e6;
+        bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, originalAmount, 0, KYBER_ROUTER, KYBER_ROUTER, "");
+
+        bytes memory hookData =
+            _buildApproveAndSwapHookData(USDC, WETH, originalAmount, 0.2 ether, false, txData_);
+
+        // Verify decodeAmount reads correctly
+        assertEq(approveAndSwapHook.decodeAmounts(hookData)[0], originalAmount, "decodeAmount mismatch");
+
+        // Replace with new amount and verify roundtrip
+        uint256 newAmount = 500e6;
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+
+        assertEq(approveAndSwapHook.decodeAmounts(replaced)[0], newAmount, "replaced amount mismatch");
+
+        // Verify other fields preserved
+        assertFalse(approveAndSwapHook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
+    }
+
+    /// @notice decodeAmount + replaceCalldataAmount roundtrip for SwapKyberSwapHook
+    /// @dev SwapKyberSwapHook 3-layer layout: header(52) | inputToken(20) | outputToken(20) | inputAmount(32) | outputQuote(32) | outputMin(32) | usePrevHookAmount(1) | txDataLength(32) | txData
+    function test_Swap_DecodeAmounts_ReplaceCalldataAmounts() public {
+        uint256 originalAmount = 2000e6;
+        bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, originalAmount, 0, KYBER_ROUTER, KYBER_ROUTER, "");
+
+        bytes memory hookData = _buildSwapHookData(USDC, WETH, originalAmount, 0.2 ether, false, txData_);
+
+        assertEq(swapHook.decodeAmounts(hookData)[0], originalAmount, "SwapHook decodeAmount mismatch");
+
+        uint256 newAmount = 1000e6;
+        bytes memory replaced = swapHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(swapHook.decodeAmounts(replaced)[0], newAmount, "SwapHook replaced amount mismatch");
     }
 
     /*//////////////////////////////////////////////////////////////

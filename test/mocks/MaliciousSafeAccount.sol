@@ -197,7 +197,7 @@ contract MaliciousSafeAccount {
             bytes32 s;
 
             // Extract signature parts using assembly
-            assembly {
+            assembly ("memory-safe") {
                 let signaturePos := add(add(signatures.offset, mul(i, 65)), signatureOffset)
                 r := calldataload(signaturePos)
                 s := calldataload(add(signaturePos, 32))

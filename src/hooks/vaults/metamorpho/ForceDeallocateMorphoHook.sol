@@ -9,14 +9,20 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookResult,
+    ISuperHookContextAware,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 import { IMorphoVaultV2 } from "../../../vendor/morpho/IMorphoVaultV2.sol";
 
 /// @title ForceDeallocateMorphoHook
 /// @author Superform Labs
 /// @notice NONACCOUNTING hook that calls Morpho Vault V2's forceDeallocate() for emergency asset extraction
 /// @dev data has the following structure
-/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         bytes32 placeholder_yieldSourceOracleId = BytesLib.toBytes32(data, 0);
 /// @notice         address morphoVaultV2 = BytesLib.toAddress(data, 32);
 /// @notice         address adapter = BytesLib.toAddress(data, 52);
 /// @notice         uint256 assets = BytesLib.toUint256(data, 72);
@@ -27,7 +33,7 @@ import { IMorphoVaultV2 } from "../../../vendor/morpho/IMorphoVaultV2.sol";
 /// @dev TRUST ASSUMPTION: This hook trusts Morpho Vault V2's internal reentrancy guards and adapter validation.
 ///      The hook pre-checks the penalty via forceDeallocatePenalty() and validates deadline before execution.
 ///      onBehalf is always set to the executing smart account (msg.sender).
-contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware {
+contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using BytesLib for bytes;
     using HookDataDecoder for bytes;
 
@@ -58,6 +64,17 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware {
     //////////////////////////////////////////////////////////////*/
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.MISC) { }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Force Deallocate Morpho";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Force deallocates liquidity from a Morpho market";
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -134,6 +151,37 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_OFFSET);
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = BytesLib.toUint256(data, ASSETS_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](1);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+    }
+
+    /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
+    function _supportsSizingInterface() internal pure override returns (bool) {
+        return true;
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 1) revert INVALID_AMOUNTS_LENGTH();
+        return _replaceCalldataAmount(data, amounts[0], ASSETS_OFFSET);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -168,6 +216,7 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware {
             assets = ISuperHookResult(prevHook).getOutAmount(account);
         }
         _setOutAmount(assets, account);
+        _setOutToken(data.extractYieldSource(), account);
     }
 
     /// @inheritdoc ISuperHookInspector

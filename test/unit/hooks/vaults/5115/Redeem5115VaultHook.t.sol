@@ -85,9 +85,9 @@ contract Redeem5115VaultHookTest is Helpers {
         hook.build(address(0), address(this), _encodeData(false));
     }
 
-    function test_DecodeAmount() public view {
+    function test_DecodeAmounts() public view {
         bytes memory data = _encodeData(false);
-        uint256 decodedAmount = hook.decodeAmount(data);
+        uint256 decodedAmount = hook.decodeAmounts(data)[0];
         assertEq(decodedAmount, amount);
     }
 
@@ -111,10 +111,10 @@ contract Redeem5115VaultHookTest is Helpers {
     function test_ReplaceCalldata() public view {
         bytes memory data = _encodeData(false);
 
-        bytes memory replacedData = hook.replaceCalldataAmount(data, 1);
+        bytes memory replacedData = hook.replaceCalldataAmounts(data, _singleAmount(1));
         assertEq(replacedData.length, data.length);
 
-        uint256 replacedAmount = hook.decodeAmount(replacedData);
+        uint256 replacedAmount = hook.decodeAmounts(replacedData)[0];
         assertEq(replacedAmount, 1);
     }
 

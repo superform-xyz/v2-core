@@ -109,16 +109,21 @@ contract UniswapV3SuperVaultIntegrationTest is Test, Constants {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(
-            tokenIn, // 20 bytes
-            tokenOut, // 20 bytes
-            uint32(fee), // 4 bytes (using uint32 for fee encoding)
-            recipient, // 20 bytes
-            deadline, // 32 bytes
-            uint256(sqrtPriceLimitX96), // 32 bytes
-            amountIn, // 32 bytes
-            amountOutMinimum, // 32 bytes
-            usePrevHookAmount // 1 byte
+        // Split to avoid stack-too-deep
+        bytes memory layer1 = abi.encodePacked(
+            bytes32(0), address(0), // header @0
+            tokenIn, tokenOut, // inputToken @52, outputToken @72
+            amountIn, // inputAmount @92
+            uint256(0), // outputQuote @124
+            amountOutMinimum, // outputMin @156
+            usePrevHookAmount, // @188
+            uint256(68) // payloadLength @189
+        );
+        return bytes.concat(
+            layer1,
+            bytes4(uint32(fee)), // fee @221
+            bytes32(deadline), // deadline @225
+            bytes32(uint256(sqrtPriceLimitX96)) // sqrtPriceLimitX96 @257
         );
     }
 

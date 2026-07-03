@@ -9,7 +9,14 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../../hooks/BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 // Circle Gateway
 import { TransferSpecLib } from "../../../../lib/evm-gateway-contracts/src/lib/TransferSpecLib.sol";
@@ -23,12 +30,13 @@ interface IGatewayMinter {
 /// @title CircleGatewayMinterHook
 /// @author Superform Labs
 /// @notice Hook for minting tokens from Circle Gateway Minter
-/// @dev data has the following structure:
-/// @notice         uint256 attestationPayloadLength = BytesLib.toUint256(data, 0);
-/// @notice         bytes attestationPayload = BytesLib.slice(data, 32, attestationPayloadLength);
-/// @notice         uint256 signatureLength = BytesLib.toUint256(data, 32 + attestationPayloadLength);
-/// @notice         bytes signature = BytesLib.slice(data, 64 + attestationPayloadLength, signatureLength);
-contract CircleGatewayMinterHook is BaseHook {
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         uint256 attestationPayloadLength = BytesLib.toUint256(data, 52);
+/// @notice         bytes attestationPayload = BytesLib.slice(data, 84, attestationPayloadLength);
+/// @notice         uint256 signatureLength = BytesLib.toUint256(data, 84 + attestationPayloadLength);
+/// @notice         bytes signature = BytesLib.slice(data, 116 + attestationPayloadLength, signatureLength);
+contract CircleGatewayMinterHook is BaseHook, ISuperHookInflowOutflow {
     using TransferSpecLib for bytes29;
     using AttestationLib for bytes29;
     using AttestationLib for Cursor;
@@ -57,6 +65,17 @@ contract CircleGatewayMinterHook is BaseHook {
         if (gatewayMinterAddress == address(0)) revert ADDRESS_NOT_VALID();
         GATEWAY_MINTER = gatewayMinterAddress;
     }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Circle Gateway Minter";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Mints tokens via Circle Gateway";
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -116,6 +135,27 @@ contract CircleGatewayMinterHook is BaseHook {
         return _decodeAttestationData(data);
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    /// @dev Sizeless — amount is inside a cryptographically-signed attestation blob
+    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](0);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+    }
+
+    /// @inheritdoc IERC165
+    /// @dev S2: implements ISuperHookInflowOutflow (decode-only) but NOT ISuperHookOutflow
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
+        if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
+        return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
+            || interfaceId == type(ISuperHookResult).interfaceId
+            || interfaceId == type(ISuperHookInspector).interfaceId;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -142,6 +182,7 @@ contract CircleGatewayMinterHook is BaseHook {
 
         // Update outAmount to reflect the minted amount
         _setOutAmount(mintedAmount, account);
+        _setOutToken(asset, account);
     }
 
     /// @notice Internal function to decode attestation payload and signature from data

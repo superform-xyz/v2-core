@@ -68,11 +68,13 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
     function test_Build_RevertIf_InvalidAddresses() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         bytes memory hookData = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte header (yieldSourceOracleId + yieldSource)
             address(0), // invalid from address
             uint256(3),
             sigDeadline,
             abi.encodePacked(tokens[0], tokens[1], tokens[2]),
             abi.encodePacked(amounts[0], amounts[1], amounts[2]),
+            new bytes(18), // nonces (6 bytes * 3 tokens)
             new bytes(65)
         );
         hook.build(address(0), account, hookData);
@@ -81,6 +83,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
     function test_Build_RevertIf_ZeroTokens() public {
         vm.expectRevert(BatchTransferFromHook.INVALID_ARRAY_LENGTH.selector);
         bytes memory hookData = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte header (yieldSourceOracleId + yieldSource)
             eoa,
             uint256(0), // zero tokens
             sigDeadline,
@@ -91,11 +94,13 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
 
     function test_Build_Executions() public view {
         bytes memory hookData = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte header (yieldSourceOracleId + yieldSource)
             eoa, // from address (20 bytes)
             uint256(3), // number of tokens (32 bytes)
             sigDeadline, // signature deadline (32 bytes)
             abi.encodePacked(tokens[0], tokens[1], tokens[2]), // token addresses (20 bytes each)
             abi.encodePacked(amounts[0], amounts[1], amounts[2]), // amounts (32 bytes each)
+            new bytes(18), // nonces (6 bytes * 3 tokens)
             new bytes(65) // mock signature (65 bytes)
         );
 
@@ -119,11 +124,13 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
     function test_Build_Executions_ReturnStatement() public view {
         // Create minimal valid data to trigger the return statement
         bytes memory hookData = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte header (yieldSourceOracleId + yieldSource)
             eoa, // from address (20 bytes)
             uint256(1), // number of tokens (32 bytes) - just use 1 token to keep it simple
             sigDeadline, // signature deadline (32 bytes)
             abi.encodePacked(tokens[0]), // single token address
             abi.encodePacked(amounts[0]), // single amount
+            new bytes(6), // nonces (6 bytes * 1 token)
             new bytes(65) // mock signature
         );
 
@@ -143,11 +150,13 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
 
     function test_preAndPostExecute_permit2() public {
         bytes memory hookData = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte header (yieldSourceOracleId + yieldSource)
             eoa, // from address (20 bytes)
             uint256(3), // number of tokens (32 bytes)
             sigDeadline, // signature deadline (32 bytes)
             abi.encodePacked(tokens[0], tokens[1], tokens[2]), // token addresses (20 bytes each)
             abi.encodePacked(amounts[0], amounts[1], amounts[2]), // amounts (32 bytes each)
+            new bytes(18), // nonces (6 bytes * 3 tokens)
             new bytes(65) // mock signature (65 bytes)
         );
 
@@ -158,11 +167,13 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
 
     function test_inspect_permit2() public view {
         bytes memory hookData = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte header (yieldSourceOracleId + yieldSource)
             eoa, // from address (20 bytes)
             uint256(3), // number of tokens (32 bytes)
             sigDeadline, // signature deadline (32 bytes)
             abi.encodePacked(tokens[0], tokens[1], tokens[2]), // token addresses (20 bytes each)
             abi.encodePacked(amounts[0], amounts[1], amounts[2]), // amounts (32 bytes each)
+            new bytes(18), // nonces (6 bytes * 3 tokens)
             new bytes(65) // mock signature (65 bytes)
         );
 
@@ -234,11 +245,13 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         mismatchedAmounts[2] = 3e18;
 
         bytes memory hookData = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte header (yieldSourceOracleId + yieldSource)
             eoa,
             uint256(3), // This should match the amounts array length
             sigDeadline,
             abi.encodePacked(mismatchedTokens[0], mismatchedTokens[1]),
             abi.encodePacked(mismatchedAmounts[0], mismatchedAmounts[1], mismatchedAmounts[2]),
+            new bytes(18), // nonces (6 bytes * 3 tokens)
             new bytes(65)
         );
 
@@ -248,7 +261,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
     }
 
     function test_Build_RevertIf_EmptyTokenArray() public {
-        bytes memory hookData = abi.encodePacked(eoa, uint256(0), sigDeadline, new bytes(65));
+        bytes memory hookData = abi.encodePacked(bytes32(0), address(0), eoa, uint256(0), sigDeadline, new bytes(65));
 
         vm.expectRevert(BatchTransferFromHook.INVALID_ARRAY_LENGTH.selector);
         hook.build(address(0), account, hookData);
@@ -256,11 +269,13 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
 
     function test_Build_RevertIf_ZeroAmount() public {
         bytes memory hookData = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte header (yieldSourceOracleId + yieldSource)
             eoa,
             uint256(3),
             sigDeadline,
             abi.encodePacked(tokens[0], tokens[1], tokens[2]),
             abi.encodePacked(uint256(0), uint256(0), uint256(0)),
+            new bytes(18), // nonces (6 bytes * 3 tokens)
             new bytes(65)
         );
 
@@ -270,11 +285,13 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
 
     function test_Build_RevertIf_InvalidSignatureLength() public view {
         bytes memory hookData = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte header (yieldSourceOracleId + yieldSource)
             eoa,
             uint256(3),
             sigDeadline,
             abi.encodePacked(tokens[0], tokens[1], tokens[2]),
             abi.encodePacked(amounts[0], amounts[1], amounts[2]),
+            new bytes(18), // nonces (6 bytes * 3 tokens)
             new bytes(64) // Invalid signature length (not 65 bytes)
         );
 
@@ -285,11 +302,13 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
 
     function test_Build_RevertIf_InvalidTokenAddress() public {
         bytes memory hookData = abi.encodePacked(
+            bytes32(0), address(0), // 52-byte header (yieldSourceOracleId + yieldSource)
             eoa,
             uint256(3),
             sigDeadline,
             abi.encodePacked(address(0), weth, dai), // Invalid token address
             abi.encodePacked(amounts[0], amounts[1], amounts[2]),
+            new bytes(18), // nonces (6 bytes * 3 tokens)
             new bytes(65)
         );
 

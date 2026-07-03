@@ -120,9 +120,11 @@ contract KyberSwapUnitTests is Helpers {
     function test_SwapHook_Build_DerivesZeroValueForErc20Input() public view {
         bytes memory txData_ = _buildKyberTxData();
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(inputToken),
             bytes20(outputToken),
-            bytes32(uint256(1 ether)),
             bytes32(inputAmount),
+            bytes32(uint256(0)), // outputQuote
             bytes32(outputMin),
             bytes1(uint8(0)),
             bytes32(txData_.length),
@@ -140,9 +142,11 @@ contract KyberSwapUnitTests is Helpers {
         address native = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         bytes memory txData_ = _buildKyberTxDataWithTokens(native, outputToken, 1 ether, outputMin, approveTarget);
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(native),      // inputToken = native
             bytes20(outputToken),
-            bytes32(uint256(2 ether)),
-            bytes32(uint256(1 ether)),
+            bytes32(uint256(1 ether)), // inputAmount
+            bytes32(uint256(0)),       // outputQuote
             bytes32(outputMin),
             bytes1(uint8(0)),
             bytes32(txData_.length),
@@ -172,9 +176,11 @@ contract KyberSwapUnitTests is Helpers {
         address native = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         bytes memory txData_ = _buildKyberTxDataWithTokens(native, outputToken, 1 ether, outputMin, approveTarget);
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(native),      // inputToken = native
             bytes20(outputToken),
-            bytes32(uint256(0)),
-            bytes32(uint256(1 ether)),
+            bytes32(uint256(1 ether)), // inputAmount
+            bytes32(uint256(0)),       // outputQuote
             bytes32(outputMin),
             bytes1(uint8(1)), // usePrevHookAmount = true
             bytes32(txData_.length),
@@ -236,9 +242,11 @@ contract KyberSwapUnitTests is Helpers {
         // Build txData with approveTarget = address(0), should fallback to KYBER_ROUTER
         bytes memory txData_ = _buildKyberTxDataWithApproveTarget(address(0));
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
             bytes20(outputToken),
             bytes32(inputAmount),
+            bytes32(uint256(0)), // outputQuote
             bytes32(outputMin),
             bytes1(uint8(0)),
             bytes32(txData_.length),
@@ -314,9 +322,11 @@ contract KyberSwapUnitTests is Helpers {
         address NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         bytes memory txData_ = _buildKyberTxData();
         bytes memory data = bytes.concat(
-            bytes20(NATIVE), // outputToken = native ETH
-            bytes32(swapValue),
+            bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(inputToken),  // inputToken
+            bytes20(NATIVE),      // outputToken = native ETH
             bytes32(inputAmount),
+            bytes32(uint256(0)), // outputQuote
             bytes32(outputMin),
             bytes1(uint8(0)),
             bytes32(txData_.length),
@@ -334,9 +344,11 @@ contract KyberSwapUnitTests is Helpers {
         address NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         bytes memory txData_ = _buildKyberTxData();
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
-            bytes20(NATIVE), // outputToken = native ETH at offset 20
+            bytes20(NATIVE),      // outputToken = native ETH
             bytes32(inputAmount),
+            bytes32(uint256(0)), // outputQuote
             bytes32(outputMin),
             bytes1(uint8(0)),
             bytes32(txData_.length),
@@ -378,9 +390,11 @@ contract KyberSwapUnitTests is Helpers {
         // Build data with inputAmount=0 and usePrevHookAmount=true
         bytes memory txData_ = _buildKyberTxData();
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(inputToken),
             bytes20(outputToken),
-            bytes32(swapValue),
             bytes32(uint256(0)), // inputAmount = 0 (originalAmount)
+            bytes32(uint256(0)), // outputQuote
             bytes32(outputMin),
             bytes1(uint8(1)), // usePrevHookAmount = true
             bytes32(txData_.length),
@@ -467,37 +481,126 @@ contract KyberSwapUnitTests is Helpers {
         return abi.encodePacked(IMetaAggregationRouterV2.swap.selector, abi.encode(params));
     }
 
-    /// @dev Build SwapKyberSwapHook data layout:
-    ///      outputToken(20) + value(32) + inputAmount(32) + outputMin(32) + usePrevHookAmount(1) + txDataLength(32)
-    /// + txData_(var)
+    function test_SwapKyberSwap_DecodeAmounts() public view {
+        bytes memory data = _buildSwapData(false);
+        assertEq(swapHook.decodeAmounts(data)[0], inputAmount);
+    }
+
+    function test_SwapKyberSwap_ReplaceCalldataAmounts() public view {
+        bytes memory data = _buildSwapData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = swapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(swapHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_SwapKyberSwap_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _buildSwapData(false);
+        bytes memory result = swapHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(swapHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_ApproveAndSwapKyberSwap_DecodeAmounts() public view {
+        bytes memory data = _buildApproveAndSwapData(false);
+        assertEq(approveAndSwapHook.decodeAmounts(data)[0], inputAmount);
+    }
+
+    function test_ApproveAndSwapKyberSwap_ReplaceCalldataAmounts() public view {
+        bytes memory data = _buildApproveAndSwapData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(approveAndSwapHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_ApproveAndSwapKyberSwap_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _buildApproveAndSwapData(false);
+        bytes memory result = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(approveAndSwapHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_SwapKyberSwap_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _buildSwapData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = swapHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 3);
+        assertEq(swapHook.decodeAmounts(replaced)[0], newAmount);
+    }
+
+    function test_ApproveAndSwapKyberSwap_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _buildApproveAndSwapData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndSwapHook.decodeAmounts(replaced)[0], newAmount);
+    }
+
+    function test_ApproveAndSwapKyberSwap_ReplaceCalldataAmounts_PreservesOtherFields() public view {
+        bytes memory data = _buildApproveAndSwapData(false);
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(999));
+        // Verify bytes before AMOUNT_POSITION (92) are unchanged (52-byte placeholder + inputToken(20) + outputToken(20))
+        for (uint256 i = 0; i < 92; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        // Verify bytes after AMOUNT_POSITION + 32 (124) are unchanged
+        for (uint256 i = 124; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+    }
+
+    function test_SwapKyberSwap_ReplaceCalldataAmounts_PreservesOtherFields() public view {
+        bytes memory data = _buildSwapData(false);
+        bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(999));
+        // SwapKyberSwapHook layout: placeholder(52) + inputToken(20) + outputToken(20) + inputAmount(32) + ...
+        // Verify bytes before AMOUNT_POSITION (92) are unchanged
+        for (uint256 i = 0; i < 92; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        // Verify bytes after AMOUNT_POSITION + 32 (124) are unchanged
+        for (uint256 i = 124; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+    }
+
+    /// @dev Build SwapKyberSwapHook data layout (new standard):
+    ///      inputToken(20) + outputToken(20) + inputAmount(32) + outputQuote(32) + outputMin(32) +
+    ///      usePrevHookAmount(1) + payloadLength(32) + txData_(var)
     function _buildSwapData(bool usePrevious) internal view returns (bytes memory) {
         bytes memory txData_ = _buildKyberTxData();
 
         return bytes.concat(
+            bytes(new bytes(52)), // Layer 0: 52-byte placeholder
+            bytes20(inputToken),  // Layer 1
             bytes20(outputToken),
-            bytes32(swapValue),
             bytes32(inputAmount),
+            bytes32(uint256(0)), // outputQuote (unused by KyberSwap hook)
             bytes32(outputMin),
             usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(txData_.length),
-            txData_
+            txData_              // Layer 2: raw txData payload
         );
     }
 
-    /// @dev Build ApproveAndSwapKyberSwapHook data layout:
-    ///      inputToken(20) + outputToken(20) + inputAmount(32) + outputMin(32) + usePrevHookAmount(1) +
-    /// txDataLength(32) + txData_(var)
+    /// @dev Build ApproveAndSwapKyberSwapHook data layout (new standard):
+    ///      inputToken(20) + outputToken(20) + inputAmount(32) + outputQuote(32) + outputMin(32) +
+    ///      usePrevHookAmount(1) + payloadLength(32) + txData_(var)
     function _buildApproveAndSwapData(bool usePrevious) internal view returns (bytes memory) {
         bytes memory txData_ = _buildKyberTxData();
 
         return bytes.concat(
-            bytes20(inputToken),
+            bytes(new bytes(52)), // Layer 0: 52-byte placeholder
+            bytes20(inputToken),  // Layer 1
             bytes20(outputToken),
             bytes32(inputAmount),
+            bytes32(uint256(0)), // outputQuote (unused by KyberSwap hook)
             bytes32(outputMin),
             usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
             bytes32(txData_.length),
-            txData_
+            txData_              // Layer 2: raw txData payload
         );
     }
 

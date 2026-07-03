@@ -138,7 +138,7 @@ contract KyberSwapScalerTest is Test {
         bytes memory scaled = wrapper.updateTxDataAmounts(IScaleHelper(address(0)), txData_, 2000, 1000);
 
         bytes4 selector;
-        assembly {
+        assembly ("memory-safe") {
             selector := mload(add(scaled, 32))
         }
         assertEq(selector, IMetaAggregationRouterV2.swap.selector, "selector preserved");

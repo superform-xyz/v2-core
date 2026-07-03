@@ -34,14 +34,15 @@ contract YearnClaimOneRewardHookTest is Helpers {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.OUTFLOW));
     }
 
-    function test_decodeAmount() public view {
+    function test_decodeAmounts_returnsEmpty() public view {
         bytes memory data = _encodeData();
-        assertEq(hook.decodeAmount(data), 0);
+        assertEq(hook.decodeAmounts(data).length, 0);
     }
 
-    function test_replaceCalldataAmount() public view {
+    function test_replaceCalldataAmounts_emptyPassthrough() public view {
         bytes memory data = _encodeData();
-        bytes memory newData = hook.replaceCalldataAmount(data, mockAmount);
+        uint256[] memory empty = new uint256[](0);
+        bytes memory newData = hook.replaceCalldataAmounts(data, empty);
         assertEq(newData, data);
     }
 

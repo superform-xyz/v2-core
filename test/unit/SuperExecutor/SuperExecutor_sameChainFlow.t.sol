@@ -581,7 +581,7 @@ contract SuperExecutor_sameChainFlow is
         hooksAddresses[2] = address(deposit4626Hook);
 
         bytes[] memory hooksData = new bytes[](3);
-        hooksData[0] = _createOdosSwapHookData(
+        hooksData[0] = _createMockOdosSwapHookData(
             address(0), // ETH
             amount,
             account,
@@ -638,7 +638,7 @@ contract SuperExecutor_sameChainFlow is
 
         bytes[] memory hooksData = new bytes[](5);
         hooksData[0] = _createApproveHookData(underlying, mockOdosRouter, amount, false);
-        hooksData[1] = _createOdosSwapHookData(
+        hooksData[1] = _createMockOdosSwapHookData(
             address(underlying),
             amount,
             account,
@@ -650,7 +650,7 @@ contract SuperExecutor_sameChainFlow is
             uint32(0),
             false
         );
-        hooksData[2] = _createOdosSwapHookData(
+        hooksData[2] = _createMockOdosSwapHookData(
             address(0), // ETH
             amount,
             account,

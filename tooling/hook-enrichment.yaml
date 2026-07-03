@@ -1,0 +1,367 @@
+# Hook enrichment data: compatibleProtocols, amountMeta, approveVariant, asyncLifecycle
+# Used by generate_hook_manifest.py to add off-chain classification fields
+
+# ── Compatible Protocols ──────────────────────────────────────────────────────
+compatibleProtocols:
+  # ERC-4626
+  Deposit4626VaultHook: [erc4626]
+  ApproveAndDeposit4626VaultHook: [erc4626]
+  Redeem4626VaultHook: [erc4626]
+  # ERC-5115
+  Deposit5115VaultHook: [erc5115]
+  ApproveAndDeposit5115VaultHook: [erc5115]
+  Redeem5115VaultHook: [erc5115]
+  # ERC-7540
+  Deposit7540VaultHook: [erc7540]
+  RequestDeposit7540VaultHook: [erc7540]
+  ApproveAndRequestDeposit7540VaultHook: [erc7540]
+  Redeem7540VaultHook: [erc7540]
+  RedeemWithId7540VaultHook: [erc7540]
+  RequestRedeem7540VaultHook: [erc7540]
+  Withdraw7540VaultHook: [erc7540]
+  WithdrawWithId7540VaultHook: [erc7540]
+  CancelDepositRequest7540Hook: [erc7540]
+  CancelDepositRequestWithId7540Hook: [erc7540]
+  CancelRedeemRequest7540Hook: [erc7540]
+  CancelRedeemRequestWithId7540Hook: [erc7540]
+  ClaimCancelDepositRequest7540Hook: [erc7540]
+  ClaimCancelDepositRequestWithId7540Hook: [erc7540]
+  ClaimCancelRedeemRequest7540Hook: [erc7540]
+  ClaimCancelRedeemRequestWithId7540Hook: [erc7540]
+  SetOperator7540Hook: [erc7540]
+  SetSlippageHook: [erc7540]
+  # Morpho
+  MorphoSupplyHook: [morpho]
+  MorphoLendHook: [morpho]
+  MorphoBorrowHook: [morpho]
+  MorphoRepayHook: [morpho]
+  MorphoSupplyAndBorrowHook: [morpho]
+  MorphoRepayAndWithdrawHook: [morpho]
+  MorphoWithdrawHook: [morpho]
+  MetaMorphoReallocateHook: [morpho-metamorpho]
+  ForceDeallocateMorphoHook: [morpho-metamorpho]
+  # Aave V4
+  AaveV4SupplyHook: [aave-v4]
+  AaveV4WithdrawHook: [aave-v4]
+  AaveV4BorrowHook: [aave-v4]
+  AaveV4RepayHook: [aave-v4]
+  AaveV4SupplyAndBorrowHook: [aave-v4]
+  AaveV4RepayAndWithdrawHook: [aave-v4]
+  # Uniswap
+  SwapUniswapV3Hook: [uniswap-v3]
+  ApproveAndSwapUniswapV3Hook: [uniswap-v3]
+  SwapUniswapV3Router02Hook: [uniswap-v3]
+  ApproveAndSwapUniswapV3Router02Hook: [uniswap-v3]
+  SwapUniswapV2Hook: [uniswap-v2]
+  ApproveAndSwapUniswapV2Hook: [uniswap-v2]
+  SwapUniswapV4Hook: [uniswap-v4]
+  # Odos
+  SwapOdosV2Hook: [odos-v2]
+  ApproveAndSwapOdosV2Hook: [odos-v2]
+  SwapOdosV3Hook: [odos-v3]
+  ApproveAndSwapOdosV3Hook: [odos-v3]
+  # KyberSwap
+  SwapKyberSwapHook: [kyberswap]
+  ApproveAndSwapKyberSwapHook: [kyberswap]
+  # Spark PSM
+  SwapSparkPSMExactInHook: [spark-psm]
+  ApproveAndSwapSparkPSMExactInHook: [spark-psm]
+  SwapSparkPSMExactOutHook: [spark-psm]
+  ApproveAndSwapSparkPSMExactOutHook: [spark-psm]
+  # Algebra Integral
+  SwapAlgebraIntegralHook: [algebra-integral]
+  ApproveAndSwapAlgebraIntegralHook: [algebra-integral]
+  # OpenOcean
+  SwapOpenOceanSparkDexHook: [openocean]
+  ApproveAndSwapOpenOceanSparkDexHook: [openocean]
+  # 1inch
+  Swap1InchHook: [1inch]
+  # Pendle
+  PendleRouterRedeemHook: [pendle]
+  PendleRouterSwapHook: [pendle]
+  PendleUnifiedHook: [pendle]
+  RecordPurchasePendlePTAmortizedOracleHook: [pendle]
+  RecordPurchasePendlePTAmortizedOracleHookV2: [pendle]
+  RecordRedemptionPendlePTAmortizedOracleHook: [pendle]
+  RecordRedemptionPendlePTAmortizedOracleHookV2: [pendle]
+  # Spectra
+  SpectraExchangeDepositHook: [spectra]
+  SpectraExchangeRedeemHook: [spectra]
+  # Across
+  AcrossSendFundsAndExecuteOnDstHook: [across]
+  ApproveAndAcrossSendFundsAndExecuteOnDstHook: [across]
+  AcrossSendFundsAndExecuteOnDstHookV2: [across-v2]
+  ApproveAndAcrossSendFundsAndExecuteOnDstHookV2: [across-v2]
+  # Stargate
+  StargateSendHook: [stargate]
+  ApproveAndStargateSendHook: [stargate]
+  StargateSendHookV2: [stargate-v2]
+  ApproveAndStargateSendHookV2: [stargate-v2]
+  # deBridge
+  DeBridgeSendOrderAndExecuteOnDstHook: [debridge]
+  DeBridgeCancelOrderHook: [debridge]
+  # CCTP / Circle
+  CCTPSendHook: [circle-cctp]
+  ApproveAndCCTPSendHook: [circle-cctp]
+  CircleGatewayWalletHook: [circle-gateway]
+  CircleGatewayMinterHook: [circle-gateway]
+  CircleGatewayAddDelegateHook: [circle-gateway]
+  CircleGatewayRemoveDelegateHook: [circle-gateway]
+  # Ethena
+  EthenaCooldownSharesHook: [ethena]
+  EthenaUnstakeHook: [ethena]
+  # DETH
+  RequestRedeemDETHHook: [deth]
+  ApproveAndRequestRedeemDETHHook: [deth]
+  ClaimAssetsDETHHook: [deth]
+  # Firelight
+  RedeemFirelightVaultHook: [firelight]
+  ClaimWithdrawFirelightVaultHook: [firelight]
+  # Fluid
+  FluidStakeHook: [fluid]
+  ApproveAndFluidStakeHook: [fluid]
+  FluidUnstakeHook: [fluid]
+  FluidClaimRewardHook: [fluid]
+  # Gearbox
+  GearboxStakeHook: [gearbox]
+  ApproveAndGearboxStakeHook: [gearbox]
+  GearboxUnstakeHook: [gearbox]
+  GearboxClaimRewardHook: [gearbox]
+  # Yearn
+  YearnClaimOneRewardHook: [yearn]
+  # Merkl
+  MerklClaimRewardHook: [merkl]
+  # Stargate claim
+  ClaimFailedTransferHook: [stargate]
+  # Flare rFLR
+  ClaimRFLRHook: [flare-rflr]
+  WithdrawRFLRHook: [flare-rflr]
+  WithdrawVestedRFLRHook: [flare-rflr]
+  # WETH/WFLR
+  WrappedNativeHook: [weth]
+  # Token ops
+  TransferERC20Hook: [erc20]
+  ApproveERC20Hook: [erc20]
+  TransferHook: [erc20]
+  NativeTransferHook: [native]
+  BatchTransferHook: [erc20]
+  BatchTransferFromHook: [permit2]
+  OfframpTokensHook: [offramp]
+  # Sponsorship
+  FetchNativeFeeHook: [superform-sponsorship]
+  # Superform
+  MarkRootAsUsedHook: [superform]
+  MintSuperPositionsHook: [superform]
+  BurnSuperPositionsHook: [superform]
+
+# ── Approve Variant Pairs ─────────────────────────────────────────────────────
+# base hook -> ApproveAnd variant
+approvePairs:
+  Deposit4626VaultHook: ApproveAndDeposit4626VaultHook
+  Deposit5115VaultHook: ApproveAndDeposit5115VaultHook
+  RequestDeposit7540VaultHook: ApproveAndRequestDeposit7540VaultHook
+  RequestRedeemDETHHook: ApproveAndRequestRedeemDETHHook
+  AcrossSendFundsAndExecuteOnDstHook: ApproveAndAcrossSendFundsAndExecuteOnDstHook
+  AcrossSendFundsAndExecuteOnDstHookV2: ApproveAndAcrossSendFundsAndExecuteOnDstHookV2
+  StargateSendHook: ApproveAndStargateSendHook
+  StargateSendHookV2: ApproveAndStargateSendHookV2
+  CCTPSendHook: ApproveAndCCTPSendHook
+  SwapUniswapV3Hook: ApproveAndSwapUniswapV3Hook
+  SwapUniswapV3Router02Hook: ApproveAndSwapUniswapV3Router02Hook
+  SwapUniswapV2Hook: ApproveAndSwapUniswapV2Hook
+  SwapOdosV2Hook: ApproveAndSwapOdosV2Hook
+  SwapOdosV3Hook: ApproveAndSwapOdosV3Hook
+  SwapKyberSwapHook: ApproveAndSwapKyberSwapHook
+  SwapSparkPSMExactInHook: ApproveAndSwapSparkPSMExactInHook
+  SwapSparkPSMExactOutHook: ApproveAndSwapSparkPSMExactOutHook
+  SwapAlgebraIntegralHook: ApproveAndSwapAlgebraIntegralHook
+  SwapOpenOceanSparkDexHook: ApproveAndSwapOpenOceanSparkDexHook
+  FluidStakeHook: ApproveAndFluidStakeHook
+  GearboxStakeHook: ApproveAndGearboxStakeHook
+
+# ── Async Lifecycle Groups ────────────────────────────────────────────────────
+asyncLifecycles:
+  deposit-7540:
+    request: RequestDeposit7540VaultHook
+    fulfill: Deposit7540VaultHook
+    cancel: CancelDepositRequest7540Hook
+    claimCancel: ClaimCancelDepositRequest7540Hook
+  deposit-7540-with-id:
+    request: RequestDeposit7540VaultHook
+    fulfill: Deposit7540VaultHook
+    cancel: CancelDepositRequestWithId7540Hook
+    claimCancel: ClaimCancelDepositRequestWithId7540Hook
+  redeem-7540:
+    request: RequestRedeem7540VaultHook
+    fulfill: Redeem7540VaultHook
+    cancel: CancelRedeemRequest7540Hook
+    claimCancel: ClaimCancelRedeemRequest7540Hook
+  redeem-7540-with-id:
+    request: RequestRedeem7540VaultHook
+    fulfill: RedeemWithId7540VaultHook
+    cancel: CancelRedeemRequestWithId7540Hook
+    claimCancel: ClaimCancelRedeemRequestWithId7540Hook
+  deth:
+    request: RequestRedeemDETHHook
+    fulfill: ClaimAssetsDETHHook
+    cancel: null
+    claimCancel: null
+  ethena:
+    request: EthenaCooldownSharesHook
+    fulfill: EthenaUnstakeHook
+    cancel: null
+    claimCancel: null
+  firelight:
+    request: RedeemFirelightVaultHook
+    fulfill: ClaimWithdrawFirelightVaultHook
+    cancel: null
+    claimCancel: null
+
+# Map hook name -> lifecycle group name
+asyncLifecycleMap:
+  # 7540 deposit
+  RequestDeposit7540VaultHook: deposit-7540
+  ApproveAndRequestDeposit7540VaultHook: deposit-7540
+  Deposit7540VaultHook: deposit-7540
+  CancelDepositRequest7540Hook: deposit-7540
+  ClaimCancelDepositRequest7540Hook: deposit-7540
+  CancelDepositRequestWithId7540Hook: deposit-7540-with-id
+  ClaimCancelDepositRequestWithId7540Hook: deposit-7540-with-id
+  # 7540 redeem
+  RequestRedeem7540VaultHook: redeem-7540
+  Redeem7540VaultHook: redeem-7540
+  CancelRedeemRequest7540Hook: redeem-7540
+  ClaimCancelRedeemRequest7540Hook: redeem-7540
+  RedeemWithId7540VaultHook: redeem-7540-with-id
+  CancelRedeemRequestWithId7540Hook: redeem-7540-with-id
+  ClaimCancelRedeemRequestWithId7540Hook: redeem-7540-with-id
+  # DETH
+  RequestRedeemDETHHook: deth
+  ApproveAndRequestRedeemDETHHook: deth
+  ClaimAssetsDETHHook: deth
+  # Ethena
+  EthenaCooldownSharesHook: ethena
+  EthenaUnstakeHook: ethena
+  # Firelight
+  RedeemFirelightVaultHook: firelight
+  ClaimWithdrawFirelightVaultHook: firelight
+
+# ── Amount Meta Overrides ─────────────────────────────────────────────────────
+# Only list hooks that differ from the default (single IN/TOKEN).
+# Hooks not listed default to [{direction: IN, denomination: TOKEN}].
+amountMeta:
+  # ASSETS denomination
+  Deposit4626VaultHook: [{direction: IN, denomination: ASSETS}]
+  ApproveAndDeposit4626VaultHook: [{direction: IN, denomination: ASSETS}]
+  Deposit5115VaultHook: [{direction: IN, denomination: ASSETS}]
+  ApproveAndDeposit5115VaultHook: [{direction: IN, denomination: ASSETS}]
+  Deposit7540VaultHook: [{direction: IN, denomination: ASSETS}]
+  RequestDeposit7540VaultHook: [{direction: IN, denomination: ASSETS}]
+  ApproveAndRequestDeposit7540VaultHook: [{direction: IN, denomination: ASSETS}]
+  Withdraw7540VaultHook: [{direction: IN, denomination: ASSETS}]
+  WithdrawWithId7540VaultHook: [{direction: IN, denomination: ASSETS}]
+  # SHARES denomination
+  Redeem4626VaultHook: [{direction: IN, denomination: SHARES}]
+  Redeem5115VaultHook: [{direction: IN, denomination: SHARES}]
+  Redeem7540VaultHook: [{direction: IN, denomination: SHARES}]
+  RedeemWithId7540VaultHook: [{direction: IN, denomination: SHARES}]
+  RequestRedeem7540VaultHook: [{direction: IN, denomination: SHARES}]
+  RequestRedeemDETHHook: [{direction: IN, denomination: SHARES}]
+  ApproveAndRequestRedeemDETHHook: [{direction: IN, denomination: SHARES}]
+  EthenaCooldownSharesHook: [{direction: IN, denomination: SHARES}]
+  RedeemFirelightVaultHook: [{direction: IN, denomination: SHARES}]
+  MintSuperPositionsHook: [{direction: IN, denomination: SHARES}]
+  BurnSuperPositionsHook: [{direction: IN, denomination: SHARES}]
+  # Sizeless (empty)
+  FluidClaimRewardHook: []
+  GearboxClaimRewardHook: []
+  YearnClaimOneRewardHook: []
+  MerklClaimRewardHook: []
+  BatchTransferFromHook: []
+  ClaimAssetsDETHHook: []
+  ClaimWithdrawFirelightVaultHook: []
+  PendleUnifiedHook: []
+  SpectraExchangeDepositHook: []
+  Swap1InchHook: []
+  BatchTransferHook: []
+  CircleGatewayMinterHook: []
+  RecordPurchasePendlePTAmortizedOracleHook: []
+  RecordPurchasePendlePTAmortizedOracleHookV2: []
+  RecordRedemptionPendlePTAmortizedOracleHook: []
+  RecordRedemptionPendlePTAmortizedOracleHookV2: []
+  ClaimRFLRHook: []
+  WithdrawRFLRHook: []
+  WithdrawVestedRFLRHook: []
+  CancelDepositRequest7540Hook: []
+  CancelDepositRequestWithId7540Hook: []
+  CancelRedeemRequest7540Hook: []
+  CancelRedeemRequestWithId7540Hook: []
+  ClaimCancelDepositRequest7540Hook: []
+  ClaimCancelDepositRequestWithId7540Hook: []
+  ClaimCancelRedeemRequest7540Hook: []
+  ClaimCancelRedeemRequestWithId7540Hook: []
+  SetOperator7540Hook: []
+  SetSlippageHook: []
+  MarkRootAsUsedHook: []
+  DeBridgeCancelOrderHook: []
+  CircleGatewayAddDelegateHook: []
+  CircleGatewayRemoveDelegateHook: []
+  OfframpTokensHook: []
+  EthenaUnstakeHook: []
+  MetaMorphoReallocateHook: []
+  PendleRouterSwapHook: []
+  # Compound (dual amount)
+  MorphoSupplyAndBorrowHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  AaveV4SupplyAndBorrowHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  MorphoRepayAndWithdrawHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  AaveV4RepayAndWithdrawHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  # MorphoLendHook: input is loan-token amount (TOKEN denomination is correct).
+  # outAmount is Morpho supply shares — non-transferable internal accounting units distinct from
+  # ERC-4626 vault shares. A "UNITS" denomination for output is deferred because amountRoles()
+  # expresses input denomination only; there is no denom field on outAmount in ISuperHookResult.
+  # Note: SHARES does exist in the Denomination enum (ISuperHook.sol) and is used by Redeem hooks;
+  # the deferral of UNITS is not because SHARES is absent, but because UNITS would describe outAmount
+  # semantics that amountRoles does not expose.
+
+  # MorphoWithdraw: dual-slot with XOR invariant
+  MorphoWithdrawHook: [{direction: IN, denomination: ASSETS}, {direction: IN, denomination: SHARES}]
+
+# ── Sizeless hooks (no sizable legs) ─────────────────────────────────────────
+sizelessHooks:
+  - FluidClaimRewardHook
+  - GearboxClaimRewardHook
+  - YearnClaimOneRewardHook
+  - MerklClaimRewardHook
+  - BatchTransferFromHook
+  - ClaimAssetsDETHHook
+  - ClaimWithdrawFirelightVaultHook
+  - PendleUnifiedHook
+  - SpectraExchangeDepositHook
+  - Swap1InchHook
+  - BatchTransferHook
+  - CircleGatewayMinterHook
+  - RecordPurchasePendlePTAmortizedOracleHook
+  - RecordPurchasePendlePTAmortizedOracleHookV2
+  - RecordRedemptionPendlePTAmortizedOracleHook
+  - RecordRedemptionPendlePTAmortizedOracleHookV2
+  - ClaimRFLRHook
+  - WithdrawRFLRHook
+  - WithdrawVestedRFLRHook
+  - CancelDepositRequest7540Hook
+  - CancelDepositRequestWithId7540Hook
+  - CancelRedeemRequest7540Hook
+  - CancelRedeemRequestWithId7540Hook
+  - ClaimCancelDepositRequest7540Hook
+  - ClaimCancelDepositRequestWithId7540Hook
+  - ClaimCancelRedeemRequest7540Hook
+  - ClaimCancelRedeemRequestWithId7540Hook
+  - SetOperator7540Hook
+  - SetSlippageHook
+  - MarkRootAsUsedHook
+  - DeBridgeCancelOrderHook
+  - CircleGatewayAddDelegateHook
+  - CircleGatewayRemoveDelegateHook
+  - OfframpTokensHook
+  - EthenaUnstakeHook
+  - MetaMorphoReallocateHook
+  - PendleRouterSwapHook

@@ -24,29 +24,29 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Common data layout byte offsets (shared across all Morpho hooks)
-    uint256 internal constant LOAN_TOKEN_OFFSET = 0;
-    uint256 internal constant COLLATERAL_TOKEN_OFFSET = 20;
-    uint256 internal constant ORACLE_OFFSET = 40;
-    uint256 internal constant IRM_OFFSET = 60;
+    uint256 internal constant LOAN_TOKEN_OFFSET = 52;
+    uint256 internal constant COLLATERAL_TOKEN_OFFSET = 72;
+    uint256 internal constant ORACLE_OFFSET = 92;
+    uint256 internal constant IRM_OFFSET = 112;
     // AMOUNT_POSITION = 80 inherited from BaseLoanHook
-    uint256 internal constant LLTV_OFFSET = 112;
+    uint256 internal constant LLTV_OFFSET = 164;
     // USE_PREV_HOOK_AMOUNT_POSITION = 144 inherited from BaseLoanHook
-    uint256 internal constant IS_FULL_REPAYMENT_OFFSET = 145;
+    uint256 internal constant IS_FULL_REPAYMENT_OFFSET = 197;
 
     /// @notice Byte offset for LLTV in borrow hook data (178-byte layout)
     /// @dev Same numeric offset as IS_FULL_REPAYMENT_OFFSET but different semantic meaning:
     ///      - Repay layout (146 bytes): byte 145 = isFullRepayment (bool)
     ///      - Borrow layout (178 bytes): byte 145 = lltv (uint256, 32 bytes)
-    uint256 internal constant BORROW_LLTV_OFFSET = 145;
+    uint256 internal constant BORROW_LLTV_OFFSET = 197;
 
     /// @notice Minimum data length for repay hooks (146 bytes)
-    uint256 internal constant REPAY_MIN_DATA_LENGTH = 146;
+    uint256 internal constant REPAY_MIN_DATA_LENGTH = 198;
 
     /// @notice Minimum data length for borrow hooks (178 bytes)
-    uint256 internal constant BORROW_MIN_DATA_LENGTH = 178;
+    uint256 internal constant BORROW_MIN_DATA_LENGTH = 230;
 
     /// @notice Minimum data length for supply/lend hooks (145 bytes)
-    uint256 internal constant SUPPLY_MIN_DATA_LENGTH = 145;
+    uint256 internal constant SUPPLY_MIN_DATA_LENGTH = 197;
 
     /*//////////////////////////////////////////////////////////////
                                STORAGE

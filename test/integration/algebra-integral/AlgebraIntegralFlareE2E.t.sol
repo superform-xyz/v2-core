@@ -65,7 +65,7 @@ contract AlgebraIntegralFlareE2E is Test, Constants {
         IWFLR(FLARE_WFLR).deposit{ value: amount }();
     }
 
-    /// @dev Build 209-byte hook data for Algebra Integral hooks
+    /// @dev Build hook data for Algebra Integral hooks (3-layer standard)
     function _buildHookData(
         address tokenIn,
         address tokenOut,
@@ -79,15 +79,18 @@ contract AlgebraIntegralFlareE2E is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            bytes20(tokenIn), // offset 0
-            bytes20(tokenOut), // offset 20
-            bytes20(deployer), // offset 40
-            bytes20(account), // offset 60: recipient (forced to account by hook anyway)
-            uint256(block.timestamp + 1800), // offset 80: deadline (30 min from now)
-            uint256(0), // offset 112: limitSqrtPrice (0 = no limit)
-            amountIn, // offset 144: amountIn
-            amountOutMinimum, // offset 176: amountOutMinimum
-            usePrevHookAmount // offset 208: usePrevHookAmount flag
+            bytes32(0), // header @0
+            address(0), // header @32
+            tokenIn, // inputToken @52
+            tokenOut, // outputToken @72
+            amountIn, // inputAmount @92 (AMOUNT_POSITION)
+            uint256(0), // outputQuote @124
+            amountOutMinimum, // outputMin @156
+            usePrevHookAmount, // @188
+            uint256(84), // payloadLength @189 (deployer=20+deadline=32+sqrtPrice=32)
+            bytes20(deployer), // deployer @221
+            uint256(block.timestamp + 1800), // deadline @241
+            uint256(0) // limitSqrtPrice @273
         );
     }
 

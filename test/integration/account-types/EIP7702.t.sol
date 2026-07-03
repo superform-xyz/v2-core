@@ -1572,7 +1572,7 @@ contract EIP7702Test is BaseTest {
     }
 
     function _makeNonceKey(bytes1 vMode, address validator, bytes3 batchId) internal pure returns (uint192 key) {
-        assembly {
+        assembly ("memory-safe") {
             key := or(shr(88, vMode), validator)
             key := or(shr(64, batchId), key)
         }

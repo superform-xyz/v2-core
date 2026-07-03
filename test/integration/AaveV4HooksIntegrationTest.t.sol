@@ -77,6 +77,8 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
     /// usePrevHookAmount(1)
     function _createSupplyData(uint256 amount, bool usePrevHookAmount) internal pure returns (bytes memory) {
         return abi.encodePacked(
+            bytes32(0), // yieldSourceOracleId (52-byte header: bytes 0-31)
+            address(0), // yieldSource (52-byte header: bytes 32-51)
             CHAIN_1_USDC, // loanToken
             CHAIN_1_WETH, // collateralToken
             SPOKE_ADDR, // spoke
@@ -89,13 +91,15 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
 
     function _createWithdrawData(uint256 amount, bool usePrevHookAmount) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            CHAIN_1_USDC, CHAIN_1_WETH, SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID, amount, usePrevHookAmount
+            bytes32(0), address(0), CHAIN_1_USDC, CHAIN_1_WETH, SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID, amount,
+            usePrevHookAmount
         );
     }
 
     function _createBorrowData(uint256 amount, bool usePrevHookAmount) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            CHAIN_1_USDC, CHAIN_1_WETH, SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID, amount, usePrevHookAmount
+            bytes32(0), address(0), CHAIN_1_USDC, CHAIN_1_WETH, SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID, amount,
+            usePrevHookAmount
         );
     }
 
@@ -109,6 +113,8 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
         returns (bytes memory)
     {
         return abi.encodePacked(
+            bytes32(0),
+            address(0),
             CHAIN_1_USDC,
             CHAIN_1_WETH,
             SPOKE_ADDR,
@@ -130,6 +136,8 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
         returns (bytes memory)
     {
         return abi.encodePacked(
+            bytes32(0),
+            address(0),
             CHAIN_1_USDC,
             CHAIN_1_WETH,
             SPOKE_ADDR,
@@ -152,6 +160,8 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
         returns (bytes memory)
     {
         return abi.encodePacked(
+            bytes32(0),
+            address(0),
             CHAIN_1_USDC,
             CHAIN_1_WETH,
             SPOKE_ADDR,
@@ -482,5 +492,65 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
 
         uint256 suppliedAfterSecond = spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth);
         assertApproxEqAbs(suppliedAfterSecond, firstAmount + secondAmount, 2, "Supplies should accumulate");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    DECODE AMOUNT / REPLACE CALLDATA AMOUNT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice decodeAmount + replaceCalldataAmount roundtrip for AaveV4SupplyHook (AMOUNT_POSITION = 124)
+    function test_AaveV4_Supply_DecodeAmounts_ReplaceCalldataAmounts() external view {
+        uint256 originalAmount = 1 ether;
+        bytes memory hookData = _createSupplyData(originalAmount, false);
+
+        assertEq(supplyHook.decodeAmounts(hookData)[0], originalAmount, "SupplyHook decodeAmount mismatch");
+
+        uint256 newAmount = 0.5 ether;
+        bytes memory replaced = supplyHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(supplyHook.decodeAmounts(replaced)[0], newAmount, "SupplyHook replaced amount mismatch");
+        assertFalse(supplyHook.decodeUsePrevHookAmount(replaced), "usePrevHookAmount should be preserved");
+    }
+
+    /// @notice decodeAmount roundtrip for AaveV4WithdrawHook
+    function test_AaveV4_Withdraw_DecodeAmounts_ReplaceCalldataAmounts() external view {
+        uint256 originalAmount = 0.5 ether;
+        bytes memory hookData = _createWithdrawData(originalAmount, false);
+
+        assertEq(withdrawHook.decodeAmounts(hookData)[0], originalAmount, "WithdrawHook decodeAmount mismatch");
+
+        uint256 newAmount = 0.25 ether;
+        bytes memory replaced = withdrawHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(withdrawHook.decodeAmounts(replaced)[0], newAmount, "WithdrawHook replaced amount mismatch");
+    }
+
+    /// @notice decodeAmount roundtrip for AaveV4BorrowHook
+    function test_AaveV4_Borrow_DecodeAmounts_ReplaceCalldataAmounts() external view {
+        uint256 originalAmount = 500e6;
+        bytes memory hookData = _createBorrowData(originalAmount, false);
+
+        assertEq(borrowHook.decodeAmounts(hookData)[0], originalAmount, "BorrowHook decodeAmount mismatch");
+
+        uint256 newAmount = 250e6;
+        bytes memory replaced = borrowHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(borrowHook.decodeAmounts(replaced)[0], newAmount, "BorrowHook replaced amount mismatch");
+    }
+
+    /// @notice Supply: build with 1 WETH, replace to 0.5 WETH, execute, verify only 0.5 supplied
+    function test_AaveV4_Supply_ReplaceCalldataAmounts_ExecutesCorrectly() external {
+        uint256 originalAmount = 1 ether;
+        uint256 newAmount = 0.5 ether;
+
+        bytes memory hookData = _createSupplyData(originalAmount, false);
+        bytes memory replaced = supplyHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
+
+        _executeHook(address(supplyHook), replaced);
+
+        uint256 wethAfter = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
+        uint256 supplied = spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth);
+
+        assertEq(wethBefore - wethAfter, newAmount, "Should spend exactly replaced amount");
+        assertApproxEqAbs(supplied, newAmount, 1, "Supplied amount should match replaced amount");
     }
 }

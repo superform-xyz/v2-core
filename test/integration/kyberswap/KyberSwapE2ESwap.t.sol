@@ -67,7 +67,7 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             (bool success, bytes memory returndata) =
                 executions[i].target.call{ value: executions[i].value }(executions[i].callData);
             if (!success) {
-                assembly {
+                assembly ("memory-safe") {
                     revert(add(returndata, 32), mload(returndata))
                 }
             }
@@ -153,12 +153,15 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             console2.log("Attempt", attempt, "- Expected WETH out:", expectedOut);
 
             bytes memory hookData = bytes.concat(
-                bytes20(USDC),
-                bytes20(WETH),
-                bytes32(inputAmount),
-                bytes32(expectedOut * 90 / 100),
-                bytes1(uint8(0)),
-                bytes32(txData_.length),
+                bytes32(0),
+                bytes20(address(0)),
+                bytes20(USDC), // inputToken @52
+                bytes20(WETH), // outputToken @72
+                bytes32(inputAmount), // inputAmount @92
+                bytes32(uint256(0)), // outputQuote @124
+                bytes32(expectedOut * 90 / 100), // outputMin @156
+                bytes1(uint8(0)), // usePrevHookAmount @188
+                bytes32(txData_.length), // payloadLength @189
                 txData_
             );
 
@@ -216,12 +219,15 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             }
 
             bytes memory hookData = bytes.concat(
-                bytes20(USDC),
-                bytes32(uint256(0)),
-                bytes32(inputAmount),
-                bytes32(expectedOut * 90 / 100),
-                bytes1(uint8(0)),
-                bytes32(txData_.length),
+                bytes32(0),
+                bytes20(address(0)),
+                bytes20(WETH), // inputToken @52
+                bytes20(USDC), // outputToken @72
+                bytes32(inputAmount), // inputAmount @92
+                bytes32(uint256(0)), // outputQuote @124
+                bytes32(expectedOut * 90 / 100), // outputMin @156
+                bytes1(uint8(0)), // usePrevHookAmount @188
+                bytes32(txData_.length), // payloadLength @189
                 txData_
             );
 
@@ -266,12 +272,15 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             console2.log("Attempt", attempt, "- Expected USDC out:", expectedOut);
 
             bytes memory hookData = bytes.concat(
-                bytes20(LINK),
-                bytes20(USDC),
-                bytes32(inputAmount),
-                bytes32(expectedOut * 90 / 100),
-                bytes1(uint8(0)),
-                bytes32(txData_.length),
+                bytes32(0),
+                bytes20(address(0)),
+                bytes20(LINK), // inputToken @52
+                bytes20(USDC), // outputToken @72
+                bytes32(inputAmount), // inputAmount @92
+                bytes32(uint256(0)), // outputQuote @124
+                bytes32(expectedOut * 90 / 100), // outputMin @156
+                bytes1(uint8(0)), // usePrevHookAmount @188
+                bytes32(txData_.length), // payloadLength @189
                 txData_
             );
 
@@ -326,12 +335,15 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             console2.log("Attempt", attempt, "- Expected WETH out (for 1000 USDC):", expectedOut);
 
             bytes memory hookData = bytes.concat(
-                bytes20(USDC),
-                bytes20(WETH),
-                bytes32(quotedAmount),
-                bytes32(expectedOut * 85 / 100),
-                bytes1(uint8(1)),
-                bytes32(txData_.length),
+                bytes32(0),
+                bytes20(address(0)),
+                bytes20(USDC), // inputToken @52
+                bytes20(WETH), // outputToken @72
+                bytes32(quotedAmount), // inputAmount @92
+                bytes32(uint256(0)), // outputQuote @124
+                bytes32(expectedOut * 85 / 100), // outputMin @156
+                bytes1(uint8(1)), // usePrevHookAmount @188
+                bytes32(txData_.length), // payloadLength @189
                 txData_
             );
 
@@ -428,12 +440,15 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             console2.log("[KyberSwap] Attempt", attempt, "- Expected USDC out:", expectedOut);
 
             bytes memory hookData = bytes.concat(
-                bytes20(DAM),
-                bytes20(USDC),
-                bytes32(inputAmount),
-                bytes32(expectedOut * 80 / 100), // 20% slippage tolerance
-                bytes1(uint8(0)),
-                bytes32(txData_.length),
+                bytes32(0),
+                bytes20(address(0)),
+                bytes20(DAM), // inputToken @52
+                bytes20(USDC), // outputToken @72
+                bytes32(inputAmount), // inputAmount @92
+                bytes32(uint256(0)), // outputQuote @124
+                bytes32(expectedOut * 80 / 100), // outputMin @156
+                bytes1(uint8(0)), // usePrevHookAmount @188
+                bytes32(txData_.length), // payloadLength @189
                 txData_
             );
 
@@ -481,18 +496,21 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
         console2.log("[Odos] Expected USDC out (outputQuote):", decoded.tokenInfo.outputQuote);
         console2.log("[Odos] Min USDC out (outputMin):", decoded.tokenInfo.outputMin);
 
-        bytes memory hookData = abi.encodePacked(
-            decoded.tokenInfo.inputToken,
-            decoded.tokenInfo.inputAmount,
-            decoded.tokenInfo.inputReceiver,
-            decoded.tokenInfo.outputToken,
-            decoded.tokenInfo.outputQuote,
-            uint256(1), // very low min to ensure execution succeeds
-            false, // usePrevHookAmount
-            uint256(decoded.pathDefinition.length),
+        bytes memory hookData = bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(decoded.tokenInfo.inputToken), // inputToken @52
+            bytes20(decoded.tokenInfo.outputToken), // outputToken @72
+            bytes32(decoded.tokenInfo.inputAmount), // inputAmount @92
+            bytes32(decoded.tokenInfo.outputQuote), // outputQuote @124
+            bytes32(uint256(1)), // outputMin @156
+            bytes1(uint8(0)), // usePrevHookAmount @188
+            bytes32(uint256(20 + 32 + decoded.pathDefinition.length + 20 + 4)), // payloadLength @189
+            bytes20(decoded.tokenInfo.inputReceiver), // inputReceiver @221
+            bytes32(decoded.pathDefinition.length), // pathDefLength @241
             decoded.pathDefinition,
-            decoded.executor,
-            decoded.referralCode
+            bytes20(decoded.executor),
+            bytes4(decoded.referralCode)
         );
 
         uint256 usdcBefore = IERC20(USDC).balanceOf(account);
@@ -545,12 +563,15 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
                 kyberExpectedOut = expectedOut;
 
                 bytes memory hookData = bytes.concat(
-                    bytes20(DAM),
-                    bytes20(USDC),
-                    bytes32(inputAmount),
-                    bytes32(expectedOut * 50 / 100), // 50% tolerance to ensure execution
-                    bytes1(uint8(0)),
-                    bytes32(txData_.length),
+                    bytes32(0), // yieldSourceOracleId (52-byte header part 1)
+                    bytes20(address(0)), // yieldSource (52-byte header part 2)
+                    bytes20(DAM), // inputToken @52
+                    bytes20(USDC), // outputToken @72
+                    bytes32(inputAmount), // inputAmount @92
+                    bytes32(uint256(0)), // outputQuote @124
+                    bytes32(expectedOut * 50 / 100), // outputMin @156
+                    bytes1(uint8(0)), // usePrevHookAmount @188
+                    bytes32(txData_.length), // payloadLength @189
                     txData_
                 );
 
@@ -589,18 +610,21 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             }
             odosExpectedOut = decoded.tokenInfo.outputQuote;
 
-            bytes memory hookData = abi.encodePacked(
-                decoded.tokenInfo.inputToken,
-                decoded.tokenInfo.inputAmount,
-                decoded.tokenInfo.inputReceiver,
-                decoded.tokenInfo.outputToken,
-                decoded.tokenInfo.outputQuote,
-                uint256(1), // very low min to ensure execution
-                false,
-                uint256(decoded.pathDefinition.length),
+            bytes memory hookData = bytes.concat(
+                bytes32(0),
+                bytes20(address(0)),
+                bytes20(decoded.tokenInfo.inputToken), // inputToken @52
+                bytes20(decoded.tokenInfo.outputToken), // outputToken @72
+                bytes32(decoded.tokenInfo.inputAmount), // inputAmount @92
+                bytes32(decoded.tokenInfo.outputQuote), // outputQuote @124
+                bytes32(uint256(1)), // outputMin @156
+                bytes1(uint8(0)), // usePrevHookAmount @188
+                bytes32(uint256(20 + 32 + decoded.pathDefinition.length + 20 + 4)), // payloadLength @189
+                bytes20(decoded.tokenInfo.inputReceiver), // inputReceiver @221
+                bytes32(decoded.pathDefinition.length), // pathDefLength @241
                 decoded.pathDefinition,
-                decoded.executor,
-                decoded.referralCode
+                bytes20(decoded.executor),
+                bytes4(decoded.referralCode)
             );
 
             uint256 usdcBefore = IERC20(USDC).balanceOf(account);
@@ -681,5 +705,9 @@ contract MockPrevHookForE2E is ISuperHookResult {
 
     function getOutAmount(address account) external view override returns (uint256) {
         return _outAmounts[account];
+    }
+
+    function getOutToken(address) external pure override returns (address) {
+        return address(0);
     }
 }

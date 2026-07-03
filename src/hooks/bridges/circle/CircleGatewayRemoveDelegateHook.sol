@@ -11,13 +11,23 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 
 import { IGatewayWallet } from "../../../vendor/circle/IGatewayWallet.sol";
 
+// Superform
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 /// @title CircleGatewayRemoveDelegateHook
 /// @author Superform Labs
 /// @notice Hook for removing a delegate from Circle Gateway Wallet
-/// @dev data has the following structure:
-/// @notice         address token = BytesLib.toAddress(data, 0);
-/// @notice         address delegate = BytesLib.toAddress(data, 20);
-contract CircleGatewayRemoveDelegateHook is BaseHook {
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address token = BytesLib.toAddress(data, 52);
+/// @notice         address delegate = BytesLib.toAddress(data, 72);
+contract CircleGatewayRemoveDelegateHook is BaseHook, ISuperHookInflowOutflow {
     using BytesLib for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -31,6 +41,17 @@ contract CircleGatewayRemoveDelegateHook is BaseHook {
         if (gatewayWalletAddress == address(0)) revert ADDRESS_NOT_VALID();
         GATEWAY_WALLET = gatewayWalletAddress;
     }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Circle Gateway Remove Delegate";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Removes a delegate from a Circle Gateway wallet";
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -47,8 +68,8 @@ contract CircleGatewayRemoveDelegateHook is BaseHook {
         override
         returns (Execution[] memory executions)
     {
-        address token = BytesLib.toAddress(data, 0);
-        address delegate = BytesLib.toAddress(data, 20);
+        address token = BytesLib.toAddress(data, 52);
+        address delegate = BytesLib.toAddress(data, 72);
 
         if (delegate == address(0)) revert ADDRESS_NOT_VALID();
 
@@ -58,5 +79,30 @@ contract CircleGatewayRemoveDelegateHook is BaseHook {
             value: 0,
             callData: abi.encodeCall(IGatewayWallet.removeDelegate, (token, delegate))
         });
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](0);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+    }
+
+    /// @inheritdoc IERC165
+    /// @dev S2: implements ISuperHookInflowOutflow (decode-only) but NOT ISuperHookOutflow
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
+        if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
+        return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
+            || interfaceId == type(ISuperHookResult).interfaceId
+            || interfaceId == type(ISuperHookInspector).interfaceId;
+    }
+
+    /// @dev Side-effect only hook — forwards previous hook's outAmount + outToken
+    function _pipeMode() internal pure override returns (PipeMode) {
+        return PipeMode.PASSTHROUGH;
     }
 }

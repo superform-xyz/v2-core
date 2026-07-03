@@ -1,0 +1,625 @@
+# Hook Classification Manifest
+# Canonical intent x stage classification for all 120 hooks in v2-core
+# CI-linted against on-chain hookType via scripts/lint_hook_manifest.py
+#
+# Design invariants:
+#   T1: Array is ordered — position = execution order of legs
+#   T2: legSizing[i] maps 1:1 to amountRoles[i] by index
+#   T3: Each leg's (intent, stage) must be consistent with hook-level hookType
+#   T4: All intents/stages come from the canonical vocabulary below
+
+vocabulary:
+  intents:
+    - deposit
+    - withdraw
+    - rewards
+    - swap
+    - bridge
+    - stake
+    - unstake
+    - lend
+    - borrow
+    - repay
+    - transfer
+    - config
+    - permissions
+  stages:
+    - instant
+    - request
+    - fulfill
+    - claim
+    - cancel
+
+# P2 conformance rules (hookType consistency):
+#   intent in {config, permissions, transfer}     => hookType = NONACCOUNTING
+#   intent = deposit, stage = instant              => hookType = INFLOW
+#   intent = withdraw, stage = instant             => hookType = OUTFLOW
+#   intent in {swap, bridge, stake, unstake}       => hookType = NONACCOUNTING
+#   intent in {lend, borrow, repay}                => hookType = NONACCOUNTING
+#   intent = deposit, stage != instant             => hookType = NONACCOUNTING  (async lifecycle)
+#   intent = withdraw, stage != instant            => hookType = NONACCOUNTING  (async lifecycle, except fulfill)
+#   intent = withdraw, stage = fulfill, hookType = OUTFLOW is also valid (e.g. EthenaUnstake)
+#   intent = deposit, stage = fulfill, hookType = INFLOW is also valid (e.g. Deposit7540)
+
+hooks:
+
+  # ============================================================
+  # DEPOSIT (11 hooks)
+  # ============================================================
+
+  # deposit / instant (4)
+  Deposit4626VaultHook:
+    actionTypes: [{intent: deposit, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndDeposit4626VaultHook:
+    actionTypes: [{intent: deposit, stage: instant}]
+    legSizing: [sized]
+
+  Deposit5115VaultHook:
+    actionTypes: [{intent: deposit, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndDeposit5115VaultHook:
+    actionTypes: [{intent: deposit, stage: instant}]
+    legSizing: [sized]
+
+  # deposit / request (2)
+  RequestDeposit7540VaultHook:
+    actionTypes: [{intent: deposit, stage: request}]
+    legSizing: [sized]
+
+  ApproveAndRequestDeposit7540VaultHook:
+    actionTypes: [{intent: deposit, stage: request}]
+    legSizing: [sized]
+
+  # deposit / fulfill (1)
+  Deposit7540VaultHook:
+    actionTypes: [{intent: deposit, stage: fulfill}]
+    legSizing: [sized]
+
+  # deposit / cancel (2)
+  CancelDepositRequest7540Hook:
+    actionTypes: [{intent: deposit, stage: cancel}]
+    legSizing: []  # sizeless — cancel/claim ops with no sizable amount
+
+  CancelDepositRequestWithId7540Hook:
+    actionTypes: [{intent: deposit, stage: cancel}]
+    legSizing: []  # sizeless — cancel/claim ops with no sizable amount
+
+  # deposit / claim (2)
+  ClaimCancelDepositRequest7540Hook:
+    actionTypes: [{intent: deposit, stage: claim}]
+    legSizing: []  # sizeless — cancel/claim ops with no sizable amount
+
+  ClaimCancelDepositRequestWithId7540Hook:
+    actionTypes: [{intent: deposit, stage: claim}]
+    legSizing: []  # sizeless — cancel/claim ops with no sizable amount
+
+  # ============================================================
+  # WITHDRAW (20 hooks)
+  # ============================================================
+
+  # withdraw / instant (8)
+  Redeem4626VaultHook:
+    actionTypes: [{intent: withdraw, stage: instant}]
+    legSizing: [sized]
+
+  Redeem5115VaultHook:
+    actionTypes: [{intent: withdraw, stage: instant}]
+    legSizing: [sized]
+
+  Redeem7540VaultHook:
+    actionTypes: [{intent: withdraw, stage: instant}]
+    legSizing: [sized]
+
+  RedeemWithId7540VaultHook:
+    actionTypes: [{intent: withdraw, stage: instant}]
+    legSizing: [sized]
+
+  Withdraw7540VaultHook:
+    actionTypes: [{intent: withdraw, stage: instant}]
+    legSizing: [sized]
+
+  WithdrawWithId7540VaultHook:
+    actionTypes: [{intent: withdraw, stage: instant}]
+    legSizing: [sized]
+
+  MorphoWithdrawHook:
+    actionTypes: [{intent: withdraw, stage: instant}]
+    legSizing: [sized, sized]  # dual-slot: assets XOR shares
+
+  AaveV4WithdrawHook:
+    actionTypes: [{intent: withdraw, stage: instant}]
+    legSizing: [sized]
+
+  # withdraw / request (5)
+  RequestRedeem7540VaultHook:
+    actionTypes: [{intent: withdraw, stage: request}]
+    legSizing: [sized]
+
+  RequestRedeemDETHHook:
+    actionTypes: [{intent: withdraw, stage: request}]
+    legSizing: [sized]
+
+  ApproveAndRequestRedeemDETHHook:
+    actionTypes: [{intent: withdraw, stage: request}]
+    legSizing: [sized]
+
+  RedeemFirelightVaultHook:
+    actionTypes: [{intent: withdraw, stage: request}]
+    legSizing: [sized]
+
+  EthenaCooldownSharesHook:
+    actionTypes: [{intent: withdraw, stage: request}]
+    legSizing: [sized]
+
+  # withdraw / fulfill (3)
+  ClaimAssetsDETHHook:
+    actionTypes: [{intent: withdraw, stage: fulfill}]
+    legSizing: []  # sizeless — requestId is not a sizable amount
+
+  ClaimWithdrawFirelightVaultHook:
+    actionTypes: [{intent: withdraw, stage: fulfill}]
+    legSizing: []  # sizeless — requestId is not a sizable amount
+
+  EthenaUnstakeHook:
+    actionTypes: [{intent: withdraw, stage: fulfill}]
+    legSizing: []  # sizeless — amount from cooldown state, not user-supplied
+
+  # withdraw / cancel (2)
+  CancelRedeemRequest7540Hook:
+    actionTypes: [{intent: withdraw, stage: cancel}]
+    legSizing: []  # sizeless — cancel/claim ops with no sizable amount
+
+  CancelRedeemRequestWithId7540Hook:
+    actionTypes: [{intent: withdraw, stage: cancel}]
+    legSizing: []  # sizeless — cancel/claim ops with no sizable amount
+
+  # withdraw / claim (2)
+  ClaimCancelRedeemRequest7540Hook:
+    actionTypes: [{intent: withdraw, stage: claim}]
+    legSizing: []  # sizeless — cancel/claim ops with no sizable amount
+
+  ClaimCancelRedeemRequestWithId7540Hook:
+    actionTypes: [{intent: withdraw, stage: claim}]
+    legSizing: []  # sizeless — cancel/claim ops with no sizable amount
+
+  # ============================================================
+  # REWARDS (7 hooks) — all claim stage, all sizeless
+  # ============================================================
+
+  FluidClaimRewardHook:
+    actionTypes: [{intent: rewards, stage: claim}]
+    legSizing: []
+
+  GearboxClaimRewardHook:
+    actionTypes: [{intent: rewards, stage: claim}]
+    legSizing: []
+
+  YearnClaimOneRewardHook:
+    actionTypes: [{intent: rewards, stage: claim}]
+    legSizing: []
+
+  MerklClaimRewardHook:
+    actionTypes: [{intent: rewards, stage: claim}]
+    legSizing: []
+
+  ClaimRFLRHook:
+    actionTypes: [{intent: rewards, stage: claim}]
+    legSizing: []  # sizeless — claims with no user-adjustable amount
+
+  ClaimRFLRV2Hook:
+    actionTypes: [{intent: rewards, stage: claim}]
+    legSizing: []  # sizeless — parameterless, on-chain enumeration
+
+  ClaimRFLRV3Hook:
+    actionTypes: [{intent: rewards, stage: claim}]
+    legSizing: []  # sizeless — parameterless, safe balance snapshot
+
+  WithdrawRFLRHook:
+    actionTypes: [{intent: rewards, stage: claim}]
+    legSizing: []  # sizeless — claims with no user-adjustable amount
+
+  WithdrawRFLRHookV2:
+    actionTypes: [{intent: rewards, stage: claim}]
+    legSizing: []  # sizeless — withdrawAll, amount from contract state
+
+  WithdrawVestedRFLRHook:
+    actionTypes: [{intent: rewards, stage: claim}]
+    legSizing: []  # sizeless — claims with no user-adjustable amount
+
+  WithdrawVestedRFLRHookV2:
+    actionTypes: [{intent: rewards, stage: claim}]
+    legSizing: []  # sizeless — vested amount from contract state
+
+  # ============================================================
+  # SWAP (29 hooks) — all instant stage
+  # ============================================================
+
+  # Uniswap V3
+  SwapUniswapV3Hook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndSwapUniswapV3Hook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  SwapUniswapV3Router02Hook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndSwapUniswapV3Router02Hook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  # Uniswap V2
+  SwapUniswapV2Hook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndSwapUniswapV2Hook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  # Uniswap V4
+  SwapUniswapV4Hook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  # Odos
+  SwapOdosV2Hook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndSwapOdosV2Hook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  SwapOdosV3Hook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndSwapOdosV3Hook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  # KyberSwap
+  SwapKyberSwapHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndSwapKyberSwapHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  # Spark PSM
+  SwapSparkPSMExactInHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndSwapSparkPSMExactInHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  SwapSparkPSMExactOutHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndSwapSparkPSMExactOutHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  # Algebra Integral
+  SwapAlgebraIntegralHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndSwapAlgebraIntegralHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  # OpenOcean
+  SwapOpenOceanHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndSwapOpenOceanHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  # 1inch
+  Swap1InchHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: []  # sizeless — opaque txData with multiple selectors
+
+  # Pendle
+  PendleRouterRedeemHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  PendleRouterSwapHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: []  # sizeless — deprecated, opaque calldata
+
+  PendleUnifiedHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: []  # sizeless — opaque txData per selector
+
+  # Spectra
+  SpectraExchangeDepositHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: []  # sizeless — nested ABI-encoded router commands
+
+  SpectraExchangeRedeemHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  # WETH/WFLR (1:1 token conversion = swap)
+  WrappedNativeHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  # ============================================================
+  # BRIDGE (15 hooks)
+  # ============================================================
+
+  # bridge / instant (13)
+  AcrossSendFundsAndExecuteOnDstHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndAcrossSendFundsAndExecuteOnDstHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
+  AcrossSendFundsAndExecuteOnDstHookV2:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndAcrossSendFundsAndExecuteOnDstHookV2:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
+  StargateSendHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndStargateSendHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
+  StargateSendHookV2:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndStargateSendHookV2:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
+  DeBridgeSendOrderAndExecuteOnDstHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
+  CCTPSendHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndCCTPSendHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
+  CircleGatewayWalletHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
+  CircleGatewayMinterHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: []  # sizeless — amount in signed attestation
+
+  # bridge / cancel (1)
+  DeBridgeCancelOrderHook:
+    actionTypes: [{intent: bridge, stage: cancel}]
+    legSizing: []  # sizeless — cancel op
+
+  # bridge / claim (1)
+  ClaimFailedTransferHook:
+    actionTypes: [{intent: bridge, stage: claim}]
+    legSizing: [sized]
+
+  # ============================================================
+  # STAKE (4 hooks) — all instant
+  # ============================================================
+
+  FluidStakeHook:
+    actionTypes: [{intent: stake, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndFluidStakeHook:
+    actionTypes: [{intent: stake, stage: instant}]
+    legSizing: [sized]
+
+  GearboxStakeHook:
+    actionTypes: [{intent: stake, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndGearboxStakeHook:
+    actionTypes: [{intent: stake, stage: instant}]
+    legSizing: [sized]
+
+  # ============================================================
+  # UNSTAKE (2 hooks) — all instant
+  # ============================================================
+
+  FluidUnstakeHook:
+    actionTypes: [{intent: unstake, stage: instant}]
+    legSizing: [sized]
+
+  GearboxUnstakeHook:
+    actionTypes: [{intent: unstake, stage: instant}]
+    legSizing: [sized]
+
+  # ============================================================
+  # LEND (3 hooks) — all instant
+  # ============================================================
+
+  MorphoSupplyHook:
+    actionTypes: [{intent: lend, stage: instant}]
+    legSizing: [sized]
+
+  MorphoLendHook:
+    actionTypes: [{intent: lend, stage: instant}]
+    legSizing: [sized]
+
+  AaveV4SupplyHook:
+    actionTypes: [{intent: lend, stage: instant}]
+    legSizing: [sized]
+
+  # ============================================================
+  # BORROW (2 hooks) — all instant
+  # ============================================================
+
+  MorphoBorrowHook:
+    actionTypes: [{intent: borrow, stage: instant}]
+    legSizing: [sized]
+
+  AaveV4BorrowHook:
+    actionTypes: [{intent: borrow, stage: instant}]
+    legSizing: [sized]
+
+  # ============================================================
+  # REPAY (2 hooks) — all instant
+  # ============================================================
+
+  MorphoRepayHook:
+    actionTypes: [{intent: repay, stage: instant}]
+    legSizing: [sized]
+
+  AaveV4RepayHook:
+    actionTypes: [{intent: repay, stage: instant}]
+    legSizing: [sized]
+
+  # ============================================================
+  # TRANSFER (6 hooks) — all instant
+  # ============================================================
+
+  TransferERC20Hook:
+    actionTypes: [{intent: transfer, stage: instant}]
+    legSizing: [sized]
+
+  TransferHook:
+    actionTypes: [{intent: transfer, stage: instant}]
+    legSizing: [sized]
+
+  NativeTransferHook:
+    actionTypes: [{intent: transfer, stage: instant}]
+    legSizing: [sized]
+
+  BatchTransferHook:
+    actionTypes: [{intent: transfer, stage: instant}]
+    legSizing: []  # sizeless — variable-length amounts in ABI data
+
+  OfframpTokensHook:
+    actionTypes: [{intent: transfer, stage: instant}]
+    legSizing: []  # sizeless — sends full balance
+
+  BatchTransferFromHook:
+    actionTypes: [{intent: transfer, stage: instant}]
+    legSizing: []  # sizeless — amounts are Permit2 signature-bound
+
+  # ============================================================
+  # CONFIG (11 hooks) — all instant
+  # ============================================================
+
+  MetaMorphoReallocateHook:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: []  # sizeless — admin reallocation
+
+  ForceDeallocateMorphoHook:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: [sized]
+
+  MarkRootAsUsedHook:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: []  # sizeless — admin/config op
+
+  FetchNativeFeeHook:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: [sized]
+
+  SetSlippageHook:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: []  # sizeless — admin/config op
+
+  MintSuperPositionsHook:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: [sized]
+
+  BurnSuperPositionsHook:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: [sized]
+
+  RecordPurchasePendlePTAmortizedOracleHook:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: []  # sizeless — oracle recording, no user amount
+
+  RecordPurchasePendlePTAmortizedOracleHookV2:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: []  # sizeless — oracle recording, no user amount
+
+  RecordRedemptionPendlePTAmortizedOracleHook:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: []  # sizeless — oracle recording, no user amount
+
+  RecordRedemptionPendlePTAmortizedOracleHookV2:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: []  # sizeless — oracle recording, no user amount
+
+  # ============================================================
+  # PERMISSIONS (4 hooks) — all instant
+  # ============================================================
+
+  ApproveERC20Hook:
+    actionTypes: [{intent: permissions, stage: instant}]
+    legSizing: [sized]
+
+  SetOperator7540Hook:
+    actionTypes: [{intent: permissions, stage: instant}]
+    legSizing: []  # sizeless — admin/config op
+
+  CircleGatewayAddDelegateHook:
+    actionTypes: [{intent: permissions, stage: instant}]
+    legSizing: []  # sizeless — delegate management
+
+  CircleGatewayRemoveDelegateHook:
+    actionTypes: [{intent: permissions, stage: instant}]
+    legSizing: []  # sizeless — delegate management
+
+  # ============================================================
+  # COMPOUND (4 hooks) — multi-leg, array position = execution order (T1)
+  # ============================================================
+
+  MorphoSupplyAndBorrowHook:
+    actionTypes:
+      - {intent: lend, stage: instant}
+      - {intent: borrow, stage: instant}
+    legSizing: [sized, sized]
+
+  AaveV4SupplyAndBorrowHook:
+    actionTypes:
+      - {intent: lend, stage: instant}
+      - {intent: borrow, stage: instant}
+    legSizing: [sized, sized]
+
+  MorphoRepayAndWithdrawHook:
+    actionTypes:
+      - {intent: repay, stage: instant}
+      - {intent: withdraw, stage: instant}
+    legSizing: [sized, sized]
+
+  AaveV4RepayAndWithdrawHook:
+    actionTypes:
+      - {intent: repay, stage: instant}
+      - {intent: withdraw, stage: instant}
+    legSizing: [sized, sized]

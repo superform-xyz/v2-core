@@ -495,13 +495,7 @@ contract StargateHooks is Helpers {
     function test_StargateSend_Build_RevertIf_ExtraOptionsLengthExceedsData() public {
         // Encode data with extraOptionsLength claiming 100 bytes but only 2 bytes actually present
         bytes memory data = abi.encodePacked(
-            mockLzNativeFee,
-            mockStargatePool,
-            mockInputToken,
-            mockDstEid,
-            mockTo,
-            mockAmountLD,
-            mockMinAmountLD,
+            _stargateFixedHeader(),
             false, // usePrevHookAmount
             false, // isBusMode
             uint256(100), // extraOptionsLength = 100 (but only 2 bytes follow)
@@ -514,13 +508,7 @@ contract StargateHooks is Helpers {
 
     function test_ApproveAndStargateSend_Build_RevertIf_ExtraOptionsLengthExceedsData() public {
         bytes memory data = abi.encodePacked(
-            mockLzNativeFee,
-            mockStargatePool,
-            mockInputToken,
-            mockDstEid,
-            mockTo,
-            mockAmountLD,
-            mockMinAmountLD,
+            _stargateFixedHeader(),
             false,
             false,
             uint256(100), // claims 100 bytes of extraOptions
@@ -534,13 +522,7 @@ contract StargateHooks is Helpers {
     function test_StargateSend_Build_RevertIf_ComposeMsgLengthExceedsData() public {
         // extraOptions is valid (2 bytes) but composeMsgLength claims more than available
         bytes memory data = abi.encodePacked(
-            mockLzNativeFee,
-            mockStargatePool,
-            mockInputToken,
-            mockDstEid,
-            mockTo,
-            mockAmountLD,
-            mockMinAmountLD,
+            _stargateFixedHeader(),
             false,
             false,
             uint256(2), // extraOptionsLength = 2
@@ -554,13 +536,7 @@ contract StargateHooks is Helpers {
 
     function test_ApproveAndStargateSend_Build_RevertIf_ComposeMsgLengthExceedsData() public {
         bytes memory data = abi.encodePacked(
-            mockLzNativeFee,
-            mockStargatePool,
-            mockInputToken,
-            mockDstEid,
-            mockTo,
-            mockAmountLD,
-            mockMinAmountLD,
+            _stargateFixedHeader(),
             false,
             false,
             uint256(2),
@@ -575,13 +551,7 @@ contract StargateHooks is Helpers {
     function test_StargateSend_Build_ZeroExtraOptionsAndZeroComposeMsg() public view {
         // Edge case: both variable fields are zero-length
         bytes memory data = abi.encodePacked(
-            mockLzNativeFee,
-            mockStargatePool,
-            mockInputToken,
-            mockDstEid,
-            mockTo,
-            mockAmountLD,
-            mockMinAmountLD,
+            _stargateFixedHeader(),
             false,
             false,
             uint256(0), // extraOptionsLength = 0
@@ -594,13 +564,7 @@ contract StargateHooks is Helpers {
 
     function test_ApproveAndStargateSend_Build_ZeroExtraOptionsAndZeroComposeMsg() public view {
         bytes memory data = abi.encodePacked(
-            mockLzNativeFee,
-            mockStargatePool,
-            mockInputToken,
-            mockDstEid,
-            mockTo,
-            mockAmountLD,
-            mockMinAmountLD,
+            _stargateFixedHeader(),
             false,
             false,
             uint256(0),
@@ -618,13 +582,7 @@ contract StargateHooks is Helpers {
         bytes memory shortCompose = hex"deadbeef"; // 4 bytes
 
         bytes memory data = abi.encodePacked(
-            mockLzNativeFee,
-            mockStargatePool,
-            mockInputToken,
-            mockDstEid,
-            mockTo,
-            mockAmountLD,
-            mockMinAmountLD,
+            _stargateFixedHeader(),
             false,
             false,
             uint256(2), // extraOptionsLength
@@ -641,13 +599,7 @@ contract StargateHooks is Helpers {
         bytes memory shortCompose = hex"deadbeef"; // 4 bytes
 
         bytes memory data = abi.encodePacked(
-            mockLzNativeFee,
-            mockStargatePool,
-            mockInputToken,
-            mockDstEid,
-            mockTo,
-            mockAmountLD,
-            mockMinAmountLD,
+            _stargateFixedHeader(),
             false,
             false,
             uint256(2),
@@ -673,13 +625,7 @@ contract StargateHooks is Helpers {
         assertGe(validCompose.length, 160);
 
         bytes memory data = abi.encodePacked(
-            mockLzNativeFee,
-            mockStargatePool,
-            mockInputToken,
-            mockDstEid,
-            mockTo,
-            mockAmountLD,
-            mockMinAmountLD,
+            _stargateFixedHeader(),
             false,
             false,
             uint256(2),
@@ -699,6 +645,7 @@ contract StargateHooks is Helpers {
         // Pool is address(0), data meets 238 min but has invalid extraOptionsLength
         // Should get POOL_NOT_VALID (checked before variable-length validation)
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, // 32
             address(0), // 20 - zero pool
             mockInputToken, // 20
@@ -711,7 +658,7 @@ contract StargateHooks is Helpers {
             uint256(999), // 32 - invalid extraOptionsLength
             uint256(0) // 32 - composeMsgLength (to reach 238 min)
         );
-        // Total: 32+20+20+4+32+32+32+1+1+32+32 = 238
+        // Total: 52+32+20+20+4+32+32+32+1+1+32+32 = 290 (with 52-byte placeholder)
 
         vm.expectRevert(StargateSendHook.POOL_NOT_VALID.selector);
         stargateHook.build(address(0), mockAccount, data);
@@ -721,6 +668,7 @@ contract StargateHooks is Helpers {
         // inputToken is address(0), pool mock is correct
         // Should get ADDRESS_NOT_VALID (checked before pool.token())
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee,
             mockStargatePool,
             address(0), // zero inputToken
@@ -749,13 +697,7 @@ contract StargateHooks is Helpers {
         }
 
         bytes memory data = abi.encodePacked(
-            mockLzNativeFee,
-            mockStargatePool,
-            mockInputToken,
-            mockDstEid,
-            mockTo,
-            mockAmountLD,
-            mockMinAmountLD,
+            _stargateFixedHeader(),
             false,
             false,
             uint256(largeOptions.length),
@@ -775,13 +717,7 @@ contract StargateHooks is Helpers {
         }
 
         bytes memory data = abi.encodePacked(
-            mockLzNativeFee,
-            mockStargatePool,
-            mockInputToken,
-            mockDstEid,
-            mockTo,
-            mockAmountLD,
-            mockMinAmountLD,
+            _stargateFixedHeader(),
             false,
             false,
             uint256(largeOptions.length),
@@ -872,8 +808,9 @@ contract StargateHooks is Helpers {
     // --- Data length boundary tests ---
 
     function test_StargateSend_Build_ExactMinimumDataLength() public view {
-        // Exactly 238 bytes with 0-length variable fields
+        // Exactly 290 bytes with 0-length variable fields (238 + 52-byte placeholder)
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, // 32
             mockStargatePool, // 20
             mockInputToken, // 20
@@ -886,9 +823,9 @@ contract StargateHooks is Helpers {
             uint256(0), // 32 (extraOptionsLength)
             uint256(0) // 32 (composeMsgLength)
         );
-        // Total: 32+20+20+4+32+32+32+1+1+32+32 = 238 bytes
+        // Total: 52+32+20+20+4+32+32+32+1+1+32+32 = 290 bytes (with 52-byte placeholder)
 
-        assertEq(data.length, 238);
+        assertEq(data.length, 290);
         Execution[] memory executions = stargateHook.build(address(0), mockAccount, data);
         assertEq(executions.length, 3);
     }
@@ -897,7 +834,7 @@ contract StargateHooks is Helpers {
         // 237 bytes - one short of minimum
         bytes memory data = new bytes(237);
         // Fill first 32 bytes with lzNativeFee
-        assembly {
+        assembly ("memory-safe") {
             mstore(add(data, 32), 10000000000000000) // 0.01 ether
         }
 
@@ -1123,6 +1060,7 @@ contract StargateHooks is Helpers {
         bytes memory composeMsg = abi.encode(bytes("0x123"), bytes("0x456"), wrongAccount, dstTokens, intentAmounts);
 
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, mockStargatePool, mockInputToken, mockDstEid, mockTo, mockAmountLD, mockMinAmountLD
         );
         bytes memory data = abi.encodePacked(
@@ -1144,6 +1082,7 @@ contract StargateHooks is Helpers {
         bytes memory composeMsg = abi.encode(bytes("0x123"), bytes("0x456"), wrongAccount, dstTokens, intentAmounts);
 
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, mockStargatePool, mockInputToken, mockDstEid, mockTo, mockAmountLD, mockMinAmountLD
         );
         bytes memory data = abi.encodePacked(
@@ -1335,6 +1274,7 @@ contract StargateHooks is Helpers {
     /// @dev ApproveAndStargate: exact minimum data length
     function test_ApproveAndStargateSend_Build_ExactMinimumDataLength() public view {
         bytes memory data = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, // 32
             mockStargatePool, // 20
             mockInputToken, // 20
@@ -1348,7 +1288,7 @@ contract StargateHooks is Helpers {
             uint256(0) // 32 (composeMsgLength)
         );
 
-        assertEq(data.length, 238);
+        assertEq(data.length, 290);
         Execution[] memory executions = approveAndStargateHook.build(address(0), mockAccount, data);
         assertEq(executions.length, 6);
     }
@@ -1356,7 +1296,7 @@ contract StargateHooks is Helpers {
     /// @dev ApproveAndStargate: one byte short of minimum
     function test_ApproveAndStargateSend_Build_RevertIf_OneByteShort() public {
         bytes memory data = new bytes(237);
-        assembly {
+        assembly ("memory-safe") {
             mstore(add(data, 32), 10000000000000000) // 0.01 ether
         }
 
@@ -1371,6 +1311,7 @@ contract StargateHooks is Helpers {
     /// @dev Zero lzNativeFee is valid (some LZ configs allow free messaging)
     function test_StargateSend_Build_ZeroLzNativeFee() public view {
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             uint256(0), // zero lzNativeFee
             mockStargatePool, mockInputToken, mockDstEid, mockTo, mockAmountLD, mockMinAmountLD
         );
@@ -1387,6 +1328,7 @@ contract StargateHooks is Helpers {
     /// @dev Zero lzNativeFee with OFT mode results in zero msg.value
     function test_StargateSend_Build_ZeroLzNativeFee_OFTMode() public view {
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             uint256(0), // zero lzNativeFee
             mockStargatePool, mockInputToken, mockDstEid, mockTo, mockAmountLD, mockMinAmountLD
         );
@@ -1401,6 +1343,7 @@ contract StargateHooks is Helpers {
     /// @dev Zero lzNativeFee for ApproveAndStargate
     function test_ApproveAndStargateSend_Build_ZeroLzNativeFee() public view {
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             uint256(0), mockStargatePool, mockInputToken, mockDstEid, mockTo, mockAmountLD, mockMinAmountLD
         );
         bytes memory data = abi.encodePacked(
@@ -1424,7 +1367,7 @@ contract StargateHooks is Helpers {
         address pool;
         address token;
         address to;
-        assembly {
+        assembly ("memory-safe") {
             pool := mload(add(inspected, 20))
             token := mload(add(inspected, 40))
             to := mload(add(inspected, 60))
@@ -1443,7 +1386,7 @@ contract StargateHooks is Helpers {
         address pool;
         address token;
         address to;
-        assembly {
+        assembly ("memory-safe") {
             pool := mload(add(inspected, 20))
             token := mload(add(inspected, 40))
             to := mload(add(inspected, 60))
@@ -1467,6 +1410,7 @@ contract StargateHooks is Helpers {
         bytes memory composeMsg = abi.encode(bytes("0x123"), bytes("0x456"), mockAccount, dstTokens, intentAmounts);
 
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, mockStargatePool, mockInputToken, mockDstEid, mockTo, mockAmountLD, mockMinAmountLD
         );
         bytes memory data = abi.encodePacked(
@@ -1495,6 +1439,7 @@ contract StargateHooks is Helpers {
         bytes memory composeMsg = abi.encode(bytes("0x123"), bytes("0x456"), mockAccount, dstTokens, intentAmounts);
 
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, mockStargatePool, mockInputToken, mockDstEid, mockTo, mockAmountLD, mockMinAmountLD
         );
         bytes memory data = abi.encodePacked(
@@ -1524,6 +1469,7 @@ contract StargateHooks is Helpers {
             abi.encode(bytes(hex"aabbccdd"), bytes(hex"11223344"), mockAccount, dstTokens, intentAmounts);
 
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, mockStargatePool, mockInputToken, mockDstEid, mockTo, mockAmountLD, mockMinAmountLD
         );
         bytes memory data = abi.encodePacked(
@@ -1651,6 +1597,7 @@ contract StargateHooks is Helpers {
         vm.assume(minAmountLD > 0 && minAmountLD <= amountLD);
 
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, mockStargatePool, mockInputToken, mockDstEid, mockTo, amountLD, minAmountLD
         );
         bytes memory data = abi.encodePacked(
@@ -1668,6 +1615,7 @@ contract StargateHooks is Helpers {
         vm.assume(minAmountLD > 0 && minAmountLD <= amountLD);
 
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, mockStargatePool, mockInputToken, mockDstEid, mockTo, amountLD, minAmountLD
         );
         bytes memory data = abi.encodePacked(
@@ -1686,6 +1634,7 @@ contract StargateHooks is Helpers {
         vm.assume(mode != 3); // mode 3 requires executeCalldata, tested separately
 
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, mockStargatePool, mockInputToken, mockDstEid, mockTo, mockAmountLD, mockMinAmountLD
         );
         bytes memory data = abi.encodePacked(
@@ -1707,6 +1656,7 @@ contract StargateHooks is Helpers {
         vm.assume(lzNativeFee <= type(uint128).max);
 
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             lzNativeFee, mockStargatePool, mockInputToken, mockDstEid, mockTo, amountLD, amountLD
         );
         bytes memory data = abi.encodePacked(
@@ -1742,6 +1692,7 @@ contract StargateHooks is Helpers {
 
         bytes memory executeCalldata = _buildMockExecuteCalldata();
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, lzMulticallAddr, mockInputToken, uint32(0), bytes32(0), mockAmountLD, mockMinAmountLD
         );
         bytes memory data = abi.encodePacked(
@@ -1760,6 +1711,7 @@ contract StargateHooks is Helpers {
         // to=bytes32(0) is allowed for mode 3
         bytes memory executeCalldata = _buildMockExecuteCalldata();
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, mockStargatePool, mockInputToken, uint32(0), bytes32(0), mockAmountLD, mockMinAmountLD
         );
         bytes memory data = abi.encodePacked(
@@ -1775,6 +1727,7 @@ contract StargateHooks is Helpers {
 
     function test_StargateSend_Build_LzMulticallMode_RevertIf_EmptyExecuteCalldata() public {
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, mockStargatePool, mockInputToken, uint32(0), bytes32(0), mockAmountLD, mockMinAmountLD
         );
         bytes memory data = abi.encodePacked(
@@ -1791,6 +1744,7 @@ contract StargateHooks is Helpers {
     function test_StargateSend_Build_LzMulticallMode_RevertIf_PoolZero() public {
         bytes memory executeCalldata = _buildMockExecuteCalldata();
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, address(0), mockInputToken, uint32(0), bytes32(0), mockAmountLD, mockMinAmountLD
         );
         bytes memory data = abi.encodePacked(
@@ -1853,6 +1807,7 @@ contract StargateHooks is Helpers {
         address lzMulticallAddr = makeAddr("lzMulticall");
         bytes memory executeCalldata = _buildMockExecuteCalldata();
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, lzMulticallAddr, mockInputToken, uint32(0), bytes32(0), mockAmountLD, mockMinAmountLD
         );
         bytes memory data = abi.encodePacked(
@@ -1886,6 +1841,7 @@ contract StargateHooks is Helpers {
     function test_ApproveAndStargateSend_Build_LzMulticallMode_RevertIf_InputTokenZero() public {
         bytes memory executeCalldata = _buildMockExecuteCalldata();
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, mockStargatePool, address(0), uint32(0), bytes32(0), mockAmountLD, mockMinAmountLD
         );
         bytes memory data = abi.encodePacked(
@@ -1897,6 +1853,81 @@ contract StargateHooks is Helpers {
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         approveAndStargateHook.build(address(0), mockAccount, data);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    DECODE/REPLACE AMOUNT TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_StargateSend_DecodeAmounts() public view {
+        bytes memory data = _encodeStargateData(false, 0, false);
+        assertEq(stargateHook.decodeAmounts(data)[0], mockAmountLD);
+    }
+
+    function test_StargateSend_ReplaceCalldataAmounts() public view {
+        bytes memory data = _encodeStargateData(false, 0, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = stargateHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(stargateHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_StargateSend_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeStargateData(false, 0, false);
+        bytes memory result = stargateHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(stargateHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_ApproveAndStargateSend_DecodeAmounts() public view {
+        bytes memory data = _encodeStargateData(false, 0, false);
+        assertEq(approveAndStargateHook.decodeAmounts(data)[0], mockAmountLD);
+    }
+
+    function test_ApproveAndStargateSend_ReplaceCalldataAmounts() public view {
+        bytes memory data = _encodeStargateData(false, 0, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndStargateHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(approveAndStargateHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_ApproveAndStargateSend_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _encodeStargateData(false, 0, false);
+        bytes memory result = approveAndStargateHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(approveAndStargateHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_Stargate_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _encodeStargateData(false, 0, false);
+        uint256 newAmount = 500;
+        bytes memory replaced = stargateHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = stargateHook.build(address(0), mockAccount, replaced);
+        assertEq(executions.length, 3);
+        assertEq(stargateHook.decodeAmounts(replaced)[0], newAmount);
+    }
+
+    function test_ApproveAndStargate_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _encodeStargateData(false, 0, false);
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndStargateHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = approveAndStargateHook.build(address(0), mockAccount, replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndStargateHook.decodeAmounts(replaced)[0], newAmount);
+    }
+
+    function test_Stargate_ReplaceCalldataAmounts_PreservesOtherFields() public view {
+        bytes memory data = _encodeStargateData(false, 0, false);
+        bytes memory replaced = stargateHook.replaceCalldataAmounts(data, _singleAmount(999));
+        assertEq(replaced.length, data.length);
+        // amountLD is at AMOUNT_POSITION = 160 (uint256 = 32 bytes, ends at byte 191)
+        for (uint256 i = 0; i < 160; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        for (uint256 i = 192; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1932,6 +1963,7 @@ contract StargateHooks is Helpers {
 
         // Split encoding to avoid stack too deep
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, mockStargatePool, mockInputToken, mockDstEid, mockTo, mockAmountLD, mockMinAmountLD
         );
         return abi.encodePacked(
@@ -1949,6 +1981,7 @@ contract StargateHooks is Helpers {
         returns (bytes memory)
     {
         bytes memory fixedPart = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
             mockLzNativeFee, mockStargatePool, mockInputToken, uint32(0), bytes32(0), mockAmountLD, mockMinAmountLD
         );
         return abi.encodePacked(
@@ -1963,5 +1996,19 @@ contract StargateHooks is Helpers {
         ILZMultiCall.Call[] memory calls = new ILZMultiCall.Call[](1);
         calls[0] = ILZMultiCall.Call({ target: address(0x1), value: 0.01 ether, data: hex"aabbccdd" });
         return abi.encodeCall(ILZMultiCall.execute, (calls, keccak256("testQuote")));
+    }
+
+    /// @dev Helper to encode the standard 8-field Stargate fixed header (avoids stack too deep)
+    function _stargateFixedHeader() internal view returns (bytes memory) {
+        return abi.encodePacked(
+            bytes(new bytes(52)),
+            mockLzNativeFee,
+            mockStargatePool,
+            mockInputToken,
+            mockDstEid,
+            mockTo,
+            mockAmountLD,
+            mockMinAmountLD
+        );
     }
 }

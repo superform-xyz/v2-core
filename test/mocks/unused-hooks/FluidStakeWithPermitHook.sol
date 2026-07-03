@@ -31,6 +31,17 @@ contract FluidStakeWithPermitHook is BaseHook, ISuperHookInflowOutflow {
 
     constructor() BaseHook(HookType.INFLOW, "Stake") { }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Fluid Stake with Permit";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Mock hook for testing";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -71,8 +82,20 @@ contract FluidStakeWithPermitHook is BaseHook, ISuperHookInflowOutflow {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory data) external pure returns (uint256) {
-        return _decodeAmount(data);
+    function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](1);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+    }
+
+    /// @dev This hook implements ISuperHookInflowOutflow
+    function _supportsSizingInterface() internal pure override returns (bool) {
+        return true;
     }
 
     /*//////////////////////////////////////////////////////////////

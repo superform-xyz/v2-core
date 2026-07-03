@@ -97,7 +97,7 @@ contract SparkPSMExactInTest is Helpers {
     }
 
     function test_SwapHook_Build_RevertIf_InvalidHookData() public {
-        bytes memory shortData = new bytes(156); // Less than 157
+        bytes memory shortData = new bytes(208); // Less than 209
         vm.expectRevert(SwapSparkPSMExactInHook.INVALID_HOOK_DATA.selector);
         swapHook.build(address(prevHook), account, shortData);
     }
@@ -133,7 +133,7 @@ contract SparkPSMExactInTest is Helpers {
 
         address decodedAssetOut;
         address decodedReceiver;
-        assembly {
+        assembly ("memory-safe") {
             decodedAssetOut := mload(add(inspected, 20))
             decodedReceiver := mload(add(inspected, 40))
         }
@@ -197,7 +197,7 @@ contract SparkPSMExactInTest is Helpers {
     }
 
     function test_ApproveAndSwapHook_Build_RevertIf_InvalidHookData() public {
-        bytes memory shortData = new bytes(156); // Less than 157
+        bytes memory shortData = new bytes(208); // Less than 209
         vm.expectRevert(ApproveAndSwapSparkPSMExactInHook.INVALID_HOOK_DATA.selector);
         approveAndSwapHook.build(address(prevHook), account, shortData);
     }
@@ -233,7 +233,7 @@ contract SparkPSMExactInTest is Helpers {
 
         address decodedAssetOut;
         address decodedReceiver;
-        assembly {
+        assembly ("memory-safe") {
             decodedAssetOut := mload(add(inspected, 20))
             decodedReceiver := mload(add(inspected, 40))
         }
@@ -248,7 +248,7 @@ contract SparkPSMExactInTest is Helpers {
 
     function test_SwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 157);
+        assertEq(data.length, 209);
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
@@ -256,7 +256,7 @@ contract SparkPSMExactInTest is Helpers {
 
     function test_ApproveAndSwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 157);
+        assertEq(data.length, 209);
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
@@ -312,7 +312,7 @@ contract SparkPSMExactInTest is Helpers {
 
         uint256 decodedAmountIn;
         uint256 decodedMinAmountOut;
-        assembly {
+        assembly ("memory-safe") {
             // amountIn at offset: 4 + 32 + 32 = 68
             decodedAmountIn := mload(add(swapCalldata, 100)) // 68 + 32
             // minAmountOut at offset: 4 + 32 + 32 + 32 = 100
@@ -338,7 +338,7 @@ contract SparkPSMExactInTest is Helpers {
 
         uint256 decodedAmountIn;
         uint256 decodedMinAmountOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
             decodedMinAmountOut := mload(add(swapCalldata, 132))
         }
@@ -356,7 +356,7 @@ contract SparkPSMExactInTest is Helpers {
 
         uint256 decodedAmountIn;
         uint256 decodedMinAmountOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
             decodedMinAmountOut := mload(add(swapCalldata, 132))
         }
@@ -376,7 +376,7 @@ contract SparkPSMExactInTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedMinAmountOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
             decodedMinAmountOut := mload(add(swapCalldata, 132))
         }
@@ -397,7 +397,7 @@ contract SparkPSMExactInTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedMinAmountOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
             decodedMinAmountOut := mload(add(swapCalldata, 132))
         }
@@ -418,7 +418,7 @@ contract SparkPSMExactInTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedMinAmountOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
             decodedMinAmountOut := mload(add(swapCalldata, 132))
         }
@@ -436,6 +436,7 @@ contract SparkPSMExactInTest is Helpers {
         address differentReceiver = address(0xBEEF);
 
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(assetIn),
             bytes20(assetOut),
             bytes32(originalAmountIn),
@@ -452,7 +453,7 @@ contract SparkPSMExactInTest is Helpers {
         // Selector (4) + assetIn (32) + assetOut (32) + amountIn (32) + minAmountOut (32) + receiver (32)
         bytes memory swapCalldata = executions[1].callData;
         address decodedReceiver;
-        assembly {
+        assembly ("memory-safe") {
             // receiver at offset: 4 + 32*4 = 132, so mload at 132+32 = 164
             decodedReceiver := mload(add(swapCalldata, 164))
         }
@@ -466,6 +467,7 @@ contract SparkPSMExactInTest is Helpers {
         address differentReceiver = address(0xBEEF);
 
         bytes memory data = bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(assetIn),
             bytes20(assetOut),
             bytes32(originalAmountIn),
@@ -480,7 +482,7 @@ contract SparkPSMExactInTest is Helpers {
         // Swap is at index 3
         bytes memory swapCalldata = executions[3].callData;
         address decodedReceiver;
-        assembly {
+        assembly ("memory-safe") {
             decodedReceiver := mload(add(swapCalldata, 164))
         }
 
@@ -511,7 +513,7 @@ contract SparkPSMExactInTest is Helpers {
         assertEq(executions[1].target, assetIn);
         bytes memory approve0Calldata = executions[1].callData;
         uint256 approve0Amount;
-        assembly {
+        assembly ("memory-safe") {
             approve0Amount := mload(add(approve0Calldata, 68))
         }
         assertEq(approve0Amount, 0);
@@ -520,7 +522,7 @@ contract SparkPSMExactInTest is Helpers {
         assertEq(executions[2].target, assetIn);
         bytes memory approveAmountCalldata = executions[2].callData;
         uint256 approvedAmount;
-        assembly {
+        assembly ("memory-safe") {
             approvedAmount := mload(add(approveAmountCalldata, 68))
         }
         assertEq(approvedAmount, originalAmountIn);
@@ -532,7 +534,7 @@ contract SparkPSMExactInTest is Helpers {
         assertEq(executions[4].target, assetIn);
         bytes memory cleanupCalldata = executions[4].callData;
         uint256 cleanupAmount;
-        assembly {
+        assembly ("memory-safe") {
             cleanupAmount := mload(add(cleanupCalldata, 68))
         }
         assertEq(cleanupAmount, 0);
@@ -549,7 +551,7 @@ contract SparkPSMExactInTest is Helpers {
         // Verify approve amount matches prevHookAmount
         bytes memory approveCalldata = executions[2].callData;
         uint256 approveAmount;
-        assembly {
+        assembly ("memory-safe") {
             approveAmount := mload(add(approveCalldata, 68))
         }
 
@@ -568,7 +570,7 @@ contract SparkPSMExactInTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedMinAmountOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
             decodedMinAmountOut := mload(add(swapCalldata, 132))
         }
@@ -586,7 +588,7 @@ contract SparkPSMExactInTest is Helpers {
 
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
         }
 
@@ -604,7 +606,7 @@ contract SparkPSMExactInTest is Helpers {
 
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedReferralCode;
-        assembly {
+        assembly ("memory-safe") {
             // referralCode at offset: 4 + 32*5 = 164, so mload at 164+32 = 196
             decodedReferralCode := mload(add(swapCalldata, 196))
         }
@@ -630,7 +632,7 @@ contract SparkPSMExactInTest is Helpers {
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
         uint256 decodedMinAmountOut;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
             decodedMinAmountOut := mload(add(swapCalldata, 132))
         }
@@ -662,7 +664,7 @@ contract SparkPSMExactInTest is Helpers {
 
         bytes memory swapCalldata = executions[1].callData;
         uint256 decodedAmountIn;
-        assembly {
+        assembly ("memory-safe") {
             decodedAmountIn := mload(add(swapCalldata, 100))
         }
 
@@ -678,6 +680,81 @@ contract SparkPSMExactInTest is Helpers {
         // Should not revert for any length >= 157
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    DECODE/REPLACE AMOUNT TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SwapSparkPsmExactIn_DecodeAmounts() public view {
+        bytes memory data = _buildHookData(false);
+        assertEq(swapHook.decodeAmounts(data)[0], originalAmountIn);
+    }
+
+    function test_SwapSparkPsmExactIn_ReplaceCalldataAmounts() public view {
+        bytes memory data = _buildHookData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = swapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(swapHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_SwapSparkPsmExactIn_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _buildHookData(false);
+        bytes memory result = swapHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(swapHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_ApproveAndSwapSparkPsmExactIn_DecodeAmounts() public view {
+        bytes memory data = _buildHookData(false);
+        assertEq(approveAndSwapHook.decodeAmounts(data)[0], originalAmountIn);
+    }
+
+    function test_ApproveAndSwapSparkPsmExactIn_ReplaceCalldataAmounts() public view {
+        bytes memory data = _buildHookData(false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(approveAndSwapHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_ApproveAndSwapSparkPsmExactIn_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = _buildHookData(false);
+        bytes memory result = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(approveAndSwapHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_SwapSparkPSMExactIn_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _buildHookData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = swapHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 3);
+        assertEq(swapHook.decodeAmounts(replaced)[0], newAmount);
+    }
+
+    function test_ApproveAndSwapSparkPSMExactIn_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _buildHookData(false);
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndSwapHook.decodeAmounts(replaced)[0], newAmount);
+    }
+
+    function test_SwapSparkPSMExactIn_ReplaceCalldataAmounts_PreservesOtherFields() public view {
+        bytes memory data = _buildHookData(false);
+        bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(999));
+        assertEq(replaced.length, data.length);
+        // AMOUNT_POSITION is 92 (52-byte placeholder + assetIn(20) + assetOut(20))
+        for (uint256 i = 0; i < 92; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        for (uint256 i = 124; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -698,13 +775,14 @@ contract SparkPSMExactInTest is Helpers {
         returns (bytes memory)
     {
         return bytes.concat(
-            bytes20(_assetIn), // 0-19
-            bytes20(_assetOut), // 20-39
-            bytes32(originalAmountIn), // 40-71
-            bytes32(originalMinAmountOut), // 72-103
-            bytes20(receiver), // 104-123
-            bytes32(referralCode), // 124-155
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00) // 156
+            bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(_assetIn), // 52-71
+            bytes20(_assetOut), // 72-91
+            bytes32(originalAmountIn), // 92-123
+            bytes32(originalMinAmountOut), // 124-155
+            bytes20(receiver), // 156-175
+            bytes32(referralCode), // 176-207
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00) // 208
         );
     }
 
@@ -718,6 +796,7 @@ contract SparkPSMExactInTest is Helpers {
         returns (bytes memory)
     {
         return bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(assetIn),
             bytes20(assetOut),
             bytes32(_amountIn),

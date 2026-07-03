@@ -11,22 +11,32 @@ import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { ISpectraRouter } from "../../../vendor/spectra/ISpectraRouter.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookContextAware,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { SpectraCommands } from "../../../vendor/spectra/SpectraCommands.sol";
 
 /// @title SpectraExchangeDepositHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         bytes32 placeholder_yieldSourceOracleId = BytesLib.toBytes32(data, 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
 /// @notice         uint256 value = BytesLib.toUint256(data, 53);
 /// @notice         bytes txData_ = BytesLib.slice(data, 85, data.length - 85);
-contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
+contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
     uint256 private constant TX_DATA_POSITION = 85;
+    bytes4 private constant EXECUTE_SELECTOR = bytes4(keccak256("execute(bytes,bytes[])"));
+    bytes4 private constant EXECUTE_DEADLINE_SELECTOR = bytes4(keccak256("execute(bytes,bytes[],uint256)"));
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -52,6 +62,17 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
         ROUTER = ISpectraRouter(router_);
     }
 
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Spectra Exchange Deposit";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Deposits into a yield position via Spectra exchange";
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -69,9 +90,24 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
         address pt = data.extractYieldSource();
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         uint256 value = abi.decode(data[53:TX_DATA_POSITION], (uint256));
-        bytes memory txData_ = data[TX_DATA_POSITION:];
+        // Copy calldata slice to memory so the calldata offset+length slots can be freed
+        // before the stack-heavy _validateTxData logic runs (prevents stack-too-deep under --ir-minimum)
+        return _buildFromTxData(prevHook, account, pt, usePrevHookAmount, value, data[TX_DATA_POSITION:]);
+    }
 
-        bytes memory updatedTxData = _validateTxData(data[TX_DATA_POSITION:], account, usePrevHookAmount, prevHook, pt);
+    function _buildFromTxData(
+        address prevHook,
+        address account,
+        address pt,
+        bool usePrevHookAmount,
+        uint256 value,
+        bytes memory txData_
+    )
+        private
+        view
+        returns (Execution[] memory executions)
+    {
+        bytes memory updatedTxData = _validateTxData(txData_, account, usePrevHookAmount, prevHook, pt);
 
         executions = new Execution[](1);
         executions[0] = Execution({
@@ -89,6 +125,27 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    /// @dev Sizeless — amounts inside nested ABI-encoded router commands
+    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](0);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+    }
+
+    /// @inheritdoc IERC165
+    /// @dev S2: implements ISuperHookInflowOutflow (decode-only) but NOT ISuperHookOutflow
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
+        if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
+        return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
+            || interfaceId == type(ISuperHookResult).interfaceId
+            || interfaceId == type(ISuperHookInspector).interfaceId;
+    }
+
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(data.extractYieldSource());
@@ -103,6 +160,7 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
+        _setOutToken(_decodeTokenOut(data[TX_DATA_POSITION:]), account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -128,7 +186,7 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
     }
 
     function _validateTxData(
-        bytes calldata data,
+        bytes memory data,
         address account,
         bool usePrevHookAmount,
         address prevHook,
@@ -139,14 +197,16 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
         returns (bytes memory updatedTxData)
     {
         ValidateTxDataParams memory params;
-        params.selector = bytes4(data[0:4]);
+        params.selector = bytes4(BytesLib.toBytes32(data, 0));
 
-        if (params.selector == bytes4(keccak256("execute(bytes,bytes[])"))) {
-            (params.commandsData, params.inputs) = abi.decode(data[4:], (bytes, bytes[]));
+        if (params.selector == EXECUTE_SELECTOR) {
+            (params.commandsData, params.inputs) =
+                abi.decode(BytesLib.slice(data, 4, data.length - 4), (bytes, bytes[]));
             params.inputsLength = params.inputs.length;
             params.updatedInputs = new bytes[](params.inputsLength);
-        } else if (params.selector == bytes4(keccak256("execute(bytes,bytes[],uint256)"))) {
-            (params.commandsData, params.inputs, params.deadline) = abi.decode(data[4:], (bytes, bytes[], uint256));
+        } else if (params.selector == EXECUTE_DEADLINE_SELECTOR) {
+            (params.commandsData, params.inputs, params.deadline) =
+                abi.decode(BytesLib.slice(data, 4, data.length - 4), (bytes, bytes[], uint256));
             if (params.deadline < block.timestamp) revert INVALID_DEADLINE();
             params.inputsLength = params.inputs.length;
             params.updatedInputs = new bytes[](params.inputsLength);
@@ -209,12 +269,14 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
             }
         }
 
-        if (params.selector == bytes4(keccak256("execute(bytes,bytes[])"))) {
-            updatedTxData = abi.encodeWithSelector(params.selector, params.commandsData, params.updatedInputs);
-        } else if (params.selector == bytes4(keccak256("execute(bytes,bytes[],uint256)"))) {
-            updatedTxData =
-                abi.encodeWithSelector(params.selector, params.commandsData, params.updatedInputs, params.deadline);
+        updatedTxData = _encodeResult(params);
+    }
+
+    function _encodeResult(ValidateTxDataParams memory params) private pure returns (bytes memory) {
+        if (params.deadline > 0) {
+            return abi.encodeWithSelector(EXECUTE_DEADLINE_SELECTOR, params.commandsData, params.updatedInputs, params.deadline);
         }
+        return abi.encodeWithSelector(EXECUTE_SELECTOR, params.commandsData, params.updatedInputs);
     }
 
     function _validateCommands(
@@ -249,9 +311,9 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
         bytes4 selector = bytes4(data[0:4]);
         bytes memory commandsData;
         bytes[] memory inputs;
-        if (selector == bytes4(keccak256("execute(bytes,bytes[])"))) {
+        if (selector == EXECUTE_SELECTOR) {
             (commandsData, inputs) = abi.decode(data[4:], (bytes, bytes[]));
-        } else if (selector == bytes4(keccak256("execute(bytes,bytes[],uint256)"))) {
+        } else if (selector == EXECUTE_DEADLINE_SELECTOR) {
             (commandsData, inputs,) = abi.decode(data[4:], (bytes, bytes[], uint256));
         } else {
             revert INVALID_SELECTOR();

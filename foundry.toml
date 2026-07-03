@@ -66,6 +66,7 @@ script = "src"
 src = "src"
 test = "test"
 gas_limit = "18446744073709551615"
+via_ir = true
 
 [profile.coverage.lint]
 lint_on_build = false

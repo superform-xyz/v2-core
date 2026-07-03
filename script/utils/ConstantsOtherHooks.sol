@@ -21,12 +21,21 @@ abstract contract ConstantsOtherHooks {
     // rFLR hook keys
     string internal constant CLAIM_RFLR_HOOK_KEY = "ClaimRFLRHook";
     string internal constant CLAIM_RFLRV2_HOOK_KEY = "ClaimRFLRV2Hook";
+    string internal constant CLAIM_RFLRV3_HOOK_KEY = "ClaimRFLRV3Hook";
     string internal constant WITHDRAW_RFLR_HOOK_KEY = "WithdrawRFLRHook";
     string internal constant WITHDRAW_VESTED_RFLR_HOOK_KEY = "WithdrawVestedRFLRHook";
+    string internal constant WITHDRAW_RFLR_HOOK_V2_KEY = "WithdrawRFLRHookV2";
+    string internal constant WITHDRAW_VESTED_RFLR_HOOK_V2_KEY = "WithdrawVestedRFLRHookV2";
+
+    // WrappedNativeHook key (deployed with chain-specific wrapped native address, e.g. WFLR on Flare)
+    string internal constant WRAPPED_NATIVE_HOOK_KEY = "WrappedNativeHook";
+
+    // Wrapped native token addresses
+    address internal constant WETH_ETHEREUM = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address internal constant WFLR_FLARE = 0x1D80c49BbBCd1C0911346656B529DF9E5c2F783d;
 
     // rFLR contract addresses (Flare mainnet)
     address internal constant RNAT_FLARE = 0x26d460c3Cf931Fb2014FA436a49e3Af08619810e;
-    address internal constant WFLR_FLARE = 0x1D80c49BbBCd1C0911346656B529DF9E5c2F783d;
 
     // NOTE: Odos V3 hook keys and ODOS_ROUTER_V3 moved to Constants.sol (deployed via DeployV2Core)
 }

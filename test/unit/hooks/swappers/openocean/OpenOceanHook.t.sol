@@ -12,7 +12,7 @@ import { SwapOpenOceanHook } from "../../../../../src/hooks/swappers/openocean/S
 import { OpenOceanDynamicAmountUpdater } from "../../../../../src/libraries/OpenOceanDynamicAmountUpdater.sol";
 import { IOpenOceanCaller } from "../../../../../src/vendor/openocean/IOpenOceanCaller.sol";
 import { IOpenOceanExchange } from "../../../../../src/vendor/openocean/IOpenOceanExchange.sol";
-import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookInflowOutflow } from "../../../../../src/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
 
@@ -66,6 +66,12 @@ contract MockOpenOceanRouter is IOpenOceanExchange {
 }
 
 contract OpenOceanHookTest is Test {
+    function _singleAmount(uint256 amt) internal pure returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = amt;
+    }
+
+
     uint256 private constant DISTRIBUTION_SENTINEL = (uint256(1) << 128) + 1;
     uint256 private constant COLLECT_SLIPPAGE_HIGH_BITS = uint256(0x32) << 240;
 
@@ -116,7 +122,7 @@ contract OpenOceanHookTest is Test {
         calls[0] = _call(0, 0, hex"12345678");
         bytes memory txData =
             _buildTxDataWithReceiver(caller, referrer, inputToken, outputToken, 1000, 900, 950, 0, calls, dstReceiver);
-        bytes memory data = _swapHookData(outputToken, 0, 1000, 900, false, txData);
+        bytes memory data = _swapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
 
         bytes memory argsEncoded = swapHook.inspect(data);
 
@@ -130,7 +136,7 @@ contract OpenOceanHookTest is Test {
         calls[0] = _call(0, 0, hex"12345678");
         bytes memory txData =
             _buildTxDataWithReceiver(caller, referrer, inputToken, outputToken, 1000, 900, 950, 0, calls, dstReceiver);
-        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, false, txData);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
 
         bytes memory argsEncoded = approveAndSwapHook.inspect(data);
 
@@ -192,7 +198,7 @@ contract OpenOceanHookTest is Test {
     function test_SwapHook_UsesPrevAmountAndScalesCallData() public {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
         (,, IOpenOceanCaller.CallDescription[] memory originalCalls) = _decodeSwap(txData);
-        bytes memory data = _swapHookData(outputToken, 0, 1000, 900, true, txData);
+        bytes memory data = _swapHookData(inputToken, outputToken, 1000, 0, 900, true, txData);
 
         prevHook.setOutAmount(2000, account);
 
@@ -213,7 +219,7 @@ contract OpenOceanHookTest is Test {
     function test_SwapHook_UpdatesNativeExecutionValue() public {
         bytes memory txData = _buildNativeSplitTxData(1001, 900, 950);
         (,, IOpenOceanCaller.CallDescription[] memory originalCalls) = _decodeSwap(txData);
-        bytes memory data = _swapHookData(outputToken, 1001, 1001, 900, true, txData);
+        bytes memory data = _swapHookData(address(0), outputToken, 1001, 0, 900, true, txData);
 
         prevHook.setOutAmount(2000, account);
 
@@ -234,7 +240,7 @@ contract OpenOceanHookTest is Test {
     function test_SwapHook_UsesPrevAmountWithZeroValueNativeCalls() public {
         bytes memory txData = _buildNativeZeroValueTxData(1000, 900, 950);
         (,, IOpenOceanCaller.CallDescription[] memory originalCalls) = _decodeSwap(txData);
-        bytes memory data = _swapHookData(outputToken, 1000, 1000, 900, true, txData);
+        bytes memory data = _swapHookData(address(0), outputToken, 1000, 0, 900, true, txData);
 
         prevHook.setOutAmount(2000, account);
 
@@ -252,7 +258,7 @@ contract OpenOceanHookTest is Test {
 
     function test_SwapHook_DerivesNativeValueFromInputAmount() public view {
         bytes memory txData = _buildNativeSplitTxData(1001, 900, 950);
-        bytes memory data = _swapHookData(outputToken, 2000, 1001, 900, false, txData);
+        bytes memory data = _swapHookData(address(0), outputToken, 1001, 0, 900, false, txData);
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         (, IOpenOceanExchange.SwapDescription memory desc,) = _decodeSwap(executions[1].callData);
@@ -263,7 +269,7 @@ contract OpenOceanHookTest is Test {
 
     function test_SwapHook_DerivesZeroValueForErc20Input() public view {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
-        bytes memory data = _swapHookData(outputToken, 1000, 1000, 900, false, txData);
+        bytes memory data = _swapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         (, IOpenOceanExchange.SwapDescription memory desc,) = _decodeSwap(executions[1].callData);
@@ -274,7 +280,7 @@ contract OpenOceanHookTest is Test {
 
     function test_SwapHook_UsesPrevAmountAndExecutesNativeSwap() public {
         bytes memory txData = _buildNativeSplitTxData(1001, 900, 950);
-        bytes memory data = _swapHookData(outputToken, 1001, 1001, 900, true, txData);
+        bytes memory data = _swapHookData(address(0), outputToken, 1001, 0, 900, true, txData);
 
         vm.deal(account, 2000);
         prevHook.setOutAmount(2000, account);
@@ -291,7 +297,7 @@ contract OpenOceanHookTest is Test {
 
     function test_RevertWhenSwapHookInputTokenEqualsOutputToken() public {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 0);
-        bytes memory data = _swapHookData(inputToken, 0, 1000, 900, false, txData);
+        bytes memory data = _swapHookData(inputToken, inputToken, 1000, 0, 900, false, txData);
 
         vm.expectRevert(SwapOpenOceanHook.SAME_INPUT_OUTPUT_TOKEN.selector);
         swapHook.build(address(0), account, data);
@@ -300,7 +306,7 @@ contract OpenOceanHookTest is Test {
     function test_ApproveAndSwapHook_UsesPrevAmountForApprovalAndSwap() public {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
         (,, IOpenOceanCaller.CallDescription[] memory originalCalls) = _decodeSwap(txData);
-        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, true, txData);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 0, 900, true, txData);
 
         prevHook.setOutAmount(2000, account);
 
@@ -323,7 +329,7 @@ contract OpenOceanHookTest is Test {
 
     function test_ApproveAndSwapHook_UsesPrevAmountAndExecutesSwap() public {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
-        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, true, txData);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 0, 900, true, txData);
 
         MockERC20(inputToken).mint(account, 2000);
         prevHook.setOutAmount(2000, account);
@@ -342,7 +348,7 @@ contract OpenOceanHookTest is Test {
     function test_ApproveAndSwapHook_UsesNativePathAndPrevAmount() public {
         bytes memory txData = _buildNativeSplitTxData(1001, 900, 950);
         (,, IOpenOceanCaller.CallDescription[] memory originalCalls) = _decodeSwap(txData);
-        bytes memory data = _approveAndSwapHookData(address(0), outputToken, 1001, 900, true, txData);
+        bytes memory data = _approveAndSwapHookData(address(0), outputToken, 1001, 0, 900, true, txData);
 
         prevHook.setOutAmount(2000, account);
 
@@ -365,7 +371,7 @@ contract OpenOceanHookTest is Test {
     function test_ApproveAndSwapHook_UsesPrevAmountWithZeroValueNativeCalls() public {
         bytes memory txData = _buildNativeZeroValueTxData(1000, 900, 950);
         (,, IOpenOceanCaller.CallDescription[] memory originalCalls) = _decodeSwap(txData);
-        bytes memory data = _approveAndSwapHookData(address(0), outputToken, 1000, 900, true, txData);
+        bytes memory data = _approveAndSwapHookData(address(0), outputToken, 1000, 0, 900, true, txData);
 
         prevHook.setOutAmount(2000, account);
 
@@ -383,7 +389,7 @@ contract OpenOceanHookTest is Test {
 
     function test_ApproveAndSwapHook_UsesPrevAmountAndExecutesNativeSwap() public {
         bytes memory txData = _buildNativeSplitTxData(1001, 900, 950);
-        bytes memory data = _approveAndSwapHookData(address(0), outputToken, 1001, 900, true, txData);
+        bytes memory data = _approveAndSwapHookData(address(0), outputToken, 1001, 0, 900, true, txData);
 
         vm.deal(account, 2000);
         prevHook.setOutAmount(2000, account);
@@ -400,7 +406,7 @@ contract OpenOceanHookTest is Test {
 
     function test_RevertWhenApproveAndSwapHookInputTokenEqualsOutputToken() public {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 0);
-        bytes memory data = _approveAndSwapHookData(inputToken, inputToken, 1000, 900, false, txData);
+        bytes memory data = _approveAndSwapHookData(inputToken, inputToken, 1000, 0, 900, false, txData);
 
         vm.expectRevert(ApproveAndSwapOpenOceanHook.SAME_INPUT_OUTPUT_TOKEN.selector);
         approveAndSwapHook.build(address(0), account, data);
@@ -485,7 +491,7 @@ contract OpenOceanHookTest is Test {
         IOpenOceanCaller.CallDescription[] memory calls = new IOpenOceanCaller.CallDescription[](1);
         calls[0] = _call(0, 0, hex"12345678");
         bytes memory txData = _buildTxData(caller, inputToken, inputToken, 1000, 900, 950, 0, calls);
-        bytes memory data = _swapHookData(outputToken, 0, 1000, 900, false, txData);
+        bytes memory data = _swapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
 
         vm.expectRevert(SwapOpenOceanHook.OUTPUT_TOKEN_MISMATCH.selector);
         swapHook.build(address(0), account, data);
@@ -496,15 +502,95 @@ contract OpenOceanHookTest is Test {
         IOpenOceanCaller.CallDescription[] memory calls = new IOpenOceanCaller.CallDescription[](1);
         calls[0] = _call(0, 0, hex"12345678");
         bytes memory txData = _buildTxData(caller, inputToken, inputToken, 1000, 900, 950, 0, calls);
-        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, false, txData);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
 
         vm.expectRevert(ApproveAndSwapOpenOceanHook.OUTPUT_TOKEN_MISMATCH.selector);
         approveAndSwapHook.build(address(0), account, data);
     }
 
+    function test_SwapOpenOcean_DecodeAmounts() public view {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _swapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
+        assertEq(swapHook.decodeAmounts(data)[0], 1000);
+    }
+
+    function test_SwapOpenOcean_ReplaceCalldataAmounts() public view {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _swapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
+        uint256 newAmount = 2e18;
+        bytes memory result = swapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(swapHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_SwapOpenOcean_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _swapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
+        bytes memory result = swapHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(swapHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_ApproveAndSwapOpenOcean_DecodeAmounts() public view {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
+        assertEq(approveAndSwapHook.decodeAmounts(data)[0], 1000);
+    }
+
+    function test_ApproveAndSwapOpenOcean_ReplaceCalldataAmounts() public view {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(approveAndSwapHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_ApproveAndSwapOpenOcean_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
+        bytes memory result = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(approveAndSwapHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_SwapOpenOcean_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _swapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
+        uint256 newAmount = 500;
+        bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = swapHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 3);
+        assertEq(swapHook.decodeAmounts(replaced)[0], newAmount);
+    }
+
+    function test_ApproveAndSwapOpenOcean_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndSwapHook.decodeAmounts(replaced)[0], newAmount);
+    }
+
+    function test_ApproveAndSwapOpenOcean_ReplaceCalldataAmounts_PreservesOtherFields() public view {
+        bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 2);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
+        bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(999));
+        // Verify bytes before AMOUNT_POSITION (92) are unchanged (52-byte placeholder + inputToken(20) + outputToken(20))
+        for (uint256 i = 0; i < 92; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+        // Verify bytes after AMOUNT_POSITION + 32 (124) are unchanged
+        for (uint256 i = 124; i < data.length; i++) {
+            assertEq(replaced[i], data[i]);
+        }
+    }
+
     function test_RevertWhenSwapHookPrevHookReturnsZero() public {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 0);
-        bytes memory data = _swapHookData(outputToken, 0, 1000, 900, true, txData);
+        bytes memory data = _swapHookData(inputToken, outputToken, 1000, 0, 900, true, txData);
 
         prevHook.setOutAmount(0, account);
 
@@ -514,7 +600,7 @@ contract OpenOceanHookTest is Test {
 
     function test_RevertWhenApproveAndSwapHookPrevHookReturnsZero() public {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 0);
-        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, true, txData);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 0, 900, true, txData);
 
         prevHook.setOutAmount(0, account);
 
@@ -528,7 +614,7 @@ contract OpenOceanHookTest is Test {
         IOpenOceanCaller.CallDescription[] memory calls = new IOpenOceanCaller.CallDescription[](1);
         calls[0] = _call(0, 0, hex"12345678");
         bytes memory txData = _buildTxData(caller, thirdToken, outputToken, 1000, 900, 950, 0, calls);
-        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, false, txData);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
 
         vm.expectRevert(ApproveAndSwapOpenOceanHook.INPUT_TOKEN_MISMATCH.selector);
         approveAndSwapHook.build(address(0), account, data);
@@ -541,7 +627,7 @@ contract OpenOceanHookTest is Test {
         bytes memory txData = _buildTxDataWithReceiver(
             caller, referrer, inputToken, outputToken, 1000, 900, 950, 0, calls, makeAddr("attacker")
         );
-        bytes memory data = _swapHookData(outputToken, 0, 1000, 900, false, txData);
+        bytes memory data = _swapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
 
         vm.expectRevert(OpenOceanDynamicAmountUpdater.INVALID_DST_RECEIVER.selector);
         swapHook.build(address(0), account, data);
@@ -554,7 +640,7 @@ contract OpenOceanHookTest is Test {
         bytes memory txData = _buildTxDataWithReceiver(
             caller, referrer, inputToken, outputToken, 1000, 900, 950, 0, calls, makeAddr("attacker")
         );
-        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, false, txData);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
 
         vm.expectRevert(OpenOceanDynamicAmountUpdater.INVALID_DST_RECEIVER.selector);
         approveAndSwapHook.build(address(0), account, data);
@@ -564,7 +650,7 @@ contract OpenOceanHookTest is Test {
 
     function test_SwapHook_InspectReturnsDstReceiver() public view {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 0);
-        bytes memory data = _swapHookData(outputToken, 0, 1000, 900, false, txData);
+        bytes memory data = _swapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
 
         bytes memory inspected = swapHook.inspect(data);
 
@@ -574,7 +660,7 @@ contract OpenOceanHookTest is Test {
 
     function test_ApproveAndSwapHook_InspectReturnsDstReceiver() public view {
         bytes memory txData = _buildErc20RouteTxData(caller, 1000, 900, 950, 0);
-        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 900, false, txData);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
 
         bytes memory inspected = approveAndSwapHook.inspect(data);
 
@@ -876,9 +962,10 @@ contract OpenOceanHookTest is Test {
     }
 
     function _swapHookData(
+        address inputToken_,
         address outputToken_,
-        uint256 value_,
         uint256 inputAmount_,
+        uint256 outputQuote_,
         uint256 outputMin_,
         bool usePrevHookAmount_,
         bytes memory txData_
@@ -888,9 +975,11 @@ contract OpenOceanHookTest is Test {
         returns (bytes memory)
     {
         return bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
+            bytes20(inputToken_),
             bytes20(outputToken_),
-            bytes32(value_),
             bytes32(inputAmount_),
+            bytes32(outputQuote_),
             bytes32(outputMin_),
             bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)),
             bytes32(txData_.length),
@@ -902,6 +991,7 @@ contract OpenOceanHookTest is Test {
         address inputToken_,
         address outputToken_,
         uint256 inputAmount_,
+        uint256 outputQuote_,
         uint256 outputMin_,
         bool usePrevHookAmount_,
         bytes memory txData_
@@ -911,9 +1001,11 @@ contract OpenOceanHookTest is Test {
         returns (bytes memory)
     {
         return bytes.concat(
+            bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken_),
             bytes20(outputToken_),
             bytes32(inputAmount_),
+            bytes32(outputQuote_),
             bytes32(outputMin_),
             bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)),
             bytes32(txData_.length),
@@ -1011,5 +1103,43 @@ contract OpenOceanHookTest is Test {
         for (uint256 i; i < result.length; ++i) {
             result[i] = data_[i + 4];
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         NAME / DESCRIPTION
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SwapHook_Name() public view {
+        assertEq(swapHook.name(), "Swap OpenOcean");
+    }
+
+    function test_SwapHook_Description() public view {
+        assertEq(swapHook.description(), "Swaps tokens via OpenOcean aggregator");
+    }
+
+    function test_ApproveAndSwapHook_Name() public view {
+        assertEq(approveAndSwapHook.name(), "Approve and Swap OpenOcean");
+    }
+
+    function test_ApproveAndSwapHook_Description() public view {
+        assertEq(approveAndSwapHook.description(), "Approves and swaps tokens via OpenOcean aggregator");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            AMOUNT ROLES
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SwapHook_AmountRoles() public view {
+        ISuperHookInflowOutflow.AmountMeta[] memory meta = swapHook.amountRoles("");
+        assertEq(meta.length, 1);
+        assertEq(uint256(meta[0].dir), uint256(ISuperHookInflowOutflow.Direction.IN));
+        assertEq(uint256(meta[0].denom), uint256(ISuperHookInflowOutflow.Denomination.TOKEN));
+    }
+
+    function test_ApproveAndSwapHook_AmountRoles() public view {
+        ISuperHookInflowOutflow.AmountMeta[] memory meta = approveAndSwapHook.amountRoles("");
+        assertEq(meta.length, 1);
+        assertEq(uint256(meta[0].dir), uint256(ISuperHookInflowOutflow.Direction.IN));
+        assertEq(uint256(meta[0].denom), uint256(ISuperHookInflowOutflow.Denomination.TOKEN));
     }
 }

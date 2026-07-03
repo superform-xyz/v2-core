@@ -3,10 +3,18 @@ pragma solidity 0.8.30;
 
 // External
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 // Superform
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
-import { ISuperHook, ISuperHookSetter, ISuperHookResult, ISuperHookInspector } from "../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookSetter,
+    ISuperHookResult,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../interfaces/ISuperHook.sol";
 
 /// @title BaseHook
 /// @author Superform Labs
@@ -15,7 +23,7 @@ import { ISuperHook, ISuperHookSetter, ISuperHookResult, ISuperHookInspector } f
 ///      All specialized hooks should inherit from this base contract
 ///      Implements the ISuperHook interface defined lifecycle methods
 ///      Uses a transient storage pattern for stateful execution context
-abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, ISuperHookInspector {
+abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, ISuperHookInspector, IERC165 {
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -44,6 +52,21 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     uint256 private constant OUT_AMOUNT_OFFSET = 1;
     uint256 private constant PRE_EXECUTE_MUTEX_OFFSET = 2;
     uint256 private constant POST_EXECUTE_MUTEX_OFFSET = 3;
+    uint256 private constant OUT_TOKEN_OFFSET = 4;
+
+    /*//////////////////////////////////////////////////////////////
+                                 ENUMS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Declares how a hook handles its output (outAmount + outToken) relative to the previous hook
+    /// @dev TRANSFORM: Hook converts input to output (balance-diff pattern). Default.
+    ///      PASSTHROUGH: Hook performs a side-effect only, auto-forwards prev hook's output.
+    ///      SOURCE: Hook creates output from external state, ignores prev hook. Reserved for future use.
+    enum PipeMode {
+        TRANSFORM,
+        PASSTHROUGH,
+        SOURCE
+    }
 
     /// @notice Base storage key for hook execution state
     bytes32 private constant HOOK_EXECUTION_STORAGE = keccak256("hook.execution.state");
@@ -93,6 +116,10 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     /// @notice Thrown when trying to set outAmount after preExecute or postExecute
     /// @dev Used to prevent setting outAmount after preExecute or postExecute
     error CANNOT_SET_OUT_AMOUNT();
+
+    /// @notice Thrown when the amounts array length doesn't match the expected count
+    /// @dev Used by replaceCalldataAmounts to validate input
+    error INVALID_AMOUNTS_LENGTH();
 
     /// @notice Initializes the hook with its type and subtype
     /// @dev Sets immutable parameters that define the hook's behavior
@@ -181,13 +208,17 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
         }
 
         bytes32 key = _makeKey(context, OUT_AMOUNT_OFFSET);
-        assembly {
+        assembly ("memory-safe") {
             tstore(key, _outAmount)
         }
     }
 
     function getOutAmount(address caller) public view returns (uint256) {
         return _getOutAmount(_getCurrentExecutionContext(caller));
+    }
+
+    function getOutToken(address caller) public view returns (address) {
+        return _getOutToken(_getCurrentExecutionContext(caller));
     }
 
     /// @inheritdoc ISuperHook
@@ -211,6 +242,29 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata) external view virtual returns (bytes memory) { }
 
+    /// @inheritdoc IERC165
+    /// @dev Hooks that implement ISuperHookInflowOutflow/ISuperHookOutflow override
+    ///      _supportsSizingInterface() to return true, which enables three-state detection:
+    ///      S1: supportsInterface(ISuperHookInflowOutflow) == true → hook has sizing interface
+    ///      S2: same as S1 but amountRoles(data).length == 0 → authoritatively sizeless
+    ///      S3: supportsInterface(ISuperHookInflowOutflow) == false → legacy, no sizing interface
+    function supportsInterface(bytes4 interfaceId) external view virtual override returns (bool) {
+        if (
+            interfaceId == type(ISuperHookInflowOutflow).interfaceId
+                || interfaceId == type(ISuperHookOutflow).interfaceId
+        ) {
+            return _supportsSizingInterface();
+        }
+        return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
+            || interfaceId == type(ISuperHookResult).interfaceId
+            || interfaceId == type(ISuperHookInspector).interfaceId;
+    }
+
+    /// @dev Override to return true in hooks that implement ISuperHookInflowOutflow/ISuperHookOutflow
+    function _supportsSizingInterface() internal pure virtual returns (bool) {
+        return false;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -232,14 +286,16 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
         returns (Execution[] memory executions);
 
     /// @notice Internal implementation of preExecute
-    /// @dev Abstract function to be implemented by derived hooks
-    ///      Called before execution to validate inputs and prepare the hook's state
-    ///      Typically sets up the hook context by parsing parameters from data
-    ///      May check balances, permissions, or other preconditions
+    /// @dev Default behavior for PASSTHROUGH hooks: auto-forward prevHook's outAmount + outToken.
+    ///      TRANSFORM and SOURCE hooks override this entirely.
     /// @param prevHook The previous hook in the chain, or address(0) if first hook
     /// @param account The account that operations will be performed for
-    /// @param data Hook-specific parameters and configuration data
-    function _preExecute(address prevHook, address account, bytes calldata data) internal virtual { }
+    function _preExecute(address prevHook, address account, bytes calldata) internal virtual {
+        if (_pipeMode() == PipeMode.PASSTHROUGH && prevHook != address(0)) {
+            _setOutAmount(ISuperHookResult(prevHook).getOutAmount(account), account);
+            _setOutToken(ISuperHookResult(prevHook).getOutToken(account), account);
+        }
+    }
 
     /// @notice Internal implementation of postExecute
     /// @dev Abstract function to be implemented by derived hooks
@@ -285,6 +341,24 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
         return data;
     }
 
+    /// @notice Declares the pipe semantics for this hook
+    /// @dev Override to return PASSTHROUGH for side-effect-only hooks.
+    ///      Default: TRANSFORM. Inlined by the compiler (pure virtual).
+    function _pipeMode() internal pure virtual returns (PipeMode) {
+        return PipeMode.TRANSFORM;
+    }
+
+    /// @notice Sets the output token address for this hook execution
+    /// @param token The output token address
+    /// @param caller The caller address for context identification
+    function _setOutToken(address token, address caller) internal {
+        uint256 context = _getCurrentExecutionContext(caller);
+        bytes32 key = _makeKey(context, OUT_TOKEN_OFFSET);
+        assembly ("memory-safe") {
+            tstore(key, token)
+        }
+    }
+
     function _makeAccountContextKey(address account) private pure returns (bytes32) {
         return keccak256(abi.encodePacked(ACCOUNT_CONTEXT_STORAGE, account));
     }
@@ -296,7 +370,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
 
         // Store this context for the current caller
         uint256 currentNonce = executionNonce; // Load into local variable for assembly
-        assembly {
+        assembly ("memory-safe") {
             tstore(key, currentNonce)
         }
 
@@ -305,7 +379,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
 
     function _getCurrentExecutionContext(address caller) private view returns (uint256 context) {
         bytes32 key = _makeAccountContextKey(caller);
-        assembly {
+        assembly ("memory-safe") {
             context := tload(key)
         }
     }
@@ -316,7 +390,14 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
 
     function _getOutAmount(uint256 context) private view returns (uint256 value) {
         bytes32 key = _makeKey(context, OUT_AMOUNT_OFFSET);
-        assembly {
+        assembly ("memory-safe") {
+            value := tload(key)
+        }
+    }
+
+    function _getOutToken(uint256 context) private view returns (address value) {
+        bytes32 key = _makeKey(context, OUT_TOKEN_OFFSET);
+        assembly ("memory-safe") {
             value := tload(key)
         }
     }
@@ -324,35 +405,35 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     function _setOutAmount(uint256 value, address caller) internal {
         uint256 context = _getCurrentExecutionContext(caller);
         bytes32 key = _makeKey(context, OUT_AMOUNT_OFFSET);
-        assembly {
+        assembly ("memory-safe") {
             tstore(key, value)
         }
     }
 
     function _getPreExecuteMutex(uint256 context) private view returns (bool value) {
         bytes32 key = _makeKey(context, PRE_EXECUTE_MUTEX_OFFSET);
-        assembly {
+        assembly ("memory-safe") {
             value := tload(key)
         }
     }
 
     function _setPreExecuteMutex(uint256 context, bool value) private {
         bytes32 key = _makeKey(context, PRE_EXECUTE_MUTEX_OFFSET);
-        assembly {
+        assembly ("memory-safe") {
             tstore(key, value)
         }
     }
 
     function _getPostExecuteMutex(uint256 context) private view returns (bool value) {
         bytes32 key = _makeKey(context, POST_EXECUTE_MUTEX_OFFSET);
-        assembly {
+        assembly ("memory-safe") {
             value := tload(key)
         }
     }
 
     function _setPostExecuteMutex(uint256 context, bool value) private {
         bytes32 key = _makeKey(context, POST_EXECUTE_MUTEX_OFFSET);
-        assembly {
+        assembly ("memory-safe") {
             tstore(key, value)
         }
     }

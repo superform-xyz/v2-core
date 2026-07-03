@@ -14,6 +14,12 @@ import { OpenOceanAPIParser } from "../../utils/parsers/OpenOceanAPIParser.sol";
 /// @dev Requires FFI/Surl network access. Run with:
 ///      forge test --match-contract OpenOceanAPIScaleTest --skip CCTPHooksFork -vvv
 contract OpenOceanAPIScaleTest is Test, OpenOceanAPIParser {
+    struct SwapCallData {
+        IOpenOceanCaller caller;
+        IOpenOceanExchange.SwapDescription desc;
+        IOpenOceanCaller.CallDescription[] calls;
+    }
+
     address internal constant OPENOCEAN_ROUTER = 0x6352a56caadC4F1E25CD6c75970Fa768A3304e64;
     address internal constant OPENOCEAN_REFERRER_FLARE = 0x0E24b0F342F034446Ec814281AD1a7653cBd85e9;
 
@@ -57,53 +63,37 @@ contract OpenOceanAPIScaleTest is Test, OpenOceanAPIParser {
         assertEq(quote_.to, OPENOCEAN_ROUTER);
         assertEq(quote_.value, quote_.inAmount);
 
-        (
-            IOpenOceanCaller originalCaller,
-            IOpenOceanExchange.SwapDescription memory originalDesc,
-            IOpenOceanCaller.CallDescription[] memory originalCalls
-        ) = _decodeSwap(quote_.txData);
-        (
-            IOpenOceanCaller updatedCaller,
-            IOpenOceanExchange.SwapDescription memory updatedDesc,
-            IOpenOceanCaller.CallDescription[] memory updatedCalls
-        ) = _decodeSwap(updated_);
+        SwapCallData memory original = _decodeSwap(quote_.txData);
+        SwapCallData memory updated = _decodeSwap(updated_);
 
-        assertEq(address(updatedCaller), address(originalCaller));
-        assertEq(address(originalDesc.srcToken), FLR);
-        assertEq(address(originalDesc.dstToken), SPRK);
-        assertEq(originalDesc.referrer, OPENOCEAN_REFERRER_FLARE);
-        assertEq(updatedDesc.referrer, OPENOCEAN_REFERRER_FLARE);
-        assertEq(originalDesc.amount, quote_.inAmount);
-        assertEq(originalDesc.minReturnAmount, quote_.minOutAmount);
+        assertEq(address(updated.caller), address(original.caller));
+        assertEq(address(original.desc.srcToken), FLR);
+        assertEq(address(original.desc.dstToken), SPRK);
+        assertEq(original.desc.referrer, OPENOCEAN_REFERRER_FLARE);
+        assertEq(updated.desc.referrer, OPENOCEAN_REFERRER_FLARE);
+        assertEq(original.desc.amount, quote_.inAmount);
+        assertEq(original.desc.minReturnAmount, quote_.minOutAmount);
 
-        assertEq(updatedDesc.amount, newAmount_);
+        assertEq(updated.desc.amount, newAmount_);
         assertEq(
-            updatedDesc.minReturnAmount,
+            updated.desc.minReturnAmount,
             HookDataUpdater.getUpdatedOutputAmount(newAmount_, quote_.inAmount, quote_.minOutAmount)
         );
         assertEq(
-            updatedDesc.guaranteedAmount,
-            HookDataUpdater.getUpdatedOutputAmount(newAmount_, quote_.inAmount, originalDesc.guaranteedAmount)
+            updated.desc.guaranteedAmount,
+            HookDataUpdater.getUpdatedOutputAmount(newAmount_, quote_.inAmount, original.desc.guaranteedAmount)
         );
-        _assertNativeCallValues(originalCalls, updatedCalls, quote_.inAmount, newAmount_);
-        _assertCallDataUnchanged(originalCalls, updatedCalls);
+        _assertNativeCallValues(original.calls, updated.calls, quote_.inAmount, newAmount_);
+        _assertCallDataUnchanged(original.calls, updated.calls);
     }
 
-    function _decodeSwap(bytes memory txData_)
-        internal
-        pure
-        returns (
-            IOpenOceanCaller caller_,
-            IOpenOceanExchange.SwapDescription memory desc_,
-            IOpenOceanCaller.CallDescription[] memory calls_
-        )
-    {
+    function _decodeSwap(bytes memory txData_) internal pure returns (SwapCallData memory result) {
         bytes memory payload = new bytes(txData_.length - 4);
         for (uint256 i; i < payload.length; ++i) {
             payload[i] = txData_[i + 4];
         }
 
-        return abi.decode(
+        (result.caller, result.desc, result.calls) = abi.decode(
             payload, (IOpenOceanCaller, IOpenOceanExchange.SwapDescription, IOpenOceanCaller.CallDescription[])
         );
     }

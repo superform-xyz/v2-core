@@ -10,13 +10,19 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookResult,
+    ISuperHookContextAware,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 import { SpectraCommands } from "../../../vendor/spectra/SpectraCommands.sol";
 
 /// @title SpectraExchangeRedeemHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         bytes32 placeholder_yieldSourceOracleId = BytesLib.toBytes32(data, 0);
 /// @notice         address asset = BytesLib.toAddress(data, 32);
 /// @notice         address pt = BytesLib.toAddress(data, 52);
 /// @notice         address recipient = BytesLib.toAddress(data, 72);
@@ -24,11 +30,12 @@ import { SpectraCommands } from "../../../vendor/spectra/SpectraCommands.sol";
 /// @notice         uint256 sharesToBurn = BytesLib.toUint256(data, 124);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
 /// @notice         bytes1 command = BytesLib.slice(data, 157, 1);
-contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware {
+contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
     uint256 private constant SHARES_POSITION = 124;
+    uint256 private constant AMOUNT_POSITION = 124;
 
     bytes1 public constant REDEEM_IBT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_IBT_FOR_ASSET));
     bytes1 public constant REDEEM_PT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_PT_FOR_ASSET));
@@ -64,6 +71,17 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware {
         if (router_ == address(0)) revert ADDRESS_NOT_VALID();
         ROUTER = router_;
     }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Spectra Exchange Redeem";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Redeems principal tokens via Spectra exchange";
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
@@ -118,6 +136,37 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](1);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+    }
+
+    /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
+    function _supportsSizingInterface() internal pure override returns (bool) {
+        return true;
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 1) revert INVALID_AMOUNTS_LENGTH();
+        return _replaceCalldataAmount(data, amounts[0], AMOUNT_POSITION);
+    }
+
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         RedeemParams memory params = _decodeRedeemParams(data);
@@ -134,6 +183,7 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware {
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
+        _setOutToken(BytesLib.toAddress(data, 32), account);
     }
 
     /*//////////////////////////////////////////////////////////////

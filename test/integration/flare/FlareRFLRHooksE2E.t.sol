@@ -24,6 +24,9 @@ contract FlareRFLRHooksE2E is Test, Constants {
 
     string public constant FLARE_RPC_URL_KEY = "FLARE_RPC_URL";
 
+    /// @dev Pin fork to a block where SECOND_HOLDER has claimable rewards and TOP_HOLDER has unlocked rFLR
+    uint256 public constant FORK_BLOCK = 61_344_973;
+
     /// @dev Top rFLR holder with unlocked balance (~5.29M rFLR unlocked, 0 claimable)
     address public constant TOP_HOLDER = 0xb99a2c4C1C4F1fc27150681B740396F6CE1cBcF5;
 
@@ -51,7 +54,7 @@ contract FlareRFLRHooksE2E is Test, Constants {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        forkId = vm.createSelectFork(vm.envString(FLARE_RPC_URL_KEY));
+        forkId = vm.createSelectFork(vm.envString(FLARE_RPC_URL_KEY), FORK_BLOCK);
 
         claimHook = new ClaimRFLRHook(FLARE_RNAT);
         withdrawHook = new WithdrawRFLRHook(FLARE_RNAT, FLARE_WFLR);
@@ -250,7 +253,7 @@ contract FlareRFLRHooksE2E is Test, Constants {
 
     /// @notice Verify build reverts with INVALID_DATA_LENGTH when data is too short
     function test_claimRFLR_revertIf_dataTooShort() public {
-        bytes memory shortData = abi.encodePacked(uint256(1)); // only 32 bytes, need >= 64
+        bytes memory shortData = abi.encodePacked(uint128(1)); // only 16 bytes, need >= 32
         vm.expectRevert(ClaimRFLRHook.INVALID_DATA_LENGTH.selector);
         claimHook.build(address(0), SECOND_HOLDER, shortData);
     }
@@ -267,10 +270,9 @@ contract FlareRFLRHooksE2E is Test, Constants {
 
     /// @notice Verify build reverts with TOO_MANY_PROJECT_IDS when exceeding max
     function test_claimRFLR_revertIf_tooManyProjectIds() public {
-        uint256 currentMonth = IRNat(FLARE_RNAT).getCurrentMonth();
-
         // Build data with 51 project IDs (exceeds MAX_PROJECT_IDS = 50)
-        bytes memory data = abi.encodePacked(currentMonth, uint256(51));
+        // 52-byte header + projectIdsLength + projectIds[]
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), uint256(51));
         for (uint256 i; i < 51; ++i) {
             data = abi.encodePacked(data, i);
         }
@@ -320,7 +322,7 @@ contract FlareRFLRHooksE2E is Test, Constants {
         assertGt(unlocked, 0, "need unlocked balance for this test");
 
         // Use a conservative minOut (1 wei) — should always pass
-        bytes memory withdrawData = abi.encodePacked(uint8(0), uint256(1));
+        bytes memory withdrawData = abi.encodePacked(bytes32(0), bytes20(0), uint8(0), uint256(1));
         Execution[] memory executions = withdrawHook.build(address(0), TOP_HOLDER, withdrawData);
 
         uint256 wflrBefore = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER);
@@ -337,7 +339,7 @@ contract FlareRFLRHooksE2E is Test, Constants {
     /// @notice Withdraw with minOut that exceeds actual yield — reverts with SLIPPAGE_EXCEEDED
     function test_withdrawRFLR_withMinOut_reverts() public {
         // Set an impossibly high minOut
-        bytes memory withdrawData = abi.encodePacked(uint8(0), uint256(type(uint128).max));
+        bytes memory withdrawData = abi.encodePacked(bytes32(0), bytes20(0), uint8(0), uint256(type(uint128).max));
         Execution[] memory executions = withdrawHook.build(address(0), TOP_HOLDER, withdrawData);
 
         vm.startPrank(TOP_HOLDER);
@@ -357,7 +359,7 @@ contract FlareRFLRHooksE2E is Test, Constants {
 
     /// @notice Withdraw with minOut=0 in data — no slippage check (same as omitting)
     function test_withdrawRFLR_withMinOutZero_noCheck() public {
-        bytes memory withdrawData = abi.encodePacked(uint8(0), uint256(0));
+        bytes memory withdrawData = abi.encodePacked(bytes32(0), bytes20(0), uint8(0), uint256(0));
         Execution[] memory executions = withdrawHook.build(address(0), TOP_HOLDER, withdrawData);
 
         uint256 wflrBefore = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER);
@@ -389,7 +391,7 @@ contract FlareRFLRHooksE2E is Test, Constants {
         vm.revertToState(snapshotId);
 
         // Now execute with exact minOut
-        bytes memory withdrawData = abi.encodePacked(uint8(0), expectedWflr);
+        bytes memory withdrawData = abi.encodePacked(bytes32(0), bytes20(0), uint8(0), expectedWflr);
         Execution[] memory executions = withdrawHook.build(address(0), TOP_HOLDER, withdrawData);
 
         wflrBefore = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER);
@@ -443,7 +445,7 @@ contract FlareRFLRHooksE2E is Test, Constants {
         // Withdraw with a very high minOut — if there's locked balance, penalty should cause revert
         if (lockedBal > 0) {
             // minOut = totalBalance (but penalty means we get less)
-            bytes memory withdrawData = abi.encodePacked(uint8(0), totalBalance);
+            bytes memory withdrawData = abi.encodePacked(bytes32(0), bytes20(0), uint8(0), totalBalance);
             Execution[] memory executions = withdrawHook.build(address(0), SECOND_HOLDER, withdrawData);
 
             vm.startPrank(SECOND_HOLDER);
@@ -534,7 +536,7 @@ contract FlareRFLRHooksE2E is Test, Constants {
 
         // --- Phase 2: Withdraw with minOut = 1 (conservative floor) ---
         uint256 wflrBefore = IERC20(FLARE_WFLR).balanceOf(SECOND_HOLDER);
-        bytes memory withdrawData = abi.encodePacked(uint8(0), uint256(1));
+        bytes memory withdrawData = abi.encodePacked(bytes32(0), bytes20(0), uint8(0), uint256(1));
         Execution[] memory withdrawExecs = withdrawHook.build(address(0), SECOND_HOLDER, withdrawData);
 
         vm.startPrank(SECOND_HOLDER);
@@ -676,8 +678,8 @@ contract FlareRFLRHooksE2E is Test, Constants {
 
     /// @notice Vested withdrawal with conservative minOut passes
     function test_withdrawVestedRFLR_withMinOut_passes() public {
-        // minOut = 1 wei — should always pass
-        bytes memory data = abi.encode(uint256(1));
+        // minOut = 1 wei — should always pass (52-byte header + minOut)
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), uint256(1));
         Execution[] memory executions = withdrawVestedHook.build(address(0), TOP_HOLDER, "");
 
         uint256 wflrBefore = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER);
@@ -703,7 +705,7 @@ contract FlareRFLRHooksE2E is Test, Constants {
 
     /// @notice Vested withdrawal with impossibly high minOut reverts
     function test_withdrawVestedRFLR_withMinOut_reverts() public {
-        bytes memory data = abi.encode(type(uint256).max);
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), type(uint256).max);
         Execution[] memory executions = withdrawVestedHook.build(address(0), TOP_HOLDER, "");
 
         vm.startPrank(TOP_HOLDER);
@@ -931,7 +933,7 @@ contract FlareRFLRHooksE2E is Test, Constants {
         assertGt(vestedAmount, 0, "Need vested balance");
 
         // Build and run with exact minOut matching expected output
-        bytes memory data = abi.encode(vestedAmount);
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), vestedAmount);
         Execution[] memory executions = withdrawVestedHook.build(address(0), TOP_HOLDER, "");
 
         uint256 wflrBefore = IERC20(FLARE_WFLR).balanceOf(TOP_HOLDER);
@@ -960,7 +962,7 @@ contract FlareRFLRHooksE2E is Test, Constants {
         uint256 vestedAmount = rNatBal - lockedBal;
         assertGt(vestedAmount, 0, "Need vested balance");
 
-        bytes memory data = abi.encode(vestedAmount + 1);
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), vestedAmount + 1);
         Execution[] memory executions = withdrawVestedHook.build(address(0), TOP_HOLDER, "");
 
         vm.startPrank(TOP_HOLDER);
@@ -1221,15 +1223,18 @@ contract FlareRFLRHooksE2E is Test, Constants {
     }
 
     /// @dev Encode ClaimRFLRHook data (no fee — rFLR is non-transferable)
+    /// @dev Data layout: projectIdsLength (uint256) + projectIds[] (uint256[])
+    ///      Month is now fetched on-chain via IRNat.getCurrentMonth()
     function _encodeClaimData(
-        uint256 month,
+        uint256,
         uint256[] memory projectIds
     )
         internal
         pure
         returns (bytes memory)
     {
-        bytes memory data = abi.encodePacked(month, projectIds.length);
+        // 52-byte strategy header + projectIdsLength + projectIds[]
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), projectIds.length);
 
         for (uint256 i; i < projectIds.length; ++i) {
             data = abi.encodePacked(data, projectIds[i]);

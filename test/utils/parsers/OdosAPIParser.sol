@@ -214,7 +214,7 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
 
         address msgSender = msg.sender;
 
-        assembly {
+        assembly ("memory-safe") {
             let dataPtr := add(data, 0x20)
 
             tokenInfo := mload(0x40)

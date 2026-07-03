@@ -53,13 +53,23 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     struct RFLRHookAddresses {
         address claimRFLRHook;
         address claimRFLRV2Hook;
+        address claimRFLRV3Hook;
         address withdrawRFLRHook;
         address withdrawVestedRFLRHook;
+    }
+
+    struct RFLRHookV2Addresses {
+        address withdrawRFLRHookV2;
+        address withdrawVestedRFLRHookV2;
     }
 
     struct OdosV3HookAddresses {
         address swapOdosV3Hook;
         address approveAndSwapOdosV3Hook;
+    }
+
+    struct WrappedNativeHookAddress {
+        address wrappedNativeHook;
     }
 
     struct HookDeployment {
@@ -128,11 +138,27 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    function runRFLRV2(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying rFLR V2 Hooks on chainId: ", chainId);
+
+        _deployRFLRV2Hooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
     function runOdosV3(uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
         console2.log("Deploying Odos V3 Hooks on chainId: ", chainId);
 
         _deployOdosV3Hooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
+    function runWrappedNative(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying WrappedNativeHook on chainId: ", chainId);
+
+        _deployWrappedNativeHook(chainId, env);
         _writeExportedContracts(chainId);
     }
 
@@ -176,6 +202,10 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         if (chainId == FLARE_CHAIN_ID) {
             console2.log("Deploying rFLR Hooks on chainId: ", chainId);
             _deployRFLRHooks(chainId, env);
+            console2.log("Deploying rFLR V2 Hooks on chainId: ", chainId);
+            _deployRFLRV2Hooks(chainId, env);
+            console2.log("Deploying WrappedNativeHook on chainId: ", chainId);
+            _deployWrappedNativeHook(chainId, env);
         }
 
         // Odos V3 hooks — on chains where Odos V3 router is deployed
@@ -186,12 +216,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     }
 
     /// @notice Get bytecode directory based on environment
-    function __getOtherHooksBytecodeDirectory(uint256 env) internal pure returns (string memory) {
-        if (env == 1) {
-            return "script/generated-bytecode-other/";
-        } else {
-            return "script/locked-bytecode-other/";
-        }
+    function __getOtherHooksBytecodeDirectory(uint256) internal pure returns (string memory) {
+        return "script/locked-bytecode/";
     }
 
     /// @notice Get bytecode from environment-specific artifacts
@@ -562,9 +588,9 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
                         RFLR HOOKS DEPLOYMENT
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Deploy 4 rFLR hooks (constructor args: RNAT address, and RNAT+WFLR for withdraw hooks)
+    /// @notice Deploy 5 rFLR hooks (constructor args: RNAT address, and RNAT+WFLR for withdraw hooks)
     function _deployRFLRHooks(uint64 chainId, uint256 env) internal returns (RFLRHookAddresses memory) {
-        uint256 len = 4;
+        uint256 len = 5;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -579,11 +605,16 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             abi.encodePacked(__getOtherHooksBytecode("ClaimRFLRV2Hook", env), abi.encode(RNAT_FLARE))
         );
         hooks[2] = HookDeployment(
+            CLAIM_RFLRV3_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("ClaimRFLRV3Hook", env), abi.encode(RNAT_FLARE))
+        );
+        hooks[3] = HookDeployment(
             WITHDRAW_RFLR_HOOK_KEY,
             "",
             abi.encodePacked(__getOtherHooksBytecode("WithdrawRFLRHook", env), abi.encode(RNAT_FLARE, WFLR_FLARE))
         );
-        hooks[3] = HookDeployment(
+        hooks[4] = HookDeployment(
             WITHDRAW_VESTED_RFLR_HOOK_KEY,
             "",
             abi.encodePacked(
@@ -600,15 +631,54 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         RFLRHookAddresses memory hookAddresses;
         hookAddresses.claimRFLRHook = addresses[0];
         hookAddresses.claimRFLRV2Hook = addresses[1];
-        hookAddresses.withdrawRFLRHook = addresses[2];
-        hookAddresses.withdrawVestedRFLRHook = addresses[3];
+        hookAddresses.claimRFLRV3Hook = addresses[2];
+        hookAddresses.withdrawRFLRHook = addresses[3];
+        hookAddresses.withdrawVestedRFLRHook = addresses[4];
 
         require(hookAddresses.claimRFLRHook != address(0), "ClaimRFLRHook not assigned");
         require(hookAddresses.claimRFLRV2Hook != address(0), "ClaimRFLRV2Hook not assigned");
+        require(hookAddresses.claimRFLRV3Hook != address(0), "ClaimRFLRV3Hook not assigned");
         require(hookAddresses.withdrawRFLRHook != address(0), "WithdrawRFLRHook not assigned");
         require(hookAddresses.withdrawVestedRFLRHook != address(0), "WithdrawVestedRFLRHook not assigned");
 
         console2.log("All rFLR hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    /// @notice Deploy 2 rFLR V2 withdraw hooks (WithdrawRFLRHookV2 + WithdrawVestedRFLRHookV2)
+    function _deployRFLRV2Hooks(uint64 chainId, uint256 env) internal returns (RFLRHookV2Addresses memory) {
+        uint256 len = 2;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        bytes memory rnatWflrArgs = abi.encode(RNAT_FLARE, WFLR_FLARE);
+
+        hooks[0] = HookDeployment(
+            WITHDRAW_RFLR_HOOK_V2_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("WithdrawRFLRHookV2", env), rnatWflrArgs)
+        );
+        hooks[1] = HookDeployment(
+            WITHDRAW_VESTED_RFLR_HOOK_V2_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("WithdrawVestedRFLRHookV2", env), rnatWflrArgs)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        RFLRHookV2Addresses memory hookAddresses;
+        hookAddresses.withdrawRFLRHookV2 = addresses[0];
+        hookAddresses.withdrawVestedRFLRHookV2 = addresses[1];
+
+        require(hookAddresses.withdrawRFLRHookV2 != address(0), "WithdrawRFLRHookV2 not assigned");
+        require(hookAddresses.withdrawVestedRFLRHookV2 != address(0), "WithdrawVestedRFLRHookV2 not assigned");
+
+        console2.log("All rFLR V2 hooks deployed and validated successfully.");
 
         return hookAddresses;
     }
@@ -651,5 +721,31 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         console2.log("All Odos V3 hooks deployed and validated successfully.");
 
         return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              WRAPPED NATIVE HOOK DEPLOYMENT (ETHEREUM + FLARE)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Deploy WrappedNativeHook with chain-specific wrapped native address
+    /// @dev Ethereum → WETH, Flare → WFLR (same ABI for deposit/withdraw)
+    function _deployWrappedNativeHook(uint64 chainId, uint256 env) internal returns (WrappedNativeHookAddress memory) {
+        address wrappedNativeToken = chainId == MAINNET_CHAIN_ID ? WETH_ETHEREUM : WFLR_FLARE;
+        bytes memory wflrArg = abi.encode(wrappedNativeToken);
+
+        address wrappedNativeHook = __deployContract(
+            WRAPPED_NATIVE_HOOK_KEY,
+            chainId,
+            __getSalt(WRAPPED_NATIVE_HOOK_KEY),
+            abi.encodePacked(__getOtherHooksBytecode("WrappedNativeHook", env), wflrArg)
+        );
+
+        require(wrappedNativeHook != address(0), "WrappedNativeHook not assigned");
+
+        console2.log("WrappedNativeHook deployed and validated successfully at:", wrappedNativeHook);
+
+        WrappedNativeHookAddress memory hookAddress;
+        hookAddress.wrappedNativeHook = wrappedNativeHook;
+        return hookAddress;
     }
 }

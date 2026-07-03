@@ -229,6 +229,29 @@ contract ClaimRFLRV2HookTest is Helpers {
         assertEq(hook.getOutAmount(account), 0);
     }
 
+    /// @dev Existing account with 0 rFLR balance: _preExecute snapshots 0, then
+    ///      postExecute computes delta = claimedAmount - 0 = claimedAmount.
+    function test_PreAndPostExecute_ExistingAccountZeroBalance_SetsDelta() public {
+        uint256 claimedAmount = 50 ether;
+
+        // balanceOf succeeds but returns 0 (account exists, no accumulated rFLR yet)
+        vm.mockCall(rNat, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(0));
+
+        hook.setExecutionContext(account);
+
+        vm.prank(account);
+        hook.preExecute(address(0), account, "");
+        assertEq(hook.getOutAmount(account), 0);
+
+        // After claim, balance increases
+        vm.mockCall(rNat, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(claimedAmount));
+
+        vm.prank(account);
+        hook.postExecute(address(0), account, "");
+
+        assertEq(hook.getOutAmount(account), claimedAmount);
+    }
+
     /*//////////////////////////////////////////////////////////////
                            INSPECT TESTS
     //////////////////////////////////////////////////////////////*/

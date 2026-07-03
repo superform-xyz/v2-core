@@ -2170,6 +2170,8 @@ contract BaseTest is
         returns (bytes memory hookData)
     {
         hookData = abi.encodePacked(
+            bytes32(0),
+            address(0),
             uint256(0),
             receiver,
             inputToken,
@@ -2200,6 +2202,8 @@ contract BaseTest is
         returns (bytes memory hookData)
     {
         hookData = abi.encodePacked(
+            bytes32(0),
+            address(0),
             uint256(0),
             adapter,
             inputToken,
@@ -2229,6 +2233,8 @@ contract BaseTest is
         returns (bytes memory hookData)
     {
         hookData = abi.encodePacked(
+            bytes32(0),
+            address(0),
             uint256(0),
             _getContract(destinationChainId, ACROSS_V3_ADAPTER_KEY),
             inputToken,
@@ -2271,18 +2277,10 @@ contract BaseTest is
         // Reduce the output amount by the fee percentage
         uint256 adjustedOutputAmount = outputAmount - (outputAmount * feeReductionPercentage / 10_000);
 
-        hookData = abi.encodePacked(
-            uint256(0),
-            _getContract(destinationChainId, ACROSS_V3_ADAPTER_KEY),
-            inputToken,
-            outputToken,
-            inputAmount,
-            adjustedOutputAmount, // Use the fee-reduced amount
-            uint256(destinationChainId),
-            address(0),
-            uint32(10 minutes), // this can be a max of 360 minutes
-            uint32(0),
-            usePrevHookAmount,
+        hookData = bytes.concat(
+            abi.encodePacked(bytes32(0), address(0), uint256(0), _getContract(destinationChainId, ACROSS_V3_ADAPTER_KEY)),
+            abi.encodePacked(inputToken, outputToken, inputAmount, adjustedOutputAmount),
+            abi.encodePacked(uint256(destinationChainId), address(0), uint32(10 minutes), uint32(0), usePrevHookAmount),
             data
         );
     }
@@ -2301,6 +2299,8 @@ contract BaseTest is
         returns (bytes memory hookData)
     {
         hookData = abi.encodePacked(
+            bytes32(0),
+            address(0),
             uint256(0),
             _getContract(destinationChainId, MOCK_TARGET_EXECUTOR_KEY),
             inputToken,
@@ -2388,6 +2388,8 @@ contract BaseTest is
 
     function _encodeDebridgePart1(DebridgeOrderData memory d) internal pure returns (bytes memory) {
         return abi.encodePacked(
+            bytes32(0),
+            address(0),
             d.usePrevHookAmount,
             d.value,
             d.giveTokenAddress,
@@ -2405,7 +2407,7 @@ contract BaseTest is
             d.requireSuccessfulExecution,
             d.payload.length,
             d.payload,
-            abi.encodePacked(d.takeTokenAddress).length,
+            uint256(20), // abi.encodePacked(address).length is always 20
             abi.encodePacked(d.takeTokenAddress),
             d.takeAmount,
             d.takeChainId
@@ -2414,7 +2416,7 @@ contract BaseTest is
 
     function _encodeDebridgePart3(DebridgeOrderData memory d) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            abi.encodePacked(d.receiverDst).length,
+            uint256(20), // abi.encodePacked(address).length is always 20
             abi.encodePacked(d.receiverDst),
             d.givePatchAuthoritySrc,
             d.orderAuthorityAddressDst.length,

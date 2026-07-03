@@ -14,7 +14,7 @@ ifeq ($(ENVIRONMENT), local)
 endif
 
 
-build :; forge build && $(MAKE) generate
+build :; forge build && $(MAKE) generate && $(MAKE) manifest
 
 forge-script :; forge script $(SCRIPT) $(ARGS)
 
@@ -40,9 +40,14 @@ test-gas-report-user :; forge test --match-test test_gasReport --gas-report --jo
 test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report --jobs 10
 test-gas-report-3vaults :; forge test --match-test test_gasReport_ThreeVaults --gas-report --jobs 10
 
+.PHONY: manifest
+manifest:
+	python3 tooling/generate_hook_manifest.py
+	python3 tooling/lint_hook_manifest.py
+
 .PHONY: generate
 generate:
 	rm -rf contract_bindings/*
-	./script/run/retrieve-abis.sh
-	./script/run/generate-contract-bindings.sh
+	./script/run/tooling/retrieve-abis.sh
+	./script/run/tooling/generate-contract-bindings.sh
 	

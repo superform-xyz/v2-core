@@ -105,10 +105,10 @@ jobs:
         run: "FOUNDRY_PROFILE=ci-sizes forge build --sizes"
 
       - name: "Make export ABIs script executable"
-        run: chmod +x ./script/run/export_abis_s3.sh
+        run: chmod +x ./script/run/tooling/export_abis_s3.sh
 
       - name: "Export ABIs to S3"
-        run: ./script/run/export_abis_s3.sh "${{ github.ref_name }}" --quiet
+        run: ./script/run/tooling/export_abis_s3.sh "${{ github.ref_name }}" --quiet
         env:
           S3_BUCKET_NAME_ABIS: ${{ secrets.S3_BUCKET_NAME_ABIS }}
 
@@ -230,7 +230,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: "Make deploy script executable"
-        run: chmod +x ./script/run/deploy_v2_vnet_s3.sh
+        run: chmod +x ./script/run/deploy/deploy_v2_vnet_s3.sh
 
       - name: Get branch name and commit hash
         id: branch-info
@@ -239,7 +239,7 @@ jobs:
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
       - name: "Run deploy script"
-        run: ./script/run/deploy_v2_vnet_s3.sh "$BRANCH_NAME"
+        run: ./script/run/deploy/deploy_v2_vnet_s3.sh "$BRANCH_NAME"
         env:
           TENDERLY_ACCESS_KEY: ${{ secrets.TENDERLY_ACCESS_KEY }}
           S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
@@ -279,52 +279,68 @@ jobs:
           cat ./script/output/10/Optimism-latest.json | jq . >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
-  coverage:
-    runs-on: SuperformCore3
-    needs: ["test"]
+  lint-manifest:
+    needs: ["build"]
+    runs-on: "SuperformCore3"
     steps:
       - name: "Check out the repo"
         uses: "actions/checkout@v4"
         with:
-          submodules: "recursive"
+          submodules: true
 
-      - name: "Install Foundry"
-        uses: "foundry-rs/foundry-toolchain@v1"
+      - name: "Install Python"
+        uses: "actions/setup-python@v5"
         with:
-          version: "v1.4.4"
+          python-version: "3.12"
 
-      - name: "Install Foundry dependencies"
-        run: forge install
+      - name: "Install Python dependencies"
+        run: pip install pyyaml
 
-      - name: "Install pnpm"
-        run: npm install -g pnpm@8
+      - name: "Generate hook manifest"
+        run: python3 tooling/generate_hook_manifest.py
 
-      - name: "Install ModuleKit"
-        working-directory: ./lib/modulekit
-        run: pnpm install
-
-      - name: "Install Safe7579"
-        working-directory: ./lib/safe7579
-        run: pnpm install
-
-      - name: "Install Nexus"
-        working-directory: ./lib/nexus
-        run: yarn
-
-      - name: "Generate the coverage report using unit and integration tests"
-        run: "make coverage"
-
-      - name: "Upload coverage report to Codecov"
-        uses: "codecov/codecov-action@v5"
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        with:
-          files: "./lcov.info"
-
-      - name: "Add coverage summary"
+      - name: "Check manifests/hooks.json is up-to-date"
         run: |
-          echo "## Coverage result" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Uploaded to Codecov" >> $GITHUB_STEP_SUMMARY
+          # Exclude the generatedAt timestamp line — it changes on every run by design.
+          # Any other diff means the committed manifest is stale.
+          if git diff manifests/hooks.json | grep -v '"generatedAt"' | grep -q '^[+-][^+-]'; then
+            echo ""
+            echo "ERROR: manifests/hooks.json is stale — committed file differs from generated output." >&2
+            echo "Run 'python3 tooling/generate_hook_manifest.py' locally and commit the result." >&2
+            git diff manifests/hooks.json | grep -v '"generatedAt"' >&2
+            exit 1
+          fi
+
+      - name: "Lint hook manifest"
+        run: python3 tooling/lint_hook_manifest.py
+
+      - name: "Set up Node"
+        uses: "actions/setup-node@v4"
+        with:
+          node-version: "20"
+
+      - name: "Install tsx"
+        run: npm install -g tsx
+
+      - name: "Generate hook sizing manifest"
+        run: tsx tooling/generate-hook-sizing-manifest.ts
+
+      - name: "Check hook-sizing-manifest.json is up-to-date"
+        run: |
+          if ! git diff --exit-code hook-sizing-manifest.json; then
+            echo ""
+            echo "ERROR: hook-sizing-manifest.json is stale — committed file differs from generated output." >&2
+            echo "Run 'tsx tooling/generate-hook-sizing-manifest.ts' locally and commit the result." >&2
+            exit 1
+          fi
+
+      - name: "Validate hook sizing manifest"
+        run: tsx tooling/validate-hook-sizing-manifest.ts
+
+      - name: "Add manifest lint summary"
+        run: |
+          echo "## Hook Manifest Lint" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Passed (manifests/hooks.json and hook-sizing-manifest.json verified up-to-date)" >> $GITHUB_STEP_SUMMARY
 
   treasury-config-smoke-test:
     runs-on: SuperformCore3
@@ -359,7 +375,7 @@ jobs:
         run: yarn
 
       - name: "Make smoke test script executable"
-        run: chmod +x ./script/run/smoke_test_treasury_config.sh
+        run: chmod +x ./script/run/test/smoke_test_treasury_config.sh
 
       - name: "Run treasury configuration smoke tests"
         id: treasury-smoke-test
@@ -369,7 +385,7 @@ jobs:
           
           # Run the smoke test and capture output
           set +e
-          ./script/run/smoke_test_treasury_config.sh > treasury_test_output.log 2>&1
+          ./script/run/test/smoke_test_treasury_config.sh > treasury_test_output.log 2>&1
           EXIT_CODE=$?
           set -e
           

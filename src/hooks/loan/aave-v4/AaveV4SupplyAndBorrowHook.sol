@@ -7,22 +7,28 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IAaveV4Spoke } from "../../../vendor/aave-v4/IAaveV4Spoke.sol";
 
 // Superform
+import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseAaveV4LoanHook } from "./BaseAaveV4LoanHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHookResult,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow
+} from "../../../interfaces/ISuperHook.sol";
 
 /// @title AaveV4SupplyAndBorrowHook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         address loanToken = BytesLib.toAddress(data, 0);
-/// @notice         address collateralToken = BytesLib.toAddress(data, 20);
-/// @notice         address spoke = BytesLib.toAddress(data, 40);
-/// @notice         uint256 supplyReserveId = BytesLib.toUint256(data, 60);
-/// @notice         uint256 borrowReserveId = BytesLib.toUint256(data, 92);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 124);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
-/// @notice         uint256 borrowAmount = BytesLib.toUint256(data, 157);
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         address loanToken = BytesLib.toAddress(data, 52);
+/// @notice         address collateralToken = BytesLib.toAddress(data, 72);
+/// @notice         address spoke = BytesLib.toAddress(data, 92);
+/// @notice         uint256 supplyReserveId = BytesLib.toUint256(data, 112);
+/// @notice         uint256 borrowReserveId = BytesLib.toUint256(data, 144);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 176);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 208);
+/// @notice         uint256 borrowAmount = BytesLib.toUint256(data, 209);
 /// @dev outAmount tracks collateral tokens consumed (pre-balance - post-balance).
 ///      NOTE: This is NOT the borrowed loanToken amount. Downstream hooks using usePrevHookAmount
 ///      will receive the collateral amount spent, not the loan amount received.
@@ -35,6 +41,17 @@ contract AaveV4SupplyAndBorrowHook is BaseAaveV4LoanHook {
     //////////////////////////////////////////////////////////////*/
 
     constructor() BaseAaveV4LoanHook(HookSubTypes.LOAN) { }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Aave V4 Supply and Borrow";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Supplies and borrows assets from an Aave V4 lending pool";
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
@@ -97,6 +114,40 @@ contract AaveV4SupplyAndBorrowHook is BaseAaveV4LoanHook {
         });
     }
 
+    /// @inheritdoc BaseAaveV4LoanHook
+    function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](2);
+        amounts[0] = BytesLib.toUint256(data, AAVE_V4_AMOUNT_OFFSET);
+        amounts[1] = BytesLib.toUint256(data, BORROW_AMOUNT_OFFSET);
+    }
+
+    /// @inheritdoc BaseAaveV4LoanHook
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 2) revert INVALID_AMOUNTS_LENGTH();
+        data = _replaceCalldataAmount(data, amounts[0], AAVE_V4_AMOUNT_OFFSET);
+        return _replaceCalldataAmount(data, amounts[1], BORROW_AMOUNT_OFFSET);
+    }
+
+    /// @inheritdoc BaseAaveV4LoanHook
+    function amountRoles(bytes memory)
+        external
+        pure
+        override
+        returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
+    {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](2);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+        meta[1] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.OUT, ISuperHookInflowOutflow.Denomination.TOKEN);
+    }
+
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         SupplyAndBorrowHookLocalVars memory vars = _decodeSupplyAndBorrowHookData(data);
@@ -115,5 +166,6 @@ contract AaveV4SupplyAndBorrowHook is BaseAaveV4LoanHook {
     /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(getOutAmount(account) - getCollateralTokenBalance(account, data), account);
+        _setOutToken(getCollateralTokenAddress(data), account);
     }
 }

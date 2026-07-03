@@ -11,19 +11,27 @@ import { BaseHook } from "../../BaseHook.sol";
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 
+// Superform
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 /// @title WithdrawRFLRHook
 /// @author Superform Labs
 /// @notice Withdraws all rFLR from RNat and receives WFLR. WARNING: 50% penalty applies
 ///         to any locked (unvested) portion. Only fully-vested rFLR is penalty-free.
 /// @dev Calls IRNat.withdrawAll(true) to receive WFLR (wrapped FLR) instead of native FLR.
 ///      The penalty is enforced by the RNat contract and cannot be bypassed.
-///      data layout:
-///        [0:1]   acknowledge byte — if non-zero AND lockedBalance > 0, caller explicitly
-///                opts in to the locked-burn penalty (Variant B). Currently a no-op;
-///                can be enabled by governance if curators need tighter protection.
-///        [1:33]  uint256 minOut — minimum WFLR delta the caller will accept (Variant A).
-///                If omitted (data.length < 33) or zero, no slippage check is enforced.
-contract WithdrawRFLRHook is BaseHook {
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes32 placeholder_yieldSourceOracleId = BytesLib.toBytes32(data, 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         uint8 acknowledge = BytesLib.toUint8(data, 52);
+/// @notice         uint256 minOut = BytesLib.toUint256(data, 53);
+contract WithdrawRFLRHook is BaseHook, ISuperHookInflowOutflow {
     /*//////////////////////////////////////////////////////////////
                               ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -49,14 +57,14 @@ contract WithdrawRFLRHook is BaseHook {
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Offset of the acknowledge byte in hook data
-    uint256 private constant ACK_POSITION = 0;
+    /// @dev Offset of the acknowledge byte in hook data (after 52-byte strategy header)
+    uint256 private constant ACK_POSITION = 52;
 
-    /// @dev Offset of the minOut uint256 in hook data
-    uint256 private constant MIN_OUT_POSITION = 1;
+    /// @dev Offset of the minOut uint256 in hook data (after 52-byte strategy header)
+    uint256 private constant MIN_OUT_POSITION = 53;
 
-    /// @dev Minimum data length required for the minOut field (1 byte ack + 32 bytes uint256)
-    uint256 private constant MIN_DATA_LENGTH_WITH_MIN_OUT = 33;
+    /// @dev Minimum data length required for the minOut field (52 header + 1 ack + 32 uint256)
+    uint256 private constant MIN_DATA_LENGTH_WITH_MIN_OUT = 85;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -67,6 +75,17 @@ contract WithdrawRFLRHook is BaseHook {
         RNAT = rNat_;
         WFLR = wflr_;
     }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Withdraw RFLR";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Withdraws RFLR tokens from the Flare network";
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
@@ -94,6 +113,26 @@ contract WithdrawRFLRHook is BaseHook {
     /// @inheritdoc BaseHook
     function inspect(bytes calldata) external view override returns (bytes memory) {
         return abi.encodePacked(RNAT);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](0);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+    }
+
+    /// @inheritdoc IERC165
+    /// @dev S2: implements ISuperHookInflowOutflow (decode-only) but NOT ISuperHookOutflow
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
+        if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
+        return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
+            || interfaceId == type(ISuperHookResult).interfaceId
+            || interfaceId == type(ISuperHookInspector).interfaceId;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -134,5 +173,6 @@ contract WithdrawRFLRHook is BaseHook {
         }
 
         _setOutAmount(delta, account);
+        _setOutToken(asset, account);
     }
 }

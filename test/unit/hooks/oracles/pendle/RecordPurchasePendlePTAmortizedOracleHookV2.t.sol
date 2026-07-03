@@ -27,10 +27,10 @@ contract RecordPurchasePendlePTAmortizedOracleHookV2Test is Test {
     address public account = makeAddr("account");
 
     // V2 Data structure offsets (different from V1)
-    uint256 constant MARKET_POSITION = 0;
-    uint256 constant PT_AMOUNT_POSITION = 20;
+    uint256 constant MARKET_POSITION = 52;
+    uint256 constant PT_AMOUNT_POSITION = 72;
     uint256 constant TWAP_DURATION_POSITION = 52;
-    uint256 constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
+    uint256 constant USE_PREV_HOOK_AMOUNT_POSITION = 108;
 
     // Common TWAP durations
     uint32 constant TWAP_15_MIN = 900;
@@ -273,6 +273,6 @@ contract RecordPurchasePendlePTAmortizedOracleHookV2Test is Test {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(_market, _ptAmount, _twapDuration, _usePrevHookAmount);
+        return abi.encodePacked(bytes(new bytes(52)), _market, _ptAmount, _twapDuration, _usePrevHookAmount);
     }
 }

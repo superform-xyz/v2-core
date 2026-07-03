@@ -39,6 +39,11 @@ import { ITranche } from "../mocks/centrifuge/ITranch.sol";
 /// @title ERC7540WithIdHookForkTests
 /// @notice Fork integration tests for WithId ERC-7540 hooks using real Centrifuge vault on Ethereum mainnet
 contract ERC7540WithIdHookForkTests is Test {
+    function _singleAmount(uint256 amt) internal pure returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = amt;
+    }
+
     // -- Centrifuge on-chain addresses (Ethereum mainnet) --
     address constant CENTRIFUGE_USDC_VAULT = 0x1d01Ef1997d44206d839b78bA6813f60F1B3A970;
     address constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -757,7 +762,7 @@ contract ERC7540WithIdHookForkTests is Test {
             REPLACE CALLDATA + EXECUTE ON REAL VAULT
     //////////////////////////////////////////////////////////////*/
 
-    function test_fork_RedeemWithId_ReplaceCalldataAmount_ThenExecute() public {
+    function test_fork_RedeemWithId_ReplaceCalldataAmounts_ThenExecute() public {
         uint256 depositAmount = 1e8;
         _fullDepositFlow(depositAmount);
 
@@ -776,10 +781,10 @@ contract ERC7540WithIdHookForkTests is Test {
         // Build with dummy amount, then replace
         bytes32 oracleId = bytes32(keccak256("ORACLE_ID"));
         bytes memory hookData = abi.encodePacked(oracleId, CENTRIFUGE_USDC_VAULT, uint256(1), false, uint256(0));
-        bytes memory replaced = redeemWithIdHook.replaceCalldataAmount(hookData, maxRedeem);
+        bytes memory replaced = redeemWithIdHook.replaceCalldataAmounts(hookData, _singleAmount(maxRedeem));
 
         // Verify replacement worked
-        assertEq(redeemWithIdHook.decodeAmount(replaced), maxRedeem, "Amount not replaced");
+        assertEq(redeemWithIdHook.decodeAmounts(replaced)[0], maxRedeem, "Amount not replaced");
 
         // Execute with replaced calldata
         Execution[] memory executions = redeemWithIdHook.build(address(0), user, replaced);
@@ -790,7 +795,7 @@ contract ERC7540WithIdHookForkTests is Test {
         assertEq(vault.maxRedeem(user), 0, "maxRedeem not zeroed after replaced redeem");
     }
 
-    function test_fork_WithdrawWithId_ReplaceCalldataAmount_ThenExecute() public {
+    function test_fork_WithdrawWithId_ReplaceCalldataAmounts_ThenExecute() public {
         uint256 depositAmount = 1e8;
         _fullDepositFlow(depositAmount);
 
@@ -810,9 +815,9 @@ contract ERC7540WithIdHookForkTests is Test {
         // Build with dummy amount, then replace
         bytes32 oracleId = bytes32(keccak256("ORACLE_ID"));
         bytes memory hookData = abi.encodePacked(oracleId, CENTRIFUGE_USDC_VAULT, uint256(1), false, uint256(0));
-        bytes memory replaced = withdrawWithIdHook.replaceCalldataAmount(hookData, maxWithdraw);
+        bytes memory replaced = withdrawWithIdHook.replaceCalldataAmounts(hookData, _singleAmount(maxWithdraw));
 
-        assertEq(withdrawWithIdHook.decodeAmount(replaced), maxWithdraw, "Amount not replaced");
+        assertEq(withdrawWithIdHook.decodeAmounts(replaced)[0], maxWithdraw, "Amount not replaced");
 
         Execution[] memory executions = withdrawWithIdHook.build(address(0), user, replaced);
         vm.prank(user);
@@ -826,13 +831,13 @@ contract ERC7540WithIdHookForkTests is Test {
             DECODE AMOUNT / DECODE USE PREV HOOK AMOUNT
     //////////////////////////////////////////////////////////////*/
 
-    function test_fork_DecodeAmount_WithRealVaultData() public view {
+    function test_fork_DecodeAmounts_WithRealVaultData() public view {
         bytes32 oracleId = bytes32(keccak256("ORACLE_ID"));
         uint256 amount = 5e7; // 50 USDC
         bytes memory hookData = abi.encodePacked(oracleId, CENTRIFUGE_USDC_VAULT, amount, false, uint256(99));
 
-        assertEq(redeemWithIdHook.decodeAmount(hookData), amount, "redeem decodeAmount wrong");
-        assertEq(withdrawWithIdHook.decodeAmount(hookData), amount, "withdraw decodeAmount wrong");
+        assertEq(redeemWithIdHook.decodeAmounts(hookData)[0], amount, "redeem decodeAmount wrong");
+        assertEq(withdrawWithIdHook.decodeAmounts(hookData)[0], amount, "withdraw decodeAmount wrong");
         assertFalse(redeemWithIdHook.decodeUsePrevHookAmount(hookData), "redeem usePrevHook should be false");
         assertFalse(withdrawWithIdHook.decodeUsePrevHookAmount(hookData), "withdraw usePrevHook should be false");
     }

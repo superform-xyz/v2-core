@@ -72,6 +72,7 @@ contract MorphoIndividualHooksIntegrationTest is MinimalBaseIntegrationTest {
 
     function _createSupplyHookData(uint256 amount, bool usePrevHookAmount) internal view returns (bytes memory) {
         return abi.encodePacked(
+            CHAIN_1_USDC, CHAIN_1_WBTC, bytes12(0),
             CHAIN_1_USDC, CHAIN_1_WBTC, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, amount, lltv, usePrevHookAmount
         );
     }
@@ -110,6 +111,7 @@ contract MorphoIndividualHooksIntegrationTest is MinimalBaseIntegrationTest {
         // For borrower-side collateral withdrawal, we use MorphoRepayAndWithdrawHook.
         // But for completeness, this encodes the withdraw hook data format.
         return abi.encodePacked(
+            CHAIN_1_USDC, CHAIN_1_WBTC, bytes12(0),
             CHAIN_1_USDC, CHAIN_1_WBTC, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, onBehalf, recipient, lltv, assets, shares
         );
     }

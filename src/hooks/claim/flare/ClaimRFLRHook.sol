@@ -11,16 +11,25 @@ import { IRNat } from "../../../vendor/flare/IRNat.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 
+// Superform
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 /// @title ClaimRFLRHook
 /// @author Superform Labs
 /// @notice Claims rFLR rewards from Flare's RNat contract
 /// @dev rFLR tokens are non-transferable, so fee collection is not supported at the claim stage.
 ///      Fees should be collected at the WFLR withdrawal stage via WithdrawRFLRHook.
-/// @dev data has the following structure:
-/// @notice         uint256 month = BytesLib.toUint256(data, 0);
-/// @notice         uint256 projectIdsLength = BytesLib.toUint256(data, 32);
-/// @notice         uint256[] projectIds = [BytesLib.toUint256(data, 64 + i*32) for i in 0..projectIdsLength-1]
-contract ClaimRFLRHook is BaseHook {
+/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         uint256 projectIdsLength = BytesLib.toUint256(data, 52);
+/// @notice         uint256[] projectIds = [BytesLib.toUint256(data, 84 + i*32) for i in 0..projectIdsLength-1]
+contract ClaimRFLRHook is BaseHook, ISuperHookInflowOutflow {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -40,9 +49,8 @@ contract ClaimRFLRHook is BaseHook {
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    uint256 private constant MONTH_POSITION = 0;
-    uint256 private constant PROJECT_IDS_LENGTH_POSITION = 32;
-    uint256 private constant PROJECT_IDS_START_POSITION = 64;
+    uint256 private constant PROJECT_IDS_LENGTH_POSITION = 52;
+    uint256 private constant PROJECT_IDS_START_POSITION = 84;
     uint256 private constant MAX_PROJECT_IDS = 50;
 
     /*//////////////////////////////////////////////////////////////
@@ -53,6 +61,17 @@ contract ClaimRFLRHook is BaseHook {
         if (rNat_ == address(0)) revert ADDRESS_NOT_VALID();
         RNAT = rNat_;
     }
+
+    /// @notice Human-readable name for UI display
+    function name() external pure override returns (string memory) {
+        return "Claim RFLR";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Claims RFLR rewards from the Flare network";
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
@@ -73,7 +92,7 @@ contract ClaimRFLRHook is BaseHook {
         if (data.length < PROJECT_IDS_START_POSITION) revert INVALID_DATA_LENGTH();
 
         // 2. Decode claim params
-        uint256 month = BytesLib.toUint256(data, MONTH_POSITION);
+        uint256 month = IRNat(RNAT).getCurrentMonth();
         uint256[] memory projectIds = _decodeProjectIds(data);
 
         // 3. Validate
@@ -91,6 +110,26 @@ contract ClaimRFLRHook is BaseHook {
     /// @inheritdoc BaseHook
     function inspect(bytes calldata) external view override returns (bytes memory) {
         return abi.encodePacked(RNAT);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](0);
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+    }
+
+    /// @inheritdoc IERC165
+    /// @dev S2: implements ISuperHookInflowOutflow (decode-only) but NOT ISuperHookOutflow
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
+        if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
+        return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
+            || interfaceId == type(ISuperHookResult).interfaceId
+            || interfaceId == type(ISuperHookInspector).interfaceId;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -111,6 +150,7 @@ contract ClaimRFLRHook is BaseHook {
         uint256 preBalance = getOutAmount(account);
         uint256 delta = currentBalance > preBalance ? currentBalance - preBalance : 0;
         _setOutAmount(delta, account);
+        _setOutToken(asset, account);
     }
 
     /// @dev Decodes project IDs from packed calldata

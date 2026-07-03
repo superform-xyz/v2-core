@@ -599,7 +599,7 @@ contract SpectraExchangeHooksTests is Helpers {
         uint256 offset = 32;
         uint256 sharesToBurn;
         bytes memory inputData = vars.updatedInputs[0];
-        assembly {
+        assembly ("memory-safe") {
             sharesToBurn := mload(add(inputData, add(0x20, offset)))
         }
 
@@ -756,6 +756,87 @@ contract SpectraExchangeHooksTests is Helpers {
         assertEq(decodedAsset, asset, "Asset should match");
         assertEq(decodedShares, sharesToBurn, "Shares to burn should match");
         assertEq(decodedRecipient, recipient, "Recipient should match");
+    }
+
+    function test_RedeemHook_DecodeAmounts() public view {
+        address asset = address(token);
+        address recipient = account;
+        uint256 sharesToBurn = 500e18;
+        bool usePrevHookAmount = false;
+        bytes1 command = redeemHook.REDEEM_IBT_FOR_ASSET();
+
+        bytes memory data = abi.encodePacked(
+            bytes32(0), // placeholder (32 bytes)
+            asset, // asset (20 bytes) - position 32
+            address(0), // pt (20 bytes) - position 52
+            recipient, // recipient (20 bytes) - position 72
+            uint256(0), // minAssets (32 bytes) - position 92
+            sharesToBurn, // sharesToBurn (32 bytes) - position 124
+            usePrevHookAmount, // usePrevHookAmount (1 byte) - position 156
+            command // command (1 byte) - position 157
+        );
+
+        assertEq(redeemHook.decodeAmounts(data)[0], sharesToBurn);
+    }
+
+    function test_RedeemHook_ReplaceCalldataAmounts() public view {
+        address asset = address(token);
+        address recipient = account;
+        uint256 sharesToBurn = 500e18;
+        bool usePrevHookAmount = false;
+        bytes1 command = redeemHook.REDEEM_IBT_FOR_ASSET();
+
+        bytes memory data = abi.encodePacked(
+            bytes32(0),
+            asset,
+            address(0),
+            recipient,
+            uint256(0),
+            sharesToBurn,
+            usePrevHookAmount,
+            command
+        );
+
+        uint256 newAmount = 250e18;
+        bytes memory result = redeemHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(redeemHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_RedeemHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        address asset = address(token);
+        address recipient = account;
+        bytes1 command = redeemHook.REDEEM_IBT_FOR_ASSET();
+
+        bytes memory data = abi.encodePacked(
+            bytes32(0),
+            asset,
+            address(0),
+            recipient,
+            uint256(0),
+            uint256(500e18),
+            false,
+            command
+        );
+
+        bytes memory result = redeemHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(redeemHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_SpectraExchangeRedeem_ReplaceCalldataAmounts_ThenBuild() public view {
+        address asset = address(token);
+        address recipient = account;
+        bytes1 command = redeemHook.REDEEM_IBT_FOR_ASSET();
+
+        bytes memory data = abi.encodePacked(
+            bytes32(0), asset, address(0), recipient, uint256(0), uint256(500e18), false, command
+        );
+        uint256 newAmount = 250e18;
+        bytes memory replaced = redeemHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = redeemHook.build(address(0), account, replaced);
+        assertEq(executions.length, 3);
+        assertEq(redeemHook.decodeAmounts(replaced)[0], newAmount);
     }
 
     function _getYieldSourceOracleId(bytes32 id, address sender) internal pure returns (bytes32) {

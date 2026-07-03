@@ -108,21 +108,28 @@ contract UniswapV4Parser is BaseAPIParser {
         pure
         returns (bytes memory hookData)
     {
-        // Encode according to new BytesLib-compatible data structure (218+ bytes)
-        hookData = abi.encodePacked(
-            params.poolKey.currency0, // 20 bytes (0-19): currency0
-            params.poolKey.currency1, // 20 bytes (20-39): currency1
-            uint32(params.poolKey.fee), // 4 bytes (40-43): fee (padded from uint24)
-            uint32(int32(params.poolKey.tickSpacing)), // 4 bytes (44-47): tickSpacing (padded from int24)  
-            params.poolKey.hooks, // 20 bytes (48-67): hooks address
-            params.dstReceiver, // 20 bytes (68-87): dstReceiver
-            uint256(params.sqrtPriceLimitX96), // 32 bytes (88-119): sqrtPriceLimitX96 (padded from uint160)
-            params.originalAmountIn, // 32 bytes (120-151): originalAmountIn
-            params.originalMinAmountOut, // 32 bytes (152-183): originalMinAmountOut
-            params.maxSlippageDeviationBps, // 32 bytes (184-215): maxSlippageDeviationBps
-            params.zeroForOne ? bytes1(0x01) : bytes1(0x00), // 1 byte (216): zeroForOne flag
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // 1 byte (217): usePrevHookAmount flag
-            params.additionalData // Additional data (218+)
+        // Split into two encodePacked calls to avoid stack-too-deep
+        // Header + pool key fields (bytes 0-119)
+        bytes memory part1 = abi.encodePacked(
+            bytes32(0), // 32 bytes (0-31): yieldSourceOracleId (header)
+            address(0), // 20 bytes (32-51): yieldSource (header)
+            params.poolKey.currency0, // 20 bytes (52-71): currency0
+            params.poolKey.currency1, // 20 bytes (72-91): currency1
+            uint32(params.poolKey.fee), // 4 bytes (92-95): fee (padded from uint24)
+            uint32(int32(params.poolKey.tickSpacing)), // 4 bytes (96-99): tickSpacing (padded from int24)
+            params.poolKey.hooks // 20 bytes (100-119): hooks address
         );
+        // Remaining swap params (bytes 120-269+)
+        bytes memory part2 = abi.encodePacked(
+            params.dstReceiver, // 20 bytes (120-139): dstReceiver
+            uint256(params.sqrtPriceLimitX96), // 32 bytes (140-171): sqrtPriceLimitX96 (padded from uint160)
+            params.originalAmountIn, // 32 bytes (172-203): originalAmountIn
+            params.originalMinAmountOut, // 32 bytes (204-235): originalMinAmountOut
+            params.maxSlippageDeviationBps, // 32 bytes (236-267): maxSlippageDeviationBps
+            params.zeroForOne ? bytes1(0x01) : bytes1(0x00), // 1 byte (268): zeroForOne flag
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // 1 byte (269): usePrevHookAmount flag
+            params.additionalData // Additional data (270+)
+        );
+        hookData = abi.encodePacked(part1, part2);
     }
 }

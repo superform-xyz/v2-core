@@ -222,19 +222,19 @@ contract ERC4626VaultHooksTest is Helpers {
     /*//////////////////////////////////////////////////////////////
                         DECODE AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_ApproveAndDepositHook_DecodeAmount() public view {
+    function test_ApproveAndDepositHook_DecodeAmounts() public view {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false);
-        assertEq(approveAndDepositHook.decodeAmount(data), amount);
+        assertEq(approveAndDepositHook.decodeAmounts(data)[0], amount);
     }
 
-    function test_DepositHook_DecodeAmount() public view {
+    function test_DepositHook_DecodeAmounts() public view {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false);
-        assertEq(depositHook.decodeAmount(data), amount);
+        assertEq(depositHook.decodeAmounts(data)[0], amount);
     }
 
-    function test_RedeemHook_DecodeAmount() public view {
+    function test_RedeemHook_DecodeAmounts() public view {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), amount, false);
-        assertEq(redeemHook.decodeAmount(data), amount);
+        assertEq(redeemHook.decodeAmounts(data)[0], amount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -258,10 +258,47 @@ contract ERC4626VaultHooksTest is Helpers {
     /*//////////////////////////////////////////////////////////////
                 REPLACE CALLLDATA AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_RedeemHook_ReplaceCalldataAmount() public view {
+    function test_ApproveAndDepositHook_ReplaceCalldataAmounts() public view {
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = approveAndDepositHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(approveAndDepositHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_ApproveAndDepositHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false);
+        bytes memory result = approveAndDepositHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(approveAndDepositHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_DepositHook_ReplaceCalldataAmounts() public view {
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false);
+        uint256 newAmount = 2e18;
+        bytes memory result = depositHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        assertEq(result.length, data.length);
+        assertEq(depositHook.decodeAmounts(result)[0], newAmount);
+    }
+
+    function testFuzz_DepositHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false);
+        bytes memory result = depositHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(depositHook.decodeAmounts(result)[0], fuzzAmount);
+    }
+
+    function test_RedeemHook_ReplaceCalldataAmounts() public view {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), shares, false);
-        bytes memory newData = redeemHook.replaceCalldataAmount(data, prevHookAmount);
+        bytes memory newData = redeemHook.replaceCalldataAmounts(data, _singleAmount(prevHookAmount));
         assertEq(newData, abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), prevHookAmount, false));
+    }
+
+    function testFuzz_RedeemHook_ReplaceCalldataAmounts(uint256 fuzzAmount) public view {
+        vm.assume(fuzzAmount > 0);
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), shares, false);
+        bytes memory result = redeemHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
+        assertEq(redeemHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -315,6 +352,33 @@ contract ERC4626VaultHooksTest is Helpers {
 
         argsEncoded = approveAndDepositHook.inspect(_encodeApproveAndDepositData());
         assertGt(argsEncoded.length, 0);
+    }
+
+    function test_ApproveAndDeposit4626_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _encodeApproveAndDepositData();
+        uint256 newAmount = 500;
+        bytes memory replaced = approveAndDepositHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = approveAndDepositHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 6);
+        assertEq(approveAndDepositHook.decodeAmounts(replaced)[0], newAmount);
+    }
+
+    function test_Deposit4626_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _encodeDepositData();
+        uint256 newAmount = 500;
+        bytes memory replaced = depositHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = depositHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(depositHook.decodeAmounts(replaced)[0], newAmount);
+    }
+
+    function test_Redeem4626_ReplaceCalldataAmounts_ThenBuild() public view {
+        bytes memory data = _encodeRedeemData();
+        uint256 newAmount = 500;
+        bytes memory replaced = redeemHook.replaceCalldataAmounts(data, _singleAmount(newAmount));
+        Execution[] memory executions = redeemHook.build(address(0), address(this), replaced);
+        assertEq(executions.length, 3);
+        assertEq(redeemHook.decodeAmounts(replaced)[0], newAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
