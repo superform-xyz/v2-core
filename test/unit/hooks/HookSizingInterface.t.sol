@@ -3167,6 +3167,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev Build UniswapV3 swapper data (3-layer format): header(52) + inputToken(20) + outputToken(20) + AMOUNT@92(32) + outputQuote(32) + outputMin(32) + usePrev(1) + payloadLen(32) + fee(4) + deadline(32) + sqrtPrice(32)
     function _buildSwapperData_128(uint256 amt) internal pure returns (bytes memory) {
+        bytes memory payload = abi.encode(uint24(3000), uint256(9999999999), uint160(0));
         return abi.encodePacked(
             bytes32(0), address(0), // 52-byte header
             address(0xAA),          // inputToken @52
@@ -3175,10 +3176,8 @@ contract HookSizingInterfaceTest is Helpers {
             uint256(0),             // outputQuote @124
             uint256(0),             // outputMin @156
             false,                  // usePrevHookAmount @188
-            uint256(68),            // payloadLength @189 (fee=4 + deadline=32 + sqrtPrice=32)
-            uint32(3000),           // fee @221
-            uint256(9999999999),    // deadline @225 (far future)
-            uint256(0)              // sqrtPriceLimitX96 @257
+            payload.length,         // payloadLength @189
+            payload
         );
     }
 
@@ -3205,8 +3204,9 @@ contract HookSizingInterfaceTest is Helpers {
         );
     }
 
-    /// @dev Build AlgebraIntegral swapper data (3-layer format): header(52) + inputToken(20) + outputToken(20) + AMOUNT@92(32) + outputQuote(32) + outputMin(32) + usePrev(1) + payloadLen(32) + deployer(20) + deadline(32) + limitSqrtPrice(32)
+    /// @dev Build AlgebraIntegral swapper data (3-layer format): header(52) + inputToken(20) + outputToken(20) + AMOUNT@92(32) + outputQuote(32) + outputMin(32) + usePrev(1) + payloadLen(32) + payload = abi.encode(deployer, deadline, limitSqrtPrice)
     function _buildSwapperData_144(uint256 amt) internal pure returns (bytes memory) {
+        bytes memory payload = abi.encode(address(0), uint256(9999999999), uint160(0));
         return abi.encodePacked(
             bytes32(0), address(0), // 52-byte header
             address(0xAA),          // inputToken @52
@@ -3215,10 +3215,8 @@ contract HookSizingInterfaceTest is Helpers {
             uint256(0),             // outputQuote @124
             uint256(0),             // outputMin @156
             false,                  // usePrevHookAmount @188
-            uint256(84),            // payloadLength @189 (deployer=20 + deadline=32 + sqrtPrice=32)
-            address(0),             // deployer @221
-            uint256(9999999999),    // deadline @241 (far future)
-            uint256(0)              // limitSqrtPrice @273
+            payload.length,         // payloadLength @189
+            payload
         );
     }
 

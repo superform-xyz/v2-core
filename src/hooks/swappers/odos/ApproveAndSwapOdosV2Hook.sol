@@ -49,15 +49,6 @@ contract ApproveAndSwapOdosV2Hook is
     //////////////////////////////////////////////////////////////*/
     uint256 private constant AMOUNT_POSITION = SwapCalldataLayout.AMOUNT_POSITION;
 
-    // Layer 2 (payload) absolute positions
-    uint256 private constant INPUT_RECEIVER_POSITION = SwapCalldataLayout.PAYLOAD_DATA_OFFSET; // 221
-    uint256 private constant PATH_DEF_LENGTH_POSITION = SwapCalldataLayout.PAYLOAD_DATA_OFFSET + 20; // 241
-    uint256 private constant PATH_DEF_DATA_POSITION = SwapCalldataLayout.PAYLOAD_DATA_OFFSET + 52; // 273
-
-    /// @dev Tail field offsets relative to (PATH_DEF_DATA_POSITION + pathDefinitionLength)
-    uint256 private constant EXECUTOR_TAIL_OFFSET = 0;
-    uint256 private constant REFERRAL_CODE_TAIL_OFFSET = 20;
-
     struct HookParams {
         address inputToken;
         uint256 inputAmount;
@@ -98,11 +89,10 @@ contract ApproveAndSwapOdosV2Hook is
     {
         HookParams memory params;
 
-        uint256 pathDefinitionLength = BytesLib.toUint256(data, PATH_DEF_LENGTH_POSITION);
-        params.pathDefinition = BytesLib.slice(data, PATH_DEF_DATA_POSITION, pathDefinitionLength);
-        uint256 tailOffset = PATH_DEF_DATA_POSITION + pathDefinitionLength;
-        params.executor = BytesLib.toAddress(data, tailOffset + EXECUTOR_TAIL_OFFSET);
-        params.referralCode = BytesLib.toUint32(data, tailOffset + REFERRAL_CODE_TAIL_OFFSET);
+        uint256 payloadLen = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLen);
+        (, params.pathDefinition, params.executor, params.referralCode) =
+            abi.decode(payload, (address, bytes, address, uint32));
 
         params.inputToken = BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
         params.inputAmount = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
@@ -185,9 +175,9 @@ contract ApproveAndSwapOdosV2Hook is
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        uint256 pathDefinitionLength = BytesLib.toUint256(data, PATH_DEF_LENGTH_POSITION);
-        uint256 tailOffset = PATH_DEF_DATA_POSITION + pathDefinitionLength;
-        address executor = BytesLib.toAddress(data, tailOffset + EXECUTOR_TAIL_OFFSET);
+        uint256 payloadLen = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLen);
+        (,, address executor,) = abi.decode(payload, (address, bytes, address, uint32));
         return abi.encodePacked(executor);
     }
 
@@ -283,7 +273,9 @@ contract ApproveAndSwapOdosV2Hook is
     {
         address inputToken = BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
         uint256 inputAmount = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
-        address inputReceiver = BytesLib.toAddress(data, INPUT_RECEIVER_POSITION);
+        uint256 payloadLen = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLen);
+        (address inputReceiver,,,) = abi.decode(payload, (address, bytes, address, uint32));
         address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
         uint256 outputQuote = BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_QUOTE_OFFSET);
         uint256 outputAmount = BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_MIN_OFFSET);

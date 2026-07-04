@@ -51,12 +51,6 @@ contract ApproveAndSwapAlgebraIntegralHook is
 
     uint256 private constant AMOUNT_POSITION = SwapCalldataLayout.AMOUNT_POSITION;
 
-    // ─── Layer 2 payload offsets ──────────────────────────────────────────────
-    uint256 private constant PAYLOAD_DEPLOYER_OFFSET = SwapCalldataLayout.PAYLOAD_DATA_OFFSET; // 221
-    uint256 private constant PAYLOAD_DEADLINE_OFFSET = PAYLOAD_DEPLOYER_OFFSET + 20; // 241
-    uint256 private constant PAYLOAD_SQRTPRICE_OFFSET = PAYLOAD_DEADLINE_OFFSET + 32; // 273
-    uint256 private constant PAYLOAD_SIZE = 84; // 20 (deployer) + 32 (deadline) + 32 (limitSqrtPrice)
-
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -108,20 +102,23 @@ contract ApproveAndSwapAlgebraIntegralHook is
         override
         returns (Execution[] memory executions)
     {
-        if (data.length < SwapCalldataLayout.MIN_DATA_LENGTH + PAYLOAD_SIZE) revert INVALID_HOOK_DATA();
-
         address tokenIn = data.toAddress(SwapCalldataLayout.INPUT_TOKEN_OFFSET);
         address tokenOut = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
 
         if (tokenIn == address(0) || tokenOut == address(0)) revert NATIVE_ETH_NOT_SUPPORTED();
         if (tokenIn == tokenOut) revert INVALID_HOOK_DATA();
 
-        address deployer = data.toAddress(PAYLOAD_DEPLOYER_OFFSET);
-        uint256 deadline = data.toUint256(PAYLOAD_DEADLINE_OFFSET);
+        address deployer;
+        uint256 deadline;
+        uint160 limitSqrtPrice;
+        {
+            uint256 payloadLen = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+            bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLen);
+            (deployer, deadline, limitSqrtPrice) = abi.decode(payload, (address, uint256, uint160));
+        }
 
         if (deadline < block.timestamp) revert EXPIRED_DEADLINE(deadline, block.timestamp);
 
-        uint160 limitSqrtPrice = uint160(data.toUint256(PAYLOAD_SQRTPRICE_OFFSET));
         uint256 amountIn = data.toUint256(SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
         uint256 amountOutMinimum = data.toUint256(SwapCalldataLayout.OUTPUT_MIN_OFFSET);
 

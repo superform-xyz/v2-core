@@ -94,8 +94,9 @@ contract ApproveAndSwapKyberSwapHook is
         address inputToken = BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
         uint256 inputAmount = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
         bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
-        uint256 txDataLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
-        bytes memory txData_ = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, txDataLength);
+        uint256 payloadLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLength);
+        (bytes memory txData_) = abi.decode(payload, (bytes));
 
         // Extract approveTarget before scaling to avoid double-decoding SwapExecutionParams
         address approveTarget = _getApproveTarget(txData_);
@@ -170,8 +171,9 @@ contract ApproveAndSwapKyberSwapHook is
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        uint256 txDataLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
-        bytes memory txData_ = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, txDataLength);
+        uint256 payloadLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLength);
+        (bytes memory txData_) = abi.decode(payload, (bytes));
 
         IMetaAggregationRouterV2.SwapExecutionParams memory params =
             abi.decode(BytesLib.slice(txData_, 4, txData_.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams));

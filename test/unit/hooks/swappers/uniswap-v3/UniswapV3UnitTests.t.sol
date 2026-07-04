@@ -8,6 +8,7 @@ import {
 } from "../../../../../src/hooks/swappers/uniswap-v3/ApproveAndSwapUniswapV3Hook.sol";
 import { ISwapRouter } from "../../../../../src/hooks/swappers/uniswap-v3/interfaces/ISwapRouter.sol";
 import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
+import { ISuperHookSwap } from "../../../../../src/interfaces/ISuperHookSwap.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
@@ -102,8 +103,8 @@ contract UniswapV3HookTest is Helpers {
     }
 
     function test_SwapHook_Build_RevertIf_InvalidHookData() public {
-        bytes memory shortData = new bytes(250); // Less than 289
-        vm.expectRevert(SwapUniswapV3Hook.INVALID_HOOK_DATA.selector);
+        bytes memory shortData = new bytes(250); // Too short for valid abi.decode
+        vm.expectRevert();
         swapHook.build(address(prevHook), account, shortData);
     }
 
@@ -199,8 +200,8 @@ contract UniswapV3HookTest is Helpers {
     }
 
     function test_ApproveAndSwapHook_Build_RevertIf_InvalidHookData() public {
-        bytes memory shortData = new bytes(250); // Less than 289
-        vm.expectRevert(ApproveAndSwapUniswapV3Hook.INVALID_HOOK_DATA.selector);
+        bytes memory shortData = new bytes(250); // Too short for valid abi.decode
+        vm.expectRevert();
         approveAndSwapHook.build(address(prevHook), account, shortData);
     }
 
@@ -248,7 +249,7 @@ contract UniswapV3HookTest is Helpers {
     function test_SwapHook_Build_ExactMinimumDataLength() public view {
         // Test with exactly 289 bytes (minimum valid: Layer 0 + Layer 1 + 68-byte payload)
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 289);
+        assertEq(data.length, 317);
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
@@ -256,7 +257,7 @@ contract UniswapV3HookTest is Helpers {
 
     function test_ApproveAndSwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 289);
+        assertEq(data.length, 317);
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
@@ -476,6 +477,7 @@ contract UniswapV3HookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function _buildHookData(bool usePrevHookAmount) internal view returns (bytes memory) {
+        bytes memory payload = abi.encode(fee, deadline, sqrtPriceLimitX96);
         return bytes.concat(
             bytes(new bytes(52)),                          // [0:52] Layer 0
             bytes20(tokenIn),                              // [52:72] inputToken
@@ -484,14 +486,25 @@ contract UniswapV3HookTest is Helpers {
             bytes32(uint256(0)),                           // [124:156] outputQuote (0 for AMM)
             bytes32(originalMinAmountOut),                 // [156:188] outputMin
             usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // [188] usePrevHookAmount
-            bytes32(uint256(68)),                          // [189:221] payloadLength
-            bytes4(uint32(fee)),                           // [221:225] fee
-            bytes32(deadline),                             // [225:257] deadline
-            bytes32(uint256(sqrtPriceLimitX96))            // [257:289] sqrtPriceLimitX96
+            bytes32(payload.length),                       // [189:221] payloadLength
+            payload                                        // [221:...] abi.encode(fee, deadline, sqrtPriceLimitX96)
         );
     }
 
     function _buildHookDataWithFee(uint24 _fee) internal view returns (bytes memory) {
+        return _buildHookDataWithFee(_fee, deadline, sqrtPriceLimitX96);
+    }
+
+    function _buildHookDataWithFee(
+        uint24 _fee,
+        uint256 _deadline,
+        uint160 _sqrtPrice
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes memory payload = abi.encode(_fee, _deadline, _sqrtPrice);
         return bytes.concat(
             bytes(new bytes(52)),
             bytes20(tokenIn),
@@ -500,10 +513,8 @@ contract UniswapV3HookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(68)),
-            bytes4(uint32(_fee)),
-            bytes32(deadline),
-            bytes32(uint256(sqrtPriceLimitX96))
+            bytes32(payload.length),
+            payload
         );
     }
 
@@ -516,6 +527,7 @@ contract UniswapV3HookTest is Helpers {
         view
         returns (bytes memory)
     {
+        bytes memory payload = abi.encode(fee, deadline, sqrtPriceLimitX96);
         return bytes.concat(
             bytes(new bytes(52)),
             bytes20(tokenIn),
@@ -524,10 +536,8 @@ contract UniswapV3HookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(_minAmountOut),
             _usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
-            bytes32(uint256(68)),
-            bytes4(uint32(fee)),
-            bytes32(deadline),
-            bytes32(uint256(sqrtPriceLimitX96))
+            bytes32(payload.length),
+            payload
         );
     }
 
@@ -771,10 +781,8 @@ contract UniswapV3HookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(68)),
-            bytes4(uint32(fee)),
-            bytes32(deadline),
-            bytes32(uint256(sqrtPriceLimitX96))
+            bytes32(uint256(96)),
+            abi.encode(fee, deadline, sqrtPriceLimitX96)
         );
 
         vm.expectRevert(SwapUniswapV3Hook.NATIVE_ETH_NOT_SUPPORTED.selector);
@@ -790,10 +798,8 @@ contract UniswapV3HookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(68)),
-            bytes4(uint32(fee)),
-            bytes32(deadline),
-            bytes32(uint256(sqrtPriceLimitX96))
+            bytes32(uint256(96)),
+            abi.encode(fee, deadline, sqrtPriceLimitX96)
         );
 
         vm.expectRevert(SwapUniswapV3Hook.NATIVE_ETH_NOT_SUPPORTED.selector);
@@ -809,10 +815,8 @@ contract UniswapV3HookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(68)),
-            bytes4(uint32(fee)),
-            bytes32(deadline),
-            bytes32(uint256(sqrtPriceLimitX96))
+            bytes32(uint256(96)),
+            abi.encode(fee, deadline, sqrtPriceLimitX96)
         );
 
         vm.expectRevert(ApproveAndSwapUniswapV3Hook.NATIVE_ETH_NOT_SUPPORTED.selector);
@@ -828,10 +832,8 @@ contract UniswapV3HookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(68)),
-            bytes4(uint32(fee)),
-            bytes32(deadline),
-            bytes32(uint256(sqrtPriceLimitX96))
+            bytes32(uint256(96)),
+            abi.encode(fee, deadline, sqrtPriceLimitX96)
         );
 
         vm.expectRevert(ApproveAndSwapUniswapV3Hook.NATIVE_ETH_NOT_SUPPORTED.selector);
@@ -853,10 +855,8 @@ contract UniswapV3HookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(68)),
-            bytes4(uint32(fee)),
-            bytes32(expiredDeadline),      // Expired deadline in payload
-            bytes32(uint256(sqrtPriceLimitX96))
+            bytes32(uint256(96)),
+            abi.encode(fee, expiredDeadline, sqrtPriceLimitX96)
         );
 
         vm.expectRevert(abi.encodeWithSelector(SwapUniswapV3Hook.EXPIRED_DEADLINE.selector, expiredDeadline, block.timestamp));
@@ -874,10 +874,8 @@ contract UniswapV3HookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(68)),
-            bytes4(uint32(fee)),
-            bytes32(expiredDeadline),      // Expired deadline in payload
-            bytes32(uint256(sqrtPriceLimitX96))
+            bytes32(uint256(96)),
+            abi.encode(fee, expiredDeadline, sqrtPriceLimitX96)
         );
 
         vm.expectRevert(abi.encodeWithSelector(ApproveAndSwapUniswapV3Hook.EXPIRED_DEADLINE.selector, expiredDeadline, block.timestamp));
@@ -896,10 +894,8 @@ contract UniswapV3HookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(68)),
-            bytes4(uint32(fee)),
-            bytes32(exactDeadline),
-            bytes32(uint256(sqrtPriceLimitX96))
+            bytes32(uint256(96)),
+            abi.encode(fee, exactDeadline, sqrtPriceLimitX96)
         );
 
         // Should not revert
@@ -917,10 +913,8 @@ contract UniswapV3HookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(68)),
-            bytes4(uint32(fee)),
-            bytes32(deadline),
-            bytes32(uint256(0))    // Zero = no price limit
+            bytes32(uint256(96)),
+            abi.encode(fee, deadline, uint160(0))
         );
 
         // Should not revert - 0 is valid (means no limit)
@@ -1008,5 +1002,200 @@ contract UniswapV3HookTest is Helpers {
         // Should not revert for any length >= 289
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                     PAYLOAD DECODE ROUND-TRIP TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Verify decodePayload returns abi.encoded data that decodes to original fields
+    function test_SwapHook_PayloadDecodeRoundTrip() public view {
+        uint24 testFee = 500;
+        uint256 testDeadline = block.timestamp + 7200;
+        uint160 testSqrtPrice = 79228162514264337593543950336; // ~1:1 price
+
+        bytes memory data = _buildHookDataWithFee(testFee, testDeadline, testSqrtPrice);
+
+        bytes memory decodedPayload = swapHook.decodePayload(data);
+        (uint24 dFee, uint256 dDeadline, uint160 dSqrtPrice) = abi.decode(decodedPayload, (uint24, uint256, uint160));
+
+        assertEq(dFee, testFee, "fee mismatch");
+        assertEq(dDeadline, testDeadline, "deadline mismatch");
+        assertEq(dSqrtPrice, testSqrtPrice, "sqrtPrice mismatch");
+    }
+
+    /// @notice Verify ApproveAndSwap decodePayload matches SwapHook
+    function test_ApproveAndSwapHook_PayloadDecodeRoundTrip() public view {
+        uint24 testFee = 10_000;
+        uint256 testDeadline = block.timestamp + 1;
+        uint160 testSqrtPrice = type(uint160).max;
+
+        bytes memory data = _buildHookDataWithFee(testFee, testDeadline, testSqrtPrice);
+
+        bytes memory decodedPayload = approveAndSwapHook.decodePayload(data);
+        (uint24 dFee, uint256 dDeadline, uint160 dSqrtPrice) = abi.decode(decodedPayload, (uint24, uint256, uint160));
+
+        assertEq(dFee, testFee, "fee mismatch");
+        assertEq(dDeadline, testDeadline, "deadline mismatch");
+        assertEq(dSqrtPrice, testSqrtPrice, "sqrtPrice mismatch");
+    }
+
+    /// @notice Fuzz: payload fields survive encode → build → decodePayload → decode round-trip
+    function testFuzz_SwapHook_PayloadDecodeRoundTrip(uint24 fuzzFee, uint256 fuzzDeadline, uint160 fuzzSqrtPrice)
+        public
+        view
+    {
+        fuzzDeadline = bound(fuzzDeadline, block.timestamp, type(uint256).max);
+
+        bytes memory data = _buildHookDataWithFee(fuzzFee, fuzzDeadline, fuzzSqrtPrice);
+
+        bytes memory decodedPayload = swapHook.decodePayload(data);
+        (uint24 dFee, uint256 dDeadline, uint160 dSqrtPrice) = abi.decode(decodedPayload, (uint24, uint256, uint160));
+
+        assertEq(dFee, fuzzFee, "fee mismatch");
+        assertEq(dDeadline, fuzzDeadline, "deadline mismatch");
+        assertEq(dSqrtPrice, fuzzSqrtPrice, "sqrtPrice mismatch");
+    }
+
+    /// @notice Verify build uses correct fee from payload in the Execution calldata
+    function test_SwapHook_Build_UsesCorrectFeeFromPayload() public view {
+        uint24 testFee = 500;
+        bytes memory data = _buildHookDataWithFee(testFee, deadline, sqrtPriceLimitX96);
+
+        Execution[] memory executions = swapHook.build(address(prevHook), account, data);
+        bytes memory swapCalldata = executions[1].callData;
+
+        // fee is the 3rd field in ExactInputSingleParams (after tokenIn, tokenOut)
+        uint24 decodedFee;
+        assembly ("memory-safe") {
+            decodedFee := mload(add(swapCalldata, 100)) // 4 + 32*3 = 100
+        }
+        assertEq(decodedFee, testFee, "fee in execution calldata mismatch");
+    }
+
+    /// @notice Verify build uses correct deadline from payload
+    function test_SwapHook_Build_UsesCorrectDeadlineFromPayload() public view {
+        uint256 testDeadline = block.timestamp + 86_400;
+        bytes memory data = _buildHookDataWithFee(fee, testDeadline, sqrtPriceLimitX96);
+
+        Execution[] memory executions = swapHook.build(address(prevHook), account, data);
+        bytes memory swapCalldata = executions[1].callData;
+
+        // deadline is the 5th field in ExactInputSingleParams
+        uint256 decodedDeadline;
+        assembly ("memory-safe") {
+            decodedDeadline := mload(add(swapCalldata, 164)) // 4 + 32*5 = 164
+        }
+        assertEq(decodedDeadline, testDeadline, "deadline in execution calldata mismatch");
+    }
+
+    /// @notice Verify build uses correct sqrtPriceLimitX96 from payload
+    function test_SwapHook_Build_UsesCorrectSqrtPriceFromPayload() public view {
+        uint160 testSqrtPrice = 79228162514264337593543950336;
+        bytes memory data = _buildHookDataWithFee(fee, deadline, testSqrtPrice);
+
+        Execution[] memory executions = swapHook.build(address(prevHook), account, data);
+        bytes memory swapCalldata = executions[1].callData;
+
+        // sqrtPriceLimitX96 is the 8th field in ExactInputSingleParams
+        uint160 decodedSqrtPrice;
+        assembly ("memory-safe") {
+            decodedSqrtPrice := mload(add(swapCalldata, 260)) // 4 + 32*8 = 260
+        }
+        assertEq(decodedSqrtPrice, testSqrtPrice, "sqrtPrice in execution calldata mismatch");
+    }
+
+    /// @notice Verify ApproveAndSwap build uses correct payload fields in the swap Execution
+    function test_ApproveAndSwapHook_Build_UsesCorrectPayloadFields() public view {
+        uint24 testFee = 10_000;
+        uint256 testDeadline = block.timestamp + 3600;
+        uint160 testSqrtPrice = 1e30;
+
+        bytes memory data = _buildHookDataWithFee(testFee, testDeadline, testSqrtPrice);
+
+        Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
+        bytes memory swapCalldata = executions[3].callData; // swap is index 3
+
+        uint24 dFee;
+        uint256 dDeadline;
+        uint160 dSqrtPrice;
+        assembly ("memory-safe") {
+            dFee := mload(add(swapCalldata, 100))
+            dDeadline := mload(add(swapCalldata, 164))
+            dSqrtPrice := mload(add(swapCalldata, 260))
+        }
+        assertEq(dFee, testFee, "fee mismatch");
+        assertEq(dDeadline, testDeadline, "deadline mismatch");
+        assertEq(dSqrtPrice, testSqrtPrice, "sqrtPrice mismatch");
+    }
+
+    /// @notice encodeSwapData → decodePayload → abi.decode verifies all payload fields
+    function test_SwapHook_EncodeSwapData_FullPayloadFieldVerification() public view {
+        uint24 testFee = 100;
+        uint256 testDeadline = block.timestamp + 999;
+        uint160 testSqrtPrice = 42;
+
+        bytes memory payload = abi.encode(testFee, testDeadline, testSqrtPrice);
+        ISuperHookSwap.SwapHeader memory header = ISuperHookSwap.SwapHeader({
+            inputToken: tokenIn,
+            outputToken: tokenOut,
+            inputAmount: originalAmountIn,
+            outputQuote: 0,
+            outputMin: originalMinAmountOut,
+            usePrevHookAmount: false
+        });
+
+        bytes memory encoded = swapHook.encodeSwapData(header, payload);
+
+        // Verify all header fields
+        assertEq(swapHook.decodeInputToken(encoded), tokenIn);
+        assertEq(swapHook.decodeOutputToken(encoded), tokenOut);
+        assertEq(swapHook.decodeInputAmount(encoded), originalAmountIn);
+        assertEq(swapHook.decodeOutputMin(encoded), originalMinAmountOut);
+        assertFalse(swapHook.decodeUsePrevHookAmount(encoded));
+
+        // Verify payload fields
+        bytes memory decodedPayload = swapHook.decodePayload(encoded);
+        (uint24 dFee, uint256 dDeadline, uint160 dSqrtPrice) = abi.decode(decodedPayload, (uint24, uint256, uint160));
+        assertEq(dFee, testFee, "fee mismatch");
+        assertEq(dDeadline, testDeadline, "deadline mismatch");
+        assertEq(dSqrtPrice, testSqrtPrice, "sqrtPrice mismatch");
+    }
+
+    /// @notice Fuzz: encodeSwapData full round-trip with field verification
+    function testFuzz_SwapHook_EncodeSwapData_FullRoundTrip(
+        uint24 fuzzFee,
+        uint256 fuzzDeadline,
+        uint160 fuzzSqrtPrice,
+        uint256 fuzzAmount,
+        uint256 fuzzMinOut,
+        bool fuzzUsePrev
+    )
+        public
+        view
+    {
+        bytes memory payload = abi.encode(fuzzFee, fuzzDeadline, fuzzSqrtPrice);
+        ISuperHookSwap.SwapHeader memory header = ISuperHookSwap.SwapHeader({
+            inputToken: tokenIn,
+            outputToken: tokenOut,
+            inputAmount: fuzzAmount,
+            outputQuote: 0,
+            outputMin: fuzzMinOut,
+            usePrevHookAmount: fuzzUsePrev
+        });
+
+        bytes memory encoded = swapHook.encodeSwapData(header, payload);
+
+        assertEq(swapHook.decodeInputToken(encoded), tokenIn);
+        assertEq(swapHook.decodeOutputToken(encoded), tokenOut);
+        assertEq(swapHook.decodeInputAmount(encoded), fuzzAmount);
+        assertEq(swapHook.decodeOutputMin(encoded), fuzzMinOut);
+        assertEq(swapHook.decodeUsePrevHookAmount(encoded), fuzzUsePrev);
+
+        bytes memory decodedPayload = swapHook.decodePayload(encoded);
+        (uint24 dFee, uint256 dDeadline, uint160 dSqrtPrice) = abi.decode(decodedPayload, (uint24, uint256, uint160));
+        assertEq(dFee, fuzzFee);
+        assertEq(dDeadline, fuzzDeadline);
+        assertEq(dSqrtPrice, fuzzSqrtPrice);
     }
 }

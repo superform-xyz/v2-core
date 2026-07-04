@@ -55,12 +55,6 @@ contract SwapUniswapV3Hook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
 
     uint256 private constant AMOUNT_POSITION = SwapCalldataLayout.AMOUNT_POSITION;
 
-    // ─── Layer 2 payload offsets ──────────────────────────────────────────────
-    uint256 private constant PAYLOAD_FEE_OFFSET = SwapCalldataLayout.PAYLOAD_DATA_OFFSET; // 221
-    uint256 private constant PAYLOAD_DEADLINE_OFFSET = PAYLOAD_FEE_OFFSET + 4; // 225
-    uint256 private constant PAYLOAD_SQRTPRICE_OFFSET = PAYLOAD_DEADLINE_OFFSET + 32; // 257
-    uint256 private constant PAYLOAD_SIZE = 68; // 4 (fee) + 32 (deadline) + 32 (sqrtPriceLimitX96)
-
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -112,8 +106,6 @@ contract SwapUniswapV3Hook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
         override
         returns (Execution[] memory executions)
     {
-        if (data.length < SwapCalldataLayout.MIN_DATA_LENGTH + PAYLOAD_SIZE) revert INVALID_HOOK_DATA();
-
         UniswapV3SwapParams memory p = _decodeSwapParams(data);
 
         if (_decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET)) {
@@ -272,12 +264,12 @@ contract SwapUniswapV3Hook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
 
         if (p.tokenIn == address(0) || p.tokenOut == address(0)) revert NATIVE_ETH_NOT_SUPPORTED();
 
-        p.fee = uint24(data.toUint32(PAYLOAD_FEE_OFFSET));
-        p.deadline = data.toUint256(PAYLOAD_DEADLINE_OFFSET);
+        uint256 payloadLen = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLen);
+        (p.fee, p.deadline, p.sqrtPriceLimitX96) = abi.decode(payload, (uint24, uint256, uint160));
 
         if (p.deadline < block.timestamp) revert EXPIRED_DEADLINE(p.deadline, block.timestamp);
 
-        p.sqrtPriceLimitX96 = uint160(data.toUint256(PAYLOAD_SQRTPRICE_OFFSET));
         p.amountIn = data.toUint256(SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
         p.amountOutMinimum = data.toUint256(SwapCalldataLayout.OUTPUT_MIN_OFFSET);
     }

@@ -50,12 +50,6 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
     I1InchAggregationRouterV6 public immutable AGGREGATION_ROUTER;
     uint256 private constant PRECISION = 1e5;
 
-    /// @dev Position of dstReceiver in the payload (first 20 bytes of Layer 2)
-    uint256 private constant DST_RECEIVER_POSITION = SwapCalldataLayout.PAYLOAD_DATA_OFFSET; // 221
-
-    /// @dev Position of txData in the payload (after the 20-byte dstReceiver)
-    uint256 private constant TXDATA_POSITION = SwapCalldataLayout.PAYLOAD_DATA_OFFSET + 20; // 241
-
     address public immutable NATIVE;
 
     /*//////////////////////////////////////////////////////////////
@@ -109,8 +103,8 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
         uint256 inputAmount = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
         bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
         uint256 payloadLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
-        address dstReceiver = BytesLib.toAddress(data, DST_RECEIVER_POSITION);
-        bytes memory txData_ = BytesLib.slice(data, TXDATA_POSITION, payloadLength - 20);
+        bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLength);
+        (address dstReceiver, bytes memory txData_) = abi.decode(payload, (address, bytes));
 
         bytes memory updatedTxData =
             _validateTxData(dstToken, dstReceiver, prevHook, account, usePrevHookAmount, txData_);
@@ -135,7 +129,8 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory packed) {
         uint256 payloadLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
-        bytes memory txData_ = BytesLib.slice(data, TXDATA_POSITION, payloadLength - 20);
+        bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLength);
+        (, bytes memory txData_) = abi.decode(payload, (address, bytes));
 
         bytes4 selector;
         assembly ("memory-safe") {
@@ -488,7 +483,9 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
 
     function _getBalance(bytes calldata data, address account) private view returns (uint256) {
         address dstToken = address(bytes20(data[SwapCalldataLayout.OUTPUT_TOKEN_OFFSET:SwapCalldataLayout.OUTPUT_TOKEN_OFFSET + 20]));
-        address dstReceiver = address(bytes20(data[DST_RECEIVER_POSITION:DST_RECEIVER_POSITION + 20]));
+        uint256 payloadLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLength);
+        (address dstReceiver,) = abi.decode(payload, (address, bytes));
         if (dstReceiver == address(0)) {
             dstReceiver = account;
         }
