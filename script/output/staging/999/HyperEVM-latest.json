@@ -11,7 +11,7 @@
   "ApproveAndRequestDeposit7540VaultHook": "0xef56121Af8553C0a534052b6305301E414E79c41",
   "ApproveAndStargateSendHook": "0x22860E81bd454019d10E12138A3196ae9df1a786",
   "ApproveAndStargateSendHookV2": "0xCe71Ab7a79a7fB0d9FfE31FCc4b4ff8FbF139f49",
-  "ApproveAndSwapKyberSwapHook": "0x77Cb96800742dF3732314837E7a4D822eE77fCC1",
+  "ApproveAndSwapKyberSwapHook": "0xE933772E6DDCaA94608da6eb3b3b7A25554109dC",
   "ApproveAndSwapUniswapV3Hook": "0xB7259282B174d5424dE0f8A3eB398dac9ec75000",
   "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
   "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",

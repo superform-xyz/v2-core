@@ -689,11 +689,28 @@ analyze_deployment_status() {
         echo -e "${GREEN}   No deployment needed - terminating with success${NC}"
         return 0  # All deployed - skip deployment
     elif [[ $needs_deployment == true ]]; then
-        echo -e "${YELLOW}DEPLOYMENT REQUIRED${NC}"
+        echo -e "${YELLOW}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${YELLOW}║${WHITE}                           DEPLOYMENT REQUIRED                                     ${YELLOW}║${NC}"
+        echo -e "${YELLOW}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+        echo ""
         echo -e "${CYAN}   Expected contracts vary per network based on available configurations${NC}"
-        echo -e "${CYAN}   The following networks have missing contracts:${NC}"
-        for network in "${networks_with_missing[@]}"; do
-            echo -e "${CYAN}   - $network${NC}"
+        echo ""
+        echo -e "${WHITE}   Summary of missing contracts per network:${NC}"
+        echo ""
+        for network_id in "${!NETWORK_DEPLOYMENT_STATUS[@]}"; do
+            IFS=':' read -r deployed actual_expected network_name <<< "${NETWORK_DEPLOYMENT_STATUS[$network_id]}"
+            if [[ $deployed -lt $actual_expected ]]; then
+                local missing=$((actual_expected - deployed))
+                echo -e "${YELLOW}   $network_name (Chain $network_id): ${missing} missing out of ${actual_expected}${NC}"
+                if [[ -n "${NETWORK_MISSING_CONTRACTS[$network_id]:-}" ]]; then
+                    # Print each missing contract on its own line for readability
+                    IFS=',' read -ra contracts <<< "${NETWORK_MISSING_CONTRACTS[$network_id]}"
+                    for contract in "${contracts[@]}"; do
+                        contract=$(echo "$contract" | xargs)  # trim whitespace
+                        echo -e "${RED}      - $contract${NC}"
+                    done
+                fi
+            fi
         done
         echo ""
         echo -e "${WHITE}   Only missing contracts will be deployed (existing ones will be skipped)${NC}"
