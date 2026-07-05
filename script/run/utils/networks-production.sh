@@ -6,16 +6,44 @@
 # Define production networks
 # Format: "CHAIN_ID:NetworkName:RPC_VAR"
 NETWORKS=(
+    "1:Ethereum:ETHEREUM_MAINNET"
+    "8453:Base:BASE_MAINNET"
+    "56:BNB:BNB_MAINNET"
+    "42161:Arbitrum:ARBITRUM_MAINNET"
+    "10:Optimism:OPTIMISM_MAINNET"
+    "137:Polygon:POLYGON_MAINNET"
+    "43114:Avalanche:AVALANCHE_MAINNET"
+    "130:Unichain:UNICHAIN_MAINNET"
+    "59144:Linea:LINEA_MAINNET"
+    "80094:Berachain:BERACHAIN_MAINNET"
+    "146:Sonic:SONIC_MAINNET"
+    "100:Gnosis:GNOSIS_MAINNET"
+    "480:Worldchain:WORLDCHAIN_MAINNET"
+    "999:HyperEVM:HYPEREVM_MAINNET"
     "14:Flare:FLARE_MAINNET"
+    "988:Stable:STABLE_MAINNET"
 )
 
 # Network name mapping function
 get_network_name() {
     local network_id=$1
     case "$network_id" in
-        14)
-            echo "Flare"
-            ;;
+        1) echo "Ethereum" ;;
+        8453) echo "Base" ;;
+        56) echo "BNB" ;;
+        42161) echo "Arbitrum" ;;
+        10) echo "Optimism" ;;
+        137) echo "Polygon" ;;
+        43114) echo "Avalanche" ;;
+        130) echo "Unichain" ;;
+        59144) echo "Linea" ;;
+        80094) echo "Berachain" ;;
+        146) echo "Sonic" ;;
+        100) echo "Gnosis" ;;
+        480) echo "Worldchain" ;;
+        999) echo "HyperEVM" ;;
+        14) echo "Flare" ;;
+        988) echo "Stable" ;;
         *)
             echo "ERROR: Unknown production network ID: $network_id" >&2
             return 1
@@ -27,9 +55,22 @@ get_network_name() {
 get_rpc_var() {
     local network_id=$1
     case "$network_id" in
-        14)
-            echo "FLARE_MAINNET"
-            ;;
+        1) echo "ETHEREUM_MAINNET" ;;
+        8453) echo "BASE_MAINNET" ;;
+        56) echo "BNB_MAINNET" ;;
+        42161) echo "ARBITRUM_MAINNET" ;;
+        10) echo "OPTIMISM_MAINNET" ;;
+        137) echo "POLYGON_MAINNET" ;;
+        43114) echo "AVALANCHE_MAINNET" ;;
+        130) echo "UNICHAIN_MAINNET" ;;
+        59144) echo "LINEA_MAINNET" ;;
+        80094) echo "BERACHAIN_MAINNET" ;;
+        146) echo "SONIC_MAINNET" ;;
+        100) echo "GNOSIS_MAINNET" ;;
+        480) echo "WORLDCHAIN_MAINNET" ;;
+        999) echo "HYPEREVM_MAINNET" ;;
+        14) echo "FLARE_MAINNET" ;;
+        988) echo "STABLE_MAINNET" ;;
         *)
             echo "ERROR: Unknown production network ID for RPC: $network_id" >&2
             return 1
@@ -41,9 +82,22 @@ get_rpc_var() {
 get_rpc_url() {
     local network_id=$1
     case "$network_id" in
-        14)
-            echo "$FLARE_MAINNET"
-            ;;
+        1) echo "$ETHEREUM_MAINNET" ;;
+        8453) echo "$BASE_MAINNET" ;;
+        56) echo "$BNB_MAINNET" ;;
+        42161) echo "$ARBITRUM_MAINNET" ;;
+        10) echo "$OPTIMISM_MAINNET" ;;
+        137) echo "$POLYGON_MAINNET" ;;
+        43114) echo "$AVALANCHE_MAINNET" ;;
+        130) echo "$UNICHAIN_MAINNET" ;;
+        59144) echo "$LINEA_MAINNET" ;;
+        80094) echo "$BERACHAIN_MAINNET" ;;
+        146) echo "$SONIC_MAINNET" ;;
+        100) echo "$GNOSIS_MAINNET" ;;
+        480) echo "$WORLDCHAIN_MAINNET" ;;
+        999) echo "$HYPEREVM_MAINNET" ;;
+        14) echo "$FLARE_MAINNET" ;;
+        988) echo "$STABLE_MAINNET" ;;
         *)
             echo "ERROR: Unknown production network ID for RPC: $network_id" >&2
             return 1
@@ -77,11 +131,116 @@ load_rpc_urls_ci() {
 
     local failed_rpcs=()
 
+    echo "  • Loading Ethereum RPC..."
+    if [[ -n "${ETHEREUM_RPC_URL:-}" ]]; then
+        export ETHEREUM_MAINNET="$ETHEREUM_RPC_URL"
+    else
+        failed_rpcs+=("ETHEREUM_RPC_URL")
+    fi
+
+    echo "  • Loading Base RPC..."
+    if [[ -n "${BASE_RPC_URL:-}" ]]; then
+        export BASE_MAINNET="$BASE_RPC_URL"
+    else
+        failed_rpcs+=("BASE_RPC_URL")
+    fi
+
+    echo "  • Loading BNB RPC..."
+    if [[ -n "${BNB_RPC_URL:-}" ]]; then
+        export BNB_MAINNET="$BNB_RPC_URL"
+    else
+        failed_rpcs+=("BNB_RPC_URL")
+    fi
+
+    echo "  • Loading Arbitrum RPC..."
+    if [[ -n "${ARBITRUM_RPC_URL:-}" ]]; then
+        export ARBITRUM_MAINNET="$ARBITRUM_RPC_URL"
+    else
+        failed_rpcs+=("ARBITRUM_RPC_URL")
+    fi
+
+    echo "  • Loading Optimism RPC..."
+    if [[ -n "${OPTIMISM_RPC_URL:-}" ]]; then
+        export OPTIMISM_MAINNET="$OPTIMISM_RPC_URL"
+    else
+        failed_rpcs+=("OPTIMISM_RPC_URL")
+    fi
+
+    echo "  • Loading Polygon RPC..."
+    if [[ -n "${POLYGON_RPC_URL:-}" ]]; then
+        export POLYGON_MAINNET="$POLYGON_RPC_URL"
+    else
+        failed_rpcs+=("POLYGON_RPC_URL")
+    fi
+
+    echo "  • Loading Avalanche RPC..."
+    if [[ -n "${AVALANCHE_RPC_URL:-}" ]]; then
+        export AVALANCHE_MAINNET="$AVALANCHE_RPC_URL"
+    else
+        failed_rpcs+=("AVALANCHE_RPC_URL")
+    fi
+
+    echo "  • Loading Unichain RPC..."
+    if [[ -n "${UNICHAIN_RPC_URL:-}" ]]; then
+        export UNICHAIN_MAINNET="$UNICHAIN_RPC_URL"
+    else
+        failed_rpcs+=("UNICHAIN_RPC_URL")
+    fi
+
+    echo "  • Loading Linea RPC..."
+    if [[ -n "${LINEA_RPC_URL:-}" ]]; then
+        export LINEA_MAINNET="$LINEA_RPC_URL"
+    else
+        failed_rpcs+=("LINEA_RPC_URL")
+    fi
+
+    echo "  • Loading Berachain RPC..."
+    if [[ -n "${BERACHAIN_RPC_URL:-}" ]]; then
+        export BERACHAIN_MAINNET="$BERACHAIN_RPC_URL"
+    else
+        failed_rpcs+=("BERACHAIN_RPC_URL")
+    fi
+
+    echo "  • Loading Sonic RPC..."
+    if [[ -n "${SONIC_RPC_URL:-}" ]]; then
+        export SONIC_MAINNET="$SONIC_RPC_URL"
+    else
+        failed_rpcs+=("SONIC_RPC_URL")
+    fi
+
+    echo "  • Loading Gnosis RPC..."
+    if [[ -n "${GNOSIS_RPC_URL:-}" ]]; then
+        export GNOSIS_MAINNET="$GNOSIS_RPC_URL"
+    else
+        failed_rpcs+=("GNOSIS_RPC_URL")
+    fi
+
+    echo "  • Loading Worldchain RPC..."
+    if [[ -n "${WORLDCHAIN_RPC_URL:-}" ]]; then
+        export WORLDCHAIN_MAINNET="$WORLDCHAIN_RPC_URL"
+    else
+        failed_rpcs+=("WORLDCHAIN_RPC_URL")
+    fi
+
+    echo "  • Loading HyperEVM RPC..."
+    if [[ -n "${HYPEREVM_RPC_URL:-}" ]]; then
+        export HYPEREVM_MAINNET="$HYPEREVM_RPC_URL"
+    else
+        failed_rpcs+=("HYPEREVM_RPC_URL")
+    fi
+
     echo "  • Loading Flare RPC..."
     if [[ -n "${FLARE_RPC_URL:-}" ]]; then
         export FLARE_MAINNET="$FLARE_RPC_URL"
     else
         failed_rpcs+=("FLARE_RPC_URL")
+    fi
+
+    echo "  • Loading Stable RPC..."
+    if [[ -n "${STABLE_RPC_URL:-}" ]]; then
+        export STABLE_MAINNET="$STABLE_RPC_URL"
+    else
+        failed_rpcs+=("STABLE_RPC_URL")
     fi
 
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then
@@ -102,9 +261,84 @@ load_rpc_urls() {
 
     local failed_rpcs=()
 
+    echo "  • Loading Ethereum RPC..."
+    if ! export ETHEREUM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHEREUM_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("ETHEREUM_RPC_URL")
+    fi
+
+    echo "  • Loading Base RPC..."
+    if ! export BASE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("BASE_RPC_URL")
+    fi
+
+    echo "  • Loading BNB RPC..."
+    if ! export BNB_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BNB_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("BNB_RPC_URL")
+    fi
+
+    echo "  • Loading Arbitrum RPC..."
+    if ! export ARBITRUM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ARBITRUM_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("ARBITRUM_RPC_URL")
+    fi
+
+    echo "  • Loading Optimism RPC..."
+    if ! export OPTIMISM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/OPTIMISM_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("OPTIMISM_RPC_URL")
+    fi
+
+    echo "  • Loading Polygon RPC..."
+    if ! export POLYGON_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/POLYGON_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("POLYGON_RPC_URL")
+    fi
+
+    echo "  • Loading Avalanche RPC..."
+    if ! export AVALANCHE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/AVALANCHE_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("AVALANCHE_RPC_URL")
+    fi
+
+    echo "  • Loading Unichain RPC..."
+    if ! export UNICHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/UNICHAIN_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("UNICHAIN_RPC_URL")
+    fi
+
+    echo "  • Loading Linea RPC..."
+    if ! export LINEA_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/LINEA_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("LINEA_RPC_URL")
+    fi
+
+    echo "  • Loading Berachain RPC..."
+    if ! export BERACHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BERACHAIN_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("BERACHAIN_RPC_URL")
+    fi
+
+    echo "  • Loading Sonic RPC..."
+    if ! export SONIC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/SONIC_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("SONIC_RPC_URL")
+    fi
+
+    echo "  • Loading Gnosis RPC..."
+    if ! export GNOSIS_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/GNOSIS_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("GNOSIS_RPC_URL")
+    fi
+
+    echo "  • Loading Worldchain RPC..."
+    if ! export WORLDCHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/WORLDCHAIN_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("WORLDCHAIN_RPC_URL")
+    fi
+
+    echo "  • Loading HyperEVM RPC..."
+    if ! export HYPEREVM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/HYPEREVM_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("HYPEREVM_RPC_URL")
+    fi
+
     echo "  • Loading Flare RPC..."
     if ! export FLARE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/FLARE_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
         failed_rpcs+=("FLARE_RPC_URL")
+    fi
+
+    echo "  • Loading Stable RPC..."
+    if ! export STABLE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/STABLE_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("STABLE_RPC_URL")
     fi
 
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then
