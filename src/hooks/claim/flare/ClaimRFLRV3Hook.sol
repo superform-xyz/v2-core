@@ -17,7 +17,7 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 /// @dev rFLR tokens are non-transferable, so fee collection is not supported at the claim stage.
 ///      Fees should be collected at the WFLR withdrawal stage via WithdrawRFLRHook.
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toUint256(data, 0);
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         (empty -- this hook is parameterless and ignores calldata)
 contract ClaimRFLRV3Hook is BaseHook {

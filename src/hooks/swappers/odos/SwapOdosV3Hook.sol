@@ -25,7 +25,7 @@ import {
 /// @author Superform Labs
 /// @dev Payload: abi.encode(address inputReceiver, bytes pathDefinition, address executor, uint64 referralCode, uint64 referralFee, address feeRecipient)
 /// @dev data has the following structure (standard 52-byte strategy header + Layer 1 + Layer 2):
-/// @notice         uint256   placeholder0     = BytesLib.toUint256(data, 0);
+/// @notice         bytes32   placeholder0     = BytesLib.toUint256(data, 0);
 /// @notice         address   placeholder1     = BytesLib.toAddress(data, 32);
 /// @notice         address   inputToken       = BytesLib.toAddress(data, 52);
 /// @notice         address   outputToken      = BytesLib.toAddress(data, 72);

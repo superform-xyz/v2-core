@@ -24,7 +24,7 @@ import { IStandardizedYield } from "../../../vendor/pendle/IStandardizedYield.so
 /// @author Superform Labs
 /// @notice Hook for redeeming PT+YT via Pendle Router V4
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toUint256(data, 0);
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 52);
 /// @notice         address yt = BytesLib.toAddress(data, 84);

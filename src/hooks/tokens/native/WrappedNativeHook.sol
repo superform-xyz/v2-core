@@ -22,7 +22,7 @@ import {
 /// @notice Hook for wrapping native tokens into their ERC-20 equivalent (e.g. ETH -> WETH, FLR -> WFLR)
 ///         or unwrapping them back (e.g. WETH -> ETH, WFLR -> FLR)
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toUint256(data, 0);
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 52);
 /// @notice         bool wrap = _decodeBool(data, 84);              // true = wrap (native -> wrapped), false = unwrap (wrapped -> native)

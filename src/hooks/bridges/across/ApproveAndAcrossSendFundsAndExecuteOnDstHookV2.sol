@@ -30,7 +30,7 @@ import {
 /// @dev This hook adds approval pattern (approve 0 -> approve amount -> execute -> approve 0) to the bridge operation
 /// @dev For native token transfers, use AcrossSendFundsAndExecuteOnDstHookV2 instead
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toUint256(data, 0);
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         uint256 value = BytesLib.toUint256(data, 52);
 /// @notice         address recipient = BytesLib.toAddress(data, 84);

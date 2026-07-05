@@ -6,14 +6,14 @@
 # Define staging networks
 # Format: "CHAIN_ID:NetworkName:RPC_VAR"
 NETWORKS=(
-    "1:Ethereum:ETHEREUM_MAINNET"
+    "1:Ethereum:ETH_MAINNET"
     "8453:Base:BASE_MAINNET"
-    "56:BNB:BNB_MAINNET"
+    "56:BNB:BSC_MAINNET"
     "42161:Arbitrum:ARBITRUM_MAINNET"
     "10:Optimism:OPTIMISM_MAINNET"
     "137:Polygon:POLYGON_MAINNET"
-    "43114:Avalanche:AVALANCHE_MAINNET"
     "130:Unichain:UNICHAIN_MAINNET"
+    "43114:Avalanche:AVALANCHE_MAINNET"
     "59144:Linea:LINEA_MAINNET"
     "80094:Berachain:BERACHAIN_MAINNET"
     "146:Sonic:SONIC_MAINNET"
@@ -28,22 +28,54 @@ NETWORKS=(
 get_network_name() {
     local network_id=$1
     case "$network_id" in
-        1) echo "Ethereum" ;;
-        8453) echo "Base" ;;
-        56) echo "BNB" ;;
-        42161) echo "Arbitrum" ;;
-        10) echo "Optimism" ;;
-        137) echo "Polygon" ;;
-        43114) echo "Avalanche" ;;
-        130) echo "Unichain" ;;
-        59144) echo "Linea" ;;
-        80094) echo "Berachain" ;;
-        146) echo "Sonic" ;;
-        100) echo "Gnosis" ;;
-        480) echo "Worldchain" ;;
-        999) echo "HyperEVM" ;;
-        14) echo "Flare" ;;
-        988) echo "Stable" ;;
+        1)
+            echo "Ethereum"
+            ;;
+        8453)
+            echo "Base"
+            ;;
+        56)
+            echo "BNB"
+            ;;
+        42161)
+            echo "Arbitrum"
+            ;;
+        10)
+            echo "Optimism"
+            ;;
+        137)
+            echo "Polygon"
+            ;;
+        130)
+            echo "Unichain"
+            ;;
+        43114)
+            echo "Avalanche"
+            ;;
+        59144)
+            echo "Linea"
+            ;;
+        80094)
+            echo "Berachain"
+            ;;
+        146)
+            echo "Sonic"
+            ;;
+        100)
+            echo "Gnosis"
+            ;;
+        480)
+            echo "Worldchain"
+            ;;
+        999)
+            echo "HyperEVM"
+            ;;
+        14)
+            echo "Flare"
+            ;;
+        988)
+            echo "Stable"
+            ;;
         *)
             echo "ERROR: Unknown staging network ID: $network_id" >&2
             return 1
@@ -55,22 +87,54 @@ get_network_name() {
 get_rpc_var() {
     local network_id=$1
     case "$network_id" in
-        1) echo "ETHEREUM_MAINNET" ;;
-        8453) echo "BASE_MAINNET" ;;
-        56) echo "BNB_MAINNET" ;;
-        42161) echo "ARBITRUM_MAINNET" ;;
-        10) echo "OPTIMISM_MAINNET" ;;
-        137) echo "POLYGON_MAINNET" ;;
-        43114) echo "AVALANCHE_MAINNET" ;;
-        130) echo "UNICHAIN_MAINNET" ;;
-        59144) echo "LINEA_MAINNET" ;;
-        80094) echo "BERACHAIN_MAINNET" ;;
-        146) echo "SONIC_MAINNET" ;;
-        100) echo "GNOSIS_MAINNET" ;;
-        480) echo "WORLDCHAIN_MAINNET" ;;
-        999) echo "HYPEREVM_MAINNET" ;;
-        14) echo "FLARE_MAINNET" ;;
-        988) echo "STABLE_MAINNET" ;;
+        1)
+            echo "ETH_MAINNET"
+            ;;
+        8453)
+            echo "BASE_MAINNET"
+            ;;
+        56)
+            echo "BSC_MAINNET"
+            ;;
+        42161)
+            echo "ARBITRUM_MAINNET"
+            ;;
+        10)
+            echo "OPTIMISM_MAINNET"
+            ;;
+        137)
+            echo "POLYGON_MAINNET"
+            ;;
+        130)
+            echo "UNICHAIN_MAINNET"
+            ;;
+        43114)
+            echo "AVALANCHE_MAINNET"
+            ;;
+        59144)
+            echo "LINEA_MAINNET"
+            ;;
+        80094)
+            echo "BERACHAIN_MAINNET"
+            ;;
+        146)
+            echo "SONIC_MAINNET"
+            ;;
+        100)
+            echo "GNOSIS_MAINNET"
+            ;;
+        480)
+            echo "WORLDCHAIN_MAINNET"
+            ;;
+        999)
+            echo "HYPEREVM_MAINNET"
+            ;;
+        14)
+            echo "FLARE_MAINNET"
+            ;;
+        988)
+            echo "STABLE_MAINNET"
+            ;;
         *)
             echo "ERROR: Unknown staging network ID for RPC: $network_id" >&2
             return 1
@@ -82,22 +146,54 @@ get_rpc_var() {
 get_rpc_url() {
     local network_id=$1
     case "$network_id" in
-        1) echo "$ETHEREUM_MAINNET" ;;
-        8453) echo "$BASE_MAINNET" ;;
-        56) echo "$BNB_MAINNET" ;;
-        42161) echo "$ARBITRUM_MAINNET" ;;
-        10) echo "$OPTIMISM_MAINNET" ;;
-        137) echo "$POLYGON_MAINNET" ;;
-        43114) echo "$AVALANCHE_MAINNET" ;;
-        130) echo "$UNICHAIN_MAINNET" ;;
-        59144) echo "$LINEA_MAINNET" ;;
-        80094) echo "$BERACHAIN_MAINNET" ;;
-        146) echo "$SONIC_MAINNET" ;;
-        100) echo "$GNOSIS_MAINNET" ;;
-        480) echo "$WORLDCHAIN_MAINNET" ;;
-        999) echo "$HYPEREVM_MAINNET" ;;
-        14) echo "$FLARE_MAINNET" ;;
-        988) echo "$STABLE_MAINNET" ;;
+        1)
+            echo "$ETH_MAINNET"
+            ;;
+        8453)
+            echo "$BASE_MAINNET"
+            ;;
+        56)
+            echo "$BSC_MAINNET"
+            ;;
+        42161)
+            echo "$ARBITRUM_MAINNET"
+            ;;
+        10)
+            echo "$OPTIMISM_MAINNET"
+            ;;
+        137)
+            echo "$POLYGON_MAINNET"
+            ;;
+        130)
+            echo "$UNICHAIN_MAINNET"
+            ;;
+        43114)
+            echo "$AVALANCHE_MAINNET"
+            ;;
+        59144)
+            echo "$LINEA_MAINNET"
+            ;;
+        80094)
+            echo "$BERACHAIN_MAINNET"
+            ;;
+        146)
+            echo "$SONIC_MAINNET"
+            ;;
+        100)
+            echo "$GNOSIS_MAINNET"
+            ;;
+        480)
+            echo "$WORLDCHAIN_MAINNET"
+            ;;
+        999)
+            echo "$HYPEREVM_MAINNET"
+            ;;
+        14)
+            echo "$FLARE_MAINNET"
+            ;;
+        988)
+            echo "$STABLE_MAINNET"
+            ;;
         *)
             echo "ERROR: Unknown staging network ID for RPC: $network_id" >&2
             return 1
@@ -132,67 +228,67 @@ load_rpc_urls() {
     local failed_rpcs=()
 
     echo "  • Loading Ethereum RPC..."
-    if ! export ETHEREUM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHEREUM_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+    if ! export ETH_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHEREUM_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("ETHEREUM_RPC_URL")
     fi
 
     echo "  • Loading Base RPC..."
-    if ! export BASE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+    if ! export BASE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("BASE_RPC_URL")
     fi
 
-    echo "  • Loading BNB RPC..."
-    if ! export BNB_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BNB_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
-        failed_rpcs+=("BNB_RPC_URL")
+    echo "  • Loading BSC RPC..."
+    if ! export BSC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BSC_RPC_URL/credential 2>/dev/null); then
+        failed_rpcs+=("BSC_RPC_URL")
     fi
 
     echo "  • Loading Arbitrum RPC..."
-    if ! export ARBITRUM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ARBITRUM_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+    if ! export ARBITRUM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ARBITRUM_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("ARBITRUM_RPC_URL")
     fi
 
     echo "  • Loading Optimism RPC..."
-    if ! export OPTIMISM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/OPTIMISM_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+    if ! export OPTIMISM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/OPTIMISM_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("OPTIMISM_RPC_URL")
     fi
 
     echo "  • Loading Polygon RPC..."
-    if ! export POLYGON_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/POLYGON_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+    if ! export POLYGON_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/POLYGON_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("POLYGON_RPC_URL")
     fi
 
-    echo "  • Loading Avalanche RPC..."
-    if ! export AVALANCHE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/AVALANCHE_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
-        failed_rpcs+=("AVALANCHE_RPC_URL")
-    fi
-
     echo "  • Loading Unichain RPC..."
-    if ! export UNICHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/UNICHAIN_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+    if ! export UNICHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/UNICHAIN_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("UNICHAIN_RPC_URL")
     fi
 
+    echo "  • Loading Avalanche RPC..."
+    if ! export AVALANCHE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/AVALANCHE_RPC_URL/credential 2>/dev/null); then
+        failed_rpcs+=("AVALANCHE_RPC_URL")
+    fi
+
     echo "  • Loading Linea RPC..."
-    if ! export LINEA_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/LINEA_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+    if ! export LINEA_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/LINEA_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("LINEA_RPC_URL")
     fi
 
     echo "  • Loading Berachain RPC..."
-    if ! export BERACHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BERACHAIN_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+    if ! export BERACHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BERACHAIN_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("BERACHAIN_RPC_URL")
     fi
 
     echo "  • Loading Sonic RPC..."
-    if ! export SONIC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/SONIC_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+    if ! export SONIC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/SONIC_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("SONIC_RPC_URL")
     fi
 
     echo "  • Loading Gnosis RPC..."
-    if ! export GNOSIS_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/GNOSIS_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+    if ! export GNOSIS_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/GNOSIS_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("GNOSIS_RPC_URL")
     fi
 
     echo "  • Loading Worldchain RPC..."
-    if ! export WORLDCHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/WORLDCHAIN_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+    if ! export WORLDCHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/WORLDCHAIN_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("WORLDCHAIN_RPC_URL")
     fi
 
@@ -220,7 +316,7 @@ load_rpc_urls() {
         return 1
     fi
 
-    echo "✅ Staging RPC URLs loaded successfully"
+    echo "✅ Staging RPC URLs loaded successfully (all networks)"
 }
 
 # Load Etherscan V2 API key for verification

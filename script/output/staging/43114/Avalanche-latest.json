@@ -5,7 +5,7 @@
   "ApproveAndRequestDeposit7540VaultHook": "0xef56121Af8553C0a534052b6305301E414E79c41",
   "ApproveAndStargateSendHook": "0x22860E81bd454019d10E12138A3196ae9df1a786",
   "ApproveAndStargateSendHookV2": "0xCe71Ab7a79a7fB0d9FfE31FCc4b4ff8FbF139f49",
-  "ApproveAndSwapKyberSwapHook": "0x77Cb96800742dF3732314837E7a4D822eE77fCC1",
+  "ApproveAndSwapKyberSwapHook": "0xE933772E6DDCaA94608da6eb3b3b7A25554109dC",
   "ApproveAndSwapOdosV2Hook": "0x9a32E76B39B23f5d9e4F17024A70E84EE508c893",
   "ApproveAndSwapOdosV3Hook": "0x48a3EE7eaB80A4321265916377d0d947892da76c",
   "ApproveAndSwapUniswapV3Router02Hook": "0x6FE2356d523ca22DdFCC5a647A005F79D8544C7a",

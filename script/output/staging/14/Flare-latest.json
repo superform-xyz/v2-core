@@ -6,7 +6,7 @@
   "ApproveAndStargateSendHook": "0x22860E81bd454019d10E12138A3196ae9df1a786",
   "ApproveAndStargateSendHookV2": "0xCe71Ab7a79a7fB0d9FfE31FCc4b4ff8FbF139f49",
   "ApproveAndSwapAlgebraIntegralHook": "0x9ce8A0eB6B2E44b87f05361a112852D76029042D",
-  "ApproveAndSwapOpenOceanHook": "0x57f3dB139cF644477Bd654854Cf9D8E39c3b81CE",
+  "ApproveAndSwapOpenOceanHook": "0xbeC0F4F09C65A185C8191EF34732Cc90BDca428D",
   "ApproveAndSwapUniswapV2Hook": "0x0b64fcA7190c3D141eb154D4a7fE0cEF4B2bfEC6",
   "ApproveERC20Hook": "0xD3490320fFAE7d38AaaEe4269b4A5c1700f71FDB",
   "BatchTransferFromHook": "0x71bF940153Edab9B63B4b813A6D9D21B188EA07a",

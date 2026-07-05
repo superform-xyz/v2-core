@@ -21,7 +21,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title GearboxClaimRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toUint256(data, 0);
 /// @notice         address farmingPool = BytesLib.toAddress(data, 32);
 /// @notice         address rewardToken = BytesLib.toAddress(data, 52);
 /// @notice         address account = BytesLib.toAddress(data, 72);

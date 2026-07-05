@@ -17,7 +17,7 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 /// @dev Withdraws supplied loan assets (lend-side) via IMorphoBase.withdraw.
 ///      To withdraw posted collateral use MorphoRepayAndWithdrawHook (IMorphoBase.withdrawCollateral).
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toUint256(data, 0);
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);

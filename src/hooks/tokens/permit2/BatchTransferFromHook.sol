@@ -17,7 +17,7 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 /// @title BatchTransferFromHook
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toUint256(data, 0);
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice     address from = BytesLib.toAddress(data, 52);
 /// @notice     uint256 tokensLength = BytesLib.toUint256(data, 72);

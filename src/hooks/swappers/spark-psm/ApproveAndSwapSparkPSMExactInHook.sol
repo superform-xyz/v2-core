@@ -20,7 +20,7 @@ import { IPSM3 } from "../../../vendor/spark/IPSM3.sol";
 /// @notice Hook for executing exact-input swaps via Spark PSM with approval handling
 /// @dev Handles: approve(0) -> approve(amountIn) -> swapExactIn -> approve(0)
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toUint256(data, 0);
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address assetIn = BytesLib.toAddress(data, 52);
 /// @notice         address assetOut = BytesLib.toAddress(data, 72);

@@ -25,7 +25,7 @@ import { IV3SwapRouter } from "./interfaces/IV3SwapRouter.sol";
 /// @dev SwapRouter02 removes deadline from ExactInputSingleParams (deadline handled via multicall wrapper)
 /// @dev Fee-on-transfer and rebasing tokens are NOT supported (Uniswap V3 limitation)
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         uint256 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toUint256(data, 0);
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address tokenIn = BytesLib.toAddress(data, 52);
 /// @notice         address tokenOut = BytesLib.toAddress(data, 72);

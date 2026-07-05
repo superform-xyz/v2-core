@@ -18,7 +18,7 @@
   "ApproveAndRequestRedeemDETHHook": "0x9fD101A8F416703B3D973878594f48eaeC292B24",
   "ApproveAndStargateSendHook": "0x22860E81bd454019d10E12138A3196ae9df1a786",
   "ApproveAndStargateSendHookV2": "0xCe71Ab7a79a7fB0d9FfE31FCc4b4ff8FbF139f49",
-  "ApproveAndSwapKyberSwapHook": "0x77Cb96800742dF3732314837E7a4D822eE77fCC1",
+  "ApproveAndSwapKyberSwapHook": "0xE933772E6DDCaA94608da6eb3b3b7A25554109dC",
   "ApproveAndSwapOdosV2Hook": "0x914E5063eb4Ae155AFa5fedE042c71d0b3B4b28C",
   "ApproveAndSwapOdosV3Hook": "0x48a3EE7eaB80A4321265916377d0d947892da76c",
   "ApproveAndSwapUniswapV3Router02Hook": "0x1aBc6463fF40bb78Cca8b8F3d2836d2BD0B1bf21",
