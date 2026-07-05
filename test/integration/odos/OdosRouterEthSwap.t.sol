@@ -125,12 +125,8 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
                 bytes32(amount), // outputQuote @124
                 bytes32(amount - amount * 1e4 / 1e5), // outputMin @156
                 bytes1(uint8(1)), // usePrevHookAmount @188
-                bytes32(uint256(20 + 32 + 0 + 20 + 4)), // payloadLength @189 = 76
-                bytes20(accountEth), // inputReceiver @221
-                bytes32(uint256(0)), // pathDefLength @241
-                // empty pathDefinition
-                bytes20(address(0)), // executor
-                bytes4(uint32(0)) // referralCode
+                bytes32(abi.encode(accountEth, bytes(""), address(0), uint32(0)).length), // payloadLength @189
+                abi.encode(accountEth, bytes(""), address(0), uint32(0))
             );
             hookData[1] = odosCalldata;
 
@@ -228,12 +224,8 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
                 bytes32(amount), // outputQuote @124
                 bytes32(amount - amount * 1e4 / 1e5), // outputMin @156
                 bytes1(uint8(1)), // usePrevHookAmount @188
-                bytes32(uint256(20 + 32 + 0 + 20 + 4)), // payloadLength @189 = 76
-                bytes20(accountEth), // inputReceiver @221
-                bytes32(uint256(0)), // pathDefLength @241
-                // empty pathDefinition
-                bytes20(address(0)), // executor
-                bytes4(uint32(0)) // referralCode
+                bytes32(abi.encode(accountEth, bytes(""), address(0), uint32(0)).length), // payloadLength @189
+                abi.encode(accountEth, bytes(""), address(0), uint32(0))
             );
             hookData[1] = odosCalldata;
 

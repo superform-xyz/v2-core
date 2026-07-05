@@ -59,9 +59,8 @@ contract OneInchHookFail is MinimalBaseIntegrationTest {
             bytes32(uint256(0)), // outputQuote @124
             bytes32(uint256(0)), // outputMin @156
             bytes1(uint8(0)), // usePrevHookAmount @188
-            bytes32(uint256(20 + callData.length)), // payloadLength @189
-            bytes20(accountEth), // dstReceiver @221
-            callData
+            bytes32(abi.encode(accountEth, callData).length), // payloadLength @189
+            abi.encode(accountEth, callData)
         );
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -96,9 +95,8 @@ contract OneInchHookFail is MinimalBaseIntegrationTest {
             bytes32(uint256(0)), // outputQuote @124
             bytes32(uint256(0)), // outputMin @156
             bytes1(uint8(1)), // usePrevHookAmount @188
-            bytes32(uint256(20 + callData.length)), // payloadLength @189
-            bytes20(accountEth), // dstReceiver @221
-            callData
+            bytes32(abi.encode(accountEth, callData).length), // payloadLength @189
+            abi.encode(accountEth, callData)
         );
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });

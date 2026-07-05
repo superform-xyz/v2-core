@@ -78,6 +78,7 @@ contract AlgebraIntegralFlareE2E is Test, Constants {
         view
         returns (bytes memory)
     {
+        bytes memory payload = abi.encode(deployer, block.timestamp + 1800, uint160(0));
         return abi.encodePacked(
             bytes32(0), // header @0
             address(0), // header @32
@@ -87,10 +88,8 @@ contract AlgebraIntegralFlareE2E is Test, Constants {
             uint256(0), // outputQuote @124
             amountOutMinimum, // outputMin @156
             usePrevHookAmount, // @188
-            uint256(84), // payloadLength @189 (deployer=20+deadline=32+sqrtPrice=32)
-            bytes20(deployer), // deployer @221
-            uint256(block.timestamp + 1800), // deadline @241
-            uint256(0) // limitSqrtPrice @273
+            payload.length, // payloadLength @189
+            payload
         );
     }
 

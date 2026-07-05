@@ -107,7 +107,7 @@ contract UniswapV3HookIntegrationTest is MinimalBaseIntegrationTest {
         pure
         returns (bytes memory)
     {
-        // Split to avoid stack-too-deep
+        bytes memory payload = abi.encode(fee, deadline, sqrtPriceLimitX96);
         bytes memory layer1 = abi.encodePacked(
             bytes32(0), address(0), // header @0
             tokenIn, tokenOut, // inputToken @52, outputToken @72
@@ -115,14 +115,9 @@ contract UniswapV3HookIntegrationTest is MinimalBaseIntegrationTest {
             uint256(0), // outputQuote @124
             amountOutMinimum, // outputMin @156
             usePrevHookAmount, // @188
-            uint256(68) // payloadLength @189
+            payload.length // payloadLength @189
         );
-        return bytes.concat(
-            layer1,
-            bytes4(uint32(fee)), // fee @221
-            bytes32(deadline), // deadline @225
-            bytes32(uint256(sqrtPriceLimitX96)) // sqrtPriceLimitX96 @257
-        );
+        return bytes.concat(layer1, payload);
     }
 
     /// @notice Execute a swap using the hook via SuperExecutor
@@ -551,7 +546,7 @@ contract UniswapV3HookEdgeCaseTests is MinimalBaseIntegrationTest {
         pure
         returns (bytes memory)
     {
-        // Split to avoid stack-too-deep
+        bytes memory payload = abi.encode(fee, deadline, sqrtPriceLimitX96);
         bytes memory layer1 = abi.encodePacked(
             bytes32(0), // header: yieldSourceOracleId
             address(0), // header: yieldSource
@@ -561,14 +556,9 @@ contract UniswapV3HookEdgeCaseTests is MinimalBaseIntegrationTest {
             uint256(0), // outputQuote @124
             amountOutMinimum, // outputMin @156
             usePrevHookAmount, // usePrevHookAmount @188
-            uint256(68) // payloadLength @189
+            payload.length // payloadLength @189
         );
-        return bytes.concat(
-            layer1,
-            bytes4(uint32(fee)), // fee @221 (4 bytes)
-            bytes32(deadline), // deadline @225
-            bytes32(uint256(sqrtPriceLimitX96)) // sqrtPriceLimitX96 @257
-        );
+        return bytes.concat(layer1, payload);
     }
 
     /*//////////////////////////////////////////////////////////////
