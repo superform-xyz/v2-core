@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Staging Network Configuration for V2 Core Deployment
-# This file contains staging network definitions (all mainnet networks)
+# This file contains staging network definitions (subset for testing)
 
 # Define staging networks
 # Format: "CHAIN_ID:NetworkName:RPC_VAR"
@@ -10,18 +10,9 @@ NETWORKS=(
     "8453:Base:BASE_MAINNET"
     "56:BNB:BSC_MAINNET"
     "42161:Arbitrum:ARBITRUM_MAINNET"
-    "10:Optimism:OPTIMISM_MAINNET"
-    "137:Polygon:POLYGON_MAINNET"
-    "130:Unichain:UNICHAIN_MAINNET"
     "43114:Avalanche:AVALANCHE_MAINNET"
-    "59144:Linea:LINEA_MAINNET"
-    "80094:Berachain:BERACHAIN_MAINNET"
-    "146:Sonic:SONIC_MAINNET"
-    "100:Gnosis:GNOSIS_MAINNET"
-    "480:Worldchain:WORLDCHAIN_MAINNET"
     "999:HyperEVM:HYPEREVM_MAINNET"
     "14:Flare:FLARE_MAINNET"
-    "988:Stable:STABLE_MAINNET"
 )
 
 # Network name mapping function
@@ -40,41 +31,14 @@ get_network_name() {
         42161)
             echo "Arbitrum"
             ;;
-        10)
-            echo "Optimism"
-            ;;
-        137)
-            echo "Polygon"
-            ;;
-        130)
-            echo "Unichain"
-            ;;
         43114)
             echo "Avalanche"
-            ;;
-        59144)
-            echo "Linea"
-            ;;
-        80094)
-            echo "Berachain"
-            ;;
-        146)
-            echo "Sonic"
-            ;;
-        100)
-            echo "Gnosis"
-            ;;
-        480)
-            echo "Worldchain"
             ;;
         999)
             echo "HyperEVM"
             ;;
         14)
             echo "Flare"
-            ;;
-        988)
-            echo "Stable"
             ;;
         *)
             echo "ERROR: Unknown staging network ID: $network_id" >&2
@@ -99,41 +63,14 @@ get_rpc_var() {
         42161)
             echo "ARBITRUM_MAINNET"
             ;;
-        10)
-            echo "OPTIMISM_MAINNET"
-            ;;
-        137)
-            echo "POLYGON_MAINNET"
-            ;;
-        130)
-            echo "UNICHAIN_MAINNET"
-            ;;
         43114)
             echo "AVALANCHE_MAINNET"
-            ;;
-        59144)
-            echo "LINEA_MAINNET"
-            ;;
-        80094)
-            echo "BERACHAIN_MAINNET"
-            ;;
-        146)
-            echo "SONIC_MAINNET"
-            ;;
-        100)
-            echo "GNOSIS_MAINNET"
-            ;;
-        480)
-            echo "WORLDCHAIN_MAINNET"
             ;;
         999)
             echo "HYPEREVM_MAINNET"
             ;;
         14)
             echo "FLARE_MAINNET"
-            ;;
-        988)
-            echo "STABLE_MAINNET"
             ;;
         *)
             echo "ERROR: Unknown staging network ID for RPC: $network_id" >&2
@@ -158,41 +95,14 @@ get_rpc_url() {
         42161)
             echo "$ARBITRUM_MAINNET"
             ;;
-        10)
-            echo "$OPTIMISM_MAINNET"
-            ;;
-        137)
-            echo "$POLYGON_MAINNET"
-            ;;
-        130)
-            echo "$UNICHAIN_MAINNET"
-            ;;
         43114)
             echo "$AVALANCHE_MAINNET"
-            ;;
-        59144)
-            echo "$LINEA_MAINNET"
-            ;;
-        80094)
-            echo "$BERACHAIN_MAINNET"
-            ;;
-        146)
-            echo "$SONIC_MAINNET"
-            ;;
-        100)
-            echo "$GNOSIS_MAINNET"
-            ;;
-        480)
-            echo "$WORLDCHAIN_MAINNET"
             ;;
         999)
             echo "$HYPEREVM_MAINNET"
             ;;
         14)
             echo "$FLARE_MAINNET"
-            ;;
-        988)
-            echo "$STABLE_MAINNET"
             ;;
         *)
             echo "ERROR: Unknown staging network ID for RPC: $network_id" >&2
@@ -247,49 +157,9 @@ load_rpc_urls() {
         failed_rpcs+=("ARBITRUM_RPC_URL")
     fi
 
-    echo "  • Loading Optimism RPC..."
-    if ! export OPTIMISM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/OPTIMISM_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("OPTIMISM_RPC_URL")
-    fi
-
-    echo "  • Loading Polygon RPC..."
-    if ! export POLYGON_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/POLYGON_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("POLYGON_RPC_URL")
-    fi
-
-    echo "  • Loading Unichain RPC..."
-    if ! export UNICHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/UNICHAIN_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("UNICHAIN_RPC_URL")
-    fi
-
     echo "  • Loading Avalanche RPC..."
     if ! export AVALANCHE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/AVALANCHE_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("AVALANCHE_RPC_URL")
-    fi
-
-    echo "  • Loading Linea RPC..."
-    if ! export LINEA_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/LINEA_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("LINEA_RPC_URL")
-    fi
-
-    echo "  • Loading Berachain RPC..."
-    if ! export BERACHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BERACHAIN_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("BERACHAIN_RPC_URL")
-    fi
-
-    echo "  • Loading Sonic RPC..."
-    if ! export SONIC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/SONIC_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("SONIC_RPC_URL")
-    fi
-
-    echo "  • Loading Gnosis RPC..."
-    if ! export GNOSIS_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/GNOSIS_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("GNOSIS_RPC_URL")
-    fi
-
-    echo "  • Loading Worldchain RPC..."
-    if ! export WORLDCHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/WORLDCHAIN_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("WORLDCHAIN_RPC_URL")
     fi
 
     echo "  • Loading HyperEVM RPC..."
@@ -300,11 +170,6 @@ load_rpc_urls() {
     echo "  • Loading Flare RPC..."
     if ! export FLARE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/FLARE_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
         failed_rpcs+=("FLARE_RPC_URL")
-    fi
-
-    echo "  • Loading Stable RPC..."
-    if ! export STABLE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/STABLE_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
-        failed_rpcs+=("STABLE_RPC_URL")
     fi
 
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then
