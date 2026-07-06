@@ -173,7 +173,7 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
             );
 
             hookData[1] =
-                abi.encodePacked(bytes32(bytes("")), address(pendleMarketMock), bytes1(uint8(0)), uint256(0), txData);
+                abi.encodePacked(bytes32(bytes("")), address(pendleMarketMock), bytes1(uint8(0)), abi.encode(uint256(0), txData));
 
             ISuperExecutor.ExecutorEntry memory entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
@@ -369,13 +369,9 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
     {
         return abi.encodePacked(
             bytes32(0), address(0), // 52-byte strategy header
-            amount,
-            yt,
-            pt,
-            tokenOut,
-            minTokenOut,
-            usePrevHookAmount,
-            abi.encode(_createPendleRedeemTokenOutput(tokenOut, minTokenOut, tokenRedeemSy))
+            amount, // offset 52
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // offset 84
+            abi.encode(yt, pt, tokenOut, minTokenOut, _createPendleRedeemTokenOutput(tokenOut, minTokenOut, tokenRedeemSy)) // payload at offset 85
         );
     }
 
@@ -427,17 +423,10 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
             revert("Not implemented");
         }
         return abi.encodePacked(
-            /**
-             * yieldSourceOracleId
-             */
-            bytes32(bytes("")),
-            /**
-             * yieldSource
-             */
-            market,
-            usePrevHookAmount,
-            value,
-            pendleTxData
+            bytes32(bytes("")), // placeholder0
+            market, // yieldSource
+            usePrevHookAmount, // offset 52
+            abi.encode(value, pendleTxData) // payload at offset 53
         );
     }
 
@@ -503,11 +492,10 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
         );
 
         bytes memory hookData = abi.encodePacked(
-            bytes32(bytes("")), 
-            address(pendleMarketMock), 
+            bytes32(bytes("")),
+            address(pendleMarketMock),
             bytes1(uint8(0)), // usePrevHookAmount = false
-            usdcAmount, // value provided but should be ignored for ERC20
-            txData
+            abi.encode(usdcAmount, txData) // payload at offset 53
         );
 
         // Execute with ERC20 token - should use value=0 internally

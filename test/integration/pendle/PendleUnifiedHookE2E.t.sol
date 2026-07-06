@@ -478,7 +478,7 @@ contract PendleUnifiedHookE2E is Test {
         bytes memory txData = abi.encodeWithSelector(IPendleRouterV4.redeemPyToToken.selector, user, yt_, amount_, output);
 
         return abi.encodePacked(
-            bytes32(0), market_, bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)), uint256(0), txData
+            bytes32(0), market_, bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)), abi.encode(uint256(0), txData)
         );
     }
 
@@ -539,7 +539,7 @@ contract PendleUnifiedHookE2E is Test {
         );
 
         return abi.encodePacked(
-            bytes32(0), yieldSource_, bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)), uint256(0), txData
+            bytes32(0), yieldSource_, bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)), abi.encode(uint256(0), txData)
         );
     }
 
@@ -576,7 +576,7 @@ contract PendleUnifiedHookE2E is Test {
         );
 
         return abi.encodePacked(
-            bytes32(0), market_, bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)), uint256(0), txData
+            bytes32(0), market_, bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)), abi.encode(uint256(0), txData)
         );
     }
 

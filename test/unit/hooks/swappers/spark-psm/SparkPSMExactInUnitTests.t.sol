@@ -97,7 +97,7 @@ contract SparkPSMExactInTest is Helpers {
     }
 
     function test_SwapHook_Build_RevertIf_InvalidHookData() public {
-        bytes memory shortData = new bytes(208); // Less than 209
+        bytes memory shortData = new bytes(220); // Less than 221
         vm.expectRevert(SwapSparkPSMExactInHook.INVALID_HOOK_DATA.selector);
         swapHook.build(address(prevHook), account, shortData);
     }
@@ -197,7 +197,7 @@ contract SparkPSMExactInTest is Helpers {
     }
 
     function test_ApproveAndSwapHook_Build_RevertIf_InvalidHookData() public {
-        bytes memory shortData = new bytes(208); // Less than 209
+        bytes memory shortData = new bytes(220); // Less than 221
         vm.expectRevert(ApproveAndSwapSparkPSMExactInHook.INVALID_HOOK_DATA.selector);
         approveAndSwapHook.build(address(prevHook), account, shortData);
     }
@@ -248,7 +248,7 @@ contract SparkPSMExactInTest is Helpers {
 
     function test_SwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 209);
+        assertEq(data.length, 221);
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
@@ -256,7 +256,7 @@ contract SparkPSMExactInTest is Helpers {
 
     function test_ApproveAndSwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 209);
+        assertEq(data.length, 221);
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
@@ -441,9 +441,8 @@ contract SparkPSMExactInTest is Helpers {
             bytes20(assetOut),
             bytes32(originalAmountIn),
             bytes32(originalMinAmountOut),
-            bytes20(differentReceiver), // Different from account
-            bytes32(referralCode),
-            bytes1(0x00)
+            bytes1(0x00), // usePrevHookAmount = false
+            abi.encode(differentReceiver, referralCode) // Different from account
         );
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
@@ -472,9 +471,8 @@ contract SparkPSMExactInTest is Helpers {
             bytes20(assetOut),
             bytes32(originalAmountIn),
             bytes32(originalMinAmountOut),
-            bytes20(differentReceiver),
-            bytes32(referralCode),
-            bytes1(0x00)
+            bytes1(0x00), // usePrevHookAmount = false
+            abi.encode(differentReceiver, referralCode)
         );
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
@@ -677,7 +675,7 @@ contract SparkPSMExactInTest is Helpers {
         bytes memory extraData = new bytes(extraBytes);
         bytes memory data = bytes.concat(baseData, extraData);
 
-        // Should not revert for any length >= 157
+        // Should not revert for any length >= 221
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
     }
@@ -780,9 +778,8 @@ contract SparkPSMExactInTest is Helpers {
             bytes20(_assetOut), // 72-91
             bytes32(originalAmountIn), // 92-123
             bytes32(originalMinAmountOut), // 124-155
-            bytes20(receiver), // 156-175
-            bytes32(referralCode), // 176-207
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00) // 208
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // 156
+            abi.encode(receiver, referralCode) // 157+
         );
     }
 
@@ -801,9 +798,8 @@ contract SparkPSMExactInTest is Helpers {
             bytes20(assetOut),
             bytes32(_amountIn),
             bytes32(_minAmountOut),
-            bytes20(receiver),
-            bytes32(referralCode),
-            _usePrevHookAmount ? bytes1(0x01) : bytes1(0x00)
+            _usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
+            abi.encode(receiver, referralCode)
         );
     }
 }

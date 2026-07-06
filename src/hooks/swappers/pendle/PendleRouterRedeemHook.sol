@@ -27,21 +27,15 @@ import { IStandardizedYield } from "../../../vendor/pendle/IStandardizedYield.so
 /// @notice         bytes32 placeholder0 = BytesLib.toUint256(data, 0);
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 52);
-/// @notice         address yt = BytesLib.toAddress(data, 84);
-/// @notice         address pt = BytesLib.toAddress(data, 104);
-/// @notice         address tokenOut = BytesLib.toAddress(data, 124);
-/// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 144);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 176);
-/// @notice         bytes output = BytesLib.slice(data, 177, data.length - 177);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
+/// @dev Payload: abi.encode(address yt, address pt, address tokenOut, uint256 minTokenOut, TokenOutput output)
 /// @custom:deprecated Use PendleUnifiedHook instead which supports swap routing for tokenOut that is not directly redeemable from SY
 contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
-    // Offset for bool usePrevHookAmount (after packed amount, yt, tokenOut, minTokenOut)
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 176; // 0+32+20+20+32+20
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 84;
     uint256 private constant AMOUNT_POSITION = 52;
-    // Offset for abi.encoded TokenOutput struct (after packed bool)
-    uint256 private constant TOKEN_OUTPUT_OFFSET = 177; // USE_PREV_HOOK_AMOUNT_POSITION + 1
+    uint256 private constant PAYLOAD_OFFSET = 85;
 
     // Struct for decoded parameters
     struct DecodedParams {
@@ -130,8 +124,7 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
-        // Minimum length to read up to the bool flag + 1 byte for the flag itself
-        if (data.length < TOKEN_OUTPUT_OFFSET) revert INVALID_DATA_LENGTH();
+        if (data.length < PAYLOAD_OFFSET) revert INVALID_DATA_LENGTH();
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
@@ -181,7 +174,8 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
-        _setOutToken(BytesLib.toAddress(data, 124), account);
+        (,, address tokenOut,,) = abi.decode(data[PAYLOAD_OFFSET:], (address, address, address, uint256, TokenOutput));
+        _setOutToken(tokenOut, account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -190,24 +184,18 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
 
     /// @dev Decodes hook data based on packed encoding, validates parameters, and returns them.
     function _decodeAndValidateData(bytes calldata data) private view returns (DecodedParams memory params) {
-        // Minimum length check to read up to the start of TokenOutput
-        if (data.length < TOKEN_OUTPUT_OFFSET) revert INVALID_DATA_LENGTH();
+        if (data.length < PAYLOAD_OFFSET) revert INVALID_DATA_LENGTH();
 
-        // Decode fixed-size parameters using BytesLib and packed offsets
-        params.amountFromData = BytesLib.toUint256(data, 52); // Offset 0, size 32
-        params.yt = BytesLib.toAddress(data, 84); // Offset 32, size 20
-        params.pt = BytesLib.toAddress(data, 104); // Offset 52, size 20
-        params.tokenOut = BytesLib.toAddress(data, 124); // Offset 72, size 20
-        params.minTokenOut = BytesLib.toUint256(data, 144); // Offset 92, size 32
-        params.usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION); // Offset 124, size 1
+        params.amountFromData = BytesLib.toUint256(data, AMOUNT_POSITION);
+        params.usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
-        // Basic validation of decoded fixed params (excluding amount check for now)
+        (params.yt, params.pt, params.tokenOut, params.minTokenOut, params.output) =
+            abi.decode(data[PAYLOAD_OFFSET:], (address, address, address, uint256, TokenOutput));
+
+        // Basic validation
         if (params.yt == address(0)) revert YT_NOT_VALID();
         if (params.tokenOut == address(0)) revert TOKEN_OUT_NOT_VALID();
         if (params.minTokenOut == 0) revert MIN_TOKEN_OUT_NOT_VALID();
-
-        // Decode TokenOutput struct from the correct offset (after packed data)
-        params.output = abi.decode(data[TOKEN_OUTPUT_OFFSET:], (TokenOutput));
 
         // Validate consistency between explicitly passed params and struct params
         if (params.output.tokenOut != params.tokenOut) revert TOKEN_OUT_NOT_VALID();
@@ -245,11 +233,7 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
 
     /// @dev Gets the balance of the output token for the account.
     function _getBalance(bytes calldata data, address account) private view returns (uint256) {
-        // Need offset 72 (start of tokenOut) + 20 bytes = 92
-        uint256 endOfTokenOutOffset = 92;
-        if (data.length < endOfTokenOutOffset) revert INVALID_DATA_LENGTH();
-        // Decode tokenOut from its correct packed offset [72:92]
-        address tokenOut = BytesLib.toAddress(data, 124);
+        (,, address tokenOut,,) = abi.decode(data[PAYLOAD_OFFSET:], (address, address, address, uint256, TokenOutput));
 
         if (tokenOut == address(0)) {
             return account.balance;

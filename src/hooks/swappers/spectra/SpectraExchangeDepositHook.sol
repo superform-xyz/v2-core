@@ -28,13 +28,12 @@ import { SpectraCommands } from "../../../vendor/spectra/SpectraCommands.sol";
 /// @notice         bytes32 placeholder0 = BytesLib.toUint256(data, 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
-/// @notice         uint256 value = BytesLib.toUint256(data, 53);
-/// @notice         bytes txData_ = BytesLib.slice(data, 85, data.length - 85);
+/// @dev Payload: abi.encode(uint256 value, bytes txData_)
 contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
-    uint256 private constant TX_DATA_POSITION = 85;
+    uint256 private constant PAYLOAD_OFFSET = 53;
     bytes4 private constant EXECUTE_SELECTOR = bytes4(keccak256("execute(bytes,bytes[])"));
     bytes4 private constant EXECUTE_DEADLINE_SELECTOR = bytes4(keccak256("execute(bytes,bytes[],uint256)"));
 
@@ -89,10 +88,8 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
     {
         address pt = data.extractYieldSource();
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        uint256 value = abi.decode(data[53:TX_DATA_POSITION], (uint256));
-        // Copy calldata slice to memory so the calldata offset+length slots can be freed
-        // before the stack-heavy _validateTxData logic runs (prevents stack-too-deep under --ir-minimum)
-        return _buildFromTxData(prevHook, account, pt, usePrevHookAmount, value, data[TX_DATA_POSITION:]);
+        (uint256 value, bytes memory txData_) = abi.decode(data[PAYLOAD_OFFSET:], (uint256, bytes));
+        return _buildFromTxData(prevHook, account, pt, usePrevHookAmount, value, txData_);
     }
 
     function _buildFromTxData(
@@ -160,7 +157,8 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
-        _setOutToken(_decodeTokenOut(data[TX_DATA_POSITION:]), account);
+        (, bytes memory txData_) = abi.decode(data[PAYLOAD_OFFSET:], (uint256, bytes));
+        _setOutToken(_decodeTokenOut(txData_), account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -307,14 +305,15 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
         }
     }
 
-    function _decodeTokenOut(bytes calldata data) internal pure returns (address tokenOut) {
-        bytes4 selector = bytes4(data[0:4]);
+    function _decodeTokenOut(bytes memory data) internal pure returns (address tokenOut) {
+        bytes4 selector = bytes4(BytesLib.toBytes32(data, 0));
+        bytes memory encoded = BytesLib.slice(data, 4, data.length - 4);
         bytes memory commandsData;
         bytes[] memory inputs;
         if (selector == EXECUTE_SELECTOR) {
-            (commandsData, inputs) = abi.decode(data[4:], (bytes, bytes[]));
+            (commandsData, inputs) = abi.decode(encoded, (bytes, bytes[]));
         } else if (selector == EXECUTE_DEADLINE_SELECTOR) {
-            (commandsData, inputs,) = abi.decode(data[4:], (bytes, bytes[], uint256));
+            (commandsData, inputs,) = abi.decode(encoded, (bytes, bytes[], uint256));
         } else {
             revert INVALID_SELECTOR();
         }
@@ -338,7 +337,8 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
     //////////////////////////////////////////////////////////////*/
 
     function _getBalance(bytes calldata data, address account) private view returns (uint256) {
-        address tokenOut = _decodeTokenOut(data[TX_DATA_POSITION:]);
+        (, bytes memory txData_) = abi.decode(data[PAYLOAD_OFFSET:], (uint256, bytes));
+        address tokenOut = _decodeTokenOut(txData_);
 
         if (tokenOut == address(0)) {
             return account.balance;

@@ -97,6 +97,17 @@ contract UniswapV4Parser is BaseAPIParser {
 
     /// @notice Generate hook data for single-hop V4 swap
     /// @dev Creates properly encoded data matching SwapUniswapV4Hook expectations
+    /// Layout:
+    ///   [0..31]   bytes32 placeholder0
+    ///   [32..51]  address placeholder1
+    ///   [52..71]  address currency0
+    ///   [72..91]  address currency1
+    ///   [92..123] uint256 originalAmountIn
+    ///   [124..155] uint256 originalMinAmountOut
+    ///   [156]     bool zeroForOne
+    ///   [157]     bool usePrevHookAmount
+    ///   [158..]   abi.encode(uint24 fee, int24 tickSpacing, address hooks, address dstReceiver,
+    ///             uint160 sqrtPriceLimitX96, uint256 maxSlippageDeviationBps, bytes additionalData)
     /// @param params The swap parameters
     /// @param usePrevHookAmount Whether to use previous hook's output
     /// @return hookData Encoded hook data ready for execution
@@ -108,28 +119,29 @@ contract UniswapV4Parser is BaseAPIParser {
         pure
         returns (bytes memory hookData)
     {
-        // Split into two encodePacked calls to avoid stack-too-deep
-        // Header + pool key fields (bytes 0-119)
-        bytes memory part1 = abi.encodePacked(
-            bytes32(0), // 32 bytes (0-31): yieldSourceOracleId (header)
-            address(0), // 20 bytes (32-51): yieldSource (header)
+        // Tight-packed common fields
+        bytes memory tightPacked = abi.encodePacked(
+            bytes32(0), // 32 bytes (0-31): placeholder0
+            address(0), // 20 bytes (32-51): placeholder1
             params.poolKey.currency0, // 20 bytes (52-71): currency0
             params.poolKey.currency1, // 20 bytes (72-91): currency1
-            uint32(params.poolKey.fee), // 4 bytes (92-95): fee (padded from uint24)
-            uint32(int32(params.poolKey.tickSpacing)), // 4 bytes (96-99): tickSpacing (padded from int24)
-            params.poolKey.hooks // 20 bytes (100-119): hooks address
+            params.originalAmountIn, // 32 bytes (92-123): originalAmountIn
+            params.originalMinAmountOut, // 32 bytes (124-155): originalMinAmountOut
+            params.zeroForOne ? bytes1(0x01) : bytes1(0x00), // 1 byte (156): zeroForOne flag
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00) // 1 byte (157): usePrevHookAmount flag
         );
-        // Remaining swap params (bytes 120-269+)
-        bytes memory part2 = abi.encodePacked(
-            params.dstReceiver, // 20 bytes (120-139): dstReceiver
-            uint256(params.sqrtPriceLimitX96), // 32 bytes (140-171): sqrtPriceLimitX96 (padded from uint160)
-            params.originalAmountIn, // 32 bytes (172-203): originalAmountIn
-            params.originalMinAmountOut, // 32 bytes (204-235): originalMinAmountOut
-            params.maxSlippageDeviationBps, // 32 bytes (236-267): maxSlippageDeviationBps
-            params.zeroForOne ? bytes1(0x01) : bytes1(0x00), // 1 byte (268): zeroForOne flag
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // 1 byte (269): usePrevHookAmount flag
-            params.additionalData // Additional data (270+)
+
+        // abi-encoded payload
+        bytes memory payload = abi.encode(
+            params.poolKey.fee,
+            params.poolKey.tickSpacing,
+            address(params.poolKey.hooks),
+            params.dstReceiver,
+            params.sqrtPriceLimitX96,
+            params.maxSlippageDeviationBps,
+            params.additionalData
         );
-        hookData = abi.encodePacked(part1, part2);
+
+        hookData = abi.encodePacked(tightPacked, payload);
     }
 }

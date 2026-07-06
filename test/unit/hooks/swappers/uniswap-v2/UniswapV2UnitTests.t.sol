@@ -100,11 +100,11 @@ contract UniswapV2UnitTests is Helpers {
         bytes memory data = _buildHookData(false);
         bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        // AMOUNT_POSITION = 124, amountIn occupies bytes 124–155
-        for (uint256 i = 0; i < 124; i++) {
+        // AMOUNT_POSITION = 92, amountIn occupies bytes 92–123
+        for (uint256 i = 0; i < 92; i++) {
             assertEq(replaced[i], data[i]);
         }
-        for (uint256 i = 156; i < data.length; i++) {
+        for (uint256 i = 124; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
@@ -114,21 +114,21 @@ contract UniswapV2UnitTests is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Builds hook data matching the UniswapV2 layout (with 52-byte strategy header):
-    /// header(0,52) | tokenIn(52) | tokenOut(72) | deadline(92) | originalAmountIn(124) |
-    /// originalMinAmountOut(156) | usePrevHookAmount(188) | pathLength(189) | path(221+)
+    /// header(0,52) | tokenIn(52) | tokenOut(72) | amountIn(92) | amountOutMin(124) |
+    /// usePrevHookAmount(156) | abi.encode(deadline, path)(157+)
     function _buildHookData(bool usePrevHookAmount) internal view returns (bytes memory) {
+        address[] memory path = new address[](2);
+        path[0] = tokenIn;
+        path[1] = tokenOut;
         return bytes.concat(
             bytes32(0),          // yieldSourceOracleId placeholder (header bytes 0-31)
             bytes20(address(0)), // yieldSource placeholder (header bytes 32-51)
-            bytes20(tokenIn),
-            bytes20(tokenOut),
-            bytes32(deadline),
-            bytes32(originalAmountIn),
-            bytes32(originalMinAmountOut),
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
-            bytes32(uint256(2)), // pathLength = 2
-            bytes20(tokenIn),
-            bytes20(tokenOut)
+            bytes20(tokenIn),    // 52-71
+            bytes20(tokenOut),   // 72-91
+            bytes32(originalAmountIn),     // 92-123
+            bytes32(originalMinAmountOut),  // 124-155
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // 156
+            abi.encode(deadline, path)     // 157+
         );
     }
 }

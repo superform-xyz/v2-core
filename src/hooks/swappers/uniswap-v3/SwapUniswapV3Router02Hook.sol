@@ -29,11 +29,10 @@ import { IV3SwapRouter } from "./interfaces/IV3SwapRouter.sol";
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address tokenIn = BytesLib.toAddress(data, 52);
 /// @notice         address tokenOut = BytesLib.toAddress(data, 72);
-/// @notice         uint24 fee = uint24(BytesLib.toUint32(data, 92));
-/// @notice         uint160 sqrtPriceLimitX96 = uint160(BytesLib.toUint256(data, 96));
-/// @notice         uint256 originalAmountIn = BytesLib.toUint256(data, 128);
-/// @notice         uint256 originalMinAmountOut = BytesLib.toUint256(data, 160);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 192);
+/// @notice         uint256 originalAmountIn = BytesLib.toUint256(data, 92);
+/// @notice         uint256 originalMinAmountOut = BytesLib.toUint256(data, 124);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
+/// @dev Payload: abi.encode(uint24 fee, uint160 sqrtPriceLimitX96)
 contract SwapUniswapV3Router02Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using BytesLib for bytes;
 
@@ -45,12 +44,14 @@ contract SwapUniswapV3Router02Hook is BaseHook, ISuperHookContextAware, ISuperHo
     IV3SwapRouter public immutable SWAP_ROUTER;
 
     /// @notice Position of usePrevHookAmount flag in hook data
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 192;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
 
-    uint256 private constant AMOUNT_POSITION = 128;
+    uint256 private constant AMOUNT_POSITION = 92;
+
+    uint256 private constant PAYLOAD_OFFSET = 157;
 
     /// @notice Minimum valid hook data length
-    uint256 private constant MIN_HOOK_DATA_LENGTH = 193;
+    uint256 private constant MIN_HOOK_DATA_LENGTH = 221;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -230,17 +231,10 @@ contract SwapUniswapV3Router02Hook is BaseHook, ISuperHookContextAware, ISuperHo
         if (tokenIn == address(0) || tokenOut == address(0)) revert NATIVE_ETH_NOT_SUPPORTED();
         if (tokenIn == tokenOut) revert INVALID_HOOK_DATA();
 
-        uint32 rawFee = data.toUint32(92);
-        if (rawFee > type(uint24).max) revert INVALID_HOOK_DATA();
-        fee = uint24(rawFee);
-
-        uint256 rawSqrtPriceLimit = data.toUint256(96);
-        if (rawSqrtPriceLimit > type(uint160).max) revert INVALID_HOOK_DATA();
-        sqrtPriceLimitX96 = uint160(rawSqrtPriceLimit);
-
-        uint256 originalAmountIn = data.toUint256(128);
-        uint256 originalMinAmountOut = data.toUint256(160);
+        uint256 originalAmountIn = data.toUint256(AMOUNT_POSITION);
+        uint256 originalMinAmountOut = data.toUint256(124);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        (fee, sqrtPriceLimitX96) = abi.decode(data[PAYLOAD_OFFSET:], (uint24, uint160));
 
         if (usePrevHookAmount) {
             amountIn = ISuperHookResult(prevHook).getOutAmount(account);

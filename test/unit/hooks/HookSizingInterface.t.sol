@@ -1467,8 +1467,8 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev UniswapV3Router02: AMOUNT@128 — 52-byte header + bytes32 + addr + addr + uint32 + uint256
     function test_DecodeReplace_Roundtrip_SwapUniswapV3Router02() public view {
-        // 128 = 52(header) + 32(bytes32) + 20(addr) + 20(addr) + 4(uint32)
-        bytes memory data = abi.encodePacked(bytes32(0), address(0), bytes32(0), address(0xA), address(0xB), uint32(3000), uint256(1e18), uint256(0), uint256(0), false);
+        // AMOUNT_POSITION = 92 (52-byte header + addr(20) + addr(20))
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(address(0)), address(0xA), address(0xB), uint256(1e18), uint256(0), false, abi.encode(uint24(3000), uint160(0)));
         assertEq(swapUniV3Router02.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = swapUniV3Router02.replaceCalldataAmounts(data, _singleAmount(3e18));
@@ -1477,9 +1477,13 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev UniswapV2: AMOUNT@124 (52-byte header + addr(20) + addr(20) + uint256(32))
     function test_DecodeReplace_Roundtrip_SwapUniswapV2() public view {
+        // AMOUNT_POSITION = 92 (52-byte header + addr(20) + addr(20))
+        address[] memory path = new address[](2);
+        path[0] = address(0xA);
+        path[1] = address(0xB);
         bytes memory data = abi.encodePacked(
             bytes32(0), bytes20(address(0)), // 52-byte header
-            address(0xA), address(0xB), uint256(0), uint256(1e18), uint256(0), false
+            address(0xA), address(0xB), uint256(1e18), uint256(0), false, abi.encode(uint256(0), path)
         );
         assertEq(swapUniV2.decodeAmounts(data)[0], 1e18);
 
@@ -1580,7 +1584,8 @@ contract HookSizingInterfaceTest is Helpers {
     /// @dev SpectraExchangeRedeem: AMOUNT at 124
     ///      bytes32 + 3 addrs + uint256(minAssets) + uint256(sharesToBurn at 124) + bool + bytes1
     function test_DecodeReplace_Roundtrip_SpectraExchangeRedeem() public view {
-        bytes memory data = abi.encodePacked(bytes32(0), address(0xA), address(0xB), address(0xC), uint256(0), uint256(1e18), false, bytes1(0));
+        // AMOUNT_POSITION = 72 (32-byte placeholder + address(20) asset + address(20) pt)
+        bytes memory data = abi.encodePacked(bytes32(0), address(0xA), address(0xB), uint256(1e18), false, abi.encode(address(0xC), uint256(0), bytes1(0)));
         assertEq(spectraRedeem.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = spectraRedeem.replaceCalldataAmounts(data, _singleAmount(3e18));
@@ -2306,9 +2311,13 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev ApproveAndSwapUniswapV2: AMOUNT@124 (52-byte header + addr(20) + addr(20) + uint256(32))
     function test_DecodeReplace_Roundtrip_ApproveSwapUniswapV2() public view {
+        // AMOUNT_POSITION = 92 (52-byte header + addr(20) + addr(20))
+        address[] memory path = new address[](2);
+        path[0] = address(0xA);
+        path[1] = address(0xB);
         bytes memory data = abi.encodePacked(
             bytes32(0), bytes20(address(0)), // 52-byte header
-            address(0xA), address(0xB), uint256(0), uint256(1e18), uint256(0), false
+            address(0xA), address(0xB), uint256(1e18), uint256(0), false, abi.encode(uint256(0), path)
         );
         assertEq(approveSwapUniV2.decodeAmounts(data)[0], 1e18);
         bytes memory replaced = approveSwapUniV2.replaceCalldataAmounts(data, _singleAmount(2e18));
@@ -2317,7 +2326,8 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev ApproveAndSwapUniswapV3Router02: AMOUNT@128 — 52-byte header + bytes32 + addr + addr + uint32 + uint256
     function test_DecodeReplace_Roundtrip_ApproveSwapUniswapV3Router02() public view {
-        bytes memory data = abi.encodePacked(bytes32(0), address(0), bytes32(0), address(0xA), address(0xB), uint32(3000), uint256(1e18), uint256(0), uint256(0), false);
+        // AMOUNT_POSITION = 92 (52-byte header + addr(20) + addr(20))
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(address(0)), address(0xA), address(0xB), uint256(1e18), uint256(0), false, abi.encode(uint24(3000), uint160(0)));
         assertEq(approveSwapUniV3Router02.decodeAmounts(data)[0], 1e18);
         bytes memory replaced = approveSwapUniV3Router02.replaceCalldataAmounts(data, _singleAmount(6e18));
         assertEq(approveSwapUniV3Router02.decodeAmounts(replaced)[0], 6e18);
@@ -3183,24 +3193,16 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev Build swapper data with AMOUNT@172: placeholder(52) + addr + addr + uint32 + uint32 + addr + addr + uint256 + uint256(amt) + uint256 + uint256 + bool + bool
     function _buildSwapperData_120(uint256 amt) internal pure returns (bytes memory) {
-        bytes memory part1 = abi.encodePacked(
-            bytes32(0), address(0), // 52-byte placeholder (bytes32 + address = 32+20)
-            address(0xAA),      // currency0 (20)
-            address(0xBB)       // currency1 (20)
-        );
-        bytes memory part2 = abi.encodePacked(
-            uint32(3000),       // fee (4)
-            uint32(60),         // tickSpacing (4)
-            address(0xCC),      // hookAddr (20)
-            address(0xDD),      // permit2 (20)
-            uint256(0),         // deadline (32)
-            amt                 // amount at offset 172 (32)
-        );
+        // New layout: placeholder(52) + currency0(20) + currency1(20) + amountIn(32) + amountOutMin(32) + zeroForOne(1) + usePrevHookAmount(1) + abi.encode(payload)
         return abi.encodePacked(
-            part1, part2,
-            uint256(0),         // minAmountOut (32)
-            uint256(0),         // sqrtPriceX96 (32)
-            false, false        // booleans (2)
+            bytes32(0), address(0), // 52-byte placeholder
+            address(0xAA),          // currency0 (20)
+            address(0xBB),          // currency1 (20)
+            amt,                    // amountIn at pos 92 (32)
+            uint256(0),             // amountOutMin (32)
+            false,                  // zeroForOne (1)
+            false,                  // usePrevHookAmount (1)
+            abi.encode(uint24(3000), int24(60), address(0xCC), address(0xDD), uint160(0), uint256(0), bytes(""))
         );
     }
 

@@ -328,18 +328,17 @@ contract PendleUnifiedHookIntegration is MinimalBaseIntegrationTest, OdosAPIPars
             IPendleRouterV4.redeemPyToToken.selector, accountEth, ytAddress, amount, output
         );
 
-        // Pack hook data: [bytes32 placeholder][address yieldSource][bool usePrevHookAmount][uint256 value][bytes txData]
+        // Pack hook data: [bytes32 placeholder][address yieldSource][bool usePrevHookAmount][abi.encode(value, txData)]
         return abi.encodePacked(
             bytes32(0), // placeholder
             yieldSource, // yieldSource (always market address for all operations)
-            usePrevHookAmount, // usePrevHookAmount
-            uint256(0), // value (not used for redemptions)
-            txData
+            usePrevHookAmount, // usePrevHookAmount at offset 52
+            abi.encode(uint256(0), txData) // payload at offset 53
         );
     }
 
     /// @notice Helper to create PendleUnifiedHook data for redeemPyToToken with swap routing
-    /// @dev Data layout: [bytes32 placeholder][address yieldSource][bool usePrevHookAmount][uint256 value][bytes txData]
+    /// @dev Data layout: [bytes32 placeholder][address yieldSource][bool usePrevHookAmount][abi.encode(value, txData)]
     function _createPendleUnifiedRedeemHookDataWithSwap(
         address yieldSource,
         uint256 amount,
@@ -381,9 +380,8 @@ contract PendleUnifiedHookIntegration is MinimalBaseIntegrationTest, OdosAPIPars
         return abi.encodePacked(
             bytes32(0), // placeholder
             yieldSource, // yieldSource (always market address for all operations)
-            usePrevHookAmount, // usePrevHookAmount
-            uint256(0), // value (not used for redemptions)
-            txData
+            usePrevHookAmount, // usePrevHookAmount at offset 52
+            abi.encode(uint256(0), txData) // payload at offset 53
         );
     }
 

@@ -927,38 +927,65 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
 
     /// @notice Test decodeUsePrevHookAmount with various data lengths
     function test_DecodeUsePrevHookAmount_EdgeCases() public view {
-        // Test minimum valid length (270 bytes: 52-byte header + 218 bytes of hook-specific data)
-        bytes memory minValidData = new bytes(270);
-        minValidData[269] = 0x01; // Set usePrevHookAmount to true (offset 269)
+        // Test with valid parser-generated data (usePrevHookAmount = true)
+        bytes memory trueData = parser.generateSingleHopSwapCalldata(
+            UniswapV4Parser.SingleHopParams({
+                poolKey: testPoolKey,
+                dstReceiver: accountEth,
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1,
+                originalAmountIn: 1000e6,
+                originalMinAmountOut: 950e6,
+                maxSlippageDeviationBps: 500,
+                zeroForOne: true,
+                additionalData: ""
+            }),
+            true // usePrevHookAmount = true
+        );
 
-        bool result = uniswapV4Hook.decodeUsePrevHookAmount(minValidData);
+        bool result = uniswapV4Hook.decodeUsePrevHookAmount(trueData);
         assertTrue(result, "Should decode true from minimum valid data");
 
-        // Test with additional data
-        bytes memory dataWithExtra = new bytes(300);
-        dataWithExtra[269] = 0x00; // Set usePrevHookAmount to false (offset 269)
+        // Test with additional data (usePrevHookAmount = false)
+        bytes memory falseData = parser.generateSingleHopSwapCalldata(
+            UniswapV4Parser.SingleHopParams({
+                poolKey: testPoolKey,
+                dstReceiver: accountEth,
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1,
+                originalAmountIn: 1000e6,
+                originalMinAmountOut: 950e6,
+                maxSlippageDeviationBps: 500,
+                zeroForOne: true,
+                additionalData: hex"deadbeef"
+            }),
+            false // usePrevHookAmount = false
+        );
 
-        result = uniswapV4Hook.decodeUsePrevHookAmount(dataWithExtra);
+        result = uniswapV4Hook.decodeUsePrevHookAmount(falseData);
         assertFalse(result, "Should decode false from data with extra bytes");
     }
 
     /// @notice Test inspect function with different token orderings
     function test_InspectTokenExtraction() public view {
-        bytes memory testData = abi.encodePacked(
-            bytes32(0), // yieldSourceOracleId (header)
-            address(0), // yieldSource (header)
-            CHAIN_1_USDC, // currency0 (offset 52)
-            CHAIN_1_WETH, // currency1 (offset 72)
-            uint32(3000), // fee (offset 92)
-            uint32(int32(60)), // tickSpacing (offset 96)
-            address(0), // hooks (offset 100)
-            instanceOnEth.account, // dstReceiver (offset 120)
-            uint256(TickMath.MIN_SQRT_PRICE + 1), // sqrtPriceLimitX96 (offset 140)
-            uint256(1000e6), // originalAmountIn (offset 172)
-            uint256(950e6), // originalMinAmountOut (offset 204)
-            uint256(500), // maxSlippageDeviationBps (offset 236)
-            bytes1(0x01), // zeroForOne (offset 268)
-            bytes1(0x00) // usePrevHookAmount (offset 269)
+        PoolKey memory inspectPoolKey = PoolKey({
+            currency0: Currency.wrap(CHAIN_1_USDC),
+            currency1: Currency.wrap(CHAIN_1_WETH),
+            fee: 3000,
+            tickSpacing: 60,
+            hooks: IHooks(address(0))
+        });
+
+        bytes memory testData = parser.generateSingleHopSwapCalldata(
+            UniswapV4Parser.SingleHopParams({
+                poolKey: inspectPoolKey,
+                dstReceiver: instanceOnEth.account,
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1,
+                originalAmountIn: 1000e6,
+                originalMinAmountOut: 950e6,
+                maxSlippageDeviationBps: 500,
+                zeroForOne: true,
+                additionalData: ""
+            }),
+            false
         );
 
         bytes memory result = uniswapV4Hook.inspect(testData);

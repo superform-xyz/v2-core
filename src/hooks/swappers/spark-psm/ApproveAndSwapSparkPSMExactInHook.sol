@@ -26,9 +26,8 @@ import { IPSM3 } from "../../../vendor/spark/IPSM3.sol";
 /// @notice         address assetOut = BytesLib.toAddress(data, 72);
 /// @notice         uint256 amountIn = BytesLib.toUint256(data, 92);
 /// @notice         uint256 minAmountOut = BytesLib.toUint256(data, 124);
-/// @notice         address receiver = BytesLib.toAddress(data, 156); // IGNORED - forced to account
-/// @notice         uint256 referralCode = BytesLib.toUint256(data, 176);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 208);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
+/// @dev Payload: abi.encode(address receiver, uint256 referralCode)
 contract ApproveAndSwapSparkPSMExactInHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using BytesLib for bytes;
 
@@ -40,9 +39,11 @@ contract ApproveAndSwapSparkPSMExactInHook is BaseHook, ISuperHookContextAware, 
     IPSM3 public immutable PSM;
 
     /// @notice Position of usePrevHookAmount flag in hook data
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 208;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
 
     uint256 private constant AMOUNT_POSITION = 92;
+
+    uint256 private constant PAYLOAD_OFFSET = 157;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -88,16 +89,15 @@ contract ApproveAndSwapSparkPSMExactInHook is BaseHook, ISuperHookContextAware, 
         override
         returns (Execution[] memory executions)
     {
-        if (data.length < 209) revert INVALID_HOOK_DATA();
+        if (data.length < 221) revert INVALID_HOOK_DATA();
 
         address assetIn = data.toAddress(52);
         address assetOut = data.toAddress(72);
         if (assetIn == address(0) || assetOut == address(0)) revert ADDRESS_NOT_VALID();
         uint256 amountIn = data.toUint256(92);
         uint256 minAmountOut = data.toUint256(124);
-        // receiver at offset 156 is IGNORED - forced to account
-        uint256 referralCode = data.toUint256(176);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        (, uint256 referralCode) = abi.decode(data[PAYLOAD_OFFSET:], (address, uint256));
 
         if (usePrevHookAmount) {
             uint256 prevAmount = ISuperHookResult(prevHook).getOutAmount(account);
@@ -197,7 +197,7 @@ contract ApproveAndSwapSparkPSMExactInHook is BaseHook, ISuperHookContextAware, 
     /// @inheritdoc BaseHook
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         address assetOut = data.toAddress(72);
-        address receiver = data.toAddress(156);
+        (address receiver,) = abi.decode(data[PAYLOAD_OFFSET:], (address, uint256));
         return abi.encodePacked(assetOut, receiver);
     }
 }

@@ -30,12 +30,10 @@ import {
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address tokenIn = BytesLib.toAddress(data, 52);
 /// @notice         address tokenOut = BytesLib.toAddress(data, 72);
-/// @notice         uint256 deadline = BytesLib.toUint256(data, 92);
-/// @notice         uint256 originalAmountIn = BytesLib.toUint256(data, 124);
-/// @notice         uint256 originalMinAmountOut = BytesLib.toUint256(data, 156);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 188);
-/// @notice         uint256 path_paramLength = BytesLib.toUint256(data, 189);
-/// @notice         address[] path = decoded from (221, path_paramLength * 20);
+/// @notice         uint256 originalAmountIn = BytesLib.toUint256(data, 92);
+/// @notice         uint256 originalMinAmountOut = BytesLib.toUint256(data, 124);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
+/// @dev Payload: abi.encode(uint256 deadline, address[] path)
 /// @dev Fee-on-transfer tokens are NOT supported
 /// @dev Rebasing tokens are NOT supported as output tokens
 contract ApproveAndSwapUniswapV2Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
@@ -61,9 +59,11 @@ contract ApproveAndSwapUniswapV2Hook is BaseHook, ISuperHookContextAware, ISuper
     address public immutable NATIVE;
 
     /// @notice Position of usePrevHookAmount flag in hook data
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 188;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
 
-    uint256 private constant AMOUNT_POSITION = 124;
+    uint256 private constant AMOUNT_POSITION = 92;
+
+    uint256 private constant PAYLOAD_OFFSET = 157;
 
     /// @notice Maximum allowed path length to prevent gas griefing
     uint256 private constant MAX_PATH_LENGTH = 10;
@@ -125,8 +125,7 @@ contract ApproveAndSwapUniswapV2Hook is BaseHook, ISuperHookContextAware, ISuper
         override
         returns (Execution[] memory executions)
     {
-        /// @dev Minimum data length: 221 bytes fixed data + 2 * 20 bytes minimum path (2 addresses) = 261
-        if (data.length < 261) revert INVALID_HOOK_DATA();
+        if (data.length < 157) revert INVALID_HOOK_DATA();
 
         UniswapV2SwapParams memory p = _decodeSwapParams(prevHook, account, data);
 
@@ -252,30 +251,24 @@ contract ApproveAndSwapUniswapV2Hook is BaseHook, ISuperHookContextAware, ISuper
     {
         p.tokenIn = data.toAddress(52);
         p.tokenOut = data.toAddress(72);
-        p.deadline = data.toUint256(92);
+
+        uint256 originalAmountIn = data.toUint256(AMOUNT_POSITION);
+        uint256 originalMinAmountOut = data.toUint256(124);
+        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+
+        // Decode hook-specific payload
+        (p.deadline, p.path) = abi.decode(data[PAYLOAD_OFFSET:], (uint256, address[]));
 
         // Validate deadline hasn't passed
         if (p.deadline < block.timestamp) revert EXPIRED_DEADLINE(p.deadline, block.timestamp);
 
-        uint256 originalAmountIn = data.toUint256(AMOUNT_POSITION);
-        uint256 originalMinAmountOut = data.toUint256(156);
-        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-
-        // Decode variable-length path
-        uint256 pathLength = data.toUint256(189);
-        if (pathLength < 2 || pathLength > MAX_PATH_LENGTH) revert INVALID_PATH_LENGTH();
-        if (data.length < 221 + pathLength * 20) revert INVALID_HOOK_DATA();
-
-        p.path = new address[](pathLength);
-        for (uint256 i = 0; i < pathLength;) {
-            p.path[i] = data.toAddress(221 + i * 20);
-            unchecked { ++i; }
-        }
+        // Validate path length
+        if (p.path.length < 2 || p.path.length > MAX_PATH_LENGTH) revert INVALID_PATH_LENGTH();
 
         // Validate path endpoints match tokenIn/tokenOut (for non-native tokens)
         // Native tokens use WETH in the path; the router validates WETH consistency
         if (p.tokenIn != NATIVE && p.path[0] != p.tokenIn) revert INVALID_PATH();
-        if (p.tokenOut != NATIVE && p.path[pathLength - 1] != p.tokenOut) revert INVALID_PATH();
+        if (p.tokenOut != NATIVE && p.path[p.path.length - 1] != p.tokenOut) revert INVALID_PATH();
 
         // usePrevHookAmount chaining
         if (usePrevHookAmount) {

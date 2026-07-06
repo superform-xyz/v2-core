@@ -54,8 +54,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(1), // usePrevHookAmount = true
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         // even the bytes data usePrevHookAmount is set to true but the actual boolean is not set to true
@@ -78,8 +77,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         assertFalse(depositHook.decodeUsePrevHookAmount(data));
@@ -98,8 +96,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(1), // usePrevHookAmount = true
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         assertTrue(depositHook.decodeUsePrevHookAmount(data));
@@ -118,8 +115,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
         assertEq(depositHook.decodeUsePrevHookAmount(data), false);
 
@@ -143,8 +139,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         bytes memory argsEncoded = depositHook.inspect(data);
@@ -168,8 +163,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         // This should trigger the else if branch in inspect method:
@@ -193,8 +187,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         // This should trigger the INVALID_SELECTOR revert in _validateTxData
@@ -215,8 +208,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         Execution[] memory executions = depositHook.build(address(0), account, data);
@@ -239,8 +231,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         bytes memory argsEncoded = depositHook.inspect(data);
@@ -263,8 +254,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         // This should trigger the INVALID_LAST_COMMAND revert in _validateTxData
@@ -285,8 +275,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         bytes memory argsEncoded = depositHook.inspect(data);
@@ -309,8 +298,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(1), // usePrevHookAmount = true
-            uint256(2e18), // value
-            txData
+            abi.encode(uint256(2e18), txData)
         );
 
         Execution[] memory executions = depositHook.build(address(prevHook), account, data);
@@ -333,8 +321,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         vm.expectRevert(SpectraExchangeDepositHook.INVALID_PT.selector);
@@ -354,8 +341,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         vm.expectRevert(SpectraExchangeDepositHook.INVALID_IBT.selector);
@@ -377,8 +363,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         vm.expectRevert(SpectraExchangeDepositHook.INVALID_RECIPIENT.selector);
@@ -399,8 +384,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         vm.expectRevert(SpectraExchangeDepositHook.LENGTH_MISMATCH.selector);
@@ -420,8 +404,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         vm.expectRevert(SpectraExchangeDepositHook.INVALID_COMMAND.selector);
@@ -441,8 +424,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         depositHook.preExecute(address(0), account, data);
@@ -468,8 +450,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         Execution[] memory executions = depositHook.build(address(0), account, data);
@@ -495,8 +476,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0),
-            uint256(0),
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         vm.expectRevert(SpectraExchangeDepositHook.INVALID_DEADLINE.selector);
@@ -557,16 +537,14 @@ contract SpectraExchangeHooksTests is Helpers {
         // Get the length of the original transaction data
         vars.originalTxDataLength = vars.originalTxData.length;
 
-        // Create hook data with usePrevHookAmount = true
+        // Create hook data with usePrevHookAmount = true (new layout)
         vars.data = abi.encodePacked(
             _getYieldSourceOracleId(bytes32(bytes("")), address(this)), // yieldSourceOracleId
             address(token), // asset
             address(token), // pt
-            address(this), // recipient
-            uint256(2e6), // minAssets
-            uint256(0), // shares To burn
-            true, // usePrevHookAmount = true
-            vars.commandsData[0] // command
+            uint256(0), // sharesToBurn - position 72
+            true, // usePrevHookAmount = true - position 104
+            abi.encode(address(this), uint256(2e6), vars.commandsData[0]) // payload: recipient, minAssets, command
         );
 
         // Verify decodeUsePrevHookAmount is working as expected
@@ -624,8 +602,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         // This should successfully execute and cover the else if branch in _decodeTokenOut
@@ -647,8 +624,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         // This should trigger the INVALID_SELECTOR revert in _decodeTokenOut (called via _getBalance)
@@ -669,8 +645,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
+            abi.encode(uint256(0), txData)
         );
 
         // This should successfully execute and cover the DEPOSIT_ASSET_IN_IBT branch in _decodeTokenOut
@@ -688,16 +663,15 @@ contract SpectraExchangeHooksTests is Helpers {
         bool usePrevHookAmount = false;
         bytes1 command = redeemHook.REDEEM_PT_FOR_ASSET();
 
-        // Construct the data according to the expected format
+        // Construct the data according to the new layout:
+        // placeholder(32) + asset(20) + pt(20) + sharesToBurn(32) + usePrevHookAmount(1) + abi.encode(recipient, minAssets, command)
         bytes memory data = abi.encodePacked(
             bytes32(0), // placeholder (32 bytes)
             asset, // asset (20 bytes) - position 32
             pt, // pt (20 bytes) - position 52
-            recipient, // recipient (20 bytes) - position 72
-            minAssets, // minAssets (32 bytes) - position 92
-            sharesToBurn, // sharesToBurn (32 bytes) - position 124
-            usePrevHookAmount, // usePrevHookAmount (1 byte) - position 156
-            command // command (1 byte) - position 157
+            sharesToBurn, // sharesToBurn (32 bytes) - position 72
+            usePrevHookAmount, // usePrevHookAmount (1 byte) - position 104
+            abi.encode(recipient, minAssets, command) // payload - position 105
         );
 
         // Call inspect method
@@ -718,16 +692,14 @@ contract SpectraExchangeHooksTests is Helpers {
         bool usePrevHookAmount = false;
         bytes1 command = redeemHook.REDEEM_IBT_FOR_ASSET();
 
-        // Construct the data according to the expected format
+        // Construct the data according to the new layout
         bytes memory data = abi.encodePacked(
             bytes32(0), // placeholder (32 bytes)
             asset, // asset (20 bytes) - position 32
             address(0), // pt (20 bytes) - position 52 (not used for IBT redeem)
-            recipient, // recipient (20 bytes) - position 72
-            uint256(0), // minAssets (32 bytes) - position 92 (not used for IBT redeem)
-            sharesToBurn, // sharesToBurn (32 bytes) - position 124
-            usePrevHookAmount, // usePrevHookAmount (1 byte) - position 156
-            command // command (1 byte) - position 157
+            sharesToBurn, // sharesToBurn (32 bytes) - position 72
+            usePrevHookAmount, // usePrevHookAmount (1 byte) - position 104
+            abi.encode(recipient, uint256(0), command) // payload - position 105
         );
 
         // Call build method which will internally call _createRedeemIbtForAssetCallData
@@ -769,11 +741,9 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(0), // placeholder (32 bytes)
             asset, // asset (20 bytes) - position 32
             address(0), // pt (20 bytes) - position 52
-            recipient, // recipient (20 bytes) - position 72
-            uint256(0), // minAssets (32 bytes) - position 92
-            sharesToBurn, // sharesToBurn (32 bytes) - position 124
-            usePrevHookAmount, // usePrevHookAmount (1 byte) - position 156
-            command // command (1 byte) - position 157
+            sharesToBurn, // sharesToBurn (32 bytes) - position 72
+            usePrevHookAmount, // usePrevHookAmount (1 byte) - position 104
+            abi.encode(recipient, uint256(0), command) // payload - position 105
         );
 
         assertEq(redeemHook.decodeAmounts(data)[0], sharesToBurn);
@@ -790,11 +760,9 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(0),
             asset,
             address(0),
-            recipient,
-            uint256(0),
             sharesToBurn,
             usePrevHookAmount,
-            command
+            abi.encode(recipient, uint256(0), command)
         );
 
         uint256 newAmount = 250e18;
@@ -813,11 +781,9 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(0),
             asset,
             address(0),
-            recipient,
-            uint256(0),
             uint256(500e18),
             false,
-            command
+            abi.encode(recipient, uint256(0), command)
         );
 
         bytes memory result = redeemHook.replaceCalldataAmounts(data, _singleAmount(fuzzAmount));
@@ -830,7 +796,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes1 command = redeemHook.REDEEM_IBT_FOR_ASSET();
 
         bytes memory data = abi.encodePacked(
-            bytes32(0), asset, address(0), recipient, uint256(0), uint256(500e18), false, command
+            bytes32(0), asset, address(0), uint256(500e18), false, abi.encode(recipient, uint256(0), command)
         );
         uint256 newAmount = 250e18;
         bytes memory replaced = redeemHook.replaceCalldataAmounts(data, _singleAmount(newAmount));

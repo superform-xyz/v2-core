@@ -75,7 +75,7 @@ contract CantinaIntegrationPendleRouterSwapHookTest is Test {
             bool usePrevHookAmount = false;
             uint256 value = 0;
 
-            hookData = abi.encodePacked(placeholder, yieldSource, usePrevHookAmount, value, txData);
+            hookData = abi.encodePacked(placeholder, yieldSource, usePrevHookAmount, abi.encode(value, txData));
         }
 
         // fails in preExecute -> _getBalance-> _decodeTokenOut(data[57:]);

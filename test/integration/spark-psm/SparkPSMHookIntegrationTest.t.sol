@@ -74,15 +74,14 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
         returns (bytes memory)
     {
         return bytes.concat(
-            bytes32(0), // yieldSourceOracleId (52-byte header)
-            bytes20(address(0)), // yieldSource (52-byte header)
-            bytes20(assetIn),
-            bytes20(assetOut),
-            bytes32(amountIn),
-            bytes32(minAmountOut),
-            bytes20(account), // receiver (ignored, forced to account)
-            bytes32(REFERRAL_CODE),
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00)
+            bytes32(0), // placeholder0 (header bytes 0-31)
+            bytes20(address(0)), // placeholder1 (header bytes 32-51)
+            bytes20(assetIn), // offset 52
+            bytes20(assetOut), // offset 72
+            bytes32(amountIn), // offset 92
+            bytes32(minAmountOut), // offset 124
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // offset 156
+            abi.encode(account, REFERRAL_CODE) // payload at offset 157
         );
     }
 
@@ -98,15 +97,14 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
         returns (bytes memory)
     {
         return bytes.concat(
-            bytes32(0), // yieldSourceOracleId (52-byte header)
-            bytes20(address(0)), // yieldSource (52-byte header)
-            bytes20(assetIn),
-            bytes20(assetOut),
-            bytes32(amountOut),
-            bytes32(maxAmountIn),
-            bytes20(account),
-            bytes32(REFERRAL_CODE),
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00)
+            bytes32(0), // placeholder0 (header bytes 0-31)
+            bytes20(address(0)), // placeholder1 (header bytes 32-51)
+            bytes20(assetIn), // offset 52
+            bytes20(assetOut), // offset 72
+            bytes32(amountOut), // offset 92
+            bytes32(maxAmountIn), // offset 124
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // offset 156
+            abi.encode(account, REFERRAL_CODE) // payload at offset 157
         );
     }
 

@@ -306,17 +306,10 @@ abstract contract InternalHelpers is Test {
     {
         bytes memory txData = _createSpectraExchangeSimpleCommandTxData(ptToken, tokenIn, amount, account);
         return abi.encodePacked(
-            /**
-             * yieldSourceOracleId
-             */
-            bytes32(bytes("")),
-            /**
-             * yieldSource
-             */
-            ptToken,
-            usePrevHookAmount,
-            value,
-            txData
+            bytes32(bytes("")), // placeholder0
+            ptToken, // yieldSource at offset 32
+            usePrevHookAmount, // offset 52
+            abi.encode(value, txData) // payload at offset 53
         );
     }
 
@@ -363,7 +356,12 @@ abstract contract InternalHelpers is Test {
         bytes1 command = redeemPtForAsset ? REDEEM_PT_FOR_ASSET : REDEEM_IBT_FOR_ASSET;
 
         return abi.encodePacked(
-            bytes32(bytes("")), asset, pt, recipient, minAssets, sharesToBurn, usePrevHookAmount, command
+            bytes32(bytes("")), // placeholder0 (0-31)
+            asset, // offset 32
+            pt, // offset 52
+            sharesToBurn, // offset 72 (AMOUNT_POSITION)
+            usePrevHookAmount, // offset 104 (USE_PREV_HOOK_AMOUNT_POSITION)
+            abi.encode(recipient, minAssets, command) // payload at offset 105
         );
     }
 

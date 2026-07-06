@@ -97,7 +97,7 @@ contract SparkPSMExactOutTest is Helpers {
     }
 
     function test_SwapHook_Build_RevertIf_InvalidHookData() public {
-        bytes memory shortData = new bytes(208); // Less than 209
+        bytes memory shortData = new bytes(220); // Less than 221
         vm.expectRevert(SwapSparkPSMExactOutHook.INVALID_HOOK_DATA.selector);
         swapHook.build(address(prevHook), account, shortData);
     }
@@ -191,7 +191,7 @@ contract SparkPSMExactOutTest is Helpers {
     }
 
     function test_ApproveAndSwapHook_Build_RevertIf_InvalidHookData() public {
-        bytes memory shortData = new bytes(208);
+        bytes memory shortData = new bytes(220); // Less than 221
         vm.expectRevert(ApproveAndSwapSparkPSMExactOutHook.INVALID_HOOK_DATA.selector);
         approveAndSwapHook.build(address(prevHook), account, shortData);
     }
@@ -240,7 +240,7 @@ contract SparkPSMExactOutTest is Helpers {
 
     function test_SwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 209);
+        assertEq(data.length, 221);
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
@@ -248,7 +248,7 @@ contract SparkPSMExactOutTest is Helpers {
 
     function test_ApproveAndSwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 209);
+        assertEq(data.length, 221);
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
@@ -489,9 +489,8 @@ contract SparkPSMExactOutTest is Helpers {
             bytes20(assetOut),
             bytes32(originalAmountOut),
             bytes32(originalMaxAmountIn),
-            bytes20(differentReceiver),
-            bytes32(referralCode),
-            bytes1(0x00)
+            bytes1(0x00), // usePrevHookAmount = false
+            abi.encode(differentReceiver, referralCode)
         );
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
@@ -515,9 +514,8 @@ contract SparkPSMExactOutTest is Helpers {
             bytes20(assetOut),
             bytes32(originalAmountOut),
             bytes32(originalMaxAmountIn),
-            bytes20(differentReceiver),
-            bytes32(referralCode),
-            bytes1(0x00)
+            bytes1(0x00), // usePrevHookAmount = false
+            abi.encode(differentReceiver, referralCode)
         );
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
@@ -776,9 +774,8 @@ contract SparkPSMExactOutTest is Helpers {
             bytes20(_assetOut), // 72-91
             bytes32(originalAmountOut), // 92-123
             bytes32(originalMaxAmountIn), // 124-155
-            bytes20(receiver), // 156-175
-            bytes32(referralCode), // 176-207
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00) // 208
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // 156
+            abi.encode(receiver, referralCode) // 157+
         );
     }
 
@@ -797,9 +794,8 @@ contract SparkPSMExactOutTest is Helpers {
             bytes20(assetOut),
             bytes32(_amountOut),
             bytes32(_maxAmountIn),
-            bytes20(receiver),
-            bytes32(referralCode),
-            _usePrevHookAmount ? bytes1(0x01) : bytes1(0x00)
+            _usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
+            abi.encode(receiver, referralCode)
         );
     }
 }
