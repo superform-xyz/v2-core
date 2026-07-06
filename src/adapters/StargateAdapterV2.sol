@@ -59,6 +59,9 @@ contract StargateAdapterV2 is ILayerZeroComposer, ReentrancyGuard {
     ///      registered as Stargate pools in TokenMessaging. Empty array = pool-only mode.
     mapping(address oft => bool allowed) public allowedOFTs;
 
+    /// @notice Array of all whitelisted OFT addresses for enumeration
+    address[] public allowedOFTsList;
+
     /// @notice Claimable balances for failed token transfers: account => token => amount
     /// @dev token address(0) represents native ETH
     mapping(address account => mapping(address token => uint256 amount)) public failedTransfers;
@@ -177,6 +180,7 @@ contract StargateAdapterV2 is ILayerZeroComposer, ReentrancyGuard {
 
         for (uint256 i; i < allowedOFTs_.length; ++i) {
             allowedOFTs[allowedOFTs_[i]] = true;
+            allowedOFTsList.push(allowedOFTs_[i]);
         }
     }
 
@@ -366,6 +370,16 @@ contract StargateAdapterV2 is ILayerZeroComposer, ReentrancyGuard {
         }
 
         emit FailedTransferClaimed(msg.sender, token, amount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            VIEW
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Returns the full list of whitelisted OFT addresses
+    /// @return The array of allowed OFT addresses
+    function getAllowedOFTs() external view returns (address[] memory) {
+        return allowedOFTsList;
     }
 
     /*//////////////////////////////////////////////////////////////
