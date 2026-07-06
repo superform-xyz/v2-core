@@ -107,6 +107,10 @@ abstract contract ConfigCore is ConfigBase {
         configuration.stargateTokenMessagings[STABLE_CHAIN_ID] = 0xd027aFcc69ffA2bCB288BA68da6B71EC90d7B1d2;
         configuration.stargateTokenMessagings[WORLDCHAIN_CHAIN_ID] = address(0); // Not available yet
 
+        // ===== STARGATE ALLOWED OFTs (non-pool OFT contracts that use LZ compose) =====
+        // Stable: USDT0 OFT
+        configuration.stargateAllowedOFTs[STABLE_CHAIN_ID].push(0xedaba024be4d87974d5aB11C6Dd586963CcCB027);
+
         // ===== PERMIT2 ADDRESSES =====
         configuration.permit2s[MAINNET_CHAIN_ID] = PERMIT2;
         configuration.permit2s[BASE_CHAIN_ID] = PERMIT2;

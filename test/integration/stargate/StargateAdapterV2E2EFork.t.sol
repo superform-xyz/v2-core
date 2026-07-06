@@ -85,7 +85,7 @@ contract StargateAdapterV2E2EFork is MerkleTreeHelper {
         _createDstAccount();
 
         // Deploy V2 adapter from source
-        adapterV2 = new StargateAdapterV2(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
+        adapterV2 = new StargateAdapterV2(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE, new address[](0));
         vm.label(address(adapterV2), "StargateAdapterV2");
     }
 
@@ -263,13 +263,13 @@ contract StargateAdapterV2E2EFork is MerkleTreeHelper {
     /// @notice Constructor rejects zero addresses
     function test_Fork_V2_Constructor_ZeroAddress_Reverts() public {
         vm.expectRevert(StargateAdapterV2.ADDRESS_NOT_VALID.selector);
-        new StargateAdapterV2(address(0), TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
+        new StargateAdapterV2(address(0), TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE, new address[](0));
 
         vm.expectRevert(StargateAdapterV2.ADDRESS_NOT_VALID.selector);
-        new StargateAdapterV2(LZ_ENDPOINT_BASE, address(0), SUPER_DST_EXECUTOR_BASE);
+        new StargateAdapterV2(LZ_ENDPOINT_BASE, address(0), SUPER_DST_EXECUTOR_BASE, new address[](0));
 
         vm.expectRevert(StargateAdapterV2.ADDRESS_NOT_VALID.selector);
-        new StargateAdapterV2(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, address(0));
+        new StargateAdapterV2(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, address(0), new address[](0));
     }
 
     /// @notice Claim with zero amount reverts
@@ -355,6 +355,88 @@ contract StargateAdapterV2E2EFork is MerkleTreeHelper {
 
         _assertEventEmitted(vm.getRecordedLogs(), "UnregisteredPool(bytes32,address)");
         assertEq(IERC20(USDC_BASE).balanceOf(address(adapterV2)), amount, "Tokens untouched");
+    }
+
+    /// @notice Allowed OFT bypasses the pool registration check and transfers succeed
+    function test_Fork_V2_AllowedOFT_BypassesPoolCheck() public {
+        // Deploy adapter with an allowed OFT
+        address allowedOFT = makeAddr("USDT0_OFT");
+        address[] memory ofts = new address[](1);
+        ofts[0] = allowedOFT;
+        StargateAdapterV2 oftAdapter =
+            new StargateAdapterV2(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE, ofts);
+
+        // Verify OFT is in the allowlist
+        assertTrue(oftAdapter.allowedOFTs(allowedOFT), "OFT should be allowed");
+
+        uint256 amountLD = 1000e6;
+        deal(USDC_BASE, address(oftAdapter), amountLD);
+
+        // Mock: OFT.token() returns USDC
+        vm.mockCall(allowedOFT, abi.encodeWithSelector(IStargate.token.selector), abi.encode(USDC_BASE));
+
+        bytes memory composeMsg = _buildV2ComposeMsg(dstAccount, hex"deadbeef");
+        bytes memory composeMsgCodec = _wrapComposeMsgCodec(amountLD, sender, composeMsg);
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(oftAdapter)).lzCompose(
+            allowedOFT, bytes32(0), composeMsgCodec, address(0), bytes("")
+        );
+
+        // Tokens transferred to dstAccount via the OFT path
+        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), amountLD, "dstAccount should have received tokens");
+        assertEq(IERC20(USDC_BASE).balanceOf(address(oftAdapter)), 0, "Adapter should be empty");
+
+        vm.clearMockedCalls();
+    }
+
+    /// @notice Non-allowed OFT still blocked even when allowedOFTs is configured
+    function test_Fork_V2_NonAllowedOFT_StillBlocked() public {
+        // Deploy adapter with one allowed OFT
+        address allowedOFT = makeAddr("USDT0_OFT");
+        address[] memory ofts = new address[](1);
+        ofts[0] = allowedOFT;
+        StargateAdapterV2 oftAdapter =
+            new StargateAdapterV2(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE, ofts);
+
+        uint256 amount = 1000e6;
+        deal(USDC_BASE, address(oftAdapter), amount);
+
+        // Use a different address that's NOT in the allowlist
+        address attackerOFT = makeAddr("attackerOFT");
+
+        bytes memory composeMsg = _buildV2ComposeMsg(dstAccount, hex"deadbeef");
+        bytes memory composeMsgCodec = _wrapComposeMsgCodec(amount, sender, composeMsg);
+
+        vm.recordLogs();
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(oftAdapter)).lzCompose(
+            attackerOFT, bytes32(0), composeMsgCodec, address(0), bytes("")
+        );
+
+        _assertEventEmitted(vm.getRecordedLogs(), "UnregisteredPool(bytes32,address)");
+        assertEq(IERC20(USDC_BASE).balanceOf(address(oftAdapter)), amount, "Tokens untouched");
+    }
+
+    /// @notice Empty allowedOFTs array — existing pool check behavior preserved
+    function test_Fork_V2_EmptyAllowedOFTs_PoolCheckStillWorks() public {
+        // adapterV2 was deployed with empty OFTs array in setUp
+        assertFalse(adapterV2.allowedOFTs(makeAddr("anyAddress")), "Should not allow random addresses");
+
+        // Registered pool still works
+        uint256 amountLD = 1000e6;
+        deal(USDC_BASE, address(adapterV2), amountLD);
+
+        bytes memory composeMsg = _buildV2ComposeMsg(dstAccount, hex"deadbeef");
+        bytes memory composeMsgCodec = _wrapComposeMsgCodec(amountLD, sender, composeMsg);
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapterV2)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), composeMsgCodec, address(0), bytes("")
+        );
+
+        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), amountLD, "Pool-based compose still works");
     }
 
     /*//////////////////////////////////////////////////////////////

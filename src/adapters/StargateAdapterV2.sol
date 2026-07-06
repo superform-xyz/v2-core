@@ -54,6 +54,11 @@ contract StargateAdapterV2 is ILayerZeroComposer, ReentrancyGuard {
     /// @notice The SuperDestinationExecutor for processing bridged executions
     ISuperDestinationExecutor public immutable SUPER_DESTINATION_EXECUTOR;
 
+    /// @notice Allowed OFT contracts that bypass the TokenMessaging.assetIds pool check
+    /// @dev Set at construction time. For OFTs (e.g. USDT0) that use LZ compose but are not
+    ///      registered as Stargate pools in TokenMessaging. Empty array = pool-only mode.
+    mapping(address oft => bool allowed) public allowedOFTs;
+
     /// @notice Claimable balances for failed token transfers: account => token => amount
     /// @dev token address(0) represents native ETH
     mapping(address account => mapping(address token => uint256 amount)) public failedTransfers;
@@ -129,7 +134,7 @@ contract StargateAdapterV2 is ILayerZeroComposer, ReentrancyGuard {
     /// @param from The Stargate pool or OFT contract that failed token resolution
     event TokenResolutionFailed(bytes32 indexed guid, address indexed from);
 
-    /// @notice Emitted when _from is not a registered Stargate pool in TokenMessaging
+    /// @notice Emitted when _from is not a registered Stargate pool or allowed OFT
     /// @dev sendCompose is permissionless in LZ V2 — anyone can spoof a compose.
     ///      This event is emitted instead of reverting to avoid blocking the compose queue.
     /// @param guid The LayerZero unique message identifier
@@ -156,13 +161,23 @@ contract StargateAdapterV2 is ILayerZeroComposer, ReentrancyGuard {
     /// @param lzEndpoint_ The LayerZero V2 EndpointV2 address
     /// @param tokenMessaging_ The Stargate V2 TokenMessaging address for pool verification
     /// @param superDestinationExecutor_ The SuperDestinationExecutor address
-    constructor(address lzEndpoint_, address tokenMessaging_, address superDestinationExecutor_) {
+    /// @param allowedOFTs_ OFT addresses allowed to bypass pool check (empty = pool-only mode)
+    constructor(
+        address lzEndpoint_,
+        address tokenMessaging_,
+        address superDestinationExecutor_,
+        address[] memory allowedOFTs_
+    ) {
         if (lzEndpoint_ == address(0) || tokenMessaging_ == address(0) || superDestinationExecutor_ == address(0)) {
             revert ADDRESS_NOT_VALID();
         }
         LZ_ENDPOINT = lzEndpoint_;
         TOKEN_MESSAGING = ITokenMessaging(tokenMessaging_);
         SUPER_DESTINATION_EXECUTOR = ISuperDestinationExecutor(superDestinationExecutor_);
+
+        for (uint256 i; i < allowedOFTs_.length; ++i) {
+            allowedOFTs[allowedOFTs_[i]] = true;
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -201,8 +216,8 @@ contract StargateAdapterV2 is ILayerZeroComposer, ReentrancyGuard {
             return;
         }
 
-        // 3. Validate _from is a registered Stargate pool in TokenMessaging
-        if (TOKEN_MESSAGING.assetIds(_from) == 0) {
+        // 3. Validate _from is a registered Stargate pool in TokenMessaging, or an allowed OFT
+        if (TOKEN_MESSAGING.assetIds(_from) == 0 && !allowedOFTs[_from]) {
             emit UnregisteredPool(_guid, _from);
             return;
         }
