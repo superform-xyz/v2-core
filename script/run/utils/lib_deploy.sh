@@ -1026,10 +1026,12 @@ deploy_to_network() {
     local network_id=$2
     local network_name=$3
     local rpc_var=$4
+    local network_name_upper
+    network_name_upper=$(echo "$network_name" | tr '[:lower:]' '[:upper:]')
 
     # Skip unsupported chains
     if is_unsupported_chain "$network_id"; then
-        echo -e "${YELLOW}Skipping ${network_name^^} MAINNET - Chain $network_id not supported by forge --chain${NC}"
+        echo -e "${YELLOW}Skipping ${network_name_upper} MAINNET - Chain $network_id not supported by forge --chain${NC}"
         skipped_networks=$((skipped_networks + 1))
         return 0
     fi
@@ -1040,18 +1042,18 @@ deploy_to_network() {
 
         # Skip if all contracts are already deployed
         if [[ $deployed -eq $total_expected ]]; then
-            echo -e "${GREEN}Skipping ${network_name^^} MAINNET - All $deployed/$total_expected contracts already deployed${NC}"
+            echo -e "${GREEN}Skipping ${network_name_upper} MAINNET - All $deployed/$total_expected contracts already deployed${NC}"
             skipped_networks=$((skipped_networks + 1))
             return 0
         fi
 
         # Deploy to networks with missing contracts
-        echo -e "${YELLOW}Deploying to ${network_name^^} MAINNET - $deployed/$total_expected contracts deployed ($((total_expected - deployed)) missing)${NC}"
+        echo -e "${YELLOW}Deploying to ${network_name_upper} MAINNET - $deployed/$total_expected contracts deployed ($((total_expected - deployed)) missing)${NC}"
     else
-        echo -e "${YELLOW}Deploying to ${network_name^^} MAINNET - No previous deployment status found${NC}"
+        echo -e "${YELLOW}Deploying to ${network_name_upper} MAINNET - No previous deployment status found${NC}"
     fi
 
-    print_network_header "${network_name^^} MAINNET"
+    print_network_header "${network_name_upper} MAINNET"
     echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
     echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
     echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
@@ -1059,7 +1061,7 @@ deploy_to_network() {
 
     # Skip inline verification for chains with aggressive block explorer rate limiting
     local chain_verify_flag="$VERIFY_FLAG"
-    local chain_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan"
+    local chain_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan --verifier-url https://api.etherscan.io/v2/api?chainid=$network_id"
     case $network_id in
         14|999) # Flare, HyperEVM - aggressive Cloudflare rate limiting
             chain_verify_flag=""

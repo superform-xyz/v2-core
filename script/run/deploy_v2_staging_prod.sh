@@ -695,27 +695,28 @@ declare -a FAILED_DEPLOY_NETWORKS=()
 
 for network_def in "${NETWORKS[@]}"; do
     IFS=':' read -r network_id network_name rpc_var <<< "$network_def"
+    network_name_upper=$(echo "$network_name" | tr '[:lower:]' '[:upper:]')
 
     # Check deployment status for this network
     if [[ -n "${NETWORK_DEPLOYMENT_STATUS[$network_id]}" ]]; then
         IFS=':' read -r deployed total_expected network_status_name <<< "${NETWORK_DEPLOYMENT_STATUS[$network_id]}"
-        
+
         # Use the actual expected count from the checking script
-        
+
         # Skip if all contracts are already deployed
         if [[ $deployed -eq $total_expected ]]; then
-            echo -e "${GREEN}⏭️  Skipping ${network_name^^} MAINNET - All $deployed/$total_expected contracts already deployed${NC}"
+            echo -e "${GREEN}⏭️  Skipping ${network_name_upper} MAINNET - All $deployed/$total_expected contracts already deployed${NC}"
             ((skipped_networks++))
             continue
         fi
-        
+
         # Deploy to networks with missing contracts
-        echo -e "${YELLOW}🚀 Deploying to ${network_name^^} MAINNET - $deployed/$total_expected contracts deployed ($(($total_expected - $deployed)) missing)${NC}"
+        echo -e "${YELLOW}🚀 Deploying to ${network_name_upper} MAINNET - $deployed/$total_expected contracts deployed ($(($total_expected - $deployed)) missing)${NC}"
     else
-        echo -e "${YELLOW}🚀 Deploying to ${network_name^^} MAINNET - No previous deployment status found${NC}"
+        echo -e "${YELLOW}🚀 Deploying to ${network_name_upper} MAINNET - No previous deployment status found${NC}"
     fi
-    
-    print_network_header "${network_name^^} MAINNET"
+
+    print_network_header "${network_name_upper} MAINNET"
     echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
     echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
     echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
@@ -723,7 +724,7 @@ for network_def in "${NETWORKS[@]}"; do
     # Skip inline verification for chains with aggressive block explorer rate limiting
     # These chains should be verified separately using verify_v2_staging_prod.sh with VERIFY_DELAY
     local chain_verify_flag="$VERIFY_FLAG"
-    local chain_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan"
+    local chain_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan --verifier-url https://api.etherscan.io/v2/api?chainid=$network_id"
     case $network_id in
         14|999|988) # Flare, HyperEVM, Stable - no etherscan support or rate limiting
             chain_verify_flag=""

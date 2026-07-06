@@ -168,7 +168,8 @@ print_separator
 for network_def in "${NETWORKS[@]}"; do
     IFS=':' read -r network_id network_name _ <<< "$network_def"
     
-    print_network_header "${network_name^^} MAINNET"
+    network_name_upper=$(echo "$network_name" | tr '[:lower:]' '[:upper:]')
+    print_network_header "${network_name_upper} MAINNET"
     echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
     echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
     echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"

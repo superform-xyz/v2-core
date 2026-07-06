@@ -753,7 +753,8 @@ verify_contract() {
                 --rpc-url "$rpc_url" \
                 --chain "$chain_id" \
                 --etherscan-api-key "$ETHERSCANV2_API_KEY" \
-                --verifier etherscan
+                --verifier etherscan \
+                --verifier-url "https://api.etherscan.io/v2/api?chainid=${chain_id}"
             verify_exit_code=$?
             ;;
     esac
