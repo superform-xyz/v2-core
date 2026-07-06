@@ -50,7 +50,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes32(0),
             bytes20(address(0)),
             bytes20(address(0)),
-            bytes20(address(0)),
+            bytes20(address(token)),
             bytes32(uint256(0)),
             bytes32(uint256(0)),
             bytes32(uint256(0)),

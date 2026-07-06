@@ -309,8 +309,8 @@ abstract contract InternalHelpers is Test {
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),
-            bytes20(address(0)),
-            bytes20(address(0)),
+            bytes20(tokenIn),
+            bytes20(ptToken),
             bytes32(uint256(0)),
             bytes32(uint256(0)),
             bytes32(uint256(0)),

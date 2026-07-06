@@ -64,6 +64,9 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookSwap, ISuperHookConte
     error INVALID_LAST_COMMAND();
     error INVALID_TRANSFER_TOKEN();
 
+    /// @notice Thrown when pt in payload does not match the expected outputToken
+    error OUTPUT_TOKEN_MISMATCH();
+
     constructor(address router_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.PTYT) {
         if (router_ == address(0)) revert ADDRESS_NOT_VALID();
         ROUTER = ISpectraRouter(router_);
@@ -97,6 +100,11 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookSwap, ISuperHookConte
         bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
         (address pt, uint256 value, bytes memory txData_) =
             abi.decode(data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:], (address, uint256, bytes));
+
+        // Validate that the pt in payload matches the header's outputToken
+        address headerOutputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        if (headerOutputToken != pt) revert OUTPUT_TOKEN_MISMATCH();
+
         return _buildFromTxData(prevHook, account, pt, usePrevHookAmount, value, txData_);
     }
 

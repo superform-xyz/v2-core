@@ -112,6 +112,9 @@ contract SwapUniswapV4Hook is BaseHook, ISuperHookSwap, IUnlockCallback, ISuperH
 
     error EXCESSIVE_ADDITIONAL_DATA();
 
+    /// @notice Thrown when the computed output token (from zeroForOne + currencies) does not match outputToken in header
+    error OUTPUT_TOKEN_MISMATCH();
+
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -200,6 +203,21 @@ contract SwapUniswapV4Hook is BaseHook, ISuperHookSwap, IUnlockCallback, ISuperH
         override
         returns (Execution[] memory executions)
     {
+        // Validate zeroForOne consistency with semantic token ordering.
+        // With semantic encoding: zeroForOne iff inputToken is currency0 (lower address).
+        // A mismatch means the swap direction contradicts the claimed output token.
+        {
+            address headerInputToken = data.toAddress(SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+            address headerOutputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+            (bool zeroForOne,,,,,,,) = abi.decode(
+                data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:],
+                (bool, uint24, int24, address, address, uint160, uint256, bytes)
+            );
+            if (zeroForOne != (uint160(headerInputToken) < uint160(headerOutputToken))) {
+                revert OUTPUT_TOKEN_MISMATCH();
+            }
+        }
+
         (address inputToken, uint256 amountIn) = _getTransferParams(prevHook, account, data);
 
         if (inputToken != address(0)) {
@@ -402,7 +420,7 @@ contract SwapUniswapV4Hook is BaseHook, ISuperHookSwap, IUnlockCallback, ISuperH
 
     /// @inheritdoc BaseHook
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        address outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        address outputToken = _getOutputToken(data);
         (,,,, address dstReceiver,,,) = abi.decode(
             data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:],
             (bool, uint24, int24, address, address, uint160, uint256, bytes)
@@ -541,6 +559,7 @@ contract SwapUniswapV4Hook is BaseHook, ISuperHookSwap, IUnlockCallback, ISuperH
     }
 
     /// @notice Extract transfer parameters without causing stack depth issues
+    /// @dev With semantic encoding, offset 52 always contains the actual input token
     function _getTransferParams(
         address prevHook,
         address account,
@@ -550,17 +569,8 @@ contract SwapUniswapV4Hook is BaseHook, ISuperHookSwap, IUnlockCallback, ISuperH
         view
         returns (address inputToken, uint256 amountIn)
     {
-        address currency0 = data.toAddress(SwapCalldataLayout.INPUT_TOKEN_OFFSET);
-        address currency1 = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        inputToken = data.toAddress(SwapCalldataLayout.INPUT_TOKEN_OFFSET);
         bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
-
-        // Decode zeroForOne from payload
-        (bool zeroForOne,,,,,,,) = abi.decode(
-            data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:],
-            (bool, uint24, int24, address, address, uint160, uint256, bytes)
-        );
-
-        inputToken = zeroForOne ? currency0 : currency1;
 
         if (usePrevHookAmount) {
             amountIn = ISuperHookResult(prevHook).getOutAmount(account);
@@ -642,17 +652,21 @@ contract SwapUniswapV4Hook is BaseHook, ISuperHookSwap, IUnlockCallback, ISuperH
             revert EXCESSIVE_ADDITIONAL_DATA();
         }
 
-        // Construct PoolKey
+        // Construct PoolKey — sort tokens for Uniswap V4 requirement (currency0 < currency1)
+        address tokenA = data.toAddress(SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+        address tokenB = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        (address sorted0, address sorted1) =
+            uint160(tokenA) < uint160(tokenB) ? (tokenA, tokenB) : (tokenB, tokenA);
         poolKey = PoolKey({
-            currency0: Currency.wrap(data.toAddress(SwapCalldataLayout.INPUT_TOKEN_OFFSET)),
-            currency1: Currency.wrap(data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET)),
+            currency0: Currency.wrap(sorted0),
+            currency1: Currency.wrap(sorted1),
             fee: p.fee,
             tickSpacing: p.tickSpacing,
             hooks: IHooks(p.hooksAddr)
         });
 
         // Validate PoolKey components
-        if (Currency.unwrap(poolKey.currency0) == Currency.unwrap(poolKey.currency1)) revert INVALID_HOOK_DATA();
+        if (sorted0 == sorted1) revert INVALID_HOOK_DATA();
         if (poolKey.fee == 0) revert INVALID_HOOK_DATA();
         if (poolKey.tickSpacing == 0) revert INVALID_HOOK_DATA();
     }
@@ -662,18 +676,9 @@ contract SwapUniswapV4Hook is BaseHook, ISuperHookSwap, IUnlockCallback, ISuperH
             abi.decode(data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:], (bool, uint24, int24, address, address, uint160, uint256, bytes));
     }
 
-    /// @notice Gets the output token from hook data
+    /// @notice Gets the output token from hook data (semantic encoding: offset 72 = actual output token)
     function _getOutputToken(bytes calldata data) internal pure returns (address outputToken) {
-        address currency0 = data.toAddress(SwapCalldataLayout.INPUT_TOKEN_OFFSET);
-        address currency1 = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
-
-        // Decode zeroForOne from payload
-        (bool zeroForOne,,,,,,,) = abi.decode(
-            data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:],
-            (bool, uint24, int24, address, address, uint160, uint256, bytes)
-        );
-
-        outputToken = zeroForOne ? currency1 : currency0;
+        outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
     }
 
     /// @notice Decodes the dstReceiver from the payload

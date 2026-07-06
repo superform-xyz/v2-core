@@ -673,7 +673,7 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
 
         deal(CHAIN_1_USDC, account, 1000e6);
 
-        _executeTokenSwap(invalidSwapCalldata, abi.encode(SwapUniswapV4Hook.INVALID_HOOK_DATA.selector));
+        _executeTokenSwap(invalidSwapCalldata, abi.encode(SwapUniswapV4Hook.OUTPUT_TOKEN_MISMATCH.selector));
     }
 
     /// @notice Test INVALID_HOOK_DATA error with zero fee

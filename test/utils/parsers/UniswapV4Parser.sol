@@ -133,12 +133,20 @@ contract UniswapV4Parser is BaseAPIParser {
             params.additionalData
         );
 
+        // Determine semantic input/output tokens based on swap direction
+        address inputToken = params.zeroForOne
+            ? Currency.unwrap(params.poolKey.currency0)
+            : Currency.unwrap(params.poolKey.currency1);
+        address outputToken = params.zeroForOne
+            ? Currency.unwrap(params.poolKey.currency1)
+            : Currency.unwrap(params.poolKey.currency0);
+
         // Tight-packed Layer 0 + Layer 1 + Layer 2
         hookData = abi.encodePacked(
             bytes32(0),                                         // 32 bytes [0..31]:    placeholder0
             bytes20(address(0)),                                // 20 bytes [32..51]:   placeholder1
-            bytes20(Currency.unwrap(params.poolKey.currency0)), // 20 bytes [52..71]:   inputToken
-            bytes20(Currency.unwrap(params.poolKey.currency1)), // 20 bytes [72..91]:   outputToken
+            bytes20(inputToken),                                // 20 bytes [52..71]:   inputToken
+            bytes20(outputToken),                               // 20 bytes [72..91]:   outputToken
             params.originalAmountIn,                            // 32 bytes [92..123]:  inputAmount
             params.originalMinAmountOut,                        // 32 bytes [124..155]: outputQuote (== outputMin for AMM)
             params.originalMinAmountOut,                        // 32 bytes [156..187]: outputMin

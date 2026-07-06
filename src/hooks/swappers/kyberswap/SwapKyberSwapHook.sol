@@ -53,6 +53,13 @@ contract SwapKyberSwapHook is
     //////////////////////////////////////////////////////////////*/
     uint256 private constant AMOUNT_POSITION = SwapCalldataLayout.AMOUNT_POSITION;
 
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Thrown when dstToken in txData does not match the expected outputToken
+    error OUTPUT_TOKEN_MISMATCH();
+
     constructor(
         address router_,
         address scaleHelper_,
@@ -91,11 +98,17 @@ contract SwapKyberSwapHook is
         override
         returns (Execution[] memory executions)
     {
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
         uint256 inputAmount = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
         bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
         uint256 payloadLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
         bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLength);
         (bytes memory txData_) = abi.decode(payload, (bytes));
+
+        // Validate that the dstToken in txData matches the header's outputToken
+        IMetaAggregationRouterV2.SwapExecutionParams memory swapParams =
+            abi.decode(BytesLib.slice(txData_, 4, txData_.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams));
+        if (address(swapParams.desc.dstToken) != outputToken) revert OUTPUT_TOKEN_MISMATCH();
 
         uint256 executionAmount = inputAmount;
         if (usePrevHookAmount) {

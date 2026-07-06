@@ -53,6 +53,13 @@ contract ApproveAndSwapKyberSwapHook is
     //////////////////////////////////////////////////////////////*/
     uint256 private constant AMOUNT_POSITION = SwapCalldataLayout.AMOUNT_POSITION;
 
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Thrown when dstToken in txData does not match the expected outputToken
+    error OUTPUT_TOKEN_MISMATCH();
+
     constructor(
         address router_,
         address scaleHelper_,
@@ -92,14 +99,16 @@ contract ApproveAndSwapKyberSwapHook is
         returns (Execution[] memory executions)
     {
         address inputToken = BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
         uint256 inputAmount = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
         bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
         uint256 payloadLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
         bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLength);
         (bytes memory txData_) = abi.decode(payload, (bytes));
 
-        // Extract approveTarget before scaling to avoid double-decoding SwapExecutionParams
-        address approveTarget = _getApproveTarget(txData_);
+        // Extract approveTarget and validate dstToken before scaling to avoid double-decoding SwapExecutionParams
+        (address approveTarget, address dstToken) = _getApproveTargetAndDstToken(txData_);
+        if (dstToken != outputToken) revert OUTPUT_TOKEN_MISMATCH();
 
         if (usePrevHookAmount) {
             uint256 prevAmount = ISuperHookResult(prevHook).getOutAmount(account);
@@ -256,15 +265,13 @@ contract ApproveAndSwapKyberSwapHook is
         return IERC20(outputToken).balanceOf(account);
     }
 
-    /// @dev Extracts approveTarget from decoded txData. Falls back to KYBER_ROUTER if zero address.
-    function _getApproveTarget(bytes memory txData_) private view returns (address) {
+    /// @dev Extracts approveTarget and dstToken from decoded txData. Falls back to KYBER_ROUTER if approveTarget is zero.
+    function _getApproveTargetAndDstToken(bytes memory txData_) private view returns (address, address) {
         IMetaAggregationRouterV2.SwapExecutionParams memory params = abi.decode(
             BytesLib.slice(txData_, 4, txData_.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams)
         );
 
-        if (params.approveTarget == address(0)) {
-            return address(KYBER_ROUTER);
-        }
-        return params.approveTarget;
+        address approveTarget = params.approveTarget == address(0) ? address(KYBER_ROUTER) : params.approveTarget;
+        return (approveTarget, address(params.desc.dstToken));
     }
 }
