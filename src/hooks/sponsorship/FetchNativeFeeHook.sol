@@ -16,7 +16,7 @@ import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../interfaces/ISu
 /// @notice Withdraws sponsored native ETH from NativeFeeSponsorship before bridge operations
 /// @dev Designed to be placed immediately before a Stargate bridge hook in the execution chain
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address sponsor = BytesLib.toAddress(data, 52);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 72);

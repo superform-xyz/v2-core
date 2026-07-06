@@ -21,7 +21,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title YearnClaimOneRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes32 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         address rewardToken = BytesLib.toAddress(data, 52);
 /// @notice         address account = BytesLib.toAddress(data, 72);

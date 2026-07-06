@@ -25,7 +25,7 @@ import { IPendlePTAmortizedOracle } from "../../../vendor/pendle/IPendlePTAmorti
 /// @dev Called AFTER a deposit/swap hook that outputs PT amount
 /// @dev The strategy (msg.sender during execution) will be recorded as the position holder
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address market = BytesLib.toAddress(data, 52);
 /// @notice         uint256 syAccountingAssetSpent = BytesLib.toUint256(data, 72);

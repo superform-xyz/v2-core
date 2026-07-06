@@ -21,7 +21,7 @@ import { IPSM3 } from "../../../vendor/spark/IPSM3.sol";
 /// @dev Handles: approve(0) -> approve(maxAmountIn) -> swapExactOut -> approve(0)
 /// @dev CRITICAL: Approves maxAmountIn (NOT amountOut) since PSM pulls variable amountIn
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address assetIn = BytesLib.toAddress(data, 52);
 /// @notice         address assetOut = BytesLib.toAddress(data, 72);

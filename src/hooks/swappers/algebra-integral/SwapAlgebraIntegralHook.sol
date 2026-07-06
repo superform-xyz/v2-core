@@ -23,7 +23,7 @@ import { IAlgebraSwapRouter } from "../../../vendor/algebra-integral/IAlgebraSwa
 /// @dev Assumes tokens are already approved to the router
 /// @dev Payload: abi.encode(address deployer, uint256 deadline, uint160 limitSqrtPrice)
 /// @dev data has the following structure (3-layer calldata standard):
-/// @notice         bytes32 placeholder0      = BytesLib.toUint256(data, 0);
+/// @notice         bytes32 placeholder0      = BytesLib.toBytes32(data, 0);
 /// @notice         address placeholder1      = BytesLib.toAddress(data, 32);
 /// @notice         address inputToken        = BytesLib.toAddress(data, 52);
 /// @notice         address outputToken       = BytesLib.toAddress(data, 72);

@@ -35,7 +35,7 @@ import {
 /// @dev WARNING: refundAddress is set to the account. If the native fee is overestimated, Stargate synchronously
 /// @dev refunds the excess to the account during sendToken.
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         uint256 lzNativeFee = BytesLib.toUint256(data, 52);
 /// @notice         address stargatePool = BytesLib.toAddress(data, 84);

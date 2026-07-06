@@ -24,7 +24,7 @@ import { IMetaMorpho, MarketAllocation } from "../../../vendor/morpho/IMetaMorph
 /// @author Superform Labs
 /// @notice NONACCOUNTING hook that calls MetaMorpho's reallocate() to redistribute funds between Morpho Blue markets
 /// @dev data has the following structure
-/// @notice         bytes32 placeholder0 = BytesLib.toUint256(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
 /// @notice         address metaMorphoVault = BytesLib.toAddress(data, 32);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
 /// @notice         uint8 prevHookAmountIndex = BytesLib.toUint8(data, 53);
