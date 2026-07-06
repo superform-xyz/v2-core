@@ -28,22 +28,26 @@ import {
 } from "../../../vendor/pendle/IPendleRouterV4.sol";
 import { IPendleMarket } from "../../../vendor/pendle/IPendleMarket.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
+import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
 
 /// @title PendleRouterSwapHook
 /// @author Superform Labs
 /// @notice Hook for swapping tokens via Pendle Router V4
-/// @dev data has the following structure
-/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
-/// @dev Payload: abi.encode(uint256 value, bytes txData_)
+/// @dev Payload: abi.encode(address yieldSource, uint256 value, bytes txData_)
+/// @dev data has the following structure (standard 52-byte strategy header + Layer 1 + Layer 2):
+/// @notice         bytes32   placeholder0     = BytesLib.toBytes32(data, 0);
+/// @notice         address   placeholder1     = BytesLib.toAddress(data, 32);
+/// @notice         address   inputToken       = BytesLib.toAddress(data, 52);
+/// @notice         address   outputToken      = BytesLib.toAddress(data, 72);
+/// @notice         uint256   inputAmount      = BytesLib.toUint256(data, 92);
+/// @notice         uint256   outputQuote      = BytesLib.toUint256(data, 124);
+/// @notice         uint256   outputMin        = BytesLib.toUint256(data, 156);
+/// @notice         bool      usePrevHookAmount = _decodeBool(data, 188);
+/// @notice         uint256   payload_paramLength = BytesLib.toUint256(data, 189);
+/// @notice         bytes     payload          = BytesLib.slice(data, 221, payload_paramLength);
 /// @custom:deprecated Use PendleUnifiedHook instead which supports all Pendle operations including swap routing for redemptions
-contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow {
-    using HookDataDecoder for bytes;
-
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
-    uint256 private constant PAYLOAD_OFFSET = 53;
+contract PendleRouterSwapHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISuperHookInflowOutflow {
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -62,6 +66,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInf
     error AMOUNT_IN_NOT_VALID();
     error INVALID_GUESS_PT_OUT();
     error MAKING_AMOUNT_NOT_VALID();
+    error OUTPUT_TOKEN_MISMATCH();
 
     constructor(address pendleRouterV4_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.PTYT) {
         if (pendleRouterV4_ == address(0)) revert ADDRESS_NOT_VALID();
@@ -93,18 +98,22 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInf
         override
         returns (Execution[] memory executions)
     {
-        address pendleMarket = data.extractYieldSource();
-        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        (uint256 value, bytes memory txData_) = abi.decode(data[PAYLOAD_OFFSET:], (uint256, bytes));
+        bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
+        (address pendleMarket, uint256 value, bytes memory txData_) =
+            abi.decode(data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:], (address, uint256, bytes));
 
         bytes memory updatedTxData = _validateTxData(txData_, account, usePrevHookAmount, prevHook, pendleMarket);
         bytes memory finalTxData = usePrevHookAmount ? updatedTxData : txData_;
-        
+
         // Extract tokenIn & compute execValue
         (bool isTokenForPt, address tokenIn) = _extractTokenIn(finalTxData);
         uint256 netTokenIn = usePrevHookAmount ? ISuperHookResult(prevHook).getOutAmount(account) : value;
-        
+
         uint256 execValue = (isTokenForPt && tokenIn == address(0)) ? netTokenIn : 0;
+
+        // Validate header outputToken matches txData-derived output
+        address headerOutputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        if (headerOutputToken != _decodeTokenOut(finalTxData)) revert OUTPUT_TOKEN_MISMATCH();
 
         executions = new Execution[](1);
         executions[0] = Execution({
@@ -119,44 +128,13 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInf
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
-        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        return _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure override returns (bytes memory packed) {
-        (, bytes memory txData_) = abi.decode(data[PAYLOAD_OFFSET:], (uint256, bytes));
-        bytes4 selector = bytes4(BytesLib.toBytes32(txData_, 0));
-        bytes memory encoded = BytesLib.slice(txData_, 4, txData_.length - 4);
-
-        if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
-            // skip selector
-            (address receiver, address market,,, TokenInput memory input,) =
-                abi.decode(encoded, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
-
-            packed = abi.encodePacked(
-                data.extractYieldSource(),
-                receiver,
-                market,
-                input.tokenIn,
-                input.tokenMintSy,
-                input.pendleSwap,
-                input.swapData.extRouter
-            );
-        } else if (selector == IPendleRouterV4.swapExactPtForToken.selector) {
-            // skip selector
-            (address receiver, address market,, TokenOutput memory output,) =
-                abi.decode(encoded, (address, address, uint256, TokenOutput, LimitOrderData));
-
-            packed = abi.encodePacked(
-                data.extractYieldSource(),
-                receiver,
-                market,
-                output.tokenOut,
-                output.tokenRedeemSy,
-                output.pendleSwap,
-                output.swapData.extRouter
-            );
-        }
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        return abi.encodePacked(outputToken);
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -179,6 +157,62 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInf
             || interfaceId == type(ISuperHookInspector).interfaceId;
     }
 
+    // ─── ISuperHookSwap ──────────────────────────────────────────────────────
+
+    /// @inheritdoc ISuperHookSwap
+    function encodeSwapData(
+        ISuperHookSwap.SwapHeader calldata header,
+        bytes calldata payload
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        return bytes.concat(
+            bytes(new bytes(SwapCalldataLayout.HEADER_SIZE)),
+            bytes20(header.inputToken),
+            bytes20(header.outputToken),
+            bytes32(header.inputAmount),
+            bytes32(header.outputQuote),
+            bytes32(header.outputMin),
+            bytes1(header.usePrevHookAmount ? uint8(1) : uint8(0)),
+            bytes32(payload.length),
+            payload
+        );
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputAmount(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputQuote(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_QUOTE_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputMin(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_MIN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodePayload(bytes calldata data) external pure override returns (bytes memory) {
+        uint256 payloadLen = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        return BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLen);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -188,8 +222,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInf
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
-        (, bytes memory txData_) = abi.decode(data[PAYLOAD_OFFSET:], (uint256, bytes));
-        _setOutToken(_decodeTokenOut(txData_), account);
+        _setOutToken(BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET), account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -209,7 +242,6 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInf
         bytes4 selector = bytes4(BytesLib.toBytes32(data, 0));
         bytes memory encoded = BytesLib.slice(data, 4, data.length - 4);
         if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
-            // skip selector
             (
                 address receiver,
                 address market,
@@ -223,7 +255,6 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInf
             if (market != pendleMarket) revert MARKET_NOT_VALID();
             if (minPtOut == 0) revert MIN_OUT_NOT_VALID();
 
-            // validate approx params
             if (guessPtOut.guessMin > guessPtOut.guessMax) revert INVALID_GUESS_PT_OUT();
             if (guessPtOut.eps > 1e18) revert EPS_NOT_VALID();
 
@@ -232,7 +263,6 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInf
             }
             if (input.netTokenIn == 0) revert AMOUNT_IN_NOT_VALID();
 
-            // validate limit order
             if (limit.normalFills.length > 0) {
                 _validateFillOrders(limit.normalFills);
             }
@@ -242,7 +272,6 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInf
 
             updatedTxData = abi.encodeWithSelector(selector, receiver, market, minPtOut, guessPtOut, input, limit);
         } else if (selector == IPendleRouterV4.swapExactPtForToken.selector) {
-            // skip selector
             (
                 address receiver,
                 address market,
@@ -261,7 +290,6 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInf
 
             if (output.minTokenOut == 0) revert MIN_OUT_NOT_VALID();
 
-            // validate limit order
             if (limit.normalFills.length > 0) {
                 _validateFillOrders(limit.normalFills);
             }
@@ -283,7 +311,6 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInf
     }
 
     function _validateOrder(Order memory order) internal view {
-        //an order can execute until the block timestamp strictly exceeds the expiry time
         if (order.expiry < block.timestamp) revert ORDER_EXPIRED();
         if (order.maker == address(0) || order.receiver == address(0)) revert ADDRESS_NOT_VALID();
     }
@@ -308,23 +335,21 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInf
         bytes4 selector = bytes4(BytesLib.slice(txData, 0, 4));
         if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
             (, , , , TokenInput memory input, ) = abi.decode(
-                BytesLib.slice(txData, 4, txData.length - 4), 
+                BytesLib.slice(txData, 4, txData.length - 4),
                 (address, address, uint256, ApproxParams, TokenInput, LimitOrderData)
             );
             return (true, input.tokenIn);
         }
-        // PtForToken: no tokenIn → value=0 always
         return (false, address(0));
     }
 
     function _getBalance(address account, bytes calldata data) private view returns (uint256) {
-        (, bytes memory txData_) = abi.decode(data[PAYLOAD_OFFSET:], (uint256, bytes));
-        address tokenOut = _decodeTokenOut(txData_);
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
 
-        if (tokenOut == address(0)) {
+        if (outputToken == address(0)) {
             return account.balance;
         }
 
-        return IERC20(tokenOut).balanceOf(account);
+        return IERC20(outputToken).balanceOf(account);
     }
 }

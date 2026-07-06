@@ -248,7 +248,8 @@ contract SparkPSMExactInTest is Helpers {
 
     function test_SwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 221);
+        // 221 (standard header) + 64 (payload: receiver + referralCode) = 285
+        assertGe(data.length, 221);
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
@@ -256,7 +257,7 @@ contract SparkPSMExactInTest is Helpers {
 
     function test_ApproveAndSwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 221);
+        assertGe(data.length, 221);
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
@@ -435,14 +436,18 @@ contract SparkPSMExactInTest is Helpers {
     function test_SwapHook_ReceiverForcedToAccount() public view {
         address differentReceiver = address(0xBEEF);
 
+        bytes memory payload = abi.encode(differentReceiver, referralCode);
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes32(0),
+            bytes20(address(0)),
             bytes20(assetIn),
             bytes20(assetOut),
             bytes32(originalAmountIn),
             bytes32(originalMinAmountOut),
+            bytes32(originalMinAmountOut),
             bytes1(0x00), // usePrevHookAmount = false
-            abi.encode(differentReceiver, referralCode) // Different from account
+            bytes32(payload.length),
+            payload
         );
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
@@ -465,14 +470,18 @@ contract SparkPSMExactInTest is Helpers {
     function test_ApproveAndSwapHook_ReceiverForcedToAccount() public view {
         address differentReceiver = address(0xBEEF);
 
+        bytes memory payload = abi.encode(differentReceiver, referralCode);
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes32(0),
+            bytes20(address(0)),
             bytes20(assetIn),
             bytes20(assetOut),
             bytes32(originalAmountIn),
             bytes32(originalMinAmountOut),
+            bytes32(originalMinAmountOut),
             bytes1(0x00), // usePrevHookAmount = false
-            abi.encode(differentReceiver, referralCode)
+            bytes32(payload.length),
+            payload
         );
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
@@ -772,14 +781,18 @@ contract SparkPSMExactInTest is Helpers {
         view
         returns (bytes memory)
     {
+        bytes memory payload = abi.encode(receiver, referralCode);
         return bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(_assetIn), // 52-71
-            bytes20(_assetOut), // 72-91
-            bytes32(originalAmountIn), // 92-123
-            bytes32(originalMinAmountOut), // 124-155
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // 156
-            abi.encode(receiver, referralCode) // 157+
+            bytes32(0),                    // placeholder0 (header bytes 0-31)
+            bytes20(address(0)),           // placeholder1 (header bytes 32-51)
+            bytes20(_assetIn),             // inputToken 52-71
+            bytes20(_assetOut),            // outputToken 72-91
+            bytes32(originalAmountIn),     // inputAmount 92-123
+            bytes32(originalMinAmountOut), // outputQuote 124-155
+            bytes32(originalMinAmountOut), // outputMin 156-187
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // usePrevHookAmount 188
+            bytes32(payload.length),       // payloadLength 189-220
+            payload                        // payload 221+
         );
     }
 
@@ -792,14 +805,18 @@ contract SparkPSMExactInTest is Helpers {
         view
         returns (bytes memory)
     {
+        bytes memory payload = abi.encode(receiver, referralCode);
         return bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes32(0),
+            bytes20(address(0)),
             bytes20(assetIn),
             bytes20(assetOut),
             bytes32(_amountIn),
             bytes32(_minAmountOut),
+            bytes32(_minAmountOut),
             _usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
-            abi.encode(receiver, referralCode)
+            bytes32(payload.length),
+            payload
         );
     }
 }

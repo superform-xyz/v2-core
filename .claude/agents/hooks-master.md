@@ -255,13 +255,44 @@ The `@dev Payload:` line documents what the payload is composed of using `abi.en
 - All offsets use `SwapCalldataLayout` constants from `src/libraries/SwapCalldataLayout.sol`
 
 **Examples of `@dev Payload:` lines for existing swap hooks**:
+- UniswapV2: `/// @dev Payload: abi.encode(uint256 deadline, address[] path)`
 - UniswapV3: `/// @dev Payload: abi.encode(uint24 fee, uint256 deadline, uint160 sqrtPriceLimitX96)`
+- UniswapV3Router02: `/// @dev Payload: abi.encode(uint24 fee, uint160 sqrtPriceLimitX96)`
+- UniswapV4: `/// @dev Payload: abi.encode(bool zeroForOne, uint24 fee, int24 tickSpacing, address hooks, address dstReceiver, uint160 sqrtPriceLimitX96, uint256 maxSlippageDeviationBps, bytes additionalData)`
 - AlgebraIntegral: `/// @dev Payload: abi.encode(address deployer, uint256 deadline, uint160 limitSqrtPrice)`
 - 1inch: `/// @dev Payload: abi.encode(address dstReceiver, bytes txData_)`
 - OdosV2: `/// @dev Payload: abi.encode(address inputReceiver, bytes pathDefinition, address executor, uint32 referralCode)`
 - OdosV3: `/// @dev Payload: abi.encode(address inputReceiver, bytes pathDefinition, address executor, uint64 referralCode, uint64 referralFee, address feeRecipient)`
 - OpenOcean: `/// @dev Payload: abi.encode(bytes txData_)`
 - KyberSwap: `/// @dev Payload: abi.encode(bytes txData)`
+- SparkPSM ExactIn/ExactOut: `/// @dev Payload: abi.encode(address receiver, uint256 referralCode)`
+- PendleRouterSwap: `/// @dev Payload: abi.encode(address pendleMarket, uint256 value, bytes txData_)`
+- PendleUnified: `/// @dev Payload: abi.encode(address yieldSource, uint256 value, bytes txData_)`
+- PendleRouterRedeem: `/// @dev Payload: abi.encode(address receiver, address yt, address pt, address tokenOut, uint256 minTokenOut, TokenOutput output)`
+- SpectraExchangeDeposit: `/// @dev Payload: abi.encode(address pt, uint256 value, bytes txData_)`
+- SpectraExchangeRedeem: `/// @dev Payload: abi.encode(address recipient, uint256 minAssets, bytes1 command)`
+
+**IMPORTANT: Universal Adoption**:
+ALL 27 swap hooks in `src/hooks/swappers/` now implement `ISuperHookSwap` and use the standard 10-field Layer 1 data layout. This includes:
+- UniswapV2 (Swap + ApproveAndSwap)
+- UniswapV3 (Swap + ApproveAndSwap)
+- UniswapV3Router02 (Swap + ApproveAndSwap)
+- UniswapV4 (Swap)
+- AlgebraIntegral (Swap + ApproveAndSwap)
+- 1inch (Swap)
+- OdosV2 (Swap + ApproveAndSwap)
+- OdosV3 (Swap + ApproveAndSwap)
+- OpenOcean (Swap + ApproveAndSwap)
+- KyberSwap (Swap + ApproveAndSwap)
+- SparkPSM ExactIn (Swap + ApproveAndSwap)
+- SparkPSM ExactOut (Swap + ApproveAndSwap)
+- PendleRouterSwap (Swap)
+- PendleUnified (Swap)
+- PendleRouterRedeem (Swap)
+- SpectraExchangeDeposit (Swap)
+- SpectraExchangeRedeem (Swap)
+
+Any new swap hook MUST also implement `ISuperHookSwap` and use the standard 10-field layout. Some hooks may not use all header fields on-chain (e.g., Pendle hooks may pass zeros for `inputToken`/`outputToken`), but the fields MUST still be present in the data layout at the correct offsets for uniform off-chain decoding. All offsets are defined in `SwapCalldataLayout.sol` (`src/libraries/SwapCalldataLayout.sol`).
 
 # Comprehensive Complex Swap Hooks Guide: Production-Ready Implementation
 

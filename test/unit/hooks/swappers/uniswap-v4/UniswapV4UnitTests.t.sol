@@ -77,19 +77,26 @@ contract UniswapV4UnitTests is Helpers {
                               HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Builds hook data matching the UniswapV4 new layout:
-    /// placeholder(0-51) | currency0(52) | currency1(72) | amountIn(92) | amountOutMin(124) |
-    /// zeroForOne(156) | usePrevHookAmount(157) | abi.encode(fee, tickSpacing, hooks, dstReceiver, sqrtPriceLimitX96, maxSlippageDeviationBps, additionalData)(158+)
+    /// @dev Builds hook data matching the standard 10-field Layer 1 layout:
+    /// placeholder0(0-31) | placeholder1(32-51) | inputToken(52-71) | outputToken(72-91) |
+    /// inputAmount(92-123) | outputQuote(124-155) | outputMin(156-187) |
+    /// usePrevHookAmount(188) | payloadLength(189-220) | payload(221+)
+    /// Payload: abi.encode(zeroForOne, fee, tickSpacing, hooks, dstReceiver, sqrtPriceLimitX96, maxSlippageDeviationBps, additionalData)
     function _buildHookData(bool usePrevHookAmount) internal view returns (bytes memory) {
+        bytes memory payload = abi.encode(
+            zeroForOne, fee, tickSpacing, hooks, dstReceiver, sqrtPriceLimitX96, maxSlippageDeviationBps, bytes("")
+        );
         return bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(currency0),
-            bytes20(currency1),
-            bytes32(originalAmountIn),
-            bytes32(originalMinAmountOut),
-            zeroForOne ? bytes1(0x01) : bytes1(0x00),
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
-            abi.encode(fee, tickSpacing, hooks, dstReceiver, sqrtPriceLimitX96, maxSlippageDeviationBps, bytes(""))
+            bytes32(0),                    // placeholder0 (header bytes 0-31)
+            bytes20(address(0)),           // placeholder1 (header bytes 32-51)
+            bytes20(currency0),            // inputToken 52-71
+            bytes20(currency1),            // outputToken 72-91
+            bytes32(originalAmountIn),     // inputAmount 92-123
+            bytes32(originalMinAmountOut), // outputQuote 124-155
+            bytes32(originalMinAmountOut), // outputMin 156-187
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // usePrevHookAmount 188
+            bytes32(payload.length),       // payloadLength 189-220
+            payload                        // payload 221+
         );
     }
 }

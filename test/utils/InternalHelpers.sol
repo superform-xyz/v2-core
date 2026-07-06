@@ -305,11 +305,18 @@ abstract contract InternalHelpers is Test {
         returns (bytes memory)
     {
         bytes memory txData = _createSpectraExchangeSimpleCommandTxData(ptToken, tokenIn, amount, account);
-        return abi.encodePacked(
-            bytes32(bytes("")), // placeholder0
-            ptToken, // yieldSource at offset 32
-            usePrevHookAmount, // offset 52
-            abi.encode(value, txData) // payload at offset 53
+        bytes memory payload = abi.encode(ptToken, value, txData);
+        return bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(address(0)),
+            bytes20(address(0)),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
+            bytes32(payload.length),
+            payload
         );
     }
 
@@ -354,14 +361,19 @@ abstract contract InternalHelpers is Test {
         returns (bytes memory)
     {
         bytes1 command = redeemPtForAsset ? REDEEM_PT_FOR_ASSET : REDEEM_IBT_FOR_ASSET;
+        bytes memory payload = abi.encode(recipient, minAssets, command);
 
-        return abi.encodePacked(
-            bytes32(bytes("")), // placeholder0 (0-31)
-            asset, // offset 32
-            pt, // offset 52
-            sharesToBurn, // offset 72 (AMOUNT_POSITION)
-            usePrevHookAmount, // offset 104 (USE_PREV_HOOK_AMOUNT_POSITION)
-            abi.encode(recipient, minAssets, command) // payload at offset 105
+        return bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(asset),
+            bytes20(pt),
+            bytes32(sharesToBurn),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
+            bytes32(payload.length),
+            payload
         );
     }
 

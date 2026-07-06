@@ -315,9 +315,9 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
             token1 := shr(96, secondWord)
         }
 
-        // Verify correct token addresses returned
-        assertEq(token0, CHAIN_1_USDC, "Token0 should be USDC");
-        assertEq(token1, CHAIN_1_WETH, "Token1 should be WETH");
+        // Verify correct outputToken and dstReceiver returned
+        assertEq(token0, CHAIN_1_WETH, "Token0 should be WETH (outputToken)");
+        assertEq(token1, accountEth, "Token1 should be dstReceiver");
 
         console2.log("Inspect function test passed");
     }
@@ -637,8 +637,8 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
 
     /// @notice Test INVALID_HOOK_DATA error with insufficient data length
     function test_RevertInvalidHookData_ShortLength() public {
-        // Create hook data that's too short (less than 218 bytes required)
-        bytes memory shortData = new bytes(100); // Less than 218 bytes required
+        // Create hook data that's too short (less than 221 bytes required)
+        bytes memory shortData = new bytes(100); // Less than 221 bytes required
 
         vm.expectRevert(SwapUniswapV4Hook.INVALID_HOOK_DATA.selector);
         uniswapV4Hook.decodeUsePrevHookAmount(shortData);
@@ -760,10 +760,10 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
 
     /// @notice Test invalid hook data with insufficient data length
     function test_RevertInvalidNativeTransferUsage() public {
-        // Create hook data that's too short (less than 218 bytes required)
+        // Create hook data that's too short (less than 221 bytes required)
         bytes memory shortData = abi.encodePacked(
             CHAIN_1_USDC, // currency0 (20 bytes)
-            CHAIN_1_WETH // currency1 (20 bytes) - total only 40 bytes, need 218
+            CHAIN_1_WETH // currency1 (20 bytes) - total only 40 bytes, need 221
         );
 
         vm.expectRevert(SwapUniswapV4Hook.INVALID_HOOK_DATA.selector);
@@ -1001,8 +1001,8 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
             extractedCurrency1 := mload(add(result, 0x28))
         }
 
-        assertEq(extractedCurrency0, CHAIN_1_USDC, "Should extract USDC as currency0");
-        assertEq(extractedCurrency1, CHAIN_1_WETH, "Should extract WETH as currency1");
+        assertEq(extractedCurrency0, CHAIN_1_WETH, "Should extract WETH as outputToken");
+        assertEq(extractedCurrency1, instanceOnEth.account, "Should extract account as dstReceiver");
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -113,22 +113,25 @@ contract UniswapV2UnitTests is Helpers {
                               HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Builds hook data matching the UniswapV2 layout (with 52-byte strategy header):
-    /// header(0,52) | tokenIn(52) | tokenOut(72) | amountIn(92) | amountOutMin(124) |
-    /// usePrevHookAmount(156) | abi.encode(deadline, path)(157+)
+    /// @dev Builds hook data matching the standard Layer 1 layout:
+    /// header(0,52) | inputToken(52) | outputToken(72) | inputAmount(92) | outputQuote(124) |
+    /// outputMin(156) | usePrevHookAmount(188) | payloadLength(189) | payload(221+)
     function _buildHookData(bool usePrevHookAmount) internal view returns (bytes memory) {
         address[] memory path = new address[](2);
         path[0] = tokenIn;
         path[1] = tokenOut;
+        bytes memory payload = abi.encode(deadline, path);
         return bytes.concat(
-            bytes32(0),          // yieldSourceOracleId placeholder (header bytes 0-31)
-            bytes20(address(0)), // yieldSource placeholder (header bytes 32-51)
-            bytes20(tokenIn),    // 52-71
-            bytes20(tokenOut),   // 72-91
-            bytes32(originalAmountIn),     // 92-123
-            bytes32(originalMinAmountOut),  // 124-155
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // 156
-            abi.encode(deadline, path)     // 157+
+            bytes32(0),                    // placeholder0 (header bytes 0-31)
+            bytes20(address(0)),           // placeholder1 (header bytes 32-51)
+            bytes20(tokenIn),              // inputToken 52-71
+            bytes20(tokenOut),             // outputToken 72-91
+            bytes32(originalAmountIn),     // inputAmount 92-123
+            bytes32(originalMinAmountOut), // outputQuote 124-155
+            bytes32(originalMinAmountOut), // outputMin 156-187
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // usePrevHookAmount 188
+            bytes32(payload.length),       // payloadLength 189-220
+            payload                        // payload 221+
         );
     }
 }

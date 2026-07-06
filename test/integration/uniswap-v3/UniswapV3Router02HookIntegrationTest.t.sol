@@ -96,15 +96,18 @@ contract UniswapV3Router02HookIntegrationTest is MinimalBaseIntegrationTest {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(
-            bytes32(0), // 32 bytes: placeholder0 (header)
-            address(0), // 20 bytes: placeholder1 (header)
-            tokenIn, // 20 bytes (offset 52)
-            tokenOut, // 20 bytes (offset 72)
-            amountIn, // 32 bytes (offset 92)
-            amountOutMinimum, // 32 bytes (offset 124)
-            usePrevHookAmount, // 1 byte (offset 156)
-            abi.encode(fee, sqrtPriceLimitX96) // payload (offset 157)
+        bytes memory payload = abi.encode(fee, sqrtPriceLimitX96);
+        return bytes.concat(
+            bytes32(0), // placeholder0 (offset 0)
+            bytes20(address(0)), // placeholder1 (offset 32)
+            bytes20(tokenIn), // inputToken (offset 52)
+            bytes20(tokenOut), // outputToken (offset 72)
+            bytes32(amountIn), // inputAmount (offset 92)
+            bytes32(amountOutMinimum), // outputQuote (offset 124)
+            bytes32(amountOutMinimum), // outputMin (offset 156)
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // usePrevHookAmount (offset 188)
+            bytes32(payload.length), // payloadLength (offset 189)
+            payload // payload (offset 221)
         );
     }
 

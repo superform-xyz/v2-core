@@ -208,29 +208,14 @@ contract PendleRouterRedeemHookTest is Helpers {
     }
 
     function test_Build_RevertIf_InvalidDataLength() public {
-        // Data needs at least PAYLOAD_OFFSET (85) bytes to pass the length check
-        // Provide only 80 bytes to trigger the error
-        bytes memory data = new bytes(80);
+        // Data needs at least MIN_DATA_LENGTH (221) bytes to pass the length check
+        // Provide only 220 bytes to trigger the error
+        bytes memory data = new bytes(220);
 
         vm.expectRevert(PendleRouterRedeemHook.INVALID_DATA_LENGTH.selector);
         hook.build(address(prevHook), account, data);
     }
 
-    function test_PreExecute_RevertIf_InvalidDataLength() public {
-        // Data shorter than PAYLOAD_OFFSET (85) triggers out-of-bounds slice revert
-        bytes memory data = new bytes(80);
-
-        vm.expectRevert();
-        hook.preExecute(address(0), account, data);
-    }
-
-    function test_PostExecute_RevertIf_InvalidDataLength() public {
-        // Data shorter than PAYLOAD_OFFSET (85) triggers out-of-bounds slice revert
-        bytes memory data = new bytes(70);
-
-        vm.expectRevert();
-        hook.postExecute(address(0), account, data);
-    }
 
     function test_Build_RevertIf_TokenOutMismatch() public {
         // Create a TokenOutput struct with a different tokenOut than the explicit parameter
@@ -246,11 +231,18 @@ contract PendleRouterRedeemHookTest is Helpers {
         });
 
         // Pack the data with explicit tokenOut that differs from struct tokenOut
-        bytes memory data = abi.encodePacked(
-            bytes(new bytes(52)), // 52-byte placeholder
-            amount,
+        bytes memory payload = abi.encode(address(0), address(ytToken), address(ptToken), address(tokenOut), minTokenOut, output);
+        bytes memory data = bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(address(0)),
+            bytes20(address(tokenOut)),
+            bytes32(amount),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
             bytes1(uint8(0)),
-            abi.encode(address(ytToken), address(ptToken), address(tokenOut), minTokenOut, output)
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(PendleRouterRedeemHook.TOKEN_OUT_NOT_VALID.selector);
@@ -271,11 +263,18 @@ contract PendleRouterRedeemHookTest is Helpers {
         });
 
         // Pack the data with explicit minTokenOut that differs from struct minTokenOut
-        bytes memory data = abi.encodePacked(
-            bytes(new bytes(52)), // 52-byte placeholder
-            amount,
+        bytes memory payload = abi.encode(address(0), address(ytToken), address(ptToken), address(tokenOut), minTokenOut, output);
+        bytes memory data = bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(address(0)),
+            bytes20(address(tokenOut)),
+            bytes32(amount),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
             bytes1(uint8(0)),
-            abi.encode(address(ytToken), address(ptToken), address(tokenOut), minTokenOut, output)
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(PendleRouterRedeemHook.MIN_TOKEN_OUT_NOT_VALID.selector);
@@ -366,8 +365,8 @@ contract PendleRouterRedeemHookTest is Helpers {
     }
 
     function test_DecodeUsePrevHookAmount_RevertIf_InvalidDataLength() public {
-        // Data shorter than PAYLOAD_OFFSET (85) triggers INVALID_DATA_LENGTH
-        bytes memory data = new bytes(80);
+        // Data shorter than MIN_DATA_LENGTH (221) triggers INVALID_DATA_LENGTH
+        bytes memory data = new bytes(220);
 
         vm.expectRevert(PendleRouterRedeemHook.INVALID_DATA_LENGTH.selector);
         hook.decodeUsePrevHookAmount(data);
@@ -508,11 +507,18 @@ contract PendleRouterRedeemHookTest is Helpers {
             pendleSwap: address(0),
             swapData: swapData
         });
-        return abi.encodePacked(
-            bytes(new bytes(52)),
-            amount_,
+        bytes memory payload = abi.encode(address(0), yt_, pt_, tokenOut_, minTokenOut_, output);
+        return bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(address(0)),
+            bytes20(tokenOut_),
+            bytes32(amount_),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
-            abi.encode(yt_, pt_, tokenOut_, minTokenOut_, output)
+            bytes32(payload.length),
+            payload
         );
     }
 

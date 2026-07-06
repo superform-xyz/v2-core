@@ -109,7 +109,7 @@ contract PendleUnifiedHookE2E is Test {
         address tokenIn = tokensIn[0];
 
         uint256 inputAmount = 1e18;
-        bytes memory data = _buildSwapTokenForPtData(DETH_MARKET, user, inputAmount, tokenIn, 1, false);
+        bytes memory data = _buildSwapTokenForPtData(DETH_MARKET, user, inputAmount, tokenIn, pt, 1, false);
 
         Execution[] memory executions = hook.build(address(prevHook), user, data);
 
@@ -160,7 +160,7 @@ contract PendleUnifiedHookE2E is Test {
                         INSPECT TESTS (REAL MARKET)
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Verify inspect() returns packed data starting with yieldSource for redeem
+    /// @notice Verify inspect() returns packed outputToken (20 bytes) for redeem
     function test_Inspect_RedeemPyToToken_RealMarket() public view {
         address[] memory tokensOut = IStandardizedYield(sy).getTokensOut();
         address tokenOut = tokensOut[0];
@@ -168,45 +168,27 @@ contract PendleUnifiedHookE2E is Test {
         bytes memory data = _buildRedeemData(DETH_MARKET, yt, 1e18, tokenOut, tokenOut, 1, false);
         bytes memory packed = hook.inspect(data);
 
-        assertGt(packed.length, 0, "Inspect should return non-empty data");
+        assertEq(packed.length, 20, "Inspect should return 20 bytes (outputToken)");
 
-        // First 20 bytes = yieldSource (market)
-        address inspectedYieldSource = packed.toAddress(0);
-        assertEq(inspectedYieldSource, DETH_MARKET, "First field should be DETH market");
-
-        // Next 20 bytes = receiver
-        address inspectedReceiver = packed.toAddress(20);
-        assertEq(inspectedReceiver, user, "Second field should be receiver");
-
-        // Next 20 bytes = PT (from market.readTokens())
-        address inspectedPt = packed.toAddress(40);
-        assertEq(inspectedPt, pt, "Third field should be PT from market");
+        address inspectedOutputToken = packed.toAddress(0);
+        assertEq(inspectedOutputToken, tokenOut, "Output token should match header outputToken at offset 72");
     }
 
-    /// @notice Verify inspect() returns packed data for swapExactTokenForPt
+    /// @notice Verify inspect() returns packed outputToken (20 bytes) for swapExactTokenForPt
     function test_Inspect_SwapExactTokenForPt_RealMarket() public view {
         address[] memory tokensIn = IStandardizedYield(sy).getTokensIn();
         address tokenIn = tokensIn[0];
 
-        bytes memory data = _buildSwapTokenForPtData(DETH_MARKET, user, 1e18, tokenIn, 1, false);
+        bytes memory data = _buildSwapTokenForPtData(DETH_MARKET, user, 1e18, tokenIn, pt, 1, false);
         bytes memory packed = hook.inspect(data);
 
-        assertGt(packed.length, 0, "Inspect should return non-empty data");
+        assertEq(packed.length, 20, "Inspect should return 20 bytes (outputToken)");
 
-        // First 20 bytes = yieldSource (market)
-        address inspectedYieldSource = packed.toAddress(0);
-        assertEq(inspectedYieldSource, DETH_MARKET, "First field should be DETH market");
-
-        // Next 20 bytes = receiver
-        address inspectedReceiver = packed.toAddress(20);
-        assertEq(inspectedReceiver, user, "Second field should be receiver");
-
-        // Next 20 bytes = tokenIn
-        address inspectedTokenIn = packed.toAddress(40);
-        assertEq(inspectedTokenIn, tokenIn, "Third field should be tokenIn");
+        address inspectedOutputToken = packed.toAddress(0);
+        assertEq(inspectedOutputToken, pt, "Output token should match PT at offset 72");
     }
 
-    /// @notice Verify inspect() returns packed data for swapExactPtForToken
+    /// @notice Verify inspect() returns packed outputToken (20 bytes) for swapExactPtForToken
     function test_Inspect_SwapExactPtForToken_RealMarket() public view {
         address[] memory tokensOut = IStandardizedYield(sy).getTokensOut();
         address tokenOut = tokensOut[0];
@@ -214,13 +196,10 @@ contract PendleUnifiedHookE2E is Test {
         bytes memory data = _buildSwapPtForTokenData(DETH_MARKET, user, 1e18, tokenOut, 1, false);
         bytes memory packed = hook.inspect(data);
 
-        assertGt(packed.length, 0, "Inspect should return non-empty data");
+        assertEq(packed.length, 20, "Inspect should return 20 bytes (outputToken)");
 
-        address inspectedYieldSource = packed.toAddress(0);
-        assertEq(inspectedYieldSource, DETH_MARKET, "First field should be DETH market");
-
-        address inspectedReceiver = packed.toAddress(20);
-        assertEq(inspectedReceiver, user, "Second field should be receiver");
+        address inspectedOutputToken = packed.toAddress(0);
+        assertEq(inspectedOutputToken, tokenOut, "Output token should match header outputToken at offset 72");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -274,6 +253,7 @@ contract PendleUnifiedHookE2E is Test {
             user,
             1e18,
             tokenIn,
+            address(0), // outputToken (irrelevant, reverts with MARKET_NOT_VALID first)
             1,
             false
         );
@@ -358,7 +338,7 @@ contract PendleUnifiedHookE2E is Test {
         uint256 ptBefore = IERC20(pt).balanceOf(user);
 
         // Build hook data and executions
-        bytes memory data = _buildSwapTokenForPtData(DETH_MARKET, user, inputAmount, tokenIn, 1, false);
+        bytes memory data = _buildSwapTokenForPtData(DETH_MARKET, user, inputAmount, tokenIn, pt, 1, false);
         Execution[] memory executions = hook.build(address(prevHook), user, data);
 
         // Execute all as user
@@ -477,8 +457,18 @@ contract PendleUnifiedHookE2E is Test {
 
         bytes memory txData = abi.encodeWithSelector(IPendleRouterV4.redeemPyToToken.selector, user, yt_, amount_, output);
 
-        return abi.encodePacked(
-            bytes32(0), market_, bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)), abi.encode(uint256(0), txData)
+        bytes memory payload = abi.encode(market_, uint256(0), txData);
+        return bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(address(0)),
+            bytes20(tokenOut_),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
+            bytes32(payload.length),
+            payload
         );
     }
 
@@ -487,6 +477,7 @@ contract PendleUnifiedHookE2E is Test {
         address receiver_,
         uint256 inputAmount_,
         address tokenIn_,
+        address outputToken_,
         uint256 minPtOut_,
         bool usePrevHookAmount_
     )
@@ -494,7 +485,7 @@ contract PendleUnifiedHookE2E is Test {
         pure
         returns (bytes memory)
     {
-        return _buildSwapTokenForPtDataWithYieldSource(market_, market_, receiver_, inputAmount_, tokenIn_, minPtOut_, usePrevHookAmount_);
+        return _buildSwapTokenForPtDataWithYieldSource(market_, market_, receiver_, inputAmount_, tokenIn_, outputToken_, minPtOut_, usePrevHookAmount_);
     }
 
     function _buildSwapTokenForPtDataWithYieldSource(
@@ -503,6 +494,7 @@ contract PendleUnifiedHookE2E is Test {
         address receiver_,
         uint256 inputAmount_,
         address tokenIn_,
+        address outputToken_,
         uint256 minPtOut_,
         bool usePrevHookAmount_
     )
@@ -538,8 +530,18 @@ contract PendleUnifiedHookE2E is Test {
             IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
         );
 
-        return abi.encodePacked(
-            bytes32(0), yieldSource_, bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)), abi.encode(uint256(0), txData)
+        bytes memory payload = abi.encode(yieldSource_, uint256(0), txData);
+        return bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(address(0)),
+            bytes20(outputToken_),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
+            bytes32(payload.length),
+            payload
         );
     }
 
@@ -575,8 +577,18 @@ contract PendleUnifiedHookE2E is Test {
             IPendleRouterV4.swapExactPtForToken.selector, receiver_, market_, exactPtIn_, output, limit
         );
 
-        return abi.encodePacked(
-            bytes32(0), market_, bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)), abi.encode(uint256(0), txData)
+        bytes memory payload = abi.encode(market_, uint256(0), txData);
+        return bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(address(0)),
+            bytes20(tokenOut_),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
+            bytes32(payload.length),
+            payload
         );
     }
 

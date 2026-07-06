@@ -114,7 +114,7 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
             bytes[] memory hookData = new bytes[](2);
             hookData[0] = _createApproveHookData(token, address(pendleRouterMock), amount, false);
             hookData[1] = _createPendleRouterSwapHookDataWithOdos(
-                pendlePufETHMarket, accountEth, false, 1 ether, false, amount, CHAIN_1_USDC, syTokenIns[1]
+                pendlePufETHMarket, accountEth, false, 1 ether, false, amount, CHAIN_1_USDC, syTokenIns[1], pt
             );
 
             ISuperExecutor.ExecutorEntry memory entryToExecute =
@@ -172,8 +172,21 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
                 limit
             );
 
-            hookData[1] =
-                abi.encodePacked(bytes32(bytes("")), address(pendleMarketMock), bytes1(uint8(0)), abi.encode(uint256(0), txData));
+            {
+                bytes memory pendlePayload = abi.encode(address(pendleMarketMock), uint256(0), txData);
+                hookData[1] = bytes.concat(
+                    bytes32(0),
+                    bytes20(address(0)),
+                    bytes20(address(0)),
+                    bytes20(pt),
+                    bytes32(uint256(0)),
+                    bytes32(uint256(0)),
+                    bytes32(uint256(0)),
+                    bytes1(0x00),
+                    bytes32(pendlePayload.length),
+                    pendlePayload
+                );
+            }
 
             ISuperExecutor.ExecutorEntry memory entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
@@ -367,11 +380,21 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(
-            bytes32(0), address(0), // 52-byte strategy header
-            amount, // offset 52
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // offset 84
-            abi.encode(yt, pt, tokenOut, minTokenOut, _createPendleRedeemTokenOutput(tokenOut, minTokenOut, tokenRedeemSy)) // payload at offset 85
+        bytes memory payload = abi.encode(
+            address(0), yt, pt, tokenOut, minTokenOut,
+            _createPendleRedeemTokenOutput(tokenOut, minTokenOut, tokenRedeemSy)
+        );
+        return bytes.concat(
+            bytes32(0), // placeholder0 (offset 0)
+            bytes20(address(0)), // placeholder1 (offset 32)
+            bytes20(address(0)), // inputToken (offset 52)
+            bytes20(tokenOut), // outputToken (offset 72)
+            bytes32(amount), // inputAmount (offset 92)
+            bytes32(uint256(0)), // outputQuote (offset 124)
+            bytes32(uint256(0)), // outputMin (offset 156)
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // usePrevHookAmount (offset 188)
+            bytes32(payload.length), // payloadLength (offset 189)
+            payload // payload (offset 221)
         );
     }
 
@@ -401,7 +424,8 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
         bool ptToToken,
         uint256 amount,
         address tokenIn,
-        address tokenMint
+        address tokenMint,
+        address outputToken_
     )
         internal
         returns (bytes memory)
@@ -422,11 +446,19 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
             //TODO: fill with the other
             revert("Not implemented");
         }
-        return abi.encodePacked(
-            bytes32(bytes("")), // placeholder0
-            market, // yieldSource
-            usePrevHookAmount, // offset 52
-            abi.encode(value, pendleTxData) // payload at offset 53
+        bytes memory pendlePayload = abi.encode(market, value, pendleTxData);
+        bytes1 usePrevHookFlag = usePrevHookAmount ? bytes1(0x01) : bytes1(0x00);
+        return bytes.concat(
+            bytes32(0), // placeholder0
+            bytes20(address(0)), // placeholder1
+            bytes20(address(0)), // inputToken
+            bytes20(outputToken_), // outputToken
+            bytes32(uint256(0)), // inputAmount
+            bytes32(uint256(0)), // outputQuote
+            bytes32(uint256(0)), // outputMin
+            usePrevHookFlag, // usePrevHookAmount
+            bytes32(pendlePayload.length), // payloadLength
+            pendlePayload // payload
         );
     }
 
@@ -491,11 +523,18 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
             limit
         );
 
-        bytes memory hookData = abi.encodePacked(
-            bytes32(bytes("")),
-            address(pendleMarketMock),
-            bytes1(uint8(0)), // usePrevHookAmount = false
-            abi.encode(usdcAmount, txData) // payload at offset 53
+        bytes memory pendlePayload = abi.encode(address(pendleMarketMock), usdcAmount, txData);
+        bytes memory hookData = bytes.concat(
+            bytes32(0), // placeholder0
+            bytes20(address(0)), // placeholder1
+            bytes20(address(0)), // inputToken
+            bytes20(address(pt_eUSDe)), // outputToken (PT for swapExactTokenForPt)
+            bytes32(uint256(0)), // inputAmount
+            bytes32(uint256(0)), // outputQuote
+            bytes32(uint256(0)), // outputMin
+            bytes1(0x00), // usePrevHookAmount = false
+            bytes32(pendlePayload.length), // payloadLength
+            pendlePayload // payload
         );
 
         // Execute with ERC20 token - should use value=0 internally

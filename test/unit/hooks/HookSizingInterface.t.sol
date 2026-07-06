@@ -1581,20 +1581,41 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(approveSwapOpenOcean.decodeAmounts(replaced)[0], 7e18);
     }
 
-    /// @dev SpectraExchangeRedeem: AMOUNT at 124
-    ///      bytes32 + 3 addrs + uint256(minAssets) + uint256(sharesToBurn at 124) + bool + bytes1
+    /// @dev SpectraExchangeRedeem: AMOUNT@92 — 52-byte header + addr(20) inputToken/asset + addr(20) outputToken/pt + uint256(inputAmount/sharesToBurn)
     function test_DecodeReplace_Roundtrip_SpectraExchangeRedeem() public view {
-        // AMOUNT_POSITION = 72 (32-byte placeholder + address(20) asset + address(20) pt)
-        bytes memory data = abi.encodePacked(bytes32(0), address(0xA), address(0xB), uint256(1e18), false, abi.encode(address(0xC), uint256(0), bytes1(0)));
+        // AMOUNT_POSITION = 92 (52-byte header + addr(20) asset + addr(20) pt)
+        bytes memory redeemPayload = abi.encode(address(0xC), uint256(0), bytes1(0));
+        bytes memory data = bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(address(0xA)),
+            bytes20(address(0xB)),
+            bytes32(uint256(1e18)),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes1(0x00),
+            bytes32(redeemPayload.length),
+            redeemPayload
+        );
         assertEq(spectraRedeem.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = spectraRedeem.replaceCalldataAmounts(data, _singleAmount(3e18));
         assertEq(spectraRedeem.decodeAmounts(replaced)[0], 3e18);
     }
 
-    /// @dev PendleRouterRedeem: AMOUNT@52 — 52-byte header + uint256(amount) + ...
+    /// @dev PendleRouterRedeem: AMOUNT@92 — 52-byte header + addr(20) inputToken + addr(20) outputToken + uint256(inputAmount)
     function test_DecodeReplace_Roundtrip_PendleRouterRedeem() public view {
-        bytes memory data = abi.encodePacked(bytes32(0), address(0), uint256(1e18), address(0xA), address(0xB), address(0xC), uint256(0), false);
+        // AMOUNT_POSITION = 92 (52-byte header + addr(20) + addr(20))
+        bytes memory data = bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(address(0)),
+            bytes20(address(0)),
+            bytes32(uint256(1e18)),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes1(0x00)
+        );
         assertEq(pendleRedeem.decodeAmounts(data)[0], 1e18);
 
         bytes memory replaced = pendleRedeem.replaceCalldataAmounts(data, _singleAmount(8e18));

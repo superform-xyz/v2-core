@@ -164,16 +164,8 @@ contract SwapOpenOceanHook is
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        uint256 payloadLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
-        bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLength);
-        (bytes memory txData_) = abi.decode(payload, (bytes));
-
-        (, IOpenOceanExchange.SwapDescription memory desc,) = abi.decode(
-            BytesLib.slice(txData_, 4, txData_.length - 4),
-            (IOpenOceanCaller, IOpenOceanExchange.SwapDescription, IOpenOceanCaller.CallDescription[])
-        );
-
-        return abi.encodePacked(desc.dstReceiver);
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        return abi.encodePacked(outputToken);
     }
 
     // ─── ISuperHookSwap ──────────────────────────────────────────────────────

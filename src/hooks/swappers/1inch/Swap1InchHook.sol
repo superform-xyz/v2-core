@@ -99,7 +99,7 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
         override
         returns (Execution[] memory executions)
     {
-        address dstToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
         uint256 inputAmount = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
         bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
         uint256 payloadLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
@@ -107,7 +107,7 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
         (address dstReceiver, bytes memory txData_) = abi.decode(payload, (address, bytes));
 
         bytes memory updatedTxData =
-            _validateTxData(dstToken, dstReceiver, prevHook, account, usePrevHookAmount, txData_);
+            _validateTxData(outputToken, dstReceiver, prevHook, account, usePrevHookAmount, txData_);
 
         executions = new Execution[](1);
         executions[0] = Execution({
@@ -127,39 +127,12 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure override returns (bytes memory packed) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
         uint256 payloadLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
         bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLength);
-        (, bytes memory txData_) = abi.decode(payload, (address, bytes));
-
-        bytes4 selector;
-        assembly ("memory-safe") {
-            selector := mload(add(txData_, 32))
-        }
-
-        if (selector == I1InchAggregationRouterV6.unoswapTo.selector) {
-            (Address to, Address token,,, Address dex) =
-                abi.decode(BytesLib.slice(txData_, 4, txData_.length - 4), (Address, Address, uint256, uint256, Address));
-            packed = abi.encodePacked(to.get(), token.get(), dex.get());
-        } else if (selector == I1InchAggregationRouterV6.swap.selector) {
-            (IAggregationExecutor executor, I1InchAggregationRouterV6.SwapDescription memory desc,) =
-                abi.decode(BytesLib.slice(txData_, 4, txData_.length - 4), (IAggregationExecutor, I1InchAggregationRouterV6.SwapDescription, bytes));
-            packed = abi.encodePacked(
-                address(executor),
-                address(desc.srcToken),
-                address(desc.dstToken),
-                address(desc.srcReceiver),
-                address(desc.dstReceiver)
-            );
-        } else if (selector == I1InchAggregationRouterV6.clipperSwapTo.selector) {
-            (IClipperExchange clipperExchange, address recipient, Address srcToken, IERC20 dstToken,,,,,) = abi.decode(
-                BytesLib.slice(txData_, 4, txData_.length - 4),
-                (IClipperExchange, address, Address, IERC20, uint256, uint256, uint256, bytes32, bytes32)
-            );
-            packed = abi.encodePacked(address(clipperExchange), recipient, srcToken.get(), address(dstToken));
-        } else {
-            revert INVALID_SELECTOR();
-        }
+        (address dstReceiver,) = abi.decode(payload, (address, bytes));
+        return abi.encodePacked(outputToken, dstReceiver);
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -255,7 +228,7 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _validateTxData(
-        address dstToken,
+        address outputToken,
         address dstReceiver,
         address prevHook,
         address account,
@@ -274,16 +247,16 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
         if (selector == I1InchAggregationRouterV6.unoswapTo.selector) {
             /// @dev support UNISWAP_V2, UNISWAP_V3, CURVE and all uniswap-based forks
             updatedTxData = _validateUnoswap(
-                BytesLib.slice(txData_, 4, txData_.length - 4), dstReceiver, dstToken, prevHook, account, usePrevHookAmount
+                BytesLib.slice(txData_, 4, txData_.length - 4), dstReceiver, outputToken, prevHook, account, usePrevHookAmount
             );
         } else if (selector == I1InchAggregationRouterV6.swap.selector) {
             /// @dev support for generic router call
             updatedTxData = _validateGenericSwap(
-                BytesLib.slice(txData_, 4, txData_.length - 4), dstReceiver, dstToken, prevHook, account, usePrevHookAmount
+                BytesLib.slice(txData_, 4, txData_.length - 4), dstReceiver, outputToken, prevHook, account, usePrevHookAmount
             );
         } else if (selector == I1InchAggregationRouterV6.clipperSwapTo.selector) {
             updatedTxData = _validateClipperSwap(
-                BytesLib.slice(txData_, 4, txData_.length - 4), dstReceiver, dstToken, prevHook, account, usePrevHookAmount
+                BytesLib.slice(txData_, 4, txData_.length - 4), dstReceiver, outputToken, prevHook, account, usePrevHookAmount
             );
         } else {
             revert INVALID_SELECTOR();
@@ -297,7 +270,7 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
     function _validateUnoswap(
         bytes memory txData_,
         address receiver,
-        address toToken,
+        address outputToken,
         address prevHook,
         address account,
         bool usePrevHookAmount
@@ -366,7 +339,7 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
             revert INVALID_OUTPUT_AMOUNT();
         }
 
-        if (toToken != dstToken) {
+        if (outputToken != dstToken) {
             revert INVALID_DESTINATION_TOKEN();
         }
 
@@ -383,7 +356,7 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
     function _validateGenericSwap(
         bytes memory txData_,
         address receiver,
-        address toToken,
+        address outputToken,
         address prevHook,
         address account,
         bool usePrevHookAmount
@@ -399,7 +372,7 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
             revert PARTIAL_FILL_NOT_ALLOWED();
         }
 
-        if (address(desc.dstToken) != toToken) {
+        if (address(desc.dstToken) != outputToken) {
             revert INVALID_DESTINATION_TOKEN();
         }
 
@@ -430,7 +403,7 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
     function _validateClipperSwap(
         bytes memory txData_,
         address receiver,
-        address toToken,
+        address outputToken,
         address prevHook,
         address account,
         bool usePrevHookAmount
@@ -448,7 +421,7 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
             revert INVALID_RECEIVER();
         }
 
-        if (address(dstToken) != toToken) {
+        if (address(dstToken) != outputToken) {
             revert INVALID_DESTINATION_TOKEN();
         }
 
@@ -482,7 +455,7 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
     }
 
     function _getBalance(bytes calldata data, address account) private view returns (uint256) {
-        address dstToken = address(bytes20(data[SwapCalldataLayout.OUTPUT_TOKEN_OFFSET:SwapCalldataLayout.OUTPUT_TOKEN_OFFSET + 20]));
+        address outputToken = address(bytes20(data[SwapCalldataLayout.OUTPUT_TOKEN_OFFSET:SwapCalldataLayout.OUTPUT_TOKEN_OFFSET + 20]));
         uint256 payloadLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
         bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLength);
         (address dstReceiver,) = abi.decode(payload, (address, bytes));
@@ -490,9 +463,9 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
             dstReceiver = account;
         }
 
-        if (dstToken == NATIVE || dstToken == address(0)) {
+        if (outputToken == NATIVE || outputToken == address(0)) {
             return dstReceiver.balance;
         }
-        return IERC20(dstToken).balanceOf(dstReceiver);
+        return IERC20(outputToken).balanceOf(dstReceiver);
     }
 }

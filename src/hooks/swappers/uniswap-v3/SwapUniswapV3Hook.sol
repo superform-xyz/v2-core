@@ -139,17 +139,17 @@ contract SwapUniswapV3Hook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
 
     /// @inheritdoc BaseHook
     function _preExecute(address, address account, bytes calldata data) internal override {
-        address tokenOut = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
-        _setOutAmount(IERC20(tokenOut).balanceOf(account), account);
+        address outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        _setOutAmount(IERC20(outputToken).balanceOf(account), account);
     }
 
     /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
-        address tokenOut = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
-        uint256 finalBalance = IERC20(tokenOut).balanceOf(account);
+        address outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        uint256 finalBalance = IERC20(outputToken).balanceOf(account);
         uint256 initialBalance = getOutAmount(account);
         _setOutAmount(finalBalance - initialBalance, account);
-        _setOutToken(tokenOut, account);
+        _setOutToken(outputToken, account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -194,8 +194,8 @@ contract SwapUniswapV3Hook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
 
     /// @inheritdoc BaseHook
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        address tokenOut = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
-        return abi.encodePacked(tokenOut);
+        address outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        return abi.encodePacked(outputToken);
     }
 
     // ─── ISuperHookSwap ──────────────────────────────────────────────────────

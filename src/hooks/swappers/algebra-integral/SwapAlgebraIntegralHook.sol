@@ -96,11 +96,11 @@ contract SwapAlgebraIntegralHook is BaseHook, ISuperHookSwap, ISuperHookContextA
         override
         returns (Execution[] memory executions)
     {
-        address tokenIn = data.toAddress(SwapCalldataLayout.INPUT_TOKEN_OFFSET);
-        address tokenOut = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        address inputToken = data.toAddress(SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+        address outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
 
-        if (tokenIn == address(0) || tokenOut == address(0)) revert NATIVE_ETH_NOT_SUPPORTED();
-        if (tokenIn == tokenOut) revert INVALID_HOOK_DATA();
+        if (inputToken == address(0) || outputToken == address(0)) revert NATIVE_ETH_NOT_SUPPORTED();
+        if (inputToken == outputToken) revert INVALID_HOOK_DATA();
 
         address deployer;
         uint256 deadline;
@@ -113,16 +113,16 @@ contract SwapAlgebraIntegralHook is BaseHook, ISuperHookSwap, ISuperHookContextA
 
         if (deadline < block.timestamp) revert EXPIRED_DEADLINE(deadline, block.timestamp);
 
-        uint256 amountIn = data.toUint256(SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
-        uint256 amountOutMinimum = data.toUint256(SwapCalldataLayout.OUTPUT_MIN_OFFSET);
+        uint256 inputAmount = data.toUint256(SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+        uint256 outputMin = data.toUint256(SwapCalldataLayout.OUTPUT_MIN_OFFSET);
 
         if (_decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET)) {
-            uint256 prevAmountIn = ISuperHookResult(prevHook).getOutAmount(account);
-            amountOutMinimum = HookDataUpdater.getUpdatedOutputAmount(prevAmountIn, amountIn, amountOutMinimum);
-            amountIn = prevAmountIn;
+            uint256 prevInputAmount = ISuperHookResult(prevHook).getOutAmount(account);
+            outputMin = HookDataUpdater.getUpdatedOutputAmount(prevInputAmount, inputAmount, outputMin);
+            inputAmount = prevInputAmount;
         }
 
-        if (amountIn == 0) revert AMOUNT_NOT_VALID();
+        if (inputAmount == 0) revert AMOUNT_NOT_VALID();
 
         // Build swap execution
         executions = new Execution[](1);
@@ -133,13 +133,13 @@ contract SwapAlgebraIntegralHook is BaseHook, ISuperHookSwap, ISuperHookContextA
                 IAlgebraSwapRouter.exactInputSingle,
                 (
                     IAlgebraSwapRouter.ExactInputSingleParams({
-                        tokenIn: tokenIn,
-                        tokenOut: tokenOut,
+                        tokenIn: inputToken,
+                        tokenOut: outputToken,
                         deployer: deployer,
                         recipient: account,
                         deadline: deadline,
-                        amountIn: amountIn,
-                        amountOutMinimum: amountOutMinimum,
+                        amountIn: inputAmount,
+                        amountOutMinimum: outputMin,
                         limitSqrtPrice: limitSqrtPrice
                     })
                 )
@@ -149,18 +149,18 @@ contract SwapAlgebraIntegralHook is BaseHook, ISuperHookSwap, ISuperHookContextA
 
     /// @inheritdoc BaseHook
     function _preExecute(address, address account, bytes calldata data) internal override {
-        address tokenOut = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
-        _setOutAmount(IERC20(tokenOut).balanceOf(account), account);
+        address outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        _setOutAmount(IERC20(outputToken).balanceOf(account), account);
     }
 
     /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
-        address tokenOut = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
-        uint256 finalBalance = IERC20(tokenOut).balanceOf(account);
+        address outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        uint256 finalBalance = IERC20(outputToken).balanceOf(account);
         uint256 initialBalance = getOutAmount(account);
         if (finalBalance < initialBalance) revert AMOUNT_NOT_VALID();
         _setOutAmount(finalBalance - initialBalance, account);
-        _setOutToken(tokenOut, account);
+        _setOutToken(outputToken, account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -205,8 +205,8 @@ contract SwapAlgebraIntegralHook is BaseHook, ISuperHookSwap, ISuperHookContextA
 
     /// @inheritdoc BaseHook
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        address tokenOut = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
-        return abi.encodePacked(tokenOut);
+        address outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        return abi.encodePacked(outputToken);
     }
 
     // ─── ISuperHookSwap ──────────────────────────────────────────────────────

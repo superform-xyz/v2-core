@@ -73,15 +73,18 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
         view
         returns (bytes memory)
     {
+        bytes memory payload = abi.encode(account, REFERRAL_CODE);
         return bytes.concat(
-            bytes32(0), // placeholder0 (header bytes 0-31)
-            bytes20(address(0)), // placeholder1 (header bytes 32-51)
-            bytes20(assetIn), // offset 52
-            bytes20(assetOut), // offset 72
-            bytes32(amountIn), // offset 92
-            bytes32(minAmountOut), // offset 124
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // offset 156
-            abi.encode(account, REFERRAL_CODE) // payload at offset 157
+            bytes32(0), // placeholder0 (offset 0)
+            bytes20(address(0)), // placeholder1 (offset 32)
+            bytes20(assetIn), // inputToken (offset 52)
+            bytes20(assetOut), // outputToken (offset 72)
+            bytes32(amountIn), // inputAmount (offset 92)
+            bytes32(minAmountOut), // outputQuote (offset 124)
+            bytes32(minAmountOut), // outputMin (offset 156)
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // usePrevHookAmount (offset 188)
+            bytes32(payload.length), // payloadLength (offset 189)
+            payload // payload (offset 221)
         );
     }
 
@@ -96,15 +99,18 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
         view
         returns (bytes memory)
     {
+        bytes memory payload = abi.encode(account, REFERRAL_CODE);
         return bytes.concat(
-            bytes32(0), // placeholder0 (header bytes 0-31)
-            bytes20(address(0)), // placeholder1 (header bytes 32-51)
-            bytes20(assetIn), // offset 52
-            bytes20(assetOut), // offset 72
-            bytes32(amountOut), // offset 92
-            bytes32(maxAmountIn), // offset 124
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // offset 156
-            abi.encode(account, REFERRAL_CODE) // payload at offset 157
+            bytes32(0), // placeholder0 (offset 0)
+            bytes20(address(0)), // placeholder1 (offset 32)
+            bytes20(assetIn), // inputToken (offset 52)
+            bytes20(assetOut), // outputToken (offset 72)
+            bytes32(amountOut), // inputAmount (offset 92)
+            bytes32(maxAmountIn), // outputQuote (offset 124)
+            bytes32(maxAmountIn), // outputMin (offset 156)
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // usePrevHookAmount (offset 188)
+            bytes32(payload.length), // payloadLength (offset 189)
+            payload // payload (offset 221)
         );
     }
 

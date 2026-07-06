@@ -382,20 +382,16 @@ contract OdosV3UnitTests is Helpers {
     function test_SwapOdosV3Hook_inspect() public view {
         bytes memory data = _buildSwapOdosV3Data(false);
         bytes memory argsEncoded = swapOdosV3Hook.inspect(data);
-        assertEq(argsEncoded.length, 60);
+        assertEq(argsEncoded.length, 20);
     }
 
     function test_SwapOdosV3Hook_inspect_Format() public view {
         bytes memory data = _buildSwapOdosV3Data(false);
         bytes memory argsEncoded = swapOdosV3Hook.inspect(data);
 
-        address decodedInputReceiver = BytesLib.toAddress(argsEncoded, 0);
-        address decodedExecutor = BytesLib.toAddress(argsEncoded, 20);
-        address decodedFeeRecipient = BytesLib.toAddress(argsEncoded, 40);
+        address decodedOutputToken = BytesLib.toAddress(argsEncoded, 0);
 
-        assertEq(decodedInputReceiver, inputReceiver);
-        assertEq(decodedExecutor, executor);
-        assertEq(decodedFeeRecipient, feeRecipient);
+        assertEq(decodedOutputToken, outputToken);
     }
 
     function test_SwapOdosV3Hook_inspect_DifferentPathLengths() public view {
@@ -403,9 +399,8 @@ contract OdosV3UnitTests is Helpers {
         bytes memory shortPath = hex"aabb";
         bytes memory data1 = _buildV3DataWithPath(inputToken, shortPath, false);
         bytes memory inspected1 = swapOdosV3Hook.inspect(data1);
-        assertEq(inspected1.length, 60);
-        assertEq(BytesLib.toAddress(inspected1, 0), inputReceiver);
-        assertEq(BytesLib.toAddress(inspected1, 20), executor);
+        assertEq(inspected1.length, 20);
+        assertEq(BytesLib.toAddress(inspected1, 0), outputToken);
 
         // Long path
         bytes memory longPath = new bytes(256);
@@ -414,9 +409,8 @@ contract OdosV3UnitTests is Helpers {
         }
         bytes memory data2 = _buildV3DataWithPath(inputToken, longPath, false);
         bytes memory inspected2 = swapOdosV3Hook.inspect(data2);
-        assertEq(inspected2.length, 60);
-        assertEq(BytesLib.toAddress(inspected2, 0), inputReceiver);
-        assertEq(BytesLib.toAddress(inspected2, 20), executor);
+        assertEq(inspected2.length, 20);
+        assertEq(BytesLib.toAddress(inspected2, 0), outputToken);
     }
 
     // ========================== SwapOdosV3Hook: Fee Validation ==========================
@@ -536,20 +530,16 @@ contract OdosV3UnitTests is Helpers {
     }
 
     function test_SwapOdosV3Hook_DifferentPathLengths_PreservesTail() public view {
-        // Verify that executor and referral fields decode correctly with different path lengths
+        // Verify that outputToken decodes correctly with different path lengths
         bytes memory shortPath = hex"aa";
         bytes memory data1 = _buildV3DataWithPath(inputToken, shortPath, false);
         bytes memory inspected1 = swapOdosV3Hook.inspect(data1);
-        assertEq(BytesLib.toAddress(inspected1, 0), inputReceiver);
-        assertEq(BytesLib.toAddress(inspected1, 20), executor);
-        assertEq(BytesLib.toAddress(inspected1, 40), feeRecipient);
+        assertEq(BytesLib.toAddress(inspected1, 0), outputToken);
 
         bytes memory mediumPath = abi.encode("medium", "path", "definition", "data");
         bytes memory data2 = _buildV3DataWithPath(inputToken, mediumPath, false);
         bytes memory inspected2 = swapOdosV3Hook.inspect(data2);
-        assertEq(BytesLib.toAddress(inspected2, 0), inputReceiver);
-        assertEq(BytesLib.toAddress(inspected2, 20), executor);
-        assertEq(BytesLib.toAddress(inspected2, 40), feeRecipient);
+        assertEq(BytesLib.toAddress(inspected2, 0), outputToken);
     }
 
     // ========================== SwapOdosV3Hook: Fuzz ==========================
@@ -877,20 +867,16 @@ contract OdosV3UnitTests is Helpers {
     function test_ApproveAndSwapOdosV3Hook_inspect() public view {
         bytes memory data = _buildApproveAndSwapOdosV3Data(false);
         bytes memory argsEncoded = approveAndSwapOdosV3Hook.inspect(data);
-        assertEq(argsEncoded.length, 60);
+        assertEq(argsEncoded.length, 20);
     }
 
     function test_ApproveAndSwapOdosV3Hook_inspect_Format() public view {
         bytes memory data = _buildApproveAndSwapOdosV3Data(false);
         bytes memory argsEncoded = approveAndSwapOdosV3Hook.inspect(data);
 
-        address decodedInputReceiver = BytesLib.toAddress(argsEncoded, 0);
-        address decodedExecutor = BytesLib.toAddress(argsEncoded, 20);
-        address decodedFeeRecipient = BytesLib.toAddress(argsEncoded, 40);
+        address decodedOutputToken = BytesLib.toAddress(argsEncoded, 0);
 
-        assertEq(decodedInputReceiver, inputReceiver);
-        assertEq(decodedExecutor, executor);
-        assertEq(decodedFeeRecipient, feeRecipient);
+        assertEq(decodedOutputToken, outputToken);
     }
 
     // ========================== ApproveAndSwapOdosV3Hook: Fee Validation ==========================

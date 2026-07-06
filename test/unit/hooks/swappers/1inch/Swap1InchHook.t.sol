@@ -7,6 +7,7 @@ import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import "../../../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
+import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
 
 contract MockUniswapPair {
     address public token0;
@@ -431,10 +432,12 @@ contract Swap1InchHookTest is Helpers {
         assertGt(argsEncoded.length, 0);
     }
 
-    function test_inspect_invalidSelector() public {
+    function test_inspect_invalidSelector() public view {
         bytes memory data = _buildInvalidData(1000, 100, dstReceiver, dstToken, false);
-        vm.expectRevert(Swap1InchHook.INVALID_SELECTOR.selector);
-        hook.inspect(data);
+        bytes memory result = hook.inspect(data);
+        assertEq(result.length, 40, "Should return 40 bytes (outputToken + dstReceiver)");
+        assertEq(BytesLib.toAddress(result, 0), dstToken, "First 20 bytes should be outputToken");
+        assertEq(BytesLib.toAddress(result, 20), dstReceiver, "Next 20 bytes should be dstReceiver");
     }
 
     function test_Token1_Equals_FromToken_Branch() public {

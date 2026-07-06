@@ -10,6 +10,8 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
+import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
 import {
     ISuperHookResult,
     ISuperHookContextAware,
@@ -21,19 +23,31 @@ import { SpectraCommands } from "../../../vendor/spectra/SpectraCommands.sol";
 
 /// @title SpectraExchangeRedeemHook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
-/// @notice         address asset = BytesLib.toAddress(data, 32);
-/// @notice         address pt = BytesLib.toAddress(data, 52);
-/// @notice         uint256 sharesToBurn = BytesLib.toUint256(data, 72);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
 /// @dev Payload: abi.encode(address recipient, uint256 minAssets, bytes1 command)
-contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
+/// @dev data has the following structure (standard 52-byte strategy header + Layer 1 + Layer 2):
+/// @notice         bytes32   placeholder0     = BytesLib.toBytes32(data, 0);
+/// @notice         address   placeholder1     = BytesLib.toAddress(data, 32);
+/// @notice         address   inputToken       = BytesLib.toAddress(data, 52);    (asset)
+/// @notice         address   outputToken      = BytesLib.toAddress(data, 72);    (pt)
+/// @notice         uint256   inputAmount      = BytesLib.toUint256(data, 92);    (sharesToBurn)
+/// @notice         uint256   outputQuote      = BytesLib.toUint256(data, 124);
+/// @notice         uint256   outputMin        = BytesLib.toUint256(data, 156);
+/// @notice         bool      usePrevHookAmount = _decodeBool(data, 188);
+/// @notice         uint256   payload_paramLength = BytesLib.toUint256(data, 189);
+/// @notice         bytes     payload          = BytesLib.slice(data, 221, payload_paramLength);
+contract SpectraExchangeRedeemHook is
+    BaseHook,
+    ISuperHookSwap,
+    ISuperHookContextAware,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+{
     using HookDataDecoder for bytes;
 
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 104;
-    uint256 private constant AMOUNT_POSITION = 72;
-    uint256 private constant PAYLOAD_OFFSET = 105;
+    /*//////////////////////////////////////////////////////////////
+                        DATA LAYOUT POSITIONS
+    //////////////////////////////////////////////////////////////*/
+    uint256 private constant AMOUNT_POSITION = SwapCalldataLayout.AMOUNT_POSITION;
 
     bytes1 public constant REDEEM_IBT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_IBT_FOR_ASSET));
     bytes1 public constant REDEEM_PT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_PT_FOR_ASSET));
@@ -108,14 +122,10 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
         executions = new Execution[](1);
         bytes memory callData;
         if (params.command == REDEEM_IBT_FOR_ASSET) {
-            // https://dev.spectra.finance/technical-reference/contract-functions/router#redeem_ibt_for_asset-command
-
             if (params.asset == address(0)) revert INVALID_ASSET();
 
             callData = _createRedeemIbtForAssetCallData(params.asset, params.sharesToBurn, params.recipient);
         } else if (params.command == REDEEM_PT_FOR_ASSET) {
-            // https://dev.spectra.finance/technical-reference/contract-functions/router#redeem_pt_for_asset-command
-
             if (params.pt == address(0)) revert INVALID_PT();
             if (params.minAssets == 0) revert INVALID_MIN_ASSETS();
 
@@ -131,7 +141,7 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
-        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        return _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -167,9 +177,65 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        RedeemParams memory params = _decodeRedeemParams(data);
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        (address recipient,,) = abi.decode(data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:], (address, uint256, bytes1));
+        return abi.encodePacked(outputToken, recipient);
+    }
 
-        return abi.encodePacked(params.asset, params.pt, params.recipient);
+    // ─── ISuperHookSwap ──────────────────────────────────────────────────────
+
+    /// @inheritdoc ISuperHookSwap
+    function encodeSwapData(
+        ISuperHookSwap.SwapHeader calldata header,
+        bytes calldata payload
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        return bytes.concat(
+            bytes(new bytes(SwapCalldataLayout.HEADER_SIZE)),
+            bytes20(header.inputToken),
+            bytes20(header.outputToken),
+            bytes32(header.inputAmount),
+            bytes32(header.outputQuote),
+            bytes32(header.outputMin),
+            bytes1(header.usePrevHookAmount ? uint8(1) : uint8(0)),
+            bytes32(payload.length),
+            payload
+        );
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputAmount(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputQuote(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_QUOTE_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputMin(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_MIN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodePayload(bytes calldata data) external pure override returns (bytes memory) {
+        uint256 payloadLen = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        return BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLen);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -181,19 +247,21 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
-        _setOutToken(BytesLib.toAddress(data, 32), account);
+        // asset is at inputToken position (offset 52)
+        _setOutToken(BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET), account);
     }
 
     /*//////////////////////////////////////////////////////////////
                             PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _decodeRedeemParams(bytes calldata data) private pure returns (RedeemParams memory params) {
-        address asset = BytesLib.toAddress(data, 32);
-        address pt = BytesLib.toAddress(data, 52);
+        // asset → inputToken@52, pt → outputToken@72, sharesToBurn → inputAmount@92
+        address asset = BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+        address pt = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
         uint256 sharesToBurn = BytesLib.toUint256(data, AMOUNT_POSITION);
-        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
         (address recipient, uint256 minAssets, bytes1 command) =
-            abi.decode(data[PAYLOAD_OFFSET:], (address, uint256, bytes1));
+            abi.decode(data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:], (address, uint256, bytes1));
 
         return RedeemParams({
             pt: pt,
@@ -244,8 +312,9 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
     }
 
     function _getBalance(bytes calldata data, address) private view returns (uint256) {
-        address asset = BytesLib.toAddress(data, 32);
-        (address recipient,,) = abi.decode(data[PAYLOAD_OFFSET:], (address, uint256, bytes1));
+        // asset is at inputToken position (offset 52)
+        address asset = BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+        (address recipient,,) = abi.decode(data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:], (address, uint256, bytes1));
 
         return IERC20(asset).balanceOf(recipient);
     }

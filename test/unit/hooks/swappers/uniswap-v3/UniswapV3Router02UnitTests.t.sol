@@ -246,9 +246,9 @@ contract UniswapV3Router02HookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_SwapHook_Build_ExactMinimumDataLength() public view {
-        // Test with exactly 193 bytes (minimum valid length: 52-byte header + 141 hook-specific bytes)
+        // Test with standard 10-field layout: 221-byte header + 64-byte payload (abi.encode(uint24,uint160))
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 221);
+        assertEq(data.length, 285);
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
@@ -256,7 +256,7 @@ contract UniswapV3Router02HookTest is Helpers {
 
     function test_ApproveAndSwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 221);
+        assertEq(data.length, 285);
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
@@ -548,15 +548,18 @@ contract UniswapV3Router02HookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_SwapHook_RevertIf_SameToken() public {
+        bytes memory payload = abi.encode(fee, sqrtPriceLimitX96);
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes32(0),
+            bytes20(address(0)),
             bytes20(tokenIn),
             bytes20(tokenIn), // tokenOut == tokenIn
-            bytes4(uint32(fee)),
-            bytes32(uint256(sqrtPriceLimitX96)),
             bytes32(originalAmountIn),
             bytes32(originalMinAmountOut),
-            bytes1(0x00)
+            bytes32(originalMinAmountOut),
+            bytes1(0x00),
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(SwapUniswapV3Router02Hook.INVALID_HOOK_DATA.selector);
@@ -564,15 +567,18 @@ contract UniswapV3Router02HookTest is Helpers {
     }
 
     function test_ApproveAndSwapHook_RevertIf_SameToken() public {
+        bytes memory payload = abi.encode(fee, sqrtPriceLimitX96);
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes32(0),
+            bytes20(address(0)),
             bytes20(tokenIn),
             bytes20(tokenIn), // tokenOut == tokenIn
-            bytes4(uint32(fee)),
-            bytes32(uint256(sqrtPriceLimitX96)),
             bytes32(originalAmountIn),
             bytes32(originalMinAmountOut),
-            bytes1(0x00)
+            bytes32(originalMinAmountOut),
+            bytes1(0x00),
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(ApproveAndSwapUniswapV3Router02Hook.INVALID_HOOK_DATA.selector);
@@ -684,14 +690,18 @@ contract UniswapV3Router02HookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_SwapHook_RevertIf_NativeETH_TokenIn() public {
+        bytes memory payload = abi.encode(fee, sqrtPriceLimitX96);
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes32(0),
+            bytes20(address(0)),
             bytes20(address(0)), // tokenIn = native ETH
             bytes20(tokenOut),
             bytes32(originalAmountIn),
             bytes32(originalMinAmountOut),
+            bytes32(originalMinAmountOut),
             bytes1(0x00),
-            abi.encode(fee, sqrtPriceLimitX96)
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(SwapUniswapV3Router02Hook.NATIVE_ETH_NOT_SUPPORTED.selector);
@@ -699,14 +709,18 @@ contract UniswapV3Router02HookTest is Helpers {
     }
 
     function test_SwapHook_RevertIf_NativeETH_TokenOut() public {
+        bytes memory payload = abi.encode(fee, sqrtPriceLimitX96);
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes32(0),
+            bytes20(address(0)),
             bytes20(tokenIn),
             bytes20(address(0)), // tokenOut = native ETH
             bytes32(originalAmountIn),
             bytes32(originalMinAmountOut),
+            bytes32(originalMinAmountOut),
             bytes1(0x00),
-            abi.encode(fee, sqrtPriceLimitX96)
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(SwapUniswapV3Router02Hook.NATIVE_ETH_NOT_SUPPORTED.selector);
@@ -714,14 +728,18 @@ contract UniswapV3Router02HookTest is Helpers {
     }
 
     function test_ApproveAndSwapHook_RevertIf_NativeETH_TokenIn() public {
+        bytes memory payload = abi.encode(fee, sqrtPriceLimitX96);
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes32(0),
+            bytes20(address(0)),
             bytes20(address(0)), // tokenIn = native ETH
             bytes20(tokenOut),
             bytes32(originalAmountIn),
             bytes32(originalMinAmountOut),
+            bytes32(originalMinAmountOut),
             bytes1(0x00),
-            abi.encode(fee, sqrtPriceLimitX96)
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(ApproveAndSwapUniswapV3Router02Hook.NATIVE_ETH_NOT_SUPPORTED.selector);
@@ -729,14 +747,18 @@ contract UniswapV3Router02HookTest is Helpers {
     }
 
     function test_ApproveAndSwapHook_RevertIf_NativeETH_TokenOut() public {
+        bytes memory payload = abi.encode(fee, sqrtPriceLimitX96);
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes32(0),
+            bytes20(address(0)),
             bytes20(tokenIn),
             bytes20(address(0)), // tokenOut = native ETH
             bytes32(originalAmountIn),
             bytes32(originalMinAmountOut),
+            bytes32(originalMinAmountOut),
             bytes1(0x00),
-            abi.encode(fee, sqrtPriceLimitX96)
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(ApproveAndSwapUniswapV3Router02Hook.NATIVE_ETH_NOT_SUPPORTED.selector);
@@ -932,26 +954,34 @@ contract UniswapV3Router02HookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function _buildHookData(bool usePrevHookAmount) internal view returns (bytes memory) {
+        bytes memory payload = abi.encode(fee, sqrtPriceLimitX96);
         return bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(tokenIn), // 52-71
-            bytes20(tokenOut), // 72-91
-            bytes32(originalAmountIn), // 92-123
-            bytes32(originalMinAmountOut), // 124-155
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // 156
-            abi.encode(fee, sqrtPriceLimitX96) // 157+
+            bytes32(0),                    // placeholder0 (header bytes 0-31)
+            bytes20(address(0)),           // placeholder1 (header bytes 32-51)
+            bytes20(tokenIn),              // inputToken 52-71
+            bytes20(tokenOut),             // outputToken 72-91
+            bytes32(originalAmountIn),     // inputAmount 92-123
+            bytes32(originalMinAmountOut), // outputQuote 124-155
+            bytes32(originalMinAmountOut), // outputMin 156-187
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // usePrevHookAmount 188
+            bytes32(payload.length),       // payloadLength 189-220
+            payload                        // payload 221+
         );
     }
 
     function _buildHookDataWithFee(uint24 _fee) internal view returns (bytes memory) {
+        bytes memory payload = abi.encode(_fee, sqrtPriceLimitX96);
         return bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes32(0),
+            bytes20(address(0)),
             bytes20(tokenIn),
             bytes20(tokenOut),
             bytes32(originalAmountIn),
             bytes32(originalMinAmountOut),
+            bytes32(originalMinAmountOut),
             bytes1(0x00),
-            abi.encode(_fee, sqrtPriceLimitX96)
+            bytes32(payload.length),
+            payload
         );
     }
 
@@ -964,14 +994,18 @@ contract UniswapV3Router02HookTest is Helpers {
         view
         returns (bytes memory)
     {
+        bytes memory payload = abi.encode(fee, sqrtPriceLimitX96);
         return bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes32(0),
+            bytes20(address(0)),
             bytes20(tokenIn),
             bytes20(tokenOut),
             bytes32(_amountIn),
             bytes32(_minAmountOut),
+            bytes32(_minAmountOut),
             _usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
-            abi.encode(fee, sqrtPriceLimitX96)
+            bytes32(payload.length),
+            payload
         );
     }
 }

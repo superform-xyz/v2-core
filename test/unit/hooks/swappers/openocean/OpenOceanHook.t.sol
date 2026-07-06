@@ -126,7 +126,7 @@ contract OpenOceanHookTest is Test {
 
         bytes memory argsEncoded = swapHook.inspect(data);
 
-        assertEq(argsEncoded, abi.encodePacked(dstReceiver));
+        assertEq(argsEncoded, abi.encodePacked(outputToken));
         assertEq(argsEncoded.length, 20);
     }
 
@@ -140,7 +140,7 @@ contract OpenOceanHookTest is Test {
 
         bytes memory argsEncoded = approveAndSwapHook.inspect(data);
 
-        assertEq(argsEncoded, abi.encodePacked(dstReceiver));
+        assertEq(argsEncoded, abi.encodePacked(outputToken));
         assertEq(argsEncoded.length, 20);
     }
 
@@ -655,7 +655,7 @@ contract OpenOceanHookTest is Test {
         bytes memory inspected = swapHook.inspect(data);
 
         assertEq(inspected.length, 20);
-        assertEq(address(bytes20(inspected)), account);
+        assertEq(address(bytes20(inspected)), outputToken);
     }
 
     function test_ApproveAndSwapHook_InspectReturnsDstReceiver() public view {
@@ -665,7 +665,7 @@ contract OpenOceanHookTest is Test {
         bytes memory inspected = approveAndSwapHook.inspect(data);
 
         assertEq(inspected.length, 20);
-        assertEq(address(bytes20(inspected)), account);
+        assertEq(address(bytes20(inspected)), outputToken);
     }
 
     // ==================== Helpers ====================

@@ -99,15 +99,18 @@ contract UniswapV2HookIntegrationTest is MinimalBaseIntegrationTest {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(
-            bytes32(0), // placeholder0 (header bytes 0-31)
-            bytes20(address(0)), // placeholder1 (header bytes 32-51)
-            tokenIn, // 20 bytes at offset 52
-            tokenOut, // 20 bytes at offset 72
-            amountIn, // 32 bytes at offset 92
-            amountOutMin, // 32 bytes at offset 124
-            usePrevHookAmount, // 1 byte at offset 156
-            abi.encode(deadline, path) // payload at offset 157
+        bytes memory payload = abi.encode(deadline, path);
+        return bytes.concat(
+            bytes32(0), // placeholder0 (offset 0)
+            bytes20(address(0)), // placeholder1 (offset 32)
+            bytes20(tokenIn), // inputToken (offset 52)
+            bytes20(tokenOut), // outputToken (offset 72)
+            bytes32(amountIn), // inputAmount (offset 92)
+            bytes32(amountOutMin), // outputQuote (offset 124)
+            bytes32(amountOutMin), // outputMin (offset 156)
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // usePrevHookAmount (offset 188)
+            bytes32(payload.length), // payloadLength (offset 189)
+            payload // payload (offset 221)
         );
     }
 
@@ -629,15 +632,18 @@ contract UniswapV2HookEdgeCaseTests is MinimalBaseIntegrationTest {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(
-            bytes32(0), // placeholder0 (header bytes 0-31)
-            bytes20(address(0)), // placeholder1 (header bytes 32-51)
-            tokenIn, // 20 bytes at offset 52
-            tokenOut, // 20 bytes at offset 72
-            amountIn, // 32 bytes at offset 92
-            amountOutMin, // 32 bytes at offset 124
-            usePrevHookAmount, // 1 byte at offset 156
-            abi.encode(deadline, path) // payload at offset 157
+        bytes memory payload = abi.encode(deadline, path);
+        return bytes.concat(
+            bytes32(0), // placeholder0 (offset 0)
+            bytes20(address(0)), // placeholder1 (offset 32)
+            bytes20(tokenIn), // inputToken (offset 52)
+            bytes20(tokenOut), // outputToken (offset 72)
+            bytes32(amountIn), // inputAmount (offset 92)
+            bytes32(amountOutMin), // outputQuote (offset 124)
+            bytes32(amountOutMin), // outputMin (offset 156)
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // usePrevHookAmount (offset 188)
+            bytes32(payload.length), // payloadLength (offset 189)
+            payload // payload (offset 221)
         );
     }
 
