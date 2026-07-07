@@ -51,6 +51,8 @@
   "MarkRootAsUsedHook": "0x2a655fDfCA2113AD755F81dFf941b54919d0544d",
   "MerklClaimRewardHook": "0x67CcC575D4064418406AE70cC094781837D01777",
   "MetaMorphoReallocateHook": "0xc25BeF46a12d0fDf66F4e4d8F1E846601f1f55e3",
+  "MorphoBlueMarketRegistry": "0x05dcdD3B2d8F02131C625DEe5F0c32B67B649ea5",
+  "MorphoBlueYieldSourceOracle": "0x2dBC3b91e413445FE759500C27069a35B30AA9a7",
   "MorphoBorrowHook": "0xD6cf1a1cB605e0bF1543a909C6F0096da6B158Bd",
   "MorphoLendHook": "0x6D4b535Ef78d8d1E3e83cFAd4b0f57b81c4BEb04",
   "MorphoRepayAndWithdrawHook": "0x2B62bd7aD969C2D346fd16501a9DA38e0EdB6694",

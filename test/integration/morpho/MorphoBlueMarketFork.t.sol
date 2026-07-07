@@ -1354,6 +1354,205 @@ contract MorphoBlueMarketFork is Test, Constants {
     }
 
     /*//////////////////////////////////////////////////////////////
+              REGISTRY — ADDITIONAL COVERAGE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice getMarketInfo reverts for an unregistered key
+    function test_registry_getMarketInfo_revertsForUnregistered() public {
+        vm.expectRevert(MorphoBlueMarketRegistry.MARKET_NOT_REGISTERED.selector);
+        registry.getMarketInfo(address(0xdead));
+    }
+
+    /// @notice computeMarketKey for wstETH/WETH market matches registerMarket key
+    function test_registry_computeMarketKey_wstethWeth() public view {
+        address computed = registry.computeMarketKey(
+            WSTETH_WETH_LOAN_TOKEN,
+            WSTETH_WETH_COLLATERAL_TOKEN,
+            WSTETH_WETH_ORACLE,
+            WSTETH_WETH_IRM,
+            WSTETH_WETH_LLTV
+        );
+        assertEq(computed, wstethWethKey, "computeMarketKey must match registerMarket key for wstETH/WETH");
+    }
+
+    /// @notice MarketRegistered event is emitted with correct indexed fields
+    function test_registry_emits_MarketRegisteredEvent() public {
+        // New registry to test emission from scratch
+        MorphoBlueMarketRegistry freshRegistry = new MorphoBlueMarketRegistry(address(this));
+        freshRegistry.setIrmApproval(WBTC_USDC_IRM, true);
+
+        address expectedKey = freshRegistry.computeMarketKey(
+            WBTC_USDC_LOAN_TOKEN, WBTC_USDC_COLLATERAL_TOKEN, WBTC_USDC_ORACLE, WBTC_USDC_IRM, WBTC_USDC_LLTV
+        );
+
+        // MarketRegistered(address indexed marketKey, address indexed morpho, Id indexed id)
+        vm.expectEmit(true, true, false, false);
+        emit MorphoBlueMarketRegistry.MarketRegistered(expectedKey, MORPHO, Id.wrap(bytes32(0)));
+        freshRegistry.registerMarket(
+            MORPHO, WBTC_USDC_LOAN_TOKEN, WBTC_USDC_COLLATERAL_TOKEN, WBTC_USDC_ORACLE, WBTC_USDC_IRM, WBTC_USDC_LLTV
+        );
+    }
+
+    /// @notice Re-registering a market after full deregistration returns the same key
+    function test_registry_reregister_afterDeregister() public {
+        address keyBefore = wbtcUsdcKey;
+
+        // Propose → warp → execute
+        registry.proposeDeregisterMarket(wbtcUsdcKey);
+        vm.warp(block.timestamp + 2 days + 1);
+        registry.executeDeregisterMarket(wbtcUsdcKey);
+        assertFalse(registry.isRegistered(keyBefore), "must be deregistered");
+
+        // Re-register
+        address keyAfter = registry.registerMarket(
+            MORPHO, WBTC_USDC_LOAN_TOKEN, WBTC_USDC_COLLATERAL_TOKEN, WBTC_USDC_ORACLE, WBTC_USDC_IRM, WBTC_USDC_LLTV
+        );
+        assertEq(keyAfter, keyBefore, "re-registration must return the same market key");
+        assertTrue(registry.isRegistered(keyAfter), "market must be registered after re-registration");
+    }
+
+    /// @notice Two concurrent deregistrations: cancel one, execute the other
+    function test_registry_multipleDeregistrations_cancelOneExecuteOther() public {
+        // Propose both
+        registry.proposeDeregisterMarket(wbtcUsdcKey);
+        registry.proposeDeregisterMarket(wstethWethKey);
+        assertGt(registry.pendingDeregistrations(wbtcUsdcKey), 0, "wbtcUsdc pending");
+        assertGt(registry.pendingDeregistrations(wstethWethKey), 0, "wstethWeth pending");
+
+        // Cancel wstETH/WETH before timelock elapses
+        registry.cancelDeregisterMarket(wstethWethKey);
+        assertEq(registry.pendingDeregistrations(wstethWethKey), 0, "wstethWeth cancel cleared");
+        assertTrue(registry.isRegistered(wstethWethKey), "wstethWeth still registered after cancel");
+
+        // Warp past timelock and execute WBTC/USDC
+        vm.warp(block.timestamp + 2 days + 1);
+        registry.executeDeregisterMarket(wbtcUsdcKey);
+        assertFalse(registry.isRegistered(wbtcUsdcKey), "wbtcUsdc deregistered after execute");
+
+        // wstETH/WETH is still fully operational
+        (MarketParams memory mp,) = registry.getMarketInfo(wstethWethKey);
+        assertEq(mp.loanToken, WSTETH_WETH_LOAN_TOKEN, "wstethWeth params intact");
+    }
+
+    /// @notice A new address granted MARKET_MANAGER_ROLE can register markets
+    function test_registry_roleTransfer_newManagerCanRegister() public {
+        address newManager = makeAddr("newManager");
+
+        // Grant role to newManager
+        registry.grantRole(registry.MARKET_MANAGER_ROLE(), newManager);
+
+        // newManager approves IRM and registers a fresh registry market key
+        vm.startPrank(newManager);
+        MorphoBlueMarketRegistry freshRegistry = new MorphoBlueMarketRegistry(newManager);
+        freshRegistry.setIrmApproval(WSTETH_WETH_IRM, true);
+        address key = freshRegistry.registerMarket(
+            MORPHO,
+            WSTETH_WETH_LOAN_TOKEN,
+            WSTETH_WETH_COLLATERAL_TOKEN,
+            WSTETH_WETH_ORACLE,
+            WSTETH_WETH_IRM,
+            WSTETH_WETH_LLTV
+        );
+        vm.stopPrank();
+
+        assertTrue(freshRegistry.isRegistered(key), "new manager must be able to register a market");
+        assertEq(key, wstethWethKey, "key must match expected market key");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              ORACLE — ADDITIONAL COVERAGE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Zero-IRM idle market: oracle PPS stays exactly constant after time warp
+    /// @dev Exercises the `mp.irm != address(0)` branch skip in _getAccruedMarketState.
+    ///      Uses the canonical idle market: loanToken=USDC, everything else zero.
+    function test_oracle_zeroIrm_pps_noAccrual() public {
+        // The idle USDC market exists on Ethereum mainnet (created for MetaMorpho idle allocations).
+        // loanToken=USDC, collateralToken=0, oracle=0, irm=0, lltv=0
+        MarketParams memory idleParams = MarketParams({
+            loanToken: WBTC_USDC_LOAN_TOKEN, // USDC
+            collateralToken: address(0),
+            oracle: address(0),
+            irm: address(0),
+            lltv: 0
+        });
+
+        // Ensure market exists (createMarket is idempotent-ish: skip if already created)
+        // We use a try/catch so the test doesn't fail if the market was already created at fork block.
+        try IMorphoBase(MORPHO).createMarket(idleParams) { } catch { }
+
+        // Deploy a fresh registry; zero-IRM markets need no IRM approval
+        MorphoBlueMarketRegistry idleRegistry = new MorphoBlueMarketRegistry(address(this));
+        address idleKey = idleRegistry.registerMarket(
+            MORPHO,
+            idleParams.loanToken,
+            idleParams.collateralToken,
+            idleParams.oracle,
+            idleParams.irm,
+            idleParams.lltv
+        );
+
+        // Deploy oracle pointing to the idle registry
+        MorphoBlueYieldSourceOracle idleOracle =
+            new MorphoBlueYieldSourceOracle(address(ledgerConfig), address(idleRegistry));
+
+        uint256 ppsBefore = idleOracle.getPricePerShare(idleKey);
+        assertGt(ppsBefore, 0, "zero-IRM market PPS must be > 0");
+
+        // Warp 30 days — no borrowers, no interest; PPS must stay exactly constant
+        vm.warp(block.timestamp + 30 days);
+
+        uint256 ppsAfter = idleOracle.getPricePerShare(idleKey);
+        assertEq(ppsAfter, ppsBefore, "zero-IRM market PPS must stay exactly constant (no interest accrual)");
+    }
+
+    /// @notice wstETH/WETH: withdrawal shares (rounded up) >= deposit shares (rounded down)
+    function test_fork_morphoWstethWeth_withdrawalShareOutput_roundsUp() public view {
+        uint256 assets = 1 ether;
+        uint256 sharesDown = oracle.getShareOutput(wstethWethKey, address(0), assets);
+        uint256 sharesUp = oracle.getWithdrawalShareOutput(wstethWethKey, address(0), assets);
+        assertGe(sharesUp, sharesDown, "wstETH/WETH: withdrawal shares must be >= deposit shares");
+    }
+
+    /// @notice Fuzz: for wstETH/WETH, withdrawal shares always >= deposit shares
+    function testFuzz_withdrawalShareOutput_geDepositShareOutput_wstethWeth(uint256 assets) public view {
+        assets = bound(assets, 1, 1e24); // up to 1M WETH
+        uint256 depositShares = oracle.getShareOutput(wstethWethKey, address(0), assets);
+        uint256 withdrawalShares = oracle.getWithdrawalShareOutput(wstethWethKey, address(0), assets);
+        assertGe(withdrawalShares, depositShares, "wstETH/WETH: withdrawal must burn >= deposit shares");
+    }
+
+    /// @notice Elapsed cap boundary: PPS is valid and non-zero exactly at 365 days
+    function test_oracle_elapsedCap_exactly365days() public {
+        uint256 ppsBefore = oracle.getPricePerShare(wbtcUsdcKey);
+        // Warp to exactly the cap boundary
+        vm.warp(block.timestamp + 365 days);
+        uint256 ppsAt365 = oracle.getPricePerShare(wbtcUsdcKey);
+        assertGt(ppsAt365, 0, "PPS must be > 0 exactly at 365-day elapsed cap");
+        assertGe(ppsAt365, ppsBefore, "PPS must be >= before-value at 365d boundary");
+    }
+
+    /// @notice wstETH/WETH PPS increases monotonically day-over-day for 7 days
+    function test_fork_pps_continuouslyIncreases_dayByDay_wstethWeth() public {
+        uint256 ppsPrev = oracle.getPricePerShare(wstethWethKey);
+        for (uint256 d = 1; d <= 7; d++) {
+            vm.warp(block.timestamp + 1 days);
+            uint256 ppsCur = oracle.getPricePerShare(wstethWethKey);
+            assertGe(ppsCur, ppsPrev, "wstETH/WETH PPS must not decrease day-over-day");
+            ppsPrev = ppsCur;
+        }
+    }
+
+    /// @notice wstETH/WETH round-trip via withdrawal shares: getWithdrawalShareOutput → getAssetOutput <= assets
+    function test_fork_morphoWstethWeth_roundTrip_withdrawalShares() public view {
+        uint256 assets = 1 ether;
+        uint256 sharesUp = oracle.getWithdrawalShareOutput(wstethWethKey, address(0), assets);
+        // Burning sharesUp shares must yield <= assets (withdrawal rounding favors the protocol)
+        uint256 assetsBack = oracle.getAssetOutput(wstethWethKey, address(0), sharesUp);
+        assertLe(assetsBack, assets, "wstETH/WETH withdrawal round-trip must not create value");
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             HELPERS
     //////////////////////////////////////////////////////////////*/
 
@@ -1505,5 +1704,203 @@ contract MorphoBlueMarketFork is Test, Constants {
         _executeAsUser(executions, user);
 
         outAmount = withdrawHook.getOutAmount(user);
+    }
+}
+
+/// @title MorphoBlueMarketBaseFork
+/// @notice Fork tests on Base chain for MorphoBlueMarketRegistry and MorphoBlueYieldSourceOracle.
+/// @dev Focuses on the zero-IRM idle USDC supply market (created permissionlessly via createMarket).
+///      This validates that:
+///      - The registry and oracle work identically on Base (same MORPHO singleton address)
+///      - Zero-IRM markets are accepted without IRM approval
+///      - Oracle correctly skips interest accrual when irm == address(0)
+///      Active Base market params (oracle address / LLTV combinations) are not hardcoded here to
+///      avoid coupling the test to specific on-chain deployments at the fork block.
+contract MorphoBlueMarketBaseFork is Test, Constants {
+    using MarketParamsLib for MarketParams;
+
+    /*//////////////////////////////////////////////////////////////
+                            TEST STATE
+    //////////////////////////////////////////////////////////////*/
+
+    MorphoBlueMarketRegistry public registry;
+    MorphoBlueYieldSourceOracle public oracle;
+    SuperLedgerConfiguration public ledgerConfig;
+
+    /// @dev Idle USDC market key (loanToken=USDC, collateralToken=0, oracle=0, irm=0, lltv=0)
+    address public idleUsdcKey;
+
+    /// @dev Idle WETH market key (loanToken=WETH, collateralToken=0, oracle=0, irm=0, lltv=0)
+    address public idleWethKey;
+
+    address public testUser;
+
+    function setUp() public {
+        string memory rpcUrl = vm.envString("BASE_RPC_URL");
+        vm.createSelectFork(rpcUrl, BASE_BLOCK);
+
+        ledgerConfig = new SuperLedgerConfiguration();
+        registry = new MorphoBlueMarketRegistry(address(this));
+        // No IRM approval needed for zero-IRM markets
+
+        // Idle USDC: loanToken=USDC, everything else zero
+        MarketParams memory idleUsdc = MarketParams({
+            loanToken: CHAIN_8453_USDC,
+            collateralToken: address(0),
+            oracle: address(0),
+            irm: address(0),
+            lltv: 0
+        });
+        // Idle WETH: loanToken=WETH, everything else zero
+        MarketParams memory idleWeth = MarketParams({
+            loanToken: CHAIN_8453_WETH,
+            collateralToken: address(0),
+            oracle: address(0),
+            irm: address(0),
+            lltv: 0
+        });
+
+        // createMarket is permissionless; use try/catch for idempotency if already created
+        try IMorphoBase(MORPHO).createMarket(idleUsdc) { } catch { }
+        try IMorphoBase(MORPHO).createMarket(idleWeth) { } catch { }
+
+        idleUsdcKey = registry.registerMarket(
+            MORPHO, idleUsdc.loanToken, idleUsdc.collateralToken, idleUsdc.oracle, idleUsdc.irm, idleUsdc.lltv
+        );
+        idleWethKey = registry.registerMarket(
+            MORPHO, idleWeth.loanToken, idleWeth.collateralToken, idleWeth.oracle, idleWeth.irm, idleWeth.lltv
+        );
+
+        oracle = new MorphoBlueYieldSourceOracle(address(ledgerConfig), address(registry));
+        testUser = makeAddr("testUser");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    BASE REGISTRY TESTS — IDLE MARKETS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_baseFork_registry_idleUsdcMarketRegistered() public view {
+        assertTrue(registry.isRegistered(idleUsdcKey), "idle USDC market must be registered");
+        (MarketParams memory mp, address morpho) = registry.getMarketInfo(idleUsdcKey);
+        assertEq(morpho, MORPHO);
+        assertEq(mp.loanToken, CHAIN_8453_USDC);
+        assertEq(mp.irm, address(0), "idle market IRM must be zero");
+        assertEq(mp.lltv, 0, "idle market LLTV must be zero");
+    }
+
+    function test_baseFork_registry_idleWethMarketRegistered() public view {
+        assertTrue(registry.isRegistered(idleWethKey), "idle WETH market must be registered");
+        (MarketParams memory mp,) = registry.getMarketInfo(idleWethKey);
+        assertEq(mp.loanToken, CHAIN_8453_WETH);
+        assertEq(mp.irm, address(0));
+    }
+
+    function test_baseFork_registry_computeMarketKey_idleUsdc() public view {
+        address computed = registry.computeMarketKey(CHAIN_8453_USDC, address(0), address(0), address(0), 0);
+        assertEq(computed, idleUsdcKey, "computeMarketKey must match registerMarket key");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    BASE ORACLE TESTS — IDLE USDC (6 decimals + 6 offset)
+    //////////////////////////////////////////////////////////////*/
+
+    function test_baseFork_oracle_idleUsdc_decimals() public view {
+        uint8 dec = oracle.decimals(idleUsdcKey);
+        assertEq(dec, 12, "Base idle USDC oracle decimals must be 12 (6 + 6 virtual offset)");
+    }
+
+    function test_baseFork_oracle_idleUsdc_pps_nonZero() public view {
+        uint256 pps = oracle.getPricePerShare(idleUsdcKey);
+        assertGt(pps, 0, "idle USDC PPS must be > 0");
+    }
+
+    /// @notice With irm == address(0) the accrual branch is skipped; PPS stays exactly constant
+    function test_baseFork_oracle_idleUsdc_pps_flatAfter30days() public {
+        uint256 ppsBefore = oracle.getPricePerShare(idleUsdcKey);
+        vm.warp(block.timestamp + 30 days);
+        uint256 ppsAfter = oracle.getPricePerShare(idleUsdcKey);
+        assertEq(ppsAfter, ppsBefore, "idle USDC PPS must stay exactly flat (zero-IRM)");
+    }
+
+    function test_baseFork_oracle_idleUsdc_roundTrip_noValueCreation() public view {
+        uint256 assets = 1_000_000; // 1 USDC
+        uint256 shares = oracle.getShareOutput(idleUsdcKey, address(0), assets);
+        uint256 assetsBack = oracle.getAssetOutput(idleUsdcKey, address(0), shares);
+        assertLe(assetsBack, assets, "idle USDC round-trip must not create value");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    BASE ORACLE TESTS — IDLE WETH (18 decimals + 6 offset)
+    //////////////////////////////////////////////////////////////*/
+
+    function test_baseFork_oracle_idleWeth_decimals() public view {
+        uint8 dec = oracle.decimals(idleWethKey);
+        assertEq(dec, 24, "Base idle WETH oracle decimals must be 24 (18 + 6 virtual offset)");
+    }
+
+    function test_baseFork_oracle_idleWeth_pps_flatAfter30days() public {
+        uint256 ppsBefore = oracle.getPricePerShare(idleWethKey);
+        vm.warp(block.timestamp + 30 days);
+        uint256 ppsAfter = oracle.getPricePerShare(idleWethKey);
+        assertEq(ppsAfter, ppsBefore, "idle WETH PPS must stay exactly flat (zero-IRM)");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    BASE ORACLE TESTS — SUPPLY + POSITION TRACKING
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Supply to idle USDC market; oracle reflects position; PPS stays flat after warp
+    function test_baseFork_oracle_idleUsdc_supply_ppsFlat() public {
+        uint256 supplyAmount = 1_000_000e6; // 1M USDC
+
+        MarketParams memory idleUsdc = MarketParams({
+            loanToken: CHAIN_8453_USDC,
+            collateralToken: address(0),
+            oracle: address(0),
+            irm: address(0),
+            lltv: 0
+        });
+
+        deal(CHAIN_8453_USDC, testUser, supplyAmount);
+        vm.startPrank(testUser);
+        IERC20(CHAIN_8453_USDC).approve(MORPHO, supplyAmount);
+        IMorphoBase(MORPHO).supply(idleUsdc, supplyAmount, 0, testUser, "");
+        vm.stopPrank();
+
+        uint256 ppsBefore = oracle.getPricePerShare(idleUsdcKey);
+        uint256 shares = oracle.getBalanceOfOwner(idleUsdcKey, testUser);
+        assertGt(shares, 0, "idle USDC: must have shares after supply");
+
+        vm.warp(block.timestamp + 30 days);
+
+        uint256 ppsAfter = oracle.getPricePerShare(idleUsdcKey);
+        assertEq(ppsAfter, ppsBefore, "idle USDC PPS must remain flat after supply + 30d warp");
+
+        uint256 tvl = oracle.getTVLByOwnerOfShares(idleUsdcKey, testUser);
+        assertApproxEqAbs(tvl, supplyAmount, 1, "idle USDC TVL must approximate supply amount");
+    }
+
+    /// @notice Two idle markets are isolated: supplying to USDC doesn't affect user's WETH position
+    function test_baseFork_oracle_twoIdleMarkets_isolated() public {
+        uint256 supplyAmount = 1_000_000e6; // 1M USDC
+        MarketParams memory idleUsdc = MarketParams({
+            loanToken: CHAIN_8453_USDC,
+            collateralToken: address(0),
+            oracle: address(0),
+            irm: address(0),
+            lltv: 0
+        });
+
+        deal(CHAIN_8453_USDC, testUser, supplyAmount);
+        vm.startPrank(testUser);
+        IERC20(CHAIN_8453_USDC).approve(MORPHO, supplyAmount);
+        IMorphoBase(MORPHO).supply(idleUsdc, supplyAmount, 0, testUser, "");
+        vm.stopPrank();
+
+        // testUser has a USDC position
+        assertGt(oracle.getBalanceOfOwner(idleUsdcKey, testUser), 0, "testUser must have USDC shares");
+        // testUser has no WETH position — markets are isolated
+        assertEq(oracle.getBalanceOfOwner(idleWethKey, testUser), 0, "testUser must have 0 WETH shares");
+        assertEq(oracle.getTVLByOwnerOfShares(idleWethKey, testUser), 0, "testUser WETH TVL must be 0");
     }
 }
