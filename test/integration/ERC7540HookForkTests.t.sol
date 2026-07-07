@@ -16,6 +16,8 @@ import { CancelRedeemRequest7540Hook } from "../../src/hooks/vaults/7540/CancelR
 import { ClaimCancelDepositRequest7540Hook } from "../../src/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
 import { ClaimCancelRedeemRequest7540Hook } from "../../src/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
 import { SetOperator7540Hook } from "../../src/hooks/vaults/7540/SetOperator7540Hook.sol";
+import { ApproveAndRequestDeposit7540VaultHook } from
+    "../../src/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
 
 // Oracle
 import { ERC7540YieldSourceOracle } from "../../src/accounting/oracles/ERC7540YieldSourceOracle.sol";
@@ -56,6 +58,7 @@ contract ERC7540HookForkTests is Test {
     ClaimCancelDepositRequest7540Hook public claimCancelDepositHook;
     ClaimCancelRedeemRequest7540Hook public claimCancelRedeemHook;
     SetOperator7540Hook public setOperatorHook;
+    ApproveAndRequestDeposit7540VaultHook public approveAndRequestDepositHook;
 
     // -- Oracle --
     ERC7540YieldSourceOracle public oracle;
@@ -102,6 +105,7 @@ contract ERC7540HookForkTests is Test {
         claimCancelDepositHook = new ClaimCancelDepositRequest7540Hook();
         claimCancelRedeemHook = new ClaimCancelRedeemRequest7540Hook();
         setOperatorHook = new SetOperator7540Hook();
+        approveAndRequestDepositHook = new ApproveAndRequestDeposit7540VaultHook();
 
         // Deploy oracle with requestId=0 (Centrifuge accumulated pattern)
         oracle = new ERC7540YieldSourceOracle(address(0), 0);
@@ -1013,7 +1017,119 @@ contract ERC7540HookForkTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
+        APPROVE AND REQUEST DEPOSIT HOOK
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Full approve-and-requestDeposit sequence: approve(0) → approve(amount) → requestDeposit → approve(0)
+    function test_fork_ApproveAndRequestDeposit_RealVault() public {
+        uint256 depositAmount = 1e8; // 100 USDC
+
+        deal(USDC, user, depositAmount);
+
+        // Calldata: placeholder(32) | yieldSource(20) | token(20) | amount(32) | usePrevHookAmount(1)
+        bytes memory hookData = abi.encodePacked(placeholder, CENTRIFUGE_USDC_VAULT, USDC, depositAmount, false);
+        Execution[] memory executions = approveAndRequestDepositHook.build(address(0), user, hookData);
+        // build() produces: [0]=preExecute, [1]=approve(0), [2]=approve(amount), [3]=requestDeposit, [4]=approve(0), [5]=postExecute
+
+        vm.startPrank(user);
+        (bool s1,) = executions[1].target.call(executions[1].callData);
+        (bool s2,) = executions[2].target.call(executions[2].callData);
+        (bool s3,) = executions[3].target.call(executions[3].callData);
+        (bool s4,) = executions[4].target.call(executions[4].callData);
+        vm.stopPrank();
+
+        assertTrue(s1, "approve(0) failed");
+        assertTrue(s2, "approve(amount) failed");
+        assertTrue(s3, "requestDeposit failed");
+        assertTrue(s4, "approve(0) reset failed");
+
+        assertGt(vault.pendingDepositRequest(0, user), 0, "No pending deposit");
+        // Allowance must be reset to 0 after hook sequence
+        assertEq(IERC20(USDC).allowance(user, CENTRIFUGE_USDC_VAULT), 0, "Allowance not reset to 0");
+    }
+
+    function test_fork_ApproveAndRequestDeposit_Inspect() public view {
+        bytes memory hookData = abi.encodePacked(placeholder, CENTRIFUGE_USDC_VAULT, USDC, uint256(1e6), false);
+        bytes memory inspected = approveAndRequestDepositHook.inspect(hookData);
+        // inspect() returns abi.encodePacked(yieldSource, token)
+        assertEq(inspected, abi.encodePacked(CENTRIFUGE_USDC_VAULT, USDC), "inspect wrong");
+    }
+
+    function test_fork_ApproveAndRequestDeposit_DecodeAmounts() public view {
+        uint256 amount = 5e7;
+        bytes memory hookData = abi.encodePacked(placeholder, CENTRIFUGE_USDC_VAULT, USDC, amount, false);
+        assertEq(approveAndRequestDepositHook.decodeAmounts(hookData)[0], amount, "decodeAmounts wrong");
+    }
+
+    function test_fork_ApproveAndRequestDeposit_ReplaceCalldataAmounts() public view {
+        bytes memory hookData = abi.encodePacked(placeholder, CENTRIFUGE_USDC_VAULT, USDC, uint256(1e6), false);
+        uint256 newAmount = 2e8;
+        bytes memory replaced = approveAndRequestDepositHook.replaceCalldataAmounts(hookData, _singleAmount(newAmount));
+        assertEq(approveAndRequestDepositHook.decodeAmounts(replaced)[0], newAmount, "replace failed");
+    }
+
+    function test_fork_ApproveAndRequestDeposit_DecodeUsePrevHookAmount_False() public view {
+        bytes memory hookData = abi.encodePacked(placeholder, CENTRIFUGE_USDC_VAULT, USDC, uint256(1e6), false);
+        assertFalse(approveAndRequestDepositHook.decodeUsePrevHookAmount(hookData));
+    }
+
+    function test_fork_ApproveAndRequestDeposit_DecodeUsePrevHookAmount_True() public view {
+        bytes memory hookData = abi.encodePacked(placeholder, CENTRIFUGE_USDC_VAULT, USDC, uint256(1e6), true);
+        assertTrue(approveAndRequestDepositHook.decodeUsePrevHookAmount(hookData));
+    }
+
+    function test_fork_ApproveAndRequestDeposit_HookType_Nonaccounting() public view {
+        assertEq(uint256(approveAndRequestDepositHook.hookType()), 0, "hookType should be NONACCOUNTING=0");
+    }
+
+    function test_fork_ApproveAndRequestDeposit_BuildLength() public view {
+        bytes memory hookData = abi.encodePacked(placeholder, CENTRIFUGE_USDC_VAULT, USDC, uint256(1e6), false);
+        Execution[] memory executions = approveAndRequestDepositHook.build(address(0), user, hookData);
+        // 4 internal executions + 2 (preExecute + postExecute) = 6
+        assertEq(executions.length, 6, "Expected 6 executions");
+    }
+
+    function test_fork_ApproveAndRequestDeposit_PendingDepositAmount() public {
+        uint256 depositAmount = 1e8;
+        deal(USDC, user, depositAmount);
+
+        bytes memory hookData = abi.encodePacked(placeholder, CENTRIFUGE_USDC_VAULT, USDC, depositAmount, false);
+        Execution[] memory executions = approveAndRequestDepositHook.build(address(0), user, hookData);
+
+        vm.startPrank(user);
+        for (uint256 i = 1; i <= 4; i++) {
+            (bool success,) = executions[i].target.call(executions[i].callData);
+            assertTrue(success, "execution failed");
+        }
+        vm.stopPrank();
+
+        assertEq(vault.pendingDepositRequest(0, user), depositAmount, "Pending deposit amount mismatch");
+    }
+
+    /*//////////////////////////////////////////////////////////////
             FUZZ TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzz_fork_ApproveAndRequestDeposit_VaryingAmounts(uint256 depositAmount) public {
+        depositAmount = bound(depositAmount, 1e6, 1e10); // 1 USDC to 10k USDC
+
+        deal(USDC, user, depositAmount);
+        bytes memory hookData = abi.encodePacked(placeholder, CENTRIFUGE_USDC_VAULT, USDC, depositAmount, false);
+        Execution[] memory executions = approveAndRequestDepositHook.build(address(0), user, hookData);
+
+        vm.startPrank(user);
+        for (uint256 i = 1; i <= 4; i++) {
+            (bool success,) = executions[i].target.call(executions[i].callData);
+            assertTrue(success, "execution failed");
+        }
+        vm.stopPrank();
+
+        assertEq(vault.pendingDepositRequest(0, user), depositAmount, "Pending deposit wrong");
+        assertEq(IERC20(USDC).allowance(user, CENTRIFUGE_USDC_VAULT), 0, "Allowance not reset");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            ORIGINAL FUZZ TESTS
     //////////////////////////////////////////////////////////////*/
 
     function testFuzz_fork_RequestDeposit_VaryingAmounts(uint256 depositAmount) public {
