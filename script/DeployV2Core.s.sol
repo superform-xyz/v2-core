@@ -631,7 +631,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Oracles (12 contracts - always check these)
         // NOTE: Order must match _deployOracles array indices for consistency
-        string[14] memory oracleContracts = [
+        string[16] memory oracleContracts = [
             "ERC4626YieldSourceOracle", // [0]
             "ERC5115YieldSourceOracle", // [1]
             "PendlePTYieldSourceOracle", // [2]
@@ -645,7 +645,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "FirelightYieldSourceOracle", // [10]
             "DETHYieldSourceOracle", // [11]
             "ERC7540YieldSourceOracle", // [12]
-            "SpectraMetaVaultOracle" // [13]
+            "SpectraMetaVaultOracle", // [13]
+            "MorphoBlueMarketRegistry", // [14]
+            "MorphoBlueYieldSourceOracle" // [15]
         ];
 
         for (uint256 i = 0; i < oracleContracts.length; i++) {
@@ -1795,6 +1797,26 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encode(superLedgerConfig, uint256(0)),
                 env
             );
+            // MorphoBlueMarketRegistry (admin = DEPLOYER)
+            __checkContract(
+                MORPHO_BLUE_MARKET_REGISTRY_KEY,
+                __getSalt(MORPHO_BLUE_MARKET_REGISTRY_KEY),
+                abi.encode(DEPLOYER),
+                env
+            );
+            // MorphoBlueYieldSourceOracle (superLedgerConfig + registry)
+            if (__checkBytecodeExists("MorphoBlueMarketRegistry", env)) {
+                address morphoRegistryAddr =
+                    __computeContractAddress(MORPHO_BLUE_MARKET_REGISTRY_KEY, abi.encode(DEPLOYER), env);
+                if (morphoRegistryAddr != address(0) && morphoRegistryAddr.code.length > 0) {
+                    __checkContract(
+                        MORPHO_BLUE_YIELD_SOURCE_ORACLE_KEY,
+                        __getSalt(MORPHO_BLUE_YIELD_SOURCE_ORACLE_KEY),
+                        abi.encode(superLedgerConfig, morphoRegistryAddr),
+                        env
+                    );
+                }
+            }
         } else {
             revert("ORACLES_CHECK_FAILED_MISSING_SUPER_LEDGER_CONFIG");
         }
@@ -2414,6 +2436,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bytes ledgerConstructorArgs;
         uint256 verified;
         uint256 failed;
+        uint256 env;
     }
 
     /// @notice Verify contract addresses by computing from environment-specific bytecode and comparing with output
@@ -2448,6 +2471,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Initialize local variables struct
         VerificationVars memory vars;
+        vars.env = env;
 
         // Get constructor args for ledger contracts
         vars.superLedgerConfig = vm.parseJsonAddress(deploymentJson, ".SuperLedgerConfiguration");
@@ -2461,7 +2485,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         vars.ledgerConstructorArgs = abi.encode(vars.superLedgerConfig, vars.allowedExecutors);
 
         // Define contracts to verify with their corresponding environment-specific bytecode paths and constructor args
-        ContractVerification[] memory contracts = new ContractVerification[](8);
+        ContractVerification[] memory contracts = new ContractVerification[](10);
 
         // Core contracts verification - always use locked bytecode
 
@@ -2518,6 +2542,20 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             name: "SpectraMetaVaultOracle",
             outputKey: ".SpectraMetaVaultOracle",
             bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "SpectraMetaVaultOracle.json")),
+            constructorArgs: ""
+        });
+
+        contracts[8] = ContractVerification({
+            name: "MorphoBlueMarketRegistry",
+            outputKey: ".MorphoBlueMarketRegistry",
+            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "MorphoBlueMarketRegistry.json")),
+            constructorArgs: ""
+        });
+
+        contracts[9] = ContractVerification({
+            name: "MorphoBlueYieldSourceOracle",
+            outputKey: ".MorphoBlueYieldSourceOracle",
+            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "MorphoBlueYieldSourceOracle.json")),
             constructorArgs: ""
         });
         // Verify each contract
@@ -2586,6 +2624,20 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         ) {
             // ERC7540YieldSourceOracle / SpectraMetaVaultOracle need SuperLedgerConfiguration + requestId
             bytes memory constructorArgs = abi.encode(vars.superLedgerConfig, uint256(0));
+            computedAddress = DeterministicDeployerLib.computeAddress(
+                abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
+            );
+        } else if (Strings.equal(contractToVerify.name, "MorphoBlueMarketRegistry")) {
+            // MorphoBlueMarketRegistry needs admin (DEPLOYER)
+            bytes memory constructorArgs = abi.encode(DEPLOYER);
+            computedAddress = DeterministicDeployerLib.computeAddress(
+                abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
+            );
+        } else if (Strings.equal(contractToVerify.name, "MorphoBlueYieldSourceOracle")) {
+            // MorphoBlueYieldSourceOracle needs superLedgerConfig + registry address
+            address morphoRegistryAddr =
+                __computeContractAddress(MORPHO_BLUE_MARKET_REGISTRY_KEY, abi.encode(DEPLOYER), vars.env);
+            bytes memory constructorArgs = abi.encode(vars.superLedgerConfig, morphoRegistryAddr);
             computedAddress = DeterministicDeployerLib.computeAddress(
                 abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
             );
@@ -3608,7 +3660,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         uint256 pendlePTAmortizedOracleIndex = 8;
         uint256 pendlePTAmortizedOracleV2Index = 9;
 
-        uint256 len = 14;
+        uint256 len = 16;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         address[] memory oracleAddresses = new address[](len);
 
@@ -3617,6 +3669,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(superLedgerConfig != address(0), "ORACLE_SUPER_LEDGER_CONFIG_PARAM_ZERO");
         require(superLedgerConfig.code.length > 0, "ORACLE_SUPER_LEDGER_CONFIG_NOT_DEPLOYED");
         console2.log(" Validated SuperLedgerConfiguration for oracles:", superLedgerConfig);
+
+        // Deploy MorphoBlueMarketRegistry first (dependency for MorphoBlueYieldSourceOracle)
+        address morphoRegistry = address(0);
+        if (__checkBytecodeExists("MorphoBlueMarketRegistry", env)) {
+            morphoRegistry = __deployContractIfNeeded(
+                MORPHO_BLUE_MARKET_REGISTRY_KEY,
+                chainId,
+                __getSalt(MORPHO_BLUE_MARKET_REGISTRY_KEY),
+                abi.encodePacked(__getBytecode("MorphoBlueMarketRegistry", env), abi.encode(DEPLOYER))
+            );
+            console2.log(" MorphoBlueMarketRegistry deployed:", morphoRegistry);
+        }
 
         // Deploy oracles with validated constructor parameters
         oracles[0] = _createSafeOracleDeploymentWithArgs(
@@ -3669,6 +3733,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         oracles[13] = _createSafeOracleDeploymentWithArgs(
             SPECTRA_META_VAULT_ORACLE_KEY, "SpectraMetaVaultOracle", env, abi.encode(superLedgerConfig, uint256(0))
         );
+        // MorphoBlueMarketRegistry is deployed above (not via oracle array) — slot 14 stays empty
+        // MorphoBlueYieldSourceOracle (superLedgerConfig + registry)
+        if (morphoRegistry != address(0)) {
+            oracles[15] = _createSafeOracleDeploymentWithArgs(
+                MORPHO_BLUE_YIELD_SOURCE_ORACLE_KEY,
+                "MorphoBlueYieldSourceOracle",
+                env,
+                abi.encode(superLedgerConfig, morphoRegistry)
+            );
+        }
 
         console2.log("Deploying", len, "oracles with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {

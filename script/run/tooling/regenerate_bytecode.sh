@@ -199,6 +199,8 @@ ORACLE_CONTRACTS=(
     "DETHYieldSourceOracle"
     "ERC7540YieldSourceOracle"
     "SpectraMetaVaultOracle"
+    "MorphoBlueMarketRegistry"
+    "MorphoBlueYieldSourceOracle"
 )
 
 # Morpho hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
