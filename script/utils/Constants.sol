@@ -324,6 +324,8 @@ abstract contract Constants {
     string internal constant DETH_YIELD_SOURCE_ORACLE_KEY = "DETHYieldSourceOracle";
     string internal constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";
     string internal constant SPECTRA_META_VAULT_ORACLE_KEY = "SpectraMetaVaultOracle";
+    string internal constant MORPHO_BLUE_MARKET_REGISTRY_KEY = "MorphoBlueMarketRegistry";
+    string internal constant MORPHO_BLUE_YIELD_SOURCE_ORACLE_KEY = "MorphoBlueYieldSourceOracle";
 
     // SuperLedgerConfigs Salts
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_SALT = "ERC4626YieldSourceOracle_v1.0.1";
