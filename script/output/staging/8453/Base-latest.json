@@ -88,7 +88,7 @@
   "SpectraPTYieldSourceOracle": "0xBb9154D1a9c06047D4AD5721eAEd874Ee125f4E3",
   "StakingYieldSourceOracle": "0x0737eB8db2992b13a66b46E8226F36d774CA2A02",
   "StargateAdapter": "0x5A405eD326261A47D860eeB2a0EffaF14673b3aD",
-  "StargateAdapterV2": "0x99a6A9EFee5650FA7F93d987dD5E973f894Daef5",
+  "StargateAdapterV2": "0x1e60bd139C3Af468326aA9e2d5Fb924d2AAB390e",
   "StargateSendHook": "0x37082Da9b4C30485c5Bcd2c5FE367e6708f90dFb",
   "StargateSendHookV2": "0x3d9C8A576c5B816ce1a821c1BA79a049249A9e13",
   "SuperDestinationExecutor": "0xd0B5d200a6B136D619Dd1c7BBA30b004b4773C40",
