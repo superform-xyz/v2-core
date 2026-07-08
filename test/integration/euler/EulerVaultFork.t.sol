@@ -632,8 +632,8 @@ contract EulerVaultFork is Test {
     function test_fork_euler_depositHook_decodeAmount() public view {
         uint256 amount = 42_000e6;
         bytes memory hookData = _buildDepositData(EULER_USDC_VAULT, USDC, amount);
-        uint256 decoded = ISuperHookInflowOutflow(address(depositHook)).decodeAmount(hookData);
-        assertEq(decoded, amount, "decodeAmount should return the encoded amount");
+        uint256[] memory decoded = ISuperHookInflowOutflow(address(depositHook)).decodeAmounts(hookData);
+        assertEq(decoded[0], amount, "decodeAmounts should return the encoded amount");
     }
 
     function test_fork_euler_depositHook_decodeUsePrevHookAmount() public view {
@@ -655,8 +655,8 @@ contract EulerVaultFork is Test {
     function test_fork_euler_redeemHook_decodeAmount() public view {
         uint256 shares = 99_000e6;
         bytes memory hookData = _buildRedeemData(EULER_USDC_VAULT, address(executor), shares);
-        uint256 decoded = ISuperHookInflowOutflow(address(redeemHook)).decodeAmount(hookData);
-        assertEq(decoded, shares, "decodeAmount should return the encoded shares");
+        uint256[] memory decoded = ISuperHookInflowOutflow(address(redeemHook)).decodeAmounts(hookData);
+        assertEq(decoded[0], shares, "decodeAmounts should return the encoded shares");
     }
 
     function test_fork_euler_redeemHook_replaceCalldataAmount() public view {
@@ -664,9 +664,11 @@ contract EulerVaultFork is Test {
         uint256 newShares = 200e6;
         bytes memory hookData = _buildRedeemData(EULER_USDC_VAULT, address(executor), originalShares);
 
-        bytes memory replaced = ISuperHookOutflow(address(redeemHook)).replaceCalldataAmount(hookData, newShares);
-        uint256 decoded = ISuperHookInflowOutflow(address(redeemHook)).decodeAmount(replaced);
-        assertEq(decoded, newShares, "replaceCalldataAmount should update the amount");
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = newShares;
+        bytes memory replaced = ISuperHookOutflow(address(redeemHook)).replaceCalldataAmounts(hookData, amounts);
+        uint256[] memory decoded = ISuperHookInflowOutflow(address(redeemHook)).decodeAmounts(replaced);
+        assertEq(decoded[0], newShares, "replaceCalldataAmounts should update the amount");
     }
 
     /*//////////////////////////////////////////////////////////////
