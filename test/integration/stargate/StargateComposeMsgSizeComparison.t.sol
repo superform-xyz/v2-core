@@ -31,7 +31,7 @@ contract StargateComposeMsgSizeComparison is Test {
     /// @dev quoteSend() on StargateOFTUSDC (0x77c71633c34c3784ede189d74223122422492a0f) on Flare
     /// @dev Block 62106288, Flare -> Base (dstEid=30184), amount=7.517481 USDC
     /// @dev TX: 0x4ea04967a1a7a897b0e3563865433ec121aec09a6377baf869900070dba60dff
-    function test_ComposeMsgSizeComparison_RealProductionData() public {
+    function test_ComposeMsgSizeComparison_RealProductionData() public view {
         // ═══════════════════════════════════════════════════════════════════
         // Step 1: Load V1 composeMsg from file
         // Format: abi.encode(initData, executorCalldata, account, dstTokens, intentAmounts, sigData)

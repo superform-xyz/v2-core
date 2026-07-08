@@ -1243,7 +1243,6 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         address feeRecipient = makeAddr("feeRecipient"); // this is the recipient configured in base tests.
 
         // Fetch the fee recipient balance before execution
-        uint256 feeReceiverBalanceBefore = IERC4626(CHAIN_1_USDC).balanceOf(feeRecipient);
 
         _executeThroughEntrypoint(nexusAccount, entry);
         _checkUserOperationResults(MaliciousHookResetExecution.ATTACK_FAILED.selector);

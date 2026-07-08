@@ -32,7 +32,7 @@ contract KyberSwapBaseNativeE2E is Test, Constants, KyberSwapAPIParser {
     address public constant USDC = CHAIN_8453_USDC;
     address public constant WETH = CHAIN_8453_WETH;
 
-    uint256 constant MAX_RETRIES = 3;
+    uint256 constant MAX_RETRIES = 5;
 
     address public account;
 

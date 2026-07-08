@@ -198,7 +198,7 @@ abstract contract SuperValidatorBaseSimulations is ERC7579ValidatorBase, ISuperV
     /// @return signer The address that signed the message
     function _processECDSASignature(SignatureData memory sigData) internal pure returns (address signer) {
         bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
-        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
+        MessageHashUtils.toEthSignedMessageHash(messageHash);
 
         // sending signer as address 0x000 for mock validator
         signer = address(0);

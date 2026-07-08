@@ -26,7 +26,7 @@ contract MockSimpleAccount {
 
     function validateUserOp(
         PackedUserOperation calldata,
-        bytes32 userOpHash,
+        bytes32, /* userOpHash */
         uint256 missingAccountFunds
     )
         external

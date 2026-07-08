@@ -159,7 +159,7 @@ contract V1vsV2OracleComparison is Test {
     }
 
     /// @notice Test getPricePerShare is identical between V1 and V2
-    function test_V1vsV2_PricePerShare() public {
+    function test_V1vsV2_PricePerShare() public view {
         IPendlePTAmortizedOracle v1Oracle = IPendlePTAmortizedOracle(V1_ORACLE);
 
         uint256 v1Price = v1Oracle.getPricePerShare(MARKET);
@@ -174,7 +174,7 @@ contract V1vsV2OracleComparison is Test {
     }
 
     /// @notice Test getAssetOutput is identical between V1 and V2
-    function test_V1vsV2_GetAssetOutput() public {
+    function test_V1vsV2_GetAssetOutput() public view {
         IPendlePTAmortizedOracle v1Oracle = IPendlePTAmortizedOracle(V1_ORACLE);
 
         (, address pt,) = IPMarket(MARKET).readTokens();

@@ -138,7 +138,7 @@ contract FlareClaimRFLRV2E2E is Test, Constants {
         }
         vm.stopPrank();
 
-        uint256 balAfterFirst = IERC20(FLARE_RNAT).balanceOf(CLAIMABLE_HOLDER);
+        IERC20(FLARE_RNAT).balanceOf(CLAIMABLE_HOLDER);
 
         // Second claim should revert (no more claimable)
         vm.expectRevert(ClaimRFLRV2Hook.NO_CLAIMABLE_REWARDS.selector);

@@ -71,7 +71,7 @@ contract PendleUnifiedHookE2E is Test {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Verify build() produces correct 9-execution structure for redeem with real market
-    function test_Build_RedeemPyToToken_RealMarket() public {
+    function test_Build_RedeemPyToToken_RealMarket() public view {
         address[] memory tokensOut = IStandardizedYield(sy).getTokensOut();
         require(tokensOut.length > 0, "No valid tokens out");
         address tokenOut = tokensOut[0];
@@ -136,7 +136,7 @@ contract PendleUnifiedHookE2E is Test {
     }
 
     /// @notice Verify build() correctly encodes the redeemPyToToken calldata with real YT address
-    function test_Build_RedeemPyToToken_CallDataEncoding_RealMarket() public {
+    function test_Build_RedeemPyToToken_CallDataEncoding_RealMarket() public view {
         address[] memory tokensOut = IStandardizedYield(sy).getTokensOut();
         address tokenOut = tokensOut[0];
         uint256 redeemAmount = 2.5e18;
