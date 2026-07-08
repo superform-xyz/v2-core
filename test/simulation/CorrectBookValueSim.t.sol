@@ -50,7 +50,7 @@ contract CorrectBookValueSimulation is Test {
 
         // Find manager
         bytes32 managerRole = oracle.MANAGER_ROLE();
-        bytes32 adminRole = oracle.DEFAULT_ADMIN_ROLE();
+
 
         // Check common addresses for manager role
         address manager = _findManager(oracle, managerRole);

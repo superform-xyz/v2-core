@@ -465,7 +465,7 @@ contract ERC7540YieldSourceOracleTest is Test {
         assertEq(pps, assetsPerShare_);
     }
 
-    function testFuzz_getWithdrawalShareOutput_inverseOfGetAssetOutput(uint128 shares_) public {
+    function testFuzz_getWithdrawalShareOutput_inverseOfGetAssetOutput(uint128 shares_) public view {
         vm.assume(shares_ > 0);
         // Get asset output for shares
         uint256 assets = oracle.getAssetOutput(vaultAddr, address(0), shares_);
@@ -500,7 +500,7 @@ contract ERC7540YieldSourceOracleTest is Test {
         assertEq(assets, expected);
     }
 
-    function testFuzz_roundTrip_assetToShareToAsset(uint128 assetsIn_) public {
+    function testFuzz_roundTrip_assetToShareToAsset(uint128 assetsIn_) public view {
         vm.assume(assetsIn_ > 0);
 
         uint256 shares = oracle.getShareOutput(vaultAddr, address(0), assetsIn_);

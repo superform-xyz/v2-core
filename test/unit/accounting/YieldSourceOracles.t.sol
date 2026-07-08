@@ -416,7 +416,7 @@ contract YieldSourceOraclesTest is Helpers {
     function test_CatchBranchFor_getAssetOutputWithFees() public {
         bytes32 oracleId = bytes32("random");
         address user = makeAddr("testUser");
-        uint256 initialShares = 1000e18;
+
         uint256 usedShares = 500e18; // Half of the shares
         uint256 assetOutput = 1100e18; // 10% profit over cost basis
         oracleId = _getYieldSourceOracleId(oracleId, address(this));

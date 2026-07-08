@@ -1538,7 +1538,7 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
     }
 
     /// @dev Asserts that an ExecutionFailed event was emitted in recorded logs
-    function _assertExecutionFailedEmitted() internal {
+    function _assertExecutionFailedEmitted() internal view {
         _assertEventEmitted(vm.getRecordedLogs(), "ExecutionFailed(bytes32,address)");
     }
 

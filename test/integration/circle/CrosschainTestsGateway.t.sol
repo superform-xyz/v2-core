@@ -261,7 +261,7 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
     /// @notice Internal function to perform Circle Gateway deposit using SuperExecutor
     /// @param chainConfig The chain configuration to deposit on
     /// @param amount The amount to deposit
-    function _performGatewayDeposit(ChainConfig memory chainConfig, address account, uint256 amount) internal {
+    function _performGatewayDeposit(ChainConfig memory chainConfig, address /* account */, uint256 amount) internal {
         vm.selectFork(chainConfig.forkId);
 
         // Prepare hook data for Circle Gateway deposit
@@ -341,7 +341,7 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         ChainSetup memory chain,
         bytes memory burnIntent,
         bytes memory burnSignature,
-        uint256 amount,
+        uint256, /* amount */
         uint256 feeAmount
     )
         internal

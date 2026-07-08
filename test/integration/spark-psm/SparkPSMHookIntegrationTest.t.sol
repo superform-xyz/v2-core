@@ -368,6 +368,10 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
         // Skip if PSM doesn't hold enough USDS to fulfill the swap at the current fork block
         if (IERC20(USDS).balanceOf(PSM_ADDRESS) < 1_000_000e18) vm.skip(true);
 
+        // Skip if PSM doesn't have enough USDS liquidity at this fork block
+        uint256 psmUSDSBalance = IERC20(USDS).balanceOf(PSM_ADDRESS);
+        vm.skip(psmUSDSBalance < 1_000_000e18);
+
         deal(USDC, account, amountIn);
         // Ensure PSM has enough USDS liquidity to fulfill the swap
         deal(USDS, PSM_ADDRESS, 2_000_000e18);

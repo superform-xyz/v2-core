@@ -345,7 +345,7 @@ contract CrosschainWithDestinationSwapTests is BaseTest {
 
             // Hook 2: Generate UniswapV4 quote and calldata for WETH -> USDC swap
             bool zeroForOne = getWETHAddress() < underlyingETH_USDC; // Determine swap direction based on token ordering
-            SwapUniswapV4Hook uniV4Hook = SwapUniswapV4Hook(payable(_getHookAddress(ETH, SWAP_UNISWAP_V4_HOOK_KEY)));
+            SwapUniswapV4Hook(payable(_getHookAddress(ETH, SWAP_UNISWAP_V4_HOOK_KEY)));
 
             // Calculate appropriate price limit with 1% slippage tolerance
             uint160 priceLimit = _calculatePriceLimit(wethUsdcPoolKey, zeroForOne, 100);

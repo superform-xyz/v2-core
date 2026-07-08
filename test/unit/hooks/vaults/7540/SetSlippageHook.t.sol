@@ -119,7 +119,7 @@ contract SetSlippageHookTest is Helpers {
         assertEq(executions[1].callData, expectedCalldata);
     }
 
-    function testFuzz_Build(address vault, uint16 slippageBps) public {
+    function testFuzz_Build(address vault, uint16 slippageBps) public view {
         vm.assume(vault != address(0));
         vm.assume(slippageBps <= MAX_SLIPPAGE_BPS);
 
