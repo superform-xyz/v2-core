@@ -6,7 +6,7 @@ import { BaseAPIParser } from "./BaseAPIParser.sol";
 
 // Real Uniswap V4 imports
 import { PoolKey } from "v4-core/types/PoolKey.sol";
-import { CurrencyLibrary } from "v4-core/types/Currency.sol";
+import { Currency, CurrencyLibrary } from "v4-core/types/Currency.sol";
 
 /// @title UniswapV4Parser
 /// @author Superform Labs
@@ -97,6 +97,17 @@ contract UniswapV4Parser is BaseAPIParser {
 
     /// @notice Generate hook data for single-hop V4 swap
     /// @dev Creates properly encoded data matching SwapUniswapV4Hook expectations
+    /// Layout (standard 10-field Layer 1):
+    ///   [0..31]    bytes32 placeholder0
+    ///   [32..51]   address placeholder1     (bytes20)
+    ///   [52..71]   address inputToken       (bytes20)
+    ///   [72..91]   address outputToken      (bytes20)
+    ///   [92..123]  uint256 inputAmount      (bytes32)
+    ///   [124..155] uint256 outputQuote      (bytes32) — equals outputMin for AMM hooks
+    ///   [156..187] uint256 outputMin        (bytes32)
+    ///   [188]      bool    usePrevHookAmount (bytes1)
+    ///   [189..220] uint256 payloadLength    (bytes32)
+    ///   [221..]    bytes   payload          (variable)
     /// @param params The swap parameters
     /// @param usePrevHookAmount Whether to use previous hook's output
     /// @return hookData Encoded hook data ready for execution
@@ -108,28 +119,40 @@ contract UniswapV4Parser is BaseAPIParser {
         pure
         returns (bytes memory hookData)
     {
-        // Split into two encodePacked calls to avoid stack-too-deep
-        // Header + pool key fields (bytes 0-119)
-        bytes memory part1 = abi.encodePacked(
-            bytes32(0), // 32 bytes (0-31): yieldSourceOracleId (header)
-            address(0), // 20 bytes (32-51): yieldSource (header)
-            params.poolKey.currency0, // 20 bytes (52-71): currency0
-            params.poolKey.currency1, // 20 bytes (72-91): currency1
-            uint32(params.poolKey.fee), // 4 bytes (92-95): fee (padded from uint24)
-            uint32(int32(params.poolKey.tickSpacing)), // 4 bytes (96-99): tickSpacing (padded from int24)
-            params.poolKey.hooks // 20 bytes (100-119): hooks address
+        // abi-encoded payload (Layer 2)
+        // Payload: abi.encode(bool zeroForOne, uint24 fee, int24 tickSpacing, address hooks,
+        //          address dstReceiver, uint160 sqrtPriceLimitX96, uint256 maxSlippageDeviationBps, bytes additionalData)
+        bytes memory payload = abi.encode(
+            params.zeroForOne,
+            params.poolKey.fee,
+            params.poolKey.tickSpacing,
+            address(params.poolKey.hooks),
+            params.dstReceiver,
+            params.sqrtPriceLimitX96,
+            params.maxSlippageDeviationBps,
+            params.additionalData
         );
-        // Remaining swap params (bytes 120-269+)
-        bytes memory part2 = abi.encodePacked(
-            params.dstReceiver, // 20 bytes (120-139): dstReceiver
-            uint256(params.sqrtPriceLimitX96), // 32 bytes (140-171): sqrtPriceLimitX96 (padded from uint160)
-            params.originalAmountIn, // 32 bytes (172-203): originalAmountIn
-            params.originalMinAmountOut, // 32 bytes (204-235): originalMinAmountOut
-            params.maxSlippageDeviationBps, // 32 bytes (236-267): maxSlippageDeviationBps
-            params.zeroForOne ? bytes1(0x01) : bytes1(0x00), // 1 byte (268): zeroForOne flag
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // 1 byte (269): usePrevHookAmount flag
-            params.additionalData // Additional data (270+)
+
+        // Determine semantic input/output tokens based on swap direction
+        address inputToken = params.zeroForOne
+            ? Currency.unwrap(params.poolKey.currency0)
+            : Currency.unwrap(params.poolKey.currency1);
+        address outputToken = params.zeroForOne
+            ? Currency.unwrap(params.poolKey.currency1)
+            : Currency.unwrap(params.poolKey.currency0);
+
+        // Tight-packed Layer 0 + Layer 1 + Layer 2
+        hookData = abi.encodePacked(
+            bytes32(0),                                         // 32 bytes [0..31]:    placeholder0
+            bytes20(address(0)),                                // 20 bytes [32..51]:   placeholder1
+            bytes20(inputToken),                                // 20 bytes [52..71]:   inputToken
+            bytes20(outputToken),                               // 20 bytes [72..91]:   outputToken
+            params.originalAmountIn,                            // 32 bytes [92..123]:  inputAmount
+            params.originalMinAmountOut,                        // 32 bytes [124..155]: outputQuote (== outputMin for AMM)
+            params.originalMinAmountOut,                        // 32 bytes [156..187]: outputMin
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),    // 1  byte  [188]:      usePrevHookAmount
+            payload.length,                                     // 32 bytes [189..220]: payloadLength
+            payload                                             // var      [221..]:    payload
         );
-        hookData = abi.encodePacked(part1, part2);
     }
 }

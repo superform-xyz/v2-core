@@ -27,10 +27,9 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 /// @dev Calls IRNat.withdrawAll(true) to receive WFLR (wrapped FLR) instead of native FLR.
 ///      The penalty is enforced by the RNat contract and cannot be bypassed.
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder_yieldSourceOracleId = BytesLib.toBytes32(data, 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
-/// @notice         uint8 acknowledge = BytesLib.toUint8(data, 52);
-/// @notice         uint256 minOut = BytesLib.toUint256(data, 53);
+/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
+/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
+/// @notice         uint256 minOut = BytesLib.toUint256(data, 52);
 contract WithdrawRFLRHookV2 is BaseHook, ISuperHookInflowOutflow {
     /*//////////////////////////////////////////////////////////////
                               ERRORS
@@ -38,10 +37,6 @@ contract WithdrawRFLRHookV2 is BaseHook, ISuperHookInflowOutflow {
 
     /// @notice Thrown when the WFLR delta is below the caller-specified minOut
     error SLIPPAGE_EXCEEDED();
-
-    /// @notice Thrown when the caller did not acknowledge the locked-burn penalty
-    /// @dev Currently unused (Variant B is a no-op). Reserved for future activation.
-    error UNVESTED_BURN_NOT_ACKNOWLEDGED();
 
     /*//////////////////////////////////////////////////////////////
                               IMMUTABLES
@@ -57,14 +52,11 @@ contract WithdrawRFLRHookV2 is BaseHook, ISuperHookInflowOutflow {
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Offset of the acknowledge byte in hook data (after 52-byte strategy header)
-    uint256 private constant ACK_POSITION = 52;
-
     /// @dev Offset of the minOut uint256 in hook data (after 52-byte strategy header)
-    uint256 private constant MIN_OUT_POSITION = 53;
+    uint256 private constant MIN_OUT_POSITION = 52;
 
-    /// @dev Minimum data length required for the minOut field (52 header + 1 ack + 32 uint256)
-    uint256 private constant MIN_DATA_LENGTH_WITH_MIN_OUT = 85;
+    /// @dev Minimum data length required for the minOut field (52 header + 32 uint256)
+    uint256 private constant MIN_DATA_LENGTH_WITH_MIN_OUT = 84;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -141,21 +133,9 @@ contract WithdrawRFLRHookV2 is BaseHook, ISuperHookInflowOutflow {
 
     /// @inheritdoc BaseHook
     /// @dev Snapshots the WFLR balance before withdrawal execution.
-    ///      Variant B (locked-burn acknowledgment) check would go here if enabled.
     function _preExecute(address, address account, bytes calldata) internal override {
         asset = WFLR;
         _setOutAmount(IERC20(WFLR).balanceOf(account), account);
-
-        // Variant B: locked-burn acknowledgment (NO-OP for now).
-        // To enable, uncomment the following block:
-        //
-        // if (data.length >= 1) {
-        //     (,, uint256 locked) = IRNat(RNAT).getBalancesOf(account);
-        //     if (locked > 0) {
-        //         bool ack = data[ACK_POSITION] != 0;
-        //         if (!ack) revert UNVESTED_BURN_NOT_ACKNOWLEDGED();
-        //     }
-        // }
     }
 
     /// @inheritdoc BaseHook

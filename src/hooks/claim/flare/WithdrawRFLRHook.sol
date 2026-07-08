@@ -27,7 +27,7 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 /// @dev Calls IRNat.withdrawAll(true) to receive WFLR (wrapped FLR) instead of native FLR.
 ///      The penalty is enforced by the RNat contract and cannot be bypassed.
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder_yieldSourceOracleId = BytesLib.toBytes32(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         uint8 acknowledge = BytesLib.toUint8(data, 52);
 /// @notice         uint256 minOut = BytesLib.toUint256(data, 53);

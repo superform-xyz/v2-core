@@ -1032,7 +1032,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encode(
                     configuration.lzEndpointV2s[chainId],
                     configuration.stargateTokenMessagings[chainId],
-                    superDestExecutor
+                    superDestExecutor,
+                    configuration.stargateAllowedOFTs[chainId]
                 ),
                 env
             );
@@ -2188,7 +2189,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                     abi.encode(
                         configuration.lzEndpointV2s[chainId],
                         configuration.stargateTokenMessagings[chainId],
-                        coreContracts.superDestinationExecutor
+                        coreContracts.superDestinationExecutor,
+                        configuration.stargateAllowedOFTs[chainId]
                     )
                 )
             );

@@ -100,11 +100,11 @@ contract UniswapV2UnitTests is Helpers {
         bytes memory data = _buildHookData(false);
         bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        // AMOUNT_POSITION = 124, amountIn occupies bytes 124–155
-        for (uint256 i = 0; i < 124; i++) {
+        // AMOUNT_POSITION = 92, amountIn occupies bytes 92–123
+        for (uint256 i = 0; i < 92; i++) {
             assertEq(replaced[i], data[i]);
         }
-        for (uint256 i = 156; i < data.length; i++) {
+        for (uint256 i = 124; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
@@ -113,22 +113,25 @@ contract UniswapV2UnitTests is Helpers {
                               HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Builds hook data matching the UniswapV2 layout (with 52-byte strategy header):
-    /// header(0,52) | tokenIn(52) | tokenOut(72) | deadline(92) | originalAmountIn(124) |
-    /// originalMinAmountOut(156) | usePrevHookAmount(188) | pathLength(189) | path(221+)
+    /// @dev Builds hook data matching the standard Layer 1 layout:
+    /// header(0,52) | inputToken(52) | outputToken(72) | inputAmount(92) | outputQuote(124) |
+    /// outputMin(156) | usePrevHookAmount(188) | payloadLength(189) | payload(221+)
     function _buildHookData(bool usePrevHookAmount) internal view returns (bytes memory) {
+        address[] memory path = new address[](2);
+        path[0] = tokenIn;
+        path[1] = tokenOut;
+        bytes memory payload = abi.encode(deadline, path);
         return bytes.concat(
-            bytes32(0),          // yieldSourceOracleId placeholder (header bytes 0-31)
-            bytes20(address(0)), // yieldSource placeholder (header bytes 32-51)
-            bytes20(tokenIn),
-            bytes20(tokenOut),
-            bytes32(deadline),
-            bytes32(originalAmountIn),
-            bytes32(originalMinAmountOut),
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
-            bytes32(uint256(2)), // pathLength = 2
-            bytes20(tokenIn),
-            bytes20(tokenOut)
+            bytes32(0),                    // placeholder0 (header bytes 0-31)
+            bytes20(address(0)),           // placeholder1 (header bytes 32-51)
+            bytes20(tokenIn),              // inputToken 52-71
+            bytes20(tokenOut),             // outputToken 72-91
+            bytes32(originalAmountIn),     // inputAmount 92-123
+            bytes32(originalMinAmountOut), // outputQuote 124-155
+            bytes32(originalMinAmountOut), // outputMin 156-187
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // usePrevHookAmount 188
+            bytes32(payload.length),       // payloadLength 189-220
+            payload                        // payload 221+
         );
     }
 }

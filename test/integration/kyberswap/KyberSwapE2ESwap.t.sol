@@ -161,8 +161,8 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
                 bytes32(uint256(0)), // outputQuote @124
                 bytes32(expectedOut * 90 / 100), // outputMin @156
                 bytes1(uint8(0)), // usePrevHookAmount @188
-                bytes32(txData_.length), // payloadLength @189
-                txData_
+                bytes32(abi.encode(txData_).length), // payloadLength @189
+                abi.encode(txData_)
             );
 
             uint256 usdcBefore = IERC20(USDC).balanceOf(account);
@@ -227,8 +227,8 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
                 bytes32(uint256(0)), // outputQuote @124
                 bytes32(expectedOut * 90 / 100), // outputMin @156
                 bytes1(uint8(0)), // usePrevHookAmount @188
-                bytes32(txData_.length), // payloadLength @189
-                txData_
+                bytes32(abi.encode(txData_).length), // payloadLength @189
+                abi.encode(txData_)
             );
 
             uint256 wethBefore = IERC20(WETH).balanceOf(account);
@@ -280,8 +280,8 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
                 bytes32(uint256(0)), // outputQuote @124
                 bytes32(expectedOut * 90 / 100), // outputMin @156
                 bytes1(uint8(0)), // usePrevHookAmount @188
-                bytes32(txData_.length), // payloadLength @189
-                txData_
+                bytes32(abi.encode(txData_).length), // payloadLength @189
+                abi.encode(txData_)
             );
 
             uint256 linkBefore = IERC20(LINK).balanceOf(account);
@@ -343,8 +343,8 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
                 bytes32(uint256(0)), // outputQuote @124
                 bytes32(expectedOut * 85 / 100), // outputMin @156
                 bytes1(uint8(1)), // usePrevHookAmount @188
-                bytes32(txData_.length), // payloadLength @189
-                txData_
+                bytes32(abi.encode(txData_).length), // payloadLength @189
+                abi.encode(txData_)
             );
 
             uint256 usdcBefore = IERC20(USDC).balanceOf(account);
@@ -448,8 +448,8 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
                 bytes32(uint256(0)), // outputQuote @124
                 bytes32(expectedOut * 80 / 100), // outputMin @156
                 bytes1(uint8(0)), // usePrevHookAmount @188
-                bytes32(txData_.length), // payloadLength @189
-                txData_
+                bytes32(abi.encode(txData_).length), // payloadLength @189
+                abi.encode(txData_)
             );
 
             uint256 usdcBefore = IERC20(USDC).balanceOf(account);

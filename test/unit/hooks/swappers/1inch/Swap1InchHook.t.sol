@@ -7,6 +7,7 @@ import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import "../../../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
+import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
 
 contract MockUniswapPair {
     address public token0;
@@ -140,7 +141,7 @@ contract Swap1InchHookTest is Helpers {
 
         // 3.  Full hook payload — new standard layout
         //     Layer 2 payload = dstReceiver (20 bytes) + txData
-        bytes memory p = abi.encodePacked(bytes20(account), callData);
+        bytes memory p = abi.encode(account, callData);
         bytes memory hookData = abi.encodePacked(
             bytes(new bytes(52)),   // [0:52]   Layer 0 header
             bytes20(srcToken),      // [52:72]  inputToken
@@ -171,7 +172,7 @@ contract Swap1InchHookTest is Helpers {
 
     function test_Build_RevertIf_CalldataIsNotValid() public {
         // Invalid selector inside the payload (after dstReceiver)
-        bytes memory p = abi.encodePacked(bytes20(dstReceiver), bytes4(0xaaaaaaaa));
+        bytes memory p = abi.encode(dstReceiver, abi.encodePacked(bytes4(0xaaaaaaaa)));
         bytes memory data = abi.encodePacked(
             bytes(new bytes(52)),
             bytes20(srcToken),
@@ -302,7 +303,7 @@ contract Swap1InchHookTest is Helpers {
         MockERC20 token = new MockERC20("Test Token", "TT", 18);
         token.mint(dstReceiver, 500);
 
-        bytes memory p = abi.encodePacked(bytes20(dstReceiver));
+        bytes memory p = abi.encode(dstReceiver, bytes(""));
         bytes memory data = abi.encodePacked(
             bytes(new bytes(52)),
             bytes20(address(0)),        // inputToken (unused in _getBalance)
@@ -324,7 +325,7 @@ contract Swap1InchHookTest is Helpers {
         MockERC20 token = new MockERC20("Test Token", "TT", 18);
         token.mint(dstReceiver, 500);
 
-        bytes memory p = abi.encodePacked(bytes20(dstReceiver));
+        bytes memory p = abi.encode(dstReceiver, bytes(""));
         bytes memory data = abi.encodePacked(
             bytes(new bytes(52)),
             bytes20(address(0)),        // inputToken (unused in _getBalance)
@@ -431,10 +432,12 @@ contract Swap1InchHookTest is Helpers {
         assertGt(argsEncoded.length, 0);
     }
 
-    function test_inspect_invalidSelector() public {
+    function test_inspect_invalidSelector() public view {
         bytes memory data = _buildInvalidData(1000, 100, dstReceiver, dstToken, false);
-        vm.expectRevert(Swap1InchHook.INVALID_SELECTOR.selector);
-        hook.inspect(data);
+        bytes memory result = hook.inspect(data);
+        assertEq(result.length, 40, "Should return 40 bytes (outputToken + dstReceiver)");
+        assertEq(BytesLib.toAddress(result, 0), dstToken, "First 20 bytes should be outputToken");
+        assertEq(BytesLib.toAddress(result, 20), dstReceiver, "Next 20 bytes should be dstReceiver");
     }
 
     function test_Token1_Equals_FromToken_Branch() public {
@@ -452,7 +455,7 @@ contract Swap1InchHookTest is Helpers {
         bytes4 selector = I1InchAggregationRouterV6.unoswapTo.selector;
         bytes memory callData = abi.encodePacked(selector, unoswapData);
 
-        bytes memory p = abi.encodePacked(bytes20(dstReceiver), callData);
+        bytes memory p = abi.encode(dstReceiver, callData);
         bytes memory hookData = abi.encodePacked(
             bytes(new bytes(52)),
             bytes20(srcToken),      // inputToken
@@ -531,7 +534,7 @@ contract Swap1InchHookTest is Helpers {
         bytes4 selector = I1InchAggregationRouterV6.unoswapTo.selector;
         bytes memory callData = abi.encodePacked(selector, unoswapData);
 
-        bytes memory p = abi.encodePacked(bytes20(dstReceiver), callData);
+        bytes memory p = abi.encode(dstReceiver, callData);
         bytes memory hookData = abi.encodePacked(
             bytes(new bytes(52)),
             bytes20(srcToken),      // inputToken
@@ -573,7 +576,7 @@ contract Swap1InchHookTest is Helpers {
         );
         bytes4 selector = bytes4(0);
         bytes memory callData = abi.encodePacked(selector, clipperData);
-        bytes memory p = abi.encodePacked(bytes20(dstReceiver), callData);
+        bytes memory p = abi.encode(dstReceiver, callData);
         return abi.encodePacked(
             bytes(new bytes(52)),
             bytes20(srcToken),
@@ -611,7 +614,7 @@ contract Swap1InchHookTest is Helpers {
         );
         bytes4 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
         bytes memory callData = abi.encodePacked(selector, clipperData);
-        bytes memory p = abi.encodePacked(bytes20(dstReceiver), callData);
+        bytes memory p = abi.encode(dstReceiver, callData);
         return abi.encodePacked(
             bytes(new bytes(52)),
             bytes20(srcToken),
@@ -650,7 +653,7 @@ contract Swap1InchHookTest is Helpers {
         bytes4 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
         bytes memory callData = abi.encodePacked(selector, clipperData);
         // Put address(this) as the payload dstReceiver — does not match _dstReceiver → INVALID_RECEIVER
-        bytes memory p = abi.encodePacked(bytes20(address(this)), callData);
+        bytes memory p = abi.encode(address(this), callData);
         return abi.encodePacked(
             bytes(new bytes(52)),
             bytes20(srcToken),
@@ -687,7 +690,7 @@ contract Swap1InchHookTest is Helpers {
         );
         bytes4 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
         bytes memory callData = abi.encodePacked(selector, clipperData);
-        bytes memory p = abi.encodePacked(bytes20(_dstReceiver), callData);
+        bytes memory p = abi.encode(_dstReceiver, callData);
         return abi.encodePacked(
             bytes(new bytes(52)),
             bytes20(srcToken),
@@ -715,7 +718,7 @@ contract Swap1InchHookTest is Helpers {
         );
         bytes4 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
         bytes memory callData = abi.encodePacked(selector, clipperData);
-        bytes memory p = abi.encodePacked(bytes20(dstReceiver), callData);
+        bytes memory p = abi.encode(dstReceiver, callData);
         return abi.encodePacked(
             bytes(new bytes(52)),
             bytes20(srcToken),
@@ -771,7 +774,7 @@ contract Swap1InchHookTest is Helpers {
 
         bytes4 selector = I1InchAggregationRouterV6.swap.selector;
         bytes memory callData = abi.encodePacked(selector, swapData);
-        bytes memory p = abi.encodePacked(bytes20(address(destinationReceiver)), callData);
+        bytes memory p = abi.encode(address(destinationReceiver), callData);
         bytes memory hookData = abi.encodePacked(
             bytes(new bytes(52)),
             bytes20(USDC),          // inputToken
@@ -804,6 +807,73 @@ contract Swap1InchHookTest is Helpers {
         // not anymore after the fix ->
         assertEq(testHook.getOutAmount(address(this)), 100e18);
         assertEq(IERC20(DAI).balanceOf(address(this)) - accountBalanceBeforeExecution, 100e18);
+    }
+
+    // ========================== Payload Decode Round-Trip Tests ==========================
+
+    function test_PayloadDecodeRoundTrip_GenericSwap() public view {
+        bytes memory hookData = _buildGenericSwapData(0, dstToken, dstReceiver, 1000, 100, false);
+
+        bytes memory payload = hook.decodePayload(hookData);
+        (address decodedDstReceiver, bytes memory decodedCallData) = abi.decode(payload, (address, bytes));
+
+        assertEq(decodedDstReceiver, dstReceiver);
+        // Verify the call data starts with swap selector
+        bytes4 decodedSelector;
+        assembly {
+            decodedSelector := mload(add(decodedCallData, 32))
+        }
+        assertEq(decodedSelector, I1InchAggregationRouterV6.swap.selector);
+    }
+
+    function test_PayloadDecodeRoundTrip_Clipper() public view {
+        bytes memory hookData = _buildClipperData(1000, 100, dstReceiver, dstToken, false);
+
+        bytes memory payload = hook.decodePayload(hookData);
+        (address decodedDstReceiver, bytes memory decodedCallData) = abi.decode(payload, (address, bytes));
+
+        assertEq(decodedDstReceiver, dstReceiver);
+        bytes4 decodedSelector;
+        assembly {
+            decodedSelector := mload(add(decodedCallData, 32))
+        }
+        assertEq(decodedSelector, I1InchAggregationRouterV6.clipperSwapTo.selector);
+    }
+
+    function test_PayloadDecodeRoundTrip_Unoswap() public view {
+        bytes memory hookData = _buildCurveHookData(0, false, dstReceiver, 1000, 100, false);
+
+        bytes memory payload = hook.decodePayload(hookData);
+        (address decodedDstReceiver, bytes memory decodedCallData) = abi.decode(payload, (address, bytes));
+
+        assertEq(decodedDstReceiver, dstReceiver);
+        bytes4 decodedSelector;
+        assembly {
+            decodedSelector := mload(add(decodedCallData, 32))
+        }
+        assertEq(decodedSelector, I1InchAggregationRouterV6.unoswapTo.selector);
+    }
+
+    function testFuzz_PayloadDecodeRoundTrip(address fuzzDstReceiver, bytes memory fuzzCallData) public view {
+        vm.assume(fuzzCallData.length > 0 && fuzzCallData.length < 10_000);
+        bytes memory p = abi.encode(fuzzDstReceiver, fuzzCallData);
+        bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)),
+            bytes20(srcToken),
+            bytes20(dstToken),
+            bytes32(value),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes1(uint8(0)),
+            bytes32(p.length),
+            p
+        );
+
+        bytes memory payload = hook.decodePayload(hookData);
+        (address decodedDstReceiver, bytes memory decodedCallData) = abi.decode(payload, (address, bytes));
+
+        assertEq(decodedDstReceiver, fuzzDstReceiver);
+        assertEq(keccak256(decodedCallData), keccak256(fuzzCallData));
     }
 
     //----------- PRIVATE ------------
@@ -860,7 +930,7 @@ contract Swap1InchHookTest is Helpers {
 
         bytes4 selector = I1InchAggregationRouterV6.unoswapTo.selector;
         bytes memory callData = abi.encodePacked(selector, unoswapData);
-        bytes memory p = abi.encodePacked(bytes20(dstReceiver), callData);
+        bytes memory p = abi.encode(dstReceiver, callData);
         return abi.encodePacked(
             bytes(new bytes(52)),
             bytes20(srcToken),
@@ -894,7 +964,7 @@ contract Swap1InchHookTest is Helpers {
 
         bytes4 selector = I1InchAggregationRouterV6.unoswapTo.selector;
         bytes memory callData = abi.encodePacked(selector, unoswapData);
-        bytes memory p = abi.encodePacked(bytes20(dstReceiver), callData);
+        bytes memory p = abi.encode(dstReceiver, callData);
         return abi.encodePacked(
             bytes(new bytes(52)),
             bytes20(srcToken),
@@ -937,7 +1007,7 @@ contract Swap1InchHookTest is Helpers {
         );
         bytes4 selector = I1InchAggregationRouterV6.swap.selector;
         bytes memory callData = abi.encodePacked(selector, swapData);
-        bytes memory p = abi.encodePacked(bytes20(dstReceiver), callData);
+        bytes memory p = abi.encode(dstReceiver, callData);
         return abi.encodePacked(
             bytes(new bytes(52)),
             bytes20(srcToken),

@@ -24,7 +24,7 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 /// @dev Allows users to approve or revoke operators who can act on their behalf for vault operations
 /// @dev The following hook does not need a _postExecute or a _preExecute definition
 /// @dev data has the following structure
-/// @notice         bytes32 placeholder_yieldSourceOracleId = BytesLib.toBytes32(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
 /// @notice         address vault = BytesLib.toAddress(data, 32);
 /// @notice         address operator = BytesLib.toAddress(data, 52);
 /// @notice         bool approved = _decodeBool(data, 72);

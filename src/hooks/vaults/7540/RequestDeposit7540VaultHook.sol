@@ -23,7 +23,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title RequestDeposit7540VaultHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes32 placeholder_yieldSourceOracleId = BytesLib.toBytes32(data, 0);
+/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 52);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 84);

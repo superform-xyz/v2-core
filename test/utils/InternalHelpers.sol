@@ -171,7 +171,7 @@ abstract contract InternalHelpers is Test {
         address inputToken,
         address outputToken,
         bool usePrevHookAmount,
-        uint256 payloadLength,
+        uint256,
         address dstReceiver,
         bytes memory calldata_
     )
@@ -179,10 +179,10 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory)
     {
+        bytes memory payload = abi.encode(dstReceiver, calldata_);
         return bytes.concat(
-            _swapHookLayer1(inputToken, outputToken, 0, 0, 0, usePrevHookAmount, payloadLength),
-            bytes20(dstReceiver),
-            calldata_
+            _swapHookLayer1(inputToken, outputToken, 0, 0, 0, usePrevHookAmount, payload.length),
+            payload
         );
     }
 
@@ -258,17 +258,11 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory hookData)
     {
-        // New 3-layer format: header(52) + inputToken@52 + outputToken@72 + inputAmount@92 + outputQuote@124 +
-        // outputMin@156 + usePrev@188 + payloadLength@189 + inputReceiver@221 + pathDefLength@241 + pathDef@273 +
-        // executor@273+L + referralCode@273+L+20
+        bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, referralCode);
         hookData = bytes.concat(
             _swapHookLayer1(inputToken, outputToken, inputAmount, outputQuote, outputMin, usePrevHookAmount,
-                20 + 32 + pathDefinition.length + 20 + 4),
-            bytes20(inputReceiver),
-            bytes32(pathDefinition.length),
-            pathDefinition,
-            bytes20(executor),
-            bytes4(uint32(referralCode))
+                payload.length),
+            payload
         );
     }
 
@@ -290,22 +284,11 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory hookData)
     {
-        // New 3-layer format: header(52) + inputToken@52 + outputToken@72 + inputAmount@92 + outputQuote@124 +
-        // outputMin@156 + usePrev@188 + payloadLength@189 + inputReceiver@221 + pathDefLength@241 + pathDef@273 +
-        // executor@273+L + referralCode(8)@273+L+20 + referralFee(8)@273+L+28 + feeRecipient@273+L+36
-        bytes memory part1 = bytes.concat(
-            _swapHookLayer1(inputToken, outputToken, inputAmount, outputQuote, outputMin, usePrevHookAmount,
-                20 + 32 + pathDefinition.length + 20 + 8 + 8 + 20),
-            bytes20(inputReceiver),
-            bytes32(pathDefinition.length)
-        );
+        bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, referralCode, referralFee, feeRecipient);
         hookData = bytes.concat(
-            part1,
-            pathDefinition,
-            bytes20(executor),
-            bytes8(referralCode),
-            bytes8(referralFee),
-            bytes20(feeRecipient)
+            _swapHookLayer1(inputToken, outputToken, inputAmount, outputQuote, outputMin, usePrevHookAmount,
+                payload.length),
+            payload
         );
     }
 
@@ -322,18 +305,18 @@ abstract contract InternalHelpers is Test {
         returns (bytes memory)
     {
         bytes memory txData = _createSpectraExchangeSimpleCommandTxData(ptToken, tokenIn, amount, account);
-        return abi.encodePacked(
-            /**
-             * yieldSourceOracleId
-             */
-            bytes32(bytes("")),
-            /**
-             * yieldSource
-             */
-            ptToken,
-            usePrevHookAmount,
-            value,
-            txData
+        bytes memory payload = abi.encode(ptToken, value, txData);
+        return bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(tokenIn),
+            bytes20(ptToken),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
+            bytes32(payload.length),
+            payload
         );
     }
 
@@ -378,9 +361,19 @@ abstract contract InternalHelpers is Test {
         returns (bytes memory)
     {
         bytes1 command = redeemPtForAsset ? REDEEM_PT_FOR_ASSET : REDEEM_IBT_FOR_ASSET;
+        bytes memory payload = abi.encode(recipient, minAssets, command);
 
-        return abi.encodePacked(
-            bytes32(bytes("")), asset, pt, recipient, minAssets, sharesToBurn, usePrevHookAmount, command
+        return bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(asset),
+            bytes20(pt),
+            bytes32(sharesToBurn),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
+            bytes32(payload.length),
+            payload
         );
     }
 

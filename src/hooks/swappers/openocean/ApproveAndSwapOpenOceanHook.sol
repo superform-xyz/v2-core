@@ -22,16 +22,18 @@ import {
 
 /// @title ApproveAndSwapOpenOceanHook
 /// @author Superform Labs
+/// @dev Payload: abi.encode(bytes txData_)
 /// @dev data has the following structure (standard 52-byte strategy header + Layer 1 + Layer 2):
-/// @notice         bytes     placeholder      = BytesLib.slice(data, 0, 52);
+/// @notice         bytes32   placeholder0     = BytesLib.toBytes32(data, 0);
+/// @notice         address   placeholder1     = BytesLib.toAddress(data, 32);
 /// @notice         address   inputToken       = BytesLib.toAddress(data, 52);
 /// @notice         address   outputToken      = BytesLib.toAddress(data, 72);
 /// @notice         uint256   inputAmount      = BytesLib.toUint256(data, 92);
 /// @notice         uint256   outputQuote      = BytesLib.toUint256(data, 124);
 /// @notice         uint256   outputMin        = BytesLib.toUint256(data, 156);
 /// @notice         bool      usePrevHookAmount = _decodeBool(data, 188);
-/// @notice         uint256   payloadLength    = BytesLib.toUint256(data, 189);
-/// @notice         bytes     txData_          = BytesLib.slice(data, 221, payloadLength);
+/// @notice         uint256   payload_paramLength = BytesLib.toUint256(data, 189);
+/// @notice         bytes     payload          = BytesLib.slice(data, 221, payload_paramLength);
 contract ApproveAndSwapOpenOceanHook is
     BaseHook,
     ISuperHookSwap,
@@ -95,8 +97,12 @@ contract ApproveAndSwapOpenOceanHook is
         address inputToken = BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
         address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
         uint256 inputAmount = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
-        bytes memory txData_ =
-            BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET));
+        bytes memory txData_;
+        {
+            uint256 payloadLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+            bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLength);
+            (txData_) = abi.decode(payload, (bytes));
+        }
 
         uint256 executionAmount = inputAmount;
         if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) {
@@ -181,15 +187,8 @@ contract ApproveAndSwapOpenOceanHook is
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        uint256 txDataLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
-        bytes memory txData_ = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, txDataLength);
-
-        (, IOpenOceanExchange.SwapDescription memory desc,) = abi.decode(
-            BytesLib.slice(txData_, 4, txData_.length - 4),
-            (IOpenOceanCaller, IOpenOceanExchange.SwapDescription, IOpenOceanCaller.CallDescription[])
-        );
-
-        return abi.encodePacked(desc.dstReceiver);
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        return abi.encodePacked(outputToken);
     }
 
     // ─── ISuperHookSwap ──────────────────────────────────────────────────────

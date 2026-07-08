@@ -10,7 +10,8 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
+import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
 import {
     ISuperHookResult,
     ISuperHookContextAware,
@@ -23,24 +24,31 @@ import { IStandardizedYield } from "../../../vendor/pendle/IStandardizedYield.so
 /// @title PendleRouterRedeemHook
 /// @author Superform Labs
 /// @notice Hook for redeeming PT+YT via Pendle Router V4
-/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 52);
-/// @notice         address yt = BytesLib.toAddress(data, 84);
-/// @notice         address pt = BytesLib.toAddress(data, 104);
-/// @notice         address tokenOut = BytesLib.toAddress(data, 124);
-/// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 144);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 176);
-/// @notice         bytes output = BytesLib.slice(data, 177, data.length - 177);
+/// @dev Payload: abi.encode(address yieldSource, address yt, address pt, address tokenOut, uint256 minTokenOut, TokenOutput output)
+/// @dev data has the following structure (standard 52-byte strategy header + Layer 1 + Layer 2):
+/// @notice         bytes32   placeholder0     = BytesLib.toBytes32(data, 0);
+/// @notice         address   placeholder1     = BytesLib.toAddress(data, 32);
+/// @notice         address   inputToken       = BytesLib.toAddress(data, 52);
+/// @notice         address   outputToken      = BytesLib.toAddress(data, 72);
+/// @notice         uint256   inputAmount      = BytesLib.toUint256(data, 92);
+/// @notice         uint256   outputQuote      = BytesLib.toUint256(data, 124);
+/// @notice         uint256   outputMin        = BytesLib.toUint256(data, 156);
+/// @notice         bool      usePrevHookAmount = _decodeBool(data, 188);
+/// @notice         uint256   payload_paramLength = BytesLib.toUint256(data, 189);
+/// @notice         bytes     payload          = BytesLib.slice(data, 221, payload_paramLength);
 /// @custom:deprecated Use PendleUnifiedHook instead which supports swap routing for tokenOut that is not directly redeemable from SY
-contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
-    using HookDataDecoder for bytes;
+contract PendleRouterRedeemHook is
+    BaseHook,
+    ISuperHookSwap,
+    ISuperHookContextAware,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+{
 
-    // Offset for bool usePrevHookAmount (after packed amount, yt, tokenOut, minTokenOut)
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 176; // 0+32+20+20+32+20
-    uint256 private constant AMOUNT_POSITION = 52;
-    // Offset for abi.encoded TokenOutput struct (after packed bool)
-    uint256 private constant TOKEN_OUTPUT_OFFSET = 177; // USE_PREV_HOOK_AMOUNT_POSITION + 1
+    /*//////////////////////////////////////////////////////////////
+                        DATA LAYOUT POSITIONS
+    //////////////////////////////////////////////////////////////*/
+    uint256 private constant AMOUNT_POSITION = SwapCalldataLayout.AMOUNT_POSITION;
 
     // Struct for decoded parameters
     struct DecodedParams {
@@ -65,9 +73,10 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
     error RECEIVER_NOT_VALID();
     error TOKEN_OUT_NOT_VALID();
     error MIN_TOKEN_OUT_NOT_VALID();
-    error INVALID_DATA_LENGTH(); // Added for length check
+    error INVALID_DATA_LENGTH();
     error SY_NOT_VALID();
     error TOKEN_OUT_NOT_LISTED();
+    error OUTPUT_TOKEN_MISMATCH();
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -129,9 +138,8 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
-        // Minimum length to read up to the bool flag + 1 byte for the flag itself
-        if (data.length < TOKEN_OUTPUT_OFFSET) revert INVALID_DATA_LENGTH();
-        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        if (data.length < SwapCalldataLayout.MIN_DATA_LENGTH) revert INVALID_DATA_LENGTH();
+        return _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -166,9 +174,65 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view override returns (bytes memory) {
-        DecodedParams memory params = _decodeAndValidateData(data);
-        return abi.encodePacked(params.yt, params.pt, params.tokenOut);
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        return abi.encodePacked(outputToken);
+    }
+
+    // ─── ISuperHookSwap ──────────────────────────────────────────────────────
+
+    /// @inheritdoc ISuperHookSwap
+    function encodeSwapData(
+        ISuperHookSwap.SwapHeader calldata header,
+        bytes calldata payload
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        return bytes.concat(
+            bytes(new bytes(SwapCalldataLayout.HEADER_SIZE)),
+            bytes20(header.inputToken),
+            bytes20(header.outputToken),
+            bytes32(header.inputAmount),
+            bytes32(header.outputQuote),
+            bytes32(header.outputMin),
+            bytes1(header.usePrevHookAmount ? uint8(1) : uint8(0)),
+            bytes32(payload.length),
+            payload
+        );
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputAmount(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputQuote(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_QUOTE_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputMin(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_MIN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodePayload(bytes calldata data) external pure override returns (bytes memory) {
+        uint256 payloadLen = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        return BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLen);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -180,37 +244,36 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
-        _setOutToken(BytesLib.toAddress(data, 124), account);
+        _setOutToken(BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET), account);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Decodes hook data based on packed encoding, validates parameters, and returns them.
+    /// @dev Decodes hook data, validates parameters, and returns them.
     function _decodeAndValidateData(bytes calldata data) private view returns (DecodedParams memory params) {
-        // Minimum length check to read up to the start of TokenOutput
-        if (data.length < TOKEN_OUTPUT_OFFSET) revert INVALID_DATA_LENGTH();
+        if (data.length < SwapCalldataLayout.MIN_DATA_LENGTH) revert INVALID_DATA_LENGTH();
 
-        // Decode fixed-size parameters using BytesLib and packed offsets
-        params.amountFromData = BytesLib.toUint256(data, 52); // Offset 0, size 32
-        params.yt = BytesLib.toAddress(data, 84); // Offset 32, size 20
-        params.pt = BytesLib.toAddress(data, 104); // Offset 52, size 20
-        params.tokenOut = BytesLib.toAddress(data, 124); // Offset 72, size 20
-        params.minTokenOut = BytesLib.toUint256(data, 144); // Offset 92, size 32
-        params.usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION); // Offset 124, size 1
+        params.amountFromData = BytesLib.toUint256(data, AMOUNT_POSITION);
+        params.usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
 
-        // Basic validation of decoded fixed params (excluding amount check for now)
+        // Decode payload: abi.encode(address yieldSource, address yt, address pt, address tokenOut, uint256 minTokenOut, TokenOutput output)
+        (, params.yt, params.pt, params.tokenOut, params.minTokenOut, params.output) =
+            abi.decode(data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:], (address, address, address, address, uint256, TokenOutput));
+
+        // Basic validation
         if (params.yt == address(0)) revert YT_NOT_VALID();
         if (params.tokenOut == address(0)) revert TOKEN_OUT_NOT_VALID();
         if (params.minTokenOut == 0) revert MIN_TOKEN_OUT_NOT_VALID();
 
-        // Decode TokenOutput struct from the correct offset (after packed data)
-        params.output = abi.decode(data[TOKEN_OUTPUT_OFFSET:], (TokenOutput));
-
         // Validate consistency between explicitly passed params and struct params
         if (params.output.tokenOut != params.tokenOut) revert TOKEN_OUT_NOT_VALID();
         if (params.output.minTokenOut != params.minTokenOut) revert MIN_TOKEN_OUT_NOT_VALID();
+
+        // Validate header outputToken matches payload tokenOut
+        address headerOutputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        if (headerOutputToken != params.tokenOut) revert OUTPUT_TOKEN_MISMATCH();
 
         // Validate tokenOut against the SY derived from YT
         (bool ok, bytes memory ret) = params.yt.staticcall(abi.encodeWithSignature("SY()"));
@@ -235,25 +298,21 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
     {
         if (usePrevHookAmount) {
             finalAmount = ISuperHookResult(prevHook).getOutAmount(account);
-            if (finalAmount == 0) revert AMOUNT_NOT_VALID(); // Amount from prevHook must be > 0
+            if (finalAmount == 0) revert AMOUNT_NOT_VALID();
         } else {
-            if (amountFromData == 0) revert AMOUNT_NOT_VALID(); // Amount from data must be > 0
+            if (amountFromData == 0) revert AMOUNT_NOT_VALID();
             finalAmount = amountFromData;
         }
     }
 
     /// @dev Gets the balance of the output token for the account.
     function _getBalance(bytes calldata data, address account) private view returns (uint256) {
-        // Need offset 72 (start of tokenOut) + 20 bytes = 92
-        uint256 endOfTokenOutOffset = 92;
-        if (data.length < endOfTokenOutOffset) revert INVALID_DATA_LENGTH();
-        // Decode tokenOut from its correct packed offset [72:92]
-        address tokenOut = BytesLib.toAddress(data, 124);
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
 
-        if (tokenOut == address(0)) {
+        if (outputToken == address(0)) {
             return account.balance;
         }
 
-        return IERC20(tokenOut).balanceOf(account);
+        return IERC20(outputToken).balanceOf(account);
     }
 }

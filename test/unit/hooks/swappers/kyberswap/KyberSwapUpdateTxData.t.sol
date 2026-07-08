@@ -68,8 +68,8 @@ contract KyberSwapUpdateTxDataTest is Helpers {
             bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)), // usePrevHookAmount = true
-            bytes32(txData_.length),
-            txData_
+            bytes32(abi.encode(txData_).length),
+            abi.encode(txData_)
         );
 
         prevHook.setOutAmount(prevAmount, account);
@@ -107,8 +107,8 @@ contract KyberSwapUpdateTxDataTest is Helpers {
             bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)),
-            bytes32(txData_.length),
-            txData_
+            bytes32(abi.encode(txData_).length),
+            abi.encode(txData_)
         );
 
         prevHook.setOutAmount(prevAmount, account);
@@ -140,8 +140,8 @@ contract KyberSwapUpdateTxDataTest is Helpers {
             bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(0)), // usePrevHookAmount = false
-            bytes32(txData_.length),
-            txData_
+            bytes32(abi.encode(txData_).length),
+            abi.encode(txData_)
         );
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
@@ -170,8 +170,8 @@ contract KyberSwapUpdateTxDataTest is Helpers {
             bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)), // usePrevHookAmount = true
-            bytes32(txData_.length),
-            txData_
+            bytes32(abi.encode(txData_).length),
+            abi.encode(txData_)
         );
 
         prevHook.setOutAmount(prevAmount, account);
@@ -203,8 +203,8 @@ contract KyberSwapUpdateTxDataTest is Helpers {
             bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)),
-            bytes32(txData_.length),
-            txData_
+            bytes32(abi.encode(txData_).length),
+            abi.encode(txData_)
         );
 
         prevHook.setOutAmount(prevAmount, account);
@@ -240,8 +240,8 @@ contract KyberSwapUpdateTxDataTest is Helpers {
             bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)),
-            bytes32(txData_.length),
-            txData_
+            bytes32(abi.encode(txData_).length),
+            abi.encode(txData_)
         );
 
         prevHook.setOutAmount(prevAmount, account);
@@ -276,8 +276,8 @@ contract KyberSwapUpdateTxDataTest is Helpers {
             bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)),
-            bytes32(txData_.length),
-            txData_
+            bytes32(abi.encode(txData_).length),
+            abi.encode(txData_)
         );
 
         prevHook.setOutAmount(prevAmount, account);
@@ -503,8 +503,8 @@ contract KyberSwapScaleHelperTest is Helpers {
             bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)), // usePrevHookAmount = true
-            bytes32(txData_.length),
-            txData_
+            bytes32(abi.encode(txData_).length),
+            abi.encode(txData_)
         );
 
         prevHook.setOutAmount(prevAmount, account);
@@ -537,8 +537,8 @@ contract KyberSwapScaleHelperTest is Helpers {
             bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)),
-            bytes32(txData_.length),
-            txData_
+            bytes32(abi.encode(txData_).length),
+            abi.encode(txData_)
         );
 
         prevHook.setOutAmount(prevAmount, account);
@@ -573,8 +573,8 @@ contract KyberSwapScaleHelperTest is Helpers {
             bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)),
-            bytes32(txData_.length),
-            txData_
+            bytes32(abi.encode(txData_).length),
+            abi.encode(txData_)
         );
 
         prevHook.setOutAmount(prevAmount, account);
@@ -605,8 +605,8 @@ contract KyberSwapScaleHelperTest is Helpers {
             bytes32(uint256(0)), // outputQuote
             bytes32(originalMinReturn),
             bytes1(uint8(1)),
-            bytes32(txData_.length),
-            txData_
+            bytes32(abi.encode(txData_).length),
+            abi.encode(txData_)
         );
 
         prevHook.setOutAmount(prevAmount, account);

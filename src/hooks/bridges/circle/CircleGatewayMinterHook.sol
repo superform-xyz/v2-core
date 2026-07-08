@@ -31,7 +31,8 @@ interface IGatewayMinter {
 /// @author Superform Labs
 /// @notice Hook for minting tokens from Circle Gateway Minter
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
+/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         uint256 attestationPayloadLength = BytesLib.toUint256(data, 52);
 /// @notice         bytes attestationPayload = BytesLib.slice(data, 84, attestationPayloadLength);
 /// @notice         uint256 signatureLength = BytesLib.toUint256(data, 84 + attestationPayloadLength);

@@ -28,7 +28,8 @@ import {
 /// @dev This eliminates duplicate data (executorCalldata, account, dstTokens, intentAmounts) per message.
 /// @dev inputAmount and outputAmount have to be predicted by the SuperBundler
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
+/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         uint256 value = BytesLib.toUint256(data, 52);
 /// @notice         address recipient = BytesLib.toAddress(data, 84);
 /// @notice         address inputToken = BytesLib.toAddress(data, 104);

@@ -73,16 +73,18 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
         view
         returns (bytes memory)
     {
+        bytes memory payload = abi.encode(account, REFERRAL_CODE);
         return bytes.concat(
-            bytes32(0), // yieldSourceOracleId (52-byte header)
-            bytes20(address(0)), // yieldSource (52-byte header)
-            bytes20(assetIn),
-            bytes20(assetOut),
-            bytes32(amountIn),
-            bytes32(minAmountOut),
-            bytes20(account), // receiver (ignored, forced to account)
-            bytes32(REFERRAL_CODE),
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00)
+            bytes32(0), // placeholder0 (offset 0)
+            bytes20(address(0)), // placeholder1 (offset 32)
+            bytes20(assetIn), // inputToken (offset 52)
+            bytes20(assetOut), // outputToken (offset 72)
+            bytes32(amountIn), // inputAmount (offset 92)
+            bytes32(minAmountOut), // outputQuote (offset 124)
+            bytes32(minAmountOut), // outputMin (offset 156)
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // usePrevHookAmount (offset 188)
+            bytes32(payload.length), // payloadLength (offset 189)
+            payload // payload (offset 221)
         );
     }
 
@@ -97,16 +99,18 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
         view
         returns (bytes memory)
     {
+        bytes memory payload = abi.encode(account, REFERRAL_CODE);
         return bytes.concat(
-            bytes32(0), // yieldSourceOracleId (52-byte header)
-            bytes20(address(0)), // yieldSource (52-byte header)
-            bytes20(assetIn),
-            bytes20(assetOut),
-            bytes32(amountOut),
-            bytes32(maxAmountIn),
-            bytes20(account),
-            bytes32(REFERRAL_CODE),
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00)
+            bytes32(0), // placeholder0 (offset 0)
+            bytes20(address(0)), // placeholder1 (offset 32)
+            bytes20(assetIn), // inputToken (offset 52)
+            bytes20(assetOut), // outputToken (offset 72)
+            bytes32(amountOut), // inputAmount (offset 92)
+            bytes32(maxAmountIn), // outputQuote (offset 124)
+            bytes32(maxAmountIn), // outputMin (offset 156)
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // usePrevHookAmount (offset 188)
+            bytes32(payload.length), // payloadLength (offset 189)
+            payload // payload (offset 221)
         );
     }
 
@@ -362,15 +366,7 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
         uint256 minAmountOut = amountIn * 1e12 - 1e18; // 1:1 rate with decimal adjustment, minus 1 USDS tolerance
 
         // Skip if PSM doesn't have enough USDS liquidity at the forked block
-        uint256 psmUsdsBalance = IERC20(USDS).balanceOf(PSM_ADDRESS);
         vm.skip(psmUsdsBalance < 1_000_000e18);
-
-        // Skip if PSM doesn't hold enough USDS to fulfill the swap at the current fork block
-        if (IERC20(USDS).balanceOf(PSM_ADDRESS) < 1_000_000e18) vm.skip(true);
-
-        // Skip if PSM doesn't have enough USDS liquidity at this fork block
-        uint256 psmUSDSBalance = IERC20(USDS).balanceOf(PSM_ADDRESS);
-        vm.skip(psmUSDSBalance < 1_000_000e18);
 
         deal(USDC, account, amountIn);
         // Ensure PSM has enough USDS liquidity to fulfill the swap

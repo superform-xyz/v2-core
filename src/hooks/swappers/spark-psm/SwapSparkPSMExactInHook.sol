@@ -7,6 +7,8 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
+import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
+import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
 import {
     ISuperHookResult,
     ISuperHookContextAware,
@@ -18,16 +20,25 @@ import { IPSM3 } from "../../../vendor/spark/IPSM3.sol";
 /// @title SwapSparkPSMExactInHook
 /// @author Superform Labs
 /// @notice Hook for executing exact-input swaps via Spark PSM (assumes pre-approved)
-/// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
-/// @notice         address assetIn = BytesLib.toAddress(data, 52);
-/// @notice         address assetOut = BytesLib.toAddress(data, 72);
-/// @notice         uint256 amountIn = BytesLib.toUint256(data, 92);
-/// @notice         uint256 minAmountOut = BytesLib.toUint256(data, 124);
-/// @notice         address receiver = BytesLib.toAddress(data, 156); // IGNORED - forced to account
-/// @notice         uint256 referralCode = BytesLib.toUint256(data, 176);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 208);
-contract SwapSparkPSMExactInHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
+/// @dev Payload: abi.encode(address receiver, uint256 referralCode)
+/// @dev data has the following structure (standard 52-byte strategy header + Layer 1 + Layer 2):
+/// @notice         bytes32   placeholder0     = BytesLib.toBytes32(data, 0);
+/// @notice         address   placeholder1     = BytesLib.toAddress(data, 32);
+/// @notice         address   inputToken       = BytesLib.toAddress(data, 52);
+/// @notice         address   outputToken      = BytesLib.toAddress(data, 72);
+/// @notice         uint256   inputAmount      = BytesLib.toUint256(data, 92);
+/// @notice         uint256   outputQuote      = BytesLib.toUint256(data, 124);
+/// @notice         uint256   outputMin        = BytesLib.toUint256(data, 156);
+/// @notice         bool      usePrevHookAmount = _decodeBool(data, 188);
+/// @notice         uint256   payload_paramLength = BytesLib.toUint256(data, 189);
+/// @notice         bytes     payload          = BytesLib.slice(data, 221, payload_paramLength);
+contract SwapSparkPSMExactInHook is
+    BaseHook,
+    ISuperHookSwap,
+    ISuperHookContextAware,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+{
     using BytesLib for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -37,11 +48,10 @@ contract SwapSparkPSMExactInHook is BaseHook, ISuperHookContextAware, ISuperHook
     /// @notice The Spark PSM3 contract
     IPSM3 public immutable PSM;
 
-    /// @notice Position of usePrevHookAmount flag in hook data
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 208;
-
-    uint256 private constant AMOUNT_POSITION = 92;
-
+    /*//////////////////////////////////////////////////////////////
+                        DATA LAYOUT POSITIONS
+    //////////////////////////////////////////////////////////////*/
+    uint256 private constant AMOUNT_POSITION = SwapCalldataLayout.AMOUNT_POSITION;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -87,21 +97,20 @@ contract SwapSparkPSMExactInHook is BaseHook, ISuperHookContextAware, ISuperHook
         override
         returns (Execution[] memory executions)
     {
-        if (data.length < 209) revert INVALID_HOOK_DATA();
+        if (data.length < SwapCalldataLayout.MIN_DATA_LENGTH) revert INVALID_HOOK_DATA();
 
-        address assetIn = data.toAddress(52);
-        address assetOut = data.toAddress(72);
-        if (assetIn == address(0) || assetOut == address(0)) revert ADDRESS_NOT_VALID();
-        uint256 amountIn = data.toUint256(92);
-        uint256 minAmountOut = data.toUint256(124);
-        // receiver at offset 156 is IGNORED - forced to account
-        uint256 referralCode = data.toUint256(176);
-        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        address inputToken = data.toAddress(SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+        address outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        if (inputToken == address(0) || outputToken == address(0)) revert ADDRESS_NOT_VALID();
+        uint256 inputAmount = data.toUint256(SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+        uint256 outputMin = data.toUint256(SwapCalldataLayout.OUTPUT_MIN_OFFSET);
+        bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
+        (, uint256 referralCode) = abi.decode(data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:], (address, uint256));
 
         if (usePrevHookAmount) {
             uint256 prevAmount = ISuperHookResult(prevHook).getOutAmount(account);
-            minAmountOut = HookDataUpdater.getUpdatedOutputAmount(prevAmount, amountIn, minAmountOut);
-            amountIn = prevAmount;
+            outputMin = HookDataUpdater.getUpdatedOutputAmount(prevAmount, inputAmount, outputMin);
+            inputAmount = prevAmount;
         }
 
         executions = new Execution[](1);
@@ -109,24 +118,24 @@ contract SwapSparkPSMExactInHook is BaseHook, ISuperHookContextAware, ISuperHook
             target: address(PSM),
             value: 0,
             callData: abi.encodeCall(
-                IPSM3.swapExactIn, (assetIn, assetOut, amountIn, minAmountOut, account, referralCode)
+                IPSM3.swapExactIn, (inputToken, outputToken, inputAmount, outputMin, account, referralCode)
             )
         });
     }
 
     /// @inheritdoc BaseHook
     function _preExecute(address, address account, bytes calldata data) internal override {
-        address assetOut = data.toAddress(72);
-        _setOutAmount(IERC20(assetOut).balanceOf(account), account);
+        address outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        _setOutAmount(IERC20(outputToken).balanceOf(account), account);
     }
 
     /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
-        address assetOut = data.toAddress(72);
-        uint256 finalBalance = IERC20(assetOut).balanceOf(account);
+        address outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        uint256 finalBalance = IERC20(outputToken).balanceOf(account);
         uint256 initialBalance = getOutAmount(account);
         _setOutAmount(finalBalance - initialBalance, account);
-        _setOutToken(assetOut, account);
+        _setOutToken(outputToken, account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -135,7 +144,7 @@ contract SwapSparkPSMExactInHook is BaseHook, ISuperHookContextAware, ISuperHook
 
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
-        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        return _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -171,8 +180,64 @@ contract SwapSparkPSMExactInHook is BaseHook, ISuperHookContextAware, ISuperHook
 
     /// @inheritdoc BaseHook
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        address assetOut = data.toAddress(72);
-        address receiver = data.toAddress(156);
-        return abi.encodePacked(assetOut, receiver);
+        address outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        (address receiver,) = abi.decode(data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:], (address, uint256));
+        return abi.encodePacked(outputToken, receiver);
+    }
+
+    // ─── ISuperHookSwap ──────────────────────────────────────────────────────
+
+    /// @inheritdoc ISuperHookSwap
+    function encodeSwapData(
+        ISuperHookSwap.SwapHeader calldata header,
+        bytes calldata payload
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        return bytes.concat(
+            bytes(new bytes(SwapCalldataLayout.HEADER_SIZE)),
+            bytes20(header.inputToken),
+            bytes20(header.outputToken),
+            bytes32(header.inputAmount),
+            bytes32(header.outputQuote),
+            bytes32(header.outputMin),
+            bytes1(header.usePrevHookAmount ? uint8(1) : uint8(0)),
+            bytes32(payload.length),
+            payload
+        );
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputAmount(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputQuote(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_QUOTE_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputMin(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_MIN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodePayload(bytes calldata data) external pure override returns (bytes memory) {
+        uint256 payloadLen = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        return BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLen);
     }
 }

@@ -382,20 +382,16 @@ contract OdosV3UnitTests is Helpers {
     function test_SwapOdosV3Hook_inspect() public view {
         bytes memory data = _buildSwapOdosV3Data(false);
         bytes memory argsEncoded = swapOdosV3Hook.inspect(data);
-        assertEq(argsEncoded.length, 60);
+        assertEq(argsEncoded.length, 20);
     }
 
     function test_SwapOdosV3Hook_inspect_Format() public view {
         bytes memory data = _buildSwapOdosV3Data(false);
         bytes memory argsEncoded = swapOdosV3Hook.inspect(data);
 
-        address decodedInputReceiver = BytesLib.toAddress(argsEncoded, 0);
-        address decodedExecutor = BytesLib.toAddress(argsEncoded, 20);
-        address decodedFeeRecipient = BytesLib.toAddress(argsEncoded, 40);
+        address decodedOutputToken = BytesLib.toAddress(argsEncoded, 0);
 
-        assertEq(decodedInputReceiver, inputReceiver);
-        assertEq(decodedExecutor, executor);
-        assertEq(decodedFeeRecipient, feeRecipient);
+        assertEq(decodedOutputToken, outputToken);
     }
 
     function test_SwapOdosV3Hook_inspect_DifferentPathLengths() public view {
@@ -403,9 +399,8 @@ contract OdosV3UnitTests is Helpers {
         bytes memory shortPath = hex"aabb";
         bytes memory data1 = _buildV3DataWithPath(inputToken, shortPath, false);
         bytes memory inspected1 = swapOdosV3Hook.inspect(data1);
-        assertEq(inspected1.length, 60);
-        assertEq(BytesLib.toAddress(inspected1, 0), inputReceiver);
-        assertEq(BytesLib.toAddress(inspected1, 20), executor);
+        assertEq(inspected1.length, 20);
+        assertEq(BytesLib.toAddress(inspected1, 0), outputToken);
 
         // Long path
         bytes memory longPath = new bytes(256);
@@ -414,9 +409,8 @@ contract OdosV3UnitTests is Helpers {
         }
         bytes memory data2 = _buildV3DataWithPath(inputToken, longPath, false);
         bytes memory inspected2 = swapOdosV3Hook.inspect(data2);
-        assertEq(inspected2.length, 60);
-        assertEq(BytesLib.toAddress(inspected2, 0), inputReceiver);
-        assertEq(BytesLib.toAddress(inspected2, 20), executor);
+        assertEq(inspected2.length, 20);
+        assertEq(BytesLib.toAddress(inspected2, 0), outputToken);
     }
 
     // ========================== SwapOdosV3Hook: Fee Validation ==========================
@@ -536,20 +530,16 @@ contract OdosV3UnitTests is Helpers {
     }
 
     function test_SwapOdosV3Hook_DifferentPathLengths_PreservesTail() public view {
-        // Verify that executor and referral fields decode correctly with different path lengths
+        // Verify that outputToken decodes correctly with different path lengths
         bytes memory shortPath = hex"aa";
         bytes memory data1 = _buildV3DataWithPath(inputToken, shortPath, false);
         bytes memory inspected1 = swapOdosV3Hook.inspect(data1);
-        assertEq(BytesLib.toAddress(inspected1, 0), inputReceiver);
-        assertEq(BytesLib.toAddress(inspected1, 20), executor);
-        assertEq(BytesLib.toAddress(inspected1, 40), feeRecipient);
+        assertEq(BytesLib.toAddress(inspected1, 0), outputToken);
 
         bytes memory mediumPath = abi.encode("medium", "path", "definition", "data");
         bytes memory data2 = _buildV3DataWithPath(inputToken, mediumPath, false);
         bytes memory inspected2 = swapOdosV3Hook.inspect(data2);
-        assertEq(BytesLib.toAddress(inspected2, 0), inputReceiver);
-        assertEq(BytesLib.toAddress(inspected2, 20), executor);
-        assertEq(BytesLib.toAddress(inspected2, 40), feeRecipient);
+        assertEq(BytesLib.toAddress(inspected2, 0), outputToken);
     }
 
     // ========================== SwapOdosV3Hook: Fuzz ==========================
@@ -877,20 +867,16 @@ contract OdosV3UnitTests is Helpers {
     function test_ApproveAndSwapOdosV3Hook_inspect() public view {
         bytes memory data = _buildApproveAndSwapOdosV3Data(false);
         bytes memory argsEncoded = approveAndSwapOdosV3Hook.inspect(data);
-        assertEq(argsEncoded.length, 60);
+        assertEq(argsEncoded.length, 20);
     }
 
     function test_ApproveAndSwapOdosV3Hook_inspect_Format() public view {
         bytes memory data = _buildApproveAndSwapOdosV3Data(false);
         bytes memory argsEncoded = approveAndSwapOdosV3Hook.inspect(data);
 
-        address decodedInputReceiver = BytesLib.toAddress(argsEncoded, 0);
-        address decodedExecutor = BytesLib.toAddress(argsEncoded, 20);
-        address decodedFeeRecipient = BytesLib.toAddress(argsEncoded, 40);
+        address decodedOutputToken = BytesLib.toAddress(argsEncoded, 0);
 
-        assertEq(decodedInputReceiver, inputReceiver);
-        assertEq(decodedExecutor, executor);
-        assertEq(decodedFeeRecipient, feeRecipient);
+        assertEq(decodedOutputToken, outputToken);
     }
 
     // ========================== ApproveAndSwapOdosV3Hook: Fee Validation ==========================
@@ -993,15 +979,7 @@ contract OdosV3UnitTests is Helpers {
         uint64 testFee = 1e16;
         address testRecipient = address(0xCAFE);
 
-        bytes memory payload = bytes.concat(
-            bytes20(inputReceiver),
-            bytes32(pathDefinition.length),
-            pathDefinition,
-            bytes20(executor),
-            bytes8(uint64(42)),
-            bytes8(testFee),
-            bytes20(testRecipient)
-        );
+        bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, uint64(42), testFee, testRecipient);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)), // Layer 0
             bytes20(address(0)),  // native ETH input
@@ -1274,18 +1252,100 @@ contract OdosV3UnitTests is Helpers {
         }
     }
 
+    // ========================== Payload Decode Round-Trip Tests ==========================
+
+    function test_SwapOdosV3Hook_PayloadDecodeRoundTrip() public view {
+        bytes memory data = _buildSwapOdosV3Data(false);
+        bytes memory payload = swapOdosV3Hook.decodePayload(data);
+        (
+            address decodedInputReceiver,
+            bytes memory decodedPath,
+            address decodedExecutor,
+            uint64 decodedReferralCode,
+            uint64 decodedReferralFee,
+            address decodedFeeRecipient
+        ) = abi.decode(payload, (address, bytes, address, uint64, uint64, address));
+
+        assertEq(decodedInputReceiver, inputReceiver);
+        assertEq(keccak256(decodedPath), keccak256(pathDefinition));
+        assertEq(decodedExecutor, executor);
+        assertEq(decodedReferralCode, referralCode);
+        assertEq(decodedReferralFee, referralFee);
+        assertEq(decodedFeeRecipient, feeRecipient);
+    }
+
+    function test_ApproveAndSwapOdosV3Hook_PayloadDecodeRoundTrip() public view {
+        bytes memory data = _buildApproveAndSwapOdosV3Data(false);
+        bytes memory payload = approveAndSwapOdosV3Hook.decodePayload(data);
+        (
+            address decodedInputReceiver,
+            bytes memory decodedPath,
+            address decodedExecutor,
+            uint64 decodedReferralCode,
+            uint64 decodedReferralFee,
+            address decodedFeeRecipient
+        ) = abi.decode(payload, (address, bytes, address, uint64, uint64, address));
+
+        assertEq(decodedInputReceiver, inputReceiver);
+        assertEq(keccak256(decodedPath), keccak256(pathDefinition));
+        assertEq(decodedExecutor, executor);
+        assertEq(decodedReferralCode, referralCode);
+        assertEq(decodedReferralFee, referralFee);
+        assertEq(decodedFeeRecipient, feeRecipient);
+    }
+
+    function testFuzz_SwapOdosV3Hook_PayloadDecodeRoundTrip(
+        address fuzzInputReceiver,
+        address fuzzExecutor,
+        uint64 fuzzReferralCode
+    )
+        public
+        view
+    {
+        bytes memory fuzzPath = abi.encode("fuzz_path_data");
+        uint64 fuzzReferralFee = uint64(bound(fuzzReferralCode, 0, swapOdosV3Hook.MAX_REFERRAL_FEE()));
+        address fuzzFeeRecipient = fuzzReferralFee > 0 ? address(0xBEEF) : address(0);
+
+        bytes memory payload;
+        bytes memory data;
+        {
+            payload =
+                abi.encode(fuzzInputReceiver, fuzzPath, fuzzExecutor, fuzzReferralCode, fuzzReferralFee, fuzzFeeRecipient);
+            data = bytes.concat(
+                bytes(new bytes(52)),
+                bytes20(inputToken),
+                bytes20(outputToken),
+                bytes32(inputAmount),
+                bytes32(outputQuote),
+                bytes32(outputMin),
+                bytes1(uint8(0)),
+                bytes32(payload.length),
+                payload
+            );
+        }
+
+        bytes memory decodedPayload = swapOdosV3Hook.decodePayload(data);
+        assertEq(keccak256(decodedPayload), keccak256(payload));
+    }
+
+    function test_SwapOdosV3Hook_Build_ExecutionTargetsRouter() public view {
+        bytes memory data = _buildSwapOdosV3Data(false);
+        Execution[] memory executions = swapOdosV3Hook.build(address(prevHook), account, data);
+
+        assertEq(executions[1].target, address(odosRouter));
+    }
+
+    function test_ApproveAndSwapOdosV3Hook_Build_ExecutionTargetsRouter() public view {
+        bytes memory data = _buildApproveAndSwapOdosV3Data(false);
+        Execution[] memory executions = approveAndSwapOdosV3Hook.build(address(prevHook), account, data);
+
+        assertEq(executions[3].target, address(odosRouter));
+    }
+
     // ========================== Data Builders ==========================
 
     function _buildSwapOdosV3Data(bool usePrevious) internal view returns (bytes memory) {
-        bytes memory payload = bytes.concat(
-            bytes20(inputReceiver),
-            bytes32(pathDefinition.length),
-            pathDefinition,
-            bytes20(executor),
-            bytes8(referralCode),
-            bytes8(referralFee),
-            bytes20(feeRecipient)
-        );
+        bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, referralCode, referralFee, feeRecipient);
         return bytes.concat(
             bytes(new bytes(52)), // Layer 0
             bytes20(inputToken),  // Layer 1
@@ -1300,15 +1360,7 @@ contract OdosV3UnitTests is Helpers {
     }
 
     function _buildApproveAndSwapOdosV3Data(bool usePrevious) internal view returns (bytes memory) {
-        bytes memory payload = bytes.concat(
-            bytes20(inputReceiver),
-            bytes32(pathDefinition.length),
-            pathDefinition,
-            bytes20(executor),
-            bytes8(referralCode),
-            bytes8(referralFee),
-            bytes20(feeRecipient)
-        );
+        bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, referralCode, referralFee, feeRecipient);
         return bytes.concat(
             bytes(new bytes(52)), // Layer 0
             bytes20(inputToken),  // Layer 1
@@ -1323,15 +1375,7 @@ contract OdosV3UnitTests is Helpers {
     }
 
     function _buildNativeInputV3Data(bool usePrevious) internal view returns (bytes memory) {
-        bytes memory payload = bytes.concat(
-            bytes20(inputReceiver),
-            bytes32(pathDefinition.length),
-            pathDefinition,
-            bytes20(executor),
-            bytes8(referralCode),
-            bytes8(referralFee),
-            bytes20(feeRecipient)
-        );
+        bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, referralCode, referralFee, feeRecipient);
         return bytes.concat(
             bytes(new bytes(52)),   // Layer 0
             bytes20(address(0)),    // native ETH input
@@ -1350,15 +1394,7 @@ contract OdosV3UnitTests is Helpers {
     }
 
     function _buildNativeOutputV3Data(bool usePrevious) internal view returns (bytes memory) {
-        bytes memory payload = bytes.concat(
-            bytes20(inputReceiver),
-            bytes32(pathDefinition.length),
-            pathDefinition,
-            bytes20(executor),
-            bytes8(referralCode),
-            bytes8(referralFee),
-            bytes20(feeRecipient)
-        );
+        bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, referralCode, referralFee, feeRecipient);
         return bytes.concat(
             bytes(new bytes(52)), // Layer 0
             bytes20(inputToken),  // Layer 1
@@ -1383,15 +1419,7 @@ contract OdosV3UnitTests is Helpers {
         view
         returns (bytes memory)
     {
-        bytes memory payload = bytes.concat(
-            bytes20(inputReceiver),
-            bytes32(pathDefinition.length),
-            pathDefinition,
-            bytes20(executor),
-            bytes8(referralCode),
-            bytes8(referralFee),
-            bytes20(feeRecipient)
-        );
+        bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, referralCode, referralFee, feeRecipient);
         return bytes.concat(
             bytes(new bytes(52)), // Layer 0
             bytes20(_inputToken), // Layer 1
@@ -1416,15 +1444,7 @@ contract OdosV3UnitTests is Helpers {
         view
         returns (bytes memory)
     {
-        bytes memory payload = bytes.concat(
-            bytes20(inputReceiver),
-            bytes32(pathDefinition.length),
-            pathDefinition,
-            bytes20(executor),
-            bytes8(referralCode),
-            bytes8(referralFee),
-            bytes20(feeRecipient)
-        );
+        bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, referralCode, referralFee, feeRecipient);
         return bytes.concat(
             bytes(new bytes(52)), // Layer 0
             bytes20(_inputToken), // Layer 1
@@ -1448,15 +1468,7 @@ contract OdosV3UnitTests is Helpers {
         view
         returns (bytes memory)
     {
-        bytes memory payload = bytes.concat(
-            bytes20(inputReceiver),
-            bytes32(pathDefinition.length),
-            pathDefinition,
-            bytes20(executor),
-            bytes8(referralCode),
-            bytes8(_referralFee),
-            bytes20(_feeRecipient)
-        );
+        bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, referralCode, _referralFee, _feeRecipient);
         return bytes.concat(
             bytes(new bytes(52)), // Layer 0
             bytes20(_inputToken), // Layer 1
@@ -1481,15 +1493,7 @@ contract OdosV3UnitTests is Helpers {
         view
         returns (bytes memory)
     {
-        bytes memory payload = bytes.concat(
-            bytes20(inputReceiver),
-            bytes32(pathDefinition.length),
-            pathDefinition,
-            bytes20(executor),
-            bytes8(_referralCode),
-            bytes8(_referralFee),
-            bytes20(_feeRecipient)
-        );
+        bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, _referralCode, _referralFee, _feeRecipient);
         return bytes.concat(
             bytes(new bytes(52)), // Layer 0
             bytes20(_inputToken), // Layer 1
@@ -1512,15 +1516,7 @@ contract OdosV3UnitTests is Helpers {
         view
         returns (bytes memory)
     {
-        bytes memory payload = bytes.concat(
-            bytes20(inputReceiver),
-            bytes32(_pathDefinition.length),
-            _pathDefinition,
-            bytes20(executor),
-            bytes8(referralCode),
-            bytes8(referralFee),
-            bytes20(feeRecipient)
-        );
+        bytes memory payload = abi.encode(inputReceiver, _pathDefinition, executor, referralCode, referralFee, feeRecipient);
         return bytes.concat(
             bytes(new bytes(52)), // Layer 0
             bytes20(_inputToken), // Layer 1

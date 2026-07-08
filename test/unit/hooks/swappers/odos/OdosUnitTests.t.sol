@@ -188,13 +188,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     function test_BytesLengthDecoding() public view {
         bytes memory testPathDefinition = abi.encode("test_path_longer_than_before");
 
-        bytes memory payload = bytes.concat(
-            bytes20(inputReceiver),
-            bytes32(testPathDefinition.length),
-            testPathDefinition,
-            bytes20(executor),
-            bytes4(referralCode)
-        );
+        bytes memory payload = abi.encode(inputReceiver, testPathDefinition, executor, referralCode);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)),
             bytes20(inputToken),
@@ -231,13 +225,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     }
 
     function test_ZeroValue() public view {
-        bytes memory payload = bytes.concat(
-            bytes20(inputReceiver),
-            bytes32(pathDefinition.length),
-            pathDefinition,
-            bytes20(executor),
-            bytes4(referralCode)
-        );
+        bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, referralCode);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)),
             bytes20(inputToken),
@@ -293,13 +281,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     }
 
     function _buildApproveAndSwapOdosData(bool usePrevious) internal view returns (bytes memory) {
-        bytes memory payload = bytes.concat(
-            bytes20(inputReceiver),
-            bytes32(pathDefinition.length),
-            pathDefinition,
-            bytes20(executor),
-            bytes4(referralCode)
-        );
+        bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, referralCode);
         return bytes.concat(
             bytes(new bytes(52)), // Layer 0
             bytes20(inputToken),  // Layer 1
@@ -384,13 +366,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     function test_SwapOdosHook_BytesLengthDecoding() public view {
         bytes memory testPathDefinition = abi.encode("test_path_longer_than_before");
 
-        bytes memory payload = bytes.concat(
-            bytes20(inputReceiver),
-            bytes32(testPathDefinition.length),
-            testPathDefinition,
-            bytes20(executor),
-            bytes4(referralCode)
-        );
+        bytes memory payload = abi.encode(inputReceiver, testPathDefinition, executor, referralCode);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)),
             bytes20(inputToken),
@@ -427,13 +403,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     }
 
     function test_SwapOdosHook_ZeroValue() public view {
-        bytes memory payload = bytes.concat(
-            bytes20(inputReceiver),
-            bytes32(pathDefinition.length),
-            pathDefinition,
-            bytes20(executor),
-            bytes4(referralCode)
-        );
+        bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, referralCode);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)),
             bytes20(inputToken),
@@ -517,14 +487,83 @@ contract ApproveAndSwapOdosHookTest is Helpers {
         assertEq(swapOdosHook.decodeAmounts(result)[0], fuzzAmount);
     }
 
-    function _buildSwapOdosData(bool usePrevious) internal view returns (bytes memory) {
-        bytes memory payload = bytes.concat(
-            bytes20(inputReceiver),
-            bytes32(pathDefinition.length),
-            pathDefinition,
-            bytes20(executor),
-            bytes4(referralCode)
+    // ========================== Payload Decode Round-Trip Tests ==========================
+
+    function test_SwapOdosV2Hook_PayloadDecodeRoundTrip() public view {
+        bytes memory data = _buildSwapOdosData(false);
+        bytes memory payload = swapOdosHook.decodePayload(data);
+        (address decodedInputReceiver, bytes memory decodedPath, address decodedExecutor, uint32 decodedReferralCode) =
+            abi.decode(payload, (address, bytes, address, uint32));
+
+        assertEq(decodedInputReceiver, inputReceiver);
+        assertEq(keccak256(decodedPath), keccak256(pathDefinition));
+        assertEq(decodedExecutor, executor);
+        assertEq(decodedReferralCode, referralCode);
+    }
+
+    function test_ApproveAndSwapOdosV2Hook_PayloadDecodeRoundTrip() public view {
+        bytes memory data = _buildApproveAndSwapOdosData(false);
+        bytes memory payload = approveAndSwapOdosHook.decodePayload(data);
+        (address decodedInputReceiver, bytes memory decodedPath, address decodedExecutor, uint32 decodedReferralCode) =
+            abi.decode(payload, (address, bytes, address, uint32));
+
+        assertEq(decodedInputReceiver, inputReceiver);
+        assertEq(keccak256(decodedPath), keccak256(pathDefinition));
+        assertEq(decodedExecutor, executor);
+        assertEq(decodedReferralCode, referralCode);
+    }
+
+    function testFuzz_SwapOdosV2Hook_PayloadDecodeRoundTrip(
+        address fuzzInputReceiver,
+        bytes memory fuzzPath,
+        address fuzzExecutor,
+        uint32 fuzzReferralCode
+    )
+        public
+        view
+    {
+        vm.assume(fuzzPath.length < 10_000);
+        bytes memory payload = abi.encode(fuzzInputReceiver, fuzzPath, fuzzExecutor, fuzzReferralCode);
+        bytes memory data = bytes.concat(
+            bytes(new bytes(52)),
+            bytes20(inputToken),
+            bytes20(outputToken),
+            bytes32(inputAmount),
+            bytes32(outputQuote),
+            bytes32(outputMin),
+            bytes1(uint8(0)),
+            bytes32(payload.length),
+            payload
         );
+
+        bytes memory decodedPayload = swapOdosHook.decodePayload(data);
+        (address decInputReceiver, bytes memory decPath, address decExecutor, uint32 decReferralCode) =
+            abi.decode(decodedPayload, (address, bytes, address, uint32));
+
+        assertEq(decInputReceiver, fuzzInputReceiver);
+        assertEq(keccak256(decPath), keccak256(fuzzPath));
+        assertEq(decExecutor, fuzzExecutor);
+        assertEq(decReferralCode, fuzzReferralCode);
+    }
+
+    function test_SwapOdosV2Hook_Build_ExecutionTargetsRouter() public view {
+        bytes memory data = _buildSwapOdosData(false);
+        Execution[] memory executions = swapOdosHook.build(address(prevHook), account, data);
+
+        assertEq(executions[1].target, address(odosRouter));
+    }
+
+    function test_ApproveAndSwapOdosV2Hook_Build_ExecutionTargetsRouter() public view {
+        bytes memory data = _buildApproveAndSwapOdosData(false);
+        Execution[] memory executions = approveAndSwapOdosHook.build(address(prevHook), account, data);
+
+        assertEq(executions[3].target, address(odosRouter));
+    }
+
+    // ========================== Data Builders ==========================
+
+    function _buildSwapOdosData(bool usePrevious) internal view returns (bytes memory) {
+        bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, referralCode);
         return bytes.concat(
             bytes(new bytes(52)), // Layer 0
             bytes20(inputToken),  // Layer 1
@@ -539,13 +578,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     }
 
     function _buildNativeSwapOdosData(bool usePrevious) internal view returns (bytes memory) {
-        bytes memory payload = bytes.concat(
-            bytes20(inputReceiver),
-            bytes32(pathDefinition.length),
-            pathDefinition,
-            bytes20(executor),
-            bytes4(referralCode)
-        );
+        bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, referralCode);
         return bytes.concat(
             bytes(new bytes(52)), // Layer 0
             bytes20(inputToken),  // Layer 1

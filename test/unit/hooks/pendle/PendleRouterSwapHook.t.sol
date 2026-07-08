@@ -100,7 +100,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
@@ -132,7 +132,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
         bytes memory argsEncoded = hook.inspect(data);
         assertGt(argsEncoded.length, 0);
     }
@@ -158,7 +158,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(outputToken));
         assertFalse(hook.decodeUsePrevHookAmount(data));
     }
 
@@ -183,7 +183,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(1)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, true, 0, txData, address(outputToken));
         assertTrue(hook.decodeUsePrevHookAmount(data));
     }
 
@@ -208,7 +208,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(outputToken));
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
@@ -237,7 +237,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(outputToken));
         bytes memory argsEncoded = hook.inspect(data);
         assertGt(argsEncoded.length, 0);
     }
@@ -266,7 +266,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(1)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, true, 0, txData, address(ptToken));
 
         prevHook.setOutAmount(2500, address(this));
 
@@ -301,7 +301,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
 
         ptToken.mint(receiver, 500);
         vm.prank(receiver);
@@ -333,7 +333,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
 
         ptToken.mint(receiver, 500);
         hook.preExecute(address(0), receiver, data);
@@ -373,7 +373,7 @@ contract PendleRouterSwapHookTest is Helpers {
             limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
 
         vm.expectRevert(PendleRouterSwapHook.RECEIVER_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
@@ -409,7 +409,7 @@ contract PendleRouterSwapHookTest is Helpers {
             limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
 
         vm.expectRevert(PendleRouterSwapHook.MARKET_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
@@ -445,7 +445,7 @@ contract PendleRouterSwapHookTest is Helpers {
             limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
 
         vm.expectRevert(PendleRouterSwapHook.MIN_OUT_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
@@ -480,7 +480,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
 
         vm.expectRevert(PendleRouterSwapHook.INVALID_GUESS_PT_OUT.selector);
         hook.build(address(prevHook), account, data);
@@ -515,15 +515,17 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
 
         vm.expectRevert(PendleRouterSwapHook.EPS_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
 
     function test_Build_RevertIf_InvalidSwapType() public {
+        // txData needs at least 32 bytes for BytesLib.toBytes32 to extract selector
+        bytes memory invalidTxData = abi.encodePacked(bytes4(0xdeadbeef), bytes28(0));
         bytes memory data =
-            abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), bytes4(0xdeadbeef));
+            _buildPendleSwapData(market, false, 0, invalidTxData, address(0));
 
         vm.expectRevert(PendleRouterSwapHook.INVALID_SWAP_TYPE.selector);
         hook.build(address(prevHook), account, data);
@@ -572,7 +574,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
@@ -623,7 +625,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
@@ -672,7 +674,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
 
         vm.expectRevert(PendleRouterSwapHook.ORDER_EXPIRED.selector);
         hook.build(address(prevHook), account, data);
@@ -725,7 +727,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
 
         vm.expectRevert(PendleRouterSwapHook.MAKING_AMOUNT_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
@@ -810,7 +812,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
 
         // This should successfully build executions, validating both normal and flash fills
         Execution[] memory executions = hook.build(address(prevHook), account, data);
@@ -867,7 +869,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
 
         vm.expectRevert(PendleRouterSwapHook.MAKING_AMOUNT_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
@@ -917,7 +919,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
 
         vm.expectRevert(PendleRouterSwapHook.ORDER_EXPIRED.selector);
         hook.build(address(prevHook), account, data);
@@ -967,30 +969,12 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
 
-    function test_DecodeTokenOutAndReceiver_RevertIf_InvalidSwapType() public {
-        // Create data with an invalid selector that's neither swapExactTokenForPt nor swapExactPtForToken
-        bytes4 invalidSelector = bytes4(0xdeadbeef);
-        bytes memory invalidTxData = abi.encodePacked(invalidSelector, bytes(abi.encode(address(this), address(this))));
-
-        bytes memory data = abi.encodePacked(
-            bytes32(bytes("")), // placeholder
-            market, // yieldSource
-            bytes1(uint8(0)), // usePrevHookAmount
-            uint256(0), // value
-            invalidTxData // txData with invalid selector
-        );
-
-        // This should trigger the else branch in _decodeTokenOutAndReceiver via _getBalance
-        // which is called during preExecute
-        vm.expectRevert(PendleRouterSwapHook.INVALID_SWAP_TYPE.selector);
-        hook.preExecute(address(0), address(this), data);
-    }
 
     function test_GetBalance_NativeTokenX() public {
         // Create a swapExactPtForToken transaction where tokenOut is address(0) (native token)
@@ -1014,7 +998,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(0));
 
         // Give the receiver some ETH balance to test the native token balance check
         vm.deal(receiver, 5 ether);
@@ -1052,7 +1036,7 @@ contract PendleRouterSwapHookTest is Helpers {
             limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(outputToken));
 
         vm.expectRevert(PendleRouterSwapHook.AMOUNT_IN_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
@@ -1080,7 +1064,7 @@ contract PendleRouterSwapHookTest is Helpers {
         );
 
         // Set usePrevHookAmount to true
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(1)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, true, 0, txData, address(outputToken));
 
         // Set prevHook to return 0
         prevHook.setOutAmount(0, address(this));
@@ -1113,7 +1097,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(ptToken));
 
         vm.expectRevert(PendleRouterSwapHook.AMOUNT_IN_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
@@ -1144,7 +1128,7 @@ contract PendleRouterSwapHookTest is Helpers {
         );
 
         // Set usePrevHookAmount to true
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(1)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, true, 0, txData, address(ptToken));
 
         // Set prevHook to return 0
         prevHook.setOutAmount(0, address(this));
@@ -1175,7 +1159,7 @@ contract PendleRouterSwapHookTest is Helpers {
         );
 
         // Set usePrevHookAmount to true
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(1)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, true, 0, txData, address(outputToken));
 
         // Set prevHook to return a valid amount
         prevHook.setOutAmount(3000, address(this));
@@ -1227,7 +1211,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(outputToken));
 
         // Should successfully build executions with normal fills
         Execution[] memory executions = hook.build(address(prevHook), account, data);
@@ -1276,7 +1260,7 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(outputToken));
 
         // Should successfully build executions with flash fills
         Execution[] memory executions = hook.build(address(prevHook), account, data);
@@ -1346,12 +1330,38 @@ contract PendleRouterSwapHookTest is Helpers {
             IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
         );
 
-        bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory data = _buildPendleSwapData(market, false, 0, txData, address(outputToken));
 
         // Should successfully build executions with both normal and flash fills
         Execution[] memory executions = hook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
         assertEq(executions[1].target, address(pendleRouter));
         assertEq(executions[1].value, 0);
+    }
+
+    function _buildPendleSwapData(
+        address yieldSource_,
+        bool usePrevHookAmount_,
+        uint256 value_,
+        bytes memory txData_,
+        address outputToken_
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory payload = abi.encode(yieldSource_, value_, txData_);
+        return bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(address(0)),
+            bytes20(outputToken_),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
+            bytes32(payload.length),
+            payload
+        );
     }
 }

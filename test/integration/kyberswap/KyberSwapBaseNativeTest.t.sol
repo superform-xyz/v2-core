@@ -115,6 +115,7 @@ contract KyberSwapBaseNativeTest is Test, Constants {
         pure
         returns (bytes memory)
     {
+        bytes memory encodedPayload = abi.encode(txData_);
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),
@@ -124,8 +125,8 @@ contract KyberSwapBaseNativeTest is Test, Constants {
             bytes32(uint256(0)), // outputQuote @124
             bytes32(outputMin), // @156
             usePrevHookAmount ? bytes1(uint8(1)) : bytes1(uint8(0)),
-            bytes32(txData_.length),
-            txData_
+            bytes32(encodedPayload.length),
+            encodedPayload
         );
     }
 
@@ -141,6 +142,7 @@ contract KyberSwapBaseNativeTest is Test, Constants {
         pure
         returns (bytes memory)
     {
+        bytes memory encodedPayload = abi.encode(txData_);
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),
@@ -150,8 +152,8 @@ contract KyberSwapBaseNativeTest is Test, Constants {
             bytes32(uint256(0)), // outputQuote @124
             bytes32(outputMin), // @156
             usePrevHookAmount ? bytes1(uint8(1)) : bytes1(uint8(0)),
-            bytes32(txData_.length),
-            txData_
+            bytes32(encodedPayload.length),
+            encodedPayload
         );
     }
 

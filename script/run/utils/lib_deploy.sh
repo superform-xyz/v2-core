@@ -553,10 +553,15 @@ check_v2_addresses() {
     local forge_exit_code
 
     # Run forge script and capture both output and exit code
+    # Omit --chain for chains not in forge's internal registry (auto-detect from RPC)
+    local chain_flag="--chain $network_id"
+    if is_unsupported_chain "$network_id"; then
+        chain_flag=""
+    fi
     check_output=$(forge script "$forge_script" \
         --sig 'run(bool,uint256,uint64)' true $FORGE_ENV $network_id \
         --rpc-url "${!rpc_url_var}" \
-        --chain $network_id \
+        $chain_flag \
         -vv 2>&1)
     forge_exit_code=$?
 
@@ -920,13 +925,6 @@ run_check_phase() {
     for network_def in "${NETWORKS[@]}"; do
         IFS=':' read -r network_id network_name rpc_var <<< "$network_def"
 
-        # Skip chains not supported by forge's --chain flag
-        if is_unsupported_chain "$network_id"; then
-            echo -e "${YELLOW}Skipping $network_name (Chain $network_id) - not supported by forge --chain${NC}"
-            SUCCESSFUL_NETWORKS+=("$network_name (Chain $network_id) [skipped]")
-            continue
-        fi
-
         if check_v2_addresses "$network_id" "$network_name" "$rpc_var" "$forge_script"; then
             SUCCESSFUL_NETWORKS+=("$network_name (Chain $network_id)")
         else
@@ -1026,12 +1024,13 @@ deploy_to_network() {
     local network_id=$2
     local network_name=$3
     local rpc_var=$4
+    local network_name_upper
+    network_name_upper=$(echo "$network_name" | tr '[:lower:]' '[:upper:]')
 
-    # Skip unsupported chains
+    # For chains not in forge's internal registry, omit --chain (auto-detect from RPC)
+    local chain_flag="--chain $network_id"
     if is_unsupported_chain "$network_id"; then
-        echo -e "${YELLOW}Skipping ${network_name^^} MAINNET - Chain $network_id not supported by forge --chain${NC}"
-        skipped_networks=$((skipped_networks + 1))
-        return 0
+        chain_flag=""
     fi
 
     # Check deployment status for this network
@@ -1040,18 +1039,18 @@ deploy_to_network() {
 
         # Skip if all contracts are already deployed
         if [[ $deployed -eq $total_expected ]]; then
-            echo -e "${GREEN}Skipping ${network_name^^} MAINNET - All $deployed/$total_expected contracts already deployed${NC}"
+            echo -e "${GREEN}Skipping ${network_name_upper} MAINNET - All $deployed/$total_expected contracts already deployed${NC}"
             skipped_networks=$((skipped_networks + 1))
             return 0
         fi
 
         # Deploy to networks with missing contracts
-        echo -e "${YELLOW}Deploying to ${network_name^^} MAINNET - $deployed/$total_expected contracts deployed ($((total_expected - deployed)) missing)${NC}"
+        echo -e "${YELLOW}Deploying to ${network_name_upper} MAINNET - $deployed/$total_expected contracts deployed ($((total_expected - deployed)) missing)${NC}"
     else
-        echo -e "${YELLOW}Deploying to ${network_name^^} MAINNET - No previous deployment status found${NC}"
+        echo -e "${YELLOW}Deploying to ${network_name_upper} MAINNET - No previous deployment status found${NC}"
     fi
 
-    print_network_header "${network_name^^} MAINNET"
+    print_network_header "${network_name_upper} MAINNET"
     echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
     echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
     echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
@@ -1059,9 +1058,9 @@ deploy_to_network() {
 
     # Skip inline verification for chains with aggressive block explorer rate limiting
     local chain_verify_flag="$VERIFY_FLAG"
-    local chain_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan"
+    local chain_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan --verifier-url https://api.etherscan.io/v2/api?chainid=$network_id"
     case $network_id in
-        14|999) # Flare, HyperEVM - aggressive Cloudflare rate limiting
+        14|999|988) # Flare, HyperEVM, Stable - no etherscan support or rate limiting
             chain_verify_flag=""
             chain_etherscan_flags=""
             echo -e "${CYAN}   Verification: ${WHITE}Skipped (rate-limited explorer, use verify script separately)${NC}"
@@ -1098,7 +1097,7 @@ deploy_to_network() {
             --account "$ACCOUNT" \
             $KEYSTORE_PASSWORD_FLAG \
             --rpc-url "${!rpc_var}" \
-            --chain $network_id \
+            $chain_flag \
             $chain_etherscan_flags \
             $BROADCAST_FLAG \
             $chain_verify_flag \

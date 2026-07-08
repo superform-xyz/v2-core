@@ -387,7 +387,7 @@ for network_def in "${NETWORKS[@]}"; do
             ;;
         *)
             if [[ -n "$VERIFY_FLAG" ]]; then
-                local_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan"
+                local_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan --verifier-url https://api.etherscan.io/v2/api?chainid=$network_id"
             fi
             echo -e "${CYAN}   Verification: ${WHITE}Etherscan V2${NC}"
             ;;

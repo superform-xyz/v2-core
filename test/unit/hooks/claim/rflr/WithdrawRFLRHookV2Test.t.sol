@@ -139,8 +139,8 @@ contract WithdrawRFLRHookV2Test is Helpers {
             wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance + withdrawnAmount)
         );
 
-        // 52-byte header + 1 byte ack (0x00) + 32 bytes minOut
-        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), uint8(0), minOut);
+        // 52-byte header + 32 bytes minOut
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), minOut);
 
         vm.prank(account);
         hook.postExecute(address(0), account, data);
@@ -162,7 +162,7 @@ contract WithdrawRFLRHookV2Test is Helpers {
             wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance + withdrawnAmount)
         );
 
-        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), uint8(0), minOut);
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), minOut);
 
         vm.prank(account);
         hook.postExecute(address(0), account, data);
@@ -184,7 +184,7 @@ contract WithdrawRFLRHookV2Test is Helpers {
             wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance + withdrawnAmount)
         );
 
-        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), uint8(0), minOut);
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), minOut);
 
         vm.expectRevert(WithdrawRFLRHookV2.SLIPPAGE_EXCEEDED.selector);
         vm.prank(account);
@@ -204,7 +204,7 @@ contract WithdrawRFLRHookV2Test is Helpers {
         // Balance unchanged — delta is 0
         vm.mockCall(wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance));
 
-        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), uint8(0), minOut);
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), minOut);
 
         vm.expectRevert(WithdrawRFLRHookV2.SLIPPAGE_EXCEEDED.selector);
         vm.prank(account);
@@ -226,7 +226,7 @@ contract WithdrawRFLRHookV2Test is Helpers {
         );
 
         // minOut = 0 means no check
-        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), uint8(0), uint256(0));
+        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), uint256(0));
 
         vm.prank(account);
         hook.postExecute(address(0), account, data);
@@ -250,28 +250,6 @@ contract WithdrawRFLRHookV2Test is Helpers {
         // Empty data — backward compatible, no slippage check
         vm.prank(account);
         hook.postExecute(address(0), account, "");
-        assertEq(hook.getOutAmount(account), withdrawnAmount);
-    }
-
-    function test_PostExecute_OnlyAckByte_NoSlippageCheck() public {
-        uint256 initialWflrBalance = 100 ether;
-        uint256 withdrawnAmount = 1;
-
-        vm.mockCall(wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance));
-        hook.setExecutionContext(account);
-
-        vm.prank(account);
-        hook.preExecute(address(0), account, "");
-
-        vm.mockCall(
-            wflr, abi.encodeCall(IERC20.balanceOf, (account)), abi.encode(initialWflrBalance + withdrawnAmount)
-        );
-
-        // 52-byte header + only 1 byte (ack) — no minOut field, no slippage check
-        bytes memory data = abi.encodePacked(bytes32(0), bytes20(0), uint8(1));
-
-        vm.prank(account);
-        hook.postExecute(address(0), account, data);
         assertEq(hook.getOutAmount(account), withdrawnAmount);
     }
 

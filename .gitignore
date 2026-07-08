@@ -1,6 +1,7 @@
 # AI assistant working files — session logs, agent notes, internal reviews
 # Never commit: may contain partner-confidential material (security reviews, design docs)
-.claude/
+.claude/*
+!.claude/agents/
 
 # directories
 cache

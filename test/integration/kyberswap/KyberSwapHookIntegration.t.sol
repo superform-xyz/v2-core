@@ -132,6 +132,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         pure
         returns (bytes memory)
     {
+        bytes memory encodedPayload = abi.encode(txData_);
         return bytes.concat(
             bytes32(0), // yieldSourceOracleId (52-byte header part 1)
             bytes20(address(0)), // yieldSource (52-byte header part 2)
@@ -141,8 +142,8 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
             bytes32(uint256(0)), // outputQuote @124
             bytes32(outputMin), // outputMin @156
             usePrevHookAmount ? bytes1(uint8(1)) : bytes1(uint8(0)),
-            bytes32(txData_.length),
-            txData_
+            bytes32(encodedPayload.length),
+            encodedPayload
         );
     }
 
@@ -159,6 +160,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         pure
         returns (bytes memory)
     {
+        bytes memory encodedPayload = abi.encode(txData_);
         return bytes.concat(
             bytes32(0), // yieldSourceOracleId (52-byte header part 1)
             bytes20(address(0)), // yieldSource (52-byte header part 2)
@@ -168,8 +170,8 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
             bytes32(uint256(0)), // outputQuote @124
             bytes32(outputMin), // outputMin @156
             usePrevHookAmount ? bytes1(uint8(1)) : bytes1(uint8(0)),
-            bytes32(txData_.length),
-            txData_
+            bytes32(encodedPayload.length),
+            encodedPayload
         );
     }
 

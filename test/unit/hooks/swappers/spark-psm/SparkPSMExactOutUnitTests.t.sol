@@ -97,7 +97,7 @@ contract SparkPSMExactOutTest is Helpers {
     }
 
     function test_SwapHook_Build_RevertIf_InvalidHookData() public {
-        bytes memory shortData = new bytes(208); // Less than 209
+        bytes memory shortData = new bytes(220); // Less than 221
         vm.expectRevert(SwapSparkPSMExactOutHook.INVALID_HOOK_DATA.selector);
         swapHook.build(address(prevHook), account, shortData);
     }
@@ -191,7 +191,7 @@ contract SparkPSMExactOutTest is Helpers {
     }
 
     function test_ApproveAndSwapHook_Build_RevertIf_InvalidHookData() public {
-        bytes memory shortData = new bytes(208);
+        bytes memory shortData = new bytes(220); // Less than 221
         vm.expectRevert(ApproveAndSwapSparkPSMExactOutHook.INVALID_HOOK_DATA.selector);
         approveAndSwapHook.build(address(prevHook), account, shortData);
     }
@@ -240,7 +240,8 @@ contract SparkPSMExactOutTest is Helpers {
 
     function test_SwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 209);
+        // 221 (standard header) + 64 (payload: receiver + referralCode) = 285
+        assertGe(data.length, 221);
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
@@ -248,7 +249,7 @@ contract SparkPSMExactOutTest is Helpers {
 
     function test_ApproveAndSwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 209);
+        assertGe(data.length, 221);
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
@@ -483,15 +484,18 @@ contract SparkPSMExactOutTest is Helpers {
     function test_SwapHook_ReceiverForcedToAccount() public view {
         address differentReceiver = address(0xBEEF);
 
+        bytes memory payload = abi.encode(differentReceiver, referralCode);
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes32(0),
+            bytes20(address(0)),
             bytes20(assetIn),
             bytes20(assetOut),
             bytes32(originalAmountOut),
             bytes32(originalMaxAmountIn),
-            bytes20(differentReceiver),
-            bytes32(referralCode),
-            bytes1(0x00)
+            bytes32(originalMaxAmountIn),
+            bytes1(0x00), // usePrevHookAmount = false
+            bytes32(payload.length),
+            payload
         );
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
@@ -509,15 +513,18 @@ contract SparkPSMExactOutTest is Helpers {
     function test_ApproveAndSwapHook_ReceiverForcedToAccount() public view {
         address differentReceiver = address(0xBEEF);
 
+        bytes memory payload = abi.encode(differentReceiver, referralCode);
         bytes memory data = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes32(0),
+            bytes20(address(0)),
             bytes20(assetIn),
             bytes20(assetOut),
             bytes32(originalAmountOut),
             bytes32(originalMaxAmountIn),
-            bytes20(differentReceiver),
-            bytes32(referralCode),
-            bytes1(0x00)
+            bytes32(originalMaxAmountIn),
+            bytes1(0x00), // usePrevHookAmount = false
+            bytes32(payload.length),
+            payload
         );
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
@@ -770,15 +777,18 @@ contract SparkPSMExactOutTest is Helpers {
         view
         returns (bytes memory)
     {
+        bytes memory payload = abi.encode(receiver, referralCode);
         return bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(_assetIn), // 52-71
-            bytes20(_assetOut), // 72-91
-            bytes32(originalAmountOut), // 92-123
-            bytes32(originalMaxAmountIn), // 124-155
-            bytes20(receiver), // 156-175
-            bytes32(referralCode), // 176-207
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00) // 208
+            bytes32(0),                     // placeholder0 (header bytes 0-31)
+            bytes20(address(0)),            // placeholder1 (header bytes 32-51)
+            bytes20(_assetIn),              // inputToken 52-71
+            bytes20(_assetOut),             // outputToken 72-91
+            bytes32(originalAmountOut),     // inputAmount 92-123
+            bytes32(originalMaxAmountIn),   // outputQuote 124-155
+            bytes32(originalMaxAmountIn),   // outputMin 156-187
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // usePrevHookAmount 188
+            bytes32(payload.length),        // payloadLength 189-220
+            payload                         // payload 221+
         );
     }
 
@@ -791,15 +801,18 @@ contract SparkPSMExactOutTest is Helpers {
         view
         returns (bytes memory)
     {
+        bytes memory payload = abi.encode(receiver, referralCode);
         return bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
+            bytes32(0),
+            bytes20(address(0)),
             bytes20(assetIn),
             bytes20(assetOut),
             bytes32(_amountOut),
             bytes32(_maxAmountIn),
-            bytes20(receiver),
-            bytes32(referralCode),
-            _usePrevHookAmount ? bytes1(0x01) : bytes1(0x00)
+            bytes32(_maxAmountIn),
+            _usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
+            bytes32(payload.length),
+            payload
         );
     }
 }

@@ -37,6 +37,7 @@ abstract contract ConfigBase is Constants {
         mapping(uint64 chainId => address swapRouter) uniswapV2SwapRouters;
         mapping(uint64 chainId => address lzEndpointV2) lzEndpointV2s;
         mapping(uint64 chainId => address tokenMessaging) stargateTokenMessagings;
+        mapping(uint64 chainId => address[]) stargateAllowedOFTs;
         address dethFoundation;
     }
 

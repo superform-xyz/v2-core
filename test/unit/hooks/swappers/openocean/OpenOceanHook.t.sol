@@ -126,7 +126,7 @@ contract OpenOceanHookTest is Test {
 
         bytes memory argsEncoded = swapHook.inspect(data);
 
-        assertEq(argsEncoded, abi.encodePacked(dstReceiver));
+        assertEq(argsEncoded, abi.encodePacked(outputToken));
         assertEq(argsEncoded.length, 20);
     }
 
@@ -140,7 +140,7 @@ contract OpenOceanHookTest is Test {
 
         bytes memory argsEncoded = approveAndSwapHook.inspect(data);
 
-        assertEq(argsEncoded, abi.encodePacked(dstReceiver));
+        assertEq(argsEncoded, abi.encodePacked(outputToken));
         assertEq(argsEncoded.length, 20);
     }
 
@@ -655,7 +655,7 @@ contract OpenOceanHookTest is Test {
         bytes memory inspected = swapHook.inspect(data);
 
         assertEq(inspected.length, 20);
-        assertEq(address(bytes20(inspected)), account);
+        assertEq(address(bytes20(inspected)), outputToken);
     }
 
     function test_ApproveAndSwapHook_InspectReturnsDstReceiver() public view {
@@ -665,7 +665,7 @@ contract OpenOceanHookTest is Test {
         bytes memory inspected = approveAndSwapHook.inspect(data);
 
         assertEq(inspected.length, 20);
-        assertEq(address(bytes20(inspected)), account);
+        assertEq(address(bytes20(inspected)), outputToken);
     }
 
     // ==================== Helpers ====================
@@ -974,6 +974,7 @@ contract OpenOceanHookTest is Test {
         pure
         returns (bytes memory)
     {
+        bytes memory payload = abi.encode(txData_);
         return bytes.concat(
             bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken_),
@@ -982,8 +983,8 @@ contract OpenOceanHookTest is Test {
             bytes32(outputQuote_),
             bytes32(outputMin_),
             bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)),
-            bytes32(txData_.length),
-            txData_
+            bytes32(payload.length),
+            payload
         );
     }
 
@@ -1000,6 +1001,7 @@ contract OpenOceanHookTest is Test {
         pure
         returns (bytes memory)
     {
+        bytes memory payload = abi.encode(txData_);
         return bytes.concat(
             bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken_),
@@ -1008,8 +1010,8 @@ contract OpenOceanHookTest is Test {
             bytes32(outputQuote_),
             bytes32(outputMin_),
             bytes1(usePrevHookAmount_ ? uint8(1) : uint8(0)),
-            bytes32(txData_.length),
-            txData_
+            bytes32(payload.length),
+            payload
         );
     }
 
@@ -1103,6 +1105,72 @@ contract OpenOceanHookTest is Test {
         for (uint256 i; i < result.length; ++i) {
             result[i] = data_[i + 4];
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    PAYLOAD DECODE ROUND-TRIP TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SwapHook_PayloadDecodeRoundTrip() public {
+        IOpenOceanCaller.CallDescription[] memory calls = new IOpenOceanCaller.CallDescription[](1);
+        calls[0] = _call(0, 0, hex"12345678");
+        bytes memory txData =
+            _buildTxDataWithReceiver(caller, referrer, inputToken, outputToken, 1000, 900, 950, 0, calls, account);
+        bytes memory data = _swapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
+
+        bytes memory payload = swapHook.decodePayload(data);
+        (bytes memory decodedTxData) = abi.decode(payload, (bytes));
+
+        assertEq(keccak256(decodedTxData), keccak256(txData));
+    }
+
+    function test_ApproveAndSwapHook_PayloadDecodeRoundTrip() public {
+        IOpenOceanCaller.CallDescription[] memory calls = new IOpenOceanCaller.CallDescription[](1);
+        calls[0] = _call(0, 0, hex"deadbeef");
+        bytes memory txData =
+            _buildTxDataWithReceiver(caller, referrer, inputToken, outputToken, 2000, 1800, 1900, 0, calls, account);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 2000, 0, 1800, false, txData);
+
+        bytes memory payload = approveAndSwapHook.decodePayload(data);
+        (bytes memory decodedTxData) = abi.decode(payload, (bytes));
+
+        assertEq(keccak256(decodedTxData), keccak256(txData));
+    }
+
+    function testFuzz_SwapHook_PayloadDecodeRoundTrip(bytes memory fuzzTxData) public {
+        vm.assume(fuzzTxData.length > 0 && fuzzTxData.length < 10_000);
+        bytes memory data = _swapHookData(inputToken, outputToken, 1000, 0, 900, false, fuzzTxData);
+
+        bytes memory payload = swapHook.decodePayload(data);
+        (bytes memory decodedTxData) = abi.decode(payload, (bytes));
+
+        assertEq(keccak256(decodedTxData), keccak256(fuzzTxData));
+    }
+
+    function test_SwapHook_Build_ExecutionTargetsRouter() public {
+        IOpenOceanCaller.CallDescription[] memory calls = new IOpenOceanCaller.CallDescription[](1);
+        calls[0] = _call(0, 0, hex"12345678");
+        bytes memory txData =
+            _buildTxDataWithReceiver(caller, referrer, inputToken, outputToken, 1000, 900, 950, 0, calls, account);
+        bytes memory data = _swapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
+
+        Execution[] memory executions = swapHook.build(address(prevHook), account, data);
+
+        // swap execution should target the router
+        assertEq(executions[1].target, router);
+    }
+
+    function test_ApproveAndSwapHook_Build_ExecutionTargetsRouter() public {
+        IOpenOceanCaller.CallDescription[] memory calls = new IOpenOceanCaller.CallDescription[](1);
+        calls[0] = _call(0, 0, hex"12345678");
+        bytes memory txData =
+            _buildTxDataWithReceiver(caller, referrer, inputToken, outputToken, 1000, 900, 950, 0, calls, account);
+        bytes memory data = _approveAndSwapHookData(inputToken, outputToken, 1000, 0, 900, false, txData);
+
+        Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
+
+        // swap execution at index 3 should target the router
+        assertEq(executions[3].target, router);
     }
 
     /*//////////////////////////////////////////////////////////////

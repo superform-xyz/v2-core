@@ -14,7 +14,8 @@ import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../interfaces/ISu
 /// @author Superform Labs
 /// @notice Simple hook for transferring native ETH to a specified recipient
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes placeholder = BytesLib.slice(data, 0, 52);
+/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
+/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address to = BytesLib.toAddress(data, 52);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 72);
 /// @dev This hook is NONACCOUNTING and only used for ETH → token swaps where

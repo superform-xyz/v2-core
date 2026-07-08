@@ -14,6 +14,7 @@ NETWORKS=(
     "137:Polygon:POLYGON_MAINNET"
     "130:Unichain:UNICHAIN_MAINNET"
     "43114:Avalanche:AVALANCHE_MAINNET"
+    "59144:Linea:LINEA_MAINNET"
     "80094:Berachain:BERACHAIN_MAINNET"
     "146:Sonic:SONIC_MAINNET"
     "100:Gnosis:GNOSIS_MAINNET"
@@ -50,6 +51,9 @@ get_network_name() {
             ;;
         43114)
             echo "Avalanche"
+            ;;
+        59144)
+            echo "Linea"
             ;;
         80094)
             echo "Berachain"
@@ -107,6 +111,9 @@ get_rpc_var() {
         43114)
             echo "AVALANCHE_MAINNET"
             ;;
+        59144)
+            echo "LINEA_MAINNET"
+            ;;
         80094)
             echo "BERACHAIN_MAINNET"
             ;;
@@ -163,7 +170,10 @@ get_rpc_url() {
         43114)
             echo "$AVALANCHE_MAINNET"
             ;;
-        80094)  
+        59144)
+            echo "$LINEA_MAINNET"
+            ;;
+        80094)
             echo "$BERACHAIN_MAINNET"
             ;;
         146)
@@ -214,65 +224,70 @@ get_supported_networks() {
 # Load RPC URLs from environment variables for CI
 load_rpc_urls_ci() {
     echo "Loading production RPC URLs from environment variables..."
-    
+
     local failed_rpcs=()
-    
-    # Load core networks from environment variables
+
     echo "  • Loading Ethereum RPC..."
     if [[ -n "${ETHEREUM_RPC_URL:-}" ]]; then
         export ETH_MAINNET="$ETHEREUM_RPC_URL"
     else
         failed_rpcs+=("ETHEREUM_RPC_URL")
     fi
-    
+
     echo "  • Loading Base RPC..."
     if [[ -n "${BASE_RPC_URL:-}" ]]; then
         export BASE_MAINNET="$BASE_RPC_URL"
     else
         failed_rpcs+=("BASE_RPC_URL")
     fi
-    
+
     echo "  • Loading BSC RPC..."
     if [[ -n "${BSC_RPC_URL:-}" ]]; then
         export BSC_MAINNET="$BSC_RPC_URL"
     else
         failed_rpcs+=("BSC_RPC_URL")
     fi
-    
+
     echo "  • Loading Arbitrum RPC..."
     if [[ -n "${ARBITRUM_RPC_URL:-}" ]]; then
         export ARBITRUM_MAINNET="$ARBITRUM_RPC_URL"
     else
         failed_rpcs+=("ARBITRUM_RPC_URL")
     fi
-    
-    # Load production-only networks from environment variables
+
     echo "  • Loading Optimism RPC..."
     if [[ -n "${OPTIMISM_RPC_URL:-}" ]]; then
         export OPTIMISM_MAINNET="$OPTIMISM_RPC_URL"
     else
         failed_rpcs+=("OPTIMISM_RPC_URL")
     fi
-    
+
     echo "  • Loading Polygon RPC..."
     if [[ -n "${POLYGON_RPC_URL:-}" ]]; then
         export POLYGON_MAINNET="$POLYGON_RPC_URL"
     else
         failed_rpcs+=("POLYGON_RPC_URL")
     fi
-    
+
     echo "  • Loading Unichain RPC..."
     if [[ -n "${UNICHAIN_RPC_URL:-}" ]]; then
         export UNICHAIN_MAINNET="$UNICHAIN_RPC_URL"
     else
         failed_rpcs+=("UNICHAIN_RPC_URL")
     fi
-    
+
     echo "  • Loading Avalanche RPC..."
     if [[ -n "${AVALANCHE_RPC_URL:-}" ]]; then
         export AVALANCHE_MAINNET="$AVALANCHE_RPC_URL"
     else
         failed_rpcs+=("AVALANCHE_RPC_URL")
+    fi
+
+    echo "  • Loading Linea RPC..."
+    if [[ -n "${LINEA_RPC_URL:-}" ]]; then
+        export LINEA_MAINNET="$LINEA_RPC_URL"
+    else
+        failed_rpcs+=("LINEA_RPC_URL")
     fi
 
     echo "  • Loading Berachain RPC..."
@@ -288,14 +303,14 @@ load_rpc_urls_ci() {
     else
         failed_rpcs+=("SONIC_RPC_URL")
     fi
-    
+
     echo "  • Loading Gnosis RPC..."
     if [[ -n "${GNOSIS_RPC_URL:-}" ]]; then
         export GNOSIS_MAINNET="$GNOSIS_RPC_URL"
     else
         failed_rpcs+=("GNOSIS_RPC_URL")
     fi
-    
+
     echo "  • Loading Worldchain RPC..."
     if [[ -n "${WORLDCHAIN_RPC_URL:-}" ]]; then
         export WORLDCHAIN_MAINNET="$WORLDCHAIN_RPC_URL"
@@ -332,56 +347,59 @@ load_rpc_urls_ci() {
         echo "⚠️  Some networks may not be accessible during testing"
         return 1
     fi
-    
+
     echo "✅ Production RPC URLs loaded successfully from environment"
 }
 
 # Load RPC URLs from credential manager for all production networks
 load_rpc_urls() {
     echo "Loading production RPC URLs from credential manager..."
-    
+
     local failed_rpcs=()
-    
-    # Load core networks (same as staging)
+
     echo "  • Loading Ethereum RPC..."
     if ! export ETH_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHEREUM_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("ETHEREUM_RPC_URL")
     fi
-    
+
     echo "  • Loading Base RPC..."
     if ! export BASE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("BASE_RPC_URL")
     fi
-    
+
     echo "  • Loading BSC RPC..."
     if ! export BSC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BSC_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("BSC_RPC_URL")
     fi
-    
+
     echo "  • Loading Arbitrum RPC..."
     if ! export ARBITRUM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ARBITRUM_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("ARBITRUM_RPC_URL")
     fi
-    
-    # Load production-only networks
+
     echo "  • Loading Optimism RPC..."
     if ! export OPTIMISM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/OPTIMISM_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("OPTIMISM_RPC_URL")
     fi
-    
+
     echo "  • Loading Polygon RPC..."
     if ! export POLYGON_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/POLYGON_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("POLYGON_RPC_URL")
     fi
-    
+
     echo "  • Loading Unichain RPC..."
     if ! export UNICHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/UNICHAIN_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("UNICHAIN_RPC_URL")
     fi
-    
+
     echo "  • Loading Avalanche RPC..."
     if ! export AVALANCHE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/AVALANCHE_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("AVALANCHE_RPC_URL")
+    fi
+
+    echo "  • Loading Linea RPC..."
+    if ! export LINEA_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/LINEA_RPC_URL/credential 2>/dev/null); then
+        failed_rpcs+=("LINEA_RPC_URL")
     fi
 
     echo "  • Loading Berachain RPC..."
@@ -393,12 +411,12 @@ load_rpc_urls() {
     if ! export SONIC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/SONIC_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("SONIC_RPC_URL")
     fi
-    
+
     echo "  • Loading Gnosis RPC..."
     if ! export GNOSIS_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/GNOSIS_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("GNOSIS_RPC_URL")
     fi
-    
+
     echo "  • Loading Worldchain RPC..."
     if ! export WORLDCHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/WORLDCHAIN_RPC_URL/credential 2>/dev/null); then
         failed_rpcs+=("WORLDCHAIN_RPC_URL")
@@ -427,7 +445,7 @@ load_rpc_urls() {
         echo "⚠️  Some networks may not be accessible during deployment"
         return 1
     fi
-    
+
     echo "✅ Production RPC URLs loaded successfully"
 }
 

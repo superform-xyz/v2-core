@@ -328,18 +328,24 @@ contract PendleUnifiedHookIntegration is MinimalBaseIntegrationTest, OdosAPIPars
             IPendleRouterV4.redeemPyToToken.selector, accountEth, ytAddress, amount, output
         );
 
-        // Pack hook data: [bytes32 placeholder][address yieldSource][bool usePrevHookAmount][uint256 value][bytes txData]
-        return abi.encodePacked(
-            bytes32(0), // placeholder
-            yieldSource, // yieldSource (always market address for all operations)
-            usePrevHookAmount, // usePrevHookAmount
-            uint256(0), // value (not used for redemptions)
-            txData
+        // Pack hook data with standard layout
+        bytes memory payload = abi.encode(yieldSource, uint256(0), txData);
+        return bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(address(0)),
+            bytes20(tokenOut),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
+            bytes32(payload.length),
+            payload
         );
     }
 
     /// @notice Helper to create PendleUnifiedHook data for redeemPyToToken with swap routing
-    /// @dev Data layout: [bytes32 placeholder][address yieldSource][bool usePrevHookAmount][uint256 value][bytes txData]
+    /// @dev Data layout: standard 10-field Layer 1 + payload = abi.encode(yieldSource, value, txData)
     function _createPendleUnifiedRedeemHookDataWithSwap(
         address yieldSource,
         uint256 amount,
@@ -377,13 +383,19 @@ contract PendleUnifiedHookIntegration is MinimalBaseIntegrationTest, OdosAPIPars
             IPendleRouterV4.redeemPyToToken.selector, accountEth, ytAddress, amount, output
         );
 
-        // Pack hook data
-        return abi.encodePacked(
-            bytes32(0), // placeholder
-            yieldSource, // yieldSource (always market address for all operations)
-            usePrevHookAmount, // usePrevHookAmount
-            uint256(0), // value (not used for redemptions)
-            txData
+        // Pack hook data with standard layout
+        bytes memory payload = abi.encode(yieldSource, uint256(0), txData);
+        return bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(address(0)),
+            bytes20(tokenOut),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
+            bytes32(payload.length),
+            payload
         );
     }
 

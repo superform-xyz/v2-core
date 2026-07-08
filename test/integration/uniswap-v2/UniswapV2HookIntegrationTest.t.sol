@@ -99,22 +99,19 @@ contract UniswapV2HookIntegrationTest is MinimalBaseIntegrationTest {
         pure
         returns (bytes memory)
     {
-        // Prepend 52-byte strategy header (bytes32 yieldSourceOracleId + address yieldSource)
-        bytes memory data = abi.encodePacked(
-            bytes32(0), // yieldSourceOracleId placeholder (32 bytes)
-            bytes20(address(0)), // yieldSource placeholder (20 bytes)
-            tokenIn, // 20 bytes at offset 52
-            tokenOut, // 20 bytes at offset 72
-            deadline, // 32 bytes at offset 92
-            amountIn, // 32 bytes at offset 124
-            amountOutMin, // 32 bytes at offset 156
-            usePrevHookAmount, // 1 byte at offset 188
-            uint256(path.length) // 32 bytes at offset 189
+        bytes memory payload = abi.encode(deadline, path);
+        return bytes.concat(
+            bytes32(0), // placeholder0 (offset 0)
+            bytes20(address(0)), // placeholder1 (offset 32)
+            bytes20(tokenIn), // inputToken (offset 52)
+            bytes20(tokenOut), // outputToken (offset 72)
+            bytes32(amountIn), // inputAmount (offset 92)
+            bytes32(amountOutMin), // outputQuote (offset 124)
+            bytes32(amountOutMin), // outputMin (offset 156)
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // usePrevHookAmount (offset 188)
+            bytes32(payload.length), // payloadLength (offset 189)
+            payload // payload (offset 221)
         );
-        for (uint256 i = 0; i < path.length; i++) {
-            data = bytes.concat(data, bytes20(path[i]));
-        }
-        return data;
     }
 
     /// @notice Build a simple 2-element path
@@ -635,22 +632,19 @@ contract UniswapV2HookEdgeCaseTests is MinimalBaseIntegrationTest {
         pure
         returns (bytes memory)
     {
-        // Prepend 52-byte strategy header (bytes32 yieldSourceOracleId + address yieldSource)
-        bytes memory data = abi.encodePacked(
-            bytes32(0),          // yieldSourceOracleId placeholder (header bytes 0-31)
-            bytes20(address(0)), // yieldSource placeholder (header bytes 32-51)
-            tokenIn,
-            tokenOut,
-            deadline,
-            amountIn,
-            amountOutMin,
-            usePrevHookAmount,
-            uint256(path.length)
+        bytes memory payload = abi.encode(deadline, path);
+        return bytes.concat(
+            bytes32(0), // placeholder0 (offset 0)
+            bytes20(address(0)), // placeholder1 (offset 32)
+            bytes20(tokenIn), // inputToken (offset 52)
+            bytes20(tokenOut), // outputToken (offset 72)
+            bytes32(amountIn), // inputAmount (offset 92)
+            bytes32(amountOutMin), // outputQuote (offset 124)
+            bytes32(amountOutMin), // outputMin (offset 156)
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // usePrevHookAmount (offset 188)
+            bytes32(payload.length), // payloadLength (offset 189)
+            payload // payload (offset 221)
         );
-        for (uint256 i = 0; i < path.length; i++) {
-            data = bytes.concat(data, bytes20(path[i]));
-        }
-        return data;
     }
 
     function _buildPath(address token0, address token1) internal pure returns (address[] memory path) {
@@ -1073,10 +1067,10 @@ contract UniswapV2HookEdgeCaseTests is MinimalBaseIntegrationTest {
     function test_UniswapV2_RevertIf_PathTooShort() public {
         address account = instanceOnEth.account;
 
-        // Build data with pathLength=1 but pad to pass the 261-byte minimum check.
-        // Normal _buildHookData with 1-element path yields 241 bytes (under 261).
-        // Instead, encode pathLength=1 with extra padding so data.length >= 261.
-        address[] memory path = _buildPath(CHAIN_1_USDC, CHAIN_1_WETH);
+        // Build data with a 1-element path (too short, minimum is 2)
+        address[] memory shortPath = new address[](1);
+        shortPath[0] = CHAIN_1_USDC;
+
         bytes memory hookData = _buildHookData(
             CHAIN_1_USDC,
             CHAIN_1_WETH,
@@ -1084,17 +1078,8 @@ contract UniswapV2HookEdgeCaseTests is MinimalBaseIntegrationTest {
             1000e6,
             0.1 ether,
             false,
-            path
+            shortPath
         );
-        // Overwrite pathLength at offset 189 (32 bytes) to 1 instead of 2.
-        // The data still has 2 addresses appended (261 bytes total), so it passes the
-        // minimum length check, but _decodeSwapParams sees pathLength < 2 and reverts.
-        assembly ("memory-safe") {
-            // hookData is a bytes variable: first 32 bytes = length, data starts at +32
-            // pathLength is at byte offset 189 in the data, stored as uint256 (32 bytes)
-            // So it occupies bytes [189..220], which is at memory offset 32 + 189 = 221
-            mstore(add(hookData, 221), 1)
-        }
 
         vm.expectRevert(SwapUniswapV2Hook.INVALID_PATH_LENGTH.selector);
         swapHook.build(address(0), account, hookData);
@@ -1214,30 +1199,15 @@ contract UniswapV2HookEdgeCaseTests is MinimalBaseIntegrationTest {
         swapHook.build(address(0), account, shortData);
     }
 
-    /// @notice Test revert when data length doesn't match claimed pathLength
+    /// @notice Test revert when data length is below PAYLOAD_OFFSET (157)
     function test_UniswapV2_RevertIf_DataLengthMismatch() public {
         address account = instanceOnEth.account;
 
-        // Build valid hook data for 2-element path, then truncate one address
-        address[] memory path = _buildPath(CHAIN_1_USDC, CHAIN_1_WETH);
-        bytes memory hookData = _buildHookData(
-            CHAIN_1_USDC,
-            CHAIN_1_WETH,
-            block.timestamp + 1 hours,
-            1000e6,
-            0.1 ether,
-            false,
-            path
-        );
-
-        // Truncate 10 bytes from the end — pathLength says 2 but data is too short
-        bytes memory truncated = new bytes(hookData.length - 10);
-        for (uint256 i = 0; i < truncated.length; i++) {
-            truncated[i] = hookData[i];
-        }
+        // Data shorter than PAYLOAD_OFFSET (157) triggers INVALID_HOOK_DATA
+        bytes memory shortData = new bytes(150);
 
         vm.expectRevert(SwapUniswapV2Hook.INVALID_HOOK_DATA.selector);
-        swapHook.build(address(0), account, truncated);
+        swapHook.build(address(0), account, shortData);
     }
 
     /// @notice Test revert when deadline is in the past

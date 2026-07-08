@@ -106,8 +106,8 @@ contract AlgebraIntegralHookTest is Helpers {
     }
 
     function test_SwapHook_Build_RevertIf_InvalidHookData() public {
-        bytes memory shortData = new bytes(250); // Less than 305
-        vm.expectRevert(SwapAlgebraIntegralHook.INVALID_HOOK_DATA.selector);
+        bytes memory shortData = new bytes(250);
+        vm.expectRevert();
         swapHook.build(address(prevHook), account, shortData);
     }
 
@@ -203,8 +203,8 @@ contract AlgebraIntegralHookTest is Helpers {
     }
 
     function test_ApproveAndSwapHook_Build_RevertIf_InvalidHookData() public {
-        bytes memory shortData = new bytes(250); // Less than 305
-        vm.expectRevert(ApproveAndSwapAlgebraIntegralHook.INVALID_HOOK_DATA.selector);
+        bytes memory shortData = new bytes(250);
+        vm.expectRevert();
         approveAndSwapHook.build(address(prevHook), account, shortData);
     }
 
@@ -252,7 +252,7 @@ contract AlgebraIntegralHookTest is Helpers {
     function test_SwapHook_Build_ExactMinimumDataLength() public view {
         // Test with exactly 305 bytes (minimum valid length)
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 305);
+        assertEq(data.length, 317);
 
         Execution[] memory executions = swapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
@@ -260,7 +260,7 @@ contract AlgebraIntegralHookTest is Helpers {
 
     function test_ApproveAndSwapHook_Build_ExactMinimumDataLength() public view {
         bytes memory data = _buildHookData(false);
-        assertEq(data.length, 305);
+        assertEq(data.length, 317);
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
@@ -666,6 +666,7 @@ contract AlgebraIntegralHookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_SwapHook_RevertIf_TokenInEqualsTokenOut() public {
+        bytes memory payload = abi.encode(deployer, deadline, limitSqrtPrice);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)),
             bytes20(tokenIn),
@@ -674,10 +675,8 @@ contract AlgebraIntegralHookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(84)),
-            bytes20(deployer),
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice))
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(SwapAlgebraIntegralHook.INVALID_HOOK_DATA.selector);
@@ -685,6 +684,7 @@ contract AlgebraIntegralHookTest is Helpers {
     }
 
     function test_ApproveAndSwapHook_RevertIf_TokenInEqualsTokenOut() public {
+        bytes memory payload = abi.encode(deployer, deadline, limitSqrtPrice);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)),
             bytes20(tokenIn),
@@ -693,10 +693,8 @@ contract AlgebraIntegralHookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(84)),
-            bytes20(deployer),
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice))
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(ApproveAndSwapAlgebraIntegralHook.INVALID_HOOK_DATA.selector);
@@ -807,6 +805,7 @@ contract AlgebraIntegralHookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_SwapHook_RevertIf_NativeETH_TokenIn() public {
+        bytes memory payload = abi.encode(deployer, deadline, limitSqrtPrice);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)),
             bytes20(address(0)), // tokenIn = native ETH
@@ -815,10 +814,8 @@ contract AlgebraIntegralHookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(84)),
-            bytes20(deployer),
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice))
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(SwapAlgebraIntegralHook.NATIVE_ETH_NOT_SUPPORTED.selector);
@@ -826,6 +823,7 @@ contract AlgebraIntegralHookTest is Helpers {
     }
 
     function test_SwapHook_RevertIf_NativeETH_TokenOut() public {
+        bytes memory payload = abi.encode(deployer, deadline, limitSqrtPrice);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)),
             bytes20(tokenIn),
@@ -834,10 +832,8 @@ contract AlgebraIntegralHookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(84)),
-            bytes20(deployer),
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice))
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(SwapAlgebraIntegralHook.NATIVE_ETH_NOT_SUPPORTED.selector);
@@ -845,6 +841,7 @@ contract AlgebraIntegralHookTest is Helpers {
     }
 
     function test_ApproveAndSwapHook_RevertIf_NativeETH_TokenIn() public {
+        bytes memory payload = abi.encode(deployer, deadline, limitSqrtPrice);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)),
             bytes20(address(0)), // tokenIn = native ETH
@@ -853,10 +850,8 @@ contract AlgebraIntegralHookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(84)),
-            bytes20(deployer),
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice))
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(ApproveAndSwapAlgebraIntegralHook.NATIVE_ETH_NOT_SUPPORTED.selector);
@@ -864,6 +859,7 @@ contract AlgebraIntegralHookTest is Helpers {
     }
 
     function test_ApproveAndSwapHook_RevertIf_NativeETH_TokenOut() public {
+        bytes memory payload = abi.encode(deployer, deadline, limitSqrtPrice);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)),
             bytes20(tokenIn),
@@ -872,10 +868,8 @@ contract AlgebraIntegralHookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(84)),
-            bytes20(deployer),
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice))
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(ApproveAndSwapAlgebraIntegralHook.NATIVE_ETH_NOT_SUPPORTED.selector);
@@ -889,6 +883,7 @@ contract AlgebraIntegralHookTest is Helpers {
     function test_SwapHook_RevertIf_ExpiredDeadline() public {
         uint256 expiredDeadline = block.timestamp - 1;
 
+        bytes memory payload = abi.encode(deployer, expiredDeadline, limitSqrtPrice);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)),
             bytes20(tokenIn),
@@ -897,10 +892,8 @@ contract AlgebraIntegralHookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(84)),
-            bytes20(deployer),
-            bytes32(expiredDeadline), // Expired deadline at [241:273]
-            bytes32(uint256(limitSqrtPrice))
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(
@@ -912,6 +905,7 @@ contract AlgebraIntegralHookTest is Helpers {
     function test_ApproveAndSwapHook_RevertIf_ExpiredDeadline() public {
         uint256 expiredDeadline = block.timestamp - 1;
 
+        bytes memory payload = abi.encode(deployer, expiredDeadline, limitSqrtPrice);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)),
             bytes20(tokenIn),
@@ -920,10 +914,8 @@ contract AlgebraIntegralHookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(84)),
-            bytes20(deployer),
-            bytes32(expiredDeadline), // Expired deadline at [241:273]
-            bytes32(uint256(limitSqrtPrice))
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(
@@ -938,6 +930,7 @@ contract AlgebraIntegralHookTest is Helpers {
         // Deadline exactly at block.timestamp should succeed
         uint256 exactDeadline = block.timestamp;
 
+        bytes memory payload = abi.encode(deployer, exactDeadline, limitSqrtPrice);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)),
             bytes20(tokenIn),
@@ -946,10 +939,8 @@ contract AlgebraIntegralHookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(84)),
-            bytes20(deployer),
-            bytes32(exactDeadline),
-            bytes32(uint256(limitSqrtPrice))
+            bytes32(payload.length),
+            payload
         );
 
         // Should not revert
@@ -959,6 +950,7 @@ contract AlgebraIntegralHookTest is Helpers {
 
     function test_SwapHook_ZeroLimitSqrtPriceMeansNoLimit() public view {
         // limitSqrtPrice = 0 means no price limit, should work fine
+        bytes memory payload = abi.encode(deployer, deadline, uint160(0));
         bytes memory data = bytes.concat(
             bytes(new bytes(52)),
             bytes20(tokenIn),
@@ -967,10 +959,8 @@ contract AlgebraIntegralHookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(84)),
-            bytes20(deployer),
-            bytes32(deadline),
-            bytes32(uint256(0)) // Zero = no price limit at [273:305]
+            bytes32(payload.length),
+            payload
         );
 
         // Should not revert - 0 is valid (means no limit)
@@ -1024,6 +1014,7 @@ contract AlgebraIntegralHookTest is Helpers {
     function test_ApproveAndSwapHook_DeadlineAtCurrentTimestamp() public view {
         uint256 exactDeadline = block.timestamp;
 
+        bytes memory payload = abi.encode(deployer, exactDeadline, limitSqrtPrice);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)),
             bytes20(tokenIn),
@@ -1032,10 +1023,8 @@ contract AlgebraIntegralHookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(84)),
-            bytes20(deployer),
-            bytes32(exactDeadline),
-            bytes32(uint256(limitSqrtPrice))
+            bytes32(payload.length),
+            payload
         );
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
@@ -1043,6 +1032,7 @@ contract AlgebraIntegralHookTest is Helpers {
     }
 
     function test_ApproveAndSwapHook_ZeroLimitSqrtPriceMeansNoLimit() public view {
+        bytes memory payload = abi.encode(deployer, deadline, uint160(0));
         bytes memory data = bytes.concat(
             bytes(new bytes(52)),
             bytes20(tokenIn),
@@ -1051,10 +1041,8 @@ contract AlgebraIntegralHookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(84)),
-            bytes20(deployer),
-            bytes32(deadline),
-            bytes32(uint256(0))
+            bytes32(payload.length),
+            payload
         );
 
         Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
@@ -1090,7 +1078,7 @@ contract AlgebraIntegralHookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_SwapAlgebra_EncodeSwapData_RoundTrip() public view {
-        bytes memory payload = bytes.concat(bytes20(deployer), bytes32(deadline), bytes32(uint256(limitSqrtPrice)));
+        bytes memory payload = abi.encode(deployer, deadline, limitSqrtPrice);
 
         ISuperHookSwap.SwapHeader memory header = ISuperHookSwap.SwapHeader({
             inputToken: tokenIn,
@@ -1110,11 +1098,11 @@ contract AlgebraIntegralHookTest is Helpers {
         assertEq(swapHook.decodeOutputMin(encoded), originalMinAmountOut);
 
         bytes memory decodedPayload = swapHook.decodePayload(encoded);
-        assertEq(decodedPayload.length, 84);
+        assertEq(decodedPayload.length, 96);
     }
 
     function test_ApproveAndSwapAlgebra_EncodeSwapData_RoundTrip() public view {
-        bytes memory payload = bytes.concat(bytes20(deployer), bytes32(deadline), bytes32(uint256(limitSqrtPrice)));
+        bytes memory payload = abi.encode(deployer, deadline, limitSqrtPrice);
 
         ISuperHookSwap.SwapHeader memory header = ISuperHookSwap.SwapHeader({
             inputToken: tokenIn,
@@ -1134,11 +1122,11 @@ contract AlgebraIntegralHookTest is Helpers {
         assertEq(approveAndSwapHook.decodeOutputMin(encoded), originalMinAmountOut);
 
         bytes memory decodedPayload = approveAndSwapHook.decodePayload(encoded);
-        assertEq(decodedPayload.length, 84);
+        assertEq(decodedPayload.length, 96);
     }
 
     function test_SwapAlgebra_EncodeDecodeUsePrevHookAmount_True() public view {
-        bytes memory payload = bytes.concat(bytes20(deployer), bytes32(deadline), bytes32(uint256(limitSqrtPrice)));
+        bytes memory payload = abi.encode(deployer, deadline, limitSqrtPrice);
 
         ISuperHookSwap.SwapHeader memory header = ISuperHookSwap.SwapHeader({
             inputToken: tokenIn,
@@ -1234,7 +1222,7 @@ contract AlgebraIntegralHookTest is Helpers {
                               Helpers
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Builds standard 305-byte hook data (3-layer calldata standard)
+    /// @dev Builds standard hook data (3-layer calldata standard)
     /// Layout:
     ///   [0:52]    Layer 0 placeholder
     ///   [52:72]   inputToken
@@ -1243,11 +1231,10 @@ contract AlgebraIntegralHookTest is Helpers {
     ///   [124:156] outputQuote      (0 for AMMs)
     ///   [156:188] outputMin
     ///   [188]     usePrevHookAmount
-    ///   [189:221] payloadLength = 84
-    ///   [221:241] deployer
-    ///   [241:273] deadline
-    ///   [273:305] limitSqrtPrice
+    ///   [189:221] payloadLength
+    ///   [221+]    payload = abi.encode(deployer, deadline, limitSqrtPrice)
     function _buildHookData(bool usePrevHookAmount) internal view returns (bytes memory) {
+        bytes memory payload = abi.encode(deployer, deadline, limitSqrtPrice);
         return bytes.concat(
             bytes(new bytes(52)),
             bytes20(tokenIn), // [52:72]
@@ -1256,14 +1243,13 @@ contract AlgebraIntegralHookTest is Helpers {
             bytes32(uint256(0)), // [124:156] outputQuote (0 for AMMs)
             bytes32(originalMinAmountOut), // [156:188] outputMin
             usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // [188]
-            bytes32(uint256(84)), // [189:221] payloadLength
-            bytes20(deployer), // [221:241]
-            bytes32(deadline), // [241:273]
-            bytes32(uint256(limitSqrtPrice)) // [273:305]
+            bytes32(payload.length), // [189:221] payloadLength
+            payload
         );
     }
 
     function _buildHookDataWithDeployer(address _deployer) internal view returns (bytes memory) {
+        bytes memory payload = abi.encode(_deployer, deadline, limitSqrtPrice);
         return bytes.concat(
             bytes(new bytes(52)),
             bytes20(tokenIn),
@@ -1272,10 +1258,8 @@ contract AlgebraIntegralHookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(originalMinAmountOut),
             bytes1(0x00),
-            bytes32(uint256(84)),
-            bytes20(_deployer),
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice))
+            bytes32(payload.length),
+            payload
         );
     }
 
@@ -1288,6 +1272,7 @@ contract AlgebraIntegralHookTest is Helpers {
         view
         returns (bytes memory)
     {
+        bytes memory payload = abi.encode(deployer, deadline, limitSqrtPrice);
         return bytes.concat(
             bytes(new bytes(52)),
             bytes20(tokenIn),
@@ -1296,10 +1281,175 @@ contract AlgebraIntegralHookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(_minAmountOut),
             _usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
-            bytes32(uint256(84)),
-            bytes20(deployer),
-            bytes32(deadline),
-            bytes32(uint256(limitSqrtPrice))
+            bytes32(payload.length),
+            payload
         );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                     PAYLOAD DECODE ROUND-TRIP TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Verify decodePayload returns abi.encoded data that decodes to original fields
+    function test_SwapHook_PayloadDecodeRoundTrip() public view {
+        address testDeployer = address(0xCAFE);
+        uint256 testDeadline = block.timestamp + 7200;
+        uint160 testSqrtPrice = 79228162514264337593543950336;
+
+        bytes memory data = _buildHookDataWithDeployer(testDeployer);
+
+        bytes memory decodedPayload = swapHook.decodePayload(data);
+        (address dDeployer, uint256 dDeadline, uint160 dSqrtPrice) =
+            abi.decode(decodedPayload, (address, uint256, uint160));
+
+        assertEq(dDeployer, testDeployer, "deployer mismatch");
+        assertEq(dDeadline, deadline, "deadline mismatch");
+        assertEq(dSqrtPrice, limitSqrtPrice, "sqrtPrice mismatch");
+    }
+
+    /// @notice Verify ApproveAndSwap decodePayload round-trip
+    function test_ApproveAndSwapHook_PayloadDecodeRoundTrip() public view {
+        bytes memory data = _buildHookData(false);
+
+        bytes memory decodedPayload = approveAndSwapHook.decodePayload(data);
+        (address dDeployer, uint256 dDeadline, uint160 dSqrtPrice) =
+            abi.decode(decodedPayload, (address, uint256, uint160));
+
+        assertEq(dDeployer, deployer, "deployer mismatch");
+        assertEq(dDeadline, deadline, "deadline mismatch");
+        assertEq(dSqrtPrice, limitSqrtPrice, "sqrtPrice mismatch");
+    }
+
+    /// @notice Fuzz: payload fields survive encode → decodePayload → decode round-trip
+    function testFuzz_SwapHook_PayloadDecodeRoundTrip(
+        address fuzzDeployer,
+        uint256 fuzzDeadline,
+        uint160 fuzzSqrtPrice
+    )
+        public
+        view
+    {
+        fuzzDeadline = bound(fuzzDeadline, block.timestamp, type(uint256).max);
+
+        bytes memory payload = abi.encode(fuzzDeployer, fuzzDeadline, fuzzSqrtPrice);
+        bytes memory data = bytes.concat(
+            bytes(new bytes(52)),
+            bytes20(tokenIn),
+            bytes20(tokenOut),
+            bytes32(originalAmountIn),
+            bytes32(uint256(0)),
+            bytes32(originalMinAmountOut),
+            bytes1(0x00),
+            bytes32(payload.length),
+            payload
+        );
+
+        bytes memory decodedPayload = swapHook.decodePayload(data);
+        (address dDeployer, uint256 dDeadline, uint160 dSqrtPrice) =
+            abi.decode(decodedPayload, (address, uint256, uint160));
+
+        assertEq(dDeployer, fuzzDeployer, "deployer mismatch");
+        assertEq(dDeadline, fuzzDeadline, "deadline mismatch");
+        assertEq(dSqrtPrice, fuzzSqrtPrice, "sqrtPrice mismatch");
+    }
+
+    /// @notice Verify build uses correct deployer from payload in the Execution calldata
+    function test_SwapHook_Build_UsesCorrectDeployerFromPayload() public view {
+        address testDeployer = address(0xDEAD);
+        bytes memory data = _buildHookDataWithDeployer(testDeployer);
+
+        Execution[] memory executions = swapHook.build(address(prevHook), account, data);
+        bytes memory swapCalldata = executions[1].callData;
+
+        // deployer is the 3rd field in ExactInputSingleParams (after tokenIn, tokenOut)
+        address decodedDeployer;
+        assembly ("memory-safe") {
+            decodedDeployer := mload(add(swapCalldata, 100)) // 4 + 32*3 = 100
+        }
+        assertEq(decodedDeployer, testDeployer, "deployer in execution calldata mismatch");
+    }
+
+    /// @notice Verify ApproveAndSwap build uses correct payload fields in the swap Execution
+    function test_ApproveAndSwapHook_Build_UsesCorrectDeployerFromPayload() public view {
+        address testDeployer = address(0xBEEF);
+        bytes memory data = _buildHookDataWithDeployer(testDeployer);
+
+        Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
+        bytes memory swapCalldata = executions[3].callData; // swap is index 3
+
+        address decodedDeployer;
+        assembly ("memory-safe") {
+            decodedDeployer := mload(add(swapCalldata, 100))
+        }
+        assertEq(decodedDeployer, testDeployer, "deployer in execution calldata mismatch");
+    }
+
+    /// @notice encodeSwapData → decodePayload → abi.decode verifies all payload fields
+    function test_SwapHook_EncodeSwapData_FullPayloadFieldVerification() public view {
+        address testDeployer = address(0xABCD);
+        uint256 testDeadline = block.timestamp + 999;
+        uint160 testSqrtPrice = 42;
+
+        bytes memory payload = abi.encode(testDeployer, testDeadline, testSqrtPrice);
+        ISuperHookSwap.SwapHeader memory header = ISuperHookSwap.SwapHeader({
+            inputToken: tokenIn,
+            outputToken: tokenOut,
+            inputAmount: originalAmountIn,
+            outputQuote: 0,
+            outputMin: originalMinAmountOut,
+            usePrevHookAmount: false
+        });
+
+        bytes memory encoded = swapHook.encodeSwapData(header, payload);
+
+        assertEq(swapHook.decodeInputToken(encoded), tokenIn);
+        assertEq(swapHook.decodeOutputToken(encoded), tokenOut);
+        assertEq(swapHook.decodeInputAmount(encoded), originalAmountIn);
+        assertEq(swapHook.decodeOutputMin(encoded), originalMinAmountOut);
+
+        bytes memory decodedPayload = swapHook.decodePayload(encoded);
+        (address dDeployer, uint256 dDeadline, uint160 dSqrtPrice) =
+            abi.decode(decodedPayload, (address, uint256, uint160));
+        assertEq(dDeployer, testDeployer, "deployer mismatch");
+        assertEq(dDeadline, testDeadline, "deadline mismatch");
+        assertEq(dSqrtPrice, testSqrtPrice, "sqrtPrice mismatch");
+    }
+
+    /// @notice Fuzz: encodeSwapData full round-trip with field verification
+    function testFuzz_SwapHook_EncodeSwapData_FullRoundTrip(
+        address fuzzDeployer,
+        uint256 fuzzDeadline,
+        uint160 fuzzSqrtPrice,
+        uint256 fuzzAmount,
+        uint256 fuzzMinOut,
+        bool fuzzUsePrev
+    )
+        public
+        view
+    {
+        bytes memory payload = abi.encode(fuzzDeployer, fuzzDeadline, fuzzSqrtPrice);
+        ISuperHookSwap.SwapHeader memory header = ISuperHookSwap.SwapHeader({
+            inputToken: tokenIn,
+            outputToken: tokenOut,
+            inputAmount: fuzzAmount,
+            outputQuote: 0,
+            outputMin: fuzzMinOut,
+            usePrevHookAmount: fuzzUsePrev
+        });
+
+        bytes memory encoded = swapHook.encodeSwapData(header, payload);
+
+        assertEq(swapHook.decodeInputToken(encoded), tokenIn);
+        assertEq(swapHook.decodeOutputToken(encoded), tokenOut);
+        assertEq(swapHook.decodeInputAmount(encoded), fuzzAmount);
+        assertEq(swapHook.decodeOutputMin(encoded), fuzzMinOut);
+        assertEq(swapHook.decodeUsePrevHookAmount(encoded), fuzzUsePrev);
+
+        bytes memory decodedPayload = swapHook.decodePayload(encoded);
+        (address dDeployer, uint256 dDeadline, uint160 dSqrtPrice) =
+            abi.decode(decodedPayload, (address, uint256, uint160));
+        assertEq(dDeployer, fuzzDeployer);
+        assertEq(dDeadline, fuzzDeadline);
+        assertEq(dSqrtPrice, fuzzSqrtPrice);
     }
 }

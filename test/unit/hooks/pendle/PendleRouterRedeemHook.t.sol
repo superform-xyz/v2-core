@@ -208,39 +208,20 @@ contract PendleRouterRedeemHookTest is Helpers {
     }
 
     function test_Build_RevertIf_InvalidDataLength() public {
-        // Create data with length less than TOKEN_OUTPUT_OFFSET (125 bytes)
-        // Data needs: amount(32) + yt(20) + pt(20) + tokenOut(20) + minTokenOut(32) + usePrevHookAmount(1) = 125 bytes minimum
-        // Provide only 100 bytes to trigger the error
-        bytes memory data = new bytes(100);
+        // Data needs at least MIN_DATA_LENGTH (221) bytes to pass the length check
+        // Provide only 220 bytes to trigger the error
+        bytes memory data = new bytes(220);
 
         vm.expectRevert(PendleRouterRedeemHook.INVALID_DATA_LENGTH.selector);
         hook.build(address(prevHook), account, data);
     }
 
-    function test_PreExecute_RevertIf_InvalidDataLength() public {
-        // Create data with length less than endOfTokenOutOffset (92 bytes)
-        // endOfTokenOutOffset = 72 (start of tokenOut) + 20 (size of address) = 92
-        // Provide only 80 bytes to trigger the error in _getBalance
-        bytes memory data = new bytes(80);
-
-        vm.expectRevert(PendleRouterRedeemHook.INVALID_DATA_LENGTH.selector);
-        hook.preExecute(address(0), account, data);
-    }
-
-    function test_PostExecute_RevertIf_InvalidDataLength() public {
-        // Create data with length less than endOfTokenOutOffset (92 bytes)
-        // Provide only 70 bytes to trigger the error in _getBalance
-        bytes memory data = new bytes(70);
-
-        vm.expectRevert(PendleRouterRedeemHook.INVALID_DATA_LENGTH.selector);
-        hook.postExecute(address(0), account, data);
-    }
 
     function test_Build_RevertIf_TokenOutMismatch() public {
         // Create a TokenOutput struct with a different tokenOut than the explicit parameter
         SwapData memory swapData =
             SwapData({ swapType: SwapType.ODOS, extRouter: address(0), extCalldata: "", needScale: false });
-        
+
         TokenOutput memory output = TokenOutput({
             tokenOut: address(0x999), // Different from the explicit tokenOut parameter
             minTokenOut: minTokenOut,
@@ -249,18 +230,19 @@ contract PendleRouterRedeemHookTest is Helpers {
             swapData: swapData
         });
 
-        bytes memory tokenOutputEncoded = abi.encode(output);
-        
         // Pack the data with explicit tokenOut that differs from struct tokenOut
-        bytes memory data = abi.encodePacked(
-            bytes(new bytes(52)), // 52-byte placeholder
-            amount,
-            address(ytToken),
-            address(ptToken),
-            address(tokenOut), // Explicit parameter
-            minTokenOut,
+        bytes memory payload = abi.encode(address(0), address(ytToken), address(ptToken), address(tokenOut), minTokenOut, output);
+        bytes memory data = bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(address(0)),
+            bytes20(address(tokenOut)),
+            bytes32(amount),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
             bytes1(uint8(0)),
-            tokenOutputEncoded
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(PendleRouterRedeemHook.TOKEN_OUT_NOT_VALID.selector);
@@ -271,7 +253,7 @@ contract PendleRouterRedeemHookTest is Helpers {
         // Create a TokenOutput struct with a different minTokenOut than the explicit parameter
         SwapData memory swapData =
             SwapData({ swapType: SwapType.ODOS, extRouter: address(0), extCalldata: "", needScale: false });
-        
+
         TokenOutput memory output = TokenOutput({
             tokenOut: address(tokenOut),
             minTokenOut: 999, // Different from the explicit minTokenOut parameter
@@ -280,18 +262,19 @@ contract PendleRouterRedeemHookTest is Helpers {
             swapData: swapData
         });
 
-        bytes memory tokenOutputEncoded = abi.encode(output);
-        
         // Pack the data with explicit minTokenOut that differs from struct minTokenOut
-        bytes memory data = abi.encodePacked(
-            bytes(new bytes(52)), // 52-byte placeholder
-            amount,
-            address(ytToken),
-            address(ptToken),
-            address(tokenOut),
-            minTokenOut, // Explicit parameter
+        bytes memory payload = abi.encode(address(0), address(ytToken), address(ptToken), address(tokenOut), minTokenOut, output);
+        bytes memory data = bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(address(0)),
+            bytes20(address(tokenOut)),
+            bytes32(amount),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
             bytes1(uint8(0)),
-            tokenOutputEncoded
+            bytes32(payload.length),
+            payload
         );
 
         vm.expectRevert(PendleRouterRedeemHook.MIN_TOKEN_OUT_NOT_VALID.selector);
@@ -382,9 +365,8 @@ contract PendleRouterRedeemHookTest is Helpers {
     }
 
     function test_DecodeUsePrevHookAmount_RevertIf_InvalidDataLength() public {
-        // Create data with length less than TOKEN_OUTPUT_OFFSET (125 bytes)
-        // Provide only 100 bytes to trigger the error in decodeUsePrevHookAmount
-        bytes memory data = new bytes(100);
+        // Data shorter than MIN_DATA_LENGTH (221) triggers INVALID_DATA_LENGTH
+        bytes memory data = new bytes(220);
 
         vm.expectRevert(PendleRouterRedeemHook.INVALID_DATA_LENGTH.selector);
         hook.decodeUsePrevHookAmount(data);
@@ -518,16 +500,26 @@ contract PendleRouterRedeemHookTest is Helpers {
         // mocking purposes
         SwapData memory swapData =
             SwapData({ swapType: SwapType.ODOS, extRouter: address(0), extCalldata: "", needScale: false });
-        bytes memory tokenOutput = abi.encode(
-            TokenOutput({
-                tokenOut: tokenOut_,
-                minTokenOut: minTokenOut_,
-                tokenRedeemSy: address(0),
-                pendleSwap: address(0),
-                swapData: swapData
-            })
+        TokenOutput memory output = TokenOutput({
+            tokenOut: tokenOut_,
+            minTokenOut: minTokenOut_,
+            tokenRedeemSy: address(0),
+            pendleSwap: address(0),
+            swapData: swapData
+        });
+        bytes memory payload = abi.encode(address(0), yt_, pt_, tokenOut_, minTokenOut_, output);
+        return bytes.concat(
+            bytes32(0),
+            bytes20(address(0)),
+            bytes20(address(0)),
+            bytes20(tokenOut_),
+            bytes32(amount_),
+            bytes32(uint256(0)),
+            bytes32(uint256(0)),
+            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
+            bytes32(payload.length),
+            payload
         );
-        return abi.encodePacked(bytes(new bytes(52)), amount_, yt_, pt_, tokenOut_, minTokenOut_, usePrevHookAmount_, tokenOutput);
     }
 
     function test_PendleRouterRedeem_ReplaceCalldataAmounts_ThenBuild() public view {

@@ -11,11 +11,11 @@ contract UniswapV4UnitTests is Helpers {
 
     address currency0 = address(0x1111111111111111111111111111111111111111);
     address currency1 = address(0x2222222222222222222222222222222222222222);
-    uint32 fee = 3000;
-    int32 tickSpacing = 60;
+    uint24 fee = 3000;
+    int24 tickSpacing = 60;
     address hooks = address(0);
     address dstReceiver = address(0x4444444444444444444444444444444444444444);
-    uint256 sqrtPriceLimitX96 = 0;
+    uint160 sqrtPriceLimitX96 = 0;
     uint256 originalAmountIn = 1000;
     uint256 originalMinAmountOut = 950;
     uint256 maxSlippageDeviationBps = 100;
@@ -64,11 +64,11 @@ contract UniswapV4UnitTests is Helpers {
         bytes memory data = _buildHookData(false);
         bytes memory replaced = swapHook.replaceCalldataAmounts(data, _singleAmount(999));
         assertEq(replaced.length, data.length);
-        // AMOUNT_POSITION is 172 (52-byte placeholder + currency0(20) + currency1(20) + fee(4) + tickSpacing(4) + hooks(20) + dstReceiver(20) + sqrtPriceLimit(32))
-        for (uint256 i = 0; i < 172; i++) {
+        // AMOUNT_POSITION is 92 (52-byte placeholder + currency0(20) + currency1(20))
+        for (uint256 i = 0; i < 92; i++) {
             assertEq(replaced[i], data[i]);
         }
-        for (uint256 i = 204; i < data.length; i++) {
+        for (uint256 i = 124; i < data.length; i++) {
             assertEq(replaced[i], data[i]);
         }
     }
@@ -77,28 +77,26 @@ contract UniswapV4UnitTests is Helpers {
                               HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Builds hook data matching the UniswapV4 layout (with 52-byte placeholder):
-    /// placeholder(0-51) | currency0(52) | currency1(72) | fee(92) | tickSpacing(96) | hooks(100) | dstReceiver(120) |
-    /// sqrtPriceLimitX96(140) | originalAmountIn(172) | originalMinAmountOut(204) |
-    /// maxSlippageDeviationBps(236) | zeroForOne(268) | usePrevHookAmount(269)
+    /// @dev Builds hook data matching the standard 10-field Layer 1 layout:
+    /// placeholder0(0-31) | placeholder1(32-51) | inputToken(52-71) | outputToken(72-91) |
+    /// inputAmount(92-123) | outputQuote(124-155) | outputMin(156-187) |
+    /// usePrevHookAmount(188) | payloadLength(189-220) | payload(221+)
+    /// Payload: abi.encode(zeroForOne, fee, tickSpacing, hooks, dstReceiver, sqrtPriceLimitX96, maxSlippageDeviationBps, additionalData)
     function _buildHookData(bool usePrevHookAmount) internal view returns (bytes memory) {
-        bytes memory header = bytes.concat(
-            bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(currency0),
-            bytes20(currency1),
-            bytes4(fee),
-            bytes4(uint32(tickSpacing)),
-            bytes20(hooks),
-            bytes20(dstReceiver),
-            bytes32(sqrtPriceLimitX96)
+        bytes memory payload = abi.encode(
+            zeroForOne, fee, tickSpacing, hooks, dstReceiver, sqrtPriceLimitX96, maxSlippageDeviationBps, bytes("")
         );
         return bytes.concat(
-            header,
-            bytes32(originalAmountIn),
-            bytes32(originalMinAmountOut),
-            bytes32(maxSlippageDeviationBps),
-            zeroForOne ? bytes1(0x01) : bytes1(0x00),
-            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00)
+            bytes32(0),                    // placeholder0 (header bytes 0-31)
+            bytes20(address(0)),           // placeholder1 (header bytes 32-51)
+            bytes20(currency0),            // inputToken 52-71
+            bytes20(currency1),            // outputToken 72-91
+            bytes32(originalAmountIn),     // inputAmount 92-123
+            bytes32(originalMinAmountOut), // outputQuote 124-155
+            bytes32(originalMinAmountOut), // outputMin 156-187
+            usePrevHookAmount ? bytes1(0x01) : bytes1(0x00), // usePrevHookAmount 188
+            bytes32(payload.length),       // payloadLength 189-220
+            payload                        // payload 221+
         );
     }
 }

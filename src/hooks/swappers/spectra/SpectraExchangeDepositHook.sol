@@ -9,7 +9,8 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
+import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
 import { ISpectraRouter } from "../../../vendor/spectra/ISpectraRouter.sol";
 import {
     ISuperHook,
@@ -24,17 +25,23 @@ import { SpectraCommands } from "../../../vendor/spectra/SpectraCommands.sol";
 
 /// @title SpectraExchangeDepositHook
 /// @author Superform Labs
-/// @dev data has the following structure
-/// @notice         bytes32 placeholder_yieldSourceOracleId = BytesLib.toBytes32(data, 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
-/// @notice         uint256 value = BytesLib.toUint256(data, 53);
-/// @notice         bytes txData_ = BytesLib.slice(data, 85, data.length - 85);
-contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow {
-    using HookDataDecoder for bytes;
+/// @dev Payload: abi.encode(address pt, uint256 value, bytes txData_)
+/// @dev data has the following structure (standard 52-byte strategy header + Layer 1 + Layer 2):
+/// @notice         bytes32   placeholder0     = BytesLib.toBytes32(data, 0);
+/// @notice         address   placeholder1     = BytesLib.toAddress(data, 32);
+/// @notice         address   inputToken       = BytesLib.toAddress(data, 52);
+/// @notice         address   outputToken      = BytesLib.toAddress(data, 72);
+/// @notice         uint256   inputAmount      = BytesLib.toUint256(data, 92);
+/// @notice         uint256   outputQuote      = BytesLib.toUint256(data, 124);
+/// @notice         uint256   outputMin        = BytesLib.toUint256(data, 156);
+/// @notice         bool      usePrevHookAmount = _decodeBool(data, 188);
+/// @notice         uint256   payload_paramLength = BytesLib.toUint256(data, 189);
+/// @notice         bytes     payload          = BytesLib.slice(data, 221, payload_paramLength);
+contract SpectraExchangeDepositHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISuperHookInflowOutflow {
 
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
-    uint256 private constant TX_DATA_POSITION = 85;
+    /*//////////////////////////////////////////////////////////////
+                        DATA LAYOUT POSITIONS
+    //////////////////////////////////////////////////////////////*/
     bytes4 private constant EXECUTE_SELECTOR = bytes4(keccak256("execute(bytes,bytes[])"));
     bytes4 private constant EXECUTE_DEADLINE_SELECTOR = bytes4(keccak256("execute(bytes,bytes[],uint256)"));
 
@@ -56,6 +63,9 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
     error INVALID_MIN_SHARES();
     error INVALID_LAST_COMMAND();
     error INVALID_TRANSFER_TOKEN();
+
+    /// @notice Thrown when pt in payload does not match the expected outputToken
+    error OUTPUT_TOKEN_MISMATCH();
 
     constructor(address router_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.PTYT) {
         if (router_ == address(0)) revert ADDRESS_NOT_VALID();
@@ -87,12 +97,15 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
         override
         returns (Execution[] memory executions)
     {
-        address pt = data.extractYieldSource();
-        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        uint256 value = abi.decode(data[53:TX_DATA_POSITION], (uint256));
-        // Copy calldata slice to memory so the calldata offset+length slots can be freed
-        // before the stack-heavy _validateTxData logic runs (prevents stack-too-deep under --ir-minimum)
-        return _buildFromTxData(prevHook, account, pt, usePrevHookAmount, value, data[TX_DATA_POSITION:]);
+        bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
+        (address pt, uint256 value, bytes memory txData_) =
+            abi.decode(data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:], (address, uint256, bytes));
+
+        // Validate that the pt in payload matches the header's outputToken
+        address headerOutputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        if (headerOutputToken != pt) revert OUTPUT_TOKEN_MISMATCH();
+
+        return _buildFromTxData(prevHook, account, pt, usePrevHookAmount, value, txData_);
     }
 
     function _buildFromTxData(
@@ -122,7 +135,7 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
-        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        return _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -148,7 +161,64 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        return abi.encodePacked(data.extractYieldSource());
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        return abi.encodePacked(outputToken);
+    }
+
+    // ─── ISuperHookSwap ──────────────────────────────────────────────────────
+
+    /// @inheritdoc ISuperHookSwap
+    function encodeSwapData(
+        ISuperHookSwap.SwapHeader calldata header,
+        bytes calldata payload
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        return bytes.concat(
+            bytes(new bytes(SwapCalldataLayout.HEADER_SIZE)),
+            bytes20(header.inputToken),
+            bytes20(header.outputToken),
+            bytes32(header.inputAmount),
+            bytes32(header.outputQuote),
+            bytes32(header.outputMin),
+            bytes1(header.usePrevHookAmount ? uint8(1) : uint8(0)),
+            bytes32(payload.length),
+            payload
+        );
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputToken(bytes calldata data) external pure override returns (address) {
+        return BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeInputAmount(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputQuote(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_QUOTE_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodeOutputMin(bytes calldata data) external pure override returns (uint256) {
+        return BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_MIN_OFFSET);
+    }
+
+    /// @inheritdoc ISuperHookSwap
+    function decodePayload(bytes calldata data) external pure override returns (bytes memory) {
+        uint256 payloadLen = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        return BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLen);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -160,7 +230,7 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
-        _setOutToken(_decodeTokenOut(data[TX_DATA_POSITION:]), account);
+        _setOutToken(BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET), account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -226,8 +296,6 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
             uint256 command = params.commands[i];
             bytes memory input = params.inputs[i];
             if (command == SpectraCommands.DEPOSIT_ASSET_IN_PT) {
-                // https://dev.spectra.finance/technical-reference/contract-functions/ROUTER#deposit_asset_in_pt-command
-
                 (params.pt, params.assets, params.ptRecipient, params.ytRecipient, params.minShares) =
                     abi.decode(input, (address, uint256, address, address, uint256));
 
@@ -243,8 +311,6 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
                 params.updatedInputs[i] =
                     abi.encode(params.pt, params.assets, params.ptRecipient, params.ytRecipient, params.minShares);
             } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
-                // https://dev.spectra.finance/technical-reference/contract-functions/ROUTER#deposit_asset_in_ibt-command
-
                 (params.ibt, params.assets, params.recipient) = abi.decode(input, (address, uint256, address));
                 if (params.ibt == address(0)) revert INVALID_IBT();
                 if (params.recipient != account) revert INVALID_RECIPIENT();
@@ -256,8 +322,6 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
 
                 params.updatedInputs[i] = abi.encode(params.ibt, params.assets, params.recipient);
             } else if (command == SpectraCommands.TRANSFER_FROM) {
-                // https://dev.spectra.finance/technical-reference/contract-functions/ROUTER#transfer_from-command
-
                 (params.transferToken, params.assets) = abi.decode(input, (address, uint256));
                 if (params.transferToken == address(0)) revert INVALID_TRANSFER_TOKEN();
 
@@ -307,43 +371,17 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
         }
     }
 
-    function _decodeTokenOut(bytes calldata data) internal pure returns (address tokenOut) {
-        bytes4 selector = bytes4(data[0:4]);
-        bytes memory commandsData;
-        bytes[] memory inputs;
-        if (selector == EXECUTE_SELECTOR) {
-            (commandsData, inputs) = abi.decode(data[4:], (bytes, bytes[]));
-        } else if (selector == EXECUTE_DEADLINE_SELECTOR) {
-            (commandsData, inputs,) = abi.decode(data[4:], (bytes, bytes[], uint256));
-        } else {
-            revert INVALID_SELECTOR();
-        }
-
-        uint256 inputsLength = inputs.length;
-        uint256[] memory commands = _validateCommands(commandsData, inputsLength);
-        uint256 commandsLength = commands.length;
-        for (uint256 i; i < commandsLength; ++i) {
-            uint256 command = commands[i];
-            bytes memory input = inputs[i];
-            if (command == SpectraCommands.DEPOSIT_ASSET_IN_PT) {
-                (tokenOut,,,) = abi.decode(input, (address, uint256, address, address));
-            } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
-                (tokenOut,,) = abi.decode(input, (address, uint256, address));
-            }
-        }
-    }
-
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
 
     function _getBalance(bytes calldata data, address account) private view returns (uint256) {
-        address tokenOut = _decodeTokenOut(data[TX_DATA_POSITION:]);
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
 
-        if (tokenOut == address(0)) {
+        if (outputToken == address(0)) {
             return account.balance;
         }
 
-        return IERC20(tokenOut).balanceOf(account);
+        return IERC20(outputToken).balanceOf(account);
     }
 }

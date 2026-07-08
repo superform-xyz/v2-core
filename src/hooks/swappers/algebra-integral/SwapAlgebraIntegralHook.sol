@@ -21,20 +21,18 @@ import { IAlgebraSwapRouter } from "../../../vendor/algebra-integral/IAlgebraSwa
 /// @author Superform Labs
 /// @notice Hook for executing swaps via Algebra Integral SwapRouter.exactInputSingle
 /// @dev Assumes tokens are already approved to the router
+/// @dev Payload: abi.encode(address deployer, uint256 deadline, uint160 limitSqrtPrice)
 /// @dev data has the following structure (3-layer calldata standard):
-/// @notice Layer 0 (bytes[0:52]):    zero-filled 52-byte strategy header
-/// @notice Layer 1 (bytes[52:221]):  standard swap tail
+/// @notice         bytes32 placeholder0      = BytesLib.toBytes32(data, 0);
+/// @notice         address placeholder1      = BytesLib.toAddress(data, 32);
 /// @notice         address inputToken        = BytesLib.toAddress(data, 52);
 /// @notice         address outputToken       = BytesLib.toAddress(data, 72);
 /// @notice         uint256 inputAmount       = BytesLib.toUint256(data, 92);
 /// @notice         uint256 outputQuote       = BytesLib.toUint256(data, 124);
 /// @notice         uint256 outputMin         = BytesLib.toUint256(data, 156);
 /// @notice         bool    usePrevHookAmount = _decodeBool(data, 188);
-/// @notice         uint256 payloadLength     = BytesLib.toUint256(data, 189);
-/// @notice Layer 2 (bytes[221:305]): protocol-specific payload (84 bytes)
-/// @notice         address deployer          = BytesLib.toAddress(data, 221);
-/// @notice         uint256 deadline          = BytesLib.toUint256(data, 241);
-/// @notice         uint160 limitSqrtPrice    = uint160(BytesLib.toUint256(data, 273));
+/// @notice         uint256 payload_paramLength = BytesLib.toUint256(data, 189);
+/// @notice         bytes   payload           = BytesLib.slice(data, 221, payload_paramLength);
 contract SwapAlgebraIntegralHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using BytesLib for bytes;
 
@@ -46,12 +44,6 @@ contract SwapAlgebraIntegralHook is BaseHook, ISuperHookSwap, ISuperHookContextA
     IAlgebraSwapRouter public immutable SWAP_ROUTER;
 
     uint256 private constant AMOUNT_POSITION = SwapCalldataLayout.AMOUNT_POSITION;
-
-    // ─── Layer 2 payload offsets ──────────────────────────────────────────────
-    uint256 private constant PAYLOAD_DEPLOYER_OFFSET = SwapCalldataLayout.PAYLOAD_DATA_OFFSET; // 221
-    uint256 private constant PAYLOAD_DEADLINE_OFFSET = PAYLOAD_DEPLOYER_OFFSET + 20; // 241
-    uint256 private constant PAYLOAD_SQRTPRICE_OFFSET = PAYLOAD_DEADLINE_OFFSET + 32; // 273
-    uint256 private constant PAYLOAD_SIZE = 84; // 20 (deployer) + 32 (deadline) + 32 (limitSqrtPrice)
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -104,30 +96,33 @@ contract SwapAlgebraIntegralHook is BaseHook, ISuperHookSwap, ISuperHookContextA
         override
         returns (Execution[] memory executions)
     {
-        if (data.length < SwapCalldataLayout.MIN_DATA_LENGTH + PAYLOAD_SIZE) revert INVALID_HOOK_DATA();
+        address inputToken = data.toAddress(SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+        address outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
 
-        address tokenIn = data.toAddress(SwapCalldataLayout.INPUT_TOKEN_OFFSET);
-        address tokenOut = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        if (inputToken == address(0) || outputToken == address(0)) revert NATIVE_ETH_NOT_SUPPORTED();
+        if (inputToken == outputToken) revert INVALID_HOOK_DATA();
 
-        if (tokenIn == address(0) || tokenOut == address(0)) revert NATIVE_ETH_NOT_SUPPORTED();
-        if (tokenIn == tokenOut) revert INVALID_HOOK_DATA();
-
-        address deployer = data.toAddress(PAYLOAD_DEPLOYER_OFFSET);
-        uint256 deadline = data.toUint256(PAYLOAD_DEADLINE_OFFSET);
+        address deployer;
+        uint256 deadline;
+        uint160 limitSqrtPrice;
+        {
+            uint256 payloadLen = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+            bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLen);
+            (deployer, deadline, limitSqrtPrice) = abi.decode(payload, (address, uint256, uint160));
+        }
 
         if (deadline < block.timestamp) revert EXPIRED_DEADLINE(deadline, block.timestamp);
 
-        uint160 limitSqrtPrice = uint160(data.toUint256(PAYLOAD_SQRTPRICE_OFFSET));
-        uint256 amountIn = data.toUint256(SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
-        uint256 amountOutMinimum = data.toUint256(SwapCalldataLayout.OUTPUT_MIN_OFFSET);
+        uint256 inputAmount = data.toUint256(SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+        uint256 outputMin = data.toUint256(SwapCalldataLayout.OUTPUT_MIN_OFFSET);
 
         if (_decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET)) {
-            uint256 prevAmountIn = ISuperHookResult(prevHook).getOutAmount(account);
-            amountOutMinimum = HookDataUpdater.getUpdatedOutputAmount(prevAmountIn, amountIn, amountOutMinimum);
-            amountIn = prevAmountIn;
+            uint256 prevInputAmount = ISuperHookResult(prevHook).getOutAmount(account);
+            outputMin = HookDataUpdater.getUpdatedOutputAmount(prevInputAmount, inputAmount, outputMin);
+            inputAmount = prevInputAmount;
         }
 
-        if (amountIn == 0) revert AMOUNT_NOT_VALID();
+        if (inputAmount == 0) revert AMOUNT_NOT_VALID();
 
         // Build swap execution
         executions = new Execution[](1);
@@ -138,13 +133,13 @@ contract SwapAlgebraIntegralHook is BaseHook, ISuperHookSwap, ISuperHookContextA
                 IAlgebraSwapRouter.exactInputSingle,
                 (
                     IAlgebraSwapRouter.ExactInputSingleParams({
-                        tokenIn: tokenIn,
-                        tokenOut: tokenOut,
+                        tokenIn: inputToken,
+                        tokenOut: outputToken,
                         deployer: deployer,
                         recipient: account,
                         deadline: deadline,
-                        amountIn: amountIn,
-                        amountOutMinimum: amountOutMinimum,
+                        amountIn: inputAmount,
+                        amountOutMinimum: outputMin,
                         limitSqrtPrice: limitSqrtPrice
                     })
                 )
@@ -154,18 +149,18 @@ contract SwapAlgebraIntegralHook is BaseHook, ISuperHookSwap, ISuperHookContextA
 
     /// @inheritdoc BaseHook
     function _preExecute(address, address account, bytes calldata data) internal override {
-        address tokenOut = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
-        _setOutAmount(IERC20(tokenOut).balanceOf(account), account);
+        address outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        _setOutAmount(IERC20(outputToken).balanceOf(account), account);
     }
 
     /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
-        address tokenOut = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
-        uint256 finalBalance = IERC20(tokenOut).balanceOf(account);
+        address outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        uint256 finalBalance = IERC20(outputToken).balanceOf(account);
         uint256 initialBalance = getOutAmount(account);
         if (finalBalance < initialBalance) revert AMOUNT_NOT_VALID();
         _setOutAmount(finalBalance - initialBalance, account);
-        _setOutToken(tokenOut, account);
+        _setOutToken(outputToken, account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -210,8 +205,8 @@ contract SwapAlgebraIntegralHook is BaseHook, ISuperHookSwap, ISuperHookContextA
 
     /// @inheritdoc BaseHook
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        address tokenOut = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
-        return abi.encodePacked(tokenOut);
+        address outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        return abi.encodePacked(outputToken);
     }
 
     // ─── ISuperHookSwap ──────────────────────────────────────────────────────

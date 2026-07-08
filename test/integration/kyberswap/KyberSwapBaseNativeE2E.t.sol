@@ -99,8 +99,8 @@ contract KyberSwapBaseNativeE2E is Test, Constants, KyberSwapAPIParser {
                 bytes32(uint256(0)), // outputQuote @124
                 bytes32(expectedOut * 90 / 100), // outputMin @156
                 bytes1(uint8(0)), // usePrevHookAmount @188
-                bytes32(txData_.length), // payloadLength @189
-                txData_
+                bytes32(abi.encode(txData_).length), // payloadLength @189
+                abi.encode(txData_)
             );
 
             uint256 usdcBefore = IERC20(USDC).balanceOf(account);
@@ -166,8 +166,8 @@ contract KyberSwapBaseNativeE2E is Test, Constants, KyberSwapAPIParser {
                 bytes32(uint256(0)), // outputQuote @124
                 bytes32(expectedOut * 90 / 100), // outputMin @156
                 bytes1(uint8(0)), // usePrevHookAmount @188
-                bytes32(txData_.length), // payloadLength @189
-                txData_
+                bytes32(abi.encode(txData_).length), // payloadLength @189
+                abi.encode(txData_)
             );
 
             uint256 usdcBefore = IERC20(USDC).balanceOf(account);
@@ -221,8 +221,8 @@ contract KyberSwapBaseNativeE2E is Test, Constants, KyberSwapAPIParser {
                 bytes32(uint256(0)), // outputQuote @124
                 bytes32(expectedOut * 95 / 100), // outputMin @156
                 bytes1(uint8(0)), // usePrevHookAmount @188
-                bytes32(txData_.length), // payloadLength @189
-                txData_
+                bytes32(abi.encode(txData_).length), // payloadLength @189
+                abi.encode(txData_)
             );
 
             uint256 wethBefore = IERC20(WETH).balanceOf(account);

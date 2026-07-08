@@ -24,16 +24,18 @@ import {
 
 /// @title SwapKyberSwapHook
 /// @author Superform Labs
+/// @dev Payload: abi.encode(bytes txData)
 /// @dev data has the following structure (standard 52-byte strategy header + Layer 1 + Layer 2):
-/// @notice         bytes     placeholder      = BytesLib.slice(data, 0, 52);
+/// @notice         bytes32   placeholder0     = BytesLib.toBytes32(data, 0);
+/// @notice         address   placeholder1     = BytesLib.toAddress(data, 32);
 /// @notice         address   inputToken       = BytesLib.toAddress(data, 52);
 /// @notice         address   outputToken      = BytesLib.toAddress(data, 72);
 /// @notice         uint256   inputAmount      = BytesLib.toUint256(data, 92);
 /// @notice         uint256   outputQuote      = BytesLib.toUint256(data, 124);
 /// @notice         uint256   outputMin        = BytesLib.toUint256(data, 156);
 /// @notice         bool      usePrevHookAmount = _decodeBool(data, 188);
-/// @notice         uint256   payloadLength    = BytesLib.toUint256(data, 189);
-/// @notice         bytes     txData           = BytesLib.slice(data, 221, payloadLength);
+/// @notice         uint256   payload_paramLength = BytesLib.toUint256(data, 189);
+/// @notice         bytes     payload          = BytesLib.slice(data, 221, payload_paramLength);
 contract SwapKyberSwapHook is
     BaseHook,
     ISuperHookSwap,
@@ -50,6 +52,13 @@ contract SwapKyberSwapHook is
                         DATA LAYOUT POSITIONS
     //////////////////////////////////////////////////////////////*/
     uint256 private constant AMOUNT_POSITION = SwapCalldataLayout.AMOUNT_POSITION;
+
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Thrown when dstToken in txData does not match the expected outputToken
+    error OUTPUT_TOKEN_MISMATCH();
 
     constructor(
         address router_,
@@ -89,10 +98,17 @@ contract SwapKyberSwapHook is
         override
         returns (Execution[] memory executions)
     {
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
         uint256 inputAmount = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
         bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
-        uint256 txDataLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
-        bytes memory txData_ = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, txDataLength);
+        uint256 payloadLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLength);
+        (bytes memory txData_) = abi.decode(payload, (bytes));
+
+        // Validate that the dstToken in txData matches the header's outputToken
+        IMetaAggregationRouterV2.SwapExecutionParams memory swapParams =
+            abi.decode(BytesLib.slice(txData_, 4, txData_.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams));
+        if (address(swapParams.desc.dstToken) != outputToken) revert OUTPUT_TOKEN_MISMATCH();
 
         uint256 executionAmount = inputAmount;
         if (usePrevHookAmount) {
@@ -148,13 +164,8 @@ contract SwapKyberSwapHook is
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        uint256 txDataLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
-        bytes memory txData_ = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, txDataLength);
-
-        IMetaAggregationRouterV2.SwapExecutionParams memory params =
-            abi.decode(BytesLib.slice(txData_, 4, txData_.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams));
-
-        return abi.encodePacked(address(params.desc.dstToken));
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        return abi.encodePacked(outputToken);
     }
 
     // ─── ISuperHookSwap ──────────────────────────────────────────────────────
