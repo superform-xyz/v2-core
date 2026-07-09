@@ -119,7 +119,6 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         UniV3CLPRegistry.PositionConfig memory cfg = registry.getPositionConfig(positionKey);
         assertEq(cfg.token0Scale, 1e18);
         assertEq(cfg.token1Scale, 1e18);
-        assertEq(cfg.token1Decimals, 18);
         assertEq(cfg.feed0Scale, 1e8);
         assertEq(cfg.feed1Scale, 1e8);
     }
@@ -706,7 +705,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         wbtcWethPool.setLiquidity(1e10);
 
         address key = registry.registerPosition(
-            address(wbtcWethPool), address(nftManager), -887200, 887200,
+            address(wbtcWethPool), address(nftManager), -887160, 887160,
             address(wbtc), address(weth), address(feedBtc), address(feedEth),
             MAX_STALENESS, address(0), 0
         );
@@ -920,27 +919,11 @@ contract UniV3CLPYieldSourceOracleTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                    SECTION 24: ANSWERED_IN_ROUND STALENESS
+                    SECTION 24: STALENESS (TIMESTAMP-BASED)
     //////////////////////////////////////////////////////////////*/
 
-    function test_answeredInRound_lessThanRoundId_feed0_reverts() public {
-        // roundId = 5, answeredInRound = 4 → stale
-        feed0.setRoundData(5, 4);
-        vm.expectRevert(UniV3CLPYieldSourceOracle.STALE_PRICE.selector);
-        oracle.getPricePerShare(positionKey);
-    }
-
-    function test_answeredInRound_lessThanRoundId_feed1_reverts() public {
-        feed1.setRoundData(10, 9);
-        vm.expectRevert(UniV3CLPYieldSourceOracle.STALE_PRICE.selector);
-        oracle.getPricePerShare(positionKey);
-    }
-
-    function test_answeredInRound_equalToRoundId_succeeds() public view {
-        // Default setup: roundId = 1, answeredInRound = 1 — should work
-        uint256 pps = oracle.getPricePerShare(positionKey);
-        assertGt(pps, 0);
-    }
+    // NOTE: answeredInRound < roundId check was removed (deprecated in modern Chainlink OCR feeds).
+    // Staleness is now validated solely via block.timestamp - updatedAt > maxStaleness.
 
     function test_staleFeed1_reverts() public {
         // Move time forward so feed1 is stale (feed0 freshened by setLatestAnswer)
@@ -1106,5 +1089,119 @@ contract UniV3CLPYieldSourceOracleTest is Test {
 
         uint256 pps = oracle.getPricePerShare(key);
         assertGt(pps, 0, "mixed feed decimals must return > 0 PPS");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    SECTION 28: TOKEN MISMATCH VALIDATION
+    //////////////////////////////////////////////////////////////*/
+
+    function test_registry_registerPosition_revertsOnWrongToken0() public {
+        MockERC20 wrongToken = new MockERC20("WRONG", "WRG", 18);
+        MockUniswapV3CLPool p = new MockUniswapV3CLPool(address(token0), address(token1), 100);
+        vm.expectRevert(UniV3CLPRegistry.TOKEN_MISMATCH.selector);
+        registry.registerPosition(
+            address(p), address(nftManager), TICK_LOWER, TICK_UPPER,
+            address(wrongToken), address(token1), address(feed0), address(feed1),
+            MAX_STALENESS, address(0), 0
+        );
+    }
+
+    function test_registry_registerPosition_revertsOnWrongToken1() public {
+        MockERC20 wrongToken = new MockERC20("WRONG", "WRG", 18);
+        MockUniswapV3CLPool p = new MockUniswapV3CLPool(address(token0), address(token1), 100);
+        vm.expectRevert(UniV3CLPRegistry.TOKEN_MISMATCH.selector);
+        registry.registerPosition(
+            address(p), address(nftManager), TICK_LOWER, TICK_UPPER,
+            address(token0), address(wrongToken), address(feed0), address(feed1),
+            MAX_STALENESS, address(0), 0
+        );
+    }
+
+    function test_registry_registerPosition_revertsOnSwappedTokens() public {
+        MockUniswapV3CLPool p = new MockUniswapV3CLPool(address(token0), address(token1), 100);
+        vm.expectRevert(UniV3CLPRegistry.TOKEN_MISMATCH.selector);
+        registry.registerPosition(
+            address(p), address(nftManager), TICK_LOWER, TICK_UPPER,
+            address(token1), address(token0), // swapped!
+            address(feed0), address(feed1),
+            MAX_STALENESS, address(0), 0
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    SECTION 29: TICK ALIGNMENT VALIDATION
+    //////////////////////////////////////////////////////////////*/
+
+    function test_registry_registerPosition_revertsOnMisalignedTickLower() public {
+        // tickSpacing = 100, tickLower = -6001 is NOT a multiple of 100
+        MockUniswapV3CLPool p = new MockUniswapV3CLPool(address(token0), address(token1), 100);
+        vm.expectRevert(UniV3CLPRegistry.INVALID_TICK_ALIGNMENT.selector);
+        registry.registerPosition(
+            address(p), address(nftManager), -6001, TICK_UPPER,
+            address(token0), address(token1), address(feed0), address(feed1),
+            MAX_STALENESS, address(0), 0
+        );
+    }
+
+    function test_registry_registerPosition_revertsOnMisalignedTickUpper() public {
+        MockUniswapV3CLPool p = new MockUniswapV3CLPool(address(token0), address(token1), 100);
+        vm.expectRevert(UniV3CLPRegistry.INVALID_TICK_ALIGNMENT.selector);
+        registry.registerPosition(
+            address(p), address(nftManager), TICK_LOWER, 6001,
+            address(token0), address(token1), address(feed0), address(feed1),
+            MAX_STALENESS, address(0), 0
+        );
+    }
+
+    function test_registry_registerPosition_succeedsWithAlignedTicks() public {
+        // tickSpacing = 10, ticks -100 and 200 are aligned
+        MockUniswapV3CLPool p = new MockUniswapV3CLPool(address(token0), address(token1), 10);
+        p.setSlot0(uint160(Q96), 0);
+
+        address key = registry.registerPosition(
+            address(p), address(nftManager), -100, 200,
+            address(token0), address(token1), address(feed0), address(feed1),
+            MAX_STALENESS, address(0), 0
+        );
+        assertTrue(registry.isRegistered(key));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                SECTION 30: REFRESH CIRCUIT BREAKER BOUNDS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_refreshCircuitBreakerBounds_updatesStoredBounds() public {
+        (address key, MockAggregator cbFeed0, MockAggregator cbFeed1) = _registerWithCircuitBreakers();
+
+        // Verify initial bounds
+        UniV3CLPRegistry.PositionConfig memory cfg = registry.getPositionConfig(key);
+        assertEq(cfg.feed0MinAnswer, 100e8);
+        assertEq(cfg.feed0MaxAnswer, 10_000e8);
+
+        // Update the mock aggregator bounds (simulating Chainlink aggregator upgrade)
+        cbFeed0.setCircuitBreakerBounds(200e8, 5_000e8);
+        cbFeed1.setCircuitBreakerBounds(50e8, 20_000e8);
+
+        // Refresh
+        registry.refreshCircuitBreakerBounds(key);
+
+        // Verify updated bounds
+        cfg = registry.getPositionConfig(key);
+        assertEq(cfg.feed0MinAnswer, 200e8);
+        assertEq(cfg.feed0MaxAnswer, 5_000e8);
+        assertEq(cfg.feed1MinAnswer, 50e8);
+        assertEq(cfg.feed1MaxAnswer, 20_000e8);
+    }
+
+    function test_refreshCircuitBreakerBounds_revertsForUnregistered() public {
+        vm.expectRevert(UniV3CLPRegistry.POSITION_NOT_REGISTERED.selector);
+        registry.refreshCircuitBreakerBounds(address(0xDEAD));
+    }
+
+    function test_refreshCircuitBreakerBounds_revertsForNonManager() public {
+        address stranger = address(0x1234);
+        vm.prank(stranger);
+        vm.expectRevert();
+        registry.refreshCircuitBreakerBounds(positionKey);
     }
 }

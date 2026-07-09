@@ -48,9 +48,11 @@ contract UniV3CLPOracleForkTest is Test {
     address constant ETH_WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599; // 8 dec, token0 (WBTC < WETH)
     address constant ETH_BTC_USD_FEED = 0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c; // 8 dec
 
-    // ── Full-range tick bounds ───────────────────────────────────────────
-    int24 constant FULL_TICK_LOWER = -887_200;
+    // ── Full-range tick bounds (must be aligned to each pool's tickSpacing) ──
+    int24 constant FULL_TICK_LOWER = -887_200; // divisible by 10 (USDC/WETH) and 100 (Base)
     int24 constant FULL_TICK_UPPER = 887_200;
+    int24 constant WBTC_WETH_TICK_LOWER = -887_160; // divisible by 60 (WBTC/WETH 0.3%)
+    int24 constant WBTC_WETH_TICK_UPPER = 887_160;
 
     uint256 constant ETH_MAX_STALENESS = 1 days; // generous for fork testing
 
@@ -144,8 +146,8 @@ contract UniV3CLPOracleForkTest is Test {
         positionKey = registry.registerPosition(
             ETH_WBTC_WETH_POOL,
             ETH_NFT_MANAGER,
-            FULL_TICK_LOWER,
-            FULL_TICK_UPPER,
+            WBTC_WETH_TICK_LOWER,
+            WBTC_WETH_TICK_UPPER,
             ETH_WBTC,
             ETH_WETH,
             ETH_BTC_USD_FEED,
@@ -189,7 +191,6 @@ contract UniV3CLPOracleForkTest is Test {
         assertEq(cfg.token1, ETH_WETH);
         assertEq(cfg.token0Scale, 1e6, "USDC = 6 decimals");
         assertEq(cfg.token1Scale, 1e18, "WETH = 18 decimals");
-        assertEq(cfg.token1Decimals, 18);
         assertEq(cfg.feed0Scale, 1e8, "Chainlink = 8 decimals");
         assertEq(cfg.feed1Scale, 1e8);
         assertTrue(cfg.registered);
@@ -206,7 +207,6 @@ contract UniV3CLPOracleForkTest is Test {
         assertEq(cfg.token1, ETH_WETH);
         assertEq(cfg.token0Scale, 1e8, "WBTC = 8 decimals");
         assertEq(cfg.token1Scale, 1e18, "WETH = 18 decimals");
-        assertEq(cfg.token1Decimals, 18);
     }
 
     function test_eth_registry_positionKey_deterministic() public {

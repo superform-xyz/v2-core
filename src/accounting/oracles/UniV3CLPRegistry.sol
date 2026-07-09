@@ -7,16 +7,9 @@ import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadat
 import { IAggregatorV3 } from "modulekit/integrations/interfaces/chainlink/IAggregatorV3.sol";
 import { TickMath } from "v4-core/libraries/TickMath.sol";
 
-/// @dev Minimal interface for Chainlink proxy to access underlying aggregator
-interface IChainlinkProxyRegistry {
-    function aggregator() external view returns (address);
-}
-
-/// @dev Minimal interface for Chainlink aggregator circuit breaker bounds
-interface IChainlinkAggregatorRegistry {
-    function minAnswer() external view returns (int192);
-    function maxAnswer() external view returns (int192);
-}
+// Superform vendor
+import { IUniswapV3CLPool } from "../../vendor/uniswap/v3/IUniswapV3CLPool.sol";
+import { IChainlinkProxy, IChainlinkAggregator } from "../../vendor/chainlink/IChainlinkProxyAggregator.sol";
 
 /// @title UniV3CLPRegistry
 /// @author Superform Labs
@@ -64,6 +57,12 @@ contract UniV3CLPRegistry is AccessControl {
     /// @notice Thrown when tickLower >= tickUpper (invalid range)
     error INVALID_TICK_RANGE();
 
+    /// @notice Thrown when tickLower or tickUpper is not a multiple of pool.tickSpacing()
+    error INVALID_TICK_ALIGNMENT();
+
+    /// @notice Thrown when the provided token0 or token1 does not match the pool's tokens
+    error TOKEN_MISMATCH();
+
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -88,7 +87,6 @@ contract UniV3CLPRegistry is AccessControl {
         address token1;
         uint256 token0Scale;        // precomputed: 10**token0.decimals()
         uint256 token1Scale;        // precomputed: 10**token1.decimals()
-        uint8 token1Decimals;       // precomputed: token1.decimals()
         address feed0;
         address feed1;
         uint256 feed0Scale;         // precomputed: 10**feed0.decimals()
@@ -119,6 +117,14 @@ contract UniV3CLPRegistry is AccessControl {
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Emitted when a new CLP position is registered in the registry
+    /// @param positionKey The derived pseudo-address key for this position
+    /// @param pool The UniV3-compatible pool address
+    /// @param nftManager The NonfungiblePositionManager for this pool's DEX
+    /// @param tickLower Lower tick of the strategy's range
+    /// @param tickUpper Upper tick of the strategy's range
+    /// @param token0 The address of token0
+    /// @param token1 The address of token1
     event PositionRegistered(
         address indexed positionKey,
         address indexed pool,
@@ -129,9 +135,22 @@ contract UniV3CLPRegistry is AccessControl {
         address token1
     );
 
+    /// @notice Emitted when a position deregistration is proposed, starting the timelock
+    /// @param positionKey The position key being proposed for deregistration
+    /// @param executeAt The earliest timestamp at which deregistration can execute
     event PositionDeregistrationProposed(address indexed positionKey, uint256 executeAt);
+
+    /// @notice Emitted when a pending position deregistration is cancelled
+    /// @param positionKey The position key whose deregistration was cancelled
     event PositionDeregistrationCancelled(address indexed positionKey);
+
+    /// @notice Emitted when a position is deregistered after the timelock elapses
+    /// @param positionKey The position key that was deregistered
     event PositionDeregistered(address indexed positionKey);
+
+    /// @notice Emitted when circuit breaker bounds are refreshed for a position
+    /// @param positionKey The position key whose bounds were refreshed
+    event CircuitBreakerBoundsRefreshed(address indexed positionKey);
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
@@ -184,6 +203,11 @@ contract UniV3CLPRegistry is AccessControl {
         ) revert ZERO_ADDRESS();
         if (maxStaleness == 0) revert INVALID_STALENESS();
         if (tickLower >= tickUpper) revert INVALID_TICK_RANGE();
+        if (token0 != IUniswapV3CLPool(pool).token0() || token1 != IUniswapV3CLPool(pool).token1()) {
+            revert TOKEN_MISMATCH();
+        }
+        int24 spacing = IUniswapV3CLPool(pool).tickSpacing();
+        if (tickLower % spacing != 0 || tickUpper % spacing != 0) revert INVALID_TICK_ALIGNMENT();
 
         positionKey = computePositionKey(pool, nftManager, tickLower, tickUpper);
         if (_positions[positionKey].registered) revert POSITION_ALREADY_REGISTERED();
@@ -217,10 +241,24 @@ contract UniV3CLPRegistry is AccessControl {
     }
 
     /// @notice Cancels a pending deregistration before it executes
+    /// @param positionKey The position key whose deregistration to cancel
     function cancelDeregisterPosition(address positionKey) external onlyRole(POSITION_MANAGER_ROLE) {
         if (pendingDeregistrations[positionKey] == 0) revert DEREGISTRATION_NOT_PENDING();
         delete pendingDeregistrations[positionKey];
         emit PositionDeregistrationCancelled(positionKey);
+    }
+
+    /// @notice Refreshes the cached circuit breaker bounds from the current Chainlink aggregator
+    /// @dev Circuit breaker bounds are snapshotted at registration time. If Chainlink upgrades the
+    ///      aggregator behind the proxy, the cached bounds become stale. Call this function to
+    ///      re-read the current bounds from the proxy.
+    /// @param positionKey The registered position key to refresh
+    function refreshCircuitBreakerBounds(address positionKey) external onlyRole(POSITION_MANAGER_ROLE) {
+        PositionConfig storage cfg = _positions[positionKey];
+        if (!cfg.registered) revert POSITION_NOT_REGISTERED();
+        (cfg.feed0MinAnswer, cfg.feed0MaxAnswer) = _readCircuitBreakerBounds(cfg.feed0);
+        (cfg.feed1MinAnswer, cfg.feed1MaxAnswer) = _readCircuitBreakerBounds(cfg.feed1);
+        emit CircuitBreakerBoundsRefreshed(positionKey);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -308,7 +346,6 @@ contract UniV3CLPRegistry is AccessControl {
         // Token decimal scales
         cfg.token0Scale = 10 ** IERC20Metadata(cfg.token0).decimals();
         cfg.token1Scale = 10 ** IERC20Metadata(cfg.token1).decimals();
-        cfg.token1Decimals = IERC20Metadata(cfg.token1).decimals();
 
         // Feed decimal scales
         cfg.feed0Scale = 10 ** IAggregatorV3(cfg.feed0).decimals();
@@ -329,11 +366,11 @@ contract UniV3CLPRegistry is AccessControl {
     /// @dev Uses try/catch so that feeds without a proxy interface gracefully return (0, 0),
     ///      disabling the circuit breaker check for that feed
     function _readCircuitBreakerBounds(address feed) private view returns (int192 minAns, int192 maxAns) {
-        try IChainlinkProxyRegistry(feed).aggregator() returns (address agg) {
-            try IChainlinkAggregatorRegistry(agg).minAnswer() returns (int192 min) {
+        try IChainlinkProxy(feed).aggregator() returns (address agg) {
+            try IChainlinkAggregator(agg).minAnswer() returns (int192 min) {
                 minAns = min;
             } catch { }
-            try IChainlinkAggregatorRegistry(agg).maxAnswer() returns (int192 max) {
+            try IChainlinkAggregator(agg).maxAnswer() returns (int192 max) {
                 maxAns = max;
             } catch { }
         } catch { }

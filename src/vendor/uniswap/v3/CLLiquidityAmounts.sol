@@ -9,11 +9,15 @@ import { FullMath } from "v4-core/libraries/FullMath.sol";
 /// @dev Vendored from Uniswap V3 Periphery / Uniswap V4 core test utils.
 ///      Original: https://github.com/Uniswap/v3-periphery/blob/main/contracts/libraries/LiquidityAmounts.sol
 library CLLiquidityAmounts {
+    /// @notice Thrown when a uint256 value cannot be safely downcast to uint128
+    error LIQUIDITY_OVERFLOW();
+
     uint256 internal constant Q96 = 0x1000000000000000000000000;
 
     /// @notice Downcasts uint256 to uint128 (reverts on overflow)
     function toUint128(uint256 x) private pure returns (uint128 y) {
-        require((y = uint128(x)) == x, "liquidity overflow");
+        y = uint128(x);
+        if (uint256(y) != x) revert LIQUIDITY_OVERFLOW();
     }
 
     /// @notice Computes the amount of liquidity for a given amount of token0 and price range

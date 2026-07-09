@@ -243,40 +243,7 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        UniV3CLPRegistry.PositionConfig memory cfg = REGISTRY.getPositionConfig(yieldSourceAddress);
-
-        INonfungiblePositionManager nftManager = INonfungiblePositionManager(cfg.nftManager);
-        uint256 nftBalance = nftManager.balanceOf(ownerOfShares);
-        if (nftBalance == 0) return 0;
-
-        uint256 totalLiquidity;
-        address t0 = cfg.token0;
-        address t1 = cfg.token1;
-        int24 tL = cfg.tickLower;
-        int24 tU = cfg.tickUpper;
-
-        for (uint256 i; i < nftBalance; ++i) {
-            uint256 tokenId = nftManager.tokenOfOwnerByIndex(ownerOfShares, i);
-            (
-                ,
-                ,
-                address posToken0,
-                address posToken1,
-                ,
-                int24 posTickLower,
-                int24 posTickUpper,
-                uint128 posLiquidity,
-                ,
-                ,
-                ,
-            ) = nftManager.positions(tokenId);
-
-            if (posToken0 == t0 && posToken1 == t1 && posTickLower == tL && posTickUpper == tU) {
-                totalLiquidity += posLiquidity;
-            }
-        }
-
-        return totalLiquidity;
+        return _getBalanceOfOwner(yieldSourceAddress, ownerOfShares);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -291,7 +258,7 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        uint256 shares = this.getBalanceOfOwner(yieldSourceAddress, ownerOfShares);
+        uint256 shares = _getBalanceOfOwner(yieldSourceAddress, ownerOfShares);
         if (shares == 0) return 0;
         return getAssetOutput(yieldSourceAddress, address(0), shares);
     }
@@ -302,6 +269,12 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
     ///      Uses pool.liquidity() which is the active liquidity at the current tick.
     ///      This includes all in-range LPs, not just a single strategy's positions.
     ///      For per-strategy TVL, use getTVLByOwnerOfShares() instead.
+    ///
+    ///      WARNING: This function reads slot0() for the current tick and pool.liquidity() for
+    ///      active liquidity. Both values are manipulable via flash loans or large swaps.
+    ///      Do NOT use this function for on-chain accounting decisions, collateral valuation,
+    ///      or any security-critical path. For manipulation-resistant per-owner TVL,
+    ///      use getTVLByOwnerOfShares() which relies on Chainlink-derived pricing only.
     /// @param yieldSourceAddress positionKey from UniV3CLPRegistry.registerPosition()
     function getTVL(address yieldSourceAddress) public view override returns (uint256) {
         UniV3CLPRegistry.PositionConfig memory cfg = REGISTRY.getPositionConfig(yieldSourceAddress);
@@ -321,6 +294,9 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Fetches and validates both Chainlink prices from the registry config
+    /// @param cfg The position configuration containing feed addresses, circuit breaker bounds, and staleness
+    /// @return price0 The validated Chainlink price for token0/USD
+    /// @return price1 The validated Chainlink price for token1/USD
     function _getPrices(UniV3CLPRegistry.PositionConfig memory cfg)
         internal
         view
@@ -335,6 +311,11 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @notice Fetches and validates a single Chainlink price feed answer
+    /// @param feed Chainlink aggregator interface
+    /// @param minAnswer Circuit breaker lower bound (0 = disabled)
+    /// @param maxAnswer Circuit breaker upper bound (0 = disabled)
+    /// @param maxStaleness Maximum seconds since last update before reverting
+    /// @return The validated price as a positive uint256
     function _getChainlinkPrice(
         IAggregatorV3 feed,
         int192 minAnswer,
@@ -345,9 +326,8 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
         view
         returns (uint256)
     {
-        (uint80 roundId, int256 answer,, uint256 updatedAt, uint80 answeredInRound) = feed.latestRoundData();
+        (, int256 answer,, uint256 updatedAt,) = feed.latestRoundData();
         if (answer <= 0) revert INVALID_PRICE();
-        if (answeredInRound < roundId) revert STALE_PRICE();
         if (block.timestamp - updatedAt > maxStaleness) revert STALE_PRICE();
         if (minAnswer > 0 && answer <= int256(minAnswer)) revert INVALID_PRICE();
         if (maxAnswer > 0 && answer >= int256(maxAnswer)) revert INVALID_PRICE();
@@ -355,10 +335,64 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @notice Checks L2 sequencer liveness; no-op when sequencerFeed is address(0)
+    /// @param sequencerFeed Address of the L2 sequencer uptime feed (address(0) to skip)
+    /// @param gracePeriod Seconds to wait after sequencer restart before accepting prices
     function _checkSequencer(address sequencerFeed, uint256 gracePeriod) internal view {
         if (sequencerFeed == address(0)) return;
         (, int256 answer,, uint256 startedAt,) = IAggregatorV3(sequencerFeed).latestRoundData();
         if (answer != 0) revert SEQUENCER_DOWN();
-        if (block.timestamp - startedAt <= gracePeriod) revert GRACE_PERIOD_NOT_OVER();
+        if (block.timestamp - startedAt < gracePeriod) revert GRACE_PERIOD_NOT_OVER();
+    }
+
+    /// @notice Returns the total liquidity (in share units) held by an owner across all matching positions
+    /// @dev Iterates over all NFT positions owned by ownerOfShares.
+    ///      Matches positions where (token0, token1, tickLower, tickUpper) equals the registry config.
+    ///      O(N) in number of positions held by ownerOfShares — acceptable for view-only accounting.
+    /// @param yieldSourceAddress positionKey from UniV3CLPRegistry.registerPosition()
+    /// @param ownerOfShares Address whose NFT positions to scan
+    /// @return totalLiquidity Sum of matching position liquidity
+    function _getBalanceOfOwner(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
+        internal
+        view
+        returns (uint256 totalLiquidity)
+    {
+        UniV3CLPRegistry.PositionConfig memory cfg = REGISTRY.getPositionConfig(yieldSourceAddress);
+
+        INonfungiblePositionManager nftManager = INonfungiblePositionManager(cfg.nftManager);
+        uint256 nftBalance = nftManager.balanceOf(ownerOfShares);
+        if (nftBalance == 0) return 0;
+
+        address t0 = cfg.token0;
+        address t1 = cfg.token1;
+        int24 tL = cfg.tickLower;
+        int24 tU = cfg.tickUpper;
+
+        for (uint256 i; i < nftBalance;) {
+            uint256 tokenId = nftManager.tokenOfOwnerByIndex(ownerOfShares, i);
+            (
+                ,
+                ,
+                address posToken0,
+                address posToken1,
+                ,
+                int24 posTickLower,
+                int24 posTickUpper,
+                uint128 posLiquidity,
+                ,
+                ,
+                ,
+            ) = nftManager.positions(tokenId);
+
+            if (posToken0 == t0 && posToken1 == t1 && posTickLower == tL && posTickUpper == tU) {
+                totalLiquidity += posLiquidity;
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
     }
 }
