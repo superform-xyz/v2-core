@@ -21,47 +21,21 @@ CHAIN_ID=14
 MODE="${1:-simulate}"
 ACCOUNT="${2:-v2-supervaults}"
 
-# New hooks deployed on Flare in this branch (vs dev)
+# New hooks deployed on Flare in PR #943
 declare -A HOOKS
-HOOKS["ApproveAndDeposit4626VaultHook"]="0xba687c9D5113a3B2692fd87b0F389dD5fF402808"
-HOOKS["ApproveAndRequestDeposit7540VaultHook"]="0x3D40479c9c9B9f12FC3E08625E13A72AFe27c435"
-HOOKS["ApproveAndSwapOpenOceanHook"]="0x88832253c5BFBD07d37A02E6EDFaa28F6e280227"
-HOOKS["CancelDepositRequestWithId7540Hook"]="0x05B79c1CCC26019a8d93579818cb6aA586b81AE9"
-HOOKS["CancelRedeemRequestWithId7540Hook"]="0x4929d62Dd0c1f418Ff31f4f949571A2820290500"
-HOOKS["ClaimCancelDepositRequestWithId7540Hook"]="0x3f96d92Af8b6a8632419DC9a9D7A794FBb3EF38d"
-HOOKS["ClaimCancelRedeemRequestWithId7540Hook"]="0x436B54df18a0545D0F09aDcb79d795CD65A5de4f"
-HOOKS["ClaimRFLRV3Hook"]="0x04F83BF33a71b44f916B5529828f7C22890F9d00"
-HOOKS["Deposit4626VaultHook"]="0x71761d36cF081A3762E5347b4e3635CeCAd5156b"
-HOOKS["Deposit7540VaultHook"]="0x70b604978aB85aF6f58Df2F4e7313dFd40525646"
-HOOKS["Redeem4626VaultHook"]="0x95C61fE513885E23Bd7DA1f27B1ad9B16AE29f81"
-HOOKS["RedeemWithId7540VaultHook"]="0x51580e817988B4b56d839827c78A8F39D38036aA"
-HOOKS["RequestDeposit7540VaultHook"]="0x6B0Fa663F1276b04E12C463B3002c58cFbD59CB3"
-HOOKS["RequestRedeem7540VaultHook"]="0x343Cd015339Be39d62d220313654600BbC24cd08"
-HOOKS["SetOperator7540Hook"]="0x3731e9Ca56837a5Fb38753Ad1204Bc578566De4a"
-HOOKS["StargateAdapterV2"]="0x70DA113dF37e4ED9A414af8Cb51b6C559fac775b"
-HOOKS["SwapOpenOceanHook"]="0xd4Ca1E1afCD79a932D1933dD161f5211790B42d7"
-HOOKS["WithdrawWithId7540VaultHook"]="0xE03A772E17a8383103Ecd743D1167ACA48f50Bd2"
+HOOKS["ApproveAndSwapAlgebraIntegralHook"]="0x87E8958d0a2Bd030060fa63852770d5bdA303153"
+HOOKS["ClaimRFLRV3Hook"]="0x2FAa029F0959D53A4E3B73c41fE2AC524432816d"
+HOOKS["FetchNativeFeeHook"]="0xF294E9215B23824bd6D0CBa219f00Cc63427787c"
+HOOKS["SwapAlgebraIntegralHook"]="0xF7291FD5Ef4c59bc81314BCf2A1546008edF8F41"
+HOOKS["WithdrawRFLRHookV2"]="0x4667a6F5E0285dc1aCA46C6A4f4Bb5DACe7bb880"
 
 # Preserve insertion order for display
 HOOK_NAMES=(
-    "ApproveAndDeposit4626VaultHook"
-    "ApproveAndRequestDeposit7540VaultHook"
-    "ApproveAndSwapOpenOceanHook"
-    "CancelDepositRequestWithId7540Hook"
-    "CancelRedeemRequestWithId7540Hook"
-    "ClaimCancelDepositRequestWithId7540Hook"
-    "ClaimCancelRedeemRequestWithId7540Hook"
+    "ApproveAndSwapAlgebraIntegralHook"
     "ClaimRFLRV3Hook"
-    "Deposit4626VaultHook"
-    "Deposit7540VaultHook"
-    "Redeem4626VaultHook"
-    "RedeemWithId7540VaultHook"
-    "RequestDeposit7540VaultHook"
-    "RequestRedeem7540VaultHook"
-    "SetOperator7540Hook"
-    "StargateAdapterV2"
-    "SwapOpenOceanHook"
-    "WithdrawWithId7540VaultHook"
+    "FetchNativeFeeHook"
+    "SwapAlgebraIntegralHook"
+    "WithdrawRFLRHookV2"
 )
 
 # ── Validate mode ──────────────────────────────────────────────────────────────
