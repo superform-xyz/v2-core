@@ -21,51 +21,13 @@ CHAIN_ID=999
 MODE="${1:-simulate}"
 ACCOUNT="${2:-v2-supervaults}"
 
-# New hooks deployed on HyperEVM in this branch (vs dev)
+# New hooks deployed on HyperEVM in PR #943
 declare -A HOOKS
-HOOKS["ApproveAndDeposit4626VaultHook"]="0xba687c9D5113a3B2692fd87b0F389dD5fF402808"
-HOOKS["ApproveAndRequestDeposit7540VaultHook"]="0x3D40479c9c9B9f12FC3E08625E13A72AFe27c435"
-HOOKS["ApproveAndSwapKyberSwapHook"]="0xcF5419270C9415E44c97E595c505708cfA334C30"
-HOOKS["ApproveAndSwapUniswapV3Hook"]="0xbC4E2d35F616592FEF5B91CD87E617505855eceB"
-HOOKS["CancelDepositRequestWithId7540Hook"]="0x05B79c1CCC26019a8d93579818cb6aA586b81AE9"
-HOOKS["CancelRedeemRequestWithId7540Hook"]="0x4929d62Dd0c1f418Ff31f4f949571A2820290500"
-HOOKS["ClaimCancelDepositRequestWithId7540Hook"]="0x3f96d92Af8b6a8632419DC9a9D7A794FBb3EF38d"
-HOOKS["ClaimCancelRedeemRequestWithId7540Hook"]="0x436B54df18a0545D0F09aDcb79d795CD65A5de4f"
-HOOKS["Deposit4626VaultHook"]="0x71761d36cF081A3762E5347b4e3635CeCAd5156b"
-HOOKS["Deposit7540VaultHook"]="0x70b604978aB85aF6f58Df2F4e7313dFd40525646"
-HOOKS["PendleRouterRedeemHook"]="0x8fa3AF97c529FFD964b691b7EF9F8A80158339B4"
-HOOKS["PendleUnifiedHook"]="0xbaa1A6e68766158C3849d136DC013aB11929B691"
-HOOKS["Redeem4626VaultHook"]="0x95C61fE513885E23Bd7DA1f27B1ad9B16AE29f81"
-HOOKS["RedeemWithId7540VaultHook"]="0x51580e817988B4b56d839827c78A8F39D38036aA"
-HOOKS["RequestDeposit7540VaultHook"]="0x6B0Fa663F1276b04E12C463B3002c58cFbD59CB3"
-HOOKS["RequestRedeem7540VaultHook"]="0x343Cd015339Be39d62d220313654600BbC24cd08"
-HOOKS["SetOperator7540Hook"]="0x3731e9Ca56837a5Fb38753Ad1204Bc578566De4a"
-HOOKS["SwapKyberSwapHook"]="0x05c49e05bb8575afdf1142cC95dA6747b069174A"
-HOOKS["SwapUniswapV3Hook"]="0x650df1F828203224A262f047AcA2D03ADc59fD08"
-HOOKS["WithdrawWithId7540VaultHook"]="0xE03A772E17a8383103Ecd743D1167ACA48f50Bd2"
+HOOKS["FetchNativeFeeHook"]="0xF294E9215B23824bd6D0CBa219f00Cc63427787c"
 
 # Preserve insertion order for display
 HOOK_NAMES=(
-    "ApproveAndDeposit4626VaultHook"
-    "ApproveAndRequestDeposit7540VaultHook"
-    "ApproveAndSwapKyberSwapHook"
-    "ApproveAndSwapUniswapV3Hook"
-    "CancelDepositRequestWithId7540Hook"
-    "CancelRedeemRequestWithId7540Hook"
-    "ClaimCancelDepositRequestWithId7540Hook"
-    "ClaimCancelRedeemRequestWithId7540Hook"
-    "Deposit4626VaultHook"
-    "Deposit7540VaultHook"
-    "PendleRouterRedeemHook"
-    "PendleUnifiedHook"
-    "Redeem4626VaultHook"
-    "RedeemWithId7540VaultHook"
-    "RequestDeposit7540VaultHook"
-    "RequestRedeem7540VaultHook"
-    "SetOperator7540Hook"
-    "SwapKyberSwapHook"
-    "SwapUniswapV3Hook"
-    "WithdrawWithId7540VaultHook"
+    "FetchNativeFeeHook"
 )
 
 # ── Validate mode ──────────────────────────────────────────────────────────────
