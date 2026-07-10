@@ -507,6 +507,14 @@ generate_constructor_args() {
         "PendlePTAmortizedOracle"|"PendlePTAmortizedOracleV2")
             echo "$(cast abi-encode "constructor(address,address)" "$deployer" "$super_ledger_config")"
             ;;
+        "UniV3CLPRegistry")
+            echo "$(cast abi-encode "constructor(address)" "$deployer")"
+            ;;
+        "UniV3CLPYieldSourceOracle")
+            local univ3_registry_addr
+            univ3_registry_addr=$(get_contract_address "$chain_id" "UniV3CLPRegistry")
+            echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$univ3_registry_addr")"
+            ;;
         # All other contracts (no constructor args)
         *)
             echo "$(cast abi-encode "constructor()")"
@@ -692,6 +700,8 @@ get_contract_source() {
         "YoYieldSourceOracle") echo "src/accounting/oracles/YoYieldSourceOracle.sol" ;;
         "PendlePTAmortizedOracle") echo "src/accounting/oracles/PendlePTAmortizedOracle.sol" ;;
         "PendlePTAmortizedOracleV2") echo "src/accounting/oracles/PendlePTAmortizedOracleV2.sol" ;;
+        "UniV3CLPRegistry") echo "src/accounting/oracles/UniV3CLPRegistry.sol" ;;
+        "UniV3CLPYieldSourceOracle") echo "src/accounting/oracles/UniV3CLPYieldSourceOracle.sol" ;;
 
         # Nexus contracts (external library - skip verification from this repo)
         "Nexus"|"NexusAccountFactory"|"NexusBootstrap"|"NexusProxy")
