@@ -29,7 +29,7 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
 /// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
-/// @notice         uint256 minOut = BytesLib.toUint256(data, 52);
+/// @notice         uint256 minOut_optional = BytesLib.toUint256(data, 52);
 contract WithdrawRFLRHookV2 is BaseHook, ISuperHookInflowOutflow {
     /*//////////////////////////////////////////////////////////////
                               ERRORS
