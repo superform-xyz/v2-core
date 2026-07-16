@@ -104,6 +104,13 @@ abstract contract Constants {
     // https://portal.1inch.dev/documentation/contracts/aggregation-protocol/aggregation-introduction
     address internal constant AGGREGATION_ROUTER = 0x111111125421cA6dc452d289314280a0f8842A65;
 
+    // Aerodrome Universal Router on Base, pinned to the audited runtime used by the live application
+    address internal constant AERODROME_UNIVERSAL_ROUTER_BASE = 0xcAF22ce31298CF2BF1D152862F80216478ad7c67;
+    bytes32 internal constant AERODROME_UNIVERSAL_ROUTER_BASE_RUNTIME_HASH =
+        0xa11d1a13950f5b70dd0d7822e4e3b575778d8614e897c7810d7e6e9f310c017d;
+    address internal constant AERODROME_UNIVERSAL_ROUTER_BASE_WETH = 0x4200000000000000000000000000000000000006;
+    address internal constant AERODROME_UNIVERSAL_ROUTER_BASE_PERMIT2 = 0x494bbD8A3302AcA833D307D11838f18DbAdA9C25;
+
     // Odos Router addresses per chain
     address internal constant ODOS_ROUTER_MAINNET = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
     address internal constant ODOS_ROUTER_BASE = 0x19cEeAd7105607Cd444F5ad10dd51356436095a1;
@@ -222,6 +229,9 @@ abstract contract Constants {
     string internal constant APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY = "ApproveAndSwapKyberSwapHook";
     string internal constant SWAP_OPENOCEAN_HOOK_KEY = "SwapOpenOceanHook";
     string internal constant APPROVE_AND_SWAP_OPENOCEAN_HOOK_KEY = "ApproveAndSwapOpenOceanHook";
+    string internal constant SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_KEY = "SwapAerodromeUniversalRouterHook";
+    string internal constant APPROVE_AND_SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_KEY =
+        "ApproveAndSwapAerodromeUniversalRouterHook";
     string internal constant SWAP_UNISWAPV2_HOOK_KEY = "SwapUniswapV2Hook";
     string internal constant APPROVE_AND_SWAP_UNISWAPV2_HOOK_KEY = "ApproveAndSwapUniswapV2Hook";
     string internal constant APPROVE_AND_FLUID_STAKE_HOOK_KEY = "ApproveAndFluidStakeHook";

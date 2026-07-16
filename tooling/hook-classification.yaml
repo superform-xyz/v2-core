@@ -1,5 +1,5 @@
 # Hook Classification Manifest
-# Canonical intent x stage classification for all 120 hooks in v2-core
+# Canonical intent x stage classification for all 125 hooks in v2-core
 # CI-linted against on-chain hookType via scripts/lint_hook_manifest.py
 #
 # Design invariants:
@@ -234,7 +234,7 @@ hooks:
     legSizing: []  # sizeless — vested amount from contract state
 
   # ============================================================
-  # SWAP (29 hooks) — all instant stage
+  # SWAP (31 hooks) — all instant stage
   # ============================================================
 
   # Uniswap V3
@@ -326,6 +326,15 @@ hooks:
     legSizing: [sized]
 
   ApproveAndSwapOpenOceanHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  # Aerodrome Universal Router
+  SwapAerodromeUniversalRouterHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndSwapAerodromeUniversalRouterHook:
     actionTypes: [{intent: swap, stage: instant}]
     legSizing: [sized]
 

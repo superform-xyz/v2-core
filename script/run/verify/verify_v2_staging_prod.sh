@@ -118,6 +118,7 @@ generate_constructor_args() {
     local aggregation_router=""
     local odos_router=""
     local odos_router_v3="0x0D05a7D3448512B78fa8A9e46c4872C88C4a0D05"  # Same CREATE2 on all EVM chains
+    local aerodrome_universal_router=""
     local openocean_router=""
     local openocean_referrer=""
     local across_spoke_pool_v3=""
@@ -167,6 +168,7 @@ generate_constructor_args() {
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
             aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"
             odos_router="0x19cEeAd7105607Cd444F5ad10dd51356436095a1"
+            aerodrome_universal_router="0xcAF22ce31298CF2BF1D152862F80216478ad7c67"
             across_spoke_pool_v3="0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
@@ -317,6 +319,9 @@ generate_constructor_args() {
             ;;
         "SwapOdosV3Hook"|"ApproveAndSwapOdosV3Hook")
             echo "$(cast abi-encode "constructor(address)" "$odos_router_v3")"
+            ;;
+        "SwapAerodromeUniversalRouterHook"|"ApproveAndSwapAerodromeUniversalRouterHook")
+            echo "$(cast abi-encode "constructor(address)" "$aerodrome_universal_router")"
             ;;
         "SwapOpenOceanHook"|"ApproveAndSwapOpenOceanHook")
             echo "$(cast abi-encode "constructor(address,address,address)" "$openocean_router" "$openocean_referrer" "$native_token")"
@@ -568,6 +573,8 @@ get_contract_source() {
         "ApproveAndSwapOdosV2Hook") echo "src/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol" ;;
         "SwapOdosV3Hook") echo "src/hooks/swappers/odos/SwapOdosV3Hook.sol" ;;
         "ApproveAndSwapOdosV3Hook") echo "src/hooks/swappers/odos/ApproveAndSwapOdosV3Hook.sol" ;;
+        "SwapAerodromeUniversalRouterHook") echo "src/hooks/swappers/aerodrome/SwapAerodromeUniversalRouterHook.sol" ;;
+        "ApproveAndSwapAerodromeUniversalRouterHook") echo "src/hooks/swappers/aerodrome/ApproveAndSwapAerodromeUniversalRouterHook.sol" ;;
         "SwapOpenOceanHook") echo "src/hooks/swappers/openocean/SwapOpenOceanHook.sol" ;;
         "ApproveAndSwapOpenOceanHook") echo "src/hooks/swappers/openocean/ApproveAndSwapOpenOceanHook.sol" ;;
         "SwapUniswapV3Hook") echo "src/hooks/swappers/uniswap-v3/SwapUniswapV3Hook.sol" ;;

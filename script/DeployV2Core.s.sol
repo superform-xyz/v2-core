@@ -111,6 +111,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address claimFailedTransferHook;
         address cctpSendHook;
         address approveAndCCTPSendHook;
+        address swapAerodromeUniversalRouterHook;
+        address approveAndSwapAerodromeUniversalRouterHook;
     }
 
     struct HookDeployment {
@@ -255,6 +257,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool swap1InchHook;
         bool swapOdosHooks;
         bool swapOdosV3Hooks;
+        bool swapAerodromeUniversalRouterHooks;
         bool swapUniswapV4Hook;
         bool swapUniswapV3Hooks;
         bool swapUniswapV3Router02Hooks;
@@ -303,8 +306,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         returns (ContractAvailability memory availability)
     {
         // Initialize all skipped contracts array
-        // Max possible skips: 3 adapters + 31 hooks = 34 skipped contracts; keep a little headroom.
-        string[] memory potentialSkips = new string[](37);
+        // Includes adapter skips, router-gated hooks, and optional Pendle oracle hooks.
+        string[] memory potentialSkips = new string[](42);
         uint256 skipCount = 0;
         // Adapter contracts (5 contracts - conditionally deployed)
         string[5] memory adapterContracts =
@@ -347,7 +350,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-        string[72] memory baseHooks = [
+        string[80] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -370,9 +373,17 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "CancelRedeemRequest7540Hook",
             "ClaimCancelDepositRequest7540Hook",
             "ClaimCancelRedeemRequest7540Hook",
+            "CancelDepositRequestWithId7540Hook",
+            "CancelRedeemRequestWithId7540Hook",
+            "ClaimCancelDepositRequestWithId7540Hook",
+            "ClaimCancelRedeemRequestWithId7540Hook",
+            "RedeemWithId7540VaultHook",
+            "WithdrawWithId7540VaultHook",
             "Swap1InchHook",
             "SwapOdosV2Hook",
             "ApproveAndSwapOdosV2Hook",
+            "SwapAerodromeUniversalRouterHook",
+            "ApproveAndSwapAerodromeUniversalRouterHook",
             "PendleRouterSwapHook",
             "PendleRouterRedeemHook",
             "PendleUnifiedHook",
@@ -455,6 +466,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             expectedHooks -= 2; // SwapOdosV3Hook + ApproveAndSwapOdosV3Hook
             potentialSkips[skipCount++] = "SwapOdosV3Hook";
             potentialSkips[skipCount++] = "ApproveAndSwapOdosV3Hook";
+        }
+
+        if (configuration.aerodromeUniversalRouters[chainId] != address(0)) {
+            availability.swapAerodromeUniversalRouterHooks = true;
+        } else {
+            expectedHooks -= 2;
+            potentialSkips[skipCount++] = "SwapAerodromeUniversalRouterHook";
+            potentialSkips[skipCount++] = "ApproveAndSwapAerodromeUniversalRouterHook";
         }
 
         if (configuration.debridgeSrcDln[chainId] != address(0)) {
@@ -583,7 +602,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         // Check bytecode existence and collect missing contracts
-        string[] memory potentialMissing = new string[](90); // Conservative size for all possible contracts
+        string[] memory potentialMissing = new string[](110);
         uint256 missingCount = 0;
 
         // Pure core contracts (9 contracts - always deployed)
@@ -608,7 +627,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Check adapter contracts for bytecode
         for (uint256 i = 0; i < adapterContracts.length; i++) {
             if (!__checkBytecodeExists(adapterContracts[i], env)) {
-                potentialMissing[missingCount++] = adapterContracts[i];
+                bool alreadySkipped = false;
+                for (uint256 j = 0; j < skipCount; j++) {
+                    if (Strings.equal(adapterContracts[i], potentialSkips[j])) {
+                        alreadySkipped = true;
+                        break;
+                    }
+                }
+                if (!alreadySkipped) {
+                    potentialMissing[missingCount++] = adapterContracts[i];
+                }
             }
         }
 
@@ -854,6 +882,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
+        _validateAerodromeUniversalRouter(chainId, availability);
 
         // Log availability analysis
         console2.log("=== Contract Availability Analysis ===");
@@ -904,6 +933,43 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log("");
         console2.log("=====> On this chain we have", deployed, "contracts already deployed out of", total);
         console2.log("======================================");
+    }
+
+    function _validateAerodromeUniversalRouter(
+        uint64 chainId,
+        ContractAvailability memory availability
+    )
+        internal
+        view
+    {
+        if (!availability.swapAerodromeUniversalRouterHooks) {
+            console2.log(" SKIPPED Aerodrome Universal Router validation: Not available on chain", chainId);
+            return;
+        }
+
+        address aerodromeRouter = configuration.aerodromeUniversalRouters[chainId];
+        require(chainId == BASE_CHAIN_ID, "AERODROME_ROUTER_UNSUPPORTED_CHAIN");
+        require(aerodromeRouter == AERODROME_UNIVERSAL_ROUTER_BASE, "AERODROME_ROUTER_ADDRESS_MISMATCH");
+        require(aerodromeRouter.code.length > 0, "AERODROME_ROUTER_NOT_DEPLOYED");
+        require(
+            aerodromeRouter.codehash == AERODROME_UNIVERSAL_ROUTER_BASE_RUNTIME_HASH,
+            "AERODROME_ROUTER_RUNTIME_HASH_MISMATCH"
+        );
+
+        (bool wethSuccess, bytes memory wethData) = aerodromeRouter.staticcall(abi.encodeWithSignature("WETH9()"));
+        require(
+            wethSuccess && wethData.length == 32
+                && abi.decode(wethData, (address)) == AERODROME_UNIVERSAL_ROUTER_BASE_WETH,
+            "AERODROME_ROUTER_WETH_MISMATCH"
+        );
+        (bool permit2Success, bytes memory permit2Data) =
+            aerodromeRouter.staticcall(abi.encodeWithSignature("PERMIT2()"));
+        require(
+            permit2Success && permit2Data.length == 32
+                && abi.decode(permit2Data, (address)) == AERODROME_UNIVERSAL_ROUTER_BASE_PERMIT2,
+            "AERODROME_ROUTER_PERMIT2_MISMATCH"
+        );
+        console2.log(" Aerodrome Universal Router:", aerodromeRouter);
     }
 
     /// @notice Check core contract addresses
@@ -1258,6 +1324,23 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(
                 "SKIPPED SwapOdosV3Hook & ApproveAndSwapOdosV3Hook: ODOS V3 Router not configured for chain", chainId
             );
+        }
+
+        if (availability.swapAerodromeUniversalRouterHooks) {
+            __checkContract(
+                SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_KEY,
+                __getSalt(SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_KEY),
+                abi.encode(configuration.aerodromeUniversalRouters[chainId]),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_KEY,
+                __getSalt(APPROVE_AND_SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_KEY),
+                abi.encode(configuration.aerodromeUniversalRouters[chainId]),
+                env
+            );
+        } else {
+            console2.log("SKIPPED Aerodrome Universal Router hooks: Router not configured for chain", chainId);
         }
 
         if (availability.swapKyberSwapHooks) {
@@ -1885,6 +1968,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
+        _validateAerodromeUniversalRouter(chainId, availability);
 
         // Pre-populate core contracts with existing deployed addresses
         _populateCoreContractsFromStatus(chainId, coreContracts);
@@ -2738,7 +2822,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 78;
+        uint256 len = 80;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -3296,6 +3380,33 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[77] = HookDeployment("", "", ""); // Empty deployment
         }
 
+        // Aerodrome Universal Router hooks - Base only
+        if (availability.swapAerodromeUniversalRouterHooks) {
+            address aerodromeRouter = configuration.aerodromeUniversalRouters[chainId];
+            require(aerodromeRouter != address(0), "AERODROME_HOOK_ROUTER_PARAM_ZERO");
+            require(aerodromeRouter.code.length > 0, "AERODROME_HOOK_ROUTER_NOT_DEPLOYED");
+            require(
+                aerodromeRouter.codehash == AERODROME_UNIVERSAL_ROUTER_BASE_RUNTIME_HASH,
+                "AERODROME_HOOK_ROUTER_RUNTIME_HASH_MISMATCH"
+            );
+            hooks[78] = _createSafeHookDeploymentWithArgs(
+                SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_KEY,
+                "SwapAerodromeUniversalRouterHook",
+                env,
+                abi.encode(aerodromeRouter)
+            );
+            hooks[79] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_KEY,
+                "ApproveAndSwapAerodromeUniversalRouterHook",
+                env,
+                abi.encode(aerodromeRouter)
+            );
+        } else {
+            console2.log(" SKIPPED Aerodrome Universal Router hooks deployment: Not available on chain", chainId);
+            hooks[78] = HookDeployment("", "", "");
+            hooks[79] = HookDeployment("", "", "");
+        }
+
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying hooks with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
@@ -3515,6 +3626,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         hookAddresses.approveAndCCTPSendHook =
             Strings.equal(hooks[65].name, APPROVE_AND_CCTP_SEND_HOOK_KEY) ? addresses[65] : address(0);
 
+        // Aerodrome Universal Router hooks
+        hookAddresses.swapAerodromeUniversalRouterHook =
+            Strings.equal(hooks[78].name, SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_KEY) ? addresses[78] : address(0);
+        hookAddresses.approveAndSwapAerodromeUniversalRouterHook = Strings.equal(
+                hooks[79].name, APPROVE_AND_SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_KEY
+            )
+            ? addresses[79]
+            : address(0);
+
         // ===== FINAL VALIDATION OF ALL CRITICAL HOOKS =====
         require(hookAddresses.approveErc20Hook != address(0), "APPROVE_ERC20_HOOK_NOT_ASSIGNED");
         require(hookAddresses.transferErc20Hook != address(0), "TRANSFER_ERC20_HOOK_NOT_ASSIGNED");
@@ -3565,6 +3685,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         if (availability.swapOdosV3Hooks) {
             require(hookAddresses.swapOdosV3Hook != address(0), "SWAP_ODOSV3_HOOK_NOT_ASSIGNED");
             require(hookAddresses.approveAndSwapOdosV3Hook != address(0), "APPROVE_AND_SWAP_ODOSV3_HOOK_NOT_ASSIGNED");
+        }
+        if (availability.swapAerodromeUniversalRouterHooks) {
+            require(
+                hookAddresses.swapAerodromeUniversalRouterHook != address(0),
+                "SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_NOT_ASSIGNED"
+            );
+            require(
+                hookAddresses.approveAndSwapAerodromeUniversalRouterHook != address(0),
+                "APPROVE_AND_SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_NOT_ASSIGNED"
+            );
         }
         if (availability.swapOpenOceanHooks) {
             require(hookAddresses.swapOpenOceanHook != address(0), "SWAP_OPENOCEAN_HOOK_NOT_ASSIGNED");

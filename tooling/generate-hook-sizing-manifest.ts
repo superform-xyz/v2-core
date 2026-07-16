@@ -216,6 +216,9 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
   Withdraw7540VaultHook: { mode: "replaceCalldata" },
   RedeemWithId7540VaultHook: { mode: "replaceCalldata" },
   WithdrawWithId7540VaultHook: { mode: "replaceCalldata" },
+  // Aerodrome hooks inherit sizing methods from BaseAerodromeUniversalRouterHook.
+  SwapAerodromeUniversalRouterHook: { mode: "replaceCalldata" },
+  ApproveAndSwapAerodromeUniversalRouterHook: { mode: "replaceCalldata" },
 
   // == offset hooks with inlined positions (no AMOUNT_POSITION constant) ==
   // All offset entries carry track: "deprecate->replaceCalldata" — offset is the legacy bridge

@@ -166,6 +166,9 @@ abstract contract ConfigCore is ConfigBase {
         configuration.aggregationRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.aggregationRouters[STABLE_CHAIN_ID] = address(0); // Not deployed
 
+        // Aerodrome is a Base-only integration. Unset chains are intentionally unsupported.
+        configuration.aerodromeUniversalRouters[BASE_CHAIN_ID] = AERODROME_UNIVERSAL_ROUTER_BASE;
+
         configuration.odosRouters[MAINNET_CHAIN_ID] = ODOS_ROUTER_MAINNET;
         configuration.odosRouters[BASE_CHAIN_ID] = ODOS_ROUTER_BASE;
         configuration.odosRouters[BNB_CHAIN_ID] = ODOS_ROUTER_BNB;

@@ -1406,3 +1406,768 @@ Status: plan appended by `superform-hook-master`; Master Codex should review and
   - `RUN_OPENOCEAN_PRO_HOOK_SIMULATION=true FOUNDRY_PROFILE=coverage forge test --match-contract OpenOceanProAPIHookSimulationTest -vv` completed with 0 passed, 0 failed, 2 skipped because `OPENOCEAN_PRO_API_KEY` is unavailable.
 - PR description:
   - Updated https://github.com/superform-xyz/v2-core/pull/919 with the merge-resolution summary and verification results.
+
+## SparkDEX hook inventory on current dev
+- User asked what SparkDEX hooks are currently available.
+- Current branch is clean `dev`; there are no production contracts or source files literally named `*SparkDex*`.
+- Direct SparkDEX V2 support on Flare uses the generic Uniswap V2 pair:
+  - `src/hooks/swappers/uniswap-v2/SwapUniswapV2Hook.sol` performs one exact-input router swap and assumes ERC20 allowance is already present; it supports native-to-token, token-to-native, and token-to-token paths.
+  - `src/hooks/swappers/uniswap-v2/ApproveAndSwapUniswapV2Hook.sol` adds `approve(0) -> approve(amount) -> swap -> approve(0)` for ERC20 inputs and skips approvals for native input.
+  - `script/utils/ConfigCore.sol` maps Flare to `SPARKDEX_V2_ROUTER_FLARE` (`0x4a1E5A90e9943467FAd1acea1E7F0e5e88472a1e`).
+- Direct SparkDEX V4 support on Flare uses the generic Algebra Integral pair:
+  - `src/hooks/swappers/algebra-integral/SwapAlgebraIntegralHook.sol` performs one `exactInputSingle` and assumes ERC20 allowance is already present.
+  - `src/hooks/swappers/algebra-integral/ApproveAndSwapAlgebraIntegralHook.sol` adds the reset/approve/swap/reset sequence.
+  - Both Algebra hooks reject native input, so FLR must be wrapped; `ConfigOtherHooks` maps Flare to router `0x69D57B9D705eaD73a5d2f2476C30c55bD755cc2F`.
+- Indirect/aggregated SparkDEX routing is available through the current generic OpenOcean pair:
+  - `src/hooks/swappers/openocean/SwapOpenOceanHook.sol` performs a single OpenOcean router execution and assumes ERC20 allowance is already present.
+  - `src/hooks/swappers/openocean/ApproveAndSwapOpenOceanHook.sol` handles ERC20 reset/approval and skips approvals for native input.
+  - These are generalized replacements for the former `SwapOpenOceanSparkDexHook` and `ApproveAndSwapOpenOceanSparkDexHook`; there is no additional separate OpenOcean pair.
+- All six hooks are `HookType.NONACCOUNTING` / `HookSubTypes.SWAP` and support previous-hook amount chaining and output balance-delta accounting.
+- `SwapSparkPSM*` hooks are Spark Protocol PSM hooks and are unrelated to SparkDEX.
+
+## SwapAlgebraIntegralHook prod address history
+- User asked when the `SwapAlgebraIntegralHook` address changed in `script/output/prod/latest.json`.
+- On current `dev` (`65901ebf`), the Flare entry is still the original address `0xdbA7A6586b3Bf1C9763B5aaAEe860Bd6505dED1C`.
+- That original address was first added on 2026-04-23 in commit `47c25cf9af9d518baf5ab998334de264ccbd8ec6` (`feat: added sparkdex v4 + deployment of paymaster [SUP-19592] (#877)`).
+- A later feature-branch commit `d987590bc07e7cf6cf60e9deb56e28851216a4fe` (`feat: more standardized hooks deployment`) changed the Flare prod entry:
+  - old: `0xdbA7A6586b3Bf1C9763B5aaAEe860Bd6505dED1C`
+  - new: `0xF7291FD5Ef4c59bc81314BCf2A1546008edF8F41`
+- Commit timestamp: 2026-07-09 10:47:24 +03:00 (07:47:24 UTC); the JSON `updated_at` was changed from `2026-07-08T09:12:17Z` to `2026-07-09T07:38:25Z`.
+- The commit is contained in `origin/feat/deployments-hooks-standardization`; it is not contained in `dev`/`origin/dev` as of this check. The feature branch tip retains the new `0xF729...` address.
+- The same commit changed `ApproveAndSwapAlgebraIntegralHook` from `0xc59Ee68B274ecA9F64484e25ffeA50Bf32D4Ba01` to `0x87E8958d0a2Bd030060fa63852770d5bdA303153`.
+
+## superform-hook-master plan: align five hook NatSpec layouts with bundler local config
+
+Date: 2026-07-13.
+
+### Scope and evidence
+- Request is a NatSpec-only PR against `dev`; do not change Solidity execution logic, tests, generated artifacts, deployment files, or bundler config.
+- Source of truth compared: `/Users/subhasishgoswami/Documents/superform/bundler/hooks_config.local.json` only.
+- Bundler parser semantics were confirmed in `services/hooks-registry-svc/domain/hook_build_encoding/build_path_natspec.go`:
+  - `_paramLength` produces a computed length field;
+  - `_skipParam` retains backend metadata but emits no calldata bytes;
+  - `_optional` makes a fixed-width caller value optional and strips the suffix from the resolved parameter name.
+
+### Minimal comment-only implementation plan
+1. Update `src/hooks/tokens/permit2/BatchTransferFromHook.sol`.
+   - Change only the `signature` NatSpec offset from `data.length - 65` to the canonical contiguous encoder expression:
+     `136 + 20 * tokensLength + 32 * tokensLength + 6 * tokensLength`.
+   - Keep the actual implementation reading the final 65 bytes unchanged.
+2. Update `src/hooks/claim/flare/WithdrawRFLRHookV2.sol`.
+   - Rename only the documented field from `minOut` to `minOut_optional`; retain `uint256`, offset `52`, and all code unchanged.
+3. Update `src/hooks/claim/flare/WithdrawVestedRFLRHookV2.sol`.
+   - Apply the same comment-only `minOut` to `minOut_optional` directive change.
+4. Update `src/hooks/bridges/stargate/StargateSendHookV2.sol`.
+   - Rename the documented length fields and all comment references to `extraOptions_paramLength` and `composeMsg_paramLength`.
+   - Append the three bundler sideband metadata directives after `composeMsg`:
+     - `address recipient_skipParam = BytesLib.toAddress(data, 0);`
+     - `address outputToken_skipParam = BytesLib.toAddress(data, 0);`
+     - `uint256 destinationChainId_skipParam = BytesLib.toUint256(data, 0);`
+   - Do not add fields to `StargateSendData` or decode these metadata values on chain.
+5. Update `src/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol`.
+   - Correct the documented input name from `requireSuccessfullExecution` to `requireSuccessfulExecution`.
+   - Correct the final packed field from `uint256 referralCode = BytesLib.toUint256(...)` to `uint32 referralCode = BytesLib.toUint32(...)`.
+   - Do not rename the external deBridge vendor struct member `requireSuccessfullExecution`; that upstream ABI field remains misspelled, while the hook's packed input/local variable is correctly named `requireSuccessfulExecution`.
+6. Create a focused branch from current `dev`, commit only the five Solidity files, push, and open a PR to `dev` with a NatSpec/config-alignment title and body. Explicitly stage file paths rather than using `git add -A`, so this required session-context update is not included in the NatSpec-only PR.
+
+### Questionable-but-intentional documentation details
+- `BatchTransferFromHook`: the proposed formula describes canonical bundler encoding and is equivalent to `data.length - 65` only for a contiguous payload with no ignored bytes before the signature. The Solidity decoder deliberately reads the final 65 bytes. Apply the requested formula in NatSpec, but do not alter decoder behavior.
+- `StargateSendHookV2`: the three `_skipParam` lines are not actual calldata fields, despite appearing under the data-layout NatSpec. They are intentional bundler parser directives for sideband fee/routing metadata and must not trigger Solidity changes.
+- The `_optional`, `_paramLength`, and `_skipParam` suffixes are encoder grammar, not Solidity variable names. This PR intentionally makes contract NatSpec double as the bundler's build-path schema.
+
+### Verification
+1. Inspect the PR diff and confirm every changed line begins with `///`; exactly the five hook source files should be in the committed diff.
+2. Run `git diff --check` before committing.
+3. Run `forge fmt --check` and `forge build` in `v2-core` to prove the comment edits do not disturb formatting or compilation.
+4. Recheck the desired directive strings with `rg` and compare the five NatSpec blocks to `hooks_config.local.json`; no update to the non-local hooks config is in scope.
+5. In the PR description, state that runtime bytecode behavior is unchanged and list the build/format verification results.
+
+Status: plan appended by `superform-hook-master`; awaiting Master Codex review. Do not edit the five Solidity files until Master Codex approves this plan.
+
+## Master Codex approval: align five hook NatSpec layouts with bundler local config
+- Reviewed and approved the `superform-hook-master` NatSpec-only plan.
+- Implementation is limited to the five identified Solidity documentation blocks; runtime Solidity, tests, generated artifacts,
+  deployment files, and bundler configs remain unchanged.
+- The branch commit will explicitly stage only the five Solidity files so this required session-context update stays out of the PR.
+
+## `forge b` failure reproduction on dev
+- User reported that `forge b` fails and asked to run it.
+- Current branch at diagnosis time: clean `dev` relative to `origin/dev`, except for the required session context file.
+- `forge b` reproduced the failure with Foundry `1.4.3-stable` and Solc `0.8.30`.
+- Compilation fails on exactly three test helper functions declared `view` even though they call the non-view Forge cheatcode `vm.getRecordedLogs()`:
+  - `test/integration/MinimalBaseNexusIntegrationTest.t.sol:_checkUserOperationResults`
+  - `test/integration/MinimalBaseNexusIntegrationTest.t.sol:_checkValidateUserOperationResults`
+  - `test/integration/stargate/StargateAdapterE2EFork.t.sol:_assertExecutionFailedEmitted`
+- The checked-in `lib/forge-std/src/Vm.sol` declares `getRecordedLogs()` without `view`, so Solidity correctly emits error 8961 for each helper.
+- `git blame` shows the three invalid `view` annotations were introduced by commit `8e79ce1f0` on 2026-07-08; the `getRecordedLogs()` calls predate those annotations.
+- `forge b --skip test` passed, confirming production contracts and scripts compile and that the blocker is test-only.
+- No source fix was applied because the user asked to reproduce/run the failure, not explicitly to modify code. The minimal fix is to remove `view` from those three internal helper declarations and rerun `forge b`.
+
+## Forge bytecode artifact location
+- Repository Forge configuration uses `out = "out"` and `cache_path = "cache"`; build-info output is disabled.
+- `forge b --skip test` writes contract artifact JSON files under `out/<SourceFile>.sol/<ContractName>.json`.
+- Creation bytecode is stored in `.bytecode.object`; deployed/runtime bytecode is stored in `.deployedBytecode.object`.
+- Example: `out/SwapOpenOceanHook.sol/SwapOpenOceanHook.json`.
+- The `out` directory is shared across builds. `--skip test` does not remove test artifacts left by earlier builds, so `forge clean` before rebuilding is needed if an artifact directory containing only the current invocation is required.
+
+## NatSpec alignment PR for five bundler hook layouts
+- Implemented the approved NatSpec-only alignment on branch `docs/sync-hook-natspec-config`.
+- Updated only documentation comments in:
+  - `src/hooks/tokens/permit2/BatchTransferFromHook.sol`
+  - `src/hooks/claim/flare/WithdrawRFLRHookV2.sol`
+  - `src/hooks/claim/flare/WithdrawVestedRFLRHookV2.sol`
+  - `src/hooks/bridges/stargate/StargateSendHookV2.sol`
+  - `src/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol`
+- Confirmed every committed changed line is a `///` NatSpec comment.
+- Confirmed normalized layouts for all five hooks exactly match
+  `/Users/subhasishgoswami/Documents/superform/bundler/hooks_config.local.json`.
+- Verification:
+  - `git diff --check` passed.
+  - `forge build --skip test` passed with an existing warning.
+  - Full `forge build` reproduced the existing `dev` failures in three test helpers declared `view` while calling
+    `vm.getRecordedLogs()`; this PR does not touch those tests.
+  - Target files contain pre-existing formatter drift, but no formatter diff touches the newly changed NatSpec lines.
+- Commit: `a1cbe073` (`docs: align hook natspec with bundler config`).
+- Pull request: https://github.com/superform-xyz/v2-core/pull/947
+- The required `.Codex/sessions/context_session_1.md` updates remain unstaged and were intentionally excluded from the
+  NatSpec-only commit and PR.
+
+## Prod deployed bytecode comparison tooling audit
+- User asked whether a repository script compares deployed production-address bytecode with freshly compiled local artifacts.
+- No existing script performs an exact all-contract comparison of RPC-fetched runtime bytecode against `out/<Source>.sol/<Contract>.json:.deployedBytecode.object`.
+- Closest existing tooling:
+  - `script/run/verify/verify_v2_staging_prod.sh prod` maps production addresses, contract sources, and constructor args, then invokes `forge verify-contract` through Blockscout/Etherscan. It verifies current source/compiler output through explorers, but is not a direct local-artifact-vs-RPC bytecode sweep.
+  - `script/run/deploy/deploy_v2_staging_prod.sh` check mode computes deterministic CREATE2 addresses from `script/locked-bytecode/` and checks whether code exists at those addresses. It uses locked artifacts rather than fresh `out/` artifacts and does not compare runtime code hashes.
+  - `script/run/utils/lib_deploy.sh:verify_deployments` only calls `cast codesize`; it verifies code presence, not equality.
+  - `script/run/tooling/compare_contract_deployments.py` compares addresses between aggregate and per-network JSON manifests, not bytecode. It also currently resolves the prod path incorrectly as `script/script/output/prod/latest.json` when run from the repo root.
+- Installed Foundry `1.4.3-stable` provides `forge verify-bytecode <address> <path>:<contract>`, which is the appropriate single-contract primitive and supports RPC, chain, constructor args, and creation/runtime selection.
+- A robust repository-wide comparer should reuse the source/constructor mappings from `verify_v2_staging_prod.sh`, iterate `script/output/prod/<chain>/<Network>-latest.json`, and invoke `forge verify-bytecode` (or compare normalized runtime code while accounting for immutables/link references). A raw hash comparison against `.deployedBytecode.object` is unsafe for contracts with immutable values, such as `SwapOpenOceanHook`.
+
+## `verify_v2_staging_prod.sh` behavior
+- User asked what `script/run/verify/verify_v2_staging_prod.sh` does.
+- It is a block-explorer source-verification orchestrator, not a direct fresh-`out/` versus on-chain runtime-bytecode comparison.
+- Usage is `./script/run/verify/verify_v2_staging_prod.sh staging|prod`.
+- It sources `lib_deploy.sh`, loads the selected environment's network configuration, RPC credentials, and explorer API credentials.
+- Its current default chain filter is Ethereum (1), Base (8453), BSC (56), Arbitrum (42161), Avalanche (43114), and Flare (14); an empty `CHAINS_TO_VERIFY` array would select every configured network.
+- It reads contract addresses from per-chain files at `script/output/<environment>/<chainId>/<Network>-latest.json`.
+- For every selected deployed contract it:
+  - maps the contract name to a local Solidity source path;
+  - reconstructs ABI-encoded constructor arguments using chain-specific constants and addresses from the deployment JSON;
+  - skips selected external Nexus library contracts;
+  - invokes `forge verify-contract` against Etherscan V2 for most networks or Flare Blockscout for chain 14;
+  - waits `VERIFY_DELAY=5` seconds between submissions.
+- After submissions, it queries explorer `getsourcecode` APIs for every selected address, with a one-second delay, and reports whether each address has verified source published.
+- It exits nonzero if a network verification run fails, any contract verification command fails, or the final explorer sweep finds unverified contracts.
+- It does not deploy or change contracts on-chain, but it does submit/publish verification metadata and source code to external explorers.
+- It does not read `out/*.json` directly, does not call `cast code`, does not call `forge verify-bytecode`, and does not hash-compare runtime bytecode.
+- Important limitation for the user's goal: for an address already verified on Etherscan, `forge verify-contract` can treat it as already verified and the final sweep only confirms that some source is published. That does not guarantee the already-published source/bytecode matches the current checkout's freshly built artifacts. Flare uses `--skip-is-verified-check`, but the overall script is still explorer-oriented rather than an explicit local bytecode comparison.
+
+## superform-hook-master research: Aerodrome current swap surfaces and hook readiness
+
+Date: 2026-07-16.
+
+### Scope and status
+- Planning/research only. No production or test code was changed.
+- Primary sources inspected at their current heads:
+  - Aerodrome protocol contracts, commit `1ba30815bba620f7e9faa34769ffd00c214c9b82`:
+    https://github.com/aerodrome-finance/contracts
+  - Aerodrome Slipstream contracts, commit `f8717faaae6e6717db3c8e3850149c01a79c0603`:
+    https://github.com/aerodrome-finance/slipstream
+  - Aerodrome docs, commit `7c0df032b58ee08b621ace19753d8abc260dd321`:
+    https://github.com/aerodrome-finance/docs
+  - Velodrome/Dromos Universal Router, commit `540899c395004a50179bcce2774882995b3f381c`:
+    https://github.com/velodrome-finance/universal-router
+- As of this research date, public Aerodrome is still described as **MetaDEX02**, with both classic stable/volatile pools and Slipstream concentrated-liquidity pools. The docs call Aero/MetaDEX03 forthcoming; no canonical MetaDEX03 replacement deployment/interface is publicly exposed in these repositories yet:
+  https://github.com/aerodrome-finance/docs/blob/main/content/about.mdx
+
+### Classic stable/volatile router
+- Canonical Base contracts from Aerodrome's official contracts repo/security page:
+  - Router: `0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43`
+  - PoolFactory: `0x420DD381b31aEf6683db6B902084cB0FFECe40Da`
+  - FactoryRegistry: `0x5C3F18F06CC09CA1910767A34a20F771039E37C0`
+  - Base WETH: `0x4200000000000000000000000000000000000006`
+  - Sources/deployments:
+    https://github.com/aerodrome-finance/contracts/blob/main/contracts/interfaces/IRouter.sol
+    https://github.com/aerodrome-finance/contracts/blob/main/contracts/Router.sol
+    https://github.com/aerodrome-finance/contracts#deployment
+- `IRouter.Route` is `(address from, address to, bool stable, address factory)`. `factory == address(0)` resolves to the default factory; nonzero factories must be approved by `FactoryRegistry`.
+- Exact-input surfaces are:
+  - `swapExactTokensForTokens(amountIn, amountOutMin, routes, to, deadline)`;
+  - `swapExactETHForTokens(amountOutMin, routes, to, deadline)` with `msg.value` as input;
+  - `swapExactTokensForETH(amountIn, amountOutMin, routes, to, deadline)`;
+  - fee-on-transfer variants also exist, but should not be included in an initial Superform hook without explicit product need and dedicated accounting tests.
+- `getAmountsOut(amountIn, routes)` is the router quote helper. It supplies an expected amount, not slippage protection; the caller must derive a nonzero `amountOutMin` and a finite `deadline`.
+- ERC20 routes use ordinary approval to the classic Router. Native routes represent the pool endpoint as WETH; the Router wraps/unwraps ETH and validates the first/last route token.
+
+### Slipstream generations and latest deployment
+- Slipstream preserves the Uniswap V3 callback/periphery model but addresses pools by `int24 tickSpacing`, not a fixed fee tier. Swap fees can be dynamic through factory fee modules.
+- Aerodrome's official Slipstream README records three Base factory generations. It explicitly says the **Gauges V3** deployment is the current latest deployment, while existing older gauges remain in use and all new gauges are created from the latest generation:
+  https://github.com/aerodrome-finance/slipstream/blob/main/README.md
+- Original Slipstream deployment:
+  - CLFactory: `0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A`
+  - SwapRouter: `0xBE6D8f0d05cC4be24d5167a3eF062215bE6D18a5`
+  - QuoterV2: `0x254cF9E1E6e233aa1AC962CB9B05b2cfeAaE15b0`
+- Gauge-caps/second factory deployment:
+  - CLFactory: `0xaDe65c38CD4849aDBA595a4323a8C7DdfE89716a`
+  - SwapRouter: `0xcbBb8035cAc7D4B3Ca7aBb74cF7BdF900215Ce0D`
+  - Quoter: `0x3d4C22254F86f64B7eC90ab8F7aeC1FBFD271c6C`
+- Current Gauges V3/latest factory deployment:
+  - CLFactory: `0xf8f2eB4940CFE7d13603DDDD87f123820Fc061Ef`
+  - Pool implementation: `0xc770898522D2A9c8Da7A10D63989b6b58305B665`
+  - SwapRouter: `0x698Cb2b6dd822994581fEa6eA4Fc755d1363A92F`
+  - Quoter: `0x514c8B5f54112481E28028F1166Bd78501089259`
+  - MixedRouteQuoterV3: `0xCd2A7D98e82D6107eac1828ce8DeAA6acB65b555`
+- Each direct Slipstream `SwapRouter` is bound to one factory. The on-chain `factory()` getters for the three routers above resolve to the three factories in the same order.
+- Direct exact-input ABI:
+  - `exactInputSingle({tokenIn, tokenOut, tickSpacing, recipient, deadline, amountIn, amountOutMinimum, sqrtPriceLimitX96})`;
+  - `exactInput({path, recipient, deadline, amountIn, amountOutMinimum})` for multihop routes, where each hop is packed as token / 3-byte tick spacing / token.
+  - Interface/source:
+    https://github.com/aerodrome-finance/slipstream/blob/main/contracts/periphery/interfaces/ISwapRouter.sol
+    https://github.com/aerodrome-finance/slipstream/blob/main/contracts/periphery/SwapRouter.sol
+- ERC20 payment is ordinary `transferFrom` against the direct SwapRouter. Native input works only when `tokenIn` is WETH and the call carries enough ETH; native output requires routing output WETH to the router and unwrapping through a multicall. A WETH-only MVP is materially simpler.
+- The direct router's callback verifies that `msg.sender` is the deterministically computed pool for its immutable factory/token/tick-spacing tuple. The hook must still validate payload endpoints, tick spacing, recipient, deadline, and selected immutable router.
+- Quoters use swap-and-revert simulation and are intentionally not gas efficient for on-chain execution. Quote off chain through `eth_call`, then set `amountOutMinimum` separately. `MixedRouteQuoterV3` supports classic V2 plus all three CL factories through bitmask-encoded pool parameters:
+  https://github.com/aerodrome-finance/slipstream/blob/main/contracts/periphery/lens/MixedRouteQuoterV3.sol
+
+### Newer three-factory Universal Router
+- The current official Universal Router Base deployment JSON points to:
+  - UniversalRouter: `0xC5b6786D7B64767D775877b0B6A319AD946B11B5`
+  - Permit2: `0x494bbD8A3302AcA833D307D11838f18DbAdA9C25`
+  - Source: https://github.com/velodrome-finance/universal-router/blob/main/deployment-addresses/base.json
+- This `C5b...` deployment was introduced in commit `540899c` on 2026-04-10 to support three Slipstream factories. Its Base deployment parameters bind:
+  - classic Aerodrome factory `0x420DD...`;
+  - raw CL factory selector to second factory `0xaDe65...`;
+  - selector flag `0x100000` to original factory `0x5e7BB...`;
+  - selector flag `0x080000` to latest factory `0xf8f2e...`.
+  - Source: https://github.com/velodrome-finance/universal-router/blob/main/script/deployParameters/DeployBase.s.sol
+- On-chain getter checks against Base confirmed all of those immutables, WETH, and Permit2. The repository also contains a fork verifier that compares immutables and metadata-stripped runtime bytecode:
+  https://github.com/velodrome-finance/universal-router/blob/main/test/fork/VerifyDeployUniversalRouter.t.sol
+- Aerodrome's public security page still lists older UniversalRouter `0x6Cb442acF35158D5eDa88fe602221b67B400Be3E` and only the original Slipstream deployment:
+  https://aerodrome.finance/security
+  That address still has code and is still used, so it should not be called deprecated without Aerodrome confirmation. It is nevertheless not the all-three-factory router recorded by the current deployment repository. This documentation mismatch must be resolved before hard-coding a production integration address.
+- Current Universal Router entry point is `execute(bytes commands, bytes[] inputs, uint256 deadline)`.
+- Exact-input command forms in the current `Dispatcher` are:
+  - `0x08` V2 exact input with input ABI `(recipient, amountIn, amountOutMin, packedPath, payerIsUser, isUni)`; use `isUni=false` and pack Aerodrome hops as token / one-byte stable flag / token.
+  - `0x00` CL exact input with the same input tuple; use `isUni=false` and pack token / 3-byte tickSpacing-plus-factory-selector / token.
+  - Source: https://github.com/velodrome-finance/universal-router/blob/main/contracts/base/Dispatcher.sol
+- The current router first tries ordinary ERC20 `transferFrom` and falls back to Permit2. Therefore an approve/reset Superform hook can approve the `C5b...` router directly without requiring Permit2. A Permit2 flow instead requires token approval to the Permit2 contract plus Permit2 allowance/signature state:
+  https://github.com/velodrome-finance/universal-router/blob/main/contracts/modules/Permit2Payments.sol
+- Native input/output uses explicit `WRAP_ETH` / `UNWRAP_WETH` commands and router custody. The exact-input amount, min output, wrap amount, `msg.value`, recipients, and final sweep/unwrap behavior must remain mutually consistent.
+
+### Closest Superform patterns
+- `SwapUniswapV2Hook` and `ApproveAndSwapUniswapV2Hook` are the closest safe pattern for the classic Aerodrome router: typed exact-input calls, native branches, finite deadline, previous-hook amount scaling, proportional min-out scaling, recipient forced to the smart account, approve-zero/approve-amount/swap/approve-zero, and output balance-delta accounting. They are not ABI-compatible as-is because Aerodrome uses `Route[]` with stable/factory fields instead of `address[] path`.
+- `SwapUniswapV3Hook` and `ApproveAndSwapUniswapV3Hook` are the closest pattern for a direct Slipstream router. A dedicated implementation would replace `uint24 fee` with `int24 tickSpacing` and bind a specific factory/router generation.
+- `SwapOpenOceanHook` demonstrates the risks of accepting externally generated routed calldata. A Universal Router integration should not copy the broad raw-calldata model: Universal Router command data can transfer, sweep, bridge, invoke V4, execute subplans, allow command failure, and leave custody dust.
+
+### Security posture for a future Aerodrome hook
+- Prefer constructing typed calls/commands on chain from a narrow hook payload. Do not accept arbitrary Universal Router `commands` plus `inputs` without a complete parser and allowlist.
+- If Universal Router is selected, MVP command allowlist should be only one exact-input V2 command or one exact-input CL command. Reject:
+  - the allow-revert flag/partial fills;
+  - exact-output commands;
+  - arbitrary `TRANSFER`, `TRANSFER_FROM`, `SWEEP`, Permit2 permit/transfer commands, V4, bridge, cross-chain, and `EXECUTE_SUB_PLAN` commands;
+  - unexpected router custody, payer flags, or recipient sentinels.
+- Force the final recipient to `account`; validate input/output endpoints against the standard swap header; cap hop count; validate classic stable flags and CL factory-selector bits; require a finite unexpired deadline and nonzero amount/min-out.
+- For `usePrevHookAmount`, rebuild the exact-input command with the previous hook amount and proportionally update min-out. Do not try to patch opaque arbitrary command blobs.
+- For the current Universal Router direct-approval path, use the repo pattern `approve(0) -> approve(executionAmount) -> execute -> approve(0)`. Verify this behavior on a Base fork against the exact selected deployment before shipping.
+- Quote freshness matters more for Slipstream Gauges V3 because swap fees can be dynamic. Quoters determine an expected output; they do not replace explicit min-out/deadline protection.
+- Always assert zero unintended router allowance after execution and no account/router input dust in fork tests. Track output through the existing pre/post balance-delta lifecycle.
+
+### MVP plan if an Aerodrome hook is requested later
+1. Product decision first: classic stable/volatile only, latest-factory Slipstream only, or the newer all-three-factory Universal Router. Recommended coverage target is the current three-factory Universal Router, but only after Aerodrome confirms `0xC5b...` as the intended production integration address despite the website still listing `0x6Cb...`.
+2. Add `SwapAerodromeUniversalRouterHook` and `ApproveAndSwapAerodromeUniversalRouterHook` using the standard `ISuperHookSwap` header and a typed payload. Support exact-input ERC20/WETH routes first; no arbitrary calldata, Permit2 signatures, mixed V2/CL command chains, partial fills, V4, bridge, or cross-chain commands.
+3. Encode exactly one command from a route-kind enum:
+   - classic stable/volatile multihop with validated `(token, stable, token)` packed path; or
+   - Slipstream multihop with validated `(token, tickSpacing|factorySelector, token)` packed path across the three known factories.
+4. Force `recipient=account`, `payerIsUser=true`, `isUni=false`, and use the deadline-bearing `execute` overload. Scale `amountIn` and `amountOutMin` when previous-hook sizing is enabled.
+5. Use ordinary direct approval to the selected Universal Router in the approve-and-swap variant. Defer Permit2 and native ETH wrapping/unwrapping to follow-up scope unless product requires them for MVP; WETH remains supported as ERC20.
+6. Add deterministic unit tests for every validation boundary and Base fork tests for classic stable, classic volatile, original CL, second CL, and latest Gauges V3 CL routes. Verify recipient/output delta, exact input consumption, scaled previous-hook amount/min-out, allowance reset, no dust, expired deadlines, invalid selector bits, wrong endpoints, and rejection of every non-MVP command class.
+7. Add deployment config only after re-reading the official deployment JSON and on-chain immutables at implementation time. Do not rely solely on the currently stale Aerodrome security table.
+
+### Unresolved questions for Master/product/Aerodrome
+1. Does Aerodrome officially designate `0xC5b6786D7B64767D775877b0B6A319AD946B11B5` as the current integration router, and is `0x6Cb442...` merely retained for legacy routes? There is no explicit public deprecation statement.
+2. Must the Superform feature cover liquidity in all three Slipstream factories, or only the latest Gauges V3 factory? The official README says older gauges remain in use.
+3. Is classic stable/volatile plus CL mixed routing required in one swap, or are separate route types acceptable for MVP?
+4. Is native ETH input/output required at launch, or is canonical Base WETH sufficient? Native support materially expands command/custody validation.
+5. Should Superform intentionally use direct router approval, which current `C5b...` supports, or adopt Permit2? Permit2 would add signature/nonce/allowance lifecycle work without being necessary for smart-account execution.
+6. What routing/quote service will produce the selected paths, and will it expose the three CL factory selector bits deterministically? Official developer documentation is sparse and the Universal Router README lags its current six-field command ABI.
+
+Status: research and prospective MVP plan appended by `superform-hook-master`; awaiting Master Codex review. Do not implement an Aerodrome hook until Master Codex approves a concrete scope and the router-address discrepancy is resolved.
+
+## Master Codex review: Aerodrome research baseline
+- Reviewed and approved the `superform-hook-master` research note as the planning baseline for any future Aerodrome swap-hook work.
+- This turn was research-only. No Aerodrome production contract, test, deployment, or configuration implementation was approved or created.
+- Confirmed the current repository hook model: exact-input swap hooks use the shared `ISuperHookSwap` layout, rebuild or tightly validate protocol calls, force output to the smart account, resize input/min-out for previous-hook chaining, and publish the output balance delta through the BaseHook pre/post lifecycle.
+- Confirmed current public Aerodrome is MetaDEX02. The latest deployed Slipstream generation is named Gauges V3 and coexists with two older live CL factories; it is not the forthcoming Slipstream V3/MetaDEX03 product.
+- Confirmed the newer Universal Router repository records Base deployment `0xC5b6786D7B64767D775877b0B6A319AD946B11B5` with classic Aerodrome plus all three Slipstream factories, while Aerodrome's public security page still lists legacy Universal Router `0x6Cb442acF35158D5eDa88fe602221b67B400Be3E`.
+- Before implementation, obtain an explicit product decision on classic versus CL coverage, native ETH versus WETH-only scope, and direct routers versus Universal Router. Also confirm the intended production Universal Router address with Aerodrome; do not infer deprecation from repository recency alone.
+- If implementation is later requested, ask `superform-hook-master` to refine this baseline into a concrete plan for the approved scope before editing hook code.
+## superform-hook-master design: Aerodrome Universal Router swap hooks
+
+Date: 2026-07-16.
+
+### Status and scope
+- Planning only. This design is awaiting Master Codex review; do not implement it yet.
+- The intended schema is sufficient for an MVP restricted to one homogeneous exact-input route through either Aerodrome classic pools or Slipstream pools.
+- It is not sufficient for mixed classic/Slipstream routing or native ETH wrapping/unwrapping. Those require multiple Universal Router commands and are intentionally excluded.
+
+### Contracts and constructor
+- Add `SwapAerodromeUniversalRouterHook` and `ApproveAndSwapAerodromeUniversalRouterHook` as `HookType.NONACCOUNTING` / `HookSubTypes.SWAP` hooks implementing the same swap, context-aware, inflow/outflow, and outflow interfaces as the existing Uniswap swap hooks.
+- Recommended constructor for both hooks: `constructor(address universalRouter_)`.
+- Validate `universalRouter_ != address(0)` and store it as immutable `UNIVERSAL_ROUTER`. No WETH or native-token constructor parameter is needed because MVP treats WETH as an ordinary ERC20.
+- Deployment must not proceed until the production Universal Router address is confirmed. The researched latest three-factory Base deployment is `0xC5b6786D7B64767D775877b0B6A319AD946B11B5`, while Aerodrome's public security documentation still lists the older router.
+
+### BaseHook build inputs and standard swap header
+- `build(prevHook, account, hookData)` retains normal `BaseHook` semantics:
+  - `prevHook` is `address(0)` when chaining is disabled; when `usePrevHookAmount` is true it must be nonzero and expose the previous result.
+  - `account` is the smart account, forced swap recipient, and Universal Router payer.
+  - `hookData` uses the standard `ISuperHookSwap` layout: 52-byte strategy prefix, then `inputToken`, `outputToken`, `inputAmount`, `outputQuote`, `outputMin`, `usePrevHookAmount`, `payloadLength`, and payload at offset 221.
+- `inputAmount` is the signed/OMS baseline amount. `outputQuote` is the expected off-chain quote and is not sent to the router. `outputMin` is the enforced slippage floor. Require `inputAmount > 0`, `outputMin > 0`, and preferably `outputQuote >= outputMin`.
+- Keep the standard `encodeSwapData`, decoder, sizing, amount replacement, and `inspect` behavior. The only replaceable amount is `inputAmount` at offset 92; `inspect` returns `outputToken`.
+
+### Aerodrome payload
+- Exact payload: `abi.encode(uint8 routeKind, uint256 deadline, bytes packedPath)`.
+- Route kinds are fixed as `0 = CLASSIC` and `1 = SLIPSTREAM`; reject every other value.
+- Require an unexpired deadline and canonical, fully bounded payload/path data. In particular, the outer `payloadLength` must not extend beyond `hookData`, and ignored trailing payload bytes should be rejected.
+- The packed path is caller controlled but must be fully parsed by the hook before constructing router calldata:
+  - Classic: `token0(20) | stable0(1) | token1(20) [| stableN(1) | tokenN+1(20)]`. Length is `20 + 21 * hopCount`; every stable byte must be exactly `0` or `1`.
+  - Slipstream: `token0(20) | poolParam0(3) | token1(20) [| poolParamN(3) | tokenN+1(20)]`. Length is `20 + 23 * hopCount`; each `poolParam` is big-endian `uint24(factoryFlag | tickSpacing)` as produced by `abi.encodePacked(uint24(...))`.
+- Require 1 to 9 hops, all token addresses nonzero, no equal adjacent tokens, first token equal to header `inputToken`, and last token equal to header `outputToken`.
+- For Slipstream, require a nonzero low-19-bit tick spacing, no reserved high bits, and factory selector exactly one of:
+  - `0x000000`: the router's primary CL factory (`0xaDe65c...` in the researched deployment).
+  - `0x100000`: CL factory 2 / original Slipstream (`0x5e7BB...`).
+  - `0x080000`: CL factory 3 / latest Gauges V3 (`0xf8f2e...`).
+- Reject selector `0x180000` and bits above bit 20. The current router otherwise masks/handles these values in a way a hook should not accept implicitly.
+
+### Internally constructed Universal Router call
+- Construct exactly one command and one input; callers never supply commands or router inputs.
+- Classic route:
+  - `commands = hex"08"` (`V2_SWAP_EXACT_IN`, allow-revert flag unset).
+  - `inputs[0] = abi.encode(account, effectiveAmountIn, effectiveOutputMin, packedPath, true, false)`.
+- Slipstream route:
+  - `commands = hex"00"` (`V3_SWAP_EXACT_IN`, allow-revert flag unset).
+  - `inputs[0] = abi.encode(account, effectiveAmountIn, effectiveOutputMin, packedPath, true, false)`.
+- For both, call `IUniversalRouter.execute(commands, inputs, deadline)` with target `UNIVERSAL_ROUTER` and value `0`.
+- Fields fixed internally are: exact-input command, no allow-revert bit, one input, recipient `account`, `payerIsUser = true`, `isUni = false`, call target, and zero ETH value. The caller controls only route kind, deadline, validated path, header amounts, and tokens.
+
+### Previous-hook amount and allowances
+- With `usePrevHookAmount == false`, use header `inputAmount` and `outputMin` unchanged.
+- With it enabled, require a nonzero `prevHook`, require its `getOutToken(account)` to equal header `inputToken`, obtain `effectiveAmountIn = getOutAmount(account)`, and require it nonzero.
+- Scale `effectiveOutputMin` from the original `(inputAmount, outputMin)` using the repository's `HookDataUpdater.getUpdatedOutputAmount`; the original `inputAmount` must remain nonzero so the scaling has a valid baseline.
+- `SwapAerodromeUniversalRouterHook` emits only the router execution and assumes the account already approved `UNIVERSAL_ROUTER`.
+- `ApproveAndSwapAerodromeUniversalRouterHook` emits `approve(router, 0) -> approve(router, effectiveAmountIn) -> router.execute -> approve(router, 0)`.
+- Approve the Universal Router directly, not Permit2. The researched router first attempts ordinary ERC20 `transferFrom` and falls back to Permit2; with `payerIsUser = true`, direct router allowance is sufficient for standard ERC20s. Permit2 commands, signatures, and persistent Permit2 allowances are outside scope.
+- Snapshot the account's ERC20 output balance in `_preExecute`, set the post-swap balance delta and output token in `_postExecute`, and reject native token sentinels. Fee-on-transfer and rebasing tokens should remain explicitly unsupported for consistent behavior across route kinds.
+
+### Native support boundary
+- MVP is ERC20/WETH only. WETH appears directly in `packedPath`, approvals work like any other ERC20, and router call value is always zero.
+- Native input would require `WRAP_ETH (0x0b)` followed by the swap, router custody, `payerIsUser = false`, and nonzero call value. Native output would require the swap recipient to be the router followed by `UNWRAP_WETH (0x0c)` to the account. Either case breaks the fixed one-command design and needs WETH/native configuration plus native balance-delta handling.
+- Therefore native support must be a separately reviewed extension, not a permissive interpretation of this payload.
+
+### Payload sufficiency conclusion
+- `abi.encode(routeKind, deadline, packedPath)` is sufficient for the approved one-command, homogeneous-route MVP only because the hook fixes the dangerous Universal Router fields and fully validates every packed path byte.
+- If the product requires mixed classic/Slipstream hops, native ETH, split routing, exact output, partial fills, arbitrary factory addresses, or future router commands, this payload and hook must be versioned or redesigned rather than accepting raw Universal Router calldata.
+
+## Master Codex review: Aerodrome Universal Router build parameters
+- Reviewed and approved the `superform-hook-master` parameter design as the recommended interface for discussion and future implementation planning.
+- Approved constructor shape: immutable `universalRouter_` only for the ERC20/WETH MVP.
+- Approved standard `ISuperHookSwap.SwapHeader` plus `abi.encode(uint8 routeKind, uint256 deadline, bytes packedPath)` payload.
+- Approved internally fixed exact-input command, `recipient = account`, `payerIsUser = true`, `isUni = false`, no allow-revert flag, one command/input, and zero native value.
+- Approved shared hook data for both variants; the approve-and-swap variant differs only by its temporary direct router allowance executions.
+- This approval does not authorize implementation in this turn. Native ETH, mixed classic/Slipstream routing, split routes, exact output, Permit2 flows, and raw Universal Router calldata remain out of scope and require a new hook-master plan.
+## superform-hook-master research: obtaining Aerodrome Universal Router packed paths
+
+Date: 2026-07-16.
+
+### Status and conclusion
+- Research only; no production or test implementation was performed. Awaiting Master Codex review.
+- No documented Aerodrome-owned HTTP quote/routing API was found that accepts token/amount inputs and returns a Universal Router `packedPath`.
+- The supported official integration model is RPC-only and onchain: query Sugar for pools, construct candidate paths locally, quote them with `MixedRouteQuoterV3`, and pack the chosen route locally. This requires no Aerodrome API key, although a production integrator should use its own reliable/authenticated Base RPC provider.
+- The official Python `sugar-sdk` implements this flow today and can produce the exact packed path. It is the best reference implementation, but Superform should pin a reviewed tag/commit and own the server-side adapter rather than depend on an undocumented frontend endpoint.
+
+### Official sources and maturity
+- Official Velodrome developer docs explicitly say the swap guide applies to Aerodrome and describe Sugar pool discovery, local graph routing, `quoteExactInput`, packed paths, and caller-selected slippage:
+  https://github.com/velodrome-finance/docs/blob/main/content/sdk.mdx
+- Official Superswaps docs say integrations require only a regular RPC endpoint. Sugar is described as an onchain API; routing and router planning are performed by open-source SDKs, not a hosted quote server:
+  https://github.com/velodrome-finance/docs/blob/main/content/superswaps.mdx
+- Sugar onchain API and Base deployment:
+  - repository: https://github.com/velodrome-finance/sugar
+  - Base configuration: https://github.com/velodrome-finance/sugar/blob/main/deployments/base.env
+  - `forSwaps` returns compact pool records including pool address, type/tick spacing, token pair, factory, and fee. It does not return a best route or swap calldata.
+- Official Python SDK:
+  - repository/tag: https://github.com/velodrome-finance/sugar-sdk/tree/v0.4.2
+  - route packing: https://github.com/velodrome-finance/sugar-sdk/blob/v0.4.2/sugar/quote.py
+  - route search/quoting: https://github.com/velodrome-finance/sugar-sdk/blob/v0.4.2/sugar/chains.py
+  - Universal Router planning/min-out: https://github.com/velodrome-finance/sugar-sdk/blob/v0.4.2/sugar/swap.py
+  - Base addresses/factory mapping: https://github.com/velodrome-finance/sugar-sdk/blob/v0.4.2/sugar/config.py
+- `sugar-sdk` main was tag `v0.4.2` at commit `e8f7c6a8c069aa23376837fb4eafc53b1377bfdd` during this review. Its README still shows installation from `v0.4.1`, which predates the all-three-factory synchronization, and the latest formal GitHub Release is older than the tag. PyPI `sugar-sdk` is also stale at `0.3.1`; current consumers must pin the GitHub `v0.4.2` tag/commit rather than install the registry version:
+  https://pypi.org/project/sugar-sdk/
+- A Dromos TypeScript package exists despite the docs saying it will be announced later, but published `@dromos-labs/sdk.js` is only `0.3.0-alpha.3` and predates the current all-three-factory Base selector/address changes:
+  https://www.npmjs.com/package/@dromos-labs/sdk.js
+  An official `fix/latest-contracts` repository branch contains a newer all-three-factory update, but it was unmerged and unpublished during this review and therefore is not a production dependency:
+  https://github.com/velodrome-finance/sdk.js/compare/main...fix/latest-contracts
+- Official swap docs still reference older `MixedRouteQuoterV1`, omit the three-factory selector mapping, and say more swap-interface information is forthcoming. Treat the Python `v0.4.2` source as a usable but evolving reference, not a versionless package/API/SLA.
+- The current official Aerodrome frontend bundle also performs routing/quoting against Sugar, the mixed quoter, and RPC endpoints. No separate Aerodrome quote API host or authenticated quote endpoint was exposed. The hosted `offchain-lookup.services.hyperlane.xyz/health` and `/callCommitments/calls` URLs present in the Superswaps frontend are health/commitment relay services, not quote or path APIs. Any compiled frontend endpoint or bundle shape is undocumented and must not be treated as a stable integration contract.
+
+### Exact official SDK flow
+1. Instantiate `AsyncBaseChain`/`BaseChain`, preferably overriding `SUGAR_RPC_URI_8453` with Superform's Base RPC.
+2. `get_pools_for_swaps()` calls Base Sugar `forSwaps` at `0x69dD9db6d8f8E7d83887A704f447b1a584b599A1` and obtains classic plus all three known CL factory pools.
+3. `get_quote(from_token, to_token, amount, filter_quotes=...)` builds an undirected multigraph, enumerates short candidate paths through configured connector tokens, calls Base `MixedRouteQuoterV3` `0xCd2A7D98e82D6107eac1828ce8DeAA6acB65b555` through batched `eth_call`, discards failed/zero quotes, and selects the largest `amount_out`.
+4. For the proposed one-command hook, filter quotes to a homogeneous route: every pool must be classic or every pool must be CL. Reject a route containing both kinds.
+5. For a homogeneous selected quote `q`:
+  - `q.amount_out` is the expected output and should populate `SwapHeader.outputQuote`.
+  - `q.input.route_for_swap.encoded` is the exact Universal Router swap `packedPath`.
+  - `routeKind` is `CLASSIC` if all `q.path` pools are basic, otherwise `SLIPSTREAM`.
+  - Superform, not the quoter, computes `outputMin` from a configured slippage policy and sets a fresh deadline.
+- Equivalent explicit packing is `pack_path(q.path, for_swap=True, slipstream_factory_addr=Base latest factory, old_slipstream_factory_addr=Base original factory).encoded`.
+- Do not take `q.input.route.encoded` as the swap path. That property is the mixed-quoter path; classic fillers differ from Universal Router classic path bytes.
+
+### Quote path versus swap packed path
+- Mixed-quoter path, used only for `quoteExactInput`, always has token / 3-byte signed filler / token hops:
+  - classic stable filler: `0x200000` (`2097152`);
+  - classic volatile filler: `0x400000` (`4194304`);
+  - CL filler: tick spacing OR the CL factory selector.
+- Universal Router classic `packedPath` instead has token / one-byte bool / token hops, where `0x01` is stable and `0x00` is volatile. `sugar-sdk` performs this conversion only with `for_swap=True`.
+- Universal Router Slipstream `packedPath` has token / 3-byte poolParam / token hops. For CL-only paths, quote and swap path bytes use the same per-hop token and poolParam encoding.
+- `MixedRouteQuoterV3` returns expected `amountOut`; it does not return a safe minimum output. Superform should compute `outputMin` with integer basis-point arithmetic, not blindly reuse the SDK's floating-point `apply_slippage` helper, then ensure `0 < outputMin <= outputQuote`.
+
+### Three-factory selector handling
+- Current Base Sugar publishes pools from all three CL factories. The official SDK maps them as follows:
+  - factory `0xaDe65c38CD4849aDBA595a4323a8C7DdfE89716a`: unflagged positive tick spacing, selector `0x000000`;
+  - original factory `0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A`: `tickSpacing | 0x100000`;
+  - latest Gauges V3 factory `0xf8f2eB4940CFE7d13603DDDD87f123820Fc061Ef`: `tickSpacing | 0x080000`.
+- The SDK explicitly configures the original and latest factories; any other CL factory falls through to an unflagged tick spacing. A Superform adapter must be stricter: whitelist exactly these three factory addresses and fail closed on any unknown factory rather than silently treating it as the primary factory.
+- Revalidate this mapping against the selected Universal Router's immutable factories at deployment/startup. The current official frontend and `sugar-sdk` target Universal Router `0xcAF22ce31298CF2BF1D152862F80216478ad7c67`, while the separately researched latest three-factory universal-router deployment file records `0xC5b6786D7B64767D775877b0B6A319AD946B11B5`. Thus their transaction plans/router address are not a drop-in source for the proposed hook even though the packed path convention matches. The production router discrepancy still requires Aerodrome confirmation.
+
+### Mixed-route constraint
+- `sugar-sdk` can choose a route containing alternating classic and CL segments. Its transaction planner splits such a route into multiple Universal Router commands, uses router/pool custody between segments, and applies the final min-out only to the last segment.
+- The proposed hook accepts exactly one command and one homogeneous `packedPath`; it cannot consume that mixed plan.
+- `QuoteInput.route_for_swap` should only be used directly after verifying homogeneity. On a mixed full path, the helper's V2/CL type conversion is not a valid one-command path; the SDK itself avoids this by grouping nodes and packing each homogeneous segment separately.
+- MVP route selection must therefore filter mixed candidates out and select the best remaining all-classic or all-CL quote. Supporting the globally best mixed quote would require a separately reviewed multi-command payload/hook.
+
+### Recommendation for Superform
+- Do not consume or reverse-engineer an Aerodrome frontend HTTP endpoint. None is documented as public/stable, and the official architecture intentionally avoids centralized quote APIs.
+- Run a small stateless Superform server-side route adapter in the OMS/bundler environment:
+  1. fetch/paginate Sugar `forSwaps` over Superform's RPC and cache pool topology briefly;
+  2. build candidate paths with an explicit token/factory allowlist and a small hop cap;
+  3. quote candidates at the latest block with `MixedRouteQuoterV3` using batched `eth_call`;
+  4. reject mixed routes for MVP and choose best `amountOut` among homogeneous routes;
+  5. map only the three approved CL factories, produce `routeKind` plus swap `packedPath`, compute integer `outputMin`, and set a short deadline;
+  6. simulate the exact hook/router execution before returning signed hook data where practical.
+- Pin `sugar-sdk` `v0.4.2` as a reference/test oracle or port its small routing/packing subset into Superform's native service language. Do not make a Python Git dependency or public default RPC a consensus-critical runtime dependency without ownership, monitoring, timeouts, and fork tests.
+- Keep the hook payload `abi.encode(routeKind, deadline, packedPath)` for MVP. A typed-hop payload does not remove the need for route discovery/quoting and adds onchain encoding/calldata cost; the hook's complete packed-path parser already provides the trust boundary. Internally, the Superform route service should retain typed pool/factory hops until the final packing step so mapping errors are testable and fail closed.
+- Reconsider typed hops only if multiple external clients must construct hook data without the Superform adapter, or if router/factory mappings need to become an explicit versioned onchain contract rather than a server-side deployment invariant.
+
+## Master Codex review: Aerodrome packed-path production
+- Reviewed and approved the `superform-hook-master` research as the answer for the proposed one-command Aerodrome Universal Router hooks.
+- No documented Aerodrome-owned HTTP quote API currently returns the required Universal Router `packedPath`. The official path is the RPC-backed Sugar pool API plus local route selection and `MixedRouteQuoterV3` quoting.
+- For an all-classic or all-Slipstream quote from pinned `sugar-sdk` `v0.4.2`, `quote.input.route_for_swap.encoded` is the required swap path. `quote.input.route.encoded` is only the mixed-quoter path and is incorrect for classic Universal Router execution.
+- The OMS/bundler should own a server-side quote adapter and return `routeKind`, `packedPath`, `outputQuote`, integer-derived `outputMin`, and a short deadline. End users and integrators should not manually pack route bytes.
+- The adapter must filter out mixed classic/Slipstream quotes for the MVP, whitelist the three supported CL factories, fail closed for unknown factories, and retain typed hop metadata until final packing and validation.
+- QuickNode's third-party Aerodrome Swap API can return quotes and ready-built transactions, but its documented response does not expose `packedPath`; decoding vendor-generated router calldata is not an approved source for this hook input.
+- The `0xC5b...` versus `0xcAF22...` Universal Router discrepancy remains unresolved. Packed-path generation can be developed against the documented selector convention, but production deployment must confirm the selected router and its immutable factory mapping.
+- This turn remains research/design only. No production hook or quote-adapter code was created.
+
+## superform-hook-master implementation TODO: Aerodrome Universal Router hooks
+
+Date: 2026-07-16.
+
+### Status, review gate, and task split
+- Plan only. No production, test, deployment, configuration, or bytecode files were changed in this planning turn.
+- This plan implements the Master-approved scope only: ERC20/WETH, exact input, one homogeneous all-classic or all-Slipstream route, direct Universal Router allowance, and the standard `ISuperHookSwap` header plus `abi.encode(uint8 routeKind, uint256 deadline, bytes packedPath)` payload.
+- After Master Codex approves this TODO, tasks 1-5 can proceed without selecting a production router because the constructor remains address-parameterized and unit tests use a mock.
+- Tasks 6-8 are blocked until Aerodrome/product confirms the intended Base Universal Router and its immutable factory mapping. Do not put any candidate address into production config or locked bytecode before that gate is resolved.
+- Out of scope remains unchanged: native ETH, Permit2 flows, mixed classic/Slipstream plans, split routing, exact output, allow-revert/partial-fill commands, arbitrary commands/calldata, V4, bridge, and cross-chain commands.
+
+### Can proceed after Master approves this plan
+
+1. **Add the minimal vendor ABI and one Aerodrome-specific abstract base.**
+   - Add `src/vendor/aerodrome/IAerodromeUniversalRouter.sol` with only the deadline-bearing production entry point:
+     `execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable`.
+   - Add `src/hooks/swappers/aerodrome/BaseAerodromeUniversalRouterHook.sol` extending `BaseHook` and implementing `ISuperHookSwap`, `ISuperHookContextAware`, `ISuperHookInflowOutflow`, and `ISuperHookOutflow` once for both concrete hooks.
+   - Store `IAerodromeUniversalRouter public immutable UNIVERSAL_ROUTER`; reject a zero constructor address with `BaseHook.ADDRESS_NOT_VALID`; initialize `HookType.NONACCOUNTING` and `HookSubTypes.SWAP` in the abstract base.
+   - Keep the two command constants in this base, not a separate library: `V3_SWAP_EXACT_IN = 0x00` for Slipstream and `V2_SWAP_EXACT_IN = 0x08` for classic. Add one internal pure virtual `_includeApproval()` so the shared builder emits either one router execution or the four approval/swap executions.
+   - Share all standard swap helpers here: `encodeSwapData`, header decoders, payload decoder, `decodeUsePrevHookAmount`, `decodeAmounts`, `amountRoles`, `replaceCalldataAmounts`, `inspect`, sizing-interface support, and ERC20 output balance-delta pre/post accounting. The only replaceable amount is offset 92 (`SwapCalldataLayout.AMOUNT_POSITION`), and `inspect` returns the packed output token.
+   - Do not refactor unrelated swap hooks or introduce a protocol-general swap base. This abstraction is local because these two contracts have identical parsing, security checks, router encoding, and lifecycle behavior.
+
+2. **Implement strict canonical payload and packed-path validation in the shared base.**
+   - Before any `BytesLib` read, require at least `SwapCalldataLayout.MIN_DATA_LENGTH`, require the header bool byte to be exactly `0` or `1`, read `payloadLength`, and require `payloadLength == data.length - 221`. This rejects truncation and outer trailing bytes without an addition overflow.
+   - Prevalidate the ABI head for `(uint8,uint256,bytes)`, including the canonical dynamic offset, bounded path length, expected padded payload length, and zero padding; then decode and require `keccak256(payload) == keccak256(abi.encode(routeKind, deadline, packedPath))`. Malformed offsets, dirty narrow values, or ignored payload bytes must fail closed.
+   - Use these explicit errors in the abstract base: `INVALID_HOOK_DATA`, `INVALID_PAYLOAD`, `INVALID_ROUTE_KIND`, `NATIVE_TOKEN_NOT_SUPPORTED`, `SAME_INPUT_OUTPUT_TOKEN`, `INVALID_OUTPUT_AMOUNTS`, `INVALID_PREV_HOOK`, `PREV_HOOK_TOKEN_MISMATCH`, `EXPIRED_DEADLINE(uint256,uint256)`, `INVALID_PATH_LENGTH`, `INVALID_PATH`, `INVALID_STABLE_FLAG`, and `INVALID_POOL_PARAM`. Reuse `ADDRESS_NOT_VALID`, `AMOUNT_NOT_VALID`, and `INVALID_AMOUNTS_LENGTH` for their existing generic cases.
+   - Require a nonzero account; nonzero distinct header tokens; neither `address(0)` nor the conventional `0xEeee...` native sentinel anywhere in the path; `inputAmount > 0`; `outputMin > 0`; and `outputQuote >= outputMin`. Permit `deadline == block.timestamp` and reject `deadline < block.timestamp`; deadline-horizon policy remains in the quote adapter.
+   - Classic parsing: require `packedPath.length == 20 + 21 * hops`, `1 <= hops <= 9`, stable byte exactly `0` or `1`, all token addresses nonzero/non-native, no equal adjacent tokens, and first/last tokens equal the header endpoints.
+   - Slipstream parsing: require `packedPath.length == 20 + 23 * hops`, `1 <= hops <= 9`, and parse each three-byte parameter as big-endian `uint24`. Require nonzero `param & 0x07ffff`, no `param & 0xe00000` reserved bits, and selector `param & 0x180000` equal only `0`, `0x080000`, or `0x100000`; reject combined `0x180000`. Apply the same token and endpoint checks.
+   - With `usePrevHookAmount`, require a nonzero contract `prevHook`, require `getOutToken(account) == inputToken`, require a nonzero previous amount, set it as `effectiveAmountIn`, and compute `effectiveOutputMin = HookDataUpdater.getUpdatedOutputAmount(previousAmount, originalInputAmount, originalOutputMin)`. With chaining disabled, use the header values unchanged.
+   - Construct, rather than accept, router calldata: one command, one input encoded as `(account, effectiveAmountIn, effectiveOutputMin, packedPath, true, false)`, deadline-bearing `execute`, target fixed to `UNIVERSAL_ROUTER`, and value fixed to zero. This fixes recipient, payer, Aerodrome mode, command class, allow-revert bit, and custody behavior on chain.
+   - `_preExecute` snapshots `IERC20(outputToken).balanceOf(account)`; `_postExecute` rejects a decreased balance, stores the delta, and stores `outputToken`. Document fee-on-transfer and rebasing tokens as unsupported; no permissive fallback is added.
+
+3. **Add the two thin concrete hooks.**
+   - Add `src/hooks/swappers/aerodrome/SwapAerodromeUniversalRouterHook.sol`. It forwards `constructor(address universalRouter_)` to the base, supplies name/description, and returns `_includeApproval() == false`; total `BaseHook.build` length is three (`pre`, router call, `post`) and the account must already have direct router allowance.
+   - Add `src/hooks/swappers/aerodrome/ApproveAndSwapAerodromeUniversalRouterHook.sol`. It uses the same constructor and data, supplies name/description, and returns `_includeApproval() == true`; hook executions are exactly `approve(router,0)`, `approve(router,effectiveAmountIn)`, `router.execute`, `approve(router,0)`, for a total build length of six with pre/post.
+   - Use ordinary `IERC20.approve` execution calldata, matching existing approve-and-swap hooks. Do not add Permit2 configuration or approvals.
+
+4. **Add deterministic mock-backed unit coverage for the complete trust boundary.**
+   - Add `test/mocks/MockAerodromeUniversalRouter.sol`. It implements the minimal interface, records/validates the command and decoded input, can pull the configured ERC20 from `msg.sender`, and can mint a configured output to the forced recipient so approval cleanup and balance-delta behavior can be executed, not only calldata-inspected.
+   - Add `test/unit/hooks/swappers/aerodrome/AerodromeUniversalRouterHook.t.sol` covering both variants. Keep a small previous-result mock local to this test because existing `test/mocks/MockHook.sol` always returns a zero output token.
+   - Positive cases: constructor/metadata/type/subtype/ERC165 sizing support; standard encode/decode/inspect/amount replacement; exact `execute(bytes,bytes[],uint256)` selector `0x3593564c`; target/value/deadline; command `0x08` or `0x00`; one input; forced recipient; effective amount/minimum; exact path; `payerIsUser=true`; `isUni=false`; three- versus six-execution order; direct spender and final zero allowance; pre/post output delta/token.
+   - Route cases: classic stable, classic volatile, classic multihop; Slipstream raw primary selector, `0x100000` original selector, `0x080000` latest selector, and CL multihop.
+   - Chaining cases: scale up, scale down, same amount, absent/EOA previous hook, zero previous result, previous-token mismatch, and approval using the effective amount.
+   - Negative boundary cases: short header; invalid header bool; outer payload overrun/underrun/trailing data; malformed/noncanonical ABI offset, length, padding, or narrow value; unsupported route kind; expired deadline; zero account/token/amount/minimum; quote below minimum; same header tokens; native sentinel; bad path formulas; zero/tenth hop; wrong endpoints; zero/equal intermediate token; stable byte greater than one; zero tick spacing; combined selector; reserved bits; and decreased post balance.
+   - Fuzz standard header round trips, amount replacement preservation, and structurally valid 1-9 hop paths; mutate separator, selector, endpoint, and length bytes to prove the parser fails closed.
+
+5. **Wire repository metadata and complete address-independent verification.**
+   - Update `tooling/hook-classification.yaml` with both hooks as `{intent: swap, stage: instant}` and `legSizing: [sized]`.
+   - Update `tooling/hook-enrichment.yaml` with `[aerodrome]` compatible protocol entries and the approve pair `SwapAerodromeUniversalRouterHook: ApproveAndSwapAerodromeUniversalRouterHook`.
+   - Because the concrete sources inherit the implementation, update `tooling/generate-hook-sizing-manifest.ts` with explicit `replaceCalldata` overrides for both names. Its current scanner only inspects each concrete source and otherwise cannot see inherited `decodeAmounts`/`replaceCalldataAmounts`.
+   - Likewise update `tooling/generate_hook_manifest.py` so a concrete hook inheriting `BaseAerodromeUniversalRouterHook` is classified as `NONACCOUNTING` / `SWAP`; its parser currently recognizes only direct `BaseHook(...)` calls and a few named abstract bases.
+   - Regenerate and commit `hook-sizing-manifest.json` and `manifests/hooks.json` with `npm run generate:hook-sizing`, `npm run validate:hook-sizing`, and `make manifest`. Empty deployment-address maps are expected until task 8 and the hook manifest must be regenerated again after deployment outputs exist.
+   - Run `forge fmt --check`, `forge build`, `forge test --match-contract AerodromeUniversalRouterHookTest -vvv`, the manifest lint/validation commands, and then `make ftest-ci`. No Go hook binding is expected because `generate-contract-bindings.sh` deliberately excludes `*Hook` contracts.
+
+### Blocked on confirmed router address and immutables
+
+6. **Resolve and verify the Base router, then freeze fork fixtures.**
+   - Obtain an explicit Aerodrome/product decision among the researched all-three-factory deployment `0xC5b6786D7B64767D775877b0B6A319AD946B11B5`, the current frontend/`sugar-sdk` target `0xcAF22ce31298CF2BF1D152862F80216478ad7c67`, and the security-page legacy router `0x6Cb442acF35158D5eDa88fe602221b67B400Be3E`. Repository recency alone is not approval.
+   - On a pinned Base block after the chosen deployment, assert code exists and verify the router getters against the intended MVP mapping: `WETH9 = 0x4200...0006`, `VELODROME_V2_FACTORY = 0x420DD...`, `VELODROME_CL_FACTORY = 0xaDe65...`, `VELODROME_CL_FACTORY_2 = 0x5e7BB...`, and `VELODROME_CL_FACTORY_3 = 0xf8f2e...`. Also confirm the exact runtime supports ordinary ERC20 `transferFrom` before Permit2 fallback.
+   - Use pinned `sugar-sdk` `v0.4.2`/Sugar data only as a route-fixture producer. Select liquid routes at that same block and commit `route_for_swap.encoded`, never the mixed-quoter classic path. Fixtures must include classic volatile, classic stable, raw primary CL, original `0x100000` CL, and latest `0x080000` Gauges V3 CL.
+   - The router choice is a hard release blocker because it changes constructor init code, deterministic CREATE2 hook addresses, fork behavior, verification args, and both locked bytecode deployment predictions.
+
+7. **Add pinned Base fork execution tests against the confirmed router.**
+   - Add `test/integration/aerodrome/AerodromeUniversalRouterHookFork.t.sol`; keep router, factory, token, path, tick-spacing, and fork-block constants scoped to this test unless another production consumer appears.
+   - Execute all five route classes through the approve-and-swap hook, plus representative classic and CL routes through the swap-only hook after explicit direct router approval. Include one previous-hook resized execution and decode/assert the effective amount and minimum before executing it.
+   - For every real swap assert exact input consumption, output increase at least the committed minimum, `getOutAmount` equals the observed ERC20 balance delta, `getOutToken` is correct, final direct router allowance is zero for the approve variant, and neither the account nor router gains unintended input-token dust relative to its pre-swap balance. The swap-only test may retain only the explicitly intended leftover allowance.
+   - Ensure the smart-account-relevant payer behavior is exercised: the account executing the router call is `msg.sender`, `payerIsUser=true`, and it has no Permit2 approval. This proves direct approval works on the selected deployment.
+   - Run with `BASE_RPC_URL=... forge test --match-contract AerodromeUniversalRouterHookForkTest -vvv`. Do not reuse the repository's older global `BASE_BLOCK` unless it is after the selected router and all fixtures exist there.
+
+8. **Wire Base-only deployment, lock bytecode, deploy, export, and verify.**
+   - After router confirmation, update `script/utils/Constants.sol` with `AERODROME_UNIVERSAL_ROUTER_BASE` and both hook keys; update `script/utils/ConfigBase.sol` with `aerodromeUniversalRouters`; and set only `configuration.aerodromeUniversalRouters[BASE_CHAIN_ID]` in `script/utils/ConfigCore.sol`. Other chains remain unset.
+   - Update `script/DeployV2Core.s.sol` atomically: add both `HookAddresses` fields and an availability flag; include both hooks in availability/skips/missing-bytecode accounting; add conditional predicted-address checks with `abi.encode(router)` in `_checkHookContracts`; grow `_deployHooks` from 78 to 80 without shifting existing slots; deploy at stable slots 78/79 with router code checks; assign both addresses; and add final conditional nonzero validation.
+   - While updating availability, increase `potentialSkips` from 37 to at least 40 because the Base-only pair raises the maximum skip count to 38. Reconcile `baseHooks` to 80 entries, including the six already-deployed WithId hooks currently omitted plus the two new hooks, so expected totals and missing-bytecode reporting match the actual 80 deployment slots.
+   - Add both names to `HOOK_CONTRACTS` in `script/run/tooling/regenerate_bytecode.sh`. Build and generate `script/generated-bytecode/SwapAerodromeUniversalRouterHook.json` and `script/generated-bytecode/ApproveAndSwapAerodromeUniversalRouterHook.json`; after contract/fork review, promote identical artifacts to `script/locked-bytecode-dev/` for staging/vnet and, only after the production release gate, `script/locked-bytecode/` for prod. These are core hooks, not `locked-bytecode-other` hooks.
+   - Update `script/run/verify/verify_v2_staging_prod.sh`: define the confirmed Base router, populate it only for chain 8453, encode `constructor(address)` for both hook names, and map both names to their exact source paths. Deployment and verification must use the same address.
+   - Run core preflight/check mode before deployment, deploy to Base staging, and let `_exportContract` write the new keys to `script/output/staging/8453/Base-latest.json`; generate aggregate staging output with `script/run/tooling/generate_latest_json.sh staging`. Repeat for prod only after staging/fork/security sign-off, then regenerate `manifests/hooks.json` so its Base staging/prod address maps are current.
+   - Verify both deployments with `script/run/verify/verify_v2_staging_prod.sh staging` and later `prod`, confirm explorer constructor args, and rerun `forge build`, targeted/unit/fork tests, `make ftest-ci`, manifest lint, and sizing-manifest validation against the exact locked artifacts/config.
+   - Do not modify the specialized historical `script/run/others/update_hook_addresses.py` or `deploy_hooks_cast.sh`; the normal `DeployV2Core` check/deploy/export flow owns these hooks.
+
+### Review request
+- Master Codex: please review and approve or amend this eight-task implementation TODO. Per repository instructions, no hook implementation should begin until that review is recorded.
+
+## Master Codex review: Aerodrome hook implementation TODO
+- Reviewed and approved the eight-task `superform-hook-master` plan as the implementation checklist for the two Aerodrome Universal Router hooks.
+- Tasks 1-5 are approved as address-independent work, but the user explicitly requested the TODO first, so no implementation begins until the user confirms this checklist.
+- Amendment: add a dedicated `OUTPUT_BALANCE_DECREASED` custom error and deterministic unit case instead of relying on arithmetic panic or a generic amount error when the output balance falls between pre/post execution.
+- Amendment: the Sugar/OMS packed-path quote adapter remains a separately tracked change in the relevant off-chain repository. This v2-core checklist covers hook contracts, validation, tests, manifests, and deployment wiring only.
+- Tasks 6-8 remain release-blocked on an explicit production router decision and verification of its immutable classic/three-factory mapping, six-field command ABI, and direct ERC20 allowance behavior.
+- Deployment changes must append slots 78/79 without shifting existing slots, increase skip-array headroom, and correct the existing base-hook accounting omission while that deployment table is being extended.
+- No production or test source files were edited and no tests were run during this TODO-only turn.
+
+## Aerodrome implementation progress (2026-07-16)
+- Began approved address-independent tasks 1-5 after the user asked to implement.
+- Added the minimal deadline-bearing `IAerodromeUniversalRouter.execute(bytes,bytes[],uint256)` vendor interface.
+- Added `BaseAerodromeUniversalRouterHook` and the thin `SwapAerodromeUniversalRouterHook` / `ApproveAndSwapAerodromeUniversalRouterHook` concrete contracts. The shared base constructs a single exact-input command, supports classic (`0x08`) and Slipstream (`0x00`) homogeneous paths, enforces canonical payload/path validation, scales previous-hook amounts, exposes the standard sizing/swap interfaces, and records output balance deltas.
+- The approved `OUTPUT_BALANCE_DECREASED` guard is implemented in post-execution accounting.
+- Pinned-solc review confirmed that Solidity ABI decoding is permissive about trailing bytes, alternate offsets, and nonzero padding. The implementation therefore checks the raw route word, exact `0x60` dynamic offset, bounded path length, exact padded payload length, every padding byte, and canonical re-encoding before accepting a payload.
+- Pinned-solc review also found that typed `try/catch` does not catch successful calls with malformed returndata during ABI decoding. Previous-hook result reads were changed to strict low-level `staticcall` checks: success, exactly 32 returndata bytes, and a clean 160-bit token word are required before scaling.
+- Installed the documented submodule dependencies under `lib/modulekit`, `lib/safe7579`, and `lib/nexus`. pnpm 10 required the command-line `dangerously-allow-all-builds` config for the repository's git dependency scripts; no tracked package or lock file was changed.
+- A full `forge build` compiled the new source without contract errors, but the repository-wide run stopped on three pre-existing test helpers whose `view` mutability is incompatible with the installed Foundry `vm.getRecordedLogs()` signature (`MinimalBaseNexusIntegrationTest.t.sol` twice and `StargateAdapterE2EFork.t.sol` once). Source-scoped compilation and Aerodrome-targeted tests will be used to verify this change without editing unrelated tests.
+- Tooling review confirmed two required inheritance workarounds: hook-manifest classification must explicitly recognize `BaseAerodromeUniversalRouterHook`, and sizing overrides must name both concrete hooks. Sizing generation also requires address-independent hook-key constants in `script/utils/Constants.sol`; router/config/deployment wiring remains blocked.
+
+## superform-hook-master implementation review: Solidity 0.8.30 and inherited-base pitfalls
+
+Date: 2026-07-16. Review only; `superform-hook-master` did not edit production or test sources.
+
+### Implementation-critical correction
+- Do not rely on typed `try ISuperHookResult(prevHook).getOutToken/getOutAmount` to normalize every malformed previous hook to `INVALID_PREV_HOOK`. A pinned Solc 0.8.30 Forge probe showed that `try/catch` catches a call revert, but **does not catch ABI-decoding failure after a successful call** that returns empty/short data or a dirty high-order address word; the caller reverts outside the catch clause.
+- Use one low-level `staticcall` per result selector instead. Require success and exactly 32 return bytes; for `getOutToken`, load the word and require it is at most `type(uint160).max` before casting; for `getOutAmount`, load the full word. Map call failure, malformed return length, and dirty address data to `INVALID_PREV_HOOK`, then apply `PREV_HOOK_TOKEN_MISMATCH` and the nonzero amount check. Read each result only once.
+
+### Canonical `(uint8,uint256,bytes)` checklist
+- Solc 0.8.30 `abi.decode` was empirically confirmed to accept outer trailing bytes, nonzero dynamic-byte padding, a relocated aligned tail, and even an unaligned dynamic offset. It rejects dirty high bits in a `uint8`, but decoding alone is not a canonicality check.
+- Validate raw bytes before decoding: payload length at least 128; route word clean (`<= type(uint8).max`); dynamic offset exactly `0x60`; path length bounded; exact padded tail length; and every padding byte zero. The current 227-byte path cap makes `pathLength + 31` and total-length arithmetic safe. A re-encode/hash comparison is useful defense in depth after these checks.
+- For the outer swap envelope, first require `data.length >= 221`, validate the bool byte as exactly `0` or `1`, then require `payloadLength == data.length - 221`. This subtraction form avoids attacker-controlled addition overflow and rejects both truncation and trailing bytes.
+- Keep clean but unsupported route values separate from dirty narrow ABI values: a clean route word `2..255` should reach `INVALID_ROUTE_KIND`; a word with bits above the low byte should be `INVALID_PAYLOAD`.
+
+### Byte and sizing checklist
+- `BaseHook._decodeBool` treats every nonzero byte as true and panics on a short array. Validate the raw bool first; do not use it as the validator.
+- `BaseHook._replaceCalldataAmount` writes 32 indexed bytes without checking length. Public amount replacement and decoding helpers must bounds-check `AMOUNT_POSITION + 32` before calling it or `BytesLib` so malformed input uses hook errors rather than panic/string reverts.
+- `BytesLib` accepts `bytes memory`, has no `toUint24`, and its address parser reads a full word after only a 20-byte logical bounds check. Prevalidate bounds and parse Slipstream parameters big-endian with widened operands: `(uint24(uint8(b[o])) << 16) | (uint24(uint8(b[o+1])) << 8) | uint24(uint8(b[o+2]))`. Shifting a `uint8` before widening can truncate the result.
+- Check `path.length >= 20` before subtracting. Classic hop offsets are `20 + i*21` for the flag and `21 + i*21` for the next token; Slipstream offsets are `20 + i*23` for the parameter and `23 + i*23` for the next token. Validate 1-9 hops, every token, adjacent inequality, and both endpoints.
+- `HookDataUpdater` is a `1e5` precision percentage-delta helper, not exact `outputMin * newAmount / originalAmount`: very small relative changes quantize to no minimum change. Reject original and previous input amounts of zero before use, and make tests assert this repository helper's semantics. Validate `outputQuote >= originalOutputMin` before scaling; do not compare the original quote against a scaled-up effective minimum because the quote is metadata and is not sent to the router.
+
+### Inheritance and tooling checklist
+- Solidity inheritance itself is sound: initialize `BaseHook` once in `BaseAerodromeUniversalRouterHook`; concrete hooks need only constructor forwarding, metadata, and `_includeApproval`. `BaseHook.supportsInterface` advertises the two sizing interfaces when `_supportsSizingInterface()` is true, but does not automatically advertise `ISuperHookSwap` or `ISuperHookContextAware`; tests must not assume those ERC165 IDs.
+- `tooling/generate_hook_manifest.py` skips `Base*` sources and parses only each concrete file. Both thin inheritors therefore need explicit inherited-base classification as `NONACCOUNTING` **and** subtype `SWAP`; recognizing only the hook type is insufficient.
+- `tooling/generate-hook-sizing-manifest.ts` likewise scans only the exact concrete filename for sizing methods/constants. Add explicit `replaceCalldata` overrides for both Aerodrome concrete hooks; inherited methods will not auto-detect. The default pipe mode remains `transform`, which is correct.
+- The sizing generator emits entries only for hook-key strings extracted from `script/utils/Constants.sol` / `ConstantsOtherHooks.sol`; overrides alone do not create entries. Add the two address-independent Aerodrome hook-key constants during task 5 if sizing generation is expected now, while leaving router addresses/config/bytecode blocked, or explicitly defer sizing-manifest regeneration to task 8.
+
+### Verification status
+- Both new concrete hook dependency closures compiled successfully with the repository-pinned Solc 0.8.30 using a targeted `forge build` invocation.
+- A whole-repository `forge build` is currently blocked by pre-existing missing `lib/nexus/node_modules` dependencies (`solady`, `solarray`, `sentinellist`, composability, and ERC-7739 packages), not by the Aerodrome sources. Install the documented Nexus dependencies before relying on full-build/test results.
+
+## Aerodrome unit-test implementation and verification
+- Added `test/mocks/MockAerodromeUniversalRouter.sol`. It decodes the exact six-field Aerodrome input, requires user-payer/non-Uni mode, pulls the configured input ERC20 from the executing account, and can mint or burn output for lifecycle tests.
+- Added `test/unit/hooks/swappers/aerodrome/AerodromeUniversalRouterHook.t.sol` with 24 tests. Coverage includes both three- and six-execution plans; exact selector/command/input/deadline construction; temporary direct approval and cleanup; actual token movement; output amount/token accounting; classic and all three Slipstream factory selector forms; multihop routes; deadline equality; previous-hook up/down/same/quantized scaling; absent, EOA, empty-returndata, dirty-address, mismatched-token, and zero-amount previous hooks; malformed outer envelopes and canonical payloads; invalid headers; route/deadline failures; classic/Slipstream path boundaries; decreased output balances; public sizing helper bounds; and three fuzz properties for standard headers and valid 1-9 hop paths.
+- Targeted source build passes with Solc 0.8.30.
+- Focused test command passes all 24 tests: `FOUNDRY_TEST=test/unit/hooks/swappers/aerodrome FOUNDRY_SCRIPT=.Codex/unused forge test --match-contract AerodromeUniversalRouterHookTest -vv`. The environment overrides are needed because this Foundry version compiles unrelated integration tests even with `--match-path`, and three pre-existing integration helpers currently fail mutability checking.
+- Address-independent implementation plan tasks 1-4 are complete. Task 5 (tooling/manifests) is in progress; tasks 6-8 remain blocked on the production router decision.
+
+## Aerodrome address-independent implementation completion
+- Completed implementation-plan tasks 1-5. Tasks 6-8 remain deliberately pending until the production Base Universal Router and its immutable factory mapping/direct-allowance behavior are confirmed.
+- Added address-independent hook-key constants for `SwapAerodromeUniversalRouterHook` and `ApproveAndSwapAerodromeUniversalRouterHook`; no router address, chain config, deployment slot, bytecode lock, output address, or verifier argument was added.
+- Added both hooks to `tooling/hook-classification.yaml` as sized instant swaps, added `[aerodrome]` enrichment and the approve pair, added inherited sizing overrides, and taught `generate_hook_manifest.py` to classify the shared Aerodrome base as `NONACCOUNTING` / `SWAP` from each concrete source.
+- Regenerated `hook-sizing-manifest.json`: both Aerodrome keys are `replaceCalldata` / `transform`. `npm run validate:hook-sizing` passes with zero errors and the same three pre-existing repository warnings (27 inherited/inlined offsets grouped as one warning, `APPROVE_ERC20_HOOK_KEY` pipe-mode warning, and `FETCH_NATIVE_FEE_HOOK_KEY` pipe-mode warning).
+- Regenerated `manifests/hooks.json`. Both entries have empty staging/prod address maps, sized `IN/TOKEN` metadata, Aerodrome compatibility, and the correct approval relationship. `make manifest` passes using an ephemeral PyYAML environment; all 125 hooks validate.
+- Expanded the focused suite to 25 passing tests by adding amount-replacement preservation fuzzing, the literal router selector assertion (`0x3593564c`), payload under-declaration, zero output token, and native-sentinel path cases.
+- Final focused command: `FOUNDRY_TEST=test/unit/hooks/swappers/aerodrome FOUNDRY_SCRIPT=.Codex/unused forge test --match-contract AerodromeUniversalRouterHookTest -vv` -> 25 passed, 0 failed.
+- Targeted Solc build passes for both concrete hooks and their test closure. Deployed runtime sizes are 12,462 bytes for the swap-only hook and 12,506 bytes for the approve-and-swap hook, both well below EIP-170's 24,576-byte limit.
+- Targeted `forge fmt --check` for all changed Solidity files passes, and `git diff --check` passes.
+- Repository-wide `make ftest-ci` was attempted and fails before running tests on three unrelated, pre-existing Solc mutability errors: `test/integration/MinimalBaseNexusIntegrationTest.t.sol:342`, the same file at line 378, and `test/integration/stargate/StargateAdapterE2EFork.t.sol:1542`; each calls the non-view `vm.getRecordedLogs()` from a function declared `view`. The Aerodrome-scoped test directory override avoids compiling those unrelated integration roots.
+- Repository-wide `forge fmt --check` also fails on extensive pre-existing formatting drift throughout unrelated `src/`, `test/`, and `script/` files. All files changed for Aerodrome pass targeted formatting checks; unrelated formatting was not modified.
+- Re-ran the focused Aerodrome suite on request: Solc 0.8.30 compilation succeeded and all 25 tests passed again with zero failures.
+- Clarified the remaining release gate: unit tests use a mock router, but real Base fork tests and deterministic deployment artifacts require one confirmed production router address. The selected runtime must expose the expected classic and three Slipstream factory immutables and support direct ERC20 router allowance with the six-field exact-input command used by these hooks.
+
+## Aerodrome Base Universal Router resolution (2026-07-16)
+
+### Decision
+- Use `0xcAF22ce31298CF2BF1D152862F80216478ad7c67` as the production Base Universal Router for the new Aerodrome hooks.
+- `0xC5b6786D7B64767D775877b0B6A319AD946B11B5` is a valid all-three-factory deployment and remains the address recorded by `velodrome-finance/universal-router`, but the later official SDK release and the live Aerodrome application do not select it.
+- Reject `0x6Cb442acF35158D5eDa88fe602221b67B400Be3E` for these hooks. It is the 2024 legacy router: its V3 exact-input command has five fields and its V2 command consumes `Route[]`, not the new six-field packed path.
+
+### Official product/config evidence
+- The live `https://aerodrome.finance/swap` application retrieved on 2026-07-16 reports version `v5.0.0+da710a` and loads `assets/index-Cj-jKC2u.js`. That bundle sets `VITE_UNIVERSAL_ROUTER_ADDRESS_8453` to `0xcAF22...` (and chain 10 to the same address). `0xC5b...` is absent. The bundle contains `0x6Cb...` only as static security-table content, demonstrating that the security table is stale relative to the application config.
+- Official `velodrome-finance/sugar-sdk` commit [`0de24ae`](https://github.com/velodrome-finance/sugar-sdk/commit/0de24ae601487b13e358834f45f80a37be945982), authored/committed 2026-05-28 as `feat: sync latest contracts / chains`, changes Base `swapper_contract_addr` from `0x01D400...` to `0xcAF22...`. Latest tag [`v0.4.2`](https://github.com/velodrome-finance/sugar-sdk/blob/v0.4.2/sugar/config.py#L176-L199) contains that setting; `v0.4.1` does not. The same planner directly approves the configured swapper and emits the six-field command with `payerIsUser=true` and `isUni=false`.
+- Official `velodrome-finance/universal-router` commit [`540899c`](https://github.com/velodrome-finance/universal-router/commit/540899c395004a50179bcce2774882995b3f381c), dated 2026-04-10 and titled `feat: 3 factories support (#106)`, records `0xC5b...` in [`deployment-addresses/base.json`](https://github.com/velodrome-finance/universal-router/blob/540899c395004a50179bcce2774882995b3f381c/deployment-addresses/base.json). This is real official deployment evidence, but it predates the SDK migration and differs from the live product target.
+- Aerodrome's current [`security.mdx`](https://github.com/aerodrome-finance/docs/blob/7c0df032b58ee08b621ace19753d8abc260dd321/content/security.mdx#L340-L347) still lists `0x6Cb...`. Historical SDK config selected that address before replacing it in 2025, so it must be treated as legacy documentation rather than the current integration setting.
+
+### Verified `cAF22...` contract behavior and immutables
+- Base Blockscout reports an exact, fully verified `UniversalRouter`, Solc `0.8.29`, Cancun, 10,000 optimizer runs, verified 2026-04-30: `https://base.blockscout.com/api/v2/smart-contracts/0xcAF22ce31298CF2BF1D152862F80216478ad7c67`.
+- Its exact verified dispatcher decodes command `0x00` and command `0x08` as `(address recipient,uint256 amountIn,uint256 amountOutMin,bytes path,bool payerIsUser,bool isUni)`. `payerIsUser=true` selects `msgSender()` and `isUni=false` selects Aerodrome/Velodrome routing.
+- Its payment code first low-level-calls token `transferFrom(payer,recipient,amount)` and falls back to Permit2 only if that call reverts or returns explicit false. Direct ERC20 allowance to the router is therefore the primary supported path.
+- Its exact constructor tuple is immutable and decodes to WETH `0x4200000000000000000000000000000000000006`, Permit2 `0x494bbD8A3302AcA833D307D11838f18DbAdA9C25`, Aerodrome V2 factory `0x420DD381b31aEf6683db6B902084cB0FFECe40Da`, primary CL factory `0xaDe65c38CD4849aDBA595a4323a8C7DdfE89716a`, CL factory 2 `0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A`, and CL factory 3 `0xf8f2eB4940CFE7d13603DDDD87f123820Fc061Ef`, with their corresponding init-code hashes.
+- Pool selector mapping in the exact source is unflagged primary, `0x100000` factory 2, and `0x080000` factory 3, with pool parameter mask `0x07ffff`. This matches the approved hook parser and `sugar-sdk v0.4.2` packing.
+- `cAF22...` exposes `WETH9()` and `PERMIT2()`, but its factory immutables are `internal` and it does not expose `VELODROME_*` getters. It is not a proxy and has no owner/admin function; `owner()` reverts.
+
+### Live Base execution proof
+- Successful Base transaction [`0xd22ee365...`](https://basescan.org/tx/0xd22ee3653372a3c84cbfa4516c9d394114e6bb32d5619ecdb9c18fc93eb1d3a6), block `48,707,812`, calls `cAF22...` with `execute(bytes,bytes[],uint256)` selector `0x3593564c`, one `0x00` exact-input command, and a six-field input.
+- Its packed pool parameter is `0x0800c8`: factory-3 selector `0x080000` plus tick spacing `200`. The transaction succeeds and sends output directly to the caller.
+- At block `48,707,811`, input-token allowance from caller `0xB922...` to `cAF22...` was exactly the input amount, `175000000000000000000`. The caller's ERC20 allowance to Permit2 was zero and Permit2's internal allowance for token/router was `(0,0,0)`. This is on-chain proof that the direct router `transferFrom` path, not Permit2, funded the successful swap.
+
+### Deployment and bytecode comparison
+- `cAF22...`: deployed through CreateX `deployCreate3` at Base block `45,003,754`, 2026-04-21 18:40:55 UTC, transaction [`0x3e86f7f...`](https://basescan.org/tx/0x3e86f7f785b50e78434b1324ba3fd5be5ad317b7296df94d5dd6a17eb812915b). Runtime length is 23,759 bytes; runtime keccak is `0xa11d1a13950f5b70dd0d7822e4e3b575778d8614e897c7810d7e6e9f310c017d`.
+- `C5b...`: deployed through CreateX at Base block `44,402,301`, 2026-04-07 20:32:29 UTC, transaction [`0x821bf698...`](https://basescan.org/tx/0x821bf69815efb4971dc020918277148ab99cc1f2ed71d9f9f79ca7eef565affe). Runtime length is 24,282 bytes; keccak is `0x0397697643ba8b47d6b50164b6c0a54cf830860e972532f1fbd575d2fc813125`. Its public getters return the same V2/primary/factory-2/factory-3 mapping listed above.
+- `6Cb...`: deployed directly at Base block `13,843,986`, 2024-04-30 11:41:59 UTC, transaction [`0x8cce9700...`](https://basescan.org/tx/0x8cce9700dc1252bebd66545063c83ec64f88f0cb15c1e36ad65ae032ba131aa4). Runtime length is 19,991 bytes; keccak is `0x2cad7bafff3766b4f54172b4e628e1bbe8af3f064a4294502b29cfdfeffe9f1c`. Exact verified source is the legacy five-field/`Route[]` generation with only the original CL factory.
+- All three addresses still have recent transactions. Historical transaction count is not a canonicality signal; current official app/SDK selection and exact runtime behavior are the decisive evidence.
+
+### Release verification amendment
+- The router-address release blocker is resolved in favor of `cAF22...`; implementation tasks 6-8 may use that address.
+- Because `cAF22...` has no public factory getters, replace the earlier getter-only preflight with: exact chain/address check; nonempty code; pinned runtime hash `0xa11d...`; callable `WETH9()`/`PERMIT2()` checks; archived exact verified constructor/source evidence; and successful fork execution for classic plus primary, factory-2, and factory-3 CL routes using direct allowance.
+- Pin the bytecode hash/config in deployment review. A future Aerodrome frontend or SDK address change is a new release decision; do not follow it automatically without repeating source, constructor, runtime, and fork checks.
+
+## Aerodrome tasks 7-8 final implementation plan (2026-07-16)
+
+### Task 7: pinned Base fork coverage
+- Add a dedicated fork suite, suggested path `test/integration/aerodrome/AerodromeUniversalRouterHookFork.t.sol`, pinned to Base block `48_707_812`. Do not reuse `test/utils/Constants.sol` `BASE_BLOCK = 26_885_730`; it predates the selected router's deployment at block `45_003_754`.
+- Preflight router `0xcAF22ce31298CF2BF1D152862F80216478ad7c67`: nonempty code, `codehash == 0xa11d1a13950f5b70dd0d7822e4e3b575778d8614e897c7810d7e6e9f310c017d`, `WETH9() == 0x4200000000000000000000000000000000000006`, and `PERMIT2() == 0x494bbD8A3302AcA833D307D11838f18DbAdA9C25`.
+- Use `deal` for deterministic account funding, small exact inputs, `outputMin = 1`, and a current fork deadline. Execute through the real hook build/pre/router/post sequence, not a direct router-only call. Assert positive output delta, correct output token/result, direct router allowance behavior, zero token allowance to Permit2, zero Permit2 internal allowance, and final zero router allowance for the approve-and-swap hook. Exercise the swap-only hook separately with a pre-existing direct router approval.
+- Pinned classic volatile fixture:
+  - WETH -> USDC, pool `0xcDAC0d6c6C59727a65F871236188350531885C43`, `stable=false`.
+  - At the pinned block reserves are `1_982_854321833867534658` WETH wei and `3_732_465208828` USDC units.
+  - Packed path: `0x420000000000000000000000000000000000000600833589fcd6edb6e08f4c7c32d4f71b54bda02913`.
+- Pinned classic stable fixture:
+  - USDC -> USDbC, pool `0x27a8Afa3Bd49406e48a074350fB7b2020c43B2bD`, `stable=true`.
+  - At the pinned block reserves are `20_460050857` USDC units and `22_891652146` USDbC units.
+  - Packed path: `0x833589fcd6edb6e08f4c7c32d4f71b54bda0291301d9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca`.
+- Pinned primary CL fixture:
+  - WETH -> USDC, pool `0xc758d81B9b81A6FCDAd075bD471874A2c46B54e0`, factory `0xaDe65c38CD4849aDBA595a4323a8C7DdfE89716a`, tick spacing `50`, liquidity `728_814_007_420_443`.
+  - Pool balances are `152_404850796501638042` WETH wei and `1_406740523` USDC units.
+  - Pool param `0x000032`; packed path: `0x4200000000000000000000000000000000000006000032833589fcd6edb6e08f4c7c32d4f71b54bda02913`.
+- Pinned factory-2 CL fixture:
+  - WETH -> USDC, pool `0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59`, factory `0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A`, tick spacing `100`, liquidity `1_740_890_871_991_593_982`.
+  - Pool balances are `2_716_581015139305324646` WETH wei and `3_502_348618495` USDC units.
+  - Pool param `0x100064`; packed path: `0x4200000000000000000000000000000000000006100064833589fcd6edb6e08f4c7c32d4f71b54bda02913`.
+- Pinned factory-3 CL fixture:
+  - WETH -> USDC, pool `0x3FE04A59Ebd38cF06080a6F60a98D124eb59392A`, factory `0xf8f2eB4940CFE7d13603DDDD87f123820Fc061Ef`, tick spacing `50`, liquidity `4_763_723_036_323_917_193`.
+  - Pool balances are `946_751678200819549919` WETH wei and `1_904_162954581` USDC units.
+  - Pool param `0x080032`; packed path: `0x4200000000000000000000000000000000000006080032833589fcd6edb6e08f4c7c32d4f71b54bda02913`.
+- Suggested exact inputs are `1e15` WETH wei for each WETH/USDC fixture and `1e6` USDC units for the stable fixture. Keep minimum output at one unit so the fork test validates routing/factory selection without turning a historical fixture into a price assertion.
+
+### Task 8: deployment, artifacts, and verification wiring
+- `script/utils/Constants.sol`: add the Base router address and pinned runtime hash. The two hook-key strings already exist at lines 225-227.
+- `script/utils/ConfigBase.sol`: add `aerodromeUniversalRouters`; in `script/utils/ConfigCore.sol::_setCoreConfiguration`, set it only for `BASE_CHAIN_ID` and leave every other chain zero.
+- `script/DeployV2Core.s.sol`:
+  - append two fields to `HookAddresses` and add `swapAerodromeUniversalRouterHooks` to `ContractAvailability`;
+  - correct `baseHooks` from 72 to 80 by adding the six currently omitted WithId hooks plus both Aerodrome hooks;
+  - make Aerodrome availability conditional on the router mapping, subtract/add two skips when absent, size `potentialSkips` to at least 42, and size `potentialMissing` to 110 (`9 core + 5 adapters + 80 hooks + 16 oracles`);
+  - when checking adapter bytecode, do not count a configuration-skipped adapter again as missing bytecode;
+  - add conditional `_checkHookContracts` calls with `abi.encode(router)` and dependency preflight for the exact Base address, nonempty code, and pinned codehash;
+  - change `_deployHooks` length from 78 to 80 without shifting slots `0..77`; deploy swap-only at slot 78 and approve-and-swap at slot 79, leave both empty off Base, assign both returned fields, and conditionally require them nonzero.
+- With complete bytecode, corrected Base accounting is 74 deployed hooks (`80 - 6` unavailable OpenOcean/Uniswap V2/Uniswap V3 hooks), and total Base core deployment count is 104 (`9 + 5 + 74 + 16`). Treat any different preflight count as an error to reconcile before broadcast.
+- `script/run/tooling/regenerate_bytecode.sh`: add both names to `HOOK_CONTRACTS` (82 -> 84), generate the two artifacts, and promote byte-for-byte identical artifacts to `script/locked-bytecode-dev/` for staging and later `script/locked-bytecode/` for production. Do not use `locked-bytecode-other`.
+- `script/run/verify/verify_v2_staging_prod.sh`: define a router variable, populate it only in chain `8453`, encode `constructor(address)` for both names, and add exact source mappings under `src/hooks/swappers/aerodrome/`. Its verifier already enumerates deployment-output keys, so no separate contract list is required.
+- Deploy/check Base staging first. Confirm constructor args and runtime, update `script/output/staging/8453/Base-latest.json`, regenerate staging aggregate output and `manifests/hooks.json`, and verify both contracts. Promote the reviewed identical bytecode to production only after fork/staging/security sign-off; then repeat for prod output, aggregate output, manifest, and explorer verification.
+- Leave `script/run/others/update_hook_addresses.py` and `deploy_hooks_cast.sh` unchanged. Export is automatic through `DeployV2Base`; no explicit export list needs editing.
+
+### Review gate
+- Master Codex: please review and approve or amend this task 7/8 implementation plan before implementation resumes. This turn changed only the shared session context; no production, test, deployment, configuration, artifact, or manifest file was edited.
+
+## Master Codex review: Base router resolution
+- Reviewed and approved the `superform-hook-master` router research and independent on-chain checks.
+- Production Base router for both Aerodrome hooks is fixed to `0xcAF22ce31298CF2BF1D152862F80216478ad7c67` for this release. The live Aerodrome v5 application and official `sugar-sdk v0.4.2` agree on this address, and it was deployed after the repository-recorded `0xC5b...` router.
+- The release gate is satisfied for command compatibility, immutable constructor mapping, and direct allowance behavior: the verified runtime uses commands `0x00`/`0x08`, the six-field packed-path input, all three CL selector mappings, and ordinary ERC20 `transferFrom` before Permit2 fallback. Live Base executions independently demonstrate both classic/direct-allowance and latest-factory/direct-allowance paths with Permit2 allowances at zero.
+- `0xC5b...` remains a compatible three-factory deployment but is not the selected current product router. `0x6Cb...` is rejected as ABI-incompatible legacy infrastructure.
+- Task 6 is resolved. Tasks 7-8 can proceed against `0xcAF22...`; fork fixtures must cover classic and all three CL factory classes, and deployment preflight must pin runtime hash `0xa11d1a13950f5b70dd0d7822e4e3b575778d8614e897c7810d7e6e9f310c017d` because the factory immutables are internal.
+
+## Aerodrome pinned Base fork verification (2026-07-16)
+- Added `test/integration/aerodrome/AerodromeUniversalRouterHookFork.t.sol` at pinned Base block `48,707,812`, after the selected router deployment.
+- The suite pins router `0xcAF22ce31298CF2BF1D152862F80216478ad7c67`, runtime hash `0xa11d1a13950f5b70dd0d7822e4e3b575778d8614e897c7810d7e6e9f310c017d`, WETH getter `0x4200...0006`, and router Permit2 getter `0x494bbD8A3302AcA833D307D11838f18DbAdA9C25`.
+- Real swaps cover classic volatile WETH/USDC, classic stable DAI/USDC, primary CL WETH/USDC tick 50, factory-2 CL WETH/USDC selector `0x100000` plus tick 10, and factory-3 CL WETH/USDC selector `0x080000` plus tick 10.
+- All five route classes execute through `ApproveAndSwapAerodromeUniversalRouterHook`; representative classic and factory-3 CL routes also execute through `SwapAerodromeUniversalRouterHook` after explicit direct router approval. A previous-result fixture proves amount/minimum resizing before a real primary-CL swap.
+- Every execution asserts exact input consumption, minimum output, recorded hook output delta/token, unchanged router input-token balance, cleaned direct allowance, and zero ERC20 allowance to the router's Permit2 address.
+- Command passed: `FOUNDRY_TEST=test/integration/aerodrome FOUNDRY_SCRIPT=.Codex/unused BASE_RPC_URL=https://base-mainnet.public.blastapi.io forge test --match-contract AerodromeUniversalRouterHookForkTest -vv` -> 9 passed, 0 failed.
+- Approved implementation task 7 is complete. Task 8 deployment/config/bytecode/verifier wiring is in progress.
+
+## Aerodrome tasks 7-8 implementation review (2026-07-16)
+
+### Findings
+- No blocking correctness defect was found in the Base deployment/count wiring, verifier mappings, or generated/dev-locked artifacts. The implementation is ready for a Base staging deploy/check, subject to the readiness items below.
+- Non-blocking check-path gap: `run(check=true, ...)` calls `_checkV2CoreAddresses` and `_checkHookContracts` (`script/DeployV2Core.s.sol:711-716`, `:877-929`, `:1291-1303`) but never runs the Aerodrome dependency preflight. The exact Base address, nonempty code, pinned runtime hash, `WETH9()`, and `PERMIT2()` checks exist only in `_deployCoreContracts` (`:1989-2014`). Therefore a check-only invocation can report the deterministic hook deployments while the external router is missing or mismatched; an actual deployment still fails safely. Consider extracting the router validation into a shared helper called by both paths before treating check mode as a full release preflight.
+- Non-blocking fork-coverage gap: the approved plan required asserting Permit2's internal `allowance(owner, token, spender)` tuple is zero. The fork suite checks only the token's ERC20 allowance to the Permit2 address (`test/integration/aerodrome/AerodromeUniversalRouterHookFork.t.sol:165-166`, `:194-195`, `:224-225`) and defines no Permit2 allowance interface. Real execution plus zero ERC20 allowance already proves the direct router path for these fixtures, but the explicit internal-allowance invariant remains untested.
+
+### Confirmed wiring
+- Base config points only chain `8453` to `0xcAF22...`; deployment preflight pins the exact address, runtime hash `0xa11d...`, WETH, and router Permit2. Aerodrome is unavailable by default on every other chain.
+- `baseHooks` has 80 unique entries, including all six previously omitted WithId hooks and both Aerodrome hooks. `potentialSkips` is exactly the 42-entry worst case and `potentialMissing` is 110 (`9 + 5 + 80 + 16`). Configuration-skipped adapters are no longer double-counted as missing bytecode.
+- Existing deployment slots `0..77` are unchanged. Swap-only and approve-and-swap are appended at slots `78` and `79`; all `0..79` indices are populated on their relevant branches, fields are assigned from the matching keys, and Base requires both results nonzero. With current Base configuration and complete dev bytecode, the reconciled count is 74 hooks and 104 total contracts.
+- The verifier defines the router only for Base, ABI-encodes `constructor(address)` for both names, and maps both exact Aerodrome source files. Its normal all-contract mode enumerates deployment JSON keys, so no additional verifier list is needed. Both edited shell scripts pass `bash -n`.
+- `script/generated-bytecode/` and `script/locked-bytecode-dev/` Aerodrome JSON files are byte-for-byte identical. Their creation and deployed bytecode also exactly match the current `out/` artifacts. Every one of the 80 `baseHooks`, nine core contracts, five adapters, and sixteen oracles has a dev-locked artifact.
+
+### Verification and remaining release gates
+- Re-run: pinned Base fork suite compiled with Solc 0.8.30 and passed `9/9` against block `48,707,812` using the public Base RPC.
+- Re-run: `FOUNDRY_TEST=.Codex/unused forge build script/DeployV2Core.s.sol` passed; only the pre-existing unused `env` warning in `ConfigCore.sol` was emitted. Slot coverage/uniqueness checks, artifact comparisons, verifier constructor encoding, `git diff --check`, and shell syntax checks passed.
+- Production promotion is intentionally incomplete: neither Aerodrome artifact is in `script/locked-bytecode/`, and current staging/prod Base output JSON files contain no Aerodrome deployment keys. Per the approved workflow, deploy and verify Base staging first, update aggregate output/manifests, obtain staging/security sign-off, and only then copy the reviewed identical artifacts into production locks and deploy/verify production.
+
+## Aerodrome review-gap closure (2026-07-16)
+- Read-only confirmation completed; both non-blocking findings from the task 7/8 implementation review are closed.
+- `script/DeployV2Core.s.sol:938-973` now centralizes the exact Base chain/address, nonempty code, pinned runtime hash, `WETH9()`, and `PERMIT2()` checks in `_validateAerodromeUniversalRouter`. Check-only calls it immediately after availability resolution at `:883-885`, and deployment calls the same helper at `:1969-1971`; unsupported chains return only when Aerodrome availability is false. Both normal and salt-namespace public run variants reach one of these paths.
+- `test/integration/aerodrome/AerodromeUniversalRouterHookFork.t.sol:23-32` defines the correct Permit2 `allowance(owner,token,spender)` interface. `_assertNoPermit2Allowance` at `:239-245` checks both the ERC20 allowance to Permit2 and Permit2's internal tuple for owner `address(this)`, the fixture input token, and spender `ROUTER`, asserting amount, expiration, and nonce are all zero. The helper is used by approve-and-swap, swap-only, and previous-result execution paths.
+- Re-run verification passed: the pinned Base fork suite compiled with Solc 0.8.30 and passed `9/9`; `FOUNDRY_TEST=.Codex/unused forge build script/DeployV2Core.s.sol` passed with only the pre-existing unused `ConfigCore._setCoreConfiguration(env)` parameter warning. No further code-readiness issue was found in these two fixes.
+
+## Aerodrome implementation completion and release state (2026-07-16)
+
+### Completed implementation
+- Approved plan tasks 1-8 are complete at the code and staging-package level. The two concrete hooks, shared strict decoder/path validator, vendor interface, unit mock, unit suite, pinned Base fork suite, sizing/manifest integration, Base router configuration, deployment slots, verifier mappings, generated bytecode, and development bytecode locks are present.
+- Base uses router `0xcAF22ce31298CF2BF1D152862F80216478ad7c67`. Configuration and both check/deploy preflights pin chain 8453, runtime hash `0xa11d1a13950f5b70dd0d7822e4e3b575778d8614e897c7810d7e6e9f310c017d`, WETH `0x4200000000000000000000000000000000000006`, and router Permit2 `0x494bbD8A3302AcA833D307D11838f18DbAdA9C25`.
+- Deployment accounting now includes all 80 hook slots without changing existing slots `0..77`; Aerodrome swap-only and approve-and-swap occupy `78` and `79`. The existing six omitted WithId hook names and configuration-skipped adapter accounting were corrected as part of the approved deployment-table extension.
+- Generated artifacts are byte-for-byte identical to their `script/locked-bytecode-dev/` copies. Runtime sizes are 12,462 bytes for swap-only and 12,506 bytes for approve-and-swap, below EIP-170.
+- Production bytecode locks were deliberately not added. Staging/prod output JSON and manifest address maps remain unchanged until real deployments exist.
+
+### Final verification
+- Unit: `FOUNDRY_TEST=test/unit/hooks/swappers/aerodrome FOUNDRY_SCRIPT=.Codex/unused forge test --match-contract AerodromeUniversalRouterHookTest -vv` -> 25 passed, 0 failed.
+- Fork: `FOUNDRY_TEST=test/integration/aerodrome FOUNDRY_SCRIPT=.Codex/unused BASE_RPC_URL=https://base-mainnet.public.blastapi.io forge test --match-contract AerodromeUniversalRouterHookForkTest -vv` -> 9 passed, 0 failed. Tests execute classic volatile, classic stable, primary CL, factory-2 CL, and factory-3 CL swaps through the real router; both hook variants, previous-hook resizing, direct allowances, cleanup, and zero ERC20/Permit2 internal allowances are covered.
+- Deployment source: `FOUNDRY_TEST=.Codex/unused FOUNDRY_SCRIPT=script/DeployV2Core.s.sol forge build script/DeployV2Core.s.sol` passed with only the pre-existing unused `env` warning in `ConfigCore.sol`.
+- Live Base check-only preflight passed after shared router validation was added. It reported 104 expected contracts (`9 core + 5 adapters + 74 hooks + 16 oracles`), 99 checked deployment addresses, 97 already deployed, and exactly the two new hooks missing:
+  - `SwapAerodromeUniversalRouterHook`: `0x8e6a7B8681d3215cebe68FCD920d191aF17E1897`
+  - `ApproveAndSwapAerodromeUniversalRouterHook`: `0xb33582e221506abD0411d0AfA7d5bCbc422C43ca`
+- `npm run generate:hook-sizing` and `npm run validate:hook-sizing` pass with zero errors and the same three pre-existing warnings. The generated hook manifest contains 125 hooks, and `uv run --with pyyaml python tooling/lint_hook_manifest.py` passes all checks.
+- Both verifier/tooling shell scripts pass `bash -n`; `git diff --check` passes; generated and development-lock files pass `cmp`.
+- Repository-wide `make ftest-ci` remains blocked before tests by the three unrelated pre-existing `vm.getRecordedLogs()` mutability errors already documented above. Repository-wide formatting also has unrelated pre-existing drift; changed Aerodrome sources/tests are formatted, and unrelated files were not rewritten.
+
+### Remaining operational release work
+- Code and staging inputs are ready, but neither hook is deployed yet. A credentialed release operator must broadcast the Base staging deployment, verify both contracts on the explorer, and regenerate the staging per-chain/aggregate outputs and hook manifest addresses.
+- After staging/security sign-off, promote the reviewed artifact JSON files into `script/locked-bytecode/`, broadcast and verify production, then regenerate production outputs and manifest addresses. Do not claim production readiness or add deployment addresses before these on-chain steps succeed.
