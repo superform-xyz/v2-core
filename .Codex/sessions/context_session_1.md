@@ -2171,3 +2171,9 @@ Date: 2026-07-16. Review only; `superform-hook-master` did not edit production o
 ### Remaining operational release work
 - Code and staging inputs are ready, but neither hook is deployed yet. A credentialed release operator must broadcast the Base staging deployment, verify both contracts on the explorer, and regenerate the staging per-chain/aggregate outputs and hook manifest addresses.
 - After staging/security sign-off, promote the reviewed artifact JSON files into `script/locked-bytecode/`, broadcast and verify production, then regenerate production outputs and manifest addresses. Do not claim production readiness or add deployment addresses before these on-chain steps succeed.
+
+## Aerodrome pull request handoff (2026-07-16)
+- Created branch `feat/aerodrome-universal-router-hooks` from the current `origin/dev` tip (`54b05fb8`).
+- Feature implementation commit: `dbd894d6 feat: add aerodrome universal router hooks`.
+- Opened non-draft PR [#948](https://github.com/superform-xyz/v2-core/pull/948), `feat/aerodrome-universal-router-hooks` -> `dev`. GitHub reported the PR mergeable at creation time.
+- The PR body records the 25 unit tests, 9 pinned Base fork tests, deployment-script build, sizing/manifest validation, live Base preflight, and the intentional staging/production release gates.
