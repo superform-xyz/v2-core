@@ -123,9 +123,6 @@ abstract contract BaseAerodromeUniversalRouterHook is
     /// @notice Thrown when a Slipstream pool parameter uses an invalid tick spacing or factory selector
     error INVALID_POOL_PARAM();
 
-    /// @notice Thrown when the output-token balance decreased during execution
-    error OUTPUT_BALANCE_DECREASED();
-
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -195,7 +192,7 @@ abstract contract BaseAerodromeUniversalRouterHook is
         address outputToken = data.toAddress(SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
         uint256 initialBalance = getOutAmount(account);
         uint256 finalBalance = IERC20(outputToken).balanceOf(account);
-        if (finalBalance < initialBalance) revert OUTPUT_BALANCE_DECREASED();
+        if (finalBalance < initialBalance) revert AMOUNT_NOT_VALID();
 
         _setOutAmount(finalBalance - initialBalance, account);
         _setOutToken(outputToken, account);

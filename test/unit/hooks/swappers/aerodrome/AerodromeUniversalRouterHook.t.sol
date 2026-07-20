@@ -528,7 +528,7 @@ contract AerodromeUniversalRouterHookTest is Test {
         for (uint256 i; i < executions.length - 1; ++i) {
             _executeOne(executions[i]);
         }
-        vm.expectRevert(BaseAerodromeUniversalRouterHook.OUTPUT_BALANCE_DECREASED.selector);
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         _executeOne(executions[executions.length - 1]);
     }
 
