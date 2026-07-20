@@ -100,7 +100,7 @@
         "SpectraPTYieldSourceOracle": "0xF7DB5389ED49DfB3F260dB6e3389C7d28076E601",
         "StakingYieldSourceOracle": "0x985A6B8DDD9AacEA06ffbF3fc69DaEF48bC819ce",
         "StargateAdapter": "0x84E05FdD87bD403e50B231bB722Ac1F0133c9f2B",
-        "StargateAdapterV2": "0x1F78a177A462c03657f8840C4DC339517bB2A290",
+        "StargateAdapterV2": "0x990B8ced8A1f61c4960119062b2d96bDC15140EC",
         "StargateSendHook": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
         "StargateSendHookV2": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
         "SuperDestinationExecutor": "0x6ac58e854798D4aae5989B18ad5a1C0fF17817EF",
@@ -456,7 +456,7 @@
         "SpectraPTYieldSourceOracle": "0xF7DB5389ED49DfB3F260dB6e3389C7d28076E601",
         "StakingYieldSourceOracle": "0x985A6B8DDD9AacEA06ffbF3fc69DaEF48bC819ce",
         "StargateAdapter": "0x05b8BaAdC33ae0600ab5841800A8a82Be3C663fD",
-        "StargateAdapterV2": "0xBAc66B6e666C0Ad18DbE401cbFe66A0FE13b6702",
+        "StargateAdapterV2": "0x0e71A146C44c3a45CE333F862EaA7eba86DACED9",
         "StargateSendHook": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
         "StargateSendHookV2": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
         "SuperDestinationExecutor": "0x6ac58e854798D4aae5989B18ad5a1C0fF17817EF",
@@ -564,7 +564,7 @@
         "SpectraPTYieldSourceOracle": "0xF7DB5389ED49DfB3F260dB6e3389C7d28076E601",
         "StakingYieldSourceOracle": "0x985A6B8DDD9AacEA06ffbF3fc69DaEF48bC819ce",
         "StargateAdapter": "0x6d82d34BC5f6101Bf7707EDb81e2Eb5B08Ee7646",
-        "StargateAdapterV2": "0x86De11DDfc4F7020983AfF63Aebf46963FA6C921",
+        "StargateAdapterV2": "0x4E69f3f26466f4b7A5A2AE09eaC25D6a4dF684Df",
         "StargateSendHook": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
         "StargateSendHookV2": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
         "SuperDestinationExecutor": "0x6ac58e854798D4aae5989B18ad5a1C0fF17817EF",
@@ -669,7 +669,7 @@
         "SpectraPTYieldSourceOracle": "0xF7DB5389ED49DfB3F260dB6e3389C7d28076E601",
         "StakingYieldSourceOracle": "0x985A6B8DDD9AacEA06ffbF3fc69DaEF48bC819ce",
         "StargateAdapter": "0x6D335Cb33D5D2FC787bC4158C0BC412d3F3ccEE1",
-        "StargateAdapterV2": "0x19591d9d5f65AcC108222aDE83422DE0B6f56A61",
+        "StargateAdapterV2": "0x041603531647B73A841338E6cA7aDFEEE210Baa5",
         "StargateSendHook": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
         "StargateSendHookV2": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
         "SuperDestinationExecutor": "0x6ac58e854798D4aae5989B18ad5a1C0fF17817EF",
@@ -770,7 +770,7 @@
         "SpectraPTYieldSourceOracle": "0xF7DB5389ED49DfB3F260dB6e3389C7d28076E601",
         "StakingYieldSourceOracle": "0x985A6B8DDD9AacEA06ffbF3fc69DaEF48bC819ce",
         "StargateAdapter": "0xFfb2aAAaEa28aD6229aEC074FdEc27490bb7c806",
-        "StargateAdapterV2": "0xb8195322D89fC9c5c70B2fB06cD81056AaD26c33",
+        "StargateAdapterV2": "0x175b52C76844528542C5a67237ED67b13c5eE383",
         "StargateSendHook": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
         "StargateSendHookV2": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
         "SuperDestinationExecutor": "0x6ac58e854798D4aae5989B18ad5a1C0fF17817EF",
@@ -1450,7 +1450,7 @@
         "SpectraPTYieldSourceOracle": "0xF7DB5389ED49DfB3F260dB6e3389C7d28076E601",
         "StakingYieldSourceOracle": "0x985A6B8DDD9AacEA06ffbF3fc69DaEF48bC819ce",
         "StargateAdapter": "0x98Cd85Dff64e04E1b26A124eF92931Ae01100022",
-        "StargateAdapterV2": "0x70DA113dF37e4ED9A414af8Cb51b6C559fac775b",
+        "StargateAdapterV2": "0xd9B41FaB7cD36C99F0385758a66925e2a625E5Ed",
         "StargateSendHook": "0x9AAa3A3e598b57162Dc9C56b45877eC0b77E5F38",
         "StargateSendHookV2": "0xF7cb3da374DA9fedf102451f59CED8810392f241",
         "SuperDestinationExecutor": "0x6ac58e854798D4aae5989B18ad5a1C0fF17817EF",
@@ -1669,5 +1669,5 @@
       }
     }
   },
-  "updated_at": "2026-07-17T12:32:02Z"
+  "updated_at": "2026-07-20T10:25:35Z"
 }
