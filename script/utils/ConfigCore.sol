@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.30;
 
-import { ConfigBase } from "./ConfigBase.sol";
+import { ConfigStargateOFTs } from "./ConfigStargateOFTs.sol";
 
 /// @title ConfigCore
 /// @notice Standalone core configuration contract for core contract deployments
-/// @dev Handles Nexus factories, Permit2, Across Spoke Pools, and DeBridge configurations
-abstract contract ConfigCore is ConfigBase {
+/// @dev Handles bridge, router, oracle, token, and shared dependency configuration
+abstract contract ConfigCore is ConfigStargateOFTs {
     /*//////////////////////////////////////////////////////////////
                             CORE CONFIGURATION
     //////////////////////////////////////////////////////////////*/
@@ -108,8 +108,7 @@ abstract contract ConfigCore is ConfigBase {
         configuration.stargateTokenMessagings[WORLDCHAIN_CHAIN_ID] = address(0); // Not available yet
 
         // ===== STARGATE ALLOWED OFTs (non-pool OFT contracts that use LZ compose) =====
-        // Stable: USDT0 OFT
-        configuration.stargateAllowedOFTs[STABLE_CHAIN_ID].push(0xedaba024be4d87974d5aB11C6Dd586963CcCB027);
+        _setStargateOFTConfiguration();
 
         // ===== PERMIT2 ADDRESSES =====
         configuration.permit2s[MAINNET_CHAIN_ID] = PERMIT2;
