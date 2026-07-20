@@ -37,7 +37,7 @@ import {
 /// @notice         address executorAddress = BytesLib.toAddress(data, 158);
 /// @notice         uint256 executionFee = BytesLib.toUint256(data, 178);
 /// @notice         bool allowDelayedExecution = _decodeBool(data, 210);
-/// @notice         bool requireSuccessfullExecution = _decodeBool(data, 211);
+/// @notice         bool requireSuccessfulExecution = _decodeBool(data, 211);
 /// @notice         uint256 destinationMessage_paramLength = BytesLib.toUint256(data, 212);
 /// @notice         bytes destinationMessage = BytesLib.slice(data, 244, destinationMessage_paramLength);
 /// @notice         uint256 takeTokenAddress_paramLength = BytesLib.toUint256(data, 244 +
@@ -75,7 +75,7 @@ import {
 /// @notice         bytes affiliateFee = BytesLib.slice(data, 520 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
 /// allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength, affiliateFee_paramLength);
-/// @notice         uint256 referralCode = BytesLib.toUint256(data, 520 + destinationMessage_paramLength +
+/// @notice         uint32 referralCode = BytesLib.toUint32(data, 520 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
 /// allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength);
 contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {

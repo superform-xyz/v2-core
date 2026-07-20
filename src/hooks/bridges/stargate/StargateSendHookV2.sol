@@ -43,11 +43,14 @@ import {
 /// @notice         uint256 minAmountLD = BytesLib.toUint256(data, 192);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 224);
 /// @notice         uint8 mode = BytesLib.toUint8(data, 225);
-/// @notice         uint256 extraOptionsLength = BytesLib.toUint256(data, 226);
-/// @notice         bytes extraOptions = BytesLib.slice(data, 258, extraOptionsLength);
-/// @notice         uint256 composeMsgLength = BytesLib.toUint256(data, 258 + extraOptionsLength);
-/// @notice         bytes composeMsg = BytesLib.slice(data, 290 + extraOptionsLength, composeMsgLength);
-///                 V2: composeMsg = abi.encode(initData) — 1-field only, no executorCalldata/account/dstTokens/intentAmounts
+/// @notice         uint256 extraOptions_paramLength = BytesLib.toUint256(data, 226);
+/// @notice         bytes extraOptions = BytesLib.slice(data, 258, extraOptions_paramLength);
+/// @notice         uint256 composeMsg_paramLength = BytesLib.toUint256(data, 258 + extraOptions_paramLength);
+/// @notice         bytes composeMsg = BytesLib.slice(data, 290 + extraOptions_paramLength, composeMsg_paramLength);
+/// @notice         address recipient_skipParam = BytesLib.toAddress(data, 0);
+/// @notice         address outputToken_skipParam = BytesLib.toAddress(data, 0);
+/// @notice         uint256 destinationChainId_skipParam = BytesLib.toUint256(data, 0);
+/// @dev V2: composeMsg = abi.encode(initData) — 1-field only, no executorCalldata/account/dstTokens/intentAmounts
 contract StargateSendHookV2 is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
