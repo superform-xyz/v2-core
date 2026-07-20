@@ -1118,6 +1118,34 @@ deploy_to_network() {
     done
 
     if [[ $deploy_exit_code -ne 0 ]]; then
+        # Check if forge actually deployed contracts (output JSON changed despite non-zero exit).
+        # This happens when deployment succeeds but verification fails (flaky Etherscan API,
+        # unsupported chain, rate limiting). Forge writes new addresses during broadcast before
+        # attempting verification, so a changed output JSON indicates successful deployment.
+        local deployment_succeeded=false
+        if [[ -f "$output_json" ]] && [[ -f "$backup_json" ]]; then
+            if ! diff -q "$output_json" "$backup_json" > /dev/null 2>&1; then
+                deployment_succeeded=true
+            fi
+        elif [[ -f "$output_json" ]] && [[ ! -f "$backup_json" ]]; then
+            # New output file created (no previous deployment) — deployment succeeded
+            deployment_succeeded=true
+        fi
+
+        if [[ "$deployment_succeeded" = true ]]; then
+            echo -e "${YELLOW}WARNING: Forge exited with code $deploy_exit_code for $network_name (Chain $network_id)${NC}"
+            echo -e "${YELLOW}   However, the output JSON was updated — deployment likely succeeded.${NC}"
+            echo -e "${YELLOW}   Verification may have failed. Run the verify script separately.${NC}"
+            echo -e "${YELLOW}   Keeping updated output file.${NC}"
+            # Still merge preserved entries and clean up backup
+            preserve_existing_json_entries "$output_json" "$backup_json"
+            rm -f "$backup_json"
+            FAILED_DEPLOY_NETWORKS+=("$network_name (Chain $network_id) [verification only]")
+            deployed_networks=$((deployed_networks + 1))
+            return 0
+        fi
+
+        # True deployment failure — restore backup
         echo -e "${RED}ERROR: Forge deployment FAILED for $network_name (Chain $network_id) with exit code $deploy_exit_code${NC}"
         echo -e "${RED}   The deployment script reverted or encountered an error.${NC}"
         echo -e "${YELLOW}   Common causes:${NC}"
