@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import "forge-std/Test.sol";
 
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import { UniV3CLPRegistry } from "../../../src/accounting/oracles/UniV3CLPRegistry.sol";
@@ -970,44 +971,61 @@ contract UniV3CLPOracleForkTest is Test {
         GROUP N: REAL SLIPSTREAM LP HOLDER (BASE FORK)
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Find a real Slipstream LP holder on Base and verify getBalanceOfOwner > 0
-    function test_base_realSlipstreamHolder_getBalanceOfOwner() public {
+    /// @notice Mint a Slipstream LP position and verify oracle sees it
+    /// @dev Deterministic: mints a full-range WETH/USDC position via deal + NPM.mint
+    function test_base_slipstreamMint_getBalanceOfOwner() public {
         _requireBaseFork();
         _deployOracle();
         address key = _registerBaseWethUsdc();
 
-        INonfungiblePositionManager nft = INonfungiblePositionManager(BASE_NFT_MANAGER);
-        IERC721 nftErc721 = IERC721(BASE_NFT_MANAGER);
+        address lper = makeAddr("slipstream-lper");
 
-        // Scan tokenIds looking for an active WETH/USDC full-range position
-        address foundHolder;
-        for (uint256 tokenId = 1; tokenId <= 500; tokenId++) {
-            try nftErc721.ownerOf(tokenId) returns (address owner) {
-                if (owner == address(0)) continue;
+        // Deal tokens to lper
+        deal(BASE_WETH, lper, 1 ether);
+        deal(BASE_USDC, lper, 3000e6); // ~3000 USDC
 
-                (,, address t0, address t1, uint24 feeOrTs, int24 tL, int24 tU, uint128 liq,,,,) =
-                    nft.positions(tokenId);
+        vm.startPrank(lper);
 
-                if (
-                    t0 == BASE_WETH && t1 == BASE_USDC && feeOrTs == 100 && tL == FULL_TICK_LOWER
-                        && tU == FULL_TICK_UPPER && liq > 0
-                ) {
-                    foundHolder = owner;
-                    break;
-                }
-            } catch {
-                continue;
-            }
-        }
+        // Approve NPM to spend tokens
+        IERC20(BASE_WETH).approve(BASE_NFT_MANAGER, type(uint256).max);
+        IERC20(BASE_USDC).approve(BASE_NFT_MANAGER, type(uint256).max);
 
-        if (foundHolder != address(0)) {
-            uint256 balance = oracle.getBalanceOfOwner(key, foundHolder);
-            assertGt(balance, 0, "Real Slipstream LP holder must have > 0 liquidity");
+        // Slipstream NPM.mint params struct:
+        // (token0, token1, int24 tickSpacing, int24 tickLower, int24 tickUpper,
+        //  amount0Desired, amount1Desired, amount0Min, amount1Min,
+        //  recipient, deadline, uint160 sqrtPriceX96)
+        // sqrtPriceX96 = 0 because the pool already exists
+        (bool ok, bytes memory ret) = BASE_NFT_MANAGER.call(
+            abi.encodeWithSignature(
+                "mint((address,address,int24,int24,int24,uint256,uint256,uint256,uint256,address,uint256,uint160))",
+                BASE_WETH,       // token0
+                BASE_USDC,       // token1
+                int24(100),      // tickSpacing
+                FULL_TICK_LOWER, // tickLower
+                FULL_TICK_UPPER, // tickUpper
+                1 ether,         // amount0Desired (WETH)
+                3000e6,          // amount1Desired (USDC)
+                uint256(0),      // amount0Min
+                uint256(0),      // amount1Min
+                lper,            // recipient
+                block.timestamp, // deadline
+                uint160(0)       // sqrtPriceX96 (0 = pool exists)
+            )
+        );
+        require(ok, "NPM.mint failed");
 
-            uint256 tvl = oracle.getTVLByOwnerOfShares(key, foundHolder);
-            assertGt(tvl, 0, "Real Slipstream LP holder TVL must be > 0");
-        }
-        // If no full-range holder found in first 500 tokenIds, test is inconclusive
+        // Decode: (tokenId, liquidity, amount0, amount1)
+        (,uint128 mintedLiquidity,,) = abi.decode(ret, (uint256, uint128, uint256, uint256));
+        assertGt(mintedLiquidity, 0, "Minted liquidity must be > 0");
+
+        vm.stopPrank();
+
+        // Verify oracle sees the position
+        uint256 balance = oracle.getBalanceOfOwner(key, lper);
+        assertGt(balance, 0, "Oracle must see minted Slipstream LP liquidity");
+
+        uint256 tvl = oracle.getTVLByOwnerOfShares(key, lper);
+        assertGt(tvl, 0, "Oracle must report TVL > 0 for minted position");
     }
 
     /*//////////////////////////////////////////////////////////////

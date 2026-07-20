@@ -806,7 +806,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
 
         address key2 = registry.registerPosition(
             address(pool2), address(nftManager), -887200, 887200,
-            address(token2A), address(token2B), 100, address(feed2A), address(feed2B),
+            address(token2A), address(token2B), 10, address(feed2A), address(feed2B),
             MAX_STALENESS, address(0), 0
         );
 
@@ -1156,6 +1156,22 @@ contract UniV3CLPYieldSourceOracleTest is Test {
             MAX_STALENESS, address(0), 0
         );
         assertTrue(registry.isRegistered(key));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            SECTION 29b: FEE OR TICK SPACING VALIDATION
+    //////////////////////////////////////////////////////////////*/
+
+    function test_registry_registerPosition_revertsOnWrongFeeOrTickSpacing() public {
+        // Pool tickSpacing = 100, no fee() → only uint24(int24(100)) = 100 accepted
+        MockUniswapV3CLPool p = new MockUniswapV3CLPool(address(token0), address(token1), 100);
+        p.setSlot0(uint160(Q96), 0);
+        vm.expectRevert(UniV3CLPRegistry.FEE_OR_TICK_SPACING_MISMATCH.selector);
+        registry.registerPosition(
+            address(p), address(nftManager), TICK_LOWER, TICK_UPPER,
+            address(token0), address(token1), 500, // wrong: should be 100
+            address(feed0), address(feed1), MAX_STALENESS, address(0), 0
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

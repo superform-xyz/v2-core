@@ -143,6 +143,13 @@ interface IYieldSourceOracle {
     /// @dev Efficiently calculates TVL for multiple owners across multiple yield sources.
     ///      Returns a parallel `succeeded` mask so callers can distinguish genuine zero TVL
     ///      from entries that reverted (e.g. stale feed, unregistered position).
+    ///
+    ///      ROLLOUT NOTE: This function's return type changed from `uint256[][] memory` to
+    ///      `(uint256[][] memory, bool[][] memory)`. Off-chain callers decoding with the old ABI
+    ///      still read `userTvls` correctly (first head-word offset is unchanged), but decoding
+    ///      old (pre-upgrade) oracles with the new ABI will mis-decode. Until all oracle deployments
+    ///      are redeployed, the fleet has mixed signatures — off-chain services must use per-oracle
+    ///      ABI awareness or batch the oracle redeploy with the service upgrade.
     /// @param yieldSourceAddresses Array of yield-bearing token addresses
     /// @param ownersOfShares 2D array where each sub-array contains owner addresses for a yield source
     /// @return userTvls 2D array of TVL values for each owner in each yield source

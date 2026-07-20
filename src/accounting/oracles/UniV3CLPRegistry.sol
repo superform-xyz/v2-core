@@ -62,6 +62,8 @@ contract UniV3CLPRegistry is AccessControl {
 
     /// @notice Thrown when the provided token0 or token1 does not match the pool's tokens
     error TOKEN_MISMATCH();
+    /// @notice Thrown when feeOrTickSpacing does not match pool.fee() or uint24(int24(pool.tickSpacing()))
+    error FEE_OR_TICK_SPACING_MISMATCH();
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -215,6 +217,16 @@ contract UniV3CLPRegistry is AccessControl {
         {
             int24 spacing = IUniswapV3CLPool(pool).tickSpacing();
             if (tickLower % spacing != 0 || tickUpper % spacing != 0) revert INVALID_TICK_ALIGNMENT();
+
+            // Validate feeOrTickSpacing matches the pool: accept pool.fee() (UniV3) or
+            // uint24(tickSpacing) (Slipstream). Prevents operator typo from silently zeroing all reads.
+            bool valid;
+            try IUniswapV3CLPool(pool).fee() returns (uint24 poolFee) {
+                valid = (feeOrTickSpacing == poolFee || feeOrTickSpacing == uint24(int24(spacing)));
+            } catch {
+                valid = (feeOrTickSpacing == uint24(int24(spacing)));
+            }
+            if (!valid) revert FEE_OR_TICK_SPACING_MISMATCH();
         }
 
         positionKey = computePositionKey(pool, nftManager, tickLower, tickUpper);

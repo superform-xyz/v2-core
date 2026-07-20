@@ -29,4 +29,10 @@ interface IUniswapV3CLPool {
     /// @notice The pool tick spacing
     /// @dev Ticks can only be used at multiples of this value
     function tickSpacing() external view returns (int24);
+
+    /// @notice The pool's fee tier in hundredths of a bip (e.g. 500 = 0.05%)
+    /// @dev Present on Uniswap V3 pools. On Aerodrome Slipstream pools, fee() returns a dynamic
+    ///      fee value that differs from tickSpacing — callers should prefer tickSpacing for
+    ///      Slipstream position matching.
+    function fee() external view returns (uint24);
 }
