@@ -119,6 +119,24 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bytes creationCode;
     }
 
+    // TEMPORARY: remove after the selected token-hook production upgrade is complete.
+    struct TemporaryTokenHookUpgrade {
+        string name;
+        string saltName;
+        bytes constructorArgs;
+        bytes initCode;
+        address predictedAddress;
+        bool available;
+        bool isDeployed;
+    }
+
+    error TemporaryHookArtifactMissing(string path);
+    error TemporaryHookBytecodeEmpty(string path);
+    error TemporaryHookBytecodeMismatch(string hookName, string artifactKind);
+    error TemporaryHookAddressMismatch(string hookName, address expected, address actual);
+
+    uint256 private constant TEMPORARY_TOKEN_HOOK_UPGRADE_COUNT = 7;
+
     struct OracleDeployment {
         string name;
         bytes creationCode;
@@ -695,6 +713,174 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             // Write all exported contracts for this chain
             _writeExportedContracts(chainId);
         }
+    }
+
+    /// @notice TEMPORARY fixed-scope entrypoint for the current token-hook upgrade.
+    /// @dev Remove after the selected production deployment and post-deployment checks are complete.
+    function runTemporaryTokenHookUpgrade(bool check, uint256 env, uint64 chainId) public {
+        require(env == 0 || env == 2, "TEMPORARY_HOOK_UPGRADE_INVALID_ENV");
+        require(block.chainid == chainId, "TEMPORARY_HOOK_UPGRADE_CHAIN_ID_MISMATCH");
+
+        _setConfiguration(env, "");
+        TemporaryTokenHookUpgrade[TEMPORARY_TOKEN_HOOK_UPGRADE_COUNT] memory hooks =
+            _temporaryTokenHookUpgradePlan(chainId, env);
+
+        uint256 availableCount;
+        uint256 deployedCount;
+
+        for (uint256 i = 0; i < hooks.length; ++i) {
+            TemporaryTokenHookUpgrade memory hook = hooks[i];
+            if (!hook.available) {
+                console2.log("[UNAVAILABLE]", hook.name);
+                continue;
+            }
+
+            (bool isDeployed, address checkedAddress) =
+                __checkContract(hook.name, __getSalt(hook.saltName), hook.constructorArgs, env);
+            if (checkedAddress != hook.predictedAddress) {
+                revert TemporaryHookAddressMismatch(hook.name, hook.predictedAddress, checkedAddress);
+            }
+
+            hooks[i].isDeployed = isDeployed;
+            availableCount++;
+            if (isDeployed) deployedCount++;
+        }
+
+        _logDeploymentSummary(chainId);
+        console2.log("TEMPORARY_HOOK_UPGRADE_SELECTED", TEMPORARY_TOKEN_HOOK_UPGRADE_COUNT);
+        console2.log("TEMPORARY_HOOK_UPGRADE_AVAILABLE", availableCount);
+        console2.log("TEMPORARY_HOOK_UPGRADE_DEPLOYED", deployedCount);
+        console2.log("TEMPORARY_HOOK_UPGRADE_MISSING", availableCount - deployedCount);
+        console2.log("TEMPORARY_HOOK_UPGRADE_UNAVAILABLE", TEMPORARY_TOKEN_HOOK_UPGRADE_COUNT - availableCount);
+        console2.log("=====> On this chain we have", deployedCount, "contracts already deployed out of", availableCount);
+
+        if (check) return;
+
+        vm.startBroadcast();
+        for (uint256 i = 0; i < hooks.length; ++i) {
+            TemporaryTokenHookUpgrade memory hook = hooks[i];
+            if (!hook.available || hook.isDeployed) continue;
+
+            address deployedAddress =
+                __deployContractIfNeeded(hook.name, chainId, __getSalt(hook.saltName), hook.initCode);
+            if (deployedAddress != hook.predictedAddress) {
+                revert TemporaryHookAddressMismatch(hook.name, hook.predictedAddress, deployedAddress);
+            }
+            require(deployedAddress.code.length > 0, "TEMPORARY_HOOK_UPGRADE_NO_CODE");
+        }
+        vm.stopBroadcast();
+
+        if (vm.envOr("TEMPORARY_TOKEN_HOOK_WRITE_OUTPUT", false)) {
+            _writeExportedContracts(chainId);
+        }
+    }
+
+    function _temporaryTokenHookUpgradePlan(
+        uint64 chainId,
+        uint256 env
+    )
+        private
+        view
+        returns (TemporaryTokenHookUpgrade[TEMPORARY_TOKEN_HOOK_UPGRADE_COUNT] memory hooks)
+    {
+        address nativeToken = configuration.nativeTokens[chainId];
+        require(nativeToken != address(0), "TEMPORARY_HOOK_UPGRADE_NATIVE_TOKEN_ZERO");
+
+        address permit2 = configuration.permit2s[chainId];
+        require(permit2 != address(0), "TEMPORARY_HOOK_UPGRADE_PERMIT2_ZERO");
+        require(permit2.code.length > 0, "TEMPORARY_HOOK_UPGRADE_PERMIT2_NO_CODE");
+
+        address merklDistributor = configuration.merklDistributors[chainId];
+        if (merklDistributor != address(0)) {
+            require(merklDistributor.code.length > 0, "TEMPORARY_HOOK_UPGRADE_MERKL_NO_CODE");
+        }
+
+        hooks[0] = _temporaryTokenHookUpgrade(APPROVE_ERC20_HOOK_KEY, APPROVE_ERC20_HOOK_KEY, "", env, true);
+        hooks[1] = _temporaryTokenHookUpgrade(TRANSFER_ERC20_HOOK_KEY, TRANSFER_ERC20_HOOK_KEY, "", env, true);
+        hooks[2] = _temporaryTokenHookUpgrade(
+            BATCH_TRANSFER_HOOK_KEY, BATCH_TRANSFER_HOOK_KEY, abi.encode(nativeToken), env, true
+        );
+        hooks[3] = _temporaryTokenHookUpgrade(
+            BATCH_TRANSFER_FROM_HOOK_KEY, BATCH_TRANSFER_FROM_HOOK_KEY, abi.encode(permit2), env, true
+        );
+        hooks[4] = _temporaryTokenHookUpgrade(TRANSFER_HOOK_KEY, TRANSFER_HOOK_KEY, abi.encode(nativeToken), env, true);
+        hooks[5] = _temporaryTokenHookUpgrade(
+            MERKL_CLAIM_REWARD_HOOK_KEY,
+            MERKL_CLAIM_REWARD_HOOK_SALT,
+            merklDistributor == address(0) ? bytes("") : abi.encode(merklDistributor),
+            env,
+            merklDistributor != address(0)
+        );
+        hooks[6] = _temporaryTokenHookUpgrade(OFFRAMP_TOKENS_HOOK_KEY, OFFRAMP_TOKENS_HOOK_KEY, "", env, true);
+    }
+
+    function _temporaryTokenHookUpgrade(
+        string memory name,
+        string memory saltName,
+        bytes memory constructorArgs,
+        uint256 env,
+        bool available
+    )
+        private
+        view
+        returns (TemporaryTokenHookUpgrade memory hook)
+    {
+        bytes memory lockedBytecode = _temporaryValidatedHookBytecode(name, env);
+        bytes memory initCode = abi.encodePacked(lockedBytecode, constructorArgs);
+        bytes32 salt = __getSalt(saltName);
+        address predictedAddress = DeterministicDeployerLib.computeAddress(initCode, salt);
+
+        console2.log("TEMPORARY_HOOK", name);
+        console2.log("  saltName", saltName);
+        console2.log("  saltNamespace", string(saltNamespace));
+        console2.log("  bareCreationCodeHash");
+        console2.logBytes32(keccak256(lockedBytecode));
+        console2.log("  constructorArgsHash");
+        console2.logBytes32(keccak256(constructorArgs));
+        console2.log("  initCodeHash");
+        console2.logBytes32(keccak256(initCode));
+        console2.log("  predictedAddress", predictedAddress);
+
+        hook = TemporaryTokenHookUpgrade({
+            name: name,
+            saltName: saltName,
+            constructorArgs: constructorArgs,
+            initCode: initCode,
+            predictedAddress: predictedAddress,
+            available: available,
+            isDeployed: false
+        });
+    }
+
+    function _temporaryValidatedHookBytecode(
+        string memory name,
+        uint256 env
+    )
+        private
+        view
+        returns (bytes memory lockedBytecode)
+    {
+        string memory freshPath = string.concat("out/", name, ".sol/", name, ".json");
+        string memory generatedPath = string.concat("script/generated-bytecode/", name, ".json");
+        string memory lockedPath = __getBytecodeArtifactPath(name, env);
+
+        bytes memory freshBytecode = _temporaryRequiredArtifactBytecode(freshPath);
+        bytes memory generatedBytecode = _temporaryRequiredArtifactBytecode(generatedPath);
+        lockedBytecode = _temporaryRequiredArtifactBytecode(lockedPath);
+
+        bytes32 freshHash = keccak256(freshBytecode);
+        if (freshHash != keccak256(generatedBytecode)) {
+            revert TemporaryHookBytecodeMismatch(name, "generated-bytecode");
+        }
+        if (freshHash != keccak256(lockedBytecode)) {
+            revert TemporaryHookBytecodeMismatch(name, env == 0 ? "locked-bytecode" : "locked-bytecode-dev");
+        }
+    }
+
+    function _temporaryRequiredArtifactBytecode(string memory path) private view returns (bytes memory bytecode) {
+        if (!vm.exists(path)) revert TemporaryHookArtifactMissing(path);
+        bytecode = vm.getCode(path);
+        if (bytecode.length == 0) revert TemporaryHookBytecodeEmpty(path);
     }
 
     // used by tenderly vnets (constantly changing salt)
