@@ -11,6 +11,7 @@ import { UniV3CLPYieldSourceOracle } from "../../../src/accounting/oracles/UniV3
 import { INonfungiblePositionManager } from "../../../src/vendor/uniswap/v3/INonfungiblePositionManager.sol";
 import { IUniswapV3CLPool } from "../../../src/vendor/uniswap/v3/IUniswapV3CLPool.sol";
 import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
+import { IAggregatorV3 } from "modulekit/integrations/interfaces/chainlink/IAggregatorV3.sol";
 
 /// @title UniV3CLPOracleFork
 /// @notice Comprehensive integration fork tests for UniV3CLPRegistry + UniV3CLPYieldSourceOracle
@@ -122,6 +123,29 @@ contract UniV3CLPOracleForkTest is Test {
         ledgerConfig = address(new SuperLedgerConfiguration());
         registry = new UniV3CLPRegistry(address(this));
         oracle = new UniV3CLPYieldSourceOracle(ledgerConfig, address(registry));
+    }
+
+    /// @notice Mock two Chainlink feeds to return synchronized timestamps and valid answeredInRound.
+    /// @dev The oracle now enforces:
+    ///      1. answeredInRound >= roundId (per-feed freshness)
+    ///      2. |updatedAt0 - updatedAt1| <= 60 (inter-feed skew)
+    ///      At pinned fork blocks, real feeds may violate these. This helper preserves
+    ///      the real answer but aligns timestamps to block.timestamp.
+    function _syncFeeds(address feedA, address feedB) internal {
+        (, int256 ansA,,,) = IAggregatorV3(feedA).latestRoundData();
+        (, int256 ansB,,,) = IAggregatorV3(feedB).latestRoundData();
+
+        // Mock both feeds: roundId=1, answer=real, startedAt=now, updatedAt=now, answeredInRound=1
+        vm.mockCall(
+            feedA,
+            abi.encodeWithSelector(IAggregatorV3.latestRoundData.selector),
+            abi.encode(uint80(1), ansA, block.timestamp, block.timestamp, uint80(1))
+        );
+        vm.mockCall(
+            feedB,
+            abi.encodeWithSelector(IAggregatorV3.latestRoundData.selector),
+            abi.encode(uint80(1), ansB, block.timestamp, block.timestamp, uint80(1))
+        );
     }
 
     /// @notice Register USDC/WETH full-range position
@@ -292,6 +316,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireEthFork();
         _deployOracle();
         address key = _registerUsdcWeth();
+        _syncFeeds(ETH_USDC_USD_FEED, ETH_ETH_USD_FEED);
 
         uint256 pps = oracle.getPricePerShare(key);
         assertGt(pps, 0, "PPS must be > 0");
@@ -301,6 +326,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireEthFork();
         _deployOracle();
         address key = _registerUsdcWeth();
+        _syncFeeds(ETH_USDC_USD_FEED, ETH_ETH_USD_FEED);
 
         // PPS = value of 1e18 liquidity units in USDC terms (6 dec).
         // Full-range position at ~$3,300 ETH: PPS should be a finite, positive number.
@@ -322,6 +348,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireEthFork();
         _deployOracle();
         address key = _registerUsdcWeth();
+        _syncFeeds(ETH_USDC_USD_FEED, ETH_ETH_USD_FEED);
 
         // 1 USDC = 1e6 atoms
         uint256 shares = oracle.getShareOutput(key, address(0), 1e6);
@@ -332,6 +359,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireEthFork();
         _deployOracle();
         address key = _registerUsdcWeth();
+        _syncFeeds(ETH_USDC_USD_FEED, ETH_ETH_USD_FEED);
 
         uint256 assets = oracle.getAssetOutput(key, address(0), 1e18);
         assertGt(assets, 0, "assets for 1e18 liquidity must be > 0");
@@ -341,6 +369,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireEthFork();
         _deployOracle();
         address key = _registerUsdcWeth();
+        _syncFeeds(ETH_USDC_USD_FEED, ETH_ETH_USD_FEED);
 
         uint256 assetsIn = 1e6;
         uint256 sharesFloor = oracle.getShareOutput(key, address(0), assetsIn);
@@ -352,6 +381,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireEthFork();
         _deployOracle();
         address key = _registerUsdcWeth();
+        _syncFeeds(ETH_USDC_USD_FEED, ETH_ETH_USD_FEED);
 
         uint256 assetsIn = 1e6;
         uint256 shares = oracle.getShareOutput(key, address(0), assetsIn);
@@ -359,14 +389,14 @@ contract UniV3CLPOracleForkTest is Test {
         assertLe(assetsOut, assetsIn, "round-trip must not create value");
     }
 
-    function test_eth_usdcWeth_tvl_inRange_nonZero() public {
+    /// @notice getTVL is intentionally disabled (returns 0) — pool-wide liquidity is not per-position TVL
+    function test_eth_usdcWeth_tvl_alwaysReturnsZero() public {
         _requireEthFork();
         _deployOracle();
         address key = _registerUsdcWeth();
 
-        // Full range includes current tick
         uint256 tvl = oracle.getTVL(key);
-        assertGt(tvl, 0, "TVL must be > 0 for in-range full-range position");
+        assertEq(tvl, 0, "getTVL is disabled and must return 0");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -377,6 +407,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireEthFork();
         _deployOracle();
         address key = _registerWbtcWeth();
+        _syncFeeds(ETH_BTC_USD_FEED, ETH_ETH_USD_FEED);
 
         uint256 pps = oracle.getPricePerShare(key);
         assertGt(pps, 0, "WBTC/WETH PPS must be > 0");
@@ -386,6 +417,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireEthFork();
         _deployOracle();
         address key = _registerWbtcWeth();
+        _syncFeeds(ETH_BTC_USD_FEED, ETH_ETH_USD_FEED);
 
         // PPS in WBTC terms (8 dec). Should be finite and positive.
         uint256 pps = oracle.getPricePerShare(key);
@@ -397,6 +429,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireEthFork();
         _deployOracle();
         address key = _registerWbtcWeth();
+        _syncFeeds(ETH_BTC_USD_FEED, ETH_ETH_USD_FEED);
 
         // 1 WBTC = 1e8 atoms
         uint256 shares = oracle.getShareOutput(key, address(0), 1e8);
@@ -407,6 +440,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireEthFork();
         _deployOracle();
         address key = _registerWbtcWeth();
+        _syncFeeds(ETH_BTC_USD_FEED, ETH_ETH_USD_FEED);
 
         uint256 assets = oracle.getAssetOutput(key, address(0), 1e18);
         assertGt(assets, 0, "asset output for 1e18 liquidity must be > 0");
@@ -416,6 +450,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireEthFork();
         _deployOracle();
         address key = _registerWbtcWeth();
+        _syncFeeds(ETH_BTC_USD_FEED, ETH_ETH_USD_FEED);
 
         uint256 assetsIn = 1e8; // 1 WBTC
         uint256 shares = oracle.getShareOutput(key, address(0), assetsIn);
@@ -423,13 +458,14 @@ contract UniV3CLPOracleForkTest is Test {
         assertLe(assetsOut, assetsIn, "round-trip must not create value");
     }
 
-    function test_eth_wbtcWeth_tvl_inRange_nonZero() public {
+    /// @notice getTVL is intentionally disabled (returns 0)
+    function test_eth_wbtcWeth_tvl_alwaysReturnsZero() public {
         _requireEthFork();
         _deployOracle();
         address key = _registerWbtcWeth();
 
         uint256 tvl = oracle.getTVL(key);
-        assertGt(tvl, 0, "WBTC/WETH TVL must be > 0 for full-range position");
+        assertEq(tvl, 0, "getTVL is disabled and must return 0");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -450,6 +486,7 @@ contract UniV3CLPOracleForkTest is Test {
             ETH_USDC_USD_FEED, ETH_ETH_USD_FEED,
             ETH_MAX_STALENESS, address(0), 0
         );
+        _syncFeeds(ETH_USDC_USD_FEED, ETH_ETH_USD_FEED);
 
         uint256 pps = oracle.getPricePerShare(key);
         assertGt(pps, 0, "PPS must be > 0 for below-range position (all token1 converted to token0)");
@@ -468,12 +505,13 @@ contract UniV3CLPOracleForkTest is Test {
             ETH_USDC_USD_FEED, ETH_ETH_USD_FEED,
             ETH_MAX_STALENESS, address(0), 0
         );
+        _syncFeeds(ETH_USDC_USD_FEED, ETH_ETH_USD_FEED);
 
         uint256 pps = oracle.getPricePerShare(key);
         assertGt(pps, 0, "PPS must be > 0 for above-range position (all token0)");
     }
 
-    /// @notice Narrow range around current tick -> PPS > 0 and TVL > 0
+    /// @notice Narrow range around current tick -> PPS > 0
     function test_eth_narrowRange_aroundCurrentTick_inRange() public {
         _requireEthFork();
         _deployOracle();
@@ -487,18 +525,17 @@ contract UniV3CLPOracleForkTest is Test {
             ETH_USDC_USD_FEED, ETH_ETH_USD_FEED,
             ETH_MAX_STALENESS, address(0), 0
         );
+        _syncFeeds(ETH_USDC_USD_FEED, ETH_ETH_USD_FEED);
 
         uint256 pps = oracle.getPricePerShare(key);
         assertGt(pps, 0, "PPS must be > 0 for in-range narrow position");
     }
 
-    /// @notice Out-of-range narrow position -> getTVL returns 0
+    /// @notice getTVL always returns 0 (disabled) regardless of tick range
     function test_eth_narrowRange_outOfRange_tvlZero() public {
         _requireEthFork();
         _deployOracle();
 
-        // Range [100_000, 110_000] is well below current tick ~195,000
-        // Pool's current tick is NOT in this range -> TVL should be 0
         address key = registry.registerPosition(
             ETH_USDC_WETH_POOL, ETH_NFT_MANAGER,
             100_000, 110_000,
@@ -508,7 +545,7 @@ contract UniV3CLPOracleForkTest is Test {
         );
 
         uint256 tvl = oracle.getTVL(key);
-        assertEq(tvl, 0, "TVL must be 0 when pool's current tick is outside the position range");
+        assertEq(tvl, 0, "getTVL is disabled and must return 0");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -520,6 +557,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireEthFork();
         _deployOracle();
         address key = _registerUsdcWeth();
+        _syncFeeds(ETH_USDC_USD_FEED, ETH_ETH_USD_FEED);
 
         INonfungiblePositionManager nft = INonfungiblePositionManager(ETH_NFT_MANAGER);
         IERC721 nftErc721 = IERC721(ETH_NFT_MANAGER);
@@ -591,6 +629,8 @@ contract UniV3CLPOracleForkTest is Test {
         _deployOracle();
         address key1 = _registerUsdcWeth();
         address key2 = _registerWbtcWeth();
+        _syncFeeds(ETH_USDC_USD_FEED, ETH_ETH_USD_FEED);
+        _syncFeeds(ETH_BTC_USD_FEED, ETH_ETH_USD_FEED);
 
         address[] memory keys = new address[](2);
         keys[0] = key1;
@@ -602,6 +642,7 @@ contract UniV3CLPOracleForkTest is Test {
         assertEq(prices[1], oracle.getPricePerShare(key2), "batch PPS[1] must match single");
     }
 
+    /// @notice getTVLMultiple returns zeros since getTVL is disabled
     function test_eth_getTVLMultiple_twoPools() public {
         _requireEthFork();
         _deployOracle();
@@ -614,8 +655,8 @@ contract UniV3CLPOracleForkTest is Test {
 
         uint256[] memory tvls = oracle.getTVLMultiple(keys);
         assertEq(tvls.length, 2);
-        assertEq(tvls[0], oracle.getTVL(key1));
-        assertEq(tvls[1], oracle.getTVL(key2));
+        assertEq(tvls[0], 0, "getTVL is disabled");
+        assertEq(tvls[1], 0, "getTVL is disabled");
     }
 
     function test_eth_getTVLByOwnerOfSharesMultiple() public {
@@ -659,6 +700,7 @@ contract UniV3CLPOracleForkTest is Test {
             ETH_USDC_USD_FEED, ETH_ETH_USD_FEED,
             ETH_MAX_STALENESS, address(0), 0
         );
+        _syncFeeds(ETH_USDC_USD_FEED, ETH_ETH_USD_FEED);
 
         uint256 ppsFull = oracle.getPricePerShare(key1);
         uint256 ppsNarrow = oracle.getPricePerShare(key2);
@@ -691,12 +733,12 @@ contract UniV3CLPOracleForkTest is Test {
         oracle.getShareOutput(address(0xDEAD), address(0), 1e18);
     }
 
-    function test_eth_unregistered_getTVL_reverts() public {
+    /// @notice getTVL is disabled (returns 0) — does not check registration
+    function test_eth_unregistered_getTVL_returnsZero() public {
         _requireEthFork();
         _deployOracle();
 
-        vm.expectRevert(UniV3CLPRegistry.POSITION_NOT_REGISTERED.selector);
-        oracle.getTVL(address(0xDEAD));
+        assertEq(oracle.getTVL(address(0xDEAD)), 0);
     }
 
     function test_eth_unregistered_getBalanceOfOwner_reverts() public {
@@ -753,6 +795,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireEthFork();
         _deployOracle();
         address key = _registerUsdcWeth();
+        _syncFeeds(ETH_USDC_USD_FEED, ETH_ETH_USD_FEED);
 
         bytes32 fakeOracleId = keccak256("nonexistent");
         uint256 result = oracle.getAssetOutputWithFees(fakeOracleId, key, address(0), address(0xBEEF), 1e18);
@@ -768,6 +811,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireEthFork();
         _deployOracle();
         address key = _registerUsdcWeth();
+        _syncFeeds(ETH_USDC_USD_FEED, ETH_ETH_USD_FEED);
 
         // Verify oracle works before deregistration
         assertGt(oracle.getPricePerShare(key), 0);
@@ -805,6 +849,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireBaseFork();
         _deployOracle();
         address key = _registerBaseWethUsdc();
+        _syncFeeds(BASE_ETH_USD_FEED, BASE_USDC_USD_FEED);
 
         uint256 pps = oracle.getPricePerShare(key);
         assertGt(pps, 0, "Base PPS must be > 0");
@@ -814,6 +859,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireBaseFork();
         _deployOracle();
         address key = _registerBaseWethUsdc();
+        _syncFeeds(BASE_ETH_USD_FEED, BASE_USDC_USD_FEED);
 
         // PPS in WETH terms (token0 = WETH, 18 dec). Should be reasonable.
         uint256 pps = oracle.getPricePerShare(key);
@@ -833,6 +879,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireBaseFork();
         _deployOracle();
         address key = _registerBaseWethUsdc();
+        _syncFeeds(BASE_ETH_USD_FEED, BASE_USDC_USD_FEED);
 
         // PPS is in WETH terms; deposit 1 WETH = 1e18
         uint256 shares = oracle.getShareOutput(key, address(0), 1e18);
@@ -843,6 +890,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireBaseFork();
         _deployOracle();
         address key = _registerBaseWethUsdc();
+        _syncFeeds(BASE_ETH_USD_FEED, BASE_USDC_USD_FEED);
 
         uint256 assets = oracle.getAssetOutput(key, address(0), 1e18);
         assertGt(assets, 0, "assets for 1e18 liquidity must be > 0");
@@ -852,6 +900,7 @@ contract UniV3CLPOracleForkTest is Test {
         _requireBaseFork();
         _deployOracle();
         address key = _registerBaseWethUsdc();
+        _syncFeeds(BASE_ETH_USD_FEED, BASE_USDC_USD_FEED);
 
         uint256 assetsIn = 1e18;
         uint256 shares = oracle.getShareOutput(key, address(0), assetsIn);
@@ -859,13 +908,14 @@ contract UniV3CLPOracleForkTest is Test {
         assertLe(assetsOut, assetsIn, "round-trip must not create value");
     }
 
-    function test_base_oracle_tvl_inRange_nonZero() public {
+    /// @notice getTVL is intentionally disabled (returns 0)
+    function test_base_oracle_tvl_alwaysReturnsZero() public {
         _requireBaseFork();
         _deployOracle();
         address key = _registerBaseWethUsdc();
 
         uint256 tvl = oracle.getTVL(key);
-        assertGt(tvl, 0, "Base TVL must be > 0 for full-range position");
+        assertEq(tvl, 0, "getTVL is disabled and must return 0");
     }
 
     function test_base_oracle_unregistered_reverts() public {
@@ -908,6 +958,7 @@ contract UniV3CLPOracleForkTest is Test {
             BASE_ETH_USD_FEED, BASE_USDC_USD_FEED,
             BASE_MAX_STALENESS, BASE_SEQUENCER_FEED, BASE_GRACE_PERIOD
         );
+        _syncFeeds(BASE_ETH_USD_FEED, BASE_USDC_USD_FEED);
 
         uint256 pps = oracle.getPricePerShare(key);
         assertGt(pps, 0, "PPS must be > 0 for below-range position");
@@ -925,6 +976,7 @@ contract UniV3CLPOracleForkTest is Test {
             BASE_ETH_USD_FEED, BASE_USDC_USD_FEED,
             BASE_MAX_STALENESS, BASE_SEQUENCER_FEED, BASE_GRACE_PERIOD
         );
+        _syncFeeds(BASE_ETH_USD_FEED, BASE_USDC_USD_FEED);
 
         uint256 pps = oracle.getPricePerShare(key);
         assertGt(pps, 0, "PPS must be > 0 for above-range position");

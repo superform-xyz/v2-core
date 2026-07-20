@@ -14,6 +14,12 @@ import { INonfungiblePositionManager } from "../../vendor/uniswap/v3/INonfungibl
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 import { UniV3CLPRegistry } from "./UniV3CLPRegistry.sol";
 
+/// @dev Minimal interface to read the fee tier from a UniV3 pool.
+///      Aerodrome Slipstream pools lack fee(), so callers should use try/catch.
+interface IUniV3PoolFee {
+    function fee() external view returns (uint24);
+}
+
 /// @title UniV3CLPYieldSourceOracle
 /// @author Superform Labs
 /// @notice Singleton oracle for Uniswap V3-style concentrated liquidity LP positions.
@@ -73,8 +79,17 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
     /// @notice Share decimals (1 share = 1e18 liquidity units)
     uint8 private constant SHARE_DECIMALS = 18;
 
+    /// @notice Maximum allowed timestamp difference between the two Chainlink feed updates (seconds)
+    /// @dev Prevents cross-rate distortion when one feed updates significantly before the other
+    uint256 private constant MAX_FEED_SKEW = 60;
+
     /// @notice One share in liquidity units
     uint128 private constant ONE_SHARE_LIQUIDITY = 1e18;
+
+    /// @notice Larger probe liquidity used to avoid sub-atom rounding when computing PPS
+    /// @dev At extreme tick ranges, 1e18 liquidity can produce < 1 token atom, flooring PPS to 0.
+    ///      Using 1e24 (1e6x larger) then scaling down preserves precision for all practical ranges.
+    uint128 private constant PPS_PROBE_LIQUIDITY = 1e24;
 
     /// @notice Q96 constant (2^96) used for sqrtPriceX96 construction
     uint256 private constant FIXED_POINT_96_Q96 = 0x1000000000000000000000000;
@@ -177,8 +192,8 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
     ///      3. Fetch and validate Chainlink prices for token0/USD and token1/USD
     ///      4. Reconstruct sqrtPriceX96 from cross-rate (flash-loan resistant)
     ///      5. Clamp to [sqrtPriceAX96, sqrtPriceBX96] (precomputed tick boundaries)
-    ///      6. Call getAmountsForLiquidity for ONE_SHARE_LIQUIDITY
-    ///      7. Convert amount1 to token0 terms and return amount0 + amount1InToken0
+    ///      6. Call getAmountsForLiquidity with PPS_PROBE_LIQUIDITY (1e24) for precision
+    ///      7. Convert amount1 to token0 terms, sum, and scale down to ONE_SHARE_LIQUIDITY (1e18)
     /// @param yieldSourceAddress positionKey from UniV3CLPRegistry.registerPosition()
     function getPricePerShare(address yieldSourceAddress) public view override returns (uint256) {
         UniV3CLPRegistry.PositionConfig memory cfg = REGISTRY.getPositionConfig(yieldSourceAddress);
@@ -205,27 +220,25 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
             ? cfg.sqrtPriceAX96
             : (sqrtPriceCL > cfg.sqrtPriceBX96 ? cfg.sqrtPriceBX96 : sqrtPriceCL);
 
-        // Get token0 and token1 amounts for ONE_SHARE_LIQUIDITY at the Chainlink-derived price
-        (uint256 amount0, uint256 amount1) = CLLiquidityAmounts.getAmountsForLiquidity(
-            sqrtPriceForCalc, cfg.sqrtPriceAX96, cfg.sqrtPriceBX96, ONE_SHARE_LIQUIDITY
+        // Compute amounts using PPS_PROBE_LIQUIDITY (1e24) to avoid sub-atom rounding at
+        // extreme tick ranges, then scale down to ONE_SHARE_LIQUIDITY (1e18) precision.
+        // At extreme ticks, 1e18 liquidity can produce < 1 token atom (floors to 0, making PPS = 0).
+        // Using 1e24 gives 6 extra digits of precision before the final scale-down.
+        (uint256 pAmount0, uint256 pAmount1) = CLLiquidityAmounts.getAmountsForLiquidity(
+            sqrtPriceForCalc, cfg.sqrtPriceAX96, cfg.sqrtPriceBX96, PPS_PROBE_LIQUIDITY
         );
 
-        // Convert amount1 to token0 terms using Chainlink cross-rate:
-        // p1InToken0 = price1 * feed0Scale * token0Scale / (price0 * feed1Scale * token1Scale)
-        // amount1InToken0 = amount1 * p1InToken0 / token1Scale
-        //                 = amount1 * price1 * feed0Scale * token0Scale
-        //                   / (price0 * feed1Scale * token1Scale)
-        // (token1Scale appears once in denominator: once for the price conversion, consumed by p1InToken0)
-        uint256 amount1InToken0;
-        if (amount1 > 0) {
-            amount1InToken0 = Math.mulDiv(
-                amount1 * price1,
+        // Convert pAmount1 to token0 terms and sum, then scale down to 1e18-liquidity PPS
+        uint256 pTotal = pAmount0;
+        if (pAmount1 > 0) {
+            pTotal += Math.mulDiv(
+                pAmount1 * price1,
                 cfg.feed0Scale * cfg.token0Scale,
                 price0 * cfg.feed1Scale * cfg.token1Scale
             );
         }
 
-        return amount0 + amount1InToken0;
+        return Math.mulDiv(pTotal, uint256(ONE_SHARE_LIQUIDITY), uint256(PPS_PROBE_LIQUIDITY));
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -264,29 +277,14 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    /// @notice Returns the value of the pool's current active liquidity in token0 terms
-    /// @dev Returns non-zero only when the current tick is within [tickLower, tickUpper).
-    ///      Uses pool.liquidity() which is the active liquidity at the current tick.
-    ///      This includes all in-range LPs, not just a single strategy's positions.
-    ///      For per-strategy TVL, use getTVLByOwnerOfShares() instead.
-    ///
-    ///      WARNING: This function reads slot0() for the current tick and pool.liquidity() for
-    ///      active liquidity. Both values are manipulable via flash loans or large swaps.
-    ///      Do NOT use this function for on-chain accounting decisions, collateral valuation,
-    ///      or any security-critical path. For manipulation-resistant per-owner TVL,
-    ///      use getTVLByOwnerOfShares() which relies on Chainlink-derived pricing only.
-    /// @param yieldSourceAddress positionKey from UniV3CLPRegistry.registerPosition()
-    function getTVL(address yieldSourceAddress) public view override returns (uint256) {
-        UniV3CLPRegistry.PositionConfig memory cfg = REGISTRY.getPositionConfig(yieldSourceAddress);
-
-        (, int24 currentTick) = IUniswapV3CLPool(cfg.pool).slot0();
-
-        if (currentTick < cfg.tickLower || currentTick >= cfg.tickUpper) return 0;
-
-        uint128 activeLiquidity = IUniswapV3CLPool(cfg.pool).liquidity();
-        if (activeLiquidity == 0) return 0;
-
-        return getAssetOutput(yieldSourceAddress, address(0), uint256(activeLiquidity));
+    /// @notice Returns 0 — intentionally disabled for CLP positions.
+    /// @dev Pool-wide active liquidity (pool.liquidity()) is not meaningful as per-position-key TVL
+    ///      and is transiently manipulable via swaps/flash loans. Returning it would mislead
+    ///      integrators using the generic SuperYieldSourceOracle.getTVLQuote helper.
+    ///      For per-strategy TVL, use getTVLByOwnerOfShares() and aggregate per-owner off-chain.
+    function getTVL(address yieldSourceAddress) public pure override returns (uint256) {
+        yieldSourceAddress; // silence unused variable warning
+        return 0;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -294,6 +292,8 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Fetches and validates both Chainlink prices from the registry config
+    /// @dev Also enforces that the two feed timestamps are within MAX_FEED_SKEW of each other
+    ///      to prevent cross-rate distortion from mixed-time feed updates
     /// @param cfg The position configuration containing feed addresses, circuit breaker bounds, and staleness
     /// @return price0 The validated Chainlink price for token0/USD
     /// @return price1 The validated Chainlink price for token1/USD
@@ -302,12 +302,19 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
         view
         returns (uint256 price0, uint256 price1)
     {
-        price0 = _getChainlinkPrice(
+        uint256 updatedAt0;
+        uint256 updatedAt1;
+        (price0, updatedAt0) = _getChainlinkPrice(
             IAggregatorV3(cfg.feed0), cfg.feed0MinAnswer, cfg.feed0MaxAnswer, cfg.maxStaleness
         );
-        price1 = _getChainlinkPrice(
+        (price1, updatedAt1) = _getChainlinkPrice(
             IAggregatorV3(cfg.feed1), cfg.feed1MinAnswer, cfg.feed1MaxAnswer, cfg.maxStaleness
         );
+
+        // Reject if the two feeds were updated too far apart in time
+        if ((updatedAt0 > updatedAt1 ? updatedAt0 - updatedAt1 : updatedAt1 - updatedAt0) > MAX_FEED_SKEW) {
+            revert STALE_PRICE();
+        }
     }
 
     /// @notice Fetches and validates a single Chainlink price feed answer
@@ -315,7 +322,8 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
     /// @param minAnswer Circuit breaker lower bound (0 = disabled)
     /// @param maxAnswer Circuit breaker upper bound (0 = disabled)
     /// @param maxStaleness Maximum seconds since last update before reverting
-    /// @return The validated price as a positive uint256
+    /// @return price The validated price as a positive uint256
+    /// @return updatedAt The timestamp of the feed's last update (used for inter-feed skew check)
     function _getChainlinkPrice(
         IAggregatorV3 feed,
         int192 minAnswer,
@@ -324,14 +332,15 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
     )
         internal
         view
-        returns (uint256)
+        returns (uint256 price, uint256 updatedAt)
     {
-        (, int256 answer,, uint256 updatedAt,) = feed.latestRoundData();
+        (uint80 roundId, int256 answer,, uint256 updatedAt_, uint80 answeredInRound) = feed.latestRoundData();
         if (answer <= 0) revert INVALID_PRICE();
-        if (block.timestamp - updatedAt > maxStaleness) revert STALE_PRICE();
+        if (answeredInRound < roundId) revert STALE_PRICE();
+        if (block.timestamp - updatedAt_ > maxStaleness) revert STALE_PRICE();
         if (minAnswer > 0 && answer <= int256(minAnswer)) revert INVALID_PRICE();
         if (maxAnswer > 0 && answer >= int256(maxAnswer)) revert INVALID_PRICE();
-        return uint256(answer);
+        return (uint256(answer), updatedAt_);
     }
 
     /// @notice Checks L2 sequencer liveness; no-op when sequencerFeed is address(0)
@@ -344,9 +353,24 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
         if (block.timestamp - startedAt < gracePeriod) revert GRACE_PERIOD_NOT_OVER();
     }
 
+    /// @notice Resolves the expected feeOrTickSpacing value for a pool
+    /// @dev UniV3 pools expose fee() (e.g., 500, 3000, 10000) which the NFT stores directly.
+    ///      Aerodrome Slipstream pools lack fee() but store tickSpacing in the same NFT field.
+    /// @param pool The pool address to resolve
+    /// @return The fee (UniV3) or tickSpacing (Slipstream) that NFT positions record for this pool
+    function _getPoolFeeOrTickSpacing(address pool) internal view returns (uint24) {
+        try IUniV3PoolFee(pool).fee() returns (uint24 poolFee) {
+            return poolFee;
+        } catch {
+            return uint24(int24(IUniswapV3CLPool(pool).tickSpacing()));
+        }
+    }
+
     /// @notice Returns the total liquidity (in share units) held by an owner across all matching positions
     /// @dev Iterates over all NFT positions owned by ownerOfShares.
-    ///      Matches positions where (token0, token1, tickLower, tickUpper) equals the registry config.
+    ///      Matches positions where (token0, token1, feeOrTickSpacing, tickLower, tickUpper) equals the
+    ///      registry config's pool. The feeOrTickSpacing check prevents cross-pool attribution when the
+    ///      same token pair exists across multiple fee tiers under the same NFT manager.
     ///      O(N) in number of positions held by ownerOfShares — acceptable for view-only accounting.
     /// @param yieldSourceAddress positionKey from UniV3CLPRegistry.registerPosition()
     /// @param ownerOfShares Address whose NFT positions to scan
@@ -365,34 +389,52 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
         uint256 nftBalance = nftManager.balanceOf(ownerOfShares);
         if (nftBalance == 0) return 0;
 
-        address t0 = cfg.token0;
-        address t1 = cfg.token1;
-        int24 tL = cfg.tickLower;
-        int24 tU = cfg.tickUpper;
+        uint24 expectedFeeOrTickSpacing = _getPoolFeeOrTickSpacing(cfg.pool);
 
         for (uint256 i; i < nftBalance;) {
-            uint256 tokenId = nftManager.tokenOfOwnerByIndex(ownerOfShares, i);
-            (
-                ,
-                ,
-                address posToken0,
-                address posToken1,
-                ,
-                int24 posTickLower,
-                int24 posTickUpper,
-                uint128 posLiquidity,
-                ,
-                ,
-                ,
-            ) = nftManager.positions(tokenId);
-
-            if (posToken0 == t0 && posToken1 == t1 && posTickLower == tL && posTickUpper == tU) {
-                totalLiquidity += posLiquidity;
-            }
+            totalLiquidity += _matchPosition(nftManager, cfg, expectedFeeOrTickSpacing, ownerOfShares, i);
 
             unchecked {
                 ++i;
             }
         }
+    }
+
+    /// @notice Checks if a single NFT position matches the registry config and returns its liquidity
+    /// @dev Extracted to a separate function to avoid stack-too-deep in _getBalanceOfOwner
+    function _matchPosition(
+        INonfungiblePositionManager nftManager,
+        UniV3CLPRegistry.PositionConfig memory cfg,
+        uint24 expectedFeeOrTickSpacing,
+        address owner,
+        uint256 index
+    )
+        private
+        view
+        returns (uint256)
+    {
+        uint256 tokenId = nftManager.tokenOfOwnerByIndex(owner, index);
+        (
+            ,
+            ,
+            address posToken0,
+            address posToken1,
+            uint24 posFeeOrTickSpacing,
+            int24 posTickLower,
+            int24 posTickUpper,
+            uint128 posLiquidity,
+            ,
+            ,
+            ,
+        ) = nftManager.positions(tokenId);
+
+        if (
+            posToken0 == cfg.token0 && posToken1 == cfg.token1
+                && posFeeOrTickSpacing == expectedFeeOrTickSpacing && posTickLower == cfg.tickLower
+                && posTickUpper == cfg.tickUpper
+        ) {
+            return uint256(posLiquidity);
+        }
+        return 0;
     }
 }

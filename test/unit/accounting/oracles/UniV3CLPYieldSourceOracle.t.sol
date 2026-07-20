@@ -369,9 +369,9 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         oracle.getBalanceOfOwner(address(0xDEAD), address(0xBEEF));
     }
 
-    function test_getTVL_revertsOnUnregisteredKey() public {
-        vm.expectRevert(UniV3CLPRegistry.POSITION_NOT_REGISTERED.selector);
-        oracle.getTVL(address(0xDEAD));
+    function test_getTVL_returnsZeroForUnregisteredKey() public view {
+        // getTVL is intentionally disabled for CLP — always returns 0
+        assertEq(oracle.getTVL(address(0xDEAD)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -538,24 +538,12 @@ contract UniV3CLPYieldSourceOracleTest is Test {
                     SECTION 14: TVL
     //////////////////////////////////////////////////////////////*/
 
-    function test_getTVL_currentTickInRange_nonZero() public view {
-        uint256 tvl = oracle.getTVL(positionKey);
-        assertGt(tvl, 0, "TVL must be > 0 when tick is in range");
-    }
+    // getTVL is intentionally disabled for CLP positions (returns 0 always).
+    // Pool-wide active liquidity is not per-position-key TVL and is manipulable.
+    // Use getTVLByOwnerOfShares for per-strategy TVL.
 
-    function test_getTVL_currentTickBelowRange_returnsZero() public {
-        pool.setSlot0(uint160(Q96), TICK_LOWER - 1);
-        assertEq(oracle.getTVL(positionKey), 0, "TVL must be 0 when tick is below range");
-    }
-
-    function test_getTVL_currentTickAtUpperBound_returnsZero() public {
-        pool.setSlot0(uint160(Q96), TICK_UPPER);
-        assertEq(oracle.getTVL(positionKey), 0, "TVL must be 0 when tick is at TICK_UPPER");
-    }
-
-    function test_getTVL_zeroActiveLiquidity_returnsZero() public {
-        pool.setLiquidity(0);
-        assertEq(oracle.getTVL(positionKey), 0, "TVL must be 0 when pool has no active liquidity");
+    function test_getTVL_alwaysReturnsZero() public view {
+        assertEq(oracle.getTVL(positionKey), 0, "getTVL must always return 0 for CLP");
     }
 
     function test_getTVLByOwnerOfShares_noPositions_returnsZero() public view {
@@ -978,7 +966,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         assertEq(prices.length, 0);
     }
 
-    function test_getTVLMultiple_returnsBoth() public {
+    function test_getTVLMultiple_returnsZeros() public {
         address key2 = _registerSecondPosition();
 
         address[] memory keys = new address[](2);
@@ -987,8 +975,8 @@ contract UniV3CLPYieldSourceOracleTest is Test {
 
         uint256[] memory tvls = oracle.getTVLMultiple(keys);
         assertEq(tvls.length, 2);
-        assertEq(tvls[0], oracle.getTVL(positionKey));
-        assertEq(tvls[1], oracle.getTVL(key2));
+        assertEq(tvls[0], 0, "getTVL disabled for CLP");
+        assertEq(tvls[1], 0, "getTVL disabled for CLP");
     }
 
     function test_getTVLByOwnerOfSharesMultiple_returnsBoth() public {

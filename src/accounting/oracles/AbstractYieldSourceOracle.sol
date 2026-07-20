@@ -174,8 +174,14 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
 
             // For each yield source, process each owner
             for (uint256 j; j < ownersLength; ++j) {
-                uint256 userTvl = getTVLByOwnerOfShares(yieldSource, owners[j]);
-                userTvls[i][j] = userTvl;
+                // Isolate per-entry failures to avoid aborting the entire batch
+                try IYieldSourceOracle(address(this)).getTVLByOwnerOfShares(yieldSource, owners[j])
+                returns (uint256 userTvl) {
+                    userTvls[i][j] = userTvl;
+                } catch {
+                    // On failure, record 0 for this entry and continue
+                    userTvls[i][j] = 0;
+                }
             }
         }
     }
