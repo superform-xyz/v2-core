@@ -7,18 +7,11 @@ import { IAggregatorV3 } from "modulekit/integrations/interfaces/chainlink/IAggr
 
 // Superform vendor
 import { CLLiquidityAmounts } from "../../vendor/uniswap/v3/CLLiquidityAmounts.sol";
-import { IUniswapV3CLPool } from "../../vendor/uniswap/v3/IUniswapV3CLPool.sol";
 import { INonfungiblePositionManager } from "../../vendor/uniswap/v3/INonfungiblePositionManager.sol";
 
 // Superform
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 import { UniV3CLPRegistry } from "./UniV3CLPRegistry.sol";
-
-/// @dev Minimal interface to read the fee tier from a UniV3 pool.
-///      Aerodrome Slipstream pools lack fee(), so callers should use try/catch.
-interface IUniV3PoolFee {
-    function fee() external view returns (uint24);
-}
 
 /// @title UniV3CLPYieldSourceOracle
 /// @author Superform Labs
@@ -29,7 +22,7 @@ interface IUniV3PoolFee {
 ///
 ///      SUPPORTS:
 ///        - Uniswap V3 (Ethereum, Arbitrum, BSC) — fully compatible
-///        - Aerodrome Slipstream (Base) — fully compatible (tickSpacing in fee field, same ABI)
+///        - Aerodrome Slipstream (Base) — fully compatible (feeOrTickSpacing stored at registration)
 ///
 ///      NOT SUPPORTED:
 ///        - Algebra / SparkDEX — different positions() ABI (no fee/tickSpacing field)
@@ -52,6 +45,19 @@ interface IUniV3PoolFee {
 ///
 ///      SINGLETON: A single deployment of this contract serves all positions registered in
 ///      the UniV3CLPRegistry. Add new pools/tick-ranges by calling registry.registerPosition().
+///
+///      KNOWN LIMITATIONS:
+///        - UNCOLLECTED FEES (P2.2): PPS values principal liquidity only. Uncollected swap fees
+///          (tokensOwed0/1) and accrued feeGrowth are excluded. NAV is conservative between
+///          fee collects.
+///        - GAUGE-STAKED NFTS (P2.3): Only NFTs owned directly by the queried address are counted.
+///          NFTs staked in Aerodrome CLGauges (or other protocols) are invisible to
+///          getBalanceOfOwner/getTVLByOwnerOfShares. Strategies must not stake NFTs if they
+///          rely on this oracle for NAV.
+///        - DUST GRIEFING (P2.4): getBalanceOfOwner enumerates all NFTs owned by the address
+///          (O(N), 2 external calls per NFT). Dust NFT transfers can increase gas cost. For
+///          production, prefer tracking explicit tokenIds in the strategy rather than owner
+///          enumeration.
 contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
@@ -78,10 +84,6 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
 
     /// @notice Share decimals (1 share = 1e18 liquidity units)
     uint8 private constant SHARE_DECIMALS = 18;
-
-    /// @notice Maximum allowed timestamp difference between the two Chainlink feed updates (seconds)
-    /// @dev Prevents cross-rate distortion when one feed updates significantly before the other
-    uint256 private constant MAX_FEED_SKEW = 60;
 
     /// @notice One share in liquidity units
     uint128 private constant ONE_SHARE_LIQUIDITY = 1e18;
@@ -211,7 +213,10 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
         uint256 sqrtDen = Math.sqrt(price1 * cfg.feed0Scale * cfg.token0Scale);
         if (sqrtDen == 0) revert INVALID_PRICE();
 
-        uint160 sqrtPriceCL = uint160(Math.mulDiv(sqrtNum, FIXED_POINT_96_Q96, sqrtDen));
+        uint256 rawSqrtPrice = Math.mulDiv(sqrtNum, FIXED_POINT_96_Q96, sqrtDen);
+        // Clamp to uint160 range before casting (prevents silent wrap on exotic decimal/price ratios)
+        if (rawSqrtPrice > type(uint160).max) rawSqrtPrice = type(uint160).max;
+        uint160 sqrtPriceCL = uint160(rawSqrtPrice);
 
         // Clamp to tick range boundaries:
         //   below lower → all liquidity in token0
@@ -292,8 +297,6 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Fetches and validates both Chainlink prices from the registry config
-    /// @dev Also enforces that the two feed timestamps are within MAX_FEED_SKEW of each other
-    ///      to prevent cross-rate distortion from mixed-time feed updates
     /// @param cfg The position configuration containing feed addresses, circuit breaker bounds, and staleness
     /// @return price0 The validated Chainlink price for token0/USD
     /// @return price1 The validated Chainlink price for token1/USD
@@ -302,19 +305,12 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
         view
         returns (uint256 price0, uint256 price1)
     {
-        uint256 updatedAt0;
-        uint256 updatedAt1;
-        (price0, updatedAt0) = _getChainlinkPrice(
+        price0 = _getChainlinkPrice(
             IAggregatorV3(cfg.feed0), cfg.feed0MinAnswer, cfg.feed0MaxAnswer, cfg.maxStaleness
         );
-        (price1, updatedAt1) = _getChainlinkPrice(
+        price1 = _getChainlinkPrice(
             IAggregatorV3(cfg.feed1), cfg.feed1MinAnswer, cfg.feed1MaxAnswer, cfg.maxStaleness
         );
-
-        // Reject if the two feeds were updated too far apart in time
-        if ((updatedAt0 > updatedAt1 ? updatedAt0 - updatedAt1 : updatedAt1 - updatedAt0) > MAX_FEED_SKEW) {
-            revert STALE_PRICE();
-        }
     }
 
     /// @notice Fetches and validates a single Chainlink price feed answer
@@ -323,7 +319,6 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
     /// @param maxAnswer Circuit breaker upper bound (0 = disabled)
     /// @param maxStaleness Maximum seconds since last update before reverting
     /// @return price The validated price as a positive uint256
-    /// @return updatedAt The timestamp of the feed's last update (used for inter-feed skew check)
     function _getChainlinkPrice(
         IAggregatorV3 feed,
         int192 minAnswer,
@@ -332,7 +327,7 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
     )
         internal
         view
-        returns (uint256 price, uint256 updatedAt)
+        returns (uint256 price)
     {
         (uint80 roundId, int256 answer,, uint256 updatedAt_, uint80 answeredInRound) = feed.latestRoundData();
         if (answer <= 0) revert INVALID_PRICE();
@@ -340,7 +335,7 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
         if (block.timestamp - updatedAt_ > maxStaleness) revert STALE_PRICE();
         if (minAnswer > 0 && answer <= int256(minAnswer)) revert INVALID_PRICE();
         if (maxAnswer > 0 && answer >= int256(maxAnswer)) revert INVALID_PRICE();
-        return (uint256(answer), updatedAt_);
+        return uint256(answer);
     }
 
     /// @notice Checks L2 sequencer liveness; no-op when sequencerFeed is address(0)
@@ -351,19 +346,6 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
         (, int256 answer,, uint256 startedAt,) = IAggregatorV3(sequencerFeed).latestRoundData();
         if (answer != 0) revert SEQUENCER_DOWN();
         if (block.timestamp - startedAt < gracePeriod) revert GRACE_PERIOD_NOT_OVER();
-    }
-
-    /// @notice Resolves the expected feeOrTickSpacing value for a pool
-    /// @dev UniV3 pools expose fee() (e.g., 500, 3000, 10000) which the NFT stores directly.
-    ///      Aerodrome Slipstream pools lack fee() but store tickSpacing in the same NFT field.
-    /// @param pool The pool address to resolve
-    /// @return The fee (UniV3) or tickSpacing (Slipstream) that NFT positions record for this pool
-    function _getPoolFeeOrTickSpacing(address pool) internal view returns (uint24) {
-        try IUniV3PoolFee(pool).fee() returns (uint24 poolFee) {
-            return poolFee;
-        } catch {
-            return uint24(int24(IUniswapV3CLPool(pool).tickSpacing()));
-        }
     }
 
     /// @notice Returns the total liquidity (in share units) held by an owner across all matching positions
@@ -389,10 +371,8 @@ contract UniV3CLPYieldSourceOracle is AbstractYieldSourceOracle {
         uint256 nftBalance = nftManager.balanceOf(ownerOfShares);
         if (nftBalance == 0) return 0;
 
-        uint24 expectedFeeOrTickSpacing = _getPoolFeeOrTickSpacing(cfg.pool);
-
         for (uint256 i; i < nftBalance;) {
-            totalLiquidity += _matchPosition(nftManager, cfg, expectedFeeOrTickSpacing, ownerOfShares, i);
+            totalLiquidity += _matchPosition(nftManager, cfg, cfg.feeOrTickSpacing, ownerOfShares, i);
 
             unchecked {
                 ++i;

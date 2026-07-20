@@ -140,17 +140,20 @@ interface IYieldSourceOracle {
         returns (uint256[] memory pricesPerShare);
 
     /// @notice Batch version of getTVLByOwnerOfShares for multiple yield sources and owners
-    /// @dev Efficiently calculates TVL for multiple owners across multiple yield sources
+    /// @dev Efficiently calculates TVL for multiple owners across multiple yield sources.
+    ///      Returns a parallel `succeeded` mask so callers can distinguish genuine zero TVL
+    ///      from entries that reverted (e.g. stale feed, unregistered position).
     /// @param yieldSourceAddresses Array of yield-bearing token addresses
     /// @param ownersOfShares 2D array where each sub-array contains owner addresses for a yield source
     /// @return userTvls 2D array of TVL values for each owner in each yield source
+    /// @return succeeded 2D boolean mask — true if the TVL call succeeded, false if it reverted (value is 0)
     function getTVLByOwnerOfSharesMultiple(
         address[] memory yieldSourceAddresses,
         address[][] memory ownersOfShares
     )
         external
         view
-        returns (uint256[][] memory userTvls);
+        returns (uint256[][] memory userTvls, bool[][] memory succeeded);
 
     /// @notice Batch version of getTVL for multiple yield sources
     /// @dev Efficiently calculates total TVL across multiple yield sources

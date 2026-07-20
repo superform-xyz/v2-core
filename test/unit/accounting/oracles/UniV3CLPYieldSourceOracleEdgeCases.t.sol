@@ -18,12 +18,11 @@ import { SuperLedgerConfiguration } from "../../../../src/accounting/SuperLedger
 
 /// @title UniV3CLPYieldSourceOracleEdgeCases
 /// @notice Comprehensive edge case tests covering all security fixes:
-///         1. Inter-feed timestamp skew (MAX_FEED_SKEW = 60s)
-///         2. answeredInRound < roundId staleness check
-///         3. PPS probe liquidity (1e24) for extreme tick ranges
-///         4. Fee/tickSpacing disambiguation in _getBalanceOfOwner
-///         5. getTVL disabled (always returns 0)
-///         6. Batched TVL read isolation (try/catch in getTVLByOwnerOfSharesMultiple)
+///         1. answeredInRound < roundId staleness check
+///         2. PPS probe liquidity (1e24) for extreme tick ranges
+///         3. Fee/tickSpacing disambiguation in _getBalanceOfOwner
+///         4. getTVL disabled (always returns 0)
+///         5. Batched TVL read isolation (try/catch in getTVLByOwnerOfSharesMultiple)
 contract UniV3CLPYieldSourceOracleEdgeCasesTest is Test {
     UniV3CLPRegistry public registry;
     UniV3CLPYieldSourceOracle public oracle;
@@ -66,6 +65,7 @@ contract UniV3CLPYieldSourceOracleEdgeCasesTest is Test {
             TICK_UPPER,
             address(token0),
             address(token1),
+            100, // feeOrTickSpacing matches pool tickSpacing
             address(feed0),
             address(feed1),
             MAX_STALENESS,
@@ -82,101 +82,7 @@ contract UniV3CLPYieldSourceOracleEdgeCasesTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-        FIX 1: INTER-FEED TIMESTAMP SKEW (MAX_FEED_SKEW = 60s)
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Both feeds updated at same time — should succeed
-    function test_feedSkew_bothFresh_succeeds() public view {
-        uint256 pps = oracle.getPricePerShare(positionKey);
-        assertGt(pps, 0);
-    }
-
-    /// @notice Feeds updated 30s apart (within 60s threshold) — should succeed
-    function test_feedSkew_withinThreshold_succeeds() public {
-        feed0.setUpdatedAt(block.timestamp);
-        feed1.setUpdatedAt(block.timestamp - 30);
-
-        uint256 pps = oracle.getPricePerShare(positionKey);
-        assertGt(pps, 0);
-    }
-
-    /// @notice Feeds updated exactly 60s apart (at threshold boundary) — should succeed
-    function test_feedSkew_atExactThreshold_succeeds() public {
-        feed0.setUpdatedAt(block.timestamp);
-        feed1.setUpdatedAt(block.timestamp - 60);
-
-        uint256 pps = oracle.getPricePerShare(positionKey);
-        assertGt(pps, 0);
-    }
-
-    /// @notice Feeds updated 61s apart (exceeds threshold) — should revert
-    function test_feedSkew_exceedsThreshold_reverts() public {
-        feed0.setUpdatedAt(block.timestamp);
-        feed1.setUpdatedAt(block.timestamp - 61);
-
-        vm.expectRevert(UniV3CLPYieldSourceOracle.STALE_PRICE.selector);
-        oracle.getPricePerShare(positionKey);
-    }
-
-    /// @notice Skew in reverse direction (feed1 newer than feed0) — should also revert
-    function test_feedSkew_reverseDirection_exceedsThreshold_reverts() public {
-        feed0.setUpdatedAt(block.timestamp - 61);
-        feed1.setUpdatedAt(block.timestamp);
-
-        vm.expectRevert(UniV3CLPYieldSourceOracle.STALE_PRICE.selector);
-        oracle.getPricePerShare(positionKey);
-    }
-
-    /// @notice Large skew (10 minutes) — should revert
-    function test_feedSkew_largeSkew_reverts() public {
-        feed0.setUpdatedAt(block.timestamp);
-        feed1.setUpdatedAt(block.timestamp - 600);
-
-        vm.expectRevert(UniV3CLPYieldSourceOracle.STALE_PRICE.selector);
-        oracle.getPricePerShare(positionKey);
-    }
-
-    /// @notice Skew check applies to getShareOutput too (calls getPricePerShare)
-    function test_feedSkew_propagatesToGetShareOutput() public {
-        feed0.setUpdatedAt(block.timestamp);
-        feed1.setUpdatedAt(block.timestamp - 61);
-
-        vm.expectRevert(UniV3CLPYieldSourceOracle.STALE_PRICE.selector);
-        oracle.getShareOutput(positionKey, address(0), 1e18);
-    }
-
-    /// @notice Skew check applies to getAssetOutput too
-    function test_feedSkew_propagatesToGetAssetOutput() public {
-        feed0.setUpdatedAt(block.timestamp);
-        feed1.setUpdatedAt(block.timestamp - 61);
-
-        vm.expectRevert(UniV3CLPYieldSourceOracle.STALE_PRICE.selector);
-        oracle.getAssetOutput(positionKey, address(0), 1e18);
-    }
-
-    /// @notice Skew check applies to getWithdrawalShareOutput too
-    function test_feedSkew_propagatesToGetWithdrawalShareOutput() public {
-        feed0.setUpdatedAt(block.timestamp);
-        feed1.setUpdatedAt(block.timestamp - 61);
-
-        vm.expectRevert(UniV3CLPYieldSourceOracle.STALE_PRICE.selector);
-        oracle.getWithdrawalShareOutput(positionKey, address(0), 1e18);
-    }
-
-    /// @notice Skew check applies to getTVLByOwnerOfShares too
-    function test_feedSkew_propagatesToGetTVLByOwnerOfShares() public {
-        address user = address(0xBEEF);
-        nftManager.mint(user, address(token0), address(token1), 100, TICK_LOWER, TICK_UPPER, 1_000e18);
-
-        feed0.setUpdatedAt(block.timestamp);
-        feed1.setUpdatedAt(block.timestamp - 61);
-
-        vm.expectRevert(UniV3CLPYieldSourceOracle.STALE_PRICE.selector);
-        oracle.getTVLByOwnerOfShares(positionKey, user);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-        FIX 2: answeredInRound < roundId STALENESS CHECK
+        FIX 1: answeredInRound < roundId STALENESS CHECK
     //////////////////////////////////////////////////////////////*/
 
     /// @notice answeredInRound == roundId — valid, should succeed
@@ -273,6 +179,7 @@ contract UniV3CLPYieldSourceOracleEdgeCasesTest is Test {
             extremeUpper,
             address(t0),
             address(t1),
+            10, // feeOrTickSpacing
             address(f0),
             address(f1),
             MAX_STALENESS,
@@ -309,6 +216,7 @@ contract UniV3CLPYieldSourceOracleEdgeCasesTest is Test {
             extremeUpper,
             address(t0),
             address(t1),
+            10, // feeOrTickSpacing
             address(f0),
             address(f1),
             MAX_STALENESS,
@@ -340,6 +248,7 @@ contract UniV3CLPYieldSourceOracleEdgeCasesTest is Test {
             500_100,
             address(t0),
             address(t1),
+            10, // feeOrTickSpacing
             address(f0),
             address(f1),
             MAX_STALENESS,
@@ -453,16 +362,16 @@ contract UniV3CLPYieldSourceOracleEdgeCasesTest is Test {
         int24 tU2 = 6000;
         address key2 = registry.registerPosition(
             address(pool2), address(nftManager), tL2, tU2,
-            address(token0), address(token1), address(feed0), address(feed1),
+            address(token0), address(token1), 60, address(feed0), address(feed1),
             MAX_STALENESS, address(0), 0
         );
 
         address user = address(0xBEEF);
 
-        // NFT matching pool1 (tickSpacing=100)
+        // NFT matching pool1 (feeOrTickSpacing=100)
         nftManager.mint(user, address(token0), address(token1), 100, TICK_LOWER, TICK_UPPER, 2_000e18);
 
-        // NFT matching pool2 (tickSpacing=60)
+        // NFT matching pool2 (feeOrTickSpacing=60)
         nftManager.mint(user, address(token0), address(token1), 60, tL2, tU2, 3_000e18);
 
         assertEq(oracle.getBalanceOfOwner(positionKey, user), 2_000e18, "pool1 balance");
@@ -514,7 +423,7 @@ contract UniV3CLPYieldSourceOracleEdgeCasesTest is Test {
 
         address key2 = registry.registerPosition(
             address(pool2), address(nftManager), TICK_LOWER, TICK_UPPER,
-            address(t2A), address(t2B), address(f2A), address(f2B),
+            address(t2A), address(t2B), 100, address(f2A), address(f2B),
             MAX_STALENESS, address(0), 0
         );
 
@@ -536,10 +445,12 @@ contract UniV3CLPYieldSourceOracleEdgeCasesTest is Test {
         owners[1] = new address[](1);
         owners[1][0] = user;
 
-        // Should NOT revert — stale entry returns 0, fresh entry returns real value
-        uint256[][] memory tvls = oracle.getTVLByOwnerOfSharesMultiple(keys, owners);
+        // Should NOT revert — stale entry returns 0 with succeeded=false, fresh entry returns real value
+        (uint256[][] memory tvls, bool[][] memory succeeded) = oracle.getTVLByOwnerOfSharesMultiple(keys, owners);
         assertEq(tvls[0][0], 0, "stale entry should return 0, not revert batch");
+        assertFalse(succeeded[0][0], "stale entry should report succeeded=false");
         assertGt(tvls[1][0], 0, "fresh entry should return real TVL");
+        assertTrue(succeeded[1][0], "fresh entry should report succeeded=true");
     }
 
     /// @notice Batch with unregistered position key — should return 0, not abort
@@ -557,9 +468,11 @@ contract UniV3CLPYieldSourceOracleEdgeCasesTest is Test {
         owners[1] = new address[](1);
         owners[1][0] = user;
 
-        uint256[][] memory tvls = oracle.getTVLByOwnerOfSharesMultiple(keys, owners);
+        (uint256[][] memory tvls, bool[][] memory succeeded) = oracle.getTVLByOwnerOfSharesMultiple(keys, owners);
         assertEq(tvls[0][0], 0, "unregistered key should return 0");
+        assertFalse(succeeded[0][0], "unregistered key should report succeeded=false");
         assertGt(tvls[1][0], 0, "valid key should return real TVL");
+        assertTrue(succeeded[1][0], "valid key should report succeeded=true");
     }
 
     /// @notice Batch where all entries are valid — should all return real values
@@ -575,9 +488,11 @@ contract UniV3CLPYieldSourceOracleEdgeCasesTest is Test {
         owners[0][0] = user;
         owners[0][1] = address(0xCAFE); // no positions
 
-        uint256[][] memory tvls = oracle.getTVLByOwnerOfSharesMultiple(keys, owners);
+        (uint256[][] memory tvls, bool[][] memory succeeded) = oracle.getTVLByOwnerOfSharesMultiple(keys, owners);
         assertGt(tvls[0][0], 0, "user with positions");
+        assertTrue(succeeded[0][0], "user with positions should succeed");
         assertEq(tvls[0][1], 0, "user without positions");
+        assertTrue(succeeded[0][1], "user without positions should still succeed (0 is valid)");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -604,7 +519,7 @@ contract UniV3CLPYieldSourceOracleEdgeCasesTest is Test {
     function test_combined_circuitBreaker_atMin_reverts() public {
         feed0.setCircuitBreakerBounds(1e6, 1e10);
         // Refresh bounds in registry
-        registry.refreshCircuitBreakerBounds(positionKey);
+        registry.refreshFeedConfig(positionKey);
 
         feed0.setLatestAnswer(1e6); // at minAnswer
 
@@ -615,7 +530,7 @@ contract UniV3CLPYieldSourceOracleEdgeCasesTest is Test {
     /// @notice Circuit breaker: answer at maxAnswer — should revert
     function test_combined_circuitBreaker_atMax_reverts() public {
         feed0.setCircuitBreakerBounds(1e6, 1e10);
-        registry.refreshCircuitBreakerBounds(positionKey);
+        registry.refreshFeedConfig(positionKey);
 
         feed0.setLatestAnswer(1e10); // at maxAnswer
 
@@ -696,7 +611,7 @@ contract UniV3CLPYieldSourceOracleEdgeCasesTest is Test {
 
         address key = registry.registerPosition(
             address(p), address(nftManager), -6000, 6000,
-            address(usdc), address(weth), address(usdcFeed), address(ethFeed),
+            address(usdc), address(weth), 10, address(usdcFeed), address(ethFeed),
             MAX_STALENESS, address(0), 0
         );
 
@@ -719,7 +634,7 @@ contract UniV3CLPYieldSourceOracleEdgeCasesTest is Test {
 
         address key = registry.registerPosition(
             address(p), address(nftManager), -6000, 6000,
-            address(wbtc), address(weth), address(btcFeed), address(ethFeed),
+            address(wbtc), address(weth), 60, address(btcFeed), address(ethFeed),
             MAX_STALENESS, address(0), 0
         );
 
@@ -742,7 +657,7 @@ contract UniV3CLPYieldSourceOracleEdgeCasesTest is Test {
 
         address key = registry.registerPosition(
             address(p), address(nftManager), -6000, 6000,
-            address(weth), address(usdc), address(ethFeed), address(usdcFeed),
+            address(weth), address(usdc), 100, address(ethFeed), address(usdcFeed),
             MAX_STALENESS, address(0), 0
         );
 
@@ -765,7 +680,7 @@ contract UniV3CLPYieldSourceOracleEdgeCasesTest is Test {
 
         address key = registry.registerPosition(
             address(p), address(nftManager), -6000, 6000,
-            address(t0), address(t1), address(f0), address(f1),
+            address(t0), address(t1), 100, address(f0), address(f1),
             MAX_STALENESS, address(0), 0
         );
 

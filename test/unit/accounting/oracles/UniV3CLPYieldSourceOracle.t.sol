@@ -70,6 +70,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
             TICK_UPPER,
             address(token0),
             address(token1),
+            100, // feeOrTickSpacing matches pool tickSpacing
             address(feed0),
             address(feed1),
             MAX_STALENESS,
@@ -107,6 +108,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         assertEq(cfg.tickUpper, TICK_UPPER);
         assertEq(cfg.token0, address(token0));
         assertEq(cfg.token1, address(token1));
+        assertEq(cfg.feeOrTickSpacing, 100);
         assertEq(cfg.feed0, address(feed0));
         assertEq(cfg.feed1, address(feed1));
         assertEq(cfg.maxStaleness, MAX_STALENESS);
@@ -133,7 +135,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         vm.expectRevert(UniV3CLPRegistry.ZERO_ADDRESS.selector);
         registry.registerPosition(
             address(0), address(nftManager), TICK_LOWER, TICK_UPPER,
-            address(token0), address(token1), address(feed0), address(feed1), MAX_STALENESS, address(0), 0
+            address(token0), address(token1), 100, address(feed0), address(feed1), MAX_STALENESS, address(0), 0
         );
     }
 
@@ -141,7 +143,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         vm.expectRevert(UniV3CLPRegistry.ZERO_ADDRESS.selector);
         registry.registerPosition(
             address(pool), address(0), TICK_LOWER, TICK_UPPER,
-            address(token0), address(token1), address(feed0), address(feed1), MAX_STALENESS, address(0), 0
+            address(token0), address(token1), 100, address(feed0), address(feed1), MAX_STALENESS, address(0), 0
         );
     }
 
@@ -149,7 +151,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         vm.expectRevert(UniV3CLPRegistry.ZERO_ADDRESS.selector);
         registry.registerPosition(
             address(pool), address(nftManager), TICK_LOWER, TICK_UPPER,
-            address(0), address(token1), address(feed0), address(feed1), MAX_STALENESS, address(0), 0
+            address(0), address(token1), 100, address(feed0), address(feed1), MAX_STALENESS, address(0), 0
         );
     }
 
@@ -157,7 +159,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         vm.expectRevert(UniV3CLPRegistry.ZERO_ADDRESS.selector);
         registry.registerPosition(
             address(pool), address(nftManager), TICK_LOWER, TICK_UPPER,
-            address(token0), address(0), address(feed0), address(feed1), MAX_STALENESS, address(0), 0
+            address(token0), address(0), 100, address(feed0), address(feed1), MAX_STALENESS, address(0), 0
         );
     }
 
@@ -165,7 +167,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         vm.expectRevert(UniV3CLPRegistry.ZERO_ADDRESS.selector);
         registry.registerPosition(
             address(pool), address(nftManager), TICK_LOWER, TICK_UPPER,
-            address(token0), address(token1), address(0), address(feed1), MAX_STALENESS, address(0), 0
+            address(token0), address(token1), 100, address(0), address(feed1), MAX_STALENESS, address(0), 0
         );
     }
 
@@ -173,7 +175,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         vm.expectRevert(UniV3CLPRegistry.ZERO_ADDRESS.selector);
         registry.registerPosition(
             address(pool), address(nftManager), TICK_LOWER, TICK_UPPER,
-            address(token0), address(token1), address(feed0), address(0), MAX_STALENESS, address(0), 0
+            address(token0), address(token1), 100, address(feed0), address(0), MAX_STALENESS, address(0), 0
         );
     }
 
@@ -183,7 +185,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         vm.expectRevert(UniV3CLPRegistry.INVALID_STALENESS.selector);
         registry.registerPosition(
             address(pool2), address(nftManager), TICK_LOWER, TICK_UPPER,
-            address(token0), address(token1), address(feed0), address(feed1), 0, address(0), 0
+            address(token0), address(token1), 100, address(feed0), address(feed1), 0, address(0), 0
         );
     }
 
@@ -192,7 +194,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         vm.expectRevert(UniV3CLPRegistry.INVALID_TICK_RANGE.selector);
         registry.registerPosition(
             address(pool2), address(nftManager), TICK_UPPER, TICK_LOWER, // inverted
-            address(token0), address(token1), address(feed0), address(feed1), MAX_STALENESS, address(0), 0
+            address(token0), address(token1), 100, address(feed0), address(feed1), MAX_STALENESS, address(0), 0
         );
     }
 
@@ -201,7 +203,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         vm.expectRevert(UniV3CLPRegistry.INVALID_TICK_RANGE.selector);
         registry.registerPosition(
             address(pool2), address(nftManager), 0, 0,
-            address(token0), address(token1), address(feed0), address(feed1), MAX_STALENESS, address(0), 0
+            address(token0), address(token1), 100, address(feed0), address(feed1), MAX_STALENESS, address(0), 0
         );
     }
 
@@ -210,7 +212,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         vm.expectRevert(UniV3CLPRegistry.POSITION_ALREADY_REGISTERED.selector);
         registry.registerPosition(
             address(pool), address(nftManager), TICK_LOWER, TICK_UPPER,
-            address(token0), address(token1), address(feed0), address(feed1), MAX_STALENESS, address(0), 0
+            address(token0), address(token1), 100, address(feed0), address(feed1), MAX_STALENESS, address(0), 0
         );
     }
 
@@ -220,7 +222,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         vm.expectRevert();
         registry.registerPosition(
             address(pool), address(nftManager), TICK_LOWER, TICK_UPPER,
-            address(token0), address(token1), address(feed0), address(feed1), MAX_STALENESS, address(0), 0
+            address(token0), address(token1), 100, address(feed0), address(feed1), MAX_STALENESS, address(0), 0
         );
     }
 
@@ -408,7 +410,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         // Register with narrow tick range [5000, 6000] (current price at tick 0 = below range)
         address narrowKey = registry.registerPosition(
             address(pool), address(nftManager), 5000, 6000,
-            address(token0), address(token1), address(feed0), address(feed1), MAX_STALENESS, address(0), 0
+            address(token0), address(token1), 100, address(feed0), address(feed1), MAX_STALENESS, address(0), 0
         );
 
         uint256 pps = oracle.getPricePerShare(narrowKey);
@@ -420,7 +422,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         // Register with narrow tick range [-6000, -5000] (current price at tick 0 = above range)
         address narrowKey = registry.registerPosition(
             address(pool), address(nftManager), -6000, -5000,
-            address(token0), address(token1), address(feed0), address(feed1), MAX_STALENESS, address(0), 0
+            address(token0), address(token1), 100, address(feed0), address(feed1), MAX_STALENESS, address(0), 0
         );
 
         uint256 pps = oracle.getPricePerShare(narrowKey);
@@ -594,7 +596,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
 
         address seqKey = registry.registerPosition(
             address(pool2), address(nftManager), TICK_LOWER, TICK_UPPER,
-            address(token0), address(token1), address(feed0), address(feed1),
+            address(token0), address(token1), 100, address(feed0), address(feed1),
             MAX_STALENESS, address(seqFeed), 3600
         );
 
@@ -612,7 +614,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         uint256 gracePeriod = 3600;
         address seqKey = registry.registerPosition(
             address(pool2), address(nftManager), TICK_LOWER, TICK_UPPER,
-            address(token0), address(token1), address(feed0), address(feed1),
+            address(token0), address(token1), 100, address(feed0), address(feed1),
             MAX_STALENESS, address(seqFeed), gracePeriod
         );
 
@@ -631,7 +633,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         uint256 gracePeriod = 3600;
         address seqKey = registry.registerPosition(
             address(pool2), address(nftManager), TICK_LOWER, TICK_UPPER,
-            address(token0), address(token1), address(feed0), address(feed1),
+            address(token0), address(token1), 100, address(feed0), address(feed1),
             MAX_STALENESS, address(seqFeed), gracePeriod
         );
 
@@ -670,7 +672,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
 
         address key = registry.registerPosition(
             address(wethUsdcPool), address(nftManager), -887200, 887200,
-            address(usdc), address(weth), address(feedUsdc), address(feedWeth),
+            address(usdc), address(weth), 10, address(feedUsdc), address(feedWeth),
             MAX_STALENESS, address(0), 0
         );
 
@@ -694,7 +696,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
 
         address key = registry.registerPosition(
             address(wbtcWethPool), address(nftManager), -887160, 887160,
-            address(wbtc), address(weth), address(feedBtc), address(feedEth),
+            address(wbtc), address(weth), 60, address(feedBtc), address(feedEth),
             MAX_STALENESS, address(0), 0
         );
 
@@ -804,7 +806,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
 
         address key2 = registry.registerPosition(
             address(pool2), address(nftManager), -887200, 887200,
-            address(token2A), address(token2B), address(feed2A), address(feed2B),
+            address(token2A), address(token2B), 100, address(feed2A), address(feed2B),
             MAX_STALENESS, address(0), 0
         );
 
@@ -842,7 +844,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
 
         key = registry.registerPosition(
             address(cbPool), address(nftManager), TICK_LOWER, TICK_UPPER,
-            address(token0), address(token1), address(cbFeed0), address(cbFeed1),
+            address(token0), address(token1), 100, address(cbFeed0), address(cbFeed1),
             MAX_STALENESS, address(0), 0
         );
     }
@@ -940,7 +942,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
 
         key2 = registry.registerPosition(
             address(p2), address(nftManager), TICK_LOWER, TICK_UPPER,
-            address(t2A), address(t2B), address(f2A), address(f2B),
+            address(t2A), address(t2B), 100, address(f2A), address(f2B),
             MAX_STALENESS, address(0), 0
         );
     }
@@ -991,11 +993,13 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         owners[0][0] = user;
         owners[0][1] = address(0xDEAD); // no positions
 
-        uint256[][] memory tvls = oracle.getTVLByOwnerOfSharesMultiple(keys, owners);
+        (uint256[][] memory tvls, bool[][] memory succeeded) = oracle.getTVLByOwnerOfSharesMultiple(keys, owners);
         assertEq(tvls.length, 1);
         assertEq(tvls[0].length, 2);
         assertGt(tvls[0][0], 0, "user with position should have TVL > 0");
+        assertTrue(succeeded[0][0], "user with position should succeed");
         assertEq(tvls[0][1], 0, "user without positions should have TVL = 0");
+        assertTrue(succeeded[0][1], "user without positions should still succeed");
     }
 
     function test_getTVLByOwnerOfSharesMultiple_arrayLengthMismatch_reverts() public {
@@ -1050,7 +1054,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
 
         address key = registry.registerPosition(
             address(p), address(nftManager), -887200, 887200,
-            address(usdc), address(weth), address(feedUsdc18), address(feedWeth18),
+            address(usdc), address(weth), 10, address(feedUsdc18), address(feedWeth18),
             MAX_STALENESS, address(0), 0
         );
 
@@ -1071,7 +1075,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
 
         address key = registry.registerPosition(
             address(p), address(nftManager), TICK_LOWER, TICK_UPPER,
-            address(token0), address(token1), address(feedA), address(feedB),
+            address(token0), address(token1), 100, address(feedA), address(feedB),
             MAX_STALENESS, address(0), 0
         );
 
@@ -1089,7 +1093,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         vm.expectRevert(UniV3CLPRegistry.TOKEN_MISMATCH.selector);
         registry.registerPosition(
             address(p), address(nftManager), TICK_LOWER, TICK_UPPER,
-            address(wrongToken), address(token1), address(feed0), address(feed1),
+            address(wrongToken), address(token1), 100, address(feed0), address(feed1),
             MAX_STALENESS, address(0), 0
         );
     }
@@ -1100,7 +1104,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         vm.expectRevert(UniV3CLPRegistry.TOKEN_MISMATCH.selector);
         registry.registerPosition(
             address(p), address(nftManager), TICK_LOWER, TICK_UPPER,
-            address(token0), address(wrongToken), address(feed0), address(feed1),
+            address(token0), address(wrongToken), 100, address(feed0), address(feed1),
             MAX_STALENESS, address(0), 0
         );
     }
@@ -1111,7 +1115,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         registry.registerPosition(
             address(p), address(nftManager), TICK_LOWER, TICK_UPPER,
             address(token1), address(token0), // swapped!
-            address(feed0), address(feed1),
+            100, address(feed0), address(feed1),
             MAX_STALENESS, address(0), 0
         );
     }
@@ -1126,7 +1130,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         vm.expectRevert(UniV3CLPRegistry.INVALID_TICK_ALIGNMENT.selector);
         registry.registerPosition(
             address(p), address(nftManager), -6001, TICK_UPPER,
-            address(token0), address(token1), address(feed0), address(feed1),
+            address(token0), address(token1), 100, address(feed0), address(feed1),
             MAX_STALENESS, address(0), 0
         );
     }
@@ -1136,7 +1140,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         vm.expectRevert(UniV3CLPRegistry.INVALID_TICK_ALIGNMENT.selector);
         registry.registerPosition(
             address(p), address(nftManager), TICK_LOWER, 6001,
-            address(token0), address(token1), address(feed0), address(feed1),
+            address(token0), address(token1), 100, address(feed0), address(feed1),
             MAX_STALENESS, address(0), 0
         );
     }
@@ -1148,7 +1152,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
 
         address key = registry.registerPosition(
             address(p), address(nftManager), -100, 200,
-            address(token0), address(token1), address(feed0), address(feed1),
+            address(token0), address(token1), 10, address(feed0), address(feed1),
             MAX_STALENESS, address(0), 0
         );
         assertTrue(registry.isRegistered(key));
@@ -1158,7 +1162,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
                 SECTION 30: REFRESH CIRCUIT BREAKER BOUNDS
     //////////////////////////////////////////////////////////////*/
 
-    function test_refreshCircuitBreakerBounds_updatesStoredBounds() public {
+    function test_refreshFeedConfig_updatesStoredBounds() public {
         (address key, MockAggregator cbFeed0, MockAggregator cbFeed1) = _registerWithCircuitBreakers();
 
         // Verify initial bounds
@@ -1171,7 +1175,7 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         cbFeed1.setCircuitBreakerBounds(50e8, 20_000e8);
 
         // Refresh
-        registry.refreshCircuitBreakerBounds(key);
+        registry.refreshFeedConfig(key);
 
         // Verify updated bounds
         cfg = registry.getPositionConfig(key);
@@ -1181,15 +1185,15 @@ contract UniV3CLPYieldSourceOracleTest is Test {
         assertEq(cfg.feed1MaxAnswer, 20_000e8);
     }
 
-    function test_refreshCircuitBreakerBounds_revertsForUnregistered() public {
+    function test_refreshFeedConfig_revertsForUnregistered() public {
         vm.expectRevert(UniV3CLPRegistry.POSITION_NOT_REGISTERED.selector);
-        registry.refreshCircuitBreakerBounds(address(0xDEAD));
+        registry.refreshFeedConfig(address(0xDEAD));
     }
 
-    function test_refreshCircuitBreakerBounds_revertsForNonManager() public {
+    function test_refreshFeedConfig_revertsForNonManager() public {
         address stranger = address(0x1234);
         vm.prank(stranger);
         vm.expectRevert();
-        registry.refreshCircuitBreakerBounds(positionKey);
+        registry.refreshFeedConfig(positionKey);
     }
 }

@@ -85,6 +85,7 @@ contract UniV3CLPRegistry is AccessControl {
         int24 tickUpper;
         address token0;
         address token1;
+        uint24 feeOrTickSpacing;    // stored at registration: fee() for UniV3, tickSpacing for Slipstream
         uint256 token0Scale;        // precomputed: 10**token0.decimals()
         uint256 token1Scale;        // precomputed: 10**token1.decimals()
         address feed0;
@@ -168,12 +169,16 @@ contract UniV3CLPRegistry is AccessControl {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Registers a CLP position configuration, precomputing all expensive values.
+    /// @dev PPS and TVL are denominated in token0 (lower address). Ensure ledger configs use token0
+    ///      as the asset denomination.
     /// @param pool            UniV3-compatible pool address
     /// @param nftManager      NonfungiblePositionManager for this pool's DEX
     /// @param tickLower       Lower tick of the strategy's range (must be < tickUpper)
     /// @param tickUpper       Upper tick of the strategy's range
     /// @param token0          token0 of the pool (must match pool.token0())
     /// @param token1          token1 of the pool
+    /// @param feeOrTickSpacing The value the NFT stores for position matching: fee() for UniV3, tickSpacing for
+    /// Slipstream
     /// @param feed0           Chainlink price feed for token0/USD
     /// @param feed1           Chainlink price feed for token1/USD
     /// @param maxStaleness    Max seconds since last Chainlink update before reverting (must be > 0)
@@ -187,6 +192,7 @@ contract UniV3CLPRegistry is AccessControl {
         int24 tickUpper,
         address token0,
         address token1,
+        uint24 feeOrTickSpacing,
         address feed0,
         address feed1,
         uint256 maxStaleness,
@@ -206,14 +212,17 @@ contract UniV3CLPRegistry is AccessControl {
         if (token0 != IUniswapV3CLPool(pool).token0() || token1 != IUniswapV3CLPool(pool).token1()) {
             revert TOKEN_MISMATCH();
         }
-        int24 spacing = IUniswapV3CLPool(pool).tickSpacing();
-        if (tickLower % spacing != 0 || tickUpper % spacing != 0) revert INVALID_TICK_ALIGNMENT();
+        {
+            int24 spacing = IUniswapV3CLPool(pool).tickSpacing();
+            if (tickLower % spacing != 0 || tickUpper % spacing != 0) revert INVALID_TICK_ALIGNMENT();
+        }
 
         positionKey = computePositionKey(pool, nftManager, tickLower, tickUpper);
         if (_positions[positionKey].registered) revert POSITION_ALREADY_REGISTERED();
 
         // Write base fields directly to storage via pointer (avoids local variable accumulation)
         _writeBaseFields(positionKey, pool, nftManager, tickLower, tickUpper, token0, token1);
+        _positions[positionKey].feeOrTickSpacing = feeOrTickSpacing;
         _writeFeedAndMetaFields(positionKey, feed0, feed1, maxStaleness, sequencerUptimeFeed, gracePeriod);
 
         // Precompute derived values (reads from already-stored fields; separate frame keeps stack depth low)
@@ -248,14 +257,16 @@ contract UniV3CLPRegistry is AccessControl {
         emit PositionDeregistrationCancelled(positionKey);
     }
 
-    /// @notice Refreshes the cached circuit breaker bounds from the current Chainlink aggregator
-    /// @dev Circuit breaker bounds are snapshotted at registration time. If Chainlink upgrades the
-    ///      aggregator behind the proxy, the cached bounds become stale. Call this function to
-    ///      re-read the current bounds from the proxy.
+    /// @notice Refreshes the cached feed scales and circuit breaker bounds from the current Chainlink aggregator
+    /// @dev Feed scales and circuit breaker bounds are snapshotted at registration time. If Chainlink upgrades
+    ///      the aggregator behind the proxy, the cached values become stale. Call this function to
+    ///      re-read the current scales and bounds from the proxy.
     /// @param positionKey The registered position key to refresh
-    function refreshCircuitBreakerBounds(address positionKey) external onlyRole(POSITION_MANAGER_ROLE) {
+    function refreshFeedConfig(address positionKey) external onlyRole(POSITION_MANAGER_ROLE) {
         PositionConfig storage cfg = _positions[positionKey];
         if (!cfg.registered) revert POSITION_NOT_REGISTERED();
+        cfg.feed0Scale = 10 ** IAggregatorV3(cfg.feed0).decimals();
+        cfg.feed1Scale = 10 ** IAggregatorV3(cfg.feed1).decimals();
         (cfg.feed0MinAnswer, cfg.feed0MaxAnswer) = _readCircuitBreakerBounds(cfg.feed0);
         (cfg.feed1MinAnswer, cfg.feed1MaxAnswer) = _readCircuitBreakerBounds(cfg.feed1);
         emit CircuitBreakerBoundsRefreshed(positionKey);

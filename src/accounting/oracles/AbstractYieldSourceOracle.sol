@@ -157,12 +157,13 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
     )
         external
         view
-        returns (uint256[][] memory userTvls)
+        returns (uint256[][] memory userTvls, bool[][] memory succeeded)
     {
         uint256 length = yieldSourceAddresses.length;
         if (length != ownersOfShares.length) revert ARRAY_LENGTH_MISMATCH();
 
         userTvls = new uint256[][](length);
+        succeeded = new bool[][](length);
 
         // Process each yield source
         for (uint256 i; i < length; ++i) {
@@ -171,6 +172,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
             uint256 ownersLength = owners.length;
 
             userTvls[i] = new uint256[](ownersLength);
+            succeeded[i] = new bool[](ownersLength);
 
             // For each yield source, process each owner
             for (uint256 j; j < ownersLength; ++j) {
@@ -178,8 +180,9 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
                 try IYieldSourceOracle(address(this)).getTVLByOwnerOfShares(yieldSource, owners[j])
                 returns (uint256 userTvl) {
                     userTvls[i][j] = userTvl;
+                    succeeded[i][j] = true;
                 } catch {
-                    // On failure, record 0 for this entry and continue
+                    // On failure, record 0 and succeeded=false for this entry and continue
                     userTvls[i][j] = 0;
                 }
             }

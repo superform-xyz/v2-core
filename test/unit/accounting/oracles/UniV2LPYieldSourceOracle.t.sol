@@ -736,7 +736,7 @@ contract UniV2LPYieldSourceOracleTest is Test {
         owners[1] = new address[](1);
         owners[1][0] = USER_A;
 
-        uint256[][] memory tvls = oracle.getTVLByOwnerOfSharesMultiple(pairs, owners);
+        (uint256[][] memory tvls,) = oracle.getTVLByOwnerOfSharesMultiple(pairs, owners);
         assertEq(tvls.length, 2);
         assertEq(tvls[0].length, 1);
         assertEq(tvls[1].length, 1);

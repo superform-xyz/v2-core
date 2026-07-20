@@ -454,7 +454,7 @@ contract ERC7540OracleIntegration is Test {
         owners[2] = new address[](1);
         owners[2][0] = testUser2;
 
-        uint256[][] memory tvls = oracle.getTVLByOwnerOfSharesMultiple(vaults, owners);
+        (uint256[][] memory tvls,) = oracle.getTVLByOwnerOfSharesMultiple(vaults, owners);
         assertEq(tvls.length, 3);
         assertEq(tvls[0][0], oracle.getTVLByOwnerOfShares(address(centrifugeVault), testUser), "centrifuge user TVL");
         assertEq(tvls[1][0], oracle.getTVLByOwnerOfShares(address(vault18), testUser), "18-dec user TVL");
@@ -871,7 +871,7 @@ contract ERC7540OracleForkTest is Test {
         owners[1] = new address[](1);
         owners[1][0] = JAAA_REDEEMING_HOLDER;
 
-        uint256[][] memory tvls = oracle.getTVLByOwnerOfSharesMultiple(vaults, owners);
+        (uint256[][] memory tvls,) = oracle.getTVLByOwnerOfSharesMultiple(vaults, owners);
         assertEq(tvls[0][0], JAAA_LARGE_HOLDER_ASSETS, "large holder TVL");
         assertEq(tvls[1][0], JAAA_REDEEMING_PENDING_VALUE, "redeeming holder TVL");
     }
@@ -890,7 +890,7 @@ contract ERC7540OracleForkTest is Test {
         owners[1] = new address[](1);
         owners[1][0] = JAAA_LARGE_HOLDER; // real
 
-        uint256[][] memory tvls = oracle.getTVLByOwnerOfSharesMultiple(vaults, owners);
+        (uint256[][] memory tvls,) = oracle.getTVLByOwnerOfSharesMultiple(vaults, owners);
         assertEq(tvls[0][0], IERC7540(JTRSY_VAULT).convertToAssets(100e6), "deal'd user JTRSY TVL");
         assertEq(tvls[1][0], JAAA_LARGE_HOLDER_ASSETS, "real holder JAAA TVL");
     }
