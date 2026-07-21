@@ -136,6 +136,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     error TemporaryHookAddressMismatch(string hookName, address expected, address actual);
 
     uint256 private constant TEMPORARY_TOKEN_HOOK_UPGRADE_COUNT = 7;
+    uint256 private constant TEMPORARY_PENDLE_HOOK_UPGRADE_COUNT = 3;
+    address private constant DETERMINISTIC_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
 
     struct OracleDeployment {
         string name;
@@ -773,6 +775,128 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         if (vm.envOr("TEMPORARY_TOKEN_HOOK_WRITE_OUTPUT", false)) {
             _writeExportedContracts(chainId);
         }
+    }
+
+    /// @notice TEMPORARY fixed-scope entrypoint for the selected Pendle hook production upgrade.
+    /// @dev Remove after the selected production deployment and post-deployment checks are complete.
+    function runTemporaryPendleHookUpgrade(bool check, uint256 env, uint64 chainId) public {
+        require(env == 0, "TEMPORARY_PENDLE_HOOK_UPGRADE_INVALID_ENV");
+        require(block.chainid == chainId, "TEMPORARY_PENDLE_HOOK_UPGRADE_CHAIN_ID_MISMATCH");
+        require(DETERMINISTIC_DEPLOYER.code.length > 0, "TEMPORARY_PENDLE_HOOK_UPGRADE_DEPLOYER_NO_CODE");
+
+        _setConfiguration(env, "");
+        TemporaryTokenHookUpgrade[TEMPORARY_PENDLE_HOOK_UPGRADE_COUNT] memory hooks =
+            _temporaryPendleHookUpgradePlan(chainId, env);
+
+        bool skipUnified = vm.envOr("TEMPORARY_PENDLE_HOOK_SKIP_UNIFIED", false);
+        require(!skipUnified || chainId == 999, "TEMPORARY_PENDLE_HOOK_UPGRADE_UNIFIED_SKIP_INVALID_CHAIN");
+        if (skipUnified) hooks[0].available = false;
+
+        uint256 availableCount;
+        uint256 deployedCount;
+
+        for (uint256 i = 0; i < hooks.length; ++i) {
+            TemporaryTokenHookUpgrade memory hook = hooks[i];
+            if (!hook.available) {
+                console2.log("[UNAVAILABLE]", hook.name);
+                continue;
+            }
+
+            (bool isDeployed, address checkedAddress) =
+                __checkContract(hook.name, __getSalt(hook.saltName), hook.constructorArgs, env);
+            if (checkedAddress != hook.predictedAddress) {
+                revert TemporaryHookAddressMismatch(hook.name, hook.predictedAddress, checkedAddress);
+            }
+
+            hooks[i].isDeployed = isDeployed;
+            availableCount++;
+            if (isDeployed) deployedCount++;
+        }
+
+        _logDeploymentSummary(chainId);
+        console2.log("TEMPORARY_PENDLE_HOOK_UPGRADE_SELECTED", availableCount);
+        console2.log("TEMPORARY_PENDLE_HOOK_UPGRADE_DEPLOYED", deployedCount);
+        console2.log("TEMPORARY_PENDLE_HOOK_UPGRADE_MISSING", availableCount - deployedCount);
+        console2.log("TEMPORARY_PENDLE_HOOK_UPGRADE_UNAVAILABLE", TEMPORARY_PENDLE_HOOK_UPGRADE_COUNT - availableCount);
+
+        if (check) return;
+
+        vm.startBroadcast();
+        for (uint256 i = 0; i < hooks.length; ++i) {
+            TemporaryTokenHookUpgrade memory hook = hooks[i];
+            if (!hook.available || hook.isDeployed) continue;
+
+            address deployedAddress =
+                __deployContractIfNeeded(hook.name, chainId, __getSalt(hook.saltName), hook.initCode);
+            if (deployedAddress != hook.predictedAddress) {
+                revert TemporaryHookAddressMismatch(hook.name, hook.predictedAddress, deployedAddress);
+            }
+            require(deployedAddress.code.length > 0, "TEMPORARY_PENDLE_HOOK_UPGRADE_NO_CODE");
+        }
+        vm.stopBroadcast();
+
+        if (vm.envOr("TEMPORARY_PENDLE_HOOK_WRITE_OUTPUT", false)) {
+            _writeExportedContracts(chainId);
+        }
+    }
+
+    function _temporaryPendleHookUpgradePlan(
+        uint64 chainId,
+        uint256 env
+    )
+        private
+        view
+        returns (TemporaryTokenHookUpgrade[TEMPORARY_PENDLE_HOOK_UPGRADE_COUNT] memory hooks)
+    {
+        string memory deploymentJson = _readCoreContractsFromOutput(chainId, env);
+
+        address oracle = _safeParseJsonAddress(deploymentJson, ".PendlePTAmortizedOracle");
+        require(oracle != address(0), "TEMPORARY_PENDLE_HOOK_UPGRADE_ORACLE_ZERO");
+        require(oracle.code.length > 0, "TEMPORARY_PENDLE_HOOK_UPGRADE_ORACLE_NO_CODE");
+
+        address currentPurchaseHook =
+            _safeParseJsonAddress(deploymentJson, ".RecordPurchasePendlePTAmortizedOracleHook");
+        address currentRedemptionHook =
+            _safeParseJsonAddress(deploymentJson, ".RecordRedemptionPendlePTAmortizedOracleHook");
+        _temporaryValidateAddressGetter(currentPurchaseHook, bytes4(keccak256("ORACLE()")), oracle);
+        _temporaryValidateAddressGetter(currentRedemptionHook, bytes4(keccak256("ORACLE()")), oracle);
+
+        address router = configuration.pendleRouters[chainId];
+        address currentUnifiedHook = _safeParseJsonAddress(deploymentJson, ".PendleUnifiedHook");
+        bool unifiedAvailable = currentUnifiedHook != address(0);
+        if (unifiedAvailable) {
+            require(router != address(0), "TEMPORARY_PENDLE_HOOK_UPGRADE_ROUTER_ZERO");
+            require(router.code.length > 0, "TEMPORARY_PENDLE_HOOK_UPGRADE_ROUTER_NO_CODE");
+            _temporaryValidateAddressGetter(currentUnifiedHook, bytes4(keccak256("PENDLE_ROUTER_V4()")), router);
+        } else {
+            require(router == address(0), "TEMPORARY_PENDLE_HOOK_UPGRADE_SCOPE_MISMATCH");
+        }
+
+        hooks[0] = _temporaryTokenHookUpgrade(
+            PENDLE_UNIFIED_HOOK_KEY, PENDLE_UNIFIED_HOOK_KEY, abi.encode(router), env, unifiedAvailable
+        );
+        hooks[1] = _temporaryTokenHookUpgrade(
+            RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY,
+            RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY,
+            abi.encode(oracle),
+            env,
+            true
+        );
+        hooks[2] = _temporaryTokenHookUpgrade(
+            RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY,
+            RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY,
+            abi.encode(oracle),
+            env,
+            true
+        );
+    }
+
+    function _temporaryValidateAddressGetter(address target, bytes4 selector, address expected) private view {
+        require(target != address(0), "TEMPORARY_PENDLE_HOOK_UPGRADE_CURRENT_HOOK_ZERO");
+        require(target.code.length > 0, "TEMPORARY_PENDLE_HOOK_UPGRADE_CURRENT_HOOK_NO_CODE");
+        (bool success, bytes memory result) = target.staticcall(abi.encodeWithSelector(selector));
+        require(success && result.length >= 32, "TEMPORARY_PENDLE_HOOK_UPGRADE_GETTER_FAILED");
+        require(abi.decode(result, (address)) == expected, "TEMPORARY_PENDLE_HOOK_UPGRADE_DEPENDENCY_MISMATCH");
     }
 
     function _temporaryTokenHookUpgradePlan(
