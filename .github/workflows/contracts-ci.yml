@@ -448,7 +448,7 @@ jobs:
         run: yarn
 
       - name: "Make deployment smoke test script executable"
-        run: chmod +x ./script/run/smoke_test_deployment.sh
+        run: chmod +x ./script/run/test/smoke_test_deployment.sh
 
       - name: "Run deployment smoke tests"
         id: deployment-smoke-test
@@ -458,7 +458,7 @@ jobs:
 
           # Run the smoke test and capture output
           set +e
-          ./script/run/smoke_test_deployment.sh prod > deployment_test_output.log 2>&1
+          ./script/run/test/smoke_test_deployment.sh prod > deployment_test_output.log 2>&1
           EXIT_CODE=$?
           set -e
 

@@ -147,12 +147,14 @@ contract AbstractYieldSourceOracleTest is Helpers {
         owners[0][0] = mockOwner;
         owners[1][0] = mockOwner;
 
-        uint256[][] memory tvls = oracle.getTVLByOwnerOfSharesMultiple(yieldSources, owners);
+        (uint256[][] memory tvls, bool[][] memory succeeded) = oracle.getTVLByOwnerOfSharesMultiple(yieldSources, owners);
         assertEq(tvls.length, 2);
         assertEq(tvls[0].length, 1);
         assertEq(tvls[1].length, 1);
         assertEq(tvls[0][0], 1000e18);
         assertEq(tvls[1][0], 1000e18);
+        assertTrue(succeeded[0][0]);
+        assertTrue(succeeded[1][0]);
     }
 
     function test_getTVLMultiple() public view {
