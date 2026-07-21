@@ -336,6 +336,8 @@ abstract contract Constants {
     string internal constant SPECTRA_META_VAULT_ORACLE_KEY = "SpectraMetaVaultOracle";
     string internal constant MORPHO_BLUE_MARKET_REGISTRY_KEY = "MorphoBlueMarketRegistry";
     string internal constant MORPHO_BLUE_YIELD_SOURCE_ORACLE_KEY = "MorphoBlueYieldSourceOracle";
+    string internal constant UNIV3_CLP_REGISTRY_KEY = "UniV3CLPRegistry";
+    string internal constant UNIV3_CLP_YIELD_SOURCE_ORACLE_KEY = "UniV3CLPYieldSourceOracle";
 
     // SuperLedgerConfigs Salts
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_SALT = "ERC4626YieldSourceOracle_v1.0.1";

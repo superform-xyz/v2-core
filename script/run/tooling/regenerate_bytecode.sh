@@ -203,6 +203,8 @@ ORACLE_CONTRACTS=(
     "SpectraMetaVaultOracle"
     "MorphoBlueMarketRegistry"
     "MorphoBlueYieldSourceOracle"
+    "UniV3CLPRegistry"
+    "UniV3CLPYieldSourceOracle"
 )
 
 # Morpho hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)

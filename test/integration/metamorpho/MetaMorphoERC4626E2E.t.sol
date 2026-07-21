@@ -444,7 +444,7 @@ contract MetaMorphoERC4626E2E is MinimalBaseIntegrationTest {
         owners[1] = new address[](1);
         owners[1][0] = accountEth;
 
-        uint256[][] memory tvls = oracle.getTVLByOwnerOfSharesMultiple(vaults, owners);
+        (uint256[][] memory tvls,) = oracle.getTVLByOwnerOfSharesMultiple(vaults, owners);
 
         assertEq(tvls.length, 2, "should return 2 rows");
         assertEq(tvls[0][0], IERC4626(yieldSourceAddressEth).convertToAssets(sharesRe7), "re7 TVL by owner mismatch");

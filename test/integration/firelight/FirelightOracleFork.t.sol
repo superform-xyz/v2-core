@@ -647,7 +647,7 @@ contract FirelightOracleFork is Test {
         owners[0][0] = TOP_HOLDER;
         owners[0][1] = address(0xdead);
 
-        uint256[][] memory tvls = oracle.getTVLByOwnerOfSharesMultiple(vaults, owners);
+        (uint256[][] memory tvls,) = oracle.getTVLByOwnerOfSharesMultiple(vaults, owners);
         assertEq(tvls[0][0], oracle.getTVLByOwnerOfShares(VAULT, TOP_HOLDER));
         assertEq(tvls[0][1], 0);
     }

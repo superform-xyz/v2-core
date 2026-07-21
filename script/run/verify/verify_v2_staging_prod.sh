@@ -24,7 +24,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/../utils/lib_deploy.sh"
 
 # ===== FILTER CONFIGURATION =====
 # Specify which chains to verify (empty = all chains from network configuration)
-CHAINS_TO_VERIFY=(1 8453 56 42161 43114 14)
+CHAINS_TO_VERIFY=(1 8453 56 42161 10 137 130 43114 14)
 
 # Specify which contracts to verify (empty = all contracts found in deployment JSON)
 CONTRACTS_TO_VERIFY=()
@@ -102,6 +102,40 @@ get_contract_address() {
 # Generate constructor arguments for forge verify-contract based on contract type
 # and chain-specific addresses.
 
+generate_stargate_adapter_constructor_args() {
+    local contract_name=$1
+    local chain_id=$2
+    local adapter_address
+    local rpc_url
+    local lz_endpoint
+    local token_messaging
+    local destination_executor
+
+    adapter_address=$(get_contract_address "$chain_id" "$contract_name")
+    rpc_url=$(get_rpc_url "$chain_id")
+    if [ -z "$adapter_address" ] || [ -z "$rpc_url" ]; then
+        echo "Unable to load $contract_name address or RPC URL for chain $chain_id" >&2
+        return 1
+    fi
+
+    lz_endpoint=$(cast call "$adapter_address" "LZ_ENDPOINT()(address)" --rpc-url "$rpc_url" 2>/dev/null) || return 1
+    token_messaging=$(cast call "$adapter_address" "TOKEN_MESSAGING()(address)" --rpc-url "$rpc_url" 2>/dev/null) || return 1
+    destination_executor=$(
+        cast call "$adapter_address" "SUPER_DESTINATION_EXECUTOR()(address)" --rpc-url "$rpc_url" 2>/dev/null
+    ) || return 1
+
+    if [ "$contract_name" = "StargateAdapterV2" ]; then
+        local allowed_ofts
+        allowed_ofts=$(cast call "$adapter_address" "getAllowedOFTs()(address[])" --rpc-url "$rpc_url" 2>/dev/null) \
+            || return 1
+        cast abi-encode "constructor(address,address,address,address[])" \
+            "$lz_endpoint" "$token_messaging" "$destination_executor" "$allowed_ofts"
+    else
+        cast abi-encode "constructor(address,address,address)" \
+            "$lz_endpoint" "$token_messaging" "$destination_executor"
+    fi
+}
+
 generate_constructor_args() {
     local contract_name=$1
     local chain_id=$2
@@ -151,8 +185,6 @@ generate_constructor_args() {
     local algebra_integral_router_flare="0x69D57B9D705eaD73a5d2f2476C30c55bD755cc2F"
     local sparkdex_v2_router_flare="0x4a1E5A90e9943467FAd1acea1E7F0e5e88472a1e"
     local spark_psm3_base="0x1601843c5E9bC251A3272907010AFa41Fa18347E"
-    local lz_endpoint_v2="0x1a44076050125825900e736c501f859c50fE728c"
-    local lz_endpoint_v2_alt="0x6F475642a6e85809B1c36Fa62763669b1b48DD5B"
 
     # Network-specific configurations
     case $chain_id in
@@ -483,25 +515,7 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor()")"
             ;;
         "StargateAdapter"|"StargateAdapterV2")
-            local lz_endpoint=""
-            local token_messaging=""
-            case $chain_id in
-                "130"|"146"|"480"|"80094") lz_endpoint="$lz_endpoint_v2_alt" ;;
-                *) lz_endpoint="$lz_endpoint_v2" ;;
-            esac
-            case $chain_id in
-                "1") token_messaging="0x6d6620eFa72948C5f68A3C8646d58C00d3f4A980" ;;
-                "8453") token_messaging="0x5634c4a5FEd09819E3c46D86A965Dd9447d86e47" ;;
-                "56") token_messaging="0x6E3d884C96d640526F273C61dfcF08915eBd7e2B" ;;
-                "42161") token_messaging="0x19cFCE47eD54a88614648DC3f19A5980097007dD" ;;
-                "43114") token_messaging="0x17E450Be3Ba9557F2378E20d64AD417E59Ef9A34" ;;
-                "14") token_messaging="0x45d417612e177672958dC0537C45a8f8d754Ac2E" ;;
-                "146") token_messaging="0x2086f755A6d9254045C257ea3d382ef854849B0f" ;;
-                "130") token_messaging="0xB1EeAD6959cb5bB9B20417d6689922523B2B86C3" ;;
-                "100") token_messaging="0xAf368c91793CB22739386DFCbBb2F1A9e4bCBeBf" ;;
-                "80094") token_messaging="0xAf5191B0De278C7286d6C7CC6ab6BB8A73bA2Cd6" ;;
-            esac
-            echo "$(cast abi-encode "constructor(address,address,address)" "$lz_endpoint" "$token_messaging" "$super_destination_executor")"
+            generate_stargate_adapter_constructor_args "$contract_name" "$chain_id"
             ;;
         "DETHYieldSourceOracle")
             echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$deth_foundation")"
@@ -511,6 +525,14 @@ generate_constructor_args() {
             ;;
         "PendlePTAmortizedOracle"|"PendlePTAmortizedOracleV2")
             echo "$(cast abi-encode "constructor(address,address)" "$deployer" "$super_ledger_config")"
+            ;;
+        "UniV3CLPRegistry")
+            echo "$(cast abi-encode "constructor(address)" "$deployer")"
+            ;;
+        "UniV3CLPYieldSourceOracle")
+            local univ3_registry_addr
+            univ3_registry_addr=$(get_contract_address "$chain_id" "UniV3CLPRegistry")
+            echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$univ3_registry_addr")"
             ;;
         # All other contracts (no constructor args)
         *)
@@ -699,6 +721,8 @@ get_contract_source() {
         "YoYieldSourceOracle") echo "src/accounting/oracles/YoYieldSourceOracle.sol" ;;
         "PendlePTAmortizedOracle") echo "src/accounting/oracles/PendlePTAmortizedOracle.sol" ;;
         "PendlePTAmortizedOracleV2") echo "src/accounting/oracles/PendlePTAmortizedOracleV2.sol" ;;
+        "UniV3CLPRegistry") echo "src/accounting/oracles/UniV3CLPRegistry.sol" ;;
+        "UniV3CLPYieldSourceOracle") echo "src/accounting/oracles/UniV3CLPYieldSourceOracle.sol" ;;
 
         # Nexus contracts (external library - skip verification from this repo)
         "Nexus"|"NexusAccountFactory"|"NexusBootstrap"|"NexusProxy")
@@ -856,7 +880,11 @@ verify_network() {
         fi
 
         local constructor_args
-        constructor_args=$(generate_constructor_args "$contract_name" "$chain_id")
+        if ! constructor_args=$(generate_constructor_args "$contract_name" "$chain_id"); then
+            echo -e "${RED}   Failed to generate constructor arguments for $contract_name${NC}"
+            FAILED_CONTRACTS+=("$contract_name @ chain $chain_id (constructor arguments)")
+            continue
+        fi
         local source_file
         source_file=$(get_contract_source "$contract_name")
 

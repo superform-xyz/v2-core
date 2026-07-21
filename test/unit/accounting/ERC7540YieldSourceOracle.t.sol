@@ -652,7 +652,7 @@ contract ERC7540YieldSourceOracleTest is Test {
         owners[0] = new address[](1);
         owners[0][0] = owner;
 
-        uint256[][] memory tvls = oracle.getTVLByOwnerOfSharesMultiple(vaults, owners);
+        (uint256[][] memory tvls,) = oracle.getTVLByOwnerOfSharesMultiple(vaults, owners);
         assertEq(tvls.length, 1);
         assertEq(tvls[0].length, 1);
         assertEq(tvls[0][0], 150e18); // 100 held + 50 claimable
