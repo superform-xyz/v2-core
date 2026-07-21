@@ -418,6 +418,6 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         // ===== DETH FOUNDATION ADDRESS =====
         // DETH async redemption routing: the FOUNDATION address receives ERC-721 NFT receipts
         // on behalf of the strategy (SuperVaultStrategy lacks onERC721Received).
-        configuration.dethFoundation = 0x97b5e4a707A4D5AB4A58b2c93bc8d249a63Ff153;
+        configuration.dethFoundation = 0x0027Eea9e867845182c407d51adcaE77fb906cE2;
     }
 }
