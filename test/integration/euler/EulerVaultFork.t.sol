@@ -372,7 +372,7 @@ contract EulerVaultFork is Test {
         owners[1] = new address[](1);
         owners[1][0] = address(0xdead);
 
-        uint256[][] memory tvls = oracle.getTVLByOwnerOfSharesMultiple(vaults, owners);
+        (uint256[][] memory tvls,) = oracle.getTVLByOwnerOfSharesMultiple(vaults, owners);
         assertEq(tvls[0][0], oracle.getTVLByOwnerOfShares(EULER_USDC_VAULT, address(executor)), "Batch owner TVL mismatch");
         assertEq(tvls[0][1], 0, "Dead addr should have 0 TVL");
         assertEq(tvls[1][0], 0, "Dead addr in WETH vault should have 0 TVL");

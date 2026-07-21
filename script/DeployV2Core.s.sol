@@ -649,7 +649,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Oracles (12 contracts - always check these)
         // NOTE: Order must match _deployOracles array indices for consistency
-        string[16] memory oracleContracts = [
+        string[18] memory oracleContracts = [
             "ERC4626YieldSourceOracle", // [0]
             "ERC5115YieldSourceOracle", // [1]
             "PendlePTYieldSourceOracle", // [2]
@@ -665,7 +665,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "ERC7540YieldSourceOracle", // [12]
             "SpectraMetaVaultOracle", // [13]
             "MorphoBlueMarketRegistry", // [14]
-            "MorphoBlueYieldSourceOracle" // [15]
+            "MorphoBlueYieldSourceOracle", // [15]
+            "UniV3CLPRegistry", // [16]
+            "UniV3CLPYieldSourceOracle" // [17]
         ];
 
         for (uint256 i = 0; i < oracleContracts.length; i++) {
@@ -2003,6 +2005,26 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                     );
                 }
             }
+            // UniV3CLPRegistry (admin = DEPLOYER)
+            __checkContract(
+                UNIV3_CLP_REGISTRY_KEY,
+                __getSalt(UNIV3_CLP_REGISTRY_KEY),
+                abi.encode(DEPLOYER),
+                env
+            );
+            // UniV3CLPYieldSourceOracle (superLedgerConfig + registry)
+            if (__checkBytecodeExists("UniV3CLPRegistry", env)) {
+                address univ3RegistryAddr =
+                    __computeContractAddress(UNIV3_CLP_REGISTRY_KEY, abi.encode(DEPLOYER), env);
+                if (univ3RegistryAddr != address(0) && univ3RegistryAddr.code.length > 0) {
+                    __checkContract(
+                        UNIV3_CLP_YIELD_SOURCE_ORACLE_KEY,
+                        __getSalt(UNIV3_CLP_YIELD_SOURCE_ORACLE_KEY),
+                        abi.encode(superLedgerConfig, univ3RegistryAddr),
+                        env
+                    );
+                }
+            }
         } else {
             revert("ORACLES_CHECK_FAILED_MISSING_SUPER_LEDGER_CONFIG");
         }
@@ -2671,7 +2693,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         vars.ledgerConstructorArgs = abi.encode(vars.superLedgerConfig, vars.allowedExecutors);
 
         // Define contracts to verify with their corresponding environment-specific bytecode paths and constructor args
-        ContractVerification[] memory contracts = new ContractVerification[](10);
+        ContractVerification[] memory contracts = new ContractVerification[](12);
 
         // Core contracts verification - always use locked bytecode
 
@@ -2742,6 +2764,20 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             name: "MorphoBlueYieldSourceOracle",
             outputKey: ".MorphoBlueYieldSourceOracle",
             bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "MorphoBlueYieldSourceOracle.json")),
+            constructorArgs: ""
+        });
+
+        contracts[10] = ContractVerification({
+            name: "UniV3CLPRegistry",
+            outputKey: ".UniV3CLPRegistry",
+            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "UniV3CLPRegistry.json")),
+            constructorArgs: ""
+        });
+
+        contracts[11] = ContractVerification({
+            name: "UniV3CLPYieldSourceOracle",
+            outputKey: ".UniV3CLPYieldSourceOracle",
+            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "UniV3CLPYieldSourceOracle.json")),
             constructorArgs: ""
         });
         // Verify each contract
@@ -2824,6 +2860,20 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             address morphoRegistryAddr =
                 __computeContractAddress(MORPHO_BLUE_MARKET_REGISTRY_KEY, abi.encode(DEPLOYER), vars.env);
             bytes memory constructorArgs = abi.encode(vars.superLedgerConfig, morphoRegistryAddr);
+            computedAddress = DeterministicDeployerLib.computeAddress(
+                abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
+            );
+        } else if (Strings.equal(contractToVerify.name, "UniV3CLPRegistry")) {
+            // UniV3CLPRegistry needs admin (DEPLOYER)
+            bytes memory constructorArgs = abi.encode(DEPLOYER);
+            computedAddress = DeterministicDeployerLib.computeAddress(
+                abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
+            );
+        } else if (Strings.equal(contractToVerify.name, "UniV3CLPYieldSourceOracle")) {
+            // UniV3CLPYieldSourceOracle needs superLedgerConfig + registry address
+            address univ3RegistryAddr =
+                __computeContractAddress(UNIV3_CLP_REGISTRY_KEY, abi.encode(DEPLOYER), vars.env);
+            bytes memory constructorArgs = abi.encode(vars.superLedgerConfig, univ3RegistryAddr);
             computedAddress = DeterministicDeployerLib.computeAddress(
                 abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
             );
@@ -3846,7 +3896,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         uint256 pendlePTAmortizedOracleIndex = 8;
         uint256 pendlePTAmortizedOracleV2Index = 9;
 
-        uint256 len = 16;
+        uint256 len = 18;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         address[] memory oracleAddresses = new address[](len);
 
@@ -3866,6 +3916,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encodePacked(__getBytecode("MorphoBlueMarketRegistry", env), abi.encode(DEPLOYER))
             );
             console2.log(" MorphoBlueMarketRegistry deployed:", morphoRegistry);
+        }
+
+        // Deploy UniV3CLPRegistry (dependency for UniV3CLPYieldSourceOracle)
+        address univ3CLPRegistry = address(0);
+        if (__checkBytecodeExists("UniV3CLPRegistry", env)) {
+            univ3CLPRegistry = __deployContractIfNeeded(
+                UNIV3_CLP_REGISTRY_KEY,
+                chainId,
+                __getSalt(UNIV3_CLP_REGISTRY_KEY),
+                abi.encodePacked(__getBytecode("UniV3CLPRegistry", env), abi.encode(DEPLOYER))
+            );
+            console2.log(" UniV3CLPRegistry deployed:", univ3CLPRegistry);
         }
 
         // Deploy oracles with validated constructor parameters
@@ -3927,6 +3989,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 "MorphoBlueYieldSourceOracle",
                 env,
                 abi.encode(superLedgerConfig, morphoRegistry)
+            );
+        }
+        // UniV3CLPRegistry is deployed above (not via oracle array) — slot 16 stays empty
+        // UniV3CLPYieldSourceOracle (superLedgerConfig + registry)
+        if (univ3CLPRegistry != address(0)) {
+            oracles[17] = _createSafeOracleDeploymentWithArgs(
+                UNIV3_CLP_YIELD_SOURCE_ORACLE_KEY,
+                "UniV3CLPYieldSourceOracle",
+                env,
+                abi.encode(superLedgerConfig, univ3CLPRegistry)
             );
         }
 

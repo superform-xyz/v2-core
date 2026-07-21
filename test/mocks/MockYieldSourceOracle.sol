@@ -96,14 +96,17 @@ contract MockYieldSourceOracle is IYieldSourceOracle {
     )
         external
         view
-        returns (uint256[][] memory)
+        returns (uint256[][] memory, bool[][] memory)
     {
         uint256[][] memory result = new uint256[][](yieldSources.length);
+        bool[][] memory success = new bool[][](yieldSources.length);
         for (uint256 i = 0; i < yieldSources.length; i++) {
             result[i] = new uint256[](1);
             result[i][0] = tvlByOwner;
+            success[i] = new bool[](1);
+            success[i][0] = true;
         }
-        return result;
+        return (result, success);
     }
 
     function getTVLMultiple(address[] memory) external view returns (uint256[] memory) {

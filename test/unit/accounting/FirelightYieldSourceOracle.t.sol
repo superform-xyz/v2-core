@@ -532,7 +532,7 @@ contract FirelightYieldSourceOracleTest is Test {
         owners[0][0] = user;
         owners[0][1] = user2;
 
-        uint256[][] memory tvls = oracle.getTVLByOwnerOfSharesMultiple(vaults, owners);
+        (uint256[][] memory tvls,) = oracle.getTVLByOwnerOfSharesMultiple(vaults, owners);
         assertEq(tvls[0][0], Math.mulDiv(1_000e6, ASSETS_PER_SHARE, ONE_SHARE) + 50_000e6);
         assertEq(tvls[0][1], 0);
     }

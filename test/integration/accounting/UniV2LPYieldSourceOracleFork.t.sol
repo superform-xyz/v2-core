@@ -472,7 +472,7 @@ contract UniV2LPYieldSourceOracleFork is Test {
         owners[0] = new address[](1);
         owners[0][0] = lp;
 
-        uint256[][] memory tvls = oracleUsdcWeth.getTVLByOwnerOfSharesMultiple(vaults, owners);
+        (uint256[][] memory tvls,) = oracleUsdcWeth.getTVLByOwnerOfSharesMultiple(vaults, owners);
         assertEq(
             tvls[0][0],
             oracleUsdcWeth.getTVLByOwnerOfShares(USDC_WETH_PAIR, lp),
