@@ -51,6 +51,10 @@ get_oracle_salt() {
             # 30 chars
             salt="SuperYieldSourceOracle_v1.0.1"
             ;;
+        "FirelightYieldSourceOracle")
+            # 32 chars — matches Solidity FIRELIGHT_YIELD_SOURCE_ORACLE_SALT
+            salt="FirelightYieldSourceOracle_v1.0"
+            ;;
         *)
             # Default: use oracle name + version
             salt="${oracle_name}_v1.0.1"
@@ -103,6 +107,20 @@ check_oracle_configured() {
     fi
 
     return 1
+}
+
+# Get Fireblocks sender address for a given chain ID
+# Matches config_v2_ledger_staging_prod.sh per-chain sender logic
+get_fireblocks_sender() {
+    local chain_id=$1
+    case $chain_id in
+        14) # Flare — different Fireblocks vault derivation
+            echo "0x40a4012A1a154ed58E9BB2f4C63D07f64816b719"
+            ;;
+        *)
+            echo "0x28b7599f461D104f07D78215Fa6F9B959851f93d"
+            ;;
+    esac
 }
 
 # Get wallet address from account name
