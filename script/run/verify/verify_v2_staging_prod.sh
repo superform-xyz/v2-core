@@ -179,7 +179,7 @@ generate_constructor_args() {
     local cctp_v2_token_messenger="0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d"
     local kyber_router="0x6131B5fae19EA4f9D964eAc0408E4408b66337b5"
     local kyber_scale_helper="0x2f577A41BeC1BE1152AeEA12e73b7391d15f655D"
-    local deth_foundation="0x97b5e4a707A4D5AB4A58b2c93bc8d249a63Ff153"
+    local deth_foundation="0x0027Eea9e867845182c407d51adcaE77fb906cE2"
     local deployer="0x6E3dadcAf328ebB58753e89a3e589F5C5e988dF8"
     local algebra_integral_router_flare="0x69D57B9D705eaD73a5d2f2476C30c55bD755cc2F"
     local sparkdex_v2_router_flare="0x4a1E5A90e9943467FAd1acea1E7F0e5e88472a1e"

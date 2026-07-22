@@ -72,7 +72,7 @@ contract DETHOracleAndHooksE2E is Test {
     address public constant SUPER_WETH_STRATEGY = 0x1199a6B2587Ed96446E76Dee3FB660bb8fCfd0b2;
 
     /// @dev FOUNDATION address for routing DETH redemptions (receives ERC-721 NFTs on behalf of strategy)
-    address public constant ROUTER = 0x97b5e4a707A4D5AB4A58b2c93bc8d249a63Ff153;
+    address public constant ROUTER = 0x0027Eea9e867845182c407d51adcaE77fb906cE2;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
