@@ -137,6 +137,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
     uint256 private constant TEMPORARY_TOKEN_HOOK_UPGRADE_COUNT = 7;
     uint256 private constant TEMPORARY_PENDLE_HOOK_UPGRADE_COUNT = 3;
+    uint256 private constant TEMPORARY_7540_HOOK_UPGRADE_COUNT = 7;
     address private constant DETERMINISTIC_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
 
     struct OracleDeployment {
@@ -897,6 +898,107 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         (bool success, bytes memory result) = target.staticcall(abi.encodeWithSelector(selector));
         require(success && result.length >= 32, "TEMPORARY_PENDLE_HOOK_UPGRADE_GETTER_FAILED");
         require(abi.decode(result, (address)) == expected, "TEMPORARY_PENDLE_HOOK_UPGRADE_DEPENDENCY_MISMATCH");
+    }
+
+    /// @notice TEMPORARY fixed-scope entrypoint for the selected ERC-7540 hook production upgrade.
+    /// @dev Remove after the selected production deployment and post-deployment checks are complete.
+    function runTemporary7540HookUpgrade(bool check, uint256 env, uint64 chainId) public {
+        require(env == 0, "TEMPORARY_7540_HOOK_UPGRADE_INVALID_ENV");
+        require(block.chainid == chainId, "TEMPORARY_7540_HOOK_UPGRADE_CHAIN_ID_MISMATCH");
+        require(DETERMINISTIC_DEPLOYER.code.length > 0, "TEMPORARY_7540_HOOK_UPGRADE_DEPLOYER_NO_CODE");
+
+        _setConfiguration(env, "");
+        TemporaryTokenHookUpgrade[TEMPORARY_7540_HOOK_UPGRADE_COUNT] memory hooks =
+            _temporary7540HookUpgradePlan(chainId, env);
+
+        uint256 deployedCount;
+
+        for (uint256 i = 0; i < hooks.length; ++i) {
+            TemporaryTokenHookUpgrade memory hook = hooks[i];
+            (bool isDeployed, address checkedAddress) =
+                __checkContract(hook.name, __getSalt(hook.saltName), hook.constructorArgs, env);
+            if (checkedAddress != hook.predictedAddress) {
+                revert TemporaryHookAddressMismatch(hook.name, hook.predictedAddress, checkedAddress);
+            }
+
+            hooks[i].isDeployed = isDeployed;
+            if (isDeployed) deployedCount++;
+        }
+
+        _logDeploymentSummary(chainId);
+        console2.log("TEMPORARY_7540_HOOK_UPGRADE_SELECTED", TEMPORARY_7540_HOOK_UPGRADE_COUNT);
+        console2.log("TEMPORARY_7540_HOOK_UPGRADE_DEPLOYED", deployedCount);
+        console2.log("TEMPORARY_7540_HOOK_UPGRADE_MISSING", TEMPORARY_7540_HOOK_UPGRADE_COUNT - deployedCount);
+
+        if (check) return;
+
+        vm.startBroadcast();
+        for (uint256 i = 0; i < hooks.length; ++i) {
+            TemporaryTokenHookUpgrade memory hook = hooks[i];
+            if (hook.isDeployed) continue;
+
+            address deployedAddress =
+                __deployContractIfNeeded(hook.name, chainId, __getSalt(hook.saltName), hook.initCode);
+            if (deployedAddress != hook.predictedAddress) {
+                revert TemporaryHookAddressMismatch(hook.name, hook.predictedAddress, deployedAddress);
+            }
+            require(deployedAddress.code.length > 0, "TEMPORARY_7540_HOOK_UPGRADE_NO_CODE");
+        }
+        vm.stopBroadcast();
+
+        if (vm.envOr("TEMPORARY_7540_HOOK_WRITE_OUTPUT", false)) {
+            _writeExportedContracts(chainId);
+        }
+    }
+
+    function _temporary7540HookUpgradePlan(
+        uint64 chainId,
+        uint256 env
+    )
+        private
+        view
+        returns (TemporaryTokenHookUpgrade[TEMPORARY_7540_HOOK_UPGRADE_COUNT] memory hooks)
+    {
+        string memory deploymentJson = _readCoreContractsFromOutput(chainId, env);
+
+        _temporaryRequireManifestCode(deploymentJson, ".CancelDepositRequest7540Hook");
+        _temporaryRequireManifestCode(deploymentJson, ".CancelRedeemRequest7540Hook");
+        _temporaryRequireManifestCode(deploymentJson, ".ClaimCancelDepositRequest7540Hook");
+        _temporaryRequireManifestCode(deploymentJson, ".ClaimCancelRedeemRequest7540Hook");
+        _temporaryRequireManifestCode(deploymentJson, ".Redeem7540VaultHook");
+        _temporaryRequireManifestCode(deploymentJson, ".Withdraw7540VaultHook");
+        _temporaryRequireManifestCode(deploymentJson, ".SetSlippageHook");
+
+        hooks[0] = _temporaryTokenHookUpgrade(
+            CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, "", env, true
+        );
+        hooks[1] = _temporaryTokenHookUpgrade(
+            CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, "", env, true
+        );
+        hooks[2] = _temporaryTokenHookUpgrade(
+            CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY,
+            CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY,
+            "",
+            env,
+            true
+        );
+        hooks[3] = _temporaryTokenHookUpgrade(
+            CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY,
+            CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY,
+            "",
+            env,
+            true
+        );
+        hooks[4] = _temporaryTokenHookUpgrade(REDEEM_7540_VAULT_HOOK_KEY, REDEEM_7540_VAULT_HOOK_KEY, "", env, true);
+        hooks[5] =
+            _temporaryTokenHookUpgrade(WITHDRAW_7540_VAULT_HOOK_KEY, WITHDRAW_7540_VAULT_HOOK_KEY, "", env, true);
+        hooks[6] = _temporaryTokenHookUpgrade(SET_SLIPPAGE_HOOK_KEY, SET_SLIPPAGE_HOOK_KEY, "", env, true);
+    }
+
+    function _temporaryRequireManifestCode(string memory deploymentJson, string memory key) private view {
+        address currentHook = _safeParseJsonAddress(deploymentJson, key);
+        require(currentHook != address(0), "TEMPORARY_7540_HOOK_UPGRADE_CURRENT_HOOK_ZERO");
+        require(currentHook.code.length > 0, "TEMPORARY_7540_HOOK_UPGRADE_CURRENT_HOOK_NO_CODE");
     }
 
     function _temporaryTokenHookUpgradePlan(
