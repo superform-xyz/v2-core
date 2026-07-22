@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-07-21T10:14:06Z",
+  "generatedAt": "2026-07-22T08:34:50Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -709,20 +709,20 @@
           "43114": "0xB062CE8f773D8353c1B89C2d175a46c0D489C4e7"
         },
         "prod": {
-          "1": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
-          "10": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
-          "14": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
-          "56": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
+          "1": "0x3a61580fc4f7a8c5d97574ca21bcd95656750cb0",
+          "10": "0x3a61580fc4f7a8c5d97574ca21bcd95656750cb0",
+          "14": "0x3a61580fc4f7a8c5d97574ca21bcd95656750cb0",
+          "56": "0x3a61580fc4f7a8c5d97574ca21bcd95656750cb0",
           "100": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
-          "130": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
-          "137": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
+          "130": "0x3a61580fc4f7a8c5d97574ca21bcd95656750cb0",
+          "137": "0x3a61580fc4f7a8c5d97574ca21bcd95656750cb0",
           "146": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
           "480": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
-          "988": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
-          "999": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
-          "8453": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
-          "42161": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
-          "43114": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
+          "988": "0x3a61580fc4f7a8c5d97574ca21bcd95656750cb0",
+          "999": "0x3a61580fc4f7a8c5d97574ca21bcd95656750cb0",
+          "8453": "0x3a61580fc4f7a8c5d97574ca21bcd95656750cb0",
+          "42161": "0x3a61580fc4f7a8c5d97574ca21bcd95656750cb0",
+          "43114": "0x3a61580fc4f7a8c5d97574ca21bcd95656750cb0",
           "59144": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A",
           "80094": "0x0BBA42ddaa6ef6CCd228BD6270565F87154E921A"
         }
@@ -887,20 +887,20 @@
           "43114": "0x0B515b1344cb9bAe3205B1c846a9a8C942Ef41b0"
         },
         "prod": {
-          "1": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
-          "10": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
-          "14": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
-          "56": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
+          "1": "0xd43dff350ccabfc4c9b3aaac01fff0858b312dc2",
+          "10": "0xd43dff350ccabfc4c9b3aaac01fff0858b312dc2",
+          "14": "0xd43dff350ccabfc4c9b3aaac01fff0858b312dc2",
+          "56": "0xd43dff350ccabfc4c9b3aaac01fff0858b312dc2",
           "100": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
-          "130": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
-          "137": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
+          "130": "0xd43dff350ccabfc4c9b3aaac01fff0858b312dc2",
+          "137": "0xd43dff350ccabfc4c9b3aaac01fff0858b312dc2",
           "146": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
           "480": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
-          "988": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
-          "999": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
-          "8453": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
-          "42161": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
-          "43114": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
+          "988": "0xd43dff350ccabfc4c9b3aaac01fff0858b312dc2",
+          "999": "0xd43dff350ccabfc4c9b3aaac01fff0858b312dc2",
+          "8453": "0xd43dff350ccabfc4c9b3aaac01fff0858b312dc2",
+          "42161": "0xd43dff350ccabfc4c9b3aaac01fff0858b312dc2",
+          "43114": "0xd43dff350ccabfc4c9b3aaac01fff0858b312dc2",
           "59144": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858",
           "80094": "0xdf958A047D90b202A7097b5f9B67Bb8CB5285858"
         }
@@ -1251,20 +1251,20 @@
           "43114": "0xCa50aB0375b774B2DE12919423Dd0B8e8cAad95f"
         },
         "prod": {
-          "1": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
-          "10": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
-          "14": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
-          "56": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
+          "1": "0xaabdd86b2ce655422f319c22765e26cfa6873943",
+          "10": "0xaabdd86b2ce655422f319c22765e26cfa6873943",
+          "14": "0xaabdd86b2ce655422f319c22765e26cfa6873943",
+          "56": "0xaabdd86b2ce655422f319c22765e26cfa6873943",
           "100": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
-          "130": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
-          "137": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
+          "130": "0xaabdd86b2ce655422f319c22765e26cfa6873943",
+          "137": "0xaabdd86b2ce655422f319c22765e26cfa6873943",
           "146": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
           "480": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
-          "988": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
-          "999": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
-          "8453": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
-          "42161": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
-          "43114": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
+          "988": "0xaabdd86b2ce655422f319c22765e26cfa6873943",
+          "999": "0xaabdd86b2ce655422f319c22765e26cfa6873943",
+          "8453": "0xaabdd86b2ce655422f319c22765e26cfa6873943",
+          "42161": "0xaabdd86b2ce655422f319c22765e26cfa6873943",
+          "43114": "0xaabdd86b2ce655422f319c22765e26cfa6873943",
           "59144": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D",
           "80094": "0xE165FBBc89a60756F57Cf0E34c04c35Cc1BbA79D"
         }
@@ -1446,19 +1446,19 @@
         },
         "prod": {
           "1": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
-          "10": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
-          "14": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
-          "56": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
+          "10": "0xdd4d3e33a2231f4062e1c7df0991bae09b069e4e",
+          "14": "0xdd4d3e33a2231f4062e1c7df0991bae09b069e4e",
+          "56": "0xdd4d3e33a2231f4062e1c7df0991bae09b069e4e",
           "100": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
-          "130": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
-          "137": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
+          "130": "0xdd4d3e33a2231f4062e1c7df0991bae09b069e4e",
+          "137": "0xdd4d3e33a2231f4062e1c7df0991bae09b069e4e",
           "146": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
           "480": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
-          "988": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
-          "999": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
-          "8453": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
-          "42161": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
-          "43114": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
+          "988": "0xdd4d3e33a2231f4062e1c7df0991bae09b069e4e",
+          "999": "0xdd4d3e33a2231f4062e1c7df0991bae09b069e4e",
+          "8453": "0xdd4d3e33a2231f4062e1c7df0991bae09b069e4e",
+          "42161": "0xdd4d3e33a2231f4062e1c7df0991bae09b069e4e",
+          "43114": "0xdd4d3e33a2231f4062e1c7df0991bae09b069e4e",
           "59144": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b",
           "80094": "0x4f46c625e6bad4636CB4B9cc418e9780e5C2ad2b"
         }
@@ -1938,7 +1938,7 @@
           "14": "0xc36Cd531554a5Fa8579Cf6Cd5f845c837fa24c79"
         },
         "prod": {
-          "14": "0x27CD9F9227bb21E4e365ef47F70C73d6B3fF830e"
+          "14": "0x9D573F3018baDD42Dd292d44F8887FBbCf488Dc8"
         }
       },
       "availableChains": {
@@ -2131,7 +2131,7 @@
           "14": "0x4e371E2c950ADf9D4c7830438A51bBD703dB7f36"
         },
         "prod": {
-          "14": "0x3dc975922951A533DE85F82b1C3aFeCe41d0DE7b"
+          "14": "0x44874B1fb19d4dA78175c0441295cbcB0A1d6884"
         }
       },
       "availableChains": {
@@ -2272,20 +2272,20 @@
           "43114": "0x2aF3962aE7a3ABE785E33E1c467a2c594777dA1c"
         },
         "prod": {
-          "1": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
-          "10": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
-          "14": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
-          "56": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
+          "1": "0x60fd46210daca64d91b6bc6d6566238723514c8b",
+          "10": "0x60fd46210daca64d91b6bc6d6566238723514c8b",
+          "14": "0x60fd46210daca64d91b6bc6d6566238723514c8b",
+          "56": "0x60fd46210daca64d91b6bc6d6566238723514c8b",
           "100": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
-          "130": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
-          "137": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
+          "130": "0x60fd46210daca64d91b6bc6d6566238723514c8b",
+          "137": "0x60fd46210daca64d91b6bc6d6566238723514c8b",
           "146": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
           "480": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
-          "988": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
-          "999": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
-          "8453": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
-          "42161": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
-          "43114": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
+          "988": "0x60fd46210daca64d91b6bc6d6566238723514c8b",
+          "999": "0x60fd46210daca64d91b6bc6d6566238723514c8b",
+          "8453": "0x60fd46210daca64d91b6bc6d6566238723514c8b",
+          "42161": "0x60fd46210daca64d91b6bc6d6566238723514c8b",
+          "43114": "0x60fd46210daca64d91b6bc6d6566238723514c8b",
           "59144": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0",
           "80094": "0x542601AfAEeB2E5dFc7d1F2fEEF5911285f0c2c0"
         }
@@ -2450,20 +2450,20 @@
           "43114": "0xE579aDA69fbB49D0A4d3c6D3f706a74f8CFc4989"
         },
         "prod": {
-          "1": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
-          "10": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
-          "14": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
-          "56": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
+          "1": "0x9b00d88cf0ecffa3c8cfb084b063ceeb42605d67",
+          "10": "0x9b00d88cf0ecffa3c8cfb084b063ceeb42605d67",
+          "14": "0x9b00d88cf0ecffa3c8cfb084b063ceeb42605d67",
+          "56": "0x9b00d88cf0ecffa3c8cfb084b063ceeb42605d67",
           "100": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
-          "130": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
-          "137": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
+          "130": "0x9b00d88cf0ecffa3c8cfb084b063ceeb42605d67",
+          "137": "0x9b00d88cf0ecffa3c8cfb084b063ceeb42605d67",
           "146": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
           "480": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
-          "988": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
-          "999": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
-          "8453": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
-          "42161": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
-          "43114": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
+          "988": "0x9b00d88cf0ecffa3c8cfb084b063ceeb42605d67",
+          "999": "0x9b00d88cf0ecffa3c8cfb084b063ceeb42605d67",
+          "8453": "0x9b00d88cf0ecffa3c8cfb084b063ceeb42605d67",
+          "42161": "0x9b00d88cf0ecffa3c8cfb084b063ceeb42605d67",
+          "43114": "0x9b00d88cf0ecffa3c8cfb084b063ceeb42605d67",
           "59144": "0x0668f9a638f34928f0bD91588E7B157F0699D594",
           "80094": "0x0668f9a638f34928f0bD91588E7B157F0699D594"
         }
@@ -2797,7 +2797,7 @@
           "14": "0x98b6217AefacF77379AF779b07Bac2ACfFcC9E54"
         },
         "prod": {
-          "14": "0x930B4c9379474D3Cba04c7Ab3d0f858180A3Efbc"
+          "14": "0x8704fAD97ab95d4a8392B0667fE08903a46d102b"
         }
       },
       "availableChains": {
@@ -2837,7 +2837,7 @@
           "14": "0xE8C9D9ef46D81d6eE06746EBb8bc6bA847EF5Cc6"
         },
         "prod": {
-          "14": "0x6D2cE8DEa182A3cdD4933523F41600aF993F9597"
+          "14": "0xfd0A3e316Ffe711d5302F91a30F02dbB7F35C95A"
         }
       },
       "availableChains": {
@@ -2919,7 +2919,7 @@
           "14": "0xf613dF22474e3c80f312FB287580dA0dfb29d684"
         },
         "prod": {
-          "14": "0x0C095F4E8A45642F678688AD333c6bd56592ea26"
+          "14": "0x45Eb9379f77867560114A398309b6444c51376e6"
         }
       },
       "availableChains": {
@@ -3000,7 +3000,7 @@
           "14": "0xDdCB41f8680864C77f6d282E33962E1055c1ac05"
         },
         "prod": {
-          "14": "0xE87f318A1C215DE411bEbAEaE32a0498dEd11e35"
+          "14": "0x44f6A4014776355B267D4B659a55184Bb968a387"
         }
       },
       "availableChains": {
@@ -5882,19 +5882,19 @@
         },
         "prod": {
           "1": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
-          "10": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
-          "14": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
-          "56": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
+          "10": "0x0975cc0673D208b56c6D135554a3c26420825a45",
+          "14": "0x0975cc0673D208b56c6D135554a3c26420825a45",
+          "56": "0x0975cc0673D208b56c6D135554a3c26420825a45",
           "100": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
-          "130": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
-          "137": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
+          "130": "0x0975cc0673D208b56c6D135554a3c26420825a45",
+          "137": "0x0975cc0673D208b56c6D135554a3c26420825a45",
           "146": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
           "480": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
-          "988": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
-          "999": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
-          "8453": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
-          "42161": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
-          "43114": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
+          "988": "0x0975cc0673D208b56c6D135554a3c26420825a45",
+          "999": "0x0975cc0673D208b56c6D135554a3c26420825a45",
+          "8453": "0x0975cc0673D208b56c6D135554a3c26420825a45",
+          "42161": "0x0975cc0673D208b56c6D135554a3c26420825a45",
+          "43114": "0x0975cc0673D208b56c6D135554a3c26420825a45",
           "59144": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6",
           "80094": "0xcb1c54042640eDbb77292845A4f703f8EB1BB7C6"
         }
