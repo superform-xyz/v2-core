@@ -140,7 +140,6 @@ abstract contract Constants {
     // Native tokens representation
     // https://github.com/d-xo/weird-erc20?tab=readme-ov-file#erc-20-representation-of-native-currency
     address internal constant NATIVE_TOKEN_DEFAULT = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-    address internal constant NATIVE_TOKEN_POLYGON = 0x0000000000000000000000000000000000001010;
 
     // Permit2 addresses per chain (Universal standard address)
     address internal constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;

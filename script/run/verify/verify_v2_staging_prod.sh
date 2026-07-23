@@ -24,13 +24,13 @@ source "$(dirname "${BASH_SOURCE[0]}")/../utils/lib_deploy.sh"
 
 # ===== FILTER CONFIGURATION =====
 # Specify which chains to verify (empty = all chains from network configuration)
-CHAINS_TO_VERIFY=(1 8453 56 42161 10 137 130 43114 14)
+CHAINS_TO_VERIFY=(10 137 130 59144 80094 146 100 480 999 988)
 
 # Specify which contracts to verify (empty = all contracts found in deployment JSON)
-CONTRACTS_TO_VERIFY=()
+CONTRACTS_TO_VERIFY=(ApproveAndStargateSendHook StargateSendHook)
 
 # Delay in seconds between verification requests (prevents Cloudflare rate limiting)
-VERIFY_DELAY=5
+VERIFY_DELAY=1
 
 # ===== TRACKING =====
 declare -a VERIFIED_CONTRACTS=()
@@ -233,7 +233,7 @@ generate_constructor_args() {
             odos_router="0x4E3288c9ca110bCC82bf38F09A7b425c095d92Bf"
             across_spoke_pool_v3="0x9295ee1d8C5b022Be115A2AD3c30C72E34e7F096"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
-            native_token="0x0000000000000000000000000000000000001010"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
         "130") # Unichain
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
@@ -342,7 +342,7 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address)" "$permit2")"
             ;;
         "Swap1InchHook")
-            echo "$(cast abi-encode "constructor(address)" "$aggregation_router")"
+            echo "$(cast abi-encode "constructor(address,address)" "$aggregation_router" "$native_token")"
             ;;
         "SwapOdosV2Hook"|"ApproveAndSwapOdosV2Hook")
             echo "$(cast abi-encode "constructor(address)" "$odos_router")"
@@ -373,7 +373,7 @@ generate_constructor_args() {
             ;;
 
         # Hooks - Claim (Flare rFLR)
-        "ClaimRFLRHook"|"ClaimRFLRV2Hook")
+        "ClaimRFLRHook"|"ClaimRFLRV2Hook"|"ClaimRFLRV3Hook")
             local rnat_flare="0x26d460c3Cf931Fb2014FA436a49e3Af08619810e"
             echo "$(cast abi-encode "constructor(address)" "$rnat_flare")"
             ;;
@@ -660,6 +660,7 @@ get_contract_source() {
         "YearnClaimOneRewardHook") echo "src/hooks/claim/yearn/YearnClaimOneRewardHook.sol" ;;
         "ClaimRFLRHook") echo "src/hooks/claim/flare/ClaimRFLRHook.sol" ;;
         "ClaimRFLRV2Hook") echo "src/hooks/claim/flare/ClaimRFLRV2Hook.sol" ;;
+        "ClaimRFLRV3Hook") echo "src/hooks/claim/flare/ClaimRFLRV3Hook.sol" ;;
         "WithdrawRFLRHook") echo "src/hooks/claim/flare/WithdrawRFLRHook.sol" ;;
         "WithdrawVestedRFLRHook") echo "src/hooks/claim/flare/WithdrawVestedRFLRHook.sol" ;;
 
