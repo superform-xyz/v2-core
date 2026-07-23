@@ -38,8 +38,10 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     ///         Managers can override per strategy by setting maxSingleOpCost to a non-zero value.
     uint256 public constant DEFAULT_MAX_GAS = 4_000_000;
 
-    /// @notice Default allowed UserOp sender (SuperVaultExecutor).
-    ///         Used as the initial allowedSender for strategies so no explicit setup call is needed.
+    /// @notice Canonical SuperVaultExecutor address.
+    ///         Convenience constant for setAllowedSender() calls during deployment.
+    ///         Not auto-applied — each strategy requires an explicit setAllowedSender(strategy, SVE)
+    ///         call after funding, otherwise validation will revert (default-deny).
     address public constant DEFAULT_ALLOWED_SENDER = 0x183e3171EEf801cE2A29FD48B3b21188f241875d;
 
     /// @notice Expected selector for SuperVaultExecutor.executeFromEntryPoint(address, bytes) = 0x4fb2fbd5
@@ -154,9 +156,9 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperSponsorshipPaymaster
-    function setMaxSingleOpCost(address strategy, uint256 maxCost) external onlyRole(MANAGER_ROLE) {
+    function setMaxSingleOpCost(address strategy, uint128 maxCost) external onlyRole(MANAGER_ROLE) {
         if (strategy == address(0)) revert ZERO_ADDRESS();
-        _budgets[strategy].maxSingleOpCost = uint128(maxCost);
+        _budgets[strategy].maxSingleOpCost = maxCost;
         emit MaxSingleOpCostSet(strategy, maxCost);
     }
 

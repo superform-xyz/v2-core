@@ -49,7 +49,7 @@ interface ISuperSponsorshipPaymaster {
     event StrategyWithdrawn(address indexed strategy, address indexed to, uint256 amount);
     event StrategyPaused(address indexed strategy);
     event StrategyUnpaused(address indexed strategy);
-    event MaxSingleOpCostSet(address indexed strategy, uint256 maxCost);
+    event MaxSingleOpCostSet(address indexed strategy, uint128 maxCost);
     event PostOpGasOverheadSet(uint256 overhead);
     event AllowedSenderSet(address indexed strategy, address indexed sender);
     event GlobalPauseSet(bool paused);
@@ -84,10 +84,10 @@ interface ISuperSponsorshipPaymaster {
                         MANAGEMENT (MANAGER_ROLE)
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Set the max cost per single UserOp for a strategy (0 = no cap)
+    /// @notice Set the max cost per single UserOp for a strategy (0 = use default gas cap)
     /// @param strategy The strategy address
     /// @param maxCost The max cost in wei
-    function setMaxSingleOpCost(address strategy, uint256 maxCost) external;
+    function setMaxSingleOpCost(address strategy, uint128 maxCost) external;
 
     /// @notice Pause sponsorship for a strategy
     /// @param strategy The strategy to pause
@@ -157,7 +157,7 @@ interface ISuperSponsorshipPaymaster {
     /// @param strategy The strategy address
     function allowedSender(address strategy) external view returns (address);
 
-    /// @notice Default allowed UserOp sender for all strategies (SuperVaultExecutor)
+    /// @notice Canonical SuperVaultExecutor address (convenience constant, not auto-applied)
     function DEFAULT_ALLOWED_SENDER() external view returns (address);
 
     /// @notice Whether the paymaster is globally paused
