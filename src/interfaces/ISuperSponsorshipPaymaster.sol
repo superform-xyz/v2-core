@@ -16,7 +16,7 @@ interface ISuperSponsorshipPaymaster {
     struct StrategyBudget {
         uint256 balance;
         uint256 totalDebited;
-        uint256 maxSingleOpCost;
+        uint128 maxSingleOpCost;
         bool paused;
     }
 
@@ -36,6 +36,8 @@ interface ISuperSponsorshipPaymaster {
     error ETH_TRANSFER_FAILED();
     error EXCEEDS_MAX_POST_OP_OVERHEAD();
     error POST_OP_OVERHEAD_BELOW_MINIMUM();
+    error UNAUTHORIZED_SENDER();
+    error INVALID_CALLDATA();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -49,9 +51,11 @@ interface ISuperSponsorshipPaymaster {
     event StrategyUnpaused(address indexed strategy);
     event MaxSingleOpCostSet(address indexed strategy, uint256 maxCost);
     event PostOpGasOverheadSet(uint256 overhead);
+    event AllowedSenderSet(address indexed strategy, address indexed sender);
     event GlobalPauseSet(bool paused);
     event ETHSwept(address indexed to, uint256 amount);
     event Reconciled(uint256 drift);
+    event ETHReceived(address indexed from, uint256 amount);
     event EmergencyWithdrawn(address indexed to, uint256 amount);
 
     /*//////////////////////////////////////////////////////////////
@@ -93,6 +97,13 @@ interface ISuperSponsorshipPaymaster {
     /// @param strategy The strategy to unpause
     function unpauseStrategy(address strategy) external;
 
+    /// @notice Set the allowed UserOp sender for a strategy.
+    ///         Only UserOps from this sender will be sponsored.
+    ///         Must be set to a non-zero address for UserOps to be accepted (default-deny).
+    /// @param strategy The strategy address
+    /// @param sender The allowed smart account address
+    function setAllowedSender(address strategy, address sender) external;
+
     /*//////////////////////////////////////////////////////////////
                         ADMIN (DEFAULT_ADMIN_ROLE)
     //////////////////////////////////////////////////////////////*/
@@ -114,6 +125,8 @@ interface ISuperSponsorshipPaymaster {
 
     /// @notice Reconcile internal accounting with actual EntryPoint deposit.
     ///         Snaps `totalAllocated` down to match the real deposit when drift has accumulated.
+    ///         Auto-pauses the paymaster when drift is corrected. Admin must unpause after
+    ///         adjusting individual strategy budgets.
     function reconcile() external;
 
     /// @notice Emergency withdraw from EntryPoint deposit, bypassing per-strategy accounting.
@@ -139,6 +152,13 @@ interface ISuperSponsorshipPaymaster {
 
     /// @notice Gas overhead added in postOp
     function postOpGasOverhead() external view returns (uint256);
+
+    /// @notice Get the per-strategy allowed sender (must be non-zero for UserOps to be accepted)
+    /// @param strategy The strategy address
+    function allowedSender(address strategy) external view returns (address);
+
+    /// @notice Default allowed UserOp sender for all strategies (SuperVaultExecutor)
+    function DEFAULT_ALLOWED_SENDER() external view returns (address);
 
     /// @notice Whether the paymaster is globally paused
     function globalPaused() external view returns (bool);
