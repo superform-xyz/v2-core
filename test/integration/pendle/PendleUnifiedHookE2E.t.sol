@@ -113,13 +113,13 @@ contract PendleUnifiedHookE2E is Test {
 
         Execution[] memory executions = hook.build(address(prevHook), user, data);
 
-        // 1 hook execution + 2 wrappers = 3
-        assertEq(executions.length, 3, "SwapTokenForPt should produce 3 executions");
-        assertEq(executions[1].target, PENDLE_ROUTER, "exec[1] should target router");
-        assertEq(executions[1].value, 0, "Should have zero value for ERC20 tokenIn");
+        // 4 hook executions (approve(0), approve, call, approve(0)) + 2 wrappers = 6
+        assertEq(executions.length, 6, "SwapTokenForPt should produce 6 executions");
+        assertEq(executions[3].target, PENDLE_ROUTER, "exec[3] should target router");
+        assertEq(executions[3].value, 0, "Should have zero value for ERC20 tokenIn");
     }
 
-    /// @notice Verify build() produces correct 3-execution structure for swapExactPtForToken with real market
+    /// @notice Verify build() produces correct 6-execution structure for swapExactPtForToken with real market
     function test_Build_SwapExactPtForToken_RealMarket() public view {
         address[] memory tokensOut = IStandardizedYield(sy).getTokensOut();
         require(tokensOut.length > 0, "No valid tokens out");
@@ -130,9 +130,9 @@ contract PendleUnifiedHookE2E is Test {
 
         Execution[] memory executions = hook.build(address(prevHook), user, data);
 
-        // 1 hook execution + 2 wrappers = 3
-        assertEq(executions.length, 3, "SwapPtForToken should produce 3 executions");
-        assertEq(executions[1].target, PENDLE_ROUTER, "exec[1] should target router");
+        // 4 hook executions (approve(0), approve, call, approve(0)) + 2 wrappers = 6
+        assertEq(executions.length, 6, "SwapPtForToken should produce 6 executions");
+        assertEq(executions[3].target, PENDLE_ROUTER, "exec[3] should target router");
     }
 
     /// @notice Verify build() correctly encodes the redeemPyToToken calldata with real YT address
@@ -463,9 +463,9 @@ contract PendleUnifiedHookE2E is Test {
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(tokenOut_),
+            bytes32(amount_),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minTokenOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload
@@ -536,9 +536,9 @@ contract PendleUnifiedHookE2E is Test {
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(outputToken_),
+            bytes32(inputAmount_),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minPtOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload
@@ -583,9 +583,9 @@ contract PendleUnifiedHookE2E is Test {
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(tokenOut_),
+            bytes32(exactPtIn_),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minTokenOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload

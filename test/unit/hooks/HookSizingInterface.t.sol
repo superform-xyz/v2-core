@@ -1160,6 +1160,7 @@ contract HookSizingInterfaceTest is Helpers {
         assertTrue(approveSwapOpenOcean.supportsInterface(iid));
         assertTrue(spectraRedeem.supportsInterface(iid));
         assertTrue(pendleRedeem.supportsInterface(iid));
+        assertTrue(pendleUnified.supportsInterface(iid));
 
         // TOKEN: bridges
         assertTrue(acrossV1.supportsInterface(iid));
@@ -1269,6 +1270,7 @@ contract HookSizingInterfaceTest is Helpers {
         assertTrue(approveSwapOpenOcean.supportsInterface(oid));
         assertTrue(spectraRedeem.supportsInterface(oid));
         assertTrue(pendleRedeem.supportsInterface(oid));
+        assertTrue(pendleUnified.supportsInterface(oid));
 
         // Bridges
         assertTrue(acrossV1.supportsInterface(oid));
@@ -4269,7 +4271,6 @@ contract HookSizingInterfaceTest is Helpers {
     function test_NewlyS2_SupportsInterface_InflowOutflow() public view {
         bytes4 iid = type(ISuperHookInflowOutflow).interfaceId;
         // Opaque-blob hooks
-        assertTrue(pendleUnified.supportsInterface(iid), "pendleUnified");
         assertTrue(spectraExchangeDeposit.supportsInterface(iid), "spectraExchangeDeposit");
         assertTrue(swap1Inch.supportsInterface(iid), "swap1Inch");
         assertTrue(batchTransferBasic.supportsInterface(iid), "batchTransferBasic");
@@ -4309,7 +4310,6 @@ contract HookSizingInterfaceTest is Helpers {
     /// @dev All newly-S2 hooks must NOT support ISuperHookOutflow
     function test_NewlyS2_DoesNotSupport_Outflow() public view {
         bytes4 oid = type(ISuperHookOutflow).interfaceId;
-        assertFalse(pendleUnified.supportsInterface(oid), "pendleUnified");
         assertFalse(spectraExchangeDeposit.supportsInterface(oid), "spectraExchangeDeposit");
         assertFalse(swap1Inch.supportsInterface(oid), "swap1Inch");
         assertFalse(batchTransferBasic.supportsInterface(oid), "batchTransferBasic");
@@ -4343,7 +4343,6 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev All newly-S2 hooks must return empty amountRoles
     function test_NewlyS2_AmountRoles_Empty() public view {
-        assertEq(pendleUnified.amountRoles("").length, 0, "pendleUnified");
         assertEq(spectraExchangeDeposit.amountRoles("").length, 0, "spectraExchangeDeposit");
         assertEq(swap1Inch.amountRoles("").length, 0, "swap1Inch");
         assertEq(batchTransferBasic.amountRoles("").length, 0, "batchTransferBasic");
@@ -4362,7 +4361,6 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev All newly-S2 hooks must return empty decodeAmounts
     function test_NewlyS2_DecodeAmounts_Empty() public view {
-        assertEq(pendleUnified.decodeAmounts("").length, 0, "pendleUnified");
         assertEq(spectraExchangeDeposit.decodeAmounts("").length, 0, "spectraExchangeDeposit");
         assertEq(swap1Inch.decodeAmounts("").length, 0, "swap1Inch");
         assertEq(batchTransferBasic.decodeAmounts("").length, 0, "batchTransferBasic");
