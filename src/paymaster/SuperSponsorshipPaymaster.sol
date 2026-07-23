@@ -30,7 +30,7 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
 
     // deployment version
-    uint256 public constant VERSION = 4;
+    uint256 public constant VERSION = 5;
 
     /// @notice Default UserOp gas limit cap when strategy has no explicit maxSingleOpCost.
     ///         Prevents inflated gas limit attacks. Enforced by checking that
@@ -38,22 +38,16 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     ///         Managers can override per strategy by setting maxSingleOpCost to a non-zero value.
     uint256 public constant DEFAULT_MAX_GAS = 4_000_000;
 
-    /// @notice Default execution target for all strategies (SuperVaultExecutor module).
-    ///         The paymaster verifies that UserOp calldata targets this executor via
-    ///         Nexus.execute → SuperExecutor.execute. Strategies can override via setAllowedSender()
-    ///         which also overrides the expected execution target.
+    /// @notice Default allowed UserOp sender (SuperVaultExecutor).
+    ///         Used as the initial allowedSender for strategies so no explicit setup call is needed.
     address public constant DEFAULT_ALLOWED_SENDER = 0x183e3171EEf801cE2A29FD48B3b21188f241875d;
 
-    /// @notice Expected selector for Nexus.execute(ExecutionMode, bytes) = 0xe9ae5c53
-    bytes4 internal constant NEXUS_EXECUTE_SELECTOR = 0xe9ae5c53;
+    /// @notice Expected selector for SuperVaultExecutor.executeFromEntryPoint(address, bytes) = 0x4fb2fbd5
+    bytes4 internal constant EXECUTE_FROM_ENTRYPOINT_SELECTOR = 0x4fb2fbd5;
 
-    /// @notice Expected selector for SuperExecutor.execute(bytes) = 0x09c5eabe
-    bytes4 internal constant EXECUTOR_EXECUTE_SELECTOR = 0x09c5eabe;
-
-    /// @notice Minimum callData length for a valid Nexus single-execution UserOp.
-    ///         Layout: [0:4] Nexus.execute selector, [4:36] mode, [36:68] offset,
-    ///         [68:100] length, [100:120] target, [120:152] value, [152:156] inner selector
-    uint256 internal constant MIN_CALLDATA_LENGTH = 156;
+    /// @notice Minimum callData length for a valid executeFromEntryPoint UserOp.
+    ///         Layout: [0:4] selector, [4:36] strategy address
+    uint256 internal constant MIN_CALLDATA_LENGTH = 36;
 
     /// @notice Offset into paymasterAndData where the strategy address begins.
     ///         Layout: [0:20] paymaster, [20:36] verificationGasLimit, [36:52] postOpGasLimit, [52:72] strategy
@@ -329,23 +323,16 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
         address allowed = allowedSender[strategy];
         if (allowed == address(0) || userOp.sender != allowed) revert UNAUTHORIZED_SENDER();
 
-        // Calldata validation: ensure the UserOp calls Nexus.execute → SuperExecutor.execute.
-        // Blocks no-op UserOps, batch/delegatecall modes, ABI offset manipulation,
-        // and non-executor calls from draining strategy budgets.
-        // Layout: [0:4] Nexus selector, [4:36] mode, [36:68] ABI offset, [68:100] len,
-        //         [100:120] target, [120:152] value, [152:156] inner selector
+        // Calldata validation: ensure the UserOp calls executeFromEntryPoint(address, bytes)
+        // on the SuperVaultExecutor, and that the strategy in calldata matches the strategy
+        // in paymasterAndData (strategy isolation — prevents vault A from burning vault B's budget).
         {
             bytes calldata cd = userOp.callData;
             if (cd.length < MIN_CALLDATA_LENGTH) revert INVALID_CALLDATA();
-            if (bytes4(cd[0:4]) != NEXUS_EXECUTE_SELECTOR) revert INVALID_CALLDATA();
-            // Verify execution mode is CALLTYPE_SINGLE (0x00). Reject batch (0x01) / delegatecall (0xFF).
-            if (uint8(cd[4]) != 0x00) revert INVALID_CALLDATA();
-            // Verify canonical ABI offset for the dynamic bytes parameter (prevents offset manipulation).
-            if (bytes32(cd[36:68]) != bytes32(uint256(0x40))) revert INVALID_CALLDATA();
-            // Inner calldata: target (20 bytes at offset 100) and selector (4 bytes at offset 152)
-            address target = address(bytes20(cd[100:120]));
-            if (target != DEFAULT_ALLOWED_SENDER) revert INVALID_CALLDATA();
-            if (bytes4(cd[152:156]) != EXECUTOR_EXECUTE_SELECTOR) revert INVALID_CALLDATA();
+            if (bytes4(cd[0:4]) != EXECUTE_FROM_ENTRYPOINT_SELECTOR) revert INVALID_CALLDATA();
+            // Strategy isolation: calldata strategy must match paymasterAndData strategy
+            address calldataStrategy = address(uint160(uint256(bytes32(cd[4:36]))));
+            if (calldataStrategy != strategy) revert INVALID_CALLDATA();
         }
 
         StrategyBudget storage budget = _budgets[strategy];

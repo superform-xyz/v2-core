@@ -479,7 +479,7 @@ contract SuperSponsorshipPaymasterForkTest is Test {
             sender: address(account),
             nonce: 0,
             initCode: "",
-            callData: _validNexusCallData(),
+            callData: _validCallData(REAL_SUPER_USDC_STRATEGY),
             accountGasLimits: bytes32(abi.encodePacked(uint128(500_000), uint128(12_000_000))), // 12M
             preVerificationGas: 100_000,
             gasFees: bytes32(abi.encodePacked(uint128(2 gwei), uint128(10 gwei))),
@@ -520,7 +520,7 @@ contract SuperSponsorshipPaymasterForkTest is Test {
             sender: address(executorAccount),
             nonce: 0,
             initCode: "",
-            callData: _validNexusCallData(),
+            callData: _validCallData(REAL_SUPER_USDC_STRATEGY),
             accountGasLimits: bytes32(abi.encodePacked(uint128(500_000), uint128(500_000))), // reasonable
             preVerificationGas: 100_000,
             gasFees: bytes32(abi.encodePacked(uint128(2 gwei), uint128(10 gwei))),
@@ -684,7 +684,7 @@ contract SuperSponsorshipPaymasterForkTest is Test {
             sender: address(account),
             nonce: nonce,
             initCode: "",
-            callData: _validNexusCallData(),
+            callData: _validCallData(strategy),
             accountGasLimits: bytes32(abi.encodePacked(uint128(500_000), uint128(500_000))),
             preVerificationGas: 100_000,
             gasFees: bytes32(abi.encodePacked(uint128(2 gwei), uint128(10 gwei))),
@@ -713,7 +713,7 @@ contract SuperSponsorshipPaymasterForkTest is Test {
             sender: address(account2),
             nonce: nonce,
             initCode: "",
-            callData: _validNexusCallData(),
+            callData: _validCallData(strategy2),
             accountGasLimits: bytes32(abi.encodePacked(uint128(500_000), uint128(500_000))),
             preVerificationGas: 100_000,
             gasFees: bytes32(abi.encodePacked(uint128(2 gwei), uint128(10 gwei))),
@@ -722,11 +722,8 @@ contract SuperSponsorshipPaymasterForkTest is Test {
         });
     }
 
-    /// @dev Builds valid Nexus.execute calldata that passes paymaster validation
-    function _validNexusCallData() internal view returns (bytes memory) {
-        address executor = paymaster.DEFAULT_ALLOWED_SENDER();
-        bytes memory innerCallData = abi.encodeWithSelector(bytes4(0x09c5eabe), bytes(""));
-        bytes memory executionCalldata = abi.encodePacked(executor, uint256(0), innerCallData);
-        return abi.encodeWithSelector(bytes4(0xe9ae5c53), bytes32(0), executionCalldata);
+    /// @dev Builds valid executeFromEntryPoint(address, bytes) calldata that passes paymaster validation
+    function _validCallData(address strategy) internal pure returns (bytes memory) {
+        return abi.encodeWithSelector(bytes4(0x4fb2fbd5), strategy, bytes(""));
     }
 }

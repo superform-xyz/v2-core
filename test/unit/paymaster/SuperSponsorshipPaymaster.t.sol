@@ -2180,7 +2180,7 @@ contract SuperSponsorshipPaymasterTest is Helpers {
         paymaster.setAllowedSender(strategy1, allowedAccount);
 
         // Wrong sender with valid calldata — rejected by sender check
-        PackedUserOperation memory op = _createUserOpFull(strategy1, address(0xACC), 150_000, _validNexusCallData());
+        PackedUserOperation memory op = _createUserOpFull(strategy1, address(0xACC), 150_000, _validCallData(strategy1));
 
         vm.prank(address(mockEntryPoint));
         vm.expectRevert(ISuperSponsorshipPaymaster.UNAUTHORIZED_SENDER.selector);
@@ -2188,7 +2188,7 @@ contract SuperSponsorshipPaymasterTest is Helpers {
 
         // Correct sender — passes
         PackedUserOperation memory op2 =
-            _createUserOpFull(strategy1, allowedAccount, 150_000, _validNexusCallData());
+            _createUserOpFull(strategy1, allowedAccount, 150_000, _validCallData(strategy1));
 
         vm.prank(address(mockEntryPoint));
         (, uint256 validationData) = paymaster.validatePaymasterUserOp(op2, bytes32(0), 1 ether);
@@ -2213,20 +2213,40 @@ contract SuperSponsorshipPaymasterTest is Helpers {
 
         // Attack vector 2: valid calldata, wrong sender (sender check fires)
         PackedUserOperation memory op2 =
-            _createUserOpFull(strategy1, makeAddr("attacker"), 150_000, _validNexusCallData());
+            _createUserOpFull(strategy1, makeAddr("attacker"), 150_000, _validCallData(strategy1));
         vm.prank(address(mockEntryPoint));
         vm.expectRevert(ISuperSponsorshipPaymaster.UNAUTHORIZED_SENDER.selector);
         paymaster.validatePaymasterUserOp(op2, bytes32(0), 1 ether);
 
         // Attack vector 3: valid calldata, correct sender, inflated maxCost (gas cap fires)
         PackedUserOperation memory op3 =
-            _createUserOpFull(strategy1, allowedAccount, 12_000_000, _validNexusCallData());
+            _createUserOpFull(strategy1, allowedAccount, 12_000_000, _validCallData(strategy1));
         vm.prank(address(mockEntryPoint));
         vm.expectRevert(ISuperSponsorshipPaymaster.EXCEEDS_SINGLE_OP_CAP.selector);
         paymaster.validatePaymasterUserOp(op3, bytes32(0), 3 ether);
 
         // No funds drained in any case
         assertEq(paymaster.getStrategyBudget(strategy1).balance, 5 ether);
+    }
+
+    /// @dev Strategy isolation: calldata targeting strategy2 can't burn strategy1's budget
+    function test_Attack_StrategyIsolation_MismatchReverts() public {
+        vm.startPrank(funder);
+        paymaster.fundStrategy{ value: 5 ether }(strategy1);
+        paymaster.fundStrategy{ value: 5 ether }(strategy2);
+        vm.stopPrank();
+
+        // Build calldata targeting strategy2, but bill to strategy1 via paymasterAndData
+        bytes memory wrongCallData = _validCallData(strategy2);
+        PackedUserOperation memory op = _createUserOpFull(strategy1, address(0xACC), 150_000, wrongCallData);
+
+        vm.prank(address(mockEntryPoint));
+        vm.expectRevert(ISuperSponsorshipPaymaster.INVALID_CALLDATA.selector);
+        paymaster.validatePaymasterUserOp(op, bytes32(0), 1 ether);
+
+        // Both budgets untouched
+        assertEq(paymaster.getStrategyBudget(strategy1).balance, 5 ether);
+        assertEq(paymaster.getStrategyBudget(strategy2).balance, 5 ether);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -2287,7 +2307,7 @@ contract SuperSponsorshipPaymasterTest is Helpers {
     }
 
     function _createUserOp(address strategy) internal view returns (PackedUserOperation memory) {
-        return _createUserOpFull(strategy, address(0xACC), 150_000, _validNexusCallData());
+        return _createUserOpFull(strategy, address(0xACC), 150_000, _validCallData(strategy));
     }
 
     /// @dev Creates a UserOp with custom sender and callGasLimit for attack reproduction tests
@@ -2300,7 +2320,7 @@ contract SuperSponsorshipPaymasterTest is Helpers {
         view
         returns (PackedUserOperation memory)
     {
-        return _createUserOpFull(strategy, sender, callGasLimit, _validNexusCallData());
+        return _createUserOpFull(strategy, sender, callGasLimit, _validCallData(strategy));
     }
 
     /// @dev Creates a UserOp with custom sender, callGasLimit, and callData
@@ -2332,18 +2352,10 @@ contract SuperSponsorshipPaymasterTest is Helpers {
         return op;
     }
 
-    /// @dev Builds valid Nexus.execute(mode, executionCalldata) callData that passes
-    ///      the paymaster's calldata validation: correct selectors and target.
-    ///      Layout: [0:4] Nexus.execute selector, [4:36] mode, [36:68] offset,
-    ///      [68:100] len, [100:120] target, [120:152] value, [152:156] inner selector, [156:] data
-    function _validNexusCallData() internal view returns (bytes memory) {
-        address executor = paymaster.DEFAULT_ALLOWED_SENDER();
-        // Inner calldata: SuperExecutor.execute(bytes) with empty data
-        bytes memory innerCallData = abi.encodeWithSelector(bytes4(0x09c5eabe), bytes(""));
-        // executionCalldata: packed as [target(20)] [value(32)] [calldata(variable)]
-        bytes memory executionCalldata = abi.encodePacked(executor, uint256(0), innerCallData);
-        // Nexus.execute(ExecutionMode mode, bytes executionCalldata)
-        bytes memory nexusCallData = abi.encodeWithSelector(bytes4(0xe9ae5c53), bytes32(0), executionCalldata);
-        return nexusCallData;
+    /// @dev Builds valid executeFromEntryPoint(address strategy, bytes args) callData
+    ///      that passes the paymaster's calldata validation.
+    ///      Layout: [0:4] selector, [4:36] strategy address
+    function _validCallData(address strategy) internal pure returns (bytes memory) {
+        return abi.encodeWithSelector(bytes4(0x4fb2fbd5), strategy, bytes(""));
     }
 }
