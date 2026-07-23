@@ -136,6 +136,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     error TemporaryHookAddressMismatch(string hookName, address expected, address actual);
 
     uint256 private constant TEMPORARY_TOKEN_HOOK_UPGRADE_COUNT = 7;
+    uint256 private constant TEMPORARY_POLYGON_NATIVE_HOOK_UPGRADE_COUNT = 5;
     uint256 private constant TEMPORARY_PENDLE_HOOK_UPGRADE_COUNT = 3;
     uint256 private constant TEMPORARY_7540_HOOK_UPGRADE_COUNT = 7;
     address private constant DETERMINISTIC_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
@@ -776,6 +777,124 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         if (vm.envOr("TEMPORARY_TOKEN_HOOK_WRITE_OUTPUT", false)) {
             _writeExportedContracts(chainId);
         }
+    }
+
+    /// @notice TEMPORARY fixed-scope entrypoint for correcting Polygon native-token hook configuration.
+    /// @dev Remove after the selected production deployment and post-deployment checks are complete.
+    function runTemporaryPolygonNativeHookUpgrade(bool check, uint256 env, uint64 chainId) public {
+        require(env == 0, "TEMPORARY_POLYGON_NATIVE_HOOK_UPGRADE_INVALID_ENV");
+        require(chainId == POLYGON_CHAIN_ID, "TEMPORARY_POLYGON_NATIVE_HOOK_UPGRADE_INVALID_CHAIN");
+        require(block.chainid == chainId, "TEMPORARY_POLYGON_NATIVE_HOOK_UPGRADE_CHAIN_ID_MISMATCH");
+        require(DETERMINISTIC_DEPLOYER.code.length > 0, "TEMPORARY_POLYGON_NATIVE_HOOK_UPGRADE_DEPLOYER_NO_CODE");
+
+        _setConfiguration(env, "");
+        TemporaryTokenHookUpgrade[TEMPORARY_POLYGON_NATIVE_HOOK_UPGRADE_COUNT] memory hooks =
+            _temporaryPolygonNativeHookUpgradePlan(chainId, env);
+
+        uint256 deployedCount;
+        for (uint256 i = 0; i < hooks.length; ++i) {
+            TemporaryTokenHookUpgrade memory hook = hooks[i];
+            (bool isDeployed, address checkedAddress) =
+                __checkContract(hook.name, __getSalt(hook.saltName), hook.constructorArgs, env);
+            if (checkedAddress != hook.predictedAddress) {
+                revert TemporaryHookAddressMismatch(hook.name, hook.predictedAddress, checkedAddress);
+            }
+
+            hooks[i].isDeployed = isDeployed;
+            if (isDeployed) deployedCount++;
+        }
+
+        _logDeploymentSummary(chainId);
+        console2.log("TEMPORARY_POLYGON_NATIVE_HOOK_UPGRADE_SELECTED", TEMPORARY_POLYGON_NATIVE_HOOK_UPGRADE_COUNT);
+        console2.log("TEMPORARY_POLYGON_NATIVE_HOOK_UPGRADE_DEPLOYED", deployedCount);
+        console2.log(
+            "TEMPORARY_POLYGON_NATIVE_HOOK_UPGRADE_MISSING",
+            TEMPORARY_POLYGON_NATIVE_HOOK_UPGRADE_COUNT - deployedCount
+        );
+
+        if (check) return;
+
+        vm.startBroadcast();
+        for (uint256 i = 0; i < hooks.length; ++i) {
+            TemporaryTokenHookUpgrade memory hook = hooks[i];
+            if (hook.isDeployed) continue;
+
+            address deployedAddress =
+                __deployContractIfNeeded(hook.name, chainId, __getSalt(hook.saltName), hook.initCode);
+            if (deployedAddress != hook.predictedAddress) {
+                revert TemporaryHookAddressMismatch(hook.name, hook.predictedAddress, deployedAddress);
+            }
+            require(deployedAddress.code.length > 0, "TEMPORARY_POLYGON_NATIVE_HOOK_UPGRADE_NO_CODE");
+        }
+        vm.stopBroadcast();
+
+        if (vm.envOr("TEMPORARY_POLYGON_NATIVE_HOOK_WRITE_OUTPUT", false)) {
+            _writeExportedContracts(chainId);
+        }
+    }
+
+    function _temporaryPolygonNativeHookUpgradePlan(
+        uint64 chainId,
+        uint256 env
+    )
+        private
+        view
+        returns (TemporaryTokenHookUpgrade[TEMPORARY_POLYGON_NATIVE_HOOK_UPGRADE_COUNT] memory hooks)
+    {
+        string memory deploymentJson = _readCoreContractsFromOutput(chainId, env);
+        _temporaryRequireManifestCode(deploymentJson, ".BatchTransferHook");
+        _temporaryRequireManifestCode(deploymentJson, ".TransferHook");
+        _temporaryRequireManifestCode(deploymentJson, ".Swap1InchHook");
+        _temporaryRequireManifestCode(deploymentJson, ".SwapKyberSwapHook");
+        _temporaryRequireManifestCode(deploymentJson, ".ApproveAndSwapKyberSwapHook");
+
+        address nativeToken = configuration.nativeTokens[chainId];
+        require(nativeToken == NATIVE_TOKEN_DEFAULT, "TEMPORARY_POLYGON_NATIVE_HOOK_UPGRADE_NATIVE_TOKEN_MISMATCH");
+
+        address aggregationRouter = configuration.aggregationRouters[chainId];
+        require(
+            aggregationRouter != address(0) && aggregationRouter.code.length > 0,
+            "TEMPORARY_POLYGON_NATIVE_HOOK_UPGRADE_1INCH_ROUTER_INVALID"
+        );
+
+        address kyberRouter = configuration.kyberSwapRouters[chainId];
+        require(
+            kyberRouter != address(0) && kyberRouter.code.length > 0,
+            "TEMPORARY_POLYGON_NATIVE_HOOK_UPGRADE_KYBER_ROUTER_INVALID"
+        );
+
+        address kyberScaleHelper = configuration.kyberSwapScaleHelpers[chainId];
+        require(
+            kyberScaleHelper != address(0) && kyberScaleHelper.code.length > 0,
+            "TEMPORARY_POLYGON_NATIVE_HOOK_UPGRADE_KYBER_SCALE_HELPER_INVALID"
+        );
+
+        hooks[0] = _temporaryTokenHookUpgrade(
+            BATCH_TRANSFER_HOOK_KEY, BATCH_TRANSFER_HOOK_KEY, abi.encode(nativeToken), env, true
+        );
+        hooks[1] =
+            _temporaryTokenHookUpgrade(TRANSFER_HOOK_KEY, TRANSFER_HOOK_KEY, abi.encode(nativeToken), env, true);
+        hooks[2] = _temporaryTokenHookUpgrade(
+            SWAP_1INCH_HOOK_KEY,
+            SWAP_1INCH_HOOK_KEY,
+            abi.encode(aggregationRouter, nativeToken),
+            env,
+            true
+        );
+        hooks[3] = _temporaryTokenHookUpgrade(
+            SWAP_KYBERSWAP_HOOK_KEY,
+            SWAP_KYBERSWAP_HOOK_KEY,
+            abi.encode(kyberRouter, kyberScaleHelper, nativeToken),
+            env,
+            true
+        );
+        hooks[4] = _temporaryTokenHookUpgrade(
+            APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY,
+            APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY,
+            abi.encode(kyberRouter, kyberScaleHelper, nativeToken),
+            env,
+            true
+        );
     }
 
     /// @notice TEMPORARY fixed-scope entrypoint for the selected Pendle hook production upgrade.
