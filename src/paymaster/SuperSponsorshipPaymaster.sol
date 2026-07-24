@@ -30,7 +30,26 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
 
     // deployment version
-    uint256 public constant VERSION = 2;
+    uint256 public constant VERSION = 5;
+
+    /// @notice Default UserOp gas limit cap when strategy has no explicit maxSingleOpCost.
+    ///         Prevents inflated gas limit attacks. Enforced by checking that
+    ///         maxCost <= DEFAULT_MAX_GAS * maxFeePerGas (covers all gas fields).
+    ///         Managers can override per strategy by setting maxSingleOpCost to a non-zero value.
+    uint256 public constant DEFAULT_MAX_GAS = 4_000_000;
+
+    /// @notice Canonical SuperVaultExecutor address.
+    ///         Convenience constant for setAllowedSender() calls during deployment.
+    ///         Not auto-applied — each strategy requires an explicit setAllowedSender(strategy, SVE)
+    ///         call after funding, otherwise validation will revert (default-deny).
+    address public constant DEFAULT_ALLOWED_SENDER = 0x183e3171EEf801cE2A29FD48B3b21188f241875d;
+
+    /// @notice Expected selector for SuperVaultExecutor.executeFromEntryPoint(address, bytes) = 0x4fb2fbd5
+    bytes4 internal constant EXECUTE_FROM_ENTRYPOINT_SELECTOR = 0x4fb2fbd5;
+
+    /// @notice Minimum callData length for a valid executeFromEntryPoint UserOp.
+    ///         Layout: [0:4] selector, [4:36] strategy address
+    uint256 internal constant MIN_CALLDATA_LENGTH = 36;
 
     /// @notice Offset into paymasterAndData where the strategy address begins.
     ///         Layout: [0:20] paymaster, [20:36] verificationGasLimit, [36:52] postOpGasLimit, [52:72] strategy
@@ -53,6 +72,9 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
 
     mapping(address strategy => StrategyBudget) internal _budgets;
 
+    /// @notice Per-strategy allowed sender. Must be set (non-zero) for UserOps to be accepted (default-deny).
+    mapping(address strategy => address) public allowedSender;
+
     /// @notice Sum of all strategy balances
     uint256 public totalAllocated;
 
@@ -73,6 +95,8 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
+    /// @param entryPoint_ The ERC-4337 EntryPoint contract
+    /// @param admin_ Initial admin granted DEFAULT_ADMIN_ROLE, FUNDING_ROLE, and MANAGER_ROLE
     constructor(IEntryPoint entryPoint_, address admin_) payable BasePaymaster(entryPoint_) {
         if (admin_ == address(0)) revert ZERO_ADDRESS();
         _grantRole(DEFAULT_ADMIN_ROLE, admin_);
@@ -132,7 +156,7 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperSponsorshipPaymaster
-    function setMaxSingleOpCost(address strategy, uint256 maxCost) external onlyRole(MANAGER_ROLE) {
+    function setMaxSingleOpCost(address strategy, uint128 maxCost) external onlyRole(MANAGER_ROLE) {
         if (strategy == address(0)) revert ZERO_ADDRESS();
         _budgets[strategy].maxSingleOpCost = maxCost;
         emit MaxSingleOpCostSet(strategy, maxCost);
@@ -141,6 +165,7 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     /// @inheritdoc ISuperSponsorshipPaymaster
     function pauseStrategy(address strategy) external onlyRole(MANAGER_ROLE) {
         if (strategy == address(0)) revert ZERO_ADDRESS();
+        if (_budgets[strategy].paused) return;
         _budgets[strategy].paused = true;
         emit StrategyPaused(strategy);
     }
@@ -148,8 +173,16 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     /// @inheritdoc ISuperSponsorshipPaymaster
     function unpauseStrategy(address strategy) external onlyRole(MANAGER_ROLE) {
         if (strategy == address(0)) revert ZERO_ADDRESS();
+        if (!_budgets[strategy].paused) return;
         _budgets[strategy].paused = false;
         emit StrategyUnpaused(strategy);
+    }
+
+    /// @inheritdoc ISuperSponsorshipPaymaster
+    function setAllowedSender(address strategy, address sender) external onlyRole(MANAGER_ROLE) {
+        if (strategy == address(0)) revert ZERO_ADDRESS();
+        allowedSender[strategy] = sender;
+        emit AllowedSenderSet(strategy, sender);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -166,6 +199,7 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
 
     /// @inheritdoc ISuperSponsorshipPaymaster
     function setGlobalPause(bool paused) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (globalPaused == paused) return;
         globalPaused = paused;
         emit GlobalPauseSet(paused);
     }
@@ -175,7 +209,11 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
         if (to == address(0)) revert ZERO_ADDRESS();
         uint256 bal = address(this).balance;
         if (bal == 0) return;
-        (bool success,) = to.call{ value: bal }("");
+        bool success;
+        /// @solidity memory-safe-assembly
+        assembly {
+            success := call(gas(), to, bal, 0, 0, 0, 0)
+        }
         if (!success) revert ETH_TRANSFER_FAILED();
         emit ETHSwept(to, bal);
     }
@@ -200,18 +238,22 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     ///         charge may exceed what we debit internally.
     ///
     ///      Over many UserOps, these factors cause `totalAllocated` to exceed the real EntryPoint
-    ///      deposit. This function allows an admin to correct the drift by snapping `totalAllocated`
-    ///      down to the actual deposit value.
+    ///      deposit. This function corrects drift by snapping `totalAllocated` down to the actual
+    ///      deposit value and auto-pauses the paymaster to prevent UserOps from validating against
+    ///      stale budgets.
     ///
-    ///      **Note**: This only adjusts the aggregate `totalAllocated` counter. Individual strategy
-    ///      balances are NOT modified. After reconciliation, the sum of all strategy balances may
-    ///      exceed `totalAllocated`. Admins should adjust individual strategy budgets separately
-    ///      if precise per-strategy accounting is needed.
+    ///      **Note**: Individual strategy balances are NOT modified. Admin must adjust budgets
+    ///      separately and then call `setGlobalPause(false)` to resume operations.
     function reconcile() external onlyRole(DEFAULT_ADMIN_ROLE) {
         uint256 deposit = entryPoint.balanceOf(address(this));
         if (totalAllocated > deposit) {
             uint256 drift = totalAllocated - deposit;
             totalAllocated = deposit;
+
+            // Auto-pause to prevent UserOps against desynchronized budgets
+            globalPaused = true;
+            emit GlobalPauseSet(true);
+
             emit Reconciled(drift);
         }
     }
@@ -265,7 +307,7 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     ///      any execution). The excess is refunded in `_postOp` after the actual cost is known.
     function _validatePaymasterUserOp(
         PackedUserOperation calldata userOp,
-        bytes32,
+        bytes32 /* userOpHash */,
         uint256 maxCost
     )
         internal
@@ -278,10 +320,37 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
         address strategy =
             address(bytes20(userOp.paymasterAndData[STRATEGY_DATA_OFFSET:STRATEGY_DATA_OFFSET + 20]));
 
+        // Sender restriction: per-strategy sender must be set (default-deny).
+        // Strategies without an allowedSender reject all UserOps.
+        address allowed = allowedSender[strategy];
+        if (allowed == address(0) || userOp.sender != allowed) revert UNAUTHORIZED_SENDER();
+
+        // Calldata validation: ensure the UserOp calls executeFromEntryPoint(address, bytes)
+        // on the SuperVaultExecutor, and that the strategy in calldata matches the strategy
+        // in paymasterAndData (strategy isolation — prevents vault A from burning vault B's budget).
+        {
+            bytes calldata cd = userOp.callData;
+            if (cd.length < MIN_CALLDATA_LENGTH) revert INVALID_CALLDATA();
+            if (bytes4(cd[0:4]) != EXECUTE_FROM_ENTRYPOINT_SELECTOR) revert INVALID_CALLDATA();
+            // Strategy isolation: calldata strategy must match paymasterAndData strategy
+            address calldataStrategy = address(uint160(uint256(bytes32(cd[4:36]))));
+            if (calldataStrategy != strategy) revert INVALID_CALLDATA();
+        }
+
         StrategyBudget storage budget = _budgets[strategy];
 
         if (budget.paused) revert STRATEGY_PAUSED();
-        if (budget.maxSingleOpCost != 0 && maxCost > budget.maxSingleOpCost) revert EXCEEDS_SINGLE_OP_CAP();
+
+        // Gas cap: use per-strategy maxSingleOpCost if set, otherwise enforce DEFAULT_MAX_GAS
+        // on the total gas budget. maxCost = totalGas * maxFeePerGas (computed by EntryPoint),
+        // so checking maxCost <= DEFAULT_MAX_GAS * maxFeePerGas covers all five gas fields.
+        if (budget.maxSingleOpCost != 0) {
+            if (maxCost > budget.maxSingleOpCost) revert EXCEEDS_SINGLE_OP_CAP();
+        } else {
+            uint128 maxFeePerGas = uint128(uint256(userOp.gasFees));
+            if (maxCost > uint256(DEFAULT_MAX_GAS) * uint256(maxFeePerGas)) revert EXCEEDS_SINGLE_OP_CAP();
+        }
+
         if (budget.balance < maxCost) revert INSUFFICIENT_STRATEGY_BUDGET();
 
         // Pre-charge: reserve maxCost to prevent over-commitment in bundled UserOps.
@@ -304,7 +373,7 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     ///      deposit decreases but internal accounting (`totalAllocated`, strategy balances) is
     ///      never updated. The cap prevents this scenario entirely.
     function _postOp(
-        PostOpMode,
+        PostOpMode /* mode */,
         bytes calldata context,
         uint256 actualGasCost,
         uint256 actualUserOpFeePerGas
@@ -337,9 +406,8 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
                         ERC-165 SUPPORT
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Resolves the diamond inheritance between AccessControl (which provides supportsInterface)
-    ///      and IPaymaster (which extends IERC165 via BasePaymaster). Without this override,
-    ///      `type(IPaymaster).interfaceId` would not be reported.
+    /// @inheritdoc AccessControl
+    /// @dev Also reports IPaymaster interface support for ERC-165 compliance.
     function supportsInterface(bytes4 interfaceId) public view override(AccessControl) returns (bool) {
         return interfaceId == type(IPaymaster).interfaceId || super.supportsInterface(interfaceId);
     }
@@ -355,5 +423,7 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     ///        (requires the ETH to be at the sender's address, not on this contract).
     ///      ETH received here does NOT appear in `unallocatedBalance()` (which only tracks
     ///      the EntryPoint deposit).
-    receive() external payable { }
+    receive() external payable {
+        emit ETHReceived(msg.sender, msg.value);
+    }
 }
