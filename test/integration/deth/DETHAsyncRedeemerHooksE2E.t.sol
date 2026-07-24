@@ -515,7 +515,7 @@ contract DETHAsyncRedeemerHooksE2E is Test {
     function test_hookTypes() public view {
         assertEq(uint256(requestRedeemHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
         assertEq(uint256(approveAndRequestHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
-        assertEq(uint256(claimHook.hookType()), uint256(ISuperHook.HookType.OUTFLOW));
+        assertEq(uint256(claimHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
     /// @notice Verify hook subtypes

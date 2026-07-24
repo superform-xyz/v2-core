@@ -20,7 +20,6 @@ import {
     ISuperHookInflowOutflow,
     ISuperHookOutflow
 } from "../../../interfaces/ISuperHook.sol";
-import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { SpectraCommands } from "../../../vendor/spectra/SpectraCommands.sol";
 
 /// @title SpectraExchangeDepositHook
@@ -37,11 +36,19 @@ import { SpectraCommands } from "../../../vendor/spectra/SpectraCommands.sol";
 /// @notice         bool      usePrevHookAmount = _decodeBool(data, 188);
 /// @notice         uint256   payload_paramLength = BytesLib.toUint256(data, 189);
 /// @notice         bytes     payload          = BytesLib.slice(data, 221, payload_paramLength);
-contract SpectraExchangeDepositHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISuperHookInflowOutflow {
+contract SpectraExchangeDepositHook is
+    BaseHook,
+    ISuperHookSwap,
+    ISuperHookContextAware,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+{
 
     /*//////////////////////////////////////////////////////////////
                         DATA LAYOUT POSITIONS
     //////////////////////////////////////////////////////////////*/
+    uint256 private constant AMOUNT_POSITION = SwapCalldataLayout.AMOUNT_POSITION;
+
     bytes4 private constant EXECUTE_SELECTOR = bytes4(keccak256("execute(bytes,bytes[])"));
     bytes4 private constant EXECUTE_DEADLINE_SELECTOR = bytes4(keccak256("execute(bytes,bytes[],uint256)"));
 
@@ -139,24 +146,34 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookSwap, ISuperHookConte
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    /// @dev Sizeless — amounts inside nested ABI-encoded router commands
-    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
-        amounts = new uint256[](0);
+    function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
-        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+        meta = new ISuperHookInflowOutflow.AmountMeta[](1);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
     }
 
-    /// @inheritdoc IERC165
-    /// @dev S2: implements ISuperHookInflowOutflow (decode-only) but NOT ISuperHookOutflow
-    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
-        if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
-        if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
-        return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
-            || interfaceId == type(ISuperHookResult).interfaceId
-            || interfaceId == type(ISuperHookInspector).interfaceId;
+    /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
+    function _supportsSizingInterface() internal pure override returns (bool) {
+        return true;
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 1) revert INVALID_AMOUNTS_LENGTH();
+        return _replaceCalldataAmount(data, amounts[0], AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookInspector
