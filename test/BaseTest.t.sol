@@ -118,7 +118,7 @@ import { EthenaCooldownSharesHook } from "../src/hooks/vaults/ethena/EthenaCoold
 import { EthenaUnstakeHook } from "../src/hooks/vaults/ethena/EthenaUnstakeHook.sol";
 import { SpectraExchangeDepositHook } from "../src/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
 import { SpectraExchangeRedeemHook } from "../src/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
-import { PendleRouterSwapHook } from "../src/hooks/swappers/pendle/PendleRouterSwapHook.sol";
+import { PendleRouterSwapHook } from "../src/hooks/swappers/pendle/deprecated/PendleRouterSwapHook.sol";
 import { PendleRouterRedeemHook } from "../src/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
 
 // --- Onramp

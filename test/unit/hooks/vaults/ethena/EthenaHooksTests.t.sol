@@ -44,7 +44,7 @@ contract EthenaHooksTests is Helpers {
     }
 
     function test_EthenaUnstakeHook_Constructor() public view {
-        assertEq(uint256(unstakeHook.hookType()), uint256(ISuperHook.HookType.OUTFLOW));
+        assertEq(uint256(unstakeHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
     function test_EthenaCooldownSharesSubHookType_Constructor() public view {

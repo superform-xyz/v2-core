@@ -173,6 +173,8 @@ HOOK_CONTRACTS=(
     "ClaimWithdrawFirelightVaultHook"
     "SwapAlgebraIntegralHook"
     "ApproveAndSwapAlgebraIntegralHook"
+    "SpectraExchangeDepositHook"
+    "SpectraExchangeRedeemHook"
     "SwapOdosV3Hook"
     "ApproveAndSwapOdosV3Hook"
     "CCTPSendHook"

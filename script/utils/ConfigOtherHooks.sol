@@ -15,6 +15,7 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         mapping(uint64 chainId => address morpho) morphos;
         mapping(uint64 chainId => address algebraSwapRouter) algebraSwapRouters;
         mapping(uint64 chainId => address odosRouterV3) odosRouterV3s;
+        mapping(uint64 chainId => address spectraRouter) spectraRouters;
     }
 
     OtherHooksData internal otherHooksConfiguration;
@@ -34,6 +35,16 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
 
         // Algebra Integral (SparkDEX V4)
         otherHooksConfiguration.algebraSwapRouters[FLARE_CHAIN_ID] = ALGEBRA_INTEGRAL_SWAP_ROUTER_FLARE;
+
+        // Spectra Router
+        otherHooksConfiguration.spectraRouters[MAINNET_CHAIN_ID] = SPECTRA_ROUTER_MAINNET;
+        otherHooksConfiguration.spectraRouters[BASE_CHAIN_ID] = SPECTRA_ROUTER_BASE;
+        otherHooksConfiguration.spectraRouters[ARBITRUM_CHAIN_ID] = SPECTRA_ROUTER_ARBITRUM;
+        otherHooksConfiguration.spectraRouters[OPTIMISM_CHAIN_ID] = SPECTRA_ROUTER_OPTIMISM;
+        otherHooksConfiguration.spectraRouters[BNB_CHAIN_ID] = SPECTRA_ROUTER_BNB;
+        otherHooksConfiguration.spectraRouters[SONIC_CHAIN_ID] = SPECTRA_ROUTER_SONIC;
+        otherHooksConfiguration.spectraRouters[AVALANCHE_CHAIN_ID] = SPECTRA_ROUTER_AVALANCHE;
+        otherHooksConfiguration.spectraRouters[HYPEREVM_CHAIN_ID] = SPECTRA_ROUTER_HYPEREVM;
 
         // Odos V3 Router (same CREATE2 address on all EVM chains)
         otherHooksConfiguration.odosRouterV3s[MAINNET_CHAIN_ID] = ODOS_ROUTER_V3;

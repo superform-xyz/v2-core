@@ -36,7 +36,7 @@ contract ClaimWithdrawFirelightVaultHook is BaseHook, ISuperHookInflowOutflow, I
     uint256 private constant REQUEST_ID_POSITION = 52;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 84;
 
-    constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ERC4626) { }
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.ERC4626) { }
 
     /// @inheritdoc ISuperHook
     function name() external pure override returns (string memory) {

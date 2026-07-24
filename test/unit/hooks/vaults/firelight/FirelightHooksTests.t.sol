@@ -67,7 +67,7 @@ contract FirelightHooksTests is Helpers {
     }
 
     function test_ClaimWithdrawFirelightVaultHook_Constructor() public view {
-        assertEq(uint256(claimHook.hookType()), uint256(ISuperHook.HookType.OUTFLOW));
+        assertEq(uint256(claimHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
         assertEq(claimHook.SUB_TYPE(), HookSubTypes.ERC4626);
     }
 
