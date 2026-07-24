@@ -4312,12 +4312,6 @@ contract HookSizingInterfaceTest is Helpers {
     /// @dev All newly-S2 hooks must NOT support ISuperHookOutflow
     function test_NewlyS2_DoesNotSupport_Outflow() public view {
         bytes4 oid = type(ISuperHookOutflow).interfaceId;
-<<<<<<< HEAD
-        assertFalse(spectraExchangeDeposit.supportsInterface(oid), "spectraExchangeDeposit");
-        assertFalse(swap1Inch.supportsInterface(oid), "swap1Inch");
-=======
-        assertFalse(pendleUnified.supportsInterface(oid), "pendleUnified");
->>>>>>> 2ecd1063ef38aac14f79b75fac55c07af384b08a
         assertFalse(batchTransferBasic.supportsInterface(oid), "batchTransferBasic");
         assertFalse(circleGatewayMinter.supportsInterface(oid), "circleGatewayMinter");
         assertFalse(recordPurchaseOracle.supportsInterface(oid), "recordPurchaseOracle");
@@ -4349,12 +4343,6 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev All newly-S2 hooks must return empty amountRoles
     function test_NewlyS2_AmountRoles_Empty() public view {
-<<<<<<< HEAD
-        assertEq(spectraExchangeDeposit.amountRoles("").length, 0, "spectraExchangeDeposit");
-        assertEq(swap1Inch.amountRoles("").length, 0, "swap1Inch");
-=======
-        assertEq(pendleUnified.amountRoles("").length, 0, "pendleUnified");
->>>>>>> 2ecd1063ef38aac14f79b75fac55c07af384b08a
         assertEq(batchTransferBasic.amountRoles("").length, 0, "batchTransferBasic");
         assertEq(circleGatewayMinter.amountRoles("").length, 0, "circleGatewayMinter");
         assertEq(recordPurchaseOracle.amountRoles("").length, 0, "recordPurchaseOracle");
@@ -4371,12 +4359,6 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @dev All newly-S2 hooks must return empty decodeAmounts
     function test_NewlyS2_DecodeAmounts_Empty() public view {
-<<<<<<< HEAD
-        assertEq(spectraExchangeDeposit.decodeAmounts("").length, 0, "spectraExchangeDeposit");
-        assertEq(swap1Inch.decodeAmounts("").length, 0, "swap1Inch");
-=======
-        assertEq(pendleUnified.decodeAmounts("").length, 0, "pendleUnified");
->>>>>>> 2ecd1063ef38aac14f79b75fac55c07af384b08a
         assertEq(batchTransferBasic.decodeAmounts("").length, 0, "batchTransferBasic");
         assertEq(circleGatewayMinter.decodeAmounts("").length, 0, "circleGatewayMinter");
         assertEq(recordPurchaseOracle.decodeAmounts("").length, 0, "recordPurchaseOracle");
