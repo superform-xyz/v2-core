@@ -4329,13 +4329,17 @@
         "staging": {
           "8453": "0xb351368878704f3A11B486607EC3A4fCA28AD93b"
         },
-        "prod": {}
+        "prod": {
+          "8453": "0xf5f5ad499cDF23bc9d48b998fFEfA9cc83A497Dd"
+        }
       },
       "availableChains": {
         "staging": [
           "8453"
         ],
-        "prod": []
+        "prod": [
+          "8453"
+        ]
       },
       "amountMeta": [
         {
@@ -4373,13 +4377,17 @@
         "staging": {
           "8453": "0xa61F72e8FF843BCcd6e14c6062052b035129e64F"
         },
-        "prod": {}
+        "prod": {
+          "8453": "0xD7ea0f0e98fF546BE3F289f844480CBD0539b190"
+        }
       },
       "availableChains": {
         "staging": [
           "8453"
         ],
-        "prod": []
+        "prod": [
+          "8453"
+        ]
       },
       "amountMeta": [
         {
