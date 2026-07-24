@@ -28,7 +28,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
-    constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ETHENA) { }
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.ETHENA) { }
 
     /// @notice Human-readable name for UI display
     function name() external pure override returns (string memory) {

@@ -220,38 +220,28 @@ else
     log "INFO" "Successfully loaded RPC URLs from 1Password"
 fi
 
-# ===== STEP 3: CHECK ON-CHAIN WHICH ORACLES ARE CONFIGURED =====
-log "INFO" "Checking on-chain configuration status..."
+# ===== STEP 3: CHECK ON-CHAIN WHICH ORACLES ARE CONFIGURED (PER-CHAIN) =====
+log "INFO" "Checking on-chain configuration status across all chains..."
 
-# Get a sample chain to check configuration
-# Extract chain name from sample file path
-SAMPLE_CHAIN_FILE=$(basename "$SAMPLE_FILE")
-SAMPLE_CHAIN_NAME="${SAMPLE_CHAIN_FILE%-latest.json}"
+# Pre-compute oracle salts (IDs are computed per-chain since sender may differ)
+declare -A ORACLE_SALTS
+for oracle_name in "${DEPLOYED_ORACLES[@]}"; do
+    ORACLE_SALTS[$oracle_name]=$(get_oracle_salt "$oracle_name")
+    log "INFO" "Salt for $oracle_name: ${ORACLE_SALTS[$oracle_name]}"
+done
 
-log "INFO" "Using chain $SAMPLE_CHAIN_NAME to check oracle configuration"
+# Track which oracles are missing on which chains
+# An oracle is included in the output if it's unconfigured on ANY chain
+declare -A ORACLE_MISSING_CHAINS  # oracle_name -> comma-separated chain list
+NEW_ORACLES=()
 
-# Get chain ID from chain name
-case "$SAMPLE_CHAIN_NAME" in
-    "Ethereum") SAMPLE_CHAIN_ID=1 ;;
-    "Base") SAMPLE_CHAIN_ID=8453 ;;
-    "BNB") SAMPLE_CHAIN_ID=56 ;;
-    "Arbitrum") SAMPLE_CHAIN_ID=42161 ;;
-    "Optimism") SAMPLE_CHAIN_ID=10 ;;
-    "Polygon") SAMPLE_CHAIN_ID=137 ;;
-    "Unichain") SAMPLE_CHAIN_ID=130 ;;
-    "Avalanche") SAMPLE_CHAIN_ID=43114 ;;
-    "Sonic") SAMPLE_CHAIN_ID=146 ;;
-    "Gnosis") SAMPLE_CHAIN_ID=100 ;;
-    "Worldchain") SAMPLE_CHAIN_ID=480 ;;
-    *)
-        log "ERROR" "Unknown chain name: $SAMPLE_CHAIN_NAME"
-        exit 1
-        ;;
-esac
-
-# Get RPC URL for this chain
 if [ "$ENVIRONMENT" = "vnet" ]; then
-    # For vnet, read VNET ID from S3 latest.json and query Tenderly API
+    # For vnet, use a single chain (existing behavior — vnets typically have one chain)
+    SAMPLE_CHAIN_FILE=$(basename "$SAMPLE_FILE")
+    SAMPLE_CHAIN_NAME="${SAMPLE_CHAIN_FILE%-latest.json}"
+
+    log "INFO" "VNET mode: checking chain $SAMPLE_CHAIN_NAME"
+
     vnet_latest_path="/tmp/vnet_latest_$$.json"
     if aws s3 cp "s3://vnet-state/$BRANCH_NAME/latest.json" "$vnet_latest_path" --quiet 2>/dev/null; then
         VNET_ID=$(jq -r ".networks[\"$SAMPLE_CHAIN_NAME\"].vnet_id" "$vnet_latest_path")
@@ -259,7 +249,6 @@ if [ "$ENVIRONMENT" = "vnet" ]; then
         if [ -n "$VNET_ID" ] && [ "$VNET_ID" != "null" ]; then
             log "INFO" "Found VNET ID from S3: $VNET_ID"
 
-            # Get RPC URL from Tenderly API using VNET ID
             vnet_details=$(curl -s -X GET \
                 "https://api.tenderly.co/api/v1/account/superform/project/v2/vnets/$VNET_ID" \
                 -H "X-Access-Key: $TENDERLY_ACCESS_KEY")
@@ -267,81 +256,105 @@ if [ "$ENVIRONMENT" = "vnet" ]; then
             RPC_URL=$(echo "$vnet_details" | jq -r '.rpcs[] | select(.name=="Admin RPC") | .url')
 
             if [ -z "$RPC_URL" ] || [ "$RPC_URL" = "null" ]; then
-                log "ERROR" "Failed to get RPC URL from VNET $VNET_ID"
-                log "ERROR" "Cannot check on-chain configuration, falling back to empty list"
+                log "ERROR" "Failed to get RPC URL from VNET $VNET_ID, falling back to all oracles"
                 NEW_ORACLES=("${DEPLOYED_ORACLES[@]}")
             else
-                log "INFO" "RPC URL obtained successfully"
-
-                # Get SuperLedgerConfiguration address
                 CONFIG_ADDRESS=$(jq -r '.SuperLedgerConfiguration' "$SAMPLE_FILE")
                 if [ -z "$CONFIG_ADDRESS" ] || [ "$CONFIG_ADDRESS" = "null" ]; then
-                    log "ERROR" "SuperLedgerConfiguration address not found in output"
-                    log "ERROR" "Cannot check on-chain configuration, falling back to empty list"
+                    log "ERROR" "SuperLedgerConfiguration not found in output, falling back to all oracles"
                     NEW_ORACLES=("${DEPLOYED_ORACLES[@]}")
                 else
-                    log "INFO" "SuperLedgerConfiguration: $CONFIG_ADDRESS"
-
-                    # Check each oracle on-chain
-                    NEW_ORACLES=()
                     for oracle_name in "${DEPLOYED_ORACLES[@]}"; do
-                        oracle_salt=$(get_oracle_salt "$oracle_name")
-                        oracle_id=$(compute_oracle_id "$oracle_salt" "$SENDER_ADDRESS")
-
-                        log "INFO" "Checking $oracle_name (ID: $oracle_id)..."
-
-                        if check_oracle_configured "$RPC_URL" "$CONFIG_ADDRESS" "$oracle_id"; then
-                            log "INFO" "  ✓ Already configured (skipping)"
-                        else
-                            log "INFO" "  ✗ Not configured (will add)"
+                        local_oracle_id=$(compute_oracle_id "${ORACLE_SALTS[$oracle_name]}" "$SENDER_ADDRESS")
+                        if ! check_oracle_configured "$RPC_URL" "$CONFIG_ADDRESS" "$local_oracle_id"; then
+                            log "INFO" "  ✗ $oracle_name not configured on $SAMPLE_CHAIN_NAME"
                             NEW_ORACLES+=("$oracle_name")
+                            ORACLE_MISSING_CHAINS[$oracle_name]="$SAMPLE_CHAIN_NAME"
+                        else
+                            log "INFO" "  ✓ $oracle_name configured on $SAMPLE_CHAIN_NAME"
                         fi
                     done
                 fi
             fi
         else
-            log "ERROR" "Failed to extract VNET ID from S3 latest.json"
-            log "ERROR" "Cannot check on-chain configuration, falling back to empty list"
+            log "ERROR" "Failed to extract VNET ID, falling back to all oracles"
             NEW_ORACLES=("${DEPLOYED_ORACLES[@]}")
         fi
     else
-        log "ERROR" "Failed to download latest.json from S3"
-        log "ERROR" "Cannot check on-chain configuration, falling back to empty list"
+        log "ERROR" "Failed to download latest.json from S3, falling back to all oracles"
         NEW_ORACLES=("${DEPLOYED_ORACLES[@]}")
     fi
 else
-    # For staging/production, use RPC from networks file
-    # Get RPC URL for the sample chain using the networks file function
-    SAMPLE_RPC_URL=$(get_rpc_url "$SAMPLE_CHAIN_ID")
-    if [ $? -ne 0 ] || [ -z "$SAMPLE_RPC_URL" ]; then
-        log "ERROR" "Failed to get RPC URL for chain $SAMPLE_CHAIN_ID"
-        log "ERROR" "Cannot check on-chain configuration, falling back to empty list"
+    # For staging/production: check EVERY chain, not just one sample
+    CHAINS_CHECKED=0
+    CHAINS_FAILED=0
+
+    for network_def in "${NETWORKS[@]}"; do
+        IFS=':' read -r CHAIN_ID CHAIN_NAME RPC_VAR <<< "$network_def"
+
+        # Find output file for this chain
+        CHAIN_OUTPUT="$BASE_OUTPUT_DIR/$CHAIN_ID/${CHAIN_NAME}-latest.json"
+        if [ ! -f "$CHAIN_OUTPUT" ]; then
+            log "WARN" "No output file for $CHAIN_NAME ($CHAIN_ID), skipping chain"
+            continue
+        fi
+
+        # Get RPC URL
+        CHAIN_RPC=$(get_rpc_url "$CHAIN_ID" 2>/dev/null) || CHAIN_RPC="${!RPC_VAR}"
+        if [ -z "$CHAIN_RPC" ]; then
+            log "WARN" "No RPC URL for $CHAIN_NAME ($CHAIN_ID), skipping chain"
+            CHAINS_FAILED=$((CHAINS_FAILED + 1))
+            continue
+        fi
+
+        # Get SuperLedgerConfiguration address for this chain
+        CONFIG_ADDRESS=$(jq -r '.SuperLedgerConfiguration' "$CHAIN_OUTPUT")
+        if [ -z "$CONFIG_ADDRESS" ] || [ "$CONFIG_ADDRESS" = "null" ]; then
+            log "WARN" "SuperLedgerConfiguration not found for $CHAIN_NAME ($CHAIN_ID), skipping chain"
+            CHAINS_FAILED=$((CHAINS_FAILED + 1))
+            continue
+        fi
+
+        # Resolve per-chain sender (Flare uses a different Fireblocks vault derivation)
+        CHAIN_SENDER=$(get_fireblocks_sender "$CHAIN_ID")
+        log "INFO" "Checking $CHAIN_NAME ($CHAIN_ID) — SuperLedgerConfig: $CONFIG_ADDRESS — Sender: $CHAIN_SENDER"
+        CHAINS_CHECKED=$((CHAINS_CHECKED + 1))
+
+        for oracle_name in "${DEPLOYED_ORACLES[@]}"; do
+            # Check if oracle is deployed on this chain
+            oracle_address=$(jq -r ".[\"$oracle_name\"]" "$CHAIN_OUTPUT")
+            if [ -z "$oracle_address" ] || [ "$oracle_address" = "null" ]; then
+                continue  # Oracle not deployed on this chain
+            fi
+
+            # Compute oracle ID with this chain's sender
+            chain_oracle_id=$(compute_oracle_id "${ORACLE_SALTS[$oracle_name]}" "$CHAIN_SENDER")
+            if ! check_oracle_configured "$CHAIN_RPC" "$CONFIG_ADDRESS" "$chain_oracle_id"; then
+                log "INFO" "  ✗ $oracle_name NOT configured on $CHAIN_NAME ($CHAIN_ID)"
+                if [ -z "${ORACLE_MISSING_CHAINS[$oracle_name]+x}" ]; then
+                    ORACLE_MISSING_CHAINS[$oracle_name]="$CHAIN_NAME($CHAIN_ID)"
+                else
+                    ORACLE_MISSING_CHAINS[$oracle_name]="${ORACLE_MISSING_CHAINS[$oracle_name]}, $CHAIN_NAME($CHAIN_ID)"
+                fi
+            else
+                log "INFO" "  ✓ $oracle_name configured on $CHAIN_NAME ($CHAIN_ID)"
+            fi
+        done
+    done
+
+    log "INFO" "Checked $CHAINS_CHECKED chains ($CHAINS_FAILED skipped due to missing RPC/config)"
+
+    if [ "$CHAINS_CHECKED" -eq 0 ]; then
+        log "ERROR" "No chains could be checked — cannot determine oracle status"
+        log "ERROR" "Falling back to all deployed oracles"
         NEW_ORACLES=("${DEPLOYED_ORACLES[@]}")
     else
-        CONFIG_ADDRESS=$(jq -r '.SuperLedgerConfiguration' "$SAMPLE_FILE")
-        if [ -z "$CONFIG_ADDRESS" ] || [ "$CONFIG_ADDRESS" = "null" ]; then
-            log "ERROR" "SuperLedgerConfiguration address not found in output"
-            log "ERROR" "Cannot check on-chain configuration, falling back to empty list"
-            NEW_ORACLES=("${DEPLOYED_ORACLES[@]}")
-        else
-            log "INFO" "SuperLedgerConfiguration: $CONFIG_ADDRESS"
-
-            # Check each oracle on-chain
-            NEW_ORACLES=()
-            for oracle_name in "${DEPLOYED_ORACLES[@]}"; do
-                oracle_salt=$(get_oracle_salt "$oracle_name")
-                oracle_id=$(compute_oracle_id "$oracle_salt" "$SENDER_ADDRESS")
-
-                log "INFO" "Checking $oracle_name (ID: $oracle_id)..."
-
-                if check_oracle_configured "$SAMPLE_RPC_URL" "$CONFIG_ADDRESS" "$oracle_id"; then
-                    log "INFO" "  ✓ Already configured (skipping)"
-                else
-                    log "INFO" "  ✗ Not configured (will add)"
-                    NEW_ORACLES+=("$oracle_name")
-                fi
-            done
-        fi
+        # Build NEW_ORACLES from oracles that are missing on at least one chain
+        for oracle_name in "${DEPLOYED_ORACLES[@]}"; do
+            if [ -n "${ORACLE_MISSING_CHAINS[$oracle_name]+x}" ]; then
+                NEW_ORACLES+=("$oracle_name")
+            fi
+        done
     fi
 fi
 
@@ -380,10 +393,17 @@ cat > "$OUTPUT_FILE" << EOF
 #
 # This list was generated by:
 # 1. Scanning deployment outputs for all *YieldSourceOracle contracts
-# 2. Checking on-chain which oracles are already configured
-# 3. Including only oracles that are deployed but not yet configured
-
+# 2. Checking on-chain across ALL chains which oracles are already configured
+# 3. Including only oracles that are deployed but not yet configured on at least one chain
+#
+# Missing chains per oracle:
 EOF
+
+# Write per-oracle missing chain details in header comments
+for oracle in "${NEW_ORACLES[@]}"; do
+    echo "#   $oracle: ${ORACLE_MISSING_CHAINS[$oracle]:-unknown}" >> "$OUTPUT_FILE"
+done
+echo "" >> "$OUTPUT_FILE"
 
 # Write oracle names (one per line)
 for oracle in "${NEW_ORACLES[@]}"; do
@@ -391,15 +411,15 @@ for oracle in "${NEW_ORACLES[@]}"; do
 done
 
 log "INFO" "Successfully wrote ${#NEW_ORACLES[@]} oracle(s) to $OUTPUT_FILE"
-log "INFO" "Oracle names:"
+log "INFO" "Oracle names and missing chains:"
 for oracle in "${NEW_ORACLES[@]}"; do
-    log "INFO" "  - $oracle"
+    log "INFO" "  - $oracle: ${ORACLE_MISSING_CHAINS[$oracle]:-unknown}"
 done
 
 log "INFO" ""
 log "INFO" "Summary:"
 log "INFO" "  Total deployed oracles: ${#DEPLOYED_ORACLES[@]}"
-log "INFO" "  Oracles to add: ${#NEW_ORACLES[@]}"
-log "INFO" "  Already configured: $((${#DEPLOYED_ORACLES[@]} - ${#NEW_ORACLES[@]}))"
+log "INFO" "  Oracles to add (missing on >= 1 chain): ${#NEW_ORACLES[@]}"
+log "INFO" "  Configured on all chains: $((${#DEPLOYED_ORACLES[@]} - ${#NEW_ORACLES[@]}))"
 log "INFO" ""
 log "INFO" "Extraction complete"

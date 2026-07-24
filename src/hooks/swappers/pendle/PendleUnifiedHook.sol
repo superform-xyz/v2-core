@@ -50,7 +50,19 @@ import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
 /// @notice         bool      usePrevHookAmount = _decodeBool(data, 188);
 /// @notice         uint256   payload_paramLength = BytesLib.toUint256(data, 189);
 /// @notice         bytes     payload          = BytesLib.slice(data, 221, payload_paramLength);
-contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISuperHookInflowOutflow {
+/// @dev Trust assumptions:
+/// @dev   - The yieldSource (Pendle market) address is provided by the signed intent and trusted by the signer.
+/// @dev     The hook validates structural correctness (market matches txData, receiver matches account) but does NOT
+/// @dev     whitelist markets. A malicious market could return attacker-controlled token addresses from readTokens().
+/// @dev     The trust model relies on the intent signer only submitting known-good Pendle market addresses.
+/// @dev   - SwapData.extRouter and SwapData.extCalldata in TokenInput/TokenOutput are user-supplied via the signed
+/// @dev     intent payload. The Pendle Router V4 forwards calls to extRouter with extCalldata. The hook validates
+/// @dev     structural correctness (non-zero extRouter, non-zero pendleSwap when swap is needed) but does NOT
+/// @dev     whitelist routers or inspect calldata contents. The trust model relies on: (1) the intent signer
+/// @dev     validating these fields before signing, and (2) the Pendle Router V4's own protections during execution.
+/// @dev   - TokenInput.pendleSwap and TokenOutput.pendleSwap are intermediary swap aggregator addresses used by
+/// @dev     the Pendle Router internally. They are validated for non-zero when swapType != NONE but not whitelisted.
+contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
 
     /*//////////////////////////////////////////////////////////////
                                  CONSTANTS
@@ -67,6 +79,14 @@ contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
     /// @dev Native token sentinel address
     address private constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
+    /// @dev Maximum length of LimitOrderData.optData to prevent gas griefing via memory expansion
+    uint256 private constant MAX_OPT_DATA_LENGTH = 1024;
+
+    /*//////////////////////////////////////////////////////////////
+                        DATA LAYOUT POSITIONS
+    //////////////////////////////////////////////////////////////*/
+    uint256 private constant AMOUNT_POSITION = SwapCalldataLayout.AMOUNT_POSITION;
+
     /*//////////////////////////////////////////////////////////////
                                  IMMUTABLES
     //////////////////////////////////////////////////////////////*/
@@ -75,27 +95,52 @@ contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Thrown when a limit order has expired (expiry < block.timestamp)
     error ORDER_EXPIRED();
+    /// @notice Thrown when ApproxParams epsilon exceeds MAX_EPS (1e18)
     error EPS_NOT_VALID();
+    /// @notice Thrown when the YT address from txData does not match the market's YT
     error YT_NOT_VALID();
+    /// @notice Thrown when the SY address from the market is the zero address
     error SY_NOT_VALID();
+    /// @notice Thrown when the market address from txData does not match the yieldSource
     error MARKET_NOT_VALID();
-    error INVALID_SELECTOR();
+    /// @notice Thrown when the function selector is not a supported Pendle router operation
+    error SELECTOR_NOT_VALID();
+    /// @notice Thrown when the minimum output amount is zero
     error MIN_OUT_NOT_VALID();
+    /// @notice Thrown when the receiver address does not match the account
     error RECEIVER_NOT_VALID();
+    /// @notice Thrown when the input amount is zero
     error AMOUNT_IN_NOT_VALID();
-    error INVALID_GUESS_PT_OUT();
-    error INVALID_EXT_ROUTER();
+    /// @notice Thrown when guessMin exceeds guessMax in ApproxParams
+    error GUESS_PT_OUT_NOT_VALID();
+    /// @notice Thrown when the external router address is zero or the native token sentinel
+    error EXT_ROUTER_NOT_VALID();
+    /// @notice Thrown when the making amount of a fill order is zero
     error MAKING_AMOUNT_NOT_VALID();
+    /// @notice Thrown when tokenOut is not a valid output token in the SY contract
     error TOKEN_OUT_NOT_LISTED();
+    /// @notice Thrown when tokenRedeemSy is not a valid output token in the SY contract
     error TOKEN_REDEEM_SY_NOT_VALID();
+    /// @notice Thrown when the number of fill orders exceeds MAX_FILLS (64)
     error TOO_MANY_FILLS();
-    error INVALID_MAX_ITERATION();
+    /// @notice Thrown when ApproxParams maxIteration exceeds MAX_ITERATIONS (256)
+    error MAX_ITERATION_NOT_VALID();
+    /// @notice Thrown when the header outputToken does not match the txData-derived output token
     error OUTPUT_TOKEN_MISMATCH();
+    /// @notice Thrown when msg.value diverges from the header inputAmount for native ETH swaps
+    error VALUE_MISMATCH();
+    /// @notice Thrown when the pendleSwap address is zero while swapType requires it
+    error PENDLE_SWAP_NOT_VALID();
+    /// @notice Thrown when LimitOrderData.optData exceeds MAX_OPT_DATA_LENGTH
+    error OPT_DATA_TOO_LONG();
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
+    /// @notice Initializes the PendleUnifiedHook with the Pendle Router V4 address
+    /// @param pendleRouterV4_ The address of the Pendle Router V4 contract
     constructor(address pendleRouterV4_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.PTYT) {
         if (pendleRouterV4_ == address(0)) revert ADDRESS_NOT_VALID();
         PENDLE_ROUTER_V4 = IPendleRouterV4(pendleRouterV4_);
@@ -110,7 +155,6 @@ contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
     function description() external pure override returns (string memory) {
         return "Executes unified Pendle operations (swap or redeem)";
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -127,26 +171,56 @@ contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
         returns (Execution[] memory executions)
     {
         bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
+        uint256 inputAmount = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+        uint256 outputMin = BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_MIN_OFFSET);
+
         (address yieldSource, uint256 value, bytes memory txData) =
             abi.decode(data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:], (address, uint256, bytes));
 
         bytes4 selector = bytes4(BytesLib.toBytes32(txData, 0));
 
-        if (selector == IPendleRouterV4.redeemPyToToken.selector) {
-            executions = _buildRedeemExecutions(prevHook, account, yieldSource, usePrevHookAmount, txData);
-        } else if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
-            executions = _buildSwapTokenForPtExecutions(
-                prevHook, account, yieldSource, usePrevHookAmount, value, txData
-            );
-        } else if (selector == IPendleRouterV4.swapExactPtForToken.selector) {
-            executions = _buildSwapPtForTokenExecutions(prevHook, account, yieldSource, usePrevHookAmount, txData);
+        if (
+            selector != IPendleRouterV4.redeemPyToToken.selector
+                && selector != IPendleRouterV4.swapExactTokenForPt.selector
+                && selector != IPendleRouterV4.swapExactPtForToken.selector
+        ) {
+            revert SELECTOR_NOT_VALID();
+        }
+
+        if (outputMin == 0) revert MIN_OUT_NOT_VALID();
+
+        // Pre-compute amounts to reduce stack depth in builders.
+        // NOTE: HookDataUpdater uses 1e5 precision for percentage scaling. For extreme ratios between
+        // netTokenIn and inputAmount, or for tokens with very low decimal precision, the scaledOutputMin
+        // may suffer precision loss. The zero check below catches the degenerate case.
+        uint256 netTokenIn;
+        uint256 scaledOutputMin;
+        if (usePrevHookAmount) {
+            netTokenIn = ISuperHookResult(prevHook).getOutAmount(account);
+            scaledOutputMin = HookDataUpdater.getUpdatedOutputAmount(netTokenIn, inputAmount, outputMin);
+            if (scaledOutputMin == 0) revert MIN_OUT_NOT_VALID();
         } else {
-            revert INVALID_SELECTOR();
+            netTokenIn = inputAmount;
+            scaledOutputMin = outputMin;
+        }
+        if (netTokenIn == 0) revert AMOUNT_IN_NOT_VALID();
+
+        address derivedTokenOut;
+        if (selector == IPendleRouterV4.redeemPyToToken.selector) {
+            (executions, derivedTokenOut) =
+                _buildRedeemExecutions(account, yieldSource, netTokenIn, scaledOutputMin, txData);
+        } else if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
+            (executions, derivedTokenOut) = _buildSwapTokenForPtExecutions(
+                account, yieldSource, usePrevHookAmount, netTokenIn, scaledOutputMin, value, txData
+            );
+        } else {
+            (executions, derivedTokenOut) =
+                _buildSwapPtForTokenExecutions(account, yieldSource, netTokenIn, scaledOutputMin, txData);
         }
 
         // Validate header outputToken matches txData-derived output
         address headerOutputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
-        if (headerOutputToken != _decodeTokenOut(txData)) revert OUTPUT_TOKEN_MISMATCH();
+        if (headerOutputToken != derivedTokenOut) revert OUTPUT_TOKEN_MISMATCH();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -158,21 +232,40 @@ contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    /// @dev Sizeless — amounts are inside variable-position ABI-encoded txData per selector
-    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
-        amounts = new uint256[](0);
+    function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        amounts = new uint256[](1);
+        amounts[0] = BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
-        meta = new ISuperHookInflowOutflow.AmountMeta[](0);
+        meta = new ISuperHookInflowOutflow.AmountMeta[](1);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+    }
+
+    /// @inheritdoc BaseHook
+    function _supportsSizingInterface() internal pure override returns (bool) {
+        return true;
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        if (amounts.length != 1) revert INVALID_AMOUNTS_LENGTH();
+        return _replaceCalldataAmount(data, amounts[0], AMOUNT_POSITION);
     }
 
     /// @inheritdoc IERC165
-    /// @dev S2: implements ISuperHookInflowOutflow (decode-only) but NOT ISuperHookOutflow
     function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
         if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
-        if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
+        if (interfaceId == type(ISuperHookOutflow).interfaceId) return true;
         return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
             || interfaceId == type(ISuperHookResult).interfaceId
             || interfaceId == type(ISuperHookInspector).interfaceId;
@@ -243,10 +336,12 @@ contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc BaseHook
     function _preExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data), account);
     }
 
+    /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
         _setOutToken(BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET), account);
@@ -257,18 +352,25 @@ contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Builds executions for redeemPyToToken (PT+YT redemption)
+    /// @param account The account executing the redemption
+    /// @param yieldSource The Pendle market address
+    /// @param netTokenIn The amount of PT+YT to redeem
+    /// @param scaledOutputMin The minimum acceptable output token amount
+    /// @param txData The raw Pendle Router V4 calldata including the 4-byte selector
+    /// @return executions Array of executions (approve + redeem + cleanup)
+    /// @return tokenOut The output token address derived from txData
     function _buildRedeemExecutions(
-        address prevHook,
         address account,
         address yieldSource,
-        bool usePrevHookAmount,
+        uint256 netTokenIn,
+        uint256 scaledOutputMin,
         bytes memory txData
     )
         private
         view
-        returns (Execution[] memory executions)
+        returns (Execution[] memory executions, address tokenOut)
     {
-        (address receiver, address ytFromTxData, uint256 netPyIn, TokenOutput memory output) =
+        (address receiver, address ytFromTxData,, TokenOutput memory output) =
             abi.decode(BytesLib.slice(txData, 4, txData.length - 4), (address, address, uint256, TokenOutput));
 
         (address sy, address pt, address yt) = IPendleMarket(yieldSource).readTokens();
@@ -276,15 +378,18 @@ contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
 
         if (ytFromTxData != yt) revert YT_NOT_VALID();
         if (receiver != account) revert RECEIVER_NOT_VALID();
-        if (output.minTokenOut == 0) revert MIN_OUT_NOT_VALID();
+
+        output.minTokenOut = scaledOutputMin;
+        tokenOut = output.tokenOut;
 
         if (output.swapData.swapType != SwapType.NONE) {
             if (!IStandardizedYield(sy).isValidTokenOut(output.tokenRedeemSy)) {
                 revert TOKEN_REDEEM_SY_NOT_VALID();
             }
+            if (output.pendleSwap == address(0)) revert PENDLE_SWAP_NOT_VALID();
             if (output.swapData.swapType != SwapType.ETH_WETH) {
                 if (output.swapData.extRouter == address(0) || output.swapData.extRouter == NATIVE_TOKEN) {
-                    revert INVALID_EXT_ROUTER();
+                    revert EXT_ROUTER_NOT_VALID();
                 }
             }
         } else {
@@ -292,16 +397,6 @@ contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
                 revert TOKEN_OUT_NOT_LISTED();
             }
         }
-
-        uint256 finalAmount;
-        if (usePrevHookAmount) {
-            finalAmount = ISuperHookResult(prevHook).getOutAmount(account);
-            output.minTokenOut = HookDataUpdater.getUpdatedOutputAmount(finalAmount, netPyIn, output.minTokenOut);
-            if (output.minTokenOut == 0) revert MIN_OUT_NOT_VALID();
-        } else {
-            finalAmount = netPyIn;
-        }
-        if (finalAmount == 0) revert AMOUNT_IN_NOT_VALID();
 
         executions = new Execution[](7);
         executions[0] = Execution({
@@ -312,7 +407,7 @@ contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
         executions[1] = Execution({
             target: pt,
             value: 0,
-            callData: abi.encodeCall(IERC20.approve, (address(PENDLE_ROUTER_V4), finalAmount))
+            callData: abi.encodeCall(IERC20.approve, (address(PENDLE_ROUTER_V4), netTokenIn))
         });
         executions[2] = Execution({
             target: yt,
@@ -322,12 +417,12 @@ contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
         executions[3] = Execution({
             target: yt,
             value: 0,
-            callData: abi.encodeCall(IERC20.approve, (address(PENDLE_ROUTER_V4), finalAmount))
+            callData: abi.encodeCall(IERC20.approve, (address(PENDLE_ROUTER_V4), netTokenIn))
         });
         executions[4] = Execution({
             target: address(PENDLE_ROUTER_V4),
             value: 0,
-            callData: abi.encodeCall(IPendleRouterV4.redeemPyToToken, (account, yt, finalAmount, output))
+            callData: abi.encodeCall(IPendleRouterV4.redeemPyToToken, (account, yt, netTokenIn, output))
         });
         executions[5] = Execution({
             target: pt,
@@ -341,23 +436,33 @@ contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
         });
     }
 
-    /// @dev Builds executions for swapExactTokenForPt (token → PT)
+    /// @dev Builds executions for swapExactTokenForPt (token -> PT)
+    /// @param account The account executing the swap
+    /// @param yieldSource The Pendle market address (validated against the market parameter in txData)
+    /// @param usePrevHookAmount Whether the input amount comes from the previous hook
+    /// @param netTokenIn The net token input amount (may be sourced from previous hook)
+    /// @param scaledOutputMin The minimum acceptable PT output, scaled if using previous hook amount
+    /// @param value The msg.value to forward (for native token swaps)
+    /// @param txData The raw Pendle Router V4 calldata including the 4-byte selector
+    /// @return executions Array of executions to send to the Pendle Router
+    /// @return tokenOut The output token address (PT) derived from the market
     function _buildSwapTokenForPtExecutions(
-        address prevHook,
         address account,
         address yieldSource,
         bool usePrevHookAmount,
+        uint256 netTokenIn,
+        uint256 scaledOutputMin,
         uint256 value,
         bytes memory txData
     )
         private
         view
-        returns (Execution[] memory executions)
+        returns (Execution[] memory executions, address tokenOut)
     {
         (
             address receiver,
             address market,
-            uint256 minPtOut,
+            ,
             ApproxParams memory guessPtOut,
             TokenInput memory input,
             LimitOrderData memory limit
@@ -365,102 +470,167 @@ contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
 
         if (yieldSource != market) revert MARKET_NOT_VALID();
         if (receiver != account) revert RECEIVER_NOT_VALID();
-        if (minPtOut == 0) revert MIN_OUT_NOT_VALID();
 
-        if (guessPtOut.guessMin > guessPtOut.guessMax) revert INVALID_GUESS_PT_OUT();
+        if (guessPtOut.guessMin > guessPtOut.guessMax) revert GUESS_PT_OUT_NOT_VALID();
         if (guessPtOut.eps > MAX_EPS) revert EPS_NOT_VALID();
-        if (guessPtOut.maxIteration > MAX_ITERATIONS) revert INVALID_MAX_ITERATION();
+        if (guessPtOut.maxIteration > MAX_ITERATIONS) revert MAX_ITERATION_NOT_VALID();
 
-        uint256 netTokenIn;
-        if (usePrevHookAmount) {
-            netTokenIn = ISuperHookResult(prevHook).getOutAmount(account);
-            minPtOut = HookDataUpdater.getUpdatedOutputAmount(netTokenIn, input.netTokenIn, minPtOut);
-            if (minPtOut == 0) revert MIN_OUT_NOT_VALID();
-            input.netTokenIn = netTokenIn;
-        } else {
-            netTokenIn = input.netTokenIn;
+        input.netTokenIn = netTokenIn;
+
+        // Validate TokenInput swap data
+        if (input.swapData.swapType != SwapType.NONE) {
+            if (input.pendleSwap == address(0)) revert PENDLE_SWAP_NOT_VALID();
+            if (input.swapData.swapType != SwapType.ETH_WETH) {
+                if (input.swapData.extRouter == address(0) || input.swapData.extRouter == NATIVE_TOKEN) {
+                    revert EXT_ROUTER_NOT_VALID();
+                }
+            }
         }
-        if (netTokenIn == 0) revert AMOUNT_IN_NOT_VALID();
 
         _validateLimitOrders(limit);
 
-        uint256 execValue = (input.tokenIn == address(0)) ? netTokenIn : 0;
-        if (!usePrevHookAmount && value > 0 && input.tokenIn == address(0)) {
-            execValue = value;
+        // Get PT address for output token
+        {
+            (, address pt_,) = IPendleMarket(yieldSource).readTokens();
+            tokenOut = pt_;
         }
 
-        executions = new Execution[](1);
-        executions[0] = Execution({
-            target: address(PENDLE_ROUTER_V4),
-            value: execValue,
-            callData: abi.encodeCall(
-                IPendleRouterV4.swapExactTokenForPt,
-                (receiver, market, minPtOut, guessPtOut, input, limit)
-            )
-        });
+        if (input.tokenIn != address(0)) {
+            // ERC20 input: approve-reset-approve + call + cleanup
+            executions = new Execution[](4);
+            executions[0] = Execution({
+                target: input.tokenIn,
+                value: 0,
+                callData: abi.encodeCall(IERC20.approve, (address(PENDLE_ROUTER_V4), 0))
+            });
+            executions[1] = Execution({
+                target: input.tokenIn,
+                value: 0,
+                callData: abi.encodeCall(IERC20.approve, (address(PENDLE_ROUTER_V4), netTokenIn))
+            });
+            executions[2] = Execution({
+                target: address(PENDLE_ROUTER_V4),
+                value: 0,
+                callData: abi.encodeCall(
+                    IPendleRouterV4.swapExactTokenForPt,
+                    (receiver, market, scaledOutputMin, guessPtOut, input, limit)
+                )
+            });
+            executions[3] = Execution({
+                target: input.tokenIn,
+                value: 0,
+                callData: abi.encodeCall(IERC20.approve, (address(PENDLE_ROUTER_V4), 0))
+            });
+        } else {
+            // Native ETH input: single call with value
+            uint256 execValue = netTokenIn;
+            if (!usePrevHookAmount && value > 0 && value != netTokenIn) {
+                revert VALUE_MISMATCH();
+            }
+
+            executions = new Execution[](1);
+            executions[0] = Execution({
+                target: address(PENDLE_ROUTER_V4),
+                value: execValue,
+                callData: abi.encodeCall(
+                    IPendleRouterV4.swapExactTokenForPt,
+                    (receiver, market, scaledOutputMin, guessPtOut, input, limit)
+                )
+            });
+        }
     }
 
-    /// @dev Builds executions for swapExactPtForToken (PT → token)
+    /// @dev Builds executions for swapExactPtForToken (PT -> token)
+    /// @param account The account executing the swap
+    /// @param yieldSource The Pendle market address (validated against the market parameter in txData)
+    /// @param netTokenIn The exact PT input amount
+    /// @param scaledOutputMin The minimum acceptable token output, scaled if using previous hook amount
+    /// @param txData The raw Pendle Router V4 calldata including the 4-byte selector
+    /// @return executions Array of executions (approve + swap + cleanup)
+    /// @return tokenOut The output token address derived from txData
     function _buildSwapPtForTokenExecutions(
-        address prevHook,
         address account,
         address yieldSource,
-        bool usePrevHookAmount,
+        uint256 netTokenIn,
+        uint256 scaledOutputMin,
         bytes memory txData
     )
         private
         view
-        returns (Execution[] memory executions)
+        returns (Execution[] memory executions, address tokenOut)
     {
         (
             address receiver,
             address market,
-            uint256 exactPtIn,
+            ,
             TokenOutput memory output,
             LimitOrderData memory limit
         ) = abi.decode(BytesLib.slice(txData, 4, txData.length - 4), (address, address, uint256, TokenOutput, LimitOrderData));
 
         if (yieldSource != market) revert MARKET_NOT_VALID();
         if (receiver != account) revert RECEIVER_NOT_VALID();
-        if (output.minTokenOut == 0) revert MIN_OUT_NOT_VALID();
+
+        output.minTokenOut = scaledOutputMin;
+        tokenOut = output.tokenOut;
+
+        // Validate token output against SY (consistent with redeem path)
+        (address sy, address pt,) = IPendleMarket(yieldSource).readTokens();
+        if (sy == address(0)) revert SY_NOT_VALID();
 
         if (output.swapData.swapType != SwapType.NONE) {
+            if (!IStandardizedYield(sy).isValidTokenOut(output.tokenRedeemSy)) {
+                revert TOKEN_REDEEM_SY_NOT_VALID();
+            }
+            if (output.pendleSwap == address(0)) revert PENDLE_SWAP_NOT_VALID();
             if (output.swapData.swapType != SwapType.ETH_WETH) {
                 if (output.swapData.extRouter == address(0) || output.swapData.extRouter == NATIVE_TOKEN) {
-                    revert INVALID_EXT_ROUTER();
+                    revert EXT_ROUTER_NOT_VALID();
                 }
+            }
+        } else {
+            if (!IStandardizedYield(sy).isValidTokenOut(output.tokenOut)) {
+                revert TOKEN_OUT_NOT_LISTED();
             }
         }
 
-        uint256 finalPtIn;
-        if (usePrevHookAmount) {
-            finalPtIn = ISuperHookResult(prevHook).getOutAmount(account);
-            output.minTokenOut = HookDataUpdater.getUpdatedOutputAmount(finalPtIn, exactPtIn, output.minTokenOut);
-            if (output.minTokenOut == 0) revert MIN_OUT_NOT_VALID();
-        } else {
-            finalPtIn = exactPtIn;
-        }
-        if (finalPtIn == 0) revert AMOUNT_IN_NOT_VALID();
-
         _validateLimitOrders(limit);
 
-        executions = new Execution[](1);
+        // Approve-reset-approve + swap + cleanup for PT
+        executions = new Execution[](4);
         executions[0] = Execution({
+            target: pt,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (address(PENDLE_ROUTER_V4), 0))
+        });
+        executions[1] = Execution({
+            target: pt,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (address(PENDLE_ROUTER_V4), netTokenIn))
+        });
+        executions[2] = Execution({
             target: address(PENDLE_ROUTER_V4),
             value: 0,
             callData: abi.encodeCall(
                 IPendleRouterV4.swapExactPtForToken,
-                (receiver, market, finalPtIn, output, limit)
+                (receiver, market, netTokenIn, output, limit)
             )
+        });
+        executions[3] = Execution({
+            target: pt,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (address(PENDLE_ROUTER_V4), 0))
         });
     }
 
     /// @dev Validates limit order parameters
     function _validateLimitOrders(LimitOrderData memory limit) private view {
+        if (limit.optData.length > MAX_OPT_DATA_LENGTH) revert OPT_DATA_TOO_LONG();
         if (limit.normalFills.length > 0) {
+            if (limit.limitRouter == address(0)) revert ADDRESS_NOT_VALID();
             _validateFillOrders(limit.normalFills);
         }
         if (limit.flashFills.length > 0) {
+            if (limit.limitRouter == address(0)) revert ADDRESS_NOT_VALID();
             _validateFillOrders(limit.flashFills);
         }
     }
@@ -475,38 +645,18 @@ contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
     }
 
     /// @dev Validates individual order parameters
+    /// @dev Note: order.nonce replay protection is enforced by the Pendle Router's on-chain nonce manager,
+    ///      not at the hook layer. This validation covers structural correctness only.
     function _validateOrder(Order memory order) private view {
         if (order.expiry < block.timestamp) revert ORDER_EXPIRED();
         if (order.maker == address(0) || order.receiver == address(0)) revert ADDRESS_NOT_VALID();
-    }
-
-    /// @dev Extracts tokenOut based on selector for balance tracking
-    function _decodeTokenOut(bytes memory txData) private view returns (address tokenOut) {
-        bytes4 selector = bytes4(BytesLib.toBytes32(txData, 0));
-        bytes memory encoded = BytesLib.slice(txData, 4, txData.length - 4);
-
-        if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
-            (, address market,,,,) =
-                abi.decode(encoded, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
-            (, tokenOut,) = IPendleMarket(market).readTokens();
-        } else if (selector == IPendleRouterV4.swapExactPtForToken.selector) {
-            (,,, TokenOutput memory output,) =
-                abi.decode(encoded, (address, address, uint256, TokenOutput, LimitOrderData));
-            tokenOut = output.tokenOut;
-        } else if (selector == IPendleRouterV4.redeemPyToToken.selector) {
-            (,,, TokenOutput memory output) =
-                abi.decode(encoded, (address, address, uint256, TokenOutput));
-            tokenOut = output.tokenOut;
-        } else {
-            revert INVALID_SELECTOR();
-        }
     }
 
     /// @dev Gets balance of output token for the account
     function _getBalance(address account, bytes calldata data) private view returns (uint256) {
         address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
 
-        if (outputToken == address(0)) {
+        if (outputToken == address(0) || outputToken == NATIVE_TOKEN) {
             return account.balance;
         }
 

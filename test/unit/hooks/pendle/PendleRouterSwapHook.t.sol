@@ -2,7 +2,7 @@
 pragma solidity >=0.8.30;
 
 import { Helpers } from "../../../utils/Helpers.sol";
-import { PendleRouterSwapHook } from "../../../../src/hooks/swappers/pendle/PendleRouterSwapHook.sol";
+import { PendleRouterSwapHook } from "../../../../src/hooks/swappers/pendle/deprecated/PendleRouterSwapHook.sol";
 import {
     IPendleRouterV4,
     ApproxParams,

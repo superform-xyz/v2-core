@@ -335,9 +335,9 @@ contract PendleUnifiedHookIntegration is MinimalBaseIntegrationTest, OdosAPIPars
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(tokenOut),
+            bytes32(amount),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minTokenOut),
             usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload
@@ -390,9 +390,9 @@ contract PendleUnifiedHookIntegration is MinimalBaseIntegrationTest, OdosAPIPars
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(tokenOut),
+            bytes32(amount),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minTokenOut),
             usePrevHookAmount ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload

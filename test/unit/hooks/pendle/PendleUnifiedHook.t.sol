@@ -21,10 +21,12 @@ import { MockPendleRouter } from "../../../mocks/MockPendleRouter.sol";
 import { MockPendleMarket } from "../../../mocks/MockPendleMarket.sol";
 import { MockYieldToken } from "../../../mocks/MockYieldToken.sol";
 import { MockStandardizedYield } from "../../../mocks/MockStandardizedYield.sol";
-import { ISuperHook } from "../../../../src/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../../src/interfaces/ISuperHook.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 import { HookDataUpdater } from "../../../../src/libraries/HookDataUpdater.sol";
+import { SwapCalldataLayout } from "../../../../src/libraries/SwapCalldataLayout.sol";
+import { BytesLib } from "../../../../src/vendor/BytesLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 contract PendleUnifiedHookTest is Helpers {
@@ -106,10 +108,10 @@ contract PendleUnifiedHookTest is Helpers {
         bytes memory data = _createSwapTokenForPtData(receiver, market, minPtOut, inputAmount, false);
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        // 1 hook execution + 2 wrappers (preExecute, postExecute) = 3
-        assertEq(executions.length, 3);
-        assertEq(executions[1].target, address(pendleRouter));
-        assertEq(executions[1].value, 0);
+        // 4 hook executions (approve(0), approve, call, approve(0)) + 2 wrappers = 6
+        assertEq(executions.length, 6);
+        assertEq(executions[3].target, address(pendleRouter));
+        assertEq(executions[3].value, 0);
     }
 
     function test_Build_SwapExactTokenForPt_WithNativeETH() public {
@@ -130,8 +132,8 @@ contract PendleUnifiedHookTest is Helpers {
         prevHook.setOutAmount(2500, account);
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 3);
-        assertEq(executions[1].target, address(pendleRouter));
+        assertEq(executions.length, 6);
+        assertEq(executions[3].target, address(pendleRouter));
     }
 
     function test_Build_SwapExactTokenForPt_RevertIf_InvalidReceiver() public {
@@ -181,7 +183,7 @@ contract PendleUnifiedHookTest is Helpers {
 
         bytes memory data = _createSwapTokenForPtDataWithApprox(receiver, market, minPtOut, inputAmount, guessPtOut, false);
 
-        vm.expectRevert(PendleUnifiedHook.INVALID_GUESS_PT_OUT.selector);
+        vm.expectRevert(PendleUnifiedHook.GUESS_PT_OUT_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
 
@@ -211,7 +213,7 @@ contract PendleUnifiedHookTest is Helpers {
 
         bytes memory data = _createSwapTokenForPtDataWithApprox(receiver, market, minPtOut, inputAmount, guessPtOut, false);
 
-        vm.expectRevert(PendleUnifiedHook.INVALID_MAX_ITERATION.selector);
+        vm.expectRevert(PendleUnifiedHook.MAX_ITERATION_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
 
@@ -228,7 +230,7 @@ contract PendleUnifiedHookTest is Helpers {
         bytes memory data = _createSwapTokenForPtDataWithApprox(receiver, market, minPtOut, inputAmount, guessPtOut, false);
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 3);
+        assertEq(executions.length, 6);
     }
 
     function test_Build_SwapExactTokenForPt_MaxEpsBoundary() public view {
@@ -244,7 +246,7 @@ contract PendleUnifiedHookTest is Helpers {
         bytes memory data = _createSwapTokenForPtDataWithApprox(receiver, market, minPtOut, inputAmount, guessPtOut, false);
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 3);
+        assertEq(executions.length, 6);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -255,10 +257,10 @@ contract PendleUnifiedHookTest is Helpers {
         bytes memory data = _createSwapPtForTokenData(receiver, market, exactPtIn, minTokenOut, false);
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        // 1 hook execution + 2 wrappers = 3
-        assertEq(executions.length, 3);
-        assertEq(executions[1].target, address(pendleRouter));
-        assertEq(executions[1].value, 0);
+        // 4 hook executions (approve(0), approve, call, approve(0)) + 2 wrappers = 6
+        assertEq(executions.length, 6);
+        assertEq(executions[3].target, address(pendleRouter));
+        assertEq(executions[3].value, 0);
     }
 
     function test_Build_SwapExactPtForToken_WithPrevHookAmount() public {
@@ -267,8 +269,8 @@ contract PendleUnifiedHookTest is Helpers {
         prevHook.setOutAmount(3000, account);
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 3);
-        assertEq(executions[1].target, address(pendleRouter));
+        assertEq(executions.length, 6);
+        assertEq(executions[3].target, address(pendleRouter));
     }
 
     function test_Build_SwapExactPtForToken_RevertIf_InvalidReceiver() public {
@@ -315,8 +317,8 @@ contract PendleUnifiedHookTest is Helpers {
         );
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 3);
-        assertEq(executions[1].target, address(pendleRouter));
+        assertEq(executions.length, 6);
+        assertEq(executions[3].target, address(pendleRouter));
     }
 
     function test_Build_SwapExactPtForToken_WithEthWethSwapType() public view {
@@ -326,7 +328,7 @@ contract PendleUnifiedHookTest is Helpers {
         );
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 3);
+        assertEq(executions.length, 6);
     }
 
     function test_Build_SwapExactPtForToken_RevertIf_NoExtRouter_SwapRouting() public {
@@ -335,7 +337,7 @@ contract PendleUnifiedHookTest is Helpers {
             receiver, market, exactPtIn, minTokenOut, SwapType.ODOS, address(0), false
         );
 
-        vm.expectRevert(PendleUnifiedHook.INVALID_EXT_ROUTER.selector);
+        vm.expectRevert(PendleUnifiedHook.EXT_ROUTER_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
 
@@ -345,7 +347,7 @@ contract PendleUnifiedHookTest is Helpers {
             receiver, market, exactPtIn, minTokenOut, SwapType.ODOS, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE, false
         );
 
-        vm.expectRevert(PendleUnifiedHook.INVALID_EXT_ROUTER.selector);
+        vm.expectRevert(PendleUnifiedHook.EXT_ROUTER_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
 
@@ -548,7 +550,7 @@ contract PendleUnifiedHookTest is Helpers {
             false
         );
 
-        vm.expectRevert(PendleUnifiedHook.INVALID_EXT_ROUTER.selector);
+        vm.expectRevert(PendleUnifiedHook.EXT_ROUTER_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
 
@@ -565,7 +567,7 @@ contract PendleUnifiedHookTest is Helpers {
             false
         );
 
-        vm.expectRevert(PendleUnifiedHook.INVALID_EXT_ROUTER.selector);
+        vm.expectRevert(PendleUnifiedHook.EXT_ROUTER_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
 
@@ -648,7 +650,7 @@ contract PendleUnifiedHookTest is Helpers {
             payload
         );
 
-        vm.expectRevert(PendleUnifiedHook.INVALID_SELECTOR.selector);
+        vm.expectRevert(PendleUnifiedHook.SELECTOR_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
 
@@ -662,7 +664,7 @@ contract PendleUnifiedHookTest is Helpers {
         );
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 3);
+        assertEq(executions.length, 6);
     }
 
     function test_Build_SwapExactTokenForPt_WithFlashFills() public view {
@@ -671,7 +673,7 @@ contract PendleUnifiedHookTest is Helpers {
         );
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 3);
+        assertEq(executions.length, 6);
     }
 
     function test_Build_SwapExactTokenForPt_RevertIf_OrderExpired() public {
@@ -716,7 +718,7 @@ contract PendleUnifiedHookTest is Helpers {
         );
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 3);
+        assertEq(executions.length, 6);
     }
 
     function test_Build_SwapExactPtForToken_WithFlashFills() public view {
@@ -725,7 +727,7 @@ contract PendleUnifiedHookTest is Helpers {
         );
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 3);
+        assertEq(executions.length, 6);
     }
 
     function test_Build_SwapExactTokenForPt_RevertIf_TooManyFills() public {
@@ -801,18 +803,27 @@ contract PendleUnifiedHookTest is Helpers {
                         VALUE COMPUTATION TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_Build_SwapExactTokenForPt_WithNativeETH_ExplicitValue() public view {
-        // Test case: usePrevHookAmount=false, value > 0, tokenIn = address(0)
-        // This should use the explicit value from hook data
+    function test_Build_SwapExactTokenForPt_WithNativeETH_ExplicitValue() public {
+        // Test case: usePrevHookAmount=false, value > 0 but != inputAmount
+        // This should now revert with VALUE_MISMATCH
         uint256 explicitValue = 2 ether;
         bytes memory data = _createSwapTokenForPtDataWithNativeAndValue(
             receiver, market, minPtOut, inputAmount, explicitValue, false
         );
 
+        vm.expectRevert(PendleUnifiedHook.VALUE_MISMATCH.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_SwapExactTokenForPt_WithNativeETH_MatchingValue() public view {
+        // Test case: usePrevHookAmount=false, value == inputAmount (valid)
+        bytes memory data = _createSwapTokenForPtDataWithNativeAndValue(
+            receiver, market, minPtOut, inputAmount, inputAmount, false
+        );
+
         Execution[] memory executions = hook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
-        // The execution value should be the explicit value
-        assertEq(executions[1].value, explicitValue);
+        assertEq(executions[1].value, inputAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -887,8 +898,8 @@ contract PendleUnifiedHookTest is Helpers {
         prevHook.setOutAmount(prevHookAmount, account);
         Execution[] memory executions = hook.build(address(prevHook), account, data);
 
-        // Decode swapExactTokenForPt call (index 1: after preExecute)
-        bytes memory args = _removeSelector(executions[1].callData);
+        // Decode swapExactTokenForPt call (index 3: after preExecute + approve(0) + approve)
+        bytes memory args = _removeSelector(executions[3].callData);
         (,, uint256 actualMinPtOut,, TokenInput memory actualInput,) =
             abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
 
@@ -908,7 +919,7 @@ contract PendleUnifiedHookTest is Helpers {
         prevHook.setOutAmount(prevHookAmount, account);
         Execution[] memory executions = hook.build(address(prevHook), account, data);
 
-        bytes memory args = _removeSelector(executions[1].callData);
+        bytes memory args = _removeSelector(executions[3].callData);
         (,, uint256 actualMinPtOut,, TokenInput memory actualInput,) =
             abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
 
@@ -927,7 +938,7 @@ contract PendleUnifiedHookTest is Helpers {
         prevHook.setOutAmount(originalAmount, account);
         Execution[] memory executions = hook.build(address(prevHook), account, data);
 
-        bytes memory args = _removeSelector(executions[1].callData);
+        bytes memory args = _removeSelector(executions[3].callData);
         (,, uint256 actualMinPtOut,, TokenInput memory actualInput,) =
             abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
 
@@ -945,8 +956,8 @@ contract PendleUnifiedHookTest is Helpers {
         prevHook.setOutAmount(prevHookAmount, account);
         Execution[] memory executions = hook.build(address(prevHook), account, data);
 
-        // Decode swapExactPtForToken call (index 1: after preExecute)
-        bytes memory args = _removeSelector(executions[1].callData);
+        // Decode swapExactPtForToken call (index 3: after preExecute + approve(0) + approve)
+        bytes memory args = _removeSelector(executions[3].callData);
         (,,, TokenOutput memory actualOutput,) =
             abi.decode(args, (address, address, uint256, TokenOutput, LimitOrderData));
 
@@ -965,7 +976,7 @@ contract PendleUnifiedHookTest is Helpers {
         prevHook.setOutAmount(prevHookAmount, account);
         Execution[] memory executions = hook.build(address(prevHook), account, data);
 
-        bytes memory args = _removeSelector(executions[1].callData);
+        bytes memory args = _removeSelector(executions[3].callData);
         (,,, TokenOutput memory actualOutput,) =
             abi.decode(args, (address, address, uint256, TokenOutput, LimitOrderData));
 
@@ -983,7 +994,7 @@ contract PendleUnifiedHookTest is Helpers {
         prevHook.setOutAmount(originalAmount, account);
         Execution[] memory executions = hook.build(address(prevHook), account, data);
 
-        bytes memory args = _removeSelector(executions[1].callData);
+        bytes memory args = _removeSelector(executions[3].callData);
         (,,, TokenOutput memory actualOutput,) =
             abi.decode(args, (address, address, uint256, TokenOutput, LimitOrderData));
 
@@ -1019,7 +1030,7 @@ contract PendleUnifiedHookTest is Helpers {
         prevHook.setOutAmount(prevHookAmount, account);
         Execution[] memory executions = hook.build(address(prevHook), account, data);
 
-        bytes memory args = _removeSelector(executions[1].callData);
+        bytes memory args = _removeSelector(executions[3].callData);
         (,, uint256 actualMinPtOut,,,) =
             abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
 
@@ -1035,7 +1046,7 @@ contract PendleUnifiedHookTest is Helpers {
         prevHook.setOutAmount(prevHookAmount, account);
         Execution[] memory executions = hook.build(address(prevHook), account, data);
 
-        bytes memory args = _removeSelector(executions[1].callData);
+        bytes memory args = _removeSelector(executions[3].callData);
         (,,, TokenOutput memory actualOutput,) =
             abi.decode(args, (address, address, uint256, TokenOutput, LimitOrderData));
 
@@ -1069,7 +1080,7 @@ contract PendleUnifiedHookTest is Helpers {
         prevHook.setOutAmount(prevHookAmount, account);
         Execution[] memory executions = hook.build(address(prevHook), account, data);
 
-        bytes memory args = _removeSelector(executions[1].callData);
+        bytes memory args = _removeSelector(executions[3].callData);
         (,, uint256 actualMinPtOut,,,) =
             abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
 
@@ -1086,7 +1097,7 @@ contract PendleUnifiedHookTest is Helpers {
         prevHook.setOutAmount(prevHookAmount, account);
         Execution[] memory executions = hook.build(address(prevHook), account, data);
 
-        bytes memory args = _removeSelector(executions[1].callData);
+        bytes memory args = _removeSelector(executions[3].callData);
         (,,, TokenOutput memory actualOutput,) =
             abi.decode(args, (address, address, uint256, TokenOutput, LimitOrderData));
 
@@ -1108,7 +1119,7 @@ contract PendleUnifiedHookTest is Helpers {
         // Path 2: SwapTokenForPt
         bytes memory swapInData = _createSwapTokenForPtData(receiver, market, minPtOut, inputAmount, false);
         Execution[] memory swapInExecs = hook.build(address(prevHook), account, swapInData);
-        bytes memory swapInArgs = _removeSelector(swapInExecs[1].callData);
+        bytes memory swapInArgs = _removeSelector(swapInExecs[3].callData);
         (,, uint256 actualMinPtOut,,,) =
             abi.decode(swapInArgs, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
         assertEq(actualMinPtOut, minPtOut, "SwapTokenForPt: minPtOut should not scale without usePrevHookAmount");
@@ -1116,7 +1127,7 @@ contract PendleUnifiedHookTest is Helpers {
         // Path 3: SwapPtForToken
         bytes memory swapOutData = _createSwapPtForTokenData(receiver, market, exactPtIn, minTokenOut, false);
         Execution[] memory swapOutExecs = hook.build(address(prevHook), account, swapOutData);
-        bytes memory swapOutArgs = _removeSelector(swapOutExecs[1].callData);
+        bytes memory swapOutArgs = _removeSelector(swapOutExecs[3].callData);
         (,,, TokenOutput memory swapOutOutput,) =
             abi.decode(swapOutArgs, (address, address, uint256, TokenOutput, LimitOrderData));
         assertEq(swapOutOutput.minTokenOut, minTokenOut, "SwapPtForToken: minTokenOut should not scale without usePrevHookAmount");
@@ -1273,6 +1284,89 @@ contract PendleUnifiedHookTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                        SIZING INTERFACE TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Verify decodeAmounts returns 1 element with the correct inputAmount from header
+    function test_DecodeAmounts_NonEmpty() public view {
+        uint256 inputAmount = 42e18;
+        bytes memory data = _createSwapTokenForPtData(address(this), address(market), 1e18, inputAmount, false);
+
+        uint256[] memory amounts = hook.decodeAmounts(data);
+        assertEq(amounts.length, 1, "Should return 1 amount");
+        assertEq(amounts[0], inputAmount, "Should return inputAmount from header offset 92");
+    }
+
+    /// @notice Verify amountRoles returns correct metadata
+    function test_AmountRoles() public view {
+        bytes memory data = _createSwapTokenForPtData(address(this), address(market), 1e18, 1e18, false);
+
+        ISuperHookInflowOutflow.AmountMeta[] memory meta = hook.amountRoles(data);
+        assertEq(meta.length, 1, "Should return 1 role");
+        assertEq(uint8(meta[0].dir), uint8(ISuperHookInflowOutflow.Direction.IN), "Direction should be IN");
+        assertEq(
+            uint8(meta[0].denom),
+            uint8(ISuperHookInflowOutflow.Denomination.TOKEN),
+            "Denomination should be TOKEN"
+        );
+    }
+
+    /// @notice Verify replaceCalldataAmounts writes the new amount at the correct offset
+    function test_ReplaceCalldataAmounts() public view {
+        uint256 originalAmount = 100e18;
+        uint256 newAmount = 200e18;
+        bytes memory data = _createSwapTokenForPtData(address(this), address(market), 1e18, originalAmount, false);
+
+        // Verify original amount
+        uint256[] memory amountsBefore = hook.decodeAmounts(data);
+        assertEq(amountsBefore[0], originalAmount, "Original amount should match");
+
+        // Replace
+        uint256[] memory newAmounts = new uint256[](1);
+        newAmounts[0] = newAmount;
+        bytes memory updatedData = hook.replaceCalldataAmounts(data, newAmounts);
+
+        // Verify replacement
+        uint256[] memory amountsAfter = hook.decodeAmounts(updatedData);
+        assertEq(amountsAfter[0], newAmount, "Amount should be replaced");
+    }
+
+    /// @notice Verify replaceCalldataAmounts reverts with wrong array length
+    function test_ReplaceCalldataAmounts_RevertIf_InvalidLength() public {
+        bytes memory data = _createSwapTokenForPtData(address(this), address(market), 1e18, 1e18, false);
+        uint256[] memory twoAmounts = new uint256[](2);
+        twoAmounts[0] = 1;
+        twoAmounts[1] = 2;
+
+        vm.expectRevert(BaseHook.INVALID_AMOUNTS_LENGTH.selector);
+        hook.replaceCalldataAmounts(data, twoAmounts);
+    }
+
+    /// @notice Verify supportsInterface returns true for ISuperHookOutflow
+    function test_SupportsInterface_ISuperHookOutflow() public view {
+        assertTrue(hook.supportsInterface(type(ISuperHookOutflow).interfaceId), "Should support ISuperHookOutflow");
+    }
+
+    /// @notice Verify build uses header inputAmount, not txData netTokenIn
+    function test_Build_UsesHeaderAmounts_NotTxData() public view {
+        uint256 headerAmount = 5e18;
+        uint256 headerMinOut = 4e18;
+        bytes memory data =
+            _createSwapTokenForPtData(address(this), address(market), headerMinOut, headerAmount, false);
+
+        Execution[] memory executions = hook.build(address(prevHook), address(this), data);
+
+        // Decode the router call to verify it uses header amounts
+        bytes memory routerCalldata = executions[3].callData;
+        bytes memory args = _removeSelector(routerCalldata);
+        (,,uint256 decodedMinPtOut,,TokenInput memory decodedInput,) =
+            abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+
+        assertEq(decodedInput.netTokenIn, headerAmount, "Router call should use header inputAmount");
+        assertEq(decodedMinPtOut, headerMinOut, "Router call should use header outputMin");
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -1363,9 +1457,9 @@ contract PendleUnifiedHookTest is Helpers {
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(address(ptToken)),
+            bytes32(inputAmount_),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minPtOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload
@@ -1418,9 +1512,9 @@ contract PendleUnifiedHookTest is Helpers {
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(address(ptToken)),
+            bytes32(inputAmount_),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minPtOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload
@@ -1476,9 +1570,9 @@ contract PendleUnifiedHookTest is Helpers {
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(address(outputToken)),
+            bytes32(exactPtIn_),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minTokenOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload
@@ -1525,9 +1619,9 @@ contract PendleUnifiedHookTest is Helpers {
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(address(outputToken)),
+            bytes32(exactPtIn_),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minTokenOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload
@@ -1600,7 +1694,7 @@ contract PendleUnifiedHookTest is Helpers {
             tokenOut: tokenOut_,
             minTokenOut: minTokenOut_,
             tokenRedeemSy: tokenRedeemSy_,
-            pendleSwap: address(0),
+            pendleSwap: swapType_ != SwapType.NONE ? address(0xBEEF) : address(0),
             swapData: SwapData({
                 swapType: swapType_,
                 extRouter: extRouter_,
@@ -1619,9 +1713,9 @@ contract PendleUnifiedHookTest is Helpers {
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(tokenOut_),
+            bytes32(amount_),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minTokenOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload
@@ -1641,42 +1735,45 @@ contract PendleUnifiedHookTest is Helpers {
         bool hasFlashFills_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
-        TokenInput memory input = TokenInput({
-            tokenIn: address(inputToken),
-            netTokenIn: inputAmount_,
-            tokenMintSy: address(inputToken),
-            pendleSwap: address(this),
-            swapData: SwapData({
-                swapType: SwapType.NONE,
-                extRouter: address(0),
-                extCalldata: "",
-                needScale: false
-            })
-        });
+        bytes memory payload;
+        {
+            TokenInput memory input = TokenInput({
+                tokenIn: address(inputToken),
+                netTokenIn: inputAmount_,
+                tokenMintSy: address(inputToken),
+                pendleSwap: address(this),
+                swapData: SwapData({
+                    swapType: SwapType.NONE,
+                    extRouter: address(0),
+                    extCalldata: "",
+                    needScale: false
+                })
+            });
 
-        ApproxParams memory guessPtOut = ApproxParams({
-            guessMin: 900,
-            guessMax: 1100,
-            guessOffchain: 1000,
-            maxIteration: 10,
-            eps: 1e17
-        });
+            ApproxParams memory guessPtOut = ApproxParams({
+                guessMin: 900,
+                guessMax: 1100,
+                guessOffchain: 1000,
+                maxIteration: 10,
+                eps: 1e17
+            });
 
-        LimitOrderData memory limit = _createLimitOrderData(hasNormalFills_, hasFlashFills_);
+            LimitOrderData memory limit = _createLimitOrderData(hasNormalFills_, hasFlashFills_);
 
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
-        );
+            bytes memory txData = abi.encodeWithSelector(
+                IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
+            );
 
-        bytes memory payload = abi.encode(market_, uint256(0), txData);
+            payload = abi.encode(market_, uint256(0), txData);
+        }
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(address(ptToken)),
+            bytes32(inputAmount_),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minPtOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload
@@ -1722,9 +1819,9 @@ contract PendleUnifiedHookTest is Helpers {
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(address(ptToken)),
+            bytes32(inputAmount_),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minPtOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload
@@ -1765,9 +1862,9 @@ contract PendleUnifiedHookTest is Helpers {
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(address(outputToken)),
+            bytes32(exactPtIn_),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minTokenOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload
@@ -1793,7 +1890,7 @@ contract PendleUnifiedHookTest is Helpers {
         }
 
         return LimitOrderData({
-            limitRouter: address(0),
+            limitRouter: (hasNormalFills_ || hasFlashFills_) ? address(0x789) : address(0),
             epsSkipMarket: 0,
             normalFills: normalFills,
             flashFills: flashFills,
@@ -1831,71 +1928,74 @@ contract PendleUnifiedHookTest is Helpers {
         uint256 inputAmount_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
-        TokenInput memory input = TokenInput({
-            tokenIn: address(inputToken),
-            netTokenIn: inputAmount_,
-            tokenMintSy: address(inputToken),
-            pendleSwap: address(this),
-            swapData: SwapData({
-                swapType: SwapType.NONE,
-                extRouter: address(0),
-                extCalldata: "",
-                needScale: false
-            })
-        });
+        bytes memory payload;
+        {
+            TokenInput memory input = TokenInput({
+                tokenIn: address(inputToken),
+                netTokenIn: inputAmount_,
+                tokenMintSy: address(inputToken),
+                pendleSwap: address(this),
+                swapData: SwapData({
+                    swapType: SwapType.NONE,
+                    extRouter: address(0),
+                    extCalldata: "",
+                    needScale: false
+                })
+            });
 
-        ApproxParams memory guessPtOut = ApproxParams({
-            guessMin: 900,
-            guessMax: 1100,
-            guessOffchain: 1000,
-            maxIteration: 10,
-            eps: 1e17
-        });
+            ApproxParams memory guessPtOut = ApproxParams({
+                guessMin: 900,
+                guessMax: 1100,
+                guessOffchain: 1000,
+                maxIteration: 10,
+                eps: 1e17
+            });
 
-        // Create expired order
-        Order memory order = Order({
-            salt: 12345,
-            expiry: block.timestamp - 1, // Expired
-            nonce: 1,
-            orderType: OrderType.SY_FOR_PT,
-            token: address(inputToken),
-            YT: address(ytToken),
-            maker: address(this),
-            receiver: address(this),
-            makingAmount: 1000,
-            lnImpliedRate: 1e17,
-            failSafeRate: 1e16,
-            permit: ""
-        });
+            // Create expired order
+            Order memory order = Order({
+                salt: 12345,
+                expiry: block.timestamp - 1, // Expired
+                nonce: 1,
+                orderType: OrderType.SY_FOR_PT,
+                token: address(inputToken),
+                YT: address(ytToken),
+                maker: address(this),
+                receiver: address(this),
+                makingAmount: 1000,
+                lnImpliedRate: 1e17,
+                failSafeRate: 1e16,
+                permit: ""
+            });
 
-        FillOrderParams[] memory normalFills = new FillOrderParams[](1);
-        normalFills[0] = FillOrderParams({
-            order: order,
-            signature: "",
-            makingAmount: 1000
-        });
+            FillOrderParams[] memory normalFills = new FillOrderParams[](1);
+            normalFills[0] = FillOrderParams({
+                order: order,
+                signature: "",
+                makingAmount: 1000
+            });
 
-        LimitOrderData memory limit = LimitOrderData({
-            limitRouter: address(0),
-            epsSkipMarket: 0,
-            normalFills: normalFills,
-            flashFills: new FillOrderParams[](0),
-            optData: ""
-        });
+            LimitOrderData memory limit = LimitOrderData({
+                limitRouter: address(0x789),
+                epsSkipMarket: 0,
+                normalFills: normalFills,
+                flashFills: new FillOrderParams[](0),
+                optData: ""
+            });
 
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
-        );
+            bytes memory txData = abi.encodeWithSelector(
+                IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
+            );
 
-        bytes memory payload = abi.encode(market_, uint256(0), txData);
+            payload = abi.encode(market_, uint256(0), txData);
+        }
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(address(ptToken)),
+            bytes32(inputAmount_),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minPtOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload
@@ -1909,71 +2009,74 @@ contract PendleUnifiedHookTest is Helpers {
         uint256 inputAmount_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
-        TokenInput memory input = TokenInput({
-            tokenIn: address(inputToken),
-            netTokenIn: inputAmount_,
-            tokenMintSy: address(inputToken),
-            pendleSwap: address(this),
-            swapData: SwapData({
-                swapType: SwapType.NONE,
-                extRouter: address(0),
-                extCalldata: "",
-                needScale: false
-            })
-        });
+        bytes memory payload;
+        {
+            TokenInput memory input = TokenInput({
+                tokenIn: address(inputToken),
+                netTokenIn: inputAmount_,
+                tokenMintSy: address(inputToken),
+                pendleSwap: address(this),
+                swapData: SwapData({
+                    swapType: SwapType.NONE,
+                    extRouter: address(0),
+                    extCalldata: "",
+                    needScale: false
+                })
+            });
 
-        ApproxParams memory guessPtOut = ApproxParams({
-            guessMin: 900,
-            guessMax: 1100,
-            guessOffchain: 1000,
-            maxIteration: 10,
-            eps: 1e17
-        });
+            ApproxParams memory guessPtOut = ApproxParams({
+                guessMin: 900,
+                guessMax: 1100,
+                guessOffchain: 1000,
+                maxIteration: 10,
+                eps: 1e17
+            });
 
-        // Create order with invalid maker
-        Order memory order = Order({
-            salt: 12345,
-            expiry: block.timestamp + 1 days,
-            nonce: 1,
-            orderType: OrderType.SY_FOR_PT,
-            token: address(inputToken),
-            YT: address(ytToken),
-            maker: address(0), // Invalid
-            receiver: address(this),
-            makingAmount: 1000,
-            lnImpliedRate: 1e17,
-            failSafeRate: 1e16,
-            permit: ""
-        });
+            // Create order with invalid maker
+            Order memory order = Order({
+                salt: 12345,
+                expiry: block.timestamp + 1 days,
+                nonce: 1,
+                orderType: OrderType.SY_FOR_PT,
+                token: address(inputToken),
+                YT: address(ytToken),
+                maker: address(0), // Invalid
+                receiver: address(this),
+                makingAmount: 1000,
+                lnImpliedRate: 1e17,
+                failSafeRate: 1e16,
+                permit: ""
+            });
 
-        FillOrderParams[] memory normalFills = new FillOrderParams[](1);
-        normalFills[0] = FillOrderParams({
-            order: order,
-            signature: "",
-            makingAmount: 1000
-        });
+            FillOrderParams[] memory normalFills = new FillOrderParams[](1);
+            normalFills[0] = FillOrderParams({
+                order: order,
+                signature: "",
+                makingAmount: 1000
+            });
 
-        LimitOrderData memory limit = LimitOrderData({
-            limitRouter: address(0),
-            epsSkipMarket: 0,
-            normalFills: normalFills,
-            flashFills: new FillOrderParams[](0),
-            optData: ""
-        });
+            LimitOrderData memory limit = LimitOrderData({
+                limitRouter: address(0x789),
+                epsSkipMarket: 0,
+                normalFills: normalFills,
+                flashFills: new FillOrderParams[](0),
+                optData: ""
+            });
 
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
-        );
+            bytes memory txData = abi.encodeWithSelector(
+                IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
+            );
 
-        bytes memory payload = abi.encode(market_, uint256(0), txData);
+            payload = abi.encode(market_, uint256(0), txData);
+        }
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(address(ptToken)),
+            bytes32(inputAmount_),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minPtOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload
@@ -1987,71 +2090,74 @@ contract PendleUnifiedHookTest is Helpers {
         uint256 inputAmount_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
-        TokenInput memory input = TokenInput({
-            tokenIn: address(inputToken),
-            netTokenIn: inputAmount_,
-            tokenMintSy: address(inputToken),
-            pendleSwap: address(this),
-            swapData: SwapData({
-                swapType: SwapType.NONE,
-                extRouter: address(0),
-                extCalldata: "",
-                needScale: false
-            })
-        });
+        bytes memory payload;
+        {
+            TokenInput memory input = TokenInput({
+                tokenIn: address(inputToken),
+                netTokenIn: inputAmount_,
+                tokenMintSy: address(inputToken),
+                pendleSwap: address(this),
+                swapData: SwapData({
+                    swapType: SwapType.NONE,
+                    extRouter: address(0),
+                    extCalldata: "",
+                    needScale: false
+                })
+            });
 
-        ApproxParams memory guessPtOut = ApproxParams({
-            guessMin: 900,
-            guessMax: 1100,
-            guessOffchain: 1000,
-            maxIteration: 10,
-            eps: 1e17
-        });
+            ApproxParams memory guessPtOut = ApproxParams({
+                guessMin: 900,
+                guessMax: 1100,
+                guessOffchain: 1000,
+                maxIteration: 10,
+                eps: 1e17
+            });
 
-        // Create order with invalid receiver
-        Order memory order = Order({
-            salt: 12345,
-            expiry: block.timestamp + 1 days,
-            nonce: 1,
-            orderType: OrderType.SY_FOR_PT,
-            token: address(inputToken),
-            YT: address(ytToken),
-            maker: address(this),
-            receiver: address(0), // Invalid
-            makingAmount: 1000,
-            lnImpliedRate: 1e17,
-            failSafeRate: 1e16,
-            permit: ""
-        });
+            // Create order with invalid receiver
+            Order memory order = Order({
+                salt: 12345,
+                expiry: block.timestamp + 1 days,
+                nonce: 1,
+                orderType: OrderType.SY_FOR_PT,
+                token: address(inputToken),
+                YT: address(ytToken),
+                maker: address(this),
+                receiver: address(0), // Invalid
+                makingAmount: 1000,
+                lnImpliedRate: 1e17,
+                failSafeRate: 1e16,
+                permit: ""
+            });
 
-        FillOrderParams[] memory normalFills = new FillOrderParams[](1);
-        normalFills[0] = FillOrderParams({
-            order: order,
-            signature: "",
-            makingAmount: 1000
-        });
+            FillOrderParams[] memory normalFills = new FillOrderParams[](1);
+            normalFills[0] = FillOrderParams({
+                order: order,
+                signature: "",
+                makingAmount: 1000
+            });
 
-        LimitOrderData memory limit = LimitOrderData({
-            limitRouter: address(0),
-            epsSkipMarket: 0,
-            normalFills: normalFills,
-            flashFills: new FillOrderParams[](0),
-            optData: ""
-        });
+            LimitOrderData memory limit = LimitOrderData({
+                limitRouter: address(0x789),
+                epsSkipMarket: 0,
+                normalFills: normalFills,
+                flashFills: new FillOrderParams[](0),
+                optData: ""
+            });
 
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
-        );
+            bytes memory txData = abi.encodeWithSelector(
+                IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
+            );
 
-        bytes memory payload = abi.encode(market_, uint256(0), txData);
+            payload = abi.encode(market_, uint256(0), txData);
+        }
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(address(ptToken)),
+            bytes32(inputAmount_),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minPtOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload
@@ -2065,71 +2171,74 @@ contract PendleUnifiedHookTest is Helpers {
         uint256 inputAmount_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
-        TokenInput memory input = TokenInput({
-            tokenIn: address(inputToken),
-            netTokenIn: inputAmount_,
-            tokenMintSy: address(inputToken),
-            pendleSwap: address(this),
-            swapData: SwapData({
-                swapType: SwapType.NONE,
-                extRouter: address(0),
-                extCalldata: "",
-                needScale: false
-            })
-        });
+        bytes memory payload;
+        {
+            TokenInput memory input = TokenInput({
+                tokenIn: address(inputToken),
+                netTokenIn: inputAmount_,
+                tokenMintSy: address(inputToken),
+                pendleSwap: address(this),
+                swapData: SwapData({
+                    swapType: SwapType.NONE,
+                    extRouter: address(0),
+                    extCalldata: "",
+                    needScale: false
+                })
+            });
 
-        ApproxParams memory guessPtOut = ApproxParams({
-            guessMin: 900,
-            guessMax: 1100,
-            guessOffchain: 1000,
-            maxIteration: 10,
-            eps: 1e17
-        });
+            ApproxParams memory guessPtOut = ApproxParams({
+                guessMin: 900,
+                guessMax: 1100,
+                guessOffchain: 1000,
+                maxIteration: 10,
+                eps: 1e17
+            });
 
-        // Create order with zero makingAmount
-        Order memory order = Order({
-            salt: 12345,
-            expiry: block.timestamp + 1 days,
-            nonce: 1,
-            orderType: OrderType.SY_FOR_PT,
-            token: address(inputToken),
-            YT: address(ytToken),
-            maker: address(this),
-            receiver: address(this),
-            makingAmount: 1000,
-            lnImpliedRate: 1e17,
-            failSafeRate: 1e16,
-            permit: ""
-        });
+            // Create order with zero makingAmount
+            Order memory order = Order({
+                salt: 12345,
+                expiry: block.timestamp + 1 days,
+                nonce: 1,
+                orderType: OrderType.SY_FOR_PT,
+                token: address(inputToken),
+                YT: address(ytToken),
+                maker: address(this),
+                receiver: address(this),
+                makingAmount: 1000,
+                lnImpliedRate: 1e17,
+                failSafeRate: 1e16,
+                permit: ""
+            });
 
-        FillOrderParams[] memory normalFills = new FillOrderParams[](1);
-        normalFills[0] = FillOrderParams({
-            order: order,
-            signature: "",
-            makingAmount: 0 // Invalid
-        });
+            FillOrderParams[] memory normalFills = new FillOrderParams[](1);
+            normalFills[0] = FillOrderParams({
+                order: order,
+                signature: "",
+                makingAmount: 0 // Invalid
+            });
 
-        LimitOrderData memory limit = LimitOrderData({
-            limitRouter: address(0),
-            epsSkipMarket: 0,
-            normalFills: normalFills,
-            flashFills: new FillOrderParams[](0),
-            optData: ""
-        });
+            LimitOrderData memory limit = LimitOrderData({
+                limitRouter: address(0x789),
+                epsSkipMarket: 0,
+                normalFills: normalFills,
+                flashFills: new FillOrderParams[](0),
+                optData: ""
+            });
 
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
-        );
+            bytes memory txData = abi.encodeWithSelector(
+                IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
+            );
 
-        bytes memory payload = abi.encode(market_, uint256(0), txData);
+            payload = abi.encode(market_, uint256(0), txData);
+        }
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(address(ptToken)),
+            bytes32(inputAmount_),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minPtOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload
@@ -2183,9 +2292,9 @@ contract PendleUnifiedHookTest is Helpers {
             bytes20(address(0)),
             bytes20(address(0)),
             bytes20(address(ptToken)),
+            bytes32(inputAmount_),
             bytes32(uint256(0)),
-            bytes32(uint256(0)),
-            bytes32(uint256(0)),
+            bytes32(minPtOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
             bytes32(payload.length),
             payload
