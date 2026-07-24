@@ -68,6 +68,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address approveAndSwapOdosV3Hook;
     }
 
+    struct SpectraExchangeHookAddresses {
+        address spectraExchangeDepositHook;
+        address spectraExchangeRedeemHook;
+    }
+
     struct WrappedNativeHookAddress {
         address wrappedNativeHook;
     }
@@ -154,6 +159,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    function runSpectraExchange(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying Spectra Exchange Hooks on chainId: ", chainId);
+
+        _deploySpectraExchangeHooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
     function runWrappedNative(uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
         console2.log("Deploying WrappedNativeHook on chainId: ", chainId);
@@ -206,6 +219,12 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             _deployRFLRV2Hooks(chainId, env);
             console2.log("Deploying WrappedNativeHook on chainId: ", chainId);
             _deployWrappedNativeHook(chainId, env);
+        }
+
+        // Spectra Exchange hooks — on chains where Spectra Router is deployed
+        if (otherHooksConfiguration.spectraRouters[chainId] != address(0)) {
+            console2.log("Deploying Spectra Exchange Hooks on chainId: ", chainId);
+            _deploySpectraExchangeHooks(chainId, env);
         }
 
         // Odos V3 hooks — on chains where Odos V3 router is deployed
@@ -489,6 +508,52 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         );
 
         console2.log("All Algebra Integral hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    SPECTRA EXCHANGE HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    function _deploySpectraExchangeHooks(
+        uint64 chainId,
+        uint256 env
+    )
+        internal
+        returns (SpectraExchangeHookAddresses memory)
+    {
+        uint256 len = 2;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        bytes memory routerArg = abi.encode(otherHooksConfiguration.spectraRouters[chainId]);
+
+        hooks[0] = HookDeployment(
+            SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("SpectraExchangeDepositHook", env), routerArg)
+        );
+        hooks[1] = HookDeployment(
+            SPECTRA_EXCHANGE_REDEEM_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("SpectraExchangeRedeemHook", env), routerArg)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        SpectraExchangeHookAddresses memory hookAddresses;
+        hookAddresses.spectraExchangeDepositHook = addresses[0];
+        hookAddresses.spectraExchangeRedeemHook = addresses[1];
+
+        require(hookAddresses.spectraExchangeDepositHook != address(0), "SpectraExchangeDepositHook not assigned");
+        require(hookAddresses.spectraExchangeRedeemHook != address(0), "SpectraExchangeRedeemHook not assigned");
+
+        console2.log("All Spectra Exchange hooks deployed and validated successfully.");
 
         return hookAddresses;
     }

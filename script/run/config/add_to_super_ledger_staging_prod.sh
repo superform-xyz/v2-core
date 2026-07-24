@@ -11,8 +11,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 OUTPUT_DIR="$PROJECT_ROOT/script/output"
 
-# Fireblocks sender address (matches config_v2_ledger_staging_prod.sh)
-FIREBLOCKS_SENDER="0x28b7599f461D104f07D78215Fa6F9B959851f93d"
+# Default Fireblocks sender address — overridden per-chain via get_fireblocks_sender()
+FIREBLOCKS_SENDER_DEFAULT="0x28b7599f461D104f07D78215Fa6F9B959851f93d"
 
 # ===== LOAD SHARED UTILITIES =====
 source "$SCRIPT_DIR/../utils/oracle-utils.sh"
@@ -27,7 +27,7 @@ log() {
 # ===== USAGE =====
 usage() {
     cat << EOF
-Usage: $0 <environment> [simulate]
+Usage: $0 <environment> [simulate] [--chains <chain_ids>]
 
 Add new oracles to SuperLedgerConfiguration for staging/production deployments.
 Automatically loops through all chains and checks if oracles are configured.
@@ -36,6 +36,7 @@ Uses Fireblocks MPC wallet for transaction signing.
 Arguments:
     environment     "staging" or "prod"
     simulate        Optional: Run in simulation mode without broadcasting
+    --chains        Optional: Comma-separated chain IDs to target (default: all chains)
 
 Prerequisites:
     1. Run extract_configurable_oracles.sh first to create the oracle list
@@ -43,9 +44,11 @@ Prerequisites:
     3. Fireblocks credentials configured in 1Password
 
 Examples:
-    $0 staging                    # Add oracles for staging
-    $0 staging simulate           # Simulate adding oracles (no broadcast)
-    $0 prod                       # Add oracles for production
+    $0 staging                          # Add oracles for staging (all chains)
+    $0 staging simulate                 # Simulate adding oracles (no broadcast)
+    $0 prod                             # Add oracles for production (all chains)
+    $0 prod --chains 56,42161           # Add oracles only on BSC and Arbitrum
+    $0 prod simulate --chains 56,42161  # Simulate on BSC and Arbitrum only
 
 EOF
     exit 1
@@ -68,15 +71,35 @@ if [ "$ENVIRONMENT" != "staging" ] && [ "$ENVIRONMENT" != "prod" ]; then
     exit 1
 fi
 
-# Check for simulate flag
-if [ $# -ge 2 ] && [ "$2" = "simulate" ]; then
-    SIMULATE_MODE="simulate"
-    log "INFO" "Running in SIMULATE mode (no broadcast)"
+# Parse optional flags
+CHAIN_FILTER=""
+for arg in "${@:2}"; do
+    if [ "$arg" = "simulate" ]; then
+        SIMULATE_MODE="simulate"
+        log "INFO" "Running in SIMULATE mode (no broadcast)"
+    elif [[ "$arg" == --chains ]]; then
+        # Next arg will be the chain list — handled below
+        :
+    elif [[ "$prev_arg" == --chains ]]; then
+        CHAIN_FILTER="$arg"
+    fi
+    prev_arg="$arg"
+done
+
+# Also handle --chains=56,42161 form
+for arg in "${@:2}"; do
+    if [[ "$arg" == --chains=* ]]; then
+        CHAIN_FILTER="${arg#--chains=}"
+    fi
+done
+
+if [ -n "$CHAIN_FILTER" ]; then
+    log "INFO" "Filtering to chains: $CHAIN_FILTER"
 fi
 
 log "INFO" "Adding oracles to SuperLedgerConfiguration for environment: $ENVIRONMENT"
 log "INFO" "Using Fireblocks MPC wallet for transaction signing"
-log "INFO" "Sender address: $FIREBLOCKS_SENDER"
+log "INFO" "Default sender address: $FIREBLOCKS_SENDER_DEFAULT (per-chain override for Flare)"
 
 # Set forge environment
 if [ "$ENVIRONMENT" = "staging" ]; then
@@ -160,9 +183,16 @@ for oracle in "${ORACLES_TO_ADD[@]}"; do
     log "INFO" "  - $oracle"
 done
 
-# ===== LOOP THROUGH ALL CHAINS =====
+# ===== LOOP THROUGH CHAINS =====
 for network_def in "${NETWORKS[@]}"; do
     IFS=':' read -r CHAIN_ID CHAIN_NAME RPC_VAR <<< "$network_def"
+
+    # Apply chain filter if specified
+    if [ -n "$CHAIN_FILTER" ]; then
+        if ! echo ",$CHAIN_FILTER," | grep -q ",$CHAIN_ID,"; then
+            continue
+        fi
+    fi
 
     log "INFO" ""
     log "INFO" "=========================================="
@@ -187,6 +217,14 @@ for network_def in "${NETWORKS[@]}"; do
         988) export FIREBLOCKS_ASSET_ID="GUSDT_STABLE" ;;
         *)   unset FIREBLOCKS_ASSET_ID ;;
     esac
+
+    # Resolve per-chain sender (Flare uses a different Fireblocks vault derivation)
+    CHAIN_SENDER=$(get_fireblocks_sender "$CHAIN_ID")
+    TX_TYPE_FLAG=""
+    if [ "$CHAIN_ID" = "14" ]; then
+        TX_TYPE_FLAG="--legacy"
+    fi
+    log "INFO" "Sender: $CHAIN_SENDER"
 
     # Load deployment output for this chain
     OUTPUT_FILE="$OUTPUT_DIR/$ENV_DIR/$CHAIN_ID/${CHAIN_NAME}-latest.json"
@@ -225,8 +263,8 @@ for network_def in "${NETWORKS[@]}"; do
         oracle_salt=$(get_oracle_salt "$oracle_name")
         log "INFO" "  Salt: $oracle_salt"
 
-        # Compute oracle ID using Fireblocks sender address
-        oracle_id=$(compute_oracle_id "$oracle_salt" "$FIREBLOCKS_SENDER")
+        # Compute oracle ID using per-chain Fireblocks sender address
+        oracle_id=$(compute_oracle_id "$oracle_salt" "$CHAIN_SENDER")
         log "INFO" "  Oracle ID: $oracle_id"
 
         # Check if already configured
@@ -293,8 +331,9 @@ for network_def in "${NETWORKS[@]}"; do
         "$SALTS_ARG" \
         "$ADDRESSES_ARG" \
         --rpc-url {} \
-        --sender "$FIREBLOCKS_SENDER" \
+        --sender "$CHAIN_SENDER" \
         $BROADCAST_FLAG \
+        $TX_TYPE_FLAG \
         --unlocked \
         --slow \
         -vv

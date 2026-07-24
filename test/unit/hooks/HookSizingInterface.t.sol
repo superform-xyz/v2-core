@@ -136,7 +136,7 @@ import {
 import { SpectraExchangeRedeemHook } from "../../../src/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
 import { PendleRouterRedeemHook } from "../../../src/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
 import { PendleUnifiedHook } from "../../../src/hooks/swappers/pendle/PendleUnifiedHook.sol";
-import { PendleRouterSwapHook } from "../../../src/hooks/swappers/pendle/PendleRouterSwapHook.sol";
+import { PendleRouterSwapHook } from "../../../src/hooks/swappers/pendle/deprecated/PendleRouterSwapHook.sol";
 import {
     SpectraExchangeDepositHook
 } from "../../../src/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
@@ -1268,6 +1268,8 @@ contract HookSizingInterfaceTest is Helpers {
         assertTrue(swapOpenOcean.supportsInterface(oid));
         assertTrue(approveSwapOpenOcean.supportsInterface(oid));
         assertTrue(spectraRedeem.supportsInterface(oid));
+        assertTrue(spectraExchangeDeposit.supportsInterface(oid));
+        assertTrue(swap1Inch.supportsInterface(oid));
         assertTrue(pendleRedeem.supportsInterface(oid));
 
         // Bridges
@@ -4310,8 +4312,6 @@ contract HookSizingInterfaceTest is Helpers {
     function test_NewlyS2_DoesNotSupport_Outflow() public view {
         bytes4 oid = type(ISuperHookOutflow).interfaceId;
         assertFalse(pendleUnified.supportsInterface(oid), "pendleUnified");
-        assertFalse(spectraExchangeDeposit.supportsInterface(oid), "spectraExchangeDeposit");
-        assertFalse(swap1Inch.supportsInterface(oid), "swap1Inch");
         assertFalse(batchTransferBasic.supportsInterface(oid), "batchTransferBasic");
         assertFalse(circleGatewayMinter.supportsInterface(oid), "circleGatewayMinter");
         assertFalse(recordPurchaseOracle.supportsInterface(oid), "recordPurchaseOracle");
@@ -4344,8 +4344,6 @@ contract HookSizingInterfaceTest is Helpers {
     /// @dev All newly-S2 hooks must return empty amountRoles
     function test_NewlyS2_AmountRoles_Empty() public view {
         assertEq(pendleUnified.amountRoles("").length, 0, "pendleUnified");
-        assertEq(spectraExchangeDeposit.amountRoles("").length, 0, "spectraExchangeDeposit");
-        assertEq(swap1Inch.amountRoles("").length, 0, "swap1Inch");
         assertEq(batchTransferBasic.amountRoles("").length, 0, "batchTransferBasic");
         assertEq(circleGatewayMinter.amountRoles("").length, 0, "circleGatewayMinter");
         assertEq(recordPurchaseOracle.amountRoles("").length, 0, "recordPurchaseOracle");
@@ -4363,8 +4361,6 @@ contract HookSizingInterfaceTest is Helpers {
     /// @dev All newly-S2 hooks must return empty decodeAmounts
     function test_NewlyS2_DecodeAmounts_Empty() public view {
         assertEq(pendleUnified.decodeAmounts("").length, 0, "pendleUnified");
-        assertEq(spectraExchangeDeposit.decodeAmounts("").length, 0, "spectraExchangeDeposit");
-        assertEq(swap1Inch.decodeAmounts("").length, 0, "swap1Inch");
         assertEq(batchTransferBasic.decodeAmounts("").length, 0, "batchTransferBasic");
         assertEq(circleGatewayMinter.decodeAmounts("").length, 0, "circleGatewayMinter");
         assertEq(recordPurchaseOracle.decodeAmounts("").length, 0, "recordPurchaseOracle");
@@ -4386,6 +4382,194 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(acrossV1.description(), "Bridges tokens via Across and executes on destination chain");
         assertEq(morphoSupply.description(), "Supplies collateral to a Morpho market");
         assertEq(aaveSupply.description(), "Supplies assets to an Aave V4 lending pool");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    CI GUARDRAIL: INFLOW/OUTFLOW ⇒ SIZING
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Returns every hook instantiated in this test contract.
+    function _allHooks() internal view returns (ISuperHook[] memory hooks) {
+        hooks = new ISuperHook[](119);
+        uint256 i;
+        // ── Token (7) ──
+        hooks[i++] = ISuperHook(address(transferERC20));
+        hooks[i++] = ISuperHook(address(approveERC20));
+        hooks[i++] = ISuperHook(address(transferHook));
+        hooks[i++] = ISuperHook(address(nativeTransfer));
+        hooks[i++] = ISuperHook(address(wrappedNative));
+        hooks[i++] = ISuperHook(address(fetchNativeFee));
+        hooks[i++] = ISuperHook(address(claimFailedTransfer));
+        // ── Swappers (23) ──
+        hooks[i++] = ISuperHook(address(swapUniV3));
+        hooks[i++] = ISuperHook(address(approveSwapUniV3));
+        hooks[i++] = ISuperHook(address(swapUniV3Router02));
+        hooks[i++] = ISuperHook(address(approveSwapUniV3Router02));
+        hooks[i++] = ISuperHook(address(swapUniV2));
+        hooks[i++] = ISuperHook(address(approveSwapUniV2));
+        hooks[i++] = ISuperHook(address(swapUniV4));
+        hooks[i++] = ISuperHook(address(swapOdosV2));
+        hooks[i++] = ISuperHook(address(approveSwapOdosV2));
+        hooks[i++] = ISuperHook(address(swapOdosV3));
+        hooks[i++] = ISuperHook(address(approveSwapOdosV3));
+        hooks[i++] = ISuperHook(address(swapKyber));
+        hooks[i++] = ISuperHook(address(approveSwapKyber));
+        hooks[i++] = ISuperHook(address(swapSparkIn));
+        hooks[i++] = ISuperHook(address(approveSwapSparkIn));
+        hooks[i++] = ISuperHook(address(swapSparkOut));
+        hooks[i++] = ISuperHook(address(approveSwapSparkOut));
+        hooks[i++] = ISuperHook(address(swapAlgebra));
+        hooks[i++] = ISuperHook(address(approveSwapAlgebra));
+        hooks[i++] = ISuperHook(address(swapOpenOcean));
+        hooks[i++] = ISuperHook(address(approveSwapOpenOcean));
+        hooks[i++] = ISuperHook(address(spectraRedeem));
+        hooks[i++] = ISuperHook(address(pendleRedeem));
+        // ── Bridges (12) ──
+        hooks[i++] = ISuperHook(address(acrossV1));
+        hooks[i++] = ISuperHook(address(approveAcrossV1));
+        hooks[i++] = ISuperHook(address(acrossV2));
+        hooks[i++] = ISuperHook(address(approveAcrossV2));
+        hooks[i++] = ISuperHook(address(stargate));
+        hooks[i++] = ISuperHook(address(approveStargate));
+        hooks[i++] = ISuperHook(address(stargateV2));
+        hooks[i++] = ISuperHook(address(approveStargateV2));
+        hooks[i++] = ISuperHook(address(debridge));
+        hooks[i++] = ISuperHook(address(cctp));
+        hooks[i++] = ISuperHook(address(approveCctp));
+        hooks[i++] = ISuperHook(address(circleGateway));
+        // ── Stake (6) ──
+        hooks[i++] = ISuperHook(address(fluidStake));
+        hooks[i++] = ISuperHook(address(approveFluidStake));
+        hooks[i++] = ISuperHook(address(fluidUnstake));
+        hooks[i++] = ISuperHook(address(gearboxStake));
+        hooks[i++] = ISuperHook(address(approveGearboxStake));
+        hooks[i++] = ISuperHook(address(gearboxUnstake));
+        // ── Assets denomination (9) ──
+        hooks[i++] = ISuperHook(address(deposit4626));
+        hooks[i++] = ISuperHook(address(approveDeposit4626));
+        hooks[i++] = ISuperHook(address(deposit5115));
+        hooks[i++] = ISuperHook(address(approveDeposit5115));
+        hooks[i++] = ISuperHook(address(deposit7540));
+        hooks[i++] = ISuperHook(address(requestDeposit7540));
+        hooks[i++] = ISuperHook(address(approveRequestDeposit7540));
+        hooks[i++] = ISuperHook(address(withdraw7540));
+        hooks[i++] = ISuperHook(address(withdrawWithId7540));
+        // ── Shares denomination (11) ──
+        hooks[i++] = ISuperHook(address(redeem4626));
+        hooks[i++] = ISuperHook(address(redeem5115));
+        hooks[i++] = ISuperHook(address(redeem7540));
+        hooks[i++] = ISuperHook(address(redeemWithId7540));
+        hooks[i++] = ISuperHook(address(requestRedeem7540));
+        hooks[i++] = ISuperHook(address(requestRedeemDETH));
+        hooks[i++] = ISuperHook(address(approveRequestRedeemDETH));
+        hooks[i++] = ISuperHook(address(ethenaCooldown));
+        hooks[i++] = ISuperHook(address(redeemFirelight));
+        hooks[i++] = ISuperHook(address(mintSP));
+        hooks[i++] = ISuperHook(address(burnSP));
+        // ── Sizeless (7) ──
+        hooks[i++] = ISuperHook(address(fluidClaim));
+        hooks[i++] = ISuperHook(address(gearboxClaim));
+        hooks[i++] = ISuperHook(address(yearnClaim));
+        hooks[i++] = ISuperHook(address(merklClaim));
+        hooks[i++] = ISuperHook(address(batchTransfer));
+        hooks[i++] = ISuperHook(address(claimAssetsDETH));
+        hooks[i++] = ISuperHook(address(claimWithdrawFirelight));
+        // ── Loans (7) ──
+        hooks[i++] = ISuperHook(address(morphoSupply));
+        hooks[i++] = ISuperHook(address(morphoLend));
+        hooks[i++] = ISuperHook(address(morphoBorrow));
+        hooks[i++] = ISuperHook(address(morphoRepay));
+        hooks[i++] = ISuperHook(address(morphoSupplyAndBorrow));
+        hooks[i++] = ISuperHook(address(morphoRepayAndWithdraw));
+        hooks[i++] = ISuperHook(address(morphoWithdraw));
+        // ── Aave V4 (6) ──
+        hooks[i++] = ISuperHook(address(aaveSupply));
+        hooks[i++] = ISuperHook(address(aaveWithdraw));
+        hooks[i++] = ISuperHook(address(aaveBorrow));
+        hooks[i++] = ISuperHook(address(aaveRepay));
+        hooks[i++] = ISuperHook(address(aaveSupplyAndBorrow));
+        hooks[i++] = ISuperHook(address(aaveRepayAndWithdraw));
+        // ── Newly-S1 (1) ──
+        hooks[i++] = ISuperHook(address(forceDeallocateMorpho));
+        // ── Newly-S2 (30) ──
+        hooks[i++] = ISuperHook(address(pendleUnified));
+        hooks[i++] = ISuperHook(address(pendleRouterSwap));
+        hooks[i++] = ISuperHook(address(spectraExchangeDeposit));
+        hooks[i++] = ISuperHook(address(swap1Inch));
+        hooks[i++] = ISuperHook(address(batchTransferBasic));
+        hooks[i++] = ISuperHook(address(circleGatewayMinter));
+        hooks[i++] = ISuperHook(address(circleGatewayAddDelegate));
+        hooks[i++] = ISuperHook(address(circleGatewayRemoveDelegate));
+        hooks[i++] = ISuperHook(address(debridgeCancel));
+        hooks[i++] = ISuperHook(address(recordPurchaseOracle));
+        hooks[i++] = ISuperHook(address(recordPurchaseOracleV2));
+        hooks[i++] = ISuperHook(address(recordRedemptionOracle));
+        hooks[i++] = ISuperHook(address(recordRedemptionOracleV2));
+        hooks[i++] = ISuperHook(address(claimRFLR));
+        hooks[i++] = ISuperHook(address(withdrawRFLR));
+        hooks[i++] = ISuperHook(address(withdrawVestedRFLR));
+        hooks[i++] = ISuperHook(address(cancelDeposit7540));
+        hooks[i++] = ISuperHook(address(cancelDepositWithId7540));
+        hooks[i++] = ISuperHook(address(cancelRedeem7540));
+        hooks[i++] = ISuperHook(address(cancelRedeemWithId7540));
+        hooks[i++] = ISuperHook(address(claimCancelDeposit7540));
+        hooks[i++] = ISuperHook(address(claimCancelDepositWithId7540));
+        hooks[i++] = ISuperHook(address(claimCancelRedeem7540));
+        hooks[i++] = ISuperHook(address(claimCancelRedeemWithId7540));
+        hooks[i++] = ISuperHook(address(setOperator7540));
+        hooks[i++] = ISuperHook(address(setSlippage));
+        hooks[i++] = ISuperHook(address(markRootAsUsed));
+        hooks[i++] = ISuperHook(address(offrampTokens));
+        hooks[i++] = ISuperHook(address(ethenaUnstake));
+        hooks[i++] = ISuperHook(address(metaMorphoReallocate));
+
+        assertEq(i, 119, "allHooks count mismatch - add new hooks here");
+    }
+
+    /// @dev CI guardrail: every INFLOW or OUTFLOW hook MUST support both sizing interfaces.
+    ///      If a hook is INFLOW/OUTFLOW but lacks ISuperHookOutflow it will silently
+    ///      bypass OMS amount resizing, breaking M2/M3 accounting.
+    function test_Invariant_InflowOutflow_MustSupportSizing() public view {
+        ISuperHook[] memory hooks = _allHooks();
+        bytes4 inflowOutflowId = type(ISuperHookInflowOutflow).interfaceId;
+        bytes4 outflowId = type(ISuperHookOutflow).interfaceId;
+
+        for (uint256 i; i < hooks.length; i++) {
+            ISuperHook.HookType ht = ISuperHookResult(address(hooks[i])).hookType();
+
+            if (ht == ISuperHook.HookType.INFLOW || ht == ISuperHook.HookType.OUTFLOW) {
+                assertTrue(
+                    IERC165(address(hooks[i])).supportsInterface(inflowOutflowId),
+                    string.concat(hooks[i].name(), " is INFLOW/OUTFLOW but missing ISuperHookInflowOutflow")
+                );
+                assertTrue(
+                    IERC165(address(hooks[i])).supportsInterface(outflowId),
+                    string.concat(hooks[i].name(), " is INFLOW/OUTFLOW but missing ISuperHookOutflow")
+                );
+            }
+        }
+    }
+
+    /// @dev CI guardrail: no half-state — if a hook declares ISuperHookInflowOutflow
+    ///      with non-empty decodeAmounts, it MUST also support ISuperHookOutflow.
+    ///      Hooks that return empty decodeAmounts (S2 decode-only) are exempt.
+    function test_Invariant_NonEmptyDecodeAmounts_ImpliesOutflow() public view {
+        ISuperHook[] memory hooks = _allHooks();
+        bytes4 outflowId = type(ISuperHookOutflow).interfaceId;
+
+        for (uint256 i; i < hooks.length; i++) {
+            // Try decodeAmounts with empty data — hooks with actual amounts will return non-empty
+            try ISuperHookInflowOutflow(address(hooks[i])).decodeAmounts("") returns (uint256[] memory amounts) {
+                if (amounts.length > 0) {
+                    assertTrue(
+                        IERC165(address(hooks[i])).supportsInterface(outflowId),
+                        string.concat(hooks[i].name(), " has non-empty decodeAmounts but missing ISuperHookOutflow")
+                    );
+                }
+            } catch {
+                // Hook doesn't implement decodeAmounts or reverts — that's fine
+            }
+        }
     }
 }
 
