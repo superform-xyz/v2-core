@@ -560,6 +560,16 @@
     "pipeMode": "passthrough"
   },
   {
+    "hookKey": "SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "SPECTRA_EXCHANGE_REDEEM_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "STARGATE_SEND_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
