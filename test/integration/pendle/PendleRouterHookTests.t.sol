@@ -20,7 +20,7 @@ import {
 
 // Superform
 import { PendleRouterRedeemHook } from "../../../src/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
-import { PendleRouterSwapHook } from "../../../src/hooks/swappers/pendle/PendleRouterSwapHook.sol";
+import { PendleRouterSwapHook } from "../../../src/hooks/swappers/pendle/deprecated/PendleRouterSwapHook.sol";
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol";
 import { OdosAPIParser } from "../../utils/parsers/OdosAPIParser.sol";

@@ -135,6 +135,16 @@ abstract contract Constants {
     address internal constant PENDLE_ROUTER_SONIC = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address internal constant PENDLE_ROUTER_HYPEREVM = 0x888888888889758F76e7103c6CbF23ABbF58F946;
 
+    // Spectra Router addresses per chain
+    address internal constant SPECTRA_ROUTER_MAINNET = 0xC03309DE321A4D3df734F5609B80cC731ae28e6D;
+    address internal constant SPECTRA_ROUTER_BASE = 0xC03309DE321A4D3df734F5609B80cC731ae28e6D;
+    address internal constant SPECTRA_ROUTER_ARBITRUM = 0x38b9B4884a5581E96eD3882AA2f7449BC321786C;
+    address internal constant SPECTRA_ROUTER_OPTIMISM = 0x8A92294ffCFe469a3DF4A85c76a0B0d2B3292119;
+    address internal constant SPECTRA_ROUTER_BNB = 0x8A92294ffCFe469a3DF4A85c76a0B0d2B3292119;
+    address internal constant SPECTRA_ROUTER_SONIC = 0x3322664deE30345024F62066145427A8e4e67703;
+    address internal constant SPECTRA_ROUTER_AVALANCHE = 0x8A92294ffCFe469a3DF4A85c76a0B0d2B3292119;
+    address internal constant SPECTRA_ROUTER_HYPEREVM = 0xb827E91C5cd4d6aCa2FC0cD93A07dB61896Af40B;
+
     // Merkl Distributor addresses per chain
     address internal constant MERKL_DISTRIBUTOR = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
     // Native tokens representation

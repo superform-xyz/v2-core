@@ -45,6 +45,9 @@ contract MockSimpleAccount {
     function doNothing() external { }
 
     receive() external payable { }
+
+    /// @dev Accept any call (e.g. Nexus.execute) so E2E tests work with valid calldata
+    fallback() external payable { }
 }
 
 /// @title SuperSponsorshipPaymasterForkTest
@@ -104,6 +107,13 @@ contract SuperSponsorshipPaymasterForkTest is Test {
 
         // Deploy mock account
         account = new MockSimpleAccount(accountOwner, entryPoint);
+
+        // Set allowed sender for test strategies to the mock account
+        // (the default is the real executor, which won't match our mock account)
+        vm.startPrank(manager);
+        paymaster.setAllowedSender(strategy1, address(account));
+        paymaster.setAllowedSender(strategy2, address(account));
+        vm.stopPrank();
 
         // Fund accounts
         vm.deal(admin, 100 ether);
@@ -405,6 +415,233 @@ contract SuperSponsorshipPaymasterForkTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
+            ATTACK REPRODUCTION (REAL ADDRESSES, FORKED MAINNET)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Real mainnet SuperUSDC strategy and SuperVaultExecutor addresses
+    address constant REAL_SUPER_USDC_STRATEGY = 0x41A9Eb398518D2487301c61D2b33E4e966A9F1DD;
+    address constant REAL_EXECUTOR = 0x183e3171EEf801cE2A29FD48B3b21188f241875d;
+
+    /// @notice Reproduces the real attack: attacker deploys a rogue account, sets
+    ///         userOp.sender to their own account (NOT the executor), and submits
+    ///         no-op UserOps with 12M callGasLimit to drain the strategy budget.
+    ///         With allowedSender set to the real executor, the paymaster rejects it.
+    function test_Fork_Attack_UnauthorizedSenderRejectedE2E() public {
+        // 1. Fund the real SuperUSDC strategy
+        vm.prank(funder);
+        paymaster.fundStrategy{ value: 5 ether }(REAL_SUPER_USDC_STRATEGY);
+
+        // 2. Lock strategy to only accept UserOps from the real executor
+        vm.prank(manager);
+        paymaster.setAllowedSender(REAL_SUPER_USDC_STRATEGY, REAL_EXECUTOR);
+
+        // 3. Attacker deploys their own account and submits a UserOp targeting the strategy
+        MockSimpleAccount attackerAccount = new MockSimpleAccount(makeAddr("attackerOwner"), entryPoint);
+        vm.deal(address(attackerAccount), 10 ether);
+
+        PackedUserOperation memory attackOp = PackedUserOperation({
+            sender: address(attackerAccount), // NOT the executor
+            nonce: 0,
+            initCode: "",
+            callData: "", // no-op, just like the real attack
+            accountGasLimits: bytes32(abi.encodePacked(uint128(500_000), uint128(12_000_000))), // inflated
+            preVerificationGas: 100_000,
+            gasFees: bytes32(abi.encodePacked(uint128(2 gwei), uint128(10 gwei))),
+            paymasterAndData: abi.encodePacked(
+                address(paymaster), uint128(500_000), uint128(100_000), REAL_SUPER_USDC_STRATEGY
+            ),
+            signature: ""
+        });
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = attackOp;
+
+        // 4. EntryPoint reverts because paymaster rejects unauthorized sender
+        vm.prank(bundler);
+        vm.expectRevert();
+        entryPoint.handleOps(ops, payable(bundler));
+
+        // 5. No funds drained
+        assertEq(paymaster.getStrategyBudget(REAL_SUPER_USDC_STRATEGY).balance, 5 ether);
+    }
+
+    /// @notice Even with an authorized sender, the DEFAULT_MAX_GAS cap (4M) blocks
+    ///         the inflated-gas attack vector.
+    function test_Fork_Attack_InflatedGasBlockedByDefaultCapE2E() public {
+        // 1. Fund strategy and allow our test account
+        vm.prank(funder);
+        paymaster.fundStrategy{ value: 5 ether }(REAL_SUPER_USDC_STRATEGY);
+        vm.prank(manager);
+        paymaster.setAllowedSender(REAL_SUPER_USDC_STRATEGY, address(account));
+
+        // 2. Authorized sender with valid calldata but 12M callGasLimit — gas cap blocks it
+        PackedUserOperation memory attackOp = PackedUserOperation({
+            sender: address(account),
+            nonce: 0,
+            initCode: "",
+            callData: _validCallData(REAL_SUPER_USDC_STRATEGY),
+            accountGasLimits: bytes32(abi.encodePacked(uint128(500_000), uint128(12_000_000))), // 12M
+            preVerificationGas: 100_000,
+            gasFees: bytes32(abi.encodePacked(uint128(2 gwei), uint128(10 gwei))),
+            paymasterAndData: abi.encodePacked(
+                address(paymaster), uint128(500_000), uint128(100_000), REAL_SUPER_USDC_STRATEGY
+            ),
+            signature: ""
+        });
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = attackOp;
+
+        // 3. EntryPoint reverts because callGasLimit > DEFAULT_MAX_GAS (4M)
+        vm.prank(bundler);
+        vm.expectRevert();
+        entryPoint.handleOps(ops, payable(bundler));
+
+        // 4. No funds drained
+        assertEq(paymaster.getStrategyBudget(REAL_SUPER_USDC_STRATEGY).balance, 5 ether);
+    }
+
+    /// @notice With both defenses active, the legitimate executor with reasonable
+    ///         gas can still submit UserOps and get sponsored.
+    function test_Fork_Attack_LegitimateExecutorStillWorks() public {
+        // 1. Deploy account that represents the executor (in real life, this is the SuperVaultExecutor)
+        MockSimpleAccount executorAccount = new MockSimpleAccount(accountOwner, entryPoint);
+        vm.deal(address(executorAccount), 10 ether);
+
+        // 2. Fund strategy and set allowedSender to executor account
+        vm.prank(funder);
+        paymaster.fundStrategy{ value: 5 ether }(REAL_SUPER_USDC_STRATEGY);
+
+        vm.prank(manager);
+        paymaster.setAllowedSender(REAL_SUPER_USDC_STRATEGY, address(executorAccount));
+
+        // 3. Executor submits a normal UserOp with reasonable gas and valid calldata
+        PackedUserOperation memory op = PackedUserOperation({
+            sender: address(executorAccount),
+            nonce: 0,
+            initCode: "",
+            callData: _validCallData(REAL_SUPER_USDC_STRATEGY),
+            accountGasLimits: bytes32(abi.encodePacked(uint128(500_000), uint128(500_000))), // reasonable
+            preVerificationGas: 100_000,
+            gasFees: bytes32(abi.encodePacked(uint128(2 gwei), uint128(10 gwei))),
+            paymasterAndData: abi.encodePacked(
+                address(paymaster), uint128(500_000), uint128(100_000), REAL_SUPER_USDC_STRATEGY
+            ),
+            signature: ""
+        });
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = op;
+
+        uint256 balBefore = paymaster.getStrategyBudget(REAL_SUPER_USDC_STRATEGY).balance;
+
+        // 4. Should succeed — executor is allowed, gas is within cap
+        vm.prank(bundler);
+        entryPoint.handleOps(ops, payable(bundler));
+
+        // 5. Strategy was debited for actual gas cost (small amount)
+        uint256 gasUsed = balBefore - paymaster.getStrategyBudget(REAL_SUPER_USDC_STRATEGY).balance;
+        assertTrue(gasUsed > 0, "Should debit gas cost");
+        assertTrue(gasUsed < 0.01 ether, "Gas cost should be small for a doNothing call");
+    }
+
+    /// @notice Multiple no-op UserOps bundled together (like the real TX 0xc847e12b...)
+    ///         are all rejected when allowedSender is enforced.
+    function test_Fork_Attack_BundledNoOpUserOpsAllRejected() public {
+        // 1. Fund strategy, lock to executor
+        vm.prank(funder);
+        paymaster.fundStrategy{ value: 5 ether }(REAL_SUPER_USDC_STRATEGY);
+
+        vm.prank(manager);
+        paymaster.setAllowedSender(REAL_SUPER_USDC_STRATEGY, REAL_EXECUTOR);
+
+        // 2. Attacker bundles 2 no-op UserOps from 2 rogue accounts (like the real attack)
+        MockSimpleAccount rogue1 = new MockSimpleAccount(makeAddr("rogue1Owner"), entryPoint);
+        MockSimpleAccount rogue2 = new MockSimpleAccount(makeAddr("rogue2Owner"), entryPoint);
+        vm.deal(address(rogue1), 10 ether);
+        vm.deal(address(rogue2), 10 ether);
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](2);
+        ops[0] = PackedUserOperation({
+            sender: address(rogue1),
+            nonce: 0,
+            initCode: "",
+            callData: "",
+            accountGasLimits: bytes32(abi.encodePacked(uint128(500_000), uint128(12_000_000))),
+            preVerificationGas: 100_000,
+            gasFees: bytes32(abi.encodePacked(uint128(2 gwei), uint128(10 gwei))),
+            paymasterAndData: abi.encodePacked(
+                address(paymaster), uint128(500_000), uint128(100_000), REAL_SUPER_USDC_STRATEGY
+            ),
+            signature: ""
+        });
+        ops[1] = PackedUserOperation({
+            sender: address(rogue2),
+            nonce: 0,
+            initCode: "",
+            callData: "",
+            accountGasLimits: bytes32(abi.encodePacked(uint128(500_000), uint128(12_000_000))),
+            preVerificationGas: 100_000,
+            gasFees: bytes32(abi.encodePacked(uint128(2 gwei), uint128(10 gwei))),
+            paymasterAndData: abi.encodePacked(
+                address(paymaster), uint128(500_000), uint128(100_000), REAL_SUPER_USDC_STRATEGY
+            ),
+            signature: ""
+        });
+
+        // 3. Entire bundle rejected
+        vm.prank(bundler);
+        vm.expectRevert();
+        entryPoint.handleOps(ops, payable(bundler));
+
+        // 4. Zero funds drained
+        assertEq(paymaster.getStrategyBudget(REAL_SUPER_USDC_STRATEGY).balance, 5 ether);
+    }
+
+    /// @notice An attacker cannot set userOp.sender to the real executor address
+    ///         because the EntryPoint will call validateUserOp on that address,
+    ///         and the attacker won't have the owner's signing key.
+    ///         Here we prove this by showing the real executor contract rejects
+    ///         an unsigned UserOp (the EntryPoint calls validateUserOp on it).
+    function test_Fork_Attack_CannotSpoofExecutorSender() public {
+        // 1. Fund strategy and lock to real executor
+        vm.prank(funder);
+        paymaster.fundStrategy{ value: 5 ether }(REAL_SUPER_USDC_STRATEGY);
+
+        vm.prank(manager);
+        paymaster.setAllowedSender(REAL_SUPER_USDC_STRATEGY, REAL_EXECUTOR);
+
+        // 2. Attacker tries to use the REAL executor address as sender
+        //    but doesn't have the signing key — EntryPoint will call
+        //    REAL_EXECUTOR.validateUserOp() which will reject the signature.
+        PackedUserOperation memory spoofedOp = PackedUserOperation({
+            sender: REAL_EXECUTOR, // spoofing the real executor
+            nonce: 0,
+            initCode: "",
+            callData: "",
+            accountGasLimits: bytes32(abi.encodePacked(uint128(500_000), uint128(500_000))),
+            preVerificationGas: 100_000,
+            gasFees: bytes32(abi.encodePacked(uint128(2 gwei), uint128(10 gwei))),
+            paymasterAndData: abi.encodePacked(
+                address(paymaster), uint128(500_000), uint128(100_000), REAL_SUPER_USDC_STRATEGY
+            ),
+            signature: "" // no valid signature
+        });
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = spoofedOp;
+
+        // 3. EntryPoint calls REAL_EXECUTOR.validateUserOp() — reverts because
+        //    the attacker doesn't have a valid signature
+        vm.prank(bundler);
+        vm.expectRevert();
+        entryPoint.handleOps(ops, payable(bundler));
+
+        // 4. No funds drained
+        assertEq(paymaster.getStrategyBudget(REAL_SUPER_USDC_STRATEGY).balance, 5 ether);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                     ENTRYPOINT STAKE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
 
@@ -435,9 +672,6 @@ contract SuperSponsorshipPaymasterForkTest is Test {
         view
         returns (PackedUserOperation memory)
     {
-        // callData: account.doNothing()
-        bytes memory callData = abi.encodeWithSelector(MockSimpleAccount.doNothing.selector);
-
         // paymasterAndData: [0:20] paymaster, [20:36] verificationGasLimit, [36:52] postOpGasLimit, [52:72] strategy
         bytes memory paymasterAndData = abi.encodePacked(
             address(paymaster),
@@ -450,7 +684,7 @@ contract SuperSponsorshipPaymasterForkTest is Test {
             sender: address(account),
             nonce: nonce,
             initCode: "",
-            callData: callData,
+            callData: _validCallData(strategy),
             accountGasLimits: bytes32(abi.encodePacked(uint128(500_000), uint128(500_000))),
             preVerificationGas: 100_000,
             gasFees: bytes32(abi.encodePacked(uint128(2 gwei), uint128(10 gwei))),
@@ -464,7 +698,10 @@ contract SuperSponsorshipPaymasterForkTest is Test {
         MockSimpleAccount account2 = new MockSimpleAccount(accountOwner, entryPoint);
         vm.deal(address(account2), 10 ether);
 
-        bytes memory callData = abi.encodeWithSelector(MockSimpleAccount.doNothing.selector);
+        // Set allowed sender for strategy2 to the new account
+        vm.prank(manager);
+        paymaster.setAllowedSender(strategy2, address(account2));
+
         bytes memory paymasterAndData = abi.encodePacked(
             address(paymaster),
             uint128(500_000),
@@ -476,12 +713,17 @@ contract SuperSponsorshipPaymasterForkTest is Test {
             sender: address(account2),
             nonce: nonce,
             initCode: "",
-            callData: callData,
+            callData: _validCallData(strategy2),
             accountGasLimits: bytes32(abi.encodePacked(uint128(500_000), uint128(500_000))),
             preVerificationGas: 100_000,
             gasFees: bytes32(abi.encodePacked(uint128(2 gwei), uint128(10 gwei))),
             paymasterAndData: paymasterAndData,
             signature: ""
         });
+    }
+
+    /// @dev Builds valid executeFromEntryPoint(address, bytes) calldata that passes paymaster validation
+    function _validCallData(address strategy) internal pure returns (bytes memory) {
+        return abi.encodeWithSelector(bytes4(0x4fb2fbd5), strategy, bytes(""));
     }
 }
