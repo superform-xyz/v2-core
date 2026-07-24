@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-07-24T12:02:24Z",
+  "generatedAt": "2026-07-24T12:27:34Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -4525,21 +4525,21 @@
       "legSizing": [],
       "addresses": {
         "staging": {
-          "1": "0xA8108AFfA9aD163Fd7C2fd471Ba31DCA92cf927C",
-          "56": "0xA8108AFfA9aD163Fd7C2fd471Ba31DCA92cf927C",
-          "999": "0xA8108AFfA9aD163Fd7C2fd471Ba31DCA92cf927C",
-          "8453": "0xA8108AFfA9aD163Fd7C2fd471Ba31DCA92cf927C",
-          "42161": "0xA8108AFfA9aD163Fd7C2fd471Ba31DCA92cf927C"
+          "1": "0xCeCD0D5cd95871879685027c9d6FAa45D0B0952E",
+          "56": "0xCeCD0D5cd95871879685027c9d6FAa45D0B0952E",
+          "999": "0xCeCD0D5cd95871879685027c9d6FAa45D0B0952E",
+          "8453": "0xCeCD0D5cd95871879685027c9d6FAa45D0B0952E",
+          "42161": "0xCeCD0D5cd95871879685027c9d6FAa45D0B0952E"
         },
         "prod": {
           "1": "0xcaC0E768bF0246D40E09090c6a0141773d6F8288",
           "10": "0xcaC0E768bF0246D40E09090c6a0141773d6F8288",
           "56": "0xcaC0E768bF0246D40E09090c6a0141773d6F8288",
-          "146": "0xcaC0E768bF0246D40E09090c6a0141773d6F8288",
+          "146": "0x4927951E69E044BC5828C9E0033d2B2aBa6E8d8E",
           "999": "0xcaC0E768bF0246D40E09090c6a0141773d6F8288",
           "8453": "0xcaC0E768bF0246D40E09090c6a0141773d6F8288",
           "42161": "0xcaC0E768bF0246D40E09090c6a0141773d6F8288",
-          "80094": "0xcaC0E768bF0246D40E09090c6a0141773d6F8288"
+          "80094": "0x4927951E69E044BC5828C9E0033d2B2aBa6E8d8E"
         }
       },
       "availableChains": {
