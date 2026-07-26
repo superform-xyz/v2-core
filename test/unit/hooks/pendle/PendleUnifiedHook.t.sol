@@ -136,28 +136,6 @@ contract PendleUnifiedHookTest is Helpers {
         assertEq(executions[3].target, address(pendleRouter));
     }
 
-    function test_Build_SwapExactTokenForPt_RevertIf_InvalidReceiver() public {
-        bytes memory data = _createSwapTokenForPtData(address(0x123), market, minPtOut, inputAmount, false);
-
-        vm.expectRevert(PendleUnifiedHook.RECEIVER_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_SwapExactTokenForPt_RevertIf_InvalidMarket() public {
-        // Create data where yieldSource (header) is real market, but txData has different market
-        bytes memory data = _createSwapTokenForPtDataWithYieldSource(
-            market, // yieldSource in header = real market
-            receiver,
-            address(0x456), // market in txData = different (invalid)
-            minPtOut,
-            inputAmount,
-            false
-        );
-
-        vm.expectRevert(PendleUnifiedHook.MARKET_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
     function test_Build_SwapExactTokenForPt_RevertIf_ZeroMinPtOut() public {
         bytes memory data = _createSwapTokenForPtData(receiver, market, 0, inputAmount, false);
 
@@ -181,7 +159,7 @@ contract PendleUnifiedHookTest is Helpers {
             eps: 1e17
         });
 
-        bytes memory data = _createSwapTokenForPtDataWithApprox(receiver, market, minPtOut, inputAmount, guessPtOut, false);
+        bytes memory data = _createSwapTokenForPtDataWithApprox(market, minPtOut, inputAmount, guessPtOut, false);
 
         vm.expectRevert(PendleUnifiedHook.GUESS_PT_OUT_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
@@ -196,7 +174,7 @@ contract PendleUnifiedHookTest is Helpers {
             eps: 2e18 // Invalid: eps > 1e18
         });
 
-        bytes memory data = _createSwapTokenForPtDataWithApprox(receiver, market, minPtOut, inputAmount, guessPtOut, false);
+        bytes memory data = _createSwapTokenForPtDataWithApprox(market, minPtOut, inputAmount, guessPtOut, false);
 
         vm.expectRevert(PendleUnifiedHook.EPS_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
@@ -211,7 +189,7 @@ contract PendleUnifiedHookTest is Helpers {
             eps: 1e17
         });
 
-        bytes memory data = _createSwapTokenForPtDataWithApprox(receiver, market, minPtOut, inputAmount, guessPtOut, false);
+        bytes memory data = _createSwapTokenForPtDataWithApprox(market, minPtOut, inputAmount, guessPtOut, false);
 
         vm.expectRevert(PendleUnifiedHook.MAX_ITERATION_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
@@ -227,7 +205,7 @@ contract PendleUnifiedHookTest is Helpers {
             eps: 1e17
         });
 
-        bytes memory data = _createSwapTokenForPtDataWithApprox(receiver, market, minPtOut, inputAmount, guessPtOut, false);
+        bytes memory data = _createSwapTokenForPtDataWithApprox(market, minPtOut, inputAmount, guessPtOut, false);
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
@@ -243,7 +221,7 @@ contract PendleUnifiedHookTest is Helpers {
             eps: 1e18
         });
 
-        bytes memory data = _createSwapTokenForPtDataWithApprox(receiver, market, minPtOut, inputAmount, guessPtOut, false);
+        bytes memory data = _createSwapTokenForPtDataWithApprox(market, minPtOut, inputAmount, guessPtOut, false);
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
@@ -271,28 +249,6 @@ contract PendleUnifiedHookTest is Helpers {
         Execution[] memory executions = hook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
         assertEq(executions[3].target, address(pendleRouter));
-    }
-
-    function test_Build_SwapExactPtForToken_RevertIf_InvalidReceiver() public {
-        bytes memory data = _createSwapPtForTokenData(address(0x123), market, exactPtIn, minTokenOut, false);
-
-        vm.expectRevert(PendleUnifiedHook.RECEIVER_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_SwapExactPtForToken_RevertIf_InvalidMarket() public {
-        // Create data where yieldSource (header) is real market, but txData has different market
-        bytes memory data = _createSwapPtForTokenDataWithYieldSource(
-            market, // yieldSource in header = real market
-            receiver,
-            address(0x456), // market in txData = different (invalid)
-            exactPtIn,
-            minTokenOut,
-            false
-        );
-
-        vm.expectRevert(PendleUnifiedHook.MARKET_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
     }
 
     function test_Build_SwapExactPtForToken_RevertIf_ZeroMinTokenOut() public {
@@ -422,48 +378,6 @@ contract PendleUnifiedHookTest is Helpers {
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
         assertEq(executions.length, 9);
-    }
-
-    function test_Build_RedeemPyToToken_RevertIf_InvalidYT() public {
-        // Create a different market with different YT
-        MockYieldToken otherYT = new MockYieldToken("Other YT", "OYT", 18);
-        otherYT.setSY(address(mockSY));
-        otherYT.setPT(address(ptToken));
-        address otherMarket = address(new MockPendleMarket(address(syToken), address(ptToken), address(otherYT)));
-
-        // yieldSource (otherMarket) has different YT than what's in txData (ytToken)
-        bytes memory data = _createRedeemDataWithYieldSource(
-            otherMarket, // market with different YT
-            address(ytToken), // YT in txData doesn't match market's YT
-            redeemAmount,
-            address(outputToken),
-            address(outputToken),
-            minTokenOut,
-            SwapType.NONE,
-            address(0),
-            false
-        );
-
-        vm.expectRevert(PendleUnifiedHook.YT_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_RedeemPyToToken_RevertIf_InvalidReceiver() public {
-        bytes memory data = _createRedeemDataWithReceiver(
-            address(0x456), // wrong receiver
-            market, // yieldSource is market
-            address(ytToken),
-            redeemAmount,
-            address(outputToken),
-            address(outputToken),
-            minTokenOut,
-            SwapType.NONE,
-            address(0),
-            false
-        );
-
-        vm.expectRevert(PendleUnifiedHook.RECEIVER_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
     }
 
     function test_Build_RedeemPyToToken_RevertIf_ZeroMinTokenOut() public {
@@ -635,8 +549,8 @@ contract PendleUnifiedHookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_Build_RevertIf_InvalidSelector() public {
-        bytes memory txData = abi.encodePacked(bytes4(0xdeadbeef), bytes(abi.encode(receiver)));
-        bytes memory payload = abi.encode(market, uint256(0), txData);
+        bytes memory routingParams = abi.encode(address(0));
+        bytes memory payload = abi.encode(market, bytes4(0xdeadbeef), routingParams);
         bytes memory data = bytes.concat(
             bytes32(0),
             bytes20(address(0)),
@@ -783,9 +697,8 @@ contract PendleUnifiedHookTest is Helpers {
         // Create market with SY = address(0) (via readTokens returning zero SY)
         address badMarket = address(new MockPendleMarket(address(0), address(ptToken), address(badYT)));
 
-        bytes memory data = _createRedeemDataWithYieldSource(
+        bytes memory data = _createRedeemDataFull(
             badMarket, // market with SY = address(0)
-            address(badYT),
             redeemAmount,
             address(outputToken),
             address(outputToken),
@@ -797,33 +710,6 @@ contract PendleUnifiedHookTest is Helpers {
 
         vm.expectRevert(PendleUnifiedHook.SY_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        VALUE COMPUTATION TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function test_Build_SwapExactTokenForPt_WithNativeETH_ExplicitValue() public {
-        // Test case: usePrevHookAmount=false, value > 0 but != inputAmount
-        // This should now revert with VALUE_MISMATCH
-        uint256 explicitValue = 2 ether;
-        bytes memory data = _createSwapTokenForPtDataWithNativeAndValue(
-            receiver, market, minPtOut, inputAmount, explicitValue, false
-        );
-
-        vm.expectRevert(PendleUnifiedHook.VALUE_MISMATCH.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_SwapExactTokenForPt_WithNativeETH_MatchingValue() public view {
-        // Test case: usePrevHookAmount=false, value == inputAmount (valid)
-        bytes memory data = _createSwapTokenForPtDataWithNativeAndValue(
-            receiver, market, minPtOut, inputAmount, inputAmount, false
-        );
-
-        Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 3);
-        assertEq(executions[1].value, inputAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1239,17 +1125,11 @@ contract PendleUnifiedHookTest is Helpers {
     }
 
     function test_GetBalance_NativeToken() public {
-        TokenOutput memory output = TokenOutput({
-            tokenOut: address(0), // Native token
-            minTokenOut: minTokenOut,
-            tokenRedeemSy: address(outputToken),
-            pendleSwap: address(0),
-            swapData: SwapData({
-                swapType: SwapType.NONE,
-                extRouter: address(0),
-                extCalldata: "",
-                needScale: false
-            })
+        SwapData memory swapData = SwapData({
+            swapType: SwapType.NONE,
+            extRouter: address(0),
+            extCalldata: "",
+            needScale: false
         });
 
         LimitOrderData memory limit = LimitOrderData({
@@ -1260,16 +1140,13 @@ contract PendleUnifiedHookTest is Helpers {
             optData: ""
         });
 
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
-        );
-
-        bytes memory payload = abi.encode(market, uint256(0), txData);
+        bytes memory routingParams = abi.encode(address(outputToken), address(0), swapData, limit);
+        bytes memory payload = abi.encode(market, IPendleRouterV4.swapExactPtForToken.selector, routingParams);
         bytes memory data = bytes.concat(
             bytes32(0),
             bytes20(address(0)),
             bytes20(address(0)),
-            bytes20(address(0)),
+            bytes20(address(0)), // native token output
             bytes32(uint256(0)),
             bytes32(uint256(0)),
             bytes32(uint256(0)),
@@ -1371,7 +1248,7 @@ contract PendleUnifiedHookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function _createSwapTokenForPtData(
-        address receiver_,
+        address, /* receiver_ (unused — account is always used by hook) */
         address market_,
         uint256 minPtOut_,
         uint256 inputAmount_,
@@ -1385,77 +1262,47 @@ contract PendleUnifiedHookTest is Helpers {
             eps: 1e17
         });
 
-        return _createSwapTokenForPtDataWithApprox(receiver_, market_, minPtOut_, inputAmount_, guessPtOut, usePrevHookAmount_);
+        return _createSwapTokenForPtDataWithApprox(market_, minPtOut_, inputAmount_, guessPtOut, usePrevHookAmount_);
     }
 
     function _createSwapTokenForPtDataWithApprox(
-        address receiver_,
         address market_,
         uint256 minPtOut_,
         uint256 inputAmount_,
         ApproxParams memory guessPtOut_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
-        return _createSwapTokenForPtDataFull(market_, receiver_, market_, minPtOut_, inputAmount_, guessPtOut_, usePrevHookAmount_);
-    }
-
-    function _createSwapTokenForPtDataWithYieldSource(
-        address yieldSource_,
-        address receiver_,
-        address market_,
-        uint256 minPtOut_,
-        uint256 inputAmount_,
-        bool usePrevHookAmount_
-    ) internal view returns (bytes memory) {
-        ApproxParams memory guessPtOut = ApproxParams({
-            guessMin: 900,
-            guessMax: 1100,
-            guessOffchain: 1000,
-            maxIteration: 10,
-            eps: 1e17
-        });
-        return _createSwapTokenForPtDataFull(yieldSource_, receiver_, market_, minPtOut_, inputAmount_, guessPtOut, usePrevHookAmount_);
-    }
-
-    function _createSwapTokenForPtDataFull(
-        address yieldSource_,
-        address receiver_,
-        address market_,
-        uint256 minPtOut_,
-        uint256 inputAmount_,
-        ApproxParams memory guessPtOut_,
-        bool usePrevHookAmount_
-    ) internal view returns (bytes memory) {
-        TokenInput memory input = TokenInput({
-            tokenIn: address(inputToken),
-            netTokenIn: inputAmount_,
-            tokenMintSy: address(inputToken),
-            pendleSwap: address(this),
-            swapData: SwapData({
+        bytes memory payload;
+        {
+            SwapData memory swapData = SwapData({
                 swapType: SwapType.NONE,
                 extRouter: address(0),
                 extCalldata: "",
                 needScale: false
-            })
-        });
+            });
 
-        LimitOrderData memory limit = LimitOrderData({
-            limitRouter: address(0),
-            epsSkipMarket: 0,
-            normalFills: new FillOrderParams[](0),
-            flashFills: new FillOrderParams[](0),
-            optData: ""
-        });
+            LimitOrderData memory limit = LimitOrderData({
+                limitRouter: address(0),
+                epsSkipMarket: 0,
+                normalFills: new FillOrderParams[](0),
+                flashFills: new FillOrderParams[](0),
+                optData: ""
+            });
 
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut_, input, limit
-        );
+            bytes memory routingParams = abi.encode(
+                address(inputToken), // tokenMintSy
+                address(this),       // pendleSwap
+                swapData,
+                guessPtOut_,
+                limit
+            );
 
-        bytes memory payload = abi.encode(yieldSource_, uint256(0), txData);
+            payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
+        }
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),
-            bytes20(address(0)),
+            bytes20(address(inputToken)),
             bytes20(address(ptToken)),
             bytes32(inputAmount_),
             bytes32(uint256(0)),
@@ -1467,51 +1314,52 @@ contract PendleUnifiedHookTest is Helpers {
     }
 
     function _createSwapTokenForPtDataWithNative(
-        address receiver_,
+        address, /* receiver_ */
         address market_,
         uint256 minPtOut_,
         uint256 inputAmount_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
-        TokenInput memory input = TokenInput({
-            tokenIn: address(0), // Native ETH
-            netTokenIn: inputAmount_,
-            tokenMintSy: address(0),
-            pendleSwap: address(0),
-            swapData: SwapData({
+        bytes memory payload;
+        {
+            SwapData memory swapData = SwapData({
                 swapType: SwapType.NONE,
                 extRouter: address(0),
                 extCalldata: "",
                 needScale: false
-            })
-        });
+            });
 
-        ApproxParams memory guessPtOut = ApproxParams({
-            guessMin: 900,
-            guessMax: 1100,
-            guessOffchain: 1000,
-            maxIteration: 10,
-            eps: 1e17
-        });
+            ApproxParams memory guessPtOut = ApproxParams({
+                guessMin: 900,
+                guessMax: 1100,
+                guessOffchain: 1000,
+                maxIteration: 10,
+                eps: 1e17
+            });
 
-        LimitOrderData memory limit = LimitOrderData({
-            limitRouter: address(0),
-            epsSkipMarket: 0,
-            normalFills: new FillOrderParams[](0),
-            flashFills: new FillOrderParams[](0),
-            optData: ""
-        });
+            LimitOrderData memory limit = LimitOrderData({
+                limitRouter: address(0),
+                epsSkipMarket: 0,
+                normalFills: new FillOrderParams[](0),
+                flashFills: new FillOrderParams[](0),
+                optData: ""
+            });
 
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
-        );
+            bytes memory routingParams = abi.encode(
+                address(0), // tokenMintSy (native)
+                address(0), // pendleSwap
+                swapData,
+                guessPtOut,
+                limit
+            );
 
-        bytes memory payload = abi.encode(market_, uint256(0), txData);
+            payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
+        }
         return bytes.concat(
             bytes32(0),
-            bytes20(address(0)),
-            bytes20(address(0)),
-            bytes20(address(ptToken)),
+            bytes20(address(0)), // Layer 0 padding
+            bytes20(address(0)), // inputToken = native ETH
+            bytes20(address(ptToken)), // outputToken = PT
             bytes32(inputAmount_),
             bytes32(uint256(0)),
             bytes32(minPtOut_),
@@ -1522,49 +1370,38 @@ contract PendleUnifiedHookTest is Helpers {
     }
 
     function _createSwapPtForTokenData(
-        address receiver_,
+        address, /* receiver_ */
         address market_,
         uint256 exactPtIn_,
         uint256 minTokenOut_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
-        return _createSwapPtForTokenDataWithYieldSource(market_, receiver_, market_, exactPtIn_, minTokenOut_, usePrevHookAmount_);
-    }
-
-    function _createSwapPtForTokenDataWithYieldSource(
-        address yieldSource_,
-        address receiver_,
-        address market_,
-        uint256 exactPtIn_,
-        uint256 minTokenOut_,
-        bool usePrevHookAmount_
-    ) internal view returns (bytes memory) {
-        TokenOutput memory output = TokenOutput({
-            tokenOut: address(outputToken),
-            minTokenOut: minTokenOut_,
-            tokenRedeemSy: address(outputToken),
-            pendleSwap: address(this),
-            swapData: SwapData({
+        bytes memory payload;
+        {
+            SwapData memory swapData = SwapData({
                 swapType: SwapType.NONE,
                 extRouter: address(0),
                 extCalldata: "",
                 needScale: false
-            })
-        });
+            });
 
-        LimitOrderData memory limit = LimitOrderData({
-            limitRouter: address(0),
-            epsSkipMarket: 0,
-            normalFills: new FillOrderParams[](0),
-            flashFills: new FillOrderParams[](0),
-            optData: ""
-        });
+            LimitOrderData memory limit = LimitOrderData({
+                limitRouter: address(0),
+                epsSkipMarket: 0,
+                normalFills: new FillOrderParams[](0),
+                flashFills: new FillOrderParams[](0),
+                optData: ""
+            });
 
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactPtForToken.selector, receiver_, market_, exactPtIn_, output, limit
-        );
+            bytes memory routingParams = abi.encode(
+                address(outputToken), // tokenRedeemSy
+                address(this),        // pendleSwap
+                swapData,
+                limit
+            );
 
-        bytes memory payload = abi.encode(yieldSource_, uint256(0), txData);
+            payload = abi.encode(market_, IPendleRouterV4.swapExactPtForToken.selector, routingParams);
+        }
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),
@@ -1580,7 +1417,7 @@ contract PendleUnifiedHookTest is Helpers {
     }
 
     function _createSwapPtForTokenDataWithSwapRouting(
-        address receiver_,
+        address, /* receiver_ */
         address market_,
         uint256 exactPtIn_,
         uint256 minTokenOut_,
@@ -1588,32 +1425,32 @@ contract PendleUnifiedHookTest is Helpers {
         address extRouter_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
-        TokenOutput memory output = TokenOutput({
-            tokenOut: address(outputToken),
-            minTokenOut: minTokenOut_,
-            tokenRedeemSy: address(outputToken),
-            pendleSwap: address(this),
-            swapData: SwapData({
+        bytes memory payload;
+        {
+            SwapData memory swapData = SwapData({
                 swapType: swapType_,
                 extRouter: extRouter_,
                 extCalldata: "",
                 needScale: false
-            })
-        });
+            });
 
-        LimitOrderData memory limit = LimitOrderData({
-            limitRouter: address(0),
-            epsSkipMarket: 0,
-            normalFills: new FillOrderParams[](0),
-            flashFills: new FillOrderParams[](0),
-            optData: ""
-        });
+            LimitOrderData memory limit = LimitOrderData({
+                limitRouter: address(0),
+                epsSkipMarket: 0,
+                normalFills: new FillOrderParams[](0),
+                flashFills: new FillOrderParams[](0),
+                optData: ""
+            });
 
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactPtForToken.selector, receiver_, market_, exactPtIn_, output, limit
-        );
+            bytes memory routingParams = abi.encode(
+                address(outputToken), // tokenRedeemSy
+                address(this),        // pendleSwap
+                swapData,
+                limit
+            );
 
-        bytes memory payload = abi.encode(market_, uint256(0), txData);
+            payload = abi.encode(market_, IPendleRouterV4.swapExactPtForToken.selector, routingParams);
+        }
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),
@@ -1637,51 +1474,14 @@ contract PendleUnifiedHookTest is Helpers {
         SwapType swapType_,
         address extRouter_,
         bool usePrevHookAmount_
-    ) internal view returns (bytes memory) {
-        // Get YT from market for txData
-        (,, address yt_) = MockPendleMarket(market_).readTokens();
-        return _createRedeemDataWithYieldSource(
-            market_, yt_, amount_, tokenOut_, tokenRedeemSy_, minTokenOut_, swapType_, extRouter_, usePrevHookAmount_
-        );
-    }
-
-    function _createRedeemDataWithYieldSource(
-        address yieldSource_,
-        address yt_,
-        uint256 amount_,
-        address tokenOut_,
-        address tokenRedeemSy_,
-        uint256 minTokenOut_,
-        SwapType swapType_,
-        address extRouter_,
-        bool usePrevHookAmount_
-    ) internal view returns (bytes memory) {
-        return _createRedeemDataFull(
-            yieldSource_, receiver, yt_, amount_, tokenOut_, tokenRedeemSy_, minTokenOut_, swapType_, extRouter_, usePrevHookAmount_
-        );
-    }
-
-    function _createRedeemDataWithReceiver(
-        address receiver_,
-        address yieldSource_,
-        address yt_,
-        uint256 amount_,
-        address tokenOut_,
-        address tokenRedeemSy_,
-        uint256 minTokenOut_,
-        SwapType swapType_,
-        address extRouter_,
-        bool usePrevHookAmount_
     ) internal pure returns (bytes memory) {
         return _createRedeemDataFull(
-            yieldSource_, receiver_, yt_, amount_, tokenOut_, tokenRedeemSy_, minTokenOut_, swapType_, extRouter_, usePrevHookAmount_
+            market_, amount_, tokenOut_, tokenRedeemSy_, minTokenOut_, swapType_, extRouter_, usePrevHookAmount_
         );
     }
 
     function _createRedeemDataFull(
         address yieldSource_,
-        address receiver_,
-        address yt_,
         uint256 amount_,
         address tokenOut_,
         address tokenRedeemSy_,
@@ -1690,24 +1490,23 @@ contract PendleUnifiedHookTest is Helpers {
         address extRouter_,
         bool usePrevHookAmount_
     ) internal pure returns (bytes memory) {
-        TokenOutput memory output = TokenOutput({
-            tokenOut: tokenOut_,
-            minTokenOut: minTokenOut_,
-            tokenRedeemSy: tokenRedeemSy_,
-            pendleSwap: swapType_ != SwapType.NONE ? address(0xBEEF) : address(0),
-            swapData: SwapData({
+        bytes memory payload;
+        {
+            SwapData memory swapData = SwapData({
                 swapType: swapType_,
                 extRouter: extRouter_,
                 extCalldata: "",
                 needScale: false
-            })
-        });
+            });
 
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.redeemPyToToken.selector, receiver_, yt_, amount_, output
-        );
+            bytes memory routingParams = abi.encode(
+                tokenRedeemSy_,
+                swapType_ != SwapType.NONE ? address(0xBEEF) : address(0), // pendleSwap
+                swapData
+            );
 
-        bytes memory payload = abi.encode(yieldSource_, uint256(0), txData);
+            payload = abi.encode(yieldSource_, IPendleRouterV4.redeemPyToToken.selector, routingParams);
+        }
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),
@@ -1727,7 +1526,7 @@ contract PendleUnifiedHookTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function _createSwapTokenForPtDataWithLimitOrders(
-        address receiver_,
+        address, /* receiver_ */
         address market_,
         uint256 minPtOut_,
         uint256 inputAmount_,
@@ -1737,17 +1536,11 @@ contract PendleUnifiedHookTest is Helpers {
     ) internal view returns (bytes memory) {
         bytes memory payload;
         {
-            TokenInput memory input = TokenInput({
-                tokenIn: address(inputToken),
-                netTokenIn: inputAmount_,
-                tokenMintSy: address(inputToken),
-                pendleSwap: address(this),
-                swapData: SwapData({
-                    swapType: SwapType.NONE,
-                    extRouter: address(0),
-                    extCalldata: "",
-                    needScale: false
-                })
+            SwapData memory swapData = SwapData({
+                swapType: SwapType.NONE,
+                extRouter: address(0),
+                extCalldata: "",
+                needScale: false
             });
 
             ApproxParams memory guessPtOut = ApproxParams({
@@ -1760,16 +1553,13 @@ contract PendleUnifiedHookTest is Helpers {
 
             LimitOrderData memory limit = _createLimitOrderData(hasNormalFills_, hasFlashFills_);
 
-            bytes memory txData = abi.encodeWithSelector(
-                IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
-            );
-
-            payload = abi.encode(market_, uint256(0), txData);
+            bytes memory routingParams = abi.encode(address(inputToken), address(this), swapData, guessPtOut, limit);
+            payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
         }
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),
-            bytes20(address(0)),
+            bytes20(address(inputToken)),
             bytes20(address(ptToken)),
             bytes32(inputAmount_),
             bytes32(uint256(0)),
@@ -1781,43 +1571,37 @@ contract PendleUnifiedHookTest is Helpers {
     }
 
     function _createSwapTokenForPtDataWithLimitOrderData(
-        address receiver_,
+        address, /* receiver_ */
         address market_,
         uint256 minPtOut_,
         uint256 inputAmount_,
         LimitOrderData memory limit_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
-        TokenInput memory input = TokenInput({
-            tokenIn: address(inputToken),
-            netTokenIn: inputAmount_,
-            tokenMintSy: address(inputToken),
-            pendleSwap: address(this),
-            swapData: SwapData({
+        bytes memory payload;
+        {
+            SwapData memory swapData = SwapData({
                 swapType: SwapType.NONE,
                 extRouter: address(0),
                 extCalldata: "",
                 needScale: false
-            })
-        });
+            });
 
-        ApproxParams memory guessPtOut = ApproxParams({
-            guessMin: 900,
-            guessMax: 1100,
-            guessOffchain: 1000,
-            maxIteration: 10,
-            eps: 1e17
-        });
+            ApproxParams memory guessPtOut = ApproxParams({
+                guessMin: 900,
+                guessMax: 1100,
+                guessOffchain: 1000,
+                maxIteration: 10,
+                eps: 1e17
+            });
 
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit_
-        );
-
-        bytes memory payload = abi.encode(market_, uint256(0), txData);
+            bytes memory routingParams = abi.encode(address(inputToken), address(this), swapData, guessPtOut, limit_);
+            payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
+        }
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),
-            bytes20(address(0)),
+            bytes20(address(inputToken)),
             bytes20(address(ptToken)),
             bytes32(inputAmount_),
             bytes32(uint256(0)),
@@ -1829,7 +1613,7 @@ contract PendleUnifiedHookTest is Helpers {
     }
 
     function _createSwapPtForTokenDataWithLimitOrders(
-        address receiver_,
+        address, /* receiver_ */
         address market_,
         uint256 exactPtIn_,
         uint256 minTokenOut_,
@@ -1837,26 +1621,20 @@ contract PendleUnifiedHookTest is Helpers {
         bool hasFlashFills_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
-        TokenOutput memory output = TokenOutput({
-            tokenOut: address(outputToken),
-            minTokenOut: minTokenOut_,
-            tokenRedeemSy: address(outputToken),
-            pendleSwap: address(this),
-            swapData: SwapData({
+        bytes memory payload;
+        {
+            SwapData memory swapData = SwapData({
                 swapType: SwapType.NONE,
                 extRouter: address(0),
                 extCalldata: "",
                 needScale: false
-            })
-        });
+            });
 
-        LimitOrderData memory limit = _createLimitOrderData(hasNormalFills_, hasFlashFills_);
+            LimitOrderData memory limit = _createLimitOrderData(hasNormalFills_, hasFlashFills_);
 
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactPtForToken.selector, receiver_, market_, exactPtIn_, output, limit
-        );
-
-        bytes memory payload = abi.encode(market_, uint256(0), txData);
+            bytes memory routingParams = abi.encode(address(outputToken), address(this), swapData, limit);
+            payload = abi.encode(market_, IPendleRouterV4.swapExactPtForToken.selector, routingParams);
+        }
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),
@@ -1922,7 +1700,7 @@ contract PendleUnifiedHookTest is Helpers {
     }
 
     function _createSwapTokenForPtDataWithExpiredOrder(
-        address receiver_,
+        address, /* receiver_ */
         address market_,
         uint256 minPtOut_,
         uint256 inputAmount_,
@@ -1930,80 +1708,30 @@ contract PendleUnifiedHookTest is Helpers {
     ) internal view returns (bytes memory) {
         bytes memory payload;
         {
-            TokenInput memory input = TokenInput({
-                tokenIn: address(inputToken),
-                netTokenIn: inputAmount_,
-                tokenMintSy: address(inputToken),
-                pendleSwap: address(this),
-                swapData: SwapData({
-                    swapType: SwapType.NONE,
-                    extRouter: address(0),
-                    extCalldata: "",
-                    needScale: false
-                })
-            });
+            SwapData memory swapData = SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false });
+            ApproxParams memory guessPtOut = ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
 
-            ApproxParams memory guessPtOut = ApproxParams({
-                guessMin: 900,
-                guessMax: 1100,
-                guessOffchain: 1000,
-                maxIteration: 10,
-                eps: 1e17
-            });
-
-            // Create expired order
             Order memory order = Order({
-                salt: 12345,
-                expiry: block.timestamp - 1, // Expired
-                nonce: 1,
-                orderType: OrderType.SY_FOR_PT,
-                token: address(inputToken),
-                YT: address(ytToken),
-                maker: address(this),
-                receiver: address(this),
-                makingAmount: 1000,
-                lnImpliedRate: 1e17,
-                failSafeRate: 1e16,
-                permit: ""
+                salt: 12345, expiry: block.timestamp - 1, nonce: 1, orderType: OrderType.SY_FOR_PT,
+                token: address(inputToken), YT: address(ytToken), maker: address(this), receiver: address(this),
+                makingAmount: 1000, lnImpliedRate: 1e17, failSafeRate: 1e16, permit: ""
             });
-
             FillOrderParams[] memory normalFills = new FillOrderParams[](1);
-            normalFills[0] = FillOrderParams({
-                order: order,
-                signature: "",
-                makingAmount: 1000
-            });
+            normalFills[0] = FillOrderParams({ order: order, signature: "", makingAmount: 1000 });
+            LimitOrderData memory limit = LimitOrderData({ limitRouter: address(0x789), epsSkipMarket: 0, normalFills: normalFills, flashFills: new FillOrderParams[](0), optData: "" });
 
-            LimitOrderData memory limit = LimitOrderData({
-                limitRouter: address(0x789),
-                epsSkipMarket: 0,
-                normalFills: normalFills,
-                flashFills: new FillOrderParams[](0),
-                optData: ""
-            });
-
-            bytes memory txData = abi.encodeWithSelector(
-                IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
-            );
-
-            payload = abi.encode(market_, uint256(0), txData);
+            bytes memory routingParams = abi.encode(address(inputToken), address(this), swapData, guessPtOut, limit);
+            payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
         }
         return bytes.concat(
-            bytes32(0),
-            bytes20(address(0)),
-            bytes20(address(0)),
-            bytes20(address(ptToken)),
-            bytes32(inputAmount_),
-            bytes32(uint256(0)),
-            bytes32(minPtOut_),
-            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
-            bytes32(payload.length),
-            payload
+            bytes32(0), bytes20(address(0)), bytes20(address(inputToken)), bytes20(address(ptToken)),
+            bytes32(inputAmount_), bytes32(uint256(0)), bytes32(minPtOut_),
+            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00), bytes32(payload.length), payload
         );
     }
 
     function _createSwapTokenForPtDataWithInvalidOrderMaker(
-        address receiver_,
+        address, /* receiver_ */
         address market_,
         uint256 minPtOut_,
         uint256 inputAmount_,
@@ -2011,80 +1739,30 @@ contract PendleUnifiedHookTest is Helpers {
     ) internal view returns (bytes memory) {
         bytes memory payload;
         {
-            TokenInput memory input = TokenInput({
-                tokenIn: address(inputToken),
-                netTokenIn: inputAmount_,
-                tokenMintSy: address(inputToken),
-                pendleSwap: address(this),
-                swapData: SwapData({
-                    swapType: SwapType.NONE,
-                    extRouter: address(0),
-                    extCalldata: "",
-                    needScale: false
-                })
-            });
+            SwapData memory swapData = SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false });
+            ApproxParams memory guessPtOut = ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
 
-            ApproxParams memory guessPtOut = ApproxParams({
-                guessMin: 900,
-                guessMax: 1100,
-                guessOffchain: 1000,
-                maxIteration: 10,
-                eps: 1e17
-            });
-
-            // Create order with invalid maker
             Order memory order = Order({
-                salt: 12345,
-                expiry: block.timestamp + 1 days,
-                nonce: 1,
-                orderType: OrderType.SY_FOR_PT,
-                token: address(inputToken),
-                YT: address(ytToken),
-                maker: address(0), // Invalid
-                receiver: address(this),
-                makingAmount: 1000,
-                lnImpliedRate: 1e17,
-                failSafeRate: 1e16,
-                permit: ""
+                salt: 12345, expiry: block.timestamp + 1 days, nonce: 1, orderType: OrderType.SY_FOR_PT,
+                token: address(inputToken), YT: address(ytToken), maker: address(0), receiver: address(this),
+                makingAmount: 1000, lnImpliedRate: 1e17, failSafeRate: 1e16, permit: ""
             });
-
             FillOrderParams[] memory normalFills = new FillOrderParams[](1);
-            normalFills[0] = FillOrderParams({
-                order: order,
-                signature: "",
-                makingAmount: 1000
-            });
+            normalFills[0] = FillOrderParams({ order: order, signature: "", makingAmount: 1000 });
+            LimitOrderData memory limit = LimitOrderData({ limitRouter: address(0x789), epsSkipMarket: 0, normalFills: normalFills, flashFills: new FillOrderParams[](0), optData: "" });
 
-            LimitOrderData memory limit = LimitOrderData({
-                limitRouter: address(0x789),
-                epsSkipMarket: 0,
-                normalFills: normalFills,
-                flashFills: new FillOrderParams[](0),
-                optData: ""
-            });
-
-            bytes memory txData = abi.encodeWithSelector(
-                IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
-            );
-
-            payload = abi.encode(market_, uint256(0), txData);
+            bytes memory routingParams = abi.encode(address(inputToken), address(this), swapData, guessPtOut, limit);
+            payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
         }
         return bytes.concat(
-            bytes32(0),
-            bytes20(address(0)),
-            bytes20(address(0)),
-            bytes20(address(ptToken)),
-            bytes32(inputAmount_),
-            bytes32(uint256(0)),
-            bytes32(minPtOut_),
-            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
-            bytes32(payload.length),
-            payload
+            bytes32(0), bytes20(address(0)), bytes20(address(inputToken)), bytes20(address(ptToken)),
+            bytes32(inputAmount_), bytes32(uint256(0)), bytes32(minPtOut_),
+            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00), bytes32(payload.length), payload
         );
     }
 
     function _createSwapTokenForPtDataWithInvalidOrderReceiver(
-        address receiver_,
+        address, /* receiver_ */
         address market_,
         uint256 minPtOut_,
         uint256 inputAmount_,
@@ -2092,80 +1770,30 @@ contract PendleUnifiedHookTest is Helpers {
     ) internal view returns (bytes memory) {
         bytes memory payload;
         {
-            TokenInput memory input = TokenInput({
-                tokenIn: address(inputToken),
-                netTokenIn: inputAmount_,
-                tokenMintSy: address(inputToken),
-                pendleSwap: address(this),
-                swapData: SwapData({
-                    swapType: SwapType.NONE,
-                    extRouter: address(0),
-                    extCalldata: "",
-                    needScale: false
-                })
-            });
+            SwapData memory swapData = SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false });
+            ApproxParams memory guessPtOut = ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
 
-            ApproxParams memory guessPtOut = ApproxParams({
-                guessMin: 900,
-                guessMax: 1100,
-                guessOffchain: 1000,
-                maxIteration: 10,
-                eps: 1e17
-            });
-
-            // Create order with invalid receiver
             Order memory order = Order({
-                salt: 12345,
-                expiry: block.timestamp + 1 days,
-                nonce: 1,
-                orderType: OrderType.SY_FOR_PT,
-                token: address(inputToken),
-                YT: address(ytToken),
-                maker: address(this),
-                receiver: address(0), // Invalid
-                makingAmount: 1000,
-                lnImpliedRate: 1e17,
-                failSafeRate: 1e16,
-                permit: ""
+                salt: 12345, expiry: block.timestamp + 1 days, nonce: 1, orderType: OrderType.SY_FOR_PT,
+                token: address(inputToken), YT: address(ytToken), maker: address(this), receiver: address(0),
+                makingAmount: 1000, lnImpliedRate: 1e17, failSafeRate: 1e16, permit: ""
             });
-
             FillOrderParams[] memory normalFills = new FillOrderParams[](1);
-            normalFills[0] = FillOrderParams({
-                order: order,
-                signature: "",
-                makingAmount: 1000
-            });
+            normalFills[0] = FillOrderParams({ order: order, signature: "", makingAmount: 1000 });
+            LimitOrderData memory limit = LimitOrderData({ limitRouter: address(0x789), epsSkipMarket: 0, normalFills: normalFills, flashFills: new FillOrderParams[](0), optData: "" });
 
-            LimitOrderData memory limit = LimitOrderData({
-                limitRouter: address(0x789),
-                epsSkipMarket: 0,
-                normalFills: normalFills,
-                flashFills: new FillOrderParams[](0),
-                optData: ""
-            });
-
-            bytes memory txData = abi.encodeWithSelector(
-                IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
-            );
-
-            payload = abi.encode(market_, uint256(0), txData);
+            bytes memory routingParams = abi.encode(address(inputToken), address(this), swapData, guessPtOut, limit);
+            payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
         }
         return bytes.concat(
-            bytes32(0),
-            bytes20(address(0)),
-            bytes20(address(0)),
-            bytes20(address(ptToken)),
-            bytes32(inputAmount_),
-            bytes32(uint256(0)),
-            bytes32(minPtOut_),
-            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
-            bytes32(payload.length),
-            payload
+            bytes32(0), bytes20(address(0)), bytes20(address(inputToken)), bytes20(address(ptToken)),
+            bytes32(inputAmount_), bytes32(uint256(0)), bytes32(minPtOut_),
+            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00), bytes32(payload.length), payload
         );
     }
 
     function _createSwapTokenForPtDataWithZeroMakingAmount(
-        address receiver_,
+        address, /* receiver_ */
         address market_,
         uint256 minPtOut_,
         uint256 inputAmount_,
@@ -2173,131 +1801,25 @@ contract PendleUnifiedHookTest is Helpers {
     ) internal view returns (bytes memory) {
         bytes memory payload;
         {
-            TokenInput memory input = TokenInput({
-                tokenIn: address(inputToken),
-                netTokenIn: inputAmount_,
-                tokenMintSy: address(inputToken),
-                pendleSwap: address(this),
-                swapData: SwapData({
-                    swapType: SwapType.NONE,
-                    extRouter: address(0),
-                    extCalldata: "",
-                    needScale: false
-                })
-            });
+            SwapData memory swapData = SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false });
+            ApproxParams memory guessPtOut = ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
 
-            ApproxParams memory guessPtOut = ApproxParams({
-                guessMin: 900,
-                guessMax: 1100,
-                guessOffchain: 1000,
-                maxIteration: 10,
-                eps: 1e17
-            });
-
-            // Create order with zero makingAmount
             Order memory order = Order({
-                salt: 12345,
-                expiry: block.timestamp + 1 days,
-                nonce: 1,
-                orderType: OrderType.SY_FOR_PT,
-                token: address(inputToken),
-                YT: address(ytToken),
-                maker: address(this),
-                receiver: address(this),
-                makingAmount: 1000,
-                lnImpliedRate: 1e17,
-                failSafeRate: 1e16,
-                permit: ""
+                salt: 12345, expiry: block.timestamp + 1 days, nonce: 1, orderType: OrderType.SY_FOR_PT,
+                token: address(inputToken), YT: address(ytToken), maker: address(this), receiver: address(this),
+                makingAmount: 1000, lnImpliedRate: 1e17, failSafeRate: 1e16, permit: ""
             });
-
             FillOrderParams[] memory normalFills = new FillOrderParams[](1);
-            normalFills[0] = FillOrderParams({
-                order: order,
-                signature: "",
-                makingAmount: 0 // Invalid
-            });
+            normalFills[0] = FillOrderParams({ order: order, signature: "", makingAmount: 0 });
+            LimitOrderData memory limit = LimitOrderData({ limitRouter: address(0x789), epsSkipMarket: 0, normalFills: normalFills, flashFills: new FillOrderParams[](0), optData: "" });
 
-            LimitOrderData memory limit = LimitOrderData({
-                limitRouter: address(0x789),
-                epsSkipMarket: 0,
-                normalFills: normalFills,
-                flashFills: new FillOrderParams[](0),
-                optData: ""
-            });
-
-            bytes memory txData = abi.encodeWithSelector(
-                IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
-            );
-
-            payload = abi.encode(market_, uint256(0), txData);
+            bytes memory routingParams = abi.encode(address(inputToken), address(this), swapData, guessPtOut, limit);
+            payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
         }
         return bytes.concat(
-            bytes32(0),
-            bytes20(address(0)),
-            bytes20(address(0)),
-            bytes20(address(ptToken)),
-            bytes32(inputAmount_),
-            bytes32(uint256(0)),
-            bytes32(minPtOut_),
-            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
-            bytes32(payload.length),
-            payload
-        );
-    }
-
-    function _createSwapTokenForPtDataWithNativeAndValue(
-        address receiver_,
-        address market_,
-        uint256 minPtOut_,
-        uint256 inputAmount_,
-        uint256 explicitValue_,
-        bool usePrevHookAmount_
-    ) internal view returns (bytes memory) {
-        TokenInput memory input = TokenInput({
-            tokenIn: address(0), // Native ETH
-            netTokenIn: inputAmount_,
-            tokenMintSy: address(0),
-            pendleSwap: address(0),
-            swapData: SwapData({
-                swapType: SwapType.NONE,
-                extRouter: address(0),
-                extCalldata: "",
-                needScale: false
-            })
-        });
-
-        ApproxParams memory guessPtOut = ApproxParams({
-            guessMin: 900,
-            guessMax: 1100,
-            guessOffchain: 1000,
-            maxIteration: 10,
-            eps: 1e17
-        });
-
-        LimitOrderData memory limit = LimitOrderData({
-            limitRouter: address(0),
-            epsSkipMarket: 0,
-            normalFills: new FillOrderParams[](0),
-            flashFills: new FillOrderParams[](0),
-            optData: ""
-        });
-
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
-        );
-
-        bytes memory payload = abi.encode(market_, explicitValue_, txData);
-        return bytes.concat(
-            bytes32(0),
-            bytes20(address(0)),
-            bytes20(address(0)),
-            bytes20(address(ptToken)),
-            bytes32(inputAmount_),
-            bytes32(uint256(0)),
-            bytes32(minPtOut_),
-            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
-            bytes32(payload.length),
-            payload
+            bytes32(0), bytes20(address(0)), bytes20(address(inputToken)), bytes20(address(ptToken)),
+            bytes32(inputAmount_), bytes32(uint256(0)), bytes32(minPtOut_),
+            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00), bytes32(payload.length), payload
         );
     }
 

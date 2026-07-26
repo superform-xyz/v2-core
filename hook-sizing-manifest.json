@@ -485,9 +485,8 @@
   },
   {
     "hookKey": "PENDLE_UNIFIED_HOOK_KEY",
-    "mode": "external",
-    "pipeMode": "transform",
-    "reason": "amount inside aggregator txData"
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
   },
   {
     "hookKey": "RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY",
@@ -585,9 +584,8 @@
   },
   {
     "hookKey": "SWAP_1INCH_HOOK_KEY",
-    "mode": "external",
-    "pipeMode": "transform",
-    "reason": "amount inside aggregator txData; resize = re-quote"
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
   },
   {
     "hookKey": "SWAP_ALGEBRA_INTEGRAL_HOOK_KEY",

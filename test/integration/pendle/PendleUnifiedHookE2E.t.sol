@@ -228,40 +228,6 @@ contract PendleUnifiedHookE2E is Test {
         hook.build(address(prevHook), user, data);
     }
 
-    /// @notice Verify build reverts with a mismatched YT on real market
-    function test_Build_RedeemPyToToken_RevertsWithWrongYT_RealMarket() public {
-        address[] memory tokensOut = IStandardizedYield(sy).getTokensOut();
-        address tokenOut = tokensOut[0];
-        address wrongYT = makeAddr("wrongYT");
-
-        bytes memory data = _buildRedeemData(DETH_MARKET, wrongYT, 1e18, tokenOut, tokenOut, 1, false);
-
-        vm.expectRevert(PendleUnifiedHook.YT_NOT_VALID.selector);
-        hook.build(address(prevHook), user, data);
-    }
-
-    /// @notice Verify build reverts with mismatched market for swapExactTokenForPt
-    function test_Build_SwapExactTokenForPt_RevertsWithWrongMarket_RealMarket() public {
-        address[] memory tokensIn = IStandardizedYield(sy).getTokensIn();
-        address tokenIn = tokensIn[0];
-
-        // yieldSource is DETH_MARKET but txData contains a different market
-        address wrongMarket = makeAddr("wrongMarket");
-        bytes memory data = _buildSwapTokenForPtDataWithYieldSource(
-            DETH_MARKET, // yieldSource header
-            wrongMarket, // market in txData (mismatch)
-            user,
-            1e18,
-            tokenIn,
-            address(0), // outputToken (irrelevant, reverts with MARKET_NOT_VALID first)
-            1,
-            false
-        );
-
-        vm.expectRevert(PendleUnifiedHook.MARKET_NOT_VALID.selector);
-        hook.build(address(prevHook), user, data);
-    }
-
     /*//////////////////////////////////////////////////////////////
                     EXECUTION TESTS (REAL ROUTER)
     //////////////////////////////////////////////////////////////*/
@@ -436,7 +402,7 @@ contract PendleUnifiedHookE2E is Test {
 
     function _buildRedeemData(
         address market_,
-        address yt_,
+        address, /* yt_ — now derived from market by hook */
         uint256 amount_,
         address tokenOut_,
         address tokenRedeemSy_,
@@ -444,20 +410,13 @@ contract PendleUnifiedHookE2E is Test {
         bool usePrevHookAmount_
     )
         internal
-        view
+        pure
         returns (bytes memory)
     {
-        TokenOutput memory output = TokenOutput({
-            tokenOut: tokenOut_,
-            minTokenOut: minTokenOut_,
-            tokenRedeemSy: tokenRedeemSy_,
-            pendleSwap: address(0),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
-        });
+        SwapData memory swapData = SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false });
 
-        bytes memory txData = abi.encodeWithSelector(IPendleRouterV4.redeemPyToToken.selector, user, yt_, amount_, output);
-
-        bytes memory payload = abi.encode(market_, uint256(0), txData);
+        bytes memory routingParams = abi.encode(tokenRedeemSy_, address(0), swapData);
+        bytes memory payload = abi.encode(market_, IPendleRouterV4.redeemPyToToken.selector, routingParams);
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),
@@ -474,7 +433,7 @@ contract PendleUnifiedHookE2E is Test {
 
     function _buildSwapTokenForPtData(
         address market_,
-        address receiver_,
+        address, /* receiver_ */
         uint256 inputAmount_,
         address tokenIn_,
         address outputToken_,
@@ -485,30 +444,7 @@ contract PendleUnifiedHookE2E is Test {
         pure
         returns (bytes memory)
     {
-        return _buildSwapTokenForPtDataWithYieldSource(market_, market_, receiver_, inputAmount_, tokenIn_, outputToken_, minPtOut_, usePrevHookAmount_);
-    }
-
-    function _buildSwapTokenForPtDataWithYieldSource(
-        address yieldSource_,
-        address market_,
-        address receiver_,
-        uint256 inputAmount_,
-        address tokenIn_,
-        address outputToken_,
-        uint256 minPtOut_,
-        bool usePrevHookAmount_
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        TokenInput memory input = TokenInput({
-            tokenIn: tokenIn_,
-            netTokenIn: inputAmount_,
-            tokenMintSy: tokenIn_,
-            pendleSwap: address(0),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
-        });
+        SwapData memory swapData = SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false });
 
         ApproxParams memory guessPtOut = ApproxParams({
             guessMin: 0,
@@ -526,15 +462,12 @@ contract PendleUnifiedHookE2E is Test {
             optData: ""
         });
 
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactTokenForPt.selector, receiver_, market_, minPtOut_, guessPtOut, input, limit
-        );
-
-        bytes memory payload = abi.encode(yieldSource_, uint256(0), txData);
+        bytes memory routingParams = abi.encode(tokenIn_, address(0), swapData, guessPtOut, limit);
+        bytes memory payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),
-            bytes20(address(0)),
+            bytes20(tokenIn_),
             bytes20(outputToken_),
             bytes32(inputAmount_),
             bytes32(uint256(0)),
@@ -547,7 +480,7 @@ contract PendleUnifiedHookE2E is Test {
 
     function _buildSwapPtForTokenData(
         address market_,
-        address receiver_,
+        address, /* receiver_ */
         uint256 exactPtIn_,
         address tokenOut_,
         uint256 minTokenOut_,
@@ -557,13 +490,7 @@ contract PendleUnifiedHookE2E is Test {
         pure
         returns (bytes memory)
     {
-        TokenOutput memory output = TokenOutput({
-            tokenOut: tokenOut_,
-            minTokenOut: minTokenOut_,
-            tokenRedeemSy: tokenOut_,
-            pendleSwap: address(0),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
-        });
+        SwapData memory swapData = SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false });
 
         LimitOrderData memory limit = LimitOrderData({
             limitRouter: address(0),
@@ -573,11 +500,8 @@ contract PendleUnifiedHookE2E is Test {
             optData: ""
         });
 
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactPtForToken.selector, receiver_, market_, exactPtIn_, output, limit
-        );
-
-        bytes memory payload = abi.encode(market_, uint256(0), txData);
+        bytes memory routingParams = abi.encode(tokenOut_, address(0), swapData, limit);
+        bytes memory payload = abi.encode(market_, IPendleRouterV4.swapExactPtForToken.selector, routingParams);
         return bytes.concat(
             bytes32(0),
             bytes20(address(0)),

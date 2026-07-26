@@ -332,7 +332,7 @@ hooks:
   # 1inch
   Swap1InchHook:
     actionTypes: [{intent: swap, stage: instant}]
-    legSizing: []  # sizeless — opaque txData with multiple selectors
+    legSizing: [sized]
 
   # Pendle
   PendleRouterRedeemHook:
@@ -345,7 +345,7 @@ hooks:
 
   PendleUnifiedHook:
     actionTypes: [{intent: swap, stage: instant}]
-    legSizing: []  # sizeless — opaque txData per selector
+    legSizing: [sized]
 
   # Spectra
   SpectraExchangeDepositHook:
