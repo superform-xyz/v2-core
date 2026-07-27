@@ -120,6 +120,11 @@
     "track": "deprecate->replaceCalldata"
   },
   {
+    "hookKey": "APPROVE_AND_SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "APPROVE_AND_SWAP_ALGEBRA_INTEGRAL_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
@@ -588,6 +593,11 @@
     "mode": "external",
     "pipeMode": "transform",
     "reason": "amount inside aggregator txData; resize = re-quote"
+  },
+  {
+    "hookKey": "SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
   },
   {
     "hookKey": "SWAP_ALGEBRA_INTEGRAL_HOOK_KEY",

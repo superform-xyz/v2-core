@@ -177,6 +177,8 @@ HOOK_CONTRACTS=(
     "SpectraExchangeRedeemHook"
     "SwapOdosV3Hook"
     "ApproveAndSwapOdosV3Hook"
+    "SwapAerodromeUniversalRouterHook"
+    "ApproveAndSwapAerodromeUniversalRouterHook"
     "CCTPSendHook"
     "ApproveAndCCTPSendHook"
     "SwapUniswapV3Router02Hook"

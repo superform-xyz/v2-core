@@ -245,7 +245,9 @@
         "TransferHook": "0x2a2CD39c1b72f85F291d06BD02f1f4CB2de5081A",
         "Withdraw7540VaultHook": "0xdd4d3e33a2231f4062e1c7df0991bae09b069e4e",
         "WithdrawWithId7540VaultHook": "0xE03A772E17a8383103Ecd743D1167ACA48f50Bd2",
-        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4"
+        "YoYieldSourceOracle": "0x125d43f5F35c032a45aaD41EBE344d5c65D626D4",
+        "SwapAerodromeUniversalRouterHook": "0xf5f5ad499cDF23bc9d48b998fFEfA9cc83A497Dd",
+        "ApproveAndSwapAerodromeUniversalRouterHook": "0xD7ea0f0e98fF546BE3F289f844480CBD0539b190"
       }
     },
     "BNB": {
@@ -1669,5 +1671,5 @@
       }
     }
   },
-  "updated_at": "2026-07-23T12:39:33Z"
+  "updated_at": "2026-07-24T14:12:06Z"
 }

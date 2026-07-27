@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-07-24T12:27:34Z",
+  "generatedAt": "2026-07-24T14:13:42Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -4310,6 +4310,102 @@
       "approveVariant": null,
       "asyncLifecycle": null,
       "compatibleProtocols": []
+    },
+    "SwapAerodromeUniversalRouterHook": {
+      "name": "Swap Aerodrome Universal Router",
+      "description": "Swaps tokens via the Aerodrome Universal Router",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "8453": "0xb351368878704f3A11B486607EC3A4fCA28AD93b"
+        },
+        "prod": {
+          "8453": "0xf5f5ad499cDF23bc9d48b998fFEfA9cc83A497Dd"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "8453"
+        ],
+        "prod": [
+          "8453"
+        ]
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndSwapAerodromeUniversalRouterHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aerodrome"
+      ]
+    },
+    "ApproveAndSwapAerodromeUniversalRouterHook": {
+      "name": "Approve and Swap Aerodrome Universal Router",
+      "description": "Approves and swaps tokens via the Aerodrome Universal Router",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "8453": "0xa61F72e8FF843BCcd6e14c6062052b035129e64F"
+        },
+        "prod": {
+          "8453": "0xD7ea0f0e98fF546BE3F289f844480CBD0539b190"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "8453"
+        ],
+        "prod": [
+          "8453"
+        ]
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "SwapAerodromeUniversalRouterHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aerodrome"
+      ]
     },
     "Swap1InchHook": {
       "name": "Swap 1inch",
