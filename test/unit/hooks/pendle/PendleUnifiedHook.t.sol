@@ -550,10 +550,10 @@ contract PendleUnifiedHookTest is Helpers {
 
     function test_Build_RevertIf_InvalidSelector() public {
         bytes memory routingParams = abi.encode(address(0));
-        bytes memory payload = abi.encode(market, bytes4(0xdeadbeef), routingParams);
+        bytes memory payload = abi.encode(bytes4(0xdeadbeef), routingParams);
         bytes memory data = bytes.concat(
             bytes32(0),
-            bytes20(address(0)),
+            bytes20(market),
             bytes20(address(0)),
             bytes20(address(0)),
             bytes32(uint256(0)),
@@ -1141,10 +1141,10 @@ contract PendleUnifiedHookTest is Helpers {
         });
 
         bytes memory routingParams = abi.encode(address(outputToken), address(0), swapData, limit);
-        bytes memory payload = abi.encode(market, IPendleRouterV4.swapExactPtForToken.selector, routingParams);
+        bytes memory payload = abi.encode(IPendleRouterV4.swapExactPtForToken.selector, routingParams);
         bytes memory data = bytes.concat(
             bytes32(0),
-            bytes20(address(0)),
+            bytes20(market),
             bytes20(address(0)),
             bytes20(address(0)), // native token output
             bytes32(uint256(0)),
@@ -1297,11 +1297,11 @@ contract PendleUnifiedHookTest is Helpers {
                 limit
             );
 
-            payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
+            payload = abi.encode(IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
         }
         return bytes.concat(
             bytes32(0),
-            bytes20(address(0)),
+            bytes20(market_),
             bytes20(address(inputToken)),
             bytes20(address(ptToken)),
             bytes32(inputAmount_),
@@ -1353,11 +1353,11 @@ contract PendleUnifiedHookTest is Helpers {
                 limit
             );
 
-            payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
+            payload = abi.encode(IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
         }
         return bytes.concat(
             bytes32(0),
-            bytes20(address(0)), // Layer 0 padding
+            bytes20(market_), // yieldSource
             bytes20(address(0)), // inputToken = native ETH
             bytes20(address(ptToken)), // outputToken = PT
             bytes32(inputAmount_),
@@ -1400,11 +1400,11 @@ contract PendleUnifiedHookTest is Helpers {
                 limit
             );
 
-            payload = abi.encode(market_, IPendleRouterV4.swapExactPtForToken.selector, routingParams);
+            payload = abi.encode(IPendleRouterV4.swapExactPtForToken.selector, routingParams);
         }
         return bytes.concat(
             bytes32(0),
-            bytes20(address(0)),
+            bytes20(market_),
             bytes20(address(0)),
             bytes20(address(outputToken)),
             bytes32(exactPtIn_),
@@ -1449,11 +1449,11 @@ contract PendleUnifiedHookTest is Helpers {
                 limit
             );
 
-            payload = abi.encode(market_, IPendleRouterV4.swapExactPtForToken.selector, routingParams);
+            payload = abi.encode(IPendleRouterV4.swapExactPtForToken.selector, routingParams);
         }
         return bytes.concat(
             bytes32(0),
-            bytes20(address(0)),
+            bytes20(market_),
             bytes20(address(0)),
             bytes20(address(outputToken)),
             bytes32(exactPtIn_),
@@ -1505,11 +1505,11 @@ contract PendleUnifiedHookTest is Helpers {
                 swapData
             );
 
-            payload = abi.encode(yieldSource_, IPendleRouterV4.redeemPyToToken.selector, routingParams);
+            payload = abi.encode(IPendleRouterV4.redeemPyToToken.selector, routingParams);
         }
         return bytes.concat(
             bytes32(0),
-            bytes20(address(0)),
+            bytes20(yieldSource_),
             bytes20(address(0)),
             bytes20(tokenOut_),
             bytes32(amount_),
@@ -1554,11 +1554,11 @@ contract PendleUnifiedHookTest is Helpers {
             LimitOrderData memory limit = _createLimitOrderData(hasNormalFills_, hasFlashFills_);
 
             bytes memory routingParams = abi.encode(address(inputToken), address(this), swapData, guessPtOut, limit);
-            payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
+            payload = abi.encode(IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
         }
         return bytes.concat(
             bytes32(0),
-            bytes20(address(0)),
+            bytes20(market_),
             bytes20(address(inputToken)),
             bytes20(address(ptToken)),
             bytes32(inputAmount_),
@@ -1596,11 +1596,11 @@ contract PendleUnifiedHookTest is Helpers {
             });
 
             bytes memory routingParams = abi.encode(address(inputToken), address(this), swapData, guessPtOut, limit_);
-            payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
+            payload = abi.encode(IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
         }
         return bytes.concat(
             bytes32(0),
-            bytes20(address(0)),
+            bytes20(market_),
             bytes20(address(inputToken)),
             bytes20(address(ptToken)),
             bytes32(inputAmount_),
@@ -1633,11 +1633,11 @@ contract PendleUnifiedHookTest is Helpers {
             LimitOrderData memory limit = _createLimitOrderData(hasNormalFills_, hasFlashFills_);
 
             bytes memory routingParams = abi.encode(address(outputToken), address(this), swapData, limit);
-            payload = abi.encode(market_, IPendleRouterV4.swapExactPtForToken.selector, routingParams);
+            payload = abi.encode(IPendleRouterV4.swapExactPtForToken.selector, routingParams);
         }
         return bytes.concat(
             bytes32(0),
-            bytes20(address(0)),
+            bytes20(market_),
             bytes20(address(0)),
             bytes20(address(outputToken)),
             bytes32(exactPtIn_),
@@ -1721,10 +1721,10 @@ contract PendleUnifiedHookTest is Helpers {
             LimitOrderData memory limit = LimitOrderData({ limitRouter: address(0x789), epsSkipMarket: 0, normalFills: normalFills, flashFills: new FillOrderParams[](0), optData: "" });
 
             bytes memory routingParams = abi.encode(address(inputToken), address(this), swapData, guessPtOut, limit);
-            payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
+            payload = abi.encode(IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
         }
         return bytes.concat(
-            bytes32(0), bytes20(address(0)), bytes20(address(inputToken)), bytes20(address(ptToken)),
+            bytes32(0), bytes20(market_), bytes20(address(inputToken)), bytes20(address(ptToken)),
             bytes32(inputAmount_), bytes32(uint256(0)), bytes32(minPtOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00), bytes32(payload.length), payload
         );
@@ -1752,10 +1752,10 @@ contract PendleUnifiedHookTest is Helpers {
             LimitOrderData memory limit = LimitOrderData({ limitRouter: address(0x789), epsSkipMarket: 0, normalFills: normalFills, flashFills: new FillOrderParams[](0), optData: "" });
 
             bytes memory routingParams = abi.encode(address(inputToken), address(this), swapData, guessPtOut, limit);
-            payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
+            payload = abi.encode(IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
         }
         return bytes.concat(
-            bytes32(0), bytes20(address(0)), bytes20(address(inputToken)), bytes20(address(ptToken)),
+            bytes32(0), bytes20(market_), bytes20(address(inputToken)), bytes20(address(ptToken)),
             bytes32(inputAmount_), bytes32(uint256(0)), bytes32(minPtOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00), bytes32(payload.length), payload
         );
@@ -1783,10 +1783,10 @@ contract PendleUnifiedHookTest is Helpers {
             LimitOrderData memory limit = LimitOrderData({ limitRouter: address(0x789), epsSkipMarket: 0, normalFills: normalFills, flashFills: new FillOrderParams[](0), optData: "" });
 
             bytes memory routingParams = abi.encode(address(inputToken), address(this), swapData, guessPtOut, limit);
-            payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
+            payload = abi.encode(IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
         }
         return bytes.concat(
-            bytes32(0), bytes20(address(0)), bytes20(address(inputToken)), bytes20(address(ptToken)),
+            bytes32(0), bytes20(market_), bytes20(address(inputToken)), bytes20(address(ptToken)),
             bytes32(inputAmount_), bytes32(uint256(0)), bytes32(minPtOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00), bytes32(payload.length), payload
         );
@@ -1814,10 +1814,10 @@ contract PendleUnifiedHookTest is Helpers {
             LimitOrderData memory limit = LimitOrderData({ limitRouter: address(0x789), epsSkipMarket: 0, normalFills: normalFills, flashFills: new FillOrderParams[](0), optData: "" });
 
             bytes memory routingParams = abi.encode(address(inputToken), address(this), swapData, guessPtOut, limit);
-            payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
+            payload = abi.encode(IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
         }
         return bytes.concat(
-            bytes32(0), bytes20(address(0)), bytes20(address(inputToken)), bytes20(address(ptToken)),
+            bytes32(0), bytes20(market_), bytes20(address(inputToken)), bytes20(address(ptToken)),
             bytes32(inputAmount_), bytes32(uint256(0)), bytes32(minPtOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00), bytes32(payload.length), payload
         );

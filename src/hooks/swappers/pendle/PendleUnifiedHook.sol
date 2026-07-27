@@ -31,6 +31,7 @@ import {
 import { IPendleMarket } from "../../../vendor/pendle/IPendleMarket.sol";
 import { IStandardizedYield } from "../../../vendor/pendle/IStandardizedYield.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
 import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
 import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
@@ -39,7 +40,7 @@ import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
 /// @author Superform Labs
 /// @notice Unified hook supporting all Pendle router operations: swaps (pre-maturity) and redemptions (post-maturity)
 /// @dev Merges PendleRouterSwapHook and PendleRouterRedeemHook with fix for tokenRedeemSy validation
-/// @dev Payload: abi.encode(address yieldSource, bytes4 selector, bytes routingParams)
+/// @dev Payload: abi.encode(bytes4 selector, bytes routingParams)
 /// @dev data has the following structure (standard 52-byte strategy header + Layer 1 + Layer 2):
 /// @notice         bytes32   placeholder0     = BytesLib.toBytes32(data, 0);
 /// @notice         address   placeholder1     = BytesLib.toAddress(data, 32);
@@ -167,8 +168,9 @@ contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
         uint256 inputAmount = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
         uint256 outputMin = BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_MIN_OFFSET);
 
-        (address yieldSource, bytes4 selector, bytes memory routingParams) =
-            abi.decode(data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:], (address, bytes4, bytes));
+        address yieldSource = HookDataDecoder.extractYieldSource(data);
+        (bytes4 selector, bytes memory routingParams) =
+            abi.decode(data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:], (bytes4, bytes));
 
         if (
             selector != IPendleRouterV4.redeemPyToToken.selector

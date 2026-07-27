@@ -416,10 +416,10 @@ contract PendleUnifiedHookE2E is Test {
         SwapData memory swapData = SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false });
 
         bytes memory routingParams = abi.encode(tokenRedeemSy_, address(0), swapData);
-        bytes memory payload = abi.encode(market_, IPendleRouterV4.redeemPyToToken.selector, routingParams);
+        bytes memory payload = abi.encode(IPendleRouterV4.redeemPyToToken.selector, routingParams);
         return bytes.concat(
             bytes32(0),
-            bytes20(address(0)),
+            bytes20(market_),
             bytes20(address(0)),
             bytes20(tokenOut_),
             bytes32(amount_),
@@ -463,10 +463,10 @@ contract PendleUnifiedHookE2E is Test {
         });
 
         bytes memory routingParams = abi.encode(tokenIn_, address(0), swapData, guessPtOut, limit);
-        bytes memory payload = abi.encode(market_, IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
+        bytes memory payload = abi.encode(IPendleRouterV4.swapExactTokenForPt.selector, routingParams);
         return bytes.concat(
             bytes32(0),
-            bytes20(address(0)),
+            bytes20(market_),
             bytes20(tokenIn_),
             bytes20(outputToken_),
             bytes32(inputAmount_),
@@ -501,10 +501,10 @@ contract PendleUnifiedHookE2E is Test {
         });
 
         bytes memory routingParams = abi.encode(tokenOut_, address(0), swapData, limit);
-        bytes memory payload = abi.encode(market_, IPendleRouterV4.swapExactPtForToken.selector, routingParams);
+        bytes memory payload = abi.encode(IPendleRouterV4.swapExactPtForToken.selector, routingParams);
         return bytes.concat(
             bytes32(0),
-            bytes20(address(0)),
+            bytes20(market_),
             bytes20(address(0)),
             bytes20(tokenOut_),
             bytes32(exactPtIn_),
