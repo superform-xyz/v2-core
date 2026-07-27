@@ -117,12 +117,17 @@ def parse_hook_source(path: Path) -> dict:
         # Check BaseClaimRewardHook
         elif "BaseClaimRewardHook" in content:
             result["hookType"] = "NONACCOUNTING"
+        # Aerodrome concrete hooks inherit all on-chain metadata from their shared base
+        elif "BaseAerodromeUniversalRouterHook" in content:
+            result["hookType"] = "NONACCOUNTING"
 
     # Extract subtype from constructor usage (not from import path which contains HookSubTypes.sol)
     for m in re.finditer(r'HookSubTypes\.(\w+)', content):
         if m.group(1) != "sol":
             result["subtype"] = m.group(1)
             break
+    if "BaseAerodromeUniversalRouterHook" in content:
+        result["subtype"] = "SWAP"
 
     return result
 

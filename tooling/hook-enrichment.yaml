@@ -74,6 +74,9 @@ compatibleProtocols:
   # OpenOcean
   SwapOpenOceanSparkDexHook: [openocean]
   ApproveAndSwapOpenOceanSparkDexHook: [openocean]
+  # Aerodrome
+  SwapAerodromeUniversalRouterHook: [aerodrome]
+  ApproveAndSwapAerodromeUniversalRouterHook: [aerodrome]
   # 1inch
   Swap1InchHook: [1inch]
   # Pendle
@@ -176,6 +179,7 @@ approvePairs:
   SwapSparkPSMExactOutHook: ApproveAndSwapSparkPSMExactOutHook
   SwapAlgebraIntegralHook: ApproveAndSwapAlgebraIntegralHook
   SwapOpenOceanSparkDexHook: ApproveAndSwapOpenOceanSparkDexHook
+  SwapAerodromeUniversalRouterHook: ApproveAndSwapAerodromeUniversalRouterHook
   FluidStakeHook: ApproveAndFluidStakeHook
   GearboxStakeHook: ApproveAndGearboxStakeHook
 
