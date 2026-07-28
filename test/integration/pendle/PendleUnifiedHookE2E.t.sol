@@ -168,13 +168,15 @@ contract PendleUnifiedHookE2E is Test {
         bytes memory data = _buildRedeemData(DETH_MARKET, yt, 1e18, tokenOut, tokenOut, 1, false);
         bytes memory packed = hook.inspect(data);
 
-        assertEq(packed.length, 20, "Inspect should return 20 bytes (outputToken)");
+        assertEq(packed.length, 40, "Inspect should return 40 bytes (yieldSource + outputToken)");
 
-        address inspectedOutputToken = packed.toAddress(0);
+        address inspectedYieldSource = packed.toAddress(0);
+        address inspectedOutputToken = packed.toAddress(20);
+        assertEq(inspectedYieldSource, DETH_MARKET, "yieldSource should match market at offset 32");
         assertEq(inspectedOutputToken, tokenOut, "Output token should match header outputToken at offset 72");
     }
 
-    /// @notice Verify inspect() returns packed outputToken (20 bytes) for swapExactTokenForPt
+    /// @notice Verify inspect() returns packed (yieldSource, outputToken) for swapExactTokenForPt
     function test_Inspect_SwapExactTokenForPt_RealMarket() public view {
         address[] memory tokensIn = IStandardizedYield(sy).getTokensIn();
         address tokenIn = tokensIn[0];
@@ -182,13 +184,15 @@ contract PendleUnifiedHookE2E is Test {
         bytes memory data = _buildSwapTokenForPtData(DETH_MARKET, user, 1e18, tokenIn, pt, 1, false);
         bytes memory packed = hook.inspect(data);
 
-        assertEq(packed.length, 20, "Inspect should return 20 bytes (outputToken)");
+        assertEq(packed.length, 40, "Inspect should return 40 bytes (yieldSource + outputToken)");
 
-        address inspectedOutputToken = packed.toAddress(0);
+        address inspectedYieldSource = packed.toAddress(0);
+        address inspectedOutputToken = packed.toAddress(20);
+        assertEq(inspectedYieldSource, DETH_MARKET, "yieldSource should match market at offset 32");
         assertEq(inspectedOutputToken, pt, "Output token should match PT at offset 72");
     }
 
-    /// @notice Verify inspect() returns packed outputToken (20 bytes) for swapExactPtForToken
+    /// @notice Verify inspect() returns packed (yieldSource, outputToken) for swapExactPtForToken
     function test_Inspect_SwapExactPtForToken_RealMarket() public view {
         address[] memory tokensOut = IStandardizedYield(sy).getTokensOut();
         address tokenOut = tokensOut[0];
@@ -196,9 +200,11 @@ contract PendleUnifiedHookE2E is Test {
         bytes memory data = _buildSwapPtForTokenData(DETH_MARKET, user, 1e18, tokenOut, 1, false);
         bytes memory packed = hook.inspect(data);
 
-        assertEq(packed.length, 20, "Inspect should return 20 bytes (outputToken)");
+        assertEq(packed.length, 40, "Inspect should return 40 bytes (yieldSource + outputToken)");
 
-        address inspectedOutputToken = packed.toAddress(0);
+        address inspectedYieldSource = packed.toAddress(0);
+        address inspectedOutputToken = packed.toAddress(20);
+        assertEq(inspectedYieldSource, DETH_MARKET, "yieldSource should match market at offset 32");
         assertEq(inspectedOutputToken, tokenOut, "Output token should match header outputToken at offset 72");
     }
 

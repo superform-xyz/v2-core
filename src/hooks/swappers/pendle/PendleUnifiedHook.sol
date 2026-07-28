@@ -269,8 +269,9 @@ contract PendleUnifiedHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, 
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
+        address yieldSource = HookDataDecoder.extractYieldSource(data);
         address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
-        return abi.encodePacked(outputToken);
+        return abi.encodePacked(yieldSource, outputToken);
     }
 
     // ─── ISuperHookSwap ──────────────────────────────────────────────────────

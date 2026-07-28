@@ -1040,13 +1040,22 @@ contract PendleUnifiedHookTest is Helpers {
     function test_Inspect_SwapExactTokenForPt() public view {
         bytes memory data = _createSwapTokenForPtData(receiver, market, minPtOut, inputAmount, false);
         bytes memory packed = hook.inspect(data);
-        assertGt(packed.length, 0);
+        // inspect returns abi.encodePacked(yieldSource, outputToken) = 20 + 20 = 40 bytes
+        assertEq(packed.length, 40);
+        address returnedYieldSource = address(uint160(bytes20(BytesLib.slice(packed, 0, 20))));
+        address returnedOutputToken = address(uint160(bytes20(BytesLib.slice(packed, 20, 20))));
+        assertEq(returnedYieldSource, market);
+        assertEq(returnedOutputToken, address(ptToken));
     }
 
     function test_Inspect_SwapExactPtForToken() public view {
         bytes memory data = _createSwapPtForTokenData(receiver, market, exactPtIn, minTokenOut, false);
         bytes memory packed = hook.inspect(data);
-        assertGt(packed.length, 0);
+        assertEq(packed.length, 40);
+        address returnedYieldSource = address(uint160(bytes20(BytesLib.slice(packed, 0, 20))));
+        address returnedOutputToken = address(uint160(bytes20(BytesLib.slice(packed, 20, 20))));
+        assertEq(returnedYieldSource, market);
+        assertEq(returnedOutputToken, address(outputToken));
     }
 
     function test_Inspect_RedeemPyToToken() public view {
@@ -1061,7 +1070,11 @@ contract PendleUnifiedHookTest is Helpers {
             false
         );
         bytes memory packed = hook.inspect(data);
-        assertGt(packed.length, 0);
+        assertEq(packed.length, 40);
+        address returnedYieldSource = address(uint160(bytes20(BytesLib.slice(packed, 0, 20))));
+        address returnedOutputToken = address(uint160(bytes20(BytesLib.slice(packed, 20, 20))));
+        assertEq(returnedYieldSource, market);
+        assertEq(returnedOutputToken, address(outputToken));
     }
 
     /*//////////////////////////////////////////////////////////////
