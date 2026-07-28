@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-07-27T08:03:24Z",
+  "generatedAt": "2026-07-28T09:00:22Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -1687,7 +1687,7 @@
           "1": "0xDA3910D119C6bb3Cb72874Fb2aDf83af8A7Db72c"
         },
         "prod": {
-          "1": "0xCdD698531DC2B40340Fa918604d9ef890D1F40D7"
+          "1": "0xf3CA38654990a26148bc1fA2aBC5EC6E06038346"
         }
       },
       "availableChains": {
@@ -1832,7 +1832,7 @@
           "1": "0x3DD82bA61e9d871d0e677Bb6C2DdE94527aF1ddc"
         },
         "prod": {
-          "1": "0xBda834CE23daDf9F51e2f17bF80e533756b65B53"
+          "1": "0x38A404933f95E519E3926B35c1F86ecff758710F"
         }
       },
       "availableChains": {
@@ -1885,7 +1885,7 @@
           "1": "0x2da5cc3268D3488b69c6594E943613B00d1A047b"
         },
         "prod": {
-          "1": "0x7cE57D97667F07483a8dB7Ce50B13629beb46b10"
+          "1": "0x0A482856E6980d0Cc4A1F4083ebaA666Bf04ED8f"
         }
       },
       "availableChains": {
@@ -1938,7 +1938,7 @@
           "14": "0x4b6937960d798bF7a849a8d5F1bc3f545e7fB06B"
         },
         "prod": {
-          "14": "0x27CD9F9227bb21E4e365ef47F70C73d6B3fF830e"
+          "14": "0x9D573F3018baDD42Dd292d44F8887FBbCf488Dc8"
         }
       },
       "availableChains": {
@@ -2083,10 +2083,10 @@
       "legSizing": [],
       "addresses": {
         "staging": {
-          "1": "0xcBF8987AA1185B4d335cFfAE60E86ed6399e59DB"
+          "1": "0x13F4378832B2fDAB1F487d06AE4E64A5729A459e"
         },
         "prod": {
-          "1": "0x8e92324FC317f79276409EE519E9B40A67eBE53d"
+          "1": "0xAC2C0Ef6602A83A40Ce307fb6134e7b86497aC5C"
         }
       },
       "availableChains": {
@@ -2128,10 +2128,10 @@
       "legSizing": [],
       "addresses": {
         "staging": {
-          "14": "0x7e6bBA1ee899642ff7EA54Cf3b450D127DD38B14"
+          "14": "0xa0246c5AC88465c5E9386e9990257ec19B79eC4D"
         },
         "prod": {
-          "14": "0x3dc975922951A533DE85F82b1C3aFeCe41d0DE7b"
+          "14": "0x6CEb5551506e7225514dF1056941307ed8D28094"
         }
       },
       "availableChains": {
@@ -2797,7 +2797,7 @@
           "14": "0xccC9465CbC049E43e33De2A25A4356128a76EC30"
         },
         "prod": {
-          "14": "0x930B4c9379474D3Cba04c7Ab3d0f858180A3Efbc"
+          "14": "0x8704fAD97ab95d4a8392B0667fE08903a46d102b"
         }
       },
       "availableChains": {
@@ -2837,7 +2837,7 @@
           "14": "0x905B0660f4eB9E3Ab493d6AE73CA544483771507"
         },
         "prod": {
-          "14": "0x6D2cE8DEa182A3cdD4933523F41600aF993F9597"
+          "14": "0xfd0A3e316Ffe711d5302F91a30F02dbB7F35C95A"
         }
       },
       "availableChains": {
@@ -2919,7 +2919,7 @@
           "14": "0xeA7D18cb3bbdcc967A93263429C3D9d674B7cf65"
         },
         "prod": {
-          "14": "0x0C095F4E8A45642F678688AD333c6bd56592ea26"
+          "14": "0x45Eb9379f77867560114A398309b6444c51376e6"
         }
       },
       "availableChains": {
@@ -3000,7 +3000,7 @@
           "14": "0xFaE7Fd1E6b3C7251A18f27051309cB89fd1ae9fA"
         },
         "prod": {
-          "14": "0xE87f318A1C215DE411bEbAEaE32a0498dEd11e35"
+          "14": "0x44f6A4014776355B267D4B659a55184Bb968a387"
         }
       },
       "availableChains": {
@@ -4632,13 +4632,13 @@
           "42161": "0xCeCD0D5cd95871879685027c9d6FAa45D0B0952E"
         },
         "prod": {
-          "1": "0xcaC0E768bF0246D40E09090c6a0141773d6F8288",
-          "10": "0xcaC0E768bF0246D40E09090c6a0141773d6F8288",
-          "56": "0xcaC0E768bF0246D40E09090c6a0141773d6F8288",
+          "1": "0x4927951E69E044BC5828C9E0033d2B2aBa6E8d8E",
+          "10": "0x4927951E69E044BC5828C9E0033d2B2aBa6E8d8E",
+          "56": "0x4927951E69E044BC5828C9E0033d2B2aBa6E8d8E",
           "146": "0x4927951E69E044BC5828C9E0033d2B2aBa6E8d8E",
-          "999": "0xcaC0E768bF0246D40E09090c6a0141773d6F8288",
-          "8453": "0xcaC0E768bF0246D40E09090c6a0141773d6F8288",
-          "42161": "0xcaC0E768bF0246D40E09090c6a0141773d6F8288",
+          "999": "0x4927951E69E044BC5828C9E0033d2B2aBa6E8d8E",
+          "8453": "0x4927951E69E044BC5828C9E0033d2B2aBa6E8d8E",
+          "42161": "0x4927951E69E044BC5828C9E0033d2B2aBa6E8d8E",
           "80094": "0x4927951E69E044BC5828C9E0033d2B2aBa6E8d8E"
         }
       },
@@ -4686,12 +4686,32 @@
       ],
       "legSizing": [],
       "addresses": {
-        "staging": {},
-        "prod": {}
+        "staging": {
+          "1": "0x88eE27F601451844F4B239AD220d9E07996D6C35",
+          "56": "0xf1E4Eb6272A47aaD255D99DC2B961A9F9b5726bE",
+          "8453": "0x88eE27F601451844F4B239AD220d9E07996D6C35",
+          "42161": "0x88bc79c435cB7f929e61B7B6F14D46c40a8eFEed"
+        },
+        "prod": {
+          "1": "0xCEF1817AAfC500D6526330cC3310E0E788540bE7",
+          "56": "0x7485300b533312f9C94Ec85013C4bfB571b9E9f7",
+          "8453": "0xCEF1817AAfC500D6526330cC3310E0E788540bE7",
+          "42161": "0xBe8eBFEab4bff680663e3e9aa7e96654f19d9a87"
+        }
       },
       "availableChains": {
-        "staging": [],
-        "prod": []
+        "staging": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ]
       },
       "amountMeta": [],
       "sized": false,
@@ -4720,12 +4740,32 @@
         "sized"
       ],
       "addresses": {
-        "staging": {},
-        "prod": {}
+        "staging": {
+          "1": "0x33e16EbA0c020ecd11fc79a40A5eec75fdb6f2F9",
+          "56": "0x72Ceb5fBE47bC47dae73AD7EBaCaAe8784AdE009",
+          "8453": "0x33e16EbA0c020ecd11fc79a40A5eec75fdb6f2F9",
+          "42161": "0xF5A7dC7f0db1e82Acd0112D3d284ccC412c961aD"
+        },
+        "prod": {
+          "1": "0x5ad1Ef5a61C74f7228A6da504C1819a8db886FCf",
+          "56": "0xE26899243cEa57c671d065Fc3846B7402cd1CD4D",
+          "8453": "0x5ad1Ef5a61C74f7228A6da504C1819a8db886FCf",
+          "42161": "0x6cD2E3880B3b451E25E781b0FE6335fCD6dB4073"
+        }
       },
       "availableChains": {
-        "staging": [],
-        "prod": []
+        "staging": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "56",
+          "8453",
+          "42161"
+        ]
       },
       "amountMeta": [
         {
@@ -4765,8 +4805,8 @@
           "14": "0x1EDbDA02415d51808ED687E0E49F2ec32868F615"
         },
         "prod": {
-          "1": "0x5b4d95c004e51c9A9cD9cCEaa80f194AD59FE5f5",
-          "14": "0x70c40DC8D8928C0Bba51120A98297Cf7Ca33Bc39"
+          "1": "0x49e652fA641bc0f696F7e32063569f4AD4FbB5Db",
+          "14": "0xC10248c8C66D802b08E7DF42caD4028c45fa97CA"
         }
       },
       "availableChains": {
@@ -6444,7 +6484,7 @@
           "1": "0xD1F6a6C742231F57d35057b595c39355d7919Ae7"
         },
         "prod": {
-          "1": "0xA0b59C9Df3318a8A905540c35a1ea53A82B7E030"
+          "1": "0xaeBe021a2F2A9065f3954C74ceeCB7368E685267"
         }
       },
       "availableChains": {
@@ -6552,7 +6592,7 @@
           "1": "0x20Ca1f55226Ab40B4E91b5c3E18D07A3349b9202"
         },
         "prod": {
-          "1": "0xE22d17939E33F26C4195521D547a8d0956a819a0"
+          "1": "0x6Fe1ddC0000Dc7A75BDD7555bcaccdFC607Eca40"
         }
       },
       "availableChains": {
@@ -6660,7 +6700,7 @@
           "1": "0xd427A6272931f1Eb7bd5195fEE2e70d3b1A58b8A"
         },
         "prod": {
-          "1": "0x32C1e288F86F119Fc82963Ae990A7C57d817EADf"
+          "1": "0x2d3bB312BA70f3C2Bca61Dc42dD44AA6036c35eb"
         }
       },
       "availableChains": {
@@ -8390,7 +8430,7 @@
           "1": "0x7E019E82c8665e6d8d3e0bB1906eF6FeF183fE0c"
         },
         "prod": {
-          "1": "0x90Cc51274dA0986d30E627A4866EEd2332Ca3394"
+          "1": "0xa6Fd16C346e1416cDDF50A8e5D529e03BbBd6194"
         }
       },
       "availableChains": {
@@ -8516,7 +8556,7 @@
           "1": "0x018409A0065cBC917845E69DF4c8B12D987909Df"
         },
         "prod": {
-          "1": "0xE0E21f6B7f9e13Ee0c09d8FCf5a223Ccb67dA9db"
+          "1": "0x69086E40D7570E8157b4f50bAf65fAF1a33E2efF"
         }
       },
       "availableChains": {

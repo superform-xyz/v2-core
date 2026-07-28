@@ -42,8 +42,8 @@ import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
 /// @dev Merges PendleRouterSwapHook and PendleRouterRedeemHook with fix for tokenRedeemSy validation
 /// @dev Payload: abi.encode(bytes4 selector, bytes routingParams)
 /// @dev data has the following structure (standard 52-byte strategy header + Layer 1 + Layer 2):
-/// @notice         bytes32   placeholder0     = BytesLib.toBytes32(data, 0);
-/// @notice         address   placeholder1     = BytesLib.toAddress(data, 32);
+/// @notice         bytes32   yieldSourceOracleId = BytesLib.toBytes32(data, 0);
+/// @notice         address   yieldSource      = BytesLib.toAddress(data, 32);
 /// @notice         address   inputToken       = BytesLib.toAddress(data, 52);
 /// @notice         address   outputToken      = BytesLib.toAddress(data, 72);
 /// @notice         uint256   inputAmount      = BytesLib.toUint256(data, 92);

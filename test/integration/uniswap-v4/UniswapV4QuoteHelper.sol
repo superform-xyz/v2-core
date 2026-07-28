@@ -48,7 +48,7 @@ library UniswapV4QuoteHelper {
         PoolId poolId = params.poolKey.toId();
 
         // Get current pool state using StateLibrary
-        (uint160 sqrtPriceX96,, uint24 protocolFee, uint24 lpFee) = StateLibrary.getSlot0(poolManager, poolId);
+        (uint160 sqrtPriceX96,,, uint24 lpFee) = StateLibrary.getSlot0(poolManager, poolId);
 
         // Validate pool has liquidity
         require(sqrtPriceX96 != 0, "ZERO_LIQUIDITY");
@@ -63,12 +63,14 @@ library UniswapV4QuoteHelper {
 
         // Use real V4 SwapMath for single-step quote (may be optimistic for large swaps)
         // This computes only one step - large swaps may hit price limits and execute partially
+        // Note: In V4, the swap fee charged to the swapper is just lpFee.
+        // protocolFee is a packed dual-fee (two uint12 values) deducted from LP earnings separately.
         (uint160 sqrtPriceNextX96,, uint256 amountOut,) = SwapMath.computeSwapStep(
             sqrtPriceX96,
             sqrtPriceTargetX96,
             liquidity,
             -int256(params.amountIn), // Negative for exact input
-            lpFee + protocolFee
+            lpFee
         );
 
         result.amountOut = amountOut;
