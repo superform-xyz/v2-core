@@ -79,7 +79,7 @@
   "PendlePTYieldSourceOracle": "0xD8DE19100D41C6Fc393A9b374aE318C2965BdD23",
   "PendleRouterRedeemHook": "0x7a0297e5BC8339f84763d4bb86c4d31dB1425Eaf",
   "PendleRouterSwapHook": "0xFa8c339A1f19Be2614e3E84640fdb9504c4F2092",
-  "PendleUnifiedHook": "0xCeCD0D5cd95871879685027c9d6FAa45D0B0952E",
+  "PendleUnifiedHook": "0xFc2D588f860aD5f48404088150a052BcE6279352",
   "RecordPurchasePendlePTAmortizedOracleHook": "0x8354224369a3B0C60152C3F13d9830764Be612f9",
   "RecordPurchasePendlePTAmortizedOracleHookV2": "0x44D10965131C0BA874d26643BA61c36d0CDeF7F2",
   "RecordRedemptionPendlePTAmortizedOracleHook": "0x31Bbb9613C445C6406f3b1Fe493D7d3A723f9B88",

@@ -179,10 +179,10 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
   // Amount is embedded in aggregator txData, ABI-encoded structs, or dynamic arrays.
   // OMS must not splice — amount is set off-chain by bundler/aggregator.
   // Priority backlog for replaceCalldataAmount migration.
-  Swap1InchHook: { mode: "external", reason: "amount inside aggregator txData; resize = re-quote" },
+  // Note: Swap1InchHook removed from OVERRIDES — implements replaceCalldataAmount, auto-detected
   PendleRouterSwapHook: { mode: "external", reason: "amount inside aggregator txData" },
   PendleRouterRedeemHook: { mode: "external", reason: "TokenOutput ABI-encoded struct" },
-  PendleUnifiedHook: { mode: "external", reason: "amount inside aggregator txData" },
+  // Note: PendleUnifiedHook removed from OVERRIDES — implements replaceCalldataAmount, auto-detected
   BatchTransferHook: { mode: "external", reason: "amounts in variable-length array" },
   BatchTransferFromHook: { mode: "external", reason: "amounts in variable-length array" },
   MerklClaimRewardHook: { mode: "external", reason: "variable-length claim data" },

@@ -309,30 +309,21 @@ contract PendleUnifiedHookIntegration is MinimalBaseIntegrationTest, OdosAPIPars
         view
         returns (bytes memory)
     {
-        // Create TokenOutput struct with no swap routing
-        TokenOutput memory output = TokenOutput({
-            tokenOut: tokenOut,
-            minTokenOut: minTokenOut,
-            tokenRedeemSy: tokenRedeemSy,
-            pendleSwap: address(0),
-            swapData: SwapData({
-                swapType: SwapType.NONE,
-                extRouter: address(0),
-                extCalldata: bytes(""),
-                needScale: false
-            })
+        // Encode routing params (no swap routing)
+        SwapData memory swapData = SwapData({
+            swapType: SwapType.NONE,
+            extRouter: address(0),
+            extCalldata: bytes(""),
+            needScale: false
         });
 
-        // Encode txData for redeemPyToToken
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.redeemPyToToken.selector, accountEth, ytAddress, amount, output
-        );
+        bytes memory routingParams = abi.encode(tokenRedeemSy, address(0), swapData);
 
         // Pack hook data with standard layout
-        bytes memory payload = abi.encode(yieldSource, uint256(0), txData);
+        bytes memory payload = abi.encode(IPendleRouterV4.redeemPyToToken.selector, routingParams);
         return bytes.concat(
             bytes32(0),
-            bytes20(address(0)),
+            bytes20(yieldSource),
             bytes20(address(0)),
             bytes20(tokenOut),
             bytes32(amount),
@@ -345,11 +336,11 @@ contract PendleUnifiedHookIntegration is MinimalBaseIntegrationTest, OdosAPIPars
     }
 
     /// @notice Helper to create PendleUnifiedHook data for redeemPyToToken with swap routing
-    /// @dev Data layout: standard 10-field Layer 1 + payload = abi.encode(yieldSource, value, txData)
+    /// @dev Data layout: standard 10-field Layer 1 + payload = abi.encode(selector, routingParams)
     function _createPendleUnifiedRedeemHookDataWithSwap(
         address yieldSource,
         uint256 amount,
-        address ytAddress,
+        address, /* ytAddress — derived from market by hook */
         address tokenOut,
         address tokenRedeemSy,
         uint256 minTokenOut,
@@ -360,34 +351,23 @@ contract PendleUnifiedHookIntegration is MinimalBaseIntegrationTest, OdosAPIPars
         view
         returns (bytes memory)
     {
-        // Create TokenOutput struct with swap routing via Odos
+        // Encode routing params with swap routing via Odos
         // IMPORTANT: pendleSwap must be set to Pendle's swap aggregator even for external swaps
-        // The aggregator handles the coordination between SY redemption and the external router
-        // needScale: true is required because SY redemption may return less than the input amount
-        // (due to fees or rounding), so Pendle scales the Odos calldata to match actual amount
-        TokenOutput memory output = TokenOutput({
-            tokenOut: tokenOut,
-            minTokenOut: minTokenOut,
-            tokenRedeemSy: tokenRedeemSy,
-            pendleSwap: CHAIN_1_PENDLE_SWAP, // Required for swap routing coordination
-            swapData: SwapData({
-                swapType: SwapType.ODOS,
-                extRouter: CHAIN_1_ODOS_ROUTER,
-                extCalldata: odosCalldata,
-                needScale: true // Scale calldata to match actual redeemed amount
-            })
+        // needScale: true is required because SY redemption may return less than input amount
+        SwapData memory swapData = SwapData({
+            swapType: SwapType.ODOS,
+            extRouter: CHAIN_1_ODOS_ROUTER,
+            extCalldata: odosCalldata,
+            needScale: true
         });
 
-        // Encode txData for redeemPyToToken
-        bytes memory txData = abi.encodeWithSelector(
-            IPendleRouterV4.redeemPyToToken.selector, accountEth, ytAddress, amount, output
-        );
+        bytes memory routingParams = abi.encode(tokenRedeemSy, CHAIN_1_PENDLE_SWAP, swapData);
 
         // Pack hook data with standard layout
-        bytes memory payload = abi.encode(yieldSource, uint256(0), txData);
+        bytes memory payload = abi.encode(IPendleRouterV4.redeemPyToToken.selector, routingParams);
         return bytes.concat(
             bytes32(0),
-            bytes20(address(0)),
+            bytes20(yieldSource),
             bytes20(address(0)),
             bytes20(tokenOut),
             bytes32(amount),
