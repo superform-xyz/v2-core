@@ -477,6 +477,11 @@
     "pipeMode": "transform"
   },
   {
+    "hookKey": "PENDLE_PT_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "PENDLE_ROUTER_REDEEM_HOOK_KEY",
     "mode": "external",
     "pipeMode": "transform",
