@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-07-28T10:59:42Z",
+  "generatedAt": "2026-07-29T06:31:31Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -4672,6 +4672,44 @@
       "compatibleProtocols": [
         "pendle"
       ]
+    },
+    "PendlePTHook": {
+      "name": "Pendle PT",
+      "description": "Executes Pendle PT operations (buy, sell, or redeem)",
+      "hookType": "NONACCOUNTING",
+      "subtype": "PTYT",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
     },
     "SpectraExchangeDepositHook": {
       "name": "Spectra Exchange Deposit",
