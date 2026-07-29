@@ -10,27 +10,20 @@ import { IPendleMarket } from "../../../src/vendor/pendle/IPendleMarket.sol";
 import { IPYieldToken } from "../../../src/vendor/pendle/IPYieldToken.sol";
 import { IStandardizedYield } from "../../../src/vendor/pendle/IStandardizedYield.sol";
 import {
-    IPendleRouterV4,
     LimitOrderData,
-    FillOrderParams,
-    Order,
-    OrderType,
     TokenInput,
     TokenOutput,
     ApproxParams,
-    SwapType,
-    SwapData
+    SwapType
 } from "../../../src/vendor/pendle/IPendleRouterV4.sol";
 
 import { PendlePTHook } from "../../../src/hooks/swappers/pendle/PendlePTHook.sol";
-import { BaseHook } from "../../../src/hooks/BaseHook.sol";
 import { MockHook } from "../../mocks/MockHook.sol";
 import { ISuperHook } from "../../../src/interfaces/ISuperHook.sol";
-import { SwapCalldataLayout } from "../../../src/libraries/SwapCalldataLayout.sol";
 
 /// @title PendlePTHookE2E
 /// @notice End-to-end fork tests for PendlePTHook using real mainnet Pendle Router V4 and DETH market
-/// @dev Tests build(), inspect(), full execution, and limit order validation against real on-chain state
+/// @dev Tests build(), inspect(), and full execution against real on-chain state
 contract PendlePTHookE2E is Test {
     using BytesLib for bytes;
 
@@ -76,9 +69,7 @@ contract PendlePTHookE2E is Test {
 
     /// @notice Verify build() produces correct 6-execution structure for buy PT with real market
     function test_Build_BuyPt_RealMarket() public view {
-        address[] memory tokensIn = IStandardizedYield(sy).getTokensIn();
-        require(tokensIn.length > 0, "No valid tokens in");
-        address tokenIn = tokensIn[0];
+        address tokenIn = _firstErc20TokenIn();
 
         uint256 inputAmount = 1e18;
         bytes memory data = _buildBuyPtData(DETH_MARKET, tokenIn, pt, inputAmount, 1, false);
@@ -102,8 +93,7 @@ contract PendlePTHookE2E is Test {
 
     /// @notice Verify build() correctly encodes the swapExactTokenForPt calldata with real market
     function test_Build_BuyPt_CallDataEncoding_RealMarket() public view {
-        address[] memory tokensIn = IStandardizedYield(sy).getTokensIn();
-        address tokenIn = tokensIn[0];
+        address tokenIn = _firstErc20TokenIn();
 
         uint256 inputAmount = 2.5e18;
         uint256 minPtOut = 1e17;
@@ -112,7 +102,7 @@ contract PendlePTHookE2E is Test {
 
         // Decode the swapExactTokenForPt calldata (exec[3])
         bytes memory args = _removeSelector(executions[3].callData);
-        (address receiver_, address market_, uint256 minPtOut_, ApproxParams memory guess_, TokenInput memory input_,) =
+        (address receiver_, address market_, uint256 minPtOut_, ApproxParams memory guess_, TokenInput memory input_, LimitOrderData memory limit_) =
             abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
 
         assertEq(receiver_, user, "Receiver should be user");
@@ -121,6 +111,14 @@ contract PendlePTHookE2E is Test {
         assertEq(input_.tokenIn, tokenIn, "tokenIn should match");
         assertEq(input_.netTokenIn, inputAmount, "netTokenIn should match");
         assertGt(guess_.maxIteration, 0, "maxIteration should be set");
+
+        // Internally-constructed fields: no auxiliary swapping, no limit orders
+        assertEq(input_.tokenMintSy, tokenIn, "tokenMintSy should be the header inputToken");
+        assertEq(input_.pendleSwap, address(0), "pendleSwap should be zero");
+        assertEq(uint256(input_.swapData.swapType), uint256(SwapType.NONE), "swapType should be NONE");
+        assertEq(limit_.limitRouter, address(0), "limit order should be empty");
+        assertEq(limit_.normalFills.length, 0, "normalFills should be empty");
+        assertEq(limit_.flashFills.length, 0, "flashFills should be empty");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -164,7 +162,7 @@ contract PendlePTHookE2E is Test {
 
         // Decode the swapExactPtForToken calldata (exec[3])
         bytes memory args = _removeSelector(executions[3].callData);
-        (address receiver_, address market_, uint256 exactPtIn_, TokenOutput memory output_,) =
+        (address receiver_, address market_, uint256 exactPtIn_, TokenOutput memory output_, LimitOrderData memory limit_) =
             abi.decode(args, (address, address, uint256, TokenOutput, LimitOrderData));
 
         assertEq(receiver_, user, "Receiver should be user");
@@ -172,6 +170,12 @@ contract PendlePTHookE2E is Test {
         assertEq(exactPtIn_, ptAmount, "exactPtIn should match");
         assertEq(output_.tokenOut, tokenOut, "tokenOut should match");
         assertEq(output_.minTokenOut, minTokenOut, "minTokenOut should match");
+
+        // Internally-constructed fields: no auxiliary swapping, no limit orders
+        assertEq(output_.tokenRedeemSy, tokenOut, "tokenRedeemSy should be the header outputToken");
+        assertEq(output_.pendleSwap, address(0), "pendleSwap should be zero");
+        assertEq(uint256(output_.swapData.swapType), uint256(SwapType.NONE), "swapType should be NONE");
+        assertEq(limit_.limitRouter, address(0), "limit order should be empty");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -235,26 +239,27 @@ contract PendlePTHookE2E is Test {
         assertEq(amount_, redeemAmount, "Amount should match");
         assertEq(output_.minTokenOut, 1e17, "minTokenOut should match");
         assertEq(output_.tokenOut, tokenOut, "tokenOut should match");
+        assertEq(output_.tokenRedeemSy, tokenOut, "tokenRedeemSy should be the header outputToken");
+        assertEq(output_.pendleSwap, address(0), "pendleSwap should be zero");
+        assertEq(uint256(output_.swapData.swapType), uint256(SwapType.NONE), "swapType should be NONE");
     }
 
     /*//////////////////////////////////////////////////////////////
                         INSPECT TESTS (REAL MARKET)
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Verify inspect() returns packed (yieldSource, outputToken) for buy PT
+    /// @notice Verify inspect() returns only the packed yieldSource for buy PT
     function test_Inspect_BuyPt_RealMarket() public view {
-        address[] memory tokensIn = IStandardizedYield(sy).getTokensIn();
-        address tokenIn = tokensIn[0];
+        address tokenIn = _firstErc20TokenIn();
 
         bytes memory data = _buildBuyPtData(DETH_MARKET, tokenIn, pt, 1e18, 1, false);
         bytes memory packed = hook.inspect(data);
 
-        assertEq(packed.length, 40, "Inspect should return 40 bytes");
+        assertEq(packed.length, 20, "Inspect should return 20 bytes");
         assertEq(packed.toAddress(0), DETH_MARKET, "yieldSource should match market");
-        assertEq(packed.toAddress(20), pt, "outputToken should match PT");
     }
 
-    /// @notice Verify inspect() returns packed (yieldSource, outputToken) for sell PT
+    /// @notice Verify inspect() returns only the packed yieldSource for sell PT
     function test_Inspect_SellPt_RealMarket() public view {
         address[] memory tokensOut = IStandardizedYield(sy).getTokensOut();
         address tokenOut = tokensOut[0];
@@ -262,9 +267,19 @@ contract PendlePTHookE2E is Test {
         bytes memory data = _buildSellPtData(DETH_MARKET, pt, tokenOut, 1e18, 1, false);
         bytes memory packed = hook.inspect(data);
 
-        assertEq(packed.length, 40, "Inspect should return 40 bytes");
+        assertEq(packed.length, 20, "Inspect should return 20 bytes");
         assertEq(packed.toAddress(0), DETH_MARKET, "yieldSource should match market");
-        assertEq(packed.toAddress(20), tokenOut, "outputToken should match tokenOut");
+    }
+
+    /// @notice Verify inspect() output is identical for both directions on the same market
+    function test_Inspect_DirectionAgnostic_RealMarket() public view {
+        address tokenIn = _firstErc20TokenIn();
+        address[] memory tokensOut = IStandardizedYield(sy).getTokensOut();
+
+        bytes memory buyData = _buildBuyPtData(DETH_MARKET, tokenIn, pt, 1e18, 1, false);
+        bytes memory sellData = _buildSellPtData(DETH_MARKET, pt, tokensOut[0], 1e18, 1, false);
+
+        assertEq(hook.inspect(buyData), hook.inspect(sellData), "Inspect must not lock a direction");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -282,6 +297,15 @@ contract PendlePTHookE2E is Test {
                 "Token from getTokensOut should pass isValidTokenOut"
             );
         }
+    }
+
+    /// @notice Verify build reverts with an invalid tokenIn for buy on real market
+    function test_Build_BuyPt_RevertsWithInvalidTokenIn_RealMarket() public {
+        address invalidToken = makeAddr("invalidToken");
+        bytes memory data = _buildBuyPtData(DETH_MARKET, invalidToken, pt, 1e18, 1, false);
+
+        vm.expectRevert(PendlePTHook.TOKEN_IN_NOT_LISTED.selector);
+        hook.build(address(prevHook), user, data);
     }
 
     /// @notice Verify build reverts with an invalid tokenOut for sell on real market
@@ -312,7 +336,7 @@ contract PendlePTHookE2E is Test {
         address[] memory tokensOut = IStandardizedYield(sy).getTokensOut();
         address tokenOut = tokensOut[0];
 
-        // Build data with PT as input — same payload for both paths
+        // Build data with PT as input — same (empty) payload for both paths
         bytes memory data = _buildSellPtData(DETH_MARKET, pt, tokenOut, 1e18, 1, false);
 
         // Pre-maturity: should route to sell (6 executions)
@@ -322,11 +346,9 @@ contract PendlePTHookE2E is Test {
             assertEq(sellExecs.length, 6, "Pre-maturity should produce 6 executions (sell)");
         }
 
-        // Post-maturity: same data routes to redeem (9 executions)
+        // Post-maturity: the exact same data routes to redeem (9 executions)
         vm.warp(expiry + 1 days);
-        // Rebuild data since redeem uses same layout as sell
-        bytes memory redeemData = _buildRedeemData(DETH_MARKET, pt, tokenOut, 1e18, 1, false);
-        Execution[] memory redeemExecs = hook.build(address(prevHook), user, redeemData);
+        Execution[] memory redeemExecs = hook.build(address(prevHook), user, data);
         assertEq(redeemExecs.length, 9, "Post-maturity should produce 9 executions (redeem)");
     }
 
@@ -340,9 +362,7 @@ contract PendlePTHookE2E is Test {
         uint256 expiry = IPYieldToken(yt).expiry();
         if (block.timestamp >= expiry) return;
 
-        address[] memory tokensIn = IStandardizedYield(sy).getTokensIn();
-        require(tokensIn.length > 0, "No valid tokens in");
-        address tokenIn = tokensIn[0];
+        address tokenIn = _firstErc20TokenIn();
 
         uint256 inputAmount = 1e18;
 
@@ -498,8 +518,7 @@ contract PendlePTHookE2E is Test {
         uint256 expiry = IPYieldToken(yt).expiry();
         if (block.timestamp >= expiry) return;
 
-        address[] memory tokensIn = IStandardizedYield(sy).getTokensIn();
-        address tokenIn = tokensIn[0];
+        address tokenIn = _firstErc20TokenIn();
         uint256 inputAmount = 1e18;
 
         deal(tokenIn, user, inputAmount);
@@ -525,141 +544,19 @@ contract PendlePTHookE2E is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-            LIMIT ORDER VALIDATION TESTS (REAL MARKET)
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Verify build() accepts empty limit order data with real market
-    function test_Build_BuyPt_EmptyLimitOrders_RealMarket() public view {
-        address[] memory tokensIn = IStandardizedYield(sy).getTokensIn();
-        address tokenIn = tokensIn[0];
-
-        bytes memory data = _buildBuyPtData(DETH_MARKET, tokenIn, pt, 1e18, 1, false);
-        Execution[] memory executions = hook.build(address(prevHook), user, data);
-        assertEq(executions.length, 6, "Empty limit orders should still produce 6 executions");
-    }
-
-    /// @notice Verify limit order validation rejects expired orders on real fork (uses real block.timestamp)
-    function test_Build_BuyPt_RevertIf_ExpiredLimitOrder_RealMarket() public {
-        address[] memory tokensIn = IStandardizedYield(sy).getTokensIn();
-        address tokenIn = tokensIn[0];
-
-        // Create limit order with expiry in the past (relative to fork block timestamp)
-        LimitOrderData memory limit = _createLimitOrderDataWithExpiry(block.timestamp - 1);
-
-        bytes memory data = _buildBuyPtDataWithLimit(DETH_MARKET, tokenIn, pt, 1e18, 1, limit, false);
-
-        vm.expectRevert(PendlePTHook.ORDER_EXPIRED.selector);
-        hook.build(address(prevHook), user, data);
-    }
-
-    /// @notice Verify limit order validation rejects expired orders for sell on real fork
-    function test_Build_SellPt_RevertIf_ExpiredLimitOrder_RealMarket() public {
-        if (IPYieldToken(yt).isExpired()) return;
-
-        address[] memory tokensOut = IStandardizedYield(sy).getTokensOut();
-        address tokenOut = tokensOut[0];
-
-        LimitOrderData memory limit = _createLimitOrderDataWithExpiry(block.timestamp - 1);
-
-        bytes memory data = _buildSellPtDataWithLimit(DETH_MARKET, pt, tokenOut, 1e18, 1, limit, false);
-
-        vm.expectRevert(PendlePTHook.ORDER_EXPIRED.selector);
-        hook.build(address(prevHook), user, data);
-    }
-
-    /// @notice Verify limit order validation rejects zero maker address on real fork
-    function test_Build_BuyPt_RevertIf_ZeroMaker_RealMarket() public {
-        address[] memory tokensIn = IStandardizedYield(sy).getTokensIn();
-        address tokenIn = tokensIn[0];
-
-        LimitOrderData memory limit = _createLimitOrderDataWithExpiry(block.timestamp + 1 hours);
-        limit.normalFills[0].order.maker = address(0);
-
-        bytes memory data = _buildBuyPtDataWithLimit(DETH_MARKET, tokenIn, pt, 1e18, 1, limit, false);
-
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(prevHook), user, data);
-    }
-
-    /// @notice Verify limit order validation rejects zero receiver address on real fork
-    function test_Build_BuyPt_RevertIf_ZeroReceiver_RealMarket() public {
-        address[] memory tokensIn = IStandardizedYield(sy).getTokensIn();
-        address tokenIn = tokensIn[0];
-
-        LimitOrderData memory limit = _createLimitOrderDataWithExpiry(block.timestamp + 1 hours);
-        limit.normalFills[0].order.receiver = address(0);
-
-        bytes memory data = _buildBuyPtDataWithLimit(DETH_MARKET, tokenIn, pt, 1e18, 1, limit, false);
-
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(prevHook), user, data);
-    }
-
-    /// @notice Verify limit order validation rejects zero making amount on real fork
-    function test_Build_BuyPt_RevertIf_ZeroMakingAmount_RealMarket() public {
-        address[] memory tokensIn = IStandardizedYield(sy).getTokensIn();
-        address tokenIn = tokensIn[0];
-
-        LimitOrderData memory limit = _createLimitOrderDataWithExpiry(block.timestamp + 1 hours);
-        limit.normalFills[0].makingAmount = 0;
-
-        bytes memory data = _buildBuyPtDataWithLimit(DETH_MARKET, tokenIn, pt, 1e18, 1, limit, false);
-
-        vm.expectRevert(PendlePTHook.MAKING_AMOUNT_NOT_VALID.selector);
-        hook.build(address(prevHook), user, data);
-    }
-
-    /// @notice Verify limit order validation rejects too many fills on real fork
-    function test_Build_BuyPt_RevertIf_TooManyFills_RealMarket() public {
-        address[] memory tokensIn = IStandardizedYield(sy).getTokensIn();
-        address tokenIn = tokensIn[0];
-
-        LimitOrderData memory limit;
-        limit.limitRouter = address(0xCAFE);
-        limit.normalFills = new FillOrderParams[](65);
-        for (uint256 i; i < 65; ++i) {
-            limit.normalFills[i] = _createValidFillOrderParams(block.timestamp + 1 hours);
-        }
-
-        bytes memory data = _buildBuyPtDataWithLimit(DETH_MARKET, tokenIn, pt, 1e18, 1, limit, false);
-
-        vm.expectRevert(PendlePTHook.TOO_MANY_FILLS.selector);
-        hook.build(address(prevHook), user, data);
-    }
-
-    /// @notice Verify limit order validation rejects optData exceeding max length on real fork
-    function test_Build_BuyPt_RevertIf_OptDataTooLong_RealMarket() public {
-        address[] memory tokensIn = IStandardizedYield(sy).getTokensIn();
-        address tokenIn = tokensIn[0];
-
-        LimitOrderData memory limit = _createLimitOrderDataWithExpiry(block.timestamp + 1 hours);
-        limit.optData = new bytes(1025);
-
-        bytes memory data = _buildBuyPtDataWithLimit(DETH_MARKET, tokenIn, pt, 1e18, 1, limit, false);
-
-        vm.expectRevert(PendlePTHook.OPT_DATA_TOO_LONG.selector);
-        hook.build(address(prevHook), user, data);
-    }
-
-    /// @notice Verify limit order validation rejects zero limitRouter when fills exist
-    function test_Build_BuyPt_RevertIf_ZeroLimitRouter_RealMarket() public {
-        address[] memory tokensIn = IStandardizedYield(sy).getTokensIn();
-        address tokenIn = tokensIn[0];
-
-        LimitOrderData memory limit = _createLimitOrderDataWithExpiry(block.timestamp + 1 hours);
-        limit.limitRouter = address(0);
-
-        bytes memory data = _buildBuyPtDataWithLimit(DETH_MARKET, tokenIn, pt, 1e18, 1, limit, false);
-
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(prevHook), user, data);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                             HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Builds buy PT data: tokenIn → PT (no selector prefix — PendlePTHook style)
+    /// @dev Returns the first non-native tokenIn listed by the SY (ERC20 buy path)
+    function _firstErc20TokenIn() internal view returns (address) {
+        address[] memory tokensIn = IStandardizedYield(sy).getTokensIn();
+        for (uint256 i; i < tokensIn.length; i++) {
+            if (tokensIn[i] != address(0)) return tokensIn[i];
+        }
+        revert("No ERC20 tokens in");
+    }
+
+    /// @dev Builds buy PT data: tokenIn → PT. Payload = abi.encode(ApproxParams)
     function _buildBuyPtData(
         address market_,
         address tokenIn_,
@@ -672,27 +569,6 @@ contract PendlePTHookE2E is Test {
         pure
         returns (bytes memory)
     {
-        LimitOrderData memory emptyLimit;
-        return _buildBuyPtDataWithLimit(market_, tokenIn_, outputToken_, inputAmount_, minPtOut_, emptyLimit, usePrevHookAmount_);
-    }
-
-    /// @dev Builds buy PT data with custom LimitOrderData
-    function _buildBuyPtDataWithLimit(
-        address market_,
-        address tokenIn_,
-        address outputToken_,
-        uint256 inputAmount_,
-        uint256 minPtOut_,
-        LimitOrderData memory limit_,
-        bool usePrevHookAmount_
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        SwapData memory swapData =
-            SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false });
-
         ApproxParams memory guessPtOut = ApproxParams({
             guessMin: 0,
             guessMax: type(uint256).max,
@@ -702,7 +578,7 @@ contract PendlePTHookE2E is Test {
         });
 
         // PendlePTHook: no selector prefix — routingParams IS the payload
-        bytes memory routingParams = abi.encode(tokenIn_, address(0), swapData, guessPtOut, limit_);
+        bytes memory routingParams = abi.encode(guessPtOut);
 
         return bytes.concat(
             bytes32(0),
@@ -718,7 +594,7 @@ contract PendlePTHookE2E is Test {
         );
     }
 
-    /// @dev Builds sell PT data: PT → tokenOut (no selector prefix)
+    /// @dev Builds sell PT data: PT → tokenOut. Payload is empty.
     function _buildSellPtData(
         address market_,
         address inputToken_,
@@ -731,29 +607,6 @@ contract PendlePTHookE2E is Test {
         pure
         returns (bytes memory)
     {
-        LimitOrderData memory emptyLimit;
-        return _buildSellPtDataWithLimit(market_, inputToken_, tokenOut_, exactPtIn_, minTokenOut_, emptyLimit, usePrevHookAmount_);
-    }
-
-    /// @dev Builds sell PT data with custom LimitOrderData
-    function _buildSellPtDataWithLimit(
-        address market_,
-        address inputToken_,
-        address tokenOut_,
-        uint256 exactPtIn_,
-        uint256 minTokenOut_,
-        LimitOrderData memory limit_,
-        bool usePrevHookAmount_
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        SwapData memory swapData =
-            SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false });
-
-        bytes memory routingParams = abi.encode(tokenOut_, address(0), swapData, limit_);
-
         return bytes.concat(
             bytes32(0),
             bytes20(market_),
@@ -763,13 +616,12 @@ contract PendlePTHookE2E is Test {
             bytes32(uint256(0)),
             bytes32(minTokenOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
-            bytes32(routingParams.length),
-            routingParams
+            bytes32(uint256(0)) // payload_paramLength = 0, no payload
         );
     }
 
-    /// @dev Builds redeem PT data: PT → tokenOut (post-maturity, no selector prefix)
-    /// @dev Uses the same payload layout as sell — routing is determined by YT.isExpired()
+    /// @dev Builds redeem PT data: PT → tokenOut (post-maturity)
+    /// @dev Identical to sell — routing is determined by YT.isExpired()
     function _buildRedeemData(
         address market_,
         address inputToken_,
@@ -782,53 +634,7 @@ contract PendlePTHookE2E is Test {
         pure
         returns (bytes memory)
     {
-        SwapData memory swapData =
-            SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false });
-
-        // Redeem path does NOT include LimitOrderData (redeemPyToToken doesn't accept it)
-        bytes memory routingParams = abi.encode(tokenOut_, address(0), swapData);
-
-        return bytes.concat(
-            bytes32(0),
-            bytes20(market_),
-            bytes20(inputToken_),
-            bytes20(tokenOut_),
-            bytes32(amount_),
-            bytes32(uint256(0)),
-            bytes32(minTokenOut_),
-            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
-            bytes32(routingParams.length),
-            routingParams
-        );
-    }
-
-    /// @dev Creates a LimitOrderData with one normal fill, using the given expiry
-    function _createLimitOrderDataWithExpiry(uint256 expiry_) internal pure returns (LimitOrderData memory limit) {
-        limit.limitRouter = address(0xCAFE);
-        limit.epsSkipMarket = 0;
-        limit.optData = "";
-        limit.normalFills = new FillOrderParams[](1);
-        limit.normalFills[0] = _createValidFillOrderParams(expiry_);
-    }
-
-    /// @dev Creates a valid FillOrderParams for testing
-    function _createValidFillOrderParams(uint256 expiry_) internal pure returns (FillOrderParams memory) {
-        Order memory order = Order({
-            salt: 1,
-            expiry: expiry_,
-            nonce: 0,
-            orderType: OrderType.SY_FOR_PT,
-            token: address(0x1111),
-            YT: address(0x2222),
-            maker: address(0xABCD),
-            receiver: address(0xABCD),
-            makingAmount: 1000,
-            lnImpliedRate: 0,
-            failSafeRate: 0,
-            permit: ""
-        });
-
-        return FillOrderParams({ order: order, signature: hex"deadbeef", makingAmount: 500 });
+        return _buildSellPtData(market_, inputToken_, tokenOut_, amount_, minTokenOut_, usePrevHookAmount_);
     }
 
     /// @dev Removes the first 4 bytes (selector) from calldata for abi.decode

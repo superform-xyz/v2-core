@@ -4,14 +4,10 @@ pragma solidity 0.8.30;
 import { Helpers } from "../../../utils/Helpers.sol";
 import { PendlePTHook } from "../../../../src/hooks/swappers/pendle/PendlePTHook.sol";
 import {
-    IPendleRouterV4,
     ApproxParams,
     TokenInput,
     LimitOrderData,
     TokenOutput,
-    FillOrderParams,
-    Order,
-    OrderType,
     SwapData,
     SwapType
 } from "../../../../src/vendor/pendle/IPendleRouterV4.sol";
@@ -25,7 +21,6 @@ import { ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../..
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 import { HookDataUpdater } from "../../../../src/libraries/HookDataUpdater.sol";
-import { SwapCalldataLayout } from "../../../../src/libraries/SwapCalldataLayout.sol";
 import { BytesLib } from "../../../../src/vendor/BytesLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { ISuperHookSwap } from "../../../../src/interfaces/ISuperHookSwap.sol";
@@ -40,6 +35,8 @@ contract PendlePTHookTest is Helpers {
     MockERC20 public syToken;
     MockYieldToken public ytToken;
     MockStandardizedYield public mockSY;
+
+    address public constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     address public account;
     address public market;
@@ -65,6 +62,11 @@ contract PendlePTHookTest is Helpers {
         validTokensOut[0] = address(outputToken);
         validTokensOut[1] = address(syToken);
         mockSY.setTokensOut(validTokensOut);
+        // Buy path validates isValidTokenIn — list inputToken and native (address(0))
+        address[] memory validTokensIn = new address[](2);
+        validTokensIn[0] = address(inputToken);
+        validTokensIn[1] = address(0);
+        mockSY.setTokensIn(validTokensIn);
         vm.label(address(mockSY), "Mock SY");
 
         // Create YT that points to the mock SY and PT
@@ -109,7 +111,7 @@ contract PendlePTHookTest is Helpers {
     }
 
     function test_Build_BuyPt_WithNativeETH() public {
-        bytes memory data = _createBuyPtDataWithNative(market, inputAmount, minOut, false);
+        bytes memory data = _createBuyPtDataWithNative(market, address(0), inputAmount, minOut, false);
         prevHook.setOutAmount(inputAmount, account);
         Execution[] memory executions = hook.build(address(prevHook), account, data);
         // 1 hook execution + 2 wrappers = 3
@@ -118,12 +120,56 @@ contract PendlePTHookTest is Helpers {
         assertEq(executions[1].value, inputAmount);
     }
 
+    function test_Build_BuyPt_NativeSentinelNormalized() public view {
+        // Header inputToken = 0xEeee… sentinel — must build the native path with tokenIn = address(0)
+        bytes memory data = _createBuyPtDataWithNative(market, NATIVE_TOKEN, inputAmount, minOut, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(pendleRouter));
+        assertEq(executions[1].value, inputAmount);
+
+        bytes memory args = _removeSelector(executions[1].callData);
+        (,,,, TokenInput memory input,) =
+            abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+        assertEq(input.tokenIn, address(0), "sentinel not normalized to address(0)");
+        assertEq(input.tokenMintSy, address(0), "tokenMintSy not normalized to address(0)");
+    }
+
     function test_Build_BuyPt_WithPrevHookAmount() public {
         bytes memory data = _createBuyPtData(market, inputAmount, minOut, true);
         prevHook.setOutAmount(2500, account);
         Execution[] memory executions = hook.build(address(prevHook), account, data);
         assertEq(executions.length, 6);
         assertEq(executions[3].target, address(pendleRouter));
+    }
+
+    function test_Build_BuyPt_InternalSwapDataIsNone() public view {
+        bytes memory data = _createBuyPtData(market, inputAmount, minOut, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[3].callData);
+        (,,,, TokenInput memory input, LimitOrderData memory limit) =
+            abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+
+        assertEq(input.tokenIn, address(inputToken), "tokenIn != header inputToken");
+        assertEq(input.tokenMintSy, address(inputToken), "tokenMintSy != header inputToken");
+        assertEq(input.pendleSwap, address(0), "pendleSwap not zeroed");
+        assertEq(uint256(input.swapData.swapType), uint256(SwapType.NONE), "swapType not NONE");
+        assertEq(input.swapData.extRouter, address(0), "extRouter not zeroed");
+        assertEq(input.swapData.extCalldata.length, 0, "extCalldata not empty");
+        assertEq(limit.limitRouter, address(0), "limit order not empty");
+        assertEq(limit.normalFills.length, 0, "normalFills not empty");
+        assertEq(limit.flashFills.length, 0, "flashFills not empty");
+    }
+
+    function test_Build_BuyPt_RevertIf_TokenInNotListed() public {
+        // SY that does NOT list inputToken as valid tokenIn
+        address[] memory noTokens = new address[](0);
+        mockSY.setTokensIn(noTokens);
+
+        bytes memory data = _createBuyPtData(market, inputAmount, minOut, false);
+        vm.expectRevert(PendlePTHook.TOKEN_IN_NOT_LISTED.selector);
+        hook.build(address(prevHook), account, data);
     }
 
     function test_Build_BuyPt_RevertIf_ZeroMinOut() public {
@@ -240,6 +286,24 @@ contract PendlePTHookTest is Helpers {
         assertEq(executions.length, 6);
     }
 
+    function test_Build_SellPt_InternalFieldsZeroed() public view {
+        bytes memory data = _createSellPtData(market, inputAmount, minOut, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[3].callData);
+        (,,, TokenOutput memory output, LimitOrderData memory limit) =
+            abi.decode(args, (address, address, uint256, TokenOutput, LimitOrderData));
+
+        assertEq(output.tokenOut, address(outputToken), "tokenOut != header outputToken");
+        assertEq(output.tokenRedeemSy, address(outputToken), "tokenRedeemSy != header outputToken");
+        assertEq(output.pendleSwap, address(0), "pendleSwap not zeroed");
+        assertEq(uint256(output.swapData.swapType), uint256(SwapType.NONE), "swapType not NONE");
+        assertEq(output.swapData.extRouter, address(0), "extRouter not zeroed");
+        assertEq(limit.limitRouter, address(0), "limit order not empty");
+        assertEq(limit.normalFills.length, 0, "normalFills not empty");
+        assertEq(limit.flashFills.length, 0, "flashFills not empty");
+    }
+
     function test_Build_SellPt_RevertIf_ZeroMinOut() public {
         bytes memory data = _createSellPtData(market, inputAmount, 0, false);
         vm.expectRevert(PendlePTHook.MIN_OUT_NOT_VALID.selector);
@@ -249,39 +313,6 @@ contract PendlePTHookTest is Helpers {
     function test_Build_SellPt_RevertIf_ZeroAmount() public {
         bytes memory data = _createSellPtData(market, 0, minOut, false);
         vm.expectRevert(PendlePTHook.AMOUNT_IN_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_SellPt_WithSwapRouting() public view {
-        bytes memory data = _createSellPtDataWithSwapRouting(
-            market, inputAmount, minOut, SwapType.ODOS, address(0xBEEF), false
-        );
-        Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 6);
-    }
-
-    function test_Build_SellPt_WithEthWethSwapType() public view {
-        // ETH_WETH allows extRouter = address(0)
-        bytes memory data = _createSellPtDataWithSwapRouting(
-            market, inputAmount, minOut, SwapType.ETH_WETH, address(0), false
-        );
-        Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 6);
-    }
-
-    function test_Build_SellPt_RevertIf_NoExtRouter_SwapRouting() public {
-        bytes memory data = _createSellPtDataWithSwapRouting(
-            market, inputAmount, minOut, SwapType.ODOS, address(0), false
-        );
-        vm.expectRevert(PendlePTHook.EXT_ROUTER_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_SellPt_RevertIf_ExtRouterNativeToken() public {
-        bytes memory data = _createSellPtDataWithSwapRouting(
-            market, inputAmount, minOut, SwapType.ODOS, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE, false
-        );
-        vm.expectRevert(PendlePTHook.EXT_ROUTER_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
 
@@ -302,16 +333,6 @@ contract PendlePTHookTest is Helpers {
         hook.build(address(prevHook), account, data);
     }
 
-    function test_Build_SellPt_RevertIf_TokenRedeemSyNotValid() public {
-        // Use swap routing with invalid tokenRedeemSy
-        address invalidRedeemSy = address(0xDEAD);
-        bytes memory data = _createSellPtDataWithCustomRedeemSy(
-            market, inputAmount, minOut, invalidRedeemSy, SwapType.ODOS, address(0xBEEF), false
-        );
-        vm.expectRevert(PendlePTHook.TOKEN_REDEEM_SY_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
     /*//////////////////////////////////////////////////////////////
                     REDEEM PT TESTS (inputToken == PT, expired)
     //////////////////////////////////////////////////////////////*/
@@ -321,15 +342,6 @@ contract PendlePTHookTest is Helpers {
         bytes memory data = _createRedeemPtData(market, inputAmount, minOut, false);
         Execution[] memory executions = hook.build(address(prevHook), account, data);
         // 7 hook executions (approve(0)PT, approvePT, approve(0)YT, approveYT, redeem, approve(0)PT, approve(0)YT) + 2 wrappers = 9
-        assertEq(executions.length, 9);
-    }
-
-    function test_Build_RedeemPt_WithSwapRouting() public {
-        ytToken.setExpired(true);
-        bytes memory data = _createRedeemPtDataWithSwapRouting(
-            market, inputAmount, minOut, SwapType.ODOS, address(0xBEEF), false
-        );
-        Execution[] memory executions = hook.build(address(prevHook), account, data);
         assertEq(executions.length, 9);
     }
 
@@ -373,15 +385,6 @@ contract PendlePTHookTest is Helpers {
         hook.build(address(prevHook), account, data);
     }
 
-    function test_Build_RedeemPt_RevertIf_NoExtRouter() public {
-        ytToken.setExpired(true);
-        bytes memory data = _createRedeemPtDataWithSwapRouting(
-            market, inputAmount, minOut, SwapType.ODOS, address(0), false
-        );
-        vm.expectRevert(PendlePTHook.EXT_ROUTER_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
     function test_Build_RedeemPt_VerifyApprovePattern() public {
         ytToken.setExpired(true);
         bytes memory data = _createRedeemPtData(market, inputAmount, minOut, false);
@@ -410,13 +413,18 @@ contract PendlePTHookTest is Helpers {
         assertEq(executions[7].callData, abi.encodeCall(IERC20.approve, (address(pendleRouter), 0)));
     }
 
-    function test_Build_RedeemPt_WithEthWethSwapType() public {
+    function test_Build_RedeemPt_InternalFieldsZeroed() public {
         ytToken.setExpired(true);
-        bytes memory data = _createRedeemPtDataWithSwapRouting(
-            market, inputAmount, minOut, SwapType.ETH_WETH, address(0), false
-        );
+        bytes memory data = _createRedeemPtData(market, inputAmount, minOut, false);
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 9);
+
+        bytes memory args = _removeSelector(executions[5].callData);
+        (,,, TokenOutput memory output) = abi.decode(args, (address, address, uint256, TokenOutput));
+
+        assertEq(output.tokenOut, address(outputToken), "tokenOut != header outputToken");
+        assertEq(output.tokenRedeemSy, address(outputToken), "tokenRedeemSy != header outputToken");
+        assertEq(output.pendleSwap, address(0), "pendleSwap not zeroed");
+        assertEq(uint256(output.swapData.swapType), uint256(SwapType.NONE), "swapType not NONE");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -465,6 +473,7 @@ contract PendlePTHookTest is Helpers {
     }
 
     function test_Build_ExpiryRouting_SamePayloadDifferentPath() public {
+        // Sell and redeem payloads are identical (empty), so expiry-boundary routing is harmless.
         // Same payload, sell path pre-maturity
         bytes memory data = _createSellPtData(market, inputAmount, minOut, false);
         Execution[] memory sellExecs = hook.build(address(prevHook), account, data);
@@ -587,171 +596,36 @@ contract PendlePTHookTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        LIMIT ORDER TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function test_Build_BuyPt_WithNormalFills() public view {
-        LimitOrderData memory limit = _createLimitOrderData(true, false);
-        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
-        Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 6);
-    }
-
-    function test_Build_BuyPt_WithFlashFills() public view {
-        LimitOrderData memory limit = _createLimitOrderData(false, true);
-        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
-        Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 6);
-    }
-
-    function test_Build_SellPt_WithNormalFills() public view {
-        LimitOrderData memory limit = _createLimitOrderData(true, false);
-        bytes memory data = _createSellPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
-        Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 6);
-    }
-
-    function test_Build_SellPt_WithFlashFills() public view {
-        LimitOrderData memory limit = _createLimitOrderData(false, true);
-        bytes memory data = _createSellPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
-        Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 6);
-    }
-
-    function test_Build_BuyPt_RevertIf_OrderExpired() public {
-        LimitOrderData memory limit = _createLimitOrderData(true, false);
-        limit.normalFills[0].order.expiry = block.timestamp - 1;
-        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
-        vm.expectRevert(PendlePTHook.ORDER_EXPIRED.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_SellPt_RevertIf_OrderExpired() public {
-        LimitOrderData memory limit = _createLimitOrderData(true, false);
-        limit.normalFills[0].order.expiry = block.timestamp - 1;
-        bytes memory data = _createSellPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
-        vm.expectRevert(PendlePTHook.ORDER_EXPIRED.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_BuyPt_RevertIf_ZeroMaker() public {
-        LimitOrderData memory limit = _createLimitOrderData(true, false);
-        limit.normalFills[0].order.maker = address(0);
-        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_BuyPt_RevertIf_ZeroReceiver() public {
-        LimitOrderData memory limit = _createLimitOrderData(true, false);
-        limit.normalFills[0].order.receiver = address(0);
-        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_BuyPt_RevertIf_TooManyFills() public {
-        LimitOrderData memory limit;
-        limit.limitRouter = address(0xCAFE);
-        limit.normalFills = new FillOrderParams[](65);
-        for (uint256 i; i < 65; ++i) {
-            limit.normalFills[i] = _createValidFillOrderParams();
-        }
-        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
-        vm.expectRevert(PendlePTHook.TOO_MANY_FILLS.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_BuyPt_RevertIf_OptDataTooLong() public {
-        LimitOrderData memory limit = _createLimitOrderData(true, false);
-        limit.optData = new bytes(1025);
-        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
-        vm.expectRevert(PendlePTHook.OPT_DATA_TOO_LONG.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_BuyPt_RevertIf_ZeroMakingAmount() public {
-        LimitOrderData memory limit = _createLimitOrderData(true, false);
-        limit.normalFills[0].makingAmount = 0;
-        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
-        vm.expectRevert(PendlePTHook.MAKING_AMOUNT_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_BuyPt_RevertIf_LimitRouterZeroWithFills() public {
-        LimitOrderData memory limit = _createLimitOrderData(true, false);
-        limit.limitRouter = address(0);
-        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_BuyPt_RevertIf_EpsSkipMarketTooHigh() public {
-        LimitOrderData memory limit = _createLimitOrderData(true, false);
-        limit.epsSkipMarket = 1e18 + 1;
-        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
-        vm.expectRevert(PendlePTHook.EPS_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_BuyPt_RevertIf_EmptySignature() public {
-        LimitOrderData memory limit = _createLimitOrderData(true, false);
-        limit.normalFills[0].signature = "";
-        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
-        vm.expectRevert(PendlePTHook.SIGNATURE_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_BuyPt_RevertIf_ZeroOrderToken() public {
-        LimitOrderData memory limit = _createLimitOrderData(true, false);
-        limit.normalFills[0].order.token = address(0);
-        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_BuyPt_RevertIf_ZeroOrderYT() public {
-        LimitOrderData memory limit = _createLimitOrderData(true, false);
-        limit.normalFills[0].order.YT = address(0);
-        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    function test_Build_BuyPt_RevertIf_PermitTooLong() public {
-        LimitOrderData memory limit = _createLimitOrderData(true, false);
-        limit.normalFills[0].order.permit = new bytes(257);
-        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
-        vm.expectRevert(PendlePTHook.PERMIT_TOO_LONG.selector);
-        hook.build(address(prevHook), account, data);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                             INSPECT TESTS
     //////////////////////////////////////////////////////////////*/
 
     function test_Inspect_BuyPt() public view {
         bytes memory data = _createBuyPtData(market, inputAmount, minOut, false);
         bytes memory result = hook.inspect(data);
-        assertEq(result.length, 40);
+        // yieldSource only (20 bytes) — direction-agnostic market lock
+        assertEq(result.length, 20);
         assertEq(BytesLib.toAddress(result, 0), market);
-        assertEq(BytesLib.toAddress(result, 20), address(ptToken));
     }
 
     function test_Inspect_SellPt() public view {
         bytes memory data = _createSellPtData(market, inputAmount, minOut, false);
         bytes memory result = hook.inspect(data);
-        assertEq(result.length, 40);
+        assertEq(result.length, 20);
         assertEq(BytesLib.toAddress(result, 0), market);
-        assertEq(BytesLib.toAddress(result, 20), address(outputToken));
     }
 
     function test_Inspect_RedeemPt() public view {
         bytes memory data = _createRedeemPtData(market, inputAmount, minOut, false);
         bytes memory result = hook.inspect(data);
-        assertEq(result.length, 40);
+        assertEq(result.length, 20);
         assertEq(BytesLib.toAddress(result, 0), market);
-        assertEq(BytesLib.toAddress(result, 20), address(outputToken));
+    }
+
+    function test_Inspect_SameForBothDirections() public view {
+        // Buy and sell data for the same market must produce identical inspect output
+        bytes memory buyData = _createBuyPtData(market, inputAmount, minOut, false);
+        bytes memory sellData = _createSellPtData(market, inputAmount, minOut, false);
+        assertEq(hook.inspect(buyData), hook.inspect(sellData));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -824,9 +698,15 @@ contract PendlePTHookTest is Helpers {
     }
 
     function test_DecodePayload() public view {
+        // Buy payload = abi.encode(ApproxParams) = 160 bytes
         bytes memory data = _createBuyPtData(market, inputAmount, minOut, false);
         bytes memory payload = hook.decodePayload(data);
-        assertGt(payload.length, 0);
+        assertEq(payload.length, 160);
+
+        // Sell/redeem payload is empty
+        bytes memory sellData = _createSellPtData(market, inputAmount, minOut, false);
+        bytes memory sellPayload = hook.decodePayload(sellData);
+        assertEq(sellPayload.length, 0);
     }
 
     function test_EncodeSwapData() public view {
@@ -838,14 +718,14 @@ contract PendlePTHookTest is Helpers {
             outputMin: minOut,
             usePrevHookAmount: false
         });
-        LimitOrderData memory emptyLimit;
-        bytes memory payload = abi.encode(address(inputToken), address(0), SwapData(SwapType.NONE, address(0), "", false), ApproxParams(900, 1100, 1000, 10, 1e17), emptyLimit);
+        bytes memory payload = abi.encode(ApproxParams(900, 1100, 1000, 10, 1e17));
         bytes memory encoded = hook.encodeSwapData(header, payload);
 
         assertEq(hook.decodeInputToken(encoded), address(inputToken));
         assertEq(hook.decodeOutputToken(encoded), address(ptToken));
         assertEq(hook.decodeInputAmount(encoded), inputAmount);
         assertEq(hook.decodeOutputMin(encoded), minOut);
+        assertEq(hook.decodePayload(encoded).length, 160);
     }
 
     function test_Name() public view {
@@ -857,10 +737,328 @@ contract PendlePTHookTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    PRE/POST EXECUTE — OUT AMOUNT TRACKING
+    //////////////////////////////////////////////////////////////*/
+
+    function test_PreExecute() public {
+        outputToken.mint(account, 500);
+
+        bytes memory data = _createSellPtData(market, inputAmount, minOut, false);
+        hook.preExecute(address(0), account, data);
+
+        assertEq(hook.getOutAmount(account), 500);
+    }
+
+    function test_PostExecute() public {
+        outputToken.mint(account, 500);
+
+        bytes memory data = _createSellPtData(market, inputAmount, minOut, false);
+        hook.preExecute(address(0), account, data);
+
+        // Simulate the swap crediting the account
+        outputToken.mint(account, 300);
+
+        hook.postExecute(address(0), account, data);
+
+        assertEq(hook.getOutAmount(account), 300, "outAmount should be the balance delta");
+        assertEq(hook.getOutToken(account), address(outputToken), "outToken should be the header outputToken");
+    }
+
+    function test_PostExecute_BuyPt_TracksPtDelta() public {
+        ptToken.mint(account, 100);
+
+        bytes memory data = _createBuyPtData(market, inputAmount, minOut, false);
+        hook.preExecute(address(0), account, data);
+
+        // Simulate the buy crediting PT
+        ptToken.mint(account, 777);
+
+        hook.postExecute(address(0), account, data);
+
+        assertEq(hook.getOutAmount(account), 777);
+        assertEq(hook.getOutToken(account), address(ptToken));
+    }
+
+    function test_PrePostExecute_NativeOutput_ZeroAddress() public {
+        address acc = makeAddr("nativeAccount");
+        vm.deal(acc, 1 ether);
+
+        bytes memory data = _createSellPtDataWithOutputToken(market, address(0), inputAmount, minOut, false);
+        vm.prank(acc);
+        hook.preExecute(address(0), acc, data);
+        assertEq(hook.getOutAmount(acc), 1 ether, "preExecute should snapshot native balance");
+
+        vm.deal(acc, 1.5 ether);
+        vm.prank(acc);
+        hook.postExecute(address(0), acc, data);
+        assertEq(hook.getOutAmount(acc), 0.5 ether, "postExecute should track native delta");
+    }
+
+    function test_PrePostExecute_NativeOutput_Sentinel() public {
+        address acc = makeAddr("sentinelAccount");
+        vm.deal(acc, 2 ether);
+
+        bytes memory data = _createSellPtDataWithOutputToken(market, NATIVE_TOKEN, inputAmount, minOut, false);
+        vm.prank(acc);
+        hook.preExecute(address(0), acc, data);
+        assertEq(hook.getOutAmount(acc), 2 ether, "sentinel output should read native balance");
+
+        vm.deal(acc, 3 ether);
+        vm.prank(acc);
+        hook.postExecute(address(0), acc, data);
+        assertEq(hook.getOutAmount(acc), 1 ether);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    USE-PREV-HOOK-AMOUNT EDGE CASES
+    //////////////////////////////////////////////////////////////*/
+
+    function test_DecodeUsePrevHookAmount() public view {
+        assertEq(hook.decodeUsePrevHookAmount(_createBuyPtData(market, inputAmount, minOut, false)), false);
+        assertEq(hook.decodeUsePrevHookAmount(_createBuyPtData(market, inputAmount, minOut, true)), true);
+    }
+
+    function test_Build_BuyPt_NativeWithPrevHookAmount() public {
+        uint256 prevHookAmount = 2500;
+        bytes memory data = _createBuyPtDataWithNative(market, address(0), inputAmount, minOut, true);
+        prevHook.setOutAmount(prevHookAmount, account);
+
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(pendleRouter));
+        assertEq(executions[1].value, prevHookAmount, "native value should be the prev hook amount");
+
+        bytes memory args = _removeSelector(executions[1].callData);
+        (,,,, TokenInput memory input,) =
+            abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+        assertEq(input.netTokenIn, prevHookAmount, "netTokenIn should be the prev hook amount");
+    }
+
+    function test_Build_RevertIf_PrevHookAmountZero_ScaledMinZero() public {
+        // prevHook returns 0 with a non-zero header inputAmount: outputMin scales to 0 → MIN_OUT_NOT_VALID
+        bytes memory data = _createBuyPtData(market, inputAmount, minOut, true);
+        prevHook.setOutAmount(0, account);
+        vm.expectRevert(PendlePTHook.MIN_OUT_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_RevertIf_PrevHookAmountZero_HeaderAmountZero() public {
+        // Header inputAmount = 0 skips scaling (prevAmount == 0 → outputMin unchanged),
+        // then netTokenIn = 0 from prevHook → AMOUNT_IN_NOT_VALID
+        bytes memory data = _createBuyPtData(market, 0, minOut, true);
+        prevHook.setOutAmount(0, account);
+        vm.expectRevert(PendlePTHook.AMOUNT_IN_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        MALFORMED PAYLOAD TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Build_BuyPt_RevertIf_EmptyPayload() public {
+        // Buy requires abi.encode(ApproxParams); an empty payload must revert on decode
+        bytes memory data = bytes.concat(
+            bytes32(0),
+            bytes20(market),
+            bytes20(address(inputToken)),
+            bytes20(address(ptToken)),
+            bytes32(inputAmount),
+            bytes32(uint256(0)),
+            bytes32(minOut),
+            bytes1(0x00),
+            bytes32(uint256(0))
+        );
+        vm.expectRevert();
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_BuyPt_RevertIf_TruncatedPayload() public {
+        // Payload shorter than a full ApproxParams encoding must revert on decode
+        bytes memory garbage = new bytes(64);
+        bytes memory data = bytes.concat(
+            bytes32(0),
+            bytes20(market),
+            bytes20(address(inputToken)),
+            bytes20(address(ptToken)),
+            bytes32(inputAmount),
+            bytes32(uint256(0)),
+            bytes32(minOut),
+            bytes1(0x00),
+            bytes32(garbage.length),
+            garbage
+        );
+        vm.expectRevert();
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_SellPt_IgnoresNonEmptyPayload() public view {
+        // Sell/redeem take no payload; trailing bytes are ignored rather than reverting
+        bytes memory garbage = hex"deadbeefdeadbeef";
+        bytes memory data = bytes.concat(
+            bytes32(0),
+            bytes20(market),
+            bytes20(address(ptToken)),
+            bytes20(address(outputToken)),
+            bytes32(inputAmount),
+            bytes32(uint256(0)),
+            bytes32(minOut),
+            bytes1(0x00),
+            bytes32(garbage.length),
+            garbage
+        );
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 6);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    ROUTER CALLDATA ASSERTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Build_BuyPt_RouterCallReceiverAndMarket() public view {
+        bytes memory data = _createBuyPtData(market, inputAmount, minOut, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[3].callData);
+        (address receiver_, address market_, uint256 minPtOut_, ApproxParams memory guess_, TokenInput memory input_,) =
+            abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+
+        assertEq(receiver_, account, "receiver should be the account");
+        assertEq(market_, market, "market should be the yieldSource");
+        assertEq(minPtOut_, minOut, "minPtOut should be the header outputMin");
+        assertEq(input_.netTokenIn, inputAmount, "netTokenIn should be the header inputAmount");
+        assertEq(guess_.guessMin, 900);
+        assertEq(guess_.guessMax, 1100);
+        assertEq(guess_.guessOffchain, 1000);
+        assertEq(guess_.maxIteration, 10);
+        assertEq(guess_.eps, 1e17);
+    }
+
+    function test_Build_SellPt_RouterCallReceiverAndMarket() public view {
+        bytes memory data = _createSellPtData(market, inputAmount, minOut, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[3].callData);
+        (address receiver_, address market_, uint256 exactPtIn_,,) =
+            abi.decode(args, (address, address, uint256, TokenOutput, LimitOrderData));
+
+        assertEq(receiver_, account, "receiver should be the account");
+        assertEq(market_, market, "market should be the yieldSource");
+        assertEq(exactPtIn_, inputAmount, "exactPtIn should be the header inputAmount");
+    }
+
+    function test_Build_RedeemPt_RouterCallUsesMarketYt() public {
+        ytToken.setExpired(true);
+        bytes memory data = _createRedeemPtData(market, inputAmount, minOut, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[5].callData);
+        (address receiver_, address yt_, uint256 amount_,) =
+            abi.decode(args, (address, address, uint256, TokenOutput));
+
+        assertEq(receiver_, account, "receiver should be the account");
+        assertEq(yt_, address(ytToken), "redeem must target the market's YT");
+        assertEq(amount_, inputAmount, "redeem amount should be the header inputAmount");
+    }
+
+    function test_Build_SellPt_NativeOutput() public {
+        // SY listing native (address(0)) as tokenOut: sell PT → native
+        address[] memory tokensOut = new address[](1);
+        tokensOut[0] = address(0);
+        mockSY.setTokensOut(tokensOut);
+
+        bytes memory data = _createSellPtDataWithOutputToken(market, address(0), inputAmount, minOut, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 6);
+
+        bytes memory args = _removeSelector(executions[3].callData);
+        (,,, TokenOutput memory output,) = abi.decode(args, (address, address, uint256, TokenOutput, LimitOrderData));
+        assertEq(output.tokenOut, address(0), "tokenOut should be native (address(0))");
+        assertEq(output.tokenRedeemSy, address(0), "tokenRedeemSy should follow the header outputToken");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    APPROX PARAMS BOUNDARY TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Build_BuyPt_GuessMinEqualsGuessMax() public view {
+        ApproxParams memory guessPtOut = ApproxParams({
+            guessMin: 1000,
+            guessMax: 1000,
+            guessOffchain: 1000,
+            maxIteration: 10,
+            eps: 1e17
+        });
+        bytes memory data = _createBuyPtDataWithApprox(market, inputAmount, minOut, guessPtOut, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 6);
+    }
+
+    function test_Build_BuyPt_ZeroedApproxParams() public view {
+        // All-zero ApproxParams (Pendle's "let the router decide" convention) must pass validation
+        ApproxParams memory guessPtOut = ApproxParams({
+            guessMin: 0,
+            guessMax: 0,
+            guessOffchain: 0,
+            maxIteration: 0,
+            eps: 0
+        });
+        bytes memory data = _createBuyPtDataWithApprox(market, inputAmount, minOut, guessPtOut, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 6);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    INTERFACE / REPLACE-AMOUNT COVERAGE
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SupportsInterface_CoreInterfaces() public view {
+        assertTrue(hook.supportsInterface(type(ISuperHook).interfaceId));
+        assertFalse(hook.supportsInterface(bytes4(0xdeadbeef)));
+    }
+
+    function test_ReplaceCalldataAmounts_PreservesOtherFields() public view {
+        bytes memory data = _createBuyPtData(market, inputAmount, minOut, false);
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 4242;
+        bytes memory result = hook.replaceCalldataAmounts(data, amounts);
+
+        assertEq(hook.decodeInputAmount(result), 4242, "amount should be replaced");
+        assertEq(hook.decodeInputToken(result), address(inputToken), "inputToken must be untouched");
+        assertEq(hook.decodeOutputToken(result), address(ptToken), "outputToken must be untouched");
+        assertEq(hook.decodeOutputMin(result), minOut, "outputMin must be untouched");
+        assertEq(hook.decodePayload(result), hook.decodePayload(data), "payload must be untouched");
+        assertEq(result.length, data.length, "length must not change");
+    }
+
+    function testFuzz_ReplaceCalldataAmounts(uint256 newAmount) public view {
+        bytes memory data = _createBuyPtData(market, inputAmount, minOut, false);
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = newAmount;
+        bytes memory result = hook.replaceCalldataAmounts(data, amounts);
+
+        assertEq(hook.decodeInputAmount(result), newAmount);
+        uint256[] memory decoded = hook.decodeAmounts(result);
+        assertEq(decoded[0], newAmount);
+    }
+
+    function testFuzz_Build_BuyPt_NetTokenInMatchesHeader(uint256 amount) public view {
+        amount = bound(amount, 1, type(uint128).max);
+        bytes memory data = _createBuyPtData(market, amount, minOut, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[3].callData);
+        (,,,, TokenInput memory input,) =
+            abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+        assertEq(input.netTokenIn, amount);
+        // Approve execution must match the router pull amount
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (address(pendleRouter), amount)));
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Creates buy PT data: inputToken → PT
+    /// @dev Creates buy PT data: inputToken → PT. Payload = abi.encode(ApproxParams)
     function _createBuyPtData(
         address market_,
         uint256 inputAmount_,
@@ -884,23 +1082,8 @@ contract PendlePTHookTest is Helpers {
         ApproxParams memory guessPtOut_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
-        SwapData memory swapData = SwapData({
-            swapType: SwapType.NONE,
-            extRouter: address(0),
-            extCalldata: "",
-            needScale: false
-        });
-
-        LimitOrderData memory emptyLimit;
-
         // No selector prefix — routingParams IS the payload
-        bytes memory routingParams = abi.encode(
-            address(inputToken), // tokenMintSy
-            address(this),       // pendleSwap
-            swapData,
-            guessPtOut_,
-            emptyLimit
-        );
+        bytes memory routingParams = abi.encode(guessPtOut_);
 
         return bytes.concat(
             bytes32(0),                          // yieldSourceOracleId
@@ -918,17 +1101,11 @@ contract PendlePTHookTest is Helpers {
 
     function _createBuyPtDataWithNative(
         address market_,
+        address nativeInputToken_,
         uint256 inputAmount_,
         uint256 minOut_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
-        SwapData memory swapData = SwapData({
-            swapType: SwapType.NONE,
-            extRouter: address(0),
-            extCalldata: "",
-            needScale: false
-        });
-
         ApproxParams memory guessPtOut = ApproxParams({
             guessMin: 900,
             guessMax: 1100,
@@ -937,20 +1114,12 @@ contract PendlePTHookTest is Helpers {
             eps: 1e17
         });
 
-        LimitOrderData memory emptyLimit;
-
-        bytes memory routingParams = abi.encode(
-            address(inputToken), // tokenMintSy
-            address(this),       // pendleSwap
-            swapData,
-            guessPtOut,
-            emptyLimit
-        );
+        bytes memory routingParams = abi.encode(guessPtOut);
 
         return bytes.concat(
             bytes32(0),
             bytes20(market_),
-            bytes20(address(0)),                 // inputToken = native ETH
+            bytes20(nativeInputToken_),          // inputToken = address(0) or 0xEeee… sentinel
             bytes20(address(ptToken)),           // outputToken = PT
             bytes32(inputAmount_),
             bytes32(uint256(0)),
@@ -961,65 +1130,44 @@ contract PendlePTHookTest is Helpers {
         );
     }
 
-    /// @dev Creates sell PT data: PT → outputToken
+    /// @dev Creates sell PT data: PT → outputToken. Payload is empty.
     function _createSellPtData(
         address market_,
         uint256 inputAmount_,
         uint256 minOut_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
-        return _createSellPtDataWithSwapRouting(market_, inputAmount_, minOut_, SwapType.NONE, address(0), usePrevHookAmount_);
-    }
-
-    function _createSellPtDataWithSwapRouting(
-        address market_,
-        uint256 inputAmount_,
-        uint256 minOut_,
-        SwapType swapType_,
-        address extRouter_,
-        bool usePrevHookAmount_
-    ) internal view returns (bytes memory) {
-        return _createSellPtDataWithCustomRedeemSy(
-            market_, inputAmount_, minOut_, address(outputToken), swapType_, extRouter_, usePrevHookAmount_
-        );
-    }
-
-    function _createSellPtDataWithCustomRedeemSy(
-        address market_,
-        uint256 inputAmount_,
-        uint256 minOut_,
-        address tokenRedeemSy_,
-        SwapType swapType_,
-        address extRouter_,
-        bool usePrevHookAmount_
-    ) internal view returns (bytes memory) {
-        SwapData memory swapData = SwapData({
-            swapType: swapType_,
-            extRouter: extRouter_,
-            extCalldata: "",
-            needScale: false
-        });
-
-        LimitOrderData memory emptyLimit;
-
-        bytes memory routingParams = abi.encode(
-            tokenRedeemSy_,
-            swapType_ != SwapType.NONE ? address(0xBEEF) : address(0), // pendleSwap
-            swapData,
-            emptyLimit
-        );
-
         return bytes.concat(
             bytes32(0),
             bytes20(market_),
             bytes20(address(ptToken)),           // inputToken = PT (sell)
-            bytes20(address(outputToken)),        // outputToken
+            bytes20(address(outputToken)),       // outputToken
             bytes32(inputAmount_),
             bytes32(uint256(0)),
             bytes32(minOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
-            bytes32(routingParams.length),
-            routingParams
+            bytes32(uint256(0))                  // payload_paramLength = 0, no payload
+        );
+    }
+
+    /// @dev Creates sell PT data with a custom output token (e.g. native)
+    function _createSellPtDataWithOutputToken(
+        address market_,
+        address outputToken_,
+        uint256 inputAmount_,
+        uint256 minOut_,
+        bool usePrevHookAmount_
+    ) internal view returns (bytes memory) {
+        return bytes.concat(
+            bytes32(0),
+            bytes20(market_),
+            bytes20(address(ptToken)),           // inputToken = PT (sell)
+            bytes20(outputToken_),               // outputToken
+            bytes32(inputAmount_),
+            bytes32(uint256(0)),
+            bytes32(minOut_),
+            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
+            bytes32(uint256(0))                  // payload_paramLength = 0, no payload
         );
     }
 
@@ -1034,17 +1182,6 @@ contract PendlePTHookTest is Helpers {
         return _createSellPtData(market_, inputAmount_, minOut_, usePrevHookAmount_);
     }
 
-    function _createRedeemPtDataWithSwapRouting(
-        address market_,
-        uint256 inputAmount_,
-        uint256 minOut_,
-        SwapType swapType_,
-        address extRouter_,
-        bool usePrevHookAmount_
-    ) internal view returns (bytes memory) {
-        return _createSellPtDataWithSwapRouting(market_, inputAmount_, minOut_, swapType_, extRouter_, usePrevHookAmount_);
-    }
-
     /// @dev Creates invalid data where both inputToken and outputToken are PT
     function _createInvalidBothPtData(
         address market_,
@@ -1052,8 +1189,6 @@ contract PendlePTHookTest is Helpers {
         uint256 minOut_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
-        LimitOrderData memory emptyLimit;
-        bytes memory routingParams = abi.encode(address(outputToken), address(0), SwapData(SwapType.NONE, address(0), "", false), emptyLimit);
         return bytes.concat(
             bytes32(0),
             bytes20(market_),
@@ -1063,8 +1198,7 @@ contract PendlePTHookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(minOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
-            bytes32(routingParams.length),
-            routingParams
+            bytes32(uint256(0))
         );
     }
 
@@ -1075,139 +1209,16 @@ contract PendlePTHookTest is Helpers {
         uint256 minOut_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
-        LimitOrderData memory emptyLimit;
-        bytes memory routingParams = abi.encode(address(outputToken), address(0), SwapData(SwapType.NONE, address(0), "", false), emptyLimit);
         return bytes.concat(
             bytes32(0),
             bytes20(market_),
             bytes20(address(inputToken)),        // inputToken != PT
-            bytes20(address(outputToken)),        // outputToken != PT (invalid!)
+            bytes20(address(outputToken)),       // outputToken != PT (invalid!)
             bytes32(inputAmount_),
             bytes32(uint256(0)),
             bytes32(minOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
-            bytes32(routingParams.length),
-            routingParams
-        );
-    }
-
-    /// @dev Creates a LimitOrderData with optional normal and flash fills
-    function _createLimitOrderData(
-        bool hasNormalFills,
-        bool hasFlashFills
-    ) internal view returns (LimitOrderData memory limit) {
-        limit.limitRouter = address(0xCAFE);
-        limit.epsSkipMarket = 0;
-        limit.optData = "";
-
-        if (hasNormalFills) {
-            limit.normalFills = new FillOrderParams[](1);
-            limit.normalFills[0] = _createValidFillOrderParams();
-        }
-        if (hasFlashFills) {
-            limit.flashFills = new FillOrderParams[](1);
-            limit.flashFills[0] = _createValidFillOrderParams();
-        }
-    }
-
-    /// @dev Creates a valid FillOrderParams for testing
-    function _createValidFillOrderParams() internal view returns (FillOrderParams memory) {
-        Order memory order = Order({
-            salt: 1,
-            expiry: block.timestamp + 1 hours,
-            nonce: 0,
-            orderType: OrderType.SY_FOR_PT,
-            token: address(inputToken),
-            YT: address(ytToken),
-            maker: address(0xABCD),
-            receiver: address(0xABCD),
-            makingAmount: 1000,
-            lnImpliedRate: 0,
-            failSafeRate: 0,
-            permit: ""
-        });
-
-        return FillOrderParams({ order: order, signature: hex"deadbeef", makingAmount: 500 });
-    }
-
-    /// @dev Creates buy PT data with limit orders
-    function _createBuyPtDataWithLimitOrders(
-        address market_,
-        uint256 inputAmount_,
-        uint256 minOut_,
-        LimitOrderData memory limit_,
-        bool usePrevHookAmount_
-    ) internal view returns (bytes memory) {
-        SwapData memory swapData = SwapData({
-            swapType: SwapType.NONE,
-            extRouter: address(0),
-            extCalldata: "",
-            needScale: false
-        });
-
-        ApproxParams memory guessPtOut = ApproxParams({
-            guessMin: 900,
-            guessMax: 1100,
-            guessOffchain: 1000,
-            maxIteration: 10,
-            eps: 1e17
-        });
-
-        bytes memory routingParams = abi.encode(
-            address(inputToken),
-            address(this),
-            swapData,
-            guessPtOut,
-            limit_
-        );
-
-        return bytes.concat(
-            bytes32(0),
-            bytes20(market_),
-            bytes20(address(inputToken)),
-            bytes20(address(ptToken)),
-            bytes32(inputAmount_),
-            bytes32(uint256(0)),
-            bytes32(minOut_),
-            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
-            bytes32(routingParams.length),
-            routingParams
-        );
-    }
-
-    /// @dev Creates sell PT data with limit orders
-    function _createSellPtDataWithLimitOrders(
-        address market_,
-        uint256 inputAmount_,
-        uint256 minOut_,
-        LimitOrderData memory limit_,
-        bool usePrevHookAmount_
-    ) internal view returns (bytes memory) {
-        SwapData memory swapData = SwapData({
-            swapType: SwapType.NONE,
-            extRouter: address(0),
-            extCalldata: "",
-            needScale: false
-        });
-
-        bytes memory routingParams = abi.encode(
-            address(outputToken),
-            address(0),
-            swapData,
-            limit_
-        );
-
-        return bytes.concat(
-            bytes32(0),
-            bytes20(market_),
-            bytes20(address(ptToken)),
-            bytes20(address(outputToken)),
-            bytes32(inputAmount_),
-            bytes32(uint256(0)),
-            bytes32(minOut_),
-            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
-            bytes32(routingParams.length),
-            routingParams
+            bytes32(uint256(0))
         );
     }
 
