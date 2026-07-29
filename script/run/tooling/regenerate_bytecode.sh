@@ -134,7 +134,6 @@ HOOK_CONTRACTS=(
     "PendleRouterRedeemHook"
     "PendleRouterSwapHook"
     "PendleUnifiedHook"
-    "PendlePTHook"
     "RecordPurchasePendlePTAmortizedOracleHook"
     "RecordRedemptionPendlePTAmortizedOracleHook"
     "RecordPurchasePendlePTAmortizedOracleHookV2"

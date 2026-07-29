@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-07-29T07:52:09Z",
+  "generatedAt": "2026-07-28T22:16:01Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -4424,10 +4424,10 @@
       "addresses": {
         "staging": {
           "1": "0xDf629bb4574F07dde8464a1CA86301EE3fFE71b4",
-          "56": "0xDf629bb4574F07dde8464a1CA86301EE3fFE71b4",
+          "56": "0xd41b5aa4A6Aa51f4be8582924b7EB28bC92be88c",
           "8453": "0xDf629bb4574F07dde8464a1CA86301EE3fFE71b4",
-          "42161": "0xDf629bb4574F07dde8464a1CA86301EE3fFE71b4",
-          "43114": "0xDf629bb4574F07dde8464a1CA86301EE3fFE71b4"
+          "42161": "0xd41b5aa4A6Aa51f4be8582924b7EB28bC92be88c",
+          "43114": "0xd41b5aa4A6Aa51f4be8582924b7EB28bC92be88c"
         },
         "prod": {
           "1": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
@@ -4672,44 +4672,6 @@
       "compatibleProtocols": [
         "pendle"
       ]
-    },
-    "PendlePTHook": {
-      "name": "Pendle PT",
-      "description": "Executes Pendle PT operations (buy, sell, or redeem)",
-      "hookType": "NONACCOUNTING",
-      "subtype": "PTYT",
-      "actionTypes": [
-        {
-          "intent": "swap",
-          "stage": "instant"
-        }
-      ],
-      "legSizing": [
-        "sized"
-      ],
-      "addresses": {
-        "staging": {},
-        "prod": {}
-      },
-      "availableChains": {
-        "staging": [],
-        "prod": []
-      },
-      "amountMeta": [
-        {
-          "direction": "IN",
-          "denomination": "TOKEN"
-        }
-      ],
-      "sized": true,
-      "erc165": [
-        "ISuperHookInflowOutflow",
-        "ISuperHookOutflow"
-      ],
-      "requiresApproval": false,
-      "approveVariant": null,
-      "asyncLifecycle": null,
-      "compatibleProtocols": []
     },
     "SpectraExchangeDepositHook": {
       "name": "Spectra Exchange Deposit",

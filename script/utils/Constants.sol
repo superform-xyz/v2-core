@@ -224,7 +224,6 @@ abstract contract Constants {
     string internal constant PENDLE_ROUTER_SWAP_HOOK_KEY = "PendleRouterSwapHook";
     string internal constant PENDLE_ROUTER_REDEEM_HOOK_KEY = "PendleRouterRedeemHook";
     string internal constant PENDLE_UNIFIED_HOOK_KEY = "PendleUnifiedHook";
-    string internal constant PENDLE_PT_HOOK_KEY = "PendlePTHook";
     string internal constant RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY =
         "RecordPurchasePendlePTAmortizedOracleHook";
     string internal constant RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY =

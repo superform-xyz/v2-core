@@ -9,7 +9,6 @@ contract MockYieldToken is MockERC20 {
     address public syAddress;
     address public ptAddress;
     bool public syCallShouldFail;
-    bool public expired;
 
     constructor(
         string memory name_,
@@ -38,18 +37,5 @@ contract MockYieldToken is MockERC20 {
 
     function PT() external view returns (address) {
         return ptAddress;
-    }
-
-    function setExpired(bool expired_) external {
-        expired = expired_;
-    }
-
-    function isExpired() external view returns (bool) {
-        return expired;
-    }
-
-    function expiry() external view returns (uint256) {
-        if (expired) return block.timestamp - 1;
-        return block.timestamp + 100 days;
     }
 }
