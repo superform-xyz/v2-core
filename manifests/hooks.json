@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-07-29T06:31:31Z",
+  "generatedAt": "2026-07-29T06:33:02Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -4423,24 +4423,24 @@
       ],
       "addresses": {
         "staging": {
-          "1": "0xd41b5aa4A6Aa51f4be8582924b7EB28bC92be88c",
+          "1": "0xDf629bb4574F07dde8464a1CA86301EE3fFE71b4",
           "56": "0xd41b5aa4A6Aa51f4be8582924b7EB28bC92be88c",
-          "8453": "0xd41b5aa4A6Aa51f4be8582924b7EB28bC92be88c",
+          "8453": "0xDf629bb4574F07dde8464a1CA86301EE3fFE71b4",
           "42161": "0xd41b5aa4A6Aa51f4be8582924b7EB28bC92be88c",
           "43114": "0xd41b5aa4A6Aa51f4be8582924b7EB28bC92be88c"
         },
         "prod": {
-          "1": "0x9E4E5D520E931f9D4ffA82FAF2C5F8f91D1cA559",
-          "10": "0x9E4E5D520E931f9D4ffA82FAF2C5F8f91D1cA559",
-          "56": "0x9E4E5D520E931f9D4ffA82FAF2C5F8f91D1cA559",
-          "100": "0x9E4E5D520E931f9D4ffA82FAF2C5F8f91D1cA559",
+          "1": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
+          "10": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
+          "56": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
+          "100": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
           "130": "0x9E4E5D520E931f9D4ffA82FAF2C5F8f91D1cA559",
-          "137": "0x9E4E5D520E931f9D4ffA82FAF2C5F8f91D1cA559",
-          "146": "0x9E4E5D520E931f9D4ffA82FAF2C5F8f91D1cA559",
-          "8453": "0x9E4E5D520E931f9D4ffA82FAF2C5F8f91D1cA559",
-          "42161": "0x9E4E5D520E931f9D4ffA82FAF2C5F8f91D1cA559",
+          "137": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
+          "146": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
+          "8453": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
+          "42161": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
           "43114": "0x9E4E5D520E931f9D4ffA82FAF2C5F8f91D1cA559",
-          "59144": "0x9E4E5D520E931f9D4ffA82FAF2C5F8f91D1cA559"
+          "59144": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181"
         }
       },
       "availableChains": {

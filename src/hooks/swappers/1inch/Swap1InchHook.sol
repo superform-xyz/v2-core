@@ -112,7 +112,7 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(AGGREGATION_ROUTER),
-            value: usePrevHookAmount && inputAmount > 0 ? ISuperHookResult(prevHook).getOutAmount(account) : inputAmount,
+            value: _getExecutionValue(prevHook, account, data),
             callData: usePrevHookAmount ? updatedTxData : txData_
         });
     }
@@ -237,6 +237,29 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @dev Returns the msg.value for the 1inch router call. Non-zero only when swapping native token.
+    function _getExecutionValue(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        private
+        view
+        returns (uint256)
+    {
+        address inputToken = BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+        if (inputToken != NATIVE && inputToken != address(0)) return 0;
+
+        uint256 inputAmount = BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
+        bool usePrevHookAmount = _decodeBool(data, SwapCalldataLayout.USE_PREV_HOOK_OFFSET);
+
+        if (usePrevHookAmount && inputAmount > 0) {
+            return ISuperHookResult(prevHook).getOutAmount(account);
+        }
+        return inputAmount;
+    }
+
     function _validateTxData(
         address outputToken,
         address dstReceiver,

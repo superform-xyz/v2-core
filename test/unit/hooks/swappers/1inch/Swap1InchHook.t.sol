@@ -144,7 +144,7 @@ contract Swap1InchHookTest is Helpers {
         bytes memory p = abi.encode(account, callData);
         bytes memory hookData = abi.encodePacked(
             bytes(new bytes(52)),   // [0:52]   Layer 0 header
-            bytes20(srcToken),      // [52:72]  inputToken
+            bytes20(NATIVE),        // [52:72]  inputToken (native, matches desc.srcToken)
             bytes20(dstToken),      // [72:92]  outputToken
             bytes32(uint256(1)),    // [92:124] inputAmount (ETH value = 1)
             bytes32(uint256(0)),    // [124:156] outputQuote
