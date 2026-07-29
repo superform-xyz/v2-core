@@ -356,6 +356,10 @@ hooks:
     actionTypes: [{intent: swap, stage: instant}]
     legSizing: [sized]
 
+  PendlePTHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
   # Spectra
   SpectraExchangeDepositHook:
     actionTypes: [{intent: swap, stage: instant}]

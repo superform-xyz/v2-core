@@ -60,6 +60,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address pendleRouterSwapHook;
         address pendleRouterRedeemHook;
         address pendleUnifiedHook;
+        address pendlePTHook;
         address recordPurchasePendlePTAmortizedOracleHook;
         address recordRedemptionPendlePTAmortizedOracleHook;
         address recordPurchasePendlePTAmortizedOracleHookV2;
@@ -329,7 +330,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     {
         // Initialize all skipped contracts array
         // Includes adapter skips, router-gated hooks, and optional Pendle oracle hooks.
-        string[] memory potentialSkips = new string[](42);
+        string[] memory potentialSkips = new string[](43);
         uint256 skipCount = 0;
         // Adapter contracts (5 contracts - conditionally deployed)
         string[5] memory adapterContracts =
@@ -372,7 +373,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-        string[80] memory baseHooks = [
+        string[81] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -452,7 +453,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "SwapUniswapV3Router02Hook",
             "ApproveAndSwapUniswapV3Router02Hook",
             "AcrossSendFundsAndExecuteOnDstHookV2",
-            "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2"
+            "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2",
+            "PendlePTHook"
         ];
 
         // Start with all hooks, then decrement for missing configurations
@@ -589,10 +591,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         if (configuration.pendleRouters[chainId] != address(0)) {
             availability.pendleRouterHooks = true;
         } else {
-            expectedHooks -= 3; // PendleRouterSwapHook + PendleRouterRedeemHook + PendleUnifiedHook
+            expectedHooks -= 4; // PendleRouterSwapHook + PendleRouterRedeemHook + PendleUnifiedHook + PendlePTHook
             potentialSkips[skipCount++] = "PendleRouterSwapHook";
             potentialSkips[skipCount++] = "PendleRouterRedeemHook";
             potentialSkips[skipCount++] = "PendleUnifiedHook";
+            potentialSkips[skipCount++] = "PendlePTHook";
         }
 
         // PendlePTAmortizedOracle hooks - only enabled if oracle bytecode exists
@@ -3403,7 +3406,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 80;
+        uint256 len = 81;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -3717,6 +3720,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             hooks[45] = HookDeployment("", "", ""); // Empty deployment
+        }
+
+        // PendlePTHook - Only deploy if Pendle router available
+        if (availability.pendleRouterHooks) {
+            hooks[80] = _createSafeHookDeploymentWithArgs(
+                PENDLE_PT_HOOK_KEY, "PendlePTHook", env, abi.encode(configuration.pendleRouters[chainId])
+            );
+        } else {
+            hooks[80] = HookDeployment("", "", ""); // Empty deployment
         }
 
         // Spark PSM Hooks - Only deploy if PSM3 available on this chain
@@ -4062,6 +4074,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[21].name, PENDLE_ROUTER_REDEEM_HOOK_KEY) ? addresses[21] : address(0);
         hookAddresses.pendleUnifiedHook =
             Strings.equal(hooks[45].name, PENDLE_UNIFIED_HOOK_KEY) ? addresses[45] : address(0);
+        hookAddresses.pendlePTHook =
+            Strings.equal(hooks[80].name, PENDLE_PT_HOOK_KEY) ? addresses[80] : address(0);
         hookAddresses.recordPurchasePendlePTAmortizedOracleHook = Strings.equal(
                 hooks[22].name, RECORD_PURCHASE_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY
             )
