@@ -23,6 +23,8 @@ import {
     TokenInput,
     LimitOrderData,
     TokenOutput,
+    FillOrderParams,
+    Order,
     SwapData,
     SwapType
 } from "../../../vendor/pendle/IPendleRouterV4.sol";
@@ -39,17 +41,18 @@ import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
 /// @author Superform Labs
 /// @notice Simplified Pendle hook for PT operations — derives operation type from header tokens + YT expiry
 /// @dev Pure PT operations only: no auxiliary swapping or wrapping. SwapData is constructed
-/// @dev internally with SwapType.NONE; any pre/post token conversion is done by adjacent hooks.
-/// @dev No selector in payload. Pure AMM swaps + par redemption (no limit orders).
-/// @dev Payload (Buy PT):    abi.encode(ApproxParams guessPtOut)
-/// @dev Payload (Sell PT):   empty bytes (payload_paramLength = 0)
-/// @dev Payload (Redeem PT): empty bytes (payload_paramLength = 0)
+/// @dev internally with SwapType.NONE (a required router struct field); any pre/post token
+/// @dev conversion is done by adjacent hooks. AMM swaps with optional limit orders + par redemption.
+/// @dev No selector in payload.
+/// @dev Payload (Buy PT):    abi.encode(ApproxParams guessPtOut, LimitOrderData limit)
+/// @dev Payload (Sell PT):   abi.encode(LimitOrderData limit)
+/// @dev Payload (Redeem PT): empty bytes (payload_paramLength = 0) — redeemPyToToken takes no limit orders
 /// @dev Operation routing:
 /// @dev   outputToken == PT && inputToken != PT  → swapExactTokenForPt (buy)
 /// @dev   inputToken == PT && outputToken != PT && !yt.isExpired() → swapExactPtForToken (sell)
 /// @dev   inputToken == PT && outputToken != PT && yt.isExpired()  → redeemPyToToken (redeem)
 /// @dev   Note: At the exact expiry block, isExpired() returns true, routing to redeem.
-/// @dev   Sell and redeem payloads are identical (empty), so expiry-boundary routing is harmless.
+/// @dev   A sell-format payload hitting the redeem path is simply ignored (redeem decodes no payload) — benign.
 /// @dev   anything else → revert
 /// @dev Header inputToken is used directly as TokenInput.tokenMintSy (buy); header outputToken is
 /// @dev used directly as TokenOutput.tokenRedeemSy (sell/redeem). Native input is address(0);
@@ -79,6 +82,15 @@ contract PendlePTHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISupe
 
     /// @dev Maximum iterations for Pendle's binary search approximation
     uint256 private constant MAX_ITERATIONS = 256;
+
+    /// @dev Maximum number of fill orders (normal or flash) in a LimitOrderData
+    uint256 private constant MAX_FILLS = 64;
+
+    /// @dev Maximum byte length of LimitOrderData.optData
+    uint256 private constant MAX_OPT_DATA_LENGTH = 1024;
+
+    /// @dev Maximum byte length of Order.permit
+    uint256 private constant MAX_PERMIT_LENGTH = 256;
 
     /// @dev Native token sentinel address
     address private constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -114,6 +126,18 @@ contract PendlePTHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISupe
     error TOKEN_OUT_NOT_LISTED();
     /// @notice Thrown when ApproxParams maxIteration exceeds MAX_ITERATIONS (256)
     error MAX_ITERATION_NOT_VALID();
+    /// @notice Thrown when the number of fill orders exceeds MAX_FILLS (64)
+    error TOO_MANY_FILLS();
+    /// @notice Thrown when LimitOrderData.optData exceeds MAX_OPT_DATA_LENGTH
+    error OPT_DATA_TOO_LONG();
+    /// @notice Thrown when a limit order has expired
+    error ORDER_EXPIRED();
+    /// @notice Thrown when a fill order has zero makingAmount
+    error MAKING_AMOUNT_NOT_VALID();
+    /// @notice Thrown when a fill order has an empty signature
+    error SIGNATURE_NOT_VALID();
+    /// @notice Thrown when Order.permit exceeds MAX_PERMIT_LENGTH
+    error PERMIT_TOO_LONG();
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -189,8 +213,9 @@ contract PendlePTHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISupe
         } else if (headerInputToken == pt && headerOutputToken != pt) {
             if (!IPYieldToken(yt).isExpired()) {
                 // Sell PT: PT → token (AMM, pre-maturity)
+                bytes memory routingParams = data[SwapCalldataLayout.PAYLOAD_DATA_OFFSET:];
                 executions = _buildSwapPtForTokenExecutions(
-                    account, yieldSource, sy, pt, headerOutputToken, netTokenIn, scaledOutputMin
+                    account, yieldSource, sy, pt, headerOutputToken, netTokenIn, scaledOutputMin, routingParams
                 );
             } else {
                 // Redeem PT: PT+YT → token (post-maturity)
@@ -333,7 +358,7 @@ contract PendlePTHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISupe
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Builds executions for swapExactTokenForPt (token → PT)
-    /// @dev routingParams: abi.encode(ApproxParams guessPtOut)
+    /// @dev routingParams: abi.encode(ApproxParams guessPtOut, LimitOrderData limit)
     /// @param account The account executing the swap
     /// @param yieldSource The Pendle market address (used as the market parameter in the router call)
     /// @param sy The SY address derived from readTokens()
@@ -355,11 +380,13 @@ contract PendlePTHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISupe
         view
         returns (Execution[] memory executions)
     {
-        ApproxParams memory guessPtOut = abi.decode(routingParams, (ApproxParams));
+        (ApproxParams memory guessPtOut, LimitOrderData memory limit) =
+            abi.decode(routingParams, (ApproxParams, LimitOrderData));
 
         if (guessPtOut.guessMin > guessPtOut.guessMax) revert GUESS_PT_OUT_NOT_VALID();
         if (guessPtOut.eps > MAX_EPS) revert EPS_NOT_VALID();
         if (guessPtOut.maxIteration > MAX_ITERATIONS) revert MAX_ITERATION_NOT_VALID();
+        _validateLimitOrders(limit);
 
         // Pendle's router uses address(0) for native; normalize the 0xEeee… sentinel
         bool isNativeIn = headerInputToken == address(0) || headerInputToken == NATIVE_TOKEN;
@@ -374,7 +401,6 @@ contract PendlePTHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISupe
             pendleSwap: address(0),
             swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
         });
-        LimitOrderData memory limit; // empty — router skips the limit-order path
 
         bytes memory routerCalldata = abi.encodeCall(
             IPendleRouterV4.swapExactTokenForPt,
@@ -416,7 +442,8 @@ contract PendlePTHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISupe
     }
 
     /// @dev Builds executions for swapExactPtForToken (PT → token, pre-maturity)
-    /// @dev No payload — the header outputToken is used as TokenOutput.tokenOut and tokenRedeemSy
+    /// @dev routingParams: abi.encode(LimitOrderData limit). The header outputToken is used as
+    ///      TokenOutput.tokenOut and tokenRedeemSy.
     /// @param account The account executing the swap
     /// @param yieldSource The Pendle market address (used as the market parameter in the router call)
     /// @param sy The SY address derived from readTokens()
@@ -424,6 +451,7 @@ contract PendlePTHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISupe
     /// @param headerOutputToken The output token from the header (used as TokenOutput.tokenOut and tokenRedeemSy)
     /// @param netTokenIn The exact PT input amount
     /// @param scaledOutputMin The minimum acceptable token output, scaled if using previous hook amount
+    /// @param routingParams ABI-encoded Pendle-specific routing parameters
     /// @return executions Array of executions (approve + swap + cleanup)
     function _buildSwapPtForTokenExecutions(
         address account,
@@ -432,13 +460,17 @@ contract PendlePTHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISupe
         address pt,
         address headerOutputToken,
         uint256 netTokenIn,
-        uint256 scaledOutputMin
+        uint256 scaledOutputMin,
+        bytes memory routingParams
     )
         private
         view
         returns (Execution[] memory executions)
     {
         if (!IStandardizedYield(sy).isValidTokenOut(headerOutputToken)) revert TOKEN_OUT_NOT_LISTED();
+
+        LimitOrderData memory limit = abi.decode(routingParams, (LimitOrderData));
+        _validateLimitOrders(limit);
 
         TokenOutput memory output = TokenOutput({
             tokenOut: headerOutputToken,
@@ -447,7 +479,6 @@ contract PendlePTHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISupe
             pendleSwap: address(0),
             swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
         });
-        LimitOrderData memory limit; // empty — router skips the limit-order path
 
         // Approve-reset-approve + swap + cleanup for PT
         executions = new Execution[](4);
@@ -545,6 +576,48 @@ contract PendlePTHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISupe
             value: 0,
             callData: abi.encodeCall(IERC20.approve, (address(PENDLE_ROUTER_V4), 0))
         });
+    }
+
+    /// @dev Validates limit order parameters: optData length, epsSkipMarket bounds,
+    ///      limitRouter non-zero when fills are present, and individual fill validation
+    /// @param limit The LimitOrderData to validate
+    function _validateLimitOrders(LimitOrderData memory limit) private view {
+        if (limit.optData.length > MAX_OPT_DATA_LENGTH) revert OPT_DATA_TOO_LONG();
+        if (limit.epsSkipMarket > MAX_EPS) revert EPS_NOT_VALID();
+        if (limit.normalFills.length > 0) {
+            if (limit.limitRouter == address(0)) revert ADDRESS_NOT_VALID();
+            _validateFillOrders(limit.normalFills);
+        }
+        if (limit.flashFills.length > 0) {
+            if (limit.limitRouter == address(0)) revert ADDRESS_NOT_VALID();
+            _validateFillOrders(limit.flashFills);
+        }
+    }
+
+    /// @dev Validates an array of fill order parameters: count bound, non-zero makingAmount,
+    ///      non-empty signature, and individual order validation
+    /// @param fills The array of FillOrderParams to validate
+    function _validateFillOrders(FillOrderParams[] memory fills) private view {
+        if (fills.length > MAX_FILLS) revert TOO_MANY_FILLS();
+        for (uint256 i; i < fills.length; ++i) {
+            if (fills[i].makingAmount == 0) revert MAKING_AMOUNT_NOT_VALID();
+            if (fills[i].signature.length == 0) revert SIGNATURE_NOT_VALID();
+            _validateOrder(fills[i].order);
+        }
+    }
+
+    /// @dev Validates individual order parameters: expiry, maker, receiver, token, and YT addresses
+    /// @dev Note: order.nonce replay protection is enforced by the Pendle Router's on-chain nonce manager,
+    ///      not at the hook layer. This validation covers structural correctness only.
+    /// @dev Note: order.failSafeRate is not bounded here — an extreme value could cause poor fills,
+    ///      but scaledOutputMin provides a backstop against unacceptable output amounts.
+    /// @param order The Order to validate
+    function _validateOrder(Order memory order) private view {
+        if (order.expiry < block.timestamp) revert ORDER_EXPIRED();
+        if (order.maker == address(0) || order.receiver == address(0)) revert ADDRESS_NOT_VALID();
+        if (order.token == address(0)) revert ADDRESS_NOT_VALID();
+        if (order.YT == address(0)) revert ADDRESS_NOT_VALID();
+        if (order.permit.length > MAX_PERMIT_LENGTH) revert PERMIT_TOO_LONG();
     }
 
     /// @dev Gets balance of output token for the account — native ETH or ERC20

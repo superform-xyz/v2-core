@@ -8,6 +8,9 @@ import {
     TokenInput,
     LimitOrderData,
     TokenOutput,
+    FillOrderParams,
+    Order,
+    OrderType,
     SwapData,
     SwapType
 } from "../../../../src/vendor/pendle/IPendleRouterV4.sol";
@@ -596,6 +599,321 @@ contract PendlePTHookTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                        LIMIT ORDER TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Build_BuyPt_WithNormalFills() public view {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 6);
+    }
+
+    function test_Build_BuyPt_WithFlashFills() public view {
+        LimitOrderData memory limit = _createLimitOrderData(false, true);
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 6);
+    }
+
+    function test_Build_SellPt_WithNormalFills() public view {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        bytes memory data = _createSellPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 6);
+    }
+
+    function test_Build_SellPt_WithFlashFills() public view {
+        LimitOrderData memory limit = _createLimitOrderData(false, true);
+        bytes memory data = _createSellPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 6);
+    }
+
+    function test_Build_BuyPt_RevertIf_OrderExpired() public {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.normalFills[0].order.expiry = block.timestamp - 1;
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(PendlePTHook.ORDER_EXPIRED.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_SellPt_RevertIf_OrderExpired() public {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.normalFills[0].order.expiry = block.timestamp - 1;
+        bytes memory data = _createSellPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(PendlePTHook.ORDER_EXPIRED.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_BuyPt_RevertIf_ZeroMaker() public {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.normalFills[0].order.maker = address(0);
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_BuyPt_RevertIf_ZeroReceiver() public {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.normalFills[0].order.receiver = address(0);
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_BuyPt_RevertIf_TooManyFills() public {
+        LimitOrderData memory limit;
+        limit.limitRouter = address(0xCAFE);
+        limit.normalFills = new FillOrderParams[](65);
+        for (uint256 i; i < 65; ++i) {
+            limit.normalFills[i] = _createValidFillOrderParams();
+        }
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(PendlePTHook.TOO_MANY_FILLS.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_BuyPt_RevertIf_OptDataTooLong() public {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.optData = new bytes(1025);
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(PendlePTHook.OPT_DATA_TOO_LONG.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_BuyPt_RevertIf_ZeroMakingAmount() public {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.normalFills[0].makingAmount = 0;
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(PendlePTHook.MAKING_AMOUNT_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_BuyPt_RevertIf_LimitRouterZeroWithFills() public {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.limitRouter = address(0);
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_BuyPt_RevertIf_EpsSkipMarketTooHigh() public {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.epsSkipMarket = 1e18 + 1;
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(PendlePTHook.EPS_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_BuyPt_RevertIf_EmptySignature() public {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.normalFills[0].signature = "";
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(PendlePTHook.SIGNATURE_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_BuyPt_RevertIf_ZeroOrderToken() public {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.normalFills[0].order.token = address(0);
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_BuyPt_RevertIf_ZeroOrderYT() public {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.normalFills[0].order.YT = address(0);
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_BuyPt_RevertIf_PermitTooLong() public {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.normalFills[0].order.permit = new bytes(257);
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(PendlePTHook.PERMIT_TOO_LONG.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    LIMIT ORDER TESTS — SELL PATH REVERTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Build_SellPt_RevertIf_ZeroMaker() public {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.normalFills[0].order.maker = address(0);
+        bytes memory data = _createSellPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_SellPt_RevertIf_TooManyFills() public {
+        LimitOrderData memory limit;
+        limit.limitRouter = address(0xCAFE);
+        limit.flashFills = new FillOrderParams[](65);
+        for (uint256 i; i < 65; ++i) {
+            limit.flashFills[i] = _createValidFillOrderParams();
+        }
+        bytes memory data = _createSellPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(PendlePTHook.TOO_MANY_FILLS.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_SellPt_RevertIf_EpsSkipMarketTooHigh() public {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.epsSkipMarket = 1e18 + 1;
+        bytes memory data = _createSellPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(PendlePTHook.EPS_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_SellPt_RevertIf_OptDataTooLong() public {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.optData = new bytes(1025);
+        bytes memory data = _createSellPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(PendlePTHook.OPT_DATA_TOO_LONG.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_SellPt_RevertIf_LimitRouterZeroWithFlashFills() public {
+        LimitOrderData memory limit = _createLimitOrderData(false, true);
+        limit.limitRouter = address(0);
+        bytes memory data = _createSellPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_BuyPt_RevertIf_FlashFillEmptySignature() public {
+        LimitOrderData memory limit = _createLimitOrderData(false, true);
+        limit.flashFills[0].signature = "";
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        vm.expectRevert(PendlePTHook.SIGNATURE_NOT_VALID.selector);
+        hook.build(address(prevHook), account, data);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    LIMIT ORDER TESTS — BOUNDARIES
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Build_BuyPt_MaxFillsBoundary() public view {
+        LimitOrderData memory limit;
+        limit.limitRouter = address(0xCAFE);
+        limit.normalFills = new FillOrderParams[](64); // exactly MAX_FILLS
+        for (uint256 i; i < 64; ++i) {
+            limit.normalFills[i] = _createValidFillOrderParams();
+        }
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 6);
+    }
+
+    function test_Build_BuyPt_OptDataMaxLengthBoundary() public view {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.optData = new bytes(1024); // exactly MAX_OPT_DATA_LENGTH
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 6);
+    }
+
+    function test_Build_BuyPt_PermitMaxLengthBoundary() public view {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.normalFills[0].order.permit = new bytes(256); // exactly MAX_PERMIT_LENGTH
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 6);
+    }
+
+    function test_Build_BuyPt_OrderExpiryAtCurrentTimestamp() public view {
+        // expiry < block.timestamp reverts; expiry == block.timestamp is still valid
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.normalFills[0].order.expiry = block.timestamp;
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 6);
+    }
+
+    function test_Build_BuyPt_EpsSkipMarketMaxBoundary() public view {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.epsSkipMarket = 1e18; // exactly MAX_EPS
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 6);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                LIMIT ORDER TESTS — ROUTER CALLDATA ROUND-TRIP
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Build_BuyPt_LimitOrdersReachRouterCalldata() public view {
+        LimitOrderData memory limit = _createLimitOrderData(true, true);
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[3].callData);
+        (,,,, TokenInput memory input, LimitOrderData memory decodedLimit) =
+            abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+
+        assertEq(decodedLimit.limitRouter, address(0xCAFE), "limitRouter should pass through");
+        assertEq(decodedLimit.normalFills.length, 1, "normal fills should pass through");
+        assertEq(decodedLimit.flashFills.length, 1, "flash fills should pass through");
+        assertEq(decodedLimit.normalFills[0].makingAmount, 500);
+        assertEq(decodedLimit.normalFills[0].order.maker, address(0xABCD));
+
+        // Limit orders present must NOT re-enable auxiliary swapping
+        assertEq(input.pendleSwap, address(0), "pendleSwap stays zeroed with limit orders");
+        assertEq(uint256(input.swapData.swapType), uint256(SwapType.NONE), "swapType stays NONE with limit orders");
+        assertEq(input.tokenMintSy, address(inputToken), "tokenMintSy stays the header inputToken");
+    }
+
+    function test_Build_SellPt_LimitOrdersReachRouterCalldata() public view {
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        bytes memory data = _createSellPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[3].callData);
+        (,,, TokenOutput memory output, LimitOrderData memory decodedLimit) =
+            abi.decode(args, (address, address, uint256, TokenOutput, LimitOrderData));
+
+        assertEq(decodedLimit.limitRouter, address(0xCAFE), "limitRouter should pass through");
+        assertEq(decodedLimit.normalFills.length, 1, "normal fills should pass through");
+
+        assertEq(output.pendleSwap, address(0), "pendleSwap stays zeroed with limit orders");
+        assertEq(uint256(output.swapData.swapType), uint256(SwapType.NONE), "swapType stays NONE with limit orders");
+        assertEq(output.tokenRedeemSy, address(outputToken), "tokenRedeemSy stays the header outputToken");
+    }
+
+    function test_Build_BuyPt_WithLimitOrdersAndPrevHookAmount() public {
+        // Min-out scaling must still apply when limit orders are present
+        uint256 prevHookAmount = 3000;
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        bytes memory data = _createBuyPtDataWithLimitOrders(market, inputAmount, minOut, limit, true);
+        prevHook.setOutAmount(prevHookAmount, account);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+
+        bytes memory args = _removeSelector(executions[3].callData);
+        (,, uint256 minPtOut_,, TokenInput memory input, LimitOrderData memory decodedLimit) =
+            abi.decode(args, (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+
+        assertEq(input.netTokenIn, prevHookAmount);
+        assertEq(minPtOut_, HookDataUpdater.getUpdatedOutputAmount(prevHookAmount, inputAmount, minOut));
+        assertEq(decodedLimit.normalFills.length, 1, "limit orders survive amount replacement");
+    }
+
+    function test_Build_RedeemPt_IgnoresExpiredLimitOrderInSellPayload() public {
+        // Post-expiry, a sell payload with an EXPIRED limit order routes to redeem and is ignored
+        // (redeem decodes no payload) — the signed intent stays executable after maturity.
+        ytToken.setExpired(true);
+        LimitOrderData memory limit = _createLimitOrderData(true, false);
+        limit.normalFills[0].order.expiry = 1; // long expired
+        bytes memory data = _createSellPtDataWithLimitOrders(market, inputAmount, minOut, limit, false);
+        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        assertEq(executions.length, 9, "redeem path should ignore the sell payload entirely");
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             INSPECT TESTS
     //////////////////////////////////////////////////////////////*/
 
@@ -698,15 +1016,15 @@ contract PendlePTHookTest is Helpers {
     }
 
     function test_DecodePayload() public view {
-        // Buy payload = abi.encode(ApproxParams) = 160 bytes
+        // Buy payload = abi.encode(ApproxParams, LimitOrderData) — larger than the bare 160-byte ApproxParams
         bytes memory data = _createBuyPtData(market, inputAmount, minOut, false);
         bytes memory payload = hook.decodePayload(data);
-        assertEq(payload.length, 160);
+        assertGt(payload.length, 160);
 
-        // Sell/redeem payload is empty
+        // Sell payload = abi.encode(LimitOrderData) — non-empty even with an empty limit struct
         bytes memory sellData = _createSellPtData(market, inputAmount, minOut, false);
         bytes memory sellPayload = hook.decodePayload(sellData);
-        assertEq(sellPayload.length, 0);
+        assertGt(sellPayload.length, 0);
     }
 
     function test_EncodeSwapData() public view {
@@ -718,14 +1036,15 @@ contract PendlePTHookTest is Helpers {
             outputMin: minOut,
             usePrevHookAmount: false
         });
-        bytes memory payload = abi.encode(ApproxParams(900, 1100, 1000, 10, 1e17));
+        LimitOrderData memory emptyLimit;
+        bytes memory payload = abi.encode(ApproxParams(900, 1100, 1000, 10, 1e17), emptyLimit);
         bytes memory encoded = hook.encodeSwapData(header, payload);
 
         assertEq(hook.decodeInputToken(encoded), address(inputToken));
         assertEq(hook.decodeOutputToken(encoded), address(ptToken));
         assertEq(hook.decodeInputAmount(encoded), inputAmount);
         assertEq(hook.decodeOutputMin(encoded), minOut);
-        assertEq(hook.decodePayload(encoded).length, 160);
+        assertEq(hook.decodePayload(encoded), payload);
     }
 
     function test_Name() public view {
@@ -891,8 +1210,28 @@ contract PendlePTHookTest is Helpers {
         hook.build(address(prevHook), account, data);
     }
 
-    function test_Build_SellPt_IgnoresNonEmptyPayload() public view {
-        // Sell/redeem take no payload; trailing bytes are ignored rather than reverting
+    function test_Build_SellPt_RevertIf_MalformedPayload() public {
+        // Sell decodes abi.encode(LimitOrderData); garbage payload must revert
+        bytes memory garbage = hex"deadbeefdeadbeef";
+        bytes memory data = bytes.concat(
+            bytes32(0),
+            bytes20(market),
+            bytes20(address(ptToken)),
+            bytes20(address(outputToken)),
+            bytes32(inputAmount),
+            bytes32(uint256(0)),
+            bytes32(minOut),
+            bytes1(0x00),
+            bytes32(garbage.length),
+            garbage
+        );
+        vm.expectRevert();
+        hook.build(address(prevHook), account, data);
+    }
+
+    function test_Build_RedeemPt_IgnoresNonEmptyPayload() public {
+        // Redeem takes no payload (redeemPyToToken has no limit orders); trailing bytes are ignored
+        ytToken.setExpired(true);
         bytes memory garbage = hex"deadbeefdeadbeef";
         bytes memory data = bytes.concat(
             bytes32(0),
@@ -907,7 +1246,7 @@ contract PendlePTHookTest is Helpers {
             garbage
         );
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 6);
+        assertEq(executions.length, 9);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1083,7 +1422,8 @@ contract PendlePTHookTest is Helpers {
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
         // No selector prefix — routingParams IS the payload
-        bytes memory routingParams = abi.encode(guessPtOut_);
+        LimitOrderData memory emptyLimit;
+        bytes memory routingParams = abi.encode(guessPtOut_, emptyLimit);
 
         return bytes.concat(
             bytes32(0),                          // yieldSourceOracleId
@@ -1114,7 +1454,8 @@ contract PendlePTHookTest is Helpers {
             eps: 1e17
         });
 
-        bytes memory routingParams = abi.encode(guessPtOut);
+        LimitOrderData memory emptyLimit;
+        bytes memory routingParams = abi.encode(guessPtOut, emptyLimit);
 
         return bytes.concat(
             bytes32(0),
@@ -1130,13 +1471,26 @@ contract PendlePTHookTest is Helpers {
         );
     }
 
-    /// @dev Creates sell PT data: PT → outputToken. Payload is empty.
+    /// @dev Creates sell PT data: PT → outputToken. Payload = abi.encode(LimitOrderData) (empty limit).
     function _createSellPtData(
         address market_,
         uint256 inputAmount_,
         uint256 minOut_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
+        LimitOrderData memory emptyLimit;
+        return _createSellPtDataWithLimitOrders(market_, inputAmount_, minOut_, emptyLimit, usePrevHookAmount_);
+    }
+
+    /// @dev Creates sell PT data with custom limit orders
+    function _createSellPtDataWithLimitOrders(
+        address market_,
+        uint256 inputAmount_,
+        uint256 minOut_,
+        LimitOrderData memory limit_,
+        bool usePrevHookAmount_
+    ) internal view returns (bytes memory) {
+        bytes memory routingParams = abi.encode(limit_);
         return bytes.concat(
             bytes32(0),
             bytes20(market_),
@@ -1146,8 +1500,80 @@ contract PendlePTHookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(minOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
-            bytes32(uint256(0))                  // payload_paramLength = 0, no payload
+            bytes32(routingParams.length),
+            routingParams
         );
+    }
+
+    /// @dev Creates buy PT data with custom limit orders
+    function _createBuyPtDataWithLimitOrders(
+        address market_,
+        uint256 inputAmount_,
+        uint256 minOut_,
+        LimitOrderData memory limit_,
+        bool usePrevHookAmount_
+    ) internal view returns (bytes memory) {
+        ApproxParams memory guessPtOut = ApproxParams({
+            guessMin: 900,
+            guessMax: 1100,
+            guessOffchain: 1000,
+            maxIteration: 10,
+            eps: 1e17
+        });
+
+        bytes memory routingParams = abi.encode(guessPtOut, limit_);
+
+        return bytes.concat(
+            bytes32(0),
+            bytes20(market_),
+            bytes20(address(inputToken)),
+            bytes20(address(ptToken)),
+            bytes32(inputAmount_),
+            bytes32(uint256(0)),
+            bytes32(minOut_),
+            usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
+            bytes32(routingParams.length),
+            routingParams
+        );
+    }
+
+    /// @dev Creates a LimitOrderData with optional normal and flash fills
+    function _createLimitOrderData(
+        bool hasNormalFills,
+        bool hasFlashFills
+    ) internal view returns (LimitOrderData memory limit) {
+        limit.limitRouter = address(0xCAFE);
+        limit.epsSkipMarket = 0;
+        limit.optData = "";
+
+        if (hasNormalFills) {
+            limit.normalFills = new FillOrderParams[](1);
+            limit.normalFills[0] = _createValidFillOrderParams();
+        }
+        if (hasFlashFills) {
+            limit.flashFills = new FillOrderParams[](1);
+            limit.flashFills[0] = _createValidFillOrderParams();
+        }
+    }
+
+    /// @dev Creates a valid FillOrderParams for testing
+    function _createValidFillOrderParams() internal view returns (FillOrderParams memory) {
+        Order memory order = Order({
+            salt: 1,
+            expiry: block.timestamp + 1 hours,
+            nonce: 0,
+            orderType: OrderType.SY_FOR_PT,
+            token: address(inputToken),
+            YT: address(ytToken),
+            maker: address(0xABCD),
+            receiver: address(0xABCD),
+            makingAmount: 1000,
+            lnImpliedRate: 0,
+            failSafeRate: 0,
+            permit: ""
+        });
+
+        return FillOrderParams({ order: order, signature: hex"deadbeef", makingAmount: 500 });
     }
 
     /// @dev Creates sell PT data with a custom output token (e.g. native)
@@ -1158,6 +1584,8 @@ contract PendlePTHookTest is Helpers {
         uint256 minOut_,
         bool usePrevHookAmount_
     ) internal view returns (bytes memory) {
+        LimitOrderData memory emptyLimit;
+        bytes memory routingParams = abi.encode(emptyLimit);
         return bytes.concat(
             bytes32(0),
             bytes20(market_),
@@ -1167,7 +1595,8 @@ contract PendlePTHookTest is Helpers {
             bytes32(uint256(0)),
             bytes32(minOut_),
             usePrevHookAmount_ ? bytes1(0x01) : bytes1(0x00),
-            bytes32(uint256(0))                  // payload_paramLength = 0, no payload
+            bytes32(routingParams.length),
+            routingParams
         );
     }
 
