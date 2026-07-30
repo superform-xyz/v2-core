@@ -8,21 +8,30 @@ import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestina
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 
 abstract contract DestinationSimulationTestBase is Test {
-    bytes32 internal constant CONFIG_MAGIC = keccak256("superform.destination-adapter-simulation.config.v1");
-
-    function _installConfiguredRuntime(
-        address target,
+    function _assertAndPatchImmutableReferences(
         bytes memory runtime,
-        address authorizedCaller,
-        address tokenMessaging,
-        address destinationExecutor
+        uint256[2] memory offsets,
+        address value
     )
         internal
+        pure
     {
-        vm.etch(
-            target,
-            bytes.concat(runtime, abi.encode(CONFIG_MAGIC, authorizedCaller, tokenMessaging, destinationExecutor))
-        );
+        bytes32 encodedValue = bytes32(uint256(uint160(value)));
+
+        for (uint256 i; i < offsets.length; ++i) {
+            uint256 offset = offsets[i];
+            assertLe(offset + 32, runtime.length, "immutable reference exceeds runtime");
+
+            bytes32 placeholder;
+            assembly ("memory-safe") {
+                placeholder := mload(add(add(runtime, 0x20), offset))
+            }
+            assertEq(placeholder, bytes32(0), "immutable reference placeholder is not zero");
+
+            assembly ("memory-safe") {
+                mstore(add(add(runtime, 0x20), offset), encodedValue)
+            }
+        }
     }
 
     function _signatureData(

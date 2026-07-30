@@ -13,14 +13,11 @@ import { IAcrossV3Receiver } from "../../../src/vendor/bridges/across/IAcrossV3R
 import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestinationExecutor.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 
-// Simulation Helpers
-import { DestinationAdapterSimulationConfig } from "./DestinationAdapterSimulationConfig.sol";
-
 /// @title AcrossV3AdapterV2Simulations
 /// @author Superform Labs
 /// @notice Strict simulation equivalent of AcrossV3AdapterV2
 /// @dev This contract is never deployed. Its runtime is installed at a live Across adapter
-///      with a state override and configured through DestinationAdapterSimulationConfig.
+///      with a state override after its constructor-configured immutables are patched.
 ///      The success path mirrors the production V2 adapter, while transfer and destination
 ///      execution failures revert so eth_estimateGas cannot accept a best-effort failure path.
 contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
@@ -29,6 +26,12 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice The Across SpokePool address
+    address public immutable ACROSS_SPOKE_POOL;
+
+    /// @notice The SuperDestinationExecutor for processing bridged executions
+    ISuperDestinationExecutor public immutable SUPER_DESTINATION_EXECUTOR;
 
     /// @notice Claimable balances for failed token transfers
     /// @dev Must remain in the same storage position as AcrossV3AdapterV2
@@ -51,6 +54,7 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
+    error ADDRESS_NOT_VALID();
     error NO_DST_PROOF_FOR_CHAIN();
     error ACCOUNT_NOT_VALID();
     error TRANSFER_FAILED();
@@ -68,21 +72,15 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
     event FailedTransferClaimed(address indexed account, address indexed token, uint256 amount);
 
     /*//////////////////////////////////////////////////////////////
-                                CONFIGURATION
+                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Returns the configured Across SpokePool used for this simulation
-    function ACROSS_SPOKE_POOL() external view returns (address) {
-        DestinationAdapterSimulationConfig.Config memory config = DestinationAdapterSimulationConfig.read();
-        _validateConfig(config);
-        return config.authorizedCaller;
-    }
-
-    /// @notice Returns the configured destination executor used for this simulation
-    function SUPER_DESTINATION_EXECUTOR() external view returns (ISuperDestinationExecutor) {
-        DestinationAdapterSimulationConfig.Config memory config = DestinationAdapterSimulationConfig.read();
-        _validateConfig(config);
-        return ISuperDestinationExecutor(config.destinationExecutor);
+    constructor(address acrossSpokePool_, address superDestinationExecutor_) {
+        if (acrossSpokePool_ == address(0) || superDestinationExecutor_ == address(0)) {
+            revert ADDRESS_NOT_VALID();
+        }
+        ACROSS_SPOKE_POOL = acrossSpokePool_;
+        SUPER_DESTINATION_EXECUTOR = ISuperDestinationExecutor(superDestinationExecutor_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -99,9 +97,7 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
         external
         override
     {
-        DestinationAdapterSimulationConfig.Config memory config = DestinationAdapterSimulationConfig.read();
-        _validateConfig(config);
-        if (msg.sender != config.authorizedCaller) revert INVALID_SENDER();
+        if (msg.sender != ACROSS_SPOKE_POOL) revert INVALID_SENDER();
 
         (bytes memory initData, bytes memory sigDataRaw) = abi.decode(message, (bytes, bytes));
         ExtractedData memory extracted = _extractFromSigData(sigDataRaw);
@@ -112,16 +108,15 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
 
         emit TransferSucceeded(extracted.account, tokenSent, amount);
 
-        try ISuperDestinationExecutor(config.destinationExecutor)
-            .processBridgedExecution(
-                tokenSent,
-                extracted.account,
-                extracted.dstTokens,
-                extracted.intentAmounts,
-                initData,
-                extracted.executorCalldata,
-                sigDataRaw
-            ) { }
+        try SUPER_DESTINATION_EXECUTOR.processBridgedExecution(
+            tokenSent,
+            extracted.account,
+            extracted.dstTokens,
+            extracted.intentAmounts,
+            initData,
+            extracted.executorCalldata,
+            sigDataRaw
+        ) { }
         catch (bytes memory reason) {
             _revert(reason);
         }
@@ -172,16 +167,6 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
     function _tryTransfer(address token, address account, uint256 amount) internal returns (bool success) {
         (bool callSuccess, bytes memory returnData) = token.call(abi.encodeCall(IERC20.transfer, (account, amount)));
         success = callSuccess && (returnData.length == 0 || abi.decode(returnData, (bool)));
-    }
-
-    /// @notice Validates the Across-specific runtime trailer
-    function _validateConfig(DestinationAdapterSimulationConfig.Config memory config) private pure {
-        if (
-            config.authorizedCaller == address(0) || config.tokenMessaging != address(0)
-                || config.destinationExecutor == address(0)
-        ) {
-            revert DestinationAdapterSimulationConfig.INVALID_SIMULATION_CONFIG();
-        }
     }
 
     /// @notice Bubbles a destination executor failure without changing its revert selector

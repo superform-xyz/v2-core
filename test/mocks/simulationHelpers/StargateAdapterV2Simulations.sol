@@ -15,14 +15,11 @@ import { ITokenMessaging } from "../../../src/vendor/bridges/stargate/ITokenMess
 import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestinationExecutor.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 
-// Simulation Helpers
-import { DestinationAdapterSimulationConfig } from "./DestinationAdapterSimulationConfig.sol";
-
 /// @title StargateAdapterV2Simulations
 /// @author Superform Labs
 /// @notice Strict simulation equivalent of StargateAdapterV2
 /// @dev This contract is never deployed. Its runtime is installed at a live Stargate adapter
-///      with a state override and configured through DestinationAdapterSimulationConfig.
+///      with a state override after its constructor-configured immutables are patched.
 ///      It preserves the production lzCompose -> handleCompose -> destination executor call
 ///      layering while turning every best-effort failure into a top-level revert.
 contract StargateAdapterV2Simulations is ILayerZeroComposer, ReentrancyGuard {
@@ -38,6 +35,15 @@ contract StargateAdapterV2Simulations is ILayerZeroComposer, ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice The LayerZero V2 EndpointV2 address
+    address public immutable LZ_ENDPOINT;
+
+    /// @notice The Stargate V2 TokenMessaging contract for pool registration verification
+    ITokenMessaging public immutable TOKEN_MESSAGING;
+
+    /// @notice The SuperDestinationExecutor for processing bridged executions
+    ISuperDestinationExecutor public immutable SUPER_DESTINATION_EXECUTOR;
 
     /// @notice OFTs allowed to bypass TokenMessaging pool registration
     /// @dev Must remain in the same storage position as StargateAdapterV2
@@ -68,6 +74,7 @@ contract StargateAdapterV2Simulations is ILayerZeroComposer, ReentrancyGuard {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
+    error ADDRESS_NOT_VALID();
     error INVALID_SENDER();
     error COMPOSE_MSG_TOO_SHORT(uint256 messageLength);
     error UNREGISTERED_POOL(address pool);
@@ -95,28 +102,16 @@ contract StargateAdapterV2Simulations is ILayerZeroComposer, ReentrancyGuard {
     event FailedTransferClaimed(address indexed account, address indexed token, uint256 amount);
 
     /*//////////////////////////////////////////////////////////////
-                                CONFIGURATION
+                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Returns the configured LayerZero endpoint used for this simulation
-    function LZ_ENDPOINT() external view returns (address) {
-        DestinationAdapterSimulationConfig.Config memory config = DestinationAdapterSimulationConfig.read();
-        _validateConfig(config);
-        return config.authorizedCaller;
-    }
-
-    /// @notice Returns the configured TokenMessaging contract used for this simulation
-    function TOKEN_MESSAGING() external view returns (ITokenMessaging) {
-        DestinationAdapterSimulationConfig.Config memory config = DestinationAdapterSimulationConfig.read();
-        _validateConfig(config);
-        return ITokenMessaging(config.tokenMessaging);
-    }
-
-    /// @notice Returns the configured destination executor used for this simulation
-    function SUPER_DESTINATION_EXECUTOR() external view returns (ISuperDestinationExecutor) {
-        DestinationAdapterSimulationConfig.Config memory config = DestinationAdapterSimulationConfig.read();
-        _validateConfig(config);
-        return ISuperDestinationExecutor(config.destinationExecutor);
+    constructor(address lzEndpoint_, address tokenMessaging_, address superDestinationExecutor_) {
+        if (lzEndpoint_ == address(0) || tokenMessaging_ == address(0) || superDestinationExecutor_ == address(0)) {
+            revert ADDRESS_NOT_VALID();
+        }
+        LZ_ENDPOINT = lzEndpoint_;
+        TOKEN_MESSAGING = ITokenMessaging(tokenMessaging_);
+        SUPER_DESTINATION_EXECUTOR = ISuperDestinationExecutor(superDestinationExecutor_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -142,13 +137,10 @@ contract StargateAdapterV2Simulations is ILayerZeroComposer, ReentrancyGuard {
         payable
         override
     {
-        DestinationAdapterSimulationConfig.Config memory config = DestinationAdapterSimulationConfig.read();
-        _validateConfig(config);
-
-        if (msg.sender != config.authorizedCaller) revert INVALID_SENDER();
+        if (msg.sender != LZ_ENDPOINT) revert INVALID_SENDER();
         if (_message.length < COMPOSE_MSG_OFFSET) revert COMPOSE_MSG_TOO_SHORT(_message.length);
 
-        if (ITokenMessaging(config.tokenMessaging).assetIds(_from) == 0 && !allowedOFTs[_from]) {
+        if (TOKEN_MESSAGING.assetIds(_from) == 0 && !allowedOFTs[_from]) {
             revert UNREGISTERED_POOL(_from);
         }
 
@@ -197,9 +189,6 @@ contract StargateAdapterV2Simulations is ILayerZeroComposer, ReentrancyGuard {
     )
         private
     {
-        DestinationAdapterSimulationConfig.Config memory config = DestinationAdapterSimulationConfig.read();
-        _validateConfig(config);
-
         uint256 preBalance =
             tokenSent == address(0) ? address(this).balance : IERC20(tokenSent).balanceOf(address(this));
         if (account == address(0)) revert ACCOUNT_NOT_VALID();
@@ -212,16 +201,15 @@ contract StargateAdapterV2Simulations is ILayerZeroComposer, ReentrancyGuard {
 
         emit TransferSucceeded(_guid, account, tokenSent, amountLD);
 
-        try ISuperDestinationExecutor(config.destinationExecutor)
-            .processBridgedExecution(
-                tokenSent,
-                account,
-                extracted.dstTokens,
-                extracted.intentAmounts,
-                initData,
-                extracted.executorCalldata,
-                sigDataRaw
-            ) { }
+        try SUPER_DESTINATION_EXECUTOR.processBridgedExecution(
+            tokenSent,
+            account,
+            extracted.dstTokens,
+            extracted.intentAmounts,
+            initData,
+            extracted.executorCalldata,
+            sigDataRaw
+        ) { }
         catch (bytes memory reason) {
             _revert(reason);
         }
@@ -290,16 +278,6 @@ contract StargateAdapterV2Simulations is ILayerZeroComposer, ReentrancyGuard {
         } else {
             (bool callSuccess, bytes memory returnData) = token.call(abi.encodeCall(IERC20.transfer, (account, amount)));
             success = callSuccess && (returnData.length == 0 || abi.decode(returnData, (bool)));
-        }
-    }
-
-    /// @notice Validates the Stargate-specific runtime trailer
-    function _validateConfig(DestinationAdapterSimulationConfig.Config memory config) private pure {
-        if (
-            config.authorizedCaller == address(0) || config.tokenMessaging == address(0)
-                || config.destinationExecutor == address(0)
-        ) {
-            revert DestinationAdapterSimulationConfig.INVALID_SIMULATION_CONFIG();
         }
     }
 

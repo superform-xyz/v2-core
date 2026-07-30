@@ -18,6 +18,8 @@ contract StargateAdapterV2SimulationsTest is DestinationSimulationTestBase {
     bytes32 internal constant GUID = keccak256("stargate-guid");
     bytes32 internal constant ROOT = keccak256("stargate-root");
     uint32 internal constant SOURCE_EID = 30_101;
+    uint256 internal constant RUNTIME_LENGTH = 6096;
+    bytes32 internal constant RUNTIME_HASH = 0xe3ef0b6966604ece851a0f98fd2456fc5f0249761d3df7363ddb17fde4577bbf;
 
     address internal endpoint;
     address internal account;
@@ -25,6 +27,7 @@ contract StargateAdapterV2SimulationsTest is DestinationSimulationTestBase {
     address internal adapterAddress;
 
     StargateAdapterV2Simulations internal adapter;
+    StargateAdapterV2Simulations internal implementation;
     RecordingDestinationExecutor internal executor;
     SimulationTokenMessaging internal tokenMessaging;
     SimulationStargatePool internal pool;
@@ -42,21 +45,41 @@ contract StargateAdapterV2SimulationsTest is DestinationSimulationTestBase {
         pool = new SimulationStargatePool(address(token));
         tokenMessaging.setAssetId(address(pool), 1);
 
-        _installConfiguredRuntime(
-            adapterAddress,
-            type(StargateAdapterV2Simulations).runtimeCode,
-            endpoint,
-            address(tokenMessaging),
-            address(executor)
-        );
+        implementation = new StargateAdapterV2Simulations(endpoint, address(tokenMessaging), address(executor));
+        vm.etch(adapterAddress, address(implementation).code);
         adapter = StargateAdapterV2Simulations(payable(adapterAddress));
     }
 
-    function test_RuntimeTrailer_Getters() public view {
+    function test_ConstructorPatchedRuntime_GettersAfterEtch() public view {
         assertEq(adapter.LZ_ENDPOINT(), endpoint);
         assertEq(address(adapter.TOKEN_MESSAGING()), address(tokenMessaging));
         assertEq(address(adapter.SUPER_DESTINATION_EXECUTOR()), address(executor));
-        assertEq(adapterAddress.code.length, type(StargateAdapterV2Simulations).runtimeCode.length + 128);
+        assertEq(adapterAddress.codehash, address(implementation).codehash);
+    }
+
+    function test_ArtifactRuntime_ImmutableReferencesAreLocked() public view {
+        bytes memory runtime = vm.getDeployedCode(
+            "test/mocks/simulationHelpers/StargateAdapterV2Simulations.sol:StargateAdapterV2Simulations"
+        );
+        assertEq(runtime.length, RUNTIME_LENGTH);
+        assertEq(keccak256(runtime), RUNTIME_HASH);
+
+        _assertAndPatchImmutableReferences(runtime, [uint256(450), uint256(1286)], endpoint);
+        _assertAndPatchImmutableReferences(runtime, [uint256(399), uint256(1416)], address(tokenMessaging));
+        _assertAndPatchImmutableReferences(runtime, [uint256(520), uint256(2689)], address(executor));
+
+        assertEq(runtime, address(implementation).code);
+    }
+
+    function test_Constructor_RevertIf_RequiredAddressIsZero() public {
+        vm.expectRevert(StargateAdapterV2Simulations.ADDRESS_NOT_VALID.selector);
+        new StargateAdapterV2Simulations(address(0), address(tokenMessaging), address(executor));
+
+        vm.expectRevert(StargateAdapterV2Simulations.ADDRESS_NOT_VALID.selector);
+        new StargateAdapterV2Simulations(endpoint, address(0), address(executor));
+
+        vm.expectRevert(StargateAdapterV2Simulations.ADDRESS_NOT_VALID.selector);
+        new StargateAdapterV2Simulations(endpoint, address(tokenMessaging), address(0));
     }
 
     function test_LzCompose_ERC20HappyPathPreservesSelfCall() public {

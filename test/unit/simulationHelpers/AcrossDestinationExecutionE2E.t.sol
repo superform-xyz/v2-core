@@ -169,9 +169,9 @@ contract AcrossDestinationExecutionE2ETest is DestinationSimulationTestBase {
         });
         hook.setExecutions(hookExecutions);
 
-        _installConfiguredRuntime(
-            adapterAddress, type(AcrossV3AdapterV2Simulations).runtimeCode, spokePool, address(0), executorAddress
-        );
+        AcrossV3AdapterV2Simulations adapterImplementation =
+            new AcrossV3AdapterV2Simulations(spokePool, executorAddress);
+        vm.etch(adapterAddress, address(adapterImplementation).code);
         adapter = AcrossV3AdapterV2Simulations(adapterAddress);
     }
 

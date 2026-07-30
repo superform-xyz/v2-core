@@ -4,9 +4,6 @@ pragma solidity 0.8.30;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { AcrossV3AdapterV2Simulations } from "../../mocks/simulationHelpers/AcrossV3AdapterV2Simulations.sol";
-import {
-    DestinationAdapterSimulationConfig
-} from "../../mocks/simulationHelpers/DestinationAdapterSimulationConfig.sol";
 import { IAcrossV3Receiver } from "../../../src/vendor/bridges/across/IAcrossV3Receiver.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 
@@ -15,12 +12,15 @@ import { DestinationSimulationTestBase, RecordingDestinationExecutor } from "./D
 contract AcrossV3AdapterV2SimulationsTest is DestinationSimulationTestBase {
     uint256 internal constant AMOUNT = 1_000_000;
     bytes32 internal constant ROOT = keccak256("across-root");
+    uint256 internal constant RUNTIME_LENGTH = 4016;
+    bytes32 internal constant RUNTIME_HASH = 0x55e0abd65f7eb9796556faafd0e0e76775019bc053c737ee686a1306d2d5caf9;
 
     address internal spokePool;
     address internal account;
     address internal adapterAddress;
 
     AcrossV3AdapterV2Simulations internal adapter;
+    AcrossV3AdapterV2Simulations internal implementation;
     RecordingDestinationExecutor internal executor;
     MockERC20 internal token;
 
@@ -32,63 +32,36 @@ contract AcrossV3AdapterV2SimulationsTest is DestinationSimulationTestBase {
         executor = new RecordingDestinationExecutor();
         token = new MockERC20("Mock Token", "MOCK", 18);
 
-        _installConfiguredRuntime(
-            adapterAddress, type(AcrossV3AdapterV2Simulations).runtimeCode, spokePool, address(0), address(executor)
-        );
+        implementation = new AcrossV3AdapterV2Simulations(spokePool, address(executor));
+        vm.etch(adapterAddress, address(implementation).code);
         adapter = AcrossV3AdapterV2Simulations(adapterAddress);
     }
 
-    function test_RuntimeTrailer_Getters() public view {
+    function test_ConstructorPatchedRuntime_GettersAfterEtch() public view {
         assertEq(adapter.ACROSS_SPOKE_POOL(), spokePool);
         assertEq(address(adapter.SUPER_DESTINATION_EXECUTOR()), address(executor));
-        assertEq(adapterAddress.code.length, type(AcrossV3AdapterV2Simulations).runtimeCode.length + 128);
+        assertEq(adapterAddress.codehash, address(implementation).codehash);
     }
 
-    function test_RuntimeTrailer_RevertIf_Missing() public {
-        address unconfigured = makeAddr("unconfiguredAcrossAdapter");
-        vm.etch(unconfigured, type(AcrossV3AdapterV2Simulations).runtimeCode);
-
-        vm.expectRevert(DestinationAdapterSimulationConfig.INVALID_SIMULATION_CONFIG.selector);
-        AcrossV3AdapterV2Simulations(unconfigured).ACROSS_SPOKE_POOL();
-    }
-
-    function test_RuntimeTrailer_RevertIf_WrongMagic() public {
-        address misconfigured = makeAddr("misconfiguredAcrossAdapter");
-        vm.etch(
-            misconfigured,
-            bytes.concat(
-                type(AcrossV3AdapterV2Simulations).runtimeCode,
-                abi.encode(bytes32(uint256(1)), spokePool, address(0), address(executor))
-            )
+    function test_ArtifactRuntime_ImmutableReferencesAreLocked() public view {
+        bytes memory runtime = vm.getDeployedCode(
+            "test/mocks/simulationHelpers/AcrossV3AdapterV2Simulations.sol:AcrossV3AdapterV2Simulations"
         );
+        assertEq(runtime.length, RUNTIME_LENGTH);
+        assertEq(keccak256(runtime), RUNTIME_HASH);
 
-        vm.expectRevert(DestinationAdapterSimulationConfig.INVALID_SIMULATION_CONFIG.selector);
-        AcrossV3AdapterV2Simulations(misconfigured).ACROSS_SPOKE_POOL();
+        _assertAndPatchImmutableReferences(runtime, [uint256(195), uint256(303)], spokePool);
+        _assertAndPatchImmutableReferences(runtime, [uint256(258), uint256(627)], address(executor));
+
+        assertEq(runtime, address(implementation).code);
     }
 
-    function test_RuntimeTrailer_RevertIf_AddressWordIsNotCanonical() public {
-        address misconfigured = makeAddr("nonCanonicalAcrossAdapter");
-        bytes32 nonCanonicalSpokePool = bytes32((uint256(1) << 160) | uint160(spokePool));
-        vm.etch(
-            misconfigured,
-            bytes.concat(
-                type(AcrossV3AdapterV2Simulations).runtimeCode,
-                abi.encode(CONFIG_MAGIC, nonCanonicalSpokePool, address(0), address(executor))
-            )
-        );
+    function test_Constructor_RevertIf_RequiredAddressIsZero() public {
+        vm.expectRevert(AcrossV3AdapterV2Simulations.ADDRESS_NOT_VALID.selector);
+        new AcrossV3AdapterV2Simulations(address(0), address(executor));
 
-        vm.expectRevert(DestinationAdapterSimulationConfig.INVALID_SIMULATION_CONFIG.selector);
-        AcrossV3AdapterV2Simulations(misconfigured).ACROSS_SPOKE_POOL();
-    }
-
-    function test_RuntimeTrailer_RevertIf_RequiredAddressIsZero() public {
-        address misconfigured = makeAddr("zeroAddressAcrossAdapter");
-        _installConfiguredRuntime(
-            misconfigured, type(AcrossV3AdapterV2Simulations).runtimeCode, address(0), address(0), address(executor)
-        );
-
-        vm.expectRevert(DestinationAdapterSimulationConfig.INVALID_SIMULATION_CONFIG.selector);
-        AcrossV3AdapterV2Simulations(misconfigured).ACROSS_SPOKE_POOL();
+        vm.expectRevert(AcrossV3AdapterV2Simulations.ADDRESS_NOT_VALID.selector);
+        new AcrossV3AdapterV2Simulations(spokePool, address(0));
     }
 
     function test_HandleV3AcrossMessage_HappyPath() public {
