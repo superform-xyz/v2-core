@@ -1970,9 +1970,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encode(configuration.pendleRouters[chainId]),
                 env
             );
+            __checkContract(
+                PENDLE_PT_HOOK_KEY,
+                __getSalt(PENDLE_PT_HOOK_KEY),
+                abi.encode(configuration.pendleRouters[chainId]),
+                env
+            );
         } else {
             console2.log(
-                "SKIPPED PendleRouterSwapHook, PendleRouterRedeemHook & PendleUnifiedHook: Pendle Router not configured for chain",
+                "SKIPPED PendleRouterSwapHook, PendleRouterRedeemHook, PendleUnifiedHook & PendlePTHook: Pendle Router not configured for chain",
                 chainId
             );
         }
