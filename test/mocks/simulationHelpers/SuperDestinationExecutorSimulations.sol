@@ -24,6 +24,19 @@ contract SuperDestinationExecutorSimulations is SuperExecutorBaseSimulations, IS
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Thrown when an intent amount is zero during destination simulation
+    error INVALID_INTENT_AMOUNT(address account, address token);
+
+    /// @notice Thrown when the destination account cannot satisfy an intent amount
+    error INSUFFICIENT_ACCOUNT_BALANCE(address account, address token, uint256 required, uint256 available);
+
+    /// @notice Thrown when destination execution calldata does not contain executable hooks
+    error INVALID_EXECUTOR_CALLDATA();
+
+    /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     /// @notice Address of the validator contract used to verify cross-chain signatures
@@ -117,25 +130,18 @@ contract SuperDestinationExecutorSimulations is SuperExecutorBaseSimulations, IS
             abi.encode(executorCalldata, uint64(block.chainid), account, address(this), dstTokens, intentAmounts);
 
         // The userSignatureData is passed directly from the adapter
-        ISuperDestinationValidator(SUPER_DESTINATION_VALIDATOR).isValidDestinationSignature(
-            account, abi.encode(userSignatureData, destinationData)
-        );
+        ISuperDestinationValidator(SUPER_DESTINATION_VALIDATOR)
+            .isValidDestinationSignature(account, abi.encode(userSignatureData, destinationData));
 
         // Not checking the signature validation result for mock executor
 
-        if (!_validateBalances(account, dstTokens, intentAmounts)) return;
+        _validateBalances(account, dstTokens, intentAmounts);
 
-        if (usedMerkleRoots[account][merkleRoot]) {
-            emit SuperDestinationExecutorReceivedButRootUsedAlready(account, merkleRoot);
-            return;
-        }
+        if (usedMerkleRoots[account][merkleRoot]) revert MERKLE_ROOT_ALREADY_USED();
 
         usedMerkleRoots[account][merkleRoot] = true;
 
-        if (_shouldSkipCalldata(executorCalldata)) {
-            emit SuperDestinationExecutorReceivedButNoHooks(account);
-            return;
-        }
+        if (_shouldSkipCalldata(executorCalldata)) revert INVALID_EXECUTOR_CALLDATA();
 
         Execution[] memory execs = new Execution[](1);
         execs[0] = Execution({ target: address(this), value: 0, callData: executorCalldata });
@@ -186,34 +192,27 @@ contract SuperDestinationExecutorSimulations is SuperExecutorBaseSimulations, IS
         uint256[] memory intentAmounts
     )
         private
-        returns (bool)
+        view
     {
         uint256 len = dstTokens.length;
         for (uint256 i; i < len; i++) {
             address _token = dstTokens[i];
             uint256 _intentAmount = intentAmounts[i];
 
-            if (_intentAmount == 0) {
-                emit SuperDestinationExecutorInvalidIntentAmount(account, _token, _intentAmount);
-                return false;
-            }
+            if (_intentAmount == 0) revert INVALID_INTENT_AMOUNT(account, _token);
 
             if (_token == address(0)) {
-                if (_intentAmount != 0 && account.balance < _intentAmount) {
-                    emit SuperDestinationExecutorReceivedButNotEnoughBalance(
-                        account, _token, _intentAmount, account.balance
-                    );
-                    return false;
+                uint256 balance = account.balance;
+                if (balance < _intentAmount) {
+                    revert INSUFFICIENT_ACCOUNT_BALANCE(account, _token, _intentAmount, balance);
                 }
             } else {
                 uint256 _balance = IERC20(_token).balanceOf(account);
-                if (_intentAmount != 0 && _balance < _intentAmount) {
-                    emit SuperDestinationExecutorReceivedButNotEnoughBalance(account, _token, _intentAmount, _balance);
-                    return false;
+                if (_balance < _intentAmount) {
+                    revert INSUFFICIENT_ACCOUNT_BALANCE(account, _token, _intentAmount, _balance);
                 }
             }
         }
-        return true;
     }
 
     function _createAccount(bytes memory initCode) internal returns (address account) {
