@@ -103,4 +103,13 @@ contract MockStandardizedYield {
         }
         return false;
     }
+
+    function isValidTokenIn(address token) external view returns (bool) {
+        for (uint256 i = 0; i < tokensIn.length; i++) {
+            if (tokensIn[i] == token) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

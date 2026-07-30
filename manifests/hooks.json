@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-07-29T07:52:09Z",
+  "generatedAt": "2026-07-30T12:14:08Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -4434,12 +4434,12 @@
           "10": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
           "56": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
           "100": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
-          "130": "0x9E4E5D520E931f9D4ffA82FAF2C5F8f91D1cA559",
+          "130": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
           "137": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
           "146": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
           "8453": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
           "42161": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
-          "43114": "0x9E4E5D520E931f9D4ffA82FAF2C5F8f91D1cA559",
+          "43114": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181",
           "59144": "0x288b70f80a2ac87Cd53c4849fD49aE6cECefC181"
         }
       },
@@ -4688,12 +4688,42 @@
         "sized"
       ],
       "addresses": {
-        "staging": {},
-        "prod": {}
+        "staging": {
+          "1": "0xCDBaC0d37d0cC3CdBea30fF8DB3E1957d5212f63",
+          "56": "0xCDBaC0d37d0cC3CdBea30fF8DB3E1957d5212f63",
+          "999": "0xCDBaC0d37d0cC3CdBea30fF8DB3E1957d5212f63",
+          "8453": "0xCDBaC0d37d0cC3CdBea30fF8DB3E1957d5212f63",
+          "42161": "0xCDBaC0d37d0cC3CdBea30fF8DB3E1957d5212f63"
+        },
+        "prod": {
+          "1": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
+          "10": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
+          "56": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
+          "146": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
+          "999": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
+          "8453": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
+          "42161": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
+          "80094": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064"
+        }
       },
       "availableChains": {
-        "staging": [],
-        "prod": []
+        "staging": [
+          "1",
+          "56",
+          "999",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "146",
+          "999",
+          "8453",
+          "42161",
+          "80094"
+        ]
       },
       "amountMeta": [
         {
