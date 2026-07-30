@@ -97,7 +97,7 @@ contract StargateAdapterV2SimulationsTest is DestinationSimulationTestBase {
         SimulationStargatePool nativePool = new SimulationStargatePool(address(0));
         tokenMessaging.setAssetId(address(nativePool), 1);
         (bytes memory message, bytes memory sigData) =
-            _message(account, address(executor), hex"01020304", uint64(block.chainid));
+            _messageWithDestinationToken(account, address(executor), address(0), hex"01020304", uint64(block.chainid));
         vm.deal(adapterAddress, AMOUNT);
 
         vm.prank(endpoint);
@@ -112,7 +112,7 @@ contract StargateAdapterV2SimulationsTest is DestinationSimulationTestBase {
                 abi.encode(
                     address(0),
                     account,
-                    _singleAddress(address(token)),
+                    _singleAddress(address(0)),
                     _singleUint(AMOUNT),
                     bytes(""),
                     hex"01020304",
@@ -122,17 +122,16 @@ contract StargateAdapterV2SimulationsTest is DestinationSimulationTestBase {
         );
     }
 
-    function test_LzCompose_RevertIf_ExecutorMismatch() public {
+    function test_LzCompose_ProofExecutorDoesNotChangeConfiguredCallTarget() public {
         (bytes memory message,) = _message(account, makeAddr("wrongExecutor"), hex"01", uint64(block.chainid));
         token.mint(adapterAddress, AMOUNT);
 
         vm.prank(endpoint);
-        vm.expectRevert(StargateAdapterV2Simulations.EXECUTOR_MISMATCH.selector);
         adapter.lzCompose(address(pool), GUID, message, address(0), bytes(""));
 
-        assertEq(token.balanceOf(adapterAddress), AMOUNT);
-        assertEq(token.balanceOf(account), 0);
-        assertEq(executor.callCount(), 0);
+        assertEq(token.balanceOf(adapterAddress), 0);
+        assertEq(token.balanceOf(account), AMOUNT);
+        assertEq(executor.callCount(), 1);
     }
 
     function test_LzCompose_RevertIf_WrongSender() public {
@@ -221,10 +220,26 @@ contract StargateAdapterV2SimulationsTest is DestinationSimulationTestBase {
         view
         returns (bytes memory message, bytes memory sigData)
     {
+        return _messageWithDestinationToken(
+            destinationAccount, destinationExecutor, address(token), executorCalldata, chainId
+        );
+    }
+
+    function _messageWithDestinationToken(
+        address destinationAccount,
+        address destinationExecutor,
+        address destinationToken,
+        bytes memory executorCalldata,
+        uint64 chainId
+    )
+        private
+        view
+        returns (bytes memory message, bytes memory sigData)
+    {
         sigData = _signatureData(
             destinationAccount,
             destinationExecutor,
-            _singleAddress(address(token)),
+            _singleAddress(destinationToken),
             _singleUint(AMOUNT),
             executorCalldata,
             chainId,

@@ -127,17 +127,16 @@ contract AcrossV3AdapterV2SimulationsTest is DestinationSimulationTestBase {
         adapter.handleV3AcrossMessage(address(token), AMOUNT, address(0), message);
     }
 
-    function test_HandleV3AcrossMessage_RevertIf_ExecutorMismatch() public {
+    function test_HandleV3AcrossMessage_ProofExecutorDoesNotChangeConfiguredCallTarget() public {
         (bytes memory message,) = _message(account, makeAddr("wrongExecutor"), hex"01", uint64(block.chainid));
         token.mint(adapterAddress, AMOUNT);
 
         vm.prank(spokePool);
-        vm.expectRevert(AcrossV3AdapterV2Simulations.EXECUTOR_MISMATCH.selector);
         adapter.handleV3AcrossMessage(address(token), AMOUNT, address(0), message);
 
-        assertEq(token.balanceOf(adapterAddress), AMOUNT);
-        assertEq(token.balanceOf(account), 0);
-        assertEq(executor.callCount(), 0);
+        assertEq(token.balanceOf(adapterAddress), 0);
+        assertEq(token.balanceOf(account), AMOUNT);
+        assertEq(executor.callCount(), 1);
     }
 
     function test_HandleV3AcrossMessage_TransferRevertRollsBack() public {

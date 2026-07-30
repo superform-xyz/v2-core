@@ -5,7 +5,6 @@ import { Test } from "forge-std/Test.sol";
 import { ModeCode } from "modulekit/accounts/common/lib/ModeLib.sol";
 
 import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestinationExecutor.sol";
-import { ISuperDestinationValidator } from "../../../src/interfaces/ISuperDestinationValidator.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 
 abstract contract DestinationSimulationTestBase is Test {
@@ -57,7 +56,13 @@ abstract contract DestinationSimulationTestBase is Test {
         destinationChains[0] = chainId;
 
         return abi.encode(
-            destinationChains, uint48(type(uint48).max), uint48(0), merkleRoot, new bytes32[](0), dstProofs, hex"abcdef"
+            destinationChains,
+            uint48(type(uint48).max),
+            uint48(0),
+            merkleRoot,
+            new bytes32[](0),
+            dstProofs,
+            new bytes(65)
         );
     }
 
@@ -111,9 +116,9 @@ contract RecordingDestinationExecutor is ISuperDestinationExecutor {
     function markRootsAsUsed(bytes32[] memory) external { }
 }
 
-contract AcceptingDestinationValidator is ISuperDestinationValidator {
-    function isValidDestinationSignature(address, bytes calldata) external pure returns (bytes4) {
-        return bytes4(0x5c2ec0f3);
+contract RejectingEIP1271Owner {
+    function isValidSignature(bytes32, bytes calldata) external pure returns (bytes4) {
+        return 0xffffffff;
     }
 }
 

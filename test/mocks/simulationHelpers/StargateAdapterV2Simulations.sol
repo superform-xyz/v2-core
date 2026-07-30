@@ -58,7 +58,6 @@ contract StargateAdapterV2Simulations is ILayerZeroComposer, ReentrancyGuard {
     /// @dev Holds fields extracted from sigData's destination proof
     struct ExtractedData {
         address account;
-        address executor;
         bytes executorCalldata;
         address[] dstTokens;
         uint256[] intentAmounts;
@@ -74,7 +73,6 @@ contract StargateAdapterV2Simulations is ILayerZeroComposer, ReentrancyGuard {
     error UNREGISTERED_POOL(address pool);
     error NO_DST_PROOF_FOR_CHAIN(uint64 chainId);
     error ACCOUNT_NOT_VALID();
-    error EXECUTOR_MISMATCH();
     error INSUFFICIENT_ADAPTER_BALANCE(address token, uint256 required, uint256 available);
     error TRANSFER_FAILED(address token, address account, uint256 amount);
     error COMPOSE_EXECUTION_FAILED();
@@ -205,7 +203,6 @@ contract StargateAdapterV2Simulations is ILayerZeroComposer, ReentrancyGuard {
         uint256 preBalance =
             tokenSent == address(0) ? address(this).balance : IERC20(tokenSent).balanceOf(address(this));
         if (account == address(0)) revert ACCOUNT_NOT_VALID();
-        if (extracted.executor != config.destinationExecutor) revert EXECUTOR_MISMATCH();
         if (!_tryTransfer(tokenSent, account, amountLD)) {
             if (preBalance < amountLD) {
                 revert INSUFFICIENT_ADAPTER_BALANCE(tokenSent, amountLD, preBalance);
@@ -277,7 +274,6 @@ contract StargateAdapterV2Simulations is ILayerZeroComposer, ReentrancyGuard {
         for (uint256 i; i < len; ++i) {
             if (proofDst[i].dstChainId == currentChain) {
                 extracted.account = proofDst[i].info.account;
-                extracted.executor = proofDst[i].info.executor;
                 extracted.executorCalldata = proofDst[i].info.data;
                 extracted.dstTokens = proofDst[i].info.dstTokens;
                 extracted.intentAmounts = proofDst[i].info.intentAmounts;

@@ -7,25 +7,32 @@ import { MockERC20 } from "../../mocks/MockERC20.sol";
 import {
     SuperDestinationExecutorSimulations
 } from "../../mocks/simulationHelpers/SuperDestinationExecutorSimulations.sol";
+import {
+    SuperDestinationValidatorSimulations
+} from "../../mocks/simulationHelpers/SuperDestinationValidatorSimulations.sol";
 
 import {
-    AcceptingDestinationValidator,
     DestinationSimulationTestBase,
-    RecordingERC7579Account
+    RecordingERC7579Account,
+    RejectingEIP1271Owner
 } from "./DestinationSimulationTestBase.sol";
 
 contract SuperDestinationExecutorSimulationsTest is DestinationSimulationTestBase {
     bytes32 internal constant ROOT = keccak256("executor-root");
 
     SuperDestinationExecutorSimulations internal executor;
-    AcceptingDestinationValidator internal validator;
+    SuperDestinationValidatorSimulations internal validator;
     RecordingERC7579Account internal account;
     MockERC20 internal token;
 
     function setUp() public {
-        validator = new AcceptingDestinationValidator();
-        executor = new SuperDestinationExecutorSimulations(address(0xCAFE), address(validator));
         account = new RecordingERC7579Account();
+        validator = new SuperDestinationValidatorSimulations();
+        RejectingEIP1271Owner owner = new RejectingEIP1271Owner();
+        vm.prank(address(account));
+        validator.onInstall(abi.encode(address(owner)));
+
+        executor = new SuperDestinationExecutorSimulations(address(0xCAFE), address(validator));
         token = new MockERC20("Mock Token", "MOCK", 18);
     }
 
@@ -40,6 +47,24 @@ contract SuperDestinationExecutorSimulationsTest is DestinationSimulationTestBas
             bytes(""),
             _validExecutorCalldata(),
             signatureData
+        );
+
+        assertEq(account.callCount(), 1);
+        assertTrue(executor.isMerkleRootUsed(address(account), ROOT));
+    }
+
+    function test_ProcessBridgedExecution_NativeHappyPathUsesZeroAddress() public {
+        uint256 amount = 1 ether;
+        vm.deal(address(account), amount);
+
+        executor.processBridgedExecution(
+            address(0),
+            address(account),
+            _singleAddress(address(0)),
+            _singleUint(amount),
+            bytes(""),
+            _validExecutorCalldata(),
+            _executorSignatureData(ROOT)
         );
 
         assertEq(account.callCount(), 1);

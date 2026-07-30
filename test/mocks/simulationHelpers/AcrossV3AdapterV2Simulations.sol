@@ -41,7 +41,6 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
     /// @dev Holds fields extracted from sigData's destination proof
     struct ExtractedData {
         address account;
-        address executor;
         bytes executorCalldata;
         address[] dstTokens;
         uint256[] intentAmounts;
@@ -54,7 +53,6 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
 
     error NO_DST_PROOF_FOR_CHAIN();
     error ACCOUNT_NOT_VALID();
-    error EXECUTOR_MISMATCH();
     error TRANSFER_FAILED();
     error DESTINATION_EXECUTION_FAILED();
     error INSUFFICIENT_FAILED_BALANCE();
@@ -110,7 +108,6 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
 
         if (!extracted.found) revert NO_DST_PROOF_FOR_CHAIN();
         if (extracted.account == address(0)) revert ACCOUNT_NOT_VALID();
-        if (extracted.executor != config.destinationExecutor) revert EXECUTOR_MISMATCH();
         if (!_tryTransfer(tokenSent, extracted.account, amount)) revert TRANSFER_FAILED();
 
         emit TransferSucceeded(extracted.account, tokenSent, amount);
@@ -162,7 +159,6 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
         for (uint256 i; i < len; ++i) {
             if (proofDst[i].dstChainId == currentChain) {
                 extracted.account = proofDst[i].info.account;
-                extracted.executor = proofDst[i].info.executor;
                 extracted.executorCalldata = proofDst[i].info.data;
                 extracted.dstTokens = proofDst[i].info.dstTokens;
                 extracted.intentAmounts = proofDst[i].info.intentAmounts;

@@ -2,7 +2,11 @@
 pragma solidity 0.8.30;
 
 import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
-import { IModule, MODULE_TYPE_EXECUTOR } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
+import {
+    IModule,
+    MODULE_TYPE_EXECUTOR,
+    MODULE_TYPE_VALIDATOR
+} from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 import { CALLTYPE_BATCH, CallType, ModeCode, ModeLib } from "modulekit/accounts/common/lib/ModeLib.sol";
 import { Execution, ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
@@ -14,8 +18,11 @@ import { AcrossV3AdapterV2Simulations } from "../../mocks/simulationHelpers/Acro
 import {
     SuperDestinationExecutorSimulations
 } from "../../mocks/simulationHelpers/SuperDestinationExecutorSimulations.sol";
+import {
+    SuperDestinationValidatorSimulations
+} from "../../mocks/simulationHelpers/SuperDestinationValidatorSimulations.sol";
 
-import { AcceptingDestinationValidator, DestinationSimulationTestBase } from "./DestinationSimulationTestBase.sol";
+import { DestinationSimulationTestBase, RejectingEIP1271Owner } from "./DestinationSimulationTestBase.sol";
 
 contract ExecutingERC7579Account is IERC7579Account {
     error MODULE_NOT_INSTALLED();
@@ -121,11 +128,12 @@ contract AcrossDestinationExecutionE2ETest is DestinationSimulationTestBase {
 
     address internal adapterAddress;
     address internal executorAddress;
+    address internal validatorAddress;
     address internal spokePool;
 
     AcrossV3AdapterV2Simulations internal adapter;
     SuperDestinationExecutorSimulations internal executor;
-    AcceptingDestinationValidator internal validator;
+    SuperDestinationValidatorSimulations internal validator;
     ExecutingERC7579Account internal account;
     HookLifecycleTarget internal lifecycleTarget;
     MockHook internal hook;
@@ -134,20 +142,25 @@ contract AcrossDestinationExecutionE2ETest is DestinationSimulationTestBase {
     function setUp() public {
         adapterAddress = makeAddr("strictAcrossAdapter");
         executorAddress = makeAddr("strictDestinationExecutor");
+        validatorAddress = makeAddr("strictDestinationValidator");
         spokePool = makeAddr("acrossSpokePool");
 
-        validator = new AcceptingDestinationValidator();
         token = new MockERC20("Mock Token", "MOCK", 18);
         lifecycleTarget = new HookLifecycleTarget();
         hook = new MockHook(ISuperHook.HookType.NONACCOUNTING, address(token));
 
+        vm.etch(validatorAddress, type(SuperDestinationValidatorSimulations).runtimeCode);
+        validator = SuperDestinationValidatorSimulations(validatorAddress);
+
         vm.etch(executorAddress, type(SuperDestinationExecutorSimulations).runtimeCode);
         vm.store(executorAddress, bytes32(uint256(0)), bytes32(uint256(1)));
         vm.store(executorAddress, bytes32(uint256(2)), bytes32(uint256(uint160(makeAddr("ledgerConfiguration")))));
-        vm.store(executorAddress, bytes32(uint256(3)), bytes32(uint256(uint160(address(validator)))));
+        vm.store(executorAddress, bytes32(uint256(3)), bytes32(uint256(uint160(validatorAddress))));
         executor = SuperDestinationExecutorSimulations(executorAddress);
 
         account = new ExecutingERC7579Account();
+        RejectingEIP1271Owner owner = new RejectingEIP1271Owner();
+        account.installModule(MODULE_TYPE_VALIDATOR, validatorAddress, abi.encode(address(owner)));
         account.installModule(MODULE_TYPE_EXECUTOR, executorAddress, bytes(""));
 
         Execution[] memory hookExecutions = new Execution[](1);
@@ -186,6 +199,7 @@ contract AcrossDestinationExecutionE2ETest is DestinationSimulationTestBase {
         assertEq(lifecycleTarget.lastCaller(), address(account));
         assertTrue(executor.isMerkleRootUsed(address(account), ROOT));
         assertTrue(executor.isInitialized(address(account)));
+        assertTrue(validator.isInitialized(address(account)));
     }
 
     function _executorCalldata() private view returns (bytes memory) {
