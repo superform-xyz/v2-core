@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-07-30T10:46:33Z",
+  "generatedAt": "2026-07-30T12:14:08Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -4699,8 +4699,8 @@
           "1": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
           "10": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
           "56": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
-          "146": "0x265fc97E53FdB8816E9b6a67D59e592876cbDF8A",
-          "999": "0x265fc97E53FdB8816E9b6a67D59e592876cbDF8A",
+          "146": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
+          "999": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
           "8453": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
           "42161": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
           "80094": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064"
