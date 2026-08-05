@@ -198,6 +198,33 @@ if [ $missing_aavev4 -gt 0 ]; then
     echo -e "${YELLOW}   Run ./script/run/tooling/regenerate_bytecode.sh to generate missing bytecode.${NC}"
 fi
 
+echo -e "${BLUE}Checking Aave V3 hook bytecode availability...${NC}"
+
+AAVE_V3_HOOKS=(
+    "AaveV3SupplyHook"
+    "AaveV3WithdrawHook"
+    "AaveV3BorrowHook"
+    "AaveV3RepayHook"
+    "AaveV3SupplyAndBorrowHook"
+    "AaveV3RepayAndWithdrawHook"
+    "AaveV3RepayWithATokensHook"
+)
+
+missing_aavev3=0
+for hook in "${AAVE_V3_HOOKS[@]}"; do
+    if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
+        echo -e "${GREEN}   ${hook}${NC}"
+    else
+        echo -e "${YELLOW}   ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
+        missing_aavev3=$((missing_aavev3 + 1))
+    fi
+done
+
+if [ $missing_aavev3 -gt 0 ]; then
+    echo -e "${YELLOW}${missing_aavev3} Aave V3 hook(s) missing bytecode. They will be skipped during deployment.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/tooling/regenerate_bytecode.sh to generate missing bytecode.${NC}"
+fi
+
 echo ""
 
 echo -e "${BLUE}Checking Firelight hook bytecode availability...${NC}"
