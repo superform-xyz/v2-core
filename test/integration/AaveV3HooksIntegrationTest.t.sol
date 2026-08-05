@@ -29,6 +29,7 @@ import { AaveV3RepayWithATokensHook } from "../../src/hooks/loan/aave-v3/AaveV3R
 ///      getReserveData — never hardcoded. Positions asserted via those token balances.
 contract AaveV3HooksIntegrationTest is MinimalBaseIntegrationTest {
     IPool public constant POOL = IPool(0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2); // Ethereum Core Pool
+    IPool public constant PRIME_POOL = IPool(0x4e033931ad43597d96D6bcc25c280717730B58B1); // Ethereum Prime market
     uint256 internal constant AAVE_V3_ETH_BLOCK = 21_929_476; // postdates V3.2 stable-rate removal
     uint8 internal constant VARIABLE = 2;
 
@@ -234,5 +235,23 @@ contract AaveV3HooksIntegrationTest is MinimalBaseIntegrationTest {
         // A stable-mode (1) borrow: the hook's build() reverts INVALID_RATE_MODE, so the op does not borrow.
         _exec(address(borrowHook), _br(usdc, weth, 1, BORROW_USDC));
         assertEq(IERC20(vUsdc).balanceOf(accountEth), 0, "no debt created with invalid rate mode");
+    }
+
+    /// @notice The SAME hook deployment works against a second Ethereum market (Prime) purely via the
+    ///         pool address in calldata — proving the pool-in-data design (no per-market deployment).
+    function test_MultiMarket_Prime_SameHookDeployment() external {
+        address primeAWeth = PRIME_POOL.getReserveData(weth).aTokenAddress;
+        address primeVUsdc = PRIME_POOL.getReserveData(usdc).variableDebtTokenAddress;
+
+        bytes memory data =
+            abi.encodePacked(_hdr(), usdc, weth, address(PRIME_POOL), VARIABLE, SUPPLY_WETH, BORROW_USDC, false);
+        uint256 usdcBefore = IERC20(usdc).balanceOf(accountEth);
+        _exec(address(supplyAndBorrowHook), data);
+
+        assertEq(IERC20(usdc).balanceOf(accountEth) - usdcBefore, BORROW_USDC, "borrowed from Prime");
+        assertGt(IERC20(primeAWeth).balanceOf(accountEth), 0, "Prime aWETH minted");
+        assertGt(IERC20(primeVUsdc).balanceOf(accountEth), 0, "Prime vDebt minted");
+        // Core market position is untouched — routing is purely calldata-driven.
+        assertEq(IERC20(aWeth).balanceOf(accountEth), 0, "no Core position");
     }
 }
