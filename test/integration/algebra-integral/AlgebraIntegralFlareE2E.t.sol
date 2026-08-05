@@ -27,6 +27,11 @@ contract AlgebraIntegralFlareE2E is Test, Constants {
 
     string public constant FLARE_RPC_URL_KEY = "FLARE_RPC_URL";
 
+    /// @dev Pin the fork to a fixed block so storage reads are deterministic and archive-cacheable.
+    ///      Forking at latest re-fetches every slot live and flakes in CI when the RPC times out.
+    ///      Matches FlareRFLRHooksE2E's block so the foundry RPC cache is shared across Flare suites.
+    uint256 public constant FORK_BLOCK = 61_344_973;
+
     uint256 public constant SWAP_AMOUNT = 100 ether; // 100 WFLR
 
     /*//////////////////////////////////////////////////////////////
@@ -44,7 +49,7 @@ contract AlgebraIntegralFlareE2E is Test, Constants {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        forkId = vm.createSelectFork(vm.envString(FLARE_RPC_URL_KEY));
+        forkId = vm.createSelectFork(vm.envString(FLARE_RPC_URL_KEY), FORK_BLOCK);
 
         account = address(this);
 
