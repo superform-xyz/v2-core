@@ -533,6 +533,10 @@ hooks:
     actionTypes: [{intent: transfer, stage: instant}]
     legSizing: []  # sizeless — variable-length amounts in ABI data
 
+  FeeSplittingHook:
+    actionTypes: [{intent: transfer, stage: instant}]
+    legSizing: []  # sizeless — variable-length amounts in ABI data
+
   OfframpTokensHook:
     actionTypes: [{intent: transfer, stage: instant}]
     legSizing: []  # sizeless — sends full balance

@@ -148,6 +148,7 @@ compatibleProtocols:
   TransferHook: [erc20]
   NativeTransferHook: [native]
   BatchTransferHook: [erc20]
+  FeeSplittingHook: [erc20]
   BatchTransferFromHook: [permit2]
   OfframpTokensHook: [offramp]
   # Sponsorship
@@ -288,6 +289,7 @@ amountMeta:
   SpectraExchangeDepositHook: []
   Swap1InchHook: []
   BatchTransferHook: []
+  FeeSplittingHook: []
   CircleGatewayMinterHook: []
   RecordPurchasePendlePTAmortizedOracleHook: []
   RecordPurchasePendlePTAmortizedOracleHookV2: []
@@ -343,6 +345,7 @@ sizelessHooks:
   - SpectraExchangeDepositHook
   - Swap1InchHook
   - BatchTransferHook
+  - FeeSplittingHook
   - CircleGatewayMinterHook
   - RecordPurchasePendlePTAmortizedOracleHook
   - RecordPurchasePendlePTAmortizedOracleHookV2
