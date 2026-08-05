@@ -9,29 +9,36 @@ import { SuperValidatorBaseSimulations } from "./SuperValidatorBaseSimulations.s
 /// @title SuperDestinationValidatorSimulations
 /// @author Superform Labs
 /// @notice Simulation helper used for SuperDestinationValidator. This contract is not to be deployed
+/// @dev Consumers must reserve gas for live owner-signature validation separately. A pre-signature
+///      simulation cannot reproduce arbitrary Safe/EIP-1271 valid-path gas from placeholder bytes.
 contract SuperDestinationValidatorSimulations is SuperValidatorBaseSimulations {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     /// @dev bytes4(keccak256("isValidDestinationSignature(address,bytes)")) = 0x5c2ec0f3
     bytes4 constant DESTINATION_SIGNATURE_MAGIC_VALUE = bytes4(0x5c2ec0f3);
+    bytes4 constant INVALID_DESTINATION_SIGNATURE = 0x00000000;
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice Validate a user operation
     /// @dev Not implemented
-    function validateUserOp(PackedUserOperation calldata, bytes32) external pure override returns (ValidationData) {
+    function validateUserOp(
+        PackedUserOperation calldata,
+        bytes32
+    )
+        external
+        pure
+        override
+        returns (ValidationData)
+    {
         // @dev The following validator shouldn't be used for EntryPoint calls
         revert NOT_IMPLEMENTED();
     }
 
     /// @notice Validate a signature with sender
-    function isValidSignatureWithSender(
-        address,
-        bytes32,
-        bytes calldata
-    )
+    function isValidSignatureWithSender(address, bytes32, bytes calldata)
         external
         pure
         virtual
@@ -47,12 +54,16 @@ contract SuperDestinationValidatorSimulations is SuperValidatorBaseSimulations {
         // Decode data
         (SignatureData memory sigData, DestinationData memory destinationData) =
             _decodeSignatureAndDestinationData(data);
-        // Process signature
-        (address signer,) = _createLeafAndVerifyProofAndSignature(sender, sigData, destinationData);
 
-        // Validate
-        bool isValid = _isSignatureValid(signer, sender, sigData.validUntil);
-        return isValid ? DESTINATION_SIGNATURE_MAGIC_VALUE : bytes4("");
+        // Exercise the destination proof hashing path, but do not validate the placeholder
+        // simulation signature. The bundler cannot synthesize a valid signature for arbitrary
+        // Safe/EIP-1271 owners before the user signs the final intent.
+        bytes32 processedRoot = _createLeafAndProcessProof(sigData, destinationData);
+
+        // Keep proof hashing observable so the optimizer cannot remove its gas. The simulation
+        // executor intentionally ignores this return value because its proof and signature are
+        // placeholders; a valid proof still receives the production magic value.
+        return processedRoot == sigData.merkleRoot ? DESTINATION_SIGNATURE_MAGIC_VALUE : INVALID_DESTINATION_SIGNATURE;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -75,30 +86,22 @@ contract SuperDestinationValidatorSimulations is SuperValidatorBaseSimulations {
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Creates leaf and verifies destination proof and signature
-    /// @dev Verifies destination data is part of the merkle tree using extracted proof for current chain
-    ///      and processes signature for any account type (EOA, EIP-1271, EIP-7702)
-    /// @param sender The sender address to validate the signature against
+    /// @notice Creates the destination leaf and exercises proof processing
+    /// @dev Simulation payloads contain placeholder proofs and signatures, so cryptographic
+    ///      validity is intentionally not enforced. Structural decoding and proof hashing remain.
     /// @param sigData Signature data including merkle root, proofs, and actual signature
     /// @param destinationData The destination execution data to create the leaf hash from
-    /// @return signer The address that signed the message
-    /// @return leaf The computed leaf hash used in merkle verification
-    function _createLeafAndVerifyProofAndSignature(
-        address sender,
+    /// @return processedRoot The root reconstructed from the destination leaf and proof
+    function _createLeafAndProcessProof(
         SignatureData memory sigData,
         DestinationData memory destinationData
     )
         private
         view
-        returns (address signer, bytes32 leaf)
+        returns (bytes32 processedRoot)
     {
-        // Create leaf from destination data and verify against merkle root using extracted proof for current chain
-        leaf = _createLeafForDestination(abi.encode(destinationData), sigData.validUntil);
-
-        MerkleProof.verify(_extractProof(sigData), sigData.merkleRoot, leaf);
-
-        // Process signature using common method
-        signer = _processSignatureForAccountType(sender, sigData);
+        bytes32 leaf = _createLeafForDestination(abi.encode(destinationData), sigData.validUntil);
+        processedRoot = MerkleProof.processProof(_extractProof(sigData), leaf);
     }
 
     /// @notice Extracts the proof for the current chain from the signature data
