@@ -34,10 +34,12 @@ import {
 contract AaveV3SupplyAndBorrowHook is BaseAaveV3LoanHook {
     constructor() BaseAaveV3LoanHook(HookSubTypes.LOAN) { }
 
+    /// @notice Human-readable name for UI display
     function name() external pure override returns (string memory) {
         return "Aave V3 Supply and Borrow";
     }
 
+    /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
         return "Supplies collateral and borrows assets from an Aave V3 pool";
     }
@@ -66,9 +68,7 @@ contract AaveV3SupplyAndBorrowHook is BaseAaveV3LoanHook {
 
         executions = new Execution[](5);
         executions[0] = Execution({
-            target: vars.collateralToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
+            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
         });
         executions[1] = Execution({
             target: vars.collateralToken,
@@ -86,9 +86,7 @@ contract AaveV3SupplyAndBorrowHook is BaseAaveV3LoanHook {
             callData: abi.encodeCall(IPool.borrow, (vars.loanToken, vars.borrowAmount, VARIABLE_RATE_MODE, 0, account))
         });
         executions[4] = Execution({
-            target: vars.collateralToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
+            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
         });
     }
 
@@ -122,8 +120,12 @@ contract AaveV3SupplyAndBorrowHook is BaseAaveV3LoanHook {
         returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
     {
         meta = new ISuperHookInflowOutflow.AmountMeta[](2);
-        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
-        meta[1] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.OUT, ISuperHookInflowOutflow.Denomination.TOKEN);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(
+            ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN
+        );
+        meta[1] = ISuperHookInflowOutflow.AmountMeta(
+            ISuperHookInflowOutflow.Direction.OUT, ISuperHookInflowOutflow.Denomination.TOKEN
+        );
     }
 
     /// @inheritdoc ISuperHookInspector

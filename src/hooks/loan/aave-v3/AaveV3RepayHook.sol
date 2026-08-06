@@ -24,10 +24,12 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 contract AaveV3RepayHook is BaseAaveV3LoanHook {
     constructor() BaseAaveV3LoanHook(HookSubTypes.LOAN_REPAY) { }
 
+    /// @notice Human-readable name for UI display
     function name() external pure override returns (string memory) {
         return "Aave V3 Repay";
     }
 
+    /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
         return "Repays debt on an Aave V3 pool";
     }
@@ -60,15 +62,10 @@ contract AaveV3RepayHook is BaseAaveV3LoanHook {
         if (vars.amount == 0) revert AMOUNT_NOT_VALID();
 
         executions = new Execution[](4);
-        executions[0] = Execution({
-            target: vars.loanToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
-        });
+        executions[0] =
+            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0)) });
         executions[1] = Execution({
-            target: vars.loanToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (vars.pool, vars.amount))
+            target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, vars.amount))
         });
         executions[2] = Execution({
             target: vars.pool,
@@ -76,11 +73,8 @@ contract AaveV3RepayHook is BaseAaveV3LoanHook {
             callData: abi.encodeCall(IPool.repay, (vars.loanToken, vars.amount, VARIABLE_RATE_MODE, account))
         });
         // Reset approval — critical even after repay(max), which leaves an infinite allowance otherwise.
-        executions[3] = Execution({
-            target: vars.loanToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
-        });
+        executions[3] =
+            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0)) });
     }
 
     /// @inheritdoc ISuperHookInspector

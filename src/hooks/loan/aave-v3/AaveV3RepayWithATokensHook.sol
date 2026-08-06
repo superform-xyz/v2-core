@@ -24,15 +24,23 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 /// @dev IMPORTANT: `repayWithATokens(max)` repays min(currentDebt, aTokenBalance). Unlike repay(max),
 ///      if the account's aToken balance < debt it SILENTLY leaves residual debt without reverting. A
 ///      chained withdraw(max) may then hit an HF revert or withdraw only part of the collateral.
+///      There is no on-chain guard: the hook is a stateless builder and cannot read the account's
+///      aToken balance vs. debt at build time.
+///      MITIGATION (off-chain, bundler): do NOT chain `repayWithATokens(max) -> withdraw(max)` when the
+///      account's aToken balance may be below its debt. For a guaranteed full-debt close, route
+///      `AaveV3RepayHook(max)` (repays with the underlying) instead; otherwise size any follow-on
+///      withdraw to the actual post-repay collateral rather than using the max sentinel.
 ///      collateralToken (offset 72) carries the aToken address so the base balance-delta helper
 ///      measures the burn; outToken is set to the underlying loanToken for consistency with AaveV3RepayHook.
 contract AaveV3RepayWithATokensHook is BaseAaveV3LoanHook {
     constructor() BaseAaveV3LoanHook(HookSubTypes.LOAN_REPAY) { }
 
+    /// @notice Human-readable name for UI display
     function name() external pure override returns (string memory) {
         return "Aave V3 Repay With ATokens";
     }
 
+    /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
         return "Repays Aave V3 debt using the account's aTokens";
     }

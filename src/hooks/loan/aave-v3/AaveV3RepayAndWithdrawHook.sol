@@ -34,10 +34,12 @@ import {
 contract AaveV3RepayAndWithdrawHook is BaseAaveV3LoanHook {
     constructor() BaseAaveV3LoanHook(HookSubTypes.LOAN_REPAY) { }
 
+    /// @notice Human-readable name for UI display
     function name() external pure override returns (string memory) {
         return "Aave V3 Repay and Withdraw";
     }
 
+    /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
         return "Repays debt and withdraws collateral from an Aave V3 pool";
     }
@@ -65,15 +67,10 @@ contract AaveV3RepayAndWithdrawHook is BaseAaveV3LoanHook {
         if (vars.repayAmount == 0 || vars.withdrawAmount == 0) revert AMOUNT_NOT_VALID();
 
         executions = new Execution[](5);
-        executions[0] = Execution({
-            target: vars.loanToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
-        });
+        executions[0] =
+            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0)) });
         executions[1] = Execution({
-            target: vars.loanToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (vars.pool, vars.repayAmount))
+            target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, vars.repayAmount))
         });
         executions[2] = Execution({
             target: vars.pool,
@@ -81,11 +78,8 @@ contract AaveV3RepayAndWithdrawHook is BaseAaveV3LoanHook {
             callData: abi.encodeCall(IPool.repay, (vars.loanToken, vars.repayAmount, VARIABLE_RATE_MODE, account))
         });
         // Reset approval — critical even after repay(max).
-        executions[3] = Execution({
-            target: vars.loanToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
-        });
+        executions[3] =
+            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0)) });
         executions[4] = Execution({
             target: vars.pool,
             value: 0,
@@ -123,8 +117,12 @@ contract AaveV3RepayAndWithdrawHook is BaseAaveV3LoanHook {
         returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
     {
         meta = new ISuperHookInflowOutflow.AmountMeta[](2);
-        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
-        meta[1] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.OUT, ISuperHookInflowOutflow.Denomination.TOKEN);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(
+            ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN
+        );
+        meta[1] = ISuperHookInflowOutflow.AmountMeta(
+            ISuperHookInflowOutflow.Direction.OUT, ISuperHookInflowOutflow.Denomination.TOKEN
+        );
     }
 
     /// @inheritdoc ISuperHookInspector

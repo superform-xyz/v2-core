@@ -32,13 +32,7 @@ interface IPool {
         external
         returns (uint256);
 
-    function repayWithATokens(
-        address asset,
-        uint256 amount,
-        uint256 interestRateMode
-    )
-        external
-        returns (uint256);
+    function repayWithATokens(address asset, uint256 amount, uint256 interestRateMode) external returns (uint256);
 
     // Used only by fork tests to resolve aToken / variableDebtToken and assert positions.
     function getReserveData(address asset) external view returns (DataTypes.ReserveDataLegacy memory);

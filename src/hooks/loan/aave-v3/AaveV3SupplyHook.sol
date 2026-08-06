@@ -27,10 +27,12 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 contract AaveV3SupplyHook is BaseAaveV3LoanHook {
     constructor() BaseAaveV3LoanHook(HookSubTypes.LOAN) { }
 
+    /// @notice Human-readable name for UI display
     function name() external pure override returns (string memory) {
         return "Aave V3 Supply";
     }
 
+    /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
         return "Supplies assets to an Aave V3 pool";
     }
@@ -55,14 +57,10 @@ contract AaveV3SupplyHook is BaseAaveV3LoanHook {
 
         executions = new Execution[](4);
         executions[0] = Execution({
-            target: vars.collateralToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
+            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
         });
         executions[1] = Execution({
-            target: vars.collateralToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (vars.pool, vars.amount))
+            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, vars.amount))
         });
         executions[2] = Execution({
             target: vars.pool,
@@ -71,9 +69,7 @@ contract AaveV3SupplyHook is BaseAaveV3LoanHook {
         });
         // Reset approval after supply to prevent dangling allowance to the calldata pool.
         executions[3] = Execution({
-            target: vars.collateralToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
+            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
         });
     }
 

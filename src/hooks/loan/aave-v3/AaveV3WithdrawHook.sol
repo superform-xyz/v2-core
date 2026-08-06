@@ -22,10 +22,12 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 contract AaveV3WithdrawHook is BaseAaveV3LoanHook {
     constructor() BaseAaveV3LoanHook(HookSubTypes.LOAN_REPAY) { }
 
+    /// @notice Human-readable name for UI display
     function name() external pure override returns (string memory) {
         return "Aave V3 Withdraw";
     }
 
+    /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
         return "Withdraws supplied assets from an Aave V3 pool";
     }
