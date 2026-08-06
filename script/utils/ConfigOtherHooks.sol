@@ -31,6 +31,7 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         otherHooksConfiguration.morphos[BASE_CHAIN_ID] = MORPHO_BASE;
         otherHooksConfiguration.morphos[OPTIMISM_CHAIN_ID] = MORPHO_OPTIMISM;
         otherHooksConfiguration.morphos[ARBITRUM_CHAIN_ID] = MORPHO_ARBITRUM;
+        otherHooksConfiguration.morphos[ROBINHOOD_CHAIN_ID] = MORPHO_ROBINHOOD; // Morpho live on RH (chain 4663)
         otherHooksConfiguration.morphos[BNB_CHAIN_ID] = MORPHO_BNB;
 
         // Algebra Integral (SparkDEX V4)

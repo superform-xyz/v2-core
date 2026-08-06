@@ -6,13 +6,16 @@
 # Define staging networks
 # Format: "CHAIN_ID:NetworkName:RPC_VAR"
 NETWORKS=(
-    "1:Ethereum:ETH_MAINNET"
-    "8453:Base:BASE_MAINNET"
-    "56:BNB:BSC_MAINNET"
-    "42161:Arbitrum:ARBITRUM_MAINNET"
-    "43114:Avalanche:AVALANCHE_MAINNET"
-    "999:HyperEVM:HYPEREVM_MAINNET"
-    "14:Flare:FLARE_MAINNET"
+    # TEMPORARY: only RH enabled for the Robinhood Chain deployment.
+    # Restore the entries below to deploy to all staging chains again.
+    # "1:Ethereum:ETH_MAINNET"
+    # "8453:Base:BASE_MAINNET"
+    # "56:BNB:BSC_MAINNET"
+    # "42161:Arbitrum:ARBITRUM_MAINNET"
+    # "43114:Avalanche:AVALANCHE_MAINNET"
+    # "999:HyperEVM:HYPEREVM_MAINNET"
+    # "14:Flare:FLARE_MAINNET"
+    "4663:RH:RH_MAINNET"
 )
 
 # Network name mapping function
@@ -39,6 +42,9 @@ get_network_name() {
             ;;
         14)
             echo "Flare"
+            ;;
+        4663)
+            echo "RH"
             ;;
         *)
             echo "ERROR: Unknown staging network ID: $network_id" >&2
@@ -72,6 +78,9 @@ get_rpc_var() {
         14)
             echo "FLARE_MAINNET"
             ;;
+        4663)
+            echo "RH_MAINNET"
+            ;;
         *)
             echo "ERROR: Unknown staging network ID for RPC: $network_id" >&2
             return 1
@@ -103,6 +112,9 @@ get_rpc_url() {
             ;;
         14)
             echo "$FLARE_MAINNET"
+            ;;
+        4663)
+            echo "$RH_MAINNET"
             ;;
         *)
             echo "ERROR: Unknown staging network ID for RPC: $network_id" >&2
@@ -170,6 +182,11 @@ load_rpc_urls() {
     echo "  • Loading Flare RPC..."
     if ! export FLARE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/FLARE_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
         failed_rpcs+=("FLARE_RPC_URL")
+    fi
+
+    echo "  • Loading RH RPC..."
+    if ! export RH_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/RH_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("RH_RPC_URL")
     fi
 
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then

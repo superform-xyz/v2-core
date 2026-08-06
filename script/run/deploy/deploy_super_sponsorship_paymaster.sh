@@ -385,6 +385,12 @@ for network_def in "${NETWORKS[@]}"; do
             local_verify_flag=""
             echo -e "${CYAN}   Verification: ${WHITE}Skipped (rate-limited explorer)${NC}"
             ;;
+        4663) # Robinhood Chain - Blockscout explorer (not on Etherscan V2)
+            if [[ -n "$VERIFY_FLAG" ]]; then
+                local_etherscan_flags="--verifier blockscout --verifier-url https://robinhoodchain.blockscout.com/api/"
+            fi
+            echo -e "${CYAN}   Verification: ${WHITE}Blockscout${NC}"
+            ;;
         *)
             if [[ -n "$VERIFY_FLAG" ]]; then
                 local_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan --verifier-url https://api.etherscan.io/v2/api?chainid=$network_id"

@@ -24,13 +24,15 @@ source "$(dirname "${BASH_SOURCE[0]}")/../utils/lib_deploy.sh"
 
 # ===== FILTER CONFIGURATION =====
 # Specify which chains to verify (empty = all chains from network configuration)
-CHAINS_TO_VERIFY=(10 137 130 59144 80094 146 100 480 999 988)
+CHAINS_TO_VERIFY=(4663) # RH only (temporary)
+# CHAINS_TO_VERIFY=(10 137 130 59144 80094 146 100 480 999 988)
 
 # Specify which contracts to verify (empty = all contracts found in deployment JSON)
-CONTRACTS_TO_VERIFY=(ApproveAndStargateSendHook StargateSendHook)
+CONTRACTS_TO_VERIFY=() # all contracts (RH bring-up)
+# CONTRACTS_TO_VERIFY=(ApproveAndStargateSendHook StargateSendHook)
 
 # Delay in seconds between verification requests (prevents Cloudflare rate limiting)
-VERIFY_DELAY=1
+VERIFY_DELAY=30 # high delay for RH Blockscout rate limits; running in parallel so wall-clock doesn't matter (was 1)
 
 # ===== TRACKING =====
 declare -a VERIFIED_CONTRACTS=()
@@ -311,6 +313,14 @@ generate_constructor_args() {
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
+        "4663") # Robinhood Chain
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"
+            odos_router="" # Odos shut down (2026-07-30)
+            across_spoke_pool_v3="0xD29C85F15DF544bA632C9E25829fd29d767d7978"
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
     esac
 
     # Generate constructor arguments based on contract type
@@ -436,6 +446,7 @@ generate_constructor_args() {
                 "130") uniswap_v4_pool_manager="0x1F98400000000000000000000000000000000004" ;;
                 "43114") uniswap_v4_pool_manager="0x06380C0e0912312B5150364B9DC4542BA0DbBc85" ;;
                 "480") uniswap_v4_pool_manager="0xb1860D529182ac3BC1F51Fa2ABd56662b7D13f33" ;;
+                "4663") uniswap_v4_pool_manager="0x8366a39CC670B4001A1121B8F6A443A643e40951" ;;
             esac
             echo "$(cast abi-encode "constructor(address)" "$uniswap_v4_pool_manager")"
             ;;
@@ -770,6 +781,20 @@ verify_contract() {
                 --skip-is-verified-check
             verify_exit_code=$?
             ;;
+        "4663")
+            # Robinhood Chain uses Blockscout explorer (not on Etherscan V2).
+            # The public instance rate-limits aggressively; export BLOCKSCOUT_API_KEY
+            # (free from https://dev.blockscout.com) to raise the limit.
+            local rh_key_flag=""
+            [ -n "${BLOCKSCOUT_API_KEY:-}" ] && rh_key_flag="--etherscan-api-key ${BLOCKSCOUT_API_KEY}"
+            forge verify-contract "$contract_address" "$source_file:$contract_name" \
+                --constructor-args "$constructor_args" \
+                --verifier blockscout \
+                --verifier-url "https://robinhoodchain.blockscout.com/api/" \
+                $rh_key_flag \
+                --skip-is-verified-check
+            verify_exit_code=$?
+            ;;
         "988"|"999"|"80094")
             # Chains not in forge's internal registry: use Etherscan V2 API with chainid
             forge verify-contract "$contract_address" "$source_file:$contract_name" \
@@ -819,7 +844,7 @@ verify_network() {
     # Blockscout-verified chains don't need RPC
     local uses_blockscout=false
     case $chain_id in
-        "14") uses_blockscout=true ;;
+        "14"|"4663") uses_blockscout=true ;;
     esac
     if [ -z "$rpc_url" ] && [ "$uses_blockscout" = false ]; then
         echo -e "${RED}RPC URL not found for chain $chain_id ($network_name)${NC}"
@@ -916,6 +941,12 @@ is_contract_verified() {
             # Flare uses Blockscout
             response=$(curl -s --max-time 10 \
                 "https://flare-explorer.flare.network/api/?module=contract&action=getsourcecode&address=$address" \
+                2>/dev/null)
+            ;;
+        "4663")
+            # Robinhood Chain uses Blockscout
+            response=$(curl -s --max-time 10 \
+                "https://robinhoodchain.blockscout.com/api/?module=contract&action=getsourcecode&address=$address" \
                 2>/dev/null)
             ;;
         *)

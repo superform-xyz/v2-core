@@ -20,6 +20,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.acrossSpokePoolV3s[BASE_CHAIN_ID] = ACROSS_SPOKE_POOL_BASE;
         configuration.acrossSpokePoolV3s[BNB_CHAIN_ID] = ACROSS_SPOKE_POOL_BNB;
         configuration.acrossSpokePoolV3s[ARBITRUM_CHAIN_ID] = ACROSS_SPOKE_POOL_ARBITRUM;
+        configuration.acrossSpokePoolV3s[ROBINHOOD_CHAIN_ID] = ACROSS_SPOKE_POOL_ROBINHOOD; // Across live on RH (chain 4663)
         configuration.acrossSpokePoolV3s[OPTIMISM_CHAIN_ID] = ACROSS_SPOKE_POOL_OPTIMISM;
         configuration.acrossSpokePoolV3s[POLYGON_CHAIN_ID] = ACROSS_SPOKE_POOL_POLYGON;
         configuration.acrossSpokePoolV3s[UNICHAIN_CHAIN_ID] = ACROSS_SPOKE_POOL_UNICHAIN;
@@ -38,6 +39,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.debridgeSrcDln[BASE_CHAIN_ID] = DEBRIDGE_DLN_SRC;
         configuration.debridgeSrcDln[BNB_CHAIN_ID] = DEBRIDGE_DLN_SRC;
         configuration.debridgeSrcDln[ARBITRUM_CHAIN_ID] = DEBRIDGE_DLN_SRC;
+        configuration.debridgeSrcDln[ROBINHOOD_CHAIN_ID] = DEBRIDGE_DLN_SRC; // deBridge live on RH (chain 4663)
         configuration.debridgeSrcDln[OPTIMISM_CHAIN_ID] = DEBRIDGE_DLN_SRC;
         configuration.debridgeSrcDln[POLYGON_CHAIN_ID] = DEBRIDGE_DLN_SRC;
         configuration.debridgeSrcDln[UNICHAIN_CHAIN_ID] = address(0);
@@ -56,6 +58,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.debridgeDstDln[BASE_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[BNB_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[ARBITRUM_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[ROBINHOOD_CHAIN_ID] = DEBRIDGE_DLN_DST; // deBridge live on RH (chain 4663)
         configuration.debridgeDstDln[OPTIMISM_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[POLYGON_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[UNICHAIN_CHAIN_ID] = address(0);
@@ -127,12 +130,14 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.permit2s[HYPEREVM_CHAIN_ID] = PERMIT2;
         configuration.permit2s[FLARE_CHAIN_ID] = PERMIT2;
         configuration.permit2s[STABLE_CHAIN_ID] = PERMIT2;
+        configuration.permit2s[ROBINHOOD_CHAIN_ID] = PERMIT2;
 
         // ===== MERKL DISTRIBUTOR ADDRESSES =====
         configuration.merklDistributors[MAINNET_CHAIN_ID] = MERKL_DISTRIBUTOR;
         configuration.merklDistributors[BASE_CHAIN_ID] = MERKL_DISTRIBUTOR;
         configuration.merklDistributors[BNB_CHAIN_ID] = MERKL_DISTRIBUTOR;
         configuration.merklDistributors[ARBITRUM_CHAIN_ID] = MERKL_DISTRIBUTOR;
+        configuration.merklDistributors[ROBINHOOD_CHAIN_ID] = MERKL_DISTRIBUTOR; // Merkl supports RH (chain 4663)
         configuration.merklDistributors[OPTIMISM_CHAIN_ID] = MERKL_DISTRIBUTOR;
         configuration.merklDistributors[POLYGON_CHAIN_ID] = MERKL_DISTRIBUTOR;
         configuration.merklDistributors[UNICHAIN_CHAIN_ID] = MERKL_DISTRIBUTOR;
@@ -152,6 +157,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.aggregationRouters[BASE_CHAIN_ID] = AGGREGATION_ROUTER;
         configuration.aggregationRouters[BNB_CHAIN_ID] = AGGREGATION_ROUTER;
         configuration.aggregationRouters[ARBITRUM_CHAIN_ID] = AGGREGATION_ROUTER;
+        configuration.aggregationRouters[ROBINHOOD_CHAIN_ID] = AGGREGATION_ROUTER; // 1inch live on RH (chain 4663)
         configuration.aggregationRouters[OPTIMISM_CHAIN_ID] = AGGREGATION_ROUTER;
         configuration.aggregationRouters[POLYGON_CHAIN_ID] = AGGREGATION_ROUTER;
         configuration.aggregationRouters[UNICHAIN_CHAIN_ID] = AGGREGATION_ROUTER;
@@ -209,6 +215,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.kyberSwapRouters[BASE_CHAIN_ID] = KYBER_ROUTER;
         configuration.kyberSwapRouters[BNB_CHAIN_ID] = KYBER_ROUTER;
         configuration.kyberSwapRouters[ARBITRUM_CHAIN_ID] = KYBER_ROUTER;
+        configuration.kyberSwapRouters[ROBINHOOD_CHAIN_ID] = KYBER_ROUTER; // KyberSwap live on RH (chain 4663)
         configuration.kyberSwapRouters[OPTIMISM_CHAIN_ID] = KYBER_ROUTER;
         configuration.kyberSwapRouters[POLYGON_CHAIN_ID] = KYBER_ROUTER;
         configuration.kyberSwapRouters[UNICHAIN_CHAIN_ID] = KYBER_ROUTER;
@@ -226,6 +233,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.kyberSwapScaleHelpers[BASE_CHAIN_ID] = KYBER_SCALE_HELPER;
         configuration.kyberSwapScaleHelpers[BNB_CHAIN_ID] = KYBER_SCALE_HELPER;
         configuration.kyberSwapScaleHelpers[ARBITRUM_CHAIN_ID] = KYBER_SCALE_HELPER;
+        configuration.kyberSwapScaleHelpers[ROBINHOOD_CHAIN_ID] = KYBER_SCALE_HELPER; // RH (chain 4663)
         configuration.kyberSwapScaleHelpers[OPTIMISM_CHAIN_ID] = KYBER_SCALE_HELPER;
         configuration.kyberSwapScaleHelpers[POLYGON_CHAIN_ID] = KYBER_SCALE_HELPER;
         configuration.kyberSwapScaleHelpers[UNICHAIN_CHAIN_ID] = KYBER_SCALE_HELPER;
@@ -323,12 +331,14 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.nativeTokens[HYPEREVM_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[FLARE_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[STABLE_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
+        configuration.nativeTokens[ROBINHOOD_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
 
         // ===== UNISWAP V4 POOL MANAGER ADDRESSES =====
         configuration.uniswapV4PoolManagers[MAINNET_CHAIN_ID] = 0x000000000004444c5dc75cB358380D2e3dE08A90;
         configuration.uniswapV4PoolManagers[BASE_CHAIN_ID] = 0x498581fF718922c3f8e6A244956aF099B2652b2b;
         configuration.uniswapV4PoolManagers[BNB_CHAIN_ID] = address(0); // Not deployed
         configuration.uniswapV4PoolManagers[ARBITRUM_CHAIN_ID] = 0x360E68faCcca8cA495c1B759Fd9EEe466db9FB32;
+        configuration.uniswapV4PoolManagers[ROBINHOOD_CHAIN_ID] = 0x8366a39CC670B4001A1121B8F6A443A643e40951; // Uniswap v4 on RH (chain 4663)
         configuration.uniswapV4PoolManagers[OPTIMISM_CHAIN_ID] = 0x9a13F98Cb987694C9F086b1F5eB990EeA8264Ec3;
         configuration.uniswapV4PoolManagers[POLYGON_CHAIN_ID] = 0x67366782805870060151383F4BbFF9daB53e5cD6;
         configuration.uniswapV4PoolManagers[UNICHAIN_CHAIN_ID] = 0x1F98400000000000000000000000000000000004;

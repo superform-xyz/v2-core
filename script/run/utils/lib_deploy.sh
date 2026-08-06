@@ -1065,6 +1065,10 @@ deploy_to_network() {
             chain_etherscan_flags=""
             echo -e "${CYAN}   Verification: ${WHITE}Skipped (rate-limited explorer, use verify script separately)${NC}"
             ;;
+        4663) # Robinhood Chain - Blockscout explorer (not on Etherscan V2)
+            chain_etherscan_flags="--verifier blockscout --verifier-url https://robinhoodchain.blockscout.com/api/"
+            echo -e "${CYAN}   Verification: ${WHITE}Blockscout${NC}"
+            ;;
         *)
             echo -e "${CYAN}   Verification: ${WHITE}Etherscan V2${NC}"
             ;;

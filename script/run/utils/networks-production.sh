@@ -6,22 +6,25 @@
 # Define production networks
 # Format: "CHAIN_ID:NetworkName:RPC_VAR"
 NETWORKS=(
-    "1:Ethereum:ETH_MAINNET"
-    "8453:Base:BASE_MAINNET"
-    "56:BNB:BSC_MAINNET"
-    "42161:Arbitrum:ARBITRUM_MAINNET"
-    "10:Optimism:OPTIMISM_MAINNET"
-    "137:Polygon:POLYGON_MAINNET"
-    "130:Unichain:UNICHAIN_MAINNET"
-    "43114:Avalanche:AVALANCHE_MAINNET"
-    "59144:Linea:LINEA_MAINNET"
-    "80094:Berachain:BERACHAIN_MAINNET"
-    "146:Sonic:SONIC_MAINNET"
-    "100:Gnosis:GNOSIS_MAINNET"
-    "480:Worldchain:WORLDCHAIN_MAINNET"
-    "999:HyperEVM:HYPEREVM_MAINNET"
-    "14:Flare:FLARE_MAINNET"
-    "988:Stable:STABLE_MAINNET"
+    # TEMPORARY: only RH enabled for the Robinhood Chain deployment.
+    # Restore the entries below to deploy to all production chains again.
+    # "1:Ethereum:ETH_MAINNET"
+    # "8453:Base:BASE_MAINNET"
+    # "56:BNB:BSC_MAINNET"
+    # "42161:Arbitrum:ARBITRUM_MAINNET"
+    # "10:Optimism:OPTIMISM_MAINNET"
+    # "137:Polygon:POLYGON_MAINNET"
+    # "130:Unichain:UNICHAIN_MAINNET"
+    # "43114:Avalanche:AVALANCHE_MAINNET"
+    # "59144:Linea:LINEA_MAINNET"
+    # "80094:Berachain:BERACHAIN_MAINNET"
+    # "146:Sonic:SONIC_MAINNET"
+    # "100:Gnosis:GNOSIS_MAINNET"
+    # "480:Worldchain:WORLDCHAIN_MAINNET"
+    # "999:HyperEVM:HYPEREVM_MAINNET"
+    # "14:Flare:FLARE_MAINNET"
+    # "988:Stable:STABLE_MAINNET"
+    "4663:RH:RH_MAINNET"
 )
 
 # Network name mapping function
@@ -75,6 +78,9 @@ get_network_name() {
             ;;
         988)
             echo "Stable"
+            ;;
+        4663)
+            echo "RH"
             ;;
         *)
             echo "ERROR: Unknown production network ID: $network_id" >&2
@@ -135,6 +141,9 @@ get_rpc_var() {
         988)
             echo "STABLE_MAINNET"
             ;;
+        4663)
+            echo "RH_MAINNET"
+            ;;
         *)
             echo "ERROR: Unknown production network ID for RPC: $network_id" >&2
             return 1
@@ -193,6 +202,9 @@ get_rpc_url() {
             ;;
         988)
             echo "$STABLE_MAINNET"
+            ;;
+        4663)
+            echo "$RH_MAINNET"
             ;;
         *)
             echo "ERROR: Unknown production network ID for RPC: $network_id" >&2
@@ -339,6 +351,13 @@ load_rpc_urls_ci() {
         failed_rpcs+=("STABLE_RPC_URL")
     fi
 
+    echo "  • Loading RH RPC..."
+    if [[ -n "${RH_RPC_URL:-}" ]]; then
+        export RH_MAINNET="$RH_RPC_URL"
+    else
+        failed_rpcs+=("RH_RPC_URL")
+    fi
+
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then
         echo "❌ Failed to load the following RPC URLs from environment:"
         for failed_rpc in "${failed_rpcs[@]}"; do
@@ -435,6 +454,11 @@ load_rpc_urls() {
     echo "  • Loading Stable RPC..."
     if ! export STABLE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/STABLE_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
         failed_rpcs+=("STABLE_RPC_URL")
+    fi
+
+    echo "  • Loading RH RPC..."
+    if ! export RH_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/RH_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
+        failed_rpcs+=("RH_RPC_URL")
     fi
 
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then

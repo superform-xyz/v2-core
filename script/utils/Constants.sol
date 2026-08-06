@@ -21,6 +21,7 @@ abstract contract Constants {
     string internal constant HYPEREVM_KEY = "HyperEVM";
     string internal constant FLARE_KEY = "Flare";
     string internal constant STABLE_KEY = "Stable";
+    string internal constant ROBINHOOD_KEY = "RH";
     string internal constant SEPOLIA_KEY = "Sepolia";
     string internal constant ARB_SEPOLIA_KEY = "Arbitrum_Sepolia";
     string internal constant BASE_SEPOLIA_KEY = "Base_Sepolia";
@@ -66,6 +67,7 @@ abstract contract Constants {
     uint64 internal constant HYPEREVM_CHAIN_ID = 999;
     uint64 internal constant FLARE_CHAIN_ID = 14;
     uint64 internal constant STABLE_CHAIN_ID = 988;
+    uint64 internal constant ROBINHOOD_CHAIN_ID = 4663; // Robinhood Chain (Arbitrum Orbit L2)
     // testnets
     uint64 internal constant SEPOLIA_CHAIN_ID = 11_155_111;
     uint64 internal constant ARB_SEPOLIA_CHAIN_ID = 421_613;
@@ -77,6 +79,7 @@ abstract contract Constants {
     address internal constant ACROSS_SPOKE_POOL_BASE = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
     address internal constant ACROSS_SPOKE_POOL_OPTIMISM = 0x6f26Bf09B1C792e3228e5467807a900A503c0281;
     address internal constant ACROSS_SPOKE_POOL_ARBITRUM = 0xe35e9842fceaCA96570B734083f4a58e8F7C5f2A;
+    address internal constant ACROSS_SPOKE_POOL_ROBINHOOD = 0xD29C85F15DF544bA632C9E25829fd29d767d7978;
     address internal constant ACROSS_SPOKE_POOL_BNB = 0x4e8E101924eDE233C13e2D8622DC8aED2872d505;
     address internal constant ACROSS_SPOKE_POOL_POLYGON = 0x9295ee1d8C5b022Be115A2AD3c30C72E34e7F096;
     address internal constant ACROSS_SPOKE_POOL_UNICHAIN = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;

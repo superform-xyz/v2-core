@@ -3218,8 +3218,17 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "UniV3CLPYieldSourceOracle.json")),
             constructorArgs: ""
         });
-        // Verify each contract
+        // Verify each contract. Skip any whose locked bytecode is absent for this env:
+        // such contracts are never deployed (e.g. MorphoBlueMarketRegistry has no prod
+        // locked bytecode), so requiring them here would wrongly fail the config pre-flight.
+        // This mirrors the deploy-side gating (`if (__checkBytecodeExists(...))`).
+        uint256 expectedVerified = 0;
         for (uint256 i = 0; i < contracts.length; i++) {
+            if (!__checkBytecodeExists(contracts[i].name, env)) {
+                console2.log("  [SKIP - no locked bytecode]:", contracts[i].name);
+                continue;
+            }
+            expectedVerified++;
             _verifySingleContract(contracts[i], deploymentJson, vars);
         }
 
@@ -3227,10 +3236,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log("=== BYTECODE VERIFICATION SUMMARY ===");
         console2.log("Verified:", vars.verified);
         console2.log("Failed:  ", vars.failed);
-        console2.log("Total:   ", contracts.length);
+        console2.log("Expected:", expectedVerified);
 
         require(vars.failed == 0, "BYTECODE_VERIFICATION_FAILED");
-        require(vars.verified == contracts.length, "INCOMPLETE_VERIFICATION");
+        require(vars.verified == expectedVerified, "INCOMPLETE_VERIFICATION");
 
         console2.log("[SUCCESS] All contract addresses verified successfully against locked bytecode!");
     }
