@@ -46,21 +46,7 @@
     "track": "deprecate->replaceCalldata"
   },
   {
-    "hookKey": "ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY",
-    "mode": "offset",
-    "pipeMode": "transform",
-    "amountPosition": 144,
-    "track": "deprecate->replaceCalldata"
-  },
-  {
     "hookKey": "ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY",
-    "mode": "offset",
-    "pipeMode": "transform",
-    "amountPosition": 144,
-    "track": "deprecate->replaceCalldata"
-  },
-  {
-    "hookKey": "APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
     "amountPosition": 144,
