@@ -5,6 +5,13 @@ import { DeployV2Base } from "./DeployV2Base.s.sol";
 import { ConfigCore } from "./utils/ConfigCore.sol";
 
 import { ISuperLedgerConfiguration } from "../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { AcrossV3AdapterV2 } from "../src/adapters/AcrossV3AdapterV2.sol";
+import {
+    AcrossSendFundsAndExecuteOnDstHookV2
+} from "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHookV2.sol";
+import {
+    ApproveAndAcrossSendFundsAndExecuteOnDstHookV2
+} from "../src/hooks/bridges/across/ApproveAndAcrossSendFundsAndExecuteOnDstHookV2.sol";
 
 // -- mocks (dev environment only)
 import { MockDex } from "../test/mocks/MockDex.sol";
@@ -17,7 +24,6 @@ import { DeterministicDeployerLib } from "../src/vendor/nexus/DeterministicDeplo
 contract DeployV2Core is DeployV2Base, ConfigCore {
     struct CoreContracts {
         address superExecutor;
-        address acrossV3Adapter;
         address acrossV3AdapterV2;
         address debridgeAdapter;
         address stargateAdapter;
@@ -52,8 +58,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address requestRedeem7540VaultHook;
         address setOperator7540Hook;
         address setSlippageHook;
-        address acrossSendFundsAndExecuteOnDstHook;
-        address approveAndAcrossSendFundsAndExecuteOnDstHook;
         address swap1InchHook;
         address swapOdosHook;
         address approveAndSwapOdosHook;
@@ -270,7 +274,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     }
 
     struct ContractAvailability {
-        bool acrossV3Adapter;
         bool acrossV3AdapterV2;
         bool debridgeAdapter;
         bool stargateAdapter;
@@ -300,6 +303,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         uint256 expectedTotal;
         string[] skippedContracts;
         string[] missingBytecodeContracts;
+    }
+
+    struct AcrossV2AvalancheDeployment {
+        address spokePool;
+        address superDestinationExecutor;
+        address superValidator;
+        address adapter;
+        address hook;
+        address approveHook;
+        bool adapterDeployed;
+        bool hookDeployed;
+        bool approveHookDeployed;
     }
 
     uint256 private _deployed;
@@ -332,20 +347,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Includes adapter skips, router-gated hooks, and optional Pendle oracle hooks.
         string[] memory potentialSkips = new string[](43);
         uint256 skipCount = 0;
-        // Adapter contracts (5 contracts - conditionally deployed)
-        string[5] memory adapterContracts =
-            ["AcrossV3Adapter", "AcrossV3AdapterV2", "DebridgeAdapter", "StargateAdapter", "StargateAdapterV2"];
+        // Adapter contracts (4 contracts - conditionally deployed)
+        string[4] memory adapterContracts =
+            ["AcrossV3AdapterV2", "DebridgeAdapter", "StargateAdapter", "StargateAdapterV2"];
 
         // Start with all adapters, then decrement for missing configurations
         uint256 expectedAdapters = adapterContracts.length;
 
-        // AcrossV3Adapter + AcrossV3AdapterV2
+        // AcrossV3AdapterV2
         if (configuration.acrossSpokePoolV3s[chainId] != address(0)) {
-            availability.acrossV3Adapter = true;
             availability.acrossV3AdapterV2 = true;
         } else {
-            expectedAdapters -= 2; // AcrossV3Adapter + AcrossV3AdapterV2
-            potentialSkips[skipCount++] = "AcrossV3Adapter";
+            expectedAdapters -= 1;
             potentialSkips[skipCount++] = "AcrossV3AdapterV2";
         }
 
@@ -373,7 +386,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-        string[81] memory baseHooks = [
+        string[79] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -414,8 +427,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "RecordRedemptionPendlePTAmortizedOracleHook",
             "RecordPurchasePendlePTAmortizedOracleHookV2",
             "RecordRedemptionPendlePTAmortizedOracleHookV2",
-            "AcrossSendFundsAndExecuteOnDstHook",
-            "ApproveAndAcrossSendFundsAndExecuteOnDstHook",
             "DeBridgeSendOrderAndExecuteOnDstHook",
             "DeBridgeCancelOrderHook",
             "EthenaCooldownSharesHook",
@@ -462,9 +473,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Hooks that depend on external configurations - decrement if not available
         if (configuration.acrossSpokePoolV3s[chainId] == address(0)) {
-            expectedHooks -= 4; // V1 + V2 Across hooks
-            potentialSkips[skipCount++] = "AcrossSendFundsAndExecuteOnDstHook";
-            potentialSkips[skipCount++] = "ApproveAndAcrossSendFundsAndExecuteOnDstHook";
+            expectedHooks -= 2;
             potentialSkips[skipCount++] = "AcrossSendFundsAndExecuteOnDstHookV2";
             potentialSkips[skipCount++] = "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2";
         }
@@ -748,6 +757,147 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             // Write all exported contracts for this chain
             _writeExportedContracts(chainId);
         }
+    }
+
+    /// @notice Check or deploy only the Across V2 contracts required on Avalanche.
+    function runAcrossV2Avalanche(bool check, uint256 env, uint64 chainId) public {
+        require(env == 0 || env == 2, "ACROSS_V2_AVALANCHE_INVALID_ENV");
+        require(chainId == AVALANCHE_CHAIN_ID, "ACROSS_V2_AVALANCHE_INVALID_CHAIN");
+        require(block.chainid == chainId, "ACROSS_V2_AVALANCHE_CHAIN_ID_MISMATCH");
+
+        _setConfiguration(env, "");
+        AcrossV2AvalancheDeployment memory deployment = _checkAcrossV2AvalancheContracts(env, chainId);
+
+        _logDeploymentSummary(chainId);
+        if (check) return;
+
+        deployment = _deployAcrossV2AvalancheContracts(deployment, env, chainId);
+        _validateAcrossV2AvalancheContracts(deployment);
+
+        if (vm.envOr("ACROSS_V2_AVALANCHE_WRITE_OUTPUT", false)) {
+            vm.setEnv("CI", "true");
+            vm.setEnv("GITHUB_REF_NAME", env == 0 ? "prod" : "staging");
+            _writeExportedContracts(chainId);
+        }
+    }
+
+    function _checkAcrossV2AvalancheContracts(
+        uint256 env,
+        uint64 chainId
+    )
+        private
+        returns (AcrossV2AvalancheDeployment memory deployment)
+    {
+        deployment.spokePool = configuration.acrossSpokePoolV3s[chainId];
+        require(deployment.spokePool == ACROSS_SPOKE_POOL_AVALANCHE, "ACROSS_V2_AVALANCHE_SPOKE_POOL_MISMATCH");
+        require(deployment.spokePool.code.length > 0, "ACROSS_V2_AVALANCHE_SPOKE_POOL_NO_CODE");
+        require(DETERMINISTIC_DEPLOYER.code.length > 0, "ACROSS_V2_AVALANCHE_DEPLOYER_NO_CODE");
+
+        string memory existingContracts = _readCoreContractsFromOutput(chainId, env);
+        deployment.superDestinationExecutor =
+            _safeParseJsonAddress(existingContracts, string.concat(".", SUPER_DESTINATION_EXECUTOR_KEY));
+        deployment.superValidator = _safeParseJsonAddress(existingContracts, string.concat(".", SUPER_VALIDATOR_KEY));
+
+        require(deployment.superDestinationExecutor.code.length > 0, "ACROSS_V2_AVALANCHE_DEST_EXECUTOR_NO_CODE");
+        require(deployment.superValidator.code.length > 0, "ACROSS_V2_AVALANCHE_VALIDATOR_NO_CODE");
+        require(__checkBytecodeExists("AcrossV3AdapterV2", env), "ACROSS_V2_AVALANCHE_ADAPTER_BYTECODE_MISSING");
+        require(
+            __checkBytecodeExists("AcrossSendFundsAndExecuteOnDstHookV2", env),
+            "ACROSS_V2_AVALANCHE_HOOK_BYTECODE_MISSING"
+        );
+        require(
+            __checkBytecodeExists("ApproveAndAcrossSendFundsAndExecuteOnDstHookV2", env),
+            "ACROSS_V2_AVALANCHE_APPROVE_HOOK_BYTECODE_MISSING"
+        );
+
+        (deployment.adapterDeployed, deployment.adapter) = __checkContract(
+            ACROSS_V3_ADAPTER_V2_KEY,
+            __getSalt(ACROSS_V3_ADAPTER_V2_KEY),
+            abi.encode(deployment.spokePool, deployment.superDestinationExecutor),
+            env
+        );
+        (deployment.hookDeployed, deployment.hook) = __checkContract(
+            ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY,
+            __getSalt(ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY),
+            abi.encode(deployment.spokePool, deployment.superValidator),
+            env
+        );
+        (deployment.approveHookDeployed, deployment.approveHook) = __checkContract(
+            APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY,
+            __getSalt(APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY),
+            abi.encode(deployment.spokePool, deployment.superValidator),
+            env
+        );
+    }
+
+    function _deployAcrossV2AvalancheContracts(
+        AcrossV2AvalancheDeployment memory deployment,
+        uint256 env,
+        uint64 chainId
+    )
+        private
+        returns (AcrossV2AvalancheDeployment memory)
+    {
+        vm.startBroadcast();
+        if (!deployment.adapterDeployed) {
+            deployment.adapter = __deployContractIfNeeded(
+                ACROSS_V3_ADAPTER_V2_KEY,
+                chainId,
+                __getSalt(ACROSS_V3_ADAPTER_V2_KEY),
+                abi.encodePacked(
+                    __getBytecode("AcrossV3AdapterV2", env),
+                    abi.encode(deployment.spokePool, deployment.superDestinationExecutor)
+                )
+            );
+        }
+        if (!deployment.hookDeployed) {
+            deployment.hook = __deployContractIfNeeded(
+                ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY,
+                chainId,
+                __getSalt(ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY),
+                abi.encodePacked(
+                    __getBytecode("AcrossSendFundsAndExecuteOnDstHookV2", env),
+                    abi.encode(deployment.spokePool, deployment.superValidator)
+                )
+            );
+        }
+        if (!deployment.approveHookDeployed) {
+            deployment.approveHook = __deployContractIfNeeded(
+                APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY,
+                chainId,
+                __getSalt(APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY),
+                abi.encodePacked(
+                    __getBytecode("ApproveAndAcrossSendFundsAndExecuteOnDstHookV2", env),
+                    abi.encode(deployment.spokePool, deployment.superValidator)
+                )
+            );
+        }
+        vm.stopBroadcast();
+        return deployment;
+    }
+
+    function _validateAcrossV2AvalancheContracts(AcrossV2AvalancheDeployment memory deployment) private view {
+        require(deployment.adapter.code.length > 0, "ACROSS_V2_AVALANCHE_ADAPTER_NO_CODE");
+        require(deployment.hook.code.length > 0, "ACROSS_V2_AVALANCHE_HOOK_NO_CODE");
+        require(deployment.approveHook.code.length > 0, "ACROSS_V2_AVALANCHE_APPROVE_HOOK_NO_CODE");
+        require(
+            AcrossV3AdapterV2(deployment.adapter).ACROSS_SPOKE_POOL() == deployment.spokePool,
+            "ACROSS_V2_AVALANCHE_ADAPTER_SPOKE_POOL_MISMATCH"
+        );
+        require(
+            address(AcrossV3AdapterV2(deployment.adapter).SUPER_DESTINATION_EXECUTOR())
+                == deployment.superDestinationExecutor,
+            "ACROSS_V2_AVALANCHE_ADAPTER_EXECUTOR_MISMATCH"
+        );
+        require(
+            AcrossSendFundsAndExecuteOnDstHookV2(deployment.hook).SPOKE_POOL_V3() == deployment.spokePool,
+            "ACROSS_V2_AVALANCHE_HOOK_SPOKE_POOL_MISMATCH"
+        );
+        require(
+            ApproveAndAcrossSendFundsAndExecuteOnDstHookV2(deployment.approveHook).SPOKE_POOL_V3()
+                == deployment.spokePool,
+            "ACROSS_V2_AVALANCHE_APPROVE_HOOK_SPOKE_POOL_MISMATCH"
+        );
     }
 
     /// @notice TEMPORARY fixed-scope entrypoint for the current token-hook upgrade.
@@ -1580,20 +1730,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log("");
         console2.log("=== Adapters ===");
 
-        // AcrossV3Adapter (requires acrossSpokePoolV3 and superDestinationExecutor)
-        if (availability.acrossV3Adapter && superDestExecutor != address(0)) {
-            __checkContract(
-                ACROSS_V3_ADAPTER_KEY,
-                __getSalt(ACROSS_V3_ADAPTER_KEY),
-                abi.encode(configuration.acrossSpokePoolV3s[chainId], superDestExecutor),
-                env
-            );
-        } else if (!availability.acrossV3Adapter) {
-            console2.log("SKIPPED AcrossV3Adapter: Across Spoke Pool not configured for chain", chainId);
-        } else {
-            revert("ACROSS_V3_ADAPTER_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
-        }
-
         // DebridgeAdapter (requires debridgeDstDln and superDestinationExecutor)
         if (availability.debridgeAdapter && superDestExecutor != address(0)) {
             __checkContract(
@@ -2042,39 +2178,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         }
 
-        // Bridge hooks
-        if (availability.acrossV3Adapter && superValidator != address(0)) {
-            __checkContract(
-                ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
-                __getSalt(ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY),
-                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator),
-                env
-            );
-        } else if (!availability.acrossV3Adapter) {
-            console2.log(
-                "SKIPPED AcrossSendFundsAndExecuteOnDstHook: Across Spoke Pool not configured for chain", chainId
-            );
-        } else {
-            revert("ACROSS_HOOK_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
-        }
-
-        if (availability.acrossV3Adapter && superValidator != address(0)) {
-            __checkContract(
-                APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
-                __getSalt(APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY),
-                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator),
-                env
-            );
-        } else if (!availability.acrossV3Adapter) {
-            console2.log(
-                "SKIPPED ApproveAndAcrossSendFundsAndExecuteOnDstHook: Across Spoke Pool not configured for chain",
-                chainId
-            );
-        } else {
-            revert("APPROVE_AND_ACROSS_HOOK_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
-        }
-
-        // Across Bridge Hooks V2 (compact 2-field message format — paired with AcrossV3AdapterV2)
+        // Across Bridge Hooks V2
         if (availability.acrossV3AdapterV2 && superValidator != address(0)) {
             __checkContract(
                 ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY,
@@ -2485,9 +2589,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         status = _getContractStatus(chainId, SUPER_EXECUTOR_KEY);
         if (status.isDeployed) coreContracts.superExecutor = status.contractAddress;
 
-        status = _getContractStatus(chainId, ACROSS_V3_ADAPTER_KEY);
-        if (status.isDeployed) coreContracts.acrossV3Adapter = status.contractAddress;
-
         status = _getContractStatus(chainId, ACROSS_V3_ADAPTER_V2_KEY);
         if (status.isDeployed) coreContracts.acrossV3AdapterV2 = status.contractAddress;
 
@@ -2553,7 +2654,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         // Only validate Across if it's available on this chain
-        if (availability.acrossV3Adapter) {
+        if (availability.acrossV3AdapterV2) {
             require(configuration.acrossSpokePoolV3s[chainId] != address(0), "ACROSS_SPOKE_POOL_ADDRESS_ZERO");
             require(configuration.acrossSpokePoolV3s[chainId].code.length > 0, "ACROSS_SPOKE_POOL_NOT_DEPLOYED");
             console2.log(" Across Spoke Pool V3:", configuration.acrossSpokePoolV3s[chainId]);
@@ -2716,30 +2817,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(coreContracts.superSenderCreator.code.length > 0, "SUPER_SENDER_CREATOR_NO_CODE");
         console2.log(" SuperSenderCreator deployed and validated");
 
-        // Deploy AcrossV3Adapter only if available on this chain
-        if (availability.acrossV3Adapter) {
-            require(configuration.acrossSpokePoolV3s[chainId] != address(0), "ACROSS_ADAPTER_SPOKE_POOL_PARAM_ZERO");
-            require(coreContracts.superDestinationExecutor != address(0), "ACROSS_ADAPTER_DEST_EXECUTOR_PARAM_ZERO");
-
-            coreContracts.acrossV3Adapter = __deployContractIfNeeded(
-                ACROSS_V3_ADAPTER_KEY,
-                chainId,
-                __getSalt(ACROSS_V3_ADAPTER_KEY),
-                abi.encodePacked(
-                    __getBytecode("AcrossV3Adapter", env),
-                    abi.encode(configuration.acrossSpokePoolV3s[chainId], coreContracts.superDestinationExecutor)
-                )
-            );
-
-            // Validate AcrossV3Adapter was deployed
-            require(coreContracts.acrossV3Adapter != address(0), "ACROSS_V3_ADAPTER_DEPLOYMENT_FAILED");
-            require(coreContracts.acrossV3Adapter.code.length > 0, "ACROSS_V3_ADAPTER_NO_CODE");
-            console2.log(" AcrossV3Adapter deployed and validated");
-        } else {
-            console2.log(" SKIPPED AcrossV3Adapter deployment: Not available on chain", chainId);
-        }
-
-        // Deploy AcrossV3AdapterV2 (compact 2-field message format)
+        // Deploy AcrossV3AdapterV2
         if (availability.acrossV3AdapterV2) {
             require(configuration.acrossSpokePoolV3s[chainId] != address(0), "ACROSS_ADAPTER_V2_SPOKE_POOL_PARAM_ZERO");
             require(coreContracts.superDestinationExecutor != address(0), "ACROSS_ADAPTER_V2_DEST_EXECUTOR_PARAM_ZERO");
@@ -3567,35 +3645,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         address superValidator;
-        // Across Bridge Hook - Only deploy if available on this chain
-        if (availability.acrossV3Adapter) {
-            require(configuration.acrossSpokePoolV3s[chainId] != address(0), "ACROSS_HOOK_SPOKE_POOL_PARAM_ZERO");
-            require(configuration.acrossSpokePoolV3s[chainId].code.length > 0, "ACROSS_HOOK_SPOKE_POOL_NOT_DEPLOYED");
-
-            superValidator = _getContract(chainId, SUPER_VALIDATOR_KEY);
-            require(superValidator != address(0), "ACROSS_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
-            require(superValidator.code.length > 0, "ACROSS_HOOK_MERKLE_VALIDATOR_NOT_DEPLOYED");
-
-            hooks[24] = _createSafeHookDeploymentWithArgs(
-                ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
-                "AcrossSendFundsAndExecuteOnDstHook",
-                env,
-                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator)
-            );
-            hooks[25] = _createSafeHookDeploymentWithArgs(
-                APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
-                "ApproveAndAcrossSendFundsAndExecuteOnDstHook",
-                env,
-                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator)
-            );
-        } else {
-            console2.log(" SKIPPED AcrossSendFundsAndExecuteOnDstHook deployment: Not available on chain", chainId);
-            console2.log(
-                " SKIPPED ApproveAndAcrossSendFundsAndExecuteOnDstHook deployment: Not available on chain", chainId
-            );
-            hooks[24] = HookDeployment("", "", ""); // Empty deployment
-            hooks[25] = HookDeployment("", "", ""); // Empty deployment
-        }
+        hooks[24] = HookDeployment("", "", "");
+        hooks[25] = HookDeployment("", "", "");
 
         // DeBridge hooks - Only deploy if available on this chain
         superValidator = _getContract(chainId, SUPER_VALIDATOR_KEY);
@@ -4111,14 +4162,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             )
             ? addresses[47]
             : address(0);
-        hookAddresses.acrossSendFundsAndExecuteOnDstHook =
-            Strings.equal(hooks[24].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[24] : address(0);
-        hookAddresses.approveAndAcrossSendFundsAndExecuteOnDstHook = Strings.equal(
-                hooks[25].name, APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY
-            )
-            ? addresses[25]
-            : address(0);
-        // Across Bridge hooks V2 (compact 2-field message format)
+        // Across Bridge hooks V2
         hookAddresses.acrossSendFundsAndExecuteOnDstHookV2 = Strings.equal(
                 hooks[76].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY
             )
@@ -4310,12 +4354,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             require(hookAddresses.swapOpenOceanHook != address(0), "SWAP_OPENOCEAN_HOOK_NOT_ASSIGNED");
             require(
                 hookAddresses.approveAndSwapOpenOceanHook != address(0), "APPROVE_AND_SWAP_OPENOCEAN_HOOK_NOT_ASSIGNED"
-            );
-        }
-        if (availability.acrossV3Adapter) {
-            require(
-                hookAddresses.acrossSendFundsAndExecuteOnDstHook != address(0),
-                "ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_NOT_ASSIGNED"
             );
         }
         if (availability.acrossV3AdapterV2) {

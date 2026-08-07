@@ -25,7 +25,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.acrossSpokePoolV3s[POLYGON_CHAIN_ID] = ACROSS_SPOKE_POOL_POLYGON;
         configuration.acrossSpokePoolV3s[UNICHAIN_CHAIN_ID] = ACROSS_SPOKE_POOL_UNICHAIN;
         configuration.acrossSpokePoolV3s[LINEA_CHAIN_ID] = ACROSS_SPOKE_POOL_LINEA;
-        configuration.acrossSpokePoolV3s[AVALANCHE_CHAIN_ID] = address(0); // Across not available on Avalanche
+        configuration.acrossSpokePoolV3s[AVALANCHE_CHAIN_ID] = ACROSS_SPOKE_POOL_AVALANCHE;
         configuration.acrossSpokePoolV3s[BERACHAIN_CHAIN_ID] = address(0); // Not deployed yet
         configuration.acrossSpokePoolV3s[SONIC_CHAIN_ID] = address(0); // Not deployed yet
         configuration.acrossSpokePoolV3s[GNOSIS_CHAIN_ID] = address(0); // Not deployed yet
