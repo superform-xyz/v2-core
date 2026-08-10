@@ -42,6 +42,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.relayDepositories[BASE_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
         configuration.relayDepositories[BNB_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
         configuration.relayDepositories[ARBITRUM_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
+        configuration.relayDepositories[ROBINHOOD_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL; // Relay live on RH (chain 4663)
         configuration.relayDepositories[OPTIMISM_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
         configuration.relayDepositories[POLYGON_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
         configuration.relayDepositories[UNICHAIN_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
