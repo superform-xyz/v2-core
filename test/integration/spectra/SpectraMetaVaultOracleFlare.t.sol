@@ -24,13 +24,16 @@ contract SpectraMetaVaultOracleFlare is Test {
     // FXRP on Flare (underlying asset)
     address public constant FXRP = 0xAd552A648C74D49E10027AB8a618A3ad4901c5bE;
 
+    /// @dev Pinned so CI can reuse foundry's RPC cache instead of re-fetching state at latest
+    uint256 public constant FORK_BLOCK = 67_000_000;
+
     SpectraMetaVaultOracle public spectraOracle;
     ERC7540YieldSourceOracle public genericOracle;
     SuperLedgerConfiguration public ledgerConfig;
 
     function setUp() public {
         string memory flareRpc = vm.envString("FLARE_RPC_URL");
-        vm.createSelectFork(flareRpc);
+        vm.createSelectFork(flareRpc, FORK_BLOCK);
 
         ledgerConfig = new SuperLedgerConfiguration();
         spectraOracle = new SpectraMetaVaultOracle(address(ledgerConfig), 0);
