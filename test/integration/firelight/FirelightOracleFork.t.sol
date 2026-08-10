@@ -37,7 +37,7 @@ contract FirelightOracleFork is Test {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        vm.createSelectFork(vm.envString("FLARE_RPC_URL"), FORK_BLOCK);
+        vm.createSelectFork(vm.envOr("FLARE_RPC_URL", string("https://flare-api.flare.network/ext/C/rpc")), FORK_BLOCK);
         SuperLedgerConfiguration ledgerConfig = new SuperLedgerConfiguration();
         oracle = new FirelightYieldSourceOracle(address(ledgerConfig));
         vault = IFirelightVault(VAULT);

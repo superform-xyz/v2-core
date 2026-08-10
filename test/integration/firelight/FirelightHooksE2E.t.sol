@@ -62,7 +62,9 @@ contract FirelightHooksE2E is Test {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        forkId = vm.createSelectFork(vm.envString(FLARE_RPC_URL_KEY), FORK_BLOCK);
+        forkId = vm.createSelectFork(
+            vm.envOr(FLARE_RPC_URL_KEY, string("https://flare-api.flare.network/ext/C/rpc")), FORK_BLOCK
+        );
 
         redeemHook = new RedeemFirelightVaultHook();
         claimHook = new ClaimWithdrawFirelightVaultHook();

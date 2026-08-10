@@ -32,7 +32,7 @@ contract SpectraMetaVaultOracleFlare is Test {
     SuperLedgerConfiguration public ledgerConfig;
 
     function setUp() public {
-        string memory flareRpc = vm.envString("FLARE_RPC_URL");
+        string memory flareRpc = vm.envOr("FLARE_RPC_URL", string("https://flare-api.flare.network/ext/C/rpc"));
         vm.createSelectFork(flareRpc, FORK_BLOCK);
 
         ledgerConfig = new SuperLedgerConfiguration();
