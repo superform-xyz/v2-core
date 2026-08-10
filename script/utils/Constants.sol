@@ -32,6 +32,7 @@ abstract contract Constants {
     string internal constant SUPER_EXECUTOR_KEY = "SuperExecutor";
     string internal constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
     string internal constant ACROSS_V3_ADAPTER_V2_KEY = "AcrossV3AdapterV2";
+    string internal constant RELAY_ADAPTER_KEY = "RelayAdapter";
     string internal constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
     string internal constant STARGATE_ADAPTER_KEY = "StargateAdapter";
     string internal constant STARGATE_ADAPTER_V2_KEY = "StargateAdapterV2";
@@ -89,6 +90,14 @@ abstract contract Constants {
 
     // Note: Berachain Across spoke pool not found - may not be deployed yet
     // Note: Gnosis Across spoke pool not found - may not be deployed yet
+
+    // Relay Protocol depository addresses per chain
+    // Canonical CREATE2 address on most EVM chains — NOT universal: verify each new chain against
+    // github.com/relayprotocol/relay-depository deployments/addresses.prod.json before enabling
+    // (e.g. Cronos/Metis/Mantle/Linea/Taiko/zkEVM use 0x59916dA825d2d2EC1bF878d71c88826F6633EcCA)
+    address internal constant RELAY_DEPOSITORY_CANONICAL = 0x4cD00E387622C35bDDB9b4c962C136462338BC31;
+    // Non-canonical deployment shared by Cronos/Metis/Mantle/Linea/Taiko/zkEVM
+    address internal constant RELAY_DEPOSITORY_LINEA = 0x59916DA825D2D2eC1BF878D71c88826F6633ecca;
 
     // DeBridge Gate addresses per chain
     address internal constant DEBRIDGE_DLN_SRC = 0xeF4fB24aD0916217251F553c0596F8Edc630EB66;
@@ -181,6 +190,9 @@ abstract contract Constants {
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY = "AcrossSendFundsAndExecuteOnDstHookV2";
     string internal constant APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY =
         "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2";
+    string internal constant RELAY_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "RelaySendFundsAndExecuteOnDstHook";
+    string internal constant APPROVE_AND_RELAY_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY =
+        "ApproveAndRelaySendFundsAndExecuteOnDstHook";
     string internal constant FLUID_CLAIM_REWARD_HOOK_KEY = "FluidClaimRewardHook";
     string internal constant GEARBOX_CLAIM_REWARD_HOOK_KEY = "GearboxClaimRewardHook";
     string internal constant YEARN_CLAIM_ALL_REWARDS_HOOK_KEY = "YearnClaimAllRewardsHook";

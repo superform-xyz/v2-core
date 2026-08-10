@@ -95,6 +95,9 @@ compatibleProtocols:
   ApproveAndAcrossSendFundsAndExecuteOnDstHook: [across]
   AcrossSendFundsAndExecuteOnDstHookV2: [across-v2]
   ApproveAndAcrossSendFundsAndExecuteOnDstHookV2: [across-v2]
+  # Relay
+  RelaySendFundsAndExecuteOnDstHook: [relay]
+  ApproveAndRelaySendFundsAndExecuteOnDstHook: [relay]
   # Stargate
   StargateSendHook: [stargate]
   ApproveAndStargateSendHook: [stargate]
@@ -167,6 +170,7 @@ approvePairs:
   RequestRedeemDETHHook: ApproveAndRequestRedeemDETHHook
   AcrossSendFundsAndExecuteOnDstHook: ApproveAndAcrossSendFundsAndExecuteOnDstHook
   AcrossSendFundsAndExecuteOnDstHookV2: ApproveAndAcrossSendFundsAndExecuteOnDstHookV2
+  RelaySendFundsAndExecuteOnDstHook: ApproveAndRelaySendFundsAndExecuteOnDstHook
   StargateSendHook: ApproveAndStargateSendHook
   StargateSendHookV2: ApproveAndStargateSendHookV2
   CCTPSendHook: ApproveAndCCTPSendHook

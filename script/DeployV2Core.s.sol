@@ -6,6 +6,7 @@ import { ConfigCore } from "./utils/ConfigCore.sol";
 
 import { ISuperLedgerConfiguration } from "../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { AcrossV3AdapterV2 } from "../src/adapters/AcrossV3AdapterV2.sol";
+import { RelayAdapter } from "../src/adapters/RelayAdapter.sol";
 import {
     AcrossSendFundsAndExecuteOnDstHookV2
 } from "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHookV2.sol";
@@ -25,6 +26,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     struct CoreContracts {
         address superExecutor;
         address acrossV3AdapterV2;
+        address relayAdapter;
         address debridgeAdapter;
         address stargateAdapter;
         address stargateAdapterV2;
@@ -275,6 +277,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
     struct ContractAvailability {
         bool acrossV3AdapterV2;
+        bool relayAdapter;
         bool debridgeAdapter;
         bool stargateAdapter;
         bool stargateAdapterV2;
@@ -345,11 +348,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     {
         // Initialize all skipped contracts array
         // Includes adapter skips, router-gated hooks, and optional Pendle oracle hooks.
-        string[] memory potentialSkips = new string[](43);
+        string[] memory potentialSkips = new string[](46);
         uint256 skipCount = 0;
-        // Adapter contracts (4 contracts - conditionally deployed)
-        string[4] memory adapterContracts =
-            ["AcrossV3AdapterV2", "DebridgeAdapter", "StargateAdapter", "StargateAdapterV2"];
+        // Adapter contracts (5 contracts - conditionally deployed)
+        string[5] memory adapterContracts =
+            ["AcrossV3AdapterV2", "RelayAdapter", "DebridgeAdapter", "StargateAdapter", "StargateAdapterV2"];
 
         // Start with all adapters, then decrement for missing configurations
         uint256 expectedAdapters = adapterContracts.length;
@@ -360,6 +363,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         } else {
             expectedAdapters -= 1;
             potentialSkips[skipCount++] = "AcrossV3AdapterV2";
+        }
+
+        // RelayAdapter (permissionless — availability keyed on the Relay depository being enabled)
+        if (configuration.relayDepositories[chainId] != address(0)) {
+            availability.relayAdapter = true;
+        } else {
+            expectedAdapters -= 1;
+            potentialSkips[skipCount++] = "RelayAdapter";
         }
 
         // DebridgeAdapter
@@ -386,7 +397,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-        string[79] memory baseHooks = [
+        string[81] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -465,6 +476,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "ApproveAndSwapUniswapV3Router02Hook",
             "AcrossSendFundsAndExecuteOnDstHookV2",
             "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2",
+            "RelaySendFundsAndExecuteOnDstHook",
+            "ApproveAndRelaySendFundsAndExecuteOnDstHook",
             "PendlePTHook"
         ];
 
@@ -476,6 +489,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             expectedHooks -= 2;
             potentialSkips[skipCount++] = "AcrossSendFundsAndExecuteOnDstHookV2";
             potentialSkips[skipCount++] = "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2";
+        }
+
+        if (configuration.relayDepositories[chainId] == address(0)) {
+            expectedHooks -= 2;
+            potentialSkips[skipCount++] = "RelaySendFundsAndExecuteOnDstHook";
+            potentialSkips[skipCount++] = "ApproveAndRelaySendFundsAndExecuteOnDstHook";
         }
 
         if (configuration.aggregationRouters[chainId] != address(0)) {
@@ -1794,6 +1813,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         } else {
             revert("ACROSS_V3_ADAPTER_V2_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
         }
+
+        // RelayAdapter (permissionless destination adapter — constructor takes only the executor)
+        if (availability.relayAdapter && superDestExecutor != address(0)) {
+            __checkContract(RELAY_ADAPTER_KEY, __getSalt(RELAY_ADAPTER_KEY), abi.encode(superDestExecutor), env);
+        } else if (!availability.relayAdapter) {
+            console2.log("SKIPPED RelayAdapter: Relay depository not configured for chain", chainId);
+        } else {
+            revert("RELAY_ADAPTER_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
+        }
     }
 
     /// @notice Check ledger contracts
@@ -2201,6 +2229,27 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             revert("ACROSS_HOOK_V2_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
         }
 
+        // Relay Bridge Hooks (no validator dependency — Relay carries no on-chain destination message)
+        if (availability.relayAdapter) {
+            __checkContract(
+                RELAY_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
+                __getSalt(RELAY_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY),
+                abi.encode(configuration.relayDepositories[chainId]),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_RELAY_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
+                __getSalt(APPROVE_AND_RELAY_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY),
+                abi.encode(configuration.relayDepositories[chainId]),
+                env
+            );
+        } else {
+            console2.log(
+                "SKIPPED RelaySendFundsAndExecuteOnDstHook + ApproveAnd: Relay depository not configured for chain",
+                chainId
+            );
+        }
+
         if (availability.deBridgeSendOrderHook && superValidator != address(0)) {
             __checkContract(
                 DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
@@ -2592,6 +2641,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         status = _getContractStatus(chainId, ACROSS_V3_ADAPTER_V2_KEY);
         if (status.isDeployed) coreContracts.acrossV3AdapterV2 = status.contractAddress;
 
+        status = _getContractStatus(chainId, RELAY_ADAPTER_KEY);
+        if (status.isDeployed) coreContracts.relayAdapter = status.contractAddress;
+
         status = _getContractStatus(chainId, DEBRIDGE_ADAPTER_KEY);
         if (status.isDeployed) coreContracts.debridgeAdapter = status.contractAddress;
 
@@ -2660,6 +2712,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" Across Spoke Pool V3:", configuration.acrossSpokePoolV3s[chainId]);
         } else {
             console2.log(" SKIPPED Across Spoke Pool V3 validation: Not available on chain", chainId);
+        }
+
+        // Only validate the Relay depository if it's enabled on this chain
+        if (availability.relayAdapter) {
+            require(configuration.relayDepositories[chainId] != address(0), "RELAY_DEPOSITORY_ADDRESS_ZERO");
+            require(configuration.relayDepositories[chainId].code.length > 0, "RELAY_DEPOSITORY_NOT_DEPLOYED");
+            console2.log(" Relay Depository:", configuration.relayDepositories[chainId]);
+        } else {
+            console2.log(" SKIPPED Relay Depository validation: Not available on chain", chainId);
         }
 
         // Only validate DeBridge if it's available on this chain
@@ -2838,6 +2899,33 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" AcrossV3AdapterV2 deployed and validated");
         } else {
             console2.log(" SKIPPED AcrossV3AdapterV2 deployment: Not available on chain", chainId);
+        }
+
+        // Deploy RelayAdapter only if the Relay depository is enabled on this chain
+        if (availability.relayAdapter) {
+            require(configuration.relayDepositories[chainId] != address(0), "RELAY_ADAPTER_DEPOSITORY_PARAM_ZERO");
+            require(coreContracts.superDestinationExecutor != address(0), "RELAY_ADAPTER_DEST_EXECUTOR_PARAM_ZERO");
+
+            coreContracts.relayAdapter = __deployContractIfNeeded(
+                RELAY_ADAPTER_KEY,
+                chainId,
+                __getSalt(RELAY_ADAPTER_KEY),
+                abi.encodePacked(
+                    __getBytecode("RelayAdapter", env), abi.encode(coreContracts.superDestinationExecutor)
+                )
+            );
+
+            // Validate RelayAdapter was deployed
+            require(coreContracts.relayAdapter != address(0), "RELAY_ADAPTER_DEPLOYMENT_FAILED");
+            require(coreContracts.relayAdapter.code.length > 0, "RELAY_ADAPTER_NO_CODE");
+            require(
+                address(RelayAdapter(payable(coreContracts.relayAdapter)).SUPER_DESTINATION_EXECUTOR())
+                    == coreContracts.superDestinationExecutor,
+                "RELAY_ADAPTER_EXECUTOR_MISMATCH"
+            );
+            console2.log(" RelayAdapter deployed and validated");
+        } else {
+            console2.log(" SKIPPED RelayAdapter deployment: Not available on chain", chainId);
         }
 
         // Deploy DebridgeAdapter only if available on this chain
@@ -3499,7 +3587,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 81;
+        uint256 len = 83;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -4037,6 +4125,29 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
             hooks[76] = HookDeployment("", "", ""); // Empty deployment
             hooks[77] = HookDeployment("", "", ""); // Empty deployment
+        }
+
+        // Relay Bridge Hooks (constructor takes only the immutable Relay depository)
+        if (availability.relayAdapter) {
+            hooks[81] = _createSafeHookDeploymentWithArgs(
+                RELAY_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
+                "RelaySendFundsAndExecuteOnDstHook",
+                env,
+                abi.encode(configuration.relayDepositories[chainId])
+            );
+            hooks[82] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_RELAY_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
+                "ApproveAndRelaySendFundsAndExecuteOnDstHook",
+                env,
+                abi.encode(configuration.relayDepositories[chainId])
+            );
+        } else {
+            console2.log(" SKIPPED RelaySendFundsAndExecuteOnDstHook deployment: Not available on chain", chainId);
+            console2.log(
+                " SKIPPED ApproveAndRelaySendFundsAndExecuteOnDstHook deployment: Not available on chain", chainId
+            );
+            hooks[81] = HookDeployment("", "", ""); // Empty deployment
+            hooks[82] = HookDeployment("", "", ""); // Empty deployment
         }
 
         // Aerodrome Universal Router hooks - Base only

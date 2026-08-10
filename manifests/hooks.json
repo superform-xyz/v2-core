@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-08-07T08:18:36Z",
+  "generatedAt": "2026-08-07T14:35:20Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -5273,6 +5273,86 @@
       "asyncLifecycle": null,
       "compatibleProtocols": [
         "across-v2"
+      ]
+    },
+    "RelaySendFundsAndExecuteOnDstHook": {
+      "name": "Relay Bridge",
+      "description": "Bridges tokens via the Relay depository with destination execution by Relay solvers",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndRelaySendFundsAndExecuteOnDstHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "relay"
+      ]
+    },
+    "ApproveAndRelaySendFundsAndExecuteOnDstHook": {
+      "name": "Approve and Relay Bridge",
+      "description": "Approves and bridges tokens via the Relay depository with destination execution by Relay solvers",
+      "hookType": "NONACCOUNTING",
+      "subtype": "BRIDGE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "RelaySendFundsAndExecuteOnDstHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "relay"
       ]
     },
     "StargateSendHook": {

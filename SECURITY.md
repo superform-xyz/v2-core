@@ -43,3 +43,9 @@ Once an intent is signed, there are several valid methods to execute it, even in
 
 #### 12. Token decimals
 Superform's yield sources and oracle calculations are designed with ERC-20 assets that use up to 18 decimals of precision in mind. Yield source assets with more than 18 decimals are considered non-standard and unsupported.
+
+#### 13. Relay fill liveness and off-chain refunds
+Relay Protocol deposits (RelaySendFundsAndExecuteOnDstHook / ApproveAndRelaySendFundsAndExecuteOnDstHook) are escrowed in Relay's depository, which has no user-side on-chain withdrawal or cancellation function. If no solver fills an order, the refund is performed by Relay's solver on the origin chain and attested by Relay's off-chain Oracle/Allocator stack. Execution safety of user funds on the destination remains anchored in Superform's destination signature and balance validation; Relay's trust stack affects liveness only. This is the same trust class as Across/deBridge relayer fill liveness.
+
+#### 14. RelayAdapter atomic-batch assumption
+The RelayAdapter is permissionless (Relay has no authenticatable destination caller). Its received-funds guard and escrow accounting prevent phantom failed-transfer credits and cross-user escrow sweeps. However, funds parked in the adapter between two separate solver transactions — a deviation from Relay's atomic txs[] batching (allowFailure = false) — are forwardable by any caller presenting a validly-signed message for their own account until the legitimate second leg lands. The SuperBundler must always request fund delivery and the adapter call as one atomic batch.

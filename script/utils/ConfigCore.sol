@@ -34,6 +34,27 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.acrossSpokePoolV3s[FLARE_CHAIN_ID] = address(0); // Not deployed yet
         configuration.acrossSpokePoolV3s[STABLE_CHAIN_ID] = address(0); // Not deployed yet
 
+        // ===== RELAY DEPOSITORY ADDRESSES =====
+        // Enablement is a deploy-time decision: set a chain to RELAY_DEPOSITORY_CANONICAL (after
+        // verifying it against relay-depository deployments/addresses.prod.json — the address is
+        // NOT universal) to deploy the Relay hooks + adapter there. address(0) = disabled/skipped.
+        configuration.relayDepositories[MAINNET_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
+        configuration.relayDepositories[BASE_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
+        configuration.relayDepositories[BNB_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
+        configuration.relayDepositories[ARBITRUM_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
+        configuration.relayDepositories[OPTIMISM_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
+        configuration.relayDepositories[POLYGON_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
+        configuration.relayDepositories[UNICHAIN_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
+        configuration.relayDepositories[LINEA_CHAIN_ID] = RELAY_DEPOSITORY_LINEA; // Non-canonical deployment
+        configuration.relayDepositories[AVALANCHE_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
+        configuration.relayDepositories[BERACHAIN_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
+        configuration.relayDepositories[SONIC_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
+        configuration.relayDepositories[GNOSIS_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
+        configuration.relayDepositories[WORLDCHAIN_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
+        configuration.relayDepositories[HYPEREVM_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
+        configuration.relayDepositories[FLARE_CHAIN_ID] = address(0); // Relay not deployed on Flare
+        configuration.relayDepositories[STABLE_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL; // Stable (988) deployed
+
         // ===== DEBRIDGE DLN SOURCE ADDRESSES =====
         configuration.debridgeSrcDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_SRC;
         configuration.debridgeSrcDln[BASE_CHAIN_ID] = DEBRIDGE_DLN_SRC;
