@@ -199,9 +199,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             _deployAaveV4Hooks(chainId, env);
         }
 
-        // Aave V3 hooks — every chain (Pool address is a runtime calldata param, no per-chain dependency)
-        console2.log("Deploying Aave V3 Hooks on chainId: ", chainId);
-        _deployAaveV3Hooks(chainId, env);
+        // Aave V3 hooks — only on chains where Aave V3 is deployed
+        if (otherHooksConfiguration.aaveV3Pools[chainId] != address(0)) {
+            console2.log("Deploying Aave V3 Hooks on chainId: ", chainId);
+            _deployAaveV3Hooks(chainId, env);
+        }
 
         // Firelight hooks — only on Flare
         if (chainId == FLARE_CHAIN_ID) {

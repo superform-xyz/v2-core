@@ -16,6 +16,7 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         mapping(uint64 chainId => address algebraSwapRouter) algebraSwapRouters;
         mapping(uint64 chainId => address odosRouterV3) odosRouterV3s;
         mapping(uint64 chainId => address spectraRouter) spectraRouters;
+        mapping(uint64 chainId => address aaveV3Pool) aaveV3Pools;
     }
 
     OtherHooksData internal otherHooksConfiguration;
@@ -33,6 +34,19 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         otherHooksConfiguration.morphos[ARBITRUM_CHAIN_ID] = MORPHO_ARBITRUM;
         otherHooksConfiguration.morphos[ROBINHOOD_CHAIN_ID] = MORPHO_ROBINHOOD; // Morpho live on RH (chain 4663)
         otherHooksConfiguration.morphos[BNB_CHAIN_ID] = MORPHO_BNB;
+
+        // Aave V3 Pool per chain — gates Aave V3 hook deployment (only where Aave V3 is live).
+        otherHooksConfiguration.aaveV3Pools[MAINNET_CHAIN_ID] = AAVE_V3_POOL_MAINNET;
+        otherHooksConfiguration.aaveV3Pools[BASE_CHAIN_ID] = AAVE_V3_POOL_BASE;
+        otherHooksConfiguration.aaveV3Pools[BNB_CHAIN_ID] = AAVE_V3_POOL_BNB;
+        otherHooksConfiguration.aaveV3Pools[ARBITRUM_CHAIN_ID] = AAVE_V3_POOL_ARBITRUM;
+        otherHooksConfiguration.aaveV3Pools[OPTIMISM_CHAIN_ID] = AAVE_V3_POOL_OPTIMISM;
+        otherHooksConfiguration.aaveV3Pools[POLYGON_CHAIN_ID] = AAVE_V3_POOL_POLYGON;
+        otherHooksConfiguration.aaveV3Pools[AVALANCHE_CHAIN_ID] = AAVE_V3_POOL_AVALANCHE;
+        otherHooksConfiguration.aaveV3Pools[GNOSIS_CHAIN_ID] = AAVE_V3_POOL_GNOSIS;
+        otherHooksConfiguration.aaveV3Pools[LINEA_CHAIN_ID] = AAVE_V3_POOL_LINEA;
+        otherHooksConfiguration.aaveV3Pools[SONIC_CHAIN_ID] = AAVE_V3_POOL_SONIC;
+        // Not deployed on: Unichain, Berachain, Worldchain, HyperEVM, Flare, Stable, Robinhood.
 
         // Algebra Integral (SparkDEX V4)
         otherHooksConfiguration.algebraSwapRouters[FLARE_CHAIN_ID] = ALGEBRA_INTEGRAL_SWAP_ROUTER_FLARE;
