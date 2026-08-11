@@ -230,6 +230,17 @@ AAVE_V4_HOOK_CONTRACTS=(
     "AaveV4RepayAndWithdrawHook"
 )
 
+# Aave V3 hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
+AAVE_V3_HOOK_CONTRACTS=(
+    "AaveV3SupplyHook"
+    "AaveV3WithdrawHook"
+    "AaveV3BorrowHook"
+    "AaveV3RepayHook"
+    "AaveV3RepayWithATokensHook"
+    "AaveV3SupplyAndBorrowHook"
+    "AaveV3RepayAndWithdrawHook"
+)
+
 # DETH hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
 DETH_HOOK_CONTRACTS=(
     "RequestRedeemDETHHook"
@@ -338,6 +349,15 @@ else
         fi
     done
 
+    # Copy Aave V3 hook contracts
+    log "INFO" "${BLUE}🪝 Copying Aave V3 hook contracts...${NC}"
+    failed_aavev3=0
+    for contract in "${AAVE_V3_HOOK_CONTRACTS[@]}"; do
+        if ! copy_contract "$contract"; then
+            failed_aavev3=$((failed_aavev3 + 1))
+        fi
+    done
+
     # Copy DETH hook contracts
     log "INFO" "${BLUE}🪝 Copying DETH hook contracts...${NC}"
     failed_deth=0
@@ -375,8 +395,8 @@ else
     done
 
     # Summary for all contracts mode
-    total_contracts=$((${#CORE_CONTRACTS[@]} + ${#HOOK_CONTRACTS[@]} + ${#ORACLE_CONTRACTS[@]} + ${#MORPHO_HOOK_CONTRACTS[@]} + ${#AAVE_V4_HOOK_CONTRACTS[@]} + ${#DETH_HOOK_CONTRACTS[@]} + ${#SPONSORSHIP_CONTRACTS[@]} + ${#RFLR_HOOK_CONTRACTS[@]} + ${#ODOS_V3_HOOK_CONTRACTS[@]}))
-    total_failed=$((failed_core + failed_hooks + failed_oracles + failed_morpho + failed_aavev4 + failed_deth + failed_sponsorship + failed_rflr + failed_odosv3))
+    total_contracts=$((${#CORE_CONTRACTS[@]} + ${#HOOK_CONTRACTS[@]} + ${#ORACLE_CONTRACTS[@]} + ${#MORPHO_HOOK_CONTRACTS[@]} + ${#AAVE_V4_HOOK_CONTRACTS[@]} + ${#AAVE_V3_HOOK_CONTRACTS[@]} + ${#DETH_HOOK_CONTRACTS[@]} + ${#SPONSORSHIP_CONTRACTS[@]} + ${#RFLR_HOOK_CONTRACTS[@]} + ${#ODOS_V3_HOOK_CONTRACTS[@]}))
+    total_failed=$((failed_core + failed_hooks + failed_oracles + failed_morpho + failed_aavev4 + failed_aavev3 + failed_deth + failed_sponsorship + failed_rflr + failed_odosv3))
     total_success=$((total_contracts - total_failed))
 
     log "INFO" "${BLUE}📊 Summary:${NC}"
@@ -400,6 +420,10 @@ else
 
     if [ $failed_aavev4 -gt 0 ]; then
         log "WARN" "${YELLOW}  ⚠️  Failed Aave V4 hook contracts: ${failed_aavev4}/${#AAVE_V4_HOOK_CONTRACTS[@]}${NC}"
+    fi
+
+    if [ $failed_aavev3 -gt 0 ]; then
+        log "WARN" "${YELLOW}  ⚠️  Failed Aave V3 hook contracts: ${failed_aavev3}/${#AAVE_V3_HOOK_CONTRACTS[@]}${NC}"
     fi
 
     if [ $failed_deth -gt 0 ]; then

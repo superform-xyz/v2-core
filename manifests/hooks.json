@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-08-06T03:36:06Z",
+  "generatedAt": "2026-08-11T08:04:03Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -6587,6 +6587,297 @@
       "asyncLifecycle": null,
       "compatibleProtocols": [
         "aave-v4"
+      ]
+    },
+    "AaveV3SupplyHook": {
+      "name": "Aave V3 Supply",
+      "description": "Supplies assets to an Aave V3 pool",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "lend",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aave-v3"
+      ]
+    },
+    "AaveV3WithdrawHook": {
+      "name": "Aave V3 Withdraw",
+      "description": "Withdraws supplied assets from an Aave V3 pool",
+      "subtype": "LOAN_REPAY",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aave-v3"
+      ]
+    },
+    "AaveV3BorrowHook": {
+      "name": "Aave V3 Borrow",
+      "description": "Borrows assets from an Aave V3 pool",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "borrow",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aave-v3"
+      ]
+    },
+    "AaveV3RepayHook": {
+      "name": "Aave V3 Repay",
+      "description": "Repays debt on an Aave V3 pool",
+      "subtype": "LOAN_REPAY",
+      "actionTypes": [
+        {
+          "intent": "repay",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aave-v3"
+      ]
+    },
+    "AaveV3RepayWithATokensHook": {
+      "name": "Aave V3 Repay With ATokens",
+      "description": "Repays Aave V3 debt using the account's aTokens",
+      "subtype": "LOAN_REPAY",
+      "actionTypes": [
+        {
+          "intent": "repay",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aave-v3"
+      ]
+    },
+    "AaveV3SupplyAndBorrowHook": {
+      "name": "Aave V3 Supply and Borrow",
+      "description": "Supplies collateral and borrows assets from an Aave V3 pool",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "lend",
+          "stage": "instant"
+        },
+        {
+          "intent": "borrow",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized",
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        },
+        {
+          "direction": "OUT",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aave-v3"
+      ]
+    },
+    "AaveV3RepayAndWithdrawHook": {
+      "name": "Aave V3 Repay and Withdraw",
+      "description": "Repays debt and withdraws collateral from an Aave V3 pool",
+      "subtype": "LOAN_REPAY",
+      "actionTypes": [
+        {
+          "intent": "repay",
+          "stage": "instant"
+        },
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized",
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        },
+        {
+          "direction": "OUT",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aave-v3"
       ]
     },
     "MorphoBorrowHook": {

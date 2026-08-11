@@ -271,6 +271,14 @@ abstract contract Constants {
     string internal constant AAVE_V4_SUPPLY_AND_BORROW_HOOK_KEY = "AaveV4SupplyAndBorrowHook";
     string internal constant AAVE_V4_REPAY_AND_WITHDRAW_HOOK_KEY = "AaveV4RepayAndWithdrawHook";
 
+    string internal constant AAVE_V3_SUPPLY_HOOK_KEY = "AaveV3SupplyHook";
+    string internal constant AAVE_V3_WITHDRAW_HOOK_KEY = "AaveV3WithdrawHook";
+    string internal constant AAVE_V3_BORROW_HOOK_KEY = "AaveV3BorrowHook";
+    string internal constant AAVE_V3_REPAY_HOOK_KEY = "AaveV3RepayHook";
+    string internal constant AAVE_V3_SUPPLY_AND_BORROW_HOOK_KEY = "AaveV3SupplyAndBorrowHook";
+    string internal constant AAVE_V3_REPAY_AND_WITHDRAW_HOOK_KEY = "AaveV3RepayAndWithdrawHook";
+    string internal constant AAVE_V3_REPAY_WITH_ATOKENS_HOOK_KEY = "AaveV3RepayWithATokensHook";
+
     string internal constant CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "CancelDepositRequest7540Hook";
     string internal constant CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "CancelRedeemRequest7540Hook";
     string internal constant CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "ClaimCancelDepositRequest7540Hook";
