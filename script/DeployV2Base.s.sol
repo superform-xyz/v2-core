@@ -212,13 +212,13 @@ abstract contract DeployV2Base is Script, ConfigBase {
         if (!__checkBytecodeExists(contractName, env)) {
             // If bytecode doesn't exist, log it and track as skipped
             console2.log(
-                string(abi.encodePacked(contractName, " Addr: ")), 
-                "SKIPPED - Bytecode not found", 
-                " || >> Code Size: ", 
+                string(abi.encodePacked(contractName, " Addr: ")),
+                "SKIPPED - Bytecode not found",
+                " || >> Code Size: ",
                 0
             );
             console2.log("");
-            
+
             // Track this as a skipped contract in the deployment status
             _saveContractStatus(chainId, contractName, false, address(0));
             return (false, address(0));
@@ -325,7 +325,7 @@ abstract contract DeployV2Base is Script, ConfigBase {
     function _countDeployedContracts(uint64 chainId) internal view returns (uint256 deployedCount) {
         string[] memory contractNames = allContractNames[chainId];
         deployedCount = 0;
-        
+
         for (uint256 i = 0; i < contractNames.length; i++) {
             ContractStatus memory status = contractDeploymentStatus[chainId][contractNames[i]];
             if (status.isDeployed) {
@@ -430,7 +430,7 @@ abstract contract DeployV2Base is Script, ConfigBase {
     /// @return exists Whether the bytecode artifact file exists
     function __checkBytecodeExists(string memory contractName, uint256 env) internal view returns (bool exists) {
         string memory artifactPath = __getBytecodeArtifactPath(contractName, env);
-        
+
         // Use try/catch to safely check if bytecode artifact exists
         // vm.getCode() will revert if the artifact file doesn't exist
         try vm.getCode(artifactPath) returns (bytes memory) {
