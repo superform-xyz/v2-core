@@ -22,6 +22,9 @@ import { AaveV3SupplyHook } from "../../../src/hooks/loan/aave-v3/AaveV3SupplyHo
 import { AaveV3WithdrawHook } from "../../../src/hooks/loan/aave-v3/AaveV3WithdrawHook.sol";
 import { AaveV3BorrowHook } from "../../../src/hooks/loan/aave-v3/AaveV3BorrowHook.sol";
 import { AaveV3RepayHook } from "../../../src/hooks/loan/aave-v3/AaveV3RepayHook.sol";
+import { AaveV3SupplyAndBorrowHook } from "../../../src/hooks/loan/aave-v3/AaveV3SupplyAndBorrowHook.sol";
+import { AaveV3RepayAndWithdrawHook } from "../../../src/hooks/loan/aave-v3/AaveV3RepayAndWithdrawHook.sol";
+import { AaveV3RepayWithATokensHook } from "../../../src/hooks/loan/aave-v3/AaveV3RepayWithATokensHook.sol";
 
 // test utils
 import { Helpers } from "../../utils/Helpers.sol";
@@ -56,9 +59,13 @@ abstract contract AaveV3ChainForkBase is Helpers, RhinestoneModuleKit, InternalH
     AaveV3WithdrawHook internal withdrawHook;
     AaveV3BorrowHook internal borrowHook;
     AaveV3RepayHook internal repayHook;
+    AaveV3SupplyAndBorrowHook internal supplyAndBorrowHook;
+    AaveV3RepayAndWithdrawHook internal repayAndWithdrawHook;
+    AaveV3RepayWithATokensHook internal repayWithATokensHook;
 
     address internal aWeth;
     address internal vUsdc;
+    address internal aUsdc;
 
     function setUp() public virtual {
         // Skip gracefully when this chain's RPC isn't configured (keeps ftest-ci green on partial setups).
@@ -80,11 +87,15 @@ abstract contract AaveV3ChainForkBase is Helpers, RhinestoneModuleKit, InternalH
         withdrawHook = new AaveV3WithdrawHook();
         borrowHook = new AaveV3BorrowHook();
         repayHook = new AaveV3RepayHook();
+        supplyAndBorrowHook = new AaveV3SupplyAndBorrowHook();
+        repayAndWithdrawHook = new AaveV3RepayAndWithdrawHook();
+        repayWithATokensHook = new AaveV3RepayWithATokensHook();
         paymaster = ISuperNativePaymaster(new SuperNativePaymaster(IEntryPoint(ENTRYPOINT_ADDR)));
 
         aWeth = IPool(_pool()).getReserveData(_weth()).aTokenAddress;
         vUsdc = IPool(_pool()).getReserveData(_usdc()).variableDebtTokenAddress;
-        require(aWeth != address(0) && vUsdc != address(0), "reserves not found");
+        aUsdc = IPool(_pool()).getReserveData(_usdc()).aTokenAddress;
+        require(aWeth != address(0) && vUsdc != address(0) && aUsdc != address(0), "reserves not found");
 
         _getTokens(_weth(), account, 10e18);
     }
@@ -104,6 +115,11 @@ abstract contract AaveV3ChainForkBase is Helpers, RhinestoneModuleKit, InternalH
 
     function _br(address loan, address coll, uint8 mode, uint256 amt) private view returns (bytes memory) {
         return abi.encodePacked(_hdr(), loan, coll, _pool(), mode, amt, false);
+    }
+
+    // combined (supplyAndBorrow / repayAndWithdraw): ...pool, rate, amount1, amount2, usePrev
+    function _cb(address loan, address coll, uint256 a1, uint256 a2) private view returns (bytes memory) {
+        return abi.encodePacked(_hdr(), loan, coll, _pool(), VARIABLE, a1, a2, false);
     }
 
     function _exec(address hook, bytes memory data) private {
@@ -166,5 +182,41 @@ abstract contract AaveV3ChainForkBase is Helpers, RhinestoneModuleKit, InternalH
         uint256 aBefore = IERC20(aWeth).balanceOf(account);
         _exec(address(withdrawHook), _sw(_usdc(), _weth(), SUPPLY_WETH / 2));
         assertApproxEqAbs(aBefore - IERC20(aWeth).balanceOf(account), SUPPLY_WETH / 2, 2, "aWETH burned");
+    }
+
+    /// @notice Combined SupplyAndBorrow in a single hook, per chain.
+    function test_Chain_SupplyAndBorrow() external {
+        uint256 usdcBefore = IERC20(_usdc()).balanceOf(account);
+        _exec(address(supplyAndBorrowHook), _cb(_usdc(), _weth(), SUPPLY_WETH, BORROW_USDC));
+        assertEq(IERC20(_usdc()).balanceOf(account) - usdcBefore, BORROW_USDC, "USDC borrowed");
+        assertGt(IERC20(vUsdc).balanceOf(account), 0, "has debt");
+        assertGt(IERC20(aWeth).balanceOf(account), 0, "has collateral");
+    }
+
+    /// @notice Combined RepayAndWithdraw: full repay (max) + full withdraw (max), per chain.
+    function test_Chain_RepayAndWithdraw_Full() external {
+        _exec(address(supplyAndBorrowHook), _cb(_usdc(), _weth(), SUPPLY_WETH, BORROW_USDC));
+
+        vm.warp(block.timestamp + 7 days);
+        vm.roll(block.number + 50_000);
+        _getTokens(_usdc(), account, IERC20(_usdc()).balanceOf(account) + 20e6); // cover interest
+
+        _exec(address(repayAndWithdrawHook), _cb(_usdc(), _weth(), type(uint256).max, type(uint256).max));
+        assertEq(IERC20(vUsdc).balanceOf(account), 0, "debt cleared");
+        assertEq(IERC20(aWeth).balanceOf(account), 0, "collateral fully withdrawn");
+    }
+
+    /// @notice Leverage-unwind via repayWithATokens (aUSDC in the collateral slot; no approval), per chain.
+    function test_Chain_RepayWithATokens() external {
+        _exec(address(supplyAndBorrowHook), _cb(_usdc(), _weth(), SUPPLY_WETH, BORROW_USDC));
+        // Supply the borrowed USDC back to mint aUSDC, so the account can repay debt with aTokens.
+        _exec(address(supplyHook), _sw(_usdc(), _usdc(), BORROW_USDC));
+
+        uint256 debtBefore = IERC20(vUsdc).balanceOf(account);
+        assertGt(debtBefore, 0, "has USDC debt");
+        assertGt(IERC20(aUsdc).balanceOf(account), 0, "has aUSDC");
+
+        _exec(address(repayWithATokensHook), _br(_usdc(), aUsdc, VARIABLE, type(uint256).max));
+        assertLt(IERC20(vUsdc).balanceOf(account), debtBefore, "debt reduced via aTokens");
     }
 }

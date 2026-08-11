@@ -198,6 +198,37 @@ contract AaveV3HooksIntegrationTest is MinimalBaseIntegrationTest {
         assertGt(IERC20(weth).balanceOf(accountEth), wethBefore, "WETH returned");
     }
 
+    /// @notice Full withdraw via type(uint256).max sentinel (no debt) — burns all aWETH, returns all WETH.
+    function test_Withdraw_Full_Max() external {
+        _supply(SUPPLY_WETH);
+        assertApproxEqAbs(IERC20(aWeth).balanceOf(accountEth), SUPPLY_WETH, 2, "aWETH minted");
+        uint256 wethBefore = IERC20(weth).balanceOf(accountEth);
+
+        _exec(address(withdrawHook), _sw(usdc, weth, type(uint256).max));
+
+        assertEq(IERC20(aWeth).balanceOf(accountEth), 0, "aWETH fully burned");
+        assertApproxEqAbs(IERC20(weth).balanceOf(accountEth) - wethBefore, SUPPLY_WETH, 2, "WETH fully returned");
+    }
+
+    /// @notice Repay with an explicit amount larger than the debt: Aave caps at outstanding debt,
+    ///         so the position clears and only ~debt (never the full offered amount) is pulled.
+    function test_Repay_OverAmount_CapsAtDebt() external {
+        _exec(address(supplyAndBorrowHook), _cb(usdc, weth, SUPPLY_WETH, BORROW_USDC));
+        uint256 debt = IERC20(vUsdc).balanceOf(accountEth);
+        assertGt(debt, 0, "has debt");
+
+        // Fund 2x the debt and attempt to repay 2x with an explicit (non-max) amount.
+        _getTokens(usdc, accountEth, IERC20(usdc).balanceOf(accountEth) + debt * 2);
+        uint256 usdcBefore = IERC20(usdc).balanceOf(accountEth);
+
+        _exec(address(repayHook), _br(usdc, weth, VARIABLE, debt * 2));
+
+        assertEq(IERC20(vUsdc).balanceOf(accountEth), 0, "debt fully cleared");
+        uint256 spent = usdcBefore - IERC20(usdc).balanceOf(accountEth);
+        assertGe(spent, debt, "spent at least the debt");
+        assertLt(spent, debt * 2, "repay capped at debt, not the full 2x offered");
+    }
+
     /// @notice Partial withdraw of supplied collateral (no debt).
     function test_Withdraw_Partial() external {
         _supply(SUPPLY_WETH);

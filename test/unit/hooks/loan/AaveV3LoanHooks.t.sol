@@ -279,4 +279,39 @@ contract AaveV3LoanHooksTest is Helpers {
         bytes memory out = borrowHook.replaceCalldataAmounts(data, repl);
         assertEq(borrowHook.decodeAmounts(out)[0], 999);
     }
+
+    /// @notice Fuzz: single-amount decode + replace round-trips for any amount, and the usePrev flag
+    ///         (immediately after the amount) is never corrupted by the in-place amount replacement.
+    function testFuzz_Sizing_Single_RoundTrip(uint256 amt, uint256 repAmt, bool usePrev) public view {
+        bytes memory data = _br(VARIABLE, amt, usePrev);
+        assertEq(borrowHook.decodeAmounts(data)[0], amt, "decode single");
+        assertEq(borrowHook.decodeUsePrevHookAmount(data), usePrev, "decode usePrev");
+
+        uint256[] memory repl = new uint256[](1);
+        repl[0] = repAmt;
+        bytes memory out = borrowHook.replaceCalldataAmounts(data, repl);
+        assertEq(borrowHook.decodeAmounts(out)[0], repAmt, "replace single round-trip");
+        assertEq(borrowHook.decodeUsePrevHookAmount(out), usePrev, "usePrev preserved after replace");
+        assertEq(out.length, data.length, "length preserved");
+    }
+
+    /// @notice Fuzz: two-amount (combined) decode + replace round-trips independently for both slots,
+    ///         with the trailing usePrev flag preserved across replacement.
+    function testFuzz_Sizing_Combined_RoundTrip(uint256 a1, uint256 a2, uint256 r1, uint256 r2) public view {
+        bytes memory data = _cb(VARIABLE, a1, a2, true);
+        uint256[] memory amts = supplyAndBorrowHook.decodeAmounts(data);
+        assertEq(amts.length, 2, "two amounts");
+        assertEq(amts[0], a1, "decode a1");
+        assertEq(amts[1], a2, "decode a2");
+
+        uint256[] memory repl = new uint256[](2);
+        repl[0] = r1;
+        repl[1] = r2;
+        bytes memory out = supplyAndBorrowHook.replaceCalldataAmounts(data, repl);
+        uint256[] memory back = supplyAndBorrowHook.decodeAmounts(out);
+        assertEq(back[0], r1, "replace a1");
+        assertEq(back[1], r2, "replace a2");
+        assertTrue(supplyAndBorrowHook.decodeUsePrevHookAmount(out), "usePrev preserved");
+        assertEq(out.length, data.length, "length preserved");
+    }
 }
