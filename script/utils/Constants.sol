@@ -30,7 +30,6 @@ abstract contract Constants {
     string internal constant SUPER_GOVERNOR_KEY = "SuperGovernor";
     string internal constant SUPER_EXECUTOR_KEY = "SuperExecutor";
     string internal constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
-    string internal constant ACROSS_V3_ADAPTER_KEY = "AcrossV3Adapter";
     string internal constant ACROSS_V3_ADAPTER_V2_KEY = "AcrossV3AdapterV2";
     string internal constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
     string internal constant STARGATE_ADAPTER_KEY = "StargateAdapter";
@@ -81,6 +80,7 @@ abstract contract Constants {
     address internal constant ACROSS_SPOKE_POOL_POLYGON = 0x9295ee1d8C5b022Be115A2AD3c30C72E34e7F096;
     address internal constant ACROSS_SPOKE_POOL_UNICHAIN = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
     address internal constant ACROSS_SPOKE_POOL_LINEA = 0x7E63A5f1a8F0B4d0934B2f2327DAED3F6bb2ee75;
+    address internal constant ACROSS_SPOKE_POOL_AVALANCHE = 0xFE9D541c92E4e90437C7152A00244886dE37a658;
     address internal constant ACROSS_SPOKE_POOL_WORLDCHAIN = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
     address internal constant ACROSS_SPOKE_POOL_HYPEREVM = 0x35E63eA3eb0fb7A3bc543C71FB66412e1F6B0E04;
 
@@ -175,9 +175,6 @@ abstract contract Constants {
     address internal constant ALGEBRA_INTEGRAL_SWAP_ROUTER_FLARE = 0x69D57B9D705eaD73a5d2f2476C30c55bD755cc2F;
 
     // Hook Keys
-    string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
-    string internal constant APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY =
-        "ApproveAndAcrossSendFundsAndExecuteOnDstHook";
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY = "AcrossSendFundsAndExecuteOnDstHookV2";
     string internal constant APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY =
         "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2";
