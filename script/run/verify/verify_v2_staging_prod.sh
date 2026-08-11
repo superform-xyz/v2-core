@@ -736,11 +736,6 @@ get_contract_source() {
         "UniV3CLPRegistry") echo "src/accounting/oracles/UniV3CLPRegistry.sol" ;;
         "UniV3CLPYieldSourceOracle") echo "src/accounting/oracles/UniV3CLPYieldSourceOracle.sol" ;;
 
-        # Nexus contracts (external library - skip verification from this repo)
-        "Nexus"|"NexusAccountFactory"|"NexusBootstrap"|"NexusProxy")
-            echo "SKIP_EXTERNAL_LIB"
-            ;;
-
         *) echo "src/core/unknown/$contract_name.sol" ;;
     esac
 }

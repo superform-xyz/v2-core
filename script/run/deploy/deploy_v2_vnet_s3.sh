@@ -698,9 +698,9 @@ has_contract_changes() {
     ')
     
     # Check for removed contracts (contracts that exist in S3 but not in new deployment)
-    # Exclude Nexus contracts and banned contracts from being considered removable
+    # Exclude banned contracts from being considered removable.
     local removed_contract_count=$(echo "$existing_contracts" | jq --argjson new_contracts "$new_contracts" '
-        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "NexusProxy" and $k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle" and $k != "MockDex" and $k != "MockDexHook"))] | length
+        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle" and $k != "MockDex" and $k != "MockDexHook"))] | length
     ')
     
     # Return true if there are any new, updated, or removed contracts
@@ -743,9 +743,9 @@ show_contract_diff() {
     ' | tr '\n' ' ')
     
     # Show removed contracts (contracts that exist in S3 but not in new deployment)
-    # Exclude Nexus contracts and banned contracts from being shown as removed
+    # Exclude banned contracts from being shown as removed.
     local removed_contract_names=$(echo "$existing_contracts" | jq -r --argjson new_contracts "$new_contracts" '
-        to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "NexusProxy" and $k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory" and $k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle" and $k != "MockDex" and $k != "MockDexHook")) | .key
+        to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "SuperGovernor" and $k != "SuperVaultAggregator" and $k != "ECDSAPPSOracle" and $k != "MockDex" and $k != "MockDexHook")) | .key
     ' | tr '\n' ' ')
     
     local changes_shown=false
@@ -1462,7 +1462,7 @@ update_latest_file() {
             log "ERROR" "Failed to parse JSON from contract file for $network_slug"
             exit 1
         fi
-        
+
         # Add mock contracts for demo branch
         if [ "$BRANCH_NAME" = "demo" ]; then
             contracts=$(echo "$contracts" | jq '. + {
@@ -1495,13 +1495,9 @@ update_latest_file() {
     
     # Update content with all network deployment info at once
     for network_slug in "Ethereum" "Base" "Optimism"; do
-        # Preserve existing banned contracts before updating
+        # Preserve existing banned contracts before updating.
         local existing_contracts=$(echo "$content" | jq -r ".networks[\"$network_slug\"].contracts // {}")
         local banned_contracts=$(echo "$existing_contracts" | jq '{
-            NexusProxy: .NexusProxy,
-            Nexus: .Nexus,
-            NexusBootstrap: .NexusBootstrap,
-            NexusAccountFactory: .NexusAccountFactory,
             SuperGovernor: .SuperGovernor,
             SuperVaultAggregator: .SuperVaultAggregator,
             ECDSAPPSOracle: .ECDSAPPSOracle,
