@@ -84,9 +84,8 @@ has_contract_changes() {
     ')
     
     # Check for removed contracts (contracts that exist in existing but not in new deployment)
-    # Exclude Nexus contracts from being considered removable
     local removed_contract_count=$(echo "$existing_contracts" | jq --argjson new_contracts "$new_contracts" '
-        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "NexusProxy" and $k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory"))] | length
+        [to_entries[] | select(.key as $k | $new_contracts | has($k) | not)] | length
     ')
     
     # Return true if there are any new, updated, or removed contracts
@@ -122,9 +121,8 @@ show_contract_diff() {
     ' 2>/dev/null | grep -v '^null$' | grep -v '^:' | tr '\n' ' ')
 
     # Show removed contracts (contracts that exist in existing but not in new deployment)
-    # Exclude Nexus contracts from being shown as removed
     local removed_contract_names=$(echo "$existing_contracts" | jq -r --argjson new_contracts "$new_contracts" '
-        to_entries[] | select(.key as $k | $new_contracts | has($k) | not and ($k != "NexusProxy" and $k != "Nexus" and $k != "NexusBootstrap" and $k != "NexusAccountFactory")) | .key
+        to_entries[] | select(.key as $k | $new_contracts | has($k) | not) | .key
     ' 2>/dev/null | grep -v '^null$' | grep -v '^:' | tr '\n' ' ')
     
     local changes_shown=false
@@ -339,7 +337,7 @@ batch_generate_latest_json() {
             update_summary+=("❌ $network_name: Failed to parse JSON")
             continue
         fi
-        
+
         log "INFO" "Successfully parsed contracts JSON for $network_name"
         
         # Preserve existing contracts and merge with new ones
@@ -363,51 +361,11 @@ batch_generate_latest_json() {
             log "INFO" "Creating new network entry for $network_name"
         fi
         
-        # Preserve existing Nexus contracts in both the aggregate latest.json
-        # and the chain-specific deployment file.
-        local nexus_contracts=$(echo "$existing_contracts" | jq '{
-            NexusProxy: .NexusProxy,
-            Nexus: .Nexus,
-            NexusBootstrap: .NexusBootstrap,
-            NexusAccountFactory: .NexusAccountFactory
-        } | with_entries(select(.value != null))')
-
-        local nexus_count=$(echo "$nexus_contracts" | jq 'length')
-        local chain_file_updated=false
-        if [ "$nexus_count" -gt 0 ]; then
-            log "INFO" "Preserving $nexus_count Nexus contracts for $network_name"
-
-            local nexus_mismatch_count=$(jq -n \
-                --argjson contracts "$contracts" \
-                --argjson nexus "$nexus_contracts" \
-                '$nexus | to_entries | map(select($contracts[.key] != .value)) | length')
-            contracts=$(jq -c -n \
-                --argjson contracts "$contracts" \
-                --argjson nexus "$nexus_contracts" \
-                '$contracts + $nexus')
-
-            if [ "$nexus_mismatch_count" -gt 0 ]; then
-                echo "$contracts" | jq '.' > "$contracts_file" || {
-                    log "ERROR" "Failed to sync Nexus contracts into $contracts_file"
-                    update_summary+=("❌ $network_name: Failed to sync Nexus contracts into chain file")
-                    continue
-                }
-                chain_file_updated=true
-                log "INFO" "Synced Nexus contracts into chain file for $network_name"
-            fi
-        fi
-
         # Check if there are any changes for this network
         if has_contract_changes "$existing_contracts" "$contracts"; then
             log "INFO" "Changes detected for $network_name"
             total_changes=$((total_changes + 1))
         else
-            if [ "$chain_file_updated" = true ]; then
-                update_summary+=("✅ $network_name: Chain file synced with preserved Nexus contracts")
-                successful_networks=$((successful_networks + 1))
-                echo -e "${GREEN}   ✅ $network_name chain file synced with preserved Nexus contracts${NC}"
-                continue
-            fi
             log "INFO" "No changes detected for $network_name - skipping"
             echo -e "${CYAN}   📋 $network_name: No changes detected, skipping${NC}"
             continue
@@ -495,7 +453,7 @@ batch_generate_latest_json() {
     # Display contract differences for confirmation
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}📋 Contract Changes that will be saved to latest.json:${NC}"
-    echo -e "${CYAN}💡 Note: Full replacement - removed contracts will be deleted (except Nexus contracts)${NC}"
+    echo -e "${CYAN}💡 Note: Full replacement - removed contracts will be deleted${NC}"
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
     # Show diffs for each network

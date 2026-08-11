@@ -349,8 +349,7 @@ is_unsupported_chain() {
 
 # ── JSON merge ─────────────────────────────────────────────────────────────────
 
-# Preserve entries in chain output JSON that the forge script doesn't manage
-# (e.g., Nexus contracts deployed by a separate process).
+# Preserve entries in chain output JSON that the forge script doesn't manage.
 preserve_existing_json_entries() {
     local output_file=$1
     local backup_file=$2
@@ -367,7 +366,7 @@ with open('$output_file') as f:
     new = json.load(f)
 with open('$backup_file') as f:
     old = json.load(f)
-# Add back any keys from the old file that are missing in the new file
+# Add back any keys from the old file that are missing in the new file.
 changed = False
 for k, v in old.items():
     if k not in new:
