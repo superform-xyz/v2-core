@@ -58,7 +58,8 @@ import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
 /// @dev used directly as TokenOutput.tokenRedeemSy (sell/redeem). Native input is address(0);
 /// @dev the 0xEeee… sentinel is normalized to address(0) on the buy input side.
 /// @dev data layout: standard Layer 0 (52-byte header) + Layer 1 (swap params) + Layer 2 (payload)
-/// @notice         bytes32   placeholder0 = BytesLib.toBytes32(data, 0);
+
+/// @notice         bytes32   placeholder0     = BytesLib.toBytes32(data, 0);
 /// @notice         address   yieldSource      = BytesLib.toAddress(data, 32);
 /// @notice         address   inputToken       = BytesLib.toAddress(data, 52);
 /// @notice         address   outputToken      = BytesLib.toAddress(data, 72);
