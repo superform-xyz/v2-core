@@ -519,6 +519,16 @@
     "pipeMode": "passthrough"
   },
   {
+    "hookKey": "RECORD_PURCHASE_PENDLE_PT_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "passthrough"
+  },
+  {
+    "hookKey": "RECORD_REDEMPTION_PENDLE_PT_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "passthrough"
+  },
+  {
     "hookKey": "REDEEM_4626_VAULT_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "transform"

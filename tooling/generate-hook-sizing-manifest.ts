@@ -174,6 +174,8 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
   RecordRedemptionPendlePTAmortizedOracleHook: { mode: "sizeless" }, // oracle record, uses prevHook
   RecordPurchasePendlePTAmortizedOracleHookV2: { mode: "sizeless" },
   RecordRedemptionPendlePTAmortizedOracleHookV2: { mode: "sizeless" },
+  RecordPurchasePendlePTHook: { mode: "sizeless" },   // oracle record, uses PendlePTHook TradeResult
+  RecordRedemptionPendlePTHook: { mode: "sizeless" }, // oracle record, uses PendlePTHook TradeResult
 
   // == external hooks (amount exists but not at a static byte offset) ==
   // Amount is embedded in aggregator txData, ABI-encoded structs, or dynamic arrays.

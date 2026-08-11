@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-08-11T08:04:03Z",
+  "generatedAt": "2026-08-11T21:45:51Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -8391,6 +8391,72 @@
       "compatibleProtocols": [
         "pendle"
       ]
+    },
+    "RecordPurchasePendlePTHook": {
+      "name": "Record Purchase Pendle PT",
+      "description": "Records a Pendle PT purchase (actual PT received) for amortized oracle pricing",
+      "hookType": "NONACCOUNTING",
+      "subtype": "PTYT",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": false,
+      "erc165": [],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
+    "RecordRedemptionPendlePTHook": {
+      "name": "Record Redemption Pendle PT",
+      "description": "Records a Pendle PT sale/redemption (actual PT spent) for amortized oracle pricing",
+      "hookType": "NONACCOUNTING",
+      "subtype": "PTYT",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": false,
+      "erc165": [],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
     },
     "ApproveERC20Hook": {
       "name": "Approve ERC-20",
