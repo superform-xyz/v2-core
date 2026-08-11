@@ -24,7 +24,12 @@ forge-test-contract :; forge test --match-contract $(TEST-CONTRACT) $(ARGS)
 
 ftest :; forge test
 
-ftest-ci :; forge test -vvv --jobs 10 --compute-units-per-second 150
+# Flare-mainnet fork suites excluded from CI only (their Flare RPC endpoint is unreliable under the
+# parallel fork load and times out). They still run locally via `make ftest`. Re-include once a
+# reliable Flare archive RPC is wired into the FLARE_RPC_URL CI secret.
+FLARE_FORK_TESTS := FirelightHooksE2E|FirelightOracleFork|FlareWrappedNativeHookE2E|FlareRFLRHooksE2E|FlareClaimRFLRV2E2E|AlgebraIntegralFlareE2E|SpectraMetaVaultOracleFlare
+
+ftest-ci :; forge test -vvv --jobs 10 --compute-units-per-second 150 --no-match-contract "$(FLARE_FORK_TESTS)"
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
