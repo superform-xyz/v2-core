@@ -345,7 +345,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     {
         // Initialize all skipped contracts array
         // Includes adapter skips, router-gated hooks, and optional Pendle oracle hooks.
-        string[] memory potentialSkips = new string[](43);
+        string[] memory potentialSkips = new string[](45);
         uint256 skipCount = 0;
         // Adapter contracts (4 contracts - conditionally deployed)
         string[4] memory adapterContracts =
@@ -386,7 +386,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-        string[79] memory baseHooks = [
+        string[81] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -427,6 +427,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "RecordRedemptionPendlePTAmortizedOracleHook",
             "RecordPurchasePendlePTAmortizedOracleHookV2",
             "RecordRedemptionPendlePTAmortizedOracleHookV2",
+            "RecordPurchasePendlePTHook",
+            "RecordRedemptionPendlePTHook",
             "DeBridgeSendOrderAndExecuteOnDstHook",
             "DeBridgeCancelOrderHook",
             "EthenaCooldownSharesHook",
@@ -625,6 +627,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 // RecordRedemptionPendlePTAmortizedOracleHookV2
             potentialSkips[skipCount++] = "RecordPurchasePendlePTAmortizedOracleHookV2";
             potentialSkips[skipCount++] = "RecordRedemptionPendlePTAmortizedOracleHookV2";
+        }
+
+        // Pendle PT Record Hooks — deployed only when both the amortized oracle V2 and PendlePTHook
+        // (the approved prev-hook they bind to) are available on this chain.
+        if (!(availability.pendlePTAmortizedOracleHooksV2 && availability.pendleRouterHooks)) {
+            expectedHooks -= 2; // RecordPurchasePendlePTHook + RecordRedemptionPendlePTHook
+            potentialSkips[skipCount++] = "RecordPurchasePendlePTHook";
+            potentialSkips[skipCount++] = "RecordRedemptionPendlePTHook";
         }
 
         availability.expectedHooks = expectedHooks;
@@ -3490,7 +3500,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 81;
+        uint256 len = 83;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -3786,6 +3796,34 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             hooks[80] = HookDeployment("", "", ""); // Empty deployment
+        }
+
+        // Pendle PT Record Hooks - source the recorded PT amount from PendlePTHook's TradeResult.
+        // Require both the amortized oracle V2 AND PendlePTHook (hooks[80]) — the record hooks bind to
+        // the PendlePTHook deployed in THIS run, whose CREATE2 address is predictable from its initCode.
+        if (
+            configuration.pendlePTAmortizedOraclesV2[chainId] != address(0)
+                && configuration.pendlePTAmortizedOraclesV2[chainId].code.length > 0
+                && availability.pendleRouterHooks
+        ) {
+            address approvedPendlePTHook =
+                DeterministicDeployerLib.computeAddress(hooks[80].creationCode, __getSalt(PENDLE_PT_HOOK_KEY));
+            hooks[81] = _createSafeHookDeploymentWithArgs(
+                RECORD_PURCHASE_PENDLE_PT_HOOK_KEY,
+                "RecordPurchasePendlePTHook",
+                env,
+                abi.encode(configuration.pendlePTAmortizedOraclesV2[chainId], approvedPendlePTHook)
+            );
+            hooks[82] = _createSafeHookDeploymentWithArgs(
+                RECORD_REDEMPTION_PENDLE_PT_HOOK_KEY,
+                "RecordRedemptionPendlePTHook",
+                env,
+                abi.encode(configuration.pendlePTAmortizedOraclesV2[chainId], approvedPendlePTHook)
+            );
+        } else {
+            console2.log(" SKIPPED Pendle PT Record Hooks: oracle V2 or PendlePTHook unavailable on chain", chainId);
+            hooks[81] = HookDeployment("", "", ""); // Empty deployment
+            hooks[82] = HookDeployment("", "", ""); // Empty deployment
         }
 
         // Spark PSM Hooks - Only deploy if PSM3 available on this chain
