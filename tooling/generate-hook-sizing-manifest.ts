@@ -203,6 +203,15 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
   AaveV4WithdrawHook: { mode: "offset", amountPosition: 176, track: "deprecate->replaceCalldata" },
   AaveV4BorrowHook: { mode: "offset", amountPosition: 176, track: "deprecate->replaceCalldata" },
   AaveV4RepayHook: { mode: "offset", amountPosition: 176, track: "deprecate->replaceCalldata" },
+  // Aave V3 hooks: single amount inherited from BaseAaveV3LoanHook (auto-detect only reads the
+  // individual file, so it misses the base impl). Supply/Withdraw amount@112; Borrow/Repay/
+  // RepayWithATokens carry a 1-byte rate mode before the amount, so amount@113. The combined
+  // SupplyAndBorrow / RepayAndWithdraw implement sizing in-file and are auto-detected (no override).
+  AaveV3SupplyHook: { mode: "offset", amountPosition: 112, track: "deprecate->replaceCalldata" },
+  AaveV3WithdrawHook: { mode: "offset", amountPosition: 112, track: "deprecate->replaceCalldata" },
+  AaveV3BorrowHook: { mode: "offset", amountPosition: 113, track: "deprecate->replaceCalldata" },
+  AaveV3RepayHook: { mode: "offset", amountPosition: 113, track: "deprecate->replaceCalldata" },
+  AaveV3RepayWithATokensHook: { mode: "offset", amountPosition: 113, track: "deprecate->replaceCalldata" },
   // Gearbox approve-and-stake: AMOUNT_POSITION = 124 (72 + 52 header)
   GearboxApproveAndStakeHook: { mode: "offset", amountPosition: 124, track: "deprecate->replaceCalldata" },
 
