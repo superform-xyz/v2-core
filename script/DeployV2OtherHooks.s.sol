@@ -29,6 +29,16 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address aaveV4RepayAndWithdrawHook;
     }
 
+    struct AaveV3HookAddresses {
+        address aaveV3SupplyHook;
+        address aaveV3WithdrawHook;
+        address aaveV3BorrowHook;
+        address aaveV3RepayHook;
+        address aaveV3SupplyAndBorrowHook;
+        address aaveV3RepayAndWithdrawHook;
+        address aaveV3RepayWithATokensHook;
+    }
+
     struct FirelightHookAddresses {
         address redeemFirelightVaultHook;
         address claimWithdrawFirelightVaultHook;
@@ -188,6 +198,10 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             console2.log("Deploying Aave V4 Hooks on chainId: ", chainId);
             _deployAaveV4Hooks(chainId, env);
         }
+
+        // Aave V3 hooks — every chain (Pool address is a runtime calldata param, no per-chain dependency)
+        console2.log("Deploying Aave V3 Hooks on chainId: ", chainId);
+        _deployAaveV3Hooks(chainId, env);
 
         // Firelight hooks — only on Flare
         if (chainId == FLARE_CHAIN_ID) {
@@ -422,6 +436,68 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(hookAddresses.aaveV4RepayAndWithdrawHook != address(0), "AaveV4RepayAndWithdrawHook not assigned");
 
         console2.log("All Aave V4 hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        AAVE V3 HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    function _deployAaveV3Hooks(uint64 chainId, uint256 env) internal {
+        _deployAaveV3HooksSet(chainId, env);
+    }
+
+    /// @notice Deploy all 7 Aave V3 hooks (no constructor args — Pool comes from calldata)
+    function _deployAaveV3HooksSet(
+        uint64 chainId,
+        uint256 env
+    )
+        private
+        returns (AaveV3HookAddresses memory hookAddresses)
+    {
+        uint256 len = 7;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        // Aave V3 hooks have no constructor args
+        hooks[0] = HookDeployment(AAVE_V3_SUPPLY_HOOK_KEY, "", __getOtherHooksBytecode("AaveV3SupplyHook", env));
+        hooks[1] = HookDeployment(AAVE_V3_WITHDRAW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV3WithdrawHook", env));
+        hooks[2] = HookDeployment(AAVE_V3_BORROW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV3BorrowHook", env));
+        hooks[3] = HookDeployment(AAVE_V3_REPAY_HOOK_KEY, "", __getOtherHooksBytecode("AaveV3RepayHook", env));
+        hooks[4] = HookDeployment(
+            AAVE_V3_SUPPLY_AND_BORROW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV3SupplyAndBorrowHook", env)
+        );
+        hooks[5] = HookDeployment(
+            AAVE_V3_REPAY_AND_WITHDRAW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV3RepayAndWithdrawHook", env)
+        );
+        hooks[6] = HookDeployment(
+            AAVE_V3_REPAY_WITH_ATOKENS_HOOK_KEY, "", __getOtherHooksBytecode("AaveV3RepayWithATokensHook", env)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        hookAddresses.aaveV3SupplyHook = addresses[0];
+        hookAddresses.aaveV3WithdrawHook = addresses[1];
+        hookAddresses.aaveV3BorrowHook = addresses[2];
+        hookAddresses.aaveV3RepayHook = addresses[3];
+        hookAddresses.aaveV3SupplyAndBorrowHook = addresses[4];
+        hookAddresses.aaveV3RepayAndWithdrawHook = addresses[5];
+        hookAddresses.aaveV3RepayWithATokensHook = addresses[6];
+
+        require(hookAddresses.aaveV3SupplyHook != address(0), "AaveV3SupplyHook not assigned");
+        require(hookAddresses.aaveV3WithdrawHook != address(0), "AaveV3WithdrawHook not assigned");
+        require(hookAddresses.aaveV3BorrowHook != address(0), "AaveV3BorrowHook not assigned");
+        require(hookAddresses.aaveV3RepayHook != address(0), "AaveV3RepayHook not assigned");
+        require(hookAddresses.aaveV3SupplyAndBorrowHook != address(0), "AaveV3SupplyAndBorrowHook not assigned");
+        require(hookAddresses.aaveV3RepayAndWithdrawHook != address(0), "AaveV3RepayAndWithdrawHook not assigned");
+        require(hookAddresses.aaveV3RepayWithATokensHook != address(0), "AaveV3RepayWithATokensHook not assigned");
+
+        console2.log("All Aave V3 hooks deployed and validated successfully.");
 
         return hookAddresses;
     }

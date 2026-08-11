@@ -497,6 +497,29 @@ hooks:
     actionTypes: [{intent: lend, stage: instant}]
     legSizing: [sized]
 
+  # Aave V3 (asset-keyed, Pool from calldata)
+  AaveV3SupplyHook:
+    actionTypes: [{intent: lend, stage: instant}]
+    legSizing: [sized]
+  AaveV3WithdrawHook:
+    actionTypes: [{intent: withdraw, stage: instant}]
+    legSizing: [sized]
+  AaveV3BorrowHook:
+    actionTypes: [{intent: borrow, stage: instant}]
+    legSizing: [sized]
+  AaveV3RepayHook:
+    actionTypes: [{intent: repay, stage: instant}]
+    legSizing: [sized]
+  AaveV3RepayWithATokensHook:
+    actionTypes: [{intent: repay, stage: instant}]
+    legSizing: [sized]
+  AaveV3SupplyAndBorrowHook:
+    actionTypes: [{intent: lend, stage: instant}, {intent: borrow, stage: instant}]
+    legSizing: [sized, sized]
+  AaveV3RepayAndWithdrawHook:
+    actionTypes: [{intent: repay, stage: instant}, {intent: withdraw, stage: instant}]
+    legSizing: [sized, sized]
+
   # ============================================================
   # BORROW (2 hooks) — all instant
   # ============================================================
