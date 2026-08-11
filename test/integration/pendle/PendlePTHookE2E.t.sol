@@ -24,6 +24,9 @@ import { PendlePTHook } from "../../../src/hooks/swappers/pendle/PendlePTHook.so
 import { BaseHook } from "../../../src/hooks/BaseHook.sol";
 import { MockHook } from "../../mocks/MockHook.sol";
 import { ISuperHook } from "../../../src/interfaces/ISuperHook.sol";
+import { IPendlePTHookResult } from "../../../src/interfaces/IPendlePTHookResult.sol";
+import { RecordPurchasePendlePTHook } from "../../../src/hooks/oracles/pendle/RecordPurchasePendlePTHook.sol";
+import { RecordRedemptionPendlePTHook } from "../../../src/hooks/oracles/pendle/RecordRedemptionPendlePTHook.sol";
 
 /// @title PendlePTHookE2E
 /// @notice End-to-end fork tests for PendlePTHook using real mainnet Pendle Router V4 and DETH market
@@ -545,6 +548,157 @@ contract PendlePTHookE2E is Test {
 
         assertEq(outAmount, actualReceived, "getOutAmount should match actual PT received");
         assertGt(outAmount, 0, "Should have received PT");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+        TRADE RESULT + RECORD HOOK COMPOSITION (REAL MARKET)
+    //////////////////////////////////////////////////////////////*/
+
+    function _exec(Execution[] memory executions) internal {
+        vm.startPrank(user);
+        for (uint256 i; i < executions.length; i++) {
+            (bool ok, bytes memory ret) =
+                executions[i].target.call{ value: executions[i].value }(executions[i].callData);
+            assertTrue(ok, string(abi.encodePacked("exec ", vm.toString(i), " failed: ", ret)));
+        }
+        vm.stopPrank();
+    }
+
+    function _recordPurchaseData(
+        address market_,
+        uint256 amount_,
+        uint32 twap_,
+        bool usePrev_
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(bytes(new bytes(52)), market_, amount_, twap_, usePrev_);
+    }
+
+    function _recordRedemptionData(
+        address market_,
+        uint256 amount_,
+        bool usePrev_
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(bytes(new bytes(52)), market_, amount_, usePrev_);
+    }
+
+    /// @notice Real BUY: TradeResult mirrors balance deltas, and the purchase recorder (auto) records
+    ///         the ACTUAL PT received (output side).
+    function test_TradeResult_And_RecordPurchase_BuyPt_RealMarket() public {
+        uint256 expiry = IPYieldToken(yt).expiry();
+        if (block.timestamp >= expiry) return;
+
+        address tokenIn = _firstErc20TokenIn();
+        uint256 inputAmount = 1e18;
+        deal(tokenIn, user, inputAmount);
+
+        uint256 tokenInBefore = IERC20(tokenIn).balanceOf(user);
+        uint256 ptBefore = IERC20(pt).balanceOf(user);
+
+        _exec(hook.build(address(prevHook), user, _buildBuyPtData(DETH_MARKET, tokenIn, pt, inputAmount, 1, false)));
+
+        uint256 ptReceived = IERC20(pt).balanceOf(user) - ptBefore;
+        uint256 tokenSpent = tokenInBefore - IERC20(tokenIn).balanceOf(user);
+        assertGt(ptReceived, 0, "PT received");
+
+        IPendlePTHookResult.TradeResult memory r = hook.getPendleTradeResult(user);
+        assertEq(uint256(r.operation), uint256(IPendlePTHookResult.Operation.BUY_PT), "op BUY_PT");
+        assertEq(r.market, DETH_MARKET, "market");
+        assertEq(r.outputToken, pt, "output PT");
+        assertEq(r.outputAmount, ptReceived, "outputAmount == actual PT received");
+        assertEq(r.inputToken, tokenIn, "input token");
+        assertEq(r.inputAmount, tokenSpent, "inputAmount == token spent");
+
+        RecordPurchasePendlePTHook rec = new RecordPurchasePendlePTHook(makeAddr("oracleV2"), address(hook));
+        Execution[] memory recEx = rec.build(address(hook), user, _recordPurchaseData(DETH_MARKET, 0, 900, true));
+        assertEq(
+            recEx[1].callData,
+            abi.encodeWithSignature("recordPurchase(address,uint256,uint32)", DETH_MARKET, ptReceived, uint32(900)),
+            "records actual PT received"
+        );
+    }
+
+    /// @notice Real SELL: PT is the INPUT — the redemption recorder must record PT SPENT (inputAmount),
+    ///         never the output asset received.
+    function test_TradeResult_And_RecordRedemption_SellPt_RealMarket() public {
+        uint256 expiry = IPYieldToken(yt).expiry();
+        if (block.timestamp >= expiry) return;
+
+        address[] memory tokensOut = IStandardizedYield(sy).getTokensOut();
+        address tokenOut = tokensOut[0];
+        uint256 ptAmount = 1e18;
+        deal(pt, user, ptAmount);
+
+        uint256 tokenOutBefore = IERC20(tokenOut).balanceOf(user);
+
+        _exec(hook.build(address(prevHook), user, _buildSellPtData(DETH_MARKET, pt, tokenOut, ptAmount, 1, false)));
+
+        uint256 assetReceived = IERC20(tokenOut).balanceOf(user) - tokenOutBefore;
+        assertGt(assetReceived, 0, "asset received");
+
+        IPendlePTHookResult.TradeResult memory r = hook.getPendleTradeResult(user);
+        assertEq(uint256(r.operation), uint256(IPendlePTHookResult.Operation.SELL_PT), "op SELL_PT");
+        assertEq(r.inputToken, pt, "input PT");
+        assertEq(r.inputAmount, ptAmount, "inputAmount == PT spent (full)");
+        assertEq(r.outputToken, tokenOut, "output asset");
+        assertEq(r.outputAmount, assetReceived, "outputAmount == asset received");
+
+        RecordRedemptionPendlePTHook rec = new RecordRedemptionPendlePTHook(makeAddr("oracleV2"), address(hook));
+        Execution[] memory recEx = rec.build(address(hook), user, _recordRedemptionData(DETH_MARKET, 0, true));
+        // Records PT SPENT (inputAmount), NOT the received asset (assetReceived).
+        assertEq(
+            recEx[1].callData,
+            abi.encodeWithSignature("recordRedemption(address,uint256)", DETH_MARKET, r.inputAmount),
+            "records actual PT spent"
+        );
+    }
+
+    /// @notice Real matured REDEEM: operation is REDEEM_PT and inputAmount is the PT redeemed.
+    function test_TradeResult_And_RecordRedemption_MaturedRedeem_RealMarket() public {
+        address[] memory tokensOut = IStandardizedYield(sy).getTokensOut();
+        address tokenOut = tokensOut[0];
+        uint256 redeemAmount = 1e18;
+        deal(pt, user, redeemAmount);
+        deal(yt, user, redeemAmount);
+
+        uint256 expiry = IPYieldToken(yt).expiry();
+        if (block.timestamp < expiry) vm.warp(expiry + 1 days);
+
+        _exec(hook.build(address(prevHook), user, _buildRedeemData(DETH_MARKET, pt, tokenOut, redeemAmount, 1, false)));
+
+        IPendlePTHookResult.TradeResult memory r = hook.getPendleTradeResult(user);
+        assertEq(uint256(r.operation), uint256(IPendlePTHookResult.Operation.REDEEM_PT), "op REDEEM_PT");
+        assertEq(r.inputToken, pt, "input PT");
+        assertEq(r.inputAmount, redeemAmount, "inputAmount == PT redeemed");
+
+        RecordRedemptionPendlePTHook rec = new RecordRedemptionPendlePTHook(makeAddr("oracleV2"), address(hook));
+        Execution[] memory recEx = rec.build(address(hook), user, _recordRedemptionData(DETH_MARKET, 0, true));
+        assertEq(
+            recEx[1].callData,
+            abi.encodeWithSignature("recordRedemption(address,uint256)", DETH_MARKET, redeemAmount),
+            "records actual PT redeemed"
+        );
+    }
+
+    /// @notice Cross-hook wrong-direction: a purchase recorder after a SELL must revert (op mismatch).
+    function test_RecordPurchase_RejectsSell_RealMarket() public {
+        uint256 expiry = IPYieldToken(yt).expiry();
+        if (block.timestamp >= expiry) return;
+
+        address[] memory tokensOut = IStandardizedYield(sy).getTokensOut();
+        deal(pt, user, 1e18);
+        _exec(hook.build(address(prevHook), user, _buildSellPtData(DETH_MARKET, pt, tokensOut[0], 1e18, 1, false)));
+
+        RecordPurchasePendlePTHook rec = new RecordPurchasePendlePTHook(makeAddr("oracleV2"), address(hook));
+        vm.expectRevert(RecordPurchasePendlePTHook.OPERATION_NOT_VALID.selector);
+        rec.build(address(hook), user, _recordPurchaseData(DETH_MARKET, 0, 900, true));
     }
 
     /*//////////////////////////////////////////////////////////////
