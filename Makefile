@@ -24,7 +24,7 @@ forge-test-contract :; forge test --match-contract $(TEST-CONTRACT) $(ARGS)
 
 ftest :; forge test
 
-ftest-ci :; forge test -vvv --jobs 10
+ftest-ci :; forge test -vvv --jobs 10 --compute-units-per-second 150
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
