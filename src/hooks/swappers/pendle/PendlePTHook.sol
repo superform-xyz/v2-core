@@ -112,10 +112,14 @@ contract PendlePTHook is
     /*//////////////////////////////////////////////////////////////
                        TRADE-RESULT TRANSIENT STORAGE
     //////////////////////////////////////////////////////////////*/
-    /// @dev Namespace for the per-account IPendlePTHookResult TradeResult. Account-keyed transient
-    ///      storage: wiped at end of tx (no cross-execution leak) and isolated per account. The
-    ///      output side (token + amount) reuses BaseHook's getOutToken/getOutAmount.
+    /// @dev Namespace for the IPendlePTHookResult TradeResult transient store. Keyed by BaseHook's
+    ///      per-account EXECUTION-CONTEXT nonce (see _currentContext) — identical isolation to
+    ///      outAmount/outToken/mutexes: values live and die with a single execution context, so they
+    ///      cannot be read stale, leak across accounts, or be clobbered by a nested/parallel context.
+    ///      (Cleared at end of tx by the EVM; unreachable in a fresh context because the nonce differs.)
     bytes32 private constant PT_TRADE_STORAGE = keccak256("pendle.pt.hook.trade");
+    /// @dev MUST match BaseHook.ACCOUNT_CONTEXT_STORAGE — the slot holding the per-account context nonce.
+    bytes32 private constant ACCOUNT_CONTEXT_STORAGE = keccak256("hook.account.context");
     uint256 private constant _TRADE_OPERATION = 0;
     uint256 private constant _TRADE_MARKET = 1;
     uint256 private constant _TRADE_INPUT_TOKEN = 2;
@@ -399,8 +403,9 @@ contract PendlePTHook is
 
     /// @inheritdoc IPendlePTHookResult
     /// @dev Output side reuses BaseHook's transient getOutToken/getOutAmount; input side + operation +
-    ///      market come from this hook's account-keyed transient TradeResult store. `operation == NONE`
-    ///      means no PendlePTHook trade ran for `account` this execution.
+    ///      market come from this hook's execution-context-keyed transient TradeResult store (same
+    ///      isolation as outAmount/outToken). `operation == NONE` means no PendlePTHook trade ran for
+    ///      `account` in the current execution context.
     function getPendleTradeResult(address account) external view override returns (TradeResult memory result) {
         result.operation = Operation(_tloadTrade(account, _TRADE_OPERATION));
         result.market = address(uint160(_tloadTrade(account, _TRADE_MARKET)));
@@ -725,9 +730,18 @@ contract PendlePTHook is
         return Operation.NONE;
     }
 
-    /// @dev Account-keyed transient storage key for a TradeResult field
-    function _tradeKey(address account, uint256 field) private pure returns (bytes32) {
-        return keccak256(abi.encodePacked(PT_TRADE_STORAGE, account, field));
+    /// @dev Reads BaseHook's current per-account execution-context nonce (same slot BaseHook uses),
+    ///      so the TradeResult store shares the exact isolation of outAmount/outToken.
+    function _currentContext(address account) private view returns (uint256 context) {
+        bytes32 key = keccak256(abi.encodePacked(ACCOUNT_CONTEXT_STORAGE, account));
+        assembly ("memory-safe") {
+            context := tload(key)
+        }
+    }
+
+    /// @dev Execution-context + account-keyed transient storage key for a TradeResult field
+    function _tradeKey(address account, uint256 field) private view returns (bytes32) {
+        return keccak256(abi.encodePacked(PT_TRADE_STORAGE, _currentContext(account), account, field));
     }
 
     function _tstoreTrade(address account, uint256 field, uint256 value) private {

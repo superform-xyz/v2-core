@@ -37,8 +37,10 @@ interface IPendlePTHookResult {
 
     /// @notice Returns the completed PT trade for `account` in the current execution context.
     /// @dev Populated in the producing hook's postExecute from actual balance deltas and held in
-    ///      transient, account-keyed storage — it is wiped at end of tx and never leaks across
-    ///      accounts. `operation == NONE` means no trade was recorded this execution.
+    ///      transient storage keyed by the per-account EXECUTION-CONTEXT nonce — so it cannot be read
+    ///      stale across execution contexts, leak across accounts, or be clobbered by a nested context
+    ///      (and is cleared at end of tx). `operation == NONE` means no trade ran in the current
+    ///      execution context.
     /// @param account The account the trade was executed for.
     /// @return result The trade result (operation + input/output token + input/output amount).
     function getPendleTradeResult(address account) external view returns (TradeResult memory result);

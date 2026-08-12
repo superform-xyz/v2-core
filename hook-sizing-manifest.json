@@ -1,5 +1,50 @@
 [
   {
+    "hookKey": "AAVE_V3_BORROW_HOOK_KEY",
+    "mode": "offset",
+    "pipeMode": "transform",
+    "amountPosition": 113,
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "AAVE_V3_REPAY_AND_WITHDRAW_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "AAVE_V3_REPAY_HOOK_KEY",
+    "mode": "offset",
+    "pipeMode": "transform",
+    "amountPosition": 113,
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "AAVE_V3_REPAY_WITH_ATOKENS_HOOK_KEY",
+    "mode": "offset",
+    "pipeMode": "transform",
+    "amountPosition": 113,
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "AAVE_V3_SUPPLY_AND_BORROW_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "AAVE_V3_SUPPLY_HOOK_KEY",
+    "mode": "offset",
+    "pipeMode": "transform",
+    "amountPosition": 112,
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "AAVE_V3_WITHDRAW_HOOK_KEY",
+    "mode": "offset",
+    "pipeMode": "transform",
+    "amountPosition": 112,
+    "track": "deprecate->replaceCalldata"
+  },
+  {
     "hookKey": "AAVE_V4_BORROW_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
@@ -46,21 +91,7 @@
     "track": "deprecate->replaceCalldata"
   },
   {
-    "hookKey": "ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY",
-    "mode": "offset",
-    "pipeMode": "transform",
-    "amountPosition": 144,
-    "track": "deprecate->replaceCalldata"
-  },
-  {
     "hookKey": "ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY",
-    "mode": "offset",
-    "pipeMode": "transform",
-    "amountPosition": 144,
-    "track": "deprecate->replaceCalldata"
-  },
-  {
-    "hookKey": "APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
     "amountPosition": 144,
@@ -509,17 +540,17 @@
     "pipeMode": "passthrough"
   },
   {
+    "hookKey": "RECORD_PURCHASE_PENDLE_PT_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "passthrough"
+  },
+  {
     "hookKey": "RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY",
     "mode": "sizeless",
     "pipeMode": "passthrough"
   },
   {
     "hookKey": "RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY",
-    "mode": "sizeless",
-    "pipeMode": "passthrough"
-  },
-  {
-    "hookKey": "RECORD_PURCHASE_PENDLE_PT_HOOK_KEY",
     "mode": "sizeless",
     "pipeMode": "passthrough"
   },

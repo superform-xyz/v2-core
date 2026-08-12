@@ -27,6 +27,7 @@ import { ISuperHook } from "../../../src/interfaces/ISuperHook.sol";
 import { IPendlePTHookResult } from "../../../src/interfaces/IPendlePTHookResult.sol";
 import { RecordPurchasePendlePTHook } from "../../../src/hooks/oracles/pendle/RecordPurchasePendlePTHook.sol";
 import { RecordRedemptionPendlePTHook } from "../../../src/hooks/oracles/pendle/RecordRedemptionPendlePTHook.sol";
+import { MockPendlePTAmortizedOracle } from "../../mocks/MockPendlePTAmortizedOracle.sol";
 
 /// @title PendlePTHookE2E
 /// @notice End-to-end fork tests for PendlePTHook using real mainnet Pendle Router V4 and DETH market
@@ -616,12 +617,16 @@ contract PendlePTHookE2E is Test {
         assertEq(r.inputToken, tokenIn, "input token");
         assertEq(r.inputAmount, tokenSpent, "inputAmount == token spent");
 
-        RecordPurchasePendlePTHook rec = new RecordPurchasePendlePTHook(makeAddr("oracleV2"), address(hook));
+        MockPendlePTAmortizedOracle mockOracle = new MockPendlePTAmortizedOracle();
+        RecordPurchasePendlePTHook rec = new RecordPurchasePendlePTHook(address(mockOracle), address(hook));
         Execution[] memory recEx = rec.build(address(hook), user, _recordPurchaseData(DETH_MARKET, 0, 900, true));
+        uint256 expectedSySpent = mockOracle.getAssetOutput(DETH_MARKET, address(0), ptReceived);
         assertEq(
             recEx[1].callData,
-            abi.encodeWithSignature("recordPurchase(address,uint256,uint32)", DETH_MARKET, ptReceived, uint32(900)),
-            "records actual PT received"
+            abi.encodeWithSignature(
+                "recordPurchase(address,uint256,uint256)", DETH_MARKET, expectedSySpent, ptReceived
+            ),
+            "records actual PT received, valued on-chain (V1: market, sySpent, ptAmount)"
         );
     }
 
@@ -687,6 +692,42 @@ contract PendlePTHookE2E is Test {
         );
     }
 
+    /// @notice Execution-context isolation (P2 regression guard): a TradeResult recorded in one execution
+    ///         context MUST NOT be readable in a later context. Before the context-nonce keying fix the
+    ///         TradeResult was keyed by account only, so the stale buy would leak here and a redemption
+    ///         recorder would consume it. After the fix the new context reads Operation.NONE and the
+    ///         recorder reverts OPERATION_NOT_VALID.
+    function test_TradeResult_ContextIsolation_RealMarket() public {
+        uint256 expiry = IPYieldToken(yt).expiry();
+        if (block.timestamp >= expiry) return;
+
+        address tokenIn = _firstErc20TokenIn();
+        deal(tokenIn, user, 1e18);
+
+        // Context 0: real buy populates the TradeResult.
+        _exec(hook.build(address(prevHook), user, _buildBuyPtData(DETH_MARKET, tokenIn, pt, 1e18, 1, false)));
+        assertEq(
+            uint256(hook.getPendleTradeResult(user).operation),
+            uint256(IPendlePTHookResult.Operation.BUY_PT),
+            "context 0 sees BUY_PT"
+        );
+
+        // Advance to a fresh execution context for the same account.
+        hook.setExecutionContext(user);
+
+        // New context: the prior trade is gone (isolated by context nonce, not just account).
+        assertEq(
+            uint256(hook.getPendleTradeResult(user).operation),
+            uint256(IPendlePTHookResult.Operation.NONE),
+            "new context sees NONE (no leak across contexts)"
+        );
+
+        // A recorder built against the empty context must reject it rather than record a stale amount.
+        RecordRedemptionPendlePTHook rec = new RecordRedemptionPendlePTHook(makeAddr("oracleV2"), address(hook));
+        vm.expectRevert(RecordRedemptionPendlePTHook.OPERATION_NOT_VALID.selector);
+        rec.build(address(hook), user, _recordRedemptionData(DETH_MARKET, 0, true));
+    }
+
     /// @notice Cross-hook wrong-direction: a purchase recorder after a SELL must revert (op mismatch).
     function test_RecordPurchase_RejectsSell_RealMarket() public {
         uint256 expiry = IPYieldToken(yt).expiry();
@@ -696,7 +737,8 @@ contract PendlePTHookE2E is Test {
         deal(pt, user, 1e18);
         _exec(hook.build(address(prevHook), user, _buildSellPtData(DETH_MARKET, pt, tokensOut[0], 1e18, 1, false)));
 
-        RecordPurchasePendlePTHook rec = new RecordPurchasePendlePTHook(makeAddr("oracleV2"), address(hook));
+        RecordPurchasePendlePTHook rec =
+            new RecordPurchasePendlePTHook(address(new MockPendlePTAmortizedOracle()), address(hook));
         vm.expectRevert(RecordPurchasePendlePTHook.OPERATION_NOT_VALID.selector);
         rec.build(address(hook), user, _recordPurchaseData(DETH_MARKET, 0, 900, true));
     }

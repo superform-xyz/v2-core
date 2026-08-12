@@ -18,11 +18,12 @@ import {
 } from "../../../interfaces/ISuperHook.sol";
 import { IPendlePTHookResult } from "../../../interfaces/IPendlePTHookResult.sol";
 import { IPendleMarket } from "../../../vendor/pendle/IPendleMarket.sol";
+import { IPendlePTAmortizedOracle } from "../../../vendor/pendle/IPendlePTAmortizedOracle.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 
 /// @title RecordRedemptionPendlePTHook
 /// @author Superform Labs
-/// @notice Records a Pendle PT sale/redemption in the PendlePTAmortizedOracleV2, sourcing the PT SOLD
+/// @notice Records a Pendle PT sale/redemption in the PendlePTAmortizedOracle (V1), sourcing the PT SOLD
 ///         from the preceding PendlePTHook's actual balance-delta TradeResult.
 /// @dev Runs immediately after an approved PendlePTHook in the same executor sequence. On a PT sale or
 ///      matured redemption, PendlePTHook's INPUT is PT, so `ptSold` = TradeResult.inputAmount. The
@@ -44,6 +45,9 @@ contract RecordRedemptionPendlePTHook is BaseHook, ISuperHookContextAware, ISupe
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Contract version for bytecode differentiation (V1 oracle binding)
+    uint256 public constant VERSION = 1;
+
     uint256 private constant MARKET_POSITION = 52;
     uint256 private constant PT_SOLD_POSITION = 72;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 104;
@@ -51,7 +55,7 @@ contract RecordRedemptionPendlePTHook is BaseHook, ISuperHookContextAware, ISupe
     /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES
     //////////////////////////////////////////////////////////////*/
-    /// @notice The PendlePTAmortizedOracleV2 contract
+    /// @notice The PendlePTAmortizedOracle (V1) contract
     address public immutable ORACLE;
 
     /// @notice The only PendlePTHook this recorder accepts as the preceding hook (automatic mode)
@@ -68,7 +72,7 @@ contract RecordRedemptionPendlePTHook is BaseHook, ISuperHookContextAware, ISupe
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    /// @param oracle_ The PendlePTAmortizedOracleV2 address
+    /// @param oracle_ The PendlePTAmortizedOracle (V1) address
     /// @param approvedPendlePTHook_ The approved PendlePTHook address (automatic mode source)
     constructor(address oracle_, address approvedPendlePTHook_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.PTYT) {
         if (oracle_ == address(0) || approvedPendlePTHook_ == address(0)) revert ADDRESS_NOT_VALID();
@@ -133,7 +137,7 @@ contract RecordRedemptionPendlePTHook is BaseHook, ISuperHookContextAware, ISupe
         executions[0] = Execution({
             target: ORACLE,
             value: 0,
-            callData: abi.encodeWithSignature("recordRedemption(address,uint256)", market, ptSold)
+            callData: abi.encodeCall(IPendlePTAmortizedOracle.recordRedemption, (market, ptSold))
         });
     }
 
@@ -146,11 +150,15 @@ contract RecordRedemptionPendlePTHook is BaseHook, ISuperHookContextAware, ISupe
     }
 
     /// @notice Decode the market address from hook data
+    /// @param data The hook data
+    /// @return The market address
     function decodeMarket(bytes memory data) external pure returns (address) {
         return BytesLib.toAddress(data, MARKET_POSITION);
     }
 
     /// @notice Decode the ptSold amount from hook data
+    /// @param data The hook data
+    /// @return The encoded PT-sold amount (fallback used when usePrevHookAmount is false)
     function decodePtSold(bytes memory data) external pure returns (uint256) {
         return BytesLib.toUint256(data, PT_SOLD_POSITION);
     }

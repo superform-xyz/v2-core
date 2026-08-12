@@ -16,16 +16,28 @@ import {
     ISuperHookInflowOutflow,
     ISuperHookOutflow
 } from "../../../interfaces/ISuperHook.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
 import { IPendlePTHookResult } from "../../../interfaces/IPendlePTHookResult.sol";
 import { IPendleMarket } from "../../../vendor/pendle/IPendleMarket.sol";
+import { IStandardizedYield } from "../../../vendor/pendle/IStandardizedYield.sol";
+import { IPendlePTAmortizedOracle } from "../../../vendor/pendle/IPendlePTAmortizedOracle.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 
 /// @title RecordPurchasePendlePTHook
 /// @author Superform Labs
-/// @notice Records a Pendle PT purchase in the PendlePTAmortizedOracleV2, sourcing the PT amount from
+/// @notice Records a Pendle PT purchase in the PendlePTAmortizedOracle (V1), sourcing the PT amount from
 ///         the preceding PendlePTHook's actual balance-delta TradeResult (not the generic getOutAmount).
 /// @dev Runs immediately after an approved PendlePTHook in the same executor sequence. On a PT purchase,
-///      PendlePTHook's OUTPUT is PT, so `ptBought` = TradeResult.outputAmount.
+///      PendlePTHook's OUTPUT is PT, so `ptAmount` = TradeResult.outputAmount.
+/// @dev The V1 oracle's recordPurchase(market, sySpent, ptAmount) requires the purchase cost in SY
+///      accounting-asset units. It is computed ON-CHAIN (never user input) as the oracle's own
+///      TWAP valuation of the recorded PT: sySpent = ORACLE.getAssetOutput(market, address(0), ptAmount).
+///      This keeps the recorded cost consistent with how the oracle values the book everywhere else.
+///      The encoded twapDuration must satisfy the oracle's configured minimum (ORACLE.TWAP_DURATION()).
+/// @dev V1 UNIT INVARIANT: the oracle books cost (asset decimals) but sanity-checks and amortizes it
+///      against PT balances (PT decimals), so it is only coherent when the market's PT decimals equal
+///      the SY accounting-asset decimals. This hook enforces that at build time (DECIMALS_MISMATCH),
+///      refusing to record for markets where the V1 oracle math would silently DoS or corrupt.
 /// @dev Amount semantics:
 ///      - usePrevHookAmount == false: use the encoded `amount` (manual mode, standalone).
 ///      - usePrevHookAmount == true:  ignore encoded `amount`; require the prev hook is the approved
@@ -43,6 +55,9 @@ contract RecordPurchasePendlePTHook is BaseHook, ISuperHookContextAware, ISuperH
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Contract version for bytecode differentiation (V1 oracle binding)
+    uint256 public constant VERSION = 1;
+
     uint256 private constant MARKET_POSITION = 52;
     uint256 private constant PT_AMOUNT_POSITION = 72;
     uint256 private constant TWAP_DURATION_POSITION = 104;
@@ -51,11 +66,14 @@ contract RecordPurchasePendlePTHook is BaseHook, ISuperHookContextAware, ISuperH
     /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES
     //////////////////////////////////////////////////////////////*/
-    /// @notice The PendlePTAmortizedOracleV2 contract
-    address public immutable ORACLE;
+    /// @notice The PendlePTAmortizedOracle (V1) contract
+    IPendlePTAmortizedOracle public immutable ORACLE;
 
     /// @notice The only PendlePTHook this recorder accepts as the preceding hook (automatic mode)
     address public immutable APPROVED_PENDLE_PT_HOOK;
+
+    /// @notice Cached oracle TWAP minimum (the oracle's immutable TWAP_DURATION), read once at deploy
+    uint32 public immutable MIN_TWAP_DURATION;
 
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
@@ -64,16 +82,20 @@ contract RecordPurchasePendlePTHook is BaseHook, ISuperHookContextAware, ISuperH
     error PREV_HOOK_NOT_VALID();
     error OPERATION_NOT_VALID();
     error PT_TOKEN_NOT_VALID();
+    error TWAP_DURATION_TOO_SHORT();
+    error SY_VALUE_NOT_VALID();
+    error DECIMALS_MISMATCH();
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    /// @param oracle_ The PendlePTAmortizedOracleV2 address
+    /// @param oracle_ The PendlePTAmortizedOracle (V1) address
     /// @param approvedPendlePTHook_ The approved PendlePTHook address (automatic mode source)
     constructor(address oracle_, address approvedPendlePTHook_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.PTYT) {
         if (oracle_ == address(0) || approvedPendlePTHook_ == address(0)) revert ADDRESS_NOT_VALID();
-        ORACLE = oracle_;
+        ORACLE = IPendlePTAmortizedOracle(oracle_);
         APPROVED_PENDLE_PT_HOOK = approvedPendlePTHook_;
+        MIN_TWAP_DURATION = IPendlePTAmortizedOracle(oracle_).TWAP_DURATION();
     }
 
     /// @notice Human-readable name for UI display
@@ -107,6 +129,10 @@ contract RecordPurchasePendlePTHook is BaseHook, ISuperHookContextAware, ISuperH
 
         if (market == address(0)) revert MARKET_NOT_VALID();
 
+        // Read SY + PT once from the (soon-to-be-validated) market: SY drives the decimals invariant,
+        // PT drives both the invariant and the auto-mode identity check.
+        (address sy, address pt,) = IPendleMarket(market).readTokens();
+
         if (usePrevHookAmount) {
             // G-8: pin BEFORE any external call into prevHook
             if (prevHook != APPROVED_PENDLE_PT_HOOK) revert PREV_HOOK_NOT_VALID();
@@ -116,9 +142,6 @@ contract RecordPurchasePendlePTHook is BaseHook, ISuperHookContextAware, ISuperH
 
             if (result.operation != IPendlePTHookResult.Operation.BUY_PT) revert OPERATION_NOT_VALID();
             if (result.market != market) revert MARKET_NOT_VALID();
-
-            // Re-read PT identity from the committed (and matched) market — index 1 is PT.
-            (, address pt,) = IPendleMarket(market).readTokens();
             if (result.outputToken != pt) revert PT_TOKEN_NOT_VALID();
 
             ptAmount = result.outputAmount; // actual PT received
@@ -127,11 +150,27 @@ contract RecordPurchasePendlePTHook is BaseHook, ISuperHookContextAware, ISuperH
         // Validate AFTER resolution: zero always reverts (both modes).
         if (ptAmount == 0) revert AMOUNT_NOT_VALID();
 
+        // V1 UNIT INVARIANT: the oracle mixes asset-denominated book value with PT-denominated balances,
+        // so it is only coherent when PT decimals == the SY accounting-asset decimals. Refuse otherwise
+        // to avoid the silent DoS / book-value corruption that a decimal mismatch would cause.
+        (,, uint8 assetDecimals) = IStandardizedYield(sy).assetInfo();
+        if (IERC20Metadata(pt).decimals() != assetDecimals) revert DECIMALS_MISMATCH();
+
+        // The selected twapDuration must satisfy the oracle's configured minimum. V1 prices with its
+        // own immutable TWAP_DURATION, so this guards intent freshness rather than selecting the rate.
+        if (twapDuration < MIN_TWAP_DURATION) revert TWAP_DURATION_TOO_SHORT();
+
+        // V1 books cost in SY accounting-asset units: value the recorded PT at the oracle's own
+        // TWAP rate (on-chain, never user input). A zero valuation signals an oracle/TWAP problem
+        // (distinct from a zero PT amount), so it reverts with its own error.
+        uint256 sySpent = ORACLE.getAssetOutput(market, address(0), ptAmount);
+        if (sySpent == 0) revert SY_VALUE_NOT_VALID();
+
         executions = new Execution[](1);
         executions[0] = Execution({
-            target: ORACLE,
+            target: address(ORACLE),
             value: 0,
-            callData: abi.encodeWithSignature("recordPurchase(address,uint256,uint32)", market, ptAmount, twapDuration)
+            callData: abi.encodeCall(IPendlePTAmortizedOracle.recordPurchase, (market, sySpent, ptAmount))
         });
     }
 
@@ -144,16 +183,23 @@ contract RecordPurchasePendlePTHook is BaseHook, ISuperHookContextAware, ISuperH
     }
 
     /// @notice Decode the market address from hook data
+    /// @param data The hook data
+    /// @return The market address
     function decodeMarket(bytes memory data) external pure returns (address) {
         return BytesLib.toAddress(data, MARKET_POSITION);
     }
 
     /// @notice Decode the ptAmount from hook data
+    /// @param data The hook data
+    /// @return The encoded PT amount (fallback used when usePrevHookAmount is false)
     function decodePtAmount(bytes memory data) external pure returns (uint256) {
         return BytesLib.toUint256(data, PT_AMOUNT_POSITION);
     }
 
     /// @notice Decode the twapDuration from hook data
+    /// @param data The hook data
+    /// @return The twapDuration in seconds; validated against the oracle's minimum TWAP_DURATION(),
+    ///         not forwarded — V1 prices with its own immutable TWAP duration
     function decodeTwapDuration(bytes memory data) external pure returns (uint32) {
         return BytesLib.toUint32(data, TWAP_DURATION_POSITION);
     }
