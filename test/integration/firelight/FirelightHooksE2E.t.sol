@@ -31,8 +31,11 @@ contract FirelightHooksE2E is Test {
     /// @dev Top stXRP holder for impersonation
     address public constant TOP_HOLDER = 0x80743e896Df841900803a46F6d8451e0F9EF6F4A;
 
-    /// @dev Flare RPC URL
-    string public constant FLARE_RPC = "https://flare-api.flare.network/ext/C/rpc";
+    /// @dev Flare RPC URL env key
+    string public constant FLARE_RPC_URL_KEY = "FLARE_RPC_URL";
+
+    /// @dev Pinned so CI can reuse foundry's RPC cache instead of re-fetching state at latest
+    uint256 public constant FORK_BLOCK = 67_000_000;
 
     /// @dev WithdrawRequest event signature from Firelight vault
     event WithdrawRequest(
@@ -59,7 +62,9 @@ contract FirelightHooksE2E is Test {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        forkId = vm.createSelectFork(FLARE_RPC);
+        forkId = vm.createSelectFork(
+            vm.envOr(FLARE_RPC_URL_KEY, string("https://flare-api.flare.network/ext/C/rpc")), FORK_BLOCK
+        );
 
         redeemHook = new RedeemFirelightVaultHook();
         claimHook = new ClaimWithdrawFirelightVaultHook();

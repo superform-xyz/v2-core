@@ -395,6 +395,14 @@ hooks:
     actionTypes: [{intent: bridge, stage: instant}]
     legSizing: [sized]
 
+  RelaySendFundsAndExecuteOnDstHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndRelaySendFundsAndExecuteOnDstHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
   StargateSendHook:
     actionTypes: [{intent: bridge, stage: instant}]
     legSizing: [sized]

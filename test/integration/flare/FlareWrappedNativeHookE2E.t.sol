@@ -26,6 +26,9 @@ contract FlareWrappedNativeHookE2E is Test, Constants {
 
     string public constant FLARE_RPC_URL_KEY = "FLARE_RPC_URL";
 
+    /// @dev Pinned so CI can reuse foundry's RPC cache instead of re-fetching state at latest
+    uint256 public constant FORK_BLOCK = 67_000_000;
+
     uint256 public constant WRAP_AMOUNT = 100 ether; // 100 FLR
 
     /*//////////////////////////////////////////////////////////////
@@ -42,7 +45,9 @@ contract FlareWrappedNativeHookE2E is Test, Constants {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        forkId = vm.createSelectFork(vm.envString(FLARE_RPC_URL_KEY));
+        forkId = vm.createSelectFork(
+            vm.envOr(FLARE_RPC_URL_KEY, string("https://flare-api.flare.network/ext/C/rpc")), FORK_BLOCK
+        );
 
         account = address(this);
 

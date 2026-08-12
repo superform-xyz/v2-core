@@ -87,6 +87,7 @@ CORE_CONTRACTS=(
     "StargateAdapter"
     "StargateAdapterV2"
     "AcrossV3AdapterV2"
+    "RelayAdapter"
     "SuperLedger"
     "FlatFeeLedger"
     "SuperLedgerConfiguration"
@@ -185,6 +186,8 @@ HOOK_CONTRACTS=(
     "ApproveAndSwapUniswapV3Router02Hook"
     "AcrossSendFundsAndExecuteOnDstHookV2"
     "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2"
+    "RelaySendFundsAndExecuteOnDstHook"
+    "ApproveAndRelaySendFundsAndExecuteOnDstHook"
 )
 
 # Oracle contracts from accounting/oracles

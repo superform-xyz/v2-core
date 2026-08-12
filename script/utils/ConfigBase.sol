@@ -15,6 +15,7 @@ abstract contract ConfigBase is Constants {
         address treasury;
         // Core contract dependencies
         mapping(uint64 chainId => address acrossSpokePoolV3) acrossSpokePoolV3s;
+        mapping(uint64 chainId => address relayDepository) relayDepositories;
         mapping(uint64 chainId => address debridgeSrcDln) debridgeSrcDln;
         mapping(uint64 chainId => address debridgeDstDln) debridgeDstDln;
         mapping(uint64 chainId => address permit2) permit2s;
@@ -99,6 +100,7 @@ abstract contract ConfigBase is Constants {
         chainNames[HYPEREVM_CHAIN_ID] = HYPEREVM_KEY;
         chainNames[FLARE_CHAIN_ID] = FLARE_KEY;
         chainNames[STABLE_CHAIN_ID] = STABLE_KEY;
+        chainNames[ROBINHOOD_CHAIN_ID] = ROBINHOOD_KEY;
 
         // ===== COMMON CONFIGURATION =====
         if (env_ == 0 || env_ == 2) {

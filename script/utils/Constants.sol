@@ -21,6 +21,7 @@ abstract contract Constants {
     string internal constant HYPEREVM_KEY = "HyperEVM";
     string internal constant FLARE_KEY = "Flare";
     string internal constant STABLE_KEY = "Stable";
+    string internal constant ROBINHOOD_KEY = "RH";
     string internal constant SEPOLIA_KEY = "Sepolia";
     string internal constant ARB_SEPOLIA_KEY = "Arbitrum_Sepolia";
     string internal constant BASE_SEPOLIA_KEY = "Base_Sepolia";
@@ -31,6 +32,7 @@ abstract contract Constants {
     string internal constant SUPER_EXECUTOR_KEY = "SuperExecutor";
     string internal constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
     string internal constant ACROSS_V3_ADAPTER_V2_KEY = "AcrossV3AdapterV2";
+    string internal constant RELAY_ADAPTER_KEY = "RelayAdapter";
     string internal constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
     string internal constant STARGATE_ADAPTER_KEY = "StargateAdapter";
     string internal constant STARGATE_ADAPTER_V2_KEY = "StargateAdapterV2";
@@ -65,6 +67,7 @@ abstract contract Constants {
     uint64 internal constant HYPEREVM_CHAIN_ID = 999;
     uint64 internal constant FLARE_CHAIN_ID = 14;
     uint64 internal constant STABLE_CHAIN_ID = 988;
+    uint64 internal constant ROBINHOOD_CHAIN_ID = 4663; // Robinhood Chain (Arbitrum Orbit L2)
     // testnets
     uint64 internal constant SEPOLIA_CHAIN_ID = 11_155_111;
     uint64 internal constant ARB_SEPOLIA_CHAIN_ID = 421_613;
@@ -76,6 +79,7 @@ abstract contract Constants {
     address internal constant ACROSS_SPOKE_POOL_BASE = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
     address internal constant ACROSS_SPOKE_POOL_OPTIMISM = 0x6f26Bf09B1C792e3228e5467807a900A503c0281;
     address internal constant ACROSS_SPOKE_POOL_ARBITRUM = 0xe35e9842fceaCA96570B734083f4a58e8F7C5f2A;
+    address internal constant ACROSS_SPOKE_POOL_ROBINHOOD = 0xD29C85F15DF544bA632C9E25829fd29d767d7978;
     address internal constant ACROSS_SPOKE_POOL_BNB = 0x4e8E101924eDE233C13e2D8622DC8aED2872d505;
     address internal constant ACROSS_SPOKE_POOL_POLYGON = 0x9295ee1d8C5b022Be115A2AD3c30C72E34e7F096;
     address internal constant ACROSS_SPOKE_POOL_UNICHAIN = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
@@ -86,6 +90,14 @@ abstract contract Constants {
 
     // Note: Berachain Across spoke pool not found - may not be deployed yet
     // Note: Gnosis Across spoke pool not found - may not be deployed yet
+
+    // Relay Protocol depository addresses per chain
+    // Canonical CREATE2 address on most EVM chains — NOT universal: verify each new chain against
+    // github.com/relayprotocol/relay-depository deployments/addresses.prod.json before enabling
+    // (e.g. Cronos/Metis/Mantle/Linea/Taiko/zkEVM use 0x59916dA825d2d2EC1bF878d71c88826F6633EcCA)
+    address internal constant RELAY_DEPOSITORY_CANONICAL = 0x4cD00E387622C35bDDB9b4c962C136462338BC31;
+    // Non-canonical deployment shared by Cronos/Metis/Mantle/Linea/Taiko/zkEVM
+    address internal constant RELAY_DEPOSITORY_LINEA = 0x59916DA825D2D2eC1BF878D71c88826F6633ecca;
 
     // DeBridge Gate addresses per chain
     address internal constant DEBRIDGE_DLN_SRC = 0xeF4fB24aD0916217251F553c0596F8Edc630EB66;
@@ -178,6 +190,9 @@ abstract contract Constants {
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY = "AcrossSendFundsAndExecuteOnDstHookV2";
     string internal constant APPROVE_AND_ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY =
         "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2";
+    string internal constant RELAY_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "RelaySendFundsAndExecuteOnDstHook";
+    string internal constant APPROVE_AND_RELAY_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY =
+        "ApproveAndRelaySendFundsAndExecuteOnDstHook";
     string internal constant FLUID_CLAIM_REWARD_HOOK_KEY = "FluidClaimRewardHook";
     string internal constant GEARBOX_CLAIM_REWARD_HOOK_KEY = "GearboxClaimRewardHook";
     string internal constant YEARN_CLAIM_ALL_REWARDS_HOOK_KEY = "YearnClaimAllRewardsHook";

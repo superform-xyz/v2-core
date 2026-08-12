@@ -22,6 +22,9 @@ contract FirelightOracleFork is Test {
     address public constant FXRP = 0xAd552A648C74D49E10027AB8a618A3ad4901c5bE;
     address public constant TOP_HOLDER = 0x80743e896Df841900803a46F6d8451e0F9EF6F4A;
 
+    /// @dev Pinned so CI can reuse foundry's RPC cache instead of re-fetching state at latest
+    uint256 public constant FORK_BLOCK = 67_000_000;
+
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -34,7 +37,7 @@ contract FirelightOracleFork is Test {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        vm.createSelectFork(vm.envString("FLARE_RPC_URL"));
+        vm.createSelectFork(vm.envOr("FLARE_RPC_URL", string("https://flare-api.flare.network/ext/C/rpc")), FORK_BLOCK);
         SuperLedgerConfiguration ledgerConfig = new SuperLedgerConfiguration();
         oracle = new FirelightYieldSourceOracle(address(ledgerConfig));
         vault = IFirelightVault(VAULT);

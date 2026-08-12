@@ -127,6 +127,11 @@
     "pipeMode": "transform"
   },
   {
+    "hookKey": "APPROVE_AND_RELAY_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "transform"
@@ -581,6 +586,11 @@
   },
   {
     "hookKey": "REDEEM_WITH_ID_7540_VAULT_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "RELAY_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "transform"
   },
