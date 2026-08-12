@@ -10,17 +10,34 @@ import { IPendlePTHookResult } from "../../../../../src/interfaces/IPendlePTHook
 import { ISuperHook, ISuperHookInflowOutflow } from "../../../../../src/interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../../../src/libraries/HookSubTypes.sol";
 import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
+import { MockPendlePTAmortizedOracleV2 } from "../../../../mocks/MockPendlePTAmortizedOracleV2.sol";
 
-/// @dev Mock PendlePTHook exposing a settable IPendlePTHookResult TradeResult per account.
+/// @dev Mock PendlePTHook exposing a settable IPendlePTHookResult TradeResult and ISuperHookResult
+///      output (getOutAmount/getOutToken, used to verify PASSTHROUGH forwarding), per account.
 contract MockPendlePTHookResult is IPendlePTHookResult {
     mapping(address => TradeResult) internal _r;
+    mapping(address => uint256) internal _outAmt;
+    mapping(address => address) internal _outTok;
 
     function set(address account, TradeResult memory r) external {
         _r[account] = r;
     }
 
+    function setOut(address account, uint256 amt, address tok) external {
+        _outAmt[account] = amt;
+        _outTok[account] = tok;
+    }
+
     function getPendleTradeResult(address account) external view returns (TradeResult memory) {
         return _r[account];
+    }
+
+    function getOutAmount(address account) external view returns (uint256) {
+        return _outAmt[account];
+    }
+
+    function getOutToken(address account) external view returns (address) {
+        return _outTok[account];
     }
 }
 
@@ -45,8 +62,9 @@ contract RecordRedemptionPendlePTHookTest is Test {
     RecordRedemptionPendlePTHook public hook;
     MockPendlePTHookResult public prevHook;
     MockPendleMarket public market;
+    MockPendlePTAmortizedOracleV2 public mockOracle;
 
-    address public oracle = makeAddr("oracle");
+    address public oracle;
     address public account = makeAddr("account");
     address public sy = makeAddr("sy");
     address public pt = makeAddr("pt");
@@ -56,6 +74,8 @@ contract RecordRedemptionPendlePTHookTest is Test {
     function setUp() public {
         prevHook = new MockPendlePTHookResult();
         market = new MockPendleMarket(sy, pt, yt);
+        mockOracle = new MockPendlePTAmortizedOracleV2();
+        oracle = address(mockOracle);
         hook = new RecordRedemptionPendlePTHook(oracle, address(prevHook));
     }
 
@@ -220,6 +240,66 @@ contract RecordRedemptionPendlePTHookTest is Test {
         assertEq(hook.decodeMarket(data), address(market));
         assertEq(hook.decodePtSold(data), 456e18);
         assertTrue(hook.decodeUsePrevHookAmount(data));
+    }
+
+    /* --------------------- oracle recording (executed) ------------------------ */
+
+    /// @notice Execute the built oracle call and assert the oracle records PT SPENT (input), not the
+    ///         output asset.
+    function test_Oracle_RecordsPtSpent_NotAsset() public {
+        _sellOrRedeem(IPendlePTHookResult.Operation.SELL_PT, 100e18, 95e18); // PT in 100, asset out 95
+        bytes memory data = _encodeData(address(market), 0, true);
+        Execution[] memory ex = hook.build(address(prevHook), account, data);
+
+        vm.prank(account);
+        (bool ok,) = ex[1].target.call(ex[1].callData);
+        assertTrue(ok, "recordRedemption executed");
+
+        MockPendlePTAmortizedOracleV2.RedemptionRecord memory r = mockOracle.getLastRedemption();
+        assertEq(r.caller, account, "position holder = strategy");
+        assertEq(r.market, address(market), "market");
+        assertEq(r.ptSold, 100e18, "records PT SPENT (input), NOT the 95 asset out");
+    }
+
+    function test_Oracle_Manual_RecordsEncodedAmount() public {
+        bytes memory data = _encodeData(address(market), 77e18, false);
+        Execution[] memory ex = hook.build(address(0), account, data);
+        vm.prank(account);
+        (bool ok,) = ex[1].target.call(ex[1].callData);
+        assertTrue(ok);
+        assertEq(mockOracle.getLastRedemption().ptSold, 77e18, "manual amount recorded");
+    }
+
+    /* --------------------- context isolation / passthrough -------------------- */
+
+    function test_CrossAccount_Isolation() public {
+        address accountA = makeAddr("accountA");
+        address accountB = makeAddr("accountB");
+        prevHook.set(
+            accountA,
+            IPendlePTHookResult.TradeResult({
+                operation: IPendlePTHookResult.Operation.SELL_PT,
+                market: address(market),
+                inputToken: pt,
+                outputToken: asset,
+                inputAmount: 100e18,
+                outputAmount: 95e18
+            })
+        );
+        bytes memory data = _encodeData(address(market), 0, true);
+        vm.expectRevert(RecordRedemptionPendlePTHook.OPERATION_NOT_VALID.selector);
+        hook.build(address(prevHook), accountB, data);
+    }
+
+    function test_Passthrough_ForwardsPrevOutput() public {
+        prevHook.setOut(account, 555e18, asset);
+        vm.prank(account);
+        hook.setExecutionContext(account);
+        bytes memory data = _encodeData(address(market), 77e18, false);
+        vm.prank(account);
+        hook.preExecute(address(prevHook), account, data);
+        assertEq(hook.getOutAmount(account), 555e18, "forwards prev outAmount");
+        assertEq(hook.getOutToken(account), asset, "forwards prev outToken");
     }
 
     /* --------------------------------- fuzz ----------------------------------- */
