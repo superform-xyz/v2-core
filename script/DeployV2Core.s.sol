@@ -2159,6 +2159,49 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         }
 
+        // Pendle PT Record Hooks (bind to PendlePTHook via TradeResult; record into the V1 oracle).
+        // Mirror the deploy gate: V1 oracle bytecode + PendlePTHook (router) availability. During the
+        // pre-deploy check the oracle config mapping is still address(0) even though the oracle is
+        // deployed on-chain (it is populated only in the deploy pass), so resolve the oracle from the
+        // env output. The record hooks' constructor args (oracle + approvedPendlePTHook) then match the
+        // deploy path exactly, giving the same CREATE2 address to check.
+        address v1AmortizedOracle = configuration.pendlePTAmortizedOracles[chainId];
+        if (v1AmortizedOracle == address(0)) {
+            v1AmortizedOracle = _tryReadDeployedAddress(chainId, env, ".PendlePTAmortizedOracle");
+        }
+        if (
+            availability.pendlePTAmortizedOracleHooks && v1AmortizedOracle != address(0)
+                && v1AmortizedOracle.code.length > 0 && availability.pendleRouterHooks
+                && __checkBytecodeExists("PendlePTHook", env)
+        ) {
+            bytes memory pendlePTHookInitCode =
+                abi.encodePacked(__getBytecode("PendlePTHook", env), abi.encode(configuration.pendleRouters[chainId]));
+            address approvedPendlePTHook = _resolveApprovedPendlePTHook(chainId, env, pendlePTHookInitCode);
+
+            __checkContract(
+                RECORD_PURCHASE_PENDLE_PT_HOOK_KEY,
+                __getSalt(RECORD_PURCHASE_PENDLE_PT_HOOK_KEY),
+                abi.encode(v1AmortizedOracle, approvedPendlePTHook),
+                env
+            );
+            __checkContract(
+                RECORD_REDEMPTION_PENDLE_PT_HOOK_KEY,
+                __getSalt(RECORD_REDEMPTION_PENDLE_PT_HOOK_KEY),
+                abi.encode(v1AmortizedOracle, approvedPendlePTHook),
+                env
+            );
+        } else if (!(availability.pendlePTAmortizedOracleHooks && availability.pendleRouterHooks)) {
+            console2.log(
+                "SKIPPED RecordPurchase & RecordRedemption PendlePTHook (V1): oracle bytecode or Pendle router unavailable",
+                chainId
+            );
+        } else {
+            console2.log(
+                "SKIPPED RecordPurchase & RecordRedemption PendlePTHook (V1) check: V1 oracle address unavailable for chain",
+                chainId
+            );
+        }
+
         // Pendle PT Amortized Oracle hooks (V2)
         // NOTE: Same as V1 - hook check requires oracle address in config.
         if (
