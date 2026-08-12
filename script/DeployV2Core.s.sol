@@ -345,7 +345,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     {
         // Initialize all skipped contracts array
         // Includes adapter skips, router-gated hooks, and optional Pendle oracle hooks.
-        string[] memory potentialSkips = new string[](43);
+        string[] memory potentialSkips = new string[](45);
         uint256 skipCount = 0;
         // Adapter contracts (4 contracts - conditionally deployed)
         string[4] memory adapterContracts =
@@ -386,7 +386,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-        string[79] memory baseHooks = [
+        string[81] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -427,6 +427,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "RecordRedemptionPendlePTAmortizedOracleHook",
             "RecordPurchasePendlePTAmortizedOracleHookV2",
             "RecordRedemptionPendlePTAmortizedOracleHookV2",
+            "RecordPurchasePendlePTHook",
+            "RecordRedemptionPendlePTHook",
             "DeBridgeSendOrderAndExecuteOnDstHook",
             "DeBridgeCancelOrderHook",
             "EthenaCooldownSharesHook",
@@ -625,6 +627,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 // RecordRedemptionPendlePTAmortizedOracleHookV2
             potentialSkips[skipCount++] = "RecordPurchasePendlePTAmortizedOracleHookV2";
             potentialSkips[skipCount++] = "RecordRedemptionPendlePTAmortizedOracleHookV2";
+        }
+
+        // Pendle PT Record Hooks — deployed only when both the amortized oracle (V1) and PendlePTHook
+        // (the approved prev-hook they bind to) are available on this chain. Must mirror the deploy
+        // block below, which binds these hooks to configuration.pendlePTAmortizedOracles (V1).
+        if (!(availability.pendlePTAmortizedOracleHooks && availability.pendleRouterHooks)) {
+            expectedHooks -= 2; // RecordPurchasePendlePTHook + RecordRedemptionPendlePTHook
+            potentialSkips[skipCount++] = "RecordPurchasePendlePTHook";
+            potentialSkips[skipCount++] = "RecordRedemptionPendlePTHook";
         }
 
         availability.expectedHooks = expectedHooks;
@@ -2148,6 +2159,49 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         }
 
+        // Pendle PT Record Hooks (bind to PendlePTHook via TradeResult; record into the V1 oracle).
+        // Mirror the deploy gate: V1 oracle bytecode + PendlePTHook (router) availability. During the
+        // pre-deploy check the oracle config mapping is still address(0) even though the oracle is
+        // deployed on-chain (it is populated only in the deploy pass), so resolve the oracle from the
+        // env output. The record hooks' constructor args (oracle + approvedPendlePTHook) then match the
+        // deploy path exactly, giving the same CREATE2 address to check.
+        address v1AmortizedOracle = configuration.pendlePTAmortizedOracles[chainId];
+        if (v1AmortizedOracle == address(0)) {
+            v1AmortizedOracle = _tryReadDeployedAddress(chainId, env, ".PendlePTAmortizedOracle");
+        }
+        if (
+            availability.pendlePTAmortizedOracleHooks && v1AmortizedOracle != address(0)
+                && v1AmortizedOracle.code.length > 0 && availability.pendleRouterHooks
+                && __checkBytecodeExists("PendlePTHook", env)
+        ) {
+            bytes memory pendlePTHookInitCode =
+                abi.encodePacked(__getBytecode("PendlePTHook", env), abi.encode(configuration.pendleRouters[chainId]));
+            address approvedPendlePTHook = _resolveApprovedPendlePTHook(chainId, env, pendlePTHookInitCode);
+
+            __checkContract(
+                RECORD_PURCHASE_PENDLE_PT_HOOK_KEY,
+                __getSalt(RECORD_PURCHASE_PENDLE_PT_HOOK_KEY),
+                abi.encode(v1AmortizedOracle, approvedPendlePTHook),
+                env
+            );
+            __checkContract(
+                RECORD_REDEMPTION_PENDLE_PT_HOOK_KEY,
+                __getSalt(RECORD_REDEMPTION_PENDLE_PT_HOOK_KEY),
+                abi.encode(v1AmortizedOracle, approvedPendlePTHook),
+                env
+            );
+        } else if (!(availability.pendlePTAmortizedOracleHooks && availability.pendleRouterHooks)) {
+            console2.log(
+                "SKIPPED RecordPurchase & RecordRedemption PendlePTHook (V1): oracle bytecode or Pendle router unavailable",
+                chainId
+            );
+        } else {
+            console2.log(
+                "SKIPPED RecordPurchase & RecordRedemption PendlePTHook (V1) check: V1 oracle address unavailable for chain",
+                chainId
+            );
+        }
+
         // Pendle PT Amortized Oracle hooks (V2)
         // NOTE: Same as V1 - hook check requires oracle address in config.
         if (
@@ -3484,13 +3538,86 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
     }
 
+    /// @notice Non-reverting lookup of a deployed contract address from the environment output file.
+    /// @dev Reads script/output/{prod|staging}/{chainId}/{ChainName}-latest.json. Returns address(0)
+    ///      when the env has no canonical output dir (only prod=0 / staging=2), the file is absent,
+    ///      or the key is missing — callers decide the fallback.
+    /// @param chainId The chain id
+    /// @param env Environment (0 = prod, 2 = staging)
+    /// @param key JSON key to read (e.g. ".PendlePTHook")
+    /// @return The recorded address, or address(0) if unavailable
+    function _tryReadDeployedAddress(uint64 chainId, uint256 env, string memory key) internal view returns (address) {
+        string memory chainName = chainNames[chainId];
+        if (bytes(chainName).length == 0) return address(0);
+
+        string memory envName;
+        if (env == 0) {
+            envName = "prod";
+        } else if (env == 2) {
+            envName = "staging";
+        } else {
+            return address(0);
+        }
+
+        string memory root = vm.envOr("SUPERFORM_PROJECT_ROOT", vm.projectRoot());
+        string memory outputPath = string(
+            abi.encodePacked(
+                root, "/script/output/", envName, "/", vm.toString(uint256(chainId)), "/", chainName, "-latest.json"
+            )
+        );
+        if (!vm.exists(outputPath)) return address(0);
+        return _safeParseJsonAddress(vm.readFile(outputPath), key);
+    }
+
+    /// @notice Resolve the PendlePTHook address the record hooks must pin (immutable constructor arg).
+    /// @dev The value is always the deterministic CREATE2 address of the PendlePTHook for THIS
+    ///      environment — env-specific because __getSalt uses a per-env saltNamespace and the init code
+    ///      is read from the env-specific locked bytecode (prod: locked-bytecode, staging:
+    ///      locked-bytecode-dev). The environment output (prod: script/output/prod, staging:
+    ///      script/output/staging) is consulted as the authoritative record and cross-check:
+    ///        - recorded == computed  → output confirms the current hook; bind to it.
+    ///        - recorded != computed  → output is STALE (e.g. the pre-redeploy 0xb37C/0xCDBaC hook that
+    ///          lacks getPendleTradeResult); bind to the NEW computed address and warn to regenerate
+    ///          the env output after the PendlePTHook redeploy. Never binds to the stale hook.
+    ///        - no record             → fresh chain / bootstrap; bind to computed.
+    /// @param chainId The chain id
+    /// @param env Environment (0 = prod, 2 = staging)
+    /// @param pendlePTHookCreationCode The PendlePTHook init code being deployed this run (env-specific)
+    /// @return approvedPendlePTHook The address to pass as approvedPendlePTHook_
+    function _resolveApprovedPendlePTHook(
+        uint64 chainId,
+        uint256 env,
+        bytes memory pendlePTHookCreationCode
+    )
+        internal
+        view
+        returns (address approvedPendlePTHook)
+    {
+        require(pendlePTHookCreationCode.length > 0, "PENDLE_PT_HOOK_INITCODE_MISSING");
+        address computed = DeterministicDeployerLib.computeAddress(pendlePTHookCreationCode, __getSalt(PENDLE_PT_HOOK_KEY));
+
+        address recorded = _tryReadDeployedAddress(chainId, env, ".PendlePTHook");
+
+        if (recorded == computed) {
+            console2.log("   RecordHooks -> PendlePTHook (env output confirmed):", computed);
+        } else if (recorded != address(0)) {
+            console2.log("   WARNING: env output PendlePTHook is STALE:", recorded);
+            console2.log("   Binding record hooks to the NEW PendlePTHook:", computed);
+            console2.log("   Regenerate env output after the PendlePTHook redeploy so records match.");
+        } else {
+            console2.log("   RecordHooks -> PendlePTHook (computed, no env record yet):", computed);
+        }
+
+        approvedPendlePTHook = computed;
+    }
+
     function _deployHooks(uint64 chainId, uint256 env) private returns (HookAddresses memory hookAddresses) {
         console2.log("Starting hook deployment with comprehensive dependency validation...");
 
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 81;
+        uint256 len = 83;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -3786,6 +3913,35 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
         } else {
             hooks[80] = HookDeployment("", "", ""); // Empty deployment
+        }
+
+        // Pendle PT Record Hooks - source the recorded PT amount from PendlePTHook's TradeResult.
+        // Require both the amortized oracle (V1) AND PendlePTHook (hooks[80]). The record hooks pin the
+        // PendlePTHook via an immutable constructor arg: prefer the environment-recorded address
+        // (prod: script/output/prod, staging: script/output/staging), falling back to the deterministic
+        // CREATE2 address of the PendlePTHook deployed in THIS run.
+        if (
+            configuration.pendlePTAmortizedOracles[chainId] != address(0)
+                && configuration.pendlePTAmortizedOracles[chainId].code.length > 0
+                && availability.pendleRouterHooks
+        ) {
+            address approvedPendlePTHook = _resolveApprovedPendlePTHook(chainId, env, hooks[80].creationCode);
+            hooks[81] = _createSafeHookDeploymentWithArgs(
+                RECORD_PURCHASE_PENDLE_PT_HOOK_KEY,
+                "RecordPurchasePendlePTHook",
+                env,
+                abi.encode(configuration.pendlePTAmortizedOracles[chainId], approvedPendlePTHook)
+            );
+            hooks[82] = _createSafeHookDeploymentWithArgs(
+                RECORD_REDEMPTION_PENDLE_PT_HOOK_KEY,
+                "RecordRedemptionPendlePTHook",
+                env,
+                abi.encode(configuration.pendlePTAmortizedOracles[chainId], approvedPendlePTHook)
+            );
+        } else {
+            console2.log(" SKIPPED Pendle PT Record Hooks: oracle (V1) or PendlePTHook unavailable on chain", chainId);
+            hooks[81] = HookDeployment("", "", ""); // Empty deployment
+            hooks[82] = HookDeployment("", "", ""); // Empty deployment
         }
 
         // Spark PSM Hooks - Only deploy if PSM3 available on this chain

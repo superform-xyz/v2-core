@@ -174,6 +174,8 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
   RecordRedemptionPendlePTAmortizedOracleHook: { mode: "sizeless" }, // oracle record, uses prevHook
   RecordPurchasePendlePTAmortizedOracleHookV2: { mode: "sizeless" },
   RecordRedemptionPendlePTAmortizedOracleHookV2: { mode: "sizeless" },
+  RecordPurchasePendlePTHook: { mode: "sizeless" },   // oracle record, uses PendlePTHook TradeResult
+  RecordRedemptionPendlePTHook: { mode: "sizeless" }, // oracle record, uses PendlePTHook TradeResult
 
   // == external hooks (amount exists but not at a static byte offset) ==
   // Amount is embedded in aggregator txData, ABI-encoded structs, or dynamic arrays.
@@ -203,6 +205,15 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
   AaveV4WithdrawHook: { mode: "offset", amountPosition: 176, track: "deprecate->replaceCalldata" },
   AaveV4BorrowHook: { mode: "offset", amountPosition: 176, track: "deprecate->replaceCalldata" },
   AaveV4RepayHook: { mode: "offset", amountPosition: 176, track: "deprecate->replaceCalldata" },
+  // Aave V3 single-amount hooks: amount via _amountOffset() on BaseAaveV3LoanHook (offsets include the
+  // 52-byte header). Supply/Withdraw use SW_AMOUNT_OFFSET=112; Borrow/Repay/RepayWithATokens override to
+  // BR_AMOUNT_OFFSET=113 (rate mode occupies 112). The dual-amount SupplyAndBorrow/RepayAndWithdraw
+  // implement replaceCalldataAmounts and are auto-detected (no override), matching the Aave V4 pattern.
+  AaveV3SupplyHook: { mode: "offset", amountPosition: 112, track: "deprecate->replaceCalldata" },
+  AaveV3WithdrawHook: { mode: "offset", amountPosition: 112, track: "deprecate->replaceCalldata" },
+  AaveV3BorrowHook: { mode: "offset", amountPosition: 113, track: "deprecate->replaceCalldata" },
+  AaveV3RepayHook: { mode: "offset", amountPosition: 113, track: "deprecate->replaceCalldata" },
+  AaveV3RepayWithATokensHook: { mode: "offset", amountPosition: 113, track: "deprecate->replaceCalldata" },
   // Gearbox approve-and-stake: AMOUNT_POSITION = 124 (72 + 52 header)
   GearboxApproveAndStakeHook: { mode: "offset", amountPosition: 124, track: "deprecate->replaceCalldata" },
 

@@ -616,6 +616,14 @@ hooks:
     actionTypes: [{intent: config, stage: instant}]
     legSizing: []  # sizeless — oracle recording, no user amount
 
+  RecordPurchasePendlePTHook:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: []  # sizeless — oracle recording, amount sourced from PendlePTHook TradeResult
+
+  RecordRedemptionPendlePTHook:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: []  # sizeless — oracle recording, amount sourced from PendlePTHook TradeResult
+
   # ============================================================
   # PERMISSIONS (4 hooks) — all instant
   # ============================================================

@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-08-11T08:04:03Z",
+  "generatedAt": "2026-08-12T11:12:09Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -4689,21 +4689,21 @@
       ],
       "addresses": {
         "staging": {
-          "1": "0xCDBaC0d37d0cC3CdBea30fF8DB3E1957d5212f63",
-          "56": "0xCDBaC0d37d0cC3CdBea30fF8DB3E1957d5212f63",
-          "999": "0xCDBaC0d37d0cC3CdBea30fF8DB3E1957d5212f63",
-          "8453": "0xCDBaC0d37d0cC3CdBea30fF8DB3E1957d5212f63",
-          "42161": "0xCDBaC0d37d0cC3CdBea30fF8DB3E1957d5212f63"
+          "1": "0xc7A136887f48F4104B904eaCe83B16566450BC3D",
+          "56": "0xc7A136887f48F4104B904eaCe83B16566450BC3D",
+          "999": "0xc7A136887f48F4104B904eaCe83B16566450BC3D",
+          "8453": "0xc7A136887f48F4104B904eaCe83B16566450BC3D",
+          "42161": "0xc7A136887f48F4104B904eaCe83B16566450BC3D"
         },
         "prod": {
-          "1": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
-          "10": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
-          "56": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
-          "146": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
-          "999": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
-          "8453": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
-          "42161": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064",
-          "80094": "0xb37CBfCd3d76139C27705d3950608Cf4EE438064"
+          "1": "0xB3C73b0a9b78B6a9d428208dccf028dd4CC88e0d",
+          "10": "0xB3C73b0a9b78B6a9d428208dccf028dd4CC88e0d",
+          "56": "0xB3C73b0a9b78B6a9d428208dccf028dd4CC88e0d",
+          "146": "0xB3C73b0a9b78B6a9d428208dccf028dd4CC88e0d",
+          "999": "0xB3C73b0a9b78B6a9d428208dccf028dd4CC88e0d",
+          "8453": "0xB3C73b0a9b78B6a9d428208dccf028dd4CC88e0d",
+          "42161": "0xB3C73b0a9b78B6a9d428208dccf028dd4CC88e0d",
+          "80094": "0xB3C73b0a9b78B6a9d428208dccf028dd4CC88e0d"
         }
       },
       "availableChains": {
@@ -8391,6 +8391,132 @@
       "compatibleProtocols": [
         "pendle"
       ]
+    },
+    "RecordPurchasePendlePTHook": {
+      "name": "Record Purchase Pendle PT",
+      "description": "Records a Pendle PT purchase (actual PT received) for amortized oracle pricing",
+      "hookType": "NONACCOUNTING",
+      "subtype": "PTYT",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "1": "0x8987332B6459C6d57D308E1D9Fd4e0935CD72E01",
+          "56": "0x8987332B6459C6d57D308E1D9Fd4e0935CD72E01",
+          "999": "0x8987332B6459C6d57D308E1D9Fd4e0935CD72E01",
+          "8453": "0x8987332B6459C6d57D308E1D9Fd4e0935CD72E01",
+          "42161": "0x8987332B6459C6d57D308E1D9Fd4e0935CD72E01"
+        },
+        "prod": {
+          "1": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
+          "10": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
+          "56": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
+          "146": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
+          "999": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
+          "8453": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
+          "42161": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
+          "80094": "0xA0004DaF493a2A37095795482980bf0bb8B231a1"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "999",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "146",
+          "999",
+          "8453",
+          "42161",
+          "80094"
+        ]
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": false,
+      "erc165": [],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
+    "RecordRedemptionPendlePTHook": {
+      "name": "Record Redemption Pendle PT",
+      "description": "Records a Pendle PT sale/redemption (actual PT spent) for amortized oracle pricing",
+      "hookType": "NONACCOUNTING",
+      "subtype": "PTYT",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "1": "0xbB7dd70cf9D788F80fBA089b78AF7885f4662aAc",
+          "56": "0xbB7dd70cf9D788F80fBA089b78AF7885f4662aAc",
+          "999": "0xbB7dd70cf9D788F80fBA089b78AF7885f4662aAc",
+          "8453": "0xbB7dd70cf9D788F80fBA089b78AF7885f4662aAc",
+          "42161": "0xbB7dd70cf9D788F80fBA089b78AF7885f4662aAc"
+        },
+        "prod": {
+          "1": "0xeB6F4A99A2550ef871565691812CD43E8Cdf1e0B",
+          "10": "0xeB6F4A99A2550ef871565691812CD43E8Cdf1e0B",
+          "56": "0xeB6F4A99A2550ef871565691812CD43E8Cdf1e0B",
+          "146": "0xeB6F4A99A2550ef871565691812CD43E8Cdf1e0B",
+          "999": "0xeB6F4A99A2550ef871565691812CD43E8Cdf1e0B",
+          "8453": "0xeB6F4A99A2550ef871565691812CD43E8Cdf1e0B",
+          "42161": "0xeB6F4A99A2550ef871565691812CD43E8Cdf1e0B",
+          "80094": "0xeB6F4A99A2550ef871565691812CD43E8Cdf1e0B"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "1",
+          "56",
+          "999",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "146",
+          "999",
+          "8453",
+          "42161",
+          "80094"
+        ]
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": false,
+      "erc165": [],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
     },
     "ApproveERC20Hook": {
       "name": "Approve ERC-20",
