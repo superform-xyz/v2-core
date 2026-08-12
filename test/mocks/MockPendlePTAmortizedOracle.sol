@@ -27,6 +27,20 @@ contract MockPendlePTAmortizedOracle is IPendlePTAmortizedOracle {
     mapping(address => mapping(address => uint256)) public bookValueStorage;
     mapping(address => mapping(address => bool)) public positionExists;
 
+    /// @notice Mirrors PendlePTAmortizedOracle's immutable 15-minute TWAP duration
+    uint32 public constant TWAP_DURATION = 900;
+
+    /// @notice PT-to-asset rate used by getAssetOutput (1e18 scale), settable for tests
+    uint256 public assetOutputRate = 0.9e18;
+
+    function setAssetOutputRate(uint256 rate) external {
+        assetOutputRate = rate;
+    }
+
+    function getAssetOutput(address, address, uint256 sharesIn) external view override returns (uint256) {
+        return sharesIn * assetOutputRate / 1e18;
+    }
+
     function recordPurchase(address market, uint256 sySpent, uint256 ptAmount) external override {
         purchases.push(
             PurchaseRecord({

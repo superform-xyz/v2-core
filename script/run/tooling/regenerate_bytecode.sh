@@ -139,6 +139,8 @@ HOOK_CONTRACTS=(
     "RecordRedemptionPendlePTAmortizedOracleHook"
     "RecordPurchasePendlePTAmortizedOracleHookV2"
     "RecordRedemptionPendlePTAmortizedOracleHookV2"
+    "RecordPurchasePendlePTHook"
+    "RecordRedemptionPendlePTHook"
     "DeBridgeSendOrderAndExecuteOnDstHook"
     "DeBridgeCancelOrderHook"
     "StargateSendHook"

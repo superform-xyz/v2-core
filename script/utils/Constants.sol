@@ -245,6 +245,8 @@ abstract contract Constants {
         "RecordPurchasePendlePTAmortizedOracleHookV2";
     string internal constant RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY =
         "RecordRedemptionPendlePTAmortizedOracleHookV2";
+    string internal constant RECORD_PURCHASE_PENDLE_PT_HOOK_KEY = "RecordPurchasePendlePTHook";
+    string internal constant RECORD_REDEMPTION_PENDLE_PT_HOOK_KEY = "RecordRedemptionPendlePTHook";
     string internal constant APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY = "ApproveAndDeposit4626VaultHook";
     string internal constant APPROVE_AND_SWAP_ODOSV2_HOOK_KEY = "ApproveAndSwapOdosV2Hook";
     string internal constant SWAP_KYBERSWAP_HOOK_KEY = "SwapKyberSwapHook";

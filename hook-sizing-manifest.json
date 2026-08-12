@@ -545,12 +545,22 @@
     "pipeMode": "passthrough"
   },
   {
+    "hookKey": "RECORD_PURCHASE_PENDLE_PT_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "passthrough"
+  },
+  {
     "hookKey": "RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_KEY",
     "mode": "sizeless",
     "pipeMode": "passthrough"
   },
   {
     "hookKey": "RECORD_REDEMPTION_PENDLE_PT_AMORTIZED_ORACLE_HOOK_V2_KEY",
+    "mode": "sizeless",
+    "pipeMode": "passthrough"
+  },
+  {
+    "hookKey": "RECORD_REDEMPTION_PENDLE_PT_HOOK_KEY",
     "mode": "sizeless",
     "pipeMode": "passthrough"
   },

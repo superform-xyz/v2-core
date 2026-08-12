@@ -36,6 +36,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
 import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
 import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
+import { IPendlePTHookResult } from "../../../interfaces/IPendlePTHookResult.sol";
 
 /// @title PendlePTHook
 /// @author Superform Labs
@@ -58,7 +59,8 @@ import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
 /// @dev used directly as TokenOutput.tokenRedeemSy (sell/redeem). Native input is address(0);
 /// @dev the 0xEeee… sentinel is normalized to address(0) on the buy input side.
 /// @dev data layout: standard Layer 0 (52-byte header) + Layer 1 (swap params) + Layer 2 (payload)
-/// @notice         bytes32   yieldSourceOracleId = BytesLib.toBytes32(data, 0);
+
+/// @notice         bytes32   placeholder0     = BytesLib.toBytes32(data, 0);
 /// @notice         address   yieldSource      = BytesLib.toAddress(data, 32);
 /// @notice         address   inputToken       = BytesLib.toAddress(data, 52);
 /// @notice         address   outputToken      = BytesLib.toAddress(data, 72);
@@ -72,7 +74,14 @@ import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
 /// @dev   - yieldSource (Pendle market) is trusted from the signed intent
 /// @dev   - readTokens() on market returns (SY, PT, YT) — a malicious market could return attacker-controlled addresses
 /// @dev   - Signer is responsible for only submitting known-good market addresses
-contract PendlePTHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
+contract PendlePTHook is
+    BaseHook,
+    ISuperHookSwap,
+    ISuperHookContextAware,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow,
+    IPendlePTHookResult
+{
 
     /*//////////////////////////////////////////////////////////////
                                  CONSTANTS
@@ -99,6 +108,23 @@ contract PendlePTHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISupe
                         DATA LAYOUT POSITIONS
     //////////////////////////////////////////////////////////////*/
     uint256 private constant AMOUNT_POSITION = SwapCalldataLayout.AMOUNT_POSITION;
+
+    /*//////////////////////////////////////////////////////////////
+                       TRADE-RESULT TRANSIENT STORAGE
+    //////////////////////////////////////////////////////////////*/
+    /// @dev Namespace for the IPendlePTHookResult TradeResult transient store. Keyed by BaseHook's
+    ///      per-account EXECUTION-CONTEXT nonce (see _currentContext) — identical isolation to
+    ///      outAmount/outToken/mutexes: values live and die with a single execution context, so they
+    ///      cannot be read stale, leak across accounts, or be clobbered by a nested/parallel context.
+    ///      (Cleared at end of tx by the EVM; unreachable in a fresh context because the nonce differs.)
+    bytes32 private constant PT_TRADE_STORAGE = keccak256("pendle.pt.hook.trade");
+    /// @dev MUST match BaseHook.ACCOUNT_CONTEXT_STORAGE — the slot holding the per-account context nonce.
+    bytes32 private constant ACCOUNT_CONTEXT_STORAGE = keccak256("hook.account.context");
+    uint256 private constant _TRADE_OPERATION = 0;
+    uint256 private constant _TRADE_MARKET = 1;
+    uint256 private constant _TRADE_INPUT_TOKEN = 2;
+    uint256 private constant _TRADE_INPUT_AMOUNT = 3;
+    uint256 private constant _TRADE_INPUT_PREBAL = 4; // scratch: input balance snapshot from preExecute
 
     /*//////////////////////////////////////////////////////////////
                                  IMMUTABLES
@@ -271,6 +297,7 @@ contract PendlePTHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISupe
     function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
         if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
         if (interfaceId == type(ISuperHookOutflow).interfaceId) return true;
+        if (interfaceId == type(IPendlePTHookResult).interfaceId) return true;
         return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
             || interfaceId == type(ISuperHookResult).interfaceId
             || interfaceId == type(ISuperHookInspector).interfaceId;
@@ -343,14 +370,49 @@ contract PendlePTHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISupe
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc BaseHook
+    /// @dev Snapshots both the output-token balance (existing outAmount scratch) and the input-token
+    ///      balance (new TradeResult scratch), so postExecute can derive both sides from real deltas.
     function _preExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data), account);
+        _tstoreTrade(account, _TRADE_INPUT_PREBAL, _getInputBalance(account, data));
     }
 
     /// @inheritdoc BaseHook
+    /// @dev Finalizes the output side (unchanged getOutAmount/getOutToken semantics) AND records the
+    ///      full IPendlePTHookResult.TradeResult (operation + market + input token/amount) so a
+    ///      following record hook can read the correct PT amount for either trade direction.
     function _postExecute(address, address account, bytes calldata data) internal override {
-        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
-        _setOutToken(BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET), account);
+        uint256 outputAmount = _getBalance(account, data) - getOutAmount(account);
+        _setOutAmount(outputAmount, account);
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+        _setOutToken(outputToken, account);
+
+        // Input side (PT for sell/redeem; asset for buy) from the real balance delta.
+        uint256 inputPreBal = _tloadTrade(account, _TRADE_INPUT_PREBAL);
+        uint256 inputPostBal = _getInputBalance(account, data);
+        uint256 inputAmount = inputPreBal > inputPostBal ? inputPreBal - inputPostBal : 0;
+
+        address market = HookDataDecoder.extractYieldSource(data);
+        address inputToken = BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+
+        _tstoreTrade(account, _TRADE_OPERATION, uint256(_deriveOperation(market, inputToken, outputToken)));
+        _tstoreTrade(account, _TRADE_MARKET, uint256(uint160(market)));
+        _tstoreTrade(account, _TRADE_INPUT_TOKEN, uint256(uint160(inputToken)));
+        _tstoreTrade(account, _TRADE_INPUT_AMOUNT, inputAmount);
+    }
+
+    /// @inheritdoc IPendlePTHookResult
+    /// @dev Output side reuses BaseHook's transient getOutToken/getOutAmount; input side + operation +
+    ///      market come from this hook's execution-context-keyed transient TradeResult store (same
+    ///      isolation as outAmount/outToken). `operation == NONE` means no PendlePTHook trade ran for
+    ///      `account` in the current execution context.
+    function getPendleTradeResult(address account) external view override returns (TradeResult memory result) {
+        result.operation = Operation(_tloadTrade(account, _TRADE_OPERATION));
+        result.market = address(uint160(_tloadTrade(account, _TRADE_MARKET)));
+        result.inputToken = address(uint160(_tloadTrade(account, _TRADE_INPUT_TOKEN)));
+        result.inputAmount = _tloadTrade(account, _TRADE_INPUT_AMOUNT);
+        result.outputToken = getOutToken(account);
+        result.outputAmount = getOutAmount(account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -632,5 +694,67 @@ contract PendlePTHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISupe
         }
 
         return IERC20(outputToken).balanceOf(account);
+    }
+
+    /// @dev Gets balance of the INPUT token for the account — native ETH or ERC20
+    /// @param account The account to check balance for
+    /// @param data The hook calldata containing the input token at INPUT_TOKEN_OFFSET
+    /// @return The input-token balance of the account
+    function _getInputBalance(address account, bytes calldata data) private view returns (uint256) {
+        address inputToken = BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+
+        if (inputToken == address(0) || inputToken == NATIVE_TOKEN) {
+            return account.balance;
+        }
+
+        return IERC20(inputToken).balanceOf(account);
+    }
+
+    /// @dev Derives the trade Operation from the header tokens + YT expiry, mirroring the routing in
+    ///      _buildHookExecutions. Returns NONE for an unroutable combination (never stored in practice
+    ///      because _buildHookExecutions reverts first).
+    function _deriveOperation(
+        address market,
+        address inputToken,
+        address outputToken
+    )
+        private
+        view
+        returns (Operation)
+    {
+        (, address pt, address yt) = IPendleMarket(market).readTokens();
+        if (outputToken == pt && inputToken != pt) return Operation.BUY_PT;
+        if (inputToken == pt && outputToken != pt) {
+            return IPYieldToken(yt).isExpired() ? Operation.REDEEM_PT : Operation.SELL_PT;
+        }
+        return Operation.NONE;
+    }
+
+    /// @dev Reads BaseHook's current per-account execution-context nonce (same slot BaseHook uses),
+    ///      so the TradeResult store shares the exact isolation of outAmount/outToken.
+    function _currentContext(address account) private view returns (uint256 context) {
+        bytes32 key = keccak256(abi.encodePacked(ACCOUNT_CONTEXT_STORAGE, account));
+        assembly ("memory-safe") {
+            context := tload(key)
+        }
+    }
+
+    /// @dev Execution-context + account-keyed transient storage key for a TradeResult field
+    function _tradeKey(address account, uint256 field) private view returns (bytes32) {
+        return keccak256(abi.encodePacked(PT_TRADE_STORAGE, _currentContext(account), account, field));
+    }
+
+    function _tstoreTrade(address account, uint256 field, uint256 value) private {
+        bytes32 key = _tradeKey(account, field);
+        assembly ("memory-safe") {
+            tstore(key, value)
+        }
+    }
+
+    function _tloadTrade(address account, uint256 field) private view returns (uint256 value) {
+        bytes32 key = _tradeKey(account, field);
+        assembly ("memory-safe") {
+            value := tload(key)
+        }
     }
 }
