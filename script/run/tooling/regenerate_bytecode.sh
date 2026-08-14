@@ -88,6 +88,7 @@ CORE_CONTRACTS=(
     "StargateAdapterV2"
     "AcrossV3AdapterV2"
     "RelayAdapter"
+    "CCTPAdapter"
     "SuperLedger"
     "FlatFeeLedger"
     "SuperLedgerConfiguration"

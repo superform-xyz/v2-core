@@ -33,6 +33,7 @@ abstract contract Constants {
     string internal constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
     string internal constant ACROSS_V3_ADAPTER_V2_KEY = "AcrossV3AdapterV2";
     string internal constant RELAY_ADAPTER_KEY = "RelayAdapter";
+    string internal constant CCTP_ADAPTER_KEY = "CCTPAdapter";
     string internal constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
     string internal constant STARGATE_ADAPTER_KEY = "StargateAdapter";
     string internal constant STARGATE_ADAPTER_V2_KEY = "StargateAdapterV2";
@@ -333,6 +334,9 @@ abstract contract Constants {
 
     // CCTP V2 Token Messenger (same address on all EVM chains via CREATE2)
     address internal constant CCTP_V2_TOKEN_MESSENGER = 0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d;
+
+    // CCTP V2 Message Transmitter (same address on all EVM chains via CREATE2)
+    address internal constant CCTP_V2_MESSAGE_TRANSMITTER = 0x81D40F21F12A8F0E3252Bccb954D722d4c464B64;
 
     // Firelight Hook Keys
     string internal constant REDEEM_FIRELIGHT_VAULT_HOOK_KEY = "RedeemFirelightVaultHook";

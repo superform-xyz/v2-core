@@ -7,6 +7,7 @@ import { ConfigCore } from "./utils/ConfigCore.sol";
 import { ISuperLedgerConfiguration } from "../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { AcrossV3AdapterV2 } from "../src/adapters/AcrossV3AdapterV2.sol";
 import { RelayAdapter } from "../src/adapters/RelayAdapter.sol";
+import { CCTPAdapter } from "../src/adapters/CCTPAdapter.sol";
 import {
     AcrossSendFundsAndExecuteOnDstHookV2
 } from "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHookV2.sol";
@@ -27,6 +28,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address superExecutor;
         address acrossV3AdapterV2;
         address relayAdapter;
+        address cctpAdapter;
         address debridgeAdapter;
         address stargateAdapter;
         address stargateAdapterV2;
@@ -278,6 +280,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     struct ContractAvailability {
         bool acrossV3AdapterV2;
         bool relayAdapter;
+        bool cctpAdapter;
         bool debridgeAdapter;
         bool stargateAdapter;
         bool stargateAdapterV2;
@@ -348,11 +351,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     {
         // Initialize all skipped contracts array
         // Includes adapter skips, router-gated hooks, and optional Pendle oracle hooks.
-        string[] memory potentialSkips = new string[](46);
+        string[] memory potentialSkips = new string[](47);
         uint256 skipCount = 0;
-        // Adapter contracts (5 contracts - conditionally deployed)
-        string[5] memory adapterContracts =
-            ["AcrossV3AdapterV2", "RelayAdapter", "DebridgeAdapter", "StargateAdapter", "StargateAdapterV2"];
+        // Adapter contracts (6 contracts - conditionally deployed)
+        string[6] memory adapterContracts =
+            ["AcrossV3AdapterV2", "RelayAdapter", "CCTPAdapter", "DebridgeAdapter", "StargateAdapter", "StargateAdapterV2"];
 
         // Start with all adapters, then decrement for missing configurations
         uint256 expectedAdapters = adapterContracts.length;
@@ -371,6 +374,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         } else {
             expectedAdapters -= 1;
             potentialSkips[skipCount++] = "RelayAdapter";
+        }
+
+        // CCTPAdapter (permissionless — availability keyed on CCTP V2 transmitter + native USDC being enabled)
+        if (configuration.messageTransmittersV2[chainId] != address(0) && configuration.usdcs[chainId] != address(0)) {
+            availability.cctpAdapter = true;
+        } else {
+            expectedAdapters -= 1;
+            potentialSkips[skipCount++] = "CCTPAdapter";
         }
 
         // DebridgeAdapter
@@ -1833,6 +1844,20 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         } else {
             revert("RELAY_ADAPTER_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
         }
+
+        // CCTPAdapter (permissionless destination adapter — transmitter + native USDC + executor)
+        if (availability.cctpAdapter && superDestExecutor != address(0)) {
+            __checkContract(
+                CCTP_ADAPTER_KEY,
+                __getSalt(CCTP_ADAPTER_KEY),
+                abi.encode(configuration.messageTransmittersV2[chainId], configuration.usdcs[chainId], superDestExecutor),
+                env
+            );
+        } else if (!availability.cctpAdapter) {
+            console2.log("SKIPPED CCTPAdapter: CCTP V2 transmitter or native USDC not configured for chain", chainId);
+        } else {
+            revert("CCTP_ADAPTER_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
+        }
     }
 
     /// @notice Check ledger contracts
@@ -2698,6 +2723,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         status = _getContractStatus(chainId, RELAY_ADAPTER_KEY);
         if (status.isDeployed) coreContracts.relayAdapter = status.contractAddress;
 
+        status = _getContractStatus(chainId, CCTP_ADAPTER_KEY);
+        if (status.isDeployed) coreContracts.cctpAdapter = status.contractAddress;
+
         status = _getContractStatus(chainId, DEBRIDGE_ADAPTER_KEY);
         if (status.isDeployed) coreContracts.debridgeAdapter = status.contractAddress;
 
@@ -2775,6 +2803,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" Relay Depository:", configuration.relayDepositories[chainId]);
         } else {
             console2.log(" SKIPPED Relay Depository validation: Not available on chain", chainId);
+        }
+
+        // Only validate the CCTP V2 transmitter + native USDC if the adapter is enabled on this chain
+        if (availability.cctpAdapter) {
+            require(configuration.messageTransmittersV2[chainId] != address(0), "CCTP_MESSAGE_TRANSMITTER_ADDRESS_ZERO");
+            require(configuration.messageTransmittersV2[chainId].code.length > 0, "CCTP_MESSAGE_TRANSMITTER_NOT_DEPLOYED");
+            require(configuration.usdcs[chainId] != address(0), "CCTP_USDC_ADDRESS_ZERO");
+            require(configuration.usdcs[chainId].code.length > 0, "CCTP_USDC_NOT_DEPLOYED");
+            console2.log(" CCTP V2 Message Transmitter:", configuration.messageTransmittersV2[chainId]);
+            console2.log(" CCTP Native USDC:", configuration.usdcs[chainId]);
+        } else {
+            console2.log(" SKIPPED CCTP V2 transmitter/USDC validation: Not available on chain", chainId);
         }
 
         // Only validate DeBridge if it's available on this chain
@@ -2980,6 +3020,48 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" RelayAdapter deployed and validated");
         } else {
             console2.log(" SKIPPED RelayAdapter deployment: Not available on chain", chainId);
+        }
+
+        // Deploy CCTPAdapter only if CCTP V2 (transmitter + native USDC) is enabled on this chain
+        if (availability.cctpAdapter) {
+            require(configuration.messageTransmittersV2[chainId] != address(0), "CCTP_ADAPTER_TRANSMITTER_PARAM_ZERO");
+            require(configuration.usdcs[chainId] != address(0), "CCTP_ADAPTER_USDC_PARAM_ZERO");
+            require(coreContracts.superDestinationExecutor != address(0), "CCTP_ADAPTER_DEST_EXECUTOR_PARAM_ZERO");
+
+            coreContracts.cctpAdapter = __deployContractIfNeeded(
+                CCTP_ADAPTER_KEY,
+                chainId,
+                __getSalt(CCTP_ADAPTER_KEY),
+                abi.encodePacked(
+                    __getBytecode("CCTPAdapter", env),
+                    abi.encode(
+                        configuration.messageTransmittersV2[chainId],
+                        configuration.usdcs[chainId],
+                        coreContracts.superDestinationExecutor
+                    )
+                )
+            );
+
+            // Validate CCTPAdapter was deployed
+            require(coreContracts.cctpAdapter != address(0), "CCTP_ADAPTER_DEPLOYMENT_FAILED");
+            require(coreContracts.cctpAdapter.code.length > 0, "CCTP_ADAPTER_NO_CODE");
+            require(
+                address(CCTPAdapter(coreContracts.cctpAdapter).SUPER_DESTINATION_EXECUTOR())
+                    == coreContracts.superDestinationExecutor,
+                "CCTP_ADAPTER_EXECUTOR_MISMATCH"
+            );
+            require(
+                address(CCTPAdapter(coreContracts.cctpAdapter).MESSAGE_TRANSMITTER())
+                    == configuration.messageTransmittersV2[chainId],
+                "CCTP_ADAPTER_TRANSMITTER_MISMATCH"
+            );
+            require(
+                address(CCTPAdapter(coreContracts.cctpAdapter).USDC()) == configuration.usdcs[chainId],
+                "CCTP_ADAPTER_USDC_MISMATCH"
+            );
+            console2.log(" CCTPAdapter deployed and validated");
+        } else {
+            console2.log(" SKIPPED CCTPAdapter deployment: Not available on chain", chainId);
         }
 
         // Deploy DebridgeAdapter only if available on this chain

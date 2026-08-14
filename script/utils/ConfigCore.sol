@@ -56,6 +56,41 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.relayDepositories[FLARE_CHAIN_ID] = address(0); // Relay not deployed on Flare
         configuration.relayDepositories[STABLE_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL; // Stable (988) deployed
 
+        // ===== CCTP V2 MESSAGE TRANSMITTER + NATIVE USDC ADDRESSES =====
+        // Enablement is a deploy-time decision: BOTH the transmitter and native USDC must be set for a
+        // chain to deploy the CCTPAdapter there (verify against Circle's official CCTP V2 chain list and
+        // USDC contract addresses — https://developers.circle.com/stablecoins/usdc-on-main-networks).
+        // address(0) = disabled/skipped. The transmitter is the same CREATE2 address on every CCTP V2 chain.
+        configuration.messageTransmittersV2[MAINNET_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[BASE_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[ARBITRUM_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[OPTIMISM_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[POLYGON_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[AVALANCHE_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[UNICHAIN_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[LINEA_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[SONIC_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[WORLDCHAIN_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[BNB_CHAIN_ID] = address(0); // No native USDC / CCTP
+        configuration.messageTransmittersV2[BERACHAIN_CHAIN_ID] = address(0); // CCTP not live
+        configuration.messageTransmittersV2[GNOSIS_CHAIN_ID] = address(0); // CCTP not live
+        configuration.messageTransmittersV2[HYPEREVM_CHAIN_ID] = address(0); // Verify before enabling
+        configuration.messageTransmittersV2[FLARE_CHAIN_ID] = address(0); // CCTP not live
+        configuration.messageTransmittersV2[STABLE_CHAIN_ID] = address(0); // CCTP not live
+        configuration.messageTransmittersV2[ROBINHOOD_CHAIN_ID] = address(0); // CCTP not live
+
+        // Native USDC (the token CCTP V2 mints on each chain)
+        configuration.usdcs[MAINNET_CHAIN_ID] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        configuration.usdcs[BASE_CHAIN_ID] = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+        configuration.usdcs[ARBITRUM_CHAIN_ID] = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
+        configuration.usdcs[OPTIMISM_CHAIN_ID] = 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85;
+        configuration.usdcs[POLYGON_CHAIN_ID] = 0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359;
+        configuration.usdcs[AVALANCHE_CHAIN_ID] = 0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E;
+        configuration.usdcs[UNICHAIN_CHAIN_ID] = 0x078D782b760474a361dDA0AF3839290b0EF57AD6;
+        configuration.usdcs[LINEA_CHAIN_ID] = 0x176211869cA2b568f2A7D4EE941E073a821EE1ff;
+        configuration.usdcs[SONIC_CHAIN_ID] = 0x29219dd400f2Bf60E5a23d13Be72B486D4038894;
+        configuration.usdcs[WORLDCHAIN_CHAIN_ID] = 0x79A02482A880bCE3F13e09Da970dC34db4CD24d1;
+
         // ===== DEBRIDGE DLN SOURCE ADDRESSES =====
         configuration.debridgeSrcDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_SRC;
         configuration.debridgeSrcDln[BASE_CHAIN_ID] = DEBRIDGE_DLN_SRC;
