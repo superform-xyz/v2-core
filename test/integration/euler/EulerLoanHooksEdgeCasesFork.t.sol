@@ -16,9 +16,8 @@ import { EulerDepositCollateralHook } from "../../../src/hooks/loan/euler/EulerD
 import { EulerBorrowHook } from "../../../src/hooks/loan/euler/EulerBorrowHook.sol";
 import { EulerRepayHook } from "../../../src/hooks/loan/euler/EulerRepayHook.sol";
 import { EulerWithdrawCollateralHook } from "../../../src/hooks/loan/euler/EulerWithdrawCollateralHook.sol";
-import {
-    EulerDepositCollateralAndBorrowHook
-} from "../../../src/hooks/loan/euler/EulerDepositCollateralAndBorrowHook.sol";
+import { EulerDepositCollateralAndBorrowHook } from
+    "../../../src/hooks/loan/euler/EulerDepositCollateralAndBorrowHook.sol";
 import { EulerRepayAndWithdrawHook } from "../../../src/hooks/loan/euler/EulerRepayAndWithdrawHook.sol";
 import { BaseEulerLoanHook } from "../../../src/hooks/loan/euler/BaseEulerLoanHook.sol";
 
@@ -31,14 +30,7 @@ import { BaseEulerLoanHook } from "../../../src/hooks/loan/euler/BaseEulerLoanHo
 contract LoanHookExecutorEdge {
     error EXECUTION_FAILED(uint256 index, bytes returnData);
 
-    function executeHook(
-        address hook,
-        address prevHook,
-        bytes calldata data
-    )
-        external
-        returns (uint256 outAmount)
-    {
+    function executeHook(address hook, address prevHook, bytes calldata data) external returns (uint256 outAmount) {
         ISuperHook(hook).setExecutionContext(address(this));
         Execution[] memory execs = ISuperHook(hook).build(prevHook, address(this), data);
 
@@ -612,8 +604,12 @@ contract EulerLoanHooksEdgeCasesFork is Test {
         // Debt still active
         assertGt(IEVault(EULER_USDC_VAULT).debtOf(address(executor)), 0, "Should still have debt");
 
-        console2.log("[max withdraw] maxWithdraw:", maxW, "Remaining shares:",
-            IEVault(EULER_WETH_VAULT).balanceOf(address(executor)));
+        console2.log(
+            "[max withdraw] maxWithdraw:",
+            maxW,
+            "Remaining shares:",
+            IEVault(EULER_WETH_VAULT).balanceOf(address(executor))
+        );
     }
 
     /// @notice Withdraw all after no debt — clean exit
@@ -746,9 +742,7 @@ contract EulerLoanHooksEdgeCasesFork is Test {
         // Add to position (more collateral + more borrow)
         _fundWETH(5e18);
         executor.executeHook(
-            address(depositAndBorrowHook),
-            address(0),
-            _encodeDepositAndBorrowData(5e18, 1000e6, type(uint256).max, 0)
+            address(depositAndBorrowHook), address(0), _encodeDepositAndBorrowData(5e18, 1000e6, type(uint256).max, 0)
         );
 
         uint256 debtAfter2 = IEVault(EULER_USDC_VAULT).debtOf(address(executor));
@@ -769,9 +763,7 @@ contract EulerLoanHooksEdgeCasesFork is Test {
         uint256 debtBefore = IEVault(EULER_USDC_VAULT).debtOf(address(executor));
 
         uint256 outAmount = executor.executeHook(
-            address(repayAndWithdrawHook),
-            address(0),
-            _encodeRepayAndWithdrawData(1e6, 0, false, 1e6, 0, 0)
+            address(repayAndWithdrawHook), address(0), _encodeRepayAndWithdrawData(1e6, 0, false, 1e6, 0, 0)
         );
 
         uint256 debtAfter = IEVault(EULER_USDC_VAULT).debtOf(address(executor));
@@ -873,7 +865,8 @@ contract EulerLoanHooksEdgeCasesFork is Test {
         // Actually this tests isFullRepayment=true + secondaryAmount=0
         // In the code: secondaryAmount==0 means repay-only path (4 executions)
         // But isFullRepayment doesn't add cleanup for repay-only path!
-        // Looking at the code, secondaryAmount==0 always takes the 4-execution repay-only path regardless of isFullRepayment
+        // Looking at the code, secondaryAmount==0 always takes the 4-execution repay-only path regardless of
+        // isFullRepayment
         executor.executeHook(
             address(repayAndWithdrawHook),
             address(0),
@@ -1075,9 +1068,7 @@ contract EulerLoanHooksEdgeCasesFork is Test {
         } else {
             // No vault liquidity — do repay-only
             executor.executeHook(
-                address(repayAndWithdrawHook),
-                address(0),
-                _encodeRepayAndWithdrawData(500e6, 0, false, 500e6, 0, 0)
+                address(repayAndWithdrawHook), address(0), _encodeRepayAndWithdrawData(500e6, 0, false, 500e6, 0, 0)
             );
         }
 
@@ -1269,9 +1260,7 @@ contract EulerLoanHooksEdgeCasesFork is Test {
 
         uint256 usdcBefore = IERC20(USDC).balanceOf(address(executor));
         uint256 outAmount = executor.executeHook(
-            address(repayAndWithdrawHook),
-            address(0),
-            _encodeRepayAndWithdrawData(500e6, 0, false, 500e6, 0, 0)
+            address(repayAndWithdrawHook), address(0), _encodeRepayAndWithdrawData(500e6, 0, false, 500e6, 0, 0)
         );
         uint256 usdcAfter = IERC20(USDC).balanceOf(address(executor));
 
@@ -1423,41 +1412,34 @@ contract EulerLoanHooksEdgeCasesFork is Test {
 
         // Deposit: 4 hook executions + 2 (preExecute + postExecute) = 6
         {
-            Execution[] memory execs = ISuperHook(address(depositHook)).build(
-                address(0), exec, _encodeDepositData(1e18)
-            );
+            Execution[] memory execs =
+                ISuperHook(address(depositHook)).build(address(0), exec, _encodeDepositData(1e18));
             assertEq(execs.length, 6, "Deposit should have 6 executions");
         }
 
         // Borrow: 3 hook executions + 2 = 5
         {
-            Execution[] memory execs = ISuperHook(address(borrowHook)).build(
-                address(0), exec, _encodeBorrowData(500e6)
-            );
+            Execution[] memory execs = ISuperHook(address(borrowHook)).build(address(0), exec, _encodeBorrowData(500e6));
             assertEq(execs.length, 5, "Borrow should have 5 executions");
         }
 
         // Partial Repay: 4 hook executions + 2 = 6
         {
-            Execution[] memory execs = ISuperHook(address(repayHook)).build(
-                address(0), exec, _encodeRepayData(500e6, false)
-            );
+            Execution[] memory execs =
+                ISuperHook(address(repayHook)).build(address(0), exec, _encodeRepayData(500e6, false));
             assertEq(execs.length, 6, "Partial repay should have 6 executions");
         }
 
         // Full Repay: 6 hook executions + 2 = 8
         {
-            Execution[] memory execs = ISuperHook(address(repayHook)).build(
-                address(0), exec, _encodeRepayData(0, true)
-            );
+            Execution[] memory execs = ISuperHook(address(repayHook)).build(address(0), exec, _encodeRepayData(0, true));
             assertEq(execs.length, 8, "Full repay should have 8 executions");
         }
 
         // Withdraw: 1 hook execution + 2 = 3
         {
-            Execution[] memory execs = ISuperHook(address(withdrawHook)).build(
-                address(0), exec, _encodeWithdrawData(1e18)
-            );
+            Execution[] memory execs =
+                ISuperHook(address(withdrawHook)).build(address(0), exec, _encodeWithdrawData(1e18));
             assertEq(execs.length, 3, "Withdraw should have 3 executions");
         }
     }
@@ -1517,8 +1499,7 @@ contract EulerLoanHooksEdgeCasesFork is Test {
     function test_fork_AccountLiquidity_AfterOpen() public {
         _openPositionComposite();
 
-        (uint256 collValue, uint256 liabValue) =
-            IEVault(EULER_USDC_VAULT).accountLiquidity(address(executor), false);
+        (uint256 collValue, uint256 liabValue) = IEVault(EULER_USDC_VAULT).accountLiquidity(address(executor), false);
 
         assertGt(collValue, 0, "Collateral value should be > 0");
         assertGt(liabValue, 0, "Liability value should be > 0");
@@ -1531,14 +1512,12 @@ contract EulerLoanHooksEdgeCasesFork is Test {
     function test_fork_AccountLiquidity_ImprovesWithCollateral() public {
         _openPositionComposite();
 
-        (uint256 collBefore, uint256 liabBefore) =
-            IEVault(EULER_USDC_VAULT).accountLiquidity(address(executor), false);
+        (uint256 collBefore, uint256 liabBefore) = IEVault(EULER_USDC_VAULT).accountLiquidity(address(executor), false);
 
         _fundWETH(5e18);
         executor.executeHook(address(depositHook), address(0), _encodeDepositData(5e18));
 
-        (uint256 collAfter, uint256 liabAfter) =
-            IEVault(EULER_USDC_VAULT).accountLiquidity(address(executor), false);
+        (uint256 collAfter, uint256 liabAfter) = IEVault(EULER_USDC_VAULT).accountLiquidity(address(executor), false);
 
         assertGt(collAfter, collBefore, "Collateral value should increase");
         assertEq(liabAfter, liabBefore, "Liability should not change");

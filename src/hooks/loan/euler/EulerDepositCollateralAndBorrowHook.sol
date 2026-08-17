@@ -283,8 +283,8 @@ contract EulerDepositCollateralAndBorrowHook is BaseEulerLoanHook {
         vars.expectedIRM = BytesLib.toAddress(data, EXPECTED_IRM_OFFSET);
 
         if (
-            vars.yieldSourceAddress == address(0) || vars.debtAsset == address(0)
-                || vars.collateralAsset == address(0) || vars.evc == address(0) || vars.controllerVault == address(0)
+            vars.yieldSourceAddress == address(0) || vars.debtAsset == address(0) || vars.collateralAsset == address(0)
+                || vars.evc == address(0) || vars.controllerVault == address(0)
         ) {
             revert ADDRESS_NOT_VALID();
         }
@@ -314,8 +314,7 @@ contract EulerDepositCollateralAndBorrowHook is BaseEulerLoanHook {
         uint256 maxLiqCapUtilBps = BytesLib.toUint256(data, MAX_LIQ_CAP_UTIL_BPS_OFFSET);
         if (maxLiqCapUtilBps > 0) {
             // collateralValue is FIRST, liabilityValue is SECOND
-            (uint256 collateralValue, uint256 liabilityValue) =
-                IEVault(controllerVault).accountLiquidity(account, true);
+            (uint256 collateralValue, uint256 liabilityValue) = IEVault(controllerVault).accountLiquidity(account, true);
             // Guard against zero collateral value edge case (e.g., oracle returns 0)
             if (liabilityValue > 0 && collateralValue == 0) revert LIQUIDATION_CAPACITY_EXCEEDED();
             if (liabilityValue * 10_000 > collateralValue * maxLiqCapUtilBps) {

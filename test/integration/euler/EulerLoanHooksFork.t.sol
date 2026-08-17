@@ -16,9 +16,8 @@ import { EulerDepositCollateralHook } from "../../../src/hooks/loan/euler/EulerD
 import { EulerBorrowHook } from "../../../src/hooks/loan/euler/EulerBorrowHook.sol";
 import { EulerRepayHook } from "../../../src/hooks/loan/euler/EulerRepayHook.sol";
 import { EulerWithdrawCollateralHook } from "../../../src/hooks/loan/euler/EulerWithdrawCollateralHook.sol";
-import {
-    EulerDepositCollateralAndBorrowHook
-} from "../../../src/hooks/loan/euler/EulerDepositCollateralAndBorrowHook.sol";
+import { EulerDepositCollateralAndBorrowHook } from
+    "../../../src/hooks/loan/euler/EulerDepositCollateralAndBorrowHook.sol";
 import { EulerRepayAndWithdrawHook } from "../../../src/hooks/loan/euler/EulerRepayAndWithdrawHook.sol";
 
 /*//////////////////////////////////////////////////////////////
@@ -31,14 +30,7 @@ import { EulerRepayAndWithdrawHook } from "../../../src/hooks/loan/euler/EulerRe
 contract LoanHookExecutor {
     error EXECUTION_FAILED(uint256 index, bytes returnData);
 
-    function executeHook(
-        address hook,
-        address prevHook,
-        bytes calldata data
-    )
-        external
-        returns (uint256 outAmount)
-    {
+    function executeHook(address hook, address prevHook, bytes calldata data) external returns (uint256 outAmount) {
         ISuperHook(hook).setExecutionContext(address(this));
         Execution[] memory execs = ISuperHook(hook).build(prevHook, address(this), data);
 
@@ -289,7 +281,8 @@ contract EulerLoanHooksFork is Test {
     function test_fork_DepositCollateral() public {
         _fundWETH(COLLATERAL_AMOUNT);
 
-        uint256 outAmount = executor.executeHook(address(depositHook), address(0), _encodeDepositData(COLLATERAL_AMOUNT));
+        uint256 outAmount =
+            executor.executeHook(address(depositHook), address(0), _encodeDepositData(COLLATERAL_AMOUNT));
 
         // Verify vault shares received
         uint256 shares = IEVault(EULER_WETH_VAULT).balanceOf(address(executor));
@@ -461,8 +454,12 @@ contract EulerLoanHooksFork is Test {
             address(repayAndWithdrawHook),
             address(0),
             _encodeRepayAndWithdrawData(
-                repayAmount, 0, // secondaryAmount = 0 -> repay-only path
-                false, repayAmount, 0, 0
+                repayAmount,
+                0, // secondaryAmount = 0 -> repay-only path
+                false,
+                repayAmount,
+                0,
+                0
             )
         );
 

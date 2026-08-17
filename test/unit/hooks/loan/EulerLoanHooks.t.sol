@@ -19,9 +19,8 @@ import { EulerDepositCollateralHook } from "../../../../src/hooks/loan/euler/Eul
 import { EulerBorrowHook } from "../../../../src/hooks/loan/euler/EulerBorrowHook.sol";
 import { EulerRepayHook } from "../../../../src/hooks/loan/euler/EulerRepayHook.sol";
 import { EulerWithdrawCollateralHook } from "../../../../src/hooks/loan/euler/EulerWithdrawCollateralHook.sol";
-import {
-    EulerDepositCollateralAndBorrowHook
-} from "../../../../src/hooks/loan/euler/EulerDepositCollateralAndBorrowHook.sol";
+import { EulerDepositCollateralAndBorrowHook } from
+    "../../../../src/hooks/loan/euler/EulerDepositCollateralAndBorrowHook.sol";
 import { EulerRepayAndWithdrawHook } from "../../../../src/hooks/loan/euler/EulerRepayAndWithdrawHook.sol";
 import { BaseEulerLoanHook } from "../../../../src/hooks/loan/euler/BaseEulerLoanHook.sol";
 import { HookSubTypes } from "../../../../src/libraries/HookSubTypes.sol";
@@ -305,6 +304,80 @@ contract EulerLoanHooksTest is Helpers {
             bytes20(uint160(expectedOracle)), // offset 294
             bytes20(uint160(expectedUnitOfAccount)), // offset 314
             bytes20(uint160(expectedIRM)) // offset 334
+        );
+    }
+
+    /// @dev Encode shared prefix with custom addresses (for zero-address tests)
+    function _encodeSharedPrefixCustom(
+        address _collVault,
+        address _debtAsset,
+        address _collAsset,
+        address _evc,
+        address _ctrlVault,
+        uint256 primaryAmt,
+        uint256 secondaryAmt,
+        bool usePrev
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            bytes32(0),
+            bytes20(uint160(_collVault)),
+            bytes20(uint160(_debtAsset)),
+            bytes20(uint160(_collAsset)),
+            bytes20(uint160(_evc)),
+            bytes20(uint160(_ctrlVault)),
+            primaryAmt,
+            secondaryAmt,
+            usePrev
+        );
+    }
+
+    /// @dev Encode deposit+borrow with custom addresses
+    function _encodeDepositAndBorrowDataCustom(
+        address _collVault,
+        address _debtAsset,
+        address _collAsset,
+        address _evc,
+        address _ctrlVault
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            _encodeSharedPrefixCustom(_collVault, _debtAsset, _collAsset, _evc, _ctrlVault, amount, borrowAmount, false),
+            uint256(100e18),
+            uint256(0),
+            bytes20(uint160(expectedOracle)),
+            bytes20(uint160(expectedUnitOfAccount)),
+            bytes20(uint160(expectedIRM))
+        );
+    }
+
+    /// @dev Encode repay+withdraw with custom addresses
+    function _encodeRepayAndWithdrawDataCustom(
+        address _collVault,
+        address _debtAsset,
+        address _collAsset,
+        address _evc,
+        address _ctrlVault
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            _encodeSharedPrefixCustom(_collVault, _debtAsset, _collAsset, _evc, _ctrlVault, amount, borrowAmount, false),
+            false, // isFullRepayment
+            amount, // maxRepayAssets
+            borrowAmount, // maxCollateralRelease
+            uint256(0), // maxRemainingLiqCapUtilBps
+            bytes20(uint160(expectedOracle)),
+            bytes20(uint160(expectedUnitOfAccount)),
+            bytes20(uint160(expectedIRM))
         );
     }
 
@@ -693,9 +766,7 @@ contract EulerLoanHooksTest is Helpers {
 
         // withdraw
         assertEq(executions[1].target, collateralVault);
-        assertEq(
-            executions[1].callData, abi.encodeCall(IEVault.withdraw, (amount, address(this), address(this)))
-        );
+        assertEq(executions[1].callData, abi.encodeCall(IEVault.withdraw, (amount, address(this), address(this))));
     }
 
     function test_WithdrawHook_Build_UsePrevHookAmount() public {
@@ -706,10 +777,7 @@ contract EulerLoanHooksTest is Helpers {
         Execution[] memory executions = withdrawHook.build(address(mockPrevHook), address(this), data);
 
         assertEq(executions.length, 3);
-        assertEq(
-            executions[1].callData,
-            abi.encodeCall(IEVault.withdraw, (prevAmount, address(this), address(this)))
-        );
+        assertEq(executions[1].callData, abi.encodeCall(IEVault.withdraw, (prevAmount, address(this), address(this))));
     }
 
     function test_WithdrawHook_Build_RevertIf_ZeroAmount() public {
@@ -777,15 +845,11 @@ contract EulerLoanHooksTest is Helpers {
 
         // enableCollateral
         assertEq(executions[4].target, evc);
-        assertEq(
-            executions[4].callData, abi.encodeCall(IEVC.enableCollateral, (address(this), collateralVault))
-        );
+        assertEq(executions[4].callData, abi.encodeCall(IEVC.enableCollateral, (address(this), collateralVault)));
 
         // enableController
         assertEq(executions[5].target, evc);
-        assertEq(
-            executions[5].callData, abi.encodeCall(IEVC.enableController, (address(this), controllerVault))
-        );
+        assertEq(executions[5].callData, abi.encodeCall(IEVC.enableController, (address(this), controllerVault)));
 
         // borrow
         assertEq(executions[6].target, controllerVault);
@@ -980,10 +1044,7 @@ contract EulerLoanHooksTest is Helpers {
         assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (controllerVault, 0)));
         // withdraw
         assertEq(executions[5].target, collateralVault);
-        assertEq(
-            executions[5].callData,
-            abi.encodeCall(IEVault.withdraw, (borrowAmount, address(this), address(this)))
-        );
+        assertEq(executions[5].callData, abi.encodeCall(IEVault.withdraw, (borrowAmount, address(this), address(this))));
     }
 
     function test_RepayAndWithdrawHook_Build_RepayOnly() public view {
@@ -1002,7 +1063,8 @@ contract EulerLoanHooksTest is Helpers {
 
     function test_RepayAndWithdrawHook_Build_FullRepayAndWithdraw() public view {
         // isFullRepayment = true, secondaryAmount > 0
-        bytes memory data = _encodeRepayAndWithdrawData(0, borrowAmount, false, true, type(uint256).max, borrowAmount, 0);
+        bytes memory data =
+            _encodeRepayAndWithdrawData(0, borrowAmount, false, true, type(uint256).max, borrowAmount, 0);
         Execution[] memory executions = repayAndWithdrawHook.build(address(0), address(this), data);
 
         // 8 inner + pre + post = 10 (full repay + withdraw + disableController + disableCollateral + approve reset)
@@ -1017,10 +1079,7 @@ contract EulerLoanHooksTest is Helpers {
         // approve(0) reset
         assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (controllerVault, 0)));
         // withdraw
-        assertEq(
-            executions[5].callData,
-            abi.encodeCall(IEVault.withdraw, (borrowAmount, address(this), address(this)))
-        );
+        assertEq(executions[5].callData, abi.encodeCall(IEVault.withdraw, (borrowAmount, address(this), address(this))));
         // disableController
         assertEq(executions[6].target, controllerVault);
         assertEq(executions[6].callData, abi.encodeCall(IEVault.disableController, ()));
@@ -1111,7 +1170,8 @@ contract EulerLoanHooksTest is Helpers {
 
     function test_RepayAndWithdrawHook_PostExecute_FullRepayFailed() public {
         // isFullRepayment but debt remains after execution
-        bytes memory data = _encodeRepayAndWithdrawData(0, borrowAmount, false, true, type(uint256).max, borrowAmount, 0);
+        bytes memory data =
+            _encodeRepayAndWithdrawData(0, borrowAmount, false, true, type(uint256).max, borrowAmount, 0);
 
         repayAndWithdrawHook.preExecute(address(0), address(this), data);
         deal(collateralAsset, address(this), borrowAmount);
@@ -1566,8 +1626,7 @@ contract EulerLoanHooksTest is Helpers {
 
     function test_RepayAndWithdrawHook_Build_FullRepayOnly() public view {
         // isFullRepayment=true, secondaryAmount=0: full repay-only (no withdraw)
-        bytes memory data =
-            _encodeRepayAndWithdrawData(0, 0, false, true, type(uint256).max, 0, 0);
+        bytes memory data = _encodeRepayAndWithdrawData(0, 0, false, true, type(uint256).max, 0, 0);
         Execution[] memory executions = repayAndWithdrawHook.build(address(0), address(this), data);
 
         // Repay-only full path: 4 inner + pre + post = 6
@@ -1580,7 +1639,8 @@ contract EulerLoanHooksTest is Helpers {
 
     function test_RepayAndWithdrawHook_Build_FullRepay_RevertIf_ZeroDebt() public {
         mockControllerVault.setDebtOf(0);
-        bytes memory data = _encodeRepayAndWithdrawData(0, borrowAmount, false, true, type(uint256).max, borrowAmount, 0);
+        bytes memory data =
+            _encodeRepayAndWithdrawData(0, borrowAmount, false, true, type(uint256).max, borrowAmount, 0);
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         repayAndWithdrawHook.build(address(0), address(this), data);
     }
@@ -1896,7 +1956,7 @@ contract EulerLoanHooksTest is Helpers {
 
     function test_RepayAndWithdrawHook_PostExecute_LiqCapJustOver() public {
         // liability / collateral = 50.01% > maxRemainingLiqCapUtilBps 5000
-        mockControllerVault.setAccountLiquidity(10000, 5001);
+        mockControllerVault.setAccountLiquidity(10_000, 5001);
         mockControllerVault.setDebtOf(5e18);
 
         bytes memory data = _encodeRepayAndWithdrawData(amount, borrowAmount, false, false, amount, borrowAmount, 5000);
@@ -1928,5 +1988,179 @@ contract EulerLoanHooksTest is Helpers {
         bytes memory data = _encodeDepositAndBorrowData(amount, borrowAmount, false, 100e18, 0);
         Execution[] memory executions = depositAndBorrowHook.build(address(0), address(this), data);
         assertEq(executions.length, 9);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              COVERAGE GAP: ZERO-ADDRESS SUB-EXPRESSION TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev BorrowHook L148: yieldSourceAddress == address(0) branch
+    function test_BorrowHook_Build_RevertIf_ZeroYieldSourceAddress() public {
+        bytes memory data = abi.encodePacked(
+            bytes32(0),
+            bytes20(0), // zero yieldSourceAddress (collateralVault)
+            bytes20(uint160(debtAsset)),
+            bytes20(uint160(collateralAsset)),
+            bytes20(uint160(evc)),
+            bytes20(uint160(controllerVault)),
+            amount,
+            uint256(0),
+            false
+        );
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        borrowHook.build(address(0), address(this), data);
+    }
+
+    /// @dev RepayHook L197: yieldSourceAddress == address(0) branch
+    function test_RepayHook_Build_RevertIf_ZeroYieldSourceAddress() public {
+        bytes memory data = abi.encodePacked(
+            bytes32(0),
+            bytes20(0), // zero yieldSourceAddress (collateralVault)
+            bytes20(uint160(debtAsset)),
+            bytes20(uint160(collateralAsset)),
+            bytes20(uint160(evc)),
+            bytes20(uint160(controllerVault)),
+            amount,
+            uint256(0),
+            false,
+            false // isFullRepayment
+        );
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        repayHook.build(address(0), address(this), data);
+    }
+
+    /// @dev WithdrawHook L125: yieldSourceAddress == address(0) branch
+    function test_WithdrawHook_Build_RevertIf_ZeroYieldSourceAddress() public {
+        bytes memory data = abi.encodePacked(
+            bytes32(0),
+            bytes20(0), // zero yieldSourceAddress (collateralVault)
+            bytes20(uint160(debtAsset)),
+            bytes20(uint160(collateralAsset)),
+            bytes20(uint160(evc)),
+            bytes20(uint160(controllerVault)),
+            amount,
+            uint256(0),
+            false
+        );
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        withdrawHook.build(address(0), address(this), data);
+    }
+
+    /// @dev RepayAndWithdrawHook L374-379: zero yieldSourceAddress
+    function test_RepayAndWithdrawHook_Build_RevertIf_ZeroYieldSourceAddress() public {
+        bytes memory data =
+            _encodeRepayAndWithdrawDataCustom(address(0), debtAsset, collateralAsset, evc, controllerVault);
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        repayAndWithdrawHook.build(address(0), address(this), data);
+    }
+
+    /// @dev RepayAndWithdrawHook L374-379: zero debtAsset
+    function test_RepayAndWithdrawHook_Build_RevertIf_ZeroDebtAsset() public {
+        bytes memory data =
+            _encodeRepayAndWithdrawDataCustom(collateralVault, address(0), collateralAsset, evc, controllerVault);
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        repayAndWithdrawHook.build(address(0), address(this), data);
+    }
+
+    /// @dev RepayAndWithdrawHook L374-379: zero collateralAsset
+    function test_RepayAndWithdrawHook_Build_RevertIf_ZeroCollateralAsset() public {
+        bytes memory data =
+            _encodeRepayAndWithdrawDataCustom(collateralVault, debtAsset, address(0), evc, controllerVault);
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        repayAndWithdrawHook.build(address(0), address(this), data);
+    }
+
+    /// @dev RepayAndWithdrawHook L374-379: zero evc
+    function test_RepayAndWithdrawHook_Build_RevertIf_ZeroEVC() public {
+        bytes memory data =
+            _encodeRepayAndWithdrawDataCustom(collateralVault, debtAsset, collateralAsset, address(0), controllerVault);
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        repayAndWithdrawHook.build(address(0), address(this), data);
+    }
+
+    /// @dev RepayAndWithdrawHook L374-379: zero controllerVault
+    function test_RepayAndWithdrawHook_Build_RevertIf_ZeroControllerVault() public {
+        bytes memory data =
+            _encodeRepayAndWithdrawDataCustom(collateralVault, debtAsset, collateralAsset, evc, address(0));
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        repayAndWithdrawHook.build(address(0), address(this), data);
+    }
+
+    /// @dev DepositAndBorrowHook L286: zero debtAsset
+    function test_DepositAndBorrowHook_Build_RevertIf_ZeroDebtAsset() public {
+        bytes memory data =
+            _encodeDepositAndBorrowDataCustom(collateralVault, address(0), collateralAsset, evc, controllerVault);
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        depositAndBorrowHook.build(address(0), address(this), data);
+    }
+
+    /// @dev DepositAndBorrowHook L286: zero collateralAsset
+    function test_DepositAndBorrowHook_Build_RevertIf_ZeroCollateralAsset() public {
+        bytes memory data =
+            _encodeDepositAndBorrowDataCustom(collateralVault, debtAsset, address(0), evc, controllerVault);
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        depositAndBorrowHook.build(address(0), address(this), data);
+    }
+
+    /// @dev DepositAndBorrowHook L286: zero evc
+    function test_DepositAndBorrowHook_Build_RevertIf_ZeroEVC() public {
+        bytes memory data =
+            _encodeDepositAndBorrowDataCustom(collateralVault, debtAsset, collateralAsset, address(0), controllerVault);
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        depositAndBorrowHook.build(address(0), address(this), data);
+    }
+
+    /// @dev DepositAndBorrowHook L286: zero controllerVault
+    function test_DepositAndBorrowHook_Build_RevertIf_ZeroControllerVault() public {
+        bytes memory data =
+            _encodeDepositAndBorrowDataCustom(collateralVault, debtAsset, collateralAsset, evc, address(0));
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        depositAndBorrowHook.build(address(0), address(this), data);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              COVERAGE GAP: ZERO LIABILITY + ZERO COLLATERAL WITH LIQ CAP
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev DepositAndBorrowHook._postExecute L315-324:
+    ///      When liabilityValue=0 and collateralValue=0 with maxLiqCapUtilBps > 0,
+    ///      both guards are false so execution should pass.
+    function test_DepositAndBorrowHook_PostExecute_ZeroBothWithLiqCap() public {
+        mockControllerVault.setAccountLiquidity(0, 0);
+
+        bytes memory data = _encodeDepositAndBorrowData(amount, borrowAmount, false, 100e18, 5000);
+        depositAndBorrowHook.preExecute(address(0), address(this), data);
+        deal(debtAsset, address(this), borrowAmount);
+
+        // Should NOT revert: liabilityValue=0 so both checks pass
+        depositAndBorrowHook.postExecute(address(0), address(this), data);
+    }
+
+    /// @dev RepayAndWithdrawHook._postExecute L428-440:
+    ///      When liabilityValue=0 and collateralValue=0 with maxRemainingLiqCapUtilBps > 0,
+    ///      both guards are false so execution should pass.
+    function test_RepayAndWithdrawHook_PostExecute_ZeroBothWithLiqCap() public {
+        mockControllerVault.setAccountLiquidity(0, 0);
+        mockControllerVault.setDebtOf(5e18); // non-zero debt so not full-repay revert
+
+        bytes memory data = _encodeRepayAndWithdrawData(amount, borrowAmount, false, false, amount, borrowAmount, 5000);
+        repayAndWithdrawHook.preExecute(address(0), address(this), data);
+        deal(collateralAsset, address(this), borrowAmount);
+
+        // Should NOT revert: liabilityValue=0 so both checks pass
+        repayAndWithdrawHook.postExecute(address(0), address(this), data);
+    }
+
+    /// @dev DepositAndBorrowHook._postExecute: collateral > 0, liability = 0, liqCap > 0
+    ///      Should pass since liabilityValue=0.
+    function test_DepositAndBorrowHook_PostExecute_ZeroLiabilityWithLiqCap() public {
+        mockControllerVault.setAccountLiquidity(100e18, 0);
+
+        bytes memory data = _encodeDepositAndBorrowData(amount, borrowAmount, false, 100e18, 5000);
+        depositAndBorrowHook.preExecute(address(0), address(this), data);
+        deal(debtAsset, address(this), borrowAmount);
+
+        // Should NOT revert: 0 * 10_000 is not > 100e18 * 5000
+        depositAndBorrowHook.postExecute(address(0), address(this), data);
     }
 }

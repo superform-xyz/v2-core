@@ -67,7 +67,9 @@ contract AaveV3RepayHook is BaseAaveV3LoanHook {
         executions[0] =
             Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0)) });
         executions[1] = Execution({
-            target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, vars.amount))
+            target: vars.loanToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (vars.pool, vars.amount))
         });
         executions[2] = Execution({
             target: vars.pool,

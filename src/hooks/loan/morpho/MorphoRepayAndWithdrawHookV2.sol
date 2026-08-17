@@ -39,10 +39,12 @@ import {
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 196);           // applies to primaryAmount only
 /// @notice         bool isFullRepayment = _decodeBool(data, 197);
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 198);
+/// @notice         uint256 maxRepayAssets = BytesLib.toUint256(data, 230);     // max allowed repay (partial cap)
+/// @notice         uint256 maxCollateralReleaseAssets = BytesLib.toUint256(data, 262); // max allowed withdraw
 /// @dev KNOWN LIMITATION (P1-2): An attacker can front-run full repayment by repaying 1 wei of shares
 ///      on behalf of the borrower, causing the victim's transaction to revert.
-/// @dev KNOWN LIMITATION (P1-3): Interest accrues between build() and execute(). _preExecute calls
-///      accrueInterest() before the actual repay, but the approval was set during build().
+/// @dev Full repayment uses type(uint256).max approval to handle interest accrual between build() and execute().
+///      The approval is immediately reset to 0 after repay, so no dangling allowance risk.
 /// @dev outAmount tracks collateral tokens received (post-balance - pre-balance).
 ///      When secondaryAmount = 0, this is a repay-only execution (no withdraw).
 contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHook {
@@ -56,7 +58,9 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHook {
     uint256 internal constant SECONDARY_AMOUNT_OFFSET = 164;
     uint256 internal constant V2_IS_FULL_REPAYMENT_OFFSET = 197;
     uint256 internal constant V2_LLTV_OFFSET = 198;
-    uint256 internal constant V2_MIN_DATA_LENGTH = 230;
+    uint256 internal constant MAX_REPAY_ASSETS_OFFSET = 230;
+    uint256 internal constant MAX_COLLATERAL_RELEASE_OFFSET = 262;
+    uint256 internal constant V2_MIN_DATA_LENGTH = 294;
 
     /*//////////////////////////////////////////////////////////////
                                STORAGE
@@ -78,6 +82,8 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHook {
         bool usePrevHookAmount;
         bool isFullRepayment;
         uint256 lltv;
+        uint256 maxRepayAssets;
+        uint256 maxCollateralReleaseAssets;
     }
 
     struct BuildContext {
@@ -87,6 +93,19 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHook {
         uint256 approvalAmount;
         uint256 shareBalance;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                               ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Thrown when repay amount exceeds the max allowed
+    error MAX_REPAY_EXCEEDED();
+
+    /// @notice Thrown when withdraw amount exceeds the max allowed
+    error MAX_COLLATERAL_RELEASE_EXCEEDED();
+
+    /// @notice Thrown when debt is not zero after full repayment
+    error FULL_REPAY_FAILED();
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -125,8 +144,7 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHook {
         RepayWithdrawVars memory vars = _decodeV2Data(data);
 
         BuildContext memory ctx;
-        ctx.marketParams =
-            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+        ctx.marketParams = _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
         ctx.id = ctx.marketParams.id();
 
         if (vars.isFullRepayment) {
@@ -135,9 +153,9 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHook {
             ctx.shareBalance = uint256(borrowShares);
             if (ctx.shareBalance == 0) revert AMOUNT_NOT_VALID();
 
-            // Derive loan amount for approval (rounds up to cover accrued interest)
-            Market memory market = IMorpho(morpho).market(ctx.id);
-            ctx.approvalAmount = ctx.shareBalance.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
+            // Use type(uint256).max approval to handle interest accrual between build() and execute().
+            // The approval is reset to 0 immediately after repay (execution index 3), so no dangling allowance.
+            ctx.approvalAmount = type(uint256).max;
         } else {
             // Partial repay: use specified or prev-hook amount
             if (vars.usePrevHookAmount) {
@@ -145,6 +163,9 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHook {
             }
             ctx.repayAmount = vars.primaryAmount;
             if (ctx.repayAmount == 0) revert AMOUNT_NOT_VALID();
+
+            // Cap check for partial repay
+            if (vars.maxRepayAssets > 0 && ctx.repayAmount > vars.maxRepayAssets) revert MAX_REPAY_EXCEEDED();
 
             // Cap repay to current debt under interest drift
             Market memory market = IMorpho(morpho).market(ctx.id);
@@ -155,6 +176,13 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHook {
             }
 
             ctx.approvalAmount = ctx.repayAmount;
+        }
+
+        // Validate withdraw amount against cap
+        if (vars.secondaryAmount > 0 && vars.maxCollateralReleaseAssets > 0) {
+            if (vars.secondaryAmount > vars.maxCollateralReleaseAssets) {
+                revert MAX_COLLATERAL_RELEASE_EXCEEDED();
+            }
         }
 
         if (vars.secondaryAmount == 0) {
@@ -175,9 +203,7 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHook {
                 executions[2] = Execution({
                     target: morpho,
                     value: 0,
-                    callData: abi.encodeCall(
-                        IMorphoBase.repay, (ctx.marketParams, 0, ctx.shareBalance, account, "")
-                    )
+                    callData: abi.encodeCall(IMorphoBase.repay, (ctx.marketParams, 0, ctx.shareBalance, account, ""))
                 });
                 executions[3] = Execution({
                     target: vars.loanToken,
@@ -200,9 +226,7 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHook {
                 executions[2] = Execution({
                     target: morpho,
                     value: 0,
-                    callData: abi.encodeCall(
-                        IMorphoBase.repay, (ctx.marketParams, ctx.repayAmount, 0, account, "")
-                    )
+                    callData: abi.encodeCall(IMorphoBase.repay, (ctx.marketParams, ctx.repayAmount, 0, account, ""))
                 });
                 executions[3] = Execution({
                     target: vars.loanToken,
@@ -228,9 +252,7 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHook {
                 executions[2] = Execution({
                     target: morpho,
                     value: 0,
-                    callData: abi.encodeCall(
-                        IMorphoBase.repay, (ctx.marketParams, 0, ctx.shareBalance, account, "")
-                    )
+                    callData: abi.encodeCall(IMorphoBase.repay, (ctx.marketParams, 0, ctx.shareBalance, account, ""))
                 });
                 executions[3] = Execution({
                     target: vars.loanToken,
@@ -241,8 +263,7 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHook {
                     target: morpho,
                     value: 0,
                     callData: abi.encodeCall(
-                        IMorphoBase.withdrawCollateral,
-                        (ctx.marketParams, vars.secondaryAmount, account, account)
+                        IMorphoBase.withdrawCollateral, (ctx.marketParams, vars.secondaryAmount, account, account)
                     )
                 });
             } else {
@@ -261,9 +282,7 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHook {
                 executions[2] = Execution({
                     target: morpho,
                     value: 0,
-                    callData: abi.encodeCall(
-                        IMorphoBase.repay, (ctx.marketParams, ctx.repayAmount, 0, account, "")
-                    )
+                    callData: abi.encodeCall(IMorphoBase.repay, (ctx.marketParams, ctx.repayAmount, 0, account, ""))
                 });
                 executions[3] = Execution({
                     target: vars.loanToken,
@@ -274,8 +293,7 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHook {
                     target: morpho,
                     value: 0,
                     callData: abi.encodeCall(
-                        IMorphoBase.withdrawCollateral,
-                        (ctx.marketParams, vars.secondaryAmount, account, account)
+                        IMorphoBase.withdrawCollateral, (ctx.marketParams, vars.secondaryAmount, account, account)
                     )
                 });
             }
@@ -328,7 +346,7 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHook {
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
         return abi.encodePacked(
-            marketParams.loanToken, marketParams.collateralToken, marketParams.oracle, marketParams.irm
+            marketParams.loanToken, marketParams.collateralToken, marketParams.oracle, marketParams.irm, vars.lltv
         );
     }
 
@@ -348,6 +366,8 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHook {
         vars.usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         vars.isFullRepayment = _decodeBool(data, V2_IS_FULL_REPAYMENT_OFFSET);
         vars.lltv = BytesLib.toUint256(data, V2_LLTV_OFFSET);
+        vars.maxRepayAssets = BytesLib.toUint256(data, MAX_REPAY_ASSETS_OFFSET);
+        vars.maxCollateralReleaseAssets = BytesLib.toUint256(data, MAX_COLLATERAL_RELEASE_OFFSET);
 
         if (
             vars.loanToken == address(0) || vars.collateralToken == address(0) || vars.oracle == address(0)
@@ -369,8 +389,24 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHook {
     }
 
     /// @inheritdoc BaseHook
+    /// @dev Computes collateral delta and validates full repay completion
     function _postExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(getCollateralTokenBalance(account, data) - getOutAmount(account), account);
         _setOutToken(getCollateralTokenAddress(data), account);
+
+        // Verify full repayment succeeded
+        bool isFullRepayment = _decodeBool(data, V2_IS_FULL_REPAYMENT_OFFSET);
+        if (isFullRepayment) {
+            MarketParams memory marketParams = _generateMarketParams(
+                BytesLib.toAddress(data, LOAN_TOKEN_OFFSET),
+                BytesLib.toAddress(data, COLLATERAL_TOKEN_OFFSET),
+                BytesLib.toAddress(data, ORACLE_OFFSET),
+                BytesLib.toAddress(data, IRM_OFFSET),
+                BytesLib.toUint256(data, V2_LLTV_OFFSET)
+            );
+            Id id = MarketParamsLib.id(marketParams);
+            (, uint128 borrowShares,) = morphoStaticTyping.position(id, account);
+            if (uint256(borrowShares) != 0) revert FULL_REPAY_FAILED();
+        }
     }
 }

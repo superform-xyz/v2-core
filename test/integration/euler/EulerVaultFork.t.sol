@@ -32,14 +32,7 @@ import {
 contract HookExecutor {
     error EXECUTION_FAILED(uint256 index, bytes returnData);
 
-    function executeHook(
-        address hook,
-        address prevHook,
-        bytes calldata data
-    )
-        external
-        returns (uint256 outAmount)
-    {
+    function executeHook(address hook, address prevHook, bytes calldata data) external returns (uint256 outAmount) {
         ISuperHook(hook).setExecutionContext(address(this));
         Execution[] memory execs = ISuperHook(hook).build(prevHook, address(this), data);
 
@@ -145,14 +138,14 @@ contract EulerVaultFork is Test {
         assertEq(assetOut, pps, "getAssetOutput(1 share) should equal PPS");
 
         // getShareOutput matches previewDeposit
-        uint256 depositAmount = 1_000e6; // 1000 USDC
+        uint256 depositAmount = 1000e6; // 1000 USDC
         uint256 oracleShares = oracle.getShareOutput(EULER_USDC_VAULT, address(0), depositAmount);
         uint256 vaultShares = vault.previewDeposit(depositAmount);
         assertEq(oracleShares, vaultShares, "getShareOutput must match previewDeposit");
     }
 
     function test_fork_eulerUSDC_roundTrip_noValueCreation() public view {
-        uint256 assets = 1_000e6;
+        uint256 assets = 1000e6;
         uint256 shares = oracle.getShareOutput(EULER_USDC_VAULT, address(0), assets);
         uint256 assetsBack = oracle.getAssetOutput(EULER_USDC_VAULT, address(0), shares);
         assertLe(assetsBack, assets, "Round-trip should not create value (floor rounding)");
@@ -246,8 +239,8 @@ contract EulerVaultFork is Test {
 
     /// @notice getBalanceOfOwner matches vault.balanceOf after deposit
     function test_fork_eulerUSDC_balanceOfOwner() public {
-        deal(USDC, address(executor), 1_000e6);
-        executor.executeHook(address(depositHook), address(0), _buildDepositData(EULER_USDC_VAULT, USDC, 1_000e6));
+        deal(USDC, address(executor), 1000e6);
+        executor.executeHook(address(depositHook), address(0), _buildDepositData(EULER_USDC_VAULT, USDC, 1000e6));
 
         uint256 oracleBalance = oracle.getBalanceOfOwner(EULER_USDC_VAULT, address(executor));
         uint256 vaultBalance = IERC4626(EULER_USDC_VAULT).balanceOf(address(executor));
@@ -257,14 +250,18 @@ contract EulerVaultFork is Test {
 
     /// @notice getBalanceOfOwner returns 0 for unknown address
     function test_fork_euler_balanceOfOwner_unknownAddress() public view {
-        assertEq(oracle.getBalanceOfOwner(EULER_USDC_VAULT, address(0xdead)), 0, "Unknown addr USDC balance should be 0");
-        assertEq(oracle.getBalanceOfOwner(EULER_WETH_VAULT, address(0xdead)), 0, "Unknown addr WETH balance should be 0");
+        assertEq(
+            oracle.getBalanceOfOwner(EULER_USDC_VAULT, address(0xdead)), 0, "Unknown addr USDC balance should be 0"
+        );
+        assertEq(
+            oracle.getBalanceOfOwner(EULER_WETH_VAULT, address(0xdead)), 0, "Unknown addr WETH balance should be 0"
+        );
     }
 
     /// @notice getTVLByOwnerOfShares matches convertToAssets(balanceOf) after deposit
     function test_fork_eulerUSDC_tvlByOwner_afterDeposit() public {
-        deal(USDC, address(executor), 5_000e6);
-        executor.executeHook(address(depositHook), address(0), _buildDepositData(EULER_USDC_VAULT, USDC, 5_000e6));
+        deal(USDC, address(executor), 5000e6);
+        executor.executeHook(address(depositHook), address(0), _buildDepositData(EULER_USDC_VAULT, USDC, 5000e6));
 
         uint256 oracleTVL = oracle.getTVLByOwnerOfShares(EULER_USDC_VAULT, address(executor));
         uint256 shares = IERC4626(EULER_USDC_VAULT).balanceOf(address(executor));
@@ -276,8 +273,12 @@ contract EulerVaultFork is Test {
 
     /// @notice getTVLByOwnerOfShares returns 0 for unknown address
     function test_fork_euler_tvlByOwner_unknownAddress() public view {
-        assertEq(oracle.getTVLByOwnerOfShares(EULER_USDC_VAULT, address(0xdead)), 0, "Unknown addr USDC TVL should be 0");
-        assertEq(oracle.getTVLByOwnerOfShares(EULER_WETH_VAULT, address(0xdead)), 0, "Unknown addr WETH TVL should be 0");
+        assertEq(
+            oracle.getTVLByOwnerOfShares(EULER_USDC_VAULT, address(0xdead)), 0, "Unknown addr USDC TVL should be 0"
+        );
+        assertEq(
+            oracle.getTVLByOwnerOfShares(EULER_WETH_VAULT, address(0xdead)), 0, "Unknown addr WETH TVL should be 0"
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -289,14 +290,18 @@ contract EulerVaultFork is Test {
         assertEq(oracle.getShareOutput(EULER_USDC_VAULT, address(0), 0), 0, "getShareOutput(0) should be 0");
         assertEq(oracle.getAssetOutput(EULER_USDC_VAULT, address(0), 0), 0, "getAssetOutput(0) should be 0");
         assertEq(
-            oracle.getWithdrawalShareOutput(EULER_USDC_VAULT, address(0), 0), 0, "getWithdrawalShareOutput(0) should be 0"
+            oracle.getWithdrawalShareOutput(EULER_USDC_VAULT, address(0), 0),
+            0,
+            "getWithdrawalShareOutput(0) should be 0"
         );
 
         // WETH vault
         assertEq(oracle.getShareOutput(EULER_WETH_VAULT, address(0), 0), 0, "getShareOutput(0) should be 0");
         assertEq(oracle.getAssetOutput(EULER_WETH_VAULT, address(0), 0), 0, "getAssetOutput(0) should be 0");
         assertEq(
-            oracle.getWithdrawalShareOutput(EULER_WETH_VAULT, address(0), 0), 0, "getWithdrawalShareOutput(0) should be 0"
+            oracle.getWithdrawalShareOutput(EULER_WETH_VAULT, address(0), 0),
+            0,
+            "getWithdrawalShareOutput(0) should be 0"
         );
     }
 
@@ -358,8 +363,8 @@ contract EulerVaultFork is Test {
 
     function test_fork_euler_batchTVLByOwner() public {
         // Deposit into USDC vault so executor has shares
-        deal(USDC, address(executor), 1_000e6);
-        executor.executeHook(address(depositHook), address(0), _buildDepositData(EULER_USDC_VAULT, USDC, 1_000e6));
+        deal(USDC, address(executor), 1000e6);
+        executor.executeHook(address(depositHook), address(0), _buildDepositData(EULER_USDC_VAULT, USDC, 1000e6));
 
         address[] memory vaults = new address[](2);
         vaults[0] = EULER_USDC_VAULT;
@@ -373,7 +378,9 @@ contract EulerVaultFork is Test {
         owners[1][0] = address(0xdead);
 
         (uint256[][] memory tvls,) = oracle.getTVLByOwnerOfSharesMultiple(vaults, owners);
-        assertEq(tvls[0][0], oracle.getTVLByOwnerOfShares(EULER_USDC_VAULT, address(executor)), "Batch owner TVL mismatch");
+        assertEq(
+            tvls[0][0], oracle.getTVLByOwnerOfShares(EULER_USDC_VAULT, address(executor)), "Batch owner TVL mismatch"
+        );
         assertEq(tvls[0][1], 0, "Dead addr should have 0 TVL");
         assertEq(tvls[1][0], 0, "Dead addr in WETH vault should have 0 TVL");
     }
@@ -452,7 +459,9 @@ contract EulerVaultFork is Test {
         assertEq(oracle.decimals(EULER_WETH_VAULT), vault.decimals(), "decimals");
         assertEq(oracle.getPricePerShare(EULER_WETH_VAULT), vault.convertToAssets(1 ether), "PPS");
         assertEq(
-            oracle.getShareOutput(EULER_WETH_VAULT, address(0), 1 ether), vault.previewDeposit(1 ether), "getShareOutput"
+            oracle.getShareOutput(EULER_WETH_VAULT, address(0), 1 ether),
+            vault.previewDeposit(1 ether),
+            "getShareOutput"
         );
         assertEq(
             oracle.getAssetOutput(EULER_WETH_VAULT, address(0), 1 ether), vault.previewRedeem(1 ether), "getAssetOutput"
@@ -482,7 +491,7 @@ contract EulerVaultFork is Test {
     //////////////////////////////////////////////////////////////*/
 
     function test_fork_eulerUSDC_deposit_hook_lifecycle() public {
-        uint256 depositAmount = 1_000e6; // 1000 USDC
+        uint256 depositAmount = 1000e6; // 1000 USDC
         deal(USDC, address(executor), depositAmount);
 
         bytes memory hookData = _buildDepositData(EULER_USDC_VAULT, USDC, depositAmount);
@@ -501,7 +510,7 @@ contract EulerVaultFork is Test {
 
     function test_fork_eulerUSDC_redeem_hook_lifecycle() public {
         // First deposit to get shares
-        uint256 depositAmount = 1_000e6;
+        uint256 depositAmount = 1000e6;
         deal(USDC, address(executor), depositAmount);
         bytes memory depositData = _buildDepositData(EULER_USDC_VAULT, USDC, depositAmount);
         executor.executeHook(address(depositHook), address(0), depositData);
@@ -529,7 +538,7 @@ contract EulerVaultFork is Test {
     }
 
     function test_fork_eulerUSDC_deposit_hook_inspect() public view {
-        uint256 amount = 1_000e6;
+        uint256 amount = 1000e6;
         bytes memory hookData = _buildDepositData(EULER_USDC_VAULT, USDC, amount);
 
         bytes memory inspected = depositHook.inspect(hookData);
@@ -541,7 +550,7 @@ contract EulerVaultFork is Test {
     }
 
     function test_fork_eulerUSDC_redeem_hook_inspect() public view {
-        uint256 shares = 1_000e6;
+        uint256 shares = 1000e6;
         bytes memory hookData = _buildRedeemData(EULER_USDC_VAULT, address(executor), shares);
 
         bytes memory inspected = redeemHook.inspect(hookData);
@@ -645,7 +654,8 @@ contract EulerVaultFork is Test {
 
         // Build data with usePrevHookAmount = true
         bytes32 yieldSourceOracleId = keccak256("ERC4626YieldSourceOracle");
-        bytes memory hookDataTrue = abi.encodePacked(yieldSourceOracleId, EULER_USDC_VAULT, USDC, uint256(1e6), uint8(1));
+        bytes memory hookDataTrue =
+            abi.encodePacked(yieldSourceOracleId, EULER_USDC_VAULT, USDC, uint256(1e6), uint8(1));
         assertTrue(
             ISuperHookContextAware(address(depositHook)).decodeUsePrevHookAmount(hookDataTrue),
             "usePrevHookAmount should be true"
@@ -695,9 +705,10 @@ contract EulerVaultFork is Test {
         SECTION 16: HOOK BUILD — EXECUTION COUNT VERIFICATION
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice ApproveAndDeposit4626VaultHook.build() returns 6 executions (pre + approve(0) + approve(amt) + deposit + approve(0) + post)
+    /// @notice ApproveAndDeposit4626VaultHook.build() returns 6 executions (pre + approve(0) + approve(amt) + deposit +
+    /// approve(0) + post)
     function test_fork_eulerUSDC_depositHook_buildExecutionCount() public {
-        bytes memory hookData = _buildDepositData(EULER_USDC_VAULT, USDC, 1_000e6);
+        bytes memory hookData = _buildDepositData(EULER_USDC_VAULT, USDC, 1000e6);
         // Must set execution context first for build to work with the correct account
         depositHook.setExecutionContext(address(this));
         Execution[] memory execs = depositHook.build(address(0), address(this), hookData);
@@ -707,7 +718,7 @@ contract EulerVaultFork is Test {
 
     /// @notice Redeem4626VaultHook.build() returns 3 executions (pre + redeem + post)
     function test_fork_eulerUSDC_redeemHook_buildExecutionCount() public {
-        bytes memory hookData = _buildRedeemData(EULER_USDC_VAULT, address(this), 1_000e6);
+        bytes memory hookData = _buildRedeemData(EULER_USDC_VAULT, address(this), 1000e6);
         redeemHook.setExecutionContext(address(this));
         Execution[] memory execs = redeemHook.build(address(0), address(this), hookData);
         // pre(1) + redeem(1) + post(1) = 3
@@ -727,7 +738,8 @@ contract EulerVaultFork is Test {
         vm.prank(address(executor));
         IERC20(USDC).approve(EULER_USDC_VAULT, depositAmount);
 
-        // Deposit4626VaultHook has different data layout: bytes32 oracleId | address yieldSource | uint256 amount | bool usePrev
+        // Deposit4626VaultHook has different data layout: bytes32 oracleId | address yieldSource | uint256 amount |
+        // bool usePrev
         bytes32 yieldSourceOracleId = keccak256("ERC4626YieldSourceOracle");
         bytes memory hookData = abi.encodePacked(yieldSourceOracleId, EULER_USDC_VAULT, depositAmount, uint8(0));
         uint256 outAmount = executor.executeHook(address(depositNoApproveHook), address(0), hookData);
@@ -743,7 +755,7 @@ contract EulerVaultFork is Test {
     /// @notice Deposit4626VaultHook inspect returns only yieldSource (20 bytes)
     function test_fork_eulerUSDC_depositNoApprove_inspect() public view {
         bytes32 yieldSourceOracleId = keccak256("ERC4626YieldSourceOracle");
-        bytes memory hookData = abi.encodePacked(yieldSourceOracleId, EULER_USDC_VAULT, uint256(1_000e6), uint8(0));
+        bytes memory hookData = abi.encodePacked(yieldSourceOracleId, EULER_USDC_VAULT, uint256(1000e6), uint8(0));
 
         bytes memory inspected = depositNoApproveHook.inspect(hookData);
         assertEq(inspected.length, 20, "Deposit4626VaultHook inspect should return 20 bytes (1 address)");
@@ -768,8 +780,9 @@ contract EulerVaultFork is Test {
 
         // Redeem 25%
         uint256 redeemShares = totalShares / 4;
-        uint256 outAmount =
-            executor.executeHook(address(redeemHook), address(0), _buildRedeemData(EULER_USDC_VAULT, address(executor), redeemShares));
+        uint256 outAmount = executor.executeHook(
+            address(redeemHook), address(0), _buildRedeemData(EULER_USDC_VAULT, address(executor), redeemShares)
+        );
 
         // Should have 75% of shares remaining
         uint256 remainingShares = IERC4626(EULER_USDC_VAULT).balanceOf(address(executor));
@@ -793,8 +806,9 @@ contract EulerVaultFork is Test {
 
         // Redeem 50%
         uint256 redeemShares = totalShares / 2;
-        uint256 outAmount =
-            executor.executeHook(address(redeemHook), address(0), _buildRedeemData(EULER_WETH_VAULT, address(executor), redeemShares));
+        uint256 outAmount = executor.executeHook(
+            address(redeemHook), address(0), _buildRedeemData(EULER_WETH_VAULT, address(executor), redeemShares)
+        );
 
         uint256 remainingShares = IERC4626(EULER_WETH_VAULT).balanceOf(address(executor));
         assertEq(remainingShares, totalShares - redeemShares, "Should have 50% shares remaining");
@@ -812,8 +826,9 @@ contract EulerVaultFork is Test {
         // Step 1: Deposit
         uint256 depositAmount = 50_000e6;
         deal(USDC, address(executor), depositAmount);
-        uint256 depositOut =
-            executor.executeHook(address(depositHook), address(0), _buildDepositData(EULER_USDC_VAULT, USDC, depositAmount));
+        uint256 depositOut = executor.executeHook(
+            address(depositHook), address(0), _buildDepositData(EULER_USDC_VAULT, USDC, depositAmount)
+        );
 
         // Oracle checks post-deposit
         uint256 ppsAfterDeposit = oracle.getPricePerShare(EULER_USDC_VAULT);
@@ -829,13 +844,16 @@ contract EulerVaultFork is Test {
 
         // Step 2: Redeem all
         uint256 shares = IERC4626(EULER_USDC_VAULT).balanceOf(address(executor));
-        uint256 redeemOut =
-            executor.executeHook(address(redeemHook), address(0), _buildRedeemData(EULER_USDC_VAULT, address(executor), shares));
+        uint256 redeemOut = executor.executeHook(
+            address(redeemHook), address(0), _buildRedeemData(EULER_USDC_VAULT, address(executor), shares)
+        );
 
         // Oracle checks post-redeem
         uint256 ppsAfterRedeem = oracle.getPricePerShare(EULER_USDC_VAULT);
         assertApproxEqAbs(ppsAfterRedeem, ppsBefore, 1, "PPS should be stable after redeem");
-        assertEq(oracle.getBalanceOfOwner(EULER_USDC_VAULT, address(executor)), 0, "Balance should be 0 after full redeem");
+        assertEq(
+            oracle.getBalanceOfOwner(EULER_USDC_VAULT, address(executor)), 0, "Balance should be 0 after full redeem"
+        );
         assertEq(
             oracle.getTVLByOwnerOfShares(EULER_USDC_VAULT, address(executor)),
             0,
@@ -856,18 +874,18 @@ contract EulerVaultFork is Test {
 
     function test_fork_eulerUSDC_multipleDeposits_accumulate() public {
         // Three sequential deposits
-        deal(USDC, address(executor), 3_000e6);
+        deal(USDC, address(executor), 3000e6);
 
-        executor.executeHook(address(depositHook), address(0), _buildDepositData(EULER_USDC_VAULT, USDC, 1_000e6));
+        executor.executeHook(address(depositHook), address(0), _buildDepositData(EULER_USDC_VAULT, USDC, 1000e6));
         uint256 sharesAfter1 = IERC4626(EULER_USDC_VAULT).balanceOf(address(executor));
 
         // Need to deal more USDC for 2nd deposit since executor already spent it
-        deal(USDC, address(executor), 1_000e6);
-        executor.executeHook(address(depositHook), address(0), _buildDepositData(EULER_USDC_VAULT, USDC, 1_000e6));
+        deal(USDC, address(executor), 1000e6);
+        executor.executeHook(address(depositHook), address(0), _buildDepositData(EULER_USDC_VAULT, USDC, 1000e6));
         uint256 sharesAfter2 = IERC4626(EULER_USDC_VAULT).balanceOf(address(executor));
 
-        deal(USDC, address(executor), 1_000e6);
-        executor.executeHook(address(depositHook), address(0), _buildDepositData(EULER_USDC_VAULT, USDC, 1_000e6));
+        deal(USDC, address(executor), 1000e6);
+        executor.executeHook(address(depositHook), address(0), _buildDepositData(EULER_USDC_VAULT, USDC, 1000e6));
         uint256 sharesAfter3 = IERC4626(EULER_USDC_VAULT).balanceOf(address(executor));
 
         // Shares should monotonically increase
@@ -893,8 +911,9 @@ contract EulerVaultFork is Test {
     /// @notice Without fee config, getAssetOutputWithFees should equal getAssetOutput
     function test_fork_eulerUSDC_assetOutputWithFees_noConfig() public view {
         bytes32 oracleId = keccak256("ERC4626YieldSourceOracle");
-        uint256 shares = 1_000e6;
-        uint256 withFees = oracle.getAssetOutputWithFees(oracleId, EULER_USDC_VAULT, address(0), address(0xBEEF), shares);
+        uint256 shares = 1000e6;
+        uint256 withFees =
+            oracle.getAssetOutputWithFees(oracleId, EULER_USDC_VAULT, address(0), address(0xBEEF), shares);
         uint256 withoutFees = oracle.getAssetOutput(EULER_USDC_VAULT, address(0), shares);
         assertEq(withFees, withoutFees, "Without config, getAssetOutputWithFees should equal getAssetOutput");
     }
@@ -902,7 +921,8 @@ contract EulerVaultFork is Test {
     function test_fork_eulerWETH_assetOutputWithFees_noConfig() public view {
         bytes32 oracleId = keccak256("ERC4626YieldSourceOracle");
         uint256 shares = 1 ether;
-        uint256 withFees = oracle.getAssetOutputWithFees(oracleId, EULER_WETH_VAULT, address(0), address(0xBEEF), shares);
+        uint256 withFees =
+            oracle.getAssetOutputWithFees(oracleId, EULER_WETH_VAULT, address(0), address(0xBEEF), shares);
         uint256 withoutFees = oracle.getAssetOutput(EULER_WETH_VAULT, address(0), shares);
         assertEq(withFees, withoutFees, "Without config, getAssetOutputWithFees should equal getAssetOutput");
     }
@@ -912,14 +932,16 @@ contract EulerVaultFork is Test {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Builds hook data for ApproveAndDeposit4626VaultHook
-    ///      Layout: bytes32 yieldSourceOracleId | address yieldSource | address token | uint256 amount | bool usePrevHookAmount
+    ///      Layout: bytes32 yieldSourceOracleId | address yieldSource | address token | uint256 amount | bool
+    /// usePrevHookAmount
     function _buildDepositData(address vault, address token, uint256 amount) internal pure returns (bytes memory) {
         bytes32 yieldSourceOracleId = keccak256("ERC4626YieldSourceOracle");
         return abi.encodePacked(yieldSourceOracleId, vault, token, amount, uint8(0));
     }
 
     /// @dev Builds hook data for Redeem4626VaultHook
-    ///      Layout: bytes32 yieldSourceOracleId | address yieldSource | address owner | uint256 shares | bool usePrevHookAmount
+    ///      Layout: bytes32 yieldSourceOracleId | address yieldSource | address owner | uint256 shares | bool
+    /// usePrevHookAmount
     function _buildRedeemData(address vault, address owner, uint256 shares) internal pure returns (bytes memory) {
         bytes32 yieldSourceOracleId = keccak256("ERC4626YieldSourceOracle");
         return abi.encodePacked(yieldSourceOracleId, vault, owner, shares, uint8(0));
@@ -936,7 +958,8 @@ contract EulerVaultFork is Test {
 
     /// @dev Verify oracle matches vault conversions at multiple scale points
     function _assertMultiScaleConversions(address vault, uint8 dec) internal view {
-        uint256[6] memory scales = [uint256(1), 10 ** (dec / 2), 10 ** dec, 1_000 * 10 ** dec, 1_000_000 * 10 ** dec, type(uint64).max];
+        uint256[6] memory scales =
+            [uint256(1), 10 ** (dec / 2), 10 ** dec, 1000 * 10 ** dec, 1_000_000 * 10 ** dec, type(uint64).max];
 
         for (uint256 i; i < scales.length; i++) {
             assertEq(
@@ -954,7 +977,7 @@ contract EulerVaultFork is Test {
 
     /// @dev Verify ceil rounding: getWithdrawalShareOutput >= getShareOutput and covers the assets
     function _assertCeilRounding(address vault, uint8 dec) internal view {
-        uint256[4] memory amounts = [uint256(1), 10 ** dec, 1_000 * 10 ** dec, 777_777 * 10 ** (dec > 6 ? dec - 6 : 0)];
+        uint256[4] memory amounts = [uint256(1), 10 ** dec, 1000 * 10 ** dec, 777_777 * 10 ** (dec > 6 ? dec - 6 : 0)];
 
         for (uint256 i; i < amounts.length; i++) {
             uint256 ceil = oracle.getWithdrawalShareOutput(vault, address(0), amounts[i]);
@@ -977,6 +1000,8 @@ contract EulerVaultFork is Test {
         uint8 dec = oracle.decimals(vault);
 
         uint256 computedTotalAssets = (totalSupply * pps) / (10 ** dec);
-        assertApproxEqRel(computedTotalAssets, totalAssets, 0.0001e18, "totalSupply * PPS should approximate totalAssets");
+        assertApproxEqRel(
+            computedTotalAssets, totalAssets, 0.0001e18, "totalSupply * PPS should approximate totalAssets"
+        );
     }
 }

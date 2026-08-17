@@ -70,7 +70,9 @@ contract AaveV3SupplyAndBorrowHook is BaseAaveV3LoanHook {
 
         executions = new Execution[](5);
         executions[0] = Execution({
-            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
+            target: vars.collateralToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
         });
         executions[1] = Execution({
             target: vars.collateralToken,
@@ -88,7 +90,9 @@ contract AaveV3SupplyAndBorrowHook is BaseAaveV3LoanHook {
             callData: abi.encodeCall(IPool.borrow, (vars.loanToken, vars.borrowAmount, VARIABLE_RATE_MODE, 0, account))
         });
         executions[4] = Execution({
-            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
+            target: vars.collateralToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
         });
     }
 

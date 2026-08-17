@@ -372,8 +372,8 @@ contract EulerRepayAndWithdrawHook is BaseEulerLoanHook {
         vars.expectedReleaseIRM = BytesLib.toAddress(data, EXPECTED_RELEASE_IRM_OFFSET);
 
         if (
-            vars.yieldSourceAddress == address(0) || vars.debtAsset == address(0)
-                || vars.collateralAsset == address(0) || vars.evc == address(0) || vars.controllerVault == address(0)
+            vars.yieldSourceAddress == address(0) || vars.debtAsset == address(0) || vars.collateralAsset == address(0)
+                || vars.evc == address(0) || vars.controllerVault == address(0)
         ) {
             revert ADDRESS_NOT_VALID();
         }

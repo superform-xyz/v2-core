@@ -57,10 +57,14 @@ contract AaveV3SupplyHook is BaseAaveV3LoanHook {
 
         executions = new Execution[](4);
         executions[0] = Execution({
-            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
+            target: vars.collateralToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
         });
         executions[1] = Execution({
-            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, vars.amount))
+            target: vars.collateralToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (vars.pool, vars.amount))
         });
         executions[2] = Execution({
             target: vars.pool,
@@ -69,7 +73,9 @@ contract AaveV3SupplyHook is BaseAaveV3LoanHook {
         });
         // Reset approval after supply to prevent dangling allowance to the calldata pool.
         executions[3] = Execution({
-            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
+            target: vars.collateralToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
         });
     }
 

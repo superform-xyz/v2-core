@@ -9,12 +9,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 import { MarketParamsLib } from "../../../src/vendor/morpho/MarketParamsLib.sol";
 import {
-    Id,
-    IMorpho,
-    IMorphoBase,
-    IMorphoStaticTyping,
-    MarketParams,
-    Market
+    Id, IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Market
 } from "../../../src/vendor/morpho/IMorpho.sol";
 import { SharesMathLib } from "../../../src/vendor/morpho/SharesMathLib.sol";
 import { ISuperHook, ISuperHookResult } from "../../../src/interfaces/ISuperHook.sol";
@@ -39,14 +34,7 @@ import { MorphoRepayAndWithdrawHookV2 } from "../../../src/hooks/loan/morpho/Mor
 contract MorphoHookExecutor {
     error EXECUTION_FAILED(uint256 index, bytes returnData);
 
-    function executeHook(
-        address hook,
-        address prevHook,
-        bytes calldata data
-    )
-        external
-        returns (uint256 outAmount)
-    {
+    function executeHook(address hook, address prevHook, bytes calldata data) external returns (uint256 outAmount) {
         ISuperHook(hook).setExecutionContext(address(this));
         Execution[] memory execs = ISuperHook(hook).build(prevHook, address(this), data);
 
@@ -159,13 +147,8 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
         executor = new MorphoHookExecutor();
 
         // Setup market params
-        marketParams = MarketParams({
-            loanToken: WETH,
-            collateralToken: USDC,
-            oracle: MORPHO_ORACLE,
-            irm: MORPHO_IRM,
-            lltv: LLTV
-        });
+        marketParams =
+            MarketParams({ loanToken: WETH, collateralToken: USDC, oracle: MORPHO_ORACLE, irm: MORPHO_IRM, lltv: LLTV });
         marketId = marketParams.id();
 
         // Sanity check: market should have liquidity
@@ -188,47 +171,52 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
 
     /// @dev Supply collateral data (197 bytes)
     function _encodeSupplyData(uint256 amt) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            _header(), WETH, USDC, MORPHO_ORACLE, MORPHO_IRM, amt, LLTV, false
-        );
+        return abi.encodePacked(_header(), WETH, USDC, MORPHO_ORACLE, MORPHO_IRM, amt, LLTV, false);
     }
 
     /// @dev Borrow data (230 bytes — includes ltvRatio + lltv)
     function _encodeBorrowData(uint256 amt) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            _header(), WETH, USDC, MORPHO_ORACLE, MORPHO_IRM, amt, LTV_RATIO, false, LLTV, false
-        );
+        return abi.encodePacked(_header(), WETH, USDC, MORPHO_ORACLE, MORPHO_IRM, amt, LTV_RATIO, false, LLTV, false);
     }
 
     /// @dev Repay data (198 bytes)
     function _encodeRepayData(uint256 amt, bool isFullRepayment) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            _header(), WETH, USDC, MORPHO_ORACLE, MORPHO_IRM, amt, LLTV, false, isFullRepayment
-        );
+        return abi.encodePacked(_header(), WETH, USDC, MORPHO_ORACLE, MORPHO_IRM, amt, LLTV, false, isFullRepayment);
     }
 
     /// @dev Lend data (197 bytes — same layout as supply but uses loanToken)
     function _encodeLendData(uint256 amt) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            _header(), WETH, USDC, MORPHO_ORACLE, MORPHO_IRM, amt, LLTV, false
-        );
+        return abi.encodePacked(_header(), WETH, USDC, MORPHO_ORACLE, MORPHO_IRM, amt, LLTV, false);
     }
 
     /// @dev Withdraw lend-side data (228 bytes — lltv + assets + shares)
     function _encodeWithdrawData(uint256 assets, uint256 shares) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            _header(), WETH, USDC, MORPHO_ORACLE, MORPHO_IRM, LLTV, assets, shares
-        );
+        return abi.encodePacked(_header(), WETH, USDC, MORPHO_ORACLE, MORPHO_IRM, LLTV, assets, shares);
     }
 
-    /// @dev V2 SupplyAndBorrow data (229 bytes)
+    /// @dev V2 SupplyAndBorrow data (261 bytes)
     function _encodeSupplyAndBorrowV2Data(uint256 supplyAmt, uint256 borrowAmt) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            _header(), WETH, USDC, MORPHO_ORACLE, MORPHO_IRM, supplyAmt, borrowAmt, false, LLTV
+            _header(), WETH, USDC, MORPHO_ORACLE, MORPHO_IRM, supplyAmt, borrowAmt, false, LLTV, type(uint256).max
         );
     }
 
-    /// @dev V2 RepayAndWithdraw data (230 bytes)
+    /// @dev V2 SupplyAndBorrow data with custom maxPostDebt
+    function _encodeSupplyAndBorrowV2DataWithCap(
+        uint256 supplyAmt,
+        uint256 borrowAmt,
+        uint256 maxPostDebt
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            _header(), WETH, USDC, MORPHO_ORACLE, MORPHO_IRM, supplyAmt, borrowAmt, false, LLTV, maxPostDebt
+        );
+    }
+
+    /// @dev V2 RepayAndWithdraw data (294 bytes)
     function _encodeRepayAndWithdrawV2Data(
         uint256 repayAmt,
         uint256 withdrawAmt,
@@ -239,7 +227,46 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            _header(), WETH, USDC, MORPHO_ORACLE, MORPHO_IRM, repayAmt, withdrawAmt, false, isFullRepayment, LLTV
+            _header(),
+            WETH,
+            USDC,
+            MORPHO_ORACLE,
+            MORPHO_IRM,
+            repayAmt,
+            withdrawAmt,
+            false,
+            isFullRepayment,
+            LLTV,
+            type(uint256).max,
+            type(uint256).max
+        );
+    }
+
+    /// @dev V2 RepayAndWithdraw data with custom caps
+    function _encodeRepayAndWithdrawV2DataWithCaps(
+        uint256 repayAmt,
+        uint256 withdrawAmt,
+        bool isFullRepayment,
+        uint256 maxRepayAssets,
+        uint256 maxCollateralReleaseAssets
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            _header(),
+            WETH,
+            USDC,
+            MORPHO_ORACLE,
+            MORPHO_IRM,
+            repayAmt,
+            withdrawAmt,
+            false,
+            isFullRepayment,
+            LLTV,
+            maxRepayAssets,
+            maxCollateralReleaseAssets
         );
     }
 
@@ -268,11 +295,7 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
         );
     }
 
-    function _getPosition()
-        internal
-        view
-        returns (uint256 supplyShares, uint128 borrowShares, uint128 collateral)
-    {
+    function _getPosition() internal view returns (uint256 supplyShares, uint128 borrowShares, uint128 collateral) {
         (supplyShares, borrowShares, collateral) = IMorphoStaticTyping(MORPHO).position(marketId, address(executor));
     }
 
@@ -297,8 +320,8 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
 
         uint256 wethAfter = IERC20(WETH).balanceOf(address(executor));
 
-        // outAmount tracks collateral consumed
-        assertEq(outAmount, COLLATERAL_USDC, "outAmount should track USDC consumed");
+        // outAmount tracks loanToken received (borrowed WETH)
+        assertEq(outAmount, BORROW_WETH, "outAmount should track WETH borrowed");
 
         // WETH received
         assertEq(wethAfter - wethBefore, BORROW_WETH, "Should have received borrowed WETH");
@@ -318,9 +341,7 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
 
         // Add more: 5000 USDC collateral + 0.02 WETH borrow
         _fundUSDC(5000e6);
-        executor.executeHook(
-            address(supplyAndBorrowV2), address(0), _encodeSupplyAndBorrowV2Data(5000e6, 2e16)
-        );
+        executor.executeHook(address(supplyAndBorrowV2), address(0), _encodeSupplyAndBorrowV2Data(5000e6, 2e16));
 
         (, uint128 borrowSharesAfter, uint128 collateralAfter) = _getPosition();
         assertEq(uint256(collateralAfter), uint256(collateralBefore) + 5000e6, "Collateral should increase");
@@ -332,9 +353,7 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
         _fundUSDC(1e6);
 
         // Very small borrow — 100 wei of WETH
-        executor.executeHook(
-            address(supplyAndBorrowV2), address(0), _encodeSupplyAndBorrowV2Data(1e6, 100)
-        );
+        executor.executeHook(address(supplyAndBorrowV2), address(0), _encodeSupplyAndBorrowV2Data(1e6, 100));
 
         (, uint128 borrowShares, uint128 collateral) = _getPosition();
         assertEq(uint256(collateral), 1e6, "Should have 1 USDC collateral");
@@ -345,18 +364,14 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
     function test_fork_V2SupplyAndBorrow_ZeroPrimaryReverts() public {
         _fundUSDC(COLLATERAL_USDC);
         vm.expectRevert();
-        executor.executeHook(
-            address(supplyAndBorrowV2), address(0), _encodeSupplyAndBorrowV2Data(0, BORROW_WETH)
-        );
+        executor.executeHook(address(supplyAndBorrowV2), address(0), _encodeSupplyAndBorrowV2Data(0, BORROW_WETH));
     }
 
     /// @notice V2 SupplyAndBorrow: zero secondary amount reverts
     function test_fork_V2SupplyAndBorrow_ZeroSecondaryReverts() public {
         _fundUSDC(COLLATERAL_USDC);
         vm.expectRevert();
-        executor.executeHook(
-            address(supplyAndBorrowV2), address(0), _encodeSupplyAndBorrowV2Data(COLLATERAL_USDC, 0)
-        );
+        executor.executeHook(address(supplyAndBorrowV2), address(0), _encodeSupplyAndBorrowV2Data(COLLATERAL_USDC, 0));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -370,9 +385,7 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
 
         // Partial repay: half the borrowed WETH
         uint256 repayAmt = BORROW_WETH / 2;
-        executor.executeHook(
-            address(repayAndWithdrawV2), address(0), _encodeRepayAndWithdrawV2Data(repayAmt, 0, false)
-        );
+        executor.executeHook(address(repayAndWithdrawV2), address(0), _encodeRepayAndWithdrawV2Data(repayAmt, 0, false));
 
         uint256 debtAfter = _getDebt();
         assertLt(debtAfter, debtBefore, "Debt should decrease after partial repay");
@@ -410,9 +423,7 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
         uint256 debt = _getDebt();
         _fundWETH(debt); // Extra WETH to cover interest
 
-        executor.executeHook(
-            address(repayAndWithdrawV2), address(0), _encodeRepayAndWithdrawV2Data(0, 0, true)
-        );
+        executor.executeHook(address(repayAndWithdrawV2), address(0), _encodeRepayAndWithdrawV2Data(0, 0, true));
 
         (, uint128 borrowShares, uint128 collateral) = _getPosition();
         assertEq(uint256(borrowShares), 0, "Debt should be fully repaid");
@@ -451,9 +462,7 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
         uint256 usdcBefore = IERC20(USDC).balanceOf(address(executor));
 
         executor.executeHook(
-            address(repayAndWithdrawV2),
-            address(0),
-            _encodeRepayAndWithdrawV2Data(0, COLLATERAL_USDC, true)
+            address(repayAndWithdrawV2), address(0), _encodeRepayAndWithdrawV2Data(0, COLLATERAL_USDC, true)
         );
 
         uint256 usdcAfter = IERC20(USDC).balanceOf(address(executor));
@@ -472,9 +481,7 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
 
         uint256 debtBefore = _getDebt();
 
-        executor.executeHook(
-            address(repayAndWithdrawV2), address(0), _encodeRepayAndWithdrawV2Data(1, 0, false)
-        );
+        executor.executeHook(address(repayAndWithdrawV2), address(0), _encodeRepayAndWithdrawV2Data(1, 0, false));
 
         uint256 debtAfter = _getDebt();
         assertLe(debtAfter, debtBefore, "Debt should decrease or stay same");
@@ -722,7 +729,9 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
         (uint256 supplySharesAfter,,) = _getPosition();
         assertEq(supplySharesAfter, 0, "Position should be fully closed");
         // Share-to-asset conversion may lose up to 1 wei due to rounding down
-        assertGe(wethAfter - wethBefore, LEND_WETH - 1, "Should get back at least lent amount (1 wei rounding tolerance)");
+        assertGe(
+            wethAfter - wethBefore, LEND_WETH - 1, "Should get back at least lent amount (1 wei rounding tolerance)"
+        );
     }
 
     /// @notice Lend with interest accrual — withdraw more than lent
@@ -740,7 +749,9 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
         uint256 wethAfter = IERC20(WETH).balanceOf(address(executor));
 
         uint256 received = wethAfter - wethBefore;
-        assertGe(received, LEND_WETH, "Should receive at least the lent amount (interest may be zero in low-activity market)");
+        assertGe(
+            received, LEND_WETH, "Should receive at least the lent amount (interest may be zero in low-activity market)"
+        );
 
         console2.log("[lend+interest] Lent:", LEND_WETH, "Received after 30d:", received);
     }
@@ -834,17 +845,17 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
         assertEq(outAmount, wethBefore - wethAfter, "outAmount should match WETH consumed");
     }
 
-    /// @notice V2 SupplyAndBorrow outAmount tracks collateral consumed
+    /// @notice V2 SupplyAndBorrow outAmount tracks loanToken received (borrowed amount)
     function test_fork_OutAmount_V2SupplyAndBorrow() public {
         _fundUSDC(COLLATERAL_USDC);
 
-        uint256 usdcBefore = IERC20(USDC).balanceOf(address(executor));
+        uint256 wethBefore = IERC20(WETH).balanceOf(address(executor));
         uint256 outAmount = executor.executeHook(
             address(supplyAndBorrowV2), address(0), _encodeSupplyAndBorrowV2Data(COLLATERAL_USDC, BORROW_WETH)
         );
-        uint256 usdcAfter = IERC20(USDC).balanceOf(address(executor));
+        uint256 wethAfter = IERC20(WETH).balanceOf(address(executor));
 
-        assertEq(outAmount, usdcBefore - usdcAfter, "outAmount should match USDC consumed");
+        assertEq(outAmount, wethAfter - wethBefore, "outAmount should match WETH borrowed");
     }
 
     /// @notice V2 RepayAndWithdraw: withdraw path outAmount tracks collateral received
@@ -854,9 +865,7 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
         uint256 withdrawAmt = 1000e6;
         uint256 usdcBefore = IERC20(USDC).balanceOf(address(executor));
         uint256 outAmount = executor.executeHook(
-            address(repayAndWithdrawV2),
-            address(0),
-            _encodeRepayAndWithdrawV2Data(BORROW_WETH / 4, withdrawAmt, false)
+            address(repayAndWithdrawV2), address(0), _encodeRepayAndWithdrawV2Data(BORROW_WETH / 4, withdrawAmt, false)
         );
         uint256 usdcAfter = IERC20(USDC).balanceOf(address(executor));
 
@@ -909,9 +918,7 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
 
         (,, uint128 collateral) = _getPosition();
         executor.executeHook(
-            address(repayAndWithdrawV2),
-            address(0),
-            _encodeRepayAndWithdrawV2Data(0, uint256(collateral), true)
+            address(repayAndWithdrawV2), address(0), _encodeRepayAndWithdrawV2Data(0, uint256(collateral), true)
         );
 
         (, uint128 borrowShares, uint128 colAfter) = _getPosition();
@@ -931,9 +938,7 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
 
         (,, uint128 collateral) = _getPosition();
         executor.executeHook(
-            address(repayAndWithdrawV2),
-            address(0),
-            _encodeRepayAndWithdrawV2Data(0, uint256(collateral), true)
+            address(repayAndWithdrawV2), address(0), _encodeRepayAndWithdrawV2Data(0, uint256(collateral), true)
         );
 
         (, uint128 borrowShares, uint128 colAfter) = _getPosition();
@@ -966,9 +971,7 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
         executor.executeHook(address(borrowHook), address(0), _encodeBorrowData(1));
         _fundWETH(1e18); // generous buffer
         executor.executeHook(
-            address(repayAndWithdrawV2),
-            address(0),
-            _encodeRepayAndWithdrawV2Data(0, COLLATERAL_USDC, true)
+            address(repayAndWithdrawV2), address(0), _encodeRepayAndWithdrawV2Data(0, COLLATERAL_USDC, true)
         );
 
         (, uint128 bsFinal, uint128 colFinal) = _getPosition();
@@ -985,9 +988,7 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
         uint256 debt = _getDebt();
         _fundWETH(debt);
         executor.executeHook(
-            address(repayAndWithdrawV2),
-            address(0),
-            _encodeRepayAndWithdrawV2Data(0, COLLATERAL_USDC, true)
+            address(repayAndWithdrawV2), address(0), _encodeRepayAndWithdrawV2Data(0, COLLATERAL_USDC, true)
         );
 
         // Verify closed
@@ -1044,8 +1045,7 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
 
         // Full repay: 4 hook executions + 2 = 6
         {
-            Execution[] memory execs =
-                ISuperHook(address(repayHook)).build(address(0), exec, _encodeRepayData(0, true));
+            Execution[] memory execs = ISuperHook(address(repayHook)).build(address(0), exec, _encodeRepayData(0, true));
             assertEq(execs.length, 6, "Full repay should have 6 executions");
         }
 
@@ -1134,9 +1134,7 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
         uint256 withdrawAmt = 1000e6;
         _fundWETH(BORROW_WETH / 10); // Small repay to cover the tiny amount
         executor.executeHook(
-            address(repayAndWithdrawV2),
-            address(0),
-            _encodeRepayAndWithdrawV2Data(BORROW_WETH / 10, withdrawAmt, false)
+            address(repayAndWithdrawV2), address(0), _encodeRepayAndWithdrawV2Data(BORROW_WETH / 10, withdrawAmt, false)
         );
         (, uint128 bs3, uint128 col3) = _getPosition();
         assertLt(uint256(bs3), uint256(bs2), "Borrow shares should decrease more");
@@ -1146,23 +1144,154 @@ contract MorphoLoanHooksEdgeCasesFork is Test {
         uint256 debt = _getDebt();
         _fundWETH(debt);
         executor.executeHook(
-            address(repayAndWithdrawV2),
-            address(0),
-            _encodeRepayAndWithdrawV2Data(0, uint256(col3), true)
+            address(repayAndWithdrawV2), address(0), _encodeRepayAndWithdrawV2Data(0, uint256(col3), true)
         );
         (, uint128 bs4, uint128 col4) = _getPosition();
         assertEq(uint256(bs4), 0, "No borrow shares");
         assertEq(uint256(col4), 0, "No collateral");
     }
 
-    /// @notice Verify inspect returns correct packed data for V2 hooks
+    /// @notice Verify inspect returns correct packed data for V2 hooks (includes LLTV for market identity)
     function test_fork_Inspect_V2Hooks() public view {
-        bytes memory expectedPacked = abi.encodePacked(WETH, USDC, MORPHO_ORACLE, MORPHO_IRM);
+        bytes memory expectedPacked = abi.encodePacked(WETH, USDC, MORPHO_ORACLE, MORPHO_IRM, LLTV);
 
         bytes memory supplyBorrowData = _encodeSupplyAndBorrowV2Data(COLLATERAL_USDC, BORROW_WETH);
         assertEq(supplyAndBorrowV2.inspect(supplyBorrowData), expectedPacked, "V2 SupplyAndBorrow inspect mismatch");
 
         bytes memory repayWithdrawData = _encodeRepayAndWithdrawV2Data(BORROW_WETH, 1000e6, false);
         assertEq(repayAndWithdrawV2.inspect(repayWithdrawData), expectedPacked, "V2 RepayAndWithdraw inspect mismatch");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+        SECTION 13: FULL REPAY WITH PENDING INTEREST (FIX 1)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Full repay succeeds with pending un-accrued interest
+    /// @dev Before Fix 1, this scenario reverted because build() sized approval from stale market totals,
+    ///      but _preExecute called accrueInterest() which grew the debt beyond the approved amount.
+    ///      Fix: type(uint256).max approval for full repay, immediately reset to 0 after repay.
+    function test_fork_V2RepayAndWithdraw_FullRepayWithPendingInterest() public {
+        _openPositionV2();
+
+        // Warp 30 days WITHOUT calling accrueInterest — the exact scenario that was broken
+        vm.warp(block.timestamp + 30 days);
+
+        // Fund enough WETH to cover stale debt + accrued interest
+        // Use generous buffer since we don't know exact post-accrual amount
+        _fundWETH(BORROW_WETH * 2);
+
+        executor.executeHook(
+            address(repayAndWithdrawV2), address(0), _encodeRepayAndWithdrawV2Data(0, 0, true)
+        );
+
+        (, uint128 borrowShares,) = _getPosition();
+        assertEq(uint256(borrowShares), 0, "Debt should be fully repaid even with pending interest");
+    }
+
+    /// @notice Full repay + withdraw succeeds with pending un-accrued interest
+    function test_fork_V2RepayAndWithdraw_FullRepayWithdrawWithPendingInterest() public {
+        _openPositionV2();
+
+        vm.warp(block.timestamp + 7 days);
+
+        _fundWETH(BORROW_WETH * 2);
+
+        uint256 usdcBefore = IERC20(USDC).balanceOf(address(executor));
+        executor.executeHook(
+            address(repayAndWithdrawV2), address(0), _encodeRepayAndWithdrawV2Data(0, COLLATERAL_USDC, true)
+        );
+        uint256 usdcAfter = IERC20(USDC).balanceOf(address(executor));
+
+        (, uint128 borrowShares, uint128 collateral) = _getPosition();
+        assertEq(uint256(borrowShares), 0, "Debt should be zero");
+        assertEq(uint256(collateral), 0, "Collateral should be zero");
+        assertEq(usdcAfter - usdcBefore, COLLATERAL_USDC, "Should have received all USDC back");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+        SECTION 14: RISK/CAP BOUNDS (FIX 3)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice maxPostDebt enforcement — borrow that results in debt exceeding cap reverts
+    function test_fork_V2SupplyAndBorrow_MaxPostDebtEnforced() public {
+        _fundUSDC(COLLATERAL_USDC);
+
+        // Set maxPostDebt to 1 wei — any borrow should exceed this
+        vm.expectRevert();
+        executor.executeHook(
+            address(supplyAndBorrowV2), address(0), _encodeSupplyAndBorrowV2DataWithCap(COLLATERAL_USDC, BORROW_WETH, 1)
+        );
+    }
+
+    /// @notice maxPostDebt = 0 skips check (allows any debt)
+    function test_fork_V2SupplyAndBorrow_MaxPostDebtZeroSkipsCheck() public {
+        _fundUSDC(COLLATERAL_USDC);
+
+        // maxPostDebt = 0 means skip check
+        executor.executeHook(
+            address(supplyAndBorrowV2), address(0), _encodeSupplyAndBorrowV2DataWithCap(COLLATERAL_USDC, BORROW_WETH, 0)
+        );
+
+        (, uint128 borrowShares,) = _getPosition();
+        assertGt(uint256(borrowShares), 0, "Should have borrow shares");
+    }
+
+    /// @notice maxPostDebt at generous limit passes
+    function test_fork_V2SupplyAndBorrow_MaxPostDebtAtLimit() public {
+        _fundUSDC(COLLATERAL_USDC);
+
+        // Set maxPostDebt well above expected debt
+        executor.executeHook(
+            address(supplyAndBorrowV2),
+            address(0),
+            _encodeSupplyAndBorrowV2DataWithCap(COLLATERAL_USDC, BORROW_WETH, BORROW_WETH * 10)
+        );
+
+        (, uint128 borrowShares,) = _getPosition();
+        assertGt(uint256(borrowShares), 0, "Should have borrow shares");
+    }
+
+    /// @notice maxRepayAssets enforcement — partial repay exceeding cap reverts
+    function test_fork_V2RepayAndWithdraw_MaxRepayExceeded() public {
+        _openPositionV2();
+
+        // Set maxRepayAssets to 1 wei — partial repay of BORROW_WETH/2 should exceed
+        vm.expectRevert();
+        executor.executeHook(
+            address(repayAndWithdrawV2),
+            address(0),
+            _encodeRepayAndWithdrawV2DataWithCaps(BORROW_WETH / 2, 0, false, 1, type(uint256).max)
+        );
+    }
+
+    /// @notice maxCollateralReleaseAssets enforcement — withdraw exceeding cap reverts
+    function test_fork_V2RepayAndWithdraw_MaxCollateralReleaseExceeded() public {
+        _openPositionV2();
+
+        // Set maxCollateralReleaseAssets to 100 USDC — withdraw of 1000 USDC should exceed
+        vm.expectRevert();
+        executor.executeHook(
+            address(repayAndWithdrawV2),
+            address(0),
+            _encodeRepayAndWithdrawV2DataWithCaps(BORROW_WETH / 2, 1000e6, false, type(uint256).max, 100e6)
+        );
+    }
+
+    /// @notice Full repay skips maxRepayAssets check (amount is determined by debt)
+    function test_fork_V2RepayAndWithdraw_FullRepaySkipsMaxRepayCheck() public {
+        _openPositionV2();
+
+        uint256 debt = _getDebt();
+        _fundWETH(debt);
+
+        // maxRepayAssets = 1 but isFullRepayment bypasses the check
+        executor.executeHook(
+            address(repayAndWithdrawV2),
+            address(0),
+            _encodeRepayAndWithdrawV2DataWithCaps(0, 0, true, 1, type(uint256).max)
+        );
+
+        (, uint128 borrowShares,) = _getPosition();
+        assertEq(uint256(borrowShares), 0, "Debt should be fully repaid");
     }
 }

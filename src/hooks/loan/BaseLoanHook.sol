@@ -55,7 +55,9 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans, ISuperHookInflowOut
         returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
     {
         meta = new ISuperHookInflowOutflow.AmountMeta[](1);
-        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(
+            ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN
+        );
     }
 
     /// @inheritdoc ISuperHookOutflow

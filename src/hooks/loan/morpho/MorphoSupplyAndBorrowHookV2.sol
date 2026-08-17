@@ -4,7 +4,9 @@ pragma solidity 0.8.30;
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
+import { IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id, Market } from "../../../vendor/morpho/IMorpho.sol";
+import { SharesMathLib } from "../../../vendor/morpho/SharesMathLib.sol";
+import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
 
 // Superform
 import { BytesLib } from "../../../vendor/BytesLib.sol";
@@ -34,17 +36,28 @@ import {
 /// @notice         uint256 secondaryAmount = BytesLib.toUint256(data, 164);   // borrow amount (independent)
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 196);           // applies to primaryAmount only
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 197);
-/// @dev outAmount tracks collateral tokens consumed (pre-balance - post-balance).
+/// @notice         uint256 maxPostDebt = BytesLib.toUint256(data, 229);       // max allowed debt after borrow
+/// @dev outAmount tracks loanToken received (post-balance - pre-balance), i.e., the borrowed amount.
 ///      usePrevHookAmount applies to the supply leg only; borrowAmount is fixed calldata
 ///      (the bundler is responsible for consistent leg sizing — Morpho enforces LTV constraints).
 contract MorphoSupplyAndBorrowHookV2 is BaseMorphoLoanHook {
+    using SharesMathLib for uint256;
+    using MarketParamsLib for MarketParams;
+
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
     uint256 internal constant SECONDARY_AMOUNT_OFFSET = 164;
     uint256 internal constant V2_LLTV_OFFSET = 197;
-    uint256 internal constant V2_MIN_DATA_LENGTH = 229;
+    uint256 internal constant MAX_POST_DEBT_OFFSET = 229;
+    uint256 internal constant V2_MIN_DATA_LENGTH = 261;
+
+    /*//////////////////////////////////////////////////////////////
+                               STORAGE
+    //////////////////////////////////////////////////////////////*/
+
+    IMorphoStaticTyping public immutable morphoStaticTyping;
 
     /*//////////////////////////////////////////////////////////////
                                STRUCTS
@@ -59,14 +72,24 @@ contract MorphoSupplyAndBorrowHookV2 is BaseMorphoLoanHook {
         uint256 secondaryAmount;
         bool usePrevHookAmount;
         uint256 lltv;
+        uint256 maxPostDebt;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                               ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Thrown when post-execution debt exceeds the max allowed
+    error MAX_POST_DEBT_EXCEEDED();
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
     /// @param morpho_ Address of the Morpho Blue protocol
-    constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN) { }
+    constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN) {
+        morphoStaticTyping = IMorphoStaticTyping(morpho_);
+    }
 
     /// @notice Human-readable name for UI display
     function name() external pure override returns (string memory) {
@@ -105,11 +128,8 @@ contract MorphoSupplyAndBorrowHookV2 is BaseMorphoLoanHook {
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
         executions = new Execution[](5);
-        executions[0] = Execution({
-            target: vars.collateralToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (morpho, 0))
-        });
+        executions[0] =
+            Execution({ target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
         executions[1] = Execution({
             target: vars.collateralToken,
             value: 0,
@@ -126,11 +146,8 @@ contract MorphoSupplyAndBorrowHookV2 is BaseMorphoLoanHook {
             callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, vars.secondaryAmount, 0, account, account))
         });
         // P1-1: Reset approval after supply to prevent dangling allowance
-        executions[4] = Execution({
-            target: vars.collateralToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (morpho, 0))
-        });
+        executions[4] =
+            Execution({ target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -179,7 +196,7 @@ contract MorphoSupplyAndBorrowHookV2 is BaseMorphoLoanHook {
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
         return abi.encodePacked(
-            marketParams.loanToken, marketParams.collateralToken, marketParams.oracle, marketParams.irm
+            marketParams.loanToken, marketParams.collateralToken, marketParams.oracle, marketParams.irm, vars.lltv
         );
     }
 
@@ -198,6 +215,7 @@ contract MorphoSupplyAndBorrowHookV2 is BaseMorphoLoanHook {
         vars.secondaryAmount = BytesLib.toUint256(data, SECONDARY_AMOUNT_OFFSET);
         vars.usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         vars.lltv = BytesLib.toUint256(data, V2_LLTV_OFFSET);
+        vars.maxPostDebt = BytesLib.toUint256(data, MAX_POST_DEBT_OFFSET);
 
         if (
             vars.loanToken == address(0) || vars.collateralToken == address(0) || vars.oracle == address(0)
@@ -208,13 +226,34 @@ contract MorphoSupplyAndBorrowHookV2 is BaseMorphoLoanHook {
     }
 
     /// @inheritdoc BaseHook
+    /// @dev Stores loanToken balance before execution for outAmount delta tracking (borrowed amount)
     function _preExecute(address, address account, bytes calldata data) internal override {
-        _setOutAmount(getCollateralTokenBalance(account, data), account);
+        _setOutAmount(getLoanTokenBalance(account, data), account);
     }
 
     /// @inheritdoc BaseHook
+    /// @dev Computes loanToken received (post - pre = borrowed amount), validates maxPostDebt
     function _postExecute(address, address account, bytes calldata data) internal override {
-        _setOutAmount(getOutAmount(account) - getCollateralTokenBalance(account, data), account);
-        _setOutToken(getCollateralTokenAddress(data), account);
+        uint256 preBal = getOutAmount(account);
+        uint256 postBal = getLoanTokenBalance(account, data);
+        _setOutAmount(postBal - preBal, account);
+        _setOutToken(getLoanTokenAddress(data), account);
+
+        // Validate maxPostDebt
+        uint256 maxPostDebt = BytesLib.toUint256(data, MAX_POST_DEBT_OFFSET);
+        if (maxPostDebt > 0) {
+            MarketParams memory marketParams = _generateMarketParams(
+                BytesLib.toAddress(data, LOAN_TOKEN_OFFSET),
+                BytesLib.toAddress(data, COLLATERAL_TOKEN_OFFSET),
+                BytesLib.toAddress(data, ORACLE_OFFSET),
+                BytesLib.toAddress(data, IRM_OFFSET),
+                BytesLib.toUint256(data, V2_LLTV_OFFSET)
+            );
+            Id id = MarketParamsLib.id(marketParams);
+            (, uint128 borrowShares,) = morphoStaticTyping.position(id, account);
+            Market memory market = IMorpho(morpho).market(id);
+            uint256 currentDebt = uint256(borrowShares).toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
+            if (currentDebt > maxPostDebt) revert MAX_POST_DEBT_EXCEEDED();
+        }
     }
 }
