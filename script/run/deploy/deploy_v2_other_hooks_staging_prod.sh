@@ -4,8 +4,8 @@
 # Deploy Other Hooks Script
 ###################################################################################
 # Description:
-#   Deploys other hooks (Morpho, Aave V4, Firelight, Algebra Integral, DETH,
-#   Sponsorship, rFLR, WrappedNative) via DeployV2OtherHooks.s.sol across configured networks.
+#   Deploys other hooks (Morpho, Morpho V2, Euler, Aave V3, Aave V4, Firelight,
+#   Algebra Integral, DETH, Sponsorship, rFLR, WrappedNative) via DeployV2OtherHooks.s.sol.
 #   Sources lib_deploy.sh for shared deployment utilities.
 #
 # Usage:
@@ -63,6 +63,24 @@ is_aave_v4_supported() {
         fi
     done
     return 1
+}
+
+# Euler V2 is only deployed on Ethereum mainnet
+EULER_SUPPORTED_CHAINS=("1")
+
+is_euler_supported() {
+    local chain_id=$1
+    for supported in "${EULER_SUPPORTED_CHAINS[@]}"; do
+        if [ "$supported" = "$chain_id" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Morpho V2 hooks are deployed on the same chains as Morpho V1
+is_morpho_v2_supported() {
+    is_morpho_supported "$1"
 }
 
 # Firelight is only deployed on Flare
@@ -222,6 +240,58 @@ done
 
 if [ $missing_aavev3 -gt 0 ]; then
     echo -e "${YELLOW}${missing_aavev3} Aave V3 hook(s) missing bytecode. They will be skipped during deployment.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/tooling/regenerate_bytecode.sh to generate missing bytecode.${NC}"
+fi
+
+echo ""
+
+echo -e "${BLUE}Checking Euler V2 hook bytecode availability...${NC}"
+
+EULER_HOOKS=(
+    "EulerDepositCollateralHook"
+    "EulerBorrowHook"
+    "EulerRepayHook"
+    "EulerWithdrawCollateralHook"
+    "EulerDepositCollateralAndBorrowHook"
+    "EulerRepayAndWithdrawHook"
+)
+
+missing_euler=0
+for hook in "${EULER_HOOKS[@]}"; do
+    if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
+        echo -e "${GREEN}   ${hook}${NC}"
+    else
+        echo -e "${YELLOW}   ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
+        missing_euler=$((missing_euler + 1))
+    fi
+done
+
+if [ $missing_euler -gt 0 ]; then
+    echo -e "${YELLOW}${missing_euler} Euler V2 hook(s) missing bytecode. They will be skipped during deployment.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/tooling/regenerate_bytecode.sh to generate missing bytecode.${NC}"
+fi
+
+echo ""
+
+echo -e "${BLUE}Checking Morpho V2 hook bytecode availability...${NC}"
+
+MORPHO_V2_HOOKS=(
+    "MorphoSupplyAndBorrowHookV2"
+    "MorphoRepayAndWithdrawHookV2"
+)
+
+missing_morphov2=0
+for hook in "${MORPHO_V2_HOOKS[@]}"; do
+    if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
+        echo -e "${GREEN}   ${hook}${NC}"
+    else
+        echo -e "${YELLOW}   ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
+        missing_morphov2=$((missing_morphov2 + 1))
+    fi
+done
+
+if [ $missing_morphov2 -gt 0 ]; then
+    echo -e "${YELLOW}${missing_morphov2} Morpho V2 hook(s) missing bytecode. They will be skipped during deployment.${NC}"
     echo -e "${YELLOW}   Run ./script/run/tooling/regenerate_bytecode.sh to generate missing bytecode.${NC}"
 fi
 
@@ -401,7 +471,7 @@ print_separator
 
 # ── Confirmation ───────────────────────────────────────────────────────────────
 
-echo -e "${WHITE}Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral + DETH + Sponsorship + rFLR + rFLR V2 + WrappedNative) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
+echo -e "${WHITE}Deploy hooks (Morpho + Morpho V2 + Euler + Aave V3 + Aave V4 + Firelight + Algebra Integral + DETH + Sponsorship + rFLR + rFLR V2 + WrappedNative) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
 read -r proceed
 
 if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
@@ -504,6 +574,68 @@ for network_def in "${NETWORKS[@]}"; do
         else
             echo -e "${RED}   Morpho hooks deployment failed on $network_name, continuing...${NC}"
             FAILED_HOOK_DEPLOYS+=("Morpho @ $network_name")
+        fi
+    fi
+
+    # Deploy Morpho V2 hooks if supported on this chain
+    if is_morpho_v2_supported "$network_id"; then
+        has_hooks=true
+        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
+        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
+        echo -e "${YELLOW}   Deploying Morpho V2 hooks...${NC}"
+
+        if forge script "$FORGE_SCRIPT" \
+            --sig 'runMorphoV2(uint256,uint64)' $FORGE_ENV $network_id \
+            --account "$ACCOUNT" \
+            $KEYSTORE_PASSWORD_FLAG \
+            --rpc-url ${!rpc_var} \
+            $local_chain_flag \
+            $local_etherscan_flags \
+            $BROADCAST_FLAG \
+            $local_verify_flag \
+            $SLOW_FLAG \
+            $BATCH_SIZE_FLAG \
+            $RESUME_FLAG \
+            $LEGACY_FLAG \
+            $GAS_PRICE_FLAG \
+            --timeout 300 \
+            -vv; then
+            echo -e "${GREEN}   Morpho V2 hooks deployment completed!${NC}"
+        else
+            echo -e "${RED}   Morpho V2 hooks deployment failed on $network_name, continuing...${NC}"
+            FAILED_HOOK_DEPLOYS+=("MorphoV2 @ $network_name")
+        fi
+    fi
+
+    # Deploy Euler hooks if supported on this chain
+    if is_euler_supported "$network_id"; then
+        has_hooks=true
+        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
+        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
+        echo -e "${YELLOW}   Deploying Euler V2 hooks...${NC}"
+
+        if forge script "$FORGE_SCRIPT" \
+            --sig 'runEuler(uint256,uint64)' $FORGE_ENV $network_id \
+            --account "$ACCOUNT" \
+            $KEYSTORE_PASSWORD_FLAG \
+            --rpc-url ${!rpc_var} \
+            $local_chain_flag \
+            $local_etherscan_flags \
+            $BROADCAST_FLAG \
+            $local_verify_flag \
+            $SLOW_FLAG \
+            $BATCH_SIZE_FLAG \
+            $RESUME_FLAG \
+            $LEGACY_FLAG \
+            $GAS_PRICE_FLAG \
+            --timeout 300 \
+            -vv; then
+            echo -e "${GREEN}   Euler V2 hooks deployment completed!${NC}"
+        else
+            echo -e "${RED}   Euler V2 hooks deployment failed on $network_name, continuing...${NC}"
+            FAILED_HOOK_DEPLOYS+=("Euler @ $network_name")
         fi
     fi
 

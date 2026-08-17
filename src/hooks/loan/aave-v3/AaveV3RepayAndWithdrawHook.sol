@@ -21,6 +21,8 @@ import {
 /// @title AaveV3RepayAndWithdrawHook
 /// @author Superform Labs
 /// @dev data layout (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
+/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);   // repaid (debt) asset
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);  // withdrawn asset
 /// @notice         address pool = BytesLib.toAddress(data, 92);

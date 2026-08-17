@@ -83,6 +83,20 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address spectraExchangeRedeemHook;
     }
 
+    struct EulerHookAddresses {
+        address eulerDepositCollateralHook;
+        address eulerBorrowHook;
+        address eulerRepayHook;
+        address eulerWithdrawCollateralHook;
+        address eulerDepositCollateralAndBorrowHook;
+        address eulerRepayAndWithdrawHook;
+    }
+
+    struct MorphoV2HookAddresses {
+        address morphoSupplyAndBorrowHookV2;
+        address morphoRepayAndWithdrawHookV2;
+    }
+
     struct WrappedNativeHookAddress {
         address wrappedNativeHook;
     }
@@ -177,6 +191,22 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    function runEuler(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying Euler Hooks on chainId: ", chainId);
+
+        _deployEulerHooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
+    function runMorphoV2(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying Morpho V2 Hooks on chainId: ", chainId);
+
+        _deployMorphoV2Hooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
     function runWrappedNative(uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
         console2.log("Deploying WrappedNativeHook on chainId: ", chainId);
@@ -247,6 +277,18 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         if (otherHooksConfiguration.odosRouterV3s[chainId] != address(0)) {
             console2.log("Deploying Odos V3 Hooks on chainId: ", chainId);
             _deployOdosV3Hooks(chainId, env);
+        }
+
+        // Euler V2 hooks — only on Ethereum mainnet (Euler V2 is mainnet-only)
+        if (chainId == MAINNET_CHAIN_ID) {
+            console2.log("Deploying Euler Hooks on chainId: ", chainId);
+            _deployEulerHooks(chainId, env);
+        }
+
+        // Morpho V2 hooks — on chains where Morpho is deployed
+        if (otherHooksConfiguration.morphos[chainId] != address(0)) {
+            console2.log("Deploying Morpho V2 Hooks on chainId: ", chainId);
+            _deployMorphoV2Hooks(chainId, env);
         }
     }
 
@@ -890,5 +932,129 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         WrappedNativeHookAddress memory hookAddress;
         hookAddress.wrappedNativeHook = wrappedNativeHook;
         return hookAddress;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        EULER HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    function _deployEulerHooks(uint64 chainId, uint256 env) internal {
+        _deployEulerHooksSet(chainId, env);
+    }
+
+    /// @notice Deploy all 6 Euler V2 hooks (no constructor args — EVC and vault come from calldata)
+    function _deployEulerHooksSet(
+        uint64 chainId,
+        uint256 env
+    )
+        private
+        returns (EulerHookAddresses memory hookAddresses)
+    {
+        uint256 len = 6;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        // Euler hooks have no constructor args
+        hooks[0] = HookDeployment(
+            EULER_DEPOSIT_COLLATERAL_HOOK_KEY, "", __getOtherHooksBytecode("EulerDepositCollateralHook", env)
+        );
+        hooks[1] = HookDeployment(
+            EULER_BORROW_HOOK_KEY, "", __getOtherHooksBytecode("EulerBorrowHook", env)
+        );
+        hooks[2] = HookDeployment(
+            EULER_REPAY_HOOK_KEY, "", __getOtherHooksBytecode("EulerRepayHook", env)
+        );
+        hooks[3] = HookDeployment(
+            EULER_WITHDRAW_COLLATERAL_HOOK_KEY, "", __getOtherHooksBytecode("EulerWithdrawCollateralHook", env)
+        );
+        hooks[4] = HookDeployment(
+            EULER_DEPOSIT_COLLATERAL_AND_BORROW_HOOK_KEY,
+            "",
+            __getOtherHooksBytecode("EulerDepositCollateralAndBorrowHook", env)
+        );
+        hooks[5] = HookDeployment(
+            EULER_REPAY_AND_WITHDRAW_HOOK_KEY, "", __getOtherHooksBytecode("EulerRepayAndWithdrawHook", env)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        hookAddresses.eulerDepositCollateralHook = addresses[0];
+        hookAddresses.eulerBorrowHook = addresses[1];
+        hookAddresses.eulerRepayHook = addresses[2];
+        hookAddresses.eulerWithdrawCollateralHook = addresses[3];
+        hookAddresses.eulerDepositCollateralAndBorrowHook = addresses[4];
+        hookAddresses.eulerRepayAndWithdrawHook = addresses[5];
+
+        require(hookAddresses.eulerDepositCollateralHook != address(0), "EulerDepositCollateralHook not assigned");
+        require(hookAddresses.eulerBorrowHook != address(0), "EulerBorrowHook not assigned");
+        require(hookAddresses.eulerRepayHook != address(0), "EulerRepayHook not assigned");
+        require(hookAddresses.eulerWithdrawCollateralHook != address(0), "EulerWithdrawCollateralHook not assigned");
+        require(
+            hookAddresses.eulerDepositCollateralAndBorrowHook != address(0),
+            "EulerDepositCollateralAndBorrowHook not assigned"
+        );
+        require(hookAddresses.eulerRepayAndWithdrawHook != address(0), "EulerRepayAndWithdrawHook not assigned");
+
+        console2.log("All Euler hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      MORPHO V2 HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    function _deployMorphoV2Hooks(uint64 chainId, uint256 env) internal {
+        _deployMorphoV2HooksSet(chainId, env);
+    }
+
+    /// @notice Deploy 2 Morpho V2 corrected composite hooks (constructor arg: morpho address)
+    function _deployMorphoV2HooksSet(
+        uint64 chainId,
+        uint256 env
+    )
+        private
+        returns (MorphoV2HookAddresses memory hookAddresses)
+    {
+        uint256 len = 2;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        bytes memory morphoArg = abi.encode(otherHooksConfiguration.morphos[chainId]);
+
+        hooks[0] = HookDeployment(
+            MORPHO_SUPPLY_AND_BORROW_HOOK_V2_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("MorphoSupplyAndBorrowHookV2", env), morphoArg)
+        );
+        hooks[1] = HookDeployment(
+            MORPHO_REPAY_AND_WITHDRAW_HOOK_V2_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("MorphoRepayAndWithdrawHookV2", env), morphoArg)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        hookAddresses.morphoSupplyAndBorrowHookV2 = addresses[0];
+        hookAddresses.morphoRepayAndWithdrawHookV2 = addresses[1];
+
+        require(
+            hookAddresses.morphoSupplyAndBorrowHookV2 != address(0), "MorphoSupplyAndBorrowHookV2 not assigned"
+        );
+        require(
+            hookAddresses.morphoRepayAndWithdrawHookV2 != address(0), "MorphoRepayAndWithdrawHookV2 not assigned"
+        );
+
+        console2.log("All Morpho V2 hooks deployed and validated successfully.");
+
+        return hookAddresses;
     }
 }

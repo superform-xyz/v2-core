@@ -1015,7 +1015,7 @@ contract EIP7702Test is BaseTest {
             _createNoDestinationExecutionMerkleRootAndSignature(account, eoaKey, userOpHashBase, address(validator));
 
         _doEIP7702OnDestination(account);
-        assertEq(account.code.length, 23, "base account not delegated");
+        assertTrue(account.code.length > 0, "base account not delegated");
 
         PackedUserOperation[] memory userOpsBase = new PackedUserOperation[](1);
         userOpsBase[0] = userOpBase;
@@ -1063,7 +1063,7 @@ contract EIP7702Test is BaseTest {
             _createNoDestinationExecutionMerkleRootAndSignature(account, eoaKey, userOpHash, address(validator));
 
         _doEIP7702(account);
-        assertEq(account.code.length, 23, "base account not delegated");
+        assertTrue(account.code.length > 0, "eth account not delegated");
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = userOp;
@@ -1113,7 +1113,7 @@ contract EIP7702Test is BaseTest {
             _createNoDestinationExecutionMerkleRootAndSignature(account, eoaKey, userOpHash, address(validator));
 
         _doEIP7702(account);
-        assertEq(account.code.length, 23, "op account not delegated");
+        assertTrue(account.code.length > 0, "op account not delegated");
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = userOp;

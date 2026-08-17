@@ -271,6 +271,22 @@ RFLR_HOOK_CONTRACTS=(
     "WrappedNativeHook"
 )
 
+# Euler V2 hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
+EULER_HOOK_CONTRACTS=(
+    "EulerDepositCollateralHook"
+    "EulerBorrowHook"
+    "EulerRepayHook"
+    "EulerWithdrawCollateralHook"
+    "EulerDepositCollateralAndBorrowHook"
+    "EulerRepayAndWithdrawHook"
+)
+
+# Morpho V2 hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
+MORPHO_V2_HOOK_CONTRACTS=(
+    "MorphoSupplyAndBorrowHookV2"
+    "MorphoRepayAndWithdrawHookV2"
+)
+
 # Odos V3 hook contracts - now deployed via DeployV2Core (kept here for reference)
 ODOS_V3_HOOK_CONTRACTS=()
 
@@ -390,6 +406,24 @@ else
         fi
     done
 
+    # Copy Euler V2 hook contracts
+    log "INFO" "${BLUE}🪝 Copying Euler V2 hook contracts...${NC}"
+    failed_euler=0
+    for contract in "${EULER_HOOK_CONTRACTS[@]}"; do
+        if ! copy_contract "$contract"; then
+            failed_euler=$((failed_euler + 1))
+        fi
+    done
+
+    # Copy Morpho V2 hook contracts
+    log "INFO" "${BLUE}🪝 Copying Morpho V2 hook contracts...${NC}"
+    failed_morphov2=0
+    for contract in "${MORPHO_V2_HOOK_CONTRACTS[@]}"; do
+        if ! copy_contract "$contract"; then
+            failed_morphov2=$((failed_morphov2 + 1))
+        fi
+    done
+
     # Copy Odos V3 hook contracts
     log "INFO" "${BLUE}🪝 Copying Odos V3 hook contracts...${NC}"
     failed_odosv3=0
@@ -400,8 +434,8 @@ else
     done
 
     # Summary for all contracts mode
-    total_contracts=$((${#CORE_CONTRACTS[@]} + ${#HOOK_CONTRACTS[@]} + ${#ORACLE_CONTRACTS[@]} + ${#MORPHO_HOOK_CONTRACTS[@]} + ${#AAVE_V4_HOOK_CONTRACTS[@]} + ${#AAVE_V3_HOOK_CONTRACTS[@]} + ${#DETH_HOOK_CONTRACTS[@]} + ${#SPONSORSHIP_CONTRACTS[@]} + ${#RFLR_HOOK_CONTRACTS[@]} + ${#ODOS_V3_HOOK_CONTRACTS[@]}))
-    total_failed=$((failed_core + failed_hooks + failed_oracles + failed_morpho + failed_aavev4 + failed_aavev3 + failed_deth + failed_sponsorship + failed_rflr + failed_odosv3))
+    total_contracts=$((${#CORE_CONTRACTS[@]} + ${#HOOK_CONTRACTS[@]} + ${#ORACLE_CONTRACTS[@]} + ${#MORPHO_HOOK_CONTRACTS[@]} + ${#AAVE_V4_HOOK_CONTRACTS[@]} + ${#AAVE_V3_HOOK_CONTRACTS[@]} + ${#DETH_HOOK_CONTRACTS[@]} + ${#SPONSORSHIP_CONTRACTS[@]} + ${#RFLR_HOOK_CONTRACTS[@]} + ${#EULER_HOOK_CONTRACTS[@]} + ${#MORPHO_V2_HOOK_CONTRACTS[@]} + ${#ODOS_V3_HOOK_CONTRACTS[@]}))
+    total_failed=$((failed_core + failed_hooks + failed_oracles + failed_morpho + failed_aavev4 + failed_aavev3 + failed_deth + failed_sponsorship + failed_rflr + failed_euler + failed_morphov2 + failed_odosv3))
     total_success=$((total_contracts - total_failed))
 
     log "INFO" "${BLUE}📊 Summary:${NC}"
@@ -441,6 +475,14 @@ else
 
     if [ $failed_rflr -gt 0 ]; then
         log "WARN" "${YELLOW}  ⚠️  Failed rFLR hook contracts: ${failed_rflr}/${#RFLR_HOOK_CONTRACTS[@]}${NC}"
+    fi
+
+    if [ $failed_euler -gt 0 ]; then
+        log "WARN" "${YELLOW}  ⚠️  Failed Euler V2 hook contracts: ${failed_euler}/${#EULER_HOOK_CONTRACTS[@]}${NC}"
+    fi
+
+    if [ $failed_morphov2 -gt 0 ]; then
+        log "WARN" "${YELLOW}  ⚠️  Failed Morpho V2 hook contracts: ${failed_morphov2}/${#MORPHO_V2_HOOK_CONTRACTS[@]}${NC}"
     fi
 
     if [ $failed_odosv3 -gt 0 ]; then

@@ -338,7 +338,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
     error UserOperationReverted(bytes32 userOpHash, address sender, uint256 nonce, bytes revertReason);
 
     /// @dev Check logs for failed UserOperations and revert with detailed error info
-    function _checkUserOperationResults(bytes4 selector) internal view {
+    function _checkUserOperationResults(bytes4 selector) internal {
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         for (uint256 i; i < logs.length; i++) {
@@ -374,7 +374,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         revert("No reverted UserOperationEvent found");
     }
 
-    function _checkValidateUserOperationResults(bytes4 selector) internal view {
+    function _checkValidateUserOperationResults(bytes4 selector) internal {
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         for (uint256 i; i < logs.length; i++) {

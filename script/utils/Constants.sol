@@ -296,6 +296,18 @@ abstract contract Constants {
     string internal constant AAVE_V3_REPAY_AND_WITHDRAW_HOOK_KEY = "AaveV3RepayAndWithdrawHook";
     string internal constant AAVE_V3_REPAY_WITH_ATOKENS_HOOK_KEY = "AaveV3RepayWithATokensHook";
 
+    // Euler V2 Hook Keys
+    string internal constant EULER_DEPOSIT_COLLATERAL_HOOK_KEY = "EulerDepositCollateralHook";
+    string internal constant EULER_BORROW_HOOK_KEY = "EulerBorrowHook";
+    string internal constant EULER_REPAY_HOOK_KEY = "EulerRepayHook";
+    string internal constant EULER_WITHDRAW_COLLATERAL_HOOK_KEY = "EulerWithdrawCollateralHook";
+    string internal constant EULER_DEPOSIT_COLLATERAL_AND_BORROW_HOOK_KEY = "EulerDepositCollateralAndBorrowHook";
+    string internal constant EULER_REPAY_AND_WITHDRAW_HOOK_KEY = "EulerRepayAndWithdrawHook";
+
+    // Morpho V2 Hook Keys
+    string internal constant MORPHO_SUPPLY_AND_BORROW_HOOK_V2_KEY = "MorphoSupplyAndBorrowHookV2";
+    string internal constant MORPHO_REPAY_AND_WITHDRAW_HOOK_V2_KEY = "MorphoRepayAndWithdrawHookV2";
+
     string internal constant CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "CancelDepositRequest7540Hook";
     string internal constant CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "CancelRedeemRequest7540Hook";
     string internal constant CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "ClaimCancelDepositRequest7540Hook";

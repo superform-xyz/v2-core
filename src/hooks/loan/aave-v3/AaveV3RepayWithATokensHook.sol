@@ -15,6 +15,8 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 /// @author Superform Labs
 /// @notice Repays Aave V3 debt directly using the account's own aTokens (no underlying transfer / approval).
 /// @dev data layout (standard 52-byte strategy header + hook-specific):
+/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
+/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);   // underlying debt asset (passed to Aave)
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);  // the aToken address (for balance-delta)
 /// @notice         address pool = BytesLib.toAddress(data, 92);

@@ -17,9 +17,13 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 
 /// @title BaseLoanHook
 /// @author Superform Labs
+/// @notice Abstract base for all lending protocol hooks, providing shared calldata layout and token helpers
+/// @dev Mandates loanToken at offset 52 and collateralToken at offset 72 across all loan hook families
 abstract contract BaseLoanHook is BaseHook, ISuperHookLoans, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
+    uint256 internal constant LOAN_TOKEN_POSITION = 52;
+    uint256 internal constant COLLATERAL_TOKEN_POSITION = 72;
     uint256 internal constant AMOUNT_POSITION = 132;
     uint256 internal constant USE_PREV_HOOK_AMOUNT_POSITION = 196;
 
@@ -74,23 +78,23 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans, ISuperHookInflowOut
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHookLoans
     function getLoanTokenAddress(bytes memory data) public pure returns (address) {
-        return BytesLib.toAddress(data, 52);
+        return BytesLib.toAddress(data, LOAN_TOKEN_POSITION);
     }
 
     /// @inheritdoc ISuperHookLoans
     function getCollateralTokenAddress(bytes memory data) public pure returns (address) {
-        return BytesLib.toAddress(data, 72);
+        return BytesLib.toAddress(data, COLLATERAL_TOKEN_POSITION);
     }
 
     /// @inheritdoc ISuperHookLoans
     function getCollateralTokenBalance(address account, bytes memory data) public view returns (uint256) {
-        address collateralToken = BytesLib.toAddress(data, 72);
+        address collateralToken = BytesLib.toAddress(data, COLLATERAL_TOKEN_POSITION);
         return IERC20(collateralToken).balanceOf(account);
     }
 
     /// @inheritdoc ISuperHookLoans
     function getLoanTokenBalance(address account, bytes memory data) public view returns (uint256) {
-        address loanToken = BytesLib.toAddress(data, 52);
+        address loanToken = BytesLib.toAddress(data, LOAN_TOKEN_POSITION);
         return IERC20(loanToken).balanceOf(account);
     }
 
