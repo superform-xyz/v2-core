@@ -1,5 +1,5 @@
 # Hook Classification Manifest
-# Canonical intent x stage classification for all 125 hooks in v2-core
+# Canonical intent x stage classification for all 133 hooks in v2-core
 # CI-linted against on-chain hookType via scripts/lint_hook_manifest.py
 #
 # Design invariants:
@@ -520,6 +520,26 @@ hooks:
     actionTypes: [{intent: repay, stage: instant}, {intent: withdraw, stage: instant}]
     legSizing: [sized, sized]
 
+  # Euler V2 (asset-keyed, EVC/EVault from calldata)
+  EulerDepositCollateralHook:
+    actionTypes: [{intent: lend, stage: instant}]
+    legSizing: [sized]
+  EulerWithdrawCollateralHook:
+    actionTypes: [{intent: withdraw, stage: instant}]
+    legSizing: [sized]
+  EulerBorrowHook:
+    actionTypes: [{intent: borrow, stage: instant}]
+    legSizing: [sized]
+  EulerRepayHook:
+    actionTypes: [{intent: repay, stage: instant}]
+    legSizing: [sized]
+  EulerDepositCollateralAndBorrowHook:
+    actionTypes: [{intent: lend, stage: instant}, {intent: borrow, stage: instant}]
+    legSizing: [sized, sized]
+  EulerRepayAndWithdrawHook:
+    actionTypes: [{intent: repay, stage: instant}, {intent: withdraw, stage: instant}]
+    legSizing: [sized, sized]
+
   # ============================================================
   # BORROW (2 hooks) — all instant
   # ============================================================
@@ -653,7 +673,7 @@ hooks:
     legSizing: []  # sizeless — delegate management
 
   # ============================================================
-  # COMPOUND (4 hooks) — multi-leg, array position = execution order (T1)
+  # COMPOUND (6 hooks) — multi-leg, array position = execution order (T1)
   # ============================================================
 
   MorphoSupplyAndBorrowHook:
@@ -669,6 +689,18 @@ hooks:
     legSizing: [sized, sized]
 
   MorphoRepayAndWithdrawHook:
+    actionTypes:
+      - {intent: repay, stage: instant}
+      - {intent: withdraw, stage: instant}
+    legSizing: [sized, sized]
+
+  MorphoSupplyAndBorrowHookV2:
+    actionTypes:
+      - {intent: lend, stage: instant}
+      - {intent: borrow, stage: instant}
+    legSizing: [sized, sized]
+
+  MorphoRepayAndWithdrawHookV2:
     actionTypes:
       - {intent: repay, stage: instant}
       - {intent: withdraw, stage: instant}

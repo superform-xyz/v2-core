@@ -382,6 +382,44 @@
     "pipeMode": "transform"
   },
   {
+    "hookKey": "EULER_BORROW_HOOK_KEY",
+    "mode": "offset",
+    "pipeMode": "transform",
+    "amountPosition": 132,
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "EULER_DEPOSIT_COLLATERAL_AND_BORROW_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "EULER_DEPOSIT_COLLATERAL_HOOK_KEY",
+    "mode": "offset",
+    "pipeMode": "transform",
+    "amountPosition": 132,
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "EULER_REPAY_AND_WITHDRAW_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "EULER_REPAY_HOOK_KEY",
+    "mode": "offset",
+    "pipeMode": "transform",
+    "amountPosition": 132,
+    "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "EULER_WITHDRAW_COLLATERAL_HOOK_KEY",
+    "mode": "offset",
+    "pipeMode": "transform",
+    "amountPosition": 132,
+    "track": "deprecate->replaceCalldata"
+  },
+  {
     "hookKey": "FETCH_NATIVE_FEE_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "passthrough"
@@ -473,6 +511,11 @@
     "track": "deprecate->replaceCalldata"
   },
   {
+    "hookKey": "MORPHO_REPAY_AND_WITHDRAW_HOOK_V2_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "MORPHO_REPAY_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
@@ -485,6 +528,11 @@
     "pipeMode": "transform",
     "amountPosition": 132,
     "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "MORPHO_SUPPLY_AND_BORROW_HOOK_V2_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
   },
   {
     "hookKey": "MORPHO_SUPPLY_HOOK_KEY",

@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-08-12T13:07:41Z",
+  "generatedAt": "2026-08-17T21:55:50Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -7288,6 +7288,238 @@
         "aave-v3"
       ]
     },
+    "EulerDepositCollateralHook": {
+      "name": "Euler Deposit Collateral",
+      "description": "Deposits collateral into an Euler V2 EVault",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "lend",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
+    "EulerWithdrawCollateralHook": {
+      "name": "Euler Withdraw Collateral",
+      "description": "Withdraws collateral from an Euler V2 EVault",
+      "subtype": "LOAN_REPAY",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
+    "EulerBorrowHook": {
+      "name": "Euler Borrow",
+      "description": "Borrows assets from an Euler V2 controller EVault",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "borrow",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
+    "EulerRepayHook": {
+      "name": "Euler Repay",
+      "description": "Repays debt to an Euler V2 controller EVault",
+      "subtype": "LOAN_REPAY",
+      "actionTypes": [
+        {
+          "intent": "repay",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
+    "EulerDepositCollateralAndBorrowHook": {
+      "name": "Euler Deposit Collateral and Borrow",
+      "description": "Deposits collateral and borrows from Euler V2",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "lend",
+          "stage": "instant"
+        },
+        {
+          "intent": "borrow",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized",
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
+    "EulerRepayAndWithdrawHook": {
+      "name": "Euler Repay and Withdraw",
+      "description": "Repays debt and withdraws collateral from Euler V2",
+      "subtype": "LOAN_REPAY",
+      "actionTypes": [
+        {
+          "intent": "repay",
+          "stage": "instant"
+        },
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized",
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
     "MorphoBorrowHook": {
       "name": "Morpho Borrow",
       "description": "Borrows assets from a Morpho market",
@@ -9528,6 +9760,92 @@
       "compatibleProtocols": [
         "morpho"
       ]
+    },
+    "MorphoSupplyAndBorrowHookV2": {
+      "name": "Morpho Supply and Borrow V2",
+      "description": "Supplies collateral and borrows assets from a Morpho market with independent exact amounts",
+      "hookType": "NONACCOUNTING",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "lend",
+          "stage": "instant"
+        },
+        {
+          "intent": "borrow",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized",
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
+    "MorphoRepayAndWithdrawHookV2": {
+      "name": "Morpho Repay and Withdraw V2",
+      "description": "Repays debt and withdraws collateral from a Morpho market with independent exact amounts",
+      "hookType": "NONACCOUNTING",
+      "subtype": "LOAN_REPAY",
+      "actionTypes": [
+        {
+          "intent": "repay",
+          "stage": "instant"
+        },
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized",
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
     },
     "AaveV4RepayAndWithdrawHook": {
       "name": "Aave V4 Repay and Withdraw",
