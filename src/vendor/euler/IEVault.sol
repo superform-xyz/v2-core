@@ -68,6 +68,11 @@ interface IEVault {
     /// @return The equivalent amount of underlying assets
     function convertToAssets(uint256 shares) external view returns (uint256);
 
+    /// @notice Get the number of decimals of the vault shares
+    /// @dev Euler V2 EVaults extend ERC-4626, so decimals matches the underlying asset
+    /// @return The number of decimals
+    function decimals() external view returns (uint8);
+
     /// @notice Get the underlying asset of the vault
     /// @return The address of the underlying token
     function asset() external view returns (address);
