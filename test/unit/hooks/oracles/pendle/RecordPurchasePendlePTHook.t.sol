@@ -95,9 +95,7 @@ contract RecordPurchasePendlePTHookTest is Test {
 
     uint256 constant MARKET_POSITION = 52;
     uint256 constant PT_AMOUNT_POSITION = 72;
-    uint256 constant TWAP_DURATION_POSITION = 104;
-    uint256 constant USE_PREV_HOOK_AMOUNT_POSITION = 108;
-    uint32 constant TWAP_15_MIN = 900;
+    uint256 constant USE_PREV_HOOK_AMOUNT_POSITION = 104;
 
     function setUp() public {
         prevHook = new MockPendlePTHookResult();
@@ -110,17 +108,8 @@ contract RecordPurchasePendlePTHookTest is Test {
         hook = new RecordPurchasePendlePTHook(oracle, address(prevHook));
     }
 
-    function _encodeData(
-        address market_,
-        uint256 amount_,
-        uint32 twap_,
-        bool usePrev_
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(bytes(new bytes(52)), market_, amount_, twap_, usePrev_);
+    function _encodeData(address market_, uint256 amount_, bool usePrev_) internal pure returns (bytes memory) {
+        return abi.encodePacked(bytes(new bytes(52)), market_, amount_, usePrev_);
     }
 
     function _buy(uint256 outputAmount) internal returns (IPendlePTHookResult.TradeResult memory r) {
@@ -139,6 +128,7 @@ contract RecordPurchasePendlePTHookTest is Test {
 
     function test_Constructor() public view {
         assertEq(address(hook.ORACLE()), oracle);
+        assertEq(hook.VERSION(), 2);
         assertEq(hook.APPROVED_PENDLE_PT_HOOK(), address(prevHook));
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
         assertEq(hook.subtype(), HookSubTypes.PTYT);
@@ -157,7 +147,7 @@ contract RecordPurchasePendlePTHookTest is Test {
     /* -------------------------------- manual mode ----------------------------- */
 
     function test_Build_Manual_UsesEncodedAmount() public view {
-        bytes memory data = _encodeData(address(market), 110e18, TWAP_15_MIN, false);
+        bytes memory data = _encodeData(address(market), 110e18, false);
         Execution[] memory ex = hook.build(address(0), account, data);
         assertEq(ex.length, 3);
         assertEq(ex[1].target, oracle);
@@ -170,7 +160,7 @@ contract RecordPurchasePendlePTHookTest is Test {
     }
 
     function test_Build_Manual_RevertsOnZeroAmount() public {
-        bytes memory data = _encodeData(address(market), 0, TWAP_15_MIN, false);
+        bytes memory data = _encodeData(address(market), 0, false);
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         hook.build(address(0), account, data);
     }
@@ -179,7 +169,7 @@ contract RecordPurchasePendlePTHookTest is Test {
 
     function test_Build_Auto_UsesTradeOutputAmount() public {
         _buy(123e18);
-        bytes memory data = _encodeData(address(market), 0, TWAP_15_MIN, true); // encoded amount ignored
+        bytes memory data = _encodeData(address(market), 0, true); // encoded amount ignored
         Execution[] memory ex = hook.build(address(prevHook), account, data);
         assertEq(
             ex[1].callData,
@@ -191,14 +181,14 @@ contract RecordPurchasePendlePTHookTest is Test {
 
     function test_Build_Auto_RevertsOnZeroResolved() public {
         _buy(0); // genuine zero-fill -> always reverts (G-1)
-        bytes memory data = _encodeData(address(market), 0, TWAP_15_MIN, true);
+        bytes memory data = _encodeData(address(market), 0, true);
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
 
     function test_Build_Auto_RevertsOnWrongPrevHook() public {
         _buy(100e18);
-        bytes memory data = _encodeData(address(market), 0, TWAP_15_MIN, true);
+        bytes memory data = _encodeData(address(market), 0, true);
         vm.expectRevert(RecordPurchasePendlePTHook.PREV_HOOK_NOT_VALID.selector);
         hook.build(makeAddr("notApproved"), account, data);
     }
@@ -213,14 +203,14 @@ contract RecordPurchasePendlePTHookTest is Test {
             outputAmount: 99e18
         });
         prevHook.set(account, r);
-        bytes memory data = _encodeData(address(market), 0, TWAP_15_MIN, true);
+        bytes memory data = _encodeData(address(market), 0, true);
         vm.expectRevert(RecordPurchasePendlePTHook.OPERATION_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
 
     function test_Build_Auto_RejectsEmptyContext() public {
         // No trade set -> operation NONE
-        bytes memory data = _encodeData(address(market), 0, TWAP_15_MIN, true);
+        bytes memory data = _encodeData(address(market), 0, true);
         vm.expectRevert(RecordPurchasePendlePTHook.OPERATION_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
@@ -235,7 +225,7 @@ contract RecordPurchasePendlePTHookTest is Test {
             outputAmount: 100e18
         });
         prevHook.set(account, r);
-        bytes memory data = _encodeData(address(market), 0, TWAP_15_MIN, true);
+        bytes memory data = _encodeData(address(market), 0, true);
         vm.expectRevert(RecordPurchasePendlePTHook.MARKET_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
@@ -250,13 +240,13 @@ contract RecordPurchasePendlePTHookTest is Test {
             outputAmount: 100e18
         });
         prevHook.set(account, r);
-        bytes memory data = _encodeData(address(market), 0, TWAP_15_MIN, true);
+        bytes memory data = _encodeData(address(market), 0, true);
         vm.expectRevert(RecordPurchasePendlePTHook.PT_TOKEN_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
 
     function test_Build_RevertsOnZeroMarket() public {
-        bytes memory data = _encodeData(address(0), 110e18, TWAP_15_MIN, false);
+        bytes memory data = _encodeData(address(0), 110e18, false);
         vm.expectRevert(RecordPurchasePendlePTHook.MARKET_NOT_VALID.selector);
         hook.build(address(0), account, data);
     }
@@ -264,22 +254,21 @@ contract RecordPurchasePendlePTHookTest is Test {
     /* ------------------------------- metadata --------------------------------- */
 
     function test_Inspect_ReturnsMarket() public view {
-        bytes memory data = _encodeData(address(market), 110e18, TWAP_15_MIN, false);
+        bytes memory data = _encodeData(address(market), 110e18, false);
         assertEq(hook.inspect(data), abi.encodePacked(address(market)));
     }
 
     function test_S2_Sizeless() public view {
-        bytes memory data = _encodeData(address(market), 110e18, TWAP_15_MIN, false);
+        bytes memory data = _encodeData(address(market), 110e18, false);
         assertEq(hook.decodeAmounts(data).length, 0);
         assertEq(hook.amountRoles(data).length, 0);
         assertTrue(hook.supportsInterface(type(ISuperHookInflowOutflow).interfaceId));
     }
 
     function test_Decode() public view {
-        bytes memory data = _encodeData(address(market), 456e18, 600, true);
+        bytes memory data = _encodeData(address(market), 456e18, true);
         assertEq(hook.decodeMarket(data), address(market));
         assertEq(hook.decodePtAmount(data), 456e18);
-        assertEq(hook.decodeTwapDuration(data), uint32(600));
         assertTrue(hook.decodeUsePrevHookAmount(data));
     }
 
@@ -289,7 +278,7 @@ contract RecordPurchasePendlePTHookTest is Test {
     ///         book value (PPS) against the strategy.
     function test_Oracle_RecordsActualPt_And_BookValue() public {
         _buy(123e18);
-        bytes memory data = _encodeData(address(market), 0, TWAP_15_MIN, true);
+        bytes memory data = _encodeData(address(market), 0, true);
         Execution[] memory ex = hook.build(address(prevHook), account, data);
 
         // The strategy (account) is msg.sender when the executor runs the oracle call.
@@ -307,7 +296,7 @@ contract RecordPurchasePendlePTHookTest is Test {
     }
 
     function test_Oracle_Manual_RecordsEncodedAmount() public {
-        bytes memory data = _encodeData(address(market), 200e18, TWAP_15_MIN, false);
+        bytes memory data = _encodeData(address(market), 200e18, false);
         Execution[] memory ex = hook.build(address(0), account, data);
         vm.prank(account);
         (bool ok,) = ex[1].target.call(ex[1].callData);
@@ -332,7 +321,7 @@ contract RecordPurchasePendlePTHookTest is Test {
                 outputAmount: 100e18
             })
         );
-        bytes memory data = _encodeData(address(market), 0, TWAP_15_MIN, true);
+        bytes memory data = _encodeData(address(market), 0, true);
         // accountB has no trade -> operation NONE -> rejected (no leakage from accountA)
         vm.expectRevert(RecordPurchasePendlePTHook.OPERATION_NOT_VALID.selector);
         hook.build(address(prevHook), accountB, data);
@@ -343,7 +332,7 @@ contract RecordPurchasePendlePTHookTest is Test {
         prevHook.setOut(account, 555e18, pt);
         vm.prank(account);
         hook.setExecutionContext(account);
-        bytes memory data = _encodeData(address(market), 110e18, TWAP_15_MIN, false);
+        bytes memory data = _encodeData(address(market), 110e18, false);
         vm.prank(account);
         hook.preExecute(address(prevHook), account, data);
         assertEq(hook.getOutAmount(account), 555e18, "forwards prev outAmount");
@@ -360,18 +349,17 @@ contract RecordPurchasePendlePTHookTest is Test {
             outputAmount: 99e18
         });
         prevHook.set(account, r);
-        bytes memory data = _encodeData(address(market), 0, TWAP_15_MIN, true);
+        bytes memory data = _encodeData(address(market), 0, true);
         vm.expectRevert(RecordPurchasePendlePTHook.OPERATION_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
 
     /* --------------------------------- fuzz ----------------------------------- */
 
-    function testFuzz_Auto_RecordsOutputAmount(uint256 outAmt, uint32 twap) public {
+    function testFuzz_Auto_RecordsOutputAmount(uint256 outAmt) public {
         outAmt = bound(outAmt, 2, type(uint128).max); // >= 2 so mock valuation (90%) stays non-zero
-        twap = uint32(bound(twap, TWAP_15_MIN, 3600)); // must satisfy the oracle's configured minimum
         _buy(outAmt);
-        bytes memory data = _encodeData(address(market), 0, twap, true);
+        bytes memory data = _encodeData(address(market), 0, true);
         Execution[] memory ex = hook.build(address(prevHook), account, data);
         uint256 expectedSySpent = outAmt * 0.9e18 / 1e18;
         assertEq(
@@ -384,26 +372,19 @@ contract RecordPurchasePendlePTHookTest is Test {
 
     /* ------------------------- V1 binding regression guards ------------------- */
 
-    /// @notice twapDuration below the oracle's configured minimum (TWAP_DURATION) must revert.
-    function test_Build_RevertsOnTwapBelowOracleMinimum() public {
-        bytes memory data = _encodeData(address(market), 110e18, TWAP_15_MIN - 1, false);
-        vm.expectRevert(RecordPurchasePendlePTHook.TWAP_DURATION_TOO_SHORT.selector);
-        hook.build(address(0), account, data);
-    }
-
     /// @notice V1 unit invariant: a market whose PT decimals differ from the SY accounting-asset
     ///         decimals must be refused (the V1 oracle mixes the two units).
     function test_Build_RevertsOnDecimalsMismatch() public {
         MockPendleMarket badMarket =
             new MockPendleMarket(address(new MockSY(18)), address(new MockDecimalsToken(6)), yt);
-        bytes memory data = _encodeData(address(badMarket), 110e18, TWAP_15_MIN, false);
+        bytes memory data = _encodeData(address(badMarket), 110e18, false);
         vm.expectRevert(RecordPurchasePendlePTHook.DECIMALS_MISMATCH.selector);
         hook.build(address(0), account, data);
     }
 
     /// @notice Matched PT/asset decimals pass the invariant (sanity companion to the mismatch test).
     function test_Build_MatchedDecimals_Pass() public view {
-        bytes memory data = _encodeData(address(market), 110e18, TWAP_15_MIN, false);
+        bytes memory data = _encodeData(address(market), 110e18, false);
         Execution[] memory ex = hook.build(address(0), account, data);
         assertEq(ex[1].target, oracle);
     }
@@ -412,7 +393,7 @@ contract RecordPurchasePendlePTHookTest is Test {
     ///         distinct from a zero PT amount.
     function test_Build_RevertsOnZeroValuation() public {
         mockOracle.setAssetOutputRate(0);
-        bytes memory data = _encodeData(address(market), 110e18, TWAP_15_MIN, false);
+        bytes memory data = _encodeData(address(market), 110e18, false);
         vm.expectRevert(RecordPurchasePendlePTHook.SY_VALUE_NOT_VALID.selector);
         hook.build(address(0), account, data);
     }
@@ -423,7 +404,7 @@ contract RecordPurchasePendlePTHookTest is Test {
     function test_CallData_ArgumentOrder_MarketSySpentPtAmount() public view {
         uint256 ptAmount = 100e18;
         uint256 expectedSySpent = 90e18; // mock rate 0.9e18
-        bytes memory data = _encodeData(address(market), ptAmount, TWAP_15_MIN, false);
+        bytes memory data = _encodeData(address(market), ptAmount, false);
         Execution[] memory ex = hook.build(address(0), account, data);
 
         bytes memory cd = ex[1].callData;
