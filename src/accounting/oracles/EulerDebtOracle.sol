@@ -18,6 +18,10 @@ import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 ///      This oracle MUST NOT be configured with feePercent > 0 in SuperLedgerConfiguration. The inherited
 ///      getAssetOutputWithFees() computes fees via previewFees() which relies on cost basis snapshots. Debt positions
 ///      do not take snapshots, so the entire debt balance would be treated as "profit" and fees applied incorrectly.
+///      This applies to BOTH fee paths: the inherited getAssetOutputWithFees() view AND the ledger accounting path
+///      (BaseLedger._processOutflow() computes fees directly from config.feePercent via _calculateFees()). Neither
+///      is guarded on-chain here; correct behavior depends on the operational invariant that this oracle's
+///      yieldSourceOracleId is configured with feePercent = 0 (or not registered in SuperLedgerConfiguration at all).
 ///
 ///      Semantic notes for downstream consumers:
 ///      - getBalanceOfOwner() returns accrued debt in asset units (via debtOf), not a share balance. The identity

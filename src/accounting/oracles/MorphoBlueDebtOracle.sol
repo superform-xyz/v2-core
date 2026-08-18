@@ -25,10 +25,15 @@ import { MorphoBlueMarketRegistry } from "./MorphoBlueMarketRegistry.sol";
 ///
 ///      IMPORTANT -- Fee configuration:
 ///      This oracle MUST NOT be configured with feePercent > 0 in SuperLedgerConfiguration.
-///      The inherited getAssetOutputWithFees() is overridden to always bypass fee computation.
-///      Debt positions do not take cost-basis snapshots, so the base implementation's
-///      previewFees() would treat the entire debt balance as "profit" and apply fees
-///      incorrectly. The override enforces this constraint programmatically.
+///      Debt positions do not take cost-basis snapshots, so any fee computation would treat
+///      the entire debt balance as "profit" and apply fees incorrectly.
+///      The inherited getAssetOutputWithFees() is overridden to always bypass fee computation,
+///      but this only protects consumers of that view function. It does NOT protect the
+///      ledger accounting path: BaseLedger._processOutflow() computes fees directly from
+///      config.feePercent via _calculateFees() and never calls getAssetOutputWithFees().
+///      Correct behavior therefore depends on the operational invariant that this oracle's
+///      yieldSourceOracleId is configured with feePercent = 0 (or not registered in
+///      SuperLedgerConfiguration at all).
 ///
 ///      Interest accrual: Unlike EulerDebtOracle (which uses identity PPS because Euler's
 ///      debtOf() returns accrued debt directly), Morpho Blue stores stale borrow totals.
@@ -50,6 +55,12 @@ import { MorphoBlueMarketRegistry } from "./MorphoBlueMarketRegistry.sol";
 ///        as interest accrues.
 ///      - Rounding: toAssetsUp is used for debt conversion (conservative -- borrower owes
 ///        at least this much). This matches MorphoRepayHook.sharesToAssets() convention.
+///      - Share previews (getShareOutput / getWithdrawalShareOutput) follow the supply-side
+///        oracle's deposit/withdraw rounding convention, which is FLIPPED relative to Morpho's
+///        actual borrow/repay behavior: Morpho borrow(assets) mints shares with toSharesUp and
+///        repay(assets) burns with toSharesDown, while getShareOutput rounds down and
+///        getWithdrawalShareOutput rounds up. Previews may differ from actual Morpho share
+///        deltas by 1 share (~10^-6 of a token unit); do not use them for exact-share assertions.
 ///
 ///      IRM safety: The registry enforces that only whitelisted IRMs can be used in registered
 ///      markets, preventing rogue borrowRateView implementations from corrupting oracle PPS.
@@ -144,6 +155,8 @@ contract MorphoBlueDebtOracle is AbstractYieldSourceOracle {
 
     /// @inheritdoc AbstractYieldSourceOracle
     /// @dev Converts assets to borrow shares. Rounds down (fewer shares = less debt).
+    ///      NOTE: Morpho's borrow(assets) mints shares with toSharesUp, so this preview may
+    ///      undershoot the actual minted debt shares by 1. Do not use for exact-share assertions.
     function getShareOutput(
         address yieldSourceAddress,
         address,
@@ -160,6 +173,8 @@ contract MorphoBlueDebtOracle is AbstractYieldSourceOracle {
 
     /// @inheritdoc AbstractYieldSourceOracle
     /// @dev Converts assets to borrow shares (withdrawal/repay direction). Rounds up.
+    ///      NOTE: Morpho's repay(assets) burns shares with toSharesDown, so this preview may
+    ///      overshoot the actual burned debt shares by 1. Do not use for exact-share assertions.
     function getWithdrawalShareOutput(
         address yieldSourceAddress,
         address,
@@ -193,8 +208,10 @@ contract MorphoBlueDebtOracle is AbstractYieldSourceOracle {
     /// @inheritdoc AbstractYieldSourceOracle
     /// @dev Overridden to bypass fee computation entirely. Debt positions do not take cost-basis
     ///      snapshots, so the base implementation's previewFees() would treat the entire debt
-    ///      balance as "profit" and apply fees incorrectly. This override ensures correct behavior
-    ///      regardless of SuperLedgerConfiguration settings.
+    ///      balance as "profit" and apply fees incorrectly. NOTE: this override only protects
+    ///      callers of this view function — BaseLedger._processOutflow() computes fees directly
+    ///      from config.feePercent and does not route through here. The oracle must still be
+    ///      configured with feePercent = 0 in SuperLedgerConfiguration (see contract-level docs).
     function getAssetOutputWithFees(
         bytes32,
         address yieldSourceAddress,
