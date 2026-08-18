@@ -200,6 +200,13 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
   MorphoRepayHook: { mode: "offset", amountPosition: 132, track: "deprecate->replaceCalldata" },
   MorphoSupplyAndBorrowHook: { mode: "offset", amountPosition: 132, track: "deprecate->replaceCalldata" },
   MorphoRepayAndWithdrawHook: { mode: "offset", amountPosition: 132, track: "deprecate->replaceCalldata" },
+  // Euler single-amount hooks: amount at PRIMARY_AMOUNT_OFFSET = 132 from BaseEulerLoanHook, sizing
+  // interface inherited from BaseLoanHook. The dual-amount DepositCollateralAndBorrow/RepayAndWithdraw
+  // (and Morpho V2) composites implement replaceCalldataAmounts and are auto-detected (no override).
+  EulerDepositCollateralHook: { mode: "offset", amountPosition: 132, track: "deprecate->replaceCalldata" },
+  EulerBorrowHook: { mode: "offset", amountPosition: 132, track: "deprecate->replaceCalldata" },
+  EulerRepayHook: { mode: "offset", amountPosition: 132, track: "deprecate->replaceCalldata" },
+  EulerWithdrawCollateralHook: { mode: "offset", amountPosition: 132, track: "deprecate->replaceCalldata" },
   // Aave V4 hooks: amount at 176, from BaseAaveV4LoanHook (124 + 52 header)
   AaveV4SupplyHook: { mode: "offset", amountPosition: 176, track: "deprecate->replaceCalldata" },
   AaveV4WithdrawHook: { mode: "offset", amountPosition: 176, track: "deprecate->replaceCalldata" },
