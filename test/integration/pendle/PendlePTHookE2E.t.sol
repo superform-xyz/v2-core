@@ -568,14 +568,13 @@ contract PendlePTHookE2E is Test {
     function _recordPurchaseData(
         address market_,
         uint256 amount_,
-        uint32 twap_,
         bool usePrev_
     )
         internal
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(bytes(new bytes(52)), market_, amount_, twap_, usePrev_);
+        return abi.encodePacked(bytes(new bytes(52)), market_, amount_, usePrev_);
     }
 
     function _recordRedemptionData(
@@ -619,7 +618,7 @@ contract PendlePTHookE2E is Test {
 
         MockPendlePTAmortizedOracle mockOracle = new MockPendlePTAmortizedOracle();
         RecordPurchasePendlePTHook rec = new RecordPurchasePendlePTHook(address(mockOracle), address(hook));
-        Execution[] memory recEx = rec.build(address(hook), user, _recordPurchaseData(DETH_MARKET, 0, 900, true));
+        Execution[] memory recEx = rec.build(address(hook), user, _recordPurchaseData(DETH_MARKET, 0, true));
         uint256 expectedSySpent = mockOracle.getAssetOutput(DETH_MARKET, address(0), ptReceived);
         assertEq(
             recEx[1].callData,
@@ -740,7 +739,7 @@ contract PendlePTHookE2E is Test {
         RecordPurchasePendlePTHook rec =
             new RecordPurchasePendlePTHook(address(new MockPendlePTAmortizedOracle()), address(hook));
         vm.expectRevert(RecordPurchasePendlePTHook.OPERATION_NOT_VALID.selector);
-        rec.build(address(hook), user, _recordPurchaseData(DETH_MARKET, 0, 900, true));
+        rec.build(address(hook), user, _recordPurchaseData(DETH_MARKET, 0, true));
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -3743,7 +3743,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 83;
+        uint256 len = 85;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -4313,14 +4313,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         // Relay Bridge Hooks (constructor takes only the immutable Relay depository)
+        // NOTE: slots 81/82 belong to the Pendle PT record hooks — Relay hooks live at 83/84.
         if (availability.relayAdapter) {
-            hooks[81] = _createSafeHookDeploymentWithArgs(
+            hooks[83] = _createSafeHookDeploymentWithArgs(
                 RELAY_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
                 "RelaySendFundsAndExecuteOnDstHook",
                 env,
                 abi.encode(configuration.relayDepositories[chainId])
             );
-            hooks[82] = _createSafeHookDeploymentWithArgs(
+            hooks[84] = _createSafeHookDeploymentWithArgs(
                 APPROVE_AND_RELAY_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
                 "ApproveAndRelaySendFundsAndExecuteOnDstHook",
                 env,
@@ -4331,8 +4332,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(
                 " SKIPPED ApproveAndRelaySendFundsAndExecuteOnDstHook deployment: Not available on chain", chainId
             );
-            hooks[81] = HookDeployment("", "", ""); // Empty deployment
-            hooks[82] = HookDeployment("", "", ""); // Empty deployment
+            hooks[83] = HookDeployment("", "", ""); // Empty deployment
+            hooks[84] = HookDeployment("", "", ""); // Empty deployment
         }
 
         // Aerodrome Universal Router hooks - Base only

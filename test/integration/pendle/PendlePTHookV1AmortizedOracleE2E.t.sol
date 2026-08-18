@@ -63,7 +63,6 @@ contract PendlePTHookV1AmortizedOracleE2E is Test {
     /// @dev First block where the mAPOLLO market supports the V1 oracle's 900s TWAP
     uint256 constant FORK_BLOCK = 25_735_000;
 
-    uint32 constant TWAP_15_MIN = 900;
 
     /*//////////////////////////////////////////////////////////////
                                    STATE
@@ -189,14 +188,6 @@ contract PendlePTHookV1AmortizedOracleE2E is Test {
         // IYieldSourceOracle surface agrees
         assertEq(oracle.getTVLByOwnerOfShares(MAPOLLO_MARKET, user), bookValue, "TVL == amortized book value");
         assertEq(oracle.getBalanceOfOwner(MAPOLLO_MARKET, user), ptReceived, "PT balance tracked");
-    }
-
-    /// @notice The encoded twapDuration must satisfy the V1 oracle's configured minimum (900s).
-    function test_Execute_BuyPt_RecordPurchase_TwapBelowMinimum_Reverts() public {
-        _buyPt(user, 100e6);
-        bytes memory data = _recordPurchaseData(MAPOLLO_MARKET, 0, TWAP_15_MIN - 1, true);
-        vm.expectRevert(RecordPurchasePendlePTHook.TWAP_DURATION_TOO_SHORT.selector);
-        recordPurchase.build(address(hook), user, data);
     }
 
     /// @notice Two real buys accumulate: second record adds its valuation on top of the amortized book.
@@ -368,7 +359,7 @@ contract PendlePTHookV1AmortizedOracleE2E is Test {
         hook.setExecutionContext(user);
 
         vm.expectRevert(RecordPurchasePendlePTHook.OPERATION_NOT_VALID.selector);
-        recordPurchase.build(address(hook), user, _recordPurchaseData(MAPOLLO_MARKET, 0, TWAP_15_MIN, true));
+        recordPurchase.build(address(hook), user, _recordPurchaseData(MAPOLLO_MARKET, 0, true));
     }
 
     /// @notice Cross-hook wrong-direction guard with the V1-bound recorder after a REAL sale.
@@ -377,7 +368,7 @@ contract PendlePTHookV1AmortizedOracleE2E is Test {
         _sellPt(user, 10e6);
 
         vm.expectRevert(RecordPurchasePendlePTHook.OPERATION_NOT_VALID.selector);
-        recordPurchase.build(address(hook), user, _recordPurchaseData(MAPOLLO_MARKET, 0, TWAP_15_MIN, true));
+        recordPurchase.build(address(hook), user, _recordPurchaseData(MAPOLLO_MARKET, 0, true));
     }
 
     /// @notice PASSTHROUGH: the record hooks forward the swap hook's output downstream unchanged.
@@ -409,7 +400,7 @@ contract PendlePTHookV1AmortizedOracleE2E is Test {
 
         prodPurchase.setExecutionContext(user);
         Execution[] memory ex =
-            prodPurchase.build(address(hook), user, _recordPurchaseData(MAPOLLO_MARKET, 0, TWAP_15_MIN, true));
+            prodPurchase.build(address(hook), user, _recordPurchaseData(MAPOLLO_MARKET, 0, true));
         assertEq(ex[1].target, DEPLOYED_V1_ORACLE, "records into the production V1 oracle");
         _exec(user, ex);
 
@@ -487,7 +478,7 @@ contract PendlePTHookV1AmortizedOracleE2E is Test {
         recordPurchase.setExecutionContext(account);
         _exec(
             account,
-            recordPurchase.build(address(hook), account, _recordPurchaseData(MAPOLLO_MARKET, 0, TWAP_15_MIN, true))
+            recordPurchase.build(address(hook), account, _recordPurchaseData(MAPOLLO_MARKET, 0, true))
         );
     }
 
@@ -520,14 +511,13 @@ contract PendlePTHookV1AmortizedOracleE2E is Test {
     function _recordPurchaseData(
         address market_,
         uint256 amount_,
-        uint32 twap_,
         bool usePrev_
     )
         internal
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(bytes(new bytes(52)), market_, amount_, twap_, usePrev_);
+        return abi.encodePacked(bytes(new bytes(52)), market_, amount_, usePrev_);
     }
 
     function _recordRedemptionData(
