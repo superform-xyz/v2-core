@@ -7,6 +7,28 @@ import { EulerDebtOracle } from "../../../../src/accounting/oracles/EulerDebtOra
 import { IYieldSourceOracle } from "../../../../src/interfaces/accounting/IYieldSourceOracle.sol";
 import { IEVault } from "../../../../src/vendor/euler/IEVault.sol";
 import { SuperLedgerConfiguration } from "../../../../src/accounting/SuperLedgerConfiguration.sol";
+import { ISuperLedgerConfiguration } from "../../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { SuperLedger } from "../../../../src/accounting/SuperLedger.sol";
+
+/// @dev Ledger mock whose previewFees treats the ENTIRE amount as profit (zero cost basis) —
+///      models the debt-oracle hazard: debt positions never snapshot, so nothing offsets the "profit".
+contract MockZeroCostBasisLedger {
+    function previewFees(
+        address,
+        address,
+        uint256 amountAssets,
+        uint256,
+        uint256 feePercent,
+        uint256,
+        uint256
+    )
+        external
+        pure
+        returns (uint256)
+    {
+        return amountAssets * feePercent / 10_000;
+    }
+}
 
 contract EulerDebtOracleTest is Test {
     EulerDebtOracle public oracle;
@@ -370,6 +392,78 @@ contract EulerDebtOracleTest is Test {
         uint256 result =
             oracle.getAssetOutputWithFees(fakeOracleId, vault6, address(0), account1, type(uint256).max);
         assertEq(result, type(uint256).max);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                getAssetOutputWithFees (CONFIGURED)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Register a config in SuperLedgerConfiguration and return the derived oracle id
+    ///      (keccak256(salt, msg.sender) — msg.sender is this test contract).
+    function _registerConfig(bytes32 salt, uint256 feePercent, address ledger) internal returns (bytes32) {
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: address(oracle),
+            feePercent: feePercent,
+            feeRecipient: makeAddr("feeRecipient"),
+            ledger: ledger
+        });
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = salt;
+        SuperLedgerConfiguration(ledgerConfig).setYieldSourceOracles(salts, configs);
+        return keccak256(abi.encodePacked(salt, address(this)));
+    }
+
+    /// @notice MISCONFIGURATION HAZARD (pinned): with feePercent > 0 and a ledger that sees zero
+    ///         cost basis, the entire debt balance is treated as profit and the output is inflated
+    ///         by the fee. This is exactly why the NatSpec forbids feePercent > 0 for this oracle.
+    function test_getAssetOutputWithFees_configuredFee_inflatesOutputByFeeOnWholeDebt() public {
+        address mockLedger = address(new MockZeroCostBasisLedger());
+        bytes32 id = _registerConfig(keccak256("EULER_DEBT_FEE_MISCONFIG"), 1000, mockLedger); // 10%
+
+        uint256 debtAmount = 500e6;
+        uint256 result = oracle.getAssetOutputWithFees(id, vault6, address(0), account1, debtAmount);
+
+        // 10% of the WHOLE debt is added as "fee" — output no longer equals the debt.
+        assertEq(result, debtAmount + debtAmount * 1000 / 10_000, "Fee applied on entire debt balance");
+        assertGt(result, debtAmount, "Misconfigured fee inflates debt-denominated output");
+    }
+
+    /// @notice The operationally correct configuration: valid config with feePercent == 0 must
+    ///         return the identity output (hits the configured-no-fee branch, not the catch).
+    function test_getAssetOutputWithFees_configuredZeroFee_returnsIdentity() public {
+        address mockLedger = address(new MockZeroCostBasisLedger());
+        bytes32 id = _registerConfig(keccak256("EULER_DEBT_ZERO_FEE"), 0, mockLedger);
+
+        uint256 debtAmount = 500e6;
+        uint256 result = oracle.getAssetOutputWithFees(id, vault6, address(0), account1, debtAmount);
+        assertEq(result, debtAmount, "feePercent == 0 config must return identity");
+    }
+
+    /// @notice With the REAL SuperLedger and no snapshots for the user, previewFees truncates
+    ///         usedShares to the (zero) accumulator, so the fee is 0 and output stays identity.
+    ///         Documents that the hazard requires accumulator shares to exist for the same
+    ///         (user, vault) — e.g. supply-side snapshots on the same EVault — not the no-history case.
+    function test_getAssetOutputWithFees_configuredFee_realLedger_noSnapshot_returnsIdentity() public {
+        address realLedger = address(new SuperLedger(ledgerConfig, new address[](0)));
+        bytes32 id = _registerConfig(keccak256("EULER_DEBT_REAL_LEDGER"), 1000, realLedger);
+
+        uint256 debtAmount = 500e6;
+        uint256 result = oracle.getAssetOutputWithFees(id, vault6, address(0), account1, debtAmount);
+        assertEq(result, debtAmount, "No snapshots -> zero cost-basis shares -> zero fee -> identity");
+    }
+
+    /// @notice Fuzz the misconfiguration: inflated output == amount + amount * feePercent / 10_000
+    ///         for any debt amount and any allowed fee.
+    function test_fuzz_getAssetOutputWithFees_configuredFee_inflation(uint256 amount, uint256 feePercent) public {
+        amount = bound(amount, 0, type(uint128).max);
+        feePercent = bound(feePercent, 1, 5000); // MAX_FEE_PERCENT
+        address mockLedger = address(new MockZeroCostBasisLedger());
+        bytes32 id = _registerConfig(keccak256("EULER_DEBT_FEE_FUZZ"), feePercent, mockLedger);
+
+        uint256 result = oracle.getAssetOutputWithFees(id, vault6, address(0), account1, amount);
+        assertEq(result, amount + amount * feePercent / 10_000);
     }
 
     /*//////////////////////////////////////////////////////////////
