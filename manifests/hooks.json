@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-08-20T09:30:24Z",
+  "generatedAt": "2026-08-20T14:32:40Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -6363,7 +6363,7 @@
     },
     "ApproveAndHyperCoreDepositHook": {
       "name": "Approve and HyperCore Deposit",
-      "description": "Deposits an ERC-20 into a HyperCore spot balance",
+      "description": "Deposits an ERC-20 into a HyperCore balance",
       "hookType": "NONACCOUNTING",
       "subtype": "HYPERCORE",
       "actionTypes": [
