@@ -127,6 +127,11 @@
     "pipeMode": "transform"
   },
   {
+    "hookKey": "APPROVE_AND_HYPERCORE_DEPOSIT_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "APPROVE_AND_RELAY_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "transform"
@@ -428,6 +433,26 @@
     "hookKey": "GEARBOX_UNSTAKE_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "transform"
+  },
+  {
+    "hookKey": "HYPERCORE_ADD_API_WALLET_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "passthrough"
+  },
+  {
+    "hookKey": "HYPERCORE_APPROVE_BUILDER_FEE_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "passthrough"
+  },
+  {
+    "hookKey": "HYPERCORE_SEND_ASSET_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "passthrough"
+  },
+  {
+    "hookKey": "HYPERCORE_USD_CLASS_TRANSFER_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "passthrough"
   },
   {
     "hookKey": "MARK_ROOT_AS_USED_HOOK_KEY",
