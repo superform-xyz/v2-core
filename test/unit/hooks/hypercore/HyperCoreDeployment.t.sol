@@ -4,7 +4,15 @@ pragma solidity 0.8.30;
 import { HyperCoreAddApiWalletHook } from "../../../../src/hooks/hypercore/HyperCoreAddApiWalletHook.sol";
 import { HyperCoreApproveBuilderFeeHook } from "../../../../src/hooks/hypercore/HyperCoreApproveBuilderFeeHook.sol";
 import { ApproveAndHyperCoreDepositHook } from "../../../../src/hooks/hypercore/ApproveAndHyperCoreDepositHook.sol";
+import { DeployV2OtherHooks } from "../../../../script/DeployV2OtherHooks.s.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
+
+/// @notice Exposes the deploy script's shipped builder-fee cap constant.
+contract FeeCapHarness is DeployV2OtherHooks {
+    function shippedPerpFeeCap() external pure returns (uint64) {
+        return HYPERCORE_MAX_BUILDER_FEE_RATE_PERPS;
+    }
+}
 
 /// @notice Exercises the deploy path: locked bytecode + constructor args, exactly as
 ///         DeployV2OtherHooks assembles them.
@@ -54,5 +62,14 @@ contract HyperCoreDeploymentTest is Helpers {
     /// @dev Guards the single most confusable pair in this whole integration.
     function test_TokenIsNotTheGatewayAddress() public pure {
         assertTrue(USDC != GATEWAY, "tokenInfo.evmContract is the gateway, not the token");
+    }
+
+    /// @dev Binds the shipped deploy constant to the tested value. The builder-fee tests use a local
+    ///      100; without this, a regression of HYPERCORE_MAX_BUILDER_FEE_RATE_PERPS back to the spot
+    ///      maximum (1000, the exact 10x bug fixed in 563ee53f) would deploy a 10x-too-permissive cap
+    ///      while every other test stayed green.
+    function test_ShippedPerpFeeCapIsPointOnePercent() public {
+        FeeCapHarness h = new FeeCapHarness();
+        assertEq(h.shippedPerpFeeCap(), MAX_BUILDER_FEE_RATE, "shipped perp cap must be 100 decibps (0.1%)");
     }
 }
