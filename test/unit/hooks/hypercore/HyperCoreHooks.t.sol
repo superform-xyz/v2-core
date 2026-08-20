@@ -22,18 +22,22 @@ import { Helpers } from "../../../utils/Helpers.sol";
 ///      only place it can ever be caught is here.
 contract HyperCoreHooksTest is Helpers {
     address internal constant CORE_WRITER = 0x3333333333333333333333333333333333333333;
-    uint64 internal constant MAX_BUILDER_FEE_RATE = 1000; // 0.1%, the perp protocol maximum
+    /// @dev decibps — tenths of a basis point. 10 == 1bp, so 100 == 0.1% (perp max), 1000 == 1% (spot max).
+    uint64 internal constant MAX_FEE_PERPS = 100;
+    uint64 internal constant MAX_FEE_SPOT = 1000;
 
     HyperCoreAddApiWalletHook internal addAgent;
     HyperCoreUsdClassTransferHook internal classTransfer;
     HyperCoreSendAssetHook internal sendAsset;
     HyperCoreApproveBuilderFeeHook internal builderFee;
+    HyperCoreApproveBuilderFeeHook internal builderFeeSpot;
 
     function setUp() public {
         addAgent = new HyperCoreAddApiWalletHook(CORE_WRITER);
         classTransfer = new HyperCoreUsdClassTransferHook(CORE_WRITER);
         sendAsset = new HyperCoreSendAssetHook(CORE_WRITER);
-        builderFee = new HyperCoreApproveBuilderFeeHook(CORE_WRITER, MAX_BUILDER_FEE_RATE);
+        builderFee = new HyperCoreApproveBuilderFeeHook(CORE_WRITER, MAX_FEE_PERPS);
+        builderFeeSpot = new HyperCoreApproveBuilderFeeHook(CORE_WRITER, MAX_FEE_SPOT);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -92,11 +96,14 @@ contract HyperCoreHooksTest is Helpers {
         );
     }
 
-    /// @dev Mainnet action 12: maxFeeRate 1000, builder 0xcab5…252c
+    /// @dev Mainnet action 12: maxFeeRate 1000, builder 0xcab5…252c.
+    ///      1000 decibps is 1% — the SPOT maximum, not the perp one — so this fixture is built
+    ///      against a spot-capped instance. That the observed mainnet value is spot-legal rather
+    ///      than perp-legal is the whole reason the perps cap is 100.
     function test_Fixture_ApproveBuilderFee_MatchesMainnetBytes() public view {
         bytes memory data =
             abi.encodePacked(_header(), uint64(1000), bytes20(0xCaB561b82f58CA7104105F52e5563A83a948252C));
-        bytes memory got = _payloadOf(builderFee.build(address(0), address(this), data));
+        bytes memory got = _payloadOf(builderFeeSpot.build(address(0), address(this), data));
         assertEq(
             got,
             hex"0100000c" hex"00000000000000000000000000000000000000000000000000000000000003e8"
@@ -219,9 +226,26 @@ contract HyperCoreHooksTest is Helpers {
     }
 
     function test_Revert_FeeRateAboveCap() public {
-        bytes memory data = abi.encodePacked(_header(), uint64(MAX_BUILDER_FEE_RATE + 1), bytes20(address(0xBEEF)));
+        bytes memory data = abi.encodePacked(_header(), uint64(MAX_FEE_PERPS + 1), bytes20(address(0xBEEF)));
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         builderFee.build(address(0), address(this), data);
+    }
+
+    /// @dev Regression guard for a real bug: the cap was originally set to 1000 on the belief that
+    ///      1000 == 0.1%. It is 1% — the spot maximum — so a perps deployment would have admitted
+    ///      approvals 10x over the protocol limit. CoreWriter never reverts, so HyperCore would have
+    ///      silently dropped them behind a successful EVM receipt.
+    function test_Revert_PerpsCapRejectsTheSpotMaximum() public {
+        bytes memory data = abi.encodePacked(_header(), MAX_FEE_SPOT, bytes20(address(0xBEEF)));
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        builderFee.build(address(0), address(this), data);
+    }
+
+    /// @dev 0.1% expressed correctly must be accepted at the perps cap.
+    function test_ApproveBuilderFee_AcceptsPerpMaximum() public view {
+        bytes memory data = abi.encodePacked(_header(), MAX_FEE_PERPS, bytes20(address(0xBEEF)));
+        bytes memory p = _payloadOf(builderFee.build(address(0), address(this), data));
+        assertEq(uint8(p[3]), 12, "action 12");
     }
 
     function test_Revert_SendAssetZeroDestination() public {

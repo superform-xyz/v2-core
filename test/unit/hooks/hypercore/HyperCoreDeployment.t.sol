@@ -15,7 +15,7 @@ contract HyperCoreDeploymentTest is Helpers {
     address internal constant USDC = 0xb88339CB7199b77E23DB6E890353E22632Ba630f;
     address internal constant GATEWAY = 0x6B9E773128f453f5c2C60935Ee2DE2CBc5390A24;
     uint32 internal constant GATEWAY_ARG = 0;
-    uint64 internal constant MAX_BUILDER_FEE_RATE = 1000;
+    uint64 internal constant MAX_BUILDER_FEE_RATE = 100; // decibps: 0.1%, the perp maximum
 
     function _deploy(string memory contractName, bytes memory args) internal returns (address addr) {
         bytes memory code = vm.getCode(string(abi.encodePacked("script/locked-bytecode/", contractName, ".json")));

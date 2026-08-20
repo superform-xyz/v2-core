@@ -77,9 +77,14 @@ abstract contract ConstantsOtherHooks {
     /// @dev Every observed mainnet call passes 0. It is NOT a token index — gateways are per-token.
     uint32 internal constant HYPERCORE_GATEWAY_ARG = 0;
 
-    /// @notice Upper bound on an approvable builder fee, in CoreWriter units
-    /// @dev 1000 == 0.1% == the perp protocol maximum, and the only value observed on mainnet.
-    uint64 internal constant HYPERCORE_MAX_BUILDER_FEE_RATE = 1000;
+    /// @notice Upper bounds on an approvable builder fee, in decibps (tenths of a basis point)
+    /// @dev A value of 10 is one basis point, so 100 == 0.1% and 1000 == 1%. Hyperliquid caps builder
+    ///      fees at 0.1% on perps and 1% on spot, so these are the two protocol maxima.
+    /// @dev Both are defined because the unit is easy to get wrong in exactly one direction: an
+    ///      over-permissive cap is silently accepted by CoreWriter, which never reverts. Deployments
+    ///      pass the one matching their market.
+    uint64 internal constant HYPERCORE_MAX_BUILDER_FEE_RATE_PERPS = 100;
+    uint64 internal constant HYPERCORE_MAX_BUILDER_FEE_RATE_SPOT = 1000;
 
     // HyperCore hook keys
     string internal constant HYPERCORE_ADD_API_WALLET_HOOK_KEY = "HyperCoreAddApiWalletHook";

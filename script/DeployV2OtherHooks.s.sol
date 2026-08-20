@@ -883,7 +883,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
         bytes memory coreWriterArg = abi.encode(otherHooksConfiguration.coreWriters[chainId]);
         bytes memory builderFeeArgs =
-            abi.encode(otherHooksConfiguration.coreWriters[chainId], HYPERCORE_MAX_BUILDER_FEE_RATE);
+            abi.encode(otherHooksConfiguration.coreWriters[chainId], HYPERCORE_MAX_BUILDER_FEE_RATE_PERPS);
         bytes memory depositArgs = abi.encode(
             otherHooksConfiguration.hyperCoreUsdcs[chainId],
             otherHooksConfiguration.hyperCoreUsdcGateways[chainId],

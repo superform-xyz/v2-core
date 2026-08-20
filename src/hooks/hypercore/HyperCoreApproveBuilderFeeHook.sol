@@ -16,8 +16,12 @@ import { ISuperHookInspector } from "../../interfaces/ISuperHook.sol";
 /// @dev CoreWriter action 12, arguments (uint64 maxFeeRate, address builder). Field order in the
 ///      data layout deliberately mirrors the CoreWriter argument order so the byte-exact fixture
 ///      test reads without cross-referencing.
-/// @dev maxFeeRate units: 1000 corresponds to 0.1%, the protocol maximum for perps. This is the
-///      only value observed on mainnet and it is NOT the API's percentage-string encoding.
+/// @dev maxFeeRate is in DECIBPS — tenths of a basis point. A value of 10 is one basis point, so
+///      100 == 0.1% and 1000 == 1%. Hyperliquid caps builder fees at 0.1% on perps and 1% on spot.
+///      This is NOT the API's percentage-string encoding.
+/// @dev The unit is easy to misread by a factor of 10, and the failure is silent: CoreWriter never
+///      reverts, so an over-cap approval is dropped on HyperCore behind a successful EVM receipt.
+///      A perps deployment must pass 100, not 1000 — 1000 is the spot maximum.
 /// @dev A maxFeeRate of 0 is a legitimate REVOCATION of a prior approval and is a VALID input. Do
 ///      not add a zero rejection.
 /// @dev The cap is a constructor immutable rather than a constant because the on-wire unit carries
@@ -35,8 +39,8 @@ contract HyperCoreApproveBuilderFeeHook is BaseHyperCoreWriterHook {
     uint256 private constant BUILDER_POSITION = 60;
     uint256 private constant DATA_LENGTH = 80;
 
-    /// @notice Upper bound on the approvable fee rate, in CoreWriter units
-    /// @dev Set at deployment. 1000 == 0.1% == the perp protocol maximum.
+    /// @notice Upper bound on the approvable fee rate, in decibps (tenths of a basis point)
+    /// @dev Set at deployment: 100 for a perps market, 1000 for spot.
     uint64 public immutable MAX_BUILDER_FEE_RATE;
 
     constructor(address coreWriter_, uint64 maxBuilderFeeRate_) BaseHyperCoreWriterHook(coreWriter_) {
