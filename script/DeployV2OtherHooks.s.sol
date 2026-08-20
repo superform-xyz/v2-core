@@ -897,7 +897,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         bytes memory depositArgs = abi.encode(
             otherHooksConfiguration.hyperCoreUsdcs[chainId],
             otherHooksConfiguration.hyperCoreUsdcGateways[chainId],
-            HYPERCORE_GATEWAY_ARG
+            HYPERCORE_DESTINATION_DEX_PERP
         );
 
         hooks[0] = HookDeployment(

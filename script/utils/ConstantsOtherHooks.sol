@@ -73,9 +73,13 @@ abstract contract ConstantsOtherHooks {
     /// @dev Credits msg.sender's HyperCore spot balance. Gateways are per-token.
     address internal constant HYPERCORE_USDC_GATEWAY_HYPEREVM = 0x6B9E773128f453f5c2C60935Ee2DE2CBc5390A24;
 
-    /// @notice The gateway's second, undocumented uint32 argument
-    /// @dev Every observed mainnet call passes 0. It is NOT a token index — gateways are per-token.
-    uint32 internal constant HYPERCORE_GATEWAY_ARG = 0;
+    /// @notice CoreWriter action 13 destinationDex values, as forwarded by a deposit gateway
+    /// @dev `0` is perp dex 0 (perp margin); `type(uint32).max` is spot — per Hyperliquid's action 13
+    ///      docs, "Specify uint32::MAX for the source_dex or destination_dex for spot".
+    /// @dev The USDC perps-funding instance uses PERP: the deposit credits perp margin directly, so
+    ///      no spot landing and no follow-up usdClassTransfer. Spot tokens use SPOT.
+    uint32 internal constant HYPERCORE_DESTINATION_DEX_PERP = 0;
+    uint32 internal constant HYPERCORE_DESTINATION_DEX_SPOT = type(uint32).max;
 
     /// @notice Upper bounds on an approvable builder fee, in decibps (tenths of a basis point)
     /// @dev A value of 10 is one basis point, so 100 == 0.1% and 1000 == 1%. Hyperliquid caps builder

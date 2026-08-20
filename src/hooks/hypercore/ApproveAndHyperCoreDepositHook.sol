@@ -20,14 +20,19 @@ import {
 
 /// @title ApproveAndHyperCoreDepositHook
 /// @author Superform Labs
-/// @notice Approves and deposits an ERC-20 into HyperCore, crediting the executing account's spot balance
+/// @notice Approves and deposits an ERC-20 into HyperCore for the executing account
 /// @dev NOT a CoreWriter hook. This is the EVM→HyperCore funding leg and it goes through a per-token
 ///      deposit gateway, so unlike its siblings it has a measurable balance delta and uses the
 ///      default TRANSFORM pipe mode.
-/// @dev TOKEN and GATEWAY are immutables, not data fields. The gateway credits msg.sender and
-///      exposes no recipient-taking overload, so there is no address parameter to supply — and
-///      equally none to abuse. Pinning both means this contract can only ever move one token into
-///      one gateway. Deploy one instance per token; CREATE2 makes that near-free.
+/// @dev TOKEN, GATEWAY and DESTINATION_DEX are immutables, not data fields. The hook calls
+///      `deposit`, which credits msg.sender, rather than the gateway's `depositFor` overload — so
+///      there is no recipient parameter to supply and equally none to abuse. Pinning all three means
+///      this contract can only ever move one token into one gateway, to one HyperCore balance.
+///      Deploy one instance per token and destination; CREATE2 makes that near-free.
+/// @dev DESTINATION_DEX selects which balance is credited: `0` is perp dex 0 (perp margin),
+///      `type(uint32).max` is spot. A USDC perps-funding instance passes 0, which lands the deposit
+///      directly in perp margin and removes the follow-up `usdClassTransfer` from the funding chain.
+///      Spot tokens pass `type(uint32).max`.
 /// @dev The address returned by the HyperCore `tokenInfo` precompile as `evmContract` is the
 ///      GATEWAY, not the token. Do not read TOKEN from the precompile.
 /// @dev Measured on mainnet: credits a contract sender in ~1 second, 74,942 gas for approve+deposit.
@@ -52,11 +57,10 @@ contract ApproveAndHyperCoreDepositHook is
     /// @notice The per-token HyperCore deposit gateway
     address public immutable GATEWAY;
 
-    /// @notice The gateway's second, undocumented uint32 argument
-    /// @dev Every observed mainnet call passes 0. It is NOT a token index — gateways are per-token,
-    ///      so the gateway already knows its token. Held as an immutable so a later deployment can
-    ///      change it without new hook logic, should its meaning ever be documented.
-    uint32 public immutable GATEWAY_ARG;
+    /// @notice Which HyperCore balance the deposit credits — CoreWriter action 13's destinationDex
+    /// @dev `0` is perp dex 0 (perp margin); `type(uint32).max` is spot. NOT a token index — gateways
+    ///      are per-token, so the gateway already knows its token.
+    uint32 public immutable DESTINATION_DEX;
 
     /// @notice Thrown when hook data length does not exactly match the declared layout
     error DATA_NOT_VALID();
@@ -64,14 +68,14 @@ contract ApproveAndHyperCoreDepositHook is
     constructor(
         address token_,
         address gateway_,
-        uint32 gatewayArg_
+        uint32 destinationDex_
     )
         BaseHook(HookType.NONACCOUNTING, HookSubTypes.HYPERCORE)
     {
         if (token_ == address(0) || gateway_ == address(0)) revert ADDRESS_NOT_VALID();
         TOKEN = token_;
         GATEWAY = gateway_;
-        GATEWAY_ARG = gatewayArg_;
+        DESTINATION_DEX = destinationDex_;
     }
 
     /// @notice Human-readable name for UI display
@@ -81,7 +85,7 @@ contract ApproveAndHyperCoreDepositHook is
 
     /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
-        return "Deposits an ERC-20 into a HyperCore spot balance";
+        return "Deposits an ERC-20 into a HyperCore balance";
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -114,7 +118,9 @@ contract ApproveAndHyperCoreDepositHook is
         executions[1] =
             Execution({ target: TOKEN, value: 0, callData: abi.encodeCall(IERC20.approve, (GATEWAY, amount)) });
         executions[2] = Execution({
-            target: GATEWAY, value: 0, callData: abi.encodeCall(IHyperCoreDepositGateway.deposit, (amount, GATEWAY_ARG))
+            target: GATEWAY,
+            value: 0,
+            callData: abi.encodeCall(IHyperCoreDepositGateway.deposit, (amount, DESTINATION_DEX))
         });
         executions[3] = Execution({ target: TOKEN, value: 0, callData: abi.encodeCall(IERC20.approve, (GATEWAY, 0)) });
     }

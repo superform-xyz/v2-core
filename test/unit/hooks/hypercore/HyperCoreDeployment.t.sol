@@ -14,7 +14,8 @@ contract HyperCoreDeploymentTest is Helpers {
     address internal constant CORE_WRITER = 0x3333333333333333333333333333333333333333;
     address internal constant USDC = 0xb88339CB7199b77E23DB6E890353E22632Ba630f;
     address internal constant GATEWAY = 0x6B9E773128f453f5c2C60935Ee2DE2CBc5390A24;
-    uint32 internal constant GATEWAY_ARG = 0;
+    /// @dev destinationDex 0 == perp dex 0 (perp margin). type(uint32).max would be spot.
+    uint32 internal constant DESTINATION_DEX = 0;
     uint64 internal constant MAX_BUILDER_FEE_RATE = 100; // decibps: 0.1%, the perp maximum
 
     function _deploy(string memory contractName, bytes memory args) internal returns (address addr) {
@@ -41,12 +42,12 @@ contract HyperCoreDeploymentTest is Helpers {
 
     /// @dev Three-arg deposit hook. TOKEN and GATEWAY are both addresses, so a transposition
     ///      deploys fine and then approves the wrong contract forever.
-    function test_LockedBytecode_DepositHookSetsTokenGatewayAndArg() public {
-        address a = _deploy("ApproveAndHyperCoreDepositHook", abi.encode(USDC, GATEWAY, GATEWAY_ARG));
+    function test_LockedBytecode_DepositHookSetsTokenGatewayAndDestinationDex() public {
+        address a = _deploy("ApproveAndHyperCoreDepositHook", abi.encode(USDC, GATEWAY, DESTINATION_DEX));
         ApproveAndHyperCoreDepositHook h = ApproveAndHyperCoreDepositHook(a);
         assertEq(h.TOKEN(), USDC, "TOKEN must be the real ERC-20, not the gateway");
         assertEq(h.GATEWAY(), GATEWAY, "GATEWAY must be the tokenInfo.evmContract");
-        assertEq(h.GATEWAY_ARG(), GATEWAY_ARG, "undocumented uint32");
+        assertEq(h.DESTINATION_DEX(), DESTINATION_DEX, "perp dex 0: credits perp margin, not spot");
         assertTrue(h.TOKEN() != h.GATEWAY(), "token and gateway must never be the same address");
     }
 
