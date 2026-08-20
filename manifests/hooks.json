@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-08-20T15:57:36Z",
+  "generatedAt": "2026-08-20T21:31:42Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -6376,15 +6376,11 @@
         "sized"
       ],
       "addresses": {
-        "staging": {
-          "999": "0x6cE04B6F529400add52f065A03CdF756Cf7704b5"
-        },
+        "staging": {},
         "prod": {}
       },
       "availableChains": {
-        "staging": [
-          "999"
-        ],
+        "staging": [],
         "prod": []
       },
       "amountMeta": [
@@ -8174,13 +8170,17 @@
         "staging": {
           "999": "0x66194363DDeA94e301D8A128Bb0a1f4E3c605623"
         },
-        "prod": {}
+        "prod": {
+          "999": "0x0E4eDd421D0707A454C3c0435DeCF5D708A8b29C"
+        }
       },
       "availableChains": {
         "staging": [
           "999"
         ],
-        "prod": []
+        "prod": [
+          "999"
+        ]
       },
       "amountMeta": [],
       "sized": false,
@@ -8206,15 +8206,19 @@
       "legSizing": [],
       "addresses": {
         "staging": {
-          "999": "0xC35A8BD1E52a88cD8D00B0A807D89E64e39dd515"
+          "999": "0xeE0ef54d1BAA59aA1786AaA37B5F38D2D7e26193"
         },
-        "prod": {}
+        "prod": {
+          "999": "0x65aea557e595b9e841Da9F47aae8EacC4650Ea6a"
+        }
       },
       "availableChains": {
         "staging": [
           "999"
         ],
-        "prod": []
+        "prod": [
+          "999"
+        ]
       },
       "amountMeta": [],
       "sized": false,
@@ -9544,13 +9548,17 @@
         "staging": {
           "999": "0xd0a2448b0F81E5De7F64d1be6AEc081B55aeDF1f"
         },
-        "prod": {}
+        "prod": {
+          "999": "0x7d4610dbEe9A5DDD4DF43F438dd1C1709D431385"
+        }
       },
       "availableChains": {
         "staging": [
           "999"
         ],
-        "prod": []
+        "prod": [
+          "999"
+        ]
       },
       "amountMeta": [],
       "sized": false,
@@ -9578,13 +9586,17 @@
         "staging": {
           "999": "0xdC712C0a09bcc5FCE24CdA6785D6A9653ce0273A"
         },
-        "prod": {}
+        "prod": {
+          "999": "0xe4cF68598878B13Bec9985baBc46Cc6b6733164e"
+        }
       },
       "availableChains": {
         "staging": [
           "999"
         ],
-        "prod": []
+        "prod": [
+          "999"
+        ]
       },
       "amountMeta": [],
       "sized": false,
