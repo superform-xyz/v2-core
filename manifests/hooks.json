@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-08-20T07:06:41Z",
+  "generatedAt": "2026-08-20T09:30:24Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -5353,18 +5353,60 @@
       ],
       "addresses": {
         "staging": {
-          "4663": "0x6f40b726Dd10090B37484b498c889995cF1e4001"
+          "1": "0x6f40b726Dd10090B37484b498c889995cF1e4001",
+          "56": "0x6f40b726Dd10090B37484b498c889995cF1e4001",
+          "999": "0x6f40b726Dd10090B37484b498c889995cF1e4001",
+          "4663": "0x6f40b726Dd10090B37484b498c889995cF1e4001",
+          "8453": "0x6f40b726Dd10090B37484b498c889995cF1e4001",
+          "42161": "0x6f40b726Dd10090B37484b498c889995cF1e4001",
+          "43114": "0x6f40b726Dd10090B37484b498c889995cF1e4001"
         },
         "prod": {
-          "4663": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352"
+          "1": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "10": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "56": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "100": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "130": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "137": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "146": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "480": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "988": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "999": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "4663": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "8453": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "42161": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "43114": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "59144": "0xD71b913cf1325F8a73A1B033DE185F8F4A03b60D",
+          "80094": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352"
         }
       },
       "availableChains": {
         "staging": [
-          "4663"
+          "1",
+          "56",
+          "999",
+          "4663",
+          "8453",
+          "42161",
+          "43114"
         ],
         "prod": [
-          "4663"
+          "1",
+          "10",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "4663",
+          "8453",
+          "42161",
+          "43114",
+          "59144",
+          "80094"
         ]
       },
       "amountMeta": [
@@ -5401,18 +5443,60 @@
       ],
       "addresses": {
         "staging": {
-          "4663": "0xc8aD7bFF7f6db9b2eF62401A0eCbd17Aaa4Ad4f4"
+          "1": "0xc8aD7bFF7f6db9b2eF62401A0eCbd17Aaa4Ad4f4",
+          "56": "0xc8aD7bFF7f6db9b2eF62401A0eCbd17Aaa4Ad4f4",
+          "999": "0xc8aD7bFF7f6db9b2eF62401A0eCbd17Aaa4Ad4f4",
+          "4663": "0xc8aD7bFF7f6db9b2eF62401A0eCbd17Aaa4Ad4f4",
+          "8453": "0xc8aD7bFF7f6db9b2eF62401A0eCbd17Aaa4Ad4f4",
+          "42161": "0xc8aD7bFF7f6db9b2eF62401A0eCbd17Aaa4Ad4f4",
+          "43114": "0xc8aD7bFF7f6db9b2eF62401A0eCbd17Aaa4Ad4f4"
         },
         "prod": {
-          "4663": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C"
+          "1": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "10": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "56": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "100": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "130": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "137": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "146": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "480": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "988": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "999": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "4663": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "8453": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "42161": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "43114": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "59144": "0x57a31461993f0Dba34D5208EF18D2E255bA0baA1",
+          "80094": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C"
         }
       },
       "availableChains": {
         "staging": [
-          "4663"
+          "1",
+          "56",
+          "999",
+          "4663",
+          "8453",
+          "42161",
+          "43114"
         ],
         "prod": [
-          "4663"
+          "1",
+          "10",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "4663",
+          "8453",
+          "42161",
+          "43114",
+          "59144",
+          "80094"
         ]
       },
       "amountMeta": [
@@ -6292,11 +6376,15 @@
         "sized"
       ],
       "addresses": {
-        "staging": {},
+        "staging": {
+          "999": "0x6cE04B6F529400add52f065A03CdF756Cf7704b5"
+        },
         "prod": {}
       },
       "availableChains": {
-        "staging": [],
+        "staging": [
+          "999"
+        ],
         "prod": []
       },
       "amountMeta": [
@@ -8081,11 +8169,15 @@
       ],
       "legSizing": [],
       "addresses": {
-        "staging": {},
+        "staging": {
+          "999": "0x66194363DDeA94e301D8A128Bb0a1f4E3c605623"
+        },
         "prod": {}
       },
       "availableChains": {
-        "staging": [],
+        "staging": [
+          "999"
+        ],
         "prod": []
       },
       "amountMeta": [],
@@ -8109,11 +8201,15 @@
       ],
       "legSizing": [],
       "addresses": {
-        "staging": {},
+        "staging": {
+          "999": "0xC35A8BD1E52a88cD8D00B0A807D89E64e39dd515"
+        },
         "prod": {}
       },
       "availableChains": {
-        "staging": [],
+        "staging": [
+          "999"
+        ],
         "prod": []
       },
       "amountMeta": [],
@@ -8956,21 +9052,21 @@
       "legSizing": [],
       "addresses": {
         "staging": {
-          "1": "0x8987332B6459C6d57D308E1D9Fd4e0935CD72E01",
-          "56": "0x8987332B6459C6d57D308E1D9Fd4e0935CD72E01",
-          "999": "0x8987332B6459C6d57D308E1D9Fd4e0935CD72E01",
-          "8453": "0x8987332B6459C6d57D308E1D9Fd4e0935CD72E01",
-          "42161": "0x8987332B6459C6d57D308E1D9Fd4e0935CD72E01"
+          "1": "0xDA4BbdC5CF3D00120Dbf22e345231868e080dB3C",
+          "56": "0xDA4BbdC5CF3D00120Dbf22e345231868e080dB3C",
+          "999": "0xDA4BbdC5CF3D00120Dbf22e345231868e080dB3C",
+          "8453": "0xDA4BbdC5CF3D00120Dbf22e345231868e080dB3C",
+          "42161": "0xDA4BbdC5CF3D00120Dbf22e345231868e080dB3C"
         },
         "prod": {
-          "1": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
-          "10": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
-          "56": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
-          "146": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
-          "999": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
-          "8453": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
-          "42161": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
-          "80094": "0xA0004DaF493a2A37095795482980bf0bb8B231a1"
+          "1": "0x9103dfEdFA1031a2024C389F2629422a8bFaf668",
+          "10": "0x9103dfEdFA1031a2024C389F2629422a8bFaf668",
+          "56": "0x9103dfEdFA1031a2024C389F2629422a8bFaf668",
+          "146": "0x9103dfEdFA1031a2024C389F2629422a8bFaf668",
+          "999": "0x9103dfEdFA1031a2024C389F2629422a8bFaf668",
+          "8453": "0x9103dfEdFA1031a2024C389F2629422a8bFaf668",
+          "42161": "0x9103dfEdFA1031a2024C389F2629422a8bFaf668",
+          "80094": "0x9103dfEdFA1031a2024C389F2629422a8bFaf668"
         }
       },
       "availableChains": {
@@ -9439,11 +9535,15 @@
       ],
       "legSizing": [],
       "addresses": {
-        "staging": {},
+        "staging": {
+          "999": "0xd0a2448b0F81E5De7F64d1be6AEc081B55aeDF1f"
+        },
         "prod": {}
       },
       "availableChains": {
-        "staging": [],
+        "staging": [
+          "999"
+        ],
         "prod": []
       },
       "amountMeta": [],
@@ -9467,11 +9567,15 @@
       ],
       "legSizing": [],
       "addresses": {
-        "staging": {},
+        "staging": {
+          "999": "0xdC712C0a09bcc5FCE24CdA6785D6A9653ce0273A"
+        },
         "prod": {}
       },
       "availableChains": {
-        "staging": [],
+        "staging": [
+          "999"
+        ],
         "prod": []
       },
       "amountMeta": [],
