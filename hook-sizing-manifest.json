@@ -127,8 +127,8 @@
     "pipeMode": "transform"
   },
   {
-    "hookKey": "APPROVE_AND_HYPERCORE_DEPOSIT_HOOK_KEY",
-    "mode": "replaceCalldata",
+    "hookKey": "APPROVE_AND_HYPERCORE_DEPOSIT_USDC_PERP_HOOK_KEY",
+    "mode": "sizeless",
     "pipeMode": "transform"
   },
   {
