@@ -328,6 +328,10 @@ amountMeta:
   EthenaUnstakeHook: []
   MetaMorphoReallocateHook: []
   PendleRouterSwapHook: []
+  HyperCoreAddApiWalletHook: []
+  HyperCoreUsdClassTransferHook: []
+  HyperCoreSendAssetHook: []
+  HyperCoreApproveBuilderFeeHook: []
   # Compound (dual amount)
   MorphoSupplyAndBorrowHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV4SupplyAndBorrowHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
@@ -386,3 +390,7 @@ sizelessHooks:
   - EthenaUnstakeHook
   - MetaMorphoReallocateHook
   - PendleRouterSwapHook
+  - HyperCoreAddApiWalletHook
+  - HyperCoreUsdClassTransferHook
+  - HyperCoreSendAssetHook
+  - HyperCoreApproveBuilderFeeHook

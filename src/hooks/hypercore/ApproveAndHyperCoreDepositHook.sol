@@ -5,7 +5,6 @@ pragma solidity 0.8.30;
 import { BytesLib } from "../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 // Superform
 import { BaseHook } from "../BaseHook.sol";

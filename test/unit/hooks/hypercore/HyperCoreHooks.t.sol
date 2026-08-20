@@ -260,6 +260,35 @@ contract HyperCoreHooksTest is Helpers {
         sendAsset.build(address(0), address(this), data);
     }
 
+    /// @dev Sending token Y to token X's system address strands the balance permanently behind a
+    ///      green receipt — CoreWriter cannot revert — so the pairing is enforced on-chain.
+    function test_Revert_SendAssetSystemAddressTokenMismatch() public {
+        // USDC's system address (index 0) paired with a non-zero token index
+        bytes memory data =
+            abi.encodePacked(_header(), bytes20(0x2000000000000000000000000000000000000000), uint64(360), uint64(1));
+        vm.expectRevert(BaseHyperCoreWriterHook.DATA_NOT_VALID.selector);
+        sendAsset.build(address(0), address(this), data);
+    }
+
+    /// @dev A 0x20…-band destination whose low bytes equal the token index is the legitimate
+    ///      withdrawal shape and must pass for a non-zero index too.
+    function test_SendAsset_AllowsMatchingSystemAddress() public view {
+        // 0x20… ‖ 197 (UBTC) built numerically — top byte 0x20, low bytes = token index
+        bytes20 ubtcSystemAddress = bytes20(uint160((uint160(0x20) << 152) | uint160(197)));
+        bytes memory data = abi.encodePacked(_header(), ubtcSystemAddress, uint64(197), uint64(1));
+        bytes memory p = _payloadOf(sendAsset.build(address(0), address(this), data));
+        assertEq(uint8(p[3]), 13, "action 13");
+    }
+
+    /// @dev HYPE's system address (0x2222…2222) is a documented exception OUTSIDE the 0x20… band
+    ///      and must pass through as an ordinary destination regardless of token index.
+    function test_SendAsset_AllowsHypeSystemAddressOutsideBand() public view {
+        bytes memory data =
+            abi.encodePacked(_header(), bytes20(0x2222222222222222222222222222222222222222), uint64(150), uint64(1));
+        bytes memory p = _payloadOf(sendAsset.build(address(0), address(this), data));
+        assertEq(uint8(p[3]), 13, "action 13");
+    }
+
     /*//////////////////////////////////////////////////////////////
                     S2 SIZING DECLARATION — SECURITY
     //////////////////////////////////////////////////////////////*/
@@ -278,11 +307,127 @@ contract HyperCoreHooksTest is Helpers {
                 "must NOT declare ISuperHookOutflow"
             );
             assertEq(ISuperHookInflowOutflow(hooks[i]).amountRoles("").length, 0, "authoritatively sizeless");
+            assertEq(ISuperHookInflowOutflow(hooks[i]).decodeAmounts("").length, 0, "no decodable amounts");
         }
     }
 
     function test_Revert_ConstructorRejectsZeroCoreWriter() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         new HyperCoreUsdClassTransferHook(address(0));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    REMAINING VALIDATION BRANCHES
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Revert_ZeroBuilder() public {
+        bytes memory data = abi.encodePacked(_header(), uint64(50), bytes20(address(0)));
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        builderFee.build(address(0), address(this), data);
+    }
+
+    /// @dev A zero cap would make every approval impossible — reject it at deployment.
+    function test_Revert_ConstructorRejectsZeroFeeCap() public {
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        new HyperCoreApproveBuilderFeeHook(CORE_WRITER, 0);
+    }
+
+    function test_Revert_SendAssetLengthNotExact() public {
+        bytes memory tooShort = abi.encodePacked(_header(), bytes20(address(0xBEEF)), uint64(0));
+        vm.expectRevert(BaseHyperCoreWriterHook.DATA_NOT_VALID.selector);
+        sendAsset.build(address(0), address(this), tooShort);
+
+        bytes memory tooLong = abi.encodePacked(_header(), bytes20(address(0xBEEF)), uint64(0), uint64(1), bytes1(0));
+        vm.expectRevert(BaseHyperCoreWriterHook.DATA_NOT_VALID.selector);
+        sendAsset.build(address(0), address(this), tooLong);
+    }
+
+    function test_Revert_ApproveBuilderFeeLengthNotExact() public {
+        bytes memory tooShort = abi.encodePacked(_header(), uint64(50));
+        vm.expectRevert(BaseHyperCoreWriterHook.DATA_NOT_VALID.selector);
+        builderFee.build(address(0), address(this), tooShort);
+
+        bytes memory tooLong = abi.encodePacked(_header(), uint64(50), bytes20(address(0xBEEF)), bytes1(0));
+        vm.expectRevert(BaseHyperCoreWriterHook.DATA_NOT_VALID.selector);
+        builderFee.build(address(0), address(this), tooLong);
+    }
+
+    function test_Revert_AddApiWalletDataTooShort() public {
+        bytes memory tooShort = abi.encodePacked(_header(), bytes20(address(0xBEEF)));
+        vm.expectRevert(BaseHyperCoreWriterHook.DATA_NOT_VALID.selector);
+        addAgent.build(address(0), address(this), tooShort);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    PASSTHROUGH PIPE MODE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev CoreWriter actions produce nothing EVM-observable, so the accounting design leans on
+    ///      PASSTHROUGH: preExecute must forward the previous hook's outAmount and outToken, and
+    ///      postExecute must leave them untouched.
+    function test_Passthrough_ForwardsPrevHookOutput() public {
+        PrevHookStub prev = new PrevHookStub(1234, address(0xCAFE));
+        bytes memory data = abi.encodePacked(_header(), uint64(1), true);
+
+        classTransfer.preExecute(address(prev), address(this), data);
+        assertEq(classTransfer.getOutAmount(address(this)), 1234, "outAmount must forward from prevHook");
+        assertEq(classTransfer.getOutToken(address(this)), address(0xCAFE), "outToken must forward from prevHook");
+
+        classTransfer.postExecute(address(prev), address(this), data);
+        assertEq(classTransfer.getOutAmount(address(this)), 1234, "postExecute must not change outAmount");
+        assertEq(classTransfer.getOutToken(address(this)), address(0xCAFE), "postExecute must not change outToken");
+    }
+
+    /// @dev First hook in a chain: nothing to forward, values stay zero, no revert.
+    function test_Passthrough_NoPrevHookIsNoop() public {
+        bytes memory data = abi.encodePacked(_header(), uint64(1), true);
+        classTransfer.preExecute(address(0), address(this), data);
+        assertEq(classTransfer.getOutAmount(address(this)), 0, "nothing to forward");
+        assertEq(classTransfer.getOutToken(address(this)), address(0), "nothing to forward");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              INSPECT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev inspect() feeds sign-time tooling and must surface exactly the addresses a user needs
+    ///      to see before signing — packed, addresses only.
+    function test_Inspect_AllLeaves() public view {
+        address agent = address(0xA9E27);
+        bytes memory addData = abi.encodePacked(_header(), bytes20(agent), uint256(0));
+        assertEq(addAgent.inspect(addData), abi.encodePacked(CORE_WRITER, agent), "addAgent: coreWriter + agent");
+
+        bytes memory ctData = abi.encodePacked(_header(), uint64(1), true);
+        assertEq(classTransfer.inspect(ctData), abi.encodePacked(CORE_WRITER), "classTransfer: coreWriter only");
+
+        address destination = address(0xDE57);
+        bytes memory saData = abi.encodePacked(_header(), bytes20(destination), uint64(0), uint64(1));
+        assertEq(
+            sendAsset.inspect(saData), abi.encodePacked(CORE_WRITER, destination), "sendAsset: coreWriter + destination"
+        );
+
+        address builder = address(0xB111DE2);
+        bytes memory bfData = abi.encodePacked(_header(), uint64(50), bytes20(builder));
+        assertEq(builderFee.inspect(bfData), abi.encodePacked(CORE_WRITER, builder), "builderFee: coreWriter + builder");
+    }
+}
+
+/// @dev Minimal previous-hook stub: MockHook hardcodes getOutToken to address(0), which would make
+///      the outToken-forwarding assertion vacuous.
+contract PrevHookStub {
+    uint256 internal immutable AMOUNT;
+    address internal immutable TOKEN;
+
+    constructor(uint256 amount_, address token_) {
+        AMOUNT = amount_;
+        TOKEN = token_;
+    }
+
+    function getOutAmount(address) external view returns (uint256) {
+        return AMOUNT;
+    }
+
+    function getOutToken(address) external view returns (address) {
+        return TOKEN;
     }
 }

@@ -101,7 +101,8 @@ abstract contract BaseHyperCoreWriterHook is BaseHook, ISuperHookInflowOutflow {
 
     /// @inheritdoc ISuperHookInflowOutflow
     /// @dev Authoritatively sizeless. These hooks carry no resizable amount.
-    function decodeAmounts(bytes memory) external pure virtual override returns (uint256[] memory amounts) {
+    ///      Not virtual (like _pipeMode): no leaf may re-expose a resizable amount.
+    function decodeAmounts(bytes memory) external pure override returns (uint256[] memory amounts) {
         amounts = new uint256[](0);
     }
 
@@ -109,7 +110,6 @@ abstract contract BaseHyperCoreWriterHook is BaseHook, ISuperHookInflowOutflow {
     function amountRoles(bytes memory)
         external
         pure
-        virtual
         override
         returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
     {
@@ -121,7 +121,7 @@ abstract contract BaseHyperCoreWriterHook is BaseHook, ISuperHookInflowOutflow {
     ///      ISuperHookOutflow. replaceCalldataAmounts lives on ISuperHookOutflow, so by not
     ///      inheriting it the rewrite function does not exist on these contracts at all — the
     ///      bundler's amount-resizing cannot touch a fee rate, an ntl, or a token index.
-    function supportsInterface(bytes4 interfaceId) external pure virtual override returns (bool) {
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
         if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
         if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
         return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId

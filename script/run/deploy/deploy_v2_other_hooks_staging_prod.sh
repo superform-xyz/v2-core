@@ -4,7 +4,7 @@
 # Deploy Other Hooks Script
 ###################################################################################
 # Description:
-#   Deploys other hooks (Morpho, Aave V4, Firelight, Algebra Integral, DETH,
+#   Deploys other hooks (Morpho, Aave V4, HyperCore, Firelight, Algebra Integral, DETH,
 #   Sponsorship, rFLR, WrappedNative) via DeployV2OtherHooks.s.sol across configured networks.
 #   Sources lib_deploy.sh for shared deployment utilities.
 #
@@ -135,6 +135,19 @@ is_wrapped_native_supported() {
     return 1
 }
 
+# HyperCore hooks are only deployed on HyperEVM, where CoreWriter exists
+HYPERCORE_SUPPORTED_CHAINS=("999")
+
+is_hypercore_supported() {
+    local chain_id=$1
+    for supported in "${HYPERCORE_SUPPORTED_CHAINS[@]}"; do
+        if [ "$supported" = "$chain_id" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 # ── Other hooks bytecode path ──────────────────────────────────────────────────
 
 # All environments deploy from locked-bytecode/
@@ -246,6 +259,33 @@ done
 
 if [ $missing_firelight -gt 0 ]; then
     echo -e "${YELLOW}${missing_firelight} Firelight hook(s) missing bytecode. They will be skipped during deployment.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/tooling/regenerate_bytecode.sh to generate missing bytecode.${NC}"
+fi
+
+echo ""
+
+echo -e "${BLUE}Checking HyperCore hook bytecode availability...${NC}"
+
+HYPERCORE_HOOKS=(
+    "HyperCoreAddApiWalletHook"
+    "HyperCoreUsdClassTransferHook"
+    "HyperCoreSendAssetHook"
+    "HyperCoreApproveBuilderFeeHook"
+    "ApproveAndHyperCoreDepositHook"
+)
+
+missing_hypercore=0
+for hook in "${HYPERCORE_HOOKS[@]}"; do
+    if [ -f "$OTHER_BYTECODE_PATH/${hook}.json" ]; then
+        echo -e "${GREEN}   ${hook}${NC}"
+    else
+        echo -e "${YELLOW}   ${hook} - missing from $OTHER_BYTECODE_PATH${NC}"
+        missing_hypercore=$((missing_hypercore + 1))
+    fi
+done
+
+if [ $missing_hypercore -gt 0 ]; then
+    echo -e "${YELLOW}${missing_hypercore} HyperCore hook(s) missing bytecode. They will be skipped during deployment.${NC}"
     echo -e "${YELLOW}   Run ./script/run/tooling/regenerate_bytecode.sh to generate missing bytecode.${NC}"
 fi
 
@@ -401,7 +441,7 @@ print_separator
 
 # ── Confirmation ───────────────────────────────────────────────────────────────
 
-echo -e "${WHITE}Deploy hooks (Morpho + Aave V4 + Firelight + Algebra Integral + DETH + Sponsorship + rFLR + rFLR V2 + WrappedNative) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
+echo -e "${WHITE}Deploy hooks (Morpho + Aave V4 + HyperCore + Firelight + Algebra Integral + DETH + Sponsorship + rFLR + rFLR V2 + WrappedNative) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
 read -r proceed
 
 if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
@@ -504,6 +544,37 @@ for network_def in "${NETWORKS[@]}"; do
         else
             echo -e "${RED}   Morpho hooks deployment failed on $network_name, continuing...${NC}"
             FAILED_HOOK_DEPLOYS+=("Morpho @ $network_name")
+        fi
+    fi
+
+    # Deploy HyperCore hooks if supported on this chain (HyperEVM only)
+    if is_hypercore_supported "$network_id"; then
+        has_hooks=true
+        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
+        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
+        echo -e "${YELLOW}   Deploying HyperCore hooks...${NC}"
+
+        if forge script "$FORGE_SCRIPT" \
+            --sig 'runHyperCore(uint256,uint64)' $FORGE_ENV $network_id \
+            --account "$ACCOUNT" \
+            $KEYSTORE_PASSWORD_FLAG \
+            --rpc-url ${!rpc_var} \
+            $local_chain_flag \
+            $local_etherscan_flags \
+            $BROADCAST_FLAG \
+            $local_verify_flag \
+            $SLOW_FLAG \
+            $BATCH_SIZE_FLAG \
+            $RESUME_FLAG \
+            $LEGACY_FLAG \
+            $GAS_PRICE_FLAG \
+            --timeout 300 \
+            -vv; then
+            echo -e "${GREEN}   HyperCore hooks deployment completed!${NC}"
+        else
+            echo -e "${RED}   HyperCore hooks deployment failed on $network_name, continuing...${NC}"
+            FAILED_HOOK_DEPLOYS+=("HyperCore @ $network_name")
         fi
     fi
 

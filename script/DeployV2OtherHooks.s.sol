@@ -129,6 +129,16 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    function runHyperCore(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        // Same gate as _deployAllHooks: CoreWriter must be configured for this chain (HyperEVM only)
+        require(otherHooksConfiguration.coreWriters[chainId] != address(0), "CoreWriter not configured for chain");
+        console2.log("Deploying HyperCore Hooks on chainId: ", chainId);
+
+        _deployHyperCoreHooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
     function runAlgebraIntegral(uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
         console2.log("Deploying Algebra Integral Hooks on chainId: ", chainId);

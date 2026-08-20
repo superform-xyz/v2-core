@@ -23,6 +23,9 @@ import { ISuperHookInspector } from "../../interfaces/ISuperHook.sol";
 ///      address — the withdraw-to-HyperEVM case this hook exists for — use that pair unanimously.
 ///      Fixing them narrows the reachable action surface to what v1 needs.
 /// @dev To withdraw to HyperEVM, set destination to the token's system address (0x20… ‖ index).
+///      A 0x20…-band destination whose low bytes do not equal `token` is rejected: that pairing
+///      strands the balance permanently and CoreWriter cannot revert. HYPE (0x2222…2222) sits
+///      outside the band and is not covered by this check.
 /// @dev `wei` is in HyperCore units for the token, which differ from EVM units per token via
 ///      weiDecimals and evmExtraWeiDecimals. This hook therefore does NOT support usePrevHookAmount
 ///      and does not implement ISuperHookContextAware — the caller supplies a converted value.
@@ -45,6 +48,9 @@ contract HyperCoreSendAssetHook is BaseHyperCoreWriterHook {
 
     /// @notice The "no perp dex" sentinel, used for spot sends including withdrawals to HyperEVM
     uint32 private constant NO_DEX = type(uint32).max;
+
+    /// @notice Top byte of every derived token system address (0x20… ‖ token index)
+    uint160 private constant SYSTEM_ADDRESS_PREFIX = uint160(0x20) << 152;
 
     constructor(address coreWriter_) BaseHyperCoreWriterHook(coreWriter_) { }
 
@@ -82,6 +88,15 @@ contract HyperCoreSendAssetHook is BaseHyperCoreWriterHook {
         if (destination == address(0)) revert ADDRESS_NOT_VALID();
         // A zero send is a silent CoreWriter no-op. Fail loudly instead.
         if (amountWei == 0) revert AMOUNT_NOT_VALID();
+
+        // A destination in the 0x20… band is a withdrawal to HyperEVM, and HyperCore credits the
+        // token whose index is packed in the address's low bytes. Sending token Y to token X's
+        // system address strands the balance permanently — CoreWriter cannot revert — so the
+        // pairing is enforced here. HYPE's system address (0x2222…2222) is a documented exception
+        // OUTSIDE this band and passes through as an ordinary destination.
+        if (uint160(destination) >> 152 == 0x20 && destination != address(SYSTEM_ADDRESS_PREFIX | uint160(token))) {
+            revert DATA_NOT_VALID();
+        }
 
         executions = _coreWriterExecution(
             ACTION_SEND_ASSET, abi.encode(destination, SUB_ACCOUNT, NO_DEX, NO_DEX, token, amountWei)
