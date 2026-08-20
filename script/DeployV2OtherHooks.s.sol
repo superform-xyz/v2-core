@@ -894,7 +894,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         bytes memory coreWriterArg = abi.encode(otherHooksConfiguration.coreWriters[chainId]);
         bytes memory builderFeeArgs =
             abi.encode(otherHooksConfiguration.coreWriters[chainId], HYPERCORE_MAX_BUILDER_FEE_RATE_PERPS);
-        bytes memory depositArgs = _hyperCoreDepositArgs(chainId);
+        bytes memory depositArgs = _hyperCoreDepositArgs(
+            otherHooksConfiguration.hyperCoreUsdcs[chainId],
+            otherHooksConfiguration.hyperCoreUsdcGateways[chainId],
+            HYPERCORE_DESTINATION_DEX_PERP
+        );
 
         hooks[0] = HookDeployment(
             HYPERCORE_ADD_API_WALLET_HOOK_KEY,
@@ -954,20 +958,16 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     ///      a perp dex emits a CoreWriter action 13 that HyperCore will not credit — and CoreWriter
     ///      cannot revert, so the EVM receipt is green and the funds are simply stranded.
     /// @dev The hook cannot check this itself: it knows the token's EVM address, not its HyperCore
-    ///      index. This is the last point where both halves of the pairing are visible, so it is
-    ///      asserted here. Latent while only USDC ships; it stops being latent the first time a
-    ///      second token is added.
-    function _hyperCoreDepositArgs(uint64 chainId) internal view returns (bytes memory) {
-        address token = otherHooksConfiguration.hyperCoreUsdcs[chainId];
-        uint32 dex = HYPERCORE_DESTINATION_DEX_PERP;
-
+    ///      index. Asserted here instead, and BOTH halves are parameters precisely so that every
+    ///      deposit-hook instance has to come through this function — a second token deployed
+    ///      against a perp dex trips the require rather than routing around it.
+    /// @param token The ERC-20 the instance will deposit
+    /// @param gateway That token's HyperCore deposit gateway
+    /// @param dex Destination dex: a perp dex id, or HYPERCORE_DESTINATION_DEX_SPOT for spot
+    function _hyperCoreDepositArgs(address token, address gateway, uint32 dex) internal pure returns (bytes memory) {
         if (dex != HYPERCORE_DESTINATION_DEX_SPOT) {
-            require(
-                token == HYPERCORE_USDC_HYPEREVM,
-                "HyperCore deposit: perp destinationDex requires the quote asset (USDC)"
-            );
+            require(token == HYPERCORE_USDC_HYPEREVM, "HyperCore deposit: perp destinationDex requires the quote asset");
         }
-
-        return abi.encode(token, otherHooksConfiguration.hyperCoreUsdcGateways[chainId], dex);
+        return abi.encode(token, gateway, dex);
     }
 }
