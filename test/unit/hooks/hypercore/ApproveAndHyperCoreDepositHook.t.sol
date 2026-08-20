@@ -20,7 +20,8 @@ import { Helpers } from "../../../utils/Helpers.sol";
 ///      sequence, the resizable-amount surface (S1 — unlike the S2 CoreWriter leaves), and the
 ///      balance-diff outAmount semantics.
 contract ApproveAndHyperCoreDepositHookTest is Helpers {
-    uint32 internal constant GATEWAY_ARG = 0;
+    /// @dev destinationDex 0 == perp dex 0 (perp margin); type(uint32).max would be spot.
+    uint32 internal constant DESTINATION_DEX = 0;
     uint256 internal constant AMOUNT_POSITION = 52;
 
     ApproveAndHyperCoreDepositHook internal hook;
@@ -36,7 +37,7 @@ contract ApproveAndHyperCoreDepositHookTest is Helpers {
         amount = 1000e6;
         prevHookAmount = 2000e6;
 
-        hook = new ApproveAndHyperCoreDepositHook(token, gateway, GATEWAY_ARG);
+        hook = new ApproveAndHyperCoreDepositHook(token, gateway, DESTINATION_DEX);
     }
 
     function _encodeData(uint256 amount_, bool usePrevHookAmount_) internal pure returns (bytes memory) {
@@ -51,19 +52,19 @@ contract ApproveAndHyperCoreDepositHookTest is Helpers {
     function test_Constructor() public view {
         assertEq(hook.TOKEN(), token, "TOKEN immutable");
         assertEq(hook.GATEWAY(), gateway, "GATEWAY immutable");
-        assertEq(hook.GATEWAY_ARG(), GATEWAY_ARG, "GATEWAY_ARG immutable");
+        assertEq(hook.DESTINATION_DEX(), DESTINATION_DEX, "DESTINATION_DEX immutable");
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING), "no ledger participation");
         assertEq(hook.subtype(), HookSubTypes.HYPERCORE, "subtype");
     }
 
     function test_Revert_ConstructorZeroToken() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new ApproveAndHyperCoreDepositHook(address(0), gateway, GATEWAY_ARG);
+        new ApproveAndHyperCoreDepositHook(address(0), gateway, DESTINATION_DEX);
     }
 
     function test_Revert_ConstructorZeroGateway() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new ApproveAndHyperCoreDepositHook(token, address(0), GATEWAY_ARG);
+        new ApproveAndHyperCoreDepositHook(token, address(0), DESTINATION_DEX);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -89,7 +90,7 @@ contract ApproveAndHyperCoreDepositHookTest is Helpers {
         assertEq(executions[3].value, 0);
         assertEq(
             executions[3].callData,
-            abi.encodeCall(IHyperCoreDepositGateway.deposit, (amount, GATEWAY_ARG)),
+            abi.encodeCall(IHyperCoreDepositGateway.deposit, (amount, DESTINATION_DEX)),
             "deposit with the pinned gateway arg"
         );
 
@@ -111,7 +112,7 @@ contract ApproveAndHyperCoreDepositHookTest is Helpers {
         );
         assertEq(
             executions[3].callData,
-            abi.encodeCall(IHyperCoreDepositGateway.deposit, (prevHookAmount, GATEWAY_ARG)),
+            abi.encodeCall(IHyperCoreDepositGateway.deposit, (prevHookAmount, DESTINATION_DEX)),
             "deposit must track the previous hook's amount"
         );
     }

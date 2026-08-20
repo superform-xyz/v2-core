@@ -34,7 +34,8 @@ contract HyperCoreHooksFork is Helpers {
     address internal constant USDC = 0xb88339CB7199b77E23DB6E890353E22632Ba630f;
     /// @dev Per-token HyperCore deposit gateway for USDC (tokenInfo.evmContract)
     address internal constant GATEWAY = 0x6B9E773128f453f5c2C60935Ee2DE2CBc5390A24;
-    uint32 internal constant GATEWAY_ARG = 0;
+    /// @dev destinationDex 0 == perp dex 0 (perp margin); type(uint32).max would be spot.
+    uint32 internal constant DESTINATION_DEX = 0;
 
     bytes32 internal constant RAW_ACTION_TOPIC = keccak256("RawAction(address,bytes)");
 
@@ -53,7 +54,7 @@ contract HyperCoreHooksFork is Helpers {
 
         classTransfer = new HyperCoreUsdClassTransferHook(CORE_WRITER);
         sendAsset = new HyperCoreSendAssetHook(CORE_WRITER);
-        depositHook = new ApproveAndHyperCoreDepositHook(USDC, GATEWAY, GATEWAY_ARG);
+        depositHook = new ApproveAndHyperCoreDepositHook(USDC, GATEWAY, DESTINATION_DEX);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -160,7 +161,7 @@ contract HyperCoreHooksFork is Helpers {
 
     /// @dev The full six-execution sequence against the real token and gateway: the gateway must
     ///      accept deposit(amount, 0), pull exactly the approved amount, and leave no allowance.
-    ///      Also empirically pins GATEWAY_ARG = 0 as an accepted call shape on the EVM leg.
+    ///      Also empirically pins destinationDex = 0 (perp margin) as an accepted call shape.
     function test_Fork_Deposit_RealGatewayPullsExactAmount() public {
         uint256 amount = 5_000_000; // 5 USDC
         deal(USDC, account, amount);
