@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-08-20T14:32:40Z",
+  "generatedAt": "2026-08-20T15:57:36Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -8161,6 +8161,8 @@
     "HyperCoreUsdClassTransferHook": {
       "name": "HyperCore USD Class Transfer",
       "description": "Moves USDC between HyperCore spot and perp margin",
+      "hookType": "NONACCOUNTING",
+      "subtype": "HYPERCORE",
       "actionTypes": [
         {
           "intent": "transfer",
@@ -8193,6 +8195,8 @@
     "HyperCoreSendAssetHook": {
       "name": "HyperCore Send Asset",
       "description": "Sends a HyperCore spot balance to another account",
+      "hookType": "NONACCOUNTING",
+      "subtype": "HYPERCORE",
       "actionTypes": [
         {
           "intent": "transfer",
@@ -9527,6 +9531,8 @@
     "HyperCoreAddApiWalletHook": {
       "name": "HyperCore Add API Wallet",
       "description": "Enrols a trading agent on HyperCore",
+      "hookType": "NONACCOUNTING",
+      "subtype": "HYPERCORE",
       "actionTypes": [
         {
           "intent": "permissions",
@@ -9559,6 +9565,8 @@
     "HyperCoreApproveBuilderFeeHook": {
       "name": "HyperCore Approve Builder Fee",
       "description": "Approves a builder fee on HyperCore orders",
+      "hookType": "NONACCOUNTING",
+      "subtype": "HYPERCORE",
       "actionTypes": [
         {
           "intent": "permissions",
