@@ -287,6 +287,9 @@ jobs:
         uses: "actions/checkout@v4"
         with:
           submodules: true
+          # Check out the actual branch (not the PR merge ref) so a regenerated
+          # manifest can be committed straight back to it.
+          ref: ${{ github.head_ref || github.ref_name }}
 
       - name: "Install Python"
         uses: "actions/setup-python@v5"
@@ -299,16 +302,11 @@ jobs:
       - name: "Generate hook manifest"
         run: python3 tooling/generate_hook_manifest.py
 
-      - name: "Check manifests/hooks.json is up-to-date"
+      - name: "Restore manifests/hooks.json if only the timestamp changed"
         run: |
-          # Exclude the generatedAt timestamp line — it changes on every run by design.
-          # Any other diff means the committed manifest is stale.
-          if git diff manifests/hooks.json | grep -v '"generatedAt"' | grep -q '^[+-][^+-]'; then
-            echo ""
-            echo "ERROR: manifests/hooks.json is stale — committed file differs from generated output." >&2
-            echo "Run 'python3 tooling/generate_hook_manifest.py' locally and commit the result." >&2
-            git diff manifests/hooks.json | grep -v '"generatedAt"' >&2
-            exit 1
+          # generatedAt changes on every run by design; a timestamp-only diff is not staleness.
+          if ! git diff manifests/hooks.json | grep -v '"generatedAt"' | grep -q '^[+-][^+-]'; then
+            git checkout -- manifests/hooks.json
           fi
 
       - name: "Lint hook manifest"
@@ -325,22 +323,35 @@ jobs:
       - name: "Generate hook sizing manifest"
         run: tsx tooling/generate-hook-sizing-manifest.ts
 
-      - name: "Check hook-sizing-manifest.json is up-to-date"
-        run: |
-          if ! git diff --exit-code hook-sizing-manifest.json; then
-            echo ""
-            echo "ERROR: hook-sizing-manifest.json is stale — committed file differs from generated output." >&2
-            echo "Run 'tsx tooling/generate-hook-sizing-manifest.ts' locally and commit the result." >&2
-            exit 1
-          fi
-
       - name: "Validate hook sizing manifest"
         run: tsx tooling/validate-hook-sizing-manifest.ts
 
-      - name: "Add manifest lint summary"
+      - name: "Auto-commit regenerated manifests if stale"
         run: |
-          echo "## Hook Manifest Lint" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Passed (manifests/hooks.json and hook-sizing-manifest.json verified up-to-date)" >> $GITHUB_STEP_SUMMARY
+          if git diff --quiet manifests/hooks.json hook-sizing-manifest.json; then
+            echo "Manifests are up to date — nothing to commit."
+            echo "## Hook Manifest Lint" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Passed (manifests/hooks.json and hook-sizing-manifest.json verified up-to-date)" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+          # The regenerated content was linted and validated above, so committing it is safe.
+          # GITHUB_TOKEN pushes do not retrigger workflows, so this cannot loop.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifests/hooks.json hook-sizing-manifest.json
+          git commit -m "chore: regenerate hook manifests [auto]"
+          if git push origin "HEAD:${{ github.head_ref || github.ref_name }}"; then
+            echo "Manifests were stale — regenerated, committed and pushed."
+            echo "## Hook Manifest Lint" >> $GITHUB_STEP_SUMMARY
+            echo "♻️ Manifests were stale — regenerated and pushed automatically to this branch." >> $GITHUB_STEP_SUMMARY
+          else
+            echo ""
+            echo "ERROR: manifests are stale and could not be pushed (fork PR or protected branch)." >&2
+            echo "Run locally and commit the result:" >&2
+            echo "  python3 tooling/generate_hook_manifest.py" >&2
+            echo "  tsx tooling/generate-hook-sizing-manifest.ts" >&2
+            exit 1
+          fi
 
   treasury-config-smoke-test:
     runs-on: SuperformCore3
