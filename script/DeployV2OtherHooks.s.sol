@@ -54,7 +54,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address hyperCoreUsdClassTransferHook;
         address hyperCoreSendAssetHook;
         address hyperCoreApproveBuilderFeeHook;
-        address approveAndHyperCoreDepositHook;
+        address approveAndHyperCoreDepositUsdcPerpHook;
     }
 
     struct DETHHookAddresses {
@@ -917,8 +917,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             abi.encodePacked(__getOtherHooksBytecode("HyperCoreApproveBuilderFeeHook", env), builderFeeArgs)
         );
         hooks[4] = HookDeployment(
-            APPROVE_AND_HYPERCORE_DEPOSIT_HOOK_KEY,
+            APPROVE_AND_HYPERCORE_DEPOSIT_USDC_PERP_HOOK_KEY,
             "",
+            // The key names the instance; the bytecode lookup names the contract. They differ here
+            // because one contract ships once per (token, destinationDex) pair — see the key's
+            // rationale in ConstantsOtherHooks.
             abi.encodePacked(__getOtherHooksBytecode("ApproveAndHyperCoreDepositHook", env), depositArgs)
         );
 
@@ -932,7 +935,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         hookAddresses.hyperCoreUsdClassTransferHook = addresses[1];
         hookAddresses.hyperCoreSendAssetHook = addresses[2];
         hookAddresses.hyperCoreApproveBuilderFeeHook = addresses[3];
-        hookAddresses.approveAndHyperCoreDepositHook = addresses[4];
+        hookAddresses.approveAndHyperCoreDepositUsdcPerpHook = addresses[4];
 
         require(hookAddresses.hyperCoreAddApiWalletHook != address(0), "HyperCoreAddApiWalletHook not assigned");
         require(hookAddresses.hyperCoreUsdClassTransferHook != address(0), "HyperCoreUsdClassTransferHook not assigned");
@@ -941,7 +944,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             hookAddresses.hyperCoreApproveBuilderFeeHook != address(0), "HyperCoreApproveBuilderFeeHook not assigned"
         );
         require(
-            hookAddresses.approveAndHyperCoreDepositHook != address(0), "ApproveAndHyperCoreDepositHook not assigned"
+            hookAddresses.approveAndHyperCoreDepositUsdcPerpHook != address(0),
+            "ApproveAndHyperCoreDepositUsdcPerpHook not assigned"
         );
 
         console2.log("All HyperCore hooks deployed and validated successfully.");

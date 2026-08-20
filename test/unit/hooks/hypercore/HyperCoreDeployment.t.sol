@@ -7,10 +7,19 @@ import { ApproveAndHyperCoreDepositHook } from "../../../../src/hooks/hypercore/
 import { DeployV2OtherHooks } from "../../../../script/DeployV2OtherHooks.s.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
 
-/// @notice Exposes the deploy script's shipped builder-fee cap constant.
+/// @notice Exposes the deploy script's shipped builder-fee cap constant and HyperCore hook keys.
 contract FeeCapHarness is DeployV2OtherHooks {
     function shippedPerpFeeCap() external pure returns (uint64) {
         return HYPERCORE_MAX_BUILDER_FEE_RATE_PERPS;
+    }
+
+    function hyperCoreHookKeys() external pure returns (string[] memory keys) {
+        keys = new string[](5);
+        keys[0] = HYPERCORE_ADD_API_WALLET_HOOK_KEY;
+        keys[1] = HYPERCORE_USD_CLASS_TRANSFER_HOOK_KEY;
+        keys[2] = HYPERCORE_SEND_ASSET_HOOK_KEY;
+        keys[3] = HYPERCORE_APPROVE_BUILDER_FEE_HOOK_KEY;
+        keys[4] = APPROVE_AND_HYPERCORE_DEPOSIT_USDC_PERP_HOOK_KEY;
     }
 }
 
@@ -71,5 +80,34 @@ contract HyperCoreDeploymentTest is Helpers {
     function test_ShippedPerpFeeCapIsPointOnePercent() public {
         FeeCapHarness h = new FeeCapHarness();
         assertEq(h.shippedPerpFeeCap(), MAX_BUILDER_FEE_RATE, "shipped perp cap must be 100 decibps (0.1%)");
+    }
+
+    /// @dev Hook keys are the deployment record's map keys, and __deployContract overwrites on
+    ///      collision rather than reverting. ApproveAndHyperCoreDepositHook ships one instance per
+    ///      (token, destinationDex), so the next token added here is the realistic moment for a
+    ///      copy-pasted key to silently drop a deployment. Asserted on the constants the deploy path
+    ///      actually reads, not on a local copy of them.
+    function test_HookKeysAreUnique() public {
+        string[] memory keys = new FeeCapHarness().hyperCoreHookKeys();
+        for (uint256 i = 0; i < keys.length; ++i) {
+            for (uint256 j = i + 1; j < keys.length; ++j) {
+                assertTrue(
+                    keccak256(bytes(keys[i])) != keccak256(bytes(keys[j])),
+                    string.concat("duplicate hook key: ", keys[i])
+                );
+            }
+        }
+    }
+
+    /// @dev The deposit hook's key names its instance; the locked-bytecode lookup names its
+    ///      contract. Conflating them is what reintroduces the shared-key collision, so the two are
+    ///      pinned as deliberately different rather than left to look like a typo.
+    function test_DepositHookKeyIsInstanceScopedNotContractScoped() public {
+        string[] memory keys = new FeeCapHarness().hyperCoreHookKeys();
+        assertEq(keys[4], "ApproveAndHyperCoreDepositUsdcPerpHook", "deposit key names token and destination");
+        assertTrue(
+            keccak256(bytes(keys[4])) != keccak256("ApproveAndHyperCoreDepositHook"),
+            "instance key must not collide with the contract name"
+        );
     }
 }

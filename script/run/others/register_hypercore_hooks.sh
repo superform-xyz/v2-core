@@ -34,7 +34,7 @@ HOOK_NAMES=(
     "HyperCoreUsdClassTransferHook"
     "HyperCoreSendAssetHook"
     "HyperCoreApproveBuilderFeeHook"
-    "ApproveAndHyperCoreDepositHook"
+    "ApproveAndHyperCoreDepositUsdcPerpHook"
 )
 
 # ── Validate mode ──────────────────────────────────────────────────────────────

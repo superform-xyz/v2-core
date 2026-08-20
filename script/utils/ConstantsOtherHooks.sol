@@ -96,11 +96,35 @@ abstract contract ConstantsOtherHooks {
     uint64 internal constant HYPERCORE_MAX_BUILDER_FEE_RATE_SPOT = 1000;
 
     // HyperCore hook keys
+    //
+    // A hook key is the DEPLOYMENT RECORD name, not the contract name. For the four CoreWriter
+    // leaves the two coincide: each is deployed once per chain, so one contract is one instance.
+    //
+    // ApproveAndHyperCoreDepositHook is the first hook in this library that is NOT one-per-chain.
+    // It pins TOKEN, GATEWAY and DESTINATION_DEX as immutables, so a second collateral token or a
+    // spot destination means a second deployment of the same contract. Two facts make a shared key
+    // unworkable rather than merely untidy:
+    //
+    //   1. __deployContract writes contractAddresses[chainId][name] and exports keyed by name, so
+    //      two instances under one name overwrite each other in the deployment output before any
+    //      consumer sees them.
+    //   2. Hook resolution selects on (ActionType, chain) and has no token dimension. Instances
+    //      sharing a key tie on every field it sorts by, so the winner is arbitrary — and picking
+    //      the wrong one does not revert. The USDC instance handed a USDT0 funding intent approves
+    //      and deposits USDC in an amount computed for USDT0, leaving the USDT0 on HyperEVM. Wrong
+    //      asset moved, green receipt, no error. CoreWriter cannot revert and neither can this.
+    //
+    // So each instance gets its own key naming what it is pinned to: <Contract><Token><Destination>.
+    // The key is also the CREATE2 salt, so distinct keys give distinct addresses for free.
+    // Registering a new token means a new key here, a new deploy entry, and a new ActionType — the
+    // token dimension lives in the key rather than in a tag matched at resolution time, because the
+    // hook pins an ADDRESS and a symbol tag would be a second identity for it that nothing verifies.
     string internal constant HYPERCORE_ADD_API_WALLET_HOOK_KEY = "HyperCoreAddApiWalletHook";
     string internal constant HYPERCORE_USD_CLASS_TRANSFER_HOOK_KEY = "HyperCoreUsdClassTransferHook";
     string internal constant HYPERCORE_SEND_ASSET_HOOK_KEY = "HyperCoreSendAssetHook";
     string internal constant HYPERCORE_APPROVE_BUILDER_FEE_HOOK_KEY = "HyperCoreApproveBuilderFeeHook";
-    string internal constant APPROVE_AND_HYPERCORE_DEPOSIT_HOOK_KEY = "ApproveAndHyperCoreDepositHook";
+    string internal constant APPROVE_AND_HYPERCORE_DEPOSIT_USDC_PERP_HOOK_KEY =
+        "ApproveAndHyperCoreDepositUsdcPerpHook";
 
     // NOTE: Odos V3 hook keys and ODOS_ROUTER_V3 moved to Constants.sol (deployed via DeployV2Core)
 }
