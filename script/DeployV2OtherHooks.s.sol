@@ -894,11 +894,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         bytes memory coreWriterArg = abi.encode(otherHooksConfiguration.coreWriters[chainId]);
         bytes memory builderFeeArgs =
             abi.encode(otherHooksConfiguration.coreWriters[chainId], HYPERCORE_MAX_BUILDER_FEE_RATE_PERPS);
-        bytes memory depositArgs = _hyperCoreDepositArgs(
-            otherHooksConfiguration.hyperCoreUsdcs[chainId],
-            otherHooksConfiguration.hyperCoreUsdcGateways[chainId],
-            HYPERCORE_DESTINATION_DEX_PERP
-        );
+        bytes memory depositArgs = _hyperCoreDepositArgsForChain(chainId);
 
         hooks[0] = HookDeployment(
             HYPERCORE_ADD_API_WALLET_HOOK_KEY,
@@ -953,19 +949,41 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         return hookAddresses;
     }
 
-    /// @notice Builds the deposit hook's constructor args, asserting the token/dex pairing
-    /// @dev A perp `destinationDex` only credits the perp QUOTE asset. Pairing any other token with
-    ///      a perp dex emits a CoreWriter action 13 that HyperCore will not credit — and CoreWriter
+    /// @notice Builds the deposit hook's constructor args for a chain's shipping configuration
+    /// @dev The wiring the deploy path actually uses: USDC, its gateway, and a perp destinationDex
+    ///      so deposits land straight in perp margin. Separate from the guard below so a test can
+    ///      assert the wiring itself, not a copy of it — flipping this to SPOT would otherwise
+    ///      silently move where user deposits land and reinstate the usdClassTransfer leg.
+    function _hyperCoreDepositArgsForChain(uint64 chainId) internal view returns (bytes memory) {
+        return _hyperCoreDepositArgs(
+            otherHooksConfiguration.hyperCoreUsdcs[chainId],
+            otherHooksConfiguration.hyperCoreUsdcGateways[chainId],
+            HYPERCORE_DESTINATION_DEX_PERP
+        );
+    }
+
+    /// @notice Validates a (token, destinationDex) pairing and encodes the deposit hook's args
+    /// @dev A destinationDex only credits the asset its dex is quoted in. Pairing a token with a dex
+    ///      not quoted in it emits a CoreWriter action 13 HyperCore will not credit — and CoreWriter
     ///      cannot revert, so the EVM receipt is green and the funds are simply stranded.
-    /// @dev The hook cannot check this itself: it knows the token's EVM address, not its HyperCore
-    ///      index. Asserted here instead, and BOTH halves are parameters precisely so that every
-    ///      deposit-hook instance has to come through this function — a second token deployed
-    ///      against a perp dex trips the require rather than routing around it.
+    /// @dev Only dex 0 and spot are accepted. Dex 0's quote asset is known to be USDC, so that
+    ///      pairing is enforced. Every other perp dex is rejected rather than guessed at: under
+    ///      HIP-3 a builder-deployed dex picks its own collateral asset, so "not spot" does not imply
+    ///      "quoted in USDC". Inferring it would both reject a legitimate non-USDC pairing on a dex
+    ///      quoted in that token and accept USDC on a dex that is not — the exact stranding this
+    ///      guard exists to prevent. Supporting a HIP-3 dex is a decision someone must come back and
+    ///      make explicitly.
+    /// @dev Passing both halves means a caller that uses this function cannot skip the check.
+    ///      Nothing forces a future call site to use it — that is convention, not enforcement.
     /// @param token The ERC-20 the instance will deposit
     /// @param gateway That token's HyperCore deposit gateway
-    /// @param dex Destination dex: a perp dex id, or HYPERCORE_DESTINATION_DEX_SPOT for spot
+    /// @param dex HYPERCORE_DESTINATION_DEX_PERP (dex 0) or HYPERCORE_DESTINATION_DEX_SPOT
     function _hyperCoreDepositArgs(address token, address gateway, uint32 dex) internal pure returns (bytes memory) {
-        if (dex != HYPERCORE_DESTINATION_DEX_SPOT) {
+        require(
+            dex == HYPERCORE_DESTINATION_DEX_PERP || dex == HYPERCORE_DESTINATION_DEX_SPOT,
+            "HyperCore deposit: unsupported destinationDex"
+        );
+        if (dex == HYPERCORE_DESTINATION_DEX_PERP) {
             require(token == HYPERCORE_USDC_HYPEREVM, "HyperCore deposit: perp destinationDex requires the quote asset");
         }
         return abi.encode(token, gateway, dex);
