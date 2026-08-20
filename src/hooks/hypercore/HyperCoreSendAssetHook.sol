@@ -24,8 +24,9 @@ import { ISuperHookInspector } from "../../interfaces/ISuperHook.sol";
 ///      Fixing them narrows the reachable action surface to what v1 needs.
 /// @dev To withdraw to HyperEVM, set destination to the token's system address (0x20… ‖ index).
 ///      A 0x20…-band destination whose low bytes do not equal `token` is rejected: that pairing
-///      strands the balance permanently and CoreWriter cannot revert. HYPE (0x2222…2222) sits
-///      outside the band and is not covered by this check.
+///      strands the balance permanently and CoreWriter cannot revert. HYPE is the one token that
+///      does not use a derived address (its system address is 0x2222…2222); both HYPE hazards — the
+///      HYPE index inside the band, and 0x2222…2222 carrying a non-HYPE token — are rejected too.
 /// @dev `wei` is in HyperCore units for the token, which differ from EVM units per token via
 ///      weiDecimals and evmExtraWeiDecimals. This hook therefore does NOT support usePrevHookAmount
 ///      and does not implement ISuperHookContextAware — the caller supplies a converted value.
@@ -51,6 +52,14 @@ contract HyperCoreSendAssetHook is BaseHyperCoreWriterHook {
 
     /// @notice Top byte of every derived token system address (0x20… ‖ token index)
     uint160 private constant SYSTEM_ADDRESS_PREFIX = uint160(0x20) << 152;
+
+    /// @notice HYPE is the one token whose system address is NOT the derived 0x20‖index form.
+    /// @dev Mainnet facts: HYPE is token index 150 and its system address is 0x2222…2222, not the
+    ///      derived 0x20…0096 (0x96 == 150). Both are Hyperliquid protocol constants, not deployment
+    ///      params, and this hook ships to chain 999 only (testnet 998 was dropped). If the family is
+    ///      ever deployed to another chain where these differ, promote them to constructor immutables.
+    uint64 private constant HYPE_TOKEN_INDEX = 150;
+    address private constant HYPE_SYSTEM_ADDRESS = 0x2222222222222222222222222222222222222222;
 
     constructor(address coreWriter_) BaseHyperCoreWriterHook(coreWriter_) { }
 
@@ -89,12 +98,19 @@ contract HyperCoreSendAssetHook is BaseHyperCoreWriterHook {
         // A zero send is a silent CoreWriter no-op. Fail loudly instead.
         if (amountWei == 0) revert AMOUNT_NOT_VALID();
 
-        // A destination in the 0x20… band is a withdrawal to HyperEVM, and HyperCore credits the
-        // token whose index is packed in the address's low bytes. Sending token Y to token X's
-        // system address strands the balance permanently — CoreWriter cannot revert — so the
-        // pairing is enforced here. HYPE's system address (0x2222…2222) is a documented exception
-        // OUTSIDE this band and passes through as an ordinary destination.
-        if (uint160(destination) >> 152 == 0x20 && destination != address(SYSTEM_ADDRESS_PREFIX | uint160(token))) {
+        // A destination in the 0x20… band is a withdrawal to a token's HyperCore system address,
+        // which credits the token whose index is packed in the low bytes. Sending token Y to token
+        // X's system address strands the balance permanently — CoreWriter cannot revert — so the
+        // pairing is enforced here. Two hazards the naive band check alone would miss, both around
+        // HYPE (the one token that does NOT use a derived system address):
+        //   - a 0x20-band destination carrying the HYPE index: HYPE has no derived address, so any
+        //     such payload is malformed (the derived 0x20…0096 is an unowned account, not HYPE);
+        //   - HYPE's real system address (0x2222…2222, outside the band) carrying a non-HYPE token.
+        if (uint160(destination) >> 152 == 0x20) {
+            if (token == HYPE_TOKEN_INDEX || destination != address(SYSTEM_ADDRESS_PREFIX | uint160(token))) {
+                revert DATA_NOT_VALID();
+            }
+        } else if (destination == HYPE_SYSTEM_ADDRESS && token != HYPE_TOKEN_INDEX) {
             revert DATA_NOT_VALID();
         }
 

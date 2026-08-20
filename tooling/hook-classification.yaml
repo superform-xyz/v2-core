@@ -375,10 +375,10 @@ hooks:
     legSizing: [sized]
 
   # ============================================================
-  # BRIDGE (16 hooks)
+  # BRIDGE (18 hooks)
   # ============================================================
 
-  # bridge / instant (14)
+  # bridge / instant (16)
   AcrossSendFundsAndExecuteOnDstHook:
     actionTypes: [{intent: bridge, stage: instant}]
     legSizing: [sized]
@@ -549,7 +549,7 @@ hooks:
     legSizing: [sized]
 
   # ============================================================
-  # TRANSFER (8 hooks) — all instant
+  # TRANSFER (9 hooks) — all instant
   # ============================================================
 
   TransferERC20Hook:

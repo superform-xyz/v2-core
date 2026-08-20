@@ -96,6 +96,19 @@ contract HyperCoreHooksTest is Helpers {
         );
     }
 
+    /// @dev The toPerp=true encoding — the perp-funding direction — pinned as bytes. The false
+    ///      case is the mainnet fixture above; this asserts the bool's true-branch byte layout.
+    function test_Fixture_UsdClassTransfer_ToPerpTrue() public view {
+        bytes memory data = abi.encodePacked(_header(), uint64(1_000_000), true);
+        bytes memory got = _payloadOf(classTransfer.build(address(0), address(this), data));
+        assertEq(
+            got,
+            hex"01000007" hex"00000000000000000000000000000000000000000000000000000000000f4240"
+            hex"0000000000000000000000000000000000000000000000000000000000000001",
+            "action 7 toPerp=true payload"
+        );
+    }
+
     /// @dev Mainnet action 12: maxFeeRate 1000, builder 0xcab5…252c.
     ///      1000 decibps is 1% — the SPOT maximum, not the perp one — so this fixture is built
     ///      against a spot-capped instance. That the observed mainnet value is spot-legal rather
@@ -280,11 +293,38 @@ contract HyperCoreHooksTest is Helpers {
         assertEq(uint8(p[3]), 13, "action 13");
     }
 
-    /// @dev HYPE's system address (0x2222…2222) is a documented exception OUTSIDE the 0x20… band
-    ///      and must pass through as an ordinary destination regardless of token index.
-    function test_SendAsset_AllowsHypeSystemAddressOutsideBand() public view {
+    /// @dev The legitimate HYPE withdrawal: its non-derived system address (0x2222…2222) carrying
+    ///      the HYPE token index (150). Must pass.
+    function test_SendAsset_AllowsHypeWithdrawal() public view {
         bytes memory data =
             abi.encodePacked(_header(), bytes20(0x2222222222222222222222222222222222222222), uint64(150), uint64(1));
+        bytes memory p = _payloadOf(sendAsset.build(address(0), address(this), data));
+        assertEq(uint8(p[3]), 13, "action 13");
+    }
+
+    /// @dev Hazard (a): HYPE's real system address carrying a NON-HYPE token strands the funds —
+    ///      it is outside the 0x20 band so the derivation check never sees it. Must revert.
+    function test_Revert_SendAssetHypeAddressWrongToken() public {
+        bytes memory data =
+            abi.encodePacked(_header(), bytes20(0x2222222222222222222222222222222222222222), uint64(0), uint64(1));
+        vm.expectRevert(BaseHyperCoreWriterHook.DATA_NOT_VALID.selector);
+        sendAsset.build(address(0), address(this), data);
+    }
+
+    /// @dev Hazard (b): the HYPE token index inside the 0x20 band. The derived 0x20…0096 is an
+    ///      unowned account, not HYPE — an off-chain encoder applying the derivation rule to HYPE
+    ///      produces exactly this. The naive band check would certify it as valid; must revert.
+    function test_Revert_SendAssetHypeIndexInBand() public {
+        bytes20 derivedHypeAddress = bytes20(uint160((uint160(0x20) << 152) | uint160(150)));
+        bytes memory data = abi.encodePacked(_header(), derivedHypeAddress, uint64(150), uint64(1));
+        vm.expectRevert(BaseHyperCoreWriterHook.DATA_NOT_VALID.selector);
+        sendAsset.build(address(0), address(this), data);
+    }
+
+    /// @dev A non-band, non-HYPE destination (an ordinary HyperCore account) still passes — the
+    ///      guard must not over-reach beyond system addresses.
+    function test_SendAsset_AllowsOrdinaryDestination() public view {
+        bytes memory data = abi.encodePacked(_header(), bytes20(address(0xBEEF)), uint64(0), uint64(1));
         bytes memory p = _payloadOf(sendAsset.build(address(0), address(this), data));
         assertEq(uint8(p[3]), 13, "action 13");
     }

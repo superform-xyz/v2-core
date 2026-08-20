@@ -120,6 +120,10 @@ def parse_hook_source(path: Path) -> dict:
         # Aerodrome concrete hooks inherit all on-chain metadata from their shared base
         elif "BaseAerodromeUniversalRouterHook" in content:
             result["hookType"] = "NONACCOUNTING"
+        # HyperCore CoreWriter leaves inherit NONACCOUNTING/HYPERCORE from BaseHyperCoreWriterHook
+        elif "BaseHyperCoreWriterHook" in content:
+            result["hookType"] = "NONACCOUNTING"
+            result["subtype"] = "HYPERCORE"
 
     # Extract subtype from constructor usage (not from import path which contains HookSubTypes.sol)
     for m in re.finditer(r'HookSubTypes\.(\w+)', content):
