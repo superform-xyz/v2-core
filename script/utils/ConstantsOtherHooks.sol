@@ -70,12 +70,17 @@ abstract contract ConstantsOtherHooks {
     address internal constant HYPERCORE_USDC_HYPEREVM = 0xb88339CB7199b77E23DB6E890353E22632Ba630f;
 
     /// @notice Per-token HyperCore deposit gateway for USDC on HyperEVM
-    /// @dev Credits msg.sender's HyperCore spot balance. Gateways are per-token.
+    /// @dev Credits msg.sender on HyperCore. WHICH balance is chosen by the destinationDex argument
+    ///      below — it is not fixed by the gateway. Gateways are per-token.
     address internal constant HYPERCORE_USDC_GATEWAY_HYPEREVM = 0x6B9E773128f453f5c2C60935Ee2DE2CBc5390A24;
 
     /// @notice CoreWriter action 13 destinationDex values, as forwarded by a deposit gateway
     /// @dev `0` is perp dex 0 (perp margin); `type(uint32).max` is spot — per Hyperliquid's action 13
     ///      docs, "Specify uint32::MAX for the source_dex or destination_dex for spot".
+    /// @dev Corroborated by Circle, who wrote a HyperCore forwarder against the same field:
+    ///      "By default (when hyperCoreDestinationDex is 0), deposits credit the perps balance on
+    ///      HyperCore. To deposit to the spot balance, set hyperCoreDestinationDex to 4294967295."
+    ///      (Arbitrum-to-HyperCore howto; the concepts page does not carry it.)
     /// @dev The USDC perps-funding instance uses PERP: the deposit credits perp margin directly, so
     ///      no spot landing and no follow-up usdClassTransfer. Spot tokens use SPOT.
     uint32 internal constant HYPERCORE_DESTINATION_DEX_PERP = 0;

@@ -16,7 +16,10 @@ pragma solidity 0.8.30;
 ///      `(subAccount 0, sourceDex uint32::MAX, destinationDex 0)` — gateway spot to the depositor's
 ///      perp account.
 /// @dev Hyperliquid's docs for action 13: "Specify uint32::MAX for the source_dex or destination_dex
-///      for spot." So `0` is perp dex 0, not spot.
+///      for spot." So `0` is perp dex 0, not spot. Circle, who wrote a forwarder against this same
+///      field, state it directly: "By default (when hyperCoreDestinationDex is 0), deposits credit
+///      the perps balance on HyperCore. To deposit to the spot balance, set hyperCoreDestinationDex
+///      to 4294967295."
 interface IHyperCoreDepositGateway {
     /// @notice Deposits `amount` of the gateway's token, crediting msg.sender on HyperCore
     /// @dev Selector 0x2b2dfd2c.

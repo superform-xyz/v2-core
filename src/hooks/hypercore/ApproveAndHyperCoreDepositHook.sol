@@ -29,6 +29,11 @@ import {
 ///      there is no recipient parameter to supply and equally none to abuse. Pinning all three means
 ///      this contract can only ever move one token into one gateway, to one HyperCore balance.
 ///      Deploy one instance per token and destination; CREATE2 makes that near-free.
+/// @dev DEPLOYMENT INVARIANT, not enforceable here: a perp DESTINATION_DEX only credits the perp
+///      QUOTE asset. Pairing any other token with a perp dex emits an action 13 HyperCore will not
+///      credit, and CoreWriter cannot revert — the receipt is green and the funds are stranded. This
+///      hook knows TOKEN's EVM address but not its HyperCore index, so it cannot check the pairing;
+///      the deploy script asserts it instead. Non-quote tokens must use the spot value.
 /// @dev DESTINATION_DEX selects which balance is credited: `0` is perp dex 0 (perp margin),
 ///      `type(uint32).max` is spot. A USDC perps-funding instance passes 0, which lands the deposit
 ///      directly in perp margin and removes the follow-up `usdClassTransfer` from the funding chain.
