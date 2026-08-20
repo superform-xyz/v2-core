@@ -49,6 +49,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address approveAndSwapAlgebraIntegralHook;
     }
 
+    struct HyperCoreHookAddresses {
+        address hyperCoreAddApiWalletHook;
+        address hyperCoreUsdClassTransferHook;
+        address hyperCoreSendAssetHook;
+        address hyperCoreApproveBuilderFeeHook;
+        address approveAndHyperCoreDepositHook;
+    }
+
     struct DETHHookAddresses {
         address requestRedeemDETHHook;
         address approveAndRequestRedeemDETHHook;
@@ -197,6 +205,12 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         if (chainId == MAINNET_CHAIN_ID) {
             console2.log("Deploying Aave V4 Hooks on chainId: ", chainId);
             _deployAaveV4Hooks(chainId, env);
+        }
+
+        // HyperCore hooks — only on HyperEVM, where CoreWriter exists
+        if (otherHooksConfiguration.coreWriters[chainId] != address(0)) {
+            console2.log("Deploying HyperCore Hooks on chainId: ", chainId);
+            _deployHyperCoreHooks(chainId, env);
         }
 
         // Aave V3 hooks — only on chains where Aave V3 is deployed
@@ -890,5 +904,84 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         WrappedNativeHookAddress memory hookAddress;
         hookAddress.wrappedNativeHook = wrappedNativeHook;
         return hookAddress;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        HYPERCORE HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Deploys the Hyperliquid CoreWriter hook family plus the HyperCore deposit hook
+    /// @dev Gated on CoreWriter being configured for the chain, so this is HyperEVM-only.
+    ///      The four CoreWriter leaves share a single constructor arg; the deposit hook is not a
+    ///      CoreWriter hook and pins its token, gateway and undocumented uint32 as immutables.
+    function _deployHyperCoreHooks(uint64 chainId, uint256 env) internal returns (HyperCoreHookAddresses memory) {
+        HyperCoreHookAddresses memory hookAddresses;
+
+        uint256 len = 5;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        bytes memory coreWriterArg = abi.encode(otherHooksConfiguration.coreWriters[chainId]);
+        bytes memory builderFeeArgs =
+            abi.encode(otherHooksConfiguration.coreWriters[chainId], HYPERCORE_MAX_BUILDER_FEE_RATE);
+        bytes memory depositArgs = abi.encode(
+            otherHooksConfiguration.hyperCoreUsdcs[chainId],
+            otherHooksConfiguration.hyperCoreUsdcGateways[chainId],
+            HYPERCORE_GATEWAY_ARG
+        );
+
+        hooks[0] = HookDeployment(
+            HYPERCORE_ADD_API_WALLET_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("HyperCoreAddApiWalletHook", env), coreWriterArg)
+        );
+        hooks[1] = HookDeployment(
+            HYPERCORE_USD_CLASS_TRANSFER_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("HyperCoreUsdClassTransferHook", env), coreWriterArg)
+        );
+        hooks[2] = HookDeployment(
+            HYPERCORE_SEND_ASSET_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("HyperCoreSendAssetHook", env), coreWriterArg)
+        );
+        hooks[3] = HookDeployment(
+            HYPERCORE_APPROVE_BUILDER_FEE_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("HyperCoreApproveBuilderFeeHook", env), builderFeeArgs)
+        );
+        hooks[4] = HookDeployment(
+            APPROVE_AND_HYPERCORE_DEPOSIT_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("ApproveAndHyperCoreDepositHook", env), depositArgs)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        hookAddresses.hyperCoreAddApiWalletHook = addresses[0];
+        hookAddresses.hyperCoreUsdClassTransferHook = addresses[1];
+        hookAddresses.hyperCoreSendAssetHook = addresses[2];
+        hookAddresses.hyperCoreApproveBuilderFeeHook = addresses[3];
+        hookAddresses.approveAndHyperCoreDepositHook = addresses[4];
+
+        require(hookAddresses.hyperCoreAddApiWalletHook != address(0), "HyperCoreAddApiWalletHook not assigned");
+        require(
+            hookAddresses.hyperCoreUsdClassTransferHook != address(0), "HyperCoreUsdClassTransferHook not assigned"
+        );
+        require(hookAddresses.hyperCoreSendAssetHook != address(0), "HyperCoreSendAssetHook not assigned");
+        require(
+            hookAddresses.hyperCoreApproveBuilderFeeHook != address(0), "HyperCoreApproveBuilderFeeHook not assigned"
+        );
+        require(
+            hookAddresses.approveAndHyperCoreDepositHook != address(0), "ApproveAndHyperCoreDepositHook not assigned"
+        );
+
+        console2.log("All HyperCore hooks deployed and validated successfully.");
+
+        return hookAddresses;
     }
 }

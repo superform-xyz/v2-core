@@ -55,5 +55,37 @@ abstract contract ConstantsOtherHooks {
     string internal constant SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY = "SpectraExchangeDepositHook";
     string internal constant SPECTRA_EXCHANGE_REDEEM_HOOK_KEY = "SpectraExchangeRedeemHook";
 
+    // ── HyperCore hooks (HyperEVM / Hyperliquid) ──────────────────────────────────
+    // Deployed only where CORE_WRITER is configured — see ConfigOtherHooks.
+
+    /// @notice Hyperliquid's CoreWriter system contract. Same address on 999 and testnet 998.
+    /// @dev Performs no validation and has no revert path — a malformed payload is silently
+    ///      accepted. Payload correctness lives entirely in the hooks.
+    address internal constant CORE_WRITER = 0x3333333333333333333333333333333333333333;
+
+    /// @notice The real USDC ERC-20 on HyperEVM
+    /// @dev NOT the address the HyperCore `tokenInfo` precompile returns as `evmContract` — that is
+    ///      the deposit gateway below, whose `transfer` reverts and which implements no ERC-20 views.
+    address internal constant HYPERCORE_USDC_HYPEREVM = 0xb88339CB7199b77E23DB6E890353E22632Ba630f;
+
+    /// @notice Per-token HyperCore deposit gateway for USDC on HyperEVM
+    /// @dev Credits msg.sender's HyperCore spot balance. Gateways are per-token.
+    address internal constant HYPERCORE_USDC_GATEWAY_HYPEREVM = 0x6B9E773128f453f5c2C60935Ee2DE2CBc5390A24;
+
+    /// @notice The gateway's second, undocumented uint32 argument
+    /// @dev Every observed mainnet call passes 0. It is NOT a token index — gateways are per-token.
+    uint32 internal constant HYPERCORE_GATEWAY_ARG = 0;
+
+    /// @notice Upper bound on an approvable builder fee, in CoreWriter units
+    /// @dev 1000 == 0.1% == the perp protocol maximum, and the only value observed on mainnet.
+    uint64 internal constant HYPERCORE_MAX_BUILDER_FEE_RATE = 1000;
+
+    // HyperCore hook keys
+    string internal constant HYPERCORE_ADD_API_WALLET_HOOK_KEY = "HyperCoreAddApiWalletHook";
+    string internal constant HYPERCORE_USD_CLASS_TRANSFER_HOOK_KEY = "HyperCoreUsdClassTransferHook";
+    string internal constant HYPERCORE_SEND_ASSET_HOOK_KEY = "HyperCoreSendAssetHook";
+    string internal constant HYPERCORE_APPROVE_BUILDER_FEE_HOOK_KEY = "HyperCoreApproveBuilderFeeHook";
+    string internal constant APPROVE_AND_HYPERCORE_DEPOSIT_HOOK_KEY = "ApproveAndHyperCoreDepositHook";
+
     // NOTE: Odos V3 hook keys and ODOS_ROUTER_V3 moved to Constants.sol (deployed via DeployV2Core)
 }
