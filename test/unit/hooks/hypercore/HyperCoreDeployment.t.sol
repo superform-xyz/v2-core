@@ -110,4 +110,77 @@ contract HyperCoreDeploymentTest is Helpers {
             "instance key must not collide with the contract name"
         );
     }
+
+    /*//////////////////////////////////////////////////////////////
+                    DEPOSIT KEY SHAPE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev register_hypercore_hooks.sh derives the resolution selection tag by parsing the deposit
+    ///      key as ApproveAndHyperCoreDeposit<Token>(Perp|Spot)Hook. A key that does not match the
+    ///      shape fails at registration time — which happens once, by hand, under deploy pressure.
+    ///      This asserts the SHAPE (not the tag string, which the shell owns) so a malformed key
+    ///      fails at `forge test` on every PR instead. Shares the convention with the shell, not the
+    ///      derivation code, so the two cannot drift into two parsers that disagree.
+    function test_DepositHookKeysMatchTokenDexShape() public {
+        string[] memory keys = new FeeCapHarness().hyperCoreHookKeys();
+        uint256 checked;
+        for (uint256 i = 0; i < keys.length; ++i) {
+            if (_hasPrefix(keys[i], "ApproveAndHyperCoreDeposit")) {
+                assertTrue(_isValidDepositKeyShape(keys[i]), string.concat("malformed deposit key: ", keys[i]));
+                ++checked;
+            }
+        }
+        assertGt(checked, 0, "expected at least one deposit instance key to validate");
+    }
+
+    /// @dev The exact keys the shell rejects (mirrors its failure path): a token with no destination
+    ///      segment, and the bare contract-name key. Keeps this test honest — it must have teeth.
+    function test_DepositKeyShape_RejectsMalformed() public pure {
+        assertFalse(_isValidDepositKeyShape("ApproveAndHyperCoreDepositUbtcHook"), "no destination segment");
+        assertFalse(_isValidDepositKeyShape("ApproveAndHyperCoreDepositHook"), "bare contract name, no token/dex");
+        assertFalse(_isValidDepositKeyShape("ApproveAndHyperCoreDepositPerpHook"), "no token before destination");
+        assertTrue(_isValidDepositKeyShape("ApproveAndHyperCoreDepositUsdcSpotHook"), "spot instance is valid");
+    }
+
+    /// @dev ApproveAndHyperCoreDeposit<Token>(Perp|Spot)Hook, token segment non-empty. Mirrors the
+    ///      shell parser's acceptance rule without reproducing its tag-string derivation.
+    function _isValidDepositKeyShape(string memory key) internal pure returns (bool) {
+        if (!_hasPrefix(key, "ApproveAndHyperCoreDeposit") || !_hasSuffix(key, "Hook")) return false;
+        uint256 prefixLen = bytes("ApproveAndHyperCoreDeposit").length;
+        uint256 suffixLen = 4; // "Hook"
+        if (bytes(key).length <= prefixLen + suffixLen) return false;
+        bytes memory middle = _slice(key, prefixLen, bytes(key).length - suffixLen);
+        bool destOk = _hasSuffix(string(middle), "Perp") || _hasSuffix(string(middle), "Spot");
+        // token segment is what precedes the 4-char destination word; it must be non-empty
+        return destOk && middle.length > 4;
+    }
+
+    function _hasPrefix(string memory s, string memory p) internal pure returns (bool) {
+        bytes memory sb = bytes(s);
+        bytes memory pb = bytes(p);
+        if (sb.length < pb.length) return false;
+        for (uint256 i = 0; i < pb.length; ++i) {
+            if (sb[i] != pb[i]) return false;
+        }
+        return true;
+    }
+
+    function _hasSuffix(string memory s, string memory suf) internal pure returns (bool) {
+        bytes memory sb = bytes(s);
+        bytes memory fb = bytes(suf);
+        if (sb.length < fb.length) return false;
+        uint256 off = sb.length - fb.length;
+        for (uint256 i = 0; i < fb.length; ++i) {
+            if (sb[off + i] != fb[i]) return false;
+        }
+        return true;
+    }
+
+    function _slice(string memory s, uint256 start, uint256 end) internal pure returns (bytes memory out) {
+        bytes memory sb = bytes(s);
+        out = new bytes(end - start);
+        for (uint256 i = start; i < end; ++i) {
+            out[i - start] = sb[i];
+        }
+    }
 }

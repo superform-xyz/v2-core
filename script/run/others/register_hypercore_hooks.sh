@@ -70,6 +70,59 @@ if [ "$missing" -ne 0 ]; then
     exit 1
 fi
 
+# ── Derive the selection tag from the hook key ─────────────────────────────────
+# ApproveAndHyperCoreDeposit instances are keyed <Token><Dex>Hook because one
+# contract ships once per (token, destinationDex) pair. Hook resolution has no
+# token dimension of its own and selects on a tag instead — and a tag that has to
+# be REMEMBERED when a second instance is registered is the weakest possible guard
+# for a failure that only appears at runtime. So derive it from the key: it then
+# cannot be forgotten, and cannot disagree with what was deployed.
+#
+# One COMPOSITE tag (token-dex, e.g. usdc-perp), not two. A token-only tag stops
+# disambiguating the moment a spot instance ships beside the perp one, which is a
+# supported combination (the deploy guard permits dex 0 with the quote asset and
+# spot with any token); two separate tags would force the resolver into AND-match
+# semantics. The composite is a single opaque selection key.
+#
+# NOTE: only ApproveAndHyperCoreDeposit* keys carry a tag. If the plain
+# ApproveAndHyperCoreDepositHook key (no token/dex) is ever added to HOOK_NAMES,
+# this parser aborts registration by design — rename to the instanced key instead.
+DEPOSIT_KEY_PREFIX="ApproveAndHyperCoreDeposit"
+
+declare -A HOOK_TAGS
+for name in "${HOOK_NAMES[@]}"; do
+    case "$name" in
+        "$DEPOSIT_KEY_PREFIX"*)
+            if ! tag=$(python3 - "$name" <<'PY'
+import sys
+key = sys.argv[1]
+PREFIX, SUFFIX = "ApproveAndHyperCoreDeposit", "Hook"
+DESTINATIONS = {"Perp": "perp", "Spot": "spot"}
+if not key.endswith(SUFFIX):
+    sys.exit("key does not end in '%s'" % SUFFIX)
+middle = key[len(PREFIX):-len(SUFFIX)]
+for word, dex in DESTINATIONS.items():
+    if middle.endswith(word):
+        token = middle[: -len(word)]
+        if not token:
+            sys.exit("no token segment before the destination")
+        print("%s-%s" % (token.lower(), dex))  # composite selector, e.g. usdc-perp
+        break
+else:
+    sys.exit("destination must be one of %s" % sorted(DESTINATIONS))
+PY
+            ); then
+                echo "❌ $name does not match ${DEPOSIT_KEY_PREFIX}<Token><Dex>Hook"
+                echo "   The key is the only place this instance's token and destination are"
+                echo "   recorded, so resolution cannot tell it apart from another instance"
+                echo "   without them. Rename the key and redeploy rather than tagging by hand."
+                exit 1
+            fi
+            HOOK_TAGS[$name]="$tag"
+            ;;
+    esac
+done
+
 # ── Load RPC ───────────────────────────────────────────────────────────────────
 if [ -z "${HYPEREVM_MAINNET:-}" ]; then
     echo "Loading HyperEVM RPC from 1Password..."
@@ -177,5 +230,30 @@ echo "  Registered/simulated: $success"
 echo "  Skipped (existing):   $skipped"
 echo "  Failed:               $failed"
 echo "============================================================"
+
+# ── Emit derived selection tags for the hooks-resolution config ────────────────
+if [ "${#HOOK_TAGS[@]}" -gt 0 ]; then
+    echo ""
+    echo "Selection tags, derived from the keys — copy into the hooks-resolution config."
+    echo "These are not a naming suggestion: an instance whose config entry omits its tag"
+    echo "is indistinguishable from any other deposit instance at selection time, and the"
+    echo "wrong pick moves the wrong asset without reverting."
+    echo ""
+    {
+        echo "{"
+        n=0
+        total=${#HOOK_TAGS[@]}
+        for name in "${HOOK_NAMES[@]}"; do
+            [ -n "${HOOK_TAGS[$name]:-}" ] || continue
+            n=$((n + 1))
+            comma=","
+            [ "$n" -eq "$total" ] && comma=""
+            printf '  "%s": { "address": "%s", "tag": "%s" }%s\n' \
+                "$name" "${HOOKS[$name]}" "${HOOK_TAGS[$name]}" "$comma"
+        done
+        echo "}"
+    }
+    echo ""
+fi
 
 [ "$failed" -eq 0 ]
