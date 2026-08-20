@@ -111,17 +111,13 @@ contract ApproveAndHyperCoreDepositHook is
         // Zero the allowance before and after: tokens with non-standard approve semantics, and any
         // residue from a partially-consumed prior approval, must not leave a standing allowance.
         executions = new Execution[](4);
-        executions[0] =
-            Execution({ target: TOKEN, value: 0, callData: abi.encodeCall(IERC20.approve, (GATEWAY, 0)) });
+        executions[0] = Execution({ target: TOKEN, value: 0, callData: abi.encodeCall(IERC20.approve, (GATEWAY, 0)) });
         executions[1] =
             Execution({ target: TOKEN, value: 0, callData: abi.encodeCall(IERC20.approve, (GATEWAY, amount)) });
         executions[2] = Execution({
-            target: GATEWAY,
-            value: 0,
-            callData: abi.encodeCall(IHyperCoreDepositGateway.deposit, (amount, GATEWAY_ARG))
+            target: GATEWAY, value: 0, callData: abi.encodeCall(IHyperCoreDepositGateway.deposit, (amount, GATEWAY_ARG))
         });
-        executions[3] =
-            Execution({ target: TOKEN, value: 0, callData: abi.encodeCall(IERC20.approve, (GATEWAY, 0)) });
+        executions[3] = Execution({ target: TOKEN, value: 0, callData: abi.encodeCall(IERC20.approve, (GATEWAY, 0)) });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -140,7 +136,12 @@ contract ApproveAndHyperCoreDepositHook is
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+    function amountRoles(bytes memory)
+        external
+        pure
+        override
+        returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
+    {
         meta = new ISuperHookInflowOutflow.AmountMeta[](1);
         meta[0] = ISuperHookInflowOutflow.AmountMeta(
             ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN

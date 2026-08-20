@@ -55,7 +55,8 @@ abstract contract ConstantsOtherHooks {
     string internal constant SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY = "SpectraExchangeDepositHook";
     string internal constant SPECTRA_EXCHANGE_REDEEM_HOOK_KEY = "SpectraExchangeRedeemHook";
 
-    // ── HyperCore hooks (HyperEVM / Hyperliquid) ──────────────────────────────────
+    // ── HyperCore hooks (HyperEVM / Hyperliquid)
+    // ──────────────────────────────────
     // Deployed only where CORE_WRITER is configured — see ConfigOtherHooks.
 
     /// @notice Hyperliquid's CoreWriter system contract. Same address on 999 and testnet 998.

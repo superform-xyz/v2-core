@@ -36,9 +36,7 @@ contract HyperCoreDeploymentTest is Helpers {
     function test_LockedBytecode_BuilderFeeSetsBothArgsInOrder() public {
         address a = _deploy("HyperCoreApproveBuilderFeeHook", abi.encode(CORE_WRITER, MAX_BUILDER_FEE_RATE));
         assertEq(HyperCoreApproveBuilderFeeHook(a).CORE_WRITER(), CORE_WRITER, "CORE_WRITER immutable");
-        assertEq(
-            HyperCoreApproveBuilderFeeHook(a).MAX_BUILDER_FEE_RATE(), MAX_BUILDER_FEE_RATE, "fee cap immutable"
-        );
+        assertEq(HyperCoreApproveBuilderFeeHook(a).MAX_BUILDER_FEE_RATE(), MAX_BUILDER_FEE_RATE, "fee cap immutable");
     }
 
     /// @dev Three-arg deposit hook. TOKEN and GATEWAY are both addresses, so a transposition

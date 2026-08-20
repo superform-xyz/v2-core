@@ -309,9 +309,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             abi.encodePacked(__getOtherHooksBytecode("MorphoBorrowHook", env), morphoArg)
         );
         hooks[2] = HookDeployment(
-            MORPHO_REPAY_HOOK_KEY,
-            "",
-            abi.encodePacked(__getOtherHooksBytecode("MorphoRepayHook", env), morphoArg)
+            MORPHO_REPAY_HOOK_KEY, "", abi.encodePacked(__getOtherHooksBytecode("MorphoRepayHook", env), morphoArg)
         );
         hooks[3] = HookDeployment(
             MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY,
@@ -319,9 +317,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             abi.encodePacked(__getOtherHooksBytecode("MorphoRepayAndWithdrawHook", env), morphoArg)
         );
         hooks[4] = HookDeployment(
-            MORPHO_SUPPLY_HOOK_KEY,
-            "",
-            abi.encodePacked(__getOtherHooksBytecode("MorphoSupplyHook", env), morphoArg)
+            MORPHO_SUPPLY_HOOK_KEY, "", abi.encodePacked(__getOtherHooksBytecode("MorphoSupplyHook", env), morphoArg)
         );
         hooks[5] = HookDeployment(
             MORPHO_WITHDRAW_HOOK_KEY,
@@ -331,9 +327,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
         // Lender-side hook
         hooks[6] = HookDeployment(
-            MORPHO_LEND_HOOK_KEY,
-            "",
-            abi.encodePacked(__getOtherHooksBytecode("MorphoLendHook", env), morphoArg)
+            MORPHO_LEND_HOOK_KEY, "", abi.encodePacked(__getOtherHooksBytecode("MorphoLendHook", env), morphoArg)
         );
 
         // MetaMorpho reallocate hook (no constructor args)
@@ -357,16 +351,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             Strings.equal(hooks[0].name, MORPHO_SUPPLY_AND_BORROW_HOOK_KEY) ? addresses[0] : address(0);
         hookAddresses.morphoBorrowHook =
             Strings.equal(hooks[1].name, MORPHO_BORROW_ONLY_HOOK_KEY) ? addresses[1] : address(0);
-        hookAddresses.morphoRepayHook =
-            Strings.equal(hooks[2].name, MORPHO_REPAY_HOOK_KEY) ? addresses[2] : address(0);
+        hookAddresses.morphoRepayHook = Strings.equal(hooks[2].name, MORPHO_REPAY_HOOK_KEY) ? addresses[2] : address(0);
         hookAddresses.morphoRepayAndWithdrawHook =
             Strings.equal(hooks[3].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[3] : address(0);
         hookAddresses.morphoSupplyHook =
             Strings.equal(hooks[4].name, MORPHO_SUPPLY_HOOK_KEY) ? addresses[4] : address(0);
         hookAddresses.morphoWithdrawHook =
             Strings.equal(hooks[5].name, MORPHO_WITHDRAW_HOOK_KEY) ? addresses[5] : address(0);
-        hookAddresses.morphoLendHook =
-            Strings.equal(hooks[6].name, MORPHO_LEND_HOOK_KEY) ? addresses[6] : address(0);
+        hookAddresses.morphoLendHook = Strings.equal(hooks[6].name, MORPHO_LEND_HOOK_KEY) ? addresses[6] : address(0);
         hookAddresses.metaMorphoReallocateHook =
             Strings.equal(hooks[7].name, META_MORPHO_REALLOCATE_HOOK_KEY) ? addresses[7] : address(0);
         hookAddresses.forceDeallocateMorphoHook =
@@ -381,9 +373,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(hookAddresses.morphoWithdrawHook != address(0), "MorphoWithdrawHook not assigned");
         require(hookAddresses.morphoLendHook != address(0), "MorphoLendHook not assigned");
         require(hookAddresses.metaMorphoReallocateHook != address(0), "MetaMorphoReallocateHook not assigned");
-        require(
-            hookAddresses.forceDeallocateMorphoHook != address(0), "ForceDeallocateMorphoHook not assigned"
-        );
+        require(hookAddresses.forceDeallocateMorphoHook != address(0), "ForceDeallocateMorphoHook not assigned");
 
         console2.log("All Morpho hooks deployed and validated successfully.");
 
@@ -411,18 +401,10 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address[] memory addresses = new address[](len);
 
         // Aave V4 hooks have no constructor args
-        hooks[0] = HookDeployment(
-            AAVE_V4_SUPPLY_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4SupplyHook", env)
-        );
-        hooks[1] = HookDeployment(
-            AAVE_V4_WITHDRAW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4WithdrawHook", env)
-        );
-        hooks[2] = HookDeployment(
-            AAVE_V4_BORROW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4BorrowHook", env)
-        );
-        hooks[3] = HookDeployment(
-            AAVE_V4_REPAY_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4RepayHook", env)
-        );
+        hooks[0] = HookDeployment(AAVE_V4_SUPPLY_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4SupplyHook", env));
+        hooks[1] = HookDeployment(AAVE_V4_WITHDRAW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4WithdrawHook", env));
+        hooks[2] = HookDeployment(AAVE_V4_BORROW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4BorrowHook", env));
+        hooks[3] = HookDeployment(AAVE_V4_REPAY_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4RepayHook", env));
         hooks[4] = HookDeployment(
             AAVE_V4_SUPPLY_AND_BORROW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4SupplyAndBorrowHook", env)
         );
@@ -529,14 +511,10 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
         // Firelight hooks have no constructor args
         hooks[0] = HookDeployment(
-            REDEEM_FIRELIGHT_VAULT_HOOK_KEY,
-            "",
-            __getOtherHooksBytecode("RedeemFirelightVaultHook", env)
+            REDEEM_FIRELIGHT_VAULT_HOOK_KEY, "", __getOtherHooksBytecode("RedeemFirelightVaultHook", env)
         );
         hooks[1] = HookDeployment(
-            CLAIM_WITHDRAW_FIRELIGHT_VAULT_HOOK_KEY,
-            "",
-            __getOtherHooksBytecode("ClaimWithdrawFirelightVaultHook", env)
+            CLAIM_WITHDRAW_FIRELIGHT_VAULT_HOOK_KEY, "", __getOtherHooksBytecode("ClaimWithdrawFirelightVaultHook", env)
         );
 
         for (uint256 i = 0; i < len; ++i) {
@@ -661,21 +639,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address[] memory addresses = new address[](len);
 
         // DETH hooks have no constructor args
-        hooks[0] = HookDeployment(
-            REQUEST_REDEEM_DETH_HOOK_KEY,
-            "",
-            __getOtherHooksBytecode("RequestRedeemDETHHook", env)
-        );
+        hooks[0] =
+            HookDeployment(REQUEST_REDEEM_DETH_HOOK_KEY, "", __getOtherHooksBytecode("RequestRedeemDETHHook", env));
         hooks[1] = HookDeployment(
             APPROVE_AND_REQUEST_REDEEM_DETH_HOOK_KEY,
             "",
             __getOtherHooksBytecode("ApproveAndRequestRedeemDETHHook", env)
         );
-        hooks[2] = HookDeployment(
-            CLAIM_ASSETS_DETH_HOOK_KEY,
-            "",
-            __getOtherHooksBytecode("ClaimAssetsDETHHook", env)
-        );
+        hooks[2] = HookDeployment(CLAIM_ASSETS_DETH_HOOK_KEY, "", __getOtherHooksBytecode("ClaimAssetsDETHHook", env));
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
@@ -690,8 +661,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
         require(hookAddresses.requestRedeemDETHHook != address(0), "RequestRedeemDETHHook not assigned");
         require(
-            hookAddresses.approveAndRequestRedeemDETHHook != address(0),
-            "ApproveAndRequestRedeemDETHHook not assigned"
+            hookAddresses.approveAndRequestRedeemDETHHook != address(0), "ApproveAndRequestRedeemDETHHook not assigned"
         );
         require(hookAddresses.claimAssetsDETHHook != address(0), "ClaimAssetsDETHHook not assigned");
 
@@ -705,13 +675,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Deploy NativeFeeSponsorship (no constructor args) and FetchNativeFeeHook (takes sponsorship address)
-    function _deploySponsorshipContracts(
-        uint64 chainId,
-        uint256 env
-    )
-        internal
-        returns (SponsorshipAddresses memory)
-    {
+    function _deploySponsorshipContracts(uint64 chainId, uint256 env) internal returns (SponsorshipAddresses memory) {
         // First deploy NativeFeeSponsorship (no constructor args)
         address sponsorship = __deployContract(
             NATIVE_FEE_SPONSORSHIP_KEY,
@@ -774,9 +738,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         hooks[4] = HookDeployment(
             WITHDRAW_VESTED_RFLR_HOOK_KEY,
             "",
-            abi.encodePacked(
-                __getOtherHooksBytecode("WithdrawVestedRFLRHook", env), abi.encode(RNAT_FLARE, WFLR_FLARE)
-            )
+            abi.encodePacked(__getOtherHooksBytecode("WithdrawVestedRFLRHook", env), abi.encode(RNAT_FLARE, WFLR_FLARE))
         );
 
         for (uint256 i = 0; i < len; ++i) {
@@ -852,9 +814,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         bytes memory routerArg = abi.encode(otherHooksConfiguration.odosRouterV3s[chainId]);
 
         hooks[0] = HookDeployment(
-            SWAP_ODOSV3_HOOK_KEY,
-            "",
-            abi.encodePacked(__getOtherHooksBytecode("SwapOdosV3Hook", env), routerArg)
+            SWAP_ODOSV3_HOOK_KEY, "", abi.encodePacked(__getOtherHooksBytecode("SwapOdosV3Hook", env), routerArg)
         );
         hooks[1] = HookDeployment(
             APPROVE_AND_SWAP_ODOSV3_HOOK_KEY,
@@ -969,9 +929,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         hookAddresses.approveAndHyperCoreDepositHook = addresses[4];
 
         require(hookAddresses.hyperCoreAddApiWalletHook != address(0), "HyperCoreAddApiWalletHook not assigned");
-        require(
-            hookAddresses.hyperCoreUsdClassTransferHook != address(0), "HyperCoreUsdClassTransferHook not assigned"
-        );
+        require(hookAddresses.hyperCoreUsdClassTransferHook != address(0), "HyperCoreUsdClassTransferHook not assigned");
         require(hookAddresses.hyperCoreSendAssetHook != address(0), "HyperCoreSendAssetHook not assigned");
         require(
             hookAddresses.hyperCoreApproveBuilderFeeHook != address(0), "HyperCoreApproveBuilderFeeHook not assigned"

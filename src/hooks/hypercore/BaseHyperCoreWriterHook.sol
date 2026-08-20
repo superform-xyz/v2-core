@@ -125,7 +125,6 @@ abstract contract BaseHyperCoreWriterHook is BaseHook, ISuperHookInflowOutflow {
         if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
         if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
         return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
-            || interfaceId == type(ISuperHookResult).interfaceId
-            || interfaceId == type(ISuperHookInspector).interfaceId;
+            || interfaceId == type(ISuperHookResult).interfaceId || interfaceId == type(ISuperHookInspector).interfaceId;
     }
 }

@@ -72,8 +72,7 @@ contract HyperCoreHooksTest is Helpers {
         bytes memory got = _payloadOf(addAgent.build(address(0), address(this), data));
         assertEq(
             got,
-            hex"01000009"
-            hex"00000000000000000000000040a5089854165d3d8bc054cf02adffda28ac092c"
+            hex"01000009" hex"00000000000000000000000040a5089854165d3d8bc054cf02adffda28ac092c"
             hex"0000000000000000000000000000000000000000000000000000000000000040"
             hex"000000000000000000000000000000000000000000000000000000000000000b"
             hex"626561742d6d6f62696c65000000000000000000000000000000000000000000",
@@ -87,8 +86,7 @@ contract HyperCoreHooksTest is Helpers {
         bytes memory got = _payloadOf(classTransfer.build(address(0), address(this), data));
         assertEq(
             got,
-            hex"01000007"
-            hex"00000000000000000000000000000000000000000000000000000000011d7df0"
+            hex"01000007" hex"00000000000000000000000000000000000000000000000000000000011d7df0"
             hex"0000000000000000000000000000000000000000000000000000000000000000",
             "action 7 payload must match mainnet byte-for-byte"
         );
@@ -96,14 +94,12 @@ contract HyperCoreHooksTest is Helpers {
 
     /// @dev Mainnet action 12: maxFeeRate 1000, builder 0xcab5…252c
     function test_Fixture_ApproveBuilderFee_MatchesMainnetBytes() public view {
-        bytes memory data = abi.encodePacked(
-            _header(), uint64(1000), bytes20(0xCaB561b82f58CA7104105F52e5563A83a948252C)
-        );
+        bytes memory data =
+            abi.encodePacked(_header(), uint64(1000), bytes20(0xCaB561b82f58CA7104105F52e5563A83a948252C));
         bytes memory got = _payloadOf(builderFee.build(address(0), address(this), data));
         assertEq(
             got,
-            hex"0100000c"
-            hex"00000000000000000000000000000000000000000000000000000000000003e8"
+            hex"0100000c" hex"00000000000000000000000000000000000000000000000000000000000003e8"
             hex"000000000000000000000000cab561b82f58ca7104105f52e5563a83a948252c",
             "action 12 payload must match mainnet byte-for-byte"
         );
@@ -113,16 +109,12 @@ contract HyperCoreHooksTest is Helpers {
     ///      This is the withdraw-to-HyperEVM shape.
     function test_Fixture_SendAsset_Token0_MatchesMainnetBytes() public view {
         bytes memory data = abi.encodePacked(
-            _header(),
-            bytes20(0x2000000000000000000000000000000000000000),
-            uint64(0),
-            uint64(49_317_726_300)
+            _header(), bytes20(0x2000000000000000000000000000000000000000), uint64(0), uint64(49_317_726_300)
         );
         bytes memory got = _payloadOf(sendAsset.build(address(0), address(this), data));
         assertEq(
             got,
-            hex"0100000d"
-            hex"0000000000000000000000002000000000000000000000000000000000000000"
+            hex"0100000d" hex"0000000000000000000000002000000000000000000000000000000000000000"
             hex"0000000000000000000000000000000000000000000000000000000000000000"
             hex"00000000000000000000000000000000000000000000000000000000ffffffff"
             hex"00000000000000000000000000000000000000000000000000000000ffffffff"
@@ -136,16 +128,12 @@ contract HyperCoreHooksTest is Helpers {
     ///      indistinguishable from padding and the withdrawal leg could silently hardcode USDC.
     function test_Fixture_SendAsset_NonZeroToken_MatchesMainnetBytes() public view {
         bytes memory data = abi.encodePacked(
-            _header(),
-            bytes20(0x12f30684c6a92C1E7237DAAEC781377B9D71253A),
-            uint64(360),
-            uint64(6_778_179_200)
+            _header(), bytes20(0x12f30684c6a92C1E7237DAAEC781377B9D71253A), uint64(360), uint64(6_778_179_200)
         );
         bytes memory got = _payloadOf(sendAsset.build(address(0), address(this), data));
         assertEq(
             got,
-            hex"0100000d"
-            hex"00000000000000000000000012f30684c6a92c1e7237daaec781377b9d71253a"
+            hex"0100000d" hex"00000000000000000000000012f30684c6a92c1e7237daaec781377b9d71253a"
             hex"0000000000000000000000000000000000000000000000000000000000000000"
             hex"00000000000000000000000000000000000000000000000000000000ffffffff"
             hex"00000000000000000000000000000000000000000000000000000000ffffffff"
@@ -213,8 +201,7 @@ contract HyperCoreHooksTest is Helpers {
 
     /// @dev A near-max length must surface the custom error, not an arithmetic panic.
     function test_Revert_AbsurdNameLengthIsCleanError() public {
-        bytes memory data =
-            abi.encodePacked(_header(), bytes20(address(0xBEEF)), type(uint256).max);
+        bytes memory data = abi.encodePacked(_header(), bytes20(address(0xBEEF)), type(uint256).max);
         vm.expectRevert(BaseHyperCoreWriterHook.DATA_NOT_VALID.selector);
         addAgent.build(address(0), address(this), data);
     }
@@ -232,8 +219,7 @@ contract HyperCoreHooksTest is Helpers {
     }
 
     function test_Revert_FeeRateAboveCap() public {
-        bytes memory data =
-            abi.encodePacked(_header(), uint64(MAX_BUILDER_FEE_RATE + 1), bytes20(address(0xBEEF)));
+        bytes memory data = abi.encodePacked(_header(), uint64(MAX_BUILDER_FEE_RATE + 1), bytes20(address(0xBEEF)));
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         builderFee.build(address(0), address(this), data);
     }
@@ -257,8 +243,7 @@ contract HyperCoreHooksTest is Helpers {
     /// @dev The whole point: no rewrite function exists, so the bundler cannot resize a fee rate,
     ///      an ntl or a token index during hook chaining.
     function test_S2_DeclaresSizelessAndRefusesOutflow() public view {
-        address[4] memory hooks =
-            [address(addAgent), address(classTransfer), address(sendAsset), address(builderFee)];
+        address[4] memory hooks = [address(addAgent), address(classTransfer), address(sendAsset), address(builderFee)];
         for (uint256 i; i < hooks.length; ++i) {
             assertTrue(
                 IERC165(hooks[i]).supportsInterface(type(ISuperHookInflowOutflow).interfaceId),
@@ -268,9 +253,7 @@ contract HyperCoreHooksTest is Helpers {
                 IERC165(hooks[i]).supportsInterface(type(ISuperHookOutflow).interfaceId),
                 "must NOT declare ISuperHookOutflow"
             );
-            assertEq(
-                ISuperHookInflowOutflow(hooks[i]).amountRoles("").length, 0, "authoritatively sizeless"
-            );
+            assertEq(ISuperHookInflowOutflow(hooks[i]).amountRoles("").length, 0, "authoritatively sizeless");
         }
     }
 
