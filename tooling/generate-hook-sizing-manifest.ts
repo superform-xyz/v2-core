@@ -107,10 +107,39 @@ function detectPipeMode(hookSolName: string): "transform" | "passthrough" | "sou
 
     if (content.includes("PipeMode.PASSTHROUGH")) return "passthrough";
     if (content.includes("PipeMode.SOURCE")) return "source";
+
+    // No marker in the hook's own file — a family base may carry the _pipeMode override
+    // (e.g. BaseHyperCoreWriterHook). Follow relative imports and look for an explicit
+    // `return PipeMode.X` (the strict match avoids BaseHook's comparison in _preExecute).
+    const inherited = inheritedPipeMode(file, new Set());
+    if (inherited) return inherited;
     return "transform";
   }
   // Hook source not found — default to transform
   return "transform";
+}
+
+function inheritedPipeMode(file: string, seen: Set<string>): "passthrough" | "source" | null {
+  if (seen.has(file)) return null;
+  seen.add(file);
+  let content: string;
+  try {
+    content = fs.readFileSync(file, "utf-8");
+  } catch {
+    return null;
+  }
+
+  if (seen.size > 1) {
+    if (/return PipeMode\.PASSTHROUGH/.test(content)) return "passthrough";
+    if (/return PipeMode\.SOURCE/.test(content)) return "source";
+  }
+
+  for (const m of content.matchAll(/import\s*\{[^}]*\}\s*from\s*"(\.[^"]+\.sol)"/g)) {
+    const imported = path.resolve(path.dirname(file), m[1]);
+    const mode = inheritedPipeMode(imported, seen);
+    if (mode) return mode;
+  }
+  return null;
 }
 
 function findSolFiles(dir: string): string[] {

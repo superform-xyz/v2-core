@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-08-18T13:46:11Z",
+  "generatedAt": "2026-08-21T07:58:48Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -6361,6 +6361,54 @@
         "circle-gateway"
       ]
     },
+    "ApproveAndHyperCoreDepositUsdcPerpHook": {
+      "name": "Approve and HyperCore Deposit",
+      "description": "Deposits an ERC-20 into a HyperCore balance",
+      "hookType": "NONACCOUNTING",
+      "subtype": "HYPERCORE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "999": "0x53F3b58bEa6C004Bbc454fDf5A6acdB23431734A"
+        },
+        "prod": {
+          "999": "0xCF90E02ede782E6Cdce58fA6E4d2509614dF784D"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "999"
+        ],
+        "prod": [
+          "999"
+        ]
+      },
+      "contract": "ApproveAndHyperCoreDepositHook",
+      "tag": "usdc-perp",
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
     "DeBridgeCancelOrderHook": {
       "name": "deBridge Cancel Order",
       "description": "Cancels a pending deBridge cross-chain order",
@@ -8396,6 +8444,82 @@
         "permit2"
       ]
     },
+    "HyperCoreUsdClassTransferHook": {
+      "name": "HyperCore USD Class Transfer",
+      "description": "Moves USDC between HyperCore spot and perp margin",
+      "hookType": "NONACCOUNTING",
+      "subtype": "HYPERCORE",
+      "actionTypes": [
+        {
+          "intent": "transfer",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "999": "0x66194363DDeA94e301D8A128Bb0a1f4E3c605623"
+        },
+        "prod": {
+          "999": "0x0E4eDd421D0707A454C3c0435DeCF5D708A8b29C"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "999"
+        ],
+        "prod": [
+          "999"
+        ]
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
+    "HyperCoreSendAssetHook": {
+      "name": "HyperCore Send Asset",
+      "description": "Sends a HyperCore spot balance to another account",
+      "hookType": "NONACCOUNTING",
+      "subtype": "HYPERCORE",
+      "actionTypes": [
+        {
+          "intent": "transfer",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "999": "0xeE0ef54d1BAA59aA1786AaA37B5F38D2D7e26193"
+        },
+        "prod": {
+          "999": "0x65aea557e595b9e841Da9F47aae8EacC4650Ea6a"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "999"
+        ],
+        "prod": [
+          "999"
+        ]
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
     "MetaMorphoReallocateHook": {
       "name": "MetaMorpho Reallocate",
       "description": "Reallocates liquidity across MetaMorpho vault markets",
@@ -9697,6 +9821,82 @@
       "compatibleProtocols": [
         "circle-gateway"
       ]
+    },
+    "HyperCoreAddApiWalletHook": {
+      "name": "HyperCore Add API Wallet",
+      "description": "Enrols a trading agent on HyperCore",
+      "hookType": "NONACCOUNTING",
+      "subtype": "HYPERCORE",
+      "actionTypes": [
+        {
+          "intent": "permissions",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "999": "0xd0a2448b0F81E5De7F64d1be6AEc081B55aeDF1f"
+        },
+        "prod": {
+          "999": "0x7d4610dbEe9A5DDD4DF43F438dd1C1709D431385"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "999"
+        ],
+        "prod": [
+          "999"
+        ]
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
+    "HyperCoreApproveBuilderFeeHook": {
+      "name": "HyperCore Approve Builder Fee",
+      "description": "Approves a builder fee on HyperCore orders",
+      "hookType": "NONACCOUNTING",
+      "subtype": "HYPERCORE",
+      "actionTypes": [
+        {
+          "intent": "permissions",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "999": "0xdC712C0a09bcc5FCE24CdA6785D6A9653ce0273A"
+        },
+        "prod": {
+          "999": "0xe4cF68598878B13Bec9985baBc46Cc6b6733164e"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "999"
+        ],
+        "prod": [
+          "999"
+        ]
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
     },
     "MorphoSupplyAndBorrowHook": {
       "name": "Morpho Supply and Borrow",

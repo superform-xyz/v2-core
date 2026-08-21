@@ -49,6 +49,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address approveAndSwapAlgebraIntegralHook;
     }
 
+    struct HyperCoreHookAddresses {
+        address hyperCoreAddApiWalletHook;
+        address hyperCoreUsdClassTransferHook;
+        address hyperCoreSendAssetHook;
+        address hyperCoreApproveBuilderFeeHook;
+        address approveAndHyperCoreDepositUsdcPerpHook;
+    }
+
     struct DETHHookAddresses {
         address requestRedeemDETHHook;
         address approveAndRequestRedeemDETHHook;
@@ -132,6 +140,16 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         console2.log("Deploying Firelight Hooks on chainId: ", chainId);
 
         _deployFirelightHooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
+    function runHyperCore(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        // Same gate as _deployAllHooks: CoreWriter must be configured for this chain (HyperEVM only)
+        require(otherHooksConfiguration.coreWriters[chainId] != address(0), "CoreWriter not configured for chain");
+        console2.log("Deploying HyperCore Hooks on chainId: ", chainId);
+
+        _deployHyperCoreHooks(chainId, env);
         _writeExportedContracts(chainId);
     }
 
@@ -227,6 +245,12 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         if (chainId == MAINNET_CHAIN_ID) {
             console2.log("Deploying Aave V4 Hooks on chainId: ", chainId);
             _deployAaveV4Hooks(chainId, env);
+        }
+
+        // HyperCore hooks — only on HyperEVM, where CoreWriter exists
+        if (otherHooksConfiguration.coreWriters[chainId] != address(0)) {
+            console2.log("Deploying HyperCore Hooks on chainId: ", chainId);
+            _deployHyperCoreHooks(chainId, env);
         }
 
         // Aave V3 hooks — only on chains where Aave V3 is deployed
@@ -337,9 +361,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             abi.encodePacked(__getOtherHooksBytecode("MorphoBorrowHook", env), morphoArg)
         );
         hooks[2] = HookDeployment(
-            MORPHO_REPAY_HOOK_KEY,
-            "",
-            abi.encodePacked(__getOtherHooksBytecode("MorphoRepayHook", env), morphoArg)
+            MORPHO_REPAY_HOOK_KEY, "", abi.encodePacked(__getOtherHooksBytecode("MorphoRepayHook", env), morphoArg)
         );
         hooks[3] = HookDeployment(
             MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY,
@@ -347,9 +369,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             abi.encodePacked(__getOtherHooksBytecode("MorphoRepayAndWithdrawHook", env), morphoArg)
         );
         hooks[4] = HookDeployment(
-            MORPHO_SUPPLY_HOOK_KEY,
-            "",
-            abi.encodePacked(__getOtherHooksBytecode("MorphoSupplyHook", env), morphoArg)
+            MORPHO_SUPPLY_HOOK_KEY, "", abi.encodePacked(__getOtherHooksBytecode("MorphoSupplyHook", env), morphoArg)
         );
         hooks[5] = HookDeployment(
             MORPHO_WITHDRAW_HOOK_KEY,
@@ -359,9 +379,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
         // Lender-side hook
         hooks[6] = HookDeployment(
-            MORPHO_LEND_HOOK_KEY,
-            "",
-            abi.encodePacked(__getOtherHooksBytecode("MorphoLendHook", env), morphoArg)
+            MORPHO_LEND_HOOK_KEY, "", abi.encodePacked(__getOtherHooksBytecode("MorphoLendHook", env), morphoArg)
         );
 
         // MetaMorpho reallocate hook (no constructor args)
@@ -385,16 +403,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             Strings.equal(hooks[0].name, MORPHO_SUPPLY_AND_BORROW_HOOK_KEY) ? addresses[0] : address(0);
         hookAddresses.morphoBorrowHook =
             Strings.equal(hooks[1].name, MORPHO_BORROW_ONLY_HOOK_KEY) ? addresses[1] : address(0);
-        hookAddresses.morphoRepayHook =
-            Strings.equal(hooks[2].name, MORPHO_REPAY_HOOK_KEY) ? addresses[2] : address(0);
+        hookAddresses.morphoRepayHook = Strings.equal(hooks[2].name, MORPHO_REPAY_HOOK_KEY) ? addresses[2] : address(0);
         hookAddresses.morphoRepayAndWithdrawHook =
             Strings.equal(hooks[3].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[3] : address(0);
         hookAddresses.morphoSupplyHook =
             Strings.equal(hooks[4].name, MORPHO_SUPPLY_HOOK_KEY) ? addresses[4] : address(0);
         hookAddresses.morphoWithdrawHook =
             Strings.equal(hooks[5].name, MORPHO_WITHDRAW_HOOK_KEY) ? addresses[5] : address(0);
-        hookAddresses.morphoLendHook =
-            Strings.equal(hooks[6].name, MORPHO_LEND_HOOK_KEY) ? addresses[6] : address(0);
+        hookAddresses.morphoLendHook = Strings.equal(hooks[6].name, MORPHO_LEND_HOOK_KEY) ? addresses[6] : address(0);
         hookAddresses.metaMorphoReallocateHook =
             Strings.equal(hooks[7].name, META_MORPHO_REALLOCATE_HOOK_KEY) ? addresses[7] : address(0);
         hookAddresses.forceDeallocateMorphoHook =
@@ -409,9 +425,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(hookAddresses.morphoWithdrawHook != address(0), "MorphoWithdrawHook not assigned");
         require(hookAddresses.morphoLendHook != address(0), "MorphoLendHook not assigned");
         require(hookAddresses.metaMorphoReallocateHook != address(0), "MetaMorphoReallocateHook not assigned");
-        require(
-            hookAddresses.forceDeallocateMorphoHook != address(0), "ForceDeallocateMorphoHook not assigned"
-        );
+        require(hookAddresses.forceDeallocateMorphoHook != address(0), "ForceDeallocateMorphoHook not assigned");
 
         console2.log("All Morpho hooks deployed and validated successfully.");
 
@@ -439,18 +453,10 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address[] memory addresses = new address[](len);
 
         // Aave V4 hooks have no constructor args
-        hooks[0] = HookDeployment(
-            AAVE_V4_SUPPLY_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4SupplyHook", env)
-        );
-        hooks[1] = HookDeployment(
-            AAVE_V4_WITHDRAW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4WithdrawHook", env)
-        );
-        hooks[2] = HookDeployment(
-            AAVE_V4_BORROW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4BorrowHook", env)
-        );
-        hooks[3] = HookDeployment(
-            AAVE_V4_REPAY_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4RepayHook", env)
-        );
+        hooks[0] = HookDeployment(AAVE_V4_SUPPLY_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4SupplyHook", env));
+        hooks[1] = HookDeployment(AAVE_V4_WITHDRAW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4WithdrawHook", env));
+        hooks[2] = HookDeployment(AAVE_V4_BORROW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4BorrowHook", env));
+        hooks[3] = HookDeployment(AAVE_V4_REPAY_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4RepayHook", env));
         hooks[4] = HookDeployment(
             AAVE_V4_SUPPLY_AND_BORROW_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4SupplyAndBorrowHook", env)
         );
@@ -557,14 +563,10 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
         // Firelight hooks have no constructor args
         hooks[0] = HookDeployment(
-            REDEEM_FIRELIGHT_VAULT_HOOK_KEY,
-            "",
-            __getOtherHooksBytecode("RedeemFirelightVaultHook", env)
+            REDEEM_FIRELIGHT_VAULT_HOOK_KEY, "", __getOtherHooksBytecode("RedeemFirelightVaultHook", env)
         );
         hooks[1] = HookDeployment(
-            CLAIM_WITHDRAW_FIRELIGHT_VAULT_HOOK_KEY,
-            "",
-            __getOtherHooksBytecode("ClaimWithdrawFirelightVaultHook", env)
+            CLAIM_WITHDRAW_FIRELIGHT_VAULT_HOOK_KEY, "", __getOtherHooksBytecode("ClaimWithdrawFirelightVaultHook", env)
         );
 
         for (uint256 i = 0; i < len; ++i) {
@@ -689,21 +691,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address[] memory addresses = new address[](len);
 
         // DETH hooks have no constructor args
-        hooks[0] = HookDeployment(
-            REQUEST_REDEEM_DETH_HOOK_KEY,
-            "",
-            __getOtherHooksBytecode("RequestRedeemDETHHook", env)
-        );
+        hooks[0] =
+            HookDeployment(REQUEST_REDEEM_DETH_HOOK_KEY, "", __getOtherHooksBytecode("RequestRedeemDETHHook", env));
         hooks[1] = HookDeployment(
             APPROVE_AND_REQUEST_REDEEM_DETH_HOOK_KEY,
             "",
             __getOtherHooksBytecode("ApproveAndRequestRedeemDETHHook", env)
         );
-        hooks[2] = HookDeployment(
-            CLAIM_ASSETS_DETH_HOOK_KEY,
-            "",
-            __getOtherHooksBytecode("ClaimAssetsDETHHook", env)
-        );
+        hooks[2] = HookDeployment(CLAIM_ASSETS_DETH_HOOK_KEY, "", __getOtherHooksBytecode("ClaimAssetsDETHHook", env));
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
@@ -718,8 +713,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
         require(hookAddresses.requestRedeemDETHHook != address(0), "RequestRedeemDETHHook not assigned");
         require(
-            hookAddresses.approveAndRequestRedeemDETHHook != address(0),
-            "ApproveAndRequestRedeemDETHHook not assigned"
+            hookAddresses.approveAndRequestRedeemDETHHook != address(0), "ApproveAndRequestRedeemDETHHook not assigned"
         );
         require(hookAddresses.claimAssetsDETHHook != address(0), "ClaimAssetsDETHHook not assigned");
 
@@ -733,13 +727,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Deploy NativeFeeSponsorship (no constructor args) and FetchNativeFeeHook (takes sponsorship address)
-    function _deploySponsorshipContracts(
-        uint64 chainId,
-        uint256 env
-    )
-        internal
-        returns (SponsorshipAddresses memory)
-    {
+    function _deploySponsorshipContracts(uint64 chainId, uint256 env) internal returns (SponsorshipAddresses memory) {
         // First deploy NativeFeeSponsorship (no constructor args)
         address sponsorship = __deployContract(
             NATIVE_FEE_SPONSORSHIP_KEY,
@@ -802,9 +790,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         hooks[4] = HookDeployment(
             WITHDRAW_VESTED_RFLR_HOOK_KEY,
             "",
-            abi.encodePacked(
-                __getOtherHooksBytecode("WithdrawVestedRFLRHook", env), abi.encode(RNAT_FLARE, WFLR_FLARE)
-            )
+            abi.encodePacked(__getOtherHooksBytecode("WithdrawVestedRFLRHook", env), abi.encode(RNAT_FLARE, WFLR_FLARE))
         );
 
         for (uint256 i = 0; i < len; ++i) {
@@ -880,9 +866,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         bytes memory routerArg = abi.encode(otherHooksConfiguration.odosRouterV3s[chainId]);
 
         hooks[0] = HookDeployment(
-            SWAP_ODOSV3_HOOK_KEY,
-            "",
-            abi.encodePacked(__getOtherHooksBytecode("SwapOdosV3Hook", env), routerArg)
+            SWAP_ODOSV3_HOOK_KEY, "", abi.encodePacked(__getOtherHooksBytecode("SwapOdosV3Hook", env), routerArg)
         );
         hooks[1] = HookDeployment(
             APPROVE_AND_SWAP_ODOSV3_HOOK_KEY,
@@ -958,12 +942,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         hooks[0] = HookDeployment(
             EULER_DEPOSIT_COLLATERAL_HOOK_KEY, "", __getOtherHooksBytecode("EulerDepositCollateralHook", env)
         );
-        hooks[1] = HookDeployment(
-            EULER_BORROW_HOOK_KEY, "", __getOtherHooksBytecode("EulerBorrowHook", env)
-        );
-        hooks[2] = HookDeployment(
-            EULER_REPAY_HOOK_KEY, "", __getOtherHooksBytecode("EulerRepayHook", env)
-        );
+        hooks[1] = HookDeployment(EULER_BORROW_HOOK_KEY, "", __getOtherHooksBytecode("EulerBorrowHook", env));
+        hooks[2] = HookDeployment(EULER_REPAY_HOOK_KEY, "", __getOtherHooksBytecode("EulerRepayHook", env));
         hooks[3] = HookDeployment(
             EULER_WITHDRAW_COLLATERAL_HOOK_KEY, "", __getOtherHooksBytecode("EulerWithdrawCollateralHook", env)
         );
@@ -1002,6 +982,123 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         console2.log("All Euler hooks deployed and validated successfully.");
 
         return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        HYPERCORE HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Deploys the Hyperliquid CoreWriter hook family plus the HyperCore deposit hook
+    /// @dev Gated on CoreWriter being configured for the chain, so this is HyperEVM-only.
+    ///      The four CoreWriter leaves share a single constructor arg; the deposit hook is not a
+    ///      CoreWriter hook and pins its token, gateway and undocumented uint32 as immutables.
+    function _deployHyperCoreHooks(uint64 chainId, uint256 env) internal returns (HyperCoreHookAddresses memory) {
+        HyperCoreHookAddresses memory hookAddresses;
+
+        uint256 len = 5;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        bytes memory coreWriterArg = abi.encode(otherHooksConfiguration.coreWriters[chainId]);
+        bytes memory builderFeeArgs =
+            abi.encode(otherHooksConfiguration.coreWriters[chainId], HYPERCORE_MAX_BUILDER_FEE_RATE_PERPS);
+        bytes memory depositArgs = _hyperCoreDepositArgsForChain(chainId);
+
+        hooks[0] = HookDeployment(
+            HYPERCORE_ADD_API_WALLET_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("HyperCoreAddApiWalletHook", env), coreWriterArg)
+        );
+        hooks[1] = HookDeployment(
+            HYPERCORE_USD_CLASS_TRANSFER_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("HyperCoreUsdClassTransferHook", env), coreWriterArg)
+        );
+        hooks[2] = HookDeployment(
+            HYPERCORE_SEND_ASSET_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("HyperCoreSendAssetHook", env), coreWriterArg)
+        );
+        hooks[3] = HookDeployment(
+            HYPERCORE_APPROVE_BUILDER_FEE_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("HyperCoreApproveBuilderFeeHook", env), builderFeeArgs)
+        );
+        hooks[4] = HookDeployment(
+            APPROVE_AND_HYPERCORE_DEPOSIT_USDC_PERP_HOOK_KEY,
+            "",
+            // The key names the instance; the bytecode lookup names the contract. They differ here
+            // because one contract ships once per (token, destinationDex) pair — see the key's
+            // rationale in ConstantsOtherHooks.
+            abi.encodePacked(__getOtherHooksBytecode("ApproveAndHyperCoreDepositHook", env), depositArgs)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        hookAddresses.hyperCoreAddApiWalletHook = addresses[0];
+        hookAddresses.hyperCoreUsdClassTransferHook = addresses[1];
+        hookAddresses.hyperCoreSendAssetHook = addresses[2];
+        hookAddresses.hyperCoreApproveBuilderFeeHook = addresses[3];
+        hookAddresses.approveAndHyperCoreDepositUsdcPerpHook = addresses[4];
+
+        require(hookAddresses.hyperCoreAddApiWalletHook != address(0), "HyperCoreAddApiWalletHook not assigned");
+        require(hookAddresses.hyperCoreUsdClassTransferHook != address(0), "HyperCoreUsdClassTransferHook not assigned");
+        require(hookAddresses.hyperCoreSendAssetHook != address(0), "HyperCoreSendAssetHook not assigned");
+        require(
+            hookAddresses.hyperCoreApproveBuilderFeeHook != address(0), "HyperCoreApproveBuilderFeeHook not assigned"
+        );
+        require(
+            hookAddresses.approveAndHyperCoreDepositUsdcPerpHook != address(0),
+            "ApproveAndHyperCoreDepositUsdcPerpHook not assigned"
+        );
+
+        console2.log("All HyperCore hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    /// @notice Builds the deposit hook's constructor args for a chain's shipping configuration
+    /// @dev The wiring the deploy path actually uses: USDC, its gateway, and a perp destinationDex
+    ///      so deposits land straight in perp margin. Separate from the guard below so a test can
+    ///      assert the wiring itself, not a copy of it — flipping this to SPOT would otherwise
+    ///      silently move where user deposits land and reinstate the usdClassTransfer leg.
+    function _hyperCoreDepositArgsForChain(uint64 chainId) internal view returns (bytes memory) {
+        return _hyperCoreDepositArgs(
+            otherHooksConfiguration.hyperCoreUsdcs[chainId],
+            otherHooksConfiguration.hyperCoreUsdcGateways[chainId],
+            HYPERCORE_DESTINATION_DEX_PERP
+        );
+    }
+
+    /// @notice Validates a (token, destinationDex) pairing and encodes the deposit hook's args
+    /// @dev A destinationDex only credits the asset its dex is quoted in. Pairing a token with a dex
+    ///      not quoted in it emits a CoreWriter action 13 HyperCore will not credit — and CoreWriter
+    ///      cannot revert, so the EVM receipt is green and the funds are simply stranded.
+    /// @dev Only dex 0 and spot are accepted. Dex 0's quote asset is known to be USDC, so that
+    ///      pairing is enforced. Every other perp dex is rejected rather than guessed at: under
+    ///      HIP-3 a builder-deployed dex picks its own collateral asset, so "not spot" does not imply
+    ///      "quoted in USDC". Inferring it would both reject a legitimate non-USDC pairing on a dex
+    ///      quoted in that token and accept USDC on a dex that is not — the exact stranding this
+    ///      guard exists to prevent. Supporting a HIP-3 dex is a decision someone must come back and
+    ///      make explicitly.
+    /// @dev Passing both halves means a caller that uses this function cannot skip the check.
+    ///      Nothing forces a future call site to use it — that is convention, not enforcement.
+    /// @param token The ERC-20 the instance will deposit
+    /// @param gateway That token's HyperCore deposit gateway
+    /// @param dex HYPERCORE_DESTINATION_DEX_PERP (dex 0) or HYPERCORE_DESTINATION_DEX_SPOT
+    function _hyperCoreDepositArgs(address token, address gateway, uint32 dex) internal pure returns (bytes memory) {
+        require(
+            dex == HYPERCORE_DESTINATION_DEX_PERP || dex == HYPERCORE_DESTINATION_DEX_SPOT,
+            "HyperCore deposit: unsupported destinationDex"
+        );
+        if (dex == HYPERCORE_DESTINATION_DEX_PERP) {
+            require(token == HYPERCORE_USDC_HYPEREVM, "HyperCore deposit: perp destinationDex requires the quote asset");
+        }
+        return abi.encode(token, gateway, dex);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1046,12 +1143,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         hookAddresses.morphoSupplyAndBorrowHookV2 = addresses[0];
         hookAddresses.morphoRepayAndWithdrawHookV2 = addresses[1];
 
-        require(
-            hookAddresses.morphoSupplyAndBorrowHookV2 != address(0), "MorphoSupplyAndBorrowHookV2 not assigned"
-        );
-        require(
-            hookAddresses.morphoRepayAndWithdrawHookV2 != address(0), "MorphoRepayAndWithdrawHookV2 not assigned"
-        );
+        require(hookAddresses.morphoSupplyAndBorrowHookV2 != address(0), "MorphoSupplyAndBorrowHookV2 not assigned");
+        require(hookAddresses.morphoRepayAndWithdrawHookV2 != address(0), "MorphoRepayAndWithdrawHookV2 not assigned");
 
         console2.log("All Morpho V2 hooks deployed and validated successfully.");
 
