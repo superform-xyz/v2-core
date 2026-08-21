@@ -18,6 +18,7 @@ library HookSubTypes {
     bytes32 public constant ERC4626 = keccak256(bytes("ERC4626"));
     bytes32 public constant ERC5115 = keccak256(bytes("ERC5115"));
     bytes32 public constant ERC7540 = keccak256(bytes("ERC7540"));
+    bytes32 public constant HYPERCORE = keccak256(bytes("HyperCore"));
     bytes32 public constant LOAN = keccak256(bytes("Loan"));
     bytes32 public constant LOAN_REPAY = keccak256(bytes("LoanRepay"));
     bytes32 public constant MISC = keccak256(bytes("Misc"));

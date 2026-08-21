@@ -143,6 +143,15 @@ import {
 import { Swap1InchHook } from "../../../src/hooks/swappers/1inch/Swap1InchHook.sol";
 import { BatchTransferHook } from "../../../src/hooks/tokens/BatchTransferHook.sol";
 
+// ═══════════════════════════════════════════════════
+//  HYPERCORE HOOKS
+// ═══════════════════════════════════════════════════
+import { HyperCoreAddApiWalletHook } from "../../../src/hooks/hypercore/HyperCoreAddApiWalletHook.sol";
+import { HyperCoreUsdClassTransferHook } from "../../../src/hooks/hypercore/HyperCoreUsdClassTransferHook.sol";
+import { HyperCoreSendAssetHook } from "../../../src/hooks/hypercore/HyperCoreSendAssetHook.sol";
+import { HyperCoreApproveBuilderFeeHook } from "../../../src/hooks/hypercore/HyperCoreApproveBuilderFeeHook.sol";
+import { ApproveAndHyperCoreDepositHook } from "../../../src/hooks/hypercore/ApproveAndHyperCoreDepositHook.sol";
+
 // ═══════════════════════════════════════════════════════
 //  BRIDGE HOOKS
 // ═══════════════════════════════════════════════════════
@@ -379,6 +388,13 @@ contract HookSizingInterfaceTest is Helpers {
     EthenaUnstakeHook ethenaUnstake;
     MetaMorphoReallocateHook metaMorphoReallocate;
 
+    // ──────── HyperCore hooks (4 S2 leaves + 1 S1 deposit) ────────
+    HyperCoreAddApiWalletHook hyperCoreAddApiWallet;
+    HyperCoreUsdClassTransferHook hyperCoreUsdClassTransfer;
+    HyperCoreSendAssetHook hyperCoreSendAsset;
+    HyperCoreApproveBuilderFeeHook hyperCoreApproveBuilderFee;
+    ApproveAndHyperCoreDepositHook approveAndHyperCoreDeposit;
+
     function setUp() public {
         // ── Token denomination hooks ──
         transferERC20 = new TransferERC20Hook();
@@ -520,6 +536,13 @@ contract HookSizingInterfaceTest is Helpers {
         offrampTokens = new OfframpTokensHook();
         ethenaUnstake = new EthenaUnstakeHook();
         metaMorphoReallocate = new MetaMorphoReallocateHook();
+
+        // ── HyperCore hooks ──
+        hyperCoreAddApiWallet = new HyperCoreAddApiWalletHook(DUMMY_ROUTER);
+        hyperCoreUsdClassTransfer = new HyperCoreUsdClassTransferHook(DUMMY_ROUTER);
+        hyperCoreSendAsset = new HyperCoreSendAssetHook(DUMMY_ROUTER);
+        hyperCoreApproveBuilderFee = new HyperCoreApproveBuilderFeeHook(DUMMY_ROUTER, 100);
+        approveAndHyperCoreDeposit = new ApproveAndHyperCoreDepositHook(DUMMY_ROUTER, DUMMY_NATIVE, 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -4307,6 +4330,11 @@ contract HookSizingInterfaceTest is Helpers {
         assertTrue(ethenaUnstake.supportsInterface(iid), "ethenaUnstake");
         assertTrue(metaMorphoReallocate.supportsInterface(iid), "metaMorphoReallocate");
         assertTrue(pendleRouterSwap.supportsInterface(iid), "pendleRouterSwap");
+        // HyperCore S2 leaves
+        assertTrue(hyperCoreAddApiWallet.supportsInterface(iid), "hyperCoreAddApiWallet");
+        assertTrue(hyperCoreUsdClassTransfer.supportsInterface(iid), "hyperCoreUsdClassTransfer");
+        assertTrue(hyperCoreSendAsset.supportsInterface(iid), "hyperCoreSendAsset");
+        assertTrue(hyperCoreApproveBuilderFee.supportsInterface(iid), "hyperCoreApproveBuilderFee");
     }
 
     /// @dev All newly-S2 hooks must NOT support ISuperHookOutflow
@@ -4339,6 +4367,11 @@ contract HookSizingInterfaceTest is Helpers {
         assertFalse(ethenaUnstake.supportsInterface(oid), "ethenaUnstake");
         assertFalse(metaMorphoReallocate.supportsInterface(oid), "metaMorphoReallocate");
         assertFalse(pendleRouterSwap.supportsInterface(oid), "pendleRouterSwap");
+        // HyperCore S2 leaves
+        assertFalse(hyperCoreAddApiWallet.supportsInterface(oid), "hyperCoreAddApiWallet");
+        assertFalse(hyperCoreUsdClassTransfer.supportsInterface(oid), "hyperCoreUsdClassTransfer");
+        assertFalse(hyperCoreSendAsset.supportsInterface(oid), "hyperCoreSendAsset");
+        assertFalse(hyperCoreApproveBuilderFee.supportsInterface(oid), "hyperCoreApproveBuilderFee");
     }
 
     /// @dev All newly-S2 hooks must return empty amountRoles
@@ -4355,6 +4388,10 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(ethenaUnstake.amountRoles("").length, 0, "ethenaUnstake");
         assertEq(metaMorphoReallocate.amountRoles("").length, 0, "metaMorphoReallocate");
         assertEq(pendleRouterSwap.amountRoles("").length, 0, "pendleRouterSwap");
+        assertEq(hyperCoreAddApiWallet.amountRoles("").length, 0, "hyperCoreAddApiWallet");
+        assertEq(hyperCoreUsdClassTransfer.amountRoles("").length, 0, "hyperCoreUsdClassTransfer");
+        assertEq(hyperCoreSendAsset.amountRoles("").length, 0, "hyperCoreSendAsset");
+        assertEq(hyperCoreApproveBuilderFee.amountRoles("").length, 0, "hyperCoreApproveBuilderFee");
     }
 
     /// @dev All newly-S2 hooks must return empty decodeAmounts
@@ -4371,6 +4408,10 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(ethenaUnstake.decodeAmounts("").length, 0, "ethenaUnstake");
         assertEq(metaMorphoReallocate.decodeAmounts("").length, 0, "metaMorphoReallocate");
         assertEq(pendleRouterSwap.decodeAmounts("").length, 0, "pendleRouterSwap");
+        assertEq(hyperCoreAddApiWallet.decodeAmounts("").length, 0, "hyperCoreAddApiWallet");
+        assertEq(hyperCoreUsdClassTransfer.decodeAmounts("").length, 0, "hyperCoreUsdClassTransfer");
+        assertEq(hyperCoreSendAsset.decodeAmounts("").length, 0, "hyperCoreSendAsset");
+        assertEq(hyperCoreApproveBuilderFee.decodeAmounts("").length, 0, "hyperCoreApproveBuilderFee");
     }
 
     /// @dev Spot-check: verify specific hooks return their expected descriptions
@@ -4388,7 +4429,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @notice Returns every hook instantiated in this test contract.
     function _allHooks() internal view returns (ISuperHook[] memory hooks) {
-        hooks = new ISuperHook[](119);
+        hooks = new ISuperHook[](124);
         uint256 i;
         // ── Token (7) ──
         hooks[i++] = ISuperHook(address(transferERC20));
@@ -4520,8 +4561,14 @@ contract HookSizingInterfaceTest is Helpers {
         hooks[i++] = ISuperHook(address(offrampTokens));
         hooks[i++] = ISuperHook(address(ethenaUnstake));
         hooks[i++] = ISuperHook(address(metaMorphoReallocate));
+        // ── HyperCore (5): 4 S2 leaves + 1 S1 deposit ──
+        hooks[i++] = ISuperHook(address(hyperCoreAddApiWallet));
+        hooks[i++] = ISuperHook(address(hyperCoreUsdClassTransfer));
+        hooks[i++] = ISuperHook(address(hyperCoreSendAsset));
+        hooks[i++] = ISuperHook(address(hyperCoreApproveBuilderFee));
+        hooks[i++] = ISuperHook(address(approveAndHyperCoreDeposit));
 
-        assertEq(i, 119, "allHooks count mismatch - add new hooks here");
+        assertEq(i, 124, "allHooks count mismatch - add new hooks here");
     }
 
     /// @dev CI guardrail: every INFLOW or OUTFLOW hook MUST support both sizing interfaces.

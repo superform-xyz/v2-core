@@ -328,6 +328,10 @@ amountMeta:
   EthenaUnstakeHook: []
   MetaMorphoReallocateHook: []
   PendleRouterSwapHook: []
+  HyperCoreAddApiWalletHook: []
+  HyperCoreUsdClassTransferHook: []
+  HyperCoreSendAssetHook: []
+  HyperCoreApproveBuilderFeeHook: []
   # Compound (dual amount)
   MorphoSupplyAndBorrowHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV4SupplyAndBorrowHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
@@ -386,3 +390,19 @@ sizelessHooks:
   - EthenaUnstakeHook
   - MetaMorphoReallocateHook
   - PendleRouterSwapHook
+  - HyperCoreAddApiWalletHook
+  - HyperCoreUsdClassTransferHook
+  - HyperCoreSendAssetHook
+  - HyperCoreApproveBuilderFeeHook
+
+# ── Per-instance deployments ───────────────────────────────────────────────────
+# A few contracts deploy once per instance rather than once per chain, so their
+# registration key differs from the contract name (ApproveAndHyperCoreDeposit ships
+# one instance per token + destinationDex, keyed <Token><Dex>Hook). The manifest is
+# keyed by the REGISTRATION KEY so addresses resolve by what was actually deployed;
+# the classification/source entry stays under the contract name (lint completeness
+# keys on that). `tag` is the resolution selection tag derived from the key.
+instances:
+  ApproveAndHyperCoreDepositHook:
+    - key: ApproveAndHyperCoreDepositUsdcPerpHook
+      tag: usdc-perp

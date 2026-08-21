@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-08-12T13:07:41Z",
+  "generatedAt": "2026-08-21T06:33:26Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -5353,18 +5353,60 @@
       ],
       "addresses": {
         "staging": {
-          "4663": "0x6f40b726Dd10090B37484b498c889995cF1e4001"
+          "1": "0x6f40b726Dd10090B37484b498c889995cF1e4001",
+          "56": "0x6f40b726Dd10090B37484b498c889995cF1e4001",
+          "999": "0x6f40b726Dd10090B37484b498c889995cF1e4001",
+          "4663": "0x6f40b726Dd10090B37484b498c889995cF1e4001",
+          "8453": "0x6f40b726Dd10090B37484b498c889995cF1e4001",
+          "42161": "0x6f40b726Dd10090B37484b498c889995cF1e4001",
+          "43114": "0x6f40b726Dd10090B37484b498c889995cF1e4001"
         },
         "prod": {
-          "4663": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352"
+          "1": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "10": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "56": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "100": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "130": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "137": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "146": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "480": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "988": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "999": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "4663": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "8453": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "42161": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "43114": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352",
+          "59144": "0xD71b913cf1325F8a73A1B033DE185F8F4A03b60D",
+          "80094": "0x16cEAaF4218791b81Be291ECc1C0630E9bB04352"
         }
       },
       "availableChains": {
         "staging": [
-          "4663"
+          "1",
+          "56",
+          "999",
+          "4663",
+          "8453",
+          "42161",
+          "43114"
         ],
         "prod": [
-          "4663"
+          "1",
+          "10",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "4663",
+          "8453",
+          "42161",
+          "43114",
+          "59144",
+          "80094"
         ]
       },
       "amountMeta": [
@@ -5401,18 +5443,60 @@
       ],
       "addresses": {
         "staging": {
-          "4663": "0xc8aD7bFF7f6db9b2eF62401A0eCbd17Aaa4Ad4f4"
+          "1": "0xc8aD7bFF7f6db9b2eF62401A0eCbd17Aaa4Ad4f4",
+          "56": "0xc8aD7bFF7f6db9b2eF62401A0eCbd17Aaa4Ad4f4",
+          "999": "0xc8aD7bFF7f6db9b2eF62401A0eCbd17Aaa4Ad4f4",
+          "4663": "0xc8aD7bFF7f6db9b2eF62401A0eCbd17Aaa4Ad4f4",
+          "8453": "0xc8aD7bFF7f6db9b2eF62401A0eCbd17Aaa4Ad4f4",
+          "42161": "0xc8aD7bFF7f6db9b2eF62401A0eCbd17Aaa4Ad4f4",
+          "43114": "0xc8aD7bFF7f6db9b2eF62401A0eCbd17Aaa4Ad4f4"
         },
         "prod": {
-          "4663": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C"
+          "1": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "10": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "56": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "100": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "130": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "137": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "146": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "480": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "988": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "999": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "4663": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "8453": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "42161": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "43114": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C",
+          "59144": "0x57a31461993f0Dba34D5208EF18D2E255bA0baA1",
+          "80094": "0xAB079057e27DE6c58f04B9Ebccd3685FF6B4c45C"
         }
       },
       "availableChains": {
         "staging": [
-          "4663"
+          "1",
+          "56",
+          "999",
+          "4663",
+          "8453",
+          "42161",
+          "43114"
         ],
         "prod": [
-          "4663"
+          "1",
+          "10",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "4663",
+          "8453",
+          "42161",
+          "43114",
+          "59144",
+          "80094"
         ]
       },
       "amountMeta": [
@@ -6276,6 +6360,54 @@
       "compatibleProtocols": [
         "circle-gateway"
       ]
+    },
+    "ApproveAndHyperCoreDepositUsdcPerpHook": {
+      "name": "Approve and HyperCore Deposit",
+      "description": "Deposits an ERC-20 into a HyperCore balance",
+      "hookType": "NONACCOUNTING",
+      "subtype": "HYPERCORE",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {
+          "999": "0x53F3b58bEa6C004Bbc454fDf5A6acdB23431734A"
+        },
+        "prod": {
+          "999": "0xCF90E02ede782E6Cdce58fA6E4d2509614dF784D"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "999"
+        ],
+        "prod": [
+          "999"
+        ]
+      },
+      "contract": "ApproveAndHyperCoreDepositHook",
+      "tag": "usdc-perp",
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
     },
     "DeBridgeCancelOrderHook": {
       "name": "deBridge Cancel Order",
@@ -8032,6 +8164,82 @@
         "permit2"
       ]
     },
+    "HyperCoreUsdClassTransferHook": {
+      "name": "HyperCore USD Class Transfer",
+      "description": "Moves USDC between HyperCore spot and perp margin",
+      "hookType": "NONACCOUNTING",
+      "subtype": "HYPERCORE",
+      "actionTypes": [
+        {
+          "intent": "transfer",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "999": "0x66194363DDeA94e301D8A128Bb0a1f4E3c605623"
+        },
+        "prod": {
+          "999": "0x0E4eDd421D0707A454C3c0435DeCF5D708A8b29C"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "999"
+        ],
+        "prod": [
+          "999"
+        ]
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
+    "HyperCoreSendAssetHook": {
+      "name": "HyperCore Send Asset",
+      "description": "Sends a HyperCore spot balance to another account",
+      "hookType": "NONACCOUNTING",
+      "subtype": "HYPERCORE",
+      "actionTypes": [
+        {
+          "intent": "transfer",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "999": "0xeE0ef54d1BAA59aA1786AaA37B5F38D2D7e26193"
+        },
+        "prod": {
+          "999": "0x65aea557e595b9e841Da9F47aae8EacC4650Ea6a"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "999"
+        ],
+        "prod": [
+          "999"
+        ]
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
     "MetaMorphoReallocateHook": {
       "name": "MetaMorpho Reallocate",
       "description": "Reallocates liquidity across MetaMorpho vault markets",
@@ -8862,21 +9070,21 @@
       "legSizing": [],
       "addresses": {
         "staging": {
-          "1": "0x8987332B6459C6d57D308E1D9Fd4e0935CD72E01",
-          "56": "0x8987332B6459C6d57D308E1D9Fd4e0935CD72E01",
-          "999": "0x8987332B6459C6d57D308E1D9Fd4e0935CD72E01",
-          "8453": "0x8987332B6459C6d57D308E1D9Fd4e0935CD72E01",
-          "42161": "0x8987332B6459C6d57D308E1D9Fd4e0935CD72E01"
+          "1": "0xDA4BbdC5CF3D00120Dbf22e345231868e080dB3C",
+          "56": "0xDA4BbdC5CF3D00120Dbf22e345231868e080dB3C",
+          "999": "0xDA4BbdC5CF3D00120Dbf22e345231868e080dB3C",
+          "8453": "0xDA4BbdC5CF3D00120Dbf22e345231868e080dB3C",
+          "42161": "0xDA4BbdC5CF3D00120Dbf22e345231868e080dB3C"
         },
         "prod": {
-          "1": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
-          "10": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
-          "56": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
-          "146": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
-          "999": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
-          "8453": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
-          "42161": "0xA0004DaF493a2A37095795482980bf0bb8B231a1",
-          "80094": "0xA0004DaF493a2A37095795482980bf0bb8B231a1"
+          "1": "0x9103dfEdFA1031a2024C389F2629422a8bFaf668",
+          "10": "0x9103dfEdFA1031a2024C389F2629422a8bFaf668",
+          "56": "0x9103dfEdFA1031a2024C389F2629422a8bFaf668",
+          "146": "0x9103dfEdFA1031a2024C389F2629422a8bFaf668",
+          "999": "0x9103dfEdFA1031a2024C389F2629422a8bFaf668",
+          "8453": "0x9103dfEdFA1031a2024C389F2629422a8bFaf668",
+          "42161": "0x9103dfEdFA1031a2024C389F2629422a8bFaf668",
+          "80094": "0x9103dfEdFA1031a2024C389F2629422a8bFaf668"
         }
       },
       "availableChains": {
@@ -9333,6 +9541,82 @@
       "compatibleProtocols": [
         "circle-gateway"
       ]
+    },
+    "HyperCoreAddApiWalletHook": {
+      "name": "HyperCore Add API Wallet",
+      "description": "Enrols a trading agent on HyperCore",
+      "hookType": "NONACCOUNTING",
+      "subtype": "HYPERCORE",
+      "actionTypes": [
+        {
+          "intent": "permissions",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "999": "0xd0a2448b0F81E5De7F64d1be6AEc081B55aeDF1f"
+        },
+        "prod": {
+          "999": "0x7d4610dbEe9A5DDD4DF43F438dd1C1709D431385"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "999"
+        ],
+        "prod": [
+          "999"
+        ]
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
+    "HyperCoreApproveBuilderFeeHook": {
+      "name": "HyperCore Approve Builder Fee",
+      "description": "Approves a builder fee on HyperCore orders",
+      "hookType": "NONACCOUNTING",
+      "subtype": "HYPERCORE",
+      "actionTypes": [
+        {
+          "intent": "permissions",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {
+          "999": "0xdC712C0a09bcc5FCE24CdA6785D6A9653ce0273A"
+        },
+        "prod": {
+          "999": "0xe4cF68598878B13Bec9985baBc46Cc6b6733164e"
+        }
+      },
+      "availableChains": {
+        "staging": [
+          "999"
+        ],
+        "prod": [
+          "999"
+        ]
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
     },
     "MorphoSupplyAndBorrowHook": {
       "name": "Morpho Supply and Borrow",

@@ -17,6 +17,9 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         mapping(uint64 chainId => address odosRouterV3) odosRouterV3s;
         mapping(uint64 chainId => address spectraRouter) spectraRouters;
         mapping(uint64 chainId => address aaveV3Pool) aaveV3Pools;
+        mapping(uint64 chainId => address coreWriter) coreWriters;
+        mapping(uint64 chainId => address hyperCoreUsdc) hyperCoreUsdcs;
+        mapping(uint64 chainId => address hyperCoreUsdcGateway) hyperCoreUsdcGateways;
     }
 
     OtherHooksData internal otherHooksConfiguration;
@@ -71,5 +74,10 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         otherHooksConfiguration.odosRouterV3s[AVALANCHE_CHAIN_ID] = ODOS_ROUTER_V3;
         otherHooksConfiguration.odosRouterV3s[SONIC_CHAIN_ID] = ODOS_ROUTER_V3;
         otherHooksConfiguration.odosRouterV3s[LINEA_CHAIN_ID] = ODOS_ROUTER_V3;
+
+        // HyperCore hooks — HyperEVM only. Presence of coreWriters gates the whole family.
+        otherHooksConfiguration.coreWriters[HYPEREVM_CHAIN_ID] = CORE_WRITER;
+        otherHooksConfiguration.hyperCoreUsdcs[HYPEREVM_CHAIN_ID] = HYPERCORE_USDC_HYPEREVM;
+        otherHooksConfiguration.hyperCoreUsdcGateways[HYPEREVM_CHAIN_ID] = HYPERCORE_USDC_GATEWAY_HYPEREVM;
     }
 }

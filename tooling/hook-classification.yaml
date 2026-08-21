@@ -1,5 +1,5 @@
 # Hook Classification Manifest
-# Canonical intent x stage classification for all 125 hooks in v2-core
+# Canonical intent x stage classification for all 143 hooks in v2-core
 # CI-linted against on-chain hookType via scripts/lint_hook_manifest.py
 #
 # Design invariants:
@@ -375,10 +375,10 @@ hooks:
     legSizing: [sized]
 
   # ============================================================
-  # BRIDGE (15 hooks)
+  # BRIDGE (18 hooks)
   # ============================================================
 
-  # bridge / instant (13)
+  # bridge / instant (16)
   AcrossSendFundsAndExecuteOnDstHook:
     actionTypes: [{intent: bridge, stage: instant}]
     legSizing: [sized]
@@ -438,6 +438,10 @@ hooks:
   CircleGatewayMinterHook:
     actionTypes: [{intent: bridge, stage: instant}]
     legSizing: []  # sizeless — amount in signed attestation
+
+  ApproveAndHyperCoreDepositHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]  # EVM -> HyperCore crossing; NONACCOUNTING like other bridge sends
 
   # bridge / cancel (1)
   DeBridgeCancelOrderHook:
@@ -545,7 +549,7 @@ hooks:
     legSizing: [sized]
 
   # ============================================================
-  # TRANSFER (6 hooks) — all instant
+  # TRANSFER (9 hooks) — all instant
   # ============================================================
 
   TransferERC20Hook:
@@ -575,6 +579,14 @@ hooks:
   BatchTransferFromHook:
     actionTypes: [{intent: transfer, stage: instant}]
     legSizing: []  # sizeless — amounts are Permit2 signature-bound
+
+  HyperCoreUsdClassTransferHook:
+    actionTypes: [{intent: transfer, stage: instant}]
+    legSizing: []  # sizeless — ntl is a HyperCore-unit uint64, S2 decode-only (not bundler-resizable)
+
+  HyperCoreSendAssetHook:
+    actionTypes: [{intent: transfer, stage: instant}]
+    legSizing: []  # sizeless — wei is a HyperCore-unit uint64, S2 decode-only (not bundler-resizable)
 
   # ============================================================
   # CONFIG (11 hooks) — all instant
@@ -633,7 +645,7 @@ hooks:
     legSizing: []  # sizeless — oracle recording, amount sourced from PendlePTHook TradeResult
 
   # ============================================================
-  # PERMISSIONS (4 hooks) — all instant
+  # PERMISSIONS (6 hooks) — all instant
   # ============================================================
 
   ApproveERC20Hook:
@@ -651,6 +663,14 @@ hooks:
   CircleGatewayRemoveDelegateHook:
     actionTypes: [{intent: permissions, stage: instant}]
     legSizing: []  # sizeless — delegate management
+
+  HyperCoreAddApiWalletHook:
+    actionTypes: [{intent: permissions, stage: instant}]
+    legSizing: []  # sizeless — agent enrolment, no amount
+
+  HyperCoreApproveBuilderFeeHook:
+    actionTypes: [{intent: permissions, stage: instant}]
+    legSizing: []  # sizeless — maxFeeRate is a rate, deliberately not bundler-resizable
 
   # ============================================================
   # COMPOUND (4 hooks) — multi-leg, array position = execution order (T1)
