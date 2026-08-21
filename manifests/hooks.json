@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-08-20T21:31:42Z",
+  "generatedAt": "2026-08-21T06:33:26Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -6361,7 +6361,7 @@
         "circle-gateway"
       ]
     },
-    "ApproveAndHyperCoreDepositHook": {
+    "ApproveAndHyperCoreDepositUsdcPerpHook": {
       "name": "Approve and HyperCore Deposit",
       "description": "Deposits an ERC-20 into a HyperCore balance",
       "hookType": "NONACCOUNTING",
@@ -6376,13 +6376,23 @@
         "sized"
       ],
       "addresses": {
-        "staging": {},
-        "prod": {}
+        "staging": {
+          "999": "0x53F3b58bEa6C004Bbc454fDf5A6acdB23431734A"
+        },
+        "prod": {
+          "999": "0xCF90E02ede782E6Cdce58fA6E4d2509614dF784D"
+        }
       },
       "availableChains": {
-        "staging": [],
-        "prod": []
+        "staging": [
+          "999"
+        ],
+        "prod": [
+          "999"
+        ]
       },
+      "contract": "ApproveAndHyperCoreDepositHook",
+      "tag": "usdc-perp",
       "amountMeta": [
         {
           "direction": "IN",

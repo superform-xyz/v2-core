@@ -246,42 +246,65 @@ def generate_manifest() -> dict:
         "hooks": {},
     }
 
+    instances_map = enrichment.get("instances", {}) if enrichment else {}
+
     for hook_name, class_data in classification["hooks"].items():
-        entry = {}
+        base = {}
 
         # On-chain fields from source parsing
         if hook_name in hook_sources:
             source_meta = parse_hook_source(hook_sources[hook_name])
             if "name" in source_meta:
-                entry["name"] = source_meta["name"]
+                base["name"] = source_meta["name"]
             if "description" in source_meta:
-                entry["description"] = source_meta["description"]
+                base["description"] = source_meta["description"]
             if "hookType" in source_meta:
-                entry["hookType"] = source_meta["hookType"]
+                base["hookType"] = source_meta["hookType"]
             if "subtype" in source_meta:
-                entry["subtype"] = source_meta["subtype"]
+                base["subtype"] = source_meta["subtype"]
 
         # Classification fields
-        entry["actionTypes"] = class_data["actionTypes"]
-        entry["legSizing"] = class_data["legSizing"]
+        base["actionTypes"] = class_data["actionTypes"]
+        base["legSizing"] = class_data["legSizing"]
 
-        # Deployment addresses per environment
-        staging_addrs = staging_addresses.get(hook_name, {})
-        prod_addrs = prod_addresses.get(hook_name, {})
-        entry["addresses"] = {
-            "staging": {k: staging_addrs[k] for k in sorted(staging_addrs.keys(), key=int)},
-            "prod": {k: prod_addrs[k] for k in sorted(prod_addrs.keys(), key=int)},
-        }
-        entry["availableChains"] = {
-            "staging": sorted(staging_addrs.keys(), key=int),
-            "prod": sorted(prod_addrs.keys(), key=int),
-        }
+        # A contract may deploy under several registration keys (one per token + destinationDex,
+        # e.g. ApproveAndHyperCoreDepositUsdcPerpHook). The manifest keys by the REGISTRATION KEY
+        # so addresses resolve by what was actually deployed and registered; the classification and
+        # source entry stay under the contract name (lint completeness keys on those). Contracts
+        # without instances keep one entry under the contract name (address lookup key == name).
+        instances = instances_map.get(hook_name)
+        targets = (
+            [(inst["key"], inst["key"], inst) for inst in instances]
+            if instances
+            else [(hook_name, hook_name, None)]
+        )
 
-        # Enrichment fields (off-chain classification)
-        if enrichment:
-            entry = enrich_hook(hook_name, entry, enrichment)
+        for manifest_key, lookup_key, inst in targets:
+            entry = dict(base)
 
-        manifest["hooks"][hook_name] = entry
+            # Deployment addresses per environment, resolved by the registration key
+            staging_addrs = staging_addresses.get(lookup_key, {})
+            prod_addrs = prod_addresses.get(lookup_key, {})
+            entry["addresses"] = {
+                "staging": {k: staging_addrs[k] for k in sorted(staging_addrs.keys(), key=int)},
+                "prod": {k: prod_addrs[k] for k in sorted(prod_addrs.keys(), key=int)},
+            }
+            entry["availableChains"] = {
+                "staging": sorted(staging_addrs.keys(), key=int),
+                "prod": sorted(prod_addrs.keys(), key=int),
+            }
+
+            # For an instance entry, record the contract it came from and its resolution tag
+            if inst is not None:
+                entry["contract"] = hook_name
+                if "tag" in inst:
+                    entry["tag"] = inst["tag"]
+
+            # Enrichment fields keyed by the contract name (shared across a contract's instances)
+            if enrichment:
+                entry = enrich_hook(hook_name, entry, enrichment)
+
+            manifest["hooks"][manifest_key] = entry
 
     return manifest
 
