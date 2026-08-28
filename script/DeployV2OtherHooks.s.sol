@@ -39,6 +39,24 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address aaveV3RepayWithATokensHook;
     }
 
+    struct MorphoV2HookAddresses {
+        address morphoSupplyAndBorrowHookV2;
+        address morphoRepayHookV2;
+        address morphoRepayAndWithdrawHookV2;
+    }
+
+    struct AaveV3V2HookAddresses {
+        address aaveV3SupplyAndBorrowHookV2;
+        address aaveV3RepayHookV2;
+        address aaveV3RepayAndWithdrawHookV2;
+    }
+
+    struct AaveV4V2HookAddresses {
+        address aaveV4SupplyAndBorrowHookV2;
+        address aaveV4RepayHookV2;
+        address aaveV4RepayAndWithdrawHookV2;
+    }
+
     struct FirelightHookAddresses {
         address redeemFirelightVaultHook;
         address claimWithdrawFirelightVaultHook;
@@ -179,6 +197,29 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    /// @notice Deploys the V2 (versioned) loan hook sets under the same chain gates as their V1
+    ///         counterparts: Morpho V2 where the Morpho singleton is configured, Aave V3 V2 where
+    ///         an Aave V3 pool is configured, Aave V4 V2 on Ethereum mainnet only
+    function runLoanHooksV2(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying V2 loan hooks on chainId: ", chainId);
+
+        if (otherHooksConfiguration.morphos[chainId] != address(0)) {
+            console2.log("Deploying Morpho V2 Hooks on chainId: ", chainId);
+            _deployMorphoV2Hooks(chainId, env);
+        }
+        if (otherHooksConfiguration.aaveV3Pools[chainId] != address(0)) {
+            console2.log("Deploying Aave V3 V2 Hooks on chainId: ", chainId);
+            _deployAaveV3V2Hooks(chainId, env);
+        }
+        if (chainId == MAINNET_CHAIN_ID) {
+            console2.log("Deploying Aave V4 V2 Hooks on chainId: ", chainId);
+            _deployAaveV4V2Hooks(chainId, env);
+        }
+
+        _writeExportedContracts(chainId);
+    }
+
     function runOdosV3(uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
         console2.log("Deploying Odos V3 Hooks on chainId: ", chainId);
@@ -209,12 +250,16 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         if (otherHooksConfiguration.morphos[chainId] != address(0)) {
             console2.log("Deploying Morpho Hooks on chainId: ", chainId);
             _deployMorphoHooks(chainId, env);
+            console2.log("Deploying Morpho V2 Hooks on chainId: ", chainId);
+            _deployMorphoV2Hooks(chainId, env);
         }
 
         // Aave V4 hooks — only on Ethereum mainnet (Aave V4 Hub-and-Spoke)
         if (chainId == MAINNET_CHAIN_ID) {
             console2.log("Deploying Aave V4 Hooks on chainId: ", chainId);
             _deployAaveV4Hooks(chainId, env);
+            console2.log("Deploying Aave V4 V2 Hooks on chainId: ", chainId);
+            _deployAaveV4V2Hooks(chainId, env);
         }
 
         // HyperCore hooks — only on HyperEVM, where CoreWriter exists
@@ -227,6 +272,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         if (otherHooksConfiguration.aaveV3Pools[chainId] != address(0)) {
             console2.log("Deploying Aave V3 Hooks on chainId: ", chainId);
             _deployAaveV3Hooks(chainId, env);
+            console2.log("Deploying Aave V3 V2 Hooks on chainId: ", chainId);
+            _deployAaveV3V2Hooks(chainId, env);
         }
 
         // Firelight hooks — only on Flare
@@ -386,6 +433,147 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(hookAddresses.forceDeallocateMorphoHook != address(0), "ForceDeallocateMorphoHook not assigned");
 
         console2.log("All Morpho hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    V2 LOAN HOOKS DEPLOYMENT (SUP-20796)
+    //////////////////////////////////////////////////////////////*/
+
+    function _deployMorphoV2Hooks(uint64 chainId, uint256 env) internal {
+        _deployMorphoV2HooksSet(chainId, env);
+    }
+
+    /// @notice Deploy the 3 Morpho V2 loan hooks (constructor arg: Morpho singleton)
+    function _deployMorphoV2HooksSet(
+        uint64 chainId,
+        uint256 env
+    )
+        private
+        returns (MorphoV2HookAddresses memory hookAddresses)
+    {
+        uint256 len = 3;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        bytes memory morphoArg = abi.encode(otherHooksConfiguration.morphos[chainId]);
+
+        hooks[0] = HookDeployment(
+            MORPHO_SUPPLY_AND_BORROW_HOOK_V2_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("MorphoSupplyAndBorrowHookV2", env), morphoArg)
+        );
+        hooks[1] = HookDeployment(
+            MORPHO_REPAY_HOOK_V2_KEY, "", abi.encodePacked(__getOtherHooksBytecode("MorphoRepayHookV2", env), morphoArg)
+        );
+        hooks[2] = HookDeployment(
+            MORPHO_REPAY_AND_WITHDRAW_HOOK_V2_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("MorphoRepayAndWithdrawHookV2", env), morphoArg)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        hookAddresses.morphoSupplyAndBorrowHookV2 = addresses[0];
+        hookAddresses.morphoRepayHookV2 = addresses[1];
+        hookAddresses.morphoRepayAndWithdrawHookV2 = addresses[2];
+
+        require(hookAddresses.morphoSupplyAndBorrowHookV2 != address(0), "MorphoSupplyAndBorrowHookV2 not assigned");
+        require(hookAddresses.morphoRepayHookV2 != address(0), "MorphoRepayHookV2 not assigned");
+        require(hookAddresses.morphoRepayAndWithdrawHookV2 != address(0), "MorphoRepayAndWithdrawHookV2 not assigned");
+
+        console2.log("All Morpho V2 hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    function _deployAaveV3V2Hooks(uint64 chainId, uint256 env) internal {
+        _deployAaveV3V2HooksSet(chainId, env);
+    }
+
+    /// @notice Deploy the 3 Aave V3 V2 loan hooks (no constructor args — Pool comes from calldata)
+    function _deployAaveV3V2HooksSet(
+        uint64 chainId,
+        uint256 env
+    )
+        private
+        returns (AaveV3V2HookAddresses memory hookAddresses)
+    {
+        uint256 len = 3;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        hooks[0] = HookDeployment(
+            AAVE_V3_SUPPLY_AND_BORROW_HOOK_V2_KEY, "", __getOtherHooksBytecode("AaveV3SupplyAndBorrowHookV2", env)
+        );
+        hooks[1] = HookDeployment(AAVE_V3_REPAY_HOOK_V2_KEY, "", __getOtherHooksBytecode("AaveV3RepayHookV2", env));
+        hooks[2] = HookDeployment(
+            AAVE_V3_REPAY_AND_WITHDRAW_HOOK_V2_KEY, "", __getOtherHooksBytecode("AaveV3RepayAndWithdrawHookV2", env)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        hookAddresses.aaveV3SupplyAndBorrowHookV2 = addresses[0];
+        hookAddresses.aaveV3RepayHookV2 = addresses[1];
+        hookAddresses.aaveV3RepayAndWithdrawHookV2 = addresses[2];
+
+        require(hookAddresses.aaveV3SupplyAndBorrowHookV2 != address(0), "AaveV3SupplyAndBorrowHookV2 not assigned");
+        require(hookAddresses.aaveV3RepayHookV2 != address(0), "AaveV3RepayHookV2 not assigned");
+        require(hookAddresses.aaveV3RepayAndWithdrawHookV2 != address(0), "AaveV3RepayAndWithdrawHookV2 not assigned");
+
+        console2.log("All Aave V3 V2 hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    function _deployAaveV4V2Hooks(uint64 chainId, uint256 env) internal {
+        _deployAaveV4V2HooksSet(chainId, env);
+    }
+
+    /// @notice Deploy the 3 Aave V4 V2 loan hooks (no constructor args — Spoke comes from calldata)
+    function _deployAaveV4V2HooksSet(
+        uint64 chainId,
+        uint256 env
+    )
+        private
+        returns (AaveV4V2HookAddresses memory hookAddresses)
+    {
+        uint256 len = 3;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        hooks[0] = HookDeployment(
+            AAVE_V4_SUPPLY_AND_BORROW_HOOK_V2_KEY, "", __getOtherHooksBytecode("AaveV4SupplyAndBorrowHookV2", env)
+        );
+        hooks[1] = HookDeployment(AAVE_V4_REPAY_HOOK_V2_KEY, "", __getOtherHooksBytecode("AaveV4RepayHookV2", env));
+        hooks[2] = HookDeployment(
+            AAVE_V4_REPAY_AND_WITHDRAW_HOOK_V2_KEY, "", __getOtherHooksBytecode("AaveV4RepayAndWithdrawHookV2", env)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        hookAddresses.aaveV4SupplyAndBorrowHookV2 = addresses[0];
+        hookAddresses.aaveV4RepayHookV2 = addresses[1];
+        hookAddresses.aaveV4RepayAndWithdrawHookV2 = addresses[2];
+
+        require(hookAddresses.aaveV4SupplyAndBorrowHookV2 != address(0), "AaveV4SupplyAndBorrowHookV2 not assigned");
+        require(hookAddresses.aaveV4RepayHookV2 != address(0), "AaveV4RepayHookV2 not assigned");
+        require(hookAddresses.aaveV4RepayAndWithdrawHookV2 != address(0), "AaveV4RepayAndWithdrawHookV2 not assigned");
+
+        console2.log("All Aave V4 V2 hooks deployed and validated successfully.");
 
         return hookAddresses;
     }

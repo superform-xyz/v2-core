@@ -223,6 +223,9 @@ MORPHO_HOOK_CONTRACTS=(
     "MorphoLendHook"
     "MetaMorphoReallocateHook"
     "ForceDeallocateMorphoHook"
+    "MorphoSupplyAndBorrowHookV2"
+    "MorphoRepayHookV2"
+    "MorphoRepayAndWithdrawHookV2"
 )
 
 # Aave V4 hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
@@ -233,6 +236,9 @@ AAVE_V4_HOOK_CONTRACTS=(
     "AaveV4RepayHook"
     "AaveV4SupplyAndBorrowHook"
     "AaveV4RepayAndWithdrawHook"
+    "AaveV4SupplyAndBorrowHookV2"
+    "AaveV4RepayHookV2"
+    "AaveV4RepayAndWithdrawHookV2"
 )
 
 # Aave V3 hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
@@ -244,6 +250,9 @@ AAVE_V3_HOOK_CONTRACTS=(
     "AaveV3RepayWithATokensHook"
     "AaveV3SupplyAndBorrowHook"
     "AaveV3RepayAndWithdrawHook"
+    "AaveV3SupplyAndBorrowHookV2"
+    "AaveV3RepayHookV2"
+    "AaveV3RepayAndWithdrawHookV2"
 )
 
 # DETH hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
