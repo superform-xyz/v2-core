@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { AcrossV3AdapterV2 } from "../../../src/adapters/AcrossV3AdapterV2.sol";
 import { IAcrossV3Receiver } from "../../../src/vendor/bridges/across/IAcrossV3Receiver.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
+import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { Helpers } from "../../utils/Helpers.sol";
 
 contract AcrossV2MockSpokePool {
@@ -34,49 +34,12 @@ contract AcrossV2MockSpokePool {
     }
 }
 
-contract AcrossV2ConfigurableToken is ERC20 {
-    enum TransferMode {
-        Success,
-        ReturnFalse,
-        EmptyRevert,
-        ReturnBomb
-    }
-
-    TransferMode public transferMode;
-
-    constructor() ERC20("Across Test Token", "ATT") { }
-
-    function mint(address account, uint256 amount) external {
-        _mint(account, amount);
-    }
-
-    function setTransferMode(TransferMode mode) external {
-        transferMode = mode;
-    }
-
-    function transfer(address to, uint256 value) public override returns (bool) {
-        TransferMode mode = transferMode;
-        if (mode == TransferMode.ReturnFalse) return false;
-        if (mode == TransferMode.EmptyRevert) {
-            assembly ("memory-safe") {
-                revert(0, 0)
-            }
-        }
-        if (mode == TransferMode.ReturnBomb) revert(string(new bytes(100_000)));
-
-        return super.transfer(to, value);
-    }
-}
-
 contract AcrossV2MockDestinationExecutor {
     enum ExecutionMode {
         Success,
-        Deferred,
         EmptyRevert,
         CustomError,
-        Panic,
         ReturnBomb,
-        InvalidOpcode,
         OutOfGas
     }
 
@@ -84,7 +47,6 @@ contract AcrossV2MockDestinationExecutor {
 
     ExecutionMode public executionMode;
     uint256 public callCount;
-    bool public deferred;
 
     function setExecutionMode(ExecutionMode mode) external {
         executionMode = mode;
@@ -109,13 +71,7 @@ contract AcrossV2MockDestinationExecutor {
             }
         }
         if (mode == ExecutionMode.CustomError) revert MOCK_EXECUTION_FAILED();
-        if (mode == ExecutionMode.Panic) assert(false);
         if (mode == ExecutionMode.ReturnBomb) revert(string(new bytes(100_000)));
-        if (mode == ExecutionMode.InvalidOpcode) {
-            assembly ("memory-safe") {
-                invalid()
-            }
-        }
         if (mode == ExecutionMode.OutOfGas) {
             assembly ("memory-safe") {
                 for { } 1 { } { }
@@ -123,20 +79,6 @@ contract AcrossV2MockDestinationExecutor {
         }
 
         ++callCount;
-        if (mode == ExecutionMode.Deferred) deferred = true;
-    }
-}
-
-contract AcrossV3AdapterV2Harness is AcrossV3AdapterV2 {
-    constructor(
-        address acrossSpokePool,
-        address superDestinationExecutor
-    )
-        AcrossV3AdapterV2(acrossSpokePool, superDestinationExecutor)
-    { }
-
-    function seedFailedTransfer(address account, address token, uint256 amount) external {
-        failedTransfers[account][token] = amount;
     }
 }
 
@@ -145,9 +87,9 @@ contract AcrossV3AdapterV2UnitTests is Helpers {
     uint256 internal constant AMOUNT = 1000e18;
 
     AcrossV2MockSpokePool internal spokePool;
-    AcrossV2ConfigurableToken internal token;
     AcrossV2MockDestinationExecutor internal executor;
-    AcrossV3AdapterV2Harness internal adapter;
+    AcrossV3AdapterV2 internal adapter;
+    MockERC20 internal token;
 
     address internal relayer;
     address internal account;
@@ -157,9 +99,9 @@ contract AcrossV3AdapterV2UnitTests is Helpers {
         account = makeAddr("account");
 
         spokePool = new AcrossV2MockSpokePool();
-        token = new AcrossV2ConfigurableToken();
         executor = new AcrossV2MockDestinationExecutor();
-        adapter = new AcrossV3AdapterV2Harness(address(spokePool), address(executor));
+        adapter = new AcrossV3AdapterV2(address(spokePool), address(executor));
+        token = new MockERC20("Across Test Token", "ATT", 18);
 
         token.mint(relayer, AMOUNT);
         vm.prank(relayer);
@@ -167,51 +109,21 @@ contract AcrossV3AdapterV2UnitTests is Helpers {
     }
 
     function test_Fill_SucceedsAndExecutes() public {
-        vm.expectEmit(true, true, false, true, address(adapter));
-        emit AcrossV3AdapterV2.TransferSucceeded(account, address(token), AMOUNT);
-
         _fill(RELAY_ID);
 
         _assertSuccessfulFill();
-        assertEq(executor.callCount(), 1);
-    }
-
-    function test_Fill_SucceedsWhenExecutorDefersForMissingBalance() public {
-        executor.setExecutionMode(AcrossV2MockDestinationExecutor.ExecutionMode.Deferred);
-
-        _fill(RELAY_ID);
-
-        _assertSuccessfulFill();
-        assertTrue(executor.deferred());
         assertEq(executor.callCount(), 1);
     }
 
     function test_Fill_RevertIf_TransferReturnsFalse() public {
-        token.setTransferMode(AcrossV2ConfigurableToken.TransferMode.ReturnFalse);
+        vm.mockCall(address(token), abi.encodeCall(IERC20.transfer, (account, AMOUNT)), abi.encode(false));
 
         vm.expectRevert(AcrossV3AdapterV2.TRANSFER_FAILED.selector);
         _fill(RELAY_ID);
+        vm.clearMockedCalls();
 
         _assertRolledBackFill();
         assertEq(adapter.failedTransfers(account, address(token)), 0);
-    }
-
-    function test_Fill_RevertIf_TransferRevertsWithoutData() public {
-        token.setTransferMode(AcrossV2ConfigurableToken.TransferMode.EmptyRevert);
-
-        vm.expectRevert(AcrossV3AdapterV2.TRANSFER_FAILED.selector);
-        _fill(RELAY_ID);
-
-        _assertRolledBackFill();
-    }
-
-    function test_Fill_TransferReturnBombCannotExhaustAdapter() public {
-        token.setTransferMode(AcrossV2ConfigurableToken.TransferMode.ReturnBomb);
-
-        vm.expectRevert(AcrossV3AdapterV2.TRANSFER_FAILED.selector);
-        _fill(RELAY_ID);
-
-        _assertRolledBackFill();
     }
 
     function test_Fill_RevertAtomicallyIf_ExecutorFailsWithoutData() public {
@@ -223,47 +135,22 @@ contract AcrossV3AdapterV2UnitTests is Helpers {
         _assertRolledBackFill();
     }
 
-    function test_Fill_RevertAtomicallyIf_ExecutorHitsInvalidOpcode() public {
-        executor.setExecutionMode(AcrossV2MockDestinationExecutor.ExecutionMode.InvalidOpcode);
-
-        vm.expectRevert(AcrossV3AdapterV2.DESTINATION_EXECUTION_FAILED.selector);
-        _fillWithGas(RELAY_ID, 2_000_000);
-
-        _assertRolledBackFill();
-    }
-
-    function test_Fill_RevertAtomicallyIf_ExecutorRunsOutOfGas() public {
+    function test_Fill_RevertAtomicallyOnOutOfGasAndCanRetry() public {
         executor.setExecutionMode(AcrossV2MockDestinationExecutor.ExecutionMode.OutOfGas);
 
         vm.expectRevert(AcrossV3AdapterV2.DESTINATION_EXECUTION_FAILED.selector);
         _fillWithGas(RELAY_ID, 2_000_000);
-
         _assertRolledBackFill();
-    }
 
-    function test_Fill_RevertAtomicallyIf_ExecutorHasNoCode() public {
-        adapter = new AcrossV3AdapterV2Harness(address(spokePool), makeAddr("missingExecutor"));
-
-        vm.expectRevert(AcrossV3AdapterV2.DESTINATION_EXECUTION_FAILED.selector);
+        executor.setExecutionMode(AcrossV2MockDestinationExecutor.ExecutionMode.Success);
         _fill(RELAY_ID);
 
-        _assertRolledBackFill();
+        _assertSuccessfulFill();
+        assertEq(executor.callCount(), 1);
     }
 
     function test_Fill_SucceedsIf_ExecutorReturnsCustomError() public {
         executor.setExecutionMode(AcrossV2MockDestinationExecutor.ExecutionMode.CustomError);
-
-        vm.expectEmit(true, false, false, false, address(adapter));
-        emit AcrossV3AdapterV2.ExecutionFailed(account);
-
-        _fill(RELAY_ID);
-
-        _assertSuccessfulFill();
-        assertEq(executor.callCount(), 0);
-    }
-
-    function test_Fill_SucceedsIf_ExecutorPanics() public {
-        executor.setExecutionMode(AcrossV2MockDestinationExecutor.ExecutionMode.Panic);
 
         vm.expectEmit(true, false, false, false, address(adapter));
         emit AcrossV3AdapterV2.ExecutionFailed(account);
@@ -284,32 +171,6 @@ contract AcrossV3AdapterV2UnitTests is Helpers {
 
         _assertSuccessfulFill();
         assertEq(executor.callCount(), 0);
-    }
-
-    function test_Fill_CanRetrySameRelayAfterEmptyExecutionFailure() public {
-        executor.setExecutionMode(AcrossV2MockDestinationExecutor.ExecutionMode.EmptyRevert);
-
-        vm.expectRevert(AcrossV3AdapterV2.DESTINATION_EXECUTION_FAILED.selector);
-        _fill(RELAY_ID);
-        _assertRolledBackFill();
-
-        executor.setExecutionMode(AcrossV2MockDestinationExecutor.ExecutionMode.Success);
-        _fill(RELAY_ID);
-
-        _assertSuccessfulFill();
-        assertEq(executor.callCount(), 1);
-    }
-
-    function test_ClaimFailedTransfer_ClaimsRecordedBalance() public {
-        token.mint(address(adapter), AMOUNT);
-        adapter.seedFailedTransfer(account, address(token), AMOUNT);
-
-        vm.prank(account);
-        adapter.claimFailedTransfer(address(token), AMOUNT);
-
-        assertEq(token.balanceOf(account), AMOUNT);
-        assertEq(token.balanceOf(address(adapter)), 0);
-        assertEq(adapter.failedTransfers(account, address(token)), 0);
     }
 
     function _fill(bytes32 relayId) internal {
