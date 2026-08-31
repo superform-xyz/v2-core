@@ -37,7 +37,7 @@ contract DeployV2CoreVerificationRecordsTest is Test {
     function test_VerificationRecords_PathMatchesExistenceCheck_AllEnvs() public view {
         for (uint256 env = ENV_PROD; env <= ENV_STAGING; env++) {
             DeployV2Core.ContractVerification[] memory records = harness.buildCoreVerificationRecords(env);
-            assertEq(records.length, 12, "unexpected record count");
+            assertEq(records.length, 14, "unexpected record count");
 
             for (uint256 i = 0; i < records.length; i++) {
                 bool exists = harness.checkBytecodeExists(records[i].name, env);
