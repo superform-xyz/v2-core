@@ -15,7 +15,7 @@ import { Vm } from "forge-std/Vm.sol";
 ///      1. Deploy local AcrossV3AdapterV2 on Base fork
 ///      2. Simulate Across delivering tokens to adapter
 ///      3. handleV3AcrossMessage with compact 2-field format → adapter extracts from sigData
-///      4. Validates sigData extraction, transfer, failed transfers, claim flow
+///      4. Validates sigData extraction, atomic transfer failures, and execution failure handling
 contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
     /*//////////////////////////////////////////////////////////////
                                  CONSTANTS
@@ -100,8 +100,8 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
         _assertEventEmitted(vm.getRecordedLogs(), "ExecutionFailed(address)");
     }
 
-    /// @notice V2: Transfer fails → tokens stored in failedTransfers → claim recovers
-    function test_Fork_V2_TransferFails_ClaimFailedTransfer() public {
+    /// @notice V2: Transfer failure reverts so an actual SpokePool fill rolls back atomically
+    function test_Fork_V2_TransferFails_Reverts() public {
         uint256 amount = 1000e6;
         deal(USDC_BASE, address(adapterV2), amount);
 
@@ -111,23 +111,15 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
         bytes memory message = _buildV2Message(dstAccount, hex"deadbeef");
 
         vm.prank(ACROSS_SPOKE_POOL_BASE);
+        vm.expectRevert(AcrossV3AdapterV2.TRANSFER_FAILED.selector);
         IAcrossV3Receiver(address(adapterV2)).handleV3AcrossMessage(USDC_BASE, amount, relayer, message);
 
         vm.clearMockedCalls();
 
-        // Tokens in failedTransfers
-        assertEq(adapterV2.failedTransfers(dstAccount, USDC_BASE), amount, "Should be in failedTransfers");
-        assertEq(IERC20(USDC_BASE).balanceOf(address(adapterV2)), amount, "Tokens at adapter");
-
-        // Claim
-        vm.prank(dstAccount);
-        adapterV2.claimFailedTransfer(USDC_BASE, amount);
-
-        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), amount, "dstAccount recovered");
-        assertEq(adapterV2.failedTransfers(dstAccount, USDC_BASE), 0, "failedTransfers cleared");
+        assertEq(adapterV2.failedTransfers(dstAccount, USDC_BASE), 0, "No new legacy claim balance");
     }
 
-    /// @notice V2: Zero account → reverts (prevents unclaimable failedTransfers)
+    /// @notice V2: Zero account → reverts before token transfer
     function test_Fork_V2_ZeroAccount_Reverts() public {
         uint256 amount = 1000e6;
         deal(USDC_BASE, address(adapterV2), amount);
@@ -188,129 +180,11 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
     /// @notice Claim by user with no balance reverts
     function test_Fork_V2_ClaimByUnauthorizedUser_Reverts() public {
         uint256 amount = 1000e6;
-        deal(USDC_BASE, address(adapterV2), amount);
-
-        vm.mockCall(USDC_BASE, abi.encodeWithSelector(IERC20.transfer.selector, dstAccount), abi.encode(false));
-
-        bytes memory message = _buildV2Message(dstAccount, hex"deadbeef");
-        vm.prank(ACROSS_SPOKE_POOL_BASE);
-        IAcrossV3Receiver(address(adapterV2)).handleV3AcrossMessage(USDC_BASE, amount, relayer, message);
-        vm.clearMockedCalls();
 
         address randomUser = makeAddr("random");
         vm.prank(randomUser);
         vm.expectRevert(AcrossV3AdapterV2.INSUFFICIENT_FAILED_BALANCE.selector);
         adapterV2.claimFailedTransfer(USDC_BASE, amount);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        MULTI-COMPOSE TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Multiple failed transfers accumulate for same user
-    function test_Fork_V2_MultipleFailedTransfers_Accumulate() public {
-        uint256 amount1 = 500e6;
-        uint256 amount2 = 700e6;
-        uint256 totalAmount = amount1 + amount2;
-        deal(USDC_BASE, address(adapterV2), totalAmount);
-
-        vm.mockCall(USDC_BASE, abi.encodeWithSelector(IERC20.transfer.selector, dstAccount), abi.encode(false));
-
-        bytes memory message = _buildV2Message(dstAccount, hex"deadbeef");
-
-        vm.prank(ACROSS_SPOKE_POOL_BASE);
-        IAcrossV3Receiver(address(adapterV2)).handleV3AcrossMessage(USDC_BASE, amount1, relayer, message);
-
-        vm.prank(ACROSS_SPOKE_POOL_BASE);
-        IAcrossV3Receiver(address(adapterV2)).handleV3AcrossMessage(USDC_BASE, amount2, relayer, message);
-
-        vm.clearMockedCalls();
-
-        assertEq(adapterV2.failedTransfers(dstAccount, USDC_BASE), totalAmount, "Accumulated");
-
-        vm.prank(dstAccount);
-        adapterV2.claimFailedTransfer(USDC_BASE, totalAmount);
-
-        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), totalAmount, "Claimed all");
-        assertEq(adapterV2.failedTransfers(dstAccount, USDC_BASE), 0, "Cleared");
-    }
-
-    /// @notice Two different users — balances isolated
-    function test_Fork_V2_DifferentUsers_Isolated() public {
-        address userA = makeAddr("userA");
-        address userB = makeAddr("userB");
-        uint256 amountA = 800e6;
-        uint256 amountB = 1200e6;
-        deal(USDC_BASE, address(adapterV2), amountA + amountB);
-
-        vm.mockCall(USDC_BASE, abi.encodeWithSelector(IERC20.transfer.selector, userA), abi.encode(false));
-        vm.mockCall(USDC_BASE, abi.encodeWithSelector(IERC20.transfer.selector, userB), abi.encode(false));
-
-        bytes memory messageA = _buildV2Message(userA, hex"deadbeef");
-        bytes memory messageB = _buildV2Message(userB, hex"deadbeef");
-
-        vm.prank(ACROSS_SPOKE_POOL_BASE);
-        IAcrossV3Receiver(address(adapterV2)).handleV3AcrossMessage(USDC_BASE, amountA, relayer, messageA);
-
-        vm.prank(ACROSS_SPOKE_POOL_BASE);
-        IAcrossV3Receiver(address(adapterV2)).handleV3AcrossMessage(USDC_BASE, amountB, relayer, messageB);
-
-        vm.clearMockedCalls();
-
-        // Isolated
-        assertEq(adapterV2.failedTransfers(userA, USDC_BASE), amountA);
-        assertEq(adapterV2.failedTransfers(userB, USDC_BASE), amountB);
-
-        // userA claims — userB unaffected
-        vm.prank(userA);
-        adapterV2.claimFailedTransfer(USDC_BASE, amountA);
-
-        assertEq(IERC20(USDC_BASE).balanceOf(userA), amountA);
-        assertEq(adapterV2.failedTransfers(userB, USDC_BASE), amountB);
-    }
-
-    /// @notice Partial claim — claim half, verify remaining balance
-    function test_Fork_V2_PartialClaim() public {
-        uint256 amount = 1000e6;
-        deal(USDC_BASE, address(adapterV2), amount);
-
-        vm.mockCall(USDC_BASE, abi.encodeWithSelector(IERC20.transfer.selector, dstAccount), abi.encode(false));
-
-        bytes memory message = _buildV2Message(dstAccount, hex"deadbeef");
-        vm.prank(ACROSS_SPOKE_POOL_BASE);
-        IAcrossV3Receiver(address(adapterV2)).handleV3AcrossMessage(USDC_BASE, amount, relayer, message);
-        vm.clearMockedCalls();
-
-        // Claim half
-        vm.prank(dstAccount);
-        adapterV2.claimFailedTransfer(USDC_BASE, amount / 2);
-
-        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), amount / 2, "Half claimed");
-        assertEq(adapterV2.failedTransfers(dstAccount, USDC_BASE), amount / 2, "Half remaining");
-
-        // Claim rest
-        vm.prank(dstAccount);
-        adapterV2.claimFailedTransfer(USDC_BASE, amount / 2);
-
-        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), amount, "All claimed");
-        assertEq(adapterV2.failedTransfers(dstAccount, USDC_BASE), 0, "Nothing remaining");
-    }
-
-    /// @notice Claim more than balance reverts
-    function test_Fork_V2_ClaimExceedsBalance_Reverts() public {
-        uint256 amount = 1000e6;
-        deal(USDC_BASE, address(adapterV2), amount);
-
-        vm.mockCall(USDC_BASE, abi.encodeWithSelector(IERC20.transfer.selector, dstAccount), abi.encode(false));
-
-        bytes memory message = _buildV2Message(dstAccount, hex"deadbeef");
-        vm.prank(ACROSS_SPOKE_POOL_BASE);
-        IAcrossV3Receiver(address(adapterV2)).handleV3AcrossMessage(USDC_BASE, amount, relayer, message);
-        vm.clearMockedCalls();
-
-        vm.prank(dstAccount);
-        vm.expectRevert(AcrossV3AdapterV2.INSUFFICIENT_FAILED_BALANCE.selector);
-        adapterV2.claimFailedTransfer(USDC_BASE, amount + 1);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -363,7 +237,7 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
 
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](5);
         proofDst[0] = _makeDstProof(makeAddr("eth"), hex"aa", 1);
-        proofDst[1] = _makeDstProof(makeAddr("arb"), hex"bb", 42161);
+        proofDst[1] = _makeDstProof(makeAddr("arb"), hex"bb", 42_161);
         proofDst[2] = _makeDstProof(correctAccount, hex"cc", uint64(block.chainid));
         proofDst[3] = _makeDstProof(makeAddr("op"), hex"dd", 10);
         proofDst[4] = _makeDstProof(makeAddr("bsc"), hex"ee", 56);
@@ -394,26 +268,6 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
         IAcrossV3Receiver(address(adapterV2)).handleV3AcrossMessage(USDC_BASE, amount, relayer, message);
 
         _assertEventEmitted(vm.getRecordedLogs(), "TransferSucceeded(address,address,uint256)");
-    }
-
-    /// @notice FailedTransferClaimed event is emitted on claim
-    function test_Fork_V2_FailedTransferClaimed_Event() public {
-        uint256 amount = 1000e6;
-        deal(USDC_BASE, address(adapterV2), amount);
-
-        vm.mockCall(USDC_BASE, abi.encodeWithSelector(IERC20.transfer.selector, dstAccount), abi.encode(false));
-
-        bytes memory message = _buildV2Message(dstAccount, hex"deadbeef");
-        vm.prank(ACROSS_SPOKE_POOL_BASE);
-        IAcrossV3Receiver(address(adapterV2)).handleV3AcrossMessage(USDC_BASE, amount, relayer, message);
-        vm.clearMockedCalls();
-
-        vm.recordLogs();
-
-        vm.prank(dstAccount);
-        adapterV2.claimFailedTransfer(USDC_BASE, amount);
-
-        _assertEventEmitted(vm.getRecordedLogs(), "FailedTransferClaimed(address,address,uint256)");
     }
 
     /// @notice Immutable getters return correct values
@@ -522,11 +376,7 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
     }
 
     /// @dev Encodes a full SignatureData struct with custom DstProof array
-    function _encodeSigDataWithProofs(ISuperValidator.DstProof[] memory proofDst)
-        internal
-        pure
-        returns (bytes memory)
-    {
+    function _encodeSigDataWithProofs(ISuperValidator.DstProof[] memory proofDst) internal pure returns (bytes memory) {
         uint64[] memory chainsWithDstExecution = new uint64[](proofDst.length);
         for (uint256 i = 0; i < proofDst.length; i++) {
             chainsWithDstExecution[i] = proofDst[i].dstChainId;
