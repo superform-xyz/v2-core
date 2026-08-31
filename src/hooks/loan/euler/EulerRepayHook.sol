@@ -35,8 +35,9 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 ///      chain state that a zero-debt position has no enabled controller. EVK repay is
 ///      controller-neutral, so this hook is intentionally independent of collateral, LTV, oracle
 ///      and release configuration — none of those enter its validation or inspector identity.
-///      outAmount publishes the measured debt-asset wallet spend with outToken = debtAsset; the
-///      hook remains a terminal debt-only recovery action.
+///      The settle still verifies the measured debt-asset wallet spend equals the resolved
+///      repayment, but publishes outAmount = 0 with outToken = debtAsset: the hook is a terminal
+///      sink, and a zero output makes any downstream usePrevHookAmount chaining fail closed.
 /// @dev LIMITATION: the inherited non-virtual getCollateralTokenBalance(account, data) reverts for
 ///      this hook's data (collateralAsset is the reserved zero address), so this hook does NOT
 ///      advertise ISuperHookLoans via ERC-165 (_supportsLoanInterface returns false) — honest

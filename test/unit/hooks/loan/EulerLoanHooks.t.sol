@@ -1706,7 +1706,7 @@ contract EulerLoanHooksTest is Helpers {
 
         repayHook.postExecute(address(0), address(this), data);
 
-        assertEq(repayHook.getOutAmount(address(this)), repayAmount);
+        assertEq(repayHook.getOutAmount(address(this)), 0); // terminal repay publishes 0
         assertEq(repayHook.getOutToken(address(this)), debtAsset);
     }
 
@@ -1723,7 +1723,7 @@ contract EulerLoanHooksTest is Helpers {
 
         repayHook.postExecute(address(0), address(this), data);
 
-        assertEq(repayHook.getOutAmount(address(this)), debt);
+        assertEq(repayHook.getOutAmount(address(this)), 0); // terminal repay publishes 0
         assertEq(repayHook.getOutToken(address(this)), debtAsset);
     }
 
@@ -1758,7 +1758,7 @@ contract EulerLoanHooksTest is Helpers {
         controllerVault.setDebt(address(this), 1); // residual debt: controller may stay enabled
 
         repayHook.postExecute(address(0), address(this), data);
-        assertEq(repayHook.getOutAmount(address(this)), debt);
+        assertEq(repayHook.getOutAmount(address(this)), 0); // terminal repay publishes 0
     }
 
     function test_RepayHook_SettleRoundTrip_ZeroDebt_Graceful() public {
@@ -1915,7 +1915,7 @@ contract EulerLoanHooksTest is Helpers {
         assertFalse(mockEvc.isControllerEnabled(address(this), address(controllerVault)));
         assertEq(mockDebtToken.allowance(address(this), address(controllerVault)), 0);
         assertEq(mockDebtToken.balanceOf(address(this)), 1e18);
-        assertEq(repayHook.getOutAmount(address(this)), debt);
+        assertEq(repayHook.getOutAmount(address(this)), 0); // terminal repay publishes 0
         assertEq(repayHook.getOutToken(address(this)), debtAsset);
     }
 

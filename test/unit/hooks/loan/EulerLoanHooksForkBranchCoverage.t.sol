@@ -968,7 +968,7 @@ contract EulerLoanHooksForkBranchCoverage is Helpers {
         IERC20(USDC).transfer(SINK, 100e6);
         repayHook.postExecute(address(0), address(this), data);
 
-        assertEq(repayHook.getOutAmount(address(this)), 100e6);
+        assertEq(repayHook.getOutAmount(address(this)), 0); // terminal repay publishes 0
         assertEq(repayHook.getOutToken(address(this)), USDC);
     }
 
@@ -1024,7 +1024,7 @@ contract EulerLoanHooksForkBranchCoverage is Helpers {
         IERC20(USDC).transfer(SINK, debt); // wallet delta matches, but no actual repayment
 
         repayHook.postExecute(address(0), address(this), data); // debt != 0 → no release check
-        assertEq(repayHook.getOutAmount(address(this)), debt);
+        assertEq(repayHook.getOutAmount(address(this)), 0); // terminal repay publishes 0
     }
 
     /// @dev CONTROLLER_NOT_DISABLED on real state: actually repay the whole debt directly on the
