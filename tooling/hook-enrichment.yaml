@@ -101,6 +101,7 @@ compatibleProtocols:
   # Across
   AcrossSendFundsAndExecuteOnDstHook: [across]
   ApproveAndAcrossSendFundsAndExecuteOnDstHook: [across]
+  SuperVaultAcrossCapBridgeHook: [across]
   AcrossSendFundsAndExecuteOnDstHookV2: [across-v2]
   ApproveAndAcrossSendFundsAndExecuteOnDstHookV2: [across-v2]
   # Relay

@@ -387,6 +387,10 @@ hooks:
     actionTypes: [{intent: bridge, stage: instant}]
     legSizing: [sized]
 
+  SuperVaultAcrossCapBridgeHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
   AcrossSendFundsAndExecuteOnDstHookV2:
     actionTypes: [{intent: bridge, stage: instant}]
     legSizing: [sized]
