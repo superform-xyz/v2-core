@@ -1,5 +1,5 @@
 # Hook Classification Manifest
-# Canonical intent x stage classification for all 152 hooks in v2-core
+# Canonical intent x stage classification for all 155 hooks in v2-core
 # CI-linted against on-chain hookType via scripts/lint_hook_manifest.py
 #
 # Design invariants:
@@ -560,6 +560,10 @@ hooks:
     actionTypes: [{intent: repay, stage: instant}]
     legSizing: [sized]
 
+  EulerRepayHook:
+    actionTypes: [{intent: repay, stage: instant}]
+    legSizing: [sized]
+
   # ============================================================
   # TRANSFER (9 hooks) — all instant
   # ============================================================
@@ -743,6 +747,18 @@ hooks:
     legSizing: [sized, sized]
 
   AaveV4RepayAndWithdrawHookV2:
+    actionTypes:
+      - {intent: repay, stage: instant}
+      - {intent: withdraw, stage: instant}
+    legSizing: [sized, sized]
+
+  EulerDepositCollateralAndBorrowHook:
+    actionTypes:
+      - {intent: lend, stage: instant}
+      - {intent: borrow, stage: instant}
+    legSizing: [sized, sized]
+
+  EulerRepayAndWithdrawHook:
     actionTypes:
       - {intent: repay, stage: instant}
       - {intent: withdraw, stage: instant}

@@ -63,6 +63,10 @@ compatibleProtocols:
   AaveV3SupplyAndBorrowHookV2: [aave-v3]
   AaveV3RepayHookV2: [aave-v3]
   AaveV3RepayAndWithdrawHookV2: [aave-v3]
+  # Euler EVK
+  EulerDepositCollateralAndBorrowHook: [euler-v2]
+  EulerRepayHook: [euler-v2]
+  EulerRepayAndWithdrawHook: [euler-v2]
   AaveV3RepayWithATokensHook: [aave-v3]
   # Uniswap
   SwapUniswapV3Hook: [uniswap-v3]
@@ -354,6 +358,8 @@ amountMeta:
   AaveV3RepayAndWithdrawHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV4SupplyAndBorrowHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV4RepayAndWithdrawHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  EulerDepositCollateralAndBorrowHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  EulerRepayAndWithdrawHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   # MorphoLendHook: input is loan-token amount (TOKEN denomination is correct).
   # outAmount is Morpho supply shares — non-transferable internal accounting units distinct from
   # ERC-4626 vault shares. A "UNITS" denomination for output is deferred because amountRoles()
@@ -378,6 +384,10 @@ loanInterfaceHooks:
   - AaveV4SupplyAndBorrowHookV2
   - AaveV4RepayHookV2
   - AaveV4RepayAndWithdrawHookV2
+  - EulerDepositCollateralAndBorrowHook
+  # EulerRepayHook intentionally absent: its reserved-zero collateral slot makes the inherited
+  # getCollateralTokenBalance revert, so it honestly does NOT advertise ISuperHookLoans
+  - EulerRepayAndWithdrawHook
 
 # ── Sizeless hooks (no sizable legs) ─────────────────────────────────────────
 sizelessHooks:

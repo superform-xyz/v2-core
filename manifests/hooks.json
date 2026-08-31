@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-08-28T05:57:10Z",
+  "generatedAt": "2026-08-28T20:44:17Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -7758,6 +7758,45 @@
         "aave-v4"
       ]
     },
+    "EulerRepayHook": {
+      "name": "Euler Repay",
+      "description": "Repays debt to an Euler EVK vault up to a cap, disabling the controller when the debt clears",
+      "subtype": "LOAN_REPAY",
+      "actionTypes": [
+        {
+          "intent": "repay",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "euler-v2"
+      ]
+    },
     "TransferERC20Hook": {
       "name": "Transfer ERC-20",
       "description": "Transfers ERC-20 tokens to a recipient",
@@ -10288,6 +10327,104 @@
       "asyncLifecycle": null,
       "compatibleProtocols": [
         "aave-v4"
+      ]
+    },
+    "EulerDepositCollateralAndBorrowHook": {
+      "name": "Euler Deposit Collateral and Borrow",
+      "description": "Deposits an exact collateral amount and borrows an exact asset amount from Euler EVK vaults",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "lend",
+          "stage": "instant"
+        },
+        {
+          "intent": "borrow",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized",
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        },
+        {
+          "direction": "OUT",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow",
+        "ISuperHookLoans"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "euler-v2"
+      ]
+    },
+    "EulerRepayAndWithdrawHook": {
+      "name": "Euler Repay and Withdraw",
+      "description": "Repays debt up to a cap and withdraws an exact collateral amount from Euler EVK vaults",
+      "subtype": "LOAN_REPAY",
+      "actionTypes": [
+        {
+          "intent": "repay",
+          "stage": "instant"
+        },
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized",
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        },
+        {
+          "direction": "OUT",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow",
+        "ISuperHookLoans"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "euler-v2"
       ]
     }
   }
