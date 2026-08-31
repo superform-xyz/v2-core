@@ -65,7 +65,9 @@ contract AaveV4SupplyAndBorrowHookV2 is BaseAaveV4LoanHookV2 {
     {
         AaveV4V2Vars memory vars = _decodeAaveV4V2(data, false);
         _validateReserves(vars);
-        _resolveOpenAmounts(prevHook, account, vars);
+        vars.amount1 = _resolveOpenAmount1(
+            prevHook, account, vars.collateralToken, vars.amount1, vars.amount2, vars.usePrevHookAmount
+        );
 
         executions = new Execution[](6);
         executions[0] = Execution({
@@ -134,21 +136,13 @@ contract AaveV4SupplyAndBorrowHookV2 is BaseAaveV4LoanHookV2 {
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Resolves both open legs; reverts before any provider call on zero/sentinel amounts or
-    ///      an invalid previous-hook output (wrong token, zero hook, zero amount)
-    function _resolveOpenAmounts(address prevHook, address account, AaveV4V2Vars memory vars) internal view {
-        if (vars.amount2 == 0 || vars.amount2 == type(uint256).max) revert AMOUNT_NOT_VALID();
-        if (vars.usePrevHookAmount) {
-            vars.amount1 = _resolvePrevHookOutput(prevHook, account, vars.collateralToken);
-        }
-        if (vars.amount1 == 0 || vars.amount1 == type(uint256).max) revert AMOUNT_NOT_VALID();
-    }
-
     /// @inheritdoc BaseHook
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         AaveV4V2Vars memory vars = _decodeAaveV4V2(data, false);
         _validateReserves(vars);
-        _resolveOpenAmounts(prevHook, account, vars);
+        vars.amount1 = _resolveOpenAmount1(
+            prevHook, account, vars.collateralToken, vars.amount1, vars.amount2, vars.usePrevHookAmount
+        );
 
         expectedPrimaryAmount = vars.amount1;
         expectedSecondaryAmount = vars.amount2;

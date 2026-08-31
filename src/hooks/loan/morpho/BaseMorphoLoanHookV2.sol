@@ -4,7 +4,8 @@ pragma solidity 0.8.30;
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
-import { IMorpho, IMorphoStaticTyping, MarketParams, Id } from "../../../vendor/morpho/IMorpho.sol";
+import { MorphoBalancesLib } from "../../../vendor/morpho/MorphoBalancesLib.sol";
+import { IMorpho, IMorphoStaticTyping, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
 import { BaseLoanHook } from "../BaseLoanHook.sol";
@@ -42,9 +43,11 @@ abstract contract BaseMorphoLoanHookV2 is BaseLoanHookV2 {
     uint256 internal constant COLLATERAL_TOKEN_OFFSET = 72;
     uint256 internal constant ORACLE_OFFSET = 92;
     uint256 internal constant IRM_OFFSET = 112;
-    // AMOUNT_POSITION = 132 (amount1) inherited from BaseLoanHook
+    /// @dev Alias of the inherited slot so Morpho code reads the same as the Aave families
+    uint256 internal constant AMOUNT1_OFFSET = AMOUNT_POSITION; // 132
     uint256 internal constant AMOUNT2_OFFSET = 164;
-    // USE_PREV_HOOK_AMOUNT_POSITION = 196 inherited from BaseLoanHook
+    /// @dev Alias of the inherited slot so Morpho code reads the same as the Aave families
+    uint256 internal constant USE_PREV_OFFSET = USE_PREV_HOOK_AMOUNT_POSITION; // 196
     uint256 internal constant LLTV_OFFSET = 197;
     uint256 internal constant RESERVED_BYTE_OFFSET = 229;
 
@@ -89,14 +92,16 @@ abstract contract BaseMorphoLoanHookV2 is BaseLoanHookV2 {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            EXTERNAL METHODS
+                       SIZING-INTERFACE PLUMBING
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc BaseLoanHook
-    /// @dev Same offset (196) as the inherited implementation, but a strict canonical-boolean
-    ///      read so this view never disagrees with execution-time decoding on malformed data
+    /// @dev Same offset (196) as the inherited implementation, but with the exact-length guard and
+    ///      a strict canonical-boolean read so this view never disagrees with execution-time
+    ///      decoding on malformed data (custom error instead of an out-of-bounds panic)
     function decodeUsePrevHookAmount(bytes memory data) external pure override returns (bool) {
-        return _decodeStrictBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        if (data.length != MORPHO_V2_DATA_LENGTH) revert INVALID_DATA_LENGTH();
+        return _decodeStrictBool(data, USE_PREV_OFFSET);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -133,13 +138,14 @@ abstract contract BaseMorphoLoanHookV2 is BaseLoanHookV2 {
         }
         if (vars.loanToken == vars.collateralToken) revert IDENTICAL_TOKENS();
 
-        vars.amount1 = _decodeAmount(data);
+        vars.amount1 = BytesLib.toUint256(data, AMOUNT1_OFFSET);
         vars.amount2 = BytesLib.toUint256(data, AMOUNT2_OFFSET);
-        vars.usePrevHookAmount = _decodeStrictBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        vars.usePrevHookAmount = _decodeStrictBool(data, USE_PREV_OFFSET);
         vars.lltv = BytesLib.toUint256(data, LLTV_OFFSET);
         _requireZeroByte(data, RESERVED_BYTE_OFFSET);
 
-        if (secondaryReserved) _requireZeroWord(data, AMOUNT2_OFFSET);
+        // Reuse the already-decoded word instead of re-reading it
+        if (secondaryReserved && vars.amount2 != 0) revert RESERVED_FIELD_NOT_ZERO();
     }
 
     /// @dev Generates the Morpho Blue market params from decoded vars
@@ -170,9 +176,48 @@ abstract contract BaseMorphoLoanHookV2 is BaseLoanHookV2 {
         IMorpho(morpho).accrueInterest(_marketParams(vars));
     }
 
+    /// @dev Resolves the repay leg shared by MorphoRepayHookV2 and MorphoRepayAndWithdrawHookV2.
+    ///      Reverts before any approval/provider call when the account has no outstanding debt,
+    ///      when a full-repayment sentinel is combined with usePrevHookAmount, or when the
+    ///      previous-hook output is invalid. Full repayment resolves to the accrued debt and is
+    ///      executed by shares (immune to interim accrual); a non-sentinel amount is the exact
+    ///      cap (calldata or previous-hook output).
+    /// @param prevHook The previous hook in the chain
+    /// @param account The executing smart account
+    /// @param vars The decoded hook parameters
+    /// @param marketParams The Morpho market params derived from `vars`
+    /// @return repayAssets The exact debt-asset amount the repay call will pull
+    /// @return borrowShares The account's borrow shares (only meaningful when `fullRepay`)
+    /// @return fullRepay True when the sentinel selected a shares-denominated full repayment
+    function _resolveRepayLeg(
+        address prevHook,
+        address account,
+        MorphoV2Vars memory vars,
+        MarketParams memory marketParams
+    )
+        internal
+        view
+        returns (uint256 repayAssets, uint256 borrowShares, bool fullRepay)
+    {
+        borrowShares = _borrowShares(marketParams, account);
+        if (borrowShares == 0) revert NO_OUTSTANDING_DEBT();
+
+        fullRepay = vars.amount1 == type(uint256).max;
+        if (fullRepay) {
+            if (vars.usePrevHookAmount) revert MAX_WITH_PREV_NOT_ALLOWED();
+            repayAssets = MorphoBalancesLib.expectedBorrowAssets(IMorpho(morpho), marketParams, account);
+        } else {
+            repayAssets =
+                vars.usePrevHookAmount ? _resolvePrevHookOutput(prevHook, account, vars.loanToken) : vars.amount1;
+            if (repayAssets == 0) revert AMOUNT_NOT_VALID();
+        }
+    }
+
     /// @dev Full market-identity inspector payload: Morpho singleton, loan token, collateral
     ///      token, oracle, IRM and LLTV. Amount fields, usePrevHookAmount and the strategy header
     ///      are intentionally excluded.
+    /// @param vars The decoded hook parameters
+    /// @return The packed inspector payload
     function _inspectMorphoV2(MorphoV2Vars memory vars) internal view returns (bytes memory) {
         return abi.encodePacked(morpho, vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
     }

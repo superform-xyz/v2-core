@@ -269,8 +269,8 @@ contract LoanHooksV2SizingIntegration is Helpers {
     }
 
     function test_Fork_AaveV3V2_Open_RealPool_Build() public view {
-        // pre + approve(0) + approve(amount) + supply + borrow + approve(0) + post
-        assertEq(aaveV3Open.build(address(0), address(this), _aaveV3Data(1e18, BORROW_AMOUNT, false)).length, 7);
+        // pre + approve(0) + approve(amount) + supply + setUseAsCollateral + borrow + approve(0) + post
+        assertEq(aaveV3Open.build(address(0), address(this), _aaveV3Data(1e18, BORROW_AMOUNT, false)).length, 8);
     }
 
     /*//////////////////////////////////////////////////////////////

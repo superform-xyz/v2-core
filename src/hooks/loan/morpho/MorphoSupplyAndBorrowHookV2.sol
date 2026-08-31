@@ -65,7 +65,9 @@ contract MorphoSupplyAndBorrowHookV2 is BaseMorphoLoanHookV2 {
         returns (Execution[] memory executions)
     {
         MorphoV2Vars memory vars = _decodeMorphoV2(data, false);
-        _resolveOpenAmounts(prevHook, account, vars);
+        vars.amount1 = _resolveOpenAmount1(
+            prevHook, account, vars.collateralToken, vars.amount1, vars.amount2, vars.usePrevHookAmount
+        );
 
         MarketParams memory marketParams = _marketParams(vars);
 
@@ -129,20 +131,12 @@ contract MorphoSupplyAndBorrowHookV2 is BaseMorphoLoanHookV2 {
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Resolves both open legs; reverts before any provider call on zero/sentinel amounts or
-    ///      an invalid previous-hook output (wrong token, zero hook, zero amount)
-    function _resolveOpenAmounts(address prevHook, address account, MorphoV2Vars memory vars) internal view {
-        if (vars.amount2 == 0 || vars.amount2 == type(uint256).max) revert AMOUNT_NOT_VALID();
-        if (vars.usePrevHookAmount) {
-            vars.amount1 = _resolvePrevHookOutput(prevHook, account, vars.collateralToken);
-        }
-        if (vars.amount1 == 0 || vars.amount1 == type(uint256).max) revert AMOUNT_NOT_VALID();
-    }
-
     /// @inheritdoc BaseHook
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         MorphoV2Vars memory vars = _decodeMorphoV2(data, false);
-        _resolveOpenAmounts(prevHook, account, vars);
+        vars.amount1 = _resolveOpenAmount1(
+            prevHook, account, vars.collateralToken, vars.amount1, vars.amount2, vars.usePrevHookAmount
+        );
 
         expectedPrimaryAmount = vars.amount1;
         expectedSecondaryAmount = vars.amount2;

@@ -29,6 +29,10 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 ///      borrowed loan-token wallet delta with outToken = loanToken, so downstream
 ///      usePrevHookAmount consumers receive the token this hook actually produced.
 contract AaveV3SupplyAndBorrowHookV2 is BaseAaveV3LoanHookV2 {
+    /*//////////////////////////////////////////////////////////////
+                              CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
     constructor() BaseAaveV3LoanHookV2(HookSubTypes.LOAN) { }
 
     /// @notice Human-readable name for UI display
@@ -57,9 +61,11 @@ contract AaveV3SupplyAndBorrowHookV2 is BaseAaveV3LoanHookV2 {
         returns (Execution[] memory executions)
     {
         AaveV3V2Vars memory vars = _decodeAaveV3V2(data, false);
-        _resolveOpenAmounts(prevHook, account, vars);
+        vars.amount1 = _resolveOpenAmount1(
+            prevHook, account, vars.collateralToken, vars.amount1, vars.amount2, vars.usePrevHookAmount
+        );
 
-        executions = new Execution[](5);
+        executions = new Execution[](6);
         executions[0] = Execution({
             target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
         });
@@ -71,13 +77,21 @@ contract AaveV3SupplyAndBorrowHookV2 is BaseAaveV3LoanHookV2 {
             value: 0,
             callData: abi.encodeCall(IPool.supply, (vars.collateralToken, vars.amount1, account, 0))
         });
+        // Aave V3 usually auto-enables collateral on supply, but not in every state (isolation mode
+        // with other collateral, or a reserve previously disabled with a nonzero balance). Enabling
+        // explicitly is a no-op when already enabled and guarantees the borrow leg sees collateral.
         executions[3] = Execution({
+            target: vars.pool,
+            value: 0,
+            callData: abi.encodeCall(IPool.setUserUseReserveAsCollateral, (vars.collateralToken, true))
+        });
+        executions[4] = Execution({
             target: vars.pool,
             value: 0,
             callData: abi.encodeCall(IPool.borrow, (vars.loanToken, vars.amount2, VARIABLE_RATE_MODE, 0, account))
         });
         // Reset approval after supply to prevent dangling allowance
-        executions[4] = Execution({
+        executions[5] = Execution({
             target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
         });
     }
@@ -119,20 +133,12 @@ contract AaveV3SupplyAndBorrowHookV2 is BaseAaveV3LoanHookV2 {
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Resolves both open legs; reverts before any provider call on zero/sentinel amounts or
-    ///      an invalid previous-hook output (wrong token, zero hook, zero amount)
-    function _resolveOpenAmounts(address prevHook, address account, AaveV3V2Vars memory vars) internal view {
-        if (vars.amount2 == 0 || vars.amount2 == type(uint256).max) revert AMOUNT_NOT_VALID();
-        if (vars.usePrevHookAmount) {
-            vars.amount1 = _resolvePrevHookOutput(prevHook, account, vars.collateralToken);
-        }
-        if (vars.amount1 == 0 || vars.amount1 == type(uint256).max) revert AMOUNT_NOT_VALID();
-    }
-
     /// @inheritdoc BaseHook
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         AaveV3V2Vars memory vars = _decodeAaveV3V2(data, false);
-        _resolveOpenAmounts(prevHook, account, vars);
+        vars.amount1 = _resolveOpenAmount1(
+            prevHook, account, vars.collateralToken, vars.amount1, vars.amount2, vars.usePrevHookAmount
+        );
 
         expectedPrimaryAmount = vars.amount1;
         expectedSecondaryAmount = vars.amount2;

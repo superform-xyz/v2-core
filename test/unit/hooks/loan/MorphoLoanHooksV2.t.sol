@@ -892,7 +892,8 @@ contract MorphoLoanHooksV2Test is Helpers {
 
         repayHook.postExecute(address(0), address(this), data);
 
-        assertEq(repayHook.getOutAmount(address(this)), repayAmount);
+        // Terminal repay hook publishes outAmount = 0 (spend is not a product); outToken kept
+        assertEq(repayHook.getOutAmount(address(this)), 0);
         assertEq(repayHook.getOutToken(address(this)), loanToken);
     }
 
@@ -908,7 +909,8 @@ contract MorphoLoanHooksV2Test is Helpers {
 
         repayHook.postExecute(address(0), address(this), data);
 
-        assertEq(repayHook.getOutAmount(address(this)), expectedAssets);
+        // Terminal repay hook publishes outAmount = 0 (spend is not a product); outToken kept
+        assertEq(repayHook.getOutAmount(address(this)), 0);
         assertEq(repayHook.getOutToken(address(this)), loanToken);
     }
 

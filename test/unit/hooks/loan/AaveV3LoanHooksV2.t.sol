@@ -52,6 +52,8 @@ contract MockAaveV3Pool {
 
     function borrow(address, uint256, uint256, uint16, address) external { }
 
+    function setUserUseReserveAsCollateral(address, bool) external { }
+
     function repay(address, uint256, uint256, address) external pure returns (uint256) {
         return 0;
     }
@@ -353,11 +355,12 @@ contract AaveV3LoanHooksV2Test is Helpers {
         prev.setOutToken(collateralToken); // open pipes into the collateral leg
 
         Execution[] memory ex = openHook.build(address(prev), address(this), _open(amount1, amount2, true));
-        assertEq(ex.length, 7);
+        assertEq(ex.length, 8);
         assertEq(ex[2].callData, abi.encodeCall(IERC20.approve, (pool, prevAmount)));
         assertEq(ex[3].callData, abi.encodeCall(IPool.supply, (collateralToken, prevAmount, address(this), 0)));
+        assertEq(ex[4].callData, abi.encodeCall(IPool.setUserUseReserveAsCollateral, (collateralToken, true)));
         // borrow leg unaffected by the pipe
-        assertEq(ex[4].callData, abi.encodeCall(IPool.borrow, (loanToken, amount2, 2, 0, address(this))));
+        assertEq(ex[5].callData, abi.encodeCall(IPool.borrow, (loanToken, amount2, 2, 0, address(this))));
     }
 
     function test_Repay_Prev_RevertIf_TokenMismatch() public {
@@ -400,8 +403,9 @@ contract AaveV3LoanHooksV2Test is Helpers {
     //////////////////////////////////////////////////////////////*/
     function test_Open_Build() public view {
         Execution[] memory ex = openHook.build(address(0), address(this), _open(amount1, amount2, false));
-        // preExecute + approve0 + approve(amount1) + supply + borrow + approve0 + postExecute = 7
-        assertEq(ex.length, 7, "open exec count");
+        // preExecute + approve0 + approve(amount1) + supply + setUseAsCollateral + borrow + approve0
+        // + postExecute = 8
+        assertEq(ex.length, 8, "open exec count");
         assertEq(ex[1].target, collateralToken);
         assertEq(ex[1].callData, abi.encodeCall(IERC20.approve, (pool, 0)));
         assertEq(ex[2].target, collateralToken);
@@ -409,9 +413,11 @@ contract AaveV3LoanHooksV2Test is Helpers {
         assertEq(ex[3].target, pool);
         assertEq(ex[3].callData, abi.encodeCall(IPool.supply, (collateralToken, amount1, address(this), 0)));
         assertEq(ex[4].target, pool);
-        assertEq(ex[4].callData, abi.encodeCall(IPool.borrow, (loanToken, amount2, 2, 0, address(this))));
-        assertEq(ex[5].target, collateralToken);
-        assertEq(ex[5].callData, abi.encodeCall(IERC20.approve, (pool, 0)));
+        assertEq(ex[4].callData, abi.encodeCall(IPool.setUserUseReserveAsCollateral, (collateralToken, true)));
+        assertEq(ex[5].target, pool);
+        assertEq(ex[5].callData, abi.encodeCall(IPool.borrow, (loanToken, amount2, 2, 0, address(this))));
+        assertEq(ex[6].target, collateralToken);
+        assertEq(ex[6].callData, abi.encodeCall(IERC20.approve, (pool, 0)));
     }
 
     function test_Repay_Build_Partial() public {
@@ -625,7 +631,8 @@ contract AaveV3LoanHooksV2Test is Helpers {
         mockLoanToken.burn(address(this), amount1);
 
         repayHook.postExecute(address(0), address(this), data);
-        assertEq(repayHook.getOutAmount(address(this)), amount1, "loan spend");
+        // Terminal repay hook publishes outAmount = 0 (spend is not a product); outToken kept
+        assertEq(repayHook.getOutAmount(address(this)), 0, "terminal repay: no product");
         assertEq(repayHook.getOutToken(address(this)), loanToken, "outToken = loanToken");
     }
 

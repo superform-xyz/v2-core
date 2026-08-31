@@ -32,6 +32,10 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 ///      outAmount publishes the actual released collateral-token wallet delta with outToken =
 ///      collateralToken.
 contract AaveV3RepayAndWithdrawHookV2 is BaseAaveV3LoanHookV2 {
+    /*//////////////////////////////////////////////////////////////
+                              CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
     constructor() BaseAaveV3LoanHookV2(HookSubTypes.LOAN_REPAY) { }
 
     /// @notice Human-readable name for UI display
@@ -126,31 +130,10 @@ contract AaveV3RepayAndWithdrawHookV2 is BaseAaveV3LoanHookV2 {
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Resolves the repay leg (identical semantics to AaveV3RepayHookV2)
-    function _resolveRepayLeg(
-        address prevHook,
-        address account,
-        AaveV3V2Vars memory vars
-    )
-        internal
-        view
-        returns (uint256 repayAssets, bool fullRepay)
-    {
-        uint256 debt = _variableDebtBalance(vars, account);
-        if (debt == 0) revert NO_OUTSTANDING_DEBT();
-
-        fullRepay = vars.amount1 == type(uint256).max;
-        if (fullRepay) {
-            if (vars.usePrevHookAmount) revert MAX_WITH_PREV_NOT_ALLOWED();
-            repayAssets = debt;
-        } else {
-            repayAssets =
-                vars.usePrevHookAmount ? _resolvePrevHookOutput(prevHook, account, vars.loanToken) : vars.amount1;
-            if (repayAssets == 0) revert AMOUNT_NOT_VALID();
-        }
-    }
-
     /// @dev Resolves the withdraw leg: exact amount, or the full aToken balance for the sentinel
+    /// @param account The executing smart account
+    /// @param vars The decoded hook parameters
+    /// @return The exact collateral amount the withdraw call will release
     function _resolveWithdrawLeg(address account, AaveV3V2Vars memory vars) internal view returns (uint256) {
         if (vars.amount2 == 0) revert AMOUNT_NOT_VALID();
         if (vars.amount2 != type(uint256).max) return vars.amount2;

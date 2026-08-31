@@ -30,6 +30,10 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 ///      makes Aave pull only the debt, which fails the post-execution exactness check and reverts.
 ///      outAmount publishes the measured debt-token wallet spend with outToken = loanToken.
 contract AaveV3RepayHookV2 is BaseAaveV3LoanHookV2 {
+    /*//////////////////////////////////////////////////////////////
+                              CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
     constructor() BaseAaveV3LoanHookV2(HookSubTypes.LOAN_REPAY) { }
 
     /// @notice Human-readable name for UI display
@@ -86,35 +90,6 @@ contract AaveV3RepayHookV2 is BaseAaveV3LoanHookV2 {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-
-    /// @dev Resolves the repay leg. Reverts before any approval/provider call when the account has
-    ///      no outstanding variable debt, when a full-repayment sentinel is combined with
-    ///      usePrevHookAmount, or when the previous-hook output is invalid. For the sentinel,
-    ///      `repayAssets` resolves to the current variable-debt balance — exact for the
-    ///      transaction because debt accrual is per-timestamp and build, approval and repay execute in
-    ///      the same transaction.
-    function _resolveRepayLeg(
-        address prevHook,
-        address account,
-        AaveV3V2Vars memory vars
-    )
-        internal
-        view
-        returns (uint256 repayAssets, bool fullRepay)
-    {
-        uint256 debt = _variableDebtBalance(vars, account);
-        if (debt == 0) revert NO_OUTSTANDING_DEBT();
-
-        fullRepay = vars.amount1 == type(uint256).max;
-        if (fullRepay) {
-            if (vars.usePrevHookAmount) revert MAX_WITH_PREV_NOT_ALLOWED();
-            repayAssets = debt;
-        } else {
-            repayAssets =
-                vars.usePrevHookAmount ? _resolvePrevHookOutput(prevHook, account, vars.loanToken) : vars.amount1;
-            if (repayAssets == 0) revert AMOUNT_NOT_VALID();
-        }
-    }
 
     /// @inheritdoc BaseHook
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {

@@ -4,8 +4,7 @@ pragma solidity 0.8.30;
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { MorphoBalancesLib } from "../../../vendor/morpho/MorphoBalancesLib.sol";
-import { IMorpho, IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
+import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -34,9 +33,12 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 ///      full collateral. Repaying a zero-debt position reverts before any approval. outAmount
 ///      publishes the actual released collateral-token wallet delta with outToken =
 ///      collateralToken.
-/// @dev KNOWN LIMITATION (P1-2, unchanged vs V1): full repayment can be front-run by repaying
-///      1 wei of shares on behalf of the borrower, making the victim's transaction revert.
-///      Mitigate with private mempools.
+/// @dev KNOWN LIMITATION (griefing): the full-repayment sentinel resolves the debt live at
+///      execution, so it is robust to a partial third-party repayment. Only a *complete*
+///      third-party repayment (a donation clearing the whole debt) makes the victim's transaction
+///      revert with NO_OUTSTANDING_DEBT; an exact non-sentinel repayAmount can additionally be
+///      griefed by a 1-wei third-party repay shifting the debt below the signed amount. Emit the
+///      sentinel for close intents and mitigate with private mempools.
 contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHookV2 {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -136,33 +138,12 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHookV2 {
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Resolves the repay leg (identical semantics to MorphoRepayHookV2)
-    function _resolveRepayLeg(
-        address prevHook,
-        address account,
-        MorphoV2Vars memory vars,
-        MarketParams memory marketParams
-    )
-        internal
-        view
-        returns (uint256 repayAssets, uint256 borrowShares, bool fullRepay)
-    {
-        borrowShares = _borrowShares(marketParams, account);
-        if (borrowShares == 0) revert NO_OUTSTANDING_DEBT();
-
-        fullRepay = vars.amount1 == type(uint256).max;
-        if (fullRepay) {
-            if (vars.usePrevHookAmount) revert MAX_WITH_PREV_NOT_ALLOWED();
-            repayAssets = MorphoBalancesLib.expectedBorrowAssets(IMorpho(morpho), marketParams, account);
-        } else {
-            repayAssets =
-                vars.usePrevHookAmount ? _resolvePrevHookOutput(prevHook, account, vars.loanToken) : vars.amount1;
-            if (repayAssets == 0) revert AMOUNT_NOT_VALID();
-        }
-    }
-
     /// @dev Resolves the withdraw leg: exact amount, or the position's full collateral for the
     ///      type(uint256).max sentinel. Never derived proportionally from the repayment.
+    /// @param account The executing smart account
+    /// @param vars The decoded hook parameters
+    /// @param marketParams The Morpho market params derived from `vars`
+    /// @return withdrawAmount The exact collateral amount the withdraw call will release
     function _resolveWithdrawLeg(
         address account,
         MorphoV2Vars memory vars,
@@ -173,7 +154,8 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHookV2 {
         returns (uint256 withdrawAmount)
     {
         if (vars.amount2 == 0) revert AMOUNT_NOT_VALID();
-        withdrawAmount = vars.amount2 == type(uint256).max ? _positionCollateral(marketParams, account) : vars.amount2;
+        if (vars.amount2 != type(uint256).max) return vars.amount2;
+        withdrawAmount = _positionCollateral(marketParams, account);
         if (withdrawAmount == 0) revert AMOUNT_NOT_VALID();
     }
 

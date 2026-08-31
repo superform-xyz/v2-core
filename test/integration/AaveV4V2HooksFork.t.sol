@@ -234,6 +234,27 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
         assertApproxEqAbs(_totalDebt(), BORROW_AMOUNT, 1, "Total debt (drawn + premium) should match borrow amount");
     }
 
+    /// @notice Second open on the same reserve: proves setUsingAsCollateral is idempotent on the
+    ///         real Spoke (the "already enabled" no-op path the hook relies on). If enabling an
+    ///         already-collateral reserve reverted, this second supply+borrow would revert wholesale.
+    function test_AaveV4V2_Open_SecondOnSameReserve_CollateralAlreadyEnabled() external {
+        _openDefaultPosition(); // first open enables the WETH reserve as collateral
+
+        uint256 suppliedAfterFirst = spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth);
+        uint256 debtAfterFirst = _totalDebt();
+
+        // Second open on the same reserve — setUsingAsCollateral(true) is now a no-op
+        _executeHook(address(openHook), _createOpenData(SUPPLY_AMOUNT, false, BORROW_AMOUNT));
+
+        assertApproxEqAbs(
+            spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth),
+            suppliedAfterFirst + SUPPLY_AMOUNT,
+            2,
+            "second supply added collateral (idempotent enable did not revert)"
+        );
+        assertApproxEqAbs(_totalDebt(), debtAfterFirst + BORROW_AMOUNT, 2, "second borrow added debt");
+    }
+
     /// @notice Open chained with usePrevHookAmount: previous hook publishes WETH, open supplies it
     function test_AaveV4V2_Open_ChainedWithPrevHookAmount() external {
         address[] memory hooks = new address[](2);

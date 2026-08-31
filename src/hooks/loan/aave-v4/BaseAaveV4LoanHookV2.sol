@@ -87,9 +87,10 @@ abstract contract BaseAaveV4LoanHookV2 is BaseLoanHookV2 {
 
     /// @inheritdoc BaseLoanHook
     /// @dev Aave V4 V2 layout stores usePrevHookAmount at offset 240 (not the Morpho-shaped 196).
-    ///      Strict canonical-boolean read so this view never disagrees with execution-time
-    ///      decoding on malformed data.
+    ///      Exact-length guard + strict canonical-boolean read so this view never disagrees with
+    ///      execution-time decoding on malformed data (custom error instead of an OOB panic).
     function decodeUsePrevHookAmount(bytes memory data) external pure override returns (bool) {
+        if (data.length != AAVE_V4_V2_DATA_LENGTH) revert INVALID_DATA_LENGTH();
         return _decodeStrictBool(data, USE_PREV_OFFSET);
     }
 
@@ -97,6 +98,7 @@ abstract contract BaseAaveV4LoanHookV2 is BaseLoanHookV2 {
     /// @dev Single-slot default for the standalone repay hook: amount1 lives at offset 176 (not
     ///      the Morpho-shaped 132). Composite hooks override with two-slot versions.
     function decodeAmounts(bytes memory data) external pure virtual override returns (uint256[] memory amounts) {
+        if (data.length != AAVE_V4_V2_DATA_LENGTH) revert INVALID_DATA_LENGTH();
         amounts = new uint256[](1);
         amounts[0] = BytesLib.toUint256(data, AMOUNT1_OFFSET);
     }
@@ -113,6 +115,7 @@ abstract contract BaseAaveV4LoanHookV2 is BaseLoanHookV2 {
         override
         returns (bytes memory)
     {
+        if (data.length != AAVE_V4_V2_DATA_LENGTH) revert INVALID_DATA_LENGTH();
         if (amounts.length != 1) revert INVALID_AMOUNTS_LENGTH();
         return _replaceCalldataAmount(data, amounts[0], AMOUNT1_OFFSET);
     }
@@ -151,10 +154,11 @@ abstract contract BaseAaveV4LoanHookV2 is BaseLoanHookV2 {
         vars.supplyReserveId = BytesLib.toUint256(data, SUPPLY_RESERVE_ID_OFFSET);
         vars.borrowReserveId = BytesLib.toUint256(data, BORROW_RESERVE_ID_OFFSET);
         vars.amount1 = BytesLib.toUint256(data, AMOUNT1_OFFSET);
-        vars.usePrevHookAmount = _decodeStrictBool(data, USE_PREV_OFFSET);
         vars.amount2 = BytesLib.toUint256(data, AMOUNT2_OFFSET);
+        vars.usePrevHookAmount = _decodeStrictBool(data, USE_PREV_OFFSET);
 
-        if (secondaryReserved) _requireZeroWord(data, AMOUNT2_OFFSET);
+        // Reuse the already-decoded word instead of re-reading it
+        if (secondaryReserved && vars.amount2 != 0) revert RESERVED_FIELD_NOT_ZERO();
     }
 
     /// @dev Binds both reserve ids to the declared tokens through the Spoke's canonical
@@ -178,6 +182,40 @@ abstract contract BaseAaveV4LoanHookV2 is BaseLoanHookV2 {
     /// @dev Returns the account's supplied assets on the supply reserve
     function _suppliedAssets(AaveV4V2Vars memory vars, address account) internal view returns (uint256) {
         return IAaveV4Spoke(vars.spoke).getUserSuppliedAssets(vars.supplyReserveId, account);
+    }
+
+    /// @dev Resolves the repay leg shared by AaveV4RepayHookV2 and AaveV4RepayAndWithdrawHookV2.
+    ///      Reverts before any approval/provider call when the account has no outstanding debt,
+    ///      when a full-repayment sentinel is combined with usePrevHookAmount, or when the
+    ///      previous-hook output is invalid. For the sentinel, `repayAssets` resolves to the
+    ///      account's total debt (drawn + premium) — exact for the transaction because build,
+    ///      approval and repay execute in the same transaction.
+    /// @param prevHook The previous hook in the chain
+    /// @param account The executing smart account
+    /// @param vars The decoded hook parameters
+    /// @return repayAssets The exact debt-asset amount the repay call will pull
+    /// @return fullRepay True when the sentinel selected a Spoke-native full repayment
+    function _resolveRepayLeg(
+        address prevHook,
+        address account,
+        AaveV4V2Vars memory vars
+    )
+        internal
+        view
+        returns (uint256 repayAssets, bool fullRepay)
+    {
+        uint256 debt = _totalDebt(vars, account);
+        if (debt == 0) revert NO_OUTSTANDING_DEBT();
+
+        fullRepay = vars.amount1 == type(uint256).max;
+        if (fullRepay) {
+            if (vars.usePrevHookAmount) revert MAX_WITH_PREV_NOT_ALLOWED();
+            repayAssets = debt;
+        } else {
+            repayAssets =
+                vars.usePrevHookAmount ? _resolvePrevHookOutput(prevHook, account, vars.loanToken) : vars.amount1;
+            if (repayAssets == 0) revert AMOUNT_NOT_VALID();
+        }
     }
 
     /// @dev Full market-identity inspector payload: spoke, loan token, collateral token and both

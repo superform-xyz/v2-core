@@ -4,7 +4,6 @@ pragma solidity 0.8.30;
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { MorphoBalancesLib } from "../../../vendor/morpho/MorphoBalancesLib.sol";
 import { IMorpho, IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
@@ -31,11 +30,15 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 ///      false. Full repayment approves the accrued debt (view-simulated to block.timestamp, exact
 ///      because build and the repay execute in the same transaction), repays the current borrow
 ///      shares, and resets the approval to zero in the same transaction. Repaying a zero-debt
-///      position reverts before any approval. outAmount publishes the measured debt-token wallet
-///      spend with outToken = loanToken.
-/// @dev KNOWN LIMITATION (P1-2, unchanged vs V1): full repayment can be front-run by repaying
-///      1 wei of shares on behalf of the borrower, making the victim's transaction revert.
-///      Mitigate with private mempools.
+///      position reverts before any approval. This is a terminal hook: it spends the debt asset
+///      and publishes outAmount = 0 (outToken = loanToken for classification) so a downstream
+///      usePrevHookAmount consumer cannot mistake the spend for produced tokens.
+/// @dev KNOWN LIMITATION (griefing): the full-repayment sentinel resolves the debt live at
+///      execution, so it is robust to a partial third-party repayment. Only a *complete*
+///      third-party repayment (a donation clearing the whole debt) makes the victim's transaction
+///      revert with NO_OUTSTANDING_DEBT; an exact non-sentinel repayAmount can additionally be
+///      griefed by a 1-wei third-party repay shifting the debt below the signed amount. Emit the
+///      sentinel for close intents and mitigate with private mempools.
 contract MorphoRepayHookV2 is BaseMorphoLoanHookV2 {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -101,42 +104,17 @@ contract MorphoRepayHookV2 is BaseMorphoLoanHookV2 {
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Resolves the repay leg. Reverts before any approval/provider call when the account has
-    ///      no outstanding debt, when a full-repayment sentinel is combined with
-    ///      usePrevHookAmount, or when the previous-hook output is invalid.
-    function _resolveRepayLeg(
-        address prevHook,
-        address account,
-        MorphoV2Vars memory vars,
-        MarketParams memory marketParams
-    )
-        internal
-        view
-        returns (uint256 repayAssets, uint256 borrowShares, bool fullRepay)
-    {
-        borrowShares = _borrowShares(marketParams, account);
-        if (borrowShares == 0) revert NO_OUTSTANDING_DEBT();
-
-        fullRepay = vars.amount1 == type(uint256).max;
-        if (fullRepay) {
-            if (vars.usePrevHookAmount) revert MAX_WITH_PREV_NOT_ALLOWED();
-            repayAssets = MorphoBalancesLib.expectedBorrowAssets(IMorpho(morpho), marketParams, account);
-        } else {
-            repayAssets =
-                vars.usePrevHookAmount ? _resolvePrevHookOutput(prevHook, account, vars.loanToken) : vars.amount1;
-            if (repayAssets == 0) revert AMOUNT_NOT_VALID();
-        }
-    }
-
     /// @inheritdoc BaseHook
-    /// @dev Accrues interest so the sentinel resolution below and the shares-denominated repay
-    ///      price debt against identical market state, then stores the exact expected debt-token
-    ///      spend and snapshots wallet balances
+    /// @dev Accrues interest so the sentinel resolution and the shares-denominated repay price debt
+    ///      against identical market state, then stores the exact expected debt-token spend and
+    ///      snapshots wallet balances. `marketParams` is materialized once and reused across
+    ///      accrual and resolution.
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         MorphoV2Vars memory vars = _decodeMorphoV2(data, true);
-        _accrueInterest(vars);
+        MarketParams memory marketParams = _marketParams(vars);
+        IMorpho(morpho).accrueInterest(marketParams);
 
-        (uint256 repayAssets,,) = _resolveRepayLeg(prevHook, account, vars, _marketParams(vars));
+        (uint256 repayAssets,,) = _resolveRepayLeg(prevHook, account, vars, marketParams);
         expectedPrimaryAmount = repayAssets;
         _snapshotBalances(account, data);
     }

@@ -761,7 +761,7 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
             abi.encodeCall(IMorphoBase.repay, (_mp(), 0, uint256(shares), address(this), ""))
         );
 
-        // Same full-repay branch in the close hook's own _resolveRepayLeg copy
+        // Same full-repay branch via the shared _resolveRepayLeg in the close hook
         Execution[] memory closeExecs =
             morphoClose.build(address(0), address(this), _morphoData(MAX, 1e6, false));
         assertEq(closeExecs.length, 7);
@@ -858,7 +858,8 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
         IERC20(USDC).transfer(SINK, 100e6);
         morphoRepay.postExecute(address(0), address(this), data);
 
-        assertEq(morphoRepay.getOutAmount(address(this)), 100e6);
+        // Terminal repay hook publishes outAmount = 0 (spend is not a product); outToken kept
+        assertEq(morphoRepay.getOutAmount(address(this)), 0);
         assertEq(morphoRepay.getOutToken(address(this)), USDC);
     }
 

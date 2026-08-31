@@ -127,6 +127,9 @@ abstract contract BaseLoanHookV2 is BaseLoanHook {
     ///      and can never be a legitimate wallet delta) — all before any provider call is emitted.
     ///      Deterministic within a transaction: the previous hook's transient outputs persist for
     ///      the whole transaction, so build, _preExecute and _postExecute resolve the same value.
+    ///      NOTE: a predecessor that sets only outAmount and never outToken reports outToken ==
+    ///      address(0) and hard-fails here with PREV_TOKEN_MISMATCH; V2 loan hooks require the
+    ///      predecessor to publish a token (all V2 producers do — see the _settle* helpers).
     /// @param prevHook The previous hook in the chain
     /// @param account The executing smart account
     /// @param expectedToken The token the primary slot is denominated in
@@ -144,6 +147,34 @@ abstract contract BaseLoanHookV2 is BaseLoanHook {
         if (ISuperHookResult(prevHook).getOutToken(account) != expectedToken) revert PREV_TOKEN_MISMATCH();
         amount = ISuperHookResult(prevHook).getOutAmount(account);
         if (amount == 0 || amount == type(uint256).max) revert AMOUNT_NOT_VALID();
+    }
+
+    /// @dev Resolves the collateral (amount1) leg shared by every V2 supply-and-borrow hook.
+    ///      Rejects a zero or sentinel borrow (amount2) and a zero or sentinel resolved collateral,
+    ///      all before any provider call. When usePrevHookAmount is set, amount1 is taken from the
+    ///      previous hook's output (which must be denominated in `collateralToken`).
+    /// @param prevHook The previous hook in the chain
+    /// @param account The executing smart account
+    /// @param collateralToken The token the collateral leg is denominated in
+    /// @param amount1 The calldata collateral amount (ignored when usePrevHookAmount is set)
+    /// @param amount2 The calldata borrow amount (validated non-zero, non-sentinel)
+    /// @param usePrevHookAmount True to source amount1 from the previous hook's output
+    /// @return resolvedAmount1 The exact collateral amount to supply
+    function _resolveOpenAmount1(
+        address prevHook,
+        address account,
+        address collateralToken,
+        uint256 amount1,
+        uint256 amount2,
+        bool usePrevHookAmount
+    )
+        internal
+        view
+        returns (uint256 resolvedAmount1)
+    {
+        if (amount2 == 0 || amount2 == type(uint256).max) revert AMOUNT_NOT_VALID();
+        resolvedAmount1 = usePrevHookAmount ? _resolvePrevHookOutput(prevHook, account, collateralToken) : amount1;
+        if (resolvedAmount1 == 0 || resolvedAmount1 == type(uint256).max) revert AMOUNT_NOT_VALID();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -188,13 +219,16 @@ abstract contract BaseLoanHookV2 is BaseLoanHook {
     }
 
     /// @dev Standalone-repay settle: loan tokens spent must equal expectedPrimaryAmount.
-    ///      Publishes the measured debt-token spend with outToken = loanToken; the hook remains a
-    ///      terminal producer for off-chain classification purposes.
+    ///      A repay hook is terminal — it consumes the debt asset and produces nothing — so it
+    ///      publishes outAmount = 0 while keeping outToken = loanToken for off-chain classification.
+    ///      Publishing the spend as an output would let a downstream usePrevHookAmount consumer
+    ///      mistake it for produced tokens and spend an equal amount of unrelated wallet balance;
+    ///      zero makes any such chaining fail closed (the prev-hook pipe rejects a zero amount).
     function _settleRepay(address account, bytes memory data) internal {
         uint256 loanSpent = _balanceDecrease(preLoanTokenBalance, getLoanTokenBalance(account, data));
         if (loanSpent != expectedPrimaryAmount) revert DELTA_MISMATCH(expectedPrimaryAmount, loanSpent);
 
-        _setOutAmount(loanSpent, account);
+        _setOutAmount(0, account);
         _setOutToken(getLoanTokenAddress(data), account);
     }
 

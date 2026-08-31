@@ -92,34 +92,6 @@ contract AaveV4RepayHookV2 is BaseAaveV4LoanHookV2 {
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Resolves the repay leg. Reverts before any approval/provider call when the account has
-    ///      no outstanding debt, when a full-repayment sentinel is combined with
-    ///      usePrevHookAmount, or when the previous-hook output is invalid. For the sentinel,
-    ///      `repayAssets` resolves to the account's total debt (drawn + premium) — exact for the
-    ///      transaction because build, approval and repay execute in the same transaction.
-    function _resolveRepayLeg(
-        address prevHook,
-        address account,
-        AaveV4V2Vars memory vars
-    )
-        internal
-        view
-        returns (uint256 repayAssets, bool fullRepay)
-    {
-        uint256 debt = _totalDebt(vars, account);
-        if (debt == 0) revert NO_OUTSTANDING_DEBT();
-
-        fullRepay = vars.amount1 == type(uint256).max;
-        if (fullRepay) {
-            if (vars.usePrevHookAmount) revert MAX_WITH_PREV_NOT_ALLOWED();
-            repayAssets = debt;
-        } else {
-            repayAssets =
-                vars.usePrevHookAmount ? _resolvePrevHookOutput(prevHook, account, vars.loanToken) : vars.amount1;
-            if (repayAssets == 0) revert AMOUNT_NOT_VALID();
-        }
-    }
-
     /// @inheritdoc BaseHook
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         AaveV4V2Vars memory vars = _decodeAaveV4V2(data, true);

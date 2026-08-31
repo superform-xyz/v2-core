@@ -83,9 +83,10 @@ abstract contract BaseAaveV3LoanHookV2 is BaseLoanHookV2 {
 
     /// @inheritdoc BaseLoanHook
     /// @dev Aave V3 V2 layout stores usePrevHookAmount at offset 177 (not the Morpho-shaped 196).
-    ///      Strict canonical-boolean read so this view never disagrees with execution-time
-    ///      decoding on malformed data.
+    ///      Exact-length guard + strict canonical-boolean read so this view never disagrees with
+    ///      execution-time decoding on malformed data (custom error instead of an OOB panic).
     function decodeUsePrevHookAmount(bytes memory data) external pure override returns (bool) {
+        if (data.length != AAVE_V3_V2_DATA_LENGTH) revert INVALID_DATA_LENGTH();
         return _decodeStrictBool(data, USE_PREV_OFFSET);
     }
 
@@ -93,6 +94,7 @@ abstract contract BaseAaveV3LoanHookV2 is BaseLoanHookV2 {
     /// @dev Single-slot default for the standalone repay hook: amount1 lives at offset 113 (not
     ///      the Morpho-shaped 132). Composite hooks override with two-slot versions.
     function decodeAmounts(bytes memory data) external pure virtual override returns (uint256[] memory amounts) {
+        if (data.length != AAVE_V3_V2_DATA_LENGTH) revert INVALID_DATA_LENGTH();
         amounts = new uint256[](1);
         amounts[0] = BytesLib.toUint256(data, AMOUNT1_OFFSET);
     }
@@ -109,6 +111,7 @@ abstract contract BaseAaveV3LoanHookV2 is BaseLoanHookV2 {
         override
         returns (bytes memory)
     {
+        if (data.length != AAVE_V3_V2_DATA_LENGTH) revert INVALID_DATA_LENGTH();
         if (amounts.length != 1) revert INVALID_AMOUNTS_LENGTH();
         return _replaceCalldataAmount(data, amounts[0], AMOUNT1_OFFSET);
     }
@@ -148,7 +151,8 @@ abstract contract BaseAaveV3LoanHookV2 is BaseLoanHookV2 {
         vars.amount2 = BytesLib.toUint256(data, AMOUNT2_OFFSET);
         vars.usePrevHookAmount = _decodeStrictBool(data, USE_PREV_OFFSET);
 
-        if (secondaryReserved) _requireZeroWord(data, AMOUNT2_OFFSET);
+        // Reuse the already-decoded word instead of re-reading it
+        if (secondaryReserved && vars.amount2 != 0) revert RESERVED_FIELD_NOT_ZERO();
     }
 
     /// @dev Returns the account's current variable-debt balance for the loan token on the pool
@@ -163,9 +167,45 @@ abstract contract BaseAaveV3LoanHookV2 is BaseLoanHookV2 {
         return IERC20(aToken).balanceOf(account);
     }
 
+    /// @dev Resolves the repay leg shared by AaveV3RepayHookV2 and AaveV3RepayAndWithdrawHookV2.
+    ///      Reverts before any approval/provider call when the account has no outstanding variable
+    ///      debt, when a full-repayment sentinel is combined with usePrevHookAmount, or when the
+    ///      previous-hook output is invalid. For the sentinel, `repayAssets` resolves to the
+    ///      current variable-debt balance — exact for the transaction because debt accrual is
+    ///      per-timestamp and build, approval and repay execute in the same transaction.
+    /// @param prevHook The previous hook in the chain
+    /// @param account The executing smart account
+    /// @param vars The decoded hook parameters
+    /// @return repayAssets The exact debt-asset amount the repay call will pull
+    /// @return fullRepay True when the sentinel selected an Aave-native full repayment
+    function _resolveRepayLeg(
+        address prevHook,
+        address account,
+        AaveV3V2Vars memory vars
+    )
+        internal
+        view
+        returns (uint256 repayAssets, bool fullRepay)
+    {
+        uint256 debt = _variableDebtBalance(vars, account);
+        if (debt == 0) revert NO_OUTSTANDING_DEBT();
+
+        fullRepay = vars.amount1 == type(uint256).max;
+        if (fullRepay) {
+            if (vars.usePrevHookAmount) revert MAX_WITH_PREV_NOT_ALLOWED();
+            repayAssets = debt;
+        } else {
+            repayAssets =
+                vars.usePrevHookAmount ? _resolvePrevHookOutput(prevHook, account, vars.loanToken) : vars.amount1;
+            if (repayAssets == 0) revert AMOUNT_NOT_VALID();
+        }
+    }
+
     /// @dev Full market-identity inspector payload: pool, loan token, collateral token and the
     ///      interest-rate mode. Amount fields, usePrevHookAmount and the strategy header are
     ///      intentionally excluded.
+    /// @param vars The decoded hook parameters
+    /// @return The packed inspector payload
     function _inspectAaveV3V2(AaveV3V2Vars memory vars) internal pure returns (bytes memory) {
         return abi.encodePacked(vars.pool, vars.loanToken, vars.collateralToken, VARIABLE_RATE_MODE);
     }
