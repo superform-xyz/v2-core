@@ -135,7 +135,7 @@ contract AcrossV3AdapterV2Harness is AcrossV3AdapterV2 {
         AcrossV3AdapterV2(acrossSpokePool, superDestinationExecutor)
     { }
 
-    function seedLegacyFailedTransfer(address account, address token, uint256 amount) external {
+    function seedFailedTransfer(address account, address token, uint256 amount) external {
         failedTransfers[account][token] = amount;
     }
 }
@@ -300,10 +300,9 @@ contract AcrossV3AdapterV2UnitTests is Helpers {
         assertEq(executor.callCount(), 1);
     }
 
-    /// @dev The harness seeds deprecated storage only to prove the retained claim surface still behaves identically.
-    function test_ClaimFailedTransfer_PreservesDeprecatedClaimSurface() public {
+    function test_ClaimFailedTransfer_ClaimsRecordedBalance() public {
         token.mint(address(adapter), AMOUNT);
-        adapter.seedLegacyFailedTransfer(account, address(token), AMOUNT);
+        adapter.seedFailedTransfer(account, address(token), AMOUNT);
 
         vm.prank(account);
         adapter.claimFailedTransfer(address(token), AMOUNT);

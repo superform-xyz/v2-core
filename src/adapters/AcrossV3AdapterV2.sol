@@ -15,13 +15,11 @@ import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
 
 /// @title AcrossV3AdapterV2
 /// @author Superform Labs
-/// @notice V2 adapter that receives compact Across V3 messages with 2-field format: abi.encode(initData, sigData)
-/// @notice instead of the V1 6-field format. The adapter extracts account, executorCalldata, dstTokens, and
-/// @notice intentAmounts from sigData's DstProof.info, eliminating duplicate data per message.
-/// @dev V2 hook <-> V2 adapter must be used together (incompatible with V1 counterparts)
+/// @notice Receives compact Across V3 messages encoded as abi.encode(initData, sigData)
+/// @notice Extracts account, executorCalldata, dstTokens, and intentAmounts from sigData's DstProof.info
+/// @dev The Across hook and adapter must use the same message format
 /// @dev Across delivers tokens to this adapter via handleV3AcrossMessage, which then transfers to the account
-/// @dev New transfer failures revert the Across fill atomically. The deprecated claim surface remains for ABI
-///      compatibility; historical balances remain on their original adapter deployments.
+/// @dev Transfer failures revert the Across fill atomically
 contract AcrossV3AdapterV2 is IAcrossV3Receiver, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -35,8 +33,7 @@ contract AcrossV3AdapterV2 is IAcrossV3Receiver, ReentrancyGuard {
     /// @notice The SuperDestinationExecutor for processing bridged executions
     ISuperDestinationExecutor public immutable SUPER_DESTINATION_EXECUTOR;
 
-    /// @notice Deprecated claimable balances retained for ABI and storage-layout compatibility
-    /// @dev Balances do not migrate between immutable adapter deployments
+    /// @notice Claimable balances for failed token transfers: account => token => amount
     mapping(address account => mapping(address token => uint256 amount)) public failedTransfers;
 
     /*//////////////////////////////////////////////////////////////
@@ -65,7 +62,6 @@ contract AcrossV3AdapterV2 is IAcrossV3Receiver, ReentrancyGuard {
     error NO_DST_PROOF_FOR_CHAIN();
 
     /// @notice Thrown when the extracted account is the zero address
-    /// @dev Matches V1 behavior where safeTransfer(address(0), amount) reverts
     error ACCOUNT_NOT_VALID();
 
     /// @notice Thrown when bridged tokens cannot be transferred to the destination account
@@ -92,7 +88,7 @@ contract AcrossV3AdapterV2 is IAcrossV3Receiver, ReentrancyGuard {
     /// @param amount The amount of tokens transferred
     event TransferSucceeded(address indexed account, address indexed tokenSent, uint256 amount);
 
-    /// @notice Deprecated event emitted by prior adapter deployments on token transfer failure
+    /// @notice Emitted when token transfer to the account fails
     /// @param account The intended recipient
     /// @param token The token that failed to transfer
     /// @param amount The amount stored for manual claim
@@ -139,10 +135,10 @@ contract AcrossV3AdapterV2 is IAcrossV3Receiver, ReentrancyGuard {
             revert INVALID_SENDER();
         }
 
-        // 2. V2: Decode compact 2-field format (initData, sigData)
+        // 2. Decode compact 2-field format (initData, sigData)
         (bytes memory initData, bytes memory sigDataRaw) = abi.decode(message, (bytes, bytes));
 
-        // 3. V2: Extract account, executorCalldata, dstTokens, intentAmounts from sigData
+        // 3. Extract account, executorCalldata, dstTokens, intentAmounts from sigData
         ExtractedData memory extracted = _extractFromSigData(sigDataRaw);
 
         // 4. Revert when no DstProof matches current chain
@@ -153,7 +149,6 @@ contract AcrossV3AdapterV2 is IAcrossV3Receiver, ReentrancyGuard {
         }
 
         // 5. Revert when account is zero address
-        //    Matches V1 behavior where safeTransfer(address(0)) reverts.
         //    Prevents the Across fill from delivering funds to an unusable account.
         if (extracted.account == address(0)) {
             revert ACCOUNT_NOT_VALID();
@@ -192,9 +187,8 @@ contract AcrossV3AdapterV2 is IAcrossV3Receiver, ReentrancyGuard {
                             CLAIM LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Claim a failed transfer balance recorded on this adapter deployment
-    /// @dev New deployments do not create claim balances because transfer failures revert atomically. Historical
-    ///      balances remain claimable by calling the prior adapter deployment that recorded them.
+    /// @notice Claim tokens from a failed transfer balance
+    /// @dev Only the intended recipient can claim their recorded balance
     /// @param token The token to claim
     /// @param amount The amount to claim
     function claimFailedTransfer(address token, uint256 amount) external nonReentrant {

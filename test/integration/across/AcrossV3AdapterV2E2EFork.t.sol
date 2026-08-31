@@ -116,7 +116,7 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
 
         vm.clearMockedCalls();
 
-        assertEq(adapterV2.failedTransfers(dstAccount, USDC_BASE), 0, "No new legacy claim balance");
+        assertEq(adapterV2.failedTransfers(dstAccount, USDC_BASE), 0, "No claim balance recorded");
     }
 
     /// @notice V2: Zero account → reverts before token transfer
