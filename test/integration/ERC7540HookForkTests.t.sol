@@ -16,8 +16,9 @@ import { CancelRedeemRequest7540Hook } from "../../src/hooks/vaults/7540/CancelR
 import { ClaimCancelDepositRequest7540Hook } from "../../src/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
 import { ClaimCancelRedeemRequest7540Hook } from "../../src/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
 import { SetOperator7540Hook } from "../../src/hooks/vaults/7540/SetOperator7540Hook.sol";
-import { ApproveAndRequestDeposit7540VaultHook } from
-    "../../src/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
+import {
+    ApproveAndRequestDeposit7540VaultHook
+} from "../../src/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
 
 // Oracle
 import { ERC7540YieldSourceOracle } from "../../src/accounting/oracles/ERC7540YieldSourceOracle.sol";
@@ -967,9 +968,7 @@ contract ERC7540HookForkTests is Test {
         investmentManager.fulfillCancelDepositRequest(
             poolId, trancheId, user, assetId, uint128(depositAmount), uint128(depositAmount)
         );
-        assertGt(
-            investmentManager.claimableCancelDepositRequest(CENTRIFUGE_USDC_VAULT, user), 0, "Nothing claimable"
-        );
+        assertGt(investmentManager.claimableCancelDepositRequest(CENTRIFUGE_USDC_VAULT, user), 0, "Nothing claimable");
 
         // Step 4: Claim via hook
         bytes memory claimData = abi.encodePacked(placeholder, CENTRIFUGE_USDC_VAULT, user);
@@ -1016,11 +1015,73 @@ contract ERC7540HookForkTests is Test {
         assertEq(IERC20(vault.share()).balanceOf(user), userShares, "User did not get all shares back");
     }
 
+    /// @notice Regression (receiver != account): a receiver holding a pre-existing real share
+    ///         balance must not inflate the amount the claim hook reports. Pre-fix the hook
+    ///         snapshotted the account in _preExecute but measured the receiver in _postExecute,
+    ///         publishing `receiverPre + claimed - accountPre` (over-reporting by the receiver's
+    ///         pre-balance) — which a downstream usePrevHookAmount consumer would move out of the
+    ///         account. Post-fix it reports exactly the claimed shares.
+    function test_fork_ClaimCancelRedeem_ReceiverPreBalanceDoesNotInflateReport() public {
+        address receiver = makeAddr("centrifuge_receiver");
+        _whitelistUser(receiver);
+
+        // account (user) acquires shares, then seeds the receiver with a genuine pre-balance
+        _fullDepositFlow(1e8);
+        address share = vault.share();
+        uint256 total = IERC20(share).balanceOf(user);
+        uint256 receiverPre = total / 4;
+        assertGt(receiverPre, 0, "need a non-zero receiver pre-balance");
+
+        vm.prank(user);
+        IERC20(share).transfer(receiver, receiverPre);
+        uint256 toRedeem = IERC20(share).balanceOf(user); // == total - receiverPre
+
+        // request redeem → cancel → fulfill cancel, so `toRedeem` shares become claimable to receiver
+        vm.prank(user);
+        vault.requestRedeem(toRedeem, user, user);
+        assertEq(IERC20(share).balanceOf(user), 0, "shares not locked");
+
+        bytes memory cancelData = abi.encodePacked(placeholder, CENTRIFUGE_USDC_VAULT);
+        Execution[] memory cancelExecs = cancelRedeemHook.build(address(0), user, cancelData);
+        vm.prank(user);
+        (bool sc,) = cancelExecs[1].target.call(cancelExecs[1].callData);
+        assertTrue(sc, "cancel failed");
+
+        vm.prank(ROOT_MANAGER);
+        investmentManager.fulfillCancelRedeemRequest(poolId, trancheId, user, assetId, uint128(toRedeem));
+
+        // drive the real claim through the hook: preExecute → claim (delivers to receiver) → postExecute
+        bytes memory claimData = abi.encodePacked(placeholder, CENTRIFUGE_USDC_VAULT, receiver);
+        Execution[] memory claimExecs = claimCancelRedeemHook.build(address(0), user, claimData);
+
+        uint256 receiverBefore = IERC20(share).balanceOf(receiver);
+
+        vm.prank(user);
+        claimCancelRedeemHook.preExecute(address(0), user, claimData);
+        vm.prank(user);
+        (bool s2,) = claimExecs[1].target.call(claimExecs[1].callData);
+        assertTrue(s2, "claim failed");
+        vm.prank(user);
+        claimCancelRedeemHook.postExecute(address(0), user, claimData);
+
+        uint256 actuallyClaimed = IERC20(share).balanceOf(receiver) - receiverBefore;
+        assertEq(actuallyClaimed, toRedeem, "sanity: receiver received the claimed shares");
+
+        // the hook must report exactly the claimed shares, NOT receiverPre + claimed
+        assertEq(
+            claimCancelRedeemHook.getOutAmount(user),
+            actuallyClaimed,
+            "reported amount inflated by receiver pre-balance"
+        );
+        assertEq(claimCancelRedeemHook.getOutToken(user), share, "outToken must be the share token, not unset asset");
+    }
+
     /*//////////////////////////////////////////////////////////////
         APPROVE AND REQUEST DEPOSIT HOOK
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Full approve-and-requestDeposit sequence: approve(0) → approve(amount) → requestDeposit → approve(0)
+    /// @notice Full approve-and-requestDeposit sequence: approve(0) → approve(amount) → requestDeposit →
+    /// approve(0)
     function test_fork_ApproveAndRequestDeposit_RealVault() public {
         uint256 depositAmount = 1e8; // 100 USDC
 
@@ -1029,7 +1090,8 @@ contract ERC7540HookForkTests is Test {
         // Calldata: placeholder(32) | yieldSource(20) | token(20) | amount(32) | usePrevHookAmount(1)
         bytes memory hookData = abi.encodePacked(placeholder, CENTRIFUGE_USDC_VAULT, USDC, depositAmount, false);
         Execution[] memory executions = approveAndRequestDepositHook.build(address(0), user, hookData);
-        // build() produces: [0]=preExecute, [1]=approve(0), [2]=approve(amount), [3]=requestDeposit, [4]=approve(0), [5]=postExecute
+        // build() produces: [0]=preExecute, [1]=approve(0), [2]=approve(amount), [3]=requestDeposit, [4]=approve(0),
+        // [5]=postExecute
 
         vm.startPrank(user);
         (bool s1,) = executions[1].target.call(executions[1].callData);

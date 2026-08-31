@@ -696,7 +696,8 @@ contract CircleGatewayUnitTests is BaseTest {
     }
 
     function test_WalletHook_PostExecute_WithPrevHookAmount() public {
-        // Test postExecute with usePrevHookAmount = true
+        // Test postExecute with usePrevHookAmount = true: the deposit used the previous hook's
+        // output, so the published outAmount must be that resolved amount, not the static one
         MockPrevHook mockPrevHook = new MockPrevHook(MINT_AMOUNT);
 
         bytes memory hookData = abi.encodePacked(
@@ -714,7 +715,46 @@ contract CircleGatewayUnitTests is BaseTest {
         walletHook.postExecute(address(mockPrevHook), ACCOUNT, hookData);
 
         // Verify the outAmount was set correctly
-        assertEq(walletHook.getOutAmount(ACCOUNT), DEPOSIT_AMOUNT, "Should set outAmount to data amount");
+        assertEq(walletHook.getOutAmount(ACCOUNT), MINT_AMOUNT, "Should set outAmount to prev hook amount");
+    }
+
+    function test_WalletHook_PostExecute_PrevAmountEqualsStatic() public {
+        // Boundary: prev hook output equals the static encoded amount
+        MockPrevHook mockPrevHook = new MockPrevHook(DEPOSIT_AMOUNT);
+
+        bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
+            address(mockToken), // token (20 bytes)
+            DEPOSIT_AMOUNT, // amount (32 bytes)
+            true // usePrevHookAmount (1 byte)
+        );
+
+        walletHook.setExecutionContext(ACCOUNT);
+
+        vm.prank(ACCOUNT);
+        walletHook.postExecute(address(mockPrevHook), ACCOUNT, hookData);
+
+        assertEq(walletHook.getOutAmount(ACCOUNT), DEPOSIT_AMOUNT, "Should equal both amounts");
+    }
+
+    function test_WalletHook_PostExecute_PrevAmountAboveStatic() public {
+        // Prev hook output larger than the static encoded amount: report the larger effective deposit
+        uint256 largerAmount = DEPOSIT_AMOUNT * 2;
+        MockPrevHook mockPrevHook = new MockPrevHook(largerAmount);
+
+        bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
+            address(mockToken), // token (20 bytes)
+            DEPOSIT_AMOUNT, // amount (32 bytes, will be overridden)
+            true // usePrevHookAmount (1 byte)
+        );
+
+        walletHook.setExecutionContext(ACCOUNT);
+
+        vm.prank(ACCOUNT);
+        walletHook.postExecute(address(mockPrevHook), ACCOUNT, hookData);
+
+        assertEq(walletHook.getOutAmount(ACCOUNT), largerAmount, "Should set outAmount to prev hook amount");
     }
 
     function test_WalletHook_PostExecute_WithoutPrevHookAmount() public {
@@ -1046,8 +1086,9 @@ contract CircleGatewayUnitTests is BaseTest {
     }
 
     function test_WalletHook_PostExecute_WithPrevHookAmount_Consistency() public {
-        // Test that _postExecute correctly handles the case where usePrevHookAmount is true
-        // The _postExecute function should use the amount from data, not from prevHook
+        // _postExecute must resolve the amount exactly like _buildHookExecutions: when
+        // usePrevHookAmount is true, the deposit was made with the prev hook's output, so the
+        // published outAmount must match it (not the stale static amount encoded in data)
         MockPrevHook mockPrevHook = new MockPrevHook(MINT_AMOUNT);
 
         bytes memory hookData = abi.encodePacked(
@@ -1064,10 +1105,55 @@ contract CircleGatewayUnitTests is BaseTest {
         vm.prank(ACCOUNT);
         walletHook.postExecute(address(mockPrevHook), ACCOUNT, hookData);
 
-        // Verify the outAmount was set to the amount from data, not from prevHook
-        // This tests the branch where _postExecute reads from data regardless of usePrevHookAmount
+        // Verify the outAmount matches what the deposit actually used
         assertEq(
-            walletHook.getOutAmount(ACCOUNT), DEPOSIT_AMOUNT, "Should set outAmount to data amount, not prevHook amount"
+            walletHook.getOutAmount(ACCOUNT), MINT_AMOUNT, "Should set outAmount to prevHook amount, not data amount"
+        );
+    }
+
+    function test_WalletHook_FullExecutionFlow_WithPrevHookAmount() public {
+        // Composition regression: the deposit uses the prev hook's output (500e6) while the static
+        // encoded amount is larger (1000e6) and the account holds a surplus prebalance covering it.
+        // Pre-fix the hook republished the static amount, letting a downstream usePrevHookAmount
+        // consumer drain the surplus; the hook must publish exactly the effective deposit.
+        uint256 effectiveAmount = MINT_AMOUNT;
+        MockPrevHook mockPrevHook = new MockPrevHook(effectiveAmount);
+
+        bytes memory hookData = abi.encodePacked(
+            bytes(new bytes(52)), // 52-byte placeholder
+            address(mockToken), // token (20 bytes)
+            DEPOSIT_AMOUNT, // stale static amount (32 bytes, larger than effective)
+            true // usePrevHookAmount (1 byte)
+        );
+
+        // build resolves the effective amount; ACCOUNT already holds DEPOSIT_AMOUNT from setUp
+        Execution[] memory executions = walletHook.build(address(mockPrevHook), ACCOUNT, hookData);
+        assertEq(executions.length, 6, "Should have 6 executions");
+
+        walletHook.setExecutionContext(ACCOUNT);
+
+        // run the real lifecycle: preExecute -> approve(0)/approve/deposit/approve(0) -> postExecute
+        vm.startPrank(ACCOUNT);
+        walletHook.preExecute(address(mockPrevHook), ACCOUNT, hookData);
+        for (uint256 i = 1; i < executions.length - 1; i++) {
+            (bool success,) = executions[i].target.call(executions[i].callData);
+            assertTrue(success, "execution failed");
+        }
+        walletHook.postExecute(address(mockPrevHook), ACCOUNT, hookData);
+        vm.stopPrank();
+
+        // the Gateway received the effective amount, not the static one
+        assertEq(
+            mockGatewayWallet.getDeposit(ACCOUNT, address(mockToken)),
+            effectiveAmount,
+            "Gateway should hold the effective deposit"
+        );
+        // the published output matches what actually left the account for the Gateway
+        assertEq(walletHook.getOutAmount(ACCOUNT), effectiveAmount, "outAmount must equal the effective deposit");
+        assertEq(walletHook.getOutToken(ACCOUNT), address(mockToken), "outToken should be the deposited token");
+        // the surplus prebalance stays untouched in the account
+        assertEq(
+            mockToken.balanceOf(ACCOUNT), DEPOSIT_AMOUNT - effectiveAmount, "surplus must remain with the account"
         );
     }
 
