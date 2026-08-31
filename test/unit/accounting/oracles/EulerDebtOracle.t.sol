@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 
 import { EulerDebtOracle } from "../../../../src/accounting/oracles/EulerDebtOracle.sol";
 import { IYieldSourceOracle } from "../../../../src/interfaces/accounting/IYieldSourceOracle.sol";
-import { IEVault } from "../../../../src/vendor/euler/IEVault.sol";
+import { IEVaultDebt } from "../../../../src/vendor/euler/IEVaultDebt.sol";
 import { SuperLedgerConfiguration } from "../../../../src/accounting/SuperLedgerConfiguration.sol";
 import { ISuperLedgerConfiguration } from "../../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { SuperLedger } from "../../../../src/accounting/SuperLedger.sol";
@@ -44,16 +44,16 @@ contract EulerDebtOracleTest is Test {
         oracle = new EulerDebtOracle(ledgerConfig);
 
         // Default mocks for 6-decimal vault (e.g. USDC)
-        vm.mockCall(vault6, abi.encodeCall(IEVault.decimals, ()), abi.encode(uint8(6)));
-        vm.mockCall(vault6, abi.encodeCall(IEVault.debtOf, (account1)), abi.encode(uint256(500e6)));
-        vm.mockCall(vault6, abi.encodeCall(IEVault.debtOf, (account2)), abi.encode(uint256(1200e6)));
-        vm.mockCall(vault6, abi.encodeCall(IEVault.totalBorrows, ()), abi.encode(uint256(1_000_000e6)));
+        vm.mockCall(vault6, abi.encodeCall(IEVaultDebt.decimals, ()), abi.encode(uint8(6)));
+        vm.mockCall(vault6, abi.encodeCall(IEVaultDebt.debtOf, (account1)), abi.encode(uint256(500e6)));
+        vm.mockCall(vault6, abi.encodeCall(IEVaultDebt.debtOf, (account2)), abi.encode(uint256(1200e6)));
+        vm.mockCall(vault6, abi.encodeCall(IEVaultDebt.totalBorrows, ()), abi.encode(uint256(1_000_000e6)));
 
         // Default mocks for 18-decimal vault (e.g. WETH)
-        vm.mockCall(vault18, abi.encodeCall(IEVault.decimals, ()), abi.encode(uint8(18)));
-        vm.mockCall(vault18, abi.encodeCall(IEVault.debtOf, (account1)), abi.encode(uint256(2 ether)));
-        vm.mockCall(vault18, abi.encodeCall(IEVault.debtOf, (account2)), abi.encode(uint256(0)));
-        vm.mockCall(vault18, abi.encodeCall(IEVault.totalBorrows, ()), abi.encode(uint256(50_000 ether)));
+        vm.mockCall(vault18, abi.encodeCall(IEVaultDebt.decimals, ()), abi.encode(uint8(18)));
+        vm.mockCall(vault18, abi.encodeCall(IEVaultDebt.debtOf, (account1)), abi.encode(uint256(2 ether)));
+        vm.mockCall(vault18, abi.encodeCall(IEVaultDebt.debtOf, (account2)), abi.encode(uint256(0)));
+        vm.mockCall(vault18, abi.encodeCall(IEVaultDebt.totalBorrows, ()), abi.encode(uint256(50_000 ether)));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -91,19 +91,19 @@ contract EulerDebtOracleTest is Test {
 
     function test_decimals_0decimals() public {
         address vault0 = makeAddr("vault0dec");
-        vm.mockCall(vault0, abi.encodeCall(IEVault.decimals, ()), abi.encode(uint8(0)));
+        vm.mockCall(vault0, abi.encodeCall(IEVaultDebt.decimals, ()), abi.encode(uint8(0)));
         assertEq(oracle.decimals(vault0), 0);
     }
 
     function test_decimals_8decimals() public {
         address vault8 = makeAddr("vault8dec");
-        vm.mockCall(vault8, abi.encodeCall(IEVault.decimals, ()), abi.encode(uint8(8)));
+        vm.mockCall(vault8, abi.encodeCall(IEVaultDebt.decimals, ()), abi.encode(uint8(8)));
         assertEq(oracle.decimals(vault8), 8);
     }
 
     function test_decimals_24decimals() public {
         address vault24 = makeAddr("vault24dec");
-        vm.mockCall(vault24, abi.encodeCall(IEVault.decimals, ()), abi.encode(uint8(24)));
+        vm.mockCall(vault24, abi.encodeCall(IEVaultDebt.decimals, ()), abi.encode(uint8(24)));
         assertEq(oracle.decimals(vault24), 24);
     }
 
@@ -121,33 +121,33 @@ contract EulerDebtOracleTest is Test {
 
     function test_getPricePerShare_0decimals() public {
         address vault0 = makeAddr("vault0dec");
-        vm.mockCall(vault0, abi.encodeCall(IEVault.decimals, ()), abi.encode(uint8(0)));
+        vm.mockCall(vault0, abi.encodeCall(IEVaultDebt.decimals, ()), abi.encode(uint8(0)));
         assertEq(oracle.getPricePerShare(vault0), 1); // 10^0 = 1
     }
 
     function test_getPricePerShare_8decimals() public {
         address vault8 = makeAddr("vault8dec");
-        vm.mockCall(vault8, abi.encodeCall(IEVault.decimals, ()), abi.encode(uint8(8)));
+        vm.mockCall(vault8, abi.encodeCall(IEVaultDebt.decimals, ()), abi.encode(uint8(8)));
         assertEq(oracle.getPricePerShare(vault8), 1e8);
     }
 
     function test_getPricePerShare_24decimals() public {
         address vault24 = makeAddr("vault24dec");
-        vm.mockCall(vault24, abi.encodeCall(IEVault.decimals, ()), abi.encode(uint8(24)));
+        vm.mockCall(vault24, abi.encodeCall(IEVaultDebt.decimals, ()), abi.encode(uint8(24)));
         assertEq(oracle.getPricePerShare(vault24), 1e24);
     }
 
     /// @notice 10^77 fits in uint256, 10^78 overflows — verify revert
     function test_getPricePerShare_revertsAt78Decimals() public {
         address vaultBig = makeAddr("vault78dec");
-        vm.mockCall(vaultBig, abi.encodeCall(IEVault.decimals, ()), abi.encode(uint8(78)));
+        vm.mockCall(vaultBig, abi.encodeCall(IEVaultDebt.decimals, ()), abi.encode(uint8(78)));
         vm.expectRevert(); // arithmetic overflow
         oracle.getPricePerShare(vaultBig);
     }
 
     function test_getPricePerShare_77decimals_maxSafe() public {
         address vault77 = makeAddr("vault77dec");
-        vm.mockCall(vault77, abi.encodeCall(IEVault.decimals, ()), abi.encode(uint8(77)));
+        vm.mockCall(vault77, abi.encodeCall(IEVaultDebt.decimals, ()), abi.encode(uint8(77)));
         assertEq(oracle.getPricePerShare(vault77), 10 ** 77);
     }
 
@@ -245,18 +245,18 @@ contract EulerDebtOracleTest is Test {
 
     function test_getBalanceOfOwner_maxUint256Debt() public {
         address vaultMax = makeAddr("vaultMax");
-        vm.mockCall(vaultMax, abi.encodeCall(IEVault.debtOf, (account1)), abi.encode(type(uint256).max));
+        vm.mockCall(vaultMax, abi.encodeCall(IEVaultDebt.debtOf, (account1)), abi.encode(type(uint256).max));
         assertEq(oracle.getBalanceOfOwner(vaultMax, account1), type(uint256).max);
     }
 
     function test_getBalanceOfOwner_1weiDebt() public {
         address vaultMin = makeAddr("vaultMin");
-        vm.mockCall(vaultMin, abi.encodeCall(IEVault.debtOf, (account1)), abi.encode(uint256(1)));
+        vm.mockCall(vaultMin, abi.encodeCall(IEVaultDebt.debtOf, (account1)), abi.encode(uint256(1)));
         assertEq(oracle.getBalanceOfOwner(vaultMin, account1), 1);
     }
 
     function test_getBalanceOfOwner_addressZeroOwner() public {
-        vm.mockCall(vault6, abi.encodeCall(IEVault.debtOf, (address(0))), abi.encode(uint256(0)));
+        vm.mockCall(vault6, abi.encodeCall(IEVaultDebt.debtOf, (address(0))), abi.encode(uint256(0)));
         assertEq(oracle.getBalanceOfOwner(vault6, address(0)), 0);
     }
 
@@ -281,7 +281,7 @@ contract EulerDebtOracleTest is Test {
 
     function test_getTVLByOwnerOfShares_maxUint256() public {
         address vaultMax = makeAddr("vaultMax2");
-        vm.mockCall(vaultMax, abi.encodeCall(IEVault.debtOf, (account1)), abi.encode(type(uint256).max));
+        vm.mockCall(vaultMax, abi.encodeCall(IEVaultDebt.debtOf, (account1)), abi.encode(type(uint256).max));
         assertEq(oracle.getTVLByOwnerOfShares(vaultMax, account1), type(uint256).max);
     }
 
@@ -299,19 +299,19 @@ contract EulerDebtOracleTest is Test {
 
     function test_getTVL_zeroTotalBorrows() public {
         address emptyVault = makeAddr("emptyVault");
-        vm.mockCall(emptyVault, abi.encodeCall(IEVault.totalBorrows, ()), abi.encode(uint256(0)));
+        vm.mockCall(emptyVault, abi.encodeCall(IEVaultDebt.totalBorrows, ()), abi.encode(uint256(0)));
         assertEq(oracle.getTVL(emptyVault), 0);
     }
 
     function test_getTVL_maxUint256() public {
         address vaultMax = makeAddr("vaultMaxTVL");
-        vm.mockCall(vaultMax, abi.encodeCall(IEVault.totalBorrows, ()), abi.encode(type(uint256).max));
+        vm.mockCall(vaultMax, abi.encodeCall(IEVaultDebt.totalBorrows, ()), abi.encode(type(uint256).max));
         assertEq(oracle.getTVL(vaultMax), type(uint256).max);
     }
 
     function test_getTVL_1wei() public {
         address vaultMin = makeAddr("vaultMinTVL");
-        vm.mockCall(vaultMin, abi.encodeCall(IEVault.totalBorrows, ()), abi.encode(uint256(1)));
+        vm.mockCall(vaultMin, abi.encodeCall(IEVaultDebt.totalBorrows, ()), abi.encode(uint256(1)));
         assertEq(oracle.getTVL(vaultMin), 1);
     }
 
@@ -620,7 +620,7 @@ contract EulerDebtOracleTest is Test {
         assertEq(debtBefore, 500e6);
 
         // Simulate interest accrual
-        vm.mockCall(vault6, abi.encodeCall(IEVault.debtOf, (account1)), abi.encode(uint256(505e6)));
+        vm.mockCall(vault6, abi.encodeCall(IEVaultDebt.debtOf, (account1)), abi.encode(uint256(505e6)));
         uint256 debtAfter = oracle.getBalanceOfOwner(vault6, account1);
         assertEq(debtAfter, 505e6);
         assertGt(debtAfter, debtBefore);
@@ -629,13 +629,13 @@ contract EulerDebtOracleTest is Test {
     /// @notice Simulate debt decreasing (repayment) by updating mock
     function test_mockStateChange_debtDecrease() public {
         // Repay half
-        vm.mockCall(vault6, abi.encodeCall(IEVault.debtOf, (account1)), abi.encode(uint256(250e6)));
+        vm.mockCall(vault6, abi.encodeCall(IEVaultDebt.debtOf, (account1)), abi.encode(uint256(250e6)));
         assertEq(oracle.getBalanceOfOwner(vault6, account1), 250e6);
     }
 
     /// @notice Simulate debt going to zero (full repay) by updating mock
     function test_mockStateChange_debtCleared() public {
-        vm.mockCall(vault6, abi.encodeCall(IEVault.debtOf, (account1)), abi.encode(uint256(0)));
+        vm.mockCall(vault6, abi.encodeCall(IEVaultDebt.debtOf, (account1)), abi.encode(uint256(0)));
         assertEq(oracle.getBalanceOfOwner(vault6, account1), 0);
         assertEq(oracle.getTVLByOwnerOfShares(vault6, account1), 0);
     }
@@ -645,7 +645,7 @@ contract EulerDebtOracleTest is Test {
         uint256 tvlBefore = oracle.getTVL(vault6);
 
         // Increase total borrows (new borrow)
-        vm.mockCall(vault6, abi.encodeCall(IEVault.totalBorrows, ()), abi.encode(uint256(2_000_000e6)));
+        vm.mockCall(vault6, abi.encodeCall(IEVaultDebt.totalBorrows, ()), abi.encode(uint256(2_000_000e6)));
         uint256 tvlAfter = oracle.getTVL(vault6);
 
         assertGt(tvlAfter, tvlBefore);
@@ -679,7 +679,7 @@ contract EulerDebtOracleTest is Test {
     function test_fuzz_getBalanceOfOwner(uint256 debtAmount) public {
         address fuzzVault = makeAddr("fuzzVault");
         address fuzzAccount = makeAddr("fuzzAccount");
-        vm.mockCall(fuzzVault, abi.encodeCall(IEVault.debtOf, (fuzzAccount)), abi.encode(debtAmount));
+        vm.mockCall(fuzzVault, abi.encodeCall(IEVaultDebt.debtOf, (fuzzAccount)), abi.encode(debtAmount));
         assertEq(oracle.getBalanceOfOwner(fuzzVault, fuzzAccount), debtAmount);
     }
 
@@ -687,7 +687,7 @@ contract EulerDebtOracleTest is Test {
     function test_fuzz_tvlByOwner_equalsBalance(uint256 debtAmount) public {
         address fuzzVault = makeAddr("fuzzVault2");
         address fuzzAccount = makeAddr("fuzzAccount2");
-        vm.mockCall(fuzzVault, abi.encodeCall(IEVault.debtOf, (fuzzAccount)), abi.encode(debtAmount));
+        vm.mockCall(fuzzVault, abi.encodeCall(IEVaultDebt.debtOf, (fuzzAccount)), abi.encode(debtAmount));
         assertEq(
             oracle.getBalanceOfOwner(fuzzVault, fuzzAccount),
             oracle.getTVLByOwnerOfShares(fuzzVault, fuzzAccount)
@@ -697,7 +697,7 @@ contract EulerDebtOracleTest is Test {
     /// @notice Fuzz: getTVL for any totalBorrows amount
     function test_fuzz_getTVL(uint256 borrows) public {
         address fuzzVault = makeAddr("fuzzVault3");
-        vm.mockCall(fuzzVault, abi.encodeCall(IEVault.totalBorrows, ()), abi.encode(borrows));
+        vm.mockCall(fuzzVault, abi.encodeCall(IEVaultDebt.totalBorrows, ()), abi.encode(borrows));
         assertEq(oracle.getTVL(fuzzVault), borrows);
     }
 
@@ -705,7 +705,7 @@ contract EulerDebtOracleTest is Test {
     function test_fuzz_getPricePerShare_validDecimals(uint8 decimals) public {
         vm.assume(decimals <= 77);
         address fuzzVault = makeAddr("fuzzVault4");
-        vm.mockCall(fuzzVault, abi.encodeCall(IEVault.decimals, ()), abi.encode(decimals));
+        vm.mockCall(fuzzVault, abi.encodeCall(IEVaultDebt.decimals, ()), abi.encode(decimals));
         assertEq(oracle.getPricePerShare(fuzzVault), 10 ** uint256(decimals));
     }
 

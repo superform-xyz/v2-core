@@ -2,7 +2,7 @@
 pragma solidity 0.8.30;
 
 // euler vendor
-import { IEVault } from "../../vendor/euler/IEVault.sol";
+import { IEVaultDebt } from "../../vendor/euler/IEVaultDebt.sol";
 
 // superform
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
@@ -43,14 +43,14 @@ contract EulerDebtOracle is AbstractYieldSourceOracle {
 
     /// @inheritdoc AbstractYieldSourceOracle
     function decimals(address yieldSourceAddress) external view override returns (uint8) {
-        return IEVault(yieldSourceAddress).decimals();
+        return IEVaultDebt(yieldSourceAddress).decimals();
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
     /// @dev Returns 10 ** decimals (always 1:1 identity). Reverts via checked arithmetic if decimals >= 78,
     ///      which cannot occur with real ERC-20 tokens (max 18 in practice).
     function getPricePerShare(address yieldSourceAddress) public view override returns (uint256) {
-        return 10 ** uint256(IEVault(yieldSourceAddress).decimals());
+        return 10 ** uint256(IEVaultDebt(yieldSourceAddress).decimals());
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -69,7 +69,7 @@ contract EulerDebtOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    /// @dev Returns IEVault(yieldSourceAddress).debtOf(ownerOfShares) — accrued debt in asset units, not shares.
+    /// @dev Returns IEVaultDebt(yieldSourceAddress).debtOf(ownerOfShares) — accrued debt in asset units, not shares.
     function getBalanceOfOwner(
         address yieldSourceAddress,
         address ownerOfShares
@@ -79,11 +79,11 @@ contract EulerDebtOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return IEVault(yieldSourceAddress).debtOf(ownerOfShares);
+        return IEVaultDebt(yieldSourceAddress).debtOf(ownerOfShares);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    /// @dev Returns IEVault(yieldSourceAddress).debtOf(ownerOfShares). Identical to getBalanceOfOwner since PPS = 1:1.
+    /// @dev Returns IEVaultDebt(yieldSourceAddress).debtOf(ownerOfShares). Identical to getBalanceOfOwner since PPS = 1:1.
     function getTVLByOwnerOfShares(
         address yieldSourceAddress,
         address ownerOfShares
@@ -93,12 +93,12 @@ contract EulerDebtOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return IEVault(yieldSourceAddress).debtOf(ownerOfShares);
+        return IEVaultDebt(yieldSourceAddress).debtOf(ownerOfShares);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    /// @dev Returns IEVault(yieldSourceAddress).totalBorrows() — aggregate outstanding debt, not totalAssets().
+    /// @dev Returns IEVaultDebt(yieldSourceAddress).totalBorrows() — aggregate outstanding debt, not totalAssets().
     function getTVL(address yieldSourceAddress) public view override returns (uint256) {
-        return IEVault(yieldSourceAddress).totalBorrows();
+        return IEVaultDebt(yieldSourceAddress).totalBorrows();
     }
 }
