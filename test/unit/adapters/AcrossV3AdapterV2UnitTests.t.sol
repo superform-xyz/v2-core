@@ -6,9 +6,8 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 
 import { AcrossV3AdapterV2 } from "../../../src/adapters/AcrossV3AdapterV2.sol";
 import { IAcrossV3Receiver } from "../../../src/vendor/bridges/across/IAcrossV3Receiver.sol";
-import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
-import { Helpers } from "../../utils/Helpers.sol";
+import { DestinationSimulationTestBase } from "../simulationHelpers/DestinationSimulationTestBase.sol";
 
 contract AcrossV2MockSpokePool {
     using SafeERC20 for IERC20;
@@ -82,8 +81,9 @@ contract AcrossV2MockDestinationExecutor {
     }
 }
 
-contract AcrossV3AdapterV2UnitTests is Helpers {
+contract AcrossV3AdapterV2UnitTests is DestinationSimulationTestBase {
     bytes32 internal constant RELAY_ID = keccak256("relay-id");
+    bytes32 internal constant ROOT = keccak256("root");
     uint256 internal constant AMOUNT = 1000e18;
 
     AcrossV2MockSpokePool internal spokePool;
@@ -201,39 +201,15 @@ contract AcrossV3AdapterV2UnitTests is Helpers {
     }
 
     function _buildMessage() internal view returns (bytes memory) {
-        address[] memory dstTokens = new address[](1);
-        dstTokens[0] = address(token);
-
-        uint256[] memory intentAmounts = new uint256[](1);
-        intentAmounts[0] = AMOUNT;
-
-        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
-        proofDst[0] = ISuperValidator.DstProof({
-            proof: new bytes32[](0),
-            dstChainId: uint64(block.chainid),
-            info: ISuperValidator.DstInfo({
-                account: account,
-                executor: address(executor),
-                dstTokens: dstTokens,
-                intentAmounts: intentAmounts,
-                validator: address(0xBEEF),
-                data: hex"deadbeef"
-            })
-        });
-
-        uint64[] memory chainsWithDestinationExecution = new uint64[](1);
-        chainsWithDestinationExecution[0] = uint64(block.chainid);
-
-        bytes memory sigData = abi.encode(
-            chainsWithDestinationExecution,
-            uint48(type(uint48).max),
-            uint48(0),
-            keccak256("root"),
-            new bytes32[](0),
-            proofDst,
-            hex"abcdef"
+        bytes memory sigData = _signatureData(
+            account,
+            address(executor),
+            _singleAddress(address(token)),
+            _singleUint(AMOUNT),
+            hex"deadbeef",
+            uint64(block.chainid),
+            ROOT
         );
-
         return abi.encode(hex"1234", sigData);
     }
 }
