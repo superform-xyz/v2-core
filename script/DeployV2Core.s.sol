@@ -3351,93 +3351,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         vars.ledgerConstructorArgs = abi.encode(vars.superLedgerConfig, vars.allowedExecutors);
 
         // Define contracts to verify with their corresponding environment-specific bytecode paths and constructor args
-        ContractVerification[] memory contracts = new ContractVerification[](12);
+        ContractVerification[] memory contracts = _buildCoreVerificationRecords(env, vars.ledgerConstructorArgs);
 
-        // Core contracts verification - always use locked bytecode
-
-        contracts[0] = ContractVerification({
-            name: "SuperLedgerConfiguration",
-            outputKey: ".SuperLedgerConfiguration",
-            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "SuperLedgerConfiguration.json")),
-            constructorArgs: ""
-        });
-
-        contracts[1] = ContractVerification({
-            name: "ERC4626YieldSourceOracle",
-            outputKey: ".ERC4626YieldSourceOracle",
-            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "ERC4626YieldSourceOracle.json")),
-            constructorArgs: ""
-        });
-
-        contracts[2] = ContractVerification({
-            name: "ERC5115YieldSourceOracle",
-            outputKey: ".ERC5115YieldSourceOracle",
-            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "ERC5115YieldSourceOracle.json")),
-            constructorArgs: ""
-        });
-
-        contracts[3] = ContractVerification({
-            name: "StakingYieldSourceOracle",
-            outputKey: ".StakingYieldSourceOracle",
-            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "StakingYieldSourceOracle.json")),
-            constructorArgs: ""
-        });
-
-        contracts[4] = ContractVerification({
-            name: "SuperLedger",
-            outputKey: ".SuperLedger",
-            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "SuperLedger.json")),
-            constructorArgs: string(vars.ledgerConstructorArgs)
-        });
-
-        contracts[5] = ContractVerification({
-            name: "FlatFeeLedger",
-            outputKey: ".FlatFeeLedger",
-            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "FlatFeeLedger.json")),
-            constructorArgs: string(vars.ledgerConstructorArgs)
-        });
-
-        contracts[6] = ContractVerification({
-            name: "ERC7540YieldSourceOracle",
-            outputKey: ".ERC7540YieldSourceOracle",
-            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "ERC7540YieldSourceOracle.json")),
-            constructorArgs: ""
-        });
-
-        contracts[7] = ContractVerification({
-            name: "SpectraMetaVaultOracle",
-            outputKey: ".SpectraMetaVaultOracle",
-            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "SpectraMetaVaultOracle.json")),
-            constructorArgs: ""
-        });
-
-        contracts[8] = ContractVerification({
-            name: "MorphoBlueMarketRegistry",
-            outputKey: ".MorphoBlueMarketRegistry",
-            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "MorphoBlueMarketRegistry.json")),
-            constructorArgs: ""
-        });
-
-        contracts[9] = ContractVerification({
-            name: "MorphoBlueYieldSourceOracle",
-            outputKey: ".MorphoBlueYieldSourceOracle",
-            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "MorphoBlueYieldSourceOracle.json")),
-            constructorArgs: ""
-        });
-
-        contracts[10] = ContractVerification({
-            name: "UniV3CLPRegistry",
-            outputKey: ".UniV3CLPRegistry",
-            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "UniV3CLPRegistry.json")),
-            constructorArgs: ""
-        });
-
-        contracts[11] = ContractVerification({
-            name: "UniV3CLPYieldSourceOracle",
-            outputKey: ".UniV3CLPYieldSourceOracle",
-            bytecodePath: string(abi.encodePacked(BYTECODE_DIRECTORY, "UniV3CLPYieldSourceOracle.json")),
-            constructorArgs: ""
-        });
         // Verify each contract. Skip any whose locked bytecode is absent for this env:
         // such contracts are never deployed (e.g. MorphoBlueMarketRegistry has no prod
         // locked bytecode), so requiring them here would wrongly fail the config pre-flight.
@@ -3462,6 +3377,108 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(vars.verified == expectedVerified, "INCOMPLETE_VERIFICATION");
 
         console2.log("[SUCCESS] All contract addresses verified successfully against locked bytecode!");
+    }
+
+    /// @notice Builds the verification records for the core (ledger/oracle/registry) contracts
+    /// @dev Every record's bytecodePath MUST come from __getBytecodeArtifactPath so that the
+    ///      existence check (__checkBytecodeExists), deployment, and verification all resolve
+    ///      the same env-routed artifact (prod: locked-bytecode/, dev/staging: locked-bytecode-dev/)
+    /// @param env Environment (0 = prod, 1 = vnet/dev, 2 = staging)
+    /// @param ledgerConstructorArgs ABI-encoded constructor args shared by the ledger contracts
+    /// @return contracts The verification records
+    function _buildCoreVerificationRecords(
+        uint256 env,
+        bytes memory ledgerConstructorArgs
+    )
+        internal
+        pure
+        returns (ContractVerification[] memory contracts)
+    {
+        contracts = new ContractVerification[](12);
+
+        contracts[0] = ContractVerification({
+            name: "SuperLedgerConfiguration",
+            outputKey: ".SuperLedgerConfiguration",
+            bytecodePath: __getBytecodeArtifactPath("SuperLedgerConfiguration", env),
+            constructorArgs: ""
+        });
+
+        contracts[1] = ContractVerification({
+            name: "ERC4626YieldSourceOracle",
+            outputKey: ".ERC4626YieldSourceOracle",
+            bytecodePath: __getBytecodeArtifactPath("ERC4626YieldSourceOracle", env),
+            constructorArgs: ""
+        });
+
+        contracts[2] = ContractVerification({
+            name: "ERC5115YieldSourceOracle",
+            outputKey: ".ERC5115YieldSourceOracle",
+            bytecodePath: __getBytecodeArtifactPath("ERC5115YieldSourceOracle", env),
+            constructorArgs: ""
+        });
+
+        contracts[3] = ContractVerification({
+            name: "StakingYieldSourceOracle",
+            outputKey: ".StakingYieldSourceOracle",
+            bytecodePath: __getBytecodeArtifactPath("StakingYieldSourceOracle", env),
+            constructorArgs: ""
+        });
+
+        contracts[4] = ContractVerification({
+            name: "SuperLedger",
+            outputKey: ".SuperLedger",
+            bytecodePath: __getBytecodeArtifactPath("SuperLedger", env),
+            constructorArgs: string(ledgerConstructorArgs)
+        });
+
+        contracts[5] = ContractVerification({
+            name: "FlatFeeLedger",
+            outputKey: ".FlatFeeLedger",
+            bytecodePath: __getBytecodeArtifactPath("FlatFeeLedger", env),
+            constructorArgs: string(ledgerConstructorArgs)
+        });
+
+        contracts[6] = ContractVerification({
+            name: "ERC7540YieldSourceOracle",
+            outputKey: ".ERC7540YieldSourceOracle",
+            bytecodePath: __getBytecodeArtifactPath("ERC7540YieldSourceOracle", env),
+            constructorArgs: ""
+        });
+
+        contracts[7] = ContractVerification({
+            name: "SpectraMetaVaultOracle",
+            outputKey: ".SpectraMetaVaultOracle",
+            bytecodePath: __getBytecodeArtifactPath("SpectraMetaVaultOracle", env),
+            constructorArgs: ""
+        });
+
+        contracts[8] = ContractVerification({
+            name: "MorphoBlueMarketRegistry",
+            outputKey: ".MorphoBlueMarketRegistry",
+            bytecodePath: __getBytecodeArtifactPath("MorphoBlueMarketRegistry", env),
+            constructorArgs: ""
+        });
+
+        contracts[9] = ContractVerification({
+            name: "MorphoBlueYieldSourceOracle",
+            outputKey: ".MorphoBlueYieldSourceOracle",
+            bytecodePath: __getBytecodeArtifactPath("MorphoBlueYieldSourceOracle", env),
+            constructorArgs: ""
+        });
+
+        contracts[10] = ContractVerification({
+            name: "UniV3CLPRegistry",
+            outputKey: ".UniV3CLPRegistry",
+            bytecodePath: __getBytecodeArtifactPath("UniV3CLPRegistry", env),
+            constructorArgs: ""
+        });
+
+        contracts[11] = ContractVerification({
+            name: "UniV3CLPYieldSourceOracle",
+            outputKey: ".UniV3CLPYieldSourceOracle",
+            bytecodePath: __getBytecodeArtifactPath("UniV3CLPYieldSourceOracle", env),
+            constructorArgs: ""
+        });
     }
 
     /// @notice Verify a single contract's address against its bytecode
