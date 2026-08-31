@@ -163,21 +163,21 @@ contract AcrossV3AdapterV2 is IAcrossV3Receiver, ReentrancyGuard {
 
         // 7. Best-effort execution for failures with revert data. Empty failures include the observed
         //    OOG mode and revert the fill so Across can retry without finalizing token delivery alone.
-        bytes memory executorCallData = abi.encodeCall(
-            ISuperDestinationExecutor.processBridgedExecution,
-            (
-                tokenSent,
-                extracted.account,
-                extracted.dstTokens,
-                extracted.intentAmounts,
-                initData,
-                extracted.executorCalldata,
-                sigDataRaw
-            )
-        );
-        (bool executionSuccess, uint256 returnDataSize) = _callDestinationExecutor(executorCallData);
-
-        if (!executionSuccess) {
+        if (address(SUPER_DESTINATION_EXECUTOR).code.length == 0) revert DESTINATION_EXECUTION_FAILED();
+        try SUPER_DESTINATION_EXECUTOR.processBridgedExecution(
+            tokenSent,
+            extracted.account,
+            extracted.dstTokens,
+            extracted.intentAmounts,
+            initData,
+            extracted.executorCalldata,
+            sigDataRaw
+        ) { }
+        catch {
+            uint256 returnDataSize;
+            assembly ("memory-safe") {
+                returnDataSize := returndatasize()
+            }
             if (returnDataSize == 0) revert DESTINATION_EXECUTION_FAILED();
             emit ExecutionFailed(extracted.account);
         }
@@ -230,20 +230,6 @@ contract AcrossV3AdapterV2 is IAcrossV3Receiver, ReentrancyGuard {
                 extracted.found = true;
                 return extracted;
             }
-        }
-    }
-
-    /// @notice Call the destination executor without copying arbitrary revert data into memory
-    /// @param callData The encoded processBridgedExecution call
-    /// @return success Whether execution returned successfully
-    /// @return returnDataSize The size of the returned or reverted data
-    function _callDestinationExecutor(bytes memory callData) internal returns (bool success, uint256 returnDataSize) {
-        address executor = address(SUPER_DESTINATION_EXECUTOR);
-        if (executor.code.length == 0) return (false, 0);
-
-        assembly ("memory-safe") {
-            success := call(gas(), executor, 0, add(callData, 0x20), mload(callData), 0, 0)
-            returnDataSize := returndatasize()
         }
     }
 }
