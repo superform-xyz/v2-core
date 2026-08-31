@@ -15,12 +15,11 @@ import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
 
 /// @title AcrossV3AdapterV2
 /// @author Superform Labs
-/// @notice V2 adapter that receives compact Across V3 messages with 2-field format: abi.encode(initData, sigData)
-/// @notice instead of the V1 6-field format. The adapter extracts account, executorCalldata, dstTokens, and
-/// @notice intentAmounts from sigData's DstProof.info, eliminating duplicate data per message.
-/// @dev V2 hook <-> V2 adapter must be used together (incompatible with V1 counterparts)
+/// @notice Receives compact Across V3 messages encoded as abi.encode(initData, sigData)
+/// @notice Extracts account, executorCalldata, dstTokens, and intentAmounts from sigData's DstProof.info
+/// @dev The Across hook and adapter must use the same message format
 /// @dev Across delivers tokens to this adapter via handleV3AcrossMessage, which then transfers to the account
-/// @dev Failed transfers are stored for user self-claim
+/// @dev Transfer failures revert the Across fill atomically
 contract AcrossV3AdapterV2 is IAcrossV3Receiver, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -63,8 +62,15 @@ contract AcrossV3AdapterV2 is IAcrossV3Receiver, ReentrancyGuard {
     error NO_DST_PROOF_FOR_CHAIN();
 
     /// @notice Thrown when the extracted account is the zero address
-    /// @dev Matches V1 behavior where safeTransfer(address(0), amount) reverts
     error ACCOUNT_NOT_VALID();
+
+    /// @notice Thrown when bridged tokens cannot be transferred to the destination account
+    /// @dev Reverting rolls back the complete Across fill, including the SpokePool token transfer
+    error TRANSFER_FAILED();
+
+    /// @notice Thrown when destination execution fails without returning revert data
+    /// @dev Empty revert data includes the observed out-of-gas failure mode and other exceptional halts
+    error DESTINATION_EXECUTION_FAILED();
 
     /// @notice Thrown when claiming more than the available failed transfer balance
     error INSUFFICIENT_FAILED_BALANCE();
@@ -129,10 +135,10 @@ contract AcrossV3AdapterV2 is IAcrossV3Receiver, ReentrancyGuard {
             revert INVALID_SENDER();
         }
 
-        // 2. V2: Decode compact 2-field format (initData, sigData)
+        // 2. Decode compact 2-field format (initData, sigData)
         (bytes memory initData, bytes memory sigDataRaw) = abi.decode(message, (bytes, bytes));
 
-        // 3. V2: Extract account, executorCalldata, dstTokens, intentAmounts from sigData
+        // 3. Extract account, executorCalldata, dstTokens, intentAmounts from sigData
         ExtractedData memory extracted = _extractFromSigData(sigDataRaw);
 
         // 4. Revert when no DstProof matches current chain
@@ -143,23 +149,21 @@ contract AcrossV3AdapterV2 is IAcrossV3Receiver, ReentrancyGuard {
         }
 
         // 5. Revert when account is zero address
-        //    Matches V1 behavior where safeTransfer(address(0)) reverts.
-        //    Prevents crediting unclaimable failedTransfers[address(0)].
+        //    Prevents the Across fill from delivering funds to an unusable account.
         if (extracted.account == address(0)) {
             revert ACCOUNT_NOT_VALID();
         }
 
-        // 6. Transfer received funds to the target account
-        bool transferSuccess = _tryTransfer(tokenSent, extracted.account, amount);
-
-        if (!transferSuccess) {
-            failedTransfers[extracted.account][tokenSent] += amount;
-            emit TransferFailed(extracted.account, tokenSent, amount);
-        } else {
-            emit TransferSucceeded(extracted.account, tokenSent, amount);
+        // 6. Transfer received funds to the target account. Across callbacks are atomic with the fill,
+        //    so reverting here prevents tokens from being stranded in this adapter.
+        if (!IERC20(tokenSent).trySafeTransfer(extracted.account, amount)) {
+            revert TRANSFER_FAILED();
         }
+        emit TransferSucceeded(extracted.account, tokenSent, amount);
 
-        // 7. Best-effort execution — call the core executor
+        // 7. Best-effort execution for failures with revert data. Empty failures include the observed
+        //    OOG mode and revert the fill so Across can retry without finalizing token delivery alone.
+        if (address(SUPER_DESTINATION_EXECUTOR).code.length == 0) revert DESTINATION_EXECUTION_FAILED();
         try SUPER_DESTINATION_EXECUTOR.processBridgedExecution(
             tokenSent,
             extracted.account,
@@ -168,7 +172,13 @@ contract AcrossV3AdapterV2 is IAcrossV3Receiver, ReentrancyGuard {
             initData,
             extracted.executorCalldata,
             sigDataRaw
-        ) { } catch {
+        ) { }
+        catch {
+            uint256 returnDataSize;
+            assembly ("memory-safe") {
+                returnDataSize := returndatasize()
+            }
+            if (returnDataSize == 0) revert DESTINATION_EXECUTION_FAILED();
             emit ExecutionFailed(extracted.account);
         }
     }
@@ -177,8 +187,8 @@ contract AcrossV3AdapterV2 is IAcrossV3Receiver, ReentrancyGuard {
                             CLAIM LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Claim tokens from a failed transfer
-    /// @dev Only the intended recipient (account) can claim their own failed transfers
+    /// @notice Claim tokens from a failed transfer balance
+    /// @dev Only the intended recipient can claim their recorded balance
     /// @param token The token to claim
     /// @param amount The amount to claim
     function claimFailedTransfer(address token, uint256 amount) external nonReentrant {
@@ -203,11 +213,7 @@ contract AcrossV3AdapterV2 is IAcrossV3Receiver, ReentrancyGuard {
     ///      matching the current chain ID. All operations are pure memory — no external calls.
     /// @param sigDataRaw The ABI-encoded SignatureData bytes
     /// @return extracted The extracted fields from the matching DstProof.info
-    function _extractFromSigData(bytes memory sigDataRaw)
-        internal
-        view
-        returns (ExtractedData memory extracted)
-    {
+    function _extractFromSigData(bytes memory sigDataRaw) internal view returns (ExtractedData memory extracted) {
         // Decode SignatureData struct — mirrors SuperValidatorBase._decodeSignatureData()
         (,,,,, ISuperValidator.DstProof[] memory proofDst,) =
             abi.decode(sigDataRaw, (uint64[], uint48, uint48, bytes32, bytes32[], ISuperValidator.DstProof[], bytes));
@@ -225,18 +231,5 @@ contract AcrossV3AdapterV2 is IAcrossV3Receiver, ReentrancyGuard {
                 return extracted;
             }
         }
-    }
-
-    /// @notice Attempt to transfer tokens to an account, returning success/failure
-    /// @dev Does not revert on failure — returns false so the caller can handle it
-    /// @param token The token to transfer
-    /// @param account The recipient
-    /// @param amount The amount to transfer
-    /// @return success Whether the transfer succeeded
-    function _tryTransfer(address token, address account, uint256 amount) internal returns (bool success) {
-        // Low-level call handles non-standard ERC20s (USDT) that don't return bool
-        (bool callSuccess, bytes memory returnData) =
-            token.call(abi.encodeCall(IERC20.transfer, (account, amount)));
-        success = callSuccess && (returnData.length == 0 || abi.decode(returnData, (bool)));
     }
 }

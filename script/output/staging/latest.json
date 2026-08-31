@@ -20,7 +20,7 @@
         "AcrossSendFundsAndExecuteOnDstHook": "0xb79054dCB13F1110C7CA443EC6A26b972f5E54AE",
         "AcrossSendFundsAndExecuteOnDstHookV2": "0x24b960D37eFb3AD25a7b0430401aDE3380091DE0",
         "AcrossV3Adapter": "0x0cf03D2D16363E3143e42E3f14d66EE656CA1437",
-        "AcrossV3AdapterV2": "0x94c8eB189B6eD06d86bad1b954B91236dD821B6C",
+        "AcrossV3AdapterV2": "0x24282546B634e832c655b3e28dA67D9B032FF1B3",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0x3a3ca9F98a0165F77c4C18E3E19f611Bdf681a61",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0x3E4fc95A1fDcd036e15f6BaA43B73f960cDD376A",
         "ApproveAndCCTPSendHook": "0x1f5464ac975Ce07A9bfff1f064Ccc9b285b7d071",
@@ -157,7 +157,7 @@
         "AcrossSendFundsAndExecuteOnDstHook": "0x3e9a5d5fee73ba509Ec201FE290c2a6cDcB011f9",
         "AcrossSendFundsAndExecuteOnDstHookV2": "0xF1E8567dFC5F8E8d972B173b367E3Fc9f7eDd777",
         "AcrossV3Adapter": "0xE43Bcd153AD018e4ad3113Bd0A51275968d393B3",
-        "AcrossV3AdapterV2": "0xDEa5a6A13A9BAb72546dC861aaef2044981a802e",
+        "AcrossV3AdapterV2": "0x5818F381ab1D1b178c13f17018d15Ac11B057C93",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0xFD86d5df0d63324a8D5B7dC2444307291a49A949",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0xC7E388A6A150241CbDac3371ba85cc06da48D8f3",
         "ApproveAndCCTPSendHook": "0x1f5464ac975Ce07A9bfff1f064Ccc9b285b7d071",
@@ -296,7 +296,7 @@
         "AcrossSendFundsAndExecuteOnDstHook": "0xF194BD111345D4070CfF2F007ad6D982bF716642",
         "AcrossSendFundsAndExecuteOnDstHookV2": "0xa40964a82Bf7c807F282aB10dB4240715890a7cc",
         "AcrossV3Adapter": "0x952767E8991D1b0a37D6212f465ab8153b6f5973",
-        "AcrossV3AdapterV2": "0xb6225C89CD235F3bd26e3796871DAD5d284371db",
+        "AcrossV3AdapterV2": "0x2491498b4bBEC3E0a32B6e3C8DaA4759df13c179",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0x13681675FAd076688C7905A21785f2cdE02BEAF7",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0x0ca09832E85c6D117AA96E0a337e615305a47f94",
         "ApproveAndCCTPSendHook": "0x1f5464ac975Ce07A9bfff1f064Ccc9b285b7d071",
@@ -428,7 +428,7 @@
         "AcrossSendFundsAndExecuteOnDstHook": "0x40E58B201DB8F5DD472A7F69F19B267e7939DE93",
         "AcrossSendFundsAndExecuteOnDstHookV2": "0x7C4E88fdd08b719aFfFC31E3c15a475E43d3A430",
         "AcrossV3Adapter": "0xabCE458E441b8cfD6B9A487Dab0e87C9C0c06180",
-        "AcrossV3AdapterV2": "0xb12a56AADF18d2C782C4B32dfF66A35e0ce858A4",
+        "AcrossV3AdapterV2": "0x2b89938991c938fD78E972352fF407dfc931a622",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0xDB60bf56442558C19c78B3cA5187FFAa5528b0A1",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0x671E897393c05E73FDd8Ca51cf566aedD3d7bC4A",
         "ApproveAndCCTPSendHook": "0x1f5464ac975Ce07A9bfff1f064Ccc9b285b7d071",
@@ -552,7 +552,7 @@
       "vnet_id": "",
       "contracts": {
         "AcrossSendFundsAndExecuteOnDstHookV2": "0xc27b4862524Fe155c634762dE92A1Ea4c9750f78",
-        "AcrossV3AdapterV2": "0x5b33074b89955cA5fe00a2D5E2b3099420F7A169",
+        "AcrossV3AdapterV2": "0xf85a9ECcF4751022CB856895b4546734B6F349b0",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0x690202faDC96B977c5EC4830090b912d2cbFb7Ad",
         "ApproveAndCCTPSendHook": "0x1f5464ac975Ce07A9bfff1f064Ccc9b285b7d071",
         "ApproveAndDeposit4626VaultHook": "0x486CfC20B6a7648d211985030393Fc35ea3A574D",
@@ -660,7 +660,7 @@
         "AcrossSendFundsAndExecuteOnDstHook": "0x64Fae9811E4357Bbc2276C4435e70e2e1a2E88ac",
         "AcrossSendFundsAndExecuteOnDstHookV2": "0xc68E8c87bf828Ed6633Bfd7F1343b7c245Cc3893",
         "AcrossV3Adapter": "0x96A56f1f3113eCaDC5848E7B538C800B5dCb68C1",
-        "AcrossV3AdapterV2": "0xeA9e8cfd08343e26b476316E75384783594DE360",
+        "AcrossV3AdapterV2": "0x97F4BFe393aa469554E4f7aE22aD67C2DF74b41C",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHook": "0xFB9FFC45f08061b3fF5ae0a532162e5F4Fc8fDf6",
         "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0xc2303bf3Ac7AceaD0D1a1e68B9897663743E8B1B",
         "ApproveAndCCTPSendHook": "0x1f5464ac975Ce07A9bfff1f064Ccc9b285b7d071",
@@ -1051,5 +1051,5 @@
       }
     }
   },
-  "updated_at": "2026-08-21T06:58:24Z"
+  "updated_at": "2026-08-31T06:25:28Z"
 }
