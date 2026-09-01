@@ -197,7 +197,16 @@ contract MockEVault {
         return amount;
     }
 
+    /// @dev Emulates EVK's end-of-call account-status check: when set, withdrawals revert the way
+    ///      the real controller does for an account left unhealthy across ALL enabled collaterals
+    bool public accountStatusCheckFails;
+
+    function setAccountStatusCheckFails(bool fails) external {
+        accountStatusCheckFails = fails;
+    }
+
     function withdraw(uint256 amount, address receiver, address owner) external returns (uint256) {
+        require(!accountStatusCheckFails, "E_AccountLiquidity");
         balanceOf[owner] -= amount;
         token.transfer(receiver, amount);
         return amount;
@@ -1224,16 +1233,76 @@ contract EulerLoanHooksTest is Helpers {
         );
     }
 
-    function test_CloseHook_Build_RevertIf_ResidualDebtFullWithdraw() public {
-        // Residual debt + a withdrawal that would strip the full collateral can never pass EVK's
-        // end-of-call health check — fail fast with a precise error instead of an opaque provider
-        // revert (the natural failure mode of an exact-cap close signed before interest accrued)
+    /// @dev B1 regression (multi-collateral): an EVC account may enable up to ten collaterals, so
+    ///      fully withdrawing THIS collateral with residual debt is valid whenever the account's
+    ///      other collaterals keep it healthy. The hook must not pre-block; EVK's end-of-call
+    ///      account-status check over the full collateral set is the canonical arbiter.
+    function test_CloseHook_FullWithdrawWithResidualDebt_Builds() public {
         controllerVault.setDebt(address(this), 10e18);
         mockEvc.enableController(address(this), address(controllerVault));
         collateralVault.setShareBalance(address(this), amount2); // previewWithdraw(amount2) == balance
 
-        vm.expectRevert(BaseEulerLoanHook.RESIDUAL_DEBT_FULL_WITHDRAW.selector);
-        closeHook.build(address(0), address(this), _compositeData(amount1, amount2, false));
+        Execution[] memory executions =
+            closeHook.build(address(0), address(this), _compositeData(amount1, amount2, false));
+
+        // preExecute + [approve0, approve(repay), repay, approve0, withdraw] + postExecute —
+        // residual debt: controller stays enabled, collateral flag stays enabled
+        assertEq(executions.length, 7);
+        assertEq(executions[5].callData, abi.encodeCall(IEVault.withdraw, (amount2, address(this), address(this))));
+        for (uint256 i; i < executions.length; ++i) {
+            assertTrue(
+                keccak256(executions[i].callData) != keccak256(abi.encodeCall(IEVault.disableController, ())),
+                "controller must stay enabled with residual debt"
+            );
+        }
+    }
+
+    /// @dev B1 regression: the full close executes end-to-end when the account stays healthy on
+    ///      its other collaterals (emulated by the mock's passing account-status check)
+    function test_CloseHook_FullWithdrawWithResidualDebt_ExecutesWhenOtherCollateralCoversDebt() public {
+        controllerVault.setDebt(address(this), 10e18);
+        mockEvc.enableController(address(this), address(controllerVault));
+        collateralVault.setShareBalance(address(this), amount2);
+        mockCollateralToken.mint(address(collateralVault), amount2); // vault liquidity for withdraw
+        mockDebtToken.mint(address(this), amount1);
+
+        Execution[] memory executions =
+            closeHook.build(address(0), address(this), _compositeData(amount1, amount2, false));
+        for (uint256 i; i < executions.length; ++i) {
+            (bool success,) = executions[i].target.call{ value: executions[i].value }(executions[i].callData);
+            assertTrue(success);
+        }
+
+        assertEq(collateralVault.balanceOf(address(this)), 0, "collateral A fully withdrawn");
+        assertGt(controllerVault.debtOf(address(this)), 0, "residual debt remains");
+        assertTrue(
+            mockEvc.isControllerEnabled(address(this), address(controllerVault)),
+            "controller stays enabled with residual debt"
+        );
+        assertEq(closeHook.getOutAmount(address(this)), amount2);
+    }
+
+    /// @dev B1 regression: when the other collaterals do NOT cover the debt, the canonical EVK
+    ///      account-status check reverts the withdrawal atomically — the provider, not the hook,
+    ///      is the arbiter
+    function test_CloseHook_FullWithdrawWithResidualDebt_CanonicalHealthCheckReverts() public {
+        controllerVault.setDebt(address(this), 10e18);
+        mockEvc.enableController(address(this), address(controllerVault));
+        collateralVault.setShareBalance(address(this), amount2);
+        mockCollateralToken.mint(address(collateralVault), amount2);
+        mockDebtToken.mint(address(this), amount1);
+        collateralVault.setAccountStatusCheckFails(true); // account unhealthy across ALL collaterals
+
+        Execution[] memory executions =
+            closeHook.build(address(0), address(this), _compositeData(amount1, amount2, false));
+
+        // The withdraw leg (index 5) must revert through the provider's health check
+        for (uint256 i; i < 5; ++i) {
+            (bool success,) = executions[i].target.call{ value: executions[i].value }(executions[i].callData);
+            assertTrue(success);
+        }
+        (bool withdrawSuccess,) = executions[5].target.call(executions[5].callData);
+        assertFalse(withdrawSuccess, "unhealthy full withdraw must revert via EVK, atomically");
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -30,10 +30,11 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 ///      outstanding debt skips the leg instead of reverting, so a third party gifting a full
 ///      repayment cannot cancel a signed intent); the withdraw leg is exact assets only —
 ///      type(uint256).max is rejected (deviation from the Morpho/Aave V2 closes: a full exit
-///      passes maxWithdraw-exact assets computed off-chain). A close whose withdrawal would strip
-///      the full collateral while residual debt remains is rejected at resolution time
-///      (RESIDUAL_DEBT_FULL_WITHDRAW) — it could never pass EVK's health check and would
-///      otherwise surface as an opaque provider revert. When no debt will remain, the controller
+///      passes maxWithdraw-exact assets computed off-chain). A withdrawal that strips this
+///      collateral entirely while residual debt remains is NOT pre-blocked: an EVC account may
+///      enable up to ten collaterals, so the close can be healthy on the strength of the others —
+///      EVK's end-of-call account-status check over the full enabled-collateral set is the
+///      canonical arbiter and atomically reverts an unhealthy close. When no debt will remain, the controller
 ///      is disabled via controllerVault.disableController() BEFORE the withdrawal and the
 ///      collateral is released on the EVC after it (both emitted only while still enabled;
 ///      releasing the collateral flag never locks funds — shares stay redeemable and the next
@@ -171,10 +172,12 @@ contract EulerRepayAndWithdrawHook is BaseEulerLoanHook {
     /// @dev Resolves both close legs; the single shared resolution path for build and preExecute
     ///      (identical within one transaction — EVK views virtually accrue by timestamp), so the
     ///      two can never drift. Reverts before any provider call on an invalid withdraw amount
-    ///      (zero or the rejected max sentinel) or when the withdrawal would strip the full
-    ///      collateral while residual debt remains — such a close can never pass EVK's end-of-call
-    ///      health check, so it fails fast with a precise error instead of an opaque provider
-    ///      revert.
+    ///      (zero or the rejected max sentinel). The hook deliberately adds NO health pre-check of
+    ///      its own: an EVC account may hold up to ten enabled collaterals, so fully withdrawing
+    ///      this collateral with residual debt can be perfectly valid when the account's other
+    ///      collaterals keep it healthy. EVK's end-of-call account-status check — which evaluates
+    ///      the complete enabled-collateral set — is the canonical arbiter and atomically reverts
+    ///      an unhealthy close.
     /// @param prevHook The previous hook in the chain
     /// @param account The executing smart account
     /// @param vars The decoded hook parameters
@@ -191,13 +194,6 @@ contract EulerRepayAndWithdrawHook is BaseEulerLoanHook {
     {
         if (vars.secondary == 0 || vars.secondary == type(uint256).max) revert AMOUNT_NOT_VALID();
         (actualRepay, predictedClear) = _resolveRepayCap(prevHook, account, vars);
-        if (
-            !predictedClear
-                && IEVault(vars.collateralVault).previewWithdraw(vars.secondary)
-                    >= IEVault(vars.collateralVault).balanceOf(account)
-        ) {
-            revert RESIDUAL_DEBT_FULL_WITHDRAW();
-        }
     }
 
     /// @inheritdoc BaseHook

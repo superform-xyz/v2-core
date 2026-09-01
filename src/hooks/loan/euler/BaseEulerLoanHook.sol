@@ -119,11 +119,6 @@ abstract contract BaseEulerLoanHook is BaseLoanHookV2 {
     /// @notice Thrown when the collateral vault equals the controller vault
     error IDENTICAL_VAULTS();
 
-    /// @notice Thrown when a close would strip the full collateral while residual debt remains
-    /// @dev Such a withdrawal can never pass EVK's end-of-call health check; failing fast at
-    ///      resolution time replaces an opaque provider revert with a precise error
-    error RESIDUAL_DEBT_FULL_WITHDRAW();
-
     /// @notice Thrown when the controller is still enabled after the account's debt reached zero
     error CONTROLLER_NOT_DISABLED();
 
