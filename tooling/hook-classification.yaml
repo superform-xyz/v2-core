@@ -431,6 +431,10 @@ hooks:
     actionTypes: [{intent: bridge, stage: instant}]
     legSizing: [sized]
 
+  SuperVaultDeBridgeCapBridgeHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
   CCTPSendHook:
     actionTypes: [{intent: bridge, stage: instant}]
     legSizing: [sized]
