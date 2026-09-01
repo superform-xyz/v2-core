@@ -202,6 +202,11 @@ def enrich_hook(hook_name: str, entry: dict, enrichment: dict) -> dict:
     else:
         entry["erc165"] = []
 
+    # V2 loan hooks additionally advertise ISuperHookLoans through ERC-165
+    # (legacy deployed loan hook addresses keep their old bytecode and do NOT advertise it)
+    if hook_name in set(enrichment.get("loanInterfaceHooks", [])):
+        entry["erc165"] = entry["erc165"] + ["ISuperHookLoans"]
+
     # requiresApproval
     if hook_name.startswith("ApproveAnd"):
         entry["requiresApproval"] = False

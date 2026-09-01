@@ -52,6 +52,23 @@ is_morpho_supported() {
     return 1
 }
 
+# V2 loan hooks (SUP-20796) deploy wherever any of their provider gates hold:
+# Morpho singleton (1, 10, 56, 4663, 8453, 42161) ∪ Aave V3 pool
+# (1, 10, 56, 100, 137, 146, 8453, 42161, 43114, 59144) ∪ Aave V4 (1).
+# The Solidity entrypoint re-checks each provider gate per chain, so this list only
+# avoids no-op forge runs.
+LOAN_HOOKS_V2_SUPPORTED_CHAINS=("1" "10" "56" "100" "137" "146" "4663" "8453" "42161" "43114" "59144")
+
+is_loan_hooks_v2_supported() {
+    local chain_id=$1
+    for supported in "${LOAN_HOOKS_V2_SUPPORTED_CHAINS[@]}"; do
+        if [ "$supported" = "$chain_id" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Aave V4 is only deployed on Ethereum mainnet
 AAVE_V4_SUPPORTED_CHAINS=("1")
 
@@ -168,6 +185,9 @@ MORPHO_HOOKS=(
     "MorphoLendHook"
     "MetaMorphoReallocateHook"
     "ForceDeallocateMorphoHook"
+    "MorphoSupplyAndBorrowHookV2"
+    "MorphoRepayHookV2"
+    "MorphoRepayAndWithdrawHookV2"
 )
 
 missing_morpho=0
@@ -194,6 +214,9 @@ AAVE_V4_HOOKS=(
     "AaveV4RepayHook"
     "AaveV4SupplyAndBorrowHook"
     "AaveV4RepayAndWithdrawHook"
+    "AaveV4SupplyAndBorrowHookV2"
+    "AaveV4RepayHookV2"
+    "AaveV4RepayAndWithdrawHookV2"
 )
 
 missing_aavev4=0
@@ -221,6 +244,9 @@ AAVE_V3_HOOKS=(
     "AaveV3SupplyAndBorrowHook"
     "AaveV3RepayAndWithdrawHook"
     "AaveV3RepayWithATokensHook"
+    "AaveV3SupplyAndBorrowHookV2"
+    "AaveV3RepayHookV2"
+    "AaveV3RepayAndWithdrawHookV2"
 )
 
 missing_aavev3=0
@@ -441,7 +467,7 @@ print_separator
 
 # ── Confirmation ───────────────────────────────────────────────────────────────
 
-echo -e "${WHITE}Deploy hooks (Morpho + Aave V4 + HyperCore + Firelight + Algebra Integral + DETH + Sponsorship + rFLR + rFLR V2 + WrappedNative) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
+echo -e "${WHITE}Deploy hooks (Morpho + Aave V4 + HyperCore + Firelight + Algebra Integral + DETH + Sponsorship + rFLR + rFLR V2 + WrappedNative + Loan Hooks V2) to all networks in $ENVIRONMENT mode '$MODE'? (y/n): ${NC}"
 read -r proceed
 
 if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
@@ -792,6 +818,37 @@ for network_def in "${NETWORKS[@]}"; do
         else
             echo -e "${RED}   WrappedNativeHook deployment failed on $network_name, continuing...${NC}"
             FAILED_HOOK_DEPLOYS+=("WrappedNative @ $network_name")
+        fi
+    fi
+
+    # Deploy V2 loan hooks if any provider gate holds on this chain (SUP-20796)
+    if is_loan_hooks_v2_supported "$network_id"; then
+        has_hooks=true
+        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
+        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
+        echo -e "${YELLOW}   Deploying V2 loan hooks...${NC}"
+
+        if forge script "$FORGE_SCRIPT" \
+            --sig 'runLoanHooksV2(uint256,uint64)' $FORGE_ENV $network_id \
+            --account "$ACCOUNT" \
+            $KEYSTORE_PASSWORD_FLAG \
+            --rpc-url "${!rpc_var}" \
+            $local_chain_flag \
+            $local_etherscan_flags \
+            $BROADCAST_FLAG \
+            $local_verify_flag \
+            $SLOW_FLAG \
+            $BATCH_SIZE_FLAG \
+            $RESUME_FLAG \
+            $LEGACY_FLAG \
+            $GAS_PRICE_FLAG \
+            --timeout 300 \
+            -vv; then
+            echo -e "${GREEN}   V2 loan hooks deployment completed!${NC}"
+        else
+            echo -e "${RED}   V2 loan hooks deployment failed on $network_name, continuing...${NC}"
+            FAILED_HOOK_DEPLOYS+=("LoanHooksV2 @ $network_name")
         fi
     fi
 
