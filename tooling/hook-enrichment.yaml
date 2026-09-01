@@ -110,6 +110,7 @@ compatibleProtocols:
   # Stargate
   StargateSendHook: [stargate]
   ApproveAndStargateSendHook: [stargate]
+  SuperVaultStargateCapBridgeHook: [stargate]
   StargateSendHookV2: [stargate-v2]
   ApproveAndStargateSendHookV2: [stargate-v2]
   # deBridge

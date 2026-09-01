@@ -415,6 +415,10 @@ hooks:
     actionTypes: [{intent: bridge, stage: instant}]
     legSizing: [sized]
 
+  SuperVaultStargateCapBridgeHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
   StargateSendHookV2:
     actionTypes: [{intent: bridge, stage: instant}]
     legSizing: [sized]
