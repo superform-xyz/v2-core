@@ -114,6 +114,7 @@ compatibleProtocols:
   ApproveAndStargateSendHookV2: [stargate-v2]
   # deBridge
   DeBridgeSendOrderAndExecuteOnDstHook: [debridge]
+  SuperVaultDeBridgeCapBridgeHook: [debridge]
   DeBridgeCancelOrderHook: [debridge]
   # CCTP / Circle
   CCTPSendHook: [circle-cctp]
