@@ -21,24 +21,26 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address oracle = BytesLib.toAddress(data, 92);
 /// @notice         address irm = BytesLib.toAddress(data, 112);
-/// @notice         uint256 repayAmount = BytesLib.toUint256(data, 132); // type(uint256).max = full repayment
+/// @notice         uint256 repayAmount = BytesLib.toUint256(data, 132); // CAP: actual repay = min(cap, debt)
 /// @notice         uint256 reserved = BytesLib.toUint256(data, 164); // must be zero
 /// @notice         bool usePrevHookAmount = _decodeStrictBool(data, 196);
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 197);
 /// @notice         byte reserved2 = data[229]; // must be 0x00
-/// @dev type(uint256).max is the only full-repayment sentinel and requires usePrevHookAmount ==
-///      false. Full repayment approves the accrued debt (view-simulated to block.timestamp, exact
-///      because build and the repay execute in the same transaction), repays the current borrow
-///      shares, and resets the approval to zero in the same transaction. Repaying a zero-debt
-///      position reverts before any approval. This is a terminal hook: it spends the debt asset
-///      and publishes outAmount = 0 (outToken = loanToken for classification) so a downstream
+/// @dev The repay word is a CAP: the resolved repayment is min(cap, accrued debt) read live at
+///      build/preExecute time. A cap covering the whole debt (including type(uint256).max,
+///      subsumed by the min — no separate sentinel) repays by borrow shares, clearing the entire
+///      debt dust-free regardless of rounding; a smaller cap repays exactly that amount of
+///      assets. Zero outstanding debt SKIPS the repay leg (build returns no executions, the
+///      settle asserts a zero spend) instead of reverting. With usePrevHookAmount the calldata
+///      cap word is ignored and the previous hook's output (denominated in loanToken) becomes
+///      the cap; an output larger than the debt caps to the debt and the leftover stays in the
+///      wallet. Approvals are granted for the resolved amount and reset to zero in the same
+///      transaction. This is a terminal hook: it spends the debt asset and publishes
+///      outAmount = 0 (outToken = loanToken for classification) so a downstream
 ///      usePrevHookAmount consumer cannot mistake the spend for produced tokens.
-/// @dev KNOWN LIMITATION (griefing): the full-repayment sentinel resolves the debt live at
-///      execution, so it is robust to a partial third-party repayment. Only a *complete*
-///      third-party repayment (a donation clearing the whole debt) makes the victim's transaction
-///      revert with NO_OUTSTANDING_DEBT; an exact non-sentinel repayAmount can additionally be
-///      griefed by a 1-wei third-party repay shifting the debt below the signed amount. Emit the
-///      sentinel for close intents and mitigate with private mempools.
+/// @dev Cap semantics close the third-party-repayment griefing vector: a partial third-party
+///      repayment shrinks the resolved amount and a complete one skips the leg — neither cancels
+///      a signed intent.
 contract MorphoRepayHookV2 is BaseMorphoLoanHookV2 {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -54,7 +56,7 @@ contract MorphoRepayHookV2 is BaseMorphoLoanHookV2 {
 
     /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
-        return "Repays an exact amount or the full debt to a Morpho market";
+        return "Repays debt up to a cap to a Morpho market, clearing by shares when the cap covers the debt";
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -76,6 +78,7 @@ contract MorphoRepayHookV2 is BaseMorphoLoanHookV2 {
         MarketParams memory marketParams = _marketParams(vars);
         (uint256 repayAssets, uint256 borrowShares, bool fullRepay) =
             _resolveRepayLeg(prevHook, account, vars, marketParams);
+        if (repayAssets == 0) return new Execution[](0); // zero debt: nothing to repay
 
         executions = new Execution[](4);
         executions[0] =
@@ -105,10 +108,10 @@ contract MorphoRepayHookV2 is BaseMorphoLoanHookV2 {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc BaseHook
-    /// @dev Accrues interest so the sentinel resolution and the shares-denominated repay price debt
-    ///      against identical market state, then stores the exact expected debt-token spend and
-    ///      snapshots wallet balances. `marketParams` is materialized once and reused across
-    ///      accrual and resolution.
+    /// @dev Accrues interest so the cap resolution and the shares-denominated repay price debt
+    ///      against identical market state, then stores the exact expected debt-token spend
+    ///      (zero when the repay leg is skipped) and snapshots wallet balances. `marketParams` is
+    ///      materialized once and reused across accrual and resolution.
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         MorphoV2Vars memory vars = _decodeMorphoV2(data, true);
         MarketParams memory marketParams = _marketParams(vars);

@@ -274,10 +274,18 @@ contract AaveV3LoanHooksV2Test is Helpers {
         openHook.build(address(0), address(this), _open(amount1, MAX, false));
     }
 
-    function test_Repay_Build_RevertIf_MaxWithPrev() public {
+    function test_Repay_Build_MaxWithPrev_PrevOutputIsCap() public {
+        // Under usePrevHookAmount the calldata cap word (here max) is ignored entirely
         _mintDebt(address(this), 2e18);
-        vm.expectRevert(BaseLoanHookV2.MAX_WITH_PREV_NOT_ALLOWED.selector);
-        repayHook.build(address(0), address(this), _repay(MAX, true));
+        MockPrevHook prev = new MockPrevHook();
+        uint256 prevAmount = 3e17; // below debt → exact-amount repay
+        prev.setOutAmount(prevAmount);
+        prev.setOutToken(loanToken);
+
+        Execution[] memory ex = repayHook.build(address(prev), address(this), _repay(MAX, true));
+        assertEq(ex.length, 6);
+        assertEq(ex[2].callData, abi.encodeCall(IERC20.approve, (pool, prevAmount)));
+        assertEq(ex[3].callData, abi.encodeCall(IPool.repay, (loanToken, prevAmount, 2, address(this))));
     }
 
     function test_Repay_Build_RevertIf_ZeroAmount() public {
@@ -286,10 +294,17 @@ contract AaveV3LoanHooksV2Test is Helpers {
         repayHook.build(address(0), address(this), _repay(0, false));
     }
 
-    function test_Close_Build_RevertIf_MaxWithPrev() public {
+    function test_Close_Build_MaxWithPrev_PrevOutputIsCap() public {
         _mintDebt(address(this), 2e18);
-        vm.expectRevert(BaseLoanHookV2.MAX_WITH_PREV_NOT_ALLOWED.selector);
-        closeHook.build(address(0), address(this), _close(MAX, amount2, true));
+        MockPrevHook prev = new MockPrevHook();
+        uint256 prevAmount = 3e17;
+        prev.setOutAmount(prevAmount);
+        prev.setOutToken(loanToken);
+
+        Execution[] memory ex = closeHook.build(address(prev), address(this), _close(MAX, amount2, true));
+        assertEq(ex.length, 7);
+        assertEq(ex[2].callData, abi.encodeCall(IERC20.approve, (pool, prevAmount)));
+        assertEq(ex[3].callData, abi.encodeCall(IPool.repay, (loanToken, prevAmount, 2, address(this))));
     }
 
     function test_Close_Build_RevertIf_ZeroRepayAmount() public {
@@ -314,14 +329,40 @@ contract AaveV3LoanHooksV2Test is Helpers {
     /*//////////////////////////////////////////////////////////////
                              ZERO DEBT
     //////////////////////////////////////////////////////////////*/
-    function test_Repay_Build_RevertIf_NoOutstandingDebt() public {
-        vm.expectRevert(BaseLoanHookV2.NO_OUTSTANDING_DEBT.selector);
-        repayHook.build(address(0), address(this), _repay(amount1, false));
+    function test_Repay_Build_ZeroDebt_Graceful_NoOps() public view {
+        // No debt minted: the repay leg is skipped instead of reverting
+        Execution[] memory ex = repayHook.build(address(0), address(this), _repay(amount1, false));
+        assertEq(ex.length, 2); // preExecute + postExecute only
     }
 
-    function test_Close_Build_RevertIf_NoOutstandingDebt() public {
-        vm.expectRevert(BaseLoanHookV2.NO_OUTSTANDING_DEBT.selector);
-        closeHook.build(address(0), address(this), _close(amount1, amount2, false));
+    function test_Close_Build_ZeroDebt_Graceful_WithdrawOnly() public view {
+        // Zero debt: the close degrades to a plain withdrawal, arbitrated by Aave's health check
+        Execution[] memory ex = closeHook.build(address(0), address(this), _close(amount1, amount2, false));
+        assertEq(ex.length, 3); // preExecute + withdraw + postExecute
+        assertEq(ex[1].target, pool);
+        assertEq(ex[1].callData, abi.encodeCall(IPool.withdraw, (collateralToken, amount2, address(this))));
+    }
+
+    function test_Repay_Build_ZeroDebt_PrevPipeNotConsulted() public {
+        // The zero-debt early-return precedes previous-hook resolution: a prev hook publishing
+        // the WRONG token would revert PREV_TOKEN_MISMATCH if the pipe were consulted
+        MockPrevHook prev = new MockPrevHook();
+        prev.setOutAmount(1e18);
+        prev.setOutToken(collateralToken); // wrong token for the repay slot
+
+        Execution[] memory ex = repayHook.build(address(prev), address(this), _repay(amount1, true));
+        assertEq(ex.length, 2);
+    }
+
+    function test_Repay_SettleRoundTrip_ZeroDebt_Graceful() public {
+        bytes memory data = _repay(amount1, false);
+        mockLoanToken.mint(address(this), amount1);
+
+        repayHook.preExecute(address(0), address(this), data);
+        repayHook.postExecute(address(0), address(this), data);
+
+        assertEq(repayHook.getOutAmount(address(this)), 0); // terminal repay publishes 0
+        assertEq(repayHook.getOutToken(address(this)), loanToken);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -438,10 +479,45 @@ contract AaveV3LoanHooksV2Test is Helpers {
         _mintDebt(address(this), debt);
         Execution[] memory ex = repayHook.build(address(0), address(this), _repay(MAX, false));
         assertEq(ex.length, 6);
-        // approval equals current variable-debt balance, repay passes the sentinel through
+        // approval equals current variable-debt balance, repay clears natively via max
         assertEq(ex[2].callData, abi.encodeCall(IERC20.approve, (pool, debt)));
         assertEq(ex[3].callData, abi.encodeCall(IPool.repay, (loanToken, MAX, 2, address(this))));
         assertEq(ex[4].callData, abi.encodeCall(IERC20.approve, (pool, 0)));
+    }
+
+    function test_Repay_Build_CapEqualsDebt_EmitsRepayMax() public {
+        // Behavior change vs pre-cap semantics: a non-sentinel cap == debt is a predicted clear
+        // and emits repay(max) so Aave clears the debt without ray-rounding dust
+        uint256 debt = 17e17;
+        _mintDebt(address(this), debt);
+        Execution[] memory ex = repayHook.build(address(0), address(this), _repay(debt, false));
+        assertEq(ex.length, 6);
+        assertEq(ex[2].callData, abi.encodeCall(IERC20.approve, (pool, debt)));
+        assertEq(ex[3].callData, abi.encodeCall(IPool.repay, (loanToken, MAX, 2, address(this))));
+    }
+
+    function test_Repay_Build_CapAboveDebt_MinsWithDebt() public {
+        // cap > debt resolves to the debt; approval covers the debt, never the cap or max
+        uint256 debt = 17e17;
+        _mintDebt(address(this), debt);
+        Execution[] memory ex = repayHook.build(address(0), address(this), _repay(debt + 5e17, false));
+        assertEq(ex.length, 6);
+        assertEq(ex[2].callData, abi.encodeCall(IERC20.approve, (pool, debt)));
+        assertEq(ex[3].callData, abi.encodeCall(IPool.repay, (loanToken, MAX, 2, address(this))));
+    }
+
+    function test_Repay_Build_PrevCapAboveDebt_MinsWithDebt() public {
+        // A PREV-fed cap larger than the debt caps instead of reverting; leftover stays in wallet
+        uint256 debt = 17e17;
+        _mintDebt(address(this), debt);
+        MockPrevHook prev = new MockPrevHook();
+        prev.setOutAmount(debt * 2);
+        prev.setOutToken(loanToken);
+
+        Execution[] memory ex = repayHook.build(address(prev), address(this), _repay(amount1, true));
+        assertEq(ex.length, 6);
+        assertEq(ex[2].callData, abi.encodeCall(IERC20.approve, (pool, debt)));
+        assertEq(ex[3].callData, abi.encodeCall(IPool.repay, (loanToken, MAX, 2, address(this))));
     }
 
     function test_Close_Build() public {

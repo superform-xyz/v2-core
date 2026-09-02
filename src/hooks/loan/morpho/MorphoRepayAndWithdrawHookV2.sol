@@ -21,24 +21,25 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address oracle = BytesLib.toAddress(data, 92);
 /// @notice         address irm = BytesLib.toAddress(data, 112);
-/// @notice         uint256 repayAmount = BytesLib.toUint256(data, 132); // type(uint256).max = full repayment
+/// @notice         uint256 repayAmount = BytesLib.toUint256(data, 132); // CAP: actual repay = min(cap, debt)
 /// @notice         uint256 withdrawAmount = BytesLib.toUint256(data, 164); // type(uint256).max = full collateral
 /// @notice         bool usePrevHookAmount = _decodeStrictBool(data, 196);
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 197);
 /// @notice         byte reserved = data[229]; // must be 0x00
-/// @dev Repayment executes strictly before collateral withdrawal. Both legs are exact; the
-///      withdrawal amount is never derived proportionally from the repayment. type(uint256).max is
-///      the only sentinel: on the repay leg it resolves to the accrued debt (repaid by shares) and
-///      requires usePrevHookAmount == false; on the withdraw leg it resolves to the position's
-///      full collateral. Repaying a zero-debt position reverts before any approval. outAmount
-///      publishes the actual released collateral-token wallet delta with outToken =
-///      collateralToken.
-/// @dev KNOWN LIMITATION (griefing): the full-repayment sentinel resolves the debt live at
-///      execution, so it is robust to a partial third-party repayment. Only a *complete*
-///      third-party repayment (a donation clearing the whole debt) makes the victim's transaction
-///      revert with NO_OUTSTANDING_DEBT; an exact non-sentinel repayAmount can additionally be
-///      griefed by a 1-wei third-party repay shifting the debt below the signed amount. Emit the
-///      sentinel for close intents and mitigate with private mempools.
+/// @dev Repayment executes strictly before collateral withdrawal. The repay word is a CAP: the
+///      resolved repayment is min(cap, accrued debt); a cap covering the whole debt (including
+///      type(uint256).max, subsumed by the min — no separate repay sentinel) repays by borrow
+///      shares, clearing the debt dust-free. Zero outstanding debt SKIPS the repay leg — the
+///      withdraw leg still executes and Morpho's own health check arbitrates whether stripping
+///      the collateral is valid. With usePrevHookAmount the calldata cap word is ignored and the
+///      previous hook's output becomes the cap; an output larger than the debt caps to the debt
+///      and the leftover stays in the wallet. The withdraw leg is exact and never derived
+///      proportionally from the repayment; type(uint256).max on the withdraw slot resolves to
+///      the position's full collateral. outAmount publishes the actual released collateral-token
+///      wallet delta with outToken = collateralToken.
+/// @dev Cap semantics close the third-party-repayment griefing vector: a partial third-party
+///      repayment shrinks the resolved amount and a complete one skips the repay leg — neither
+///      cancels a signed close intent.
 contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHookV2 {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -54,7 +55,7 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHookV2 {
 
     /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
-        return "Repays debt and withdraws an exact collateral amount from a Morpho market";
+        return "Repays debt up to a cap and withdraws an exact collateral amount from a Morpho market";
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -78,23 +79,26 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHookV2 {
             _resolveRepayLeg(prevHook, account, vars, marketParams);
         uint256 withdrawAmount = _resolveWithdrawLeg(account, vars, marketParams);
 
-        executions = new Execution[](5);
-        executions[0] =
-            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
-        executions[1] = Execution({
-            target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, repayAssets))
-        });
-        executions[2] = Execution({
-            target: morpho,
-            value: 0,
-            callData: fullRepay
-                ? abi.encodeCall(IMorphoBase.repay, (marketParams, 0, borrowShares, account, ""))
-                : abi.encodeCall(IMorphoBase.repay, (marketParams, repayAssets, 0, account, ""))
-        });
-        executions[3] =
-            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
-        // Withdrawal executes strictly after repayment
-        executions[4] = Execution({
+        // Zero debt skips the 4 repay executions; the withdraw leg always runs, strictly last
+        executions = new Execution[]((repayAssets == 0 ? 0 : 4) + 1);
+        uint256 i;
+        if (repayAssets != 0) {
+            executions[i++] =
+                Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+            executions[i++] = Execution({
+                target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, repayAssets))
+            });
+            executions[i++] = Execution({
+                target: morpho,
+                value: 0,
+                callData: fullRepay
+                    ? abi.encodeCall(IMorphoBase.repay, (marketParams, 0, borrowShares, account, ""))
+                    : abi.encodeCall(IMorphoBase.repay, (marketParams, repayAssets, 0, account, ""))
+            });
+            executions[i++] =
+                Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+        }
+        executions[i] = Execution({
             target: morpho,
             value: 0,
             callData: abi.encodeCall(IMorphoBase.withdrawCollateral, (marketParams, withdrawAmount, account, account))

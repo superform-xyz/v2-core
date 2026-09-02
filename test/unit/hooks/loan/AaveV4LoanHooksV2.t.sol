@@ -326,14 +326,32 @@ contract AaveV4LoanHooksV2Test is Helpers {
         openHook.build(address(0), address(this), _defaultData(amount, false, MAX));
     }
 
-    function test_RepayHook_Build_RevertIf_MaxWithPrev() public {
-        vm.expectRevert(BaseLoanHookV2.MAX_WITH_PREV_NOT_ALLOWED.selector);
-        repayHook.build(address(prevHook), address(this), _defaultData(MAX, true, 0));
+    function test_RepayHook_Build_MaxWithPrev_PrevOutputIsCap() public {
+        // Under usePrevHookAmount the calldata cap word (here max) is ignored entirely
+        uint256 prevAmount = 4e17; // below the total debt → exact-amount repay
+        prevHook.setOutToken(loanToken);
+        prevHook.setOutAmount(prevAmount);
+
+        Execution[] memory executions = repayHook.build(address(prevHook), address(this), _defaultData(MAX, true, 0));
+        assertEq(executions.length, 6);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (spoke, prevAmount)));
+        assertEq(
+            executions[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (borrowReserveId, prevAmount, address(this)))
+        );
     }
 
-    function test_CloseHook_Build_RevertIf_MaxWithPrev() public {
-        vm.expectRevert(BaseLoanHookV2.MAX_WITH_PREV_NOT_ALLOWED.selector);
-        closeHook.build(address(prevHook), address(this), _defaultData(MAX, true, withdrawAmount));
+    function test_CloseHook_Build_MaxWithPrev_PrevOutputIsCap() public {
+        uint256 prevAmount = 4e17;
+        prevHook.setOutToken(loanToken);
+        prevHook.setOutAmount(prevAmount);
+
+        Execution[] memory executions =
+            closeHook.build(address(prevHook), address(this), _defaultData(MAX, true, withdrawAmount));
+        assertEq(executions.length, 7);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (spoke, prevAmount)));
+        assertEq(
+            executions[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (borrowReserveId, prevAmount, address(this)))
+        );
     }
 
     function test_RepayHook_Build_RevertIf_ZeroAmount() public {
@@ -355,16 +373,35 @@ contract AaveV4LoanHooksV2Test is Helpers {
                            ZERO-DEBT TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_RepayHook_Build_RevertIf_NoOutstandingDebt() public {
+    function test_RepayHook_Build_ZeroDebt_Graceful_NoOps() public {
+        // Zero total debt: the repay leg is skipped instead of reverting
         mockSpoke.setUserDebt(borrowReserveId, address(this), 0, 0);
-        vm.expectRevert(BaseLoanHookV2.NO_OUTSTANDING_DEBT.selector);
-        repayHook.build(address(0), address(this), _defaultData(amount, false, 0));
+        Execution[] memory executions = repayHook.build(address(0), address(this), _defaultData(amount, false, 0));
+        assertEq(executions.length, 2); // preExecute + postExecute only
     }
 
-    function test_CloseHook_Build_RevertIf_NoOutstandingDebt() public {
+    function test_CloseHook_Build_ZeroDebt_Graceful_WithdrawOnly() public {
+        // Zero debt: the close degrades to a plain withdrawal, arbitrated by the Spoke's health check
         mockSpoke.setUserDebt(borrowReserveId, address(this), 0, 0);
-        vm.expectRevert(BaseLoanHookV2.NO_OUTSTANDING_DEBT.selector);
-        closeHook.build(address(0), address(this), _defaultData(amount, false, withdrawAmount));
+        Execution[] memory executions =
+            closeHook.build(address(0), address(this), _defaultData(amount, false, withdrawAmount));
+        assertEq(executions.length, 3); // preExecute + withdraw + postExecute
+        assertEq(executions[1].target, spoke);
+        assertEq(
+            executions[1].callData,
+            abi.encodeCall(IAaveV4Spoke.withdraw, (supplyReserveId, withdrawAmount, address(this)))
+        );
+    }
+
+    function test_RepayHook_Build_ZeroDebt_PrevPipeNotConsulted() public {
+        // The zero-debt early-return precedes previous-hook resolution: a prev hook publishing
+        // the WRONG token would revert PREV_TOKEN_MISMATCH if the pipe were consulted
+        mockSpoke.setUserDebt(borrowReserveId, address(this), 0, 0);
+        prevHook.setOutToken(collateralToken); // wrong token for the repay slot
+        prevHook.setOutAmount(1e18);
+
+        Execution[] memory executions = repayHook.build(address(prevHook), address(this), _defaultData(amount, true, 0));
+        assertEq(executions.length, 2);
     }
 
     function test_RepayHook_Build_PremiumOnlyDebt_DoesNotRevert() public {
@@ -491,36 +528,44 @@ contract AaveV4LoanHooksV2Test is Helpers {
     }
 
     function test_RepayHook_Build_Shape() public view {
-        Execution[] memory executions = repayHook.build(address(0), address(this), _defaultData(amount, false, 0));
+        // Cap below the total debt (1e18) → exact assets-denominated repay of the cap
+        uint256 partialCap = 7e17;
+        Execution[] memory executions = repayHook.build(address(0), address(this), _defaultData(partialCap, false, 0));
 
-        // preExecute + approve(0) + approve(amount1) + repay + approve(0) + postExecute
+        // preExecute + approve(0) + approve(cap) + repay + approve(0) + postExecute
         assertEq(executions.length, 6);
         assertEq(executions[0].target, address(repayHook));
         assertEq(executions[1].target, loanToken);
         assertEq(executions[1].callData, abi.encodeCall(IERC20.approve, (spoke, 0)));
         assertEq(executions[2].target, loanToken);
-        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (spoke, amount)));
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (spoke, partialCap)));
         assertEq(executions[3].target, spoke);
-        assertEq(executions[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (borrowReserveId, amount, address(this))));
+        assertEq(
+            executions[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (borrowReserveId, partialCap, address(this)))
+        );
         assertEq(executions[4].target, loanToken);
         assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (spoke, 0)));
         assertEq(executions[5].target, address(repayHook));
     }
 
     function test_CloseHook_Build_Shape() public view {
+        // Cap below the total debt (1e18) → exact assets-denominated repay of the cap
+        uint256 partialCap = 7e17;
         Execution[] memory executions =
-            closeHook.build(address(0), address(this), _defaultData(amount, false, withdrawAmount));
+            closeHook.build(address(0), address(this), _defaultData(partialCap, false, withdrawAmount));
 
-        // preExecute + approve(0) + approve(amount1) + repay + approve(0) + withdraw + postExecute
+        // preExecute + approve(0) + approve(cap) + repay + approve(0) + withdraw + postExecute
         assertEq(executions.length, 7);
         assertEq(executions[0].target, address(closeHook));
         assertEq(executions[1].target, loanToken);
         assertEq(executions[1].callData, abi.encodeCall(IERC20.approve, (spoke, 0)));
         assertEq(executions[2].target, loanToken);
-        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (spoke, amount)));
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (spoke, partialCap)));
         // repay executes strictly before withdraw
         assertEq(executions[3].target, spoke);
-        assertEq(executions[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (borrowReserveId, amount, address(this))));
+        assertEq(
+            executions[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (borrowReserveId, partialCap, address(this)))
+        );
         assertEq(executions[4].target, loanToken);
         assertEq(executions[4].callData, abi.encodeCall(IERC20.approve, (spoke, 0)));
         assertEq(executions[5].target, spoke);
@@ -549,6 +594,58 @@ contract AaveV4LoanHooksV2Test is Helpers {
         assertEq(executions[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (borrowReserveId, MAX, address(this))));
         // supplied > 0 → the withdraw sentinel is passed through
         assertEq(executions[5].callData, abi.encodeCall(IAaveV4Spoke.withdraw, (supplyReserveId, MAX, address(this))));
+    }
+
+    function test_RepayHook_Build_CapEqualsDebt_EmitsRepayMax() public view {
+        // Behavior change vs pre-cap semantics: a non-sentinel cap == total debt is a predicted
+        // clear and emits repay(max) so the Spoke clears the debt without rounding dust
+        uint256 debt = drawnDebt + premiumDebt;
+        Execution[] memory executions = repayHook.build(address(0), address(this), _defaultData(debt, false, 0));
+        assertEq(executions.length, 6);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (spoke, debt)));
+        assertEq(executions[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (borrowReserveId, MAX, address(this))));
+    }
+
+    function test_RepayHook_Build_CapAboveDebt_MinsWithDebt() public view {
+        // cap > debt resolves to the debt; approval covers the debt, never the cap
+        uint256 debt = drawnDebt + premiumDebt;
+        Execution[] memory executions = repayHook.build(address(0), address(this), _defaultData(debt + 5e17, false, 0));
+        assertEq(executions.length, 6);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (spoke, debt)));
+        assertEq(executions[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (borrowReserveId, MAX, address(this))));
+    }
+
+    function test_RepayHook_Build_CapBetweenDrawnAndTotal_ExactRepay() public view {
+        // drawn < cap < drawn + premium: still a partial repay of the exact cap
+        uint256 cap = drawnDebt + premiumDebt / 2;
+        Execution[] memory executions = repayHook.build(address(0), address(this), _defaultData(cap, false, 0));
+        assertEq(executions.length, 6);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (spoke, cap)));
+        assertEq(executions[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (borrowReserveId, cap, address(this))));
+    }
+
+    function test_RepayHook_Build_PrevCapAboveDebt_MinsWithDebt() public {
+        // A PREV-fed cap larger than the debt caps instead of reverting; leftover stays in wallet
+        uint256 debt = drawnDebt + premiumDebt;
+        prevHook.setOutToken(loanToken);
+        prevHook.setOutAmount(debt * 2);
+
+        Execution[] memory executions = repayHook.build(address(prevHook), address(this), _defaultData(amount, true, 0));
+        assertEq(executions.length, 6);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (spoke, debt)));
+        assertEq(executions[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (borrowReserveId, MAX, address(this))));
+    }
+
+    function test_RepayHook_SettleRoundTrip_ZeroDebt_Graceful() public {
+        mockSpoke.setUserDebt(borrowReserveId, address(this), 0, 0);
+        bytes memory data = _defaultData(amount, false, 0);
+        mockLoanToken.mint(address(this), amount);
+
+        repayHook.preExecute(address(0), address(this), data);
+        repayHook.postExecute(address(0), address(this), data);
+
+        assertEq(repayHook.getOutAmount(address(this)), 0); // terminal repay publishes 0
+        assertEq(repayHook.getOutToken(address(this)), loanToken);
     }
 
     function test_CloseHook_Build_RevertIf_MaxWithdraw_ZeroSupplied() public {

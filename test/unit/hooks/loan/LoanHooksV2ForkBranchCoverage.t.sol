@@ -634,39 +634,116 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-        E-17. MAX_WITH_PREV with real debt (checklist 9 + 17)
+        E-17. PREV CAP SEMANTICS with real debt (checklist 9 + 17)
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev _resolveRepayLeg checks debt first, so real debt is required to reach the sentinel
-    ///      + usePrev combination check (verified against the source order)
-    function test_Fork_MorphoV2_MaxWithPrevReverts() public {
+    /// @dev The prev amount becomes the CAP and the calldata word (here max) is ignored: below
+    ///      debt it is approved/repaid verbatim; above debt it collapses to the accrued debt and
+    ///      predicts the clear (Morpho: shares path)
+    function test_Fork_MorphoV2_Prev_CapSemantics() public {
         _openMorphoPosition();
 
-        vm.expectRevert(BaseLoanHookV2.MAX_WITH_PREV_NOT_ALLOWED.selector);
-        morphoRepay.build(address(prevStub), address(this), _morphoData(MAX, 0, true));
+        // prev output below debt → exact assets-denominated repay of the prev amount
+        prevStub.set(USDC, 500e6);
+        Execution[] memory execs = morphoRepay.build(address(prevStub), address(this), _morphoData(MAX, 0, true));
+        assertEq(execs.length, 6);
+        assertEq(execs[2].callData, abi.encodeCall(IERC20.approve, (MORPHO_BLUE, 500e6)));
+        assertEq(execs[3].callData, abi.encodeCall(IMorphoBase.repay, (_mp(), 500e6, 0, address(this), "")));
 
-        vm.expectRevert(BaseLoanHookV2.MAX_WITH_PREV_NOT_ALLOWED.selector);
-        morphoClose.build(address(prevStub), address(this), _morphoData(MAX, 1e6, true));
+        // prev output above debt → min() to the accrued debt, cleared by shares
+        uint256 expectedAssets = MorphoBalancesLib.expectedBorrowAssets(IMorpho(MORPHO_BLUE), _mp(), address(this));
+        (, uint128 shares,) = IMorphoStaticTyping(MORPHO_BLUE).position(_mp().id(), address(this));
+        prevStub.set(USDC, expectedAssets + 1000e6);
+        execs = morphoRepay.build(address(prevStub), address(this), _morphoData(MAX, 0, true));
+        assertEq(execs.length, 6);
+        assertEq(execs[2].callData, abi.encodeCall(IERC20.approve, (MORPHO_BLUE, expectedAssets)));
+        assertEq(execs[3].callData, abi.encodeCall(IMorphoBase.repay, (_mp(), 0, uint256(shares), address(this), "")));
     }
 
-    function test_Fork_AaveV3V2_MaxWithPrevReverts() public {
+    function test_Fork_AaveV3V2_Prev_CapSemantics() public {
         _openAaveV3Position();
+        address vDebt = IPool(AAVE_V3_POOL).getReserveData(USDC).variableDebtTokenAddress;
+        uint256 debt = IERC20(vDebt).balanceOf(address(this));
 
-        vm.expectRevert(BaseLoanHookV2.MAX_WITH_PREV_NOT_ALLOWED.selector);
-        aaveV3Repay.build(address(prevStub), address(this), _aaveV3Data(MAX, 0, true));
+        // prev output below debt → exact-amount repay of the prev amount
+        prevStub.set(USDC, 500e6);
+        Execution[] memory execs = aaveV3Repay.build(address(prevStub), address(this), _aaveV3Data(MAX, 0, true));
+        assertEq(execs.length, 6);
+        assertEq(execs[2].callData, abi.encodeCall(IERC20.approve, (AAVE_V3_POOL, 500e6)));
+        assertEq(execs[3].callData, abi.encodeCall(IPool.repay, (USDC, 500e6, 2, address(this))));
 
-        vm.expectRevert(BaseLoanHookV2.MAX_WITH_PREV_NOT_ALLOWED.selector);
-        aaveV3Close.build(address(prevStub), address(this), _aaveV3Data(MAX, 1e18, true));
+        // prev output above debt → min() to the debt, cleared natively via repay(max)
+        prevStub.set(USDC, debt + 1000e6);
+        execs = aaveV3Repay.build(address(prevStub), address(this), _aaveV3Data(MAX, 0, true));
+        assertEq(execs.length, 6);
+        assertEq(execs[2].callData, abi.encodeCall(IERC20.approve, (AAVE_V3_POOL, debt)));
+        assertEq(execs[3].callData, abi.encodeCall(IPool.repay, (USDC, MAX, 2, address(this))));
     }
 
-    function test_Fork_AaveV4V2_MaxWithPrevReverts() public {
+    function test_Fork_AaveV4V2_Prev_CapSemantics() public {
         _openAaveV4Position();
+        (uint256 drawn, uint256 premium) = IAaveV4Spoke(AAVE_V4_SPOKE).getUserDebt(USDC_RESERVE_ID, address(this));
+        uint256 debt = drawn + premium;
 
-        vm.expectRevert(BaseLoanHookV2.MAX_WITH_PREV_NOT_ALLOWED.selector);
-        aaveV4Repay.build(address(prevStub), address(this), _aaveV4Data(MAX, 0, true));
+        // prev output below debt → exact-amount repay of the prev amount
+        prevStub.set(USDC, 500e6);
+        Execution[] memory execs = aaveV4Repay.build(address(prevStub), address(this), _aaveV4Data(MAX, 0, true));
+        assertEq(execs.length, 6);
+        assertEq(execs[2].callData, abi.encodeCall(IERC20.approve, (AAVE_V4_SPOKE, 500e6)));
+        assertEq(execs[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (USDC_RESERVE_ID, 500e6, address(this))));
 
-        vm.expectRevert(BaseLoanHookV2.MAX_WITH_PREV_NOT_ALLOWED.selector);
-        aaveV4Close.build(address(prevStub), address(this), _aaveV4Data(MAX, 1e18, true));
+        // prev output above debt → min() to the debt, cleared natively via repay(max)
+        prevStub.set(USDC, debt + 1000e6);
+        execs = aaveV4Repay.build(address(prevStub), address(this), _aaveV4Data(MAX, 0, true));
+        assertEq(execs.length, 6);
+        assertEq(execs[2].callData, abi.encodeCall(IERC20.approve, (AAVE_V4_SPOKE, debt)));
+        assertEq(execs[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (USDC_RESERVE_ID, MAX, address(this))));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+        E-17b. CAP GOLDEN BRANCHES with real debt
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev cap == 0 with REAL debt (the zero-debt skip runs first, so debt is required to reach
+    ///      the cap check)
+    function test_Fork_CapZero_Reverts_AllProviders() public {
+        _openMorphoPosition();
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        morphoRepay.build(address(0), address(this), _morphoData(0, 0, false));
+
+        _openAaveV3Position();
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        aaveV3Repay.build(address(0), address(this), _aaveV3Data(0, 0, false));
+
+        _openAaveV4Position();
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        aaveV4Repay.build(address(0), address(this), _aaveV4Data(0, 0, false));
+    }
+
+    /// @dev A calldata cap above the real debt resolves to the debt (predicted clear) on every
+    ///      provider: Morpho clears by shares, the Aave families emit repay(max)
+    function test_Fork_CapAboveDebt_MinsWithDebt_AllProviders() public {
+        _openMorphoPosition();
+        uint256 expectedAssets = MorphoBalancesLib.expectedBorrowAssets(IMorpho(MORPHO_BLUE), _mp(), address(this));
+        (, uint128 shares,) = IMorphoStaticTyping(MORPHO_BLUE).position(_mp().id(), address(this));
+        Execution[] memory execs =
+            morphoRepay.build(address(0), address(this), _morphoData(expectedAssets + 100e6, 0, false));
+        assertEq(execs[2].callData, abi.encodeCall(IERC20.approve, (MORPHO_BLUE, expectedAssets)));
+        assertEq(execs[3].callData, abi.encodeCall(IMorphoBase.repay, (_mp(), 0, uint256(shares), address(this), "")));
+
+        _openAaveV3Position();
+        address vDebt = IPool(AAVE_V3_POOL).getReserveData(USDC).variableDebtTokenAddress;
+        uint256 debt = IERC20(vDebt).balanceOf(address(this));
+        execs = aaveV3Repay.build(address(0), address(this), _aaveV3Data(debt + 100e6, 0, false));
+        assertEq(execs[2].callData, abi.encodeCall(IERC20.approve, (AAVE_V3_POOL, debt)));
+        assertEq(execs[3].callData, abi.encodeCall(IPool.repay, (USDC, MAX, 2, address(this))));
+
+        _openAaveV4Position();
+        (uint256 drawn, uint256 premium) = IAaveV4Spoke(AAVE_V4_SPOKE).getUserDebt(USDC_RESERVE_ID, address(this));
+        uint256 v4Debt = drawn + premium;
+        execs = aaveV4Repay.build(address(0), address(this), _aaveV4Data(v4Debt + 100e6, 0, false));
+        assertEq(execs[2].callData, abi.encodeCall(IERC20.approve, (AAVE_V4_SPOKE, v4Debt)));
+        assertEq(execs[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (USDC_RESERVE_ID, MAX, address(this))));
     }
 
     /*//////////////////////////////////////////////////////////////

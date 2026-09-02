@@ -22,7 +22,7 @@ import { BaseLoanHookV2 } from "../BaseLoanHookV2.sol";
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address oracle = BytesLib.toAddress(data, 92); // market identity only — never priced
 /// @notice         address irm = BytesLib.toAddress(data, 112);
-/// @notice         uint256 amount1 = BytesLib.toUint256(data, 132); // open: collateral; close/repay: repay
+/// @notice         uint256 amount1 = BytesLib.toUint256(data, 132); // open: collateral; close/repay: repay CAP
 /// @notice         uint256 amount2 = BytesLib.toUint256(data, 164); // open: borrow; close: withdraw; repay: 0
 /// @notice         bool usePrevHookAmount = _decodeStrictBool(data, 196); // canonical 0x00/0x01
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 197); // market identity
@@ -177,18 +177,23 @@ abstract contract BaseMorphoLoanHookV2 is BaseLoanHookV2 {
     }
 
     /// @dev Resolves the repay leg shared by MorphoRepayHookV2 and MorphoRepayAndWithdrawHookV2.
-    ///      Reverts before any approval/provider call when the account has no outstanding debt,
-    ///      when a full-repayment sentinel is combined with usePrevHookAmount, or when the
-    ///      previous-hook output is invalid. Full repayment resolves to the accrued debt and is
-    ///      executed by shares (immune to interim accrual); a non-sentinel amount is the exact
-    ///      cap (calldata or previous-hook output).
+    ///      The primary word is a CAP: the resolved repayment is min(cap, accrued debt). Zero
+    ///      borrow shares resolves to (0, 0, false) — the repay leg is skipped — instead of
+    ///      reverting, and the debt check precedes previous-hook resolution (the PREV pipe is
+    ///      never consulted with zero debt). A cap covering the whole debt (including the
+    ///      type(uint256).max word, subsumed by the min) selects a shares-denominated full
+    ///      repayment: toSharesDown(toAssetsUp(shares)) rounding makes an exact-assets clear
+    ///      unsafe, so any predicted clear MUST execute via repay(assets = 0, shares). The
+    ///      resolved repayAssets equals what toAssetsUp(borrowShares) pulls at execution — exact
+    ///      within the transaction because accrual is timestamp-based. cap < debt executes the
+    ///      assets path and pulls exactly `cap`.
     /// @param prevHook The previous hook in the chain
     /// @param account The executing smart account
     /// @param vars The decoded hook parameters
     /// @param marketParams The Morpho market params derived from `vars`
-    /// @return repayAssets The exact debt-asset amount the repay call will pull
+    /// @return repayAssets The exact debt-asset amount the repay call will pull (0 = leg skipped)
     /// @return borrowShares The account's borrow shares (only meaningful when `fullRepay`)
-    /// @return fullRepay True when the sentinel selected a shares-denominated full repayment
+    /// @return fullRepay True when the resolved repayment clears the debt (shares path)
     function _resolveRepayLeg(
         address prevHook,
         address account,
@@ -200,17 +205,11 @@ abstract contract BaseMorphoLoanHookV2 is BaseLoanHookV2 {
         returns (uint256 repayAssets, uint256 borrowShares, bool fullRepay)
     {
         borrowShares = _borrowShares(marketParams, account);
-        if (borrowShares == 0) revert NO_OUTSTANDING_DEBT();
+        if (borrowShares == 0) return (0, 0, false);
 
-        fullRepay = vars.amount1 == type(uint256).max;
-        if (fullRepay) {
-            if (vars.usePrevHookAmount) revert MAX_WITH_PREV_NOT_ALLOWED();
-            repayAssets = MorphoBalancesLib.expectedBorrowAssets(IMorpho(morpho), marketParams, account);
-        } else {
-            repayAssets =
-                vars.usePrevHookAmount ? _resolvePrevHookOutput(prevHook, account, vars.loanToken) : vars.amount1;
-            if (repayAssets == 0) revert AMOUNT_NOT_VALID();
-        }
+        uint256 debt = MorphoBalancesLib.expectedBorrowAssets(IMorpho(morpho), marketParams, account);
+        (repayAssets, fullRepay) =
+            _resolveRepayCap(prevHook, account, vars.loanToken, vars.amount1, vars.usePrevHookAmount, debt);
     }
 
     /// @dev Full market-identity inspector payload: Morpho singleton, loan token, collateral

@@ -362,23 +362,25 @@ contract MorphoV2HooksFork is MinimalBaseIntegrationTest {
     }
 
     /*//////////////////////////////////////////////////////////////
-                              7. REVERTS
+                        7. CAP / ZERO-DEBT GOLDEN CASES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Standalone repay with zero debt reverts at build() time inside the executor call
-    ///         (NO_OUTSTANDING_DEBT) — fresh account, never opened a position.
-    function test_V2_StandaloneRepay_ZeroDebt_FreshAccount_Reverts() external {
+    /// @notice Standalone repay with zero debt SUCCEEDS as a no-op (the repay leg is skipped) —
+    ///         fresh account, never opened a position. A third-party gift repayment can no
+    ///         longer cancel a signed intent.
+    function test_V2_StandaloneRepay_ZeroDebt_FreshAccount_Graceful() external {
         uint256 loanBefore = IERC20(loanToken).balanceOf(accountEth);
 
-        _execSingleExpectUserOpRevert(address(repayHook), _morphoV2Data(PARTIAL_REPAY_USDC, 0, false));
+        _execSingle(address(repayHook), _morphoV2Data(PARTIAL_REPAY_USDC, 0, false));
 
         (, uint128 borrowShares,) = _position();
         assertEq(uint256(borrowShares), 0, "no debt");
         assertEq(IERC20(loanToken).balanceOf(accountEth), loanBefore, "loan token untouched");
+        assertEq(IERC20(loanToken).allowance(accountEth, MORPHO), 0, "no allowance granted");
     }
 
-    /// @notice After a full close, repaying again reverts at build() time (NO_OUTSTANDING_DEBT).
-    function test_V2_StandaloneRepay_ZeroDebt_AfterFullClose_Reverts() external {
+    /// @notice After a full close, repaying again SUCCEEDS as a no-op (zero debt skips the leg).
+    function test_V2_StandaloneRepay_ZeroDebt_AfterFullClose_Graceful() external {
         _open(COLLATERAL_WBTC, BORROW_USDC);
         vm.warp(block.timestamp + 30 days);
         _getTokens(loanToken, accountEth, IERC20(loanToken).balanceOf(accountEth) + BORROW_USDC);
@@ -389,7 +391,27 @@ contract MorphoV2HooksFork is MinimalBaseIntegrationTest {
         assertEq(uint256(collateral), 0, "collateral withdrawn");
 
         uint256 loanBefore = IERC20(loanToken).balanceOf(accountEth);
-        _execSingleExpectUserOpRevert(address(repayHook), _morphoV2Data(PARTIAL_REPAY_USDC, 0, false));
+        _execSingle(address(repayHook), _morphoV2Data(PARTIAL_REPAY_USDC, 0, false));
         assertEq(IERC20(loanToken).balanceOf(accountEth), loanBefore, "loan token untouched");
+    }
+
+    /// @notice A non-sentinel cap above the accrued debt resolves to the debt: the position is
+    ///         cleared dust-free via the shares path, the spend equals the accrued debt, and the
+    ///         leftover stays in the wallet.
+    function test_V2_StandaloneRepay_CapAboveDebt_ClearsDebt() external {
+        _open(COLLATERAL_WBTC, BORROW_USDC);
+        vm.warp(block.timestamp + 30 days);
+        _getTokens(loanToken, accountEth, IERC20(loanToken).balanceOf(accountEth) + BORROW_USDC);
+
+        uint256 expectedDebt = MorphoBalancesLib.expectedBorrowAssets(IMorpho(MORPHO), marketParams, accountEth);
+        uint256 loanBefore = IERC20(loanToken).balanceOf(accountEth);
+
+        _execSingle(address(repayHook), _morphoV2Data(expectedDebt + PARTIAL_REPAY_USDC, 0, false));
+
+        (, uint128 borrowShares, uint128 collateral) = _position();
+        assertEq(uint256(borrowShares), 0, "debt fully repaid (shares path, no dust)");
+        assertEq(uint256(collateral), COLLATERAL_WBTC, "collateral untouched by repay");
+        assertEq(loanBefore - IERC20(loanToken).balanceOf(accountEth), expectedDebt, "spend equals accrued debt");
+        assertEq(IERC20(loanToken).allowance(accountEth, MORPHO), 0, "loan token allowance reset");
     }
 }

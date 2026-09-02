@@ -447,24 +447,25 @@ contract MorphoV2BaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHel
     }
 
     /*//////////////////////////////////////////////////////////////
-                              7. REVERTS
+                        7. CAP / ZERO-DEBT GOLDEN CASES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Standalone repay with zero debt reverts at build() time inside the executor call
-    ///         (NO_OUTSTANDING_DEBT) — fresh account, never opened a position.
-    function test_V2_Base_StandaloneRepay_ZeroDebt_FreshAccount_Reverts() external {
+    /// @notice Standalone repay with zero debt SUCCEEDS as a no-op (the repay leg is skipped) —
+    ///         fresh account, never opened a position.
+    function test_V2_Base_StandaloneRepay_ZeroDebt_FreshAccount_Graceful() external {
         _getTokens(loanToken, accountBase, BORROW_WETH);
         uint256 loanBefore = IERC20(loanToken).balanceOf(accountBase);
 
-        _execSingleExpectUserOpRevert(address(repayHook), _morphoV2Data(PARTIAL_REPAY_WETH, 0, false));
+        _execSingle(address(repayHook), _morphoV2Data(PARTIAL_REPAY_WETH, 0, false));
 
         (, uint128 borrowShares,) = _position();
         assertEq(uint256(borrowShares), 0, "no debt");
         assertEq(IERC20(loanToken).balanceOf(accountBase), loanBefore, "loan token untouched");
+        assertEq(IERC20(loanToken).allowance(accountBase, MORPHO), 0, "no allowance granted");
     }
 
-    /// @notice After a full close, repaying again reverts at build() time (NO_OUTSTANDING_DEBT).
-    function test_V2_Base_StandaloneRepay_ZeroDebt_AfterFullClose_Reverts() external {
+    /// @notice After a full close, repaying again SUCCEEDS as a no-op (zero debt skips the leg).
+    function test_V2_Base_StandaloneRepay_ZeroDebt_AfterFullClose_Graceful() external {
         _open(COLLATERAL_USDC, BORROW_WETH);
         vm.warp(block.timestamp + 30 days);
         _getTokens(loanToken, accountBase, IERC20(loanToken).balanceOf(accountBase) + BORROW_WETH);
@@ -475,7 +476,7 @@ contract MorphoV2BaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHel
         assertEq(uint256(collateral), 0, "collateral withdrawn");
 
         uint256 loanBefore = IERC20(loanToken).balanceOf(accountBase);
-        _execSingleExpectUserOpRevert(address(repayHook), _morphoV2Data(PARTIAL_REPAY_WETH, 0, false));
+        _execSingle(address(repayHook), _morphoV2Data(PARTIAL_REPAY_WETH, 0, false));
         assertEq(IERC20(loanToken).balanceOf(accountBase), loanBefore, "loan token untouched");
     }
 }
