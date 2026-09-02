@@ -545,6 +545,14 @@ generate_constructor_args() {
             univ3_registry_addr=$(get_contract_address "$chain_id" "UniV3CLPRegistry")
             echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$univ3_registry_addr")"
             ;;
+        "AaveV4ReserveRegistry")
+            echo "$(cast abi-encode "constructor(address)" "$deployer")"
+            ;;
+        "AaveV4DebtOracle"|"AaveV4SupplyYieldSourceOracle")
+            local aave_v4_registry_addr
+            aave_v4_registry_addr=$(get_contract_address "$chain_id" "AaveV4ReserveRegistry")
+            echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$aave_v4_registry_addr")"
+            ;;
         # All other contracts (no constructor args)
         *)
             echo "$(cast abi-encode "constructor()")"
@@ -735,6 +743,9 @@ get_contract_source() {
         "PendlePTAmortizedOracleV2") echo "src/accounting/oracles/PendlePTAmortizedOracleV2.sol" ;;
         "UniV3CLPRegistry") echo "src/accounting/oracles/UniV3CLPRegistry.sol" ;;
         "UniV3CLPYieldSourceOracle") echo "src/accounting/oracles/UniV3CLPYieldSourceOracle.sol" ;;
+        "AaveV4ReserveRegistry") echo "src/accounting/oracles/AaveV4ReserveRegistry.sol" ;;
+        "AaveV4DebtOracle") echo "src/accounting/oracles/AaveV4DebtOracle.sol" ;;
+        "AaveV4SupplyYieldSourceOracle") echo "src/accounting/oracles/AaveV4SupplyYieldSourceOracle.sol" ;;
 
         *) echo "src/core/unknown/$contract_name.sol" ;;
     esac

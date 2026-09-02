@@ -212,6 +212,9 @@ ORACLE_CONTRACTS=(
     "UniV3CLPYieldSourceOracle"
     "EulerDebtOracle"
     "MorphoBlueDebtOracle"
+    "AaveV4ReserveRegistry"
+    "AaveV4DebtOracle"
+    "AaveV4SupplyYieldSourceOracle"
 )
 
 # Morpho hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
