@@ -283,9 +283,9 @@ contract AaveV3V2BaseHooksFork is Helpers, RhinestoneModuleKit, InternalHelpers 
         assertEq(IERC20(BASE_USDC).allowance(account, BASE_POOL), 0, "loan token allowance reset");
     }
 
-    /// @notice Negative: standalone repay against a zero-debt position reverts NO_OUTSTANDING_DEBT
-    ///         at build time inside the executor — the userOp fails, state unchanged.
-    function test_Base_Repay_ZeroDebt_NoStateChange() external {
+    /// @notice Standalone repay against a zero-debt position SUCCEEDS as a no-op — the repay leg
+    ///         is skipped, so a third-party gift repayment cannot cancel a signed intent.
+    function test_Base_Repay_ZeroDebt_Graceful_NoOp() external {
         uint256 usdcBefore = IERC20(BASE_USDC).balanceOf(account);
         assertGt(usdcBefore, 0, "account funded with loan token");
 
@@ -296,10 +296,10 @@ contract AaveV3V2BaseHooksFork is Helpers, RhinestoneModuleKit, InternalHelpers 
         assertEq(IERC20(BASE_USDC).allowance(account, BASE_POOL), 0, "no dangling allowance");
     }
 
-    /// @notice Negative: a non-sentinel repay amount greater than the outstanding debt makes Aave
-    ///         pull only the debt, which fails the hook's post-execution exactness check
-    ///         (DELTA_MISMATCH) — the userOp fails and state is unchanged.
-    function test_Base_Repay_OverAmount_NonSentinel_NoStateChange() external {
+    /// @notice Golden cap>debt: a non-sentinel cap above the outstanding debt resolves to the
+    ///         debt — cleared natively via repay(max) with no dust, spend equals the debt, and
+    ///         the leftover stays in the wallet.
+    function test_Base_Repay_OverAmount_CapsToDebt() external {
         _open(SUPPLY_WETH, BORROW_USDC);
         uint256 debt = IERC20(vUsdc).balanceOf(account);
         assertGt(debt, 0, "has debt");
@@ -309,8 +309,8 @@ contract AaveV3V2BaseHooksFork is Helpers, RhinestoneModuleKit, InternalHelpers 
 
         _exec(address(repayHookV2), _v2(BASE_USDC, BASE_WETH, debt + 100e6, 0, false));
 
-        assertEq(IERC20(BASE_USDC).balanceOf(account), usdcBefore, "no USDC spent");
-        assertEq(IERC20(vUsdc).balanceOf(account), debt, "debt unchanged");
+        assertEq(usdcBefore - IERC20(BASE_USDC).balanceOf(account), debt, "spend equals the resolved debt");
+        assertEq(IERC20(vUsdc).balanceOf(account), 0, "debt fully cleared, no dust");
         assertEq(IERC20(BASE_USDC).allowance(account, BASE_POOL), 0, "no dangling allowance");
     }
 }

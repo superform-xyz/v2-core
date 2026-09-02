@@ -6,7 +6,6 @@ import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 import { ISuperHookInflowOutflow } from "../../../src/interfaces/ISuperHook.sol";
 
 // Hooks under test
-import { BaseLoanHookV2 } from "../../../src/hooks/loan/BaseLoanHookV2.sol";
 import { MorphoSupplyAndBorrowHookV2 } from "../../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHookV2.sol";
 import { MorphoRepayHookV2 } from "../../../src/hooks/loan/morpho/MorphoRepayHookV2.sol";
 import { MorphoRepayAndWithdrawHookV2 } from "../../../src/hooks/loan/morpho/MorphoRepayAndWithdrawHookV2.sol";
@@ -195,13 +194,16 @@ contract LoanHooksV2SizingIntegration is Helpers {
         assertEq(morphoOpen.inspect(_morphoData(1, 2, true)), expected);
     }
 
-    /// @dev Zero-debt guard evaluated against the real singleton: this account has no Morpho position
-    function test_Fork_MorphoV2_Repay_RealMarket_ZeroDebtReverts() public {
-        vm.expectRevert(BaseLoanHookV2.NO_OUTSTANDING_DEBT.selector);
-        morphoRepay.build(address(0), address(this), _morphoData(BORROW_AMOUNT, 0, false));
+    /// @dev Zero debt evaluated against the real singleton (this account has no Morpho position):
+    ///      the repay leg is skipped gracefully instead of reverting
+    function test_Fork_MorphoV2_Repay_RealMarket_ZeroDebtGraceful() public view {
+        // standalone repay: preExecute + postExecute only
+        assertEq(morphoRepay.build(address(0), address(this), _morphoData(BORROW_AMOUNT, 0, false)).length, 2);
 
-        vm.expectRevert(BaseLoanHookV2.NO_OUTSTANDING_DEBT.selector);
-        morphoClose.build(address(0), address(this), _morphoData(BORROW_AMOUNT, COLLATERAL_AMOUNT, false));
+        // close: preExecute + withdrawCollateral + postExecute
+        assertEq(
+            morphoClose.build(address(0), address(this), _morphoData(BORROW_AMOUNT, COLLATERAL_AMOUNT, false)).length, 3
+        );
     }
 
     /// @dev Open build against the real singleton produces the documented execution shape
@@ -259,13 +261,14 @@ contract LoanHooksV2SizingIntegration is Helpers {
         assertEq(aaveV3Open.inspect(_aaveV3Data(1, 2, true)), expected);
     }
 
-    /// @dev Zero-debt guard evaluated against the real Core Pool's variable debt token
-    function test_Fork_AaveV3V2_Repay_RealPool_ZeroDebtReverts() public {
-        vm.expectRevert(BaseLoanHookV2.NO_OUTSTANDING_DEBT.selector);
-        aaveV3Repay.build(address(0), address(this), _aaveV3Data(BORROW_AMOUNT, 0, false));
+    /// @dev Zero debt evaluated against the real Core Pool's variable debt token: the repay leg
+    ///      is skipped gracefully instead of reverting
+    function test_Fork_AaveV3V2_Repay_RealPool_ZeroDebtGraceful() public view {
+        // standalone repay: preExecute + postExecute only
+        assertEq(aaveV3Repay.build(address(0), address(this), _aaveV3Data(BORROW_AMOUNT, 0, false)).length, 2);
 
-        vm.expectRevert(BaseLoanHookV2.NO_OUTSTANDING_DEBT.selector);
-        aaveV3Close.build(address(0), address(this), _aaveV3Data(BORROW_AMOUNT, 1e18, false));
+        // close: preExecute + withdraw + postExecute
+        assertEq(aaveV3Close.build(address(0), address(this), _aaveV3Data(BORROW_AMOUNT, 1e18, false)).length, 3);
     }
 
     function test_Fork_AaveV3V2_Open_RealPool_Build() public view {
@@ -351,16 +354,23 @@ contract LoanHooksV2SizingIntegration is Helpers {
         );
     }
 
-    /// @dev Zero-debt guard evaluated against the real Spoke's getUserDebt
-    function test_Fork_AaveV4V2_Repay_RealSpoke_ZeroDebtReverts() public {
-        vm.expectRevert(BaseLoanHookV2.NO_OUTSTANDING_DEBT.selector);
-        aaveV4Repay.build(
-            address(0), address(this), _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, 0)
+    /// @dev Zero debt evaluated against the real Spoke's getUserDebt: the repay leg is skipped
+    ///      gracefully instead of reverting
+    function test_Fork_AaveV4V2_Repay_RealSpoke_ZeroDebtGraceful() public view {
+        // standalone repay: preExecute + postExecute only
+        assertEq(
+            aaveV4Repay.build(
+                address(0), address(this), _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, 0)
+            ).length,
+            2
         );
 
-        vm.expectRevert(BaseLoanHookV2.NO_OUTSTANDING_DEBT.selector);
-        aaveV4Close.build(
-            address(0), address(this), _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, 1e18)
+        // close: preExecute + withdraw + postExecute
+        assertEq(
+            aaveV4Close.build(
+                address(0), address(this), _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, 1e18)
+            ).length,
+            3
         );
     }
 

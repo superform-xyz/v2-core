@@ -266,14 +266,14 @@ abstract contract BaseEulerLoanHook is BaseLoanHookV2 {
         view
         returns (uint256 actualRepay, bool predictedClear)
     {
-        uint256 debt = IEVault(vars.controllerVault).debtOf(account);
-        if (debt == 0) return (0, true);
-
-        uint256 cap = vars.usePrevHookAmount ? _resolvePrevHookOutput(prevHook, account, vars.debtAsset) : vars.primary;
-        if (cap == 0) revert AMOUNT_NOT_VALID();
-
-        actualRepay = cap < debt ? cap : debt;
-        predictedClear = actualRepay == debt;
+        return _resolveRepayCap(
+            prevHook,
+            account,
+            vars.debtAsset,
+            vars.primary,
+            vars.usePrevHookAmount,
+            IEVault(vars.controllerVault).debtOf(account)
+        );
     }
 
     /// @dev Loan-token-only snapshot for the standalone repay hook, whose layout reserves the

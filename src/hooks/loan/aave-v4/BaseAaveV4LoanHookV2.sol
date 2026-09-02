@@ -23,7 +23,7 @@ import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/
 /// @notice         address spoke = BytesLib.toAddress(data, 92);
 /// @notice         uint256 supplyReserveId = BytesLib.toUint256(data, 112);
 /// @notice         uint256 borrowReserveId = BytesLib.toUint256(data, 144);
-/// @notice         uint256 amount1 = BytesLib.toUint256(data, 176); // open: supply; close/repay: repay
+/// @notice         uint256 amount1 = BytesLib.toUint256(data, 176); // open: supply; close/repay: repay CAP
 /// @notice         uint256 amount2 = BytesLib.toUint256(data, 208); // open: borrow; close: withdraw; repay: 0
 /// @notice         bool usePrevHookAmount = _decodeStrictBool(data, 240); // canonical 0x00/0x01
 /// @dev Standalone repay reserves the amount2 word as zero, keeping one canonical provider layout
@@ -185,16 +185,21 @@ abstract contract BaseAaveV4LoanHookV2 is BaseLoanHookV2 {
     }
 
     /// @dev Resolves the repay leg shared by AaveV4RepayHookV2 and AaveV4RepayAndWithdrawHookV2.
-    ///      Reverts before any approval/provider call when the account has no outstanding debt,
-    ///      when a full-repayment sentinel is combined with usePrevHookAmount, or when the
-    ///      previous-hook output is invalid. For the sentinel, `repayAssets` resolves to the
-    ///      account's total debt (drawn + premium) — exact for the transaction because build,
-    ///      approval and repay execute in the same transaction.
+    ///      The primary word is a CAP: the resolved repayment is min(cap, total debt), where the
+    ///      total debt is drawn + premium via the Spoke's getUserDebt. Zero outstanding debt
+    ///      resolves to (0, true) — the repay leg is skipped — instead of reverting, and the debt
+    ///      check precedes previous-hook resolution. `repayAssets` is exact for the transaction
+    ///      because build, approval and repay execute in the same transaction. When `fullRepay`
+    ///      (predicted clear), the repay call passes type(uint256).max so the Spoke clears the
+    ///      debt natively without rounding dust while still pulling exactly `repayAssets`; the
+    ///      approval always uses the resolved amount, never max.
+    ///      CALLER CAVEAT: gate on `repayAssets == 0` BEFORE consulting `fullRepay` — zero debt
+    ///      returns (0, true) and a repay(max) call must never be emitted with no debt.
     /// @param prevHook The previous hook in the chain
     /// @param account The executing smart account
     /// @param vars The decoded hook parameters
-    /// @return repayAssets The exact debt-asset amount the repay call will pull
-    /// @return fullRepay True when the sentinel selected a Spoke-native full repayment
+    /// @return repayAssets The exact debt-asset amount the repay call will pull (0 = leg skipped)
+    /// @return fullRepay True when the resolved repayment clears the debt (repay(max) path)
     function _resolveRepayLeg(
         address prevHook,
         address account,
@@ -204,18 +209,9 @@ abstract contract BaseAaveV4LoanHookV2 is BaseLoanHookV2 {
         view
         returns (uint256 repayAssets, bool fullRepay)
     {
-        uint256 debt = _totalDebt(vars, account);
-        if (debt == 0) revert NO_OUTSTANDING_DEBT();
-
-        fullRepay = vars.amount1 == type(uint256).max;
-        if (fullRepay) {
-            if (vars.usePrevHookAmount) revert MAX_WITH_PREV_NOT_ALLOWED();
-            repayAssets = debt;
-        } else {
-            repayAssets =
-                vars.usePrevHookAmount ? _resolvePrevHookOutput(prevHook, account, vars.loanToken) : vars.amount1;
-            if (repayAssets == 0) revert AMOUNT_NOT_VALID();
-        }
+        (repayAssets, fullRepay) = _resolveRepayCap(
+            prevHook, account, vars.loanToken, vars.amount1, vars.usePrevHookAmount, _totalDebt(vars, account)
+        );
     }
 
     /// @dev Full market-identity inspector payload: spoke, loan token, collateral token and both

@@ -21,16 +21,24 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address pool = BytesLib.toAddress(data, 92);
 /// @notice         uint8   interestRateMode = BytesLib.toUint8(data, 112); // must == 2
-/// @notice         uint256 repayAmount = BytesLib.toUint256(data, 113); // type(uint256).max = full repayment
+/// @notice         uint256 repayAmount = BytesLib.toUint256(data, 113); // CAP: actual repay = min(cap, debt)
 /// @notice         uint256 withdrawAmount = BytesLib.toUint256(data, 145); // type(uint256).max = full collateral
 /// @notice         bool usePrevHookAmount = _decodeStrictBool(data, 177);
-/// @dev Repayment executes strictly before collateral withdrawal. Both legs are exact; the
-///      withdrawal amount is never derived from the repayment. type(uint256).max is the only
-///      sentinel: on the repay leg it resolves to the full variable debt (Aave-native) and
-///      requires usePrevHookAmount == false; on the withdraw leg it resolves to the full aToken
-///      balance (Aave-native). Repaying a zero-debt position reverts before any approval.
-///      outAmount publishes the actual released collateral-token wallet delta with outToken =
-///      collateralToken.
+/// @dev Repayment executes strictly before collateral withdrawal. The repay word is a CAP: the
+///      resolved repayment is min(cap, current variable debt); a cap covering the whole debt
+///      (including type(uint256).max, subsumed by the min — no separate repay sentinel) emits
+///      repay(type(uint256).max) so Aave clears the debt natively without rounding dust, while
+///      the approval always uses the resolved amount. Zero outstanding debt SKIPS the repay leg —
+///      the withdraw leg still executes and Aave's own health-factor check arbitrates whether
+///      releasing the collateral is valid. With usePrevHookAmount the calldata cap word is
+///      ignored and the previous hook's output becomes the cap; an output larger than the debt
+///      caps to the debt and the leftover stays in the wallet. The withdraw leg is exact and
+///      never derived from the repayment; type(uint256).max on the withdraw slot resolves to the
+///      full aToken balance (Aave-native). outAmount publishes the actual released
+///      collateral-token wallet delta with outToken = collateralToken.
+/// @dev Cap semantics close the third-party-repayment griefing vector: a partial third-party
+///      repayment shrinks the resolved amount and a complete one skips the repay leg — neither
+///      cancels a signed close intent.
 contract AaveV3RepayAndWithdrawHookV2 is BaseAaveV3LoanHookV2 {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -45,7 +53,7 @@ contract AaveV3RepayAndWithdrawHookV2 is BaseAaveV3LoanHookV2 {
 
     /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
-        return "Repays debt and withdraws an exact collateral amount from an Aave V3 pool";
+        return "Repays debt up to a cap and withdraws an exact collateral amount from an Aave V3 pool";
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -69,24 +77,31 @@ contract AaveV3RepayAndWithdrawHookV2 is BaseAaveV3LoanHookV2 {
         // any provider call; the sentinel itself is passed through so Aave resolves it natively
         _resolveWithdrawLeg(account, vars);
 
-        executions = new Execution[](5);
-        executions[0] =
-            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0)) });
-        executions[1] = Execution({
-            target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, repayAssets))
-        });
-        executions[2] = Execution({
-            target: vars.pool,
-            value: 0,
-            callData: abi.encodeCall(
-                IPool.repay, (vars.loanToken, fullRepay ? type(uint256).max : repayAssets, VARIABLE_RATE_MODE, account)
-            )
-        });
-        // Reset approval — critical even after repay(max)
-        executions[3] =
-            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0)) });
-        // Withdrawal executes strictly after repayment; max resolves to the full aToken balance
-        executions[4] = Execution({
+        // Zero debt skips the 4 repay executions; the withdraw leg always runs, strictly last
+        executions = new Execution[]((repayAssets == 0 ? 0 : 4) + 1);
+        uint256 i;
+        if (repayAssets != 0) {
+            executions[i++] = Execution({
+                target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
+            });
+            executions[i++] = Execution({
+                target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, repayAssets))
+            });
+            executions[i++] = Execution({
+                target: vars.pool,
+                value: 0,
+                callData: abi.encodeCall(
+                    IPool.repay,
+                    (vars.loanToken, fullRepay ? type(uint256).max : repayAssets, VARIABLE_RATE_MODE, account)
+                )
+            });
+            // Reset approval — critical even after repay(max)
+            executions[i++] = Execution({
+                target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.pool, 0))
+            });
+        }
+        // Withdrawal executes strictly after any repayment; max resolves to the full aToken balance
+        executions[i] = Execution({
             target: vars.pool,
             value: 0,
             callData: abi.encodeCall(IPool.withdraw, (vars.collateralToken, vars.amount2, account))

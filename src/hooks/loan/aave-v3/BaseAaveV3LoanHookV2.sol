@@ -22,7 +22,7 @@ import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address pool = BytesLib.toAddress(data, 92);
 /// @notice         uint8   interestRateMode = BytesLib.toUint8(data, 112); // must == 2
-/// @notice         uint256 amount1 = BytesLib.toUint256(data, 113); // open: supply; close/repay: repay
+/// @notice         uint256 amount1 = BytesLib.toUint256(data, 113); // open: supply; close/repay: repay CAP
 /// @notice         uint256 amount2 = BytesLib.toUint256(data, 145); // open: borrow; close: withdraw; repay: 0
 /// @notice         bool usePrevHookAmount = _decodeStrictBool(data, 177); // canonical 0x00/0x01
 /// @dev Standalone repay reserves the amount2 word as zero, keeping one canonical provider layout
@@ -168,16 +168,21 @@ abstract contract BaseAaveV3LoanHookV2 is BaseLoanHookV2 {
     }
 
     /// @dev Resolves the repay leg shared by AaveV3RepayHookV2 and AaveV3RepayAndWithdrawHookV2.
-    ///      Reverts before any approval/provider call when the account has no outstanding variable
-    ///      debt, when a full-repayment sentinel is combined with usePrevHookAmount, or when the
-    ///      previous-hook output is invalid. For the sentinel, `repayAssets` resolves to the
-    ///      current variable-debt balance — exact for the transaction because debt accrual is
-    ///      per-timestamp and build, approval and repay execute in the same transaction.
+    ///      The primary word is a CAP: the resolved repayment is min(cap, current variable-debt
+    ///      balance). Zero outstanding debt resolves to (0, true) — the repay leg is skipped —
+    ///      instead of reverting, and the debt check precedes previous-hook resolution.
+    ///      `repayAssets` is exact for the transaction because debt accrual is per-timestamp and
+    ///      build, approval and repay execute in the same transaction. When `fullRepay`
+    ///      (predicted clear), the repay call passes type(uint256).max so Aave clears the debt
+    ///      natively (avoids 1-wei rayMul/rayDiv dust) while still pulling exactly `repayAssets`;
+    ///      the approval always uses the resolved amount, never max.
+    ///      CALLER CAVEAT: gate on `repayAssets == 0` BEFORE consulting `fullRepay` — zero debt
+    ///      returns (0, true) and a repay(max) call must never be emitted with no debt.
     /// @param prevHook The previous hook in the chain
     /// @param account The executing smart account
     /// @param vars The decoded hook parameters
-    /// @return repayAssets The exact debt-asset amount the repay call will pull
-    /// @return fullRepay True when the sentinel selected an Aave-native full repayment
+    /// @return repayAssets The exact debt-asset amount the repay call will pull (0 = leg skipped)
+    /// @return fullRepay True when the resolved repayment clears the debt (repay(max) path)
     function _resolveRepayLeg(
         address prevHook,
         address account,
@@ -187,18 +192,9 @@ abstract contract BaseAaveV3LoanHookV2 is BaseLoanHookV2 {
         view
         returns (uint256 repayAssets, bool fullRepay)
     {
-        uint256 debt = _variableDebtBalance(vars, account);
-        if (debt == 0) revert NO_OUTSTANDING_DEBT();
-
-        fullRepay = vars.amount1 == type(uint256).max;
-        if (fullRepay) {
-            if (vars.usePrevHookAmount) revert MAX_WITH_PREV_NOT_ALLOWED();
-            repayAssets = debt;
-        } else {
-            repayAssets =
-                vars.usePrevHookAmount ? _resolvePrevHookOutput(prevHook, account, vars.loanToken) : vars.amount1;
-            if (repayAssets == 0) revert AMOUNT_NOT_VALID();
-        }
+        (repayAssets, fullRepay) = _resolveRepayCap(
+            prevHook, account, vars.loanToken, vars.amount1, vars.usePrevHookAmount, _variableDebtBalance(vars, account)
+        );
     }
 
     /// @dev Full market-identity inspector payload: pool, loan token, collateral token and the

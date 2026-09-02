@@ -20,8 +20,12 @@ import { ISuperHookResult, ISuperHookInflowOutflow } from "../../interfaces/ISup
 ///      - usePrevHookAmount applies ONLY to the first slot; the previous hook's output token must
 ///        equal the token the first slot is denominated in (collateral token for open, loan token
 ///        for close/repay)
-///      - type(uint256).max is the ONLY all-debt/all-collateral sentinel, valid only in close and
-///        standalone-repay hooks; a max primary requires usePrevHookAmount == false
+///      - The repay primary is a CAP: the resolved repayment is min(cap, liveDebt) read at
+///        build/preExecute time, zero outstanding debt skips the repay leg instead of reverting,
+///        and a cap of type(uint256).max naturally means "repay everything" — there is no
+///        separate full-repayment sentinel on the repay slot
+///      - type(uint256).max remains the all-collateral sentinel on the close hooks' withdraw
+///        (secondary) slot only
 ///      - No amount is ever derived from a ratio/oracle inside the hook; every non-sentinel value
 ///        is exact when the hook executes and is enforced against the measured wallet delta
 ///      - Exact byte lengths, canonical boolean bytes (0x00/0x01), and reserved-zero fields
@@ -72,12 +76,6 @@ abstract contract BaseLoanHookV2 is BaseLoanHook {
 
     /// @notice Thrown when the previous hook's output token does not match the expected token
     error PREV_TOKEN_MISMATCH();
-
-    /// @notice Thrown when a type(uint256).max primary amount is combined with usePrevHookAmount
-    error MAX_WITH_PREV_NOT_ALLOWED();
-
-    /// @notice Thrown when a repayment is attempted against a position with zero resolved debt
-    error NO_OUTSTANDING_DEBT();
 
     /// @notice Thrown when the loan token equals the collateral token
     error IDENTICAL_TOKENS();
@@ -175,6 +173,44 @@ abstract contract BaseLoanHookV2 is BaseLoanHook {
         if (amount2 == 0 || amount2 == type(uint256).max) revert AMOUNT_NOT_VALID();
         resolvedAmount1 = usePrevHookAmount ? _resolvePrevHookOutput(prevHook, account, collateralToken) : amount1;
         if (resolvedAmount1 == 0 || resolvedAmount1 == type(uint256).max) revert AMOUNT_NOT_VALID();
+    }
+
+    /// @dev Resolves a repayment as min(cap, liveDebt). Zero live debt resolves to (0, true) —
+    ///      nothing to repay, position already clear — instead of reverting, so a third party
+    ///      gifting a full repayment cannot cancel a signed intent (the repay leg is simply
+    ///      skipped). The debt check runs BEFORE previous-hook resolution, so with zero debt the
+    ///      PREV pipe is never consulted. When usePrevHookAmount is set, the calldata cap word is
+    ///      ignored entirely and the previous hook's output (denominated in `loanToken`) becomes
+    ///      the cap; a PREV amount larger than the debt caps instead of reverting and the leftover
+    ///      stays in the wallet. A cap of type(uint256).max naturally means "repay everything" —
+    ///      the min() absorbs it; there is no separate full-repayment sentinel.
+    /// @param prevHook The previous hook in the chain
+    /// @param account The executing smart account
+    /// @param loanToken The token the repay leg is denominated in
+    /// @param capAmount The calldata cap word (ignored when usePrevHookAmount is set)
+    /// @param usePrevHookAmount True to source the cap from the previous hook's output
+    /// @param liveDebt The account's current debt, read live from the provider
+    /// @return actualRepay The exact loan-token amount the repay call will pull (0 = leg skipped)
+    /// @return predictedClear True when no debt will remain after this hook's repay leg
+    function _resolveRepayCap(
+        address prevHook,
+        address account,
+        address loanToken,
+        uint256 capAmount,
+        bool usePrevHookAmount,
+        uint256 liveDebt
+    )
+        internal
+        view
+        returns (uint256 actualRepay, bool predictedClear)
+    {
+        if (liveDebt == 0) return (0, true);
+
+        uint256 cap = usePrevHookAmount ? _resolvePrevHookOutput(prevHook, account, loanToken) : capAmount;
+        if (cap == 0) revert AMOUNT_NOT_VALID();
+
+        actualRepay = cap < liveDebt ? cap : liveDebt;
+        predictedClear = actualRepay == liveDebt;
     }
 
     /*//////////////////////////////////////////////////////////////

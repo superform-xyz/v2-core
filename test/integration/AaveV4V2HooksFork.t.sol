@@ -442,20 +442,36 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
         );
     }
 
-    /// @notice Negative: repaying with zero outstanding debt reverts at build-time inside the
-    ///         executor call, so the userOp execution fails and state is unchanged
-    function test_AaveV4V2_Repay_ZeroDebt_StateUnchanged() external {
+    /// @notice Repaying with zero outstanding debt SUCCEEDS as a no-op — the repay leg is
+    ///         skipped, so a third-party gift repayment cannot cancel a signed intent
+    function test_AaveV4V2_Repay_ZeroDebt_Graceful_NoOp() external {
         _getTokens(CHAIN_1_USDC, accountEth, 1000e6);
         uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(accountEth);
 
         assertEq(_totalDebt(), 0, "Precondition: no outstanding debt");
 
-        _executeHookExpectFailure(
-            address(repayHook), _createRepayData(100e6, false), bytes4(keccak256("NO_OUTSTANDING_DEBT()"))
-        );
+        _executeHook(address(repayHook), _createRepayData(100e6, false));
 
         assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth), usdcBefore, "USDC balance should be unchanged");
         assertEq(IERC20(CHAIN_1_USDC).allowance(accountEth, SPOKE_ADDR), 0, "No allowance should have been set");
         assertEq(_totalDebt(), 0, "Still no debt");
+    }
+
+    /// @notice Golden cap>debt: a non-sentinel cap above the total debt resolves to the debt —
+    ///         cleared natively via repay(max), spend equals the debt, leftover stays in wallet
+    function test_AaveV4V2_Repay_OverAmount_CapsToDebt() external {
+        _openDefaultPosition();
+        vm.warp(block.timestamp + 30 days);
+
+        uint256 debt = _totalDebt();
+        assertGt(debt, 0, "has debt");
+        _getTokens(CHAIN_1_USDC, accountEth, IERC20(CHAIN_1_USDC).balanceOf(accountEth) + debt * 2);
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(accountEth);
+
+        _executeHook(address(repayHook), _createRepayData(debt + 100e6, false));
+
+        assertEq(usdcBefore - IERC20(CHAIN_1_USDC).balanceOf(accountEth), debt, "spend equals the resolved debt");
+        assertEq(_totalDebt(), 0, "debt fully cleared, no dust");
+        assertEq(IERC20(CHAIN_1_USDC).allowance(accountEth, SPOKE_ADDR), 0, "USDC allowance should be reset");
     }
 }
