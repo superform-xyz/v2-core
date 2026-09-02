@@ -22,13 +22,23 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @notice         address spoke = BytesLib.toAddress(data, 92);
 /// @notice         uint256 supplyReserveId = BytesLib.toUint256(data, 112);
 /// @notice         uint256 borrowReserveId = BytesLib.toUint256(data, 144);
-/// @notice         uint256 repayAmount = BytesLib.toUint256(data, 176); // type(uint256).max = full repayment
+/// @notice         uint256 repayAmount = BytesLib.toUint256(data, 176); // CAP: actual repay = min(cap, debt)
 /// @notice         uint256 reserved = BytesLib.toUint256(data, 208); // must be zero
 /// @notice         bool usePrevHookAmount = _decodeStrictBool(data, 240);
-/// @dev type(uint256).max is the only full-repayment sentinel and requires usePrevHookAmount ==
-///      false; the Spoke resolves the full debt (drawn + premium) natively. Each reserve id must
-///      resolve to the declared token. Repaying a zero-debt position reverts before any approval.
-///      outAmount publishes the measured debt-token wallet spend with outToken = loanToken.
+/// @dev The repay word is a CAP: the resolved repayment is min(cap, total debt), where the total
+///      debt is drawn + premium via the Spoke's getUserDebt. A cap covering the whole debt
+///      (including type(uint256).max, subsumed by the min — no separate sentinel) emits
+///      repay(type(uint256).max) so the Spoke clears the debt natively without rounding dust,
+///      while the approval always uses the resolved amount. Zero outstanding debt SKIPS the repay
+///      leg (build returns no executions, the settle asserts a zero spend) instead of reverting.
+///      With usePrevHookAmount the calldata cap word is ignored and the previous hook's output
+///      (denominated in loanToken) becomes the cap; an output larger than the debt caps to the
+///      debt and the leftover stays in the wallet. Each reserve id must resolve to the declared
+///      token. This is a terminal hook: it spends the debt asset and publishes outAmount = 0
+///      (outToken = loanToken for classification).
+/// @dev Cap semantics close the third-party-repayment griefing vector: a partial third-party
+///      repayment shrinks the resolved amount and a complete one skips the leg — neither cancels
+///      a signed intent.
 contract AaveV4RepayHookV2 is BaseAaveV4LoanHookV2 {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -43,7 +53,7 @@ contract AaveV4RepayHookV2 is BaseAaveV4LoanHookV2 {
 
     /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
-        return "Repays an exact amount or the full debt to an Aave V4 spoke";
+        return "Repays debt up to a cap to an Aave V4 spoke, clearing natively when the cap covers the debt";
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -64,6 +74,7 @@ contract AaveV4RepayHookV2 is BaseAaveV4LoanHookV2 {
         AaveV4V2Vars memory vars = _decodeAaveV4V2(data, true);
         _validateReserves(vars);
         (uint256 repayAssets, bool fullRepay) = _resolveRepayLeg(prevHook, account, vars);
+        if (repayAssets == 0) return new Execution[](0); // zero debt: nothing to repay
 
         executions = new Execution[](4);
         executions[0] =

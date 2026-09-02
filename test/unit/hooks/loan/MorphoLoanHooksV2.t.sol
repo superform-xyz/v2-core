@@ -413,9 +413,21 @@ contract MorphoLoanHooksV2Test is Helpers {
         openHook.build(address(0), address(this), _data(amount1, type(uint256).max, false));
     }
 
-    function test_RepayHook_Build_RevertIf_MaxWithPrev() public {
-        vm.expectRevert(BaseLoanHookV2.MAX_WITH_PREV_NOT_ALLOWED.selector);
-        repayHook.build(address(1), address(this), _data(type(uint256).max, 0, true));
+    function test_RepayHook_Build_MaxWithPrev_PrevOutputIsCap() public {
+        // Under usePrevHookAmount the calldata cap word (here max) is ignored entirely; the
+        // previous hook's output becomes the cap
+        uint256 prevAmount = 3e18; // below the accrued debt → assets path
+        MockPrevHook prevHook = new MockPrevHook();
+        prevHook.setOutToken(loanToken);
+        prevHook.setOutAmount(prevAmount);
+
+        Execution[] memory executions =
+            repayHook.build(address(prevHook), address(this), _data(type(uint256).max, 0, true));
+        assertEq(executions.length, 6);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (address(mockMorpho), prevAmount)));
+        assertEq(
+            executions[3].callData, abi.encodeCall(IMorphoBase.repay, (marketParams, prevAmount, 0, address(this), ""))
+        );
     }
 
     function test_RepayHook_Build_RevertIf_ZeroAmount() public {
@@ -423,9 +435,19 @@ contract MorphoLoanHooksV2Test is Helpers {
         repayHook.build(address(0), address(this), _data(0, 0, false));
     }
 
-    function test_CloseHook_Build_RevertIf_MaxWithPrev() public {
-        vm.expectRevert(BaseLoanHookV2.MAX_WITH_PREV_NOT_ALLOWED.selector);
-        closeHook.build(address(1), address(this), _data(type(uint256).max, amount2, true));
+    function test_CloseHook_Build_MaxWithPrev_PrevOutputIsCap() public {
+        uint256 prevAmount = 3e18;
+        MockPrevHook prevHook = new MockPrevHook();
+        prevHook.setOutToken(loanToken);
+        prevHook.setOutAmount(prevAmount);
+
+        Execution[] memory executions =
+            closeHook.build(address(prevHook), address(this), _data(type(uint256).max, amount2, true));
+        assertEq(executions.length, 7);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (address(mockMorpho), prevAmount)));
+        assertEq(
+            executions[3].callData, abi.encodeCall(IMorphoBase.repay, (marketParams, prevAmount, 0, address(this), ""))
+        );
     }
 
     function test_CloseHook_Build_RevertIf_ZeroAmount1() public {
@@ -442,20 +464,74 @@ contract MorphoLoanHooksV2Test is Helpers {
                             5. ZERO DEBT
     //////////////////////////////////////////////////////////////*/
 
-    function test_RepayHook_Build_RevertIf_NoOutstandingDebt() public {
+    function test_RepayHook_Build_ZeroDebt_Graceful_NoOps() public {
+        // Zero borrow shares: the repay leg is skipped instead of reverting, so a third party
+        // gifting a full repayment cannot cancel a signed intent
         mockMorpho.setPosition(
             marketId, address(this), Position({ supplyShares: 0, borrowShares: 0, collateral: POSITION_COLLATERAL })
         );
-        vm.expectRevert(BaseLoanHookV2.NO_OUTSTANDING_DEBT.selector);
-        repayHook.build(address(0), address(this), _data(amount1, 0, false));
+        Execution[] memory executions = repayHook.build(address(0), address(this), _data(amount1, 0, false));
+        assertEq(executions.length, 2); // preExecute + postExecute only
     }
 
-    function test_CloseHook_Build_RevertIf_NoOutstandingDebt() public {
+    function test_CloseHook_Build_ZeroDebt_Graceful_WithdrawOnly() public {
+        // Zero debt: the close degrades to a plain collateral withdrawal, arbitrated by Morpho's
+        // own health check
         mockMorpho.setPosition(
             marketId, address(this), Position({ supplyShares: 0, borrowShares: 0, collateral: POSITION_COLLATERAL })
         );
-        vm.expectRevert(BaseLoanHookV2.NO_OUTSTANDING_DEBT.selector);
-        closeHook.build(address(0), address(this), _data(amount1, amount2, false));
+        Execution[] memory executions = closeHook.build(address(0), address(this), _data(amount1, amount2, false));
+        assertEq(executions.length, 3); // preExecute + withdrawCollateral + postExecute
+        assertEq(executions[1].target, address(mockMorpho));
+        assertEq(
+            executions[1].callData,
+            abi.encodeCall(IMorphoBase.withdrawCollateral, (marketParams, amount2, address(this), address(this)))
+        );
+    }
+
+    function test_RepayHook_Build_ZeroDebt_PrevPipeNotConsulted() public {
+        // The zero-debt early-return precedes previous-hook resolution: a prev hook publishing
+        // the WRONG token would revert PREV_TOKEN_MISMATCH if the pipe were consulted
+        mockMorpho.setPosition(
+            marketId, address(this), Position({ supplyShares: 0, borrowShares: 0, collateral: POSITION_COLLATERAL })
+        );
+        MockPrevHook prevHook = new MockPrevHook();
+        prevHook.setOutToken(collateralToken); // wrong token for the repay slot
+        prevHook.setOutAmount(1e18);
+
+        Execution[] memory executions = repayHook.build(address(prevHook), address(this), _data(amount1, 0, true));
+        assertEq(executions.length, 2);
+    }
+
+    function test_RepayHook_SettleRoundTrip_ZeroDebt_Graceful() public {
+        // Nothing is spent on the skip path; the settle asserts a zero spend and publishes
+        // outAmount = 0 (terminal repay)
+        mockMorpho.setPosition(
+            marketId, address(this), Position({ supplyShares: 0, borrowShares: 0, collateral: POSITION_COLLATERAL })
+        );
+        bytes memory data = _data(amount1, 0, false);
+        mockLoanToken.mint(address(this), amount1);
+
+        repayHook.preExecute(address(0), address(this), data);
+        repayHook.postExecute(address(0), address(this), data);
+
+        assertEq(repayHook.getOutAmount(address(this)), 0);
+        assertEq(repayHook.getOutToken(address(this)), loanToken);
+    }
+
+    function test_CloseHook_SettleRoundTrip_ZeroDebt() public {
+        // Skipped repay leg (expectedPrimaryAmount = 0) with a live withdraw leg
+        mockMorpho.setPosition(
+            marketId, address(this), Position({ supplyShares: 0, borrowShares: 0, collateral: POSITION_COLLATERAL })
+        );
+        bytes memory data = _data(amount1, amount2, false);
+
+        closeHook.preExecute(address(0), address(this), data);
+        mockCollateralToken.mint(address(this), amount2); // simulate the withdraw leg's delta
+        closeHook.postExecute(address(0), address(this), data);
+
+        assertEq(closeHook.getOutAmount(address(this)), amount2);
+        assertEq(closeHook.getOutToken(address(this)), collateralToken);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -615,8 +691,62 @@ contract MorphoLoanHooksV2Test is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        8. FULL-REPAY SENTINEL
+                          8. CAP SEMANTICS
     //////////////////////////////////////////////////////////////*/
+
+    function test_RepayHook_Build_CapBelowDebt_AssetsPath() public view {
+        // cap < debt: exact assets-denominated repay of the cap
+        uint256 debt = MorphoBalancesLib.expectedBorrowAssets(IMorpho(address(mockMorpho)), marketParams, address(this));
+        uint256 cap = debt - 1e18;
+
+        Execution[] memory executions = repayHook.build(address(0), address(this), _data(cap, 0, false));
+        assertEq(executions.length, 6);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (address(mockMorpho), cap)));
+        assertEq(executions[3].callData, abi.encodeCall(IMorphoBase.repay, (marketParams, cap, 0, address(this), "")));
+    }
+
+    function test_RepayHook_Build_CapEqualsDebt_SharesPath() public view {
+        // cap == debt is a predicted clear → shares path (an exact-assets clear is rounding-unsafe)
+        uint256 debt = MorphoBalancesLib.expectedBorrowAssets(IMorpho(address(mockMorpho)), marketParams, address(this));
+
+        Execution[] memory executions = repayHook.build(address(0), address(this), _data(debt, 0, false));
+        assertEq(executions.length, 6);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (address(mockMorpho), debt)));
+        assertEq(
+            executions[3].callData,
+            abi.encodeCall(IMorphoBase.repay, (marketParams, 0, uint256(POSITION_BORROW_SHARES), address(this), ""))
+        );
+    }
+
+    function test_RepayHook_Build_CapAboveDebt_MinsWithDebt() public view {
+        // cap > debt resolves to the debt (shares path); the approval covers the debt, not the cap
+        uint256 debt = MorphoBalancesLib.expectedBorrowAssets(IMorpho(address(mockMorpho)), marketParams, address(this));
+
+        Execution[] memory executions = repayHook.build(address(0), address(this), _data(debt + 5e18, 0, false));
+        assertEq(executions.length, 6);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (address(mockMorpho), debt)));
+        assertEq(
+            executions[3].callData,
+            abi.encodeCall(IMorphoBase.repay, (marketParams, 0, uint256(POSITION_BORROW_SHARES), address(this), ""))
+        );
+    }
+
+    function test_RepayHook_Build_PrevCapAboveDebt_SharesPath() public {
+        // A PREV-fed cap >= debt also dust-clears via shares (previously impossible under
+        // MAX_WITH_PREV_NOT_ALLOWED); the leftover stays in the wallet
+        uint256 debt = MorphoBalancesLib.expectedBorrowAssets(IMorpho(address(mockMorpho)), marketParams, address(this));
+        MockPrevHook prevHook = new MockPrevHook();
+        prevHook.setOutToken(loanToken);
+        prevHook.setOutAmount(debt * 2);
+
+        Execution[] memory executions = repayHook.build(address(prevHook), address(this), _data(amount1, 0, true));
+        assertEq(executions.length, 6);
+        assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (address(mockMorpho), debt)));
+        assertEq(
+            executions[3].callData,
+            abi.encodeCall(IMorphoBase.repay, (marketParams, 0, uint256(POSITION_BORROW_SHARES), address(this), ""))
+        );
+    }
 
     function test_RepayHook_Build_FullRepay() public view {
         uint256 expectedAssets =

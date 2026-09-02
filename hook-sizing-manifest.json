@@ -417,6 +417,21 @@
     "pipeMode": "transform"
   },
   {
+    "hookKey": "EULER_DEPOSIT_COLLATERAL_AND_BORROW_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "EULER_REPAY_AND_WITHDRAW_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "EULER_REPAY_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "FETCH_NATIVE_FEE_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "passthrough"

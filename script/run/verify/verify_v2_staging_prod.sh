@@ -545,6 +545,14 @@ generate_constructor_args() {
             univ3_registry_addr=$(get_contract_address "$chain_id" "UniV3CLPRegistry")
             echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$univ3_registry_addr")"
             ;;
+        "MorphoBlueMarketRegistry")
+            echo "$(cast abi-encode "constructor(address)" "$deployer")"
+            ;;
+        "MorphoBlueYieldSourceOracle"|"MorphoBlueDebtOracle")
+            local morpho_registry_addr
+            morpho_registry_addr=$(get_contract_address "$chain_id" "MorphoBlueMarketRegistry")
+            echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$morpho_registry_addr")"
+            ;;
         "AaveV4ReserveRegistry")
             echo "$(cast abi-encode "constructor(address)" "$deployer")"
             ;;
@@ -743,6 +751,9 @@ get_contract_source() {
         "PendlePTAmortizedOracleV2") echo "src/accounting/oracles/PendlePTAmortizedOracleV2.sol" ;;
         "UniV3CLPRegistry") echo "src/accounting/oracles/UniV3CLPRegistry.sol" ;;
         "UniV3CLPYieldSourceOracle") echo "src/accounting/oracles/UniV3CLPYieldSourceOracle.sol" ;;
+        "MorphoBlueMarketRegistry") echo "src/accounting/oracles/MorphoBlueMarketRegistry.sol" ;;
+        "MorphoBlueYieldSourceOracle") echo "src/accounting/oracles/MorphoBlueYieldSourceOracle.sol" ;;
+        "MorphoBlueDebtOracle") echo "src/accounting/oracles/MorphoBlueDebtOracle.sol" ;;
         "AaveV4ReserveRegistry") echo "src/accounting/oracles/AaveV4ReserveRegistry.sol" ;;
         "AaveV4DebtOracle") echo "src/accounting/oracles/AaveV4DebtOracle.sol" ;;
         "AaveV4SupplyYieldSourceOracle") echo "src/accounting/oracles/AaveV4SupplyYieldSourceOracle.sol" ;;

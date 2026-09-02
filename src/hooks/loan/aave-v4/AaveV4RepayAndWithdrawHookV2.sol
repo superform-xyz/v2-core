@@ -22,16 +22,25 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 /// @notice         address spoke = BytesLib.toAddress(data, 92);
 /// @notice         uint256 supplyReserveId = BytesLib.toUint256(data, 112);
 /// @notice         uint256 borrowReserveId = BytesLib.toUint256(data, 144);
-/// @notice         uint256 repayAmount = BytesLib.toUint256(data, 176); // type(uint256).max = full repayment
+/// @notice         uint256 repayAmount = BytesLib.toUint256(data, 176); // CAP: actual repay = min(cap, debt)
 /// @notice         uint256 withdrawAmount = BytesLib.toUint256(data, 208); // type(uint256).max = full collateral
 /// @notice         bool usePrevHookAmount = _decodeStrictBool(data, 240);
-/// @dev Repayment executes strictly before collateral withdrawal. Both legs are exact; the
-///      withdrawal amount is never derived from the repayment. type(uint256).max is the only
-///      sentinel: on the repay leg it resolves to the full debt (drawn + premium, Spoke-native)
-///      and requires usePrevHookAmount == false; on the withdraw leg it resolves to the full
-///      supplied balance (Spoke-native). Each reserve id must resolve to the declared token.
-///      Repaying a zero-debt position reverts before any approval. outAmount publishes the actual
-///      released collateral-token wallet delta with outToken = collateralToken.
+/// @dev Repayment executes strictly before collateral withdrawal. The repay word is a CAP: the
+///      resolved repayment is min(cap, total debt) with the total debt read as drawn + premium; a
+///      cap covering the whole debt (including type(uint256).max, subsumed by the min — no
+///      separate repay sentinel) emits repay(type(uint256).max) so the Spoke clears the debt
+///      natively without rounding dust, while the approval always uses the resolved amount. Zero
+///      outstanding debt SKIPS the repay leg — the withdraw leg still executes and the Spoke's
+///      own health check arbitrates whether releasing the collateral is valid. With
+///      usePrevHookAmount the calldata cap word is ignored and the previous hook's output becomes
+///      the cap; an output larger than the debt caps to the debt and the leftover stays in the
+///      wallet. The withdraw leg is exact and never derived from the repayment;
+///      type(uint256).max on the withdraw slot resolves to the full supplied balance
+///      (Spoke-native). Each reserve id must resolve to the declared token. outAmount publishes
+///      the actual released collateral-token wallet delta with outToken = collateralToken.
+/// @dev Cap semantics close the third-party-repayment griefing vector: a partial third-party
+///      repayment shrinks the resolved amount and a complete one skips the repay leg — neither
+///      cancels a signed close intent.
 contract AaveV4RepayAndWithdrawHookV2 is BaseAaveV4LoanHookV2 {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -46,7 +55,7 @@ contract AaveV4RepayAndWithdrawHookV2 is BaseAaveV4LoanHookV2 {
 
     /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
-        return "Repays debt and withdraws an exact collateral amount from an Aave V4 spoke";
+        return "Repays debt up to a cap and withdraws an exact collateral amount from an Aave V4 spoke";
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -72,24 +81,30 @@ contract AaveV4RepayAndWithdrawHookV2 is BaseAaveV4LoanHookV2 {
         // natively
         _resolveWithdrawLeg(account, vars);
 
-        executions = new Execution[](5);
-        executions[0] =
-            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.spoke, 0)) });
-        executions[1] = Execution({
-            target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.spoke, repayAssets))
-        });
-        executions[2] = Execution({
-            target: vars.spoke,
-            value: 0,
-            callData: abi.encodeCall(
-                IAaveV4Spoke.repay, (vars.borrowReserveId, fullRepay ? type(uint256).max : repayAssets, account)
-            )
-        });
-        // Reset approval — critical even after repay(max)
-        executions[3] =
-            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.spoke, 0)) });
-        // Withdrawal executes strictly after repayment
-        executions[4] = Execution({
+        // Zero debt skips the 4 repay executions; the withdraw leg always runs, strictly last
+        executions = new Execution[]((repayAssets == 0 ? 0 : 4) + 1);
+        uint256 i;
+        if (repayAssets != 0) {
+            executions[i++] = Execution({
+                target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.spoke, 0))
+            });
+            executions[i++] = Execution({
+                target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.spoke, repayAssets))
+            });
+            executions[i++] = Execution({
+                target: vars.spoke,
+                value: 0,
+                callData: abi.encodeCall(
+                    IAaveV4Spoke.repay, (vars.borrowReserveId, fullRepay ? type(uint256).max : repayAssets, account)
+                )
+            });
+            // Reset approval — critical even after repay(max)
+            executions[i++] = Execution({
+                target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.spoke, 0))
+            });
+        }
+        // Withdrawal executes strictly after any repayment
+        executions[i] = Execution({
             target: vars.spoke,
             value: 0,
             callData: abi.encodeCall(IAaveV4Spoke.withdraw, (vars.supplyReserveId, vars.amount2, account))

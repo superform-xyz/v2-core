@@ -57,6 +57,12 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address aaveV4RepayAndWithdrawHookV2;
     }
 
+    struct EulerHookAddresses {
+        address eulerDepositCollateralAndBorrowHook;
+        address eulerRepayHook;
+        address eulerRepayAndWithdrawHook;
+    }
+
     struct FirelightHookAddresses {
         address redeemFirelightVaultHook;
         address claimWithdrawFirelightVaultHook;
@@ -220,6 +226,18 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    /// @notice Deploys the Euler EVK loan hooks. The canonical EVC and eVaultFactory are
+    ///         constructor-pinned per chain (from ConfigOtherHooks); vault addresses remain hook
+    ///         calldata but must be factory-verified proxies. Base only for now (Clearstar).
+    function runEulerHooks(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        require(otherHooksConfiguration.eulerEvcs[chainId] != address(0), "Euler hooks not gated for chain");
+        console2.log("Deploying Euler EVK Hooks on chainId: ", chainId);
+
+        _deployEulerHooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
     function runOdosV3(uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
         console2.log("Deploying Odos V3 Hooks on chainId: ", chainId);
@@ -274,6 +292,12 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             _deployAaveV3Hooks(chainId, env);
             console2.log("Deploying Aave V3 V2 Hooks on chainId: ", chainId);
             _deployAaveV3V2Hooks(chainId, env);
+        }
+
+        // Euler EVK hooks — Base only for now (Clearstar); EVC/eVaultFactory constructor-pinned
+        if (otherHooksConfiguration.eulerEvcs[chainId] != address(0)) {
+            console2.log("Deploying Euler EVK Hooks on chainId: ", chainId);
+            _deployEulerHooks(chainId, env);
         }
 
         // Firelight hooks — only on Flare
@@ -574,6 +598,67 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(hookAddresses.aaveV4RepayAndWithdrawHookV2 != address(0), "AaveV4RepayAndWithdrawHookV2 not assigned");
 
         console2.log("All Aave V4 V2 hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    EULER EVK HOOKS DEPLOYMENT (SUP-20797)
+    //////////////////////////////////////////////////////////////*/
+
+    function _deployEulerHooks(uint64 chainId, uint256 env) internal {
+        _deployEulerHooksSet(chainId, env);
+    }
+
+    /// @notice Deploy the 3 Euler EVK loan hooks (constructor args: canonical EVC + eVaultFactory
+    ///         per chain; vaults remain hook calldata but must be factory-verified proxies)
+    function _deployEulerHooksSet(
+        uint64 chainId,
+        uint256 env
+    )
+        private
+        returns (EulerHookAddresses memory hookAddresses)
+    {
+        uint256 len = 3;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        bytes memory eulerArgs = abi.encode(
+            otherHooksConfiguration.eulerEvcs[chainId], otherHooksConfiguration.eulerEVaultFactories[chainId]
+        );
+
+        hooks[0] = HookDeployment(
+            EULER_DEPOSIT_COLLATERAL_AND_BORROW_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("EulerDepositCollateralAndBorrowHook", env), eulerArgs)
+        );
+        hooks[1] = HookDeployment(
+            EULER_REPAY_HOOK_KEY, "", abi.encodePacked(__getOtherHooksBytecode("EulerRepayHook", env), eulerArgs)
+        );
+        hooks[2] = HookDeployment(
+            EULER_REPAY_AND_WITHDRAW_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("EulerRepayAndWithdrawHook", env), eulerArgs)
+        );
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        hookAddresses.eulerDepositCollateralAndBorrowHook = addresses[0];
+        hookAddresses.eulerRepayHook = addresses[1];
+        hookAddresses.eulerRepayAndWithdrawHook = addresses[2];
+
+        require(
+            hookAddresses.eulerDepositCollateralAndBorrowHook != address(0),
+            "EulerDepositCollateralAndBorrowHook not assigned"
+        );
+        require(hookAddresses.eulerRepayHook != address(0), "EulerRepayHook not assigned");
+        require(hookAddresses.eulerRepayAndWithdrawHook != address(0), "EulerRepayAndWithdrawHook not assigned");
+
+        console2.log("All Euler EVK hooks deployed and validated successfully.");
 
         return hookAddresses;
     }
