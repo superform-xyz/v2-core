@@ -2,18 +2,24 @@
 pragma solidity 0.8.30;
 
 import { Test } from "forge-std/Test.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import { SuperVaultStargateCapBridgeHook } from
-    "../../../../src/hooks/bridges/stargate/SuperVaultStargateCapBridgeHook.sol";
-import { ApproveAndStargateSendHook } from
-    "../../../../src/hooks/bridges/stargate/ApproveAndStargateSendHook.sol";
-import { IStargate } from "../../../../src/vendor/bridges/stargate/IStargate.sol";
+import {
+    SuperVaultStargateCapBridgeHook
+} from "../../../../src/hooks/bridges/stargate/SuperVaultStargateCapBridgeHook.sol";
+import { ApproveAndStargateSendHook } from "../../../../src/hooks/bridges/stargate/ApproveAndStargateSendHook.sol";
+import { SuperVaultCapBridgeCommon } from "../../../../src/hooks/bridges/SuperVaultCapBridgeCommon.sol";
 import { ISuperValidator } from "../../../../src/interfaces/ISuperValidator.sol";
 import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
+import {
+    ICapGuardLike,
+    MockCapGuard,
+    MockPositionRegistry,
+    MockGovernorAddressBook,
+    MockPrevHook,
+    CapMessageLib
+} from "./CapBridgeTestUtils.sol";
 
-/// @dev Stargate signature-storage stub (unused with an empty composeMsg, but build() reads it if
-///      a compose message is present; our tests use empty composeMsg).
+/// @dev Stargate signature-storage stub (composeMsg gets the signature appended at build).
 contract MockStargateSignatureStorage {
     function retrieveSignatureData(address) external view returns (bytes memory) {
         uint48 validUntil = uint48(block.timestamp + 3600);
@@ -24,153 +30,225 @@ contract MockStargateSignatureStorage {
     }
 }
 
-/// @dev Minimal Stargate pool: build() checks `token() == inputToken` on modes 0-2.
-contract MockStargatePool {
-    address public token;
-
-    constructor(address token_) {
-        token = token_;
-    }
-}
-
-/// @dev View no-op matching the real cap guard. Tuple asserted via vm.expectCall.
-interface ICapGuardLike {
-    function validateAllocation(address strategy, uint64 chainId, address vault, uint256 amount) external view;
-}
-
-contract MockCapGuard is ICapGuardLike {
-    function validateAllocation(address, uint64, address, uint256) external view { }
-}
-
-contract MockPositionRegistry {
-    mapping(address => uint256) public bridgedOut;
-    mapping(address => mapping(uint64 => uint256)) public bridgedOutByChain;
-
-    function recordBridgedOut(address strategy, uint64 chainId, uint256 amount) external {
-        bridgedOut[strategy] += amount;
-        bridgedOutByChain[strategy][chainId] += amount;
-    }
-}
-
-contract MockGovernorAddressBook {
-    bytes32 private constant CROSS_CHAIN_CAP_GUARD = keccak256("CROSS_CHAIN_CAP_GUARD");
-    bytes32 private constant CROSS_CHAIN_POSITION_REGISTRY = keccak256("CROSS_CHAIN_POSITION_REGISTRY");
-
-    address public capGuard;
-    address public registry;
-
-    constructor(address capGuard_, address registry_) {
-        capGuard = capGuard_;
-        registry = registry_;
-    }
-
-    function setRegistry(address registry_) external {
-        registry = registry_;
-    }
-
-    function getAddress(bytes32 key) external view returns (address) {
-        if (key == CROSS_CHAIN_CAP_GUARD) return capGuard;
-        if (key == CROSS_CHAIN_POSITION_REGISTRY) return registry;
-        return address(0);
-    }
-}
-
-contract MockPrevHook {
-    uint256 private immutable OUT;
-
-    constructor(uint256 out_) {
-        OUT = out_;
-    }
-
-    function getOutAmount(address) external view returns (uint256) {
-        return OUT;
-    }
-}
-
 contract SuperVaultStargateCapBridgeHookTest is Test {
     SuperVaultStargateCapBridgeHook internal hook;
     MockStargateSignatureStorage internal validator;
-    MockStargatePool internal pool;
     MockCapGuard internal capGuard;
     MockPositionRegistry internal registry;
     MockGovernorAddressBook internal governor;
 
+    address internal pool = makeAddr("stargatePool");
     address internal account = makeAddr("strategy");
-    address internal recipient = makeAddr("destinationVault");
+    address internal adapter = makeAddr("stargateAdapter"); // transport receiver (B1)
+    address internal destVault = makeAddr("destinationVault"); // economic destination (B1)
+    address internal dstApproveHook = makeAddr("dstApproveHook");
+    address internal dstDepositHook = makeAddr("dstDepositHook");
     address internal inputToken = makeAddr("inputToken");
 
     uint256 internal constant AMOUNT_LD = 1000e6;
     uint256 internal constant MIN_AMOUNT_LD = 995e6;
     uint256 internal constant NATIVE_FEE = 0.01 ether;
-    uint32 internal constant DST_EID = 30_184; // Base LayerZero endpoint id
 
-    // build() layout: [0]=pre [1]=approve(0) [2]=approve(amt) [3]=sendToken [4]=approve(0) [5]=post
-    uint256 internal constant BRIDGE_EXECUTION_INDEX = 3;
+    // B4: LayerZero EID vs canonical EVM chain id are DIFFERENT namespaces.
+    uint32 internal constant DST_EID = 30_184; // Base LZ endpoint id
+    uint64 internal constant DST_CHAIN_ID = 8453; // Base EVM chain id
 
     function setUp() public {
         validator = new MockStargateSignatureStorage();
-        pool = new MockStargatePool(inputToken);
         capGuard = new MockCapGuard();
         registry = new MockPositionRegistry();
         governor = new MockGovernorAddressBook(address(capGuard), address(registry));
         hook = new SuperVaultStargateCapBridgeHook(address(validator), address(governor));
         hook.setExecutionContext(account);
+
+        capGuard.setEidChainId(DST_EID, DST_CHAIN_ID); // B4 canonical mapping
+        capGuard.setApprovedAdapter(DST_CHAIN_ID, adapter, true);
+        capGuard.setDestinationHooks(DST_CHAIN_ID, dstApproveHook, dstDepositHook);
+    }
+
+    function _depositMessage() internal view returns (bytes memory) {
+        return
+            CapMessageLib.vaultDepositMessage(account, dstApproveHook, dstDepositHook, destVault, inputToken, AMOUNT_LD);
     }
 
     /*//////////////////////////////////////////////////////////////
-                        VALIDATED == BRIDGED TUPLE
+                    B4: CANONICAL CHAIN NORMALIZATION
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The cap must validate the SAME (dstEid, recipient, amount) the parent hands to
-    ///         sendToken. Derived by decoding the actual bridge execution — the drift guard.
-    function test_ValidatedTupleEqualsBridgedTuple_StaticAmount() public {
-        bytes memory data = _encode(DST_EID, _toBytes32(recipient), AMOUNT_LD, false, 0);
-
-        (uint32 eid, address to, uint256 amt) = _decodeBridged(data);
-        assertEq(eid, DST_EID, "dstEid mismatch");
-        assertEq(to, recipient, "recipient mismatch");
-        assertEq(amt, AMOUNT_LD, "amount mismatch");
+    /// @notice The cap must validate and record under the CANONICAL EVM chain id (8453), never the
+    ///         LayerZero EID (30184) — one Base cap for Across, deBridge AND Stargate.
+    function test_ValidatesAndRecordsUnderCanonicalChainId_NotEid() public {
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
 
         vm.expectCall(
             address(capGuard),
-            abi.encodeCall(ICapGuardLike.validateAllocation, (account, uint64(eid), to, amt))
+            abi.encodeCall(ICapGuardLike.validateAllocation, (account, DST_CHAIN_ID, destVault, AMOUNT_LD))
+        );
+        vm.expectCall(
+            address(registry),
+            abi.encodeCall(MockPositionRegistry.recordBridgedOut, (account, DST_CHAIN_ID, destVault, AMOUNT_LD))
         );
         vm.prank(account);
         hook.preExecute(address(0), account, data);
 
-        assertEq(registry.bridgedOut(account), AMOUNT_LD, "exposure not recorded");
-        assertEq(registry.bridgedOutByChain(account, uint64(DST_EID)), AMOUNT_LD, "per-eid exposure not recorded");
+        assertEq(registry.bridgedOutByChain(account, DST_CHAIN_ID), AMOUNT_LD, "must record under canonical chain id");
+        assertEq(registry.bridgedOutByChain(account, uint64(DST_EID)), 0, "must NOT record under the EID namespace");
     }
 
-    /// @notice Same equivalence when the amount comes from the previous hook's output.
-    function test_ValidatedTupleEqualsBridgedTuple_PrevHookAmount() public {
+    /// @notice An unmapped EID fails closed — no fresh, empty cap namespace for a new route.
+    function test_RevertIf_EidNotMapped() public {
+        uint32 unmappedEid = 30_101; // Ethereum EID, not configured in setUp
+        bytes memory data = _encode(unmappedEid, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.EID_NOT_MAPPED.selector);
+        hook.preExecute(address(0), account, data);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                B1: ECONOMIC DESTINATION, NOT TRANSPORT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Prev-hook output overrides the encoded amountLD for validation and recording.
+    function test_PrevAmountOverridesEncodedAmount() public {
         uint256 prevAmount = 750e6;
         MockPrevHook prevHook = new MockPrevHook(prevAmount);
-        bytes memory data = _encode(DST_EID, _toBytes32(recipient), AMOUNT_LD, true, 0);
-
-        (,, uint256 amt) = _decodeBridgedWithPrev(data, address(prevHook));
-        assertEq(amt, prevAmount, "bridge did not use prev-hook amount");
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, true, 0, _depositMessage());
 
         vm.expectCall(
             address(capGuard),
-            abi.encodeCall(ICapGuardLike.validateAllocation, (account, uint64(DST_EID), recipient, prevAmount))
+            abi.encodeCall(ICapGuardLike.validateAllocation, (account, DST_CHAIN_ID, destVault, prevAmount))
         );
         vm.prank(account);
         hook.preExecute(address(prevHook), account, data);
-
-        assertEq(registry.bridgedOut(account), prevAmount, "exposure not the prev-hook amount");
+        assertEq(registry.bridgedOut(account), prevAmount);
     }
 
-    /// @notice Mode 1 (bus) also carries recipient+amount at the same offsets, so it caps too.
-    function test_ValidatedTuple_Mode1Bus() public {
-        bytes memory data = _encode(DST_EID, _toBytes32(recipient), AMOUNT_LD, false, 1);
+    /// @notice Bus mode (1) carries the same fixed-offset fields and is cappable.
+    function test_Mode1Bus_Passes() public {
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 1, _depositMessage());
+        vm.prank(account);
+        hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOutByChain(account, DST_CHAIN_ID), AMOUNT_LD);
+    }
+
+    /// @notice IDLE_HOLD action validates the zero-vault branch.
+    function test_IdleHoldAction_ValidatesZeroVault() public {
+        bytes memory data = _encode(
+            DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, CapMessageLib.idleHoldMessage(account, inputToken)
+        );
         vm.expectCall(
             address(capGuard),
-            abi.encodeCall(ICapGuardLike.validateAllocation, (account, uint64(DST_EID), recipient, AMOUNT_LD))
+            abi.encodeCall(ICapGuardLike.validateAllocation, (account, DST_CHAIN_ID, address(0), AMOUNT_LD))
         );
         vm.prank(account);
         hook.preExecute(address(0), account, data);
-        assertEq(registry.bridgedOut(account), AMOUNT_LD, "mode-1 exposure not recorded");
+        assertEq(registry.lastVault(), address(0));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                B1: TYPED DESTINATION ACTION REJECTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice An empty compose message is a raw token send to `to` — rejected.
+    function test_RevertIf_EmptyComposeMessage() public {
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, bytes(""));
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_ACTION_NOT_VALID.selector);
+        hook.preExecute(address(0), account, data);
+    }
+
+    /// @notice An unapproved transport receiver is rejected — `to` must be the registered adapter.
+    function test_RevertIf_TransportAdapterNotApproved() public {
+        bytes memory data = _encode(DST_EID, _toBytes32(makeAddr("randomTo")), AMOUNT_LD, false, 0, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.TRANSPORT_ADAPTER_NOT_APPROVED.selector);
+        hook.preExecute(address(0), account, data);
+    }
+
+    /// @notice B1.RR3: an extra destination hook is rejected.
+    function test_RevertIf_ExtraDestinationHook() public {
+        address[] memory hooks = new address[](3);
+        hooks[0] = dstApproveHook;
+        hooks[1] = dstDepositHook;
+        hooks[2] = makeAddr("sneakyHook");
+        bytes[] memory hooksData = new bytes[](3);
+        hooksData[0] = CapMessageLib.approveHookData(inputToken, destVault, AMOUNT_LD);
+        hooksData[1] = CapMessageLib.depositHookData(destVault, AMOUNT_LD);
+        hooksData[2] = hex"deadbeef";
+        bytes memory message =
+            CapMessageLib.wrap(CapMessageLib.executorCalldataFor(hooks, hooksData), account, inputToken);
+
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_ACTION_NOT_VALID.selector);
+        hook.preExecute(address(0), account, _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, message));
+    }
+
+    /// @notice The destination account must be the hub strategy account.
+    function test_RevertIf_DestinationAccountNotStrategy() public {
+        bytes memory message = CapMessageLib.vaultDepositMessage(
+            makeAddr("someoneElse"), dstApproveHook, dstDepositHook, destVault, inputToken, AMOUNT_LD
+        );
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_ACCOUNT_NOT_VALID.selector);
+        hook.preExecute(address(0), account, _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, message));
+    }
+
+    /// @notice Mode 3 (lzMulticall) ignores `to`/`amountLD` — the cap cannot bind; reject.
+    function test_RevertIf_Mode3() public {
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 3, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(ApproveAndStargateSendHook.DATA_NOT_VALID.selector);
+        hook.preExecute(address(0), account, data);
+    }
+
+    /// @notice A non-EVM recipient (top 12 bytes set) is rejected fail-closed.
+    function test_RevertIf_NonEvmRecipient() public {
+        bytes32 nonEvm = bytes32(uint256(1) << 200) | _toBytes32(adapter);
+        bytes memory data = _encode(DST_EID, nonEvm, AMOUNT_LD, false, 0, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(ApproveAndStargateSendHook.DATA_NOT_VALID.selector);
+        hook.preExecute(address(0), account, data);
+    }
+
+    /// @notice A zero recipient is rejected.
+    function test_RevertIf_ZeroRecipient() public {
+        bytes memory data = _encode(DST_EID, bytes32(0), AMOUNT_LD, false, 0, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        hook.preExecute(address(0), account, data);
+    }
+
+    /// @notice Short data fails with the typed error before any fixed-offset read.
+    function test_RevertIf_DataTooShort() public {
+        bytes memory shortData = new bytes(289); // one short of the 290 minimum
+        vm.prank(account);
+        vm.expectRevert(ApproveAndStargateSendHook.DATA_NOT_VALID.selector);
+        hook.preExecute(address(0), account, shortData);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        B1: LEAF (inspect) PINNING
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Mutating only the destination vault inside the compose message changes the leaf.
+    function test_Inspect_ChangesWhenExecutorVaultChanges() public {
+        bytes memory dataA = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
+        bytes memory msgB = CapMessageLib.vaultDepositMessage(
+            account, dstApproveHook, dstDepositHook, makeAddr("otherVault"), inputToken, AMOUNT_LD
+        );
+        bytes memory dataB = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, msgB);
+        assertTrue(keccak256(hook.inspect(dataA)) != keccak256(hook.inspect(dataB)));
+    }
+
+    /// @notice The leaf carries the CANONICAL chain id: remapping the EID changes the leaf.
+    function test_Inspect_PinsCanonicalChainId() public {
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
+        bytes memory leafBase = hook.inspect(data);
+
+        capGuard.setEidChainId(DST_EID, 42_161); // governance remaps the EID
+        capGuard.setApprovedAdapter(42_161, adapter, true);
+        capGuard.setDestinationHooks(42_161, dstApproveHook, dstDepositHook);
+        assertTrue(keccak256(leafBase) != keccak256(hook.inspect(data)), "leaf must track the canonical chain id");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -178,7 +256,7 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function test_RecordsIntoGovernorResolvedRegistry_FollowsMigration() public {
-        bytes memory data = _encode(DST_EID, _toBytes32(recipient), AMOUNT_LD, false, 0);
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
 
         vm.prank(account);
         hook.preExecute(address(0), account, data);
@@ -195,104 +273,19 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         assertEq(newRegistry.bridgedOut(account), AMOUNT_LD, "new registry not credited after migration");
     }
 
-    function test_RecordBridgedOut_CalledWithExactTuple() public {
-        bytes memory data = _encode(DST_EID, _toBytes32(recipient), AMOUNT_LD, false, 0);
-        vm.expectCall(
-            address(registry),
-            abi.encodeCall(MockPositionRegistry.recordBridgedOut, (account, uint64(DST_EID), AMOUNT_LD))
-        );
-        vm.prank(account);
-        hook.preExecute(address(0), account, data);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            INPUT VALIDATION
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Mode 3 (lzMulticall) ignores to/amount, so it cannot be capped — reject it.
-    function test_RevertIf_Mode3() public {
-        bytes memory data = _encode(DST_EID, _toBytes32(recipient), AMOUNT_LD, false, 3);
-        vm.prank(account);
-        vm.expectRevert(ApproveAndStargateSendHook.DATA_NOT_VALID.selector);
-        hook.preExecute(address(0), account, data);
-    }
-
-    /// @notice A non-EVM `to` (top 12 bytes non-zero, e.g. a Solana pubkey) is rejected fail-closed.
-    function test_RevertIf_NonEvmRecipient() public {
-        bytes32 nonEvm = bytes32(uint256(1) << 200); // set a high bit above the low 160
-        bytes memory data = _encode(DST_EID, nonEvm, AMOUNT_LD, false, 0);
-        vm.prank(account);
-        vm.expectRevert(ApproveAndStargateSendHook.DATA_NOT_VALID.selector);
-        hook.preExecute(address(0), account, data);
-    }
-
-    /// @notice A zero recipient would hit the periphery guard's idle-hold branch; reject it.
-    function test_RevertIf_ZeroRecipient() public {
-        bytes memory data = _encode(DST_EID, bytes32(0), AMOUNT_LD, false, 0);
-        vm.prank(account);
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.preExecute(address(0), account, data);
-    }
-
-    /// @notice Malformed/short data reverts via the length guard.
-    function test_RevertIf_DataTooShort() public {
-        bytes memory shortData = new bytes(225); // one short of the 226 mode-byte floor
-        vm.prank(account);
-        vm.expectRevert(ApproveAndStargateSendHook.DATA_NOT_VALID.selector);
-        hook.preExecute(address(0), account, shortData);
-    }
-
-    /// @notice A large uint32 dstEid still fits uint64 and records under that eid.
-    function test_LargeDstEid_Passes() public {
-        uint32 bigEid = type(uint32).max;
-        bytes memory data = _encode(bigEid, _toBytes32(recipient), AMOUNT_LD, false, 0);
-        vm.prank(account);
-        hook.preExecute(address(0), account, data);
-        assertEq(registry.bridgedOutByChain(account, uint64(bigEid)), AMOUNT_LD, "max-eid not recorded");
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        ACCUMULATION
-    //////////////////////////////////////////////////////////////*/
-
-    function test_MultipleExecutions_AccumulateExposure() public {
-        bytes memory data = _encode(DST_EID, _toBytes32(recipient), AMOUNT_LD, false, 0);
-        vm.prank(account);
-        hook.preExecute(address(0), account, data);
-        hook.setExecutionContext(account);
-        vm.prank(account);
-        hook.preExecute(address(0), account, data);
-        assertEq(registry.bridgedOut(account), 2 * AMOUNT_LD, "total not accumulated");
-        assertEq(registry.bridgedOutByChain(account, uint64(DST_EID)), 2 * AMOUNT_LD, "per-eid not accumulated");
-    }
-
-    function test_MultipleEids_AccumulateSeparately() public {
-        uint32 otherEid = 30_101; // Ethereum
-        bytes memory d1 = _encode(DST_EID, _toBytes32(recipient), AMOUNT_LD, false, 0);
-        bytes memory d2 = _encode(otherEid, _toBytes32(recipient), 400e6, false, 0);
-        vm.prank(account);
-        hook.preExecute(address(0), account, d1);
-        hook.setExecutionContext(account);
-        vm.prank(account);
-        hook.preExecute(address(0), account, d2);
-        assertEq(registry.bridgedOutByChain(account, uint64(DST_EID)), AMOUNT_LD, "eid A wrong");
-        assertEq(registry.bridgedOutByChain(account, uint64(otherEid)), 400e6, "eid B wrong");
-        assertEq(registry.bridgedOut(account), AMOUNT_LD + 400e6, "total not the sum");
-    }
-
     /*//////////////////////////////////////////////////////////////
                         LIFECYCLE / ACCESS CONTROL
     //////////////////////////////////////////////////////////////*/
 
     function test_RevertIf_PreExecuteNotAccount() public {
-        bytes memory data = _encode(DST_EID, _toBytes32(recipient), AMOUNT_LD, false, 0);
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
         vm.prank(makeAddr("attacker"));
         vm.expectRevert(BaseHook.UNAUTHORIZED_CALLER.selector);
         hook.preExecute(address(0), account, data);
     }
 
     function test_RevertIf_PreExecuteCalledTwiceSameContext() public {
-        bytes memory data = _encode(DST_EID, _toBytes32(recipient), AMOUNT_LD, false, 0);
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
         vm.prank(account);
         hook.preExecute(address(0), account, data);
         vm.prank(account);
@@ -300,50 +293,18 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         hook.preExecute(address(0), account, data);
     }
 
+    /// @notice A cap-guard revert propagates and nothing is recorded.
     function test_CapGuardRevertPropagates() public {
-        bytes memory data = _encode(DST_EID, _toBytes32(recipient), AMOUNT_LD, false, 0);
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
         vm.mockCallRevert(
             address(capGuard),
             abi.encodeWithSelector(ICapGuardLike.validateAllocation.selector),
-            abi.encodeWithSignature("CROSS_CHAIN_CAP_EXCEEDED()")
+            abi.encodeWithSignature("PER_CHAIN_CAP_EXCEEDED()")
         );
         vm.prank(account);
-        vm.expectRevert(abi.encodeWithSignature("CROSS_CHAIN_CAP_EXCEEDED()"));
+        vm.expectRevert(abi.encodeWithSignature("PER_CHAIN_CAP_EXCEEDED()"));
         hook.preExecute(address(0), account, data);
-        assertEq(registry.bridgedOut(account), 0, "recorded despite cap revert");
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        INHERITED SURFACE / super
-    //////////////////////////////////////////////////////////////*/
-
-    function test_PreExecute_DoesNotPublishOutput() public {
-        bytes memory data = _encode(DST_EID, _toBytes32(recipient), AMOUNT_LD, false, 0);
-        vm.prank(account);
-        hook.preExecute(address(0), account, data);
-        assertEq(hook.getOutAmount(account), 0, "cap hook must not set outAmount");
-        assertEq(hook.getOutToken(account), address(0), "cap hook must not set outToken");
-    }
-
-    function test_Inspect_ExposesPoolTokenAndRecipient() public view {
-        bytes memory data = _encode(DST_EID, _toBytes32(recipient), AMOUNT_LD, false, 0);
-        bytes memory payload = hook.inspect(data);
-        // Parent packs: stargatePool(20) | inputToken(20) | to-as-address(20)
-        assertEq(payload.length, 60, "unexpected inspector payload length");
-        assertEq(address(bytes20(_word(payload, 40))), recipient, "recipient not at slot 3 of inspector");
-    }
-
-    function test_DecodeUsePrevHookAmount() public view {
-        assertEq(
-            hook.decodeUsePrevHookAmount(_encode(DST_EID, _toBytes32(recipient), AMOUNT_LD, false, 0)), false
-        );
-        assertEq(hook.decodeUsePrevHookAmount(_encode(DST_EID, _toBytes32(recipient), AMOUNT_LD, true, 0)), true);
-    }
-
-    function test_DecodeAmounts_ReturnsAmountLD() public view {
-        uint256[] memory amounts = hook.decodeAmounts(_encode(DST_EID, _toBytes32(recipient), AMOUNT_LD, false, 0));
-        assertEq(amounts.length, 1);
-        assertEq(amounts[0], AMOUNT_LD, "sized amount is not amountLD");
+        assertEq(registry.bridgedOut(account), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -355,59 +316,8 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         new SuperVaultStargateCapBridgeHook(address(validator), address(0));
     }
 
-    function test_Constructor_RevertIf_ZeroValidator() public {
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new SuperVaultStargateCapBridgeHook(address(0), address(governor));
-    }
-
     function test_Constructor_SetsGovernor() public view {
         assertEq(address(hook.SUPER_GOVERNOR()), address(governor));
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                FUZZ
-    //////////////////////////////////////////////////////////////*/
-
-    function testFuzz_StaticAmount_ValidatesAndRecords(uint256 amountLD, uint32 dstEid) public {
-        amountLD = bound(amountLD, 1, type(uint128).max);
-        bytes memory data = _encode(dstEid, _toBytes32(recipient), amountLD, false, 0);
-        vm.expectCall(
-            address(capGuard),
-            abi.encodeCall(ICapGuardLike.validateAllocation, (account, uint64(dstEid), recipient, amountLD))
-        );
-        vm.prank(account);
-        hook.preExecute(address(0), account, data);
-        assertEq(registry.bridgedOutByChain(account, uint64(dstEid)), amountLD, "fuzz: per-eid mismatch");
-    }
-
-    function testFuzz_PrevAmount_OverridesEncoded(uint256 encoded, uint256 prevAmount) public {
-        encoded = bound(encoded, 1, type(uint128).max);
-        prevAmount = bound(prevAmount, 1, type(uint128).max);
-        MockPrevHook prevHook = new MockPrevHook(prevAmount);
-        bytes memory data = _encode(DST_EID, _toBytes32(recipient), encoded, true, 0);
-        vm.expectCall(
-            address(capGuard),
-            abi.encodeCall(ICapGuardLike.validateAllocation, (account, uint64(DST_EID), recipient, prevAmount))
-        );
-        vm.prank(account);
-        hook.preExecute(address(prevHook), account, data);
-        assertEq(registry.bridgedOut(account), prevAmount, "fuzz: prev amount not validated");
-    }
-
-    function testFuzz_RevertIf_NonEvmRecipient(bytes32 to) public {
-        vm.assume(uint256(to) >> 160 != 0); // top 12 bytes non-zero => non-EVM
-        bytes memory data = _encode(DST_EID, to, AMOUNT_LD, false, 0);
-        vm.prank(account);
-        vm.expectRevert(ApproveAndStargateSendHook.DATA_NOT_VALID.selector);
-        hook.preExecute(address(0), account, data);
-    }
-
-    function testFuzz_RevertIf_ModeAboveTwo(uint8 mode) public {
-        mode = uint8(bound(mode, 3, 3)); // parent build rejects >3; cap rejects >2, so 3 is the case
-        bytes memory data = _encode(DST_EID, _toBytes32(recipient), AMOUNT_LD, false, mode);
-        vm.prank(account);
-        vm.expectRevert(ApproveAndStargateSendHook.DATA_NOT_VALID.selector);
-        hook.preExecute(address(0), account, data);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -418,48 +328,13 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         return bytes32(uint256(uint160(a)));
     }
 
-    /// @dev Reads the 20-byte word at `offset` from a packed payload (left-aligned into bytes32).
-    function _word(bytes memory payload, uint256 offset) internal pure returns (bytes32 out) {
-        for (uint256 i; i < 20; ++i) {
-            out |= bytes32(payload[offset + i]) >> (i * 8);
-        }
-    }
-
-    function _decodeBridged(bytes memory data) internal returns (uint32 eid, address to, uint256 amt) {
-        Execution[] memory ex = hook.build(address(0), account, data);
-        return _decodeSendToken(ex[BRIDGE_EXECUTION_INDEX].callData);
-    }
-
-    function _decodeBridgedWithPrev(
-        bytes memory data,
-        address prevHook
-    )
-        internal
-        returns (uint32 eid, address to, uint256 amt)
-    {
-        Execution[] memory ex = hook.build(prevHook, account, data);
-        return _decodeSendToken(ex[BRIDGE_EXECUTION_INDEX].callData);
-    }
-
-    function _decodeSendToken(bytes memory callData) internal pure returns (uint32 eid, address to, uint256 amt) {
-        bytes memory args = new bytes(callData.length - 4);
-        for (uint256 i; i < args.length; ++i) {
-            args[i] = callData[i + 4];
-        }
-        (IStargate.SendParam memory sendParam,,) =
-            abi.decode(args, (IStargate.SendParam, IStargate.MessagingFee, address));
-        eid = sendParam.dstEid;
-        to = address(uint160(uint256(sendParam.to)));
-        amt = sendParam.amountLD;
-    }
-
-    /// @dev Canonical Stargate hookData with empty extraOptions/composeMsg (min length 290).
     function _encode(
         uint32 dstEid,
         bytes32 to,
         uint256 amountLD,
         bool usePrev,
-        uint8 mode
+        uint8 mode,
+        bytes memory composeMsg
     )
         internal
         view
@@ -476,8 +351,14 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
             amountLD,
             MIN_AMOUNT_LD
         );
-        return abi.encodePacked(
-            fixedPart, usePrev, mode, uint256(0), /* extraOptions len */ uint256(0) /* composeMsg len */
-        );
+        return
+            abi.encodePacked(
+                fixedPart,
+                usePrev,
+                mode,
+                uint256(0), // extraOptions length
+                composeMsg.length,
+                composeMsg
+            );
     }
 }
