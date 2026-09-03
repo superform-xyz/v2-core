@@ -134,8 +134,12 @@ contract AaveV4ReserveRegistry is AccessControl {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Deploy the registry and grant all roles to `admin_`
-    /// @dev MARKET_MANAGER_ROLE is granted to `admin_` for operational convenience; consider
-    ///      transferring it to a separate hot-key address to limit blast radius.
+    /// @dev Deployment grants both roles to `admin_` (the deployer) for bootstrap only. Handing
+    ///      MARKET_MANAGER_ROLE to the governor and DEFAULT_ADMIN_ROLE to the SuperGovernor —
+    ///      then revoking both from the deployer — is a BLOCKING production-activation task; run
+    ///      script/TransferAaveV4ReserveRegistryRoles.s.sol (idempotent, with runCheck). The
+    ///      manager must be a governed entity, never a hot EOA (see the 2026-09-02 security
+    ///      report).
     /// @param admin_ Address granted DEFAULT_ADMIN_ROLE and MARKET_MANAGER_ROLE; must be non-zero
     constructor(address admin_) {
         if (admin_ == address(0)) revert ZERO_ADDRESS();

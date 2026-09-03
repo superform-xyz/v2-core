@@ -26,15 +26,20 @@ import { AaveV4ReserveRegistry } from "./AaveV4ReserveRegistry.sol";
 ///      getUserSuppliedShares / hub.previewRemoveByShares) would require hooks that read spoke share
 ///      state — a different settle architecture and explicit future work.
 ///
-///      Fee semantics (fee-capable by design — the inherited getAssetOutputWithFees is NOT
-///      overridden, unlike AaveV4DebtOracle):
-///      - With identity PPS, ledger cost-basis math degenerates to principal tracking: a configured
-///        feePercent charges fees only on measured asset-delta profit, which for a plain
-///        supply-then-withdraw round trip is zero. Configured fees therefore UNDER-charge yield and
-///        never over-charge principal. Real yield-fee capability requires the future hook-wiring work
-///        (and possibly a shares-PPS oracle variant) — documented non-goal here.
-///      - A missing/invalid SuperLedgerConfiguration entry falls through to the plain asset output
-///        (inherited try/catch) — expected for markets with no fee configuration.
+///      IMPORTANT — Fee configuration (standalone phase):
+///      This oracle MUST NOT be configured with feePercent > 0 in SuperLedgerConfiguration until
+///      real hook-to-ledger wiring exists. No loan hook currently drives updateAccounting, so no
+///      cost-basis snapshot is ever taken for supply positions; the inherited fee view would then
+///      treat the ENTIRE principal as profit and inflate the quoted output. getAssetOutputWithFees
+///      is therefore overridden to bypass fee math entirely (mirroring AaveV4DebtOracle). NOTE:
+///      the override only protects the view path — BaseLedger._processOutflow() computes fees
+///      directly from config.feePercent and is NOT guarded on-chain; correct behavior depends on
+///      the operational invariant that this oracle's yieldSourceOracleId is configured with
+///      feePercent = 0 (or not registered at all).
+///      Once accounting hooks exist and inflows snapshot cost basis, the ledger path charges fees
+///      on measured asset-delta profit only (yield, never principal — identity PPS makes a plain
+///      principal round trip read zero profit); re-enabling the fee view then requires removing
+///      the override in a new oracle version, not a config change.
 ///
 ///      STANDALONE ORACLE — accounting-wiring scope:
 ///      No loan hook currently drives this oracle through SuperLedger: every loan hook is
@@ -129,6 +134,30 @@ contract AaveV4SupplyYieldSourceOracle is AbstractYieldSourceOracle {
     /// @inheritdoc AbstractYieldSourceOracle
     function getAssetOutput(address, address, uint256 sharesIn) public pure override returns (uint256) {
         return sharesIn;
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    /// @dev Overridden to bypass fee computation entirely for the standalone phase. No loan hook
+    ///      currently drives SuperLedger.updateAccounting, so supply positions never take
+    ///      cost-basis snapshots and the base implementation's previewFees() would treat the
+    ///      entire principal as "profit", inflating the quoted output. NOTE: this override only
+    ///      protects callers of this view function — BaseLedger._processOutflow() computes fees
+    ///      directly from config.feePercent and does not route through here. The oracle must
+    ///      still be configured with feePercent = 0 in SuperLedgerConfiguration (see
+    ///      contract-level docs).
+    function getAssetOutputWithFees(
+        bytes32,
+        address yieldSourceAddress,
+        address assetOut,
+        address,
+        uint256 usedShares
+    )
+        external
+        view
+        override
+        returns (uint256)
+    {
+        return getAssetOutput(yieldSourceAddress, assetOut, usedShares);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle

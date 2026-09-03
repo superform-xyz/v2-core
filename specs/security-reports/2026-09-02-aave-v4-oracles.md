@@ -81,6 +81,12 @@ Compliance table (best-practices agent): all four files PASS on locked pragma, l
 - External: Aave V4 audit corpus + Sherlock contest, OWASP SC Top 10 (2026 edition — only SC01/SC10 carry residual weight), OZ TimelockController semantics, rsETH/Term Finance/KiloEx/Moonwell 2025-26 incident analyses, live `cast` ABI verification at block 24_884_274
 - Prior internal research: `specs/aave-v4-oracles/research/{evm-security,best-practices,framework-docs,specflow-analysis,repo-analysis}.md`
 
+## PR #997 Review Findings (2026-09-03, NicolaBernini) — Remediation
+
+- **F1 (P1) — supply fee view could fee principal in the delivered NONACCOUNTING runtime**: FIXED — `AaveV4SupplyYieldSourceOracle.getAssetOutputWithFees` now bypass-overridden (mirrors the debt oracle); feePercent = 0 is the operational invariant for BOTH oracles during the standalone phase; NatSpec/spec/tests aligned (the former hazard-demo test now pins the bypass; real-ledger tests re-scoped as future-wiring documentation). Supply artifact regenerated + mirrored post-change.
+- **F2 (P1) — Base-equities gate unresolved**: scope decision recorded separately (plain-ISpoke vs TokenizationSpoke confirmation, Base spoke config + equity fork test, or explicit re-scope to generic Aave V4 infra with owned follow-up).
+- **F3 (P2) — registry role handoff missing**: FIXED — `script/TransferAaveV4ReserveRegistryRoles.s.sol` added (idempotent grant + revoke + verify, `runCheck` mode; MARKET_MANAGER → GOVERNOR, DEFAULT_ADMIN → SUPER_GOVERNOR, Flare override; mirrors the MorphoBlue/UniV3 precedents); registry constructor NatSpec aligned (handoff is a blocking production-activation task; manager never a hot EOA).
+
 ## Post-Remediation State
 
 - `forge fmt --check`: clean. Build: clean.

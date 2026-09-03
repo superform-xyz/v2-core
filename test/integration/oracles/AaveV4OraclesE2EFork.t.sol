@@ -622,10 +622,11 @@ contract AaveV4OraclesE2EForkTest is Test {
                 F. REAL-LEDGER ACCOUNTING E2E (FORK)
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Full accounting round trip with a REAL SuperLedger over REAL accrual: cost basis
-    ///         snapshots at deposit, and the configured fee is charged on the accrued yield only
-    ///         — proving the identity-PPS supply oracle is fee-capable for yield when the
-    ///         executor reports measured asset deltas
+    /// @notice Full accounting round trip with a REAL SuperLedger over REAL accrual (documents
+    ///         the FUTURE-wiring ledger path; production keeps feePercent = 0 and the fee VIEW is
+    ///         bypass-overridden until accounting hooks exist): cost basis snapshots at deposit,
+    ///         and the configured fee is charged on the accrued yield only — proving the
+    ///         identity-PPS oracle's ledger path fees yield, never principal, once wired
     function test_E2E_RealLedger_YieldFee_ChargedOnAccrualOnly() public {
         // Configure: supply oracle, 10% fee, real ledger, this test as the allowed executor
         address[] memory executors = new address[](1);

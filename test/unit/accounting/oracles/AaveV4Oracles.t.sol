@@ -465,17 +465,18 @@ contract AaveV4OraclesTest is Test {
         return keccak256(abi.encodePacked(salt, address(this)));
     }
 
-    /// @notice THE HAZARD, demonstrated on the UNPROTECTED inherited path (supply oracle): with
-    ///         feePercent > 0 and zero cost basis, the ENTIRE amount is treated as profit and the
-    ///         output inflates by the fee. This is the blast radius the debt oracle's feePercent = 0
-    ///         operational invariant exists to prevent on the ledger path.
-    function test_getAssetOutputWithFees_supplyOracle_zeroCostBasis_inflatesByFeeOnWholeAmount() public {
+    /// @notice PR-997 F1 fix pinned: the supply oracle's override BYPASSES the fee view entirely
+    ///         during the standalone phase — with feePercent > 0 and zero cost basis (no hook
+    ///         wiring exists to snapshot), the base implementation would have inflated 500 USDC
+    ///         principal to 550; the override returns identity instead. The ledger path still
+    ///         relies on the feePercent = 0 operational invariant.
+    function test_getAssetOutputWithFees_supplyOracle_overrideBypassesFees_zeroCostBasis() public {
         address mockLedger = address(new MockZeroCostBasisLedger());
         bytes32 id = _registerConfig(keccak256("AAVE_V4_SUPPLY_FEE"), address(supplyOracle), 1000, mockLedger); // 10%
 
         uint256 amount = 500e6;
         uint256 result = supplyOracle.getAssetOutputWithFees(id, usdcKey, address(0), account1, amount);
-        assertEq(result, amount + amount * 1000 / 10_000, "fee applied on entire amount with zero cost basis");
+        assertEq(result, amount, "supply oracle must bypass fee math; principal can never be fee-inflated");
     }
 
     /// @notice The debt oracle's override BYPASSES the fee math entirely — identity output even with
@@ -503,9 +504,10 @@ contract AaveV4OraclesTest is Test {
         assertEq(supplyOracle.getAssetOutputWithFees(id, usdcKey, address(0), account1, 123e6), 123e6);
     }
 
-    /// @notice REAL-LEDGER round trip: with identity PPS and a configured fee, a plain
-    ///         supply-then-withdraw of principal takes a cost-basis snapshot and charges ZERO fee
-    ///         (never-over-charge property, executable proof of the NatSpec claim)
+    /// @notice REAL-LEDGER round trip (documents the FUTURE-wiring ledger path; production keeps
+    ///         feePercent = 0 until accounting hooks exist): with identity PPS and a configured
+    ///         fee, a plain supply-then-withdraw of principal takes a cost-basis snapshot and
+    ///         charges ZERO fee (never-over-charge property on the ledger path)
     function test_realLedger_supplyRoundTrip_principalChargesZeroFee() public {
         address[] memory executors = new address[](1);
         executors[0] = address(this);

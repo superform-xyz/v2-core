@@ -9,7 +9,7 @@
 
 ## Summary
 
-Aave V4 has no Superform accounting oracle on either side, leaving V4 positions (including the new Base tokenized-equities markets) invisible to SuperLedger-family consumers. This spec adds three contracts: **`AaveV4DebtOracle`** (Euler-shaped identity-PPS oracle over `getUserDebt` drawn+premium), **`AaveV4SupplyYieldSourceOracle`** (identity-PPS asset-denominated, fee-capable in shape), and **`AaveV4ReserveRegistry`** (hash-derived pseudo-address keys for `(spoke, reserveId)` pairs, MorphoBlueMarketRegistry governance model). Plus a two-function extension of the vendored `IAaveV4Spoke` for reserve-level TVL aggregates.
+Aave V4 has no Superform accounting oracle on either side, leaving V4 positions (including the new Base tokenized-equities markets) invisible to SuperLedger-family consumers. This spec adds three contracts: **`AaveV4DebtOracle`** (Euler-shaped identity-PPS oracle over `getUserDebt` drawn+premium), **`AaveV4SupplyYieldSourceOracle`** (identity-PPS asset-denominated; fee view bypass-overridden for the standalone phase per PR #997 review F1), and **`AaveV4ReserveRegistry`** (hash-derived pseudo-address keys for `(spoke, reserveId)` pairs, MorphoBlueMarketRegistry governance model). Plus a two-function extension of the vendored `IAaveV4Spoke` for reserve-level TVL aggregates.
 
 Scope-defining finding from research: **all loan hooks are `NONACCOUNTING`** — no loan hook calls `SuperLedger.updateAccounting` today, and the deployed Euler/MorphoBlue debt oracles are equally hook-unwired. These are therefore **standalone accounting oracles** (monitoring/periphery/off-chain consumption), precedent-identical; live fee-pipeline wiring is explicitly out of scope (follow-up ticket). This also forces the supply oracle to identity/asset-denomination (hooks measure wallet deltas in asset units; V4 has no share token).
 
@@ -17,7 +17,7 @@ Scope-defining finding from research: **all loan hooks are `NONACCOUNTING`** —
 
 ### Functional
 1. Debt oracle reports accrued debt (drawn + premium) in borrow-asset units; identity PPS; reserve-level `getTVL` via `getReserveDebt`; fee-bypass override on `getAssetOutputWithFees`.
-2. Supply oracle reports supplied assets; identity PPS; reserve-level `getTVL` via `getReserveSuppliedAssets`; inherited fee-capable path retained (no override).
+2. Supply oracle reports supplied assets; identity PPS; reserve-level `getTVL` via `getReserveSuppliedAssets`; `getAssetOutputWithFees` bypass-overridden for the standalone phase (REVISED per PR #997 F1 — no cost-basis snapshots exist without hook wiring, so the inherited fee view could fee principal); feePercent = 0 operational invariant applies to BOTH oracles until accounting hooks exist.
 3. Registry: hash-derived keys (`keccak256(spoke, reserveId)` → pseudo-address, rebinding impossible by construction), `computeReserveKey` preview, register-time on-chain validation, add-only + 2-day timelocked deregistration, typed errors, shared by both oracles.
 4. Unregistered keys revert typed on every view (never return 0).
 
@@ -40,7 +40,7 @@ Registry storage: `mapping(address key => ReserveInfo{spoke, reserveId, underlyi
 
 ## Implementation Plan
 
-### Phase 0: Gate (before coding)
+### Phase 0: Gate (question list: [joao-call-sheet.md](./joao-call-sheet.md); PR #997 review F2 blocks on these)
 - [ ] Joao call: confirm Base equities use plain `ISpoke`, NOT `TokenizationSpoke` (if TokenizationSpoke → existing `ERC4626YieldSourceOracle` covers it, deliverable shrinks)
 - [ ] Collect Base equities spoke address + reserve ids
 
