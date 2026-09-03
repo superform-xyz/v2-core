@@ -8,51 +8,51 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";
 
-import { SuperVaultAcrossCapBridgeHook } from
-    "../../../src/hooks/bridges/across/SuperVaultAcrossCapBridgeHook.sol";
+import { SuperVaultAcrossCapBridgeHook } from "../../../src/hooks/bridges/across/SuperVaultAcrossCapBridgeHook.sol";
+import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
+import {
+    ICapGuardLike,
+    MockCapGuard,
+    MockPositionRegistry,
+    MockGovernorAddressBook,
+    CapMessageLib
+} from "../../unit/hooks/bridges/CapBridgeTestUtils.sol";
 
-/// @dev View no-op matching the real cap guard (STATICCALL-safe). Tuple asserted via vm.expectCall.
-interface ICapGuardLike {
-    function validateAllocation(address strategy, uint64 chainId, address vault, uint256 amount) external view;
-}
-
-contract MockCapGuard is ICapGuardLike {
-    function validateAllocation(address, uint64, address, uint256) external view { }
-}
-
-contract MockPositionRegistry {
-    mapping(address => uint256) public bridgedOut;
-    mapping(address => mapping(uint64 => uint256)) public bridgedOutByChain;
-
-    function recordBridgedOut(address strategy, uint64 chainId, uint256 amount) external {
-        bridgedOut[strategy] += amount;
-        bridgedOutByChain[strategy][chainId] += amount;
+contract MockAcrossSignatureStorage {
+    function retrieveSignatureData(address) external view returns (bytes memory) {
+        uint48 validUntil = uint48(block.timestamp + 3600);
+        bytes32[] memory proofSrc = new bytes32[](1);
+        proofSrc[0] = keccak256("src1");
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
+        return abi.encode(new uint64[](0), validUntil, 0, keccak256("root"), proofSrc, proofDst, hex"abcdef");
     }
 }
 
-contract MockGovernorAddressBook {
-    bytes32 private constant CROSS_CHAIN_CAP_GUARD = keccak256("CROSS_CHAIN_CAP_GUARD");
-    bytes32 private constant CROSS_CHAIN_POSITION_REGISTRY = keccak256("CROSS_CHAIN_POSITION_REGISTRY");
+/// @dev Minimal destination adapter deployed on the Base fork: receives the Across fill (funds +
+///      message) exactly like AcrossV3Adapter and forwards the funds to the ACCOUNT decoded from
+///      the message — the adapter -> hub-controlled-account hop of the real flow. (The full
+///      adapter -> SuperDestinationExecutor -> vault-shares execution is the destination stack's
+///      own e2e.)
+contract MiniAcrossReceiver {
+    address public lastAccount;
+    bytes32 public lastExecutorCalldataHash;
 
-    address public immutable CAP_GUARD;
-    address public immutable REGISTRY;
-
-    constructor(address capGuard_, address registry_) {
-        CAP_GUARD = capGuard_;
-        REGISTRY = registry_;
-    }
-
-    function getAddress(bytes32 key) external view returns (address) {
-        if (key == CROSS_CHAIN_CAP_GUARD) return CAP_GUARD;
-        if (key == CROSS_CHAIN_POSITION_REGISTRY) return REGISTRY;
-        return address(0);
+    function handleV3AcrossMessage(address tokenSent, uint256 amount, address, bytes memory message) external {
+        (, bytes memory executorCalldata, address account,,,) =
+            abi.decode(message, (bytes, bytes, address, address[], uint256[], bytes));
+        IERC20(tokenSent).transfer(account, amount);
+        lastAccount = account;
+        lastExecutorCalldataHash = keccak256(executorCalldata);
     }
 }
 
 /// @title SuperVaultAcrossCapBridgeHookFork
-/// @notice Fork test: the cap-aware Across hook enforces the cap and produces a depositV3Now call the
-///         REAL mainnet Across SpokePool accepts; pigeon then relays the fill to Base. Proves the
-///         validated (recipient, chainId, amount) equals what actually bridges, end to end.
+/// @notice Fork test of the B1-hardened Across cap hook: the cap binds to the ECONOMIC vault
+///         decoded from the destination message (never the transport recipient); the recipient
+///         must be the approved destination adapter; the real mainnet SpokePool accepts the
+///         deposit WITH the destination message, and pigeon's fill on Base delivers funds+message
+///         to the adapter, which forwards them to the hub-controlled account — not to a bare
+///         test/vault address.
 contract SuperVaultAcrossCapBridgeHookFork is Test {
     // Real Across SpokePools
     address internal constant SPOKE_POOL_ETH = 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5;
@@ -73,55 +73,71 @@ contract SuperVaultAcrossCapBridgeHookFork is Test {
     uint256 internal baseFork;
 
     SuperVaultAcrossCapBridgeHook internal hook;
+    MockAcrossSignatureStorage internal validator;
     MockCapGuard internal capGuard;
     MockPositionRegistry internal registry;
     MockGovernorAddressBook internal governor;
     AcrossV3Helper internal acrossHelper;
+    MiniAcrossReceiver internal adapter; // deployed on the BASE fork (destination side)
 
     address internal account = makeAddr("strategy");
-    address internal recipient = makeAddr("destinationVault");
+    address internal destVault = makeAddr("destinationVault"); // economic destination (B1)
+    address internal dstApproveHook = makeAddr("dstApproveHook");
+    address internal dstDepositHook = makeAddr("dstDepositHook");
     address internal relayer = makeAddr("relayer");
-    address internal validatorStub = makeAddr("validator");
 
     function setUp() public {
         ethFork = vm.createFork(vm.envString("ETHEREUM_RPC_URL"), 23_096_042);
         baseFork = vm.createFork(vm.envString("BASE_RPC_URL"), 33_931_553);
 
-        // Pigeon helper must exist on both forks (it self-selects the destination fork).
+        // Pigeon helper + destination adapter must exist on the Base fork.
         vm.selectFork(baseFork);
         acrossHelper = new AcrossV3Helper();
         vm.allowCheatcodes(address(acrossHelper));
         vm.makePersistent(address(acrossHelper));
+        adapter = new MiniAcrossReceiver();
 
         vm.selectFork(ethFork);
+        validator = new MockAcrossSignatureStorage();
         capGuard = new MockCapGuard();
         registry = new MockPositionRegistry();
         governor = new MockGovernorAddressBook(address(capGuard), address(registry));
-        hook = new SuperVaultAcrossCapBridgeHook(SPOKE_POOL_ETH, validatorStub, address(governor));
+        hook = new SuperVaultAcrossCapBridgeHook(SPOKE_POOL_ETH, address(validator), address(governor));
         hook.setExecutionContext(account);
+
+        // B1 destination policy: the adapter address and the destination hook pair.
+        capGuard.setApprovedAdapter(BASE_CHAIN_ID, address(adapter), true);
+        capGuard.setDestinationHooks(BASE_CHAIN_ID, dstApproveHook, dstDepositHook);
 
         deal(USDC_ETH, account, INPUT_AMOUNT);
     }
 
-    /// @notice Full round trip: cap enforced on ETH, real depositV3Now accepted by the live mainnet
-    ///         SpokePool, pigeon fills on Base, recipient receives USDC. The validated tuple must
-    ///         equal the bridged tuple, and the registry must reflect the in-flight exposure.
+    function _depositMessage() internal view returns (bytes memory) {
+        return CapMessageLib.vaultDepositMessage(
+            account, dstApproveHook, dstDepositHook, destVault, USDC_BASE, OUTPUT_AMOUNT
+        );
+    }
+
+    /// @notice Full round trip: cap enforced on ETH against the ECONOMIC vault; the real SpokePool
+    ///         accepts the deposit with the destination message; pigeon fills on Base; the adapter
+    ///         receives funds+message and forwards them to the hub-controlled account.
     function test_Fork_CapEnforcedThenRealBridgeAndPigeonFill() public {
         vm.selectFork(ethFork);
-        bytes memory data = _encode(BASE_CHAIN_ID, INPUT_AMOUNT, false);
+        bytes memory data = _encode(BASE_CHAIN_ID, INPUT_AMOUNT, false, _depositMessage());
 
-        // The hook must validate exactly the tuple the parent will bridge.
+        // B1: the validated destination is the vault decoded from the message, not the recipient.
         vm.expectCall(
             address(capGuard),
-            abi.encodeCall(ICapGuardLike.validateAllocation, (account, BASE_CHAIN_ID, recipient, INPUT_AMOUNT))
+            abi.encodeCall(ICapGuardLike.validateAllocation, (account, BASE_CHAIN_ID, destVault, INPUT_AMOUNT))
         );
         vm.prank(account);
         hook.preExecute(address(0), account, data);
 
         assertEq(registry.bridgedOut(account), INPUT_AMOUNT, "in-flight exposure not recorded");
         assertEq(registry.bridgedOutByChain(account, BASE_CHAIN_ID), INPUT_AMOUNT, "per-chain exposure not recorded");
+        assertEq(registry.lastVault(), destVault, "reservation must carry the economic vault");
 
-        // Execute the real bridge executions as the account: approve(0), approve(amount), depositV3Now.
+        // Execute the real bridge executions as the account.
         Execution[] memory execs = hook.build(address(0), account, data);
         assertEq(execs[BRIDGE_EXECUTION_INDEX].target, SPOKE_POOL_ETH, "bridge target is not the SpokePool");
 
@@ -134,11 +150,11 @@ contract SuperVaultAcrossCapBridgeHookFork is Test {
         vm.stopPrank();
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        // Funds left the account into the real SpokePool.
         assertEq(IERC20(USDC_ETH).balanceOf(account), 0, "input not pulled by SpokePool");
 
-        // Pigeon relays the V3FundsDeposited log to Base and fills to the recipient.
-        uint256 recipientBefore = _baseBalanceOf(recipient);
+        // Pigeon fills on Base: the real destination SpokePool calls handleV3AcrossMessage on the
+        // adapter, which forwards the funds to the account decoded from the message.
+        uint256 accountBefore = _baseBalanceOf(account);
         acrossHelper.help(
             SPOKE_POOL_ETH,
             SPOKE_POOL_BASE,
@@ -152,17 +168,20 @@ contract SuperVaultAcrossCapBridgeHookFork is Test {
 
         vm.selectFork(baseFork);
         assertEq(
-            IERC20(USDC_BASE).balanceOf(recipient) - recipientBefore, OUTPUT_AMOUNT, "recipient not filled on Base"
+            IERC20(USDC_BASE).balanceOf(account) - accountBefore,
+            OUTPUT_AMOUNT,
+            "funds must reach the hub-controlled account via the adapter"
         );
+        assertEq(adapter.lastAccount(), account, "adapter decoded a different account");
+        assertEq(IERC20(USDC_BASE).balanceOf(address(adapter)), 0, "adapter must not retain funds");
+        assertEq(IERC20(USDC_BASE).balanceOf(destVault), 0, "no raw transfer may reach the vault address");
     }
 
-    /// @notice A cap breach reverts in _preExecute, before any approval/deposit — no funds leave the
-    ///         account and nothing reaches the SpokePool.
+    /// @notice A cap breach reverts in _preExecute, before any approval/deposit.
     function test_Fork_CapBreachRevertsBeforeAnyBridge() public {
         vm.selectFork(ethFork);
-        bytes memory data = _encode(BASE_CHAIN_ID, INPUT_AMOUNT, false);
+        bytes memory data = _encode(BASE_CHAIN_ID, INPUT_AMOUNT, false, _depositMessage());
 
-        // Force the cap guard to reject this allocation.
         vm.mockCallRevert(
             address(capGuard),
             abi.encodeWithSelector(ICapGuardLike.validateAllocation.selector),
@@ -177,6 +196,26 @@ contract SuperVaultAcrossCapBridgeHookFork is Test {
         assertEq(IERC20(USDC_ETH).balanceOf(account), INPUT_AMOUNT, "funds must not move on a breach");
     }
 
+    /// @notice B1: a raw transfer (empty destination message) can no longer leave through the hook.
+    function test_Fork_RevertIf_EmptyDestinationMessage() public {
+        vm.selectFork(ethFork);
+        bytes memory data = _encode(BASE_CHAIN_ID, INPUT_AMOUNT, false, bytes(""));
+        vm.prank(account);
+        vm.expectRevert(); // DESTINATION_ACTION_NOT_VALID
+        hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), 0, "recorded despite raw-transfer send");
+    }
+
+    /// @notice B1: an unapproved recipient (e.g. the vault itself as transport target) is rejected.
+    function test_Fork_RevertIf_RecipientNotApprovedAdapter() public {
+        vm.selectFork(ethFork);
+        capGuard.setApprovedAdapter(BASE_CHAIN_ID, address(adapter), false);
+        bytes memory data = _encode(BASE_CHAIN_ID, INPUT_AMOUNT, false, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(); // TRANSPORT_ADAPTER_NOT_APPROVED
+        hook.preExecute(address(0), account, data);
+    }
+
     function _baseBalanceOf(address who) internal returns (uint256 bal) {
         uint256 prev = vm.activeFork();
         vm.selectFork(baseFork);
@@ -184,11 +223,20 @@ contract SuperVaultAcrossCapBridgeHookFork is Test {
         vm.selectFork(prev);
     }
 
-    function _encode(uint256 chainId, uint256 inputAmount, bool usePrevHookAmount) internal view returns (bytes memory) {
+    function _encode(
+        uint256 chainId,
+        uint256 inputAmount,
+        bool usePrevHookAmount,
+        bytes memory destinationMessage
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
         bytes memory header = abi.encodePacked(
             bytes(new bytes(52)), // strategy header
             uint256(0), // value
-            recipient,
+            address(adapter), // recipient = TRANSPORT adapter (B1)
             USDC_ETH, // inputToken
             USDC_BASE, // outputToken
             inputAmount,
@@ -200,7 +248,8 @@ contract SuperVaultAcrossCapBridgeHookFork is Test {
             address(0), // exclusiveRelayer @240
             uint32(3600), // fillDeadlineOffset @260
             uint32(0), // exclusivityPeriod @264
-            usePrevHookAmount // @268
+            usePrevHookAmount, // @268
+            destinationMessage // @269+
         );
     }
 }

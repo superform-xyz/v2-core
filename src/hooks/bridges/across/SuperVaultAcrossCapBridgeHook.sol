@@ -6,32 +6,8 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 
 // Superform
 import { ApproveAndAcrossSendFundsAndExecuteOnDstHook } from "./ApproveAndAcrossSendFundsAndExecuteOnDstHook.sol";
+import { SuperVaultCapBridgeCommon } from "../SuperVaultCapBridgeCommon.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
-
-/// @notice Minimal view of the SuperGovernor address book (SuperVault periphery). Declared locally
-///         so this hook has no dependency on the periphery package (v2-core is periphery's
-///         dependency, not the reverse).
-interface ISuperGovernorAddressBook {
-    function getAddress(bytes32 key) external view returns (address);
-}
-
-/// @notice Minimal view of the cross-chain cap guard (SuperVault periphery).
-interface ICrossChainPositionCapGuard {
-    function validateAllocation(
-        address strategy,
-        uint64 destinationChainId,
-        address destinationVault,
-        uint256 amount
-    )
-        external
-        view;
-}
-
-/// @notice Minimal surface of the cross-chain position registry (SuperVault periphery). Note
-///         `recordBridgedOut` is state-mutating.
-interface ICrossChainPositionRegistry {
-    function recordBridgedOut(address strategy, uint64 chainId, uint256 amount) external;
-}
 
 /// @title SuperVaultAcrossCapBridgeHook
 /// @author Superform Labs
@@ -44,33 +20,37 @@ interface ICrossChainPositionRegistry {
 ///         execute), which is what makes the cap binding.
 /// @dev The cap guard and position registry are resolved from SuperGovernor AT EXECUTION using the
 ///      same registry keys the periphery guard/registry use (`CROSS_CHAIN_CAP_GUARD`,
-///      `CROSS_CHAIN_POSITION_REGISTRY`). This is deliberate: the periphery cap guard reads
-///      effective exposure from the SuperGovernor-resolved registry, so recording into anything
-///      other than that same registry would let a governance migration silently desync the cap's
-///      in-flight term. Resolving here keeps the write-path (recordBridgedOut) and the read-path
-///      (validateAllocation) pointed at one registry. The hook still imports nothing from periphery.
+///      `CROSS_CHAIN_POSITION_REGISTRY`), keeping the write-path (recordBridgedOut) and the
+///      read-path (validateAllocation) pointed at one registry across governance migrations.
 ///
-///      The cap destination is the Across `recipient`; the destination chain and amount are read
-///      from the same hookData the bridge send uses, so the validated amount is exactly the bridged
-///      amount. Offsets follow the parent layout (52-byte strategy header + hook fields) and are
-///      pinned to the (locked-bytecode) parent — the SuperVaultAcrossCapBridgeHook test asserts the
-///      decoded (recipient, chainId, amount) equals the tuple the parent hands to `depositV3Now`.
+///      ECONOMIC DESTINATION vs TRANSPORT (B1): the Across `recipient` is the bridge TRANSPORT
+///      receiver — in the real destination flow it is the AcrossV3Adapter, which forwards funds
+///      and the message to SuperDestinationExecutor; it is NOT the economic destination. This hook
+///      therefore:
+///      - requires `recipient` to be a governance-approved destination adapter for the canonical
+///        destination chain;
+///      - decodes the `destinationMessage` into a strictly typed destination action (idle-hold on
+///        the hub-controlled destination account, or a deposit into exactly one vault via the
+///        governance-pinned destination hook pair);
+///      - validates the cap and records the in-flight reservation against the canonical
+///        (destinationChainId, destinationVault) extracted from that action.
+///      An empty destinationMessage (a raw token transfer) is rejected: it mints no controlled
+///      shares and establishes no registrable position.
 ///
-///      IDLE-HOLD: the periphery guard treats `destinationVault == address(0)` as an idle-hold
-///      escrow branch, but the parent bridge builder reverts on `recipient == address(0)`. Since the
-///      cap destination IS the Across recipient, idle-hold is unreachable through this hook; every
-///      allocation is validated through the `approvedDestinationVault` branch.
+///      The destination chain and amount are read from the same hookData the bridge send uses, so
+///      the validated amount is exactly the amount the parent hands to `depositV3Now` (offsets are
+///      pinned by the offset-equivalence unit test).
 ///
 ///      REFUND: the parent passes the strategy `account` as the Across depositor, so an unfilled
 ///      deposit refunds principal to the strategy on the origin chain. The in-flight reservation
-///      recorded here is released when the paired Pending position is confirmed, or reclaimed via
-///      the registry's permissionless `invalidateExpiredPending` once it times out.
+///      recorded here is reconciled 1:1 by the registry: consumed by exactly one position
+///      registration, released on confirmation, or reclaimed after the reservation timeout.
 ///
 ///      SECURITY INVARIANT (not machine-enforced here): the cap only binds if every fund-exiting
 ///      leaf for a cap-enabled strategy routes through a cap-aware hook. Authorizing any uncapped
 ///      bridge/transfer hook for such a strategy bypasses the cap. Treat "only cap-aware bridge
 ///      hooks registered on host chains" as a monitored governance invariant.
-contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnDstHook {
+contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnDstHook, SuperVaultCapBridgeCommon {
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -81,23 +61,11 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
     uint256 private constant INPUT_AMOUNT_OFFSET = 144;
     uint256 private constant DST_CHAIN_ID_OFFSET = 208;
     uint256 private constant USE_PREV_HOOK_AMOUNT_OFFSET = 268;
+    uint256 private constant DESTINATION_MESSAGE_OFFSET = 269;
 
     /// @dev Minimum hookData length the cap decode requires: the usePrevHookAmount bool sits at
     ///      offset 268, so the buffer must be at least 269 bytes before any fixed-offset read.
     uint256 private constant MIN_CAP_DATA_LENGTH = 269;
-
-    /// @dev SuperGovernor address-book keys — identical to the periphery constants so the resolved
-    ///      guard/registry match what the cap math reads.
-    bytes32 private constant CROSS_CHAIN_CAP_GUARD = keccak256("CROSS_CHAIN_CAP_GUARD");
-    bytes32 private constant CROSS_CHAIN_POSITION_REGISTRY = keccak256("CROSS_CHAIN_POSITION_REGISTRY");
-
-    /*//////////////////////////////////////////////////////////////
-                                STORAGE
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice SuperGovernor address book — single source of truth for the cap guard and position
-    ///         registry, resolved at execution time (SuperVault periphery).
-    ISuperGovernorAddressBook public immutable SUPER_GOVERNOR;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -112,9 +80,9 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
         address superGovernor_
     )
         ApproveAndAcrossSendFundsAndExecuteOnDstHook(spokePoolV3_, validator_)
+        SuperVaultCapBridgeCommon(superGovernor_)
     {
         if (superGovernor_ == address(0)) revert ADDRESS_NOT_VALID();
-        SUPER_GOVERNOR = ISuperGovernorAddressBook(superGovernor_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -122,45 +90,64 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Runs BEFORE the approve/bridge executions (called by the strategy=account). Validates
-    ///      the allocation against the cross-chain caps and records the in-flight exposure. A cap
-    ///      breach (or stale AUM) reverts here, aborting the whole executeHooks batch; if the later
-    ///      bridge send reverts, the reservation is rolled back with the transaction. Preserves the
-    ///      parent pipe-mode passthrough behaviour via `super`.
+    ///      the allocation against the cross-chain caps and records the in-flight reservation. A
+    ///      cap breach (or stale AUM, unapproved adapter, untyped destination action) reverts here,
+    ///      aborting the whole executeHooks batch; if the later bridge send reverts, the
+    ///      reservation is rolled back with the transaction. Preserves the parent pipe-mode
+    ///      passthrough behaviour via `super`.
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         super._preExecute(prevHook, account, data);
 
-        // Guard the fixed-offset reads with the typed error before touching any offset. `_preExecute`
-        // runs before the parent's `_buildHookExecutions` length check, so without this a short
-        // buffer would revert with the vendor lib's untyped out-of-bounds error.
-        if (data.length < MIN_CAP_DATA_LENGTH) revert DATA_NOT_VALID();
-
-        // The parent forwards the FULL uint256 destinationChainId to the SpokePool. Validate the same
-        // full value (rejecting anything above uint64) so the truncated cap/registry key cannot
-        // disagree with the chain the bridge is actually instructed to use.
-        uint256 rawChainId = BytesLib.toUint256(data, DST_CHAIN_ID_OFFSET);
-        if (rawChainId > type(uint64).max) revert DATA_NOT_VALID();
-        uint64 chainId = uint64(rawChainId);
-
-        address recipient = BytesLib.toAddress(data, RECIPIENT_OFFSET);
+        (uint64 chainId, address transportAdapter, bytes memory destinationMessage) = _decodeCapFields(data);
 
         // The amount validated is the amount the bridge will actually send.
         uint256 amount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_OFFSET)
             ? ISuperHookResult(prevHook).getOutAmount(account)
             : BytesLib.toUint256(data, INPUT_AMOUNT_OFFSET);
 
-        // Resolve guard + registry from SuperGovernor at call time (same keys the periphery uses), so
-        // the registry recorded into is always the one the cap check reads from.
-        ICrossChainPositionCapGuard(SUPER_GOVERNOR.getAddress(CROSS_CHAIN_CAP_GUARD)).validateAllocation(
-            account, chainId, recipient, amount
-        );
-        ICrossChainPositionRegistry(SUPER_GOVERNOR.getAddress(CROSS_CHAIN_POSITION_REGISTRY)).recordBridgedOut(
-            account, chainId, amount
+        _enforceCrossChainCap(account, chainId, transportAdapter, amount, destinationMessage);
+    }
+
+    /// @inheritdoc ApproveAndAcrossSendFundsAndExecuteOnDstHook
+    /// @dev B1 leaf: pins the parent transport fields PLUS the cap dimensions — cap guard,
+    ///      canonical destination chain, economic destination vault, destination action type and
+    ///      the amount-source mode — so one approved leaf authorizes exactly one destination
+    ///      configuration. Mutating only the executor calldata (a different vault) changes the
+    ///      leaf and falls outside the approved root.
+    function inspect(bytes calldata data) external view override returns (bytes memory) {
+        (uint64 chainId, address transportAdapter, bytes memory destinationMessage) = _decodeCapFields(data);
+
+        return abi.encodePacked(
+            transportAdapter, // recipient = destination adapter (transport)
+            BytesLib.toAddress(data, 104), // inputToken
+            BytesLib.toAddress(data, 124), // outputToken
+            BytesLib.toAddress(data, 240), // exclusiveRelayer
+            // cap guard, canonical chain id, destination vault, action type, amount-source mode
+            _capLeafSuffix(chainId, destinationMessage, _decodeBool(data, USE_PREV_HOOK_AMOUNT_OFFSET))
         );
     }
 
-    // NOTE on the merkle leaf: `inspect()` is inherited from the parent (recipient, tokens,
-    // relayer) and is not re-overridable. The parent leaf omits the destination chain id, but chain
-    // specificity is enforced at EXECUTION: `_preExecute` reads chainId and `validateAllocation`
-    // requires the (chainId, recipient) pair to be an approved, enabled destination, so reusing an
-    // approved leaf with a different chain reverts the cap check.
+    /*//////////////////////////////////////////////////////////////
+                                INTERNAL
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Shared decode for `_preExecute` and `inspect`: canonical chain id (the full uint256 the
+    ///      parent forwards to the SpokePool, rejected above uint64 so the cap/registry key cannot
+    ///      disagree with the chain the bridge is instructed to use), the transport receiver, and
+    ///      the raw destination message.
+    function _decodeCapFields(bytes calldata data)
+        internal
+        pure
+        returns (uint64 chainId, address transportAdapter, bytes memory destinationMessage)
+    {
+        // Guard the fixed-offset reads with the typed error before touching any offset.
+        if (data.length < MIN_CAP_DATA_LENGTH) revert DATA_NOT_VALID();
+
+        uint256 rawChainId = BytesLib.toUint256(data, DST_CHAIN_ID_OFFSET);
+        if (rawChainId > type(uint64).max) revert DATA_NOT_VALID();
+        chainId = uint64(rawChainId);
+
+        transportAdapter = BytesLib.toAddress(data, RECIPIENT_OFFSET);
+        destinationMessage = data[DESTINATION_MESSAGE_OFFSET:];
+    }
 }

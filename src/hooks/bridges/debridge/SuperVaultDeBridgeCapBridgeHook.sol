@@ -2,36 +2,13 @@
 pragma solidity 0.8.30;
 
 // external
+import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { IDlnSource } from "../../../vendor/bridges/debridge/IDlnSource.sol";
 
 // Superform
 import { DeBridgeSendOrderAndExecuteOnDstHook } from "./DeBridgeSendOrderAndExecuteOnDstHook.sol";
+import { SuperVaultCapBridgeCommon } from "../SuperVaultCapBridgeCommon.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
-
-/// @notice Minimal view of the SuperGovernor address book (SuperVault periphery). Declared locally
-///         so this hook has no dependency on the periphery package (v2-core is periphery's
-///         dependency, not the reverse).
-interface ISuperGovernorAddressBook {
-    function getAddress(bytes32 key) external view returns (address);
-}
-
-/// @notice Minimal view of the cross-chain cap guard (SuperVault periphery).
-interface ICrossChainPositionCapGuard {
-    function validateAllocation(
-        address strategy,
-        uint64 destinationChainId,
-        address destinationVault,
-        uint256 amount
-    )
-        external
-        view;
-}
-
-/// @notice Minimal surface of the cross-chain position registry (SuperVault periphery). Note
-///         `recordBridgedOut` is state-mutating.
-interface ICrossChainPositionRegistry {
-    function recordBridgedOut(address strategy, uint64 chainId, uint256 amount) external;
-}
 
 /// @title SuperVaultDeBridgeCapBridgeHook
 /// @author Superform Labs
@@ -44,65 +21,52 @@ interface ICrossChainPositionRegistry {
 ///         cannot execute), which is what makes the cap binding.
 /// @dev The cap guard and position registry are resolved from SuperGovernor AT EXECUTION using the
 ///      same registry keys the periphery guard/registry use (`CROSS_CHAIN_CAP_GUARD`,
-///      `CROSS_CHAIN_POSITION_REGISTRY`). Resolving here keeps the write-path (recordBridgedOut)
-///      and the read-path (validateAllocation) pointed at one registry, so a governance migration
-///      cannot silently desync the cap's in-flight term. The hook imports nothing from periphery.
+///      `CROSS_CHAIN_POSITION_REGISTRY`), keeping the write-path (recordBridgedOut) and the
+///      read-path (validateAllocation) pointed at one registry across governance migrations.
 ///
-///      DECODE: unlike the Across cap hook (fixed offsets), the deBridge hookData layout is dynamic
-///      — variable-length fields (destinationMessage, takeTokenAddress, receiverDst, …) place the
-///      cap fields at data-dependent offsets. This hook therefore reuses the parent's internal
+///      ECONOMIC DESTINATION vs TRANSPORT (B1): the order `receiverDst` is the bridge TRANSPORT
+///      receiver — in the real destination flow it is the DebridgeAdapter, which forwards funds
+///      and the external-call payload to SuperDestinationExecutor; it is NOT the economic
+///      destination. This hook therefore:
+///      - requires `receiverDst` to be a governance-approved destination adapter for the canonical
+///        destination chain, and requires the external-call `executorAddress` to be that SAME
+///        adapter (the contract deBridge hands the payload to);
+///      - requires the external-call `fallbackAddress` to be the hub strategy account, so a failed
+///        destination execution strands funds only on the hub-controlled account;
+///      - decodes the destination payload into a strictly typed destination action (idle-hold on
+///        the hub-controlled destination account, or a deposit into exactly one vault via the
+///        governance-pinned destination hook pair);
+///      - validates the cap and records the in-flight reservation against the canonical
+///        (takeChainId, destinationVault) extracted from that action.
+///      An order with NO external call (a raw token transfer to receiverDst) is rejected: it mints
+///      no controlled shares and establishes no registrable position.
+///
+///      DECODE: the deBridge hookData layout is dynamic, so this hook reuses the parent's internal
 ///      `_createOrder(data, "")` decode (the same call the parent's own `inspect()` makes) to read
-///      the exact `(receiverDst, takeChainId, giveAmount)` the bridge will use, so validated-tuple
-///      == bridged-tuple by construction. Passing an empty signature is safe: the signature only
-///      feeds the `externalCall` envelope and never affects those three fields.
-///
-///      The cap destination is the order `receiverDst` (EVM-only for SuperVaults — a non-20-byte
-///      destination, e.g. a 32-byte Solana pubkey, is rejected fail-closed); the destination chain
-///      is `takeChainId` (deBridge's namespace, which equals the EVM chainId for EVM destinations);
-///      the amount is the `giveAmount` the order actually gives (the previous hook's output under
-///      usePrevHookAmount, matching the parent's own resolution).
-///
-///      IDLE-HOLD: the periphery guard treats `destinationVault == address(0)` as an idle-hold
-///      escrow branch. The deBridge parent (unlike Across) does NOT revert on a zero receiver, so
-///      this hook rejects `recipient == address(0)` explicitly, keeping every allocation on the
-///      `approvedDestinationVault` branch and idle-hold unreachable through this hook.
+///      the exact order the bridge will create — validated-tuple == bridged-tuple by construction.
+///      Passing an empty signature is safe: the signature only feeds the `externalCall` envelope
+///      payload tail and never affects the validated fields.
 ///
 ///      SECURITY INVARIANT (not machine-enforced here): the cap only binds if every fund-exiting
-///      leaf for a cap-enabled strategy routes through a cap-aware hook. Authorizing any uncapped
-///      bridge/transfer hook for such a strategy bypasses the cap. Treat "only cap-aware bridge
-///      hooks registered on host chains" as a monitored governance invariant. Governance must
-///      register `approvedDestination(chainId, vault)` under the deBridge `takeChainId` value.
-contract SuperVaultDeBridgeCapBridgeHook is DeBridgeSendOrderAndExecuteOnDstHook {
+///      leaf for a cap-enabled strategy routes through a cap-aware hook. Treat "only cap-aware
+///      bridge hooks registered on host chains" as a monitored governance invariant.
+contract SuperVaultDeBridgeCapBridgeHook is DeBridgeSendOrderAndExecuteOnDstHook, SuperVaultCapBridgeCommon {
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
     /// @dev usePrevHookAmount bool offset — mirrors the parent (whose constant is private); drift is
-    ///      caught by the offset-equivalence unit test, not by the compiler. No amount offset is
-    ///      mirrored: the validated amount comes from `_createOrder(...).giveAmount`, not a fixed
-    ///      offset, so there is one less constant that can drift than on the Across hook.
+    ///      caught by the offset-equivalence unit test, not by the compiler.
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
-
-    /// @dev SuperGovernor address-book keys — identical to the periphery constants so the resolved
-    ///      guard/registry match what the cap math reads.
-    bytes32 private constant CROSS_CHAIN_CAP_GUARD = keccak256("CROSS_CHAIN_CAP_GUARD");
-    bytes32 private constant CROSS_CHAIN_POSITION_REGISTRY = keccak256("CROSS_CHAIN_POSITION_REGISTRY");
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Thrown when the decoded destination is not an EVM address (receiverDst length != 20)
-    ///         or the destination chain id does not fit in a uint64
+    /// @notice Thrown when the decoded destination is not an EVM address (receiverDst length != 20),
+    ///         the destination chain id does not fit in a uint64, or the external-call envelope's
+    ///         executor/fallback do not match the approved adapter / hub account
     error DATA_NOT_VALID();
-
-    /*//////////////////////////////////////////////////////////////
-                                STORAGE
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice SuperGovernor address book — single source of truth for the cap guard and position
-    ///         registry, resolved at execution time (SuperVault periphery).
-    ISuperGovernorAddressBook public immutable SUPER_GOVERNOR;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -117,9 +81,9 @@ contract SuperVaultDeBridgeCapBridgeHook is DeBridgeSendOrderAndExecuteOnDstHook
         address superGovernor_
     )
         DeBridgeSendOrderAndExecuteOnDstHook(dlnSource_, validator_)
+        SuperVaultCapBridgeCommon(superGovernor_)
     {
         if (superGovernor_ == address(0)) revert ADDRESS_NOT_VALID();
-        SUPER_GOVERNOR = ISuperGovernorAddressBook(superGovernor_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -127,52 +91,108 @@ contract SuperVaultDeBridgeCapBridgeHook is DeBridgeSendOrderAndExecuteOnDstHook
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Runs BEFORE the createOrder execution (called by the strategy=account). Validates the
-    ///      allocation against the cross-chain caps and records the in-flight exposure. A cap breach
-    ///      (or stale AUM) reverts here, aborting the whole executeHooks batch; if the later order
-    ///      send reverts, the reservation is rolled back with the transaction. Preserves the parent
-    ///      pipe-mode behaviour via `super`.
+    ///      allocation against the cross-chain caps and records the in-flight reservation. A cap
+    ///      breach (or stale AUM, unapproved adapter, untyped destination action) reverts here,
+    ///      aborting the whole executeHooks batch; if the later order send reverts, the reservation
+    ///      is rolled back with the transaction. Preserves the parent pipe-mode behaviour via
+    ///      `super`.
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         super._preExecute(prevHook, account, data);
 
-        // Reuse the parent's decode (same call its inspect() makes) so the validated tuple is
-        // exactly what the bridge will send. Malformed/short data reverts here via the vendor lib's
-        // bounds check — identical to the parent's own build()/inspect() on the same buffer.
-        (IDlnSource.OrderCreation memory order,,,) = _createOrder(data, "");
+        CapFields memory f = _decodeCapFields(data);
 
-        // receiverDst is EVM-only for SuperVault caps: fail closed on a non-20-byte (e.g. 32-byte
-        // Solana) destination instead of truncating it to a wrong address.
-        if (order.receiverDst.length != 20) revert DATA_NOT_VALID();
-        address recipient = address(bytes20(order.receiverDst));
-        // The deBridge parent does not revert on a zero receiver; reject it so idle-hold
-        // (destinationVault == 0) stays unreachable through this hook.
-        if (recipient == address(0)) revert ADDRESS_NOT_VALID();
-
-        // takeChainId is forwarded as a full uint256 to DlnSource; reject anything above uint64 so
-        // the truncated cap/registry key cannot disagree with the chain the order actually targets.
-        uint256 rawChainId = order.takeChainId;
-        if (rawChainId > type(uint64).max) revert DATA_NOT_VALID();
-        uint64 chainId = uint64(rawChainId);
+        // A failed destination execution must strand funds only on the hub-controlled account.
+        // Runtime-only: `inspect` cannot know the executing account.
+        if (f.fallbackAddress != account) revert DATA_NOT_VALID();
 
         // The amount validated is the amount the order actually gives. Under usePrevHookAmount the
         // parent sets giveAmount = prev.getOutAmount(account), so read the same value here.
         uint256 amount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)
             ? ISuperHookResult(prevHook).getOutAmount(account)
-            : order.giveAmount;
+            : f.orderGiveAmount;
 
-        // Resolve guard + registry from SuperGovernor at call time (same keys the periphery uses),
-        // so the registry recorded into is always the one the cap check reads from.
-        ICrossChainPositionCapGuard(SUPER_GOVERNOR.getAddress(CROSS_CHAIN_CAP_GUARD)).validateAllocation(
-            account, chainId, recipient, amount
-        );
-        ICrossChainPositionRegistry(SUPER_GOVERNOR.getAddress(CROSS_CHAIN_POSITION_REGISTRY)).recordBridgedOut(
-            account, chainId, amount
+        _enforceCrossChainCap(account, f.chainId, f.transportAdapter, amount, f.destinationMessage);
+    }
+
+    /// @inheritdoc DeBridgeSendOrderAndExecuteOnDstHook
+    /// @dev B1 leaf: pins the parent order-authority fields PLUS the cap dimensions — cap guard,
+    ///      canonical destination chain, economic destination vault, destination action type and
+    ///      the amount-source mode — so one approved leaf authorizes exactly one destination
+    ///      configuration. Mutating only the external-call payload (a different vault) changes the
+    ///      leaf and falls outside the approved root.
+    function inspect(bytes calldata data) external view override returns (bytes memory) {
+        (IDlnSource.OrderCreation memory order,,,) = _createOrder(data, "");
+        CapFields memory f = _decodeCapFields(data);
+
+        return abi.encodePacked(
+            order.giveTokenAddress,
+            address(bytes20(order.takeTokenAddress)),
+            f.transportAdapter, // receiverDst = destination adapter (transport)
+            order.givePatchAuthoritySrc,
+            address(bytes20(order.orderAuthorityAddressDst)),
+            address(bytes20(order.allowedCancelBeneficiarySrc)),
+            // cap guard, canonical chain id, destination vault, action type, amount-source mode
+            _capLeafSuffix(f.chainId, f.destinationMessage, _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION))
         );
     }
 
-    // NOTE on the merkle leaf: `inspect()` is inherited from the parent (giveToken, takeToken,
-    // receiverDst, givePatchAuthoritySrc, orderAuthorityAddressDst, allowedCancelBeneficiarySrc) and
-    // is not re-overridden. The parent leaf omits takeChainId, but chain specificity is enforced at
-    // EXECUTION: `_preExecute` reads takeChainId and `validateAllocation` requires the
-    // (chainId, recipient) pair to be an approved, enabled destination, so reusing an approved leaf
-    // with a different chain reverts the cap check.
+    /*//////////////////////////////////////////////////////////////
+                                INTERNAL
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Bundle to keep stacks shallow across the shared decode.
+    struct CapFields {
+        uint64 chainId;
+        address transportAdapter;
+        address fallbackAddress;
+        uint256 orderGiveAmount;
+        bytes destinationMessage;
+    }
+
+    /// @dev Shared decode for `_preExecute` and `inspect`. Recreates the exact order the parent
+    ///      will send (empty signature — it only affects the payload tail), enforces the EVM-only
+    ///      and uint64 bounds, unwraps the external-call envelope and validates its executor
+    ///      binding, and re-encodes the raw 5-tuple destination message for the common
+    ///      typed-action validation. The fallback binding is account-dependent and checked by
+    ///      `_preExecute` only.
+    function _decodeCapFields(bytes calldata data) internal pure returns (CapFields memory f) {
+        (IDlnSource.OrderCreation memory order,,,) = _createOrder(data, "");
+        f.orderGiveAmount = order.giveAmount;
+
+        // receiverDst is EVM-only for SuperVault caps: fail closed on a non-20-byte (e.g. 32-byte
+        // Solana) destination instead of truncating it to a wrong address.
+        if (order.receiverDst.length != 20) revert DATA_NOT_VALID();
+        f.transportAdapter = address(bytes20(order.receiverDst));
+        if (f.transportAdapter == address(0)) revert ADDRESS_NOT_VALID();
+
+        // takeChainId is forwarded as a full uint256 to DlnSource; reject anything above uint64 so
+        // the truncated cap/registry key cannot disagree with the chain the order actually targets.
+        if (order.takeChainId > type(uint64).max) revert DATA_NOT_VALID();
+        f.chainId = uint64(order.takeChainId);
+
+        // An order without an external call is a raw transfer to receiverDst — not a typed
+        // destination action.
+        if (order.externalCall.length <= 1) revert DESTINATION_ACTION_NOT_VALID();
+
+        // externalCall = abi.encodePacked(uint8 version, abi.encode(ExternalCallEnvelopV1)).
+        IDlnSource.ExternalCallEnvelopV1 memory envelope = abi.decode(
+            BytesLib.slice(order.externalCall, 1, order.externalCall.length - 1), (IDlnSource.ExternalCallEnvelopV1)
+        );
+
+        // The payload is executed by `executorAddress`; it must be the SAME approved adapter that
+        // receives the funds.
+        if (envelope.executorAddress != f.transportAdapter) revert DATA_NOT_VALID();
+        f.fallbackAddress = envelope.fallbackAddress;
+
+        // payload = abi.encode(initData, executorCalldata, account, dstTokens, intentAmounts, sig).
+        (
+            bytes memory initData,
+            bytes memory executorCalldata,
+            address dstAccount,
+            address[] memory dstTokens,
+            uint256[] memory intentAmounts,
+        ) = abi.decode(envelope.payload, (bytes, bytes, address, address[], uint256[], bytes));
+
+        f.destinationMessage = abi.encode(initData, executorCalldata, dstAccount, dstTokens, intentAmounts);
+    }
 }
