@@ -17,6 +17,43 @@ import { SuperLedger } from "../../../src/accounting/SuperLedger.sol";
 import { AaveV4SupplyAndBorrowHookV2 } from "../../../src/hooks/loan/aave-v4/AaveV4SupplyAndBorrowHookV2.sol";
 import { AaveV4RepayHookV2 } from "../../../src/hooks/loan/aave-v4/AaveV4RepayHookV2.sol";
 import { AaveV4RepayAndWithdrawHookV2 } from "../../../src/hooks/loan/aave-v4/AaveV4RepayAndWithdrawHookV2.sol";
+import { TransferAaveV4ReserveRegistryRoles } from "../../../script/TransferAaveV4ReserveRegistryRoles.s.sol";
+
+/// @dev Exposes the role-handoff script's internal address constants so the E2E tests stay in
+///      lockstep with the actual script — a script address change breaks these tests
+contract TransferRolesHarness is TransferAaveV4ReserveRegistryRoles {
+    function governor() external pure returns (address) {
+        return GOVERNOR;
+    }
+
+    function superGovernor(uint64 chainId) external pure returns (address) {
+        return _getSuperGovernor(chainId);
+    }
+
+    function deployerAddr() external pure returns (address) {
+        return DEPLOYER;
+    }
+}
+
+/// @dev Ledger mock treating the ENTIRE amount as profit — the adversarial config that would
+///      inflate quotes through the inherited fee view if the bypass override were missing
+contract MockZeroCostBasisLedgerE2E {
+    function previewFees(
+        address,
+        address,
+        uint256 amountAssets,
+        uint256,
+        uint256 feePercent,
+        uint256,
+        uint256
+    )
+        external
+        pure
+        returns (uint256)
+    {
+        return amountAssets * feePercent / 10_000;
+    }
+}
 
 /// @notice End-to-end fork tests for the Aave V4 accounting oracles against the live Ethereum
 ///         Main Spoke, exercising ALL 14 live reserves at the pinned block plus full position
@@ -147,8 +184,16 @@ contract AaveV4OraclesE2EForkTest is Test {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            bytes32(0), address(0), loanToken, collateralToken, SPOKE, supplyReserveId, borrowReserveId, amount1,
-            amount2, uint8(0)
+            bytes32(0),
+            address(0),
+            loanToken,
+            collateralToken,
+            SPOKE,
+            supplyReserveId,
+            borrowReserveId,
+            amount1,
+            amount2,
+            uint8(0)
         );
     }
 
@@ -157,7 +202,8 @@ contract AaveV4OraclesE2EForkTest is Test {
     function _executeAs(address account, Execution[] memory executions) internal {
         for (uint256 i; i < executions.length; ++i) {
             vm.prank(account);
-            (bool ok, bytes memory ret) = executions[i].target.call{ value: executions[i].value }(executions[i].callData);
+            (bool ok, bytes memory ret) =
+                executions[i].target.call{ value: executions[i].value }(executions[i].callData);
             require(ok, string(ret));
         }
     }
@@ -797,5 +843,179 @@ contract AaveV4OraclesE2EForkTest is Test {
         // Same-block re-registration restores the identical key and exact live values
         assertEq(registry.registerReserve(SPOKE, 7), keys[7]);
         assertEq(debtOracle.getBalanceOfOwner(keys[7], user1), drawn + premium, "exact live values restored");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            H. PR-997 F1: FEE-VIEW BYPASS ON REAL POSITIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Registers an adversarial fee config (10%, zero-cost-basis ledger) for `oracle_`
+    function _registerAdversarialFeeConfig(bytes32 salt, address oracle_) internal returns (bytes32) {
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: oracle_,
+            feePercent: 1000, // 10% — the misconfiguration the bypass must neutralize
+            feeRecipient: makeAddr("feeRecipient"),
+            ledger: address(new MockZeroCostBasisLedgerE2E())
+        });
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = salt;
+        SuperLedgerConfiguration(ledgerConfig).setYieldSourceOracles(salts, configs);
+        return keccak256(abi.encodePacked(salt, address(this)));
+    }
+
+    /// @notice F1 fix pinned on a REAL position: with a misconfigured 10% fee and no cost-basis
+    ///         snapshot (nothing is wired), the supply oracle's fee view returns exactly the
+    ///         requested amount — the pre-fix inherited view would have quoted supplied × 1.1
+    function test_E2E_F1_SupplyFeeView_BypassesOnRealPosition() public {
+        _openPosition(user1, WETH, 0, 10 ether, 7, 1000e6);
+        bytes32 id = _registerAdversarialFeeConfig(keccak256("E2E_F1_SUPPLY"), address(supplyOracle));
+
+        uint256 supplied = supplyOracle.getBalanceOfOwner(keys[0], user1);
+        uint256 quote = supplyOracle.getAssetOutputWithFees(id, keys[0], WETH, user1, supplied);
+
+        assertEq(quote, supplied, "bypass: quote == requested amount, never fee-inflated");
+        assertLt(quote, supplied + supplied * 1000 / 10_000, "pre-fix inflated quote is impossible");
+    }
+
+    /// @notice F1 impact scenario disproved end-to-end: a withdrawal quote through the fee view
+    ///         can never request more assets than the position actually releases
+    function test_E2E_F1_WithdrawQuote_NeverExceedsReleasable() public {
+        _openPosition(user1, WETH, 0, 10 ether, 7, 100e6);
+        bytes32 id = _registerAdversarialFeeConfig(keccak256("E2E_F1_QUOTE"), address(supplyOracle));
+
+        // Clear the small debt so a full withdrawal is possible
+        deal(USDC, user1, 200e6);
+        _approve(USDC, user1, SPOKE, type(uint256).max);
+        vm.prank(user1);
+        IAaveV4Spoke(SPOKE).repay(7, type(uint256).max, user1);
+
+        uint256 supplied = supplyOracle.getBalanceOfOwner(keys[0], user1);
+        uint256 quote = supplyOracle.getAssetOutputWithFees(id, keys[0], WETH, user1, supplied);
+
+        uint256 wethBefore = IERC20(WETH).balanceOf(user1);
+        vm.prank(user1);
+        IAaveV4Spoke(SPOKE).withdraw(0, type(uint256).max, user1);
+        uint256 released = IERC20(WETH).balanceOf(user1) - wethBefore;
+
+        assertLe(quote, released + 1, "quote never exceeds what the position releases");
+        assertApproxEqAbs(quote, released, 1, "identity quote matches the actual release");
+    }
+
+    /// @notice Both oracles bypass identically under the same adversarial config on real keys
+    function test_E2E_F1_BothOracles_BypassParity() public {
+        _openPosition(user1, WETH, 0, 10 ether, 7, 5000e6);
+        bytes32 supplyId = _registerAdversarialFeeConfig(keccak256("E2E_F1_PARITY_S"), address(supplyOracle));
+        bytes32 debtId = _registerAdversarialFeeConfig(keccak256("E2E_F1_PARITY_D"), address(debtOracle));
+
+        uint256 debt = debtOracle.getBalanceOfOwner(keys[7], user1);
+        assertEq(debtOracle.getAssetOutputWithFees(debtId, keys[7], USDC, user1, debt), debt, "debt view bypasses");
+        uint256 supplied = supplyOracle.getBalanceOfOwner(keys[0], user1);
+        assertEq(
+            supplyOracle.getAssetOutputWithFees(supplyId, keys[0], WETH, user1, supplied),
+            supplied,
+            "supply view bypasses"
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            I. PR-997 F3: ROLE HANDOFF SEQUENCE ON FORK
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The exact handoff sequence TransferAaveV4ReserveRegistryRoles performs, executed
+    ///         against a fork-deployed registry with the script's REAL addresses (harness-coupled):
+    ///         final role matrix, loss of deployer power, and operational continuity under the
+    ///         governor — all verified against the live spoke
+    function test_E2E_F3_RoleHandoff_SequenceAndOperationalContinuity() public {
+        TransferRolesHarness script_ = new TransferRolesHarness();
+        address deployer = script_.deployerAddr();
+        address gov = script_.governor();
+        address superGov = script_.superGovernor(1); // Ethereum fork → default Super Governor
+
+        // Fresh registry with the real DEPLOYER as bootstrap admin (mirrors DeployV2Core)
+        AaveV4ReserveRegistry reg = new AaveV4ReserveRegistry(deployer);
+        bytes32 MANAGER = reg.MARKET_MANAGER_ROLE();
+        bytes32 ADMIN = reg.DEFAULT_ADMIN_ROLE();
+
+        // ---- The script's sequence: grant both, then revoke both from deployer ----
+        vm.startPrank(deployer);
+        reg.grantRole(MANAGER, gov);
+        reg.grantRole(ADMIN, superGov);
+        reg.revokeRole(MANAGER, deployer);
+        reg.revokeRole(ADMIN, deployer);
+        vm.stopPrank();
+
+        // ---- Final state matrix (the script's _isFullyTransferred conditions) ----
+        assertTrue(reg.hasRole(MANAGER, gov), "governor holds MARKET_MANAGER");
+        assertTrue(reg.hasRole(ADMIN, superGov), "super governor holds ADMIN");
+        assertFalse(reg.hasRole(MANAGER, deployer), "deployer fully revoked (manager)");
+        assertFalse(reg.hasRole(ADMIN, deployer), "deployer fully revoked (admin)");
+
+        // ---- Deployer has lost all power ----
+        vm.startPrank(deployer);
+        vm.expectRevert();
+        reg.registerReserve(SPOKE, 0);
+        vm.expectRevert();
+        reg.grantRole(MANAGER, deployer); // cannot self-restore
+        vm.stopPrank();
+
+        // ---- Operational continuity: governor registers a REAL reserve ----
+        vm.prank(gov);
+        address key = reg.registerReserve(SPOKE, 0);
+        assertEq(key, reg.computeReserveKey(SPOKE, 0));
+        assertTrue(reg.isRegistered(key));
+
+        // Governor can run the deregistration lifecycle too
+        vm.startPrank(gov);
+        reg.proposeDeregisterReserve(key);
+        reg.cancelDeregisterReserve(key);
+        vm.stopPrank();
+
+        // ---- Separation of duties: governor is not admin ----
+        vm.prank(gov);
+        vm.expectRevert();
+        reg.grantRole(MANAGER, makeAddr("newOps"));
+
+        // ---- Admin continuity: super governor grants a new ops manager, who can operate ----
+        address newOps = makeAddr("newOpsManager");
+        vm.prank(superGov);
+        reg.grantRole(MANAGER, newOps);
+        vm.prank(newOps);
+        address key7 = reg.registerReserve(SPOKE, 7);
+        assertTrue(reg.isRegistered(key7), "new ops manager operational after admin grant");
+    }
+
+    /// @notice The handoff sequence is idempotent — re-running every step after full transfer
+    ///         neither reverts nor changes state (mirrors the script's skip/no-op guarantees)
+    function test_E2E_F3_RoleHandoff_Idempotent() public {
+        TransferRolesHarness script_ = new TransferRolesHarness();
+        address deployer = script_.deployerAddr();
+        address gov = script_.governor();
+        address superGov = script_.superGovernor(1);
+
+        AaveV4ReserveRegistry reg = new AaveV4ReserveRegistry(deployer);
+        bytes32 MANAGER = reg.MARKET_MANAGER_ROLE();
+        bytes32 ADMIN = reg.DEFAULT_ADMIN_ROLE();
+
+        vm.startPrank(deployer);
+        reg.grantRole(MANAGER, gov);
+        reg.grantRole(ADMIN, superGov);
+        reg.revokeRole(MANAGER, deployer);
+        reg.revokeRole(ADMIN, deployer);
+        vm.stopPrank();
+
+        // Second run — now only the super governor holds admin; every step is a no-op
+        vm.startPrank(superGov);
+        reg.grantRole(MANAGER, gov);
+        reg.grantRole(ADMIN, superGov);
+        reg.revokeRole(MANAGER, deployer);
+        reg.revokeRole(ADMIN, deployer);
+        vm.stopPrank();
+
+        assertTrue(reg.hasRole(MANAGER, gov));
+        assertTrue(reg.hasRole(ADMIN, superGov));
+        assertFalse(reg.hasRole(MANAGER, deployer));
+        assertFalse(reg.hasRole(ADMIN, deployer));
     }
 }
