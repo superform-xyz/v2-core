@@ -13,6 +13,8 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
 
     struct OtherHooksData {
         mapping(uint64 chainId => address morpho) morphos;
+        mapping(uint64 chainId => address eulerEvc) eulerEvcs;
+        mapping(uint64 chainId => address eulerEVaultFactory) eulerEVaultFactories;
         mapping(uint64 chainId => address algebraSwapRouter) algebraSwapRouters;
         mapping(uint64 chainId => address odosRouterV3) odosRouterV3s;
         mapping(uint64 chainId => address spectraRouter) spectraRouters;
@@ -37,6 +39,10 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         otherHooksConfiguration.morphos[ARBITRUM_CHAIN_ID] = MORPHO_ARBITRUM;
         otherHooksConfiguration.morphos[ROBINHOOD_CHAIN_ID] = MORPHO_ROBINHOOD; // Morpho live on RH (chain 4663)
         otherHooksConfiguration.morphos[BNB_CHAIN_ID] = MORPHO_BNB;
+
+        // Euler EVK singletons per chain — gate Euler hook deployment (Base only for now, Clearstar).
+        otherHooksConfiguration.eulerEvcs[BASE_CHAIN_ID] = EULER_EVC_BASE;
+        otherHooksConfiguration.eulerEVaultFactories[BASE_CHAIN_ID] = EULER_EVAULT_FACTORY_BASE;
 
         // Aave V3 Pool per chain — gates Aave V3 hook deployment (only where Aave V3 is live).
         otherHooksConfiguration.aaveV3Pools[MAINNET_CHAIN_ID] = AAVE_V3_POOL_MAINNET;

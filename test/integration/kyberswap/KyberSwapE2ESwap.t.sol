@@ -149,16 +149,7 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             uint256 snap = vm.snapshotState();
             deal(USDC, account, inputAmount);
 
-            bytes memory txData_;
-            uint256 expectedOut;
-            try this.getKyberSwapTxDataExternal(USDC, WETH, inputAmount) returns (bytes memory td, uint256 eo) {
-                txData_ = td;
-                expectedOut = eo;
-            } catch {
-                console2.log("KyberSwap API unavailable, skipping");
-                vm.skip(true);
-                return;
-            }
+            (bytes memory txData_, uint256 expectedOut) = _getKyberSwapTxData(USDC, WETH, inputAmount);
             console2.log("Attempt", attempt, "- Expected WETH out:", expectedOut);
 
             bytes memory hookData = bytes.concat(
@@ -199,8 +190,7 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             console2.log("Attempt", attempt, "failed (incompatible route), retrying...");
             vm.revertToState(snap);
         }
-        console2.log("all retries returned incompatible routes, skipping");
-        vm.skip(true);
+        revert("E2E swap failed after all retries - API returns incompatible routes");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -215,16 +205,7 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             uint256 snap = vm.snapshotState();
             deal(WETH, account, inputAmount);
 
-            bytes memory txData_;
-            uint256 expectedOut;
-            try this.getKyberSwapTxDataExternal(WETH, USDC, inputAmount) returns (bytes memory td, uint256 eo) {
-                txData_ = td;
-                expectedOut = eo;
-            } catch {
-                console2.log("KyberSwap API unavailable, skipping");
-                vm.skip(true);
-                return;
-            }
+            (bytes memory txData_, uint256 expectedOut) = _getKyberSwapTxData(WETH, USDC, inputAmount);
             console2.log("Attempt", attempt, "- Expected USDC out:", expectedOut);
 
             // Decode approveTarget from txData and pre-approve WETH
@@ -288,16 +269,7 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             uint256 snap = vm.snapshotState();
             deal(LINK, account, inputAmount);
 
-            bytes memory txData_;
-            uint256 expectedOut;
-            try this.getKyberSwapTxDataExternal(LINK, USDC, inputAmount) returns (bytes memory td, uint256 eo) {
-                txData_ = td;
-                expectedOut = eo;
-            } catch {
-                console2.log("KyberSwap API unavailable, skipping");
-                vm.skip(true);
-                return;
-            }
+            (bytes memory txData_, uint256 expectedOut) = _getKyberSwapTxData(LINK, USDC, inputAmount);
             console2.log("Attempt", attempt, "- Expected USDC out:", expectedOut);
 
             bytes memory hookData = bytes.concat(
@@ -338,8 +310,7 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             console2.log("Attempt", attempt, "failed (incompatible route), retrying...");
             vm.revertToState(snap);
         }
-        console2.log("all retries returned incompatible routes, skipping");
-        vm.skip(true);
+        revert("E2E swap failed after all retries - API returns incompatible routes");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -361,16 +332,7 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             uint256 snap = vm.snapshotState();
             deal(USDC, account, actualAmount);
 
-            bytes memory txData_;
-            uint256 expectedOut;
-            try this.getKyberSwapTxDataExternal(USDC, WETH, quotedAmount) returns (bytes memory td, uint256 eo) {
-                txData_ = td;
-                expectedOut = eo;
-            } catch {
-                console2.log("KyberSwap API unavailable, skipping");
-                vm.skip(true);
-                return;
-            }
+            (bytes memory txData_, uint256 expectedOut) = _getKyberSwapTxData(USDC, WETH, quotedAmount);
             console2.log("Attempt", attempt, "- Expected WETH out (for 1000 USDC):", expectedOut);
 
             bytes memory hookData = bytes.concat(
@@ -415,7 +377,11 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             console2.log("Attempt", attempt, "failed (incompatible route), retrying...");
             vm.revertToState(snap);
         }
-        console2.log("all retries returned incompatible routes, skipping");
+        // The scaling logic (build shape + approval == actual scaled amount) is asserted on every
+        // attempt above, independent of the live API. Only on-chain execution against a live route
+        // is flaky; when the KyberSwap API returns no scalable route across all retries, skip
+        // gracefully rather than fail the suite — mirrors the WETH->USDC sibling test.
+        console2.log("E2E ScaleHelper USDC->WETH: all retries returned incompatible routes, skipping");
         vm.skip(true);
     }
     /*//////////////////////////////////////////////////////////////
@@ -512,8 +478,7 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             console2.log("[KyberSwap] Attempt", attempt, "failed (incompatible route), retrying...");
             vm.revertToState(snap);
         }
-        console2.log("all retries returned incompatible routes, skipping");
-        vm.skip(true);
+        revert("KyberSwap DAM->USDC swap failed after all retries");
     }
 
     /*//////////////////////////////////////////////////////////////

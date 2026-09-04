@@ -34,6 +34,13 @@ interface IPool {
 
     function repayWithATokens(address asset, uint256 amount, uint256 interestRateMode) external returns (uint256);
 
+    /// @notice Explicitly enables/disables a supplied reserve as collateral for the caller.
+    /// @dev Enabling when already enabled is a no-op (returns without revert); it reverts only for a
+    ///      genuinely non-collateral asset or when enabling would leave the position unhealthy. Used
+    ///      by the supply-and-borrow hook to cover the cases where supply does not auto-enable
+    ///      (isolation mode with other collateral, or a reserve previously disabled with a balance).
+    function setUserUseReserveAsCollateral(address asset, bool useAsCollateral) external;
+
     // Used only by fork tests to resolve aToken / variableDebtToken and assert positions.
     function getReserveData(address asset) external view returns (DataTypes.ReserveDataLegacy memory);
 

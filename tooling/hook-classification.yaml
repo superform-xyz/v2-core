@@ -1,5 +1,5 @@
 # Hook Classification Manifest
-# Canonical intent x stage classification for all 143 hooks in v2-core
+# Canonical intent x stage classification for all 155 hooks in v2-core
 # CI-linted against on-chain hookType via scripts/lint_hook_manifest.py
 #
 # Design invariants:
@@ -560,6 +560,22 @@ hooks:
     actionTypes: [{intent: repay, stage: instant}]
     legSizing: [sized]
 
+  MorphoRepayHookV2:
+    actionTypes: [{intent: repay, stage: instant}]
+    legSizing: [sized]
+
+  AaveV3RepayHookV2:
+    actionTypes: [{intent: repay, stage: instant}]
+    legSizing: [sized]
+
+  AaveV4RepayHookV2:
+    actionTypes: [{intent: repay, stage: instant}]
+    legSizing: [sized]
+
+  EulerRepayHook:
+    actionTypes: [{intent: repay, stage: instant}]
+    legSizing: [sized]
+
   # ============================================================
   # TRANSFER (9 hooks) — all instant
   # ============================================================
@@ -707,6 +723,54 @@ hooks:
     legSizing: [sized, sized]
 
   AaveV4RepayAndWithdrawHook:
+    actionTypes:
+      - {intent: repay, stage: instant}
+      - {intent: withdraw, stage: instant}
+    legSizing: [sized, sized]
+
+  MorphoSupplyAndBorrowHookV2:
+    actionTypes:
+      - {intent: lend, stage: instant}
+      - {intent: borrow, stage: instant}
+    legSizing: [sized, sized]
+
+  AaveV3SupplyAndBorrowHookV2:
+    actionTypes:
+      - {intent: lend, stage: instant}
+      - {intent: borrow, stage: instant}
+    legSizing: [sized, sized]
+
+  AaveV4SupplyAndBorrowHookV2:
+    actionTypes:
+      - {intent: lend, stage: instant}
+      - {intent: borrow, stage: instant}
+    legSizing: [sized, sized]
+
+  MorphoRepayAndWithdrawHookV2:
+    actionTypes:
+      - {intent: repay, stage: instant}
+      - {intent: withdraw, stage: instant}
+    legSizing: [sized, sized]
+
+  AaveV3RepayAndWithdrawHookV2:
+    actionTypes:
+      - {intent: repay, stage: instant}
+      - {intent: withdraw, stage: instant}
+    legSizing: [sized, sized]
+
+  AaveV4RepayAndWithdrawHookV2:
+    actionTypes:
+      - {intent: repay, stage: instant}
+      - {intent: withdraw, stage: instant}
+    legSizing: [sized, sized]
+
+  EulerDepositCollateralAndBorrowHook:
+    actionTypes:
+      - {intent: lend, stage: instant}
+      - {intent: borrow, stage: instant}
+    legSizing: [sized, sized]
+
+  EulerRepayAndWithdrawHook:
     actionTypes:
       - {intent: repay, stage: instant}
       - {intent: withdraw, stage: instant}

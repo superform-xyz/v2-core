@@ -66,6 +66,9 @@ contract DETHAsyncRedeemerHooksE2E is Test {
     bytes32 public yieldSourceOracleId;
     uint256 public forkId;
 
+    /// @dev Last known-good era: AsyncRedeemer whitelist still enabled on-chain
+    uint256 public constant FORK_BLOCK = 25_800_000;
+
     /// @dev Test smart account that simulates a SuperVault strategy
     address public account;
 
@@ -78,7 +81,10 @@ contract DETHAsyncRedeemerHooksE2E is Test {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        forkId = vm.createSelectFork(vm.envString("ETHEREUM_RPC_URL"));
+        // Pinned block: the AsyncRedeemer's on-chain whitelist was disabled around block
+        // ~25.82M, which breaks the whitelist assertions and the not-whitelisted revert
+        // expectations when forking latest. Pin to the last known-good era instead.
+        forkId = vm.createSelectFork(vm.envString("ETHEREUM_RPC_URL"), FORK_BLOCK);
 
         requestRedeemHook = new RequestRedeemDETHHook();
         approveAndRequestHook = new ApproveAndRequestRedeemDETHHook();

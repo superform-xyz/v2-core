@@ -12,11 +12,21 @@
     "pipeMode": "transform"
   },
   {
+    "hookKey": "AAVE_V3_REPAY_AND_WITHDRAW_HOOK_V2_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "AAVE_V3_REPAY_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
     "amountPosition": 113,
     "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "AAVE_V3_REPAY_HOOK_V2_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
   },
   {
     "hookKey": "AAVE_V3_REPAY_WITH_ATOKENS_HOOK_KEY",
@@ -27,6 +37,11 @@
   },
   {
     "hookKey": "AAVE_V3_SUPPLY_AND_BORROW_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "AAVE_V3_SUPPLY_AND_BORROW_HOOK_V2_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "transform"
   },
@@ -61,11 +76,21 @@
     "track": "deprecate->replaceCalldata"
   },
   {
+    "hookKey": "AAVE_V4_REPAY_AND_WITHDRAW_HOOK_V2_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "AAVE_V4_REPAY_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
     "amountPosition": 176,
     "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "AAVE_V4_REPAY_HOOK_V2_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
   },
   {
     "hookKey": "AAVE_V4_SUPPLY_AND_BORROW_HOOK_KEY",
@@ -75,6 +100,11 @@
     "secondaryAmountPosition": 209,
     "sizing": "dual",
     "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "AAVE_V4_SUPPLY_AND_BORROW_HOOK_V2_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
   },
   {
     "hookKey": "AAVE_V4_SUPPLY_HOOK_KEY",
@@ -387,6 +417,21 @@
     "pipeMode": "transform"
   },
   {
+    "hookKey": "EULER_DEPOSIT_COLLATERAL_AND_BORROW_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "EULER_REPAY_AND_WITHDRAW_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "EULER_REPAY_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "FETCH_NATIVE_FEE_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "passthrough"
@@ -498,6 +543,11 @@
     "track": "deprecate->replaceCalldata"
   },
   {
+    "hookKey": "MORPHO_REPAY_AND_WITHDRAW_HOOK_V2_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "MORPHO_REPAY_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
@@ -505,11 +555,21 @@
     "track": "deprecate->replaceCalldata"
   },
   {
+    "hookKey": "MORPHO_REPAY_HOOK_V2_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "MORPHO_SUPPLY_AND_BORROW_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
     "amountPosition": 132,
     "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "MORPHO_SUPPLY_AND_BORROW_HOOK_V2_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
   },
   {
     "hookKey": "MORPHO_SUPPLY_HOOK_KEY",

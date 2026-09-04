@@ -38,6 +38,9 @@ compatibleProtocols:
   MorphoSupplyAndBorrowHook: [morpho]
   MorphoRepayAndWithdrawHook: [morpho]
   MorphoWithdrawHook: [morpho]
+  MorphoSupplyAndBorrowHookV2: [morpho]
+  MorphoRepayHookV2: [morpho]
+  MorphoRepayAndWithdrawHookV2: [morpho]
   MetaMorphoReallocateHook: [morpho-metamorpho]
   ForceDeallocateMorphoHook: [morpho-metamorpho]
   # Aave V4
@@ -47,6 +50,9 @@ compatibleProtocols:
   AaveV4RepayHook: [aave-v4]
   AaveV4SupplyAndBorrowHook: [aave-v4]
   AaveV4RepayAndWithdrawHook: [aave-v4]
+  AaveV4SupplyAndBorrowHookV2: [aave-v4]
+  AaveV4RepayHookV2: [aave-v4]
+  AaveV4RepayAndWithdrawHookV2: [aave-v4]
   # Aave V3
   AaveV3SupplyHook: [aave-v3]
   AaveV3WithdrawHook: [aave-v3]
@@ -54,6 +60,13 @@ compatibleProtocols:
   AaveV3RepayHook: [aave-v3]
   AaveV3SupplyAndBorrowHook: [aave-v3]
   AaveV3RepayAndWithdrawHook: [aave-v3]
+  AaveV3SupplyAndBorrowHookV2: [aave-v3]
+  AaveV3RepayHookV2: [aave-v3]
+  AaveV3RepayAndWithdrawHookV2: [aave-v3]
+  # Euler EVK
+  EulerDepositCollateralAndBorrowHook: [euler-v2]
+  EulerRepayHook: [euler-v2]
+  EulerRepayAndWithdrawHook: [euler-v2]
   AaveV3RepayWithATokensHook: [aave-v3]
   # Uniswap
   SwapUniswapV3Hook: [uniswap-v3]
@@ -342,6 +355,14 @@ amountMeta:
   AaveV4RepayAndWithdrawHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV3SupplyAndBorrowHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV3RepayAndWithdrawHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  MorphoSupplyAndBorrowHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  MorphoRepayAndWithdrawHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  AaveV3SupplyAndBorrowHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  AaveV3RepayAndWithdrawHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  AaveV4SupplyAndBorrowHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  AaveV4RepayAndWithdrawHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  EulerDepositCollateralAndBorrowHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  EulerRepayAndWithdrawHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   # MorphoLendHook: input is loan-token amount (TOKEN denomination is correct).
   # outAmount is Morpho supply shares — non-transferable internal accounting units distinct from
   # ERC-4626 vault shares. A "UNITS" denomination for output is deferred because amountRoles()
@@ -352,6 +373,24 @@ amountMeta:
 
   # MorphoWithdraw: dual-slot with XOR invariant
   MorphoWithdrawHook: [{direction: IN, denomination: ASSETS}, {direction: IN, denomination: SHARES}]
+
+# ── Hooks advertising ISuperHookLoans via ERC-165 ────────────────────────────
+# Only newly compiled (V2) loan hooks advertise the loan interface on-chain; legacy deployed
+# loan hook addresses keep their old bytecode and rely on the OMS fallback until migrated.
+loanInterfaceHooks:
+  - MorphoSupplyAndBorrowHookV2
+  - MorphoRepayHookV2
+  - MorphoRepayAndWithdrawHookV2
+  - AaveV3SupplyAndBorrowHookV2
+  - AaveV3RepayHookV2
+  - AaveV3RepayAndWithdrawHookV2
+  - AaveV4SupplyAndBorrowHookV2
+  - AaveV4RepayHookV2
+  - AaveV4RepayAndWithdrawHookV2
+  - EulerDepositCollateralAndBorrowHook
+  # EulerRepayHook intentionally absent: its reserved-zero collateral slot makes the inherited
+  # getCollateralTokenBalance revert, so it honestly does NOT advertise ISuperHookLoans
+  - EulerRepayAndWithdrawHook
 
 # ── Sizeless hooks (no sizable legs) ─────────────────────────────────────────
 sizelessHooks:

@@ -10,6 +10,13 @@ abstract contract ConstantsOtherHooks {
     address internal constant MORPHO_ROBINHOOD = 0x9D53d5E3bd5E8d4Cbfa6DB1ca238AEA02E651010;
     address internal constant MORPHO_BNB = 0x01b0Bd309AA75547f7a37Ad7B1219A898E67a83a;
 
+    // Euler EVK singletons per chain (source: euler-xyz/euler-interfaces CoreAddresses.json, verified).
+    // One canonical EVC and one canonical GenericFactory (eVaultFactory) per chain; both are
+    // constructor-pinned in the Euler loan hooks so only genuine factory-deployed EVK vaults are
+    // accepted. Presence gates Euler hook deployment.
+    address internal constant EULER_EVC_BASE = 0x5301c7dD20bD945D2013b48ed0DEE3A284ca8989;
+    address internal constant EULER_EVAULT_FACTORY_BASE = 0x7F321498A801A191a93C840750ed637149dDf8D0;
+
     // Aave V3 Pool addresses per chain (source: bgd-labs/aave-address-book, verified). Presence gates
     // Aave V3 hook deployment — hooks are only deployed on chains where Aave V3 is live.
     address internal constant AAVE_V3_POOL_MAINNET = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;

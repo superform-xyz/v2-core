@@ -13,7 +13,8 @@ import {
     ISuperHookResult,
     ISuperHookInspector,
     ISuperHookInflowOutflow,
-    ISuperHookOutflow
+    ISuperHookOutflow,
+    ISuperHookLoans
 } from "../interfaces/ISuperHook.sol";
 
 /// @title BaseHook
@@ -255,6 +256,9 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
         ) {
             return _supportsSizingInterface();
         }
+        if (interfaceId == type(ISuperHookLoans).interfaceId) {
+            return _supportsLoanInterface();
+        }
         return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
             || interfaceId == type(ISuperHookResult).interfaceId
             || interfaceId == type(ISuperHookInspector).interfaceId;
@@ -262,6 +266,14 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
 
     /// @dev Override to return true in hooks that implement ISuperHookInflowOutflow/ISuperHookOutflow
     function _supportsSizingInterface() internal pure virtual returns (bool) {
+        return false;
+    }
+
+    /// @dev Override to return true in hooks that implement ISuperHookLoans (see BaseLoanHook).
+    ///      Note: type(ISuperHookLoans).interfaceId covers only the four functions declared in
+    ///      ISuperHookLoans itself, not the ISuperHookContextAware function it inherits (standard
+    ///      Solidity interfaceId rule).
+    function _supportsLoanInterface() internal pure virtual returns (bool) {
         return false;
     }
 
