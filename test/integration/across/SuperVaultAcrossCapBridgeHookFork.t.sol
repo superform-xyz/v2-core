@@ -9,6 +9,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";
 
 import { SuperVaultAcrossCapBridgeHook } from "../../../src/hooks/bridges/across/SuperVaultAcrossCapBridgeHook.sol";
+import { SuperVaultCapBridgeCommon } from "../../../src/hooks/bridges/SuperVaultCapBridgeCommon.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 import {
     ICapGuardLike,
@@ -108,6 +109,7 @@ contract SuperVaultAcrossCapBridgeHookFork is Test {
         // B1 destination policy: the adapter address and the destination hook pair.
         capGuard.setApprovedAdapter(BASE_CHAIN_ID, address(adapter), true);
         capGuard.setDestinationHooks(BASE_CHAIN_ID, dstApproveHook, dstDepositHook);
+        capGuard.setDestinationVaultAsset(BASE_CHAIN_ID, destVault, USDC_BASE); // R3-RF3
 
         deal(USDC_ETH, account, INPUT_AMOUNT);
     }
@@ -123,7 +125,11 @@ contract SuperVaultAcrossCapBridgeHookFork is Test {
     ///         receives funds+message and forwards them to the hub-controlled account.
     function test_Fork_CapEnforcedThenRealBridgeAndPigeonFill() public {
         vm.selectFork(ethFork);
-        bytes memory data = _encode(BASE_CHAIN_ID, INPUT_AMOUNT, false, _depositMessage());
+        bytes memory depositMessage = _depositMessage();
+        bytes memory data = _encode(BASE_CHAIN_ID, INPUT_AMOUNT, false, depositMessage);
+        // The executor calldata the cap hook validates inside the hub-side message — the fill must
+        // deliver these exact bytes (validated == delivered).
+        (, bytes memory executorCalldata,,,) = abi.decode(depositMessage, (bytes, bytes, address, address[], uint256[]));
 
         // B1: the validated destination is the vault decoded from the message, not the recipient.
         vm.expectCall(
@@ -173,6 +179,11 @@ contract SuperVaultAcrossCapBridgeHookFork is Test {
             "funds must reach the hub-controlled account via the adapter"
         );
         assertEq(adapter.lastAccount(), account, "adapter decoded a different account");
+        assertEq(
+            adapter.lastExecutorCalldataHash(),
+            keccak256(executorCalldata),
+            "delivered executor calldata differs from the hub-validated message"
+        );
         assertEq(IERC20(USDC_BASE).balanceOf(address(adapter)), 0, "adapter must not retain funds");
         assertEq(IERC20(USDC_BASE).balanceOf(destVault), 0, "no raw transfer may reach the vault address");
     }
@@ -201,7 +212,7 @@ contract SuperVaultAcrossCapBridgeHookFork is Test {
         vm.selectFork(ethFork);
         bytes memory data = _encode(BASE_CHAIN_ID, INPUT_AMOUNT, false, bytes(""));
         vm.prank(account);
-        vm.expectRevert(); // DESTINATION_ACTION_NOT_VALID
+        vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_ACTION_NOT_VALID.selector);
         hook.preExecute(address(0), account, data);
         assertEq(registry.bridgedOut(account), 0, "recorded despite raw-transfer send");
     }
@@ -212,7 +223,7 @@ contract SuperVaultAcrossCapBridgeHookFork is Test {
         capGuard.setApprovedAdapter(BASE_CHAIN_ID, address(adapter), false);
         bytes memory data = _encode(BASE_CHAIN_ID, INPUT_AMOUNT, false, _depositMessage());
         vm.prank(account);
-        vm.expectRevert(); // TRANSPORT_ADAPTER_NOT_APPROVED
+        vm.expectRevert(SuperVaultCapBridgeCommon.TRANSPORT_ADAPTER_NOT_APPROVED.selector);
         hook.preExecute(address(0), account, data);
     }
 

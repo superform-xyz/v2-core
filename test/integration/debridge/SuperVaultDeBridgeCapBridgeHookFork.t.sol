@@ -84,6 +84,7 @@ contract SuperVaultDeBridgeCapBridgeHookFork is Test {
         // B1 destination policy.
         capGuard.setApprovedAdapter(BASE_CHAIN_ID, adapter, true);
         capGuard.setDestinationHooks(BASE_CHAIN_ID, dstApproveHook, dstDepositHook);
+        capGuard.setDestinationVaultAsset(BASE_CHAIN_ID, destVault, USDC_BASE); // R3-RF3
 
         nativeFee = IDlnSource(DLN_SOURCE).globalFixedNativeFee();
         deal(USDC_ETH, account, GIVE_AMOUNT);
@@ -193,8 +194,9 @@ contract SuperVaultDeBridgeCapBridgeHookFork is Test {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Canonical deBridge hookData. receiverDst == envelope executorAddress == the approved
-    ///      adapter; fallbackAddress == the hub account; non-empty orderAuthorityAddressDst is
-    ///      required by the real DLN.
+    ///      adapter; fallbackAddress == the hub account; orderAuthorityAddressDst and
+    ///      allowedCancelBeneficiarySrc are the hub account (P1: the cap hook runtime-pins both,
+    ///      matching the designed account-driven cancel path).
     function _encode(
         uint256 takeChainId,
         uint256 giveAmount,
@@ -218,7 +220,7 @@ contract SuperVaultDeBridgeCapBridgeHookFork is Test {
         );
         bytes memory part2 = abi.encodePacked(
             uint256(0), // executionFee
-            true, // allowDelayedExecution
+            false, // allowDelayedExecution (R3-RF2: pinned)
             true, // requireSuccessfulExecution
             destinationMessage.length,
             destinationMessage,
@@ -227,7 +229,8 @@ contract SuperVaultDeBridgeCapBridgeHookFork is Test {
             TAKE_AMOUNT,
             takeChainId
         );
-        bytes memory orderAuthority = abi.encodePacked(adapter);
+        bytes memory orderAuthority = abi.encodePacked(account); // P1: pinned to the hub account
+        bytes memory cancelBeneficiary = abi.encodePacked(account); // P1: refunds only to the hub account
         bytes memory part3 = abi.encodePacked(
             abi.encodePacked(adapter).length, // receiverDst length (20)
             abi.encodePacked(adapter), // receiverDst = the approved adapter
@@ -235,7 +238,8 @@ contract SuperVaultDeBridgeCapBridgeHookFork is Test {
             orderAuthority.length,
             orderAuthority,
             uint256(0), // allowedTakerDst length
-            uint256(0), // allowedCancelBeneficiarySrc length
+            cancelBeneficiary.length,
+            cancelBeneficiary,
             uint256(0), // affiliateFee length
             uint32(0) // referralCode
         );

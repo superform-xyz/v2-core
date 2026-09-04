@@ -71,6 +71,14 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
     uint256 private constant MIN_CAP_DATA_LENGTH = 269;
 
     /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The Across outputToken is address(0) — the SpokePool's "destination equivalent of
+    ///         the input token" sentinel, which the cap's destination-token binding cannot verify
+    error OUTPUT_TOKEN_NOT_VALID();
+
+    /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
@@ -86,6 +94,21 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
         SuperVaultCapBridgeCommon(superGovernor_)
     {
         if (superGovernor_ == address(0)) revert ADDRESS_NOT_VALID();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          IDENTIFICATION (R3)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Unmistakably distinct from the uncapped parent — activation requires banning the
+    ///         raw hook and authorizing only this one, so operators must never confuse the two.
+    function name() external pure override returns (string memory) {
+        return "SuperVault Capped Approve and Across Bridge";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Cap-enforced Across bridge for cross-chain SuperVaults: validates the typed destination action and records the reservation before bridging";
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -163,6 +186,12 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
     {
         // Guard the fixed-offset reads with the typed error before touching any offset.
         if (data.length < MIN_CAP_DATA_LENGTH) revert DATA_NOT_VALID();
+
+        // P3: modern SpokePools treat outputToken == address(0) as "destination equivalent of the
+        // inputToken" — a sentinel this hook's destination-token binding cannot verify (the shared
+        // base skips the binding for address(0), a carve-out meant only for Stargate OFT routes).
+        // Across can always express the token explicitly, so a zero outputToken is rejected.
+        if (BytesLib.toAddress(data, OUTPUT_TOKEN_OFFSET) == address(0)) revert OUTPUT_TOKEN_NOT_VALID();
 
         uint256 rawChainId = BytesLib.toUint256(data, DST_CHAIN_ID_OFFSET);
         if (rawChainId > type(uint64).max) revert DATA_NOT_VALID();

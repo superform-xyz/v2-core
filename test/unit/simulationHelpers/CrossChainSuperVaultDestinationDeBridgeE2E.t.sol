@@ -122,7 +122,7 @@ contract CrossChainSuperVaultDestinationDeBridgeE2E is CrossChainSuperVaultDesti
         );
         bytes memory part2 = abi.encodePacked(
             uint256(0), // executionFee
-            true, // allowDelayedExecution
+            false, // allowDelayedExecution (R3-RF2: pinned)
             true, // requireSuccessfulExecution
             message.length,
             message,
@@ -131,7 +131,8 @@ contract CrossChainSuperVaultDestinationDeBridgeE2E is CrossChainSuperVaultDesti
             AMOUNT, // takeAmount
             uint256(chainId) // takeChainId
         );
-        bytes memory orderAuthority = abi.encodePacked(address(adapter));
+        bytes memory orderAuthority = abi.encodePacked(address(account)); // P1: pinned to the hub account
+        bytes memory cancelBeneficiary = abi.encodePacked(address(account)); // P1: refunds only to the hub account
         bytes memory part3 = abi.encodePacked(
             uint256(20), // receiverDst length
             abi.encodePacked(address(adapter)), // receiverDst = the approved adapter
@@ -139,7 +140,8 @@ contract CrossChainSuperVaultDestinationDeBridgeE2E is CrossChainSuperVaultDesti
             orderAuthority.length,
             orderAuthority,
             uint256(0), // allowedTakerDst length
-            uint256(0), // allowedCancelBeneficiarySrc length
+            cancelBeneficiary.length,
+            cancelBeneficiary,
             uint256(0), // affiliateFee length
             uint32(0) // referralCode
         );

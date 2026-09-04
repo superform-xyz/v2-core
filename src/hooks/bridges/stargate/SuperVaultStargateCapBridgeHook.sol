@@ -46,11 +46,24 @@ import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 ///      the SAME per-chain cap as one through Across/deBridge, and its reservation releases under
 ///      the same registry key. An unmapped EID fails closed.
 ///
-///      MODE: only modes 0 (taxi), 1 (bus) and 2 (OFT) are allowed — each carries the recipient
-///      and amount at fixed offsets by construction, so validated-tuple == bridged-tuple. Mode 3
-///      (lzMulticall) forwards arbitrary pre-built calldata and ignores `to`/`amountLD` (the
-///      parent encoder even zeroes `to`), so it is rejected here: the cap could not bind to what
-///      actually bridges.
+///      MODE: only mode 0 (taxi) is allowed. Taxi is the sole Stargate V2 send path that actually
+///      delivers the compose message the cap binds to. Bus mode (1) silently DROPS composeMsg —
+///      Stargate's `_rideBus` never reads it (RideBusParams carries no compose field) — so the
+///      tokens would land on the admin-less destination adapter with no compose execution and no
+///      failedTransfers credit: the entire bridged amount would be permanently stranded. Generic
+///      OFT mode (2) sends through a pool the destination TokenMessaging has no registration for,
+///      hitting the adapter's unregistered-pool return AFTER the tokens are credited (and the
+///      adapter cannot decode the compose format anyway) — also stranded. Mode 3 (lzMulticall)
+///      forwards arbitrary pre-built calldata and ignores `to`/`amountLD` entirely. A capped send
+///      must both bind the validated tuple AND guarantee destination-side compose execution, so
+///      everything except taxi is rejected.
+///
+///      EXTRA OPTIONS: `extraOptions` flows verbatim into the LayerZero executor worker options in
+///      taxi mode and is neither leaf-pinned nor consumed by the cap math, yet a native-drop (or
+///      any value-carrying) option there is paid out of the send's msg.value — the account's
+///      native fee float — to an arbitrary receiver. It is therefore structurally whitelisted at
+///      runtime: empty, or a TYPE_3 container whose entries are executor gas-only lzReceive /
+///      lzCompose options; everything else is rejected.
 ///
 ///      SECURITY INVARIANT (not machine-enforced here): the cap only binds if every fund-exiting
 ///      leaf for a cap-enabled strategy routes through a cap-aware hook. Treat "only cap-aware
@@ -62,6 +75,7 @@ contract SuperVaultStargateCapBridgeHook is ApproveAndStargateSendHook, SuperVau
 
     /// @dev hookData offsets — mirror the parent (locked) layout; the cap fields are fixed and sit
     ///      before the dynamic extraOptions/composeMsg tail.
+    uint256 private constant STARGATE_POOL_OFFSET = 84;
     uint256 private constant DST_EID_OFFSET = 124;
     uint256 private constant TO_OFFSET = 128;
     uint256 private constant AMOUNT_LD_OFFSET = 160;
@@ -74,8 +88,24 @@ contract SuperVaultStargateCapBridgeHook is ApproveAndStargateSendHook, SuperVau
     /// @dev Minimum hookData length before the dynamic tail (matches the parent's own build check).
     uint256 private constant MIN_CAP_DATA_LENGTH = 290;
 
-    /// @dev Highest Stargate mode whose `to`/`amountLD` are the actual bridged destination/amount.
-    uint8 private constant MAX_CAPPABLE_MODE = 2;
+    /// @dev The only cappable Stargate mode: taxi — the sole send path that delivers composeMsg
+    ///      (bus drops it, generic OFT is unregistered in the destination TokenMessaging; both
+    ///      strand the bridged amount on the admin-less adapter — see the contract NatSpec).
+    uint8 private constant MODE_TAXI = 0;
+
+    /// @dev LayerZero executor worker options layout (ExecutorOptions): a uint16 TYPE_3 header
+    ///      (0x0003) followed by entries of [uint8 workerId][uint16 optionSize][uint8 optionType]
+    ///      [optionSize - 1 bytes of params].
+    uint16 private constant OPTIONS_TYPE_3 = 3;
+    uint8 private constant EXECUTOR_WORKER_ID = 1;
+    uint8 private constant OPTION_TYPE_LZRECEIVE = 1;
+    uint8 private constant OPTION_TYPE_LZCOMPOSE = 3;
+    /// @dev Gas-only lzReceive: optionType (1) + uint128 gas (16) — the value-carrying 33-byte
+    ///      variant is rejected.
+    uint256 private constant LZRECEIVE_GAS_ONLY_SIZE = 17;
+    /// @dev Gas-only lzCompose: optionType (1) + uint16 index (2) + uint128 gas (16) — the
+    ///      value-carrying 35-byte variant is rejected.
+    uint256 private constant LZCOMPOSE_GAS_ONLY_SIZE = 19;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -83,6 +113,23 @@ contract SuperVaultStargateCapBridgeHook is ApproveAndStargateSendHook, SuperVau
 
     /// @notice Thrown when the LayerZero dstEid has no governance-registered canonical chain id
     error EID_NOT_MAPPED();
+
+    /// @notice Thrown when the (source pool, chain) route has no governance-pinned destination token
+    error STARGATE_ROUTE_NOT_SET();
+
+    /// @notice Thrown when minAmountLD is below the governance-set fraction of amountLD — the
+    ///         caller-chosen slippage margin (and with it the maximum untracked delivery surplus,
+    ///         actual credit minus the action amount) must be bounded in code (R3-RF1)
+    error DELIVERY_MARGIN_TOO_WIDE();
+
+    /// @notice Thrown when the Stargate mode is not taxi — the only mode that delivers composeMsg
+    ///         (any other mode strands the bridged amount on the admin-less destination adapter)
+    error MODE_NOT_CAPPABLE();
+
+    /// @notice Thrown when extraOptions carries anything beyond gas-only executor
+    ///         lzReceive/lzCompose options — a value-carrying option (e.g. native drop) would pay
+    ///         the account's native fee float to an arbitrary receiver
+    error EXTRA_OPTIONS_NOT_VALID();
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -101,6 +148,21 @@ contract SuperVaultStargateCapBridgeHook is ApproveAndStargateSendHook, SuperVau
     }
 
     /*//////////////////////////////////////////////////////////////
+                          IDENTIFICATION (R3)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Unmistakably distinct from the uncapped parent — activation requires banning the
+    ///         raw hook and authorizing only this one, so operators must never confuse the two.
+    function name() external pure override returns (string memory) {
+        return "SuperVault Capped Approve and Stargate Bridge";
+    }
+
+    /// @notice One-sentence description of what this hook does
+    function description() external pure override returns (string memory) {
+        return "Cap-enforced Stargate send for cross-chain SuperVaults: validates the typed destination action and records the reservation before bridging";
+    }
+
+    /*//////////////////////////////////////////////////////////////
                               CAP ENFORCEMENT
     //////////////////////////////////////////////////////////////*/
 
@@ -114,6 +176,7 @@ contract SuperVaultStargateCapBridgeHook is ApproveAndStargateSendHook, SuperVau
         super._preExecute(prevHook, account, data);
 
         (uint64 chainId, address transportAdapter, bytes memory composeMsg) = _decodeCapFields(data);
+        _validateExtraOptions(data);
 
         // The amount validated is the amount the send will actually move; the delivery minimum is
         // minAmountLD. Under usePrevHookAmount the parent sets amountLD = prev.getOutAmount and
@@ -122,17 +185,38 @@ contract SuperVaultStargateCapBridgeHook is ApproveAndStargateSendHook, SuperVau
         // executor's balance attestation over the action token is the arrival binding there.
         uint256 amount;
         uint256 minDelivered = BytesLib.toUint256(data, MIN_AMOUNT_LD_OFFSET);
+        uint256 encodedAmountLD = BytesLib.toUint256(data, AMOUNT_LD_OFFSET);
+        // A cap-hook send must always carry a nonzero encoded amountLD — even under
+        // usePrevHookAmount, where the parent would tolerate zero. A zero encoded amount would
+        // skip the parent's minAmountLD rescale AND degenerate the governance ratio check below
+        // to `encodedMin * 10_000 < 0`, silently lowering the caller's delivery floor from the
+        // governance-set bps to the hardcoded MIN_SOURCE_DELIVERY_BPS.
+        if (encodedAmountLD == 0) revert AMOUNT_NOT_VALID();
         if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_OFFSET)) {
-            uint256 amountLD = BytesLib.toUint256(data, AMOUNT_LD_OFFSET);
             amount = ISuperHookResult(prevHook).getOutAmount(account);
-            if (amountLD > 0 && minDelivered > 0) {
-                minDelivered = Math.mulDiv(minDelivered, amount, amountLD);
+            if (minDelivered > 0) {
+                minDelivered = Math.mulDiv(minDelivered, amount, encodedAmountLD);
             }
         } else {
-            amount = BytesLib.toUint256(data, AMOUNT_LD_OFFSET);
+            amount = encodedAmountLD;
         }
 
-        _enforceCrossChainCap(account, chainId, transportAdapter, amount, minDelivered, address(0), composeMsg);
+        // R3-RF1: minAmountLD is caller-chosen — bound the slippage margin in code so the maximum
+        // delivery surplus (actual credit - action amount) is a governance-bounded sliver, never
+        // an arbitrary gap the periphery settlement floor could mistake for a full landing. The
+        // ratio is scale-invariant, so the ENCODED pair is checked (the usePrev rescale preserves
+        // it exactly).
+        uint256 minBps = _capGuard().stargateMinDeliveryBps();
+        if (minBps == 0 || BytesLib.toUint256(data, MIN_AMOUNT_LD_OFFSET) * 10_000 < encodedAmountLD * minBps) {
+            revert DELIVERY_MARGIN_TOO_WIDE();
+        }
+
+        // R3-RF1: the destination token an OFT route delivers is not hub-derivable, so governance
+        // pins it per (source pool, canonical chain) and the action token is bound to it.
+        address expectedDstToken = _capGuard().stargateDstToken(BytesLib.toAddress(data, STARGATE_POOL_OFFSET), chainId);
+        if (expectedDstToken == address(0)) revert STARGATE_ROUTE_NOT_SET();
+
+        _enforceCrossChainCap(account, chainId, transportAdapter, amount, minDelivered, expectedDstToken, composeMsg);
     }
 
     /// @inheritdoc ApproveAndStargateSendHook
@@ -169,9 +253,11 @@ contract SuperVaultStargateCapBridgeHook is ApproveAndStargateSendHook, SuperVau
         // Guard the fixed-offset reads before touching any offset.
         if (data.length < MIN_CAP_DATA_LENGTH) revert DATA_NOT_VALID();
 
-        // Only modes whose `to`/`amountLD` are the real bridged destination/amount can be capped.
-        // Mode 3 (lzMulticall) forwards arbitrary calldata and ignores both — reject it.
-        if (BytesLib.toUint8(data, MODE_OFFSET) > MAX_CAPPABLE_MODE) revert DATA_NOT_VALID();
+        // Taxi only: it is the sole mode that delivers composeMsg. Bus drops the compose (the
+        // bridged amount would strand on the admin-less adapter with no credit), generic OFT is
+        // unregistered in the destination TokenMessaging (same outcome), and lzMulticall ignores
+        // `to`/`amountLD` entirely — see the contract NatSpec.
+        if (BytesLib.toUint8(data, MODE_OFFSET) != MODE_TAXI) revert MODE_NOT_CAPPABLE();
 
         // B4: translate the LayerZero routing id to the canonical EVM chain id; fail closed on an
         // unmapped EID so a new route cannot be capped under a fresh, empty namespace.
@@ -193,5 +279,40 @@ contract SuperVaultStargateCapBridgeHook is ApproveAndStargateSendHook, SuperVau
         uint256 composeMsgLength = BytesLib.toUint256(data, composeMsgOffset);
         if (data.length < composeMsgOffset + 32 + composeMsgLength) revert DATA_NOT_VALID();
         composeMsg = BytesLib.slice(data, composeMsgOffset + 32, composeMsgLength);
+    }
+
+    /// @dev extraOptions is neither leaf-pinned nor consumed by the cap math, yet in taxi mode it
+    ///      flows verbatim into the LayerZero executor worker options, and any value-carrying
+    ///      option there (native drop, lzReceive/lzCompose value legs) is paid out of the send's
+    ///      msg.value — the account's native fee float (lzNativeFee is unpinned too) — to a
+    ///      caller-chosen receiver, repeatable per send under one authorized leaf. Structurally
+    ///      whitelist it instead: empty, or a TYPE_3 container whose every entry is an executor
+    ///      option that only buys gas — lzReceive (uint128 gas) or lzCompose (uint16 index +
+    ///      uint128 gas). Unknown workers/types, value-carrying sizes, and malformed/truncated
+    ///      encodings are all rejected. Called after `_decodeCapFields`, which already proved
+    ///      `data.length >= EXTRA_OPTIONS_OFFSET + extraOptionsLength + 32`.
+    function _validateExtraOptions(bytes calldata data) internal pure {
+        uint256 extraOptionsLength = BytesLib.toUint256(data, EXTRA_OPTIONS_LENGTH_OFFSET);
+        if (extraOptionsLength == 0) return;
+
+        bytes calldata options = data[EXTRA_OPTIONS_OFFSET:EXTRA_OPTIONS_OFFSET + extraOptionsLength];
+        if (options.length < 2 || uint16(bytes2(options[0:2])) != OPTIONS_TYPE_3) revert EXTRA_OPTIONS_NOT_VALID();
+
+        uint256 cursor = 2;
+        while (cursor < options.length) {
+            // Entry: [uint8 workerId][uint16 optionSize][uint8 optionType][optionSize - 1 bytes]
+            if (cursor + 4 > options.length) revert EXTRA_OPTIONS_NOT_VALID();
+            uint8 workerId = uint8(options[cursor]);
+            uint256 optionSize = uint16(bytes2(options[cursor + 1:cursor + 3]));
+            uint8 optionType = uint8(options[cursor + 3]);
+            if (cursor + 3 + optionSize > options.length) revert EXTRA_OPTIONS_NOT_VALID();
+
+            if (workerId != EXECUTOR_WORKER_ID) revert EXTRA_OPTIONS_NOT_VALID();
+            bool gasOnlyLzReceive = optionType == OPTION_TYPE_LZRECEIVE && optionSize == LZRECEIVE_GAS_ONLY_SIZE;
+            bool gasOnlyLzCompose = optionType == OPTION_TYPE_LZCOMPOSE && optionSize == LZCOMPOSE_GAS_ONLY_SIZE;
+            if (!gasOnlyLzReceive && !gasOnlyLzCompose) revert EXTRA_OPTIONS_NOT_VALID();
+
+            cursor += 3 + optionSize;
+        }
     }
 }

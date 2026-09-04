@@ -92,6 +92,7 @@ abstract contract CrossChainSuperVaultDestinationE2EBase is Test {
         hubValidator = new MockHubSignatureStorage();
 
         capGuard.setDestinationHooks(chainId, address(approveHook), address(depositHook));
+        capGuard.setDestinationVaultAsset(chainId, address(vault), address(token)); // R3-RF3
     }
 
     /*//////////////////////////////////////////////////////////////

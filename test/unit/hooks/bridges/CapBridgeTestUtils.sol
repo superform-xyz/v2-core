@@ -14,6 +14,9 @@ contract MockCapGuard is ICapGuardLike {
     mapping(uint64 => address) internal _approveHook;
     mapping(uint64 => address) internal _depositHook;
     mapping(uint32 => uint64) public chainIdForEid;
+    mapping(uint64 => mapping(address => address)) public destinationVaultAsset;
+    mapping(address => mapping(uint64 => address)) public stargateDstToken;
+    uint256 public stargateMinDeliveryBps;
 
     function validateAllocation(address, uint64, address, uint256) external view { }
 
@@ -32,6 +35,18 @@ contract MockCapGuard is ICapGuardLike {
 
     function setEidChainId(uint32 eid, uint64 chainId) external {
         chainIdForEid[eid] = chainId;
+    }
+
+    function setDestinationVaultAsset(uint64 chainId, address vault, address asset) external {
+        destinationVaultAsset[chainId][vault] = asset;
+    }
+
+    function setStargateRoute(address srcPool, uint64 chainId, address dstToken) external {
+        stargateDstToken[srcPool][chainId] = dstToken;
+    }
+
+    function setStargateMinDeliveryBps(uint256 bps) external {
+        stargateMinDeliveryBps = bps;
     }
 }
 

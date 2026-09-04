@@ -64,6 +64,7 @@ contract SuperVaultDeBridgeCapBridgeHookTest is Test {
 
         capGuard.setApprovedAdapter(DST_CHAIN_ID, adapter, true);
         capGuard.setDestinationHooks(DST_CHAIN_ID, dstApproveHook, dstDepositHook);
+        capGuard.setDestinationVaultAsset(DST_CHAIN_ID, destVault, takeToken); // R3-RF3
     }
 
     function _depositMessage() internal view returns (bytes memory) {
@@ -84,6 +85,17 @@ contract SuperVaultDeBridgeCapBridgeHookTest is Test {
         bytes destinationMessage;
         address fallbackAddress;
         address executorAddress;
+        // R3-RF2 execution-policy knobs (defaults = the pinned policy)
+        uint8 version;
+        uint256 executionFee;
+        bool allowDelayedExecution;
+        bool requireSuccessfulExecution;
+        // R2-B1 delivery tuple + P1/P2 order-authority knobs
+        bytes takeTokenAddress;
+        uint256 takeAmount;
+        bytes orderAuthorityAddressDst;
+        bytes allowedCancelBeneficiarySrc;
+        bytes affiliateFee;
     }
 
     function _params() internal view returns (EncodeParams memory p) {
@@ -95,6 +107,16 @@ contract SuperVaultDeBridgeCapBridgeHookTest is Test {
         p.destinationMessage = _depositMessage();
         p.fallbackAddress = account;
         p.executorAddress = adapter;
+        p.version = 1;
+        p.executionFee = 0;
+        p.allowDelayedExecution = false;
+        p.requireSuccessfulExecution = true;
+        p.takeTokenAddress = abi.encodePacked(takeToken); // dst-chain address (R2-B1: must match the action token)
+        p.takeAmount = TAKE_AMOUNT;
+        // P1: real DLN requires a non-empty authority; the cap hook pins both to the account.
+        p.orderAuthorityAddressDst = abi.encodePacked(account);
+        p.allowedCancelBeneficiarySrc = abi.encodePacked(account);
+        p.affiliateFee = bytes(""); // P2: any non-empty value is rejected
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -234,6 +256,156 @@ contract SuperVaultDeBridgeCapBridgeHookTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
+                R3-RF2: PINNED EXECUTION POLICY (review round 3)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The envelope execution policy is hardcoded by revert — a manager cannot flip
+    ///         "vault execution must succeed" into "best-effort with idle fallback" without
+    ///         changing anything the leaf pins.
+    function test_RevertIf_RequireSuccessfulExecutionDisabled() public {
+        EncodeParams memory p = _params();
+        p.requireSuccessfulExecution = false;
+        vm.prank(account);
+        vm.expectRevert(SuperVaultDeBridgeCapBridgeHook.EXECUTION_POLICY_NOT_VALID.selector);
+        hook.preExecute(address(0), account, _encode(p));
+    }
+
+    /// @notice Delayed execution is incompatible with the reservation/confirmation timeouts.
+    function test_RevertIf_DelayedExecutionAllowed() public {
+        EncodeParams memory p = _params();
+        p.allowDelayedExecution = true;
+        vm.prank(account);
+        vm.expectRevert(SuperVaultDeBridgeCapBridgeHook.EXECUTION_POLICY_NOT_VALID.selector);
+        hook.preExecute(address(0), account, _encode(p));
+    }
+
+    /// @notice Nothing may be skimmed from the delivered amount for a taker.
+    function test_RevertIf_NonZeroExecutionFee() public {
+        EncodeParams memory p = _params();
+        p.executionFee = 1;
+        vm.prank(account);
+        vm.expectRevert(SuperVaultDeBridgeCapBridgeHook.EXECUTION_POLICY_NOT_VALID.selector);
+        hook.preExecute(address(0), account, _encode(p));
+    }
+
+    /// @notice Only the supported V1 envelope layout is capped.
+    function test_RevertIf_UnsupportedEnvelopeVersion() public {
+        EncodeParams memory p = _params();
+        p.version = 2;
+        vm.prank(account);
+        vm.expectRevert(SuperVaultDeBridgeCapBridgeHook.EXECUTION_POLICY_NOT_VALID.selector);
+        hook.preExecute(address(0), account, _encode(p));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            P1: CANCEL/PATCH AUTHORITY PINNED TO THE ACCOUNT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The order authority can cancel an unfilled order (refunding the full giveAmount)
+    ///         and patch takeAmount down — it must be the hub strategy account, nothing else.
+    function test_RevertIf_OrderAuthorityNotAccount() public {
+        EncodeParams memory p = _params();
+        p.orderAuthorityAddressDst = abi.encodePacked(makeAddr("attackerAuthority"));
+        vm.prank(account);
+        vm.expectRevert(SuperVaultDeBridgeCapBridgeHook.ORDER_AUTHORITY_NOT_ACCOUNT.selector);
+        hook.preExecute(address(0), account, _encode(p));
+    }
+
+    /// @notice Empty authority bytes are indistinguishable from address(0) in the leaf — the
+    ///         runtime shape check must reject them (real DLN also rejects an empty authority).
+    function test_RevertIf_OrderAuthorityEmpty() public {
+        EncodeParams memory p = _params();
+        p.orderAuthorityAddressDst = bytes("");
+        vm.prank(account);
+        vm.expectRevert(SuperVaultDeBridgeCapBridgeHook.ORDER_AUTHORITY_NOT_ACCOUNT.selector);
+        hook.preExecute(address(0), account, _encode(p));
+    }
+
+    /// @notice A cancel refund must flow back to the hub strategy account, never a third party.
+    function test_RevertIf_CancelBeneficiaryNotAccount() public {
+        EncodeParams memory p = _params();
+        p.allowedCancelBeneficiarySrc = abi.encodePacked(makeAddr("attackerBeneficiary"));
+        vm.prank(account);
+        vm.expectRevert(SuperVaultDeBridgeCapBridgeHook.CANCEL_BENEFICIARY_NOT_ACCOUNT.selector);
+        hook.preExecute(address(0), account, _encode(p));
+    }
+
+    /// @notice An EMPTY cancel beneficiary lets the authority refund the giveAmount to an
+    ///         ARBITRARY address on cancellation — rejected by the shape check.
+    function test_RevertIf_CancelBeneficiaryEmpty() public {
+        EncodeParams memory p = _params();
+        p.allowedCancelBeneficiarySrc = bytes("");
+        vm.prank(account);
+        vm.expectRevert(SuperVaultDeBridgeCapBridgeHook.CANCEL_BENEFICIARY_NOT_ACCOUNT.selector);
+        hook.preExecute(address(0), account, _encode(p));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                P2/P3: AFFILIATE FEE + NATIVE TAKE TOKEN
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice P2: affiliateFee is a give-side skim to an arbitrary beneficiary — forbidden
+    ///         entirely (the take-side executionFee is already pinned to zero).
+    function test_RevertIf_AffiliateFeeNotEmpty() public {
+        EncodeParams memory p = _params();
+        p.affiliateFee = abi.encodePacked(makeAddr("affiliateBeneficiary"), uint256(1e6));
+        vm.prank(account);
+        vm.expectRevert(SuperVaultDeBridgeCapBridgeHook.AFFILIATE_FEE_NOT_ALLOWED.selector);
+        hook.preExecute(address(0), account, _encode(p));
+    }
+
+    /// @notice P3: a 20-zero-byte takeToken selects NATIVE take delivery and would disable the
+    ///         shared base's destination-token binding (its address(0) sentinel) — rejected.
+    function test_RevertIf_TakeTokenZeroAddress() public {
+        EncodeParams memory p = _params();
+        p.takeTokenAddress = abi.encodePacked(address(0));
+        vm.prank(account);
+        vm.expectRevert(SuperVaultDeBridgeCapBridgeHook.TAKE_TOKEN_NOT_VALID.selector);
+        hook.preExecute(address(0), account, _encode(p));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+        R2-B1/R3-PF1: DELIVERY FLOOR + AMOUNT/TOKEN BINDING
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice R3-PF1: a takeAmount below 90% of giveAmount could never clear the periphery's
+    ///         confirmation floor — the send must not leave the hub.
+    function test_RevertIf_DeliveryBelowReservationFloor() public {
+        EncodeParams memory p = _params();
+        p.takeAmount = 850e6; // 85% of GIVE_AMOUNT — below MIN_SOURCE_DELIVERY_BPS (90%)
+        p.destinationMessage = _depositMessageWithAmount(850e6); // amount-bound, so the floor fires
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.DELIVERY_BELOW_RESERVATION_FLOOR.selector);
+        hook.preExecute(address(0), account, _encode(p));
+        assertEq(registry.bridgedOut(account), 0, "no reservation below the delivery floor");
+    }
+
+    /// @notice R2-B1: the destination action must consume exactly the takeAmount minimum — a
+    ///         smaller independently-encoded deposit would leave a bridged remainder idle.
+    function test_RevertIf_ActionAmountNotTakeAmount() public {
+        EncodeParams memory p = _params();
+        p.destinationMessage = _depositMessageWithAmount(TAKE_AMOUNT - 1);
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_AMOUNT_NOT_BOUND.selector);
+        hook.preExecute(address(0), account, _encode(p));
+        assertEq(registry.bridgedOut(account), 0, "no reservation on an unbound amount");
+    }
+
+    /// @notice R2-B1: the action token must be the deBridge takeToken — even when the (wrong)
+    ///         token IS the vault's pinned asset, the bridge-output binding still rejects it.
+    function test_RevertIf_ActionTokenNotTakeToken() public {
+        address wrongToken = makeAddr("wrongToken");
+        capGuard.setDestinationVaultAsset(DST_CHAIN_ID, destVault, wrongToken);
+        EncodeParams memory p = _params();
+        p.destinationMessage = CapMessageLib.vaultDepositMessage(
+            account, dstApproveHook, dstDepositHook, destVault, wrongToken, TAKE_AMOUNT
+        );
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_TOKEN_NOT_BOUND.selector);
+        hook.preExecute(address(0), account, _encode(p));
+    }
+
+    /*//////////////////////////////////////////////////////////////
                         B1: LEAF (inspect) PINNING
     //////////////////////////////////////////////////////////////*/
 
@@ -242,8 +414,10 @@ contract SuperVaultDeBridgeCapBridgeHookTest is Test {
     function test_Inspect_ChangesWhenExecutorVaultChanges() public {
         EncodeParams memory pA = _params();
         EncodeParams memory pB = _params();
+        address otherVault = makeAddr("otherVault");
+        capGuard.setDestinationVaultAsset(DST_CHAIN_ID, otherVault, takeToken); // R3-RF3
         pB.destinationMessage = CapMessageLib.vaultDepositMessage(
-            account, dstApproveHook, dstDepositHook, makeAddr("otherVault"), takeToken, TAKE_AMOUNT
+            account, dstApproveHook, dstDepositHook, otherVault, takeToken, TAKE_AMOUNT
         );
         assertTrue(
             keccak256(hook.inspect(_encode(pA))) != keccak256(hook.inspect(_encode(pB))),
@@ -401,29 +575,32 @@ contract SuperVaultDeBridgeCapBridgeHookTest is Test {
             uint256(0), // value
             p.giveToken,
             p.giveAmount,
-            uint8(1), // version
+            p.version,
             p.fallbackAddress,
             p.executorAddress
         );
         bytes memory part2 = abi.encodePacked(
-            uint256(0), // executionFee
-            false, // allowDelayedExecution
-            true, // requireSuccessfulExecution
+            p.executionFee,
+            p.allowDelayedExecution,
+            p.requireSuccessfulExecution,
             p.destinationMessage.length,
             p.destinationMessage,
-            uint256(20), // takeTokenAddress length
-            abi.encodePacked(takeToken), // takeToken (dst-chain address, R2-B1: must match the action token)
-            uint256(995e6), // takeAmount
+            p.takeTokenAddress.length,
+            p.takeTokenAddress,
+            p.takeAmount,
             p.takeChainId
         );
         bytes memory part3 = abi.encodePacked(
             p.receiverDst.length,
             p.receiverDst,
             address(0), // givePatchAuthoritySrc
-            uint256(0), // orderAuthorityAddressDst length
+            p.orderAuthorityAddressDst.length,
+            p.orderAuthorityAddressDst,
             uint256(0), // allowedTakerDst length
-            uint256(0), // allowedCancelBeneficiarySrc length
-            uint256(0), // affiliateFee length
+            p.allowedCancelBeneficiarySrc.length,
+            p.allowedCancelBeneficiarySrc,
+            p.affiliateFee.length,
+            p.affiliateFee,
             uint32(0) // referralCode
         );
         return bytes.concat(part1, part2, part3);

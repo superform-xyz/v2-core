@@ -61,6 +61,8 @@ contract CrossChainSuperVaultDestinationStargateE2E is CrossChainSuperVaultDesti
         // B4: the routing EID maps to the canonical chain id the whole cap system keys on.
         capGuard.setEidChainId(DST_EID, chainId);
         capGuard.setApprovedAdapter(chainId, address(adapter), true);
+        capGuard.setStargateRoute(address(pool), chainId, address(token)); // R3-RF1
+        capGuard.setStargateMinDeliveryBps(9900); // R3-RF1
     }
 
     /*//////////////////////////////////////////////////////////////

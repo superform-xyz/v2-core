@@ -64,6 +64,9 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         capGuard.setEidChainId(DST_EID, DST_CHAIN_ID); // B4 canonical mapping
         capGuard.setApprovedAdapter(DST_CHAIN_ID, adapter, true);
         capGuard.setDestinationHooks(DST_CHAIN_ID, dstApproveHook, dstDepositHook);
+        capGuard.setDestinationVaultAsset(DST_CHAIN_ID, destVault, inputToken); // R3-RF3
+        capGuard.setStargateRoute(address(pool), DST_CHAIN_ID, inputToken); // R3-RF1
+        capGuard.setStargateMinDeliveryBps(9900); // R3-RF1 (MIN_AMOUNT_LD/AMOUNT_LD = 99.5%)
     }
 
     function _depositMessage() internal view returns (bytes memory) {
@@ -119,7 +122,12 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         // R2-B1: under usePrev the parent rescales minAmountLD by prev/amountLD; the action
         // amount must match that scaled minimum.
         bytes memory data = _encode(
-            DST_EID, _toBytes32(adapter), AMOUNT_LD, true, 0, _depositMessageWithAmount(MIN_AMOUNT_LD * prevAmount / AMOUNT_LD)
+            DST_EID,
+            _toBytes32(adapter),
+            AMOUNT_LD,
+            true,
+            0,
+            _depositMessageWithAmount(MIN_AMOUNT_LD * prevAmount / AMOUNT_LD)
         );
 
         vm.expectCall(
@@ -131,18 +139,47 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         assertEq(registry.bridgedOut(account), prevAmount);
     }
 
-    /// @notice Bus mode (1) carries the same fixed-offset fields and is cappable.
-    function test_Mode1Bus_Passes() public {
+    /// @notice Bus mode (1) silently drops composeMsg on the Stargate side (`_rideBus` never
+    ///         reads it), stranding the bridged amount on the admin-less adapter — taxi only.
+    function test_RevertIf_Mode1Bus() public {
         bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 1, _depositMessage());
         vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.MODE_NOT_CAPPABLE.selector);
         hook.preExecute(address(0), account, data);
-        assertEq(registry.bridgedOutByChain(account, DST_CHAIN_ID), AMOUNT_LD);
+        assertEq(registry.bridgedOut(account), 0, "no reservation for a bus-mode send");
+    }
+
+    /// @notice Generic OFT mode (2) is unregistered in the destination TokenMessaging — the
+    ///         adapter credits the tokens then returns without a compose execution: taxi only.
+    function test_RevertIf_Mode2Oft() public {
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 2, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.MODE_NOT_CAPPABLE.selector);
+        hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), 0, "no reservation for a generic-OFT send");
+    }
+
+    /// @notice The encoded amountLD must be nonzero even under usePrevHookAmount — a zero encoded
+    ///         amount skips the minAmountLD rescale and degenerates the governance min-delivery
+    ///         ratio check to `x < 0`, silently lowering the floor to the hardcoded 9000 bps.
+    function test_RevertIf_UsePrevWithZeroEncodedAmount() public {
+        MockPrevHook prevHook = new MockPrevHook(750e6);
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), 0, true, 0, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        hook.preExecute(address(prevHook), account, data);
+        assertEq(registry.bridgedOut(account), 0, "no reservation for a zero encoded amountLD");
     }
 
     /// @notice IDLE_HOLD action validates the zero-vault branch.
     function test_IdleHoldAction_ValidatesZeroVault() public {
         bytes memory data = _encode(
-            DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, CapMessageLib.idleHoldMessage(account, inputToken, MIN_AMOUNT_LD)
+            DST_EID,
+            _toBytes32(adapter),
+            AMOUNT_LD,
+            false,
+            0,
+            CapMessageLib.idleHoldMessage(account, inputToken, MIN_AMOUNT_LD)
         );
         vm.expectCall(
             address(capGuard),
@@ -205,7 +242,7 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
     function test_RevertIf_Mode3() public {
         bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 3, _depositMessage());
         vm.prank(account);
-        vm.expectRevert(ApproveAndStargateSendHook.DATA_NOT_VALID.selector);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.MODE_NOT_CAPPABLE.selector);
         hook.preExecute(address(0), account, data);
     }
 
@@ -235,14 +272,139 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
+                R3-RF1: DELIVERY BINDING (review round 3)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The caller-chosen slippage margin is bounded in code: minAmountLD below the
+    ///         governance ratio of amountLD reverts, so the maximum untracked delivery surplus
+    ///         (actual credit - action amount) is a governance-bounded sliver.
+    function test_RevertIf_DeliveryMarginTooWide() public {
+        // minAmountLD = 90% of amountLD, below the 99% floor set in setUp.
+        bytes memory data = _encodeWithMin(DST_EID, _toBytes32(adapter), AMOUNT_LD, AMOUNT_LD * 9000 / 10_000);
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_MARGIN_TOO_WIDE.selector);
+        hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), 0, "no reservation on an unbounded margin");
+    }
+
+    /// @notice An unset ratio fails closed.
+    function test_RevertIf_MinDeliveryBpsUnset() public {
+        capGuard.setStargateMinDeliveryBps(0);
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_MARGIN_TOO_WIDE.selector);
+        hook.preExecute(address(0), account, data);
+    }
+
+    /// @notice A route with no governance-pinned destination token fails closed.
+    function test_RevertIf_StargateRouteNotSet() public {
+        capGuard.setStargateRoute(address(pool), DST_CHAIN_ID, address(0));
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.STARGATE_ROUTE_NOT_SET.selector);
+        hook.preExecute(address(0), account, data);
+    }
+
+    /// @notice The action token must be the route's pinned destination token — a signed action
+    ///         attesting a different token can no longer reach the destination (R3-RF1 token leg).
+    function test_RevertIf_ActionTokenNotRouteToken() public {
+        address wrongToken = makeAddr("wrongDstToken");
+        capGuard.setDestinationVaultAsset(DST_CHAIN_ID, destVault, wrongToken);
+        bytes memory message = CapMessageLib.vaultDepositMessage(
+            account, dstApproveHook, dstDepositHook, destVault, wrongToken, MIN_AMOUNT_LD
+        );
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_TOKEN_NOT_BOUND.selector);
+        hook.preExecute(address(0), account, _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, message));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                EXTRA OPTIONS: STRUCTURAL WHITELIST
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice A gas-only executor lzCompose option (worker 1, type 3, index + gas, no value) is
+    ///         the canonical legitimate option for a compose send — it must pass.
+    function test_ExtraOptions_LzComposeGasOnly_Passes() public {
+        bytes memory options = abi.encodePacked(uint16(3), _lzComposeGasOption());
+        vm.prank(account);
+        hook.preExecute(address(0), account, _encodeWithOptions(options));
+        assertEq(registry.bridgedOutByChain(account, DST_CHAIN_ID), AMOUNT_LD);
+    }
+
+    /// @notice A gas-only executor lzReceive option (worker 1, type 1, gas, no value) passes,
+    ///         including alongside a gas-only lzCompose entry.
+    function test_ExtraOptions_LzReceiveGasOnly_Passes() public {
+        bytes memory options =
+            abi.encodePacked(uint16(3), uint8(1), uint16(17), uint8(1), uint128(200_000), _lzComposeGasOption());
+        vm.prank(account);
+        hook.preExecute(address(0), account, _encodeWithOptions(options));
+        assertEq(registry.bridgedOutByChain(account, DST_CHAIN_ID), AMOUNT_LD);
+    }
+
+    /// @notice A native-drop option (type 2) appended after a valid entry would pay the account's
+    ///         native fee float to an arbitrary receiver — rejected.
+    function test_RevertIf_ExtraOptions_NativeDrop() public {
+        bytes memory nativeDrop = abi.encodePacked(
+            uint8(1), uint16(49), uint8(2), uint128(1 ether), bytes32(uint256(uint160(makeAddr("dropReceiver"))))
+        );
+        bytes memory options = abi.encodePacked(uint16(3), _lzComposeGasOption(), nativeDrop);
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.EXTRA_OPTIONS_NOT_VALID.selector);
+        hook.preExecute(address(0), account, _encodeWithOptions(options));
+    }
+
+    /// @notice The value-carrying lzReceive variant (gas + uint128 value, size 33) is rejected.
+    function test_RevertIf_ExtraOptions_LzReceiveWithValue() public {
+        bytes memory options =
+            abi.encodePacked(uint16(3), uint8(1), uint16(33), uint8(1), uint128(200_000), uint128(1 ether));
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.EXTRA_OPTIONS_NOT_VALID.selector);
+        hook.preExecute(address(0), account, _encodeWithOptions(options));
+    }
+
+    /// @notice A non-executor worker id is rejected.
+    function test_RevertIf_ExtraOptions_UnknownWorker() public {
+        bytes memory options = abi.encodePacked(uint16(3), uint8(2), uint16(19), uint8(3), uint16(0), uint128(200_000));
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.EXTRA_OPTIONS_NOT_VALID.selector);
+        hook.preExecute(address(0), account, _encodeWithOptions(options));
+    }
+
+    /// @notice A non-TYPE_3 header is rejected.
+    function test_RevertIf_ExtraOptions_WrongHeader() public {
+        bytes memory options = abi.encodePacked(uint16(1), uint8(1), uint16(17), uint8(1), uint128(200_000));
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.EXTRA_OPTIONS_NOT_VALID.selector);
+        hook.preExecute(address(0), account, _encodeWithOptions(options));
+    }
+
+    /// @notice Truncated / garbage option bytes are rejected.
+    function test_RevertIf_ExtraOptions_Truncated() public {
+        // TYPE_3 header followed by a dangling worker byte (no size/type).
+        bytes memory options = abi.encodePacked(uint16(3), uint8(1));
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.EXTRA_OPTIONS_NOT_VALID.selector);
+        hook.preExecute(address(0), account, _encodeWithOptions(options));
+
+        // Valid entry whose declared size overruns the buffer.
+        bytes memory overrun = abi.encodePacked(uint16(3), uint8(1), uint16(19), uint8(3), uint16(0)); // 16 gas bytes
+        // missing
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.EXTRA_OPTIONS_NOT_VALID.selector);
+        hook.preExecute(address(0), account, _encodeWithOptions(overrun));
+    }
+
+    /*//////////////////////////////////////////////////////////////
                         B1: LEAF (inspect) PINNING
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Mutating only the destination vault inside the compose message changes the leaf.
     function test_Inspect_ChangesWhenExecutorVaultChanges() public {
         bytes memory dataA = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
+        address otherVault = makeAddr("otherVault");
+        capGuard.setDestinationVaultAsset(DST_CHAIN_ID, otherVault, inputToken); // R3-RF3
         bytes memory msgB = CapMessageLib.vaultDepositMessage(
-            account, dstApproveHook, dstDepositHook, makeAddr("otherVault"), inputToken, AMOUNT_LD
+            account, dstApproveHook, dstDepositHook, otherVault, inputToken, AMOUNT_LD
         );
         bytes memory dataB = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, msgB);
         assertTrue(keccak256(hook.inspect(dataA)) != keccak256(hook.inspect(dataB)));
@@ -256,6 +418,8 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         capGuard.setEidChainId(DST_EID, 42_161); // governance remaps the EID
         capGuard.setApprovedAdapter(42_161, adapter, true);
         capGuard.setDestinationHooks(42_161, dstApproveHook, dstDepositHook);
+        capGuard.setDestinationVaultAsset(42_161, destVault, inputToken); // R3-RF3
+        capGuard.setStargateRoute(address(pool), 42_161, inputToken); // R3-RF1
         assertTrue(keccak256(leafBase) != keccak256(hook.inspect(data)), "leaf must track the canonical chain id");
     }
 
@@ -334,6 +498,55 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
 
     function _toBytes32(address a) internal pure returns (bytes32) {
         return bytes32(uint256(uint160(a)));
+    }
+
+    /// @dev A gas-only executor lzCompose option entry: [worker 1][size 19][type 3][index][gas].
+    function _lzComposeGasOption() internal pure returns (bytes memory) {
+        return abi.encodePacked(uint8(1), uint16(19), uint8(3), uint16(0), uint128(200_000));
+    }
+
+    /// @dev Encodes taxi-mode hookData carrying the given extraOptions bytes.
+    function _encodeWithOptions(bytes memory extraOptions) internal view returns (bytes memory) {
+        bytes memory fixedPart = abi.encodePacked(
+            bytes32(0),
+            address(0), // 52-byte strategy header
+            NATIVE_FEE,
+            address(pool),
+            inputToken,
+            DST_EID,
+            _toBytes32(adapter),
+            AMOUNT_LD,
+            MIN_AMOUNT_LD
+        );
+        bytes memory composeMsg = _depositMessage();
+        return abi.encodePacked(
+            fixedPart, false, uint8(0), extraOptions.length, extraOptions, composeMsg.length, composeMsg
+        );
+    }
+
+    function _encodeWithMin(
+        uint32 dstEid,
+        bytes32 to,
+        uint256 amountLD,
+        uint256 minAmountLD
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes memory fixedPart = abi.encodePacked(
+            bytes32(0),
+            address(0), // 52-byte strategy header
+            NATIVE_FEE,
+            address(pool),
+            inputToken,
+            dstEid,
+            to,
+            amountLD,
+            minAmountLD
+        );
+        bytes memory composeMsg = _depositMessageWithAmount(minAmountLD);
+        return abi.encodePacked(fixedPart, false, uint8(0), uint256(0), composeMsg.length, composeMsg);
     }
 
     function _encode(

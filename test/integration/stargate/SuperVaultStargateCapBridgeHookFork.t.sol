@@ -89,6 +89,9 @@ contract SuperVaultStargateCapBridgeHookFork is Test {
         capGuard.setEidChainId(EID_BASE, BASE_CHAIN_ID);
         capGuard.setApprovedAdapter(BASE_CHAIN_ID, adapter, true);
         capGuard.setDestinationHooks(BASE_CHAIN_ID, dstApproveHook, dstDepositHook);
+        capGuard.setDestinationVaultAsset(BASE_CHAIN_ID, destVault, USDC_BASE); // R3-RF3
+        capGuard.setStargateRoute(STARGATE_USDC_POOL_ETH, BASE_CHAIN_ID, USDC_BASE); // R3-RF1
+        capGuard.setStargateMinDeliveryBps(9900); // R3-RF1 (MIN/AMOUNT = 99%)
 
         deal(USDC_ETH, account, AMOUNT_LD);
     }
@@ -242,8 +245,9 @@ contract SuperVaultStargateCapBridgeHookFork is Test {
     /// @notice An EID with no canonical mapping fails closed on-fork (B4).
     function test_Fork_RevertIf_EidNotMapped() public {
         uint32 unmappedEid = 30_101; // Ethereum EID, not configured
-        bytes memory data =
-            _encode(unmappedEid, _toBytes32(adapter), AMOUNT_LD, MIN_AMOUNT_LD, 1, false, 0, _depositMessage(AMOUNT_LD));
+        bytes memory data = _encode(
+            unmappedEid, _toBytes32(adapter), AMOUNT_LD, MIN_AMOUNT_LD, 1, false, 0, _depositMessage(AMOUNT_LD)
+        );
         vm.prank(account);
         vm.expectRevert(SuperVaultStargateCapBridgeHook.EID_NOT_MAPPED.selector);
         hook.preExecute(address(0), account, data);
@@ -264,7 +268,7 @@ contract SuperVaultStargateCapBridgeHookFork is Test {
         bytes memory data =
             _encode(EID_BASE, _toBytes32(adapter), AMOUNT_LD, MIN_AMOUNT_LD, 0, false, 3, _depositMessage(AMOUNT_LD));
         vm.prank(account);
-        vm.expectRevert(); // parent DATA_NOT_VALID
+        vm.expectRevert(); // MODE_NOT_CAPPABLE (taxi-only)
         hook.preExecute(address(0), account, data);
         assertEq(registry.bridgedOut(account), 0, "recorded despite mode-3 reject");
     }

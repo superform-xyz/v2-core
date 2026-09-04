@@ -32,6 +32,12 @@ interface ICrossChainPositionCapGuard {
     function destinationHooks(uint64 chainId) external view returns (address approveHook, address depositHook);
 
     function chainIdForEid(uint32 eid) external view returns (uint64);
+
+    function destinationVaultAsset(uint64 chainId, address vault) external view returns (address);
+
+    function stargateDstToken(address srcPool, uint64 chainId) external view returns (address);
+
+    function stargateMinDeliveryBps() external view returns (uint256);
 }
 
 /// @notice Minimal surface of the cross-chain position registry (SuperVault periphery). Note
@@ -78,6 +84,14 @@ abstract contract SuperVaultCapBridgeCommon {
     uint8 public constant ACTION_IDLE_HOLD = 0;
     uint8 public constant ACTION_VAULT_DEPOSIT = 1;
 
+    /// @notice R3-PF1: the guaranteed delivery must be at least this fraction of the RESERVED
+    ///         source amount. Must equal the periphery registry's MIN_CONFIRMATION_BPS so that a
+    ///         route whose delivery minimum passes here is always confirmable there — the
+    ///         reservation, the destination action and the confirmation floor share one bound.
+    ///         Assumes same-asset routes with equal source/destination decimals (the only routes
+    ///         this hook family supports).
+    uint256 public constant MIN_SOURCE_DELIVERY_BPS = 9000;
+
     /// @dev SuperGovernor address-book keys — identical to the periphery constants so the resolved
     ///      guard/registry match what the cap math reads.
     bytes32 internal constant CROSS_CHAIN_CAP_GUARD = keccak256("CROSS_CHAIN_CAP_GUARD");
@@ -90,6 +104,7 @@ abstract contract SuperVaultCapBridgeCommon {
     uint256 private constant DST_APPROVE_TOKEN_OFFSET = 52;
     uint256 private constant DST_APPROVE_SPENDER_OFFSET = 72;
     uint256 private constant DST_APPROVE_AMOUNT_OFFSET = 92;
+    uint256 private constant DST_APPROVE_USE_PREV_OFFSET = 124;
     uint256 private constant DST_APPROVE_MIN_LENGTH = 125;
     uint256 private constant DST_DEPOSIT_VAULT_OFFSET = 32;
     uint256 private constant DST_DEPOSIT_USE_PREV_OFFSET = 84;
@@ -116,8 +131,12 @@ abstract contract SuperVaultCapBridgeCommon {
     error DESTINATION_ACTION_NOT_VALID();
     /// @notice The destination action amount is not bound to the bridge's guaranteed delivery
     error DESTINATION_AMOUNT_NOT_BOUND();
+    /// @notice The bridge's guaranteed delivery is below the floor fraction of the reserved amount
+    error DELIVERY_BELOW_RESERVATION_FLOOR();
     /// @notice The destination action token is not the token the bridge delivers
     error DESTINATION_TOKEN_NOT_BOUND();
+    /// @notice The destination action token is not the governance-pinned asset of the vault
+    error DESTINATION_VAULT_ASSET_NOT_BOUND();
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -185,6 +204,14 @@ abstract contract SuperVaultCapBridgeCommon {
         // i.e. slippage dust, never an independently-chosen smaller deposit.
         if (minDeliveredAmount == 0 || action.actionAmount != minDeliveredAmount) {
             revert DESTINATION_AMOUNT_NOT_BOUND();
+        }
+        // R3-PF1: the guaranteed delivery must nearly cover the RESERVATION — otherwise a route
+        // could reserve 100, deliver/deposit 85, and the periphery's >= 90% confirmation floor
+        // would (correctly) never confirm it, stranding the position in the trusted-reconciliation
+        // path by construction. Keeping this floor equal to the periphery's makes every send that
+        // leaves the hub confirmable at its guaranteed minimum.
+        if (minDeliveredAmount * 10_000 < amount * MIN_SOURCE_DELIVERY_BPS) {
+            revert DELIVERY_BELOW_RESERVATION_FLOOR();
         }
         // R2-B1: the token whose arrival the executor attests (and which the action approves)
         // must be the token the bridge actually delivers, whenever the hub can derive it.
@@ -275,6 +302,13 @@ abstract contract SuperVaultCapBridgeCommon {
 
         if (hooksLen != 2) revert DESTINATION_ACTION_NOT_VALID();
 
+        // The destination hook ADDRESSES are deliberately not part of the merkle leaf: they are
+        // bound here against the guard's live governance config, so rotating the pair makes every
+        // in-flight signed root revert at validation (fail-closed) rather than mis-route. Ops
+        // note: a destinationHooks rotation therefore invalidates outstanding roots by design.
+        // Ordering is load-bearing: the approve hook MUST be entry index 0 so its prevHook is
+        // address(0) and it publishes outAmount = approve amount for the deposit hook's
+        // usePrevHookAmount consumption (SuperExecutorBase starts prevHook at 0).
         (address approveHook, address depositHook) = guard.destinationHooks(chainId);
         if (approveHook == address(0) || depositHook == address(0)) revert DESTINATION_ACTION_NOT_VALID();
         if (entry.hooksAddresses[0] != approveHook || entry.hooksAddresses[1] != depositHook) {
@@ -302,6 +336,18 @@ abstract contract SuperVaultCapBridgeCommon {
         }
         if (uint8(entry.hooksData[1][DST_DEPOSIT_USE_PREV_OFFSET]) != 1) {
             revert DESTINATION_ACTION_NOT_VALID();
+        }
+        // R3-RF3: the approve is the FIRST destination hook — its prevHook is address(0), so
+        // usePrevHookAmount == true would revert at execution and (on best-effort adapters)
+        // strand the delivered funds idle under a vault-bound reservation. Reject up front.
+        if (uint8(entry.hooksData[0][DST_APPROVE_USE_PREV_OFFSET]) != 0) {
+            revert DESTINATION_ACTION_NOT_VALID();
+        }
+        // R3-RF3: the action token must be the approved vault's ASSET (governance-pinned — the
+        // hub cannot call the destination vault). An output-token / vault-asset mismatch would
+        // pass allowances but revert inside deposit(), stranding funds. Fail closed when unset.
+        if (guard.destinationVaultAsset(chainId, action.destinationVault) != action.dstToken) {
+            revert DESTINATION_VAULT_ASSET_NOT_BOUND();
         }
 
         action.actionType = ACTION_VAULT_DEPOSIT;

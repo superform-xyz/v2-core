@@ -87,12 +87,12 @@ contract ApproveAndAcrossSendFundsAndExecuteOnDstHook is
     }
 
     /// @notice Human-readable name for UI display
-    function name() external pure override returns (string memory) {
+    function name() external pure virtual override returns (string memory) {
         return "Approve and Across Bridge";
     }
 
     /// @notice One-sentence description of what this hook does
-    function description() external pure override returns (string memory) {
+    function description() external pure virtual override returns (string memory) {
         return "Approves and bridges tokens via Across with destination execution";
     }
 

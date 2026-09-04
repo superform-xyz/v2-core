@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-09-04T07:16:00Z",
+  "generatedAt": "2026-09-04T09:31:10Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -5174,6 +5174,8 @@
       ]
     },
     "SuperVaultAcrossCapBridgeHook": {
+      "name": "SuperVault Capped Approve and Across Bridge",
+      "description": "Cap-enforced Across bridge for cross-chain SuperVaults: validates the typed destination action and records the reservation before bridging",
       "actionTypes": [
         {
           "intent": "bridge",
@@ -5746,6 +5748,8 @@
       ]
     },
     "SuperVaultStargateCapBridgeHook": {
+      "name": "SuperVault Capped Approve and Stargate Bridge",
+      "description": "Cap-enforced Stargate send for cross-chain SuperVaults: validates the typed destination action and records the reservation before bridging",
       "actionTypes": [
         {
           "intent": "bridge",
@@ -6058,6 +6062,8 @@
       ]
     },
     "SuperVaultDeBridgeCapBridgeHook": {
+      "name": "SuperVault Capped deBridge Send Order",
+      "description": "Cap-enforced deBridge order for cross-chain SuperVaults: validates the typed destination action and records the reservation before bridging",
       "actionTypes": [
         {
           "intent": "bridge",
