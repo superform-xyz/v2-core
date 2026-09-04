@@ -174,9 +174,15 @@ Provides centralized address management for configuration and upgradeability.
 
 ### Prerequisites
 
-- Foundry
-- Node.js
+To reproduce the exact CI build, use the same pinned toolchain versions as `.github/workflows/contracts-ci.yml`:
+
+- Foundry **v1.4.4** (`foundryup --install v1.4.4`)
+- Node.js **22.x**
+- pnpm **9.15.9** (the checked-in lockfiles are lockfile version 9; pnpm 8 cannot read them and silently falls back to fresh resolution)
+- yarn **1.x** (classic, for `lib/nexus`)
 - Git
+
+> **Windows note:** the recursive submodule tree produces paths longer than the default 260-character limit. Before cloning, enable long paths: `git config --system core.longpaths true` (and on Windows 10/11, enable `LongPathsEnabled` in the registry or via Group Policy).
 
 ### Installation
 
@@ -195,23 +201,25 @@ forge install
 
 ```bash
 cd lib/modulekit/
-pnpm i
+pnpm install --frozen-lockfile
 ```
 
 ```bash
 cd lib/safe7579
-pnpm i
+pnpm install --frozen-lockfile
 ```
 
 ```bash
 cd lib/nexus
-yarn
+yarn --frozen-lockfile
 ```
 
-Note: This requires pnpm and will not work with npm. Install it using:
+`--frozen-lockfile` makes the install fail loudly if the lockfile and `package.json` have drifted, instead of silently re-resolving — the same flags CI uses, so a successful local install means the same dependency set as CI.
+
+Note: This requires pnpm and will not work with npm. Install the pinned version using:
 
 ```bash
-curl -fsSL https://get.pnpm.io/install.sh | sh -
+npm install -g pnpm@9.15.9
 ```
 
 Copy the environment file:
