@@ -70,9 +70,12 @@ contract SuperVaultAcrossCapBridgeHookTest is Test {
     }
 
     function _depositMessage() internal view returns (bytes memory) {
-        return CapMessageLib.vaultDepositMessage(
-            account, dstApproveHook, dstDepositHook, destVault, outputToken, OUTPUT_AMOUNT
-        );
+        // R2-B1: the action amount must equal the delivery minimum (outputAmount).
+        return _depositMessageWithAmount(OUTPUT_AMOUNT);
+    }
+
+    function _depositMessageWithAmount(uint256 amount) internal view returns (bytes memory) {
+        return CapMessageLib.vaultDepositMessage(account, dstApproveHook, dstDepositHook, destVault, outputToken, amount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -120,7 +123,10 @@ contract SuperVaultAcrossCapBridgeHookTest is Test {
     function test_ValidatedAmountEqualsBridgedAmount_PrevHookAmount() public {
         uint256 prevAmount = 750e6;
         MockPrevHook prevHook = new MockPrevHook(prevAmount);
-        bytes memory data = _encode(DST_CHAIN_ID, INPUT_AMOUNT, true, _depositMessage());
+        // R2-B1: under usePrev the parent rescales outputAmount by prev/input; the action amount
+        // must match that scaled minimum.
+        bytes memory data =
+            _encode(DST_CHAIN_ID, INPUT_AMOUNT, true, _depositMessageWithAmount(OUTPUT_AMOUNT * prevAmount / INPUT_AMOUNT));
 
         (, uint256 bridgedAmount,) = _decodeBridged(data, address(prevHook));
         assertEq(bridgedAmount, prevAmount, "bridge did not use prev-hook amount");
@@ -138,7 +144,7 @@ contract SuperVaultAcrossCapBridgeHookTest is Test {
     ///         validates the idle-hold branch (vault == 0) on the hub-controlled account.
     function test_IdleHoldAction_ValidatesZeroVault() public {
         bytes memory data =
-            _encode(DST_CHAIN_ID, INPUT_AMOUNT, false, CapMessageLib.idleHoldMessage(account, outputToken));
+            _encode(DST_CHAIN_ID, INPUT_AMOUNT, false, CapMessageLib.idleHoldMessage(account, outputToken, OUTPUT_AMOUNT));
 
         vm.expectCall(
             address(capGuard),
@@ -195,7 +201,7 @@ contract SuperVaultAcrossCapBridgeHookTest is Test {
         hooksData[1] = CapMessageLib.depositHookData(destVault, OUTPUT_AMOUNT);
         hooksData[2] = hex"deadbeef";
         bytes memory message =
-            CapMessageLib.wrap(CapMessageLib.executorCalldataFor(hooks, hooksData), account, outputToken);
+            CapMessageLib.wrap(CapMessageLib.executorCalldataFor(hooks, hooksData), account, outputToken, OUTPUT_AMOUNT);
 
         vm.prank(account);
         vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_ACTION_NOT_VALID.selector);
@@ -221,7 +227,7 @@ contract SuperVaultAcrossCapBridgeHookTest is Test {
         hooksData[0] = CapMessageLib.approveHookData(outputToken, makeAddr("attacker"), OUTPUT_AMOUNT);
         hooksData[1] = CapMessageLib.depositHookData(destVault, OUTPUT_AMOUNT);
         bytes memory message =
-            CapMessageLib.wrap(CapMessageLib.executorCalldataFor(hooks, hooksData), account, outputToken);
+            CapMessageLib.wrap(CapMessageLib.executorCalldataFor(hooks, hooksData), account, outputToken, OUTPUT_AMOUNT);
 
         vm.prank(account);
         vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_ACTION_NOT_VALID.selector);
@@ -237,10 +243,110 @@ contract SuperVaultAcrossCapBridgeHookTest is Test {
         hook.preExecute(address(0), account, data);
     }
 
+    /*//////////////////////////////////////////////////////////////
+            R2-B1: TOKEN + AMOUNT BINDING (review round 2)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice R2-B1 core trace: bridge 100, destination deposit 1 — must revert BEFORE the bridge.
+    ///         A smaller independently-encoded action can no longer leave a bridged remainder idle.
+    function test_RevertIf_DepositSmallerThanBridgedAmount() public {
+        bytes memory data = _encode(DST_CHAIN_ID, INPUT_AMOUNT, false, _depositMessageWithAmount(1e6));
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_AMOUNT_NOT_BOUND.selector);
+        hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), 0, "no reservation on an unbound amount");
+    }
+
+    /// @notice The action token must be the bridge's output token.
+    function test_RevertIf_ActionTokenNotBridgeOutputToken() public {
+        bytes memory message = CapMessageLib.vaultDepositMessage(
+            account, dstApproveHook, dstDepositHook, destVault, makeAddr("wrongToken"), OUTPUT_AMOUNT
+        );
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_TOKEN_NOT_BOUND.selector);
+        hook.preExecute(address(0), account, _encode(DST_CHAIN_ID, INPUT_AMOUNT, false, message));
+    }
+
+    /// @notice The approve token must equal the attested destination token.
+    function test_RevertIf_ApproveTokenNotDstToken() public {
+        address[] memory hooks = new address[](2);
+        hooks[0] = dstApproveHook;
+        hooks[1] = dstDepositHook;
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = CapMessageLib.approveHookData(makeAddr("otherToken"), destVault, OUTPUT_AMOUNT);
+        hooksData[1] = CapMessageLib.depositHookData(destVault, OUTPUT_AMOUNT);
+        bytes memory message = CapMessageLib.wrap(
+            CapMessageLib.executorCalldataFor(hooks, hooksData), account, outputToken, OUTPUT_AMOUNT
+        );
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_ACTION_NOT_VALID.selector);
+        hook.preExecute(address(0), account, _encode(DST_CHAIN_ID, INPUT_AMOUNT, false, message));
+    }
+
+    /// @notice The approve amount must equal the attested intent amount — one action amount only.
+    function test_RevertIf_ApproveAmountNotIntentAmount() public {
+        address[] memory hooks = new address[](2);
+        hooks[0] = dstApproveHook;
+        hooks[1] = dstDepositHook;
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = CapMessageLib.approveHookData(outputToken, destVault, 1e6); // != intent
+        hooksData[1] = CapMessageLib.depositHookData(destVault, OUTPUT_AMOUNT);
+        bytes memory message = CapMessageLib.wrap(
+            CapMessageLib.executorCalldataFor(hooks, hooksData), account, outputToken, OUTPUT_AMOUNT
+        );
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_ACTION_NOT_VALID.selector);
+        hook.preExecute(address(0), account, _encode(DST_CHAIN_ID, INPUT_AMOUNT, false, message));
+    }
+
+    /// @notice The deposit must consume the approve amount (usePrevHookAmount = true) — a second,
+    ///         independently encoded deposit amount is rejected.
+    function test_RevertIf_DepositNotUsingPrevHookAmount() public {
+        address[] memory hooks = new address[](2);
+        hooks[0] = dstApproveHook;
+        hooks[1] = dstDepositHook;
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = CapMessageLib.approveHookData(outputToken, destVault, OUTPUT_AMOUNT);
+        hooksData[1] = abi.encodePacked(bytes32(0), destVault, OUTPUT_AMOUNT, false); // usePrev off
+        bytes memory message = CapMessageLib.wrap(
+            CapMessageLib.executorCalldataFor(hooks, hooksData), account, outputToken, OUTPUT_AMOUNT
+        );
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_ACTION_NOT_VALID.selector);
+        hook.preExecute(address(0), account, _encode(DST_CHAIN_ID, INPUT_AMOUNT, false, message));
+    }
+
+    /// @notice Exactly one (dstToken, intentAmount) pair — the executor's arrival attestation must
+    ///         be unambiguous.
+    function test_RevertIf_MultipleDstTokens() public {
+        address[] memory dstTokens = new address[](2);
+        dstTokens[0] = outputToken;
+        dstTokens[1] = makeAddr("secondToken");
+        uint256[] memory intentAmounts = new uint256[](2);
+        intentAmounts[0] = OUTPUT_AMOUNT;
+        intentAmounts[1] = 1;
+        bytes memory message = abi.encode(
+            bytes(""), _executorCalldataForDeposit(OUTPUT_AMOUNT), account, dstTokens, intentAmounts
+        );
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_ACTION_NOT_VALID.selector);
+        hook.preExecute(address(0), account, _encode(DST_CHAIN_ID, INPUT_AMOUNT, false, message));
+    }
+
+    function _executorCalldataForDeposit(uint256 amount) internal view returns (bytes memory) {
+        address[] memory hooks = new address[](2);
+        hooks[0] = dstApproveHook;
+        hooks[1] = dstDepositHook;
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = CapMessageLib.approveHookData(outputToken, destVault, amount);
+        hooksData[1] = CapMessageLib.depositHookData(destVault, amount);
+        return CapMessageLib.executorCalldataFor(hooks, hooksData);
+    }
+
     /// @notice Executor calldata with a foreign selector is not a typed action.
     function test_RevertIf_ForeignExecutorSelector() public {
         bytes memory message =
-            CapMessageLib.wrap(abi.encodeWithSignature("steal(address)", account), account, outputToken);
+            CapMessageLib.wrap(abi.encodeWithSignature("steal(address)", account), account, outputToken, OUTPUT_AMOUNT);
         vm.prank(account);
         vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_ACTION_NOT_VALID.selector);
         hook.preExecute(address(0), account, _encode(DST_CHAIN_ID, INPUT_AMOUNT, false, message));

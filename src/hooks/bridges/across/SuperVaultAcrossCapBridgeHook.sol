@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
 import { ApproveAndAcrossSendFundsAndExecuteOnDstHook } from "./ApproveAndAcrossSendFundsAndExecuteOnDstHook.sol";
@@ -58,7 +59,9 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
     /// @dev hookData offsets — mirror the parent (locked) layout; drift is caught by the
     ///      offset-equivalence unit test, not by the compiler (the parent's constants are private).
     uint256 private constant RECIPIENT_OFFSET = 84;
+    uint256 private constant OUTPUT_TOKEN_OFFSET = 124;
     uint256 private constant INPUT_AMOUNT_OFFSET = 144;
+    uint256 private constant OUTPUT_AMOUNT_OFFSET = 176;
     uint256 private constant DST_CHAIN_ID_OFFSET = 208;
     uint256 private constant USE_PREV_HOOK_AMOUNT_OFFSET = 268;
     uint256 private constant DESTINATION_MESSAGE_OFFSET = 269;
@@ -100,12 +103,30 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
 
         (uint64 chainId, address transportAdapter, bytes memory destinationMessage) = _decodeCapFields(data);
 
-        // The amount validated is the amount the bridge will actually send.
-        uint256 amount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_OFFSET)
-            ? ISuperHookResult(prevHook).getOutAmount(account)
-            : BytesLib.toUint256(data, INPUT_AMOUNT_OFFSET);
+        // The amount validated is the amount the bridge will actually send; the delivery minimum
+        // is the outputAmount the fill must pay. Under usePrevHookAmount, replicate the parent's
+        // exact rescale so validated == bridged for both (R2-B1).
+        uint256 amount;
+        uint256 minDelivered = BytesLib.toUint256(data, OUTPUT_AMOUNT_OFFSET);
+        if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_OFFSET)) {
+            uint256 inputAmount = BytesLib.toUint256(data, INPUT_AMOUNT_OFFSET);
+            amount = ISuperHookResult(prevHook).getOutAmount(account);
+            if (inputAmount > 0 && minDelivered > 0) {
+                minDelivered = Math.mulDiv(minDelivered, amount, inputAmount);
+            }
+        } else {
+            amount = BytesLib.toUint256(data, INPUT_AMOUNT_OFFSET);
+        }
 
-        _enforceCrossChainCap(account, chainId, transportAdapter, amount, destinationMessage);
+        _enforceCrossChainCap(
+            account,
+            chainId,
+            transportAdapter,
+            amount,
+            minDelivered,
+            BytesLib.toAddress(data, OUTPUT_TOKEN_OFFSET),
+            destinationMessage
+        );
     }
 
     /// @inheritdoc ApproveAndAcrossSendFundsAndExecuteOnDstHook

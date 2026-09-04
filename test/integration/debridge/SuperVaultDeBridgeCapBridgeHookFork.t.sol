@@ -90,17 +90,17 @@ contract SuperVaultDeBridgeCapBridgeHookFork is Test {
         vm.deal(account, nativeFee);
     }
 
-    function _depositMessage() internal view returns (bytes memory) {
-        return
-            CapMessageLib.vaultDepositMessage(
-                account, dstApproveHook, dstDepositHook, destVault, USDC_BASE, TAKE_AMOUNT
-            );
+    /// @dev R2-B1: the action amount must equal the delivery minimum for the encoded giveAmount.
+    function _depositMessage(uint256 giveAmount) internal view returns (bytes memory) {
+        return CapMessageLib.vaultDepositMessage(
+            account, dstApproveHook, dstDepositHook, destVault, USDC_BASE, TAKE_AMOUNT * giveAmount / GIVE_AMOUNT
+        );
     }
 
     /// @notice Cap enforced against the ECONOMIC vault; the real DLN source accepts the createOrder
     ///         carrying the external-call envelope (adapter executor, hub-account fallback).
     function test_Fork_CapEnforcedThenRealOrderCreatedWithExternalCall() public {
-        bytes memory data = _encode(BASE_CHAIN_ID, GIVE_AMOUNT, nativeFee, false, _depositMessage());
+        bytes memory data = _encode(BASE_CHAIN_ID, GIVE_AMOUNT, nativeFee, false, _depositMessage(GIVE_AMOUNT));
 
         vm.expectCall(
             address(capGuard),
@@ -131,7 +131,7 @@ contract SuperVaultDeBridgeCapBridgeHookFork is Test {
         uint256 prevAmount = 600e6;
         deal(USDC_ETH, account, prevAmount);
         MockPrevHook prevHook = new MockPrevHook(prevAmount);
-        bytes memory data = _encode(BASE_CHAIN_ID, GIVE_AMOUNT, nativeFee, true, _depositMessage());
+        bytes memory data = _encode(BASE_CHAIN_ID, GIVE_AMOUNT, nativeFee, true, _depositMessage(prevAmount));
 
         vm.expectCall(
             address(capGuard),
@@ -154,7 +154,7 @@ contract SuperVaultDeBridgeCapBridgeHookFork is Test {
 
     /// @notice A cap breach reverts in _preExecute, before any order.
     function test_Fork_CapBreachRevertsBeforeAnyOrder() public {
-        bytes memory data = _encode(BASE_CHAIN_ID, GIVE_AMOUNT, nativeFee, false, _depositMessage());
+        bytes memory data = _encode(BASE_CHAIN_ID, GIVE_AMOUNT, nativeFee, false, _depositMessage(GIVE_AMOUNT));
 
         vm.mockCallRevert(
             address(capGuard),
@@ -182,7 +182,7 @@ contract SuperVaultDeBridgeCapBridgeHookFork is Test {
     /// @notice B1: an unapproved receiverDst is rejected.
     function test_Fork_RevertIf_ReceiverNotApprovedAdapter() public {
         capGuard.setApprovedAdapter(BASE_CHAIN_ID, adapter, false);
-        bytes memory data = _encode(BASE_CHAIN_ID, GIVE_AMOUNT, nativeFee, false, _depositMessage());
+        bytes memory data = _encode(BASE_CHAIN_ID, GIVE_AMOUNT, nativeFee, false, _depositMessage(GIVE_AMOUNT));
         vm.prank(account);
         vm.expectRevert(); // TRANSPORT_ADAPTER_NOT_APPROVED
         hook.preExecute(address(0), account, data);

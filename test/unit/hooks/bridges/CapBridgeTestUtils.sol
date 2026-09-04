@@ -122,15 +122,26 @@ library CapMessageLib {
         return abi.encodeCall(ISuperExecutor.execute, (abi.encode(entry)));
     }
 
-    function wrap(bytes memory executorCalldata, address account, address token) internal pure returns (bytes memory) {
+    function wrap(
+        bytes memory executorCalldata,
+        address account,
+        address token,
+        uint256 intentAmount
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         address[] memory dstTokens = new address[](1);
         dstTokens[0] = token;
         uint256[] memory intentAmounts = new uint256[](1);
-        intentAmounts[0] = 1;
+        intentAmounts[0] = intentAmount;
         return abi.encode(bytes(""), executorCalldata, account, dstTokens, intentAmounts);
     }
 
-    /// @dev VAULT_DEPOSIT action: exactly [approveHook, depositHook], approve spender == vault.
+    /// @dev VAULT_DEPOSIT action: exactly [approveHook, depositHook], approve spender == vault,
+    ///      approve token == dstTokens[0], approve amount == intentAmounts[0], deposit consumes
+    ///      the approve amount (usePrevHookAmount) — the R2-B1 canonical shape.
     function vaultDepositMessage(
         address account,
         address approveHook,
@@ -149,11 +160,11 @@ library CapMessageLib {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = approveHookData(token, vault, amount);
         hooksData[1] = depositHookData(vault, amount);
-        return wrap(executorCalldataFor(hooks, hooksData), account, token);
+        return wrap(executorCalldataFor(hooks, hooksData), account, token, amount);
     }
 
     /// @dev IDLE_HOLD action: a well-formed execute() with zero hooks.
-    function idleHoldMessage(address account, address token) internal pure returns (bytes memory) {
-        return wrap(executorCalldataFor(new address[](0), new bytes[](0)), account, token);
+    function idleHoldMessage(address account, address token, uint256 amount) internal pure returns (bytes memory) {
+        return wrap(executorCalldataFor(new address[](0), new bytes[](0)), account, token, amount);
     }
 }

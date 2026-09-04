@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
 import { ApproveAndStargateSendHook } from "./ApproveAndStargateSendHook.sol";
@@ -64,6 +65,7 @@ contract SuperVaultStargateCapBridgeHook is ApproveAndStargateSendHook, SuperVau
     uint256 private constant DST_EID_OFFSET = 124;
     uint256 private constant TO_OFFSET = 128;
     uint256 private constant AMOUNT_LD_OFFSET = 160;
+    uint256 private constant MIN_AMOUNT_LD_OFFSET = 192;
     uint256 private constant USE_PREV_HOOK_AMOUNT_OFFSET = 224;
     uint256 private constant MODE_OFFSET = 225;
     uint256 private constant EXTRA_OPTIONS_LENGTH_OFFSET = 226;
@@ -113,13 +115,24 @@ contract SuperVaultStargateCapBridgeHook is ApproveAndStargateSendHook, SuperVau
 
         (uint64 chainId, address transportAdapter, bytes memory composeMsg) = _decodeCapFields(data);
 
-        // The amount validated is the amount the send will actually move. Under usePrevHookAmount
-        // the parent sets amountLD = prev.getOutAmount(account), so read the same value here.
-        uint256 amount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_OFFSET)
-            ? ISuperHookResult(prevHook).getOutAmount(account)
-            : BytesLib.toUint256(data, AMOUNT_LD_OFFSET);
+        // The amount validated is the amount the send will actually move; the delivery minimum is
+        // minAmountLD. Under usePrevHookAmount the parent sets amountLD = prev.getOutAmount and
+        // rescales minAmountLD by the same ratio — replicate exactly (R2-B1). The destination
+        // token address is not hub-derivable for an OFT route (expectedDstToken = 0): the
+        // executor's balance attestation over the action token is the arrival binding there.
+        uint256 amount;
+        uint256 minDelivered = BytesLib.toUint256(data, MIN_AMOUNT_LD_OFFSET);
+        if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_OFFSET)) {
+            uint256 amountLD = BytesLib.toUint256(data, AMOUNT_LD_OFFSET);
+            amount = ISuperHookResult(prevHook).getOutAmount(account);
+            if (amountLD > 0 && minDelivered > 0) {
+                minDelivered = Math.mulDiv(minDelivered, amount, amountLD);
+            }
+        } else {
+            amount = BytesLib.toUint256(data, AMOUNT_LD_OFFSET);
+        }
 
-        _enforceCrossChainCap(account, chainId, transportAdapter, amount, composeMsg);
+        _enforceCrossChainCap(account, chainId, transportAdapter, amount, minDelivered, address(0), composeMsg);
     }
 
     /// @inheritdoc ApproveAndStargateSendHook

@@ -93,9 +93,11 @@ contract SuperVaultStargateCapBridgeHookFork is Test {
         deal(USDC_ETH, account, AMOUNT_LD);
     }
 
-    function _depositMessage() internal view returns (bytes memory) {
-        return
-            CapMessageLib.vaultDepositMessage(account, dstApproveHook, dstDepositHook, destVault, USDC_BASE, AMOUNT_LD);
+    /// @dev R2-B1: the action amount must equal the delivery minimum for the encoded amountLD.
+    function _depositMessage(uint256 amountLD) internal view returns (bytes memory) {
+        return CapMessageLib.vaultDepositMessage(
+            account, dstApproveHook, dstDepositHook, destVault, USDC_BASE, MIN_AMOUNT_LD * amountLD / AMOUNT_LD
+        );
     }
 
     /// @dev Two-phase encode: build once with a placeholder fee to learn the FINAL compose message
@@ -132,7 +134,7 @@ contract SuperVaultStargateCapBridgeHookFork is Test {
     ///         Stargate pool accepts the compose sendToken, pigeon relays to Base and the tokens
     ///         land on the APPROVED ADAPTER (transport hop) — under the canonical chain key.
     function test_Fork_CapEnforcedThenRealBridgeAndPigeonFill() public {
-        (bytes memory data, uint256 fee) = _encodeWithQuotedFee(AMOUNT_LD, false, 0, _depositMessage());
+        (bytes memory data, uint256 fee) = _encodeWithQuotedFee(AMOUNT_LD, false, 0, _depositMessage(AMOUNT_LD));
         vm.deal(account, fee);
 
         vm.expectCall(
@@ -172,7 +174,7 @@ contract SuperVaultStargateCapBridgeHookFork is Test {
 
     /// @notice A cap breach reverts in _preExecute, before any approval/send.
     function test_Fork_CapBreachRevertsBeforeAnySend() public {
-        (bytes memory data,) = _encodeWithQuotedFee(AMOUNT_LD, false, 0, _depositMessage());
+        (bytes memory data,) = _encodeWithQuotedFee(AMOUNT_LD, false, 0, _depositMessage(AMOUNT_LD));
 
         vm.mockCallRevert(
             address(capGuard),
@@ -195,7 +197,7 @@ contract SuperVaultStargateCapBridgeHookFork is Test {
         deal(USDC_ETH, account, prevAmount);
         MockPrevHook prevHook = new MockPrevHook(prevAmount);
 
-        (bytes memory data, uint256 fee) = _encodeWithQuotedFee(prevAmount, true, 0, _depositMessage());
+        (bytes memory data, uint256 fee) = _encodeWithQuotedFee(prevAmount, true, 0, _depositMessage(prevAmount));
         vm.deal(account, fee);
 
         vm.expectCall(
@@ -220,7 +222,7 @@ contract SuperVaultStargateCapBridgeHookFork is Test {
     ///         the validated amount — while the cap validated the VAULT extracted from the compose
     ///         message (the B1 separation, on-fork).
     function test_Fork_ValidatedVaultSeparateFromRealSendParamReceiver() public {
-        (bytes memory data,) = _encodeWithQuotedFee(AMOUNT_LD, false, 0, _depositMessage());
+        (bytes memory data,) = _encodeWithQuotedFee(AMOUNT_LD, false, 0, _depositMessage(AMOUNT_LD));
 
         Execution[] memory execs = hook.build(address(0), account, data);
         (uint32 eid, address to, uint256 amt) = _decodeSendToken(execs[BRIDGE_EXECUTION_INDEX].callData);
@@ -241,7 +243,7 @@ contract SuperVaultStargateCapBridgeHookFork is Test {
     function test_Fork_RevertIf_EidNotMapped() public {
         uint32 unmappedEid = 30_101; // Ethereum EID, not configured
         bytes memory data =
-            _encode(unmappedEid, _toBytes32(adapter), AMOUNT_LD, MIN_AMOUNT_LD, 1, false, 0, _depositMessage());
+            _encode(unmappedEid, _toBytes32(adapter), AMOUNT_LD, MIN_AMOUNT_LD, 1, false, 0, _depositMessage(AMOUNT_LD));
         vm.prank(account);
         vm.expectRevert(SuperVaultStargateCapBridgeHook.EID_NOT_MAPPED.selector);
         hook.preExecute(address(0), account, data);
@@ -260,7 +262,7 @@ contract SuperVaultStargateCapBridgeHookFork is Test {
     /// @notice Mode 3 (lzMulticall) is rejected on-fork before any send (cap can't bind to it).
     function test_Fork_RevertIf_Mode3() public {
         bytes memory data =
-            _encode(EID_BASE, _toBytes32(adapter), AMOUNT_LD, MIN_AMOUNT_LD, 0, false, 3, _depositMessage());
+            _encode(EID_BASE, _toBytes32(adapter), AMOUNT_LD, MIN_AMOUNT_LD, 0, false, 3, _depositMessage(AMOUNT_LD));
         vm.prank(account);
         vm.expectRevert(); // parent DATA_NOT_VALID
         hook.preExecute(address(0), account, data);
@@ -270,7 +272,7 @@ contract SuperVaultStargateCapBridgeHookFork is Test {
     /// @notice A non-EVM recipient is rejected on-fork before any send.
     function test_Fork_RevertIf_NonEvmRecipient() public {
         bytes32 nonEvm = bytes32(uint256(1) << 200);
-        bytes memory data = _encode(EID_BASE, nonEvm, AMOUNT_LD, MIN_AMOUNT_LD, 0, false, 0, _depositMessage());
+        bytes memory data = _encode(EID_BASE, nonEvm, AMOUNT_LD, MIN_AMOUNT_LD, 0, false, 0, _depositMessage(AMOUNT_LD));
         vm.prank(account);
         vm.expectRevert(); // DATA_NOT_VALID
         hook.preExecute(address(0), account, data);

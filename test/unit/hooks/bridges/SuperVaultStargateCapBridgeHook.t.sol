@@ -67,8 +67,12 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
     }
 
     function _depositMessage() internal view returns (bytes memory) {
-        return
-            CapMessageLib.vaultDepositMessage(account, dstApproveHook, dstDepositHook, destVault, inputToken, AMOUNT_LD);
+        // R2-B1: the action amount must equal the delivery minimum (minAmountLD).
+        return _depositMessageWithAmount(MIN_AMOUNT_LD);
+    }
+
+    function _depositMessageWithAmount(uint256 amount) internal view returns (bytes memory) {
+        return CapMessageLib.vaultDepositMessage(account, dstApproveHook, dstDepositHook, destVault, inputToken, amount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -112,7 +116,11 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
     function test_PrevAmountOverridesEncodedAmount() public {
         uint256 prevAmount = 750e6;
         MockPrevHook prevHook = new MockPrevHook(prevAmount);
-        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, true, 0, _depositMessage());
+        // R2-B1: under usePrev the parent rescales minAmountLD by prev/amountLD; the action
+        // amount must match that scaled minimum.
+        bytes memory data = _encode(
+            DST_EID, _toBytes32(adapter), AMOUNT_LD, true, 0, _depositMessageWithAmount(MIN_AMOUNT_LD * prevAmount / AMOUNT_LD)
+        );
 
         vm.expectCall(
             address(capGuard),
@@ -134,7 +142,7 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
     /// @notice IDLE_HOLD action validates the zero-vault branch.
     function test_IdleHoldAction_ValidatesZeroVault() public {
         bytes memory data = _encode(
-            DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, CapMessageLib.idleHoldMessage(account, inputToken)
+            DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, CapMessageLib.idleHoldMessage(account, inputToken, MIN_AMOUNT_LD)
         );
         vm.expectCall(
             address(capGuard),
@@ -176,7 +184,7 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         hooksData[1] = CapMessageLib.depositHookData(destVault, AMOUNT_LD);
         hooksData[2] = hex"deadbeef";
         bytes memory message =
-            CapMessageLib.wrap(CapMessageLib.executorCalldataFor(hooks, hooksData), account, inputToken);
+            CapMessageLib.wrap(CapMessageLib.executorCalldataFor(hooks, hooksData), account, inputToken, MIN_AMOUNT_LD);
 
         vm.prank(account);
         vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_ACTION_NOT_VALID.selector);

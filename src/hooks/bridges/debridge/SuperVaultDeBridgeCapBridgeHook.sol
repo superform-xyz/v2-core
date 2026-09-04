@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IDlnSource } from "../../../vendor/bridges/debridge/IDlnSource.sol";
 
 // Superform
@@ -105,13 +106,23 @@ contract SuperVaultDeBridgeCapBridgeHook is DeBridgeSendOrderAndExecuteOnDstHook
         // Runtime-only: `inspect` cannot know the executing account.
         if (f.fallbackAddress != account) revert DATA_NOT_VALID();
 
-        // The amount validated is the amount the order actually gives. Under usePrevHookAmount the
-        // parent sets giveAmount = prev.getOutAmount(account), so read the same value here.
-        uint256 amount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)
-            ? ISuperHookResult(prevHook).getOutAmount(account)
-            : f.orderGiveAmount;
+        // The amount validated is the amount the order actually gives; the delivery minimum is the
+        // order's takeAmount. Under usePrevHookAmount the parent rewrites giveAmount to the
+        // prev-hook output and rescales takeAmount by the same ratio — replicate exactly (R2-B1).
+        uint256 amount;
+        uint256 minDelivered = f.takeAmount;
+        if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) {
+            amount = ISuperHookResult(prevHook).getOutAmount(account);
+            if (f.orderGiveAmount > 0 && minDelivered > 0) {
+                minDelivered = Math.mulDiv(minDelivered, amount, f.orderGiveAmount);
+            }
+        } else {
+            amount = f.orderGiveAmount;
+        }
 
-        _enforceCrossChainCap(account, f.chainId, f.transportAdapter, amount, f.destinationMessage);
+        _enforceCrossChainCap(
+            account, f.chainId, f.transportAdapter, amount, minDelivered, f.takeToken, f.destinationMessage
+        );
     }
 
     /// @inheritdoc DeBridgeSendOrderAndExecuteOnDstHook
@@ -146,6 +157,8 @@ contract SuperVaultDeBridgeCapBridgeHook is DeBridgeSendOrderAndExecuteOnDstHook
         address transportAdapter;
         address fallbackAddress;
         uint256 orderGiveAmount;
+        uint256 takeAmount; // delivery minimum on the destination (R2-B1 amount binding)
+        address takeToken; // delivery token on the destination (R2-B1 token binding)
         bytes destinationMessage;
     }
 
@@ -164,6 +177,11 @@ contract SuperVaultDeBridgeCapBridgeHook is DeBridgeSendOrderAndExecuteOnDstHook
         if (order.receiverDst.length != 20) revert DATA_NOT_VALID();
         f.transportAdapter = address(bytes20(order.receiverDst));
         if (f.transportAdapter == address(0)) revert ADDRESS_NOT_VALID();
+
+        // R2-B1: the destination delivery tuple the cap binds the action to. EVM-only take token.
+        if (order.takeTokenAddress.length != 20) revert DATA_NOT_VALID();
+        f.takeToken = address(bytes20(order.takeTokenAddress));
+        f.takeAmount = order.takeAmount;
 
         // takeChainId is forwarded as a full uint256 to DlnSource; reject anything above uint64 so
         // the truncated cap/registry key cannot disagree with the chain the order actually targets.

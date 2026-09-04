@@ -67,10 +67,12 @@ contract SuperVaultDeBridgeCapBridgeHookTest is Test {
     }
 
     function _depositMessage() internal view returns (bytes memory) {
-        return
-            CapMessageLib.vaultDepositMessage(
-                account, dstApproveHook, dstDepositHook, destVault, takeToken, TAKE_AMOUNT
-            );
+        // R2-B1: the action amount must equal the delivery minimum (takeAmount).
+        return _depositMessageWithAmount(TAKE_AMOUNT);
+    }
+
+    function _depositMessageWithAmount(uint256 amount) internal view returns (bytes memory) {
+        return CapMessageLib.vaultDepositMessage(account, dstApproveHook, dstDepositHook, destVault, takeToken, amount);
     }
 
     struct EncodeParams {
@@ -134,6 +136,9 @@ contract SuperVaultDeBridgeCapBridgeHookTest is Test {
         MockPrevHook prevHook = new MockPrevHook(prevAmount);
         EncodeParams memory p = _params();
         p.usePrev = true;
+        // R2-B1: under usePrev the parent rescales takeAmount by prev/give; the action amount
+        // must match that scaled minimum.
+        p.destinationMessage = _depositMessageWithAmount(TAKE_AMOUNT * prevAmount / GIVE_AMOUNT);
         bytes memory data = _encode(p);
 
         vm.expectCall(
@@ -148,7 +153,7 @@ contract SuperVaultDeBridgeCapBridgeHookTest is Test {
     /// @notice IDLE_HOLD action validates the zero-vault branch.
     function test_IdleHoldAction_ValidatesZeroVault() public {
         EncodeParams memory p = _params();
-        p.destinationMessage = CapMessageLib.idleHoldMessage(account, takeToken);
+        p.destinationMessage = CapMessageLib.idleHoldMessage(account, takeToken, TAKE_AMOUNT);
         vm.expectCall(
             address(capGuard),
             abi.encodeCall(ICapGuardLike.validateAllocation, (account, DST_CHAIN_ID, address(0), GIVE_AMOUNT))
@@ -210,7 +215,7 @@ contract SuperVaultDeBridgeCapBridgeHookTest is Test {
         hooksData[2] = hex"deadbeef";
         EncodeParams memory p = _params();
         p.destinationMessage =
-            CapMessageLib.wrap(CapMessageLib.executorCalldataFor(hooks, hooksData), account, takeToken);
+            CapMessageLib.wrap(CapMessageLib.executorCalldataFor(hooks, hooksData), account, takeToken, TAKE_AMOUNT);
 
         vm.prank(account);
         vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_ACTION_NOT_VALID.selector);
@@ -389,7 +394,7 @@ contract SuperVaultDeBridgeCapBridgeHookTest is Test {
     }
 
     /// @dev Canonical deBridge hookData with a non-empty destination message (external call).
-    function _encode(EncodeParams memory p) internal pure returns (bytes memory) {
+    function _encode(EncodeParams memory p) internal view returns (bytes memory) {
         bytes memory part1 = abi.encodePacked(
             bytes(new bytes(52)), // 52-byte strategy header
             p.usePrev,
@@ -407,7 +412,7 @@ contract SuperVaultDeBridgeCapBridgeHookTest is Test {
             p.destinationMessage.length,
             p.destinationMessage,
             uint256(20), // takeTokenAddress length
-            abi.encodePacked(address(0xBEEF)), // takeToken (dst-chain address)
+            abi.encodePacked(takeToken), // takeToken (dst-chain address, R2-B1: must match the action token)
             uint256(995e6), // takeAmount
             p.takeChainId
         );

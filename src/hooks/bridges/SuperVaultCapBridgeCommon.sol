@@ -84,13 +84,25 @@ abstract contract SuperVaultCapBridgeCommon {
     bytes32 internal constant CROSS_CHAIN_POSITION_REGISTRY = keccak256("CROSS_CHAIN_POSITION_REGISTRY");
 
     /// @dev Destination hook data layouts (v2-core hooks, pinned by governance via
-    ///      `destinationHooks(chainId)`): ApproveERC20Hook spender at offset 72; the
-    ///      Deposit4626VaultHook yieldSource at offset 32 (the standard 52-byte header's second
-    ///      field).
+    ///      `destinationHooks(chainId)`): ApproveERC20Hook token at 52, spender at 72, amount at
+    ///      92, usePrevHookAmount at 124; Deposit4626VaultHook yieldSource at 32 (the standard
+    ///      52-byte header's second field), usePrevHookAmount at 84.
+    uint256 private constant DST_APPROVE_TOKEN_OFFSET = 52;
     uint256 private constant DST_APPROVE_SPENDER_OFFSET = 72;
-    uint256 private constant DST_APPROVE_MIN_LENGTH = 92;
+    uint256 private constant DST_APPROVE_AMOUNT_OFFSET = 92;
+    uint256 private constant DST_APPROVE_MIN_LENGTH = 125;
     uint256 private constant DST_DEPOSIT_VAULT_OFFSET = 32;
-    uint256 private constant DST_DEPOSIT_MIN_LENGTH = 52;
+    uint256 private constant DST_DEPOSIT_USE_PREV_OFFSET = 84;
+    uint256 private constant DST_DEPOSIT_MIN_LENGTH = 85;
+
+    /// @notice A decoded, strictly-typed destination action (R2-B1: economics fully bound)
+    struct DestinationAction {
+        uint8 actionType;
+        address destinationVault; // address(0) for idle-hold
+        address dstAccount; // must equal the hub strategy account (checked in _enforceCrossChainCap)
+        address dstToken; // the single destination token the executor attests arrival of
+        uint256 actionAmount; // the intent/approve/deposit amount — bound to the bridge minimum
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -102,6 +114,10 @@ abstract contract SuperVaultCapBridgeCommon {
     error DESTINATION_ACCOUNT_NOT_VALID();
     /// @notice The destination message does not encode a permitted typed destination action
     error DESTINATION_ACTION_NOT_VALID();
+    /// @notice The destination action amount is not bound to the bridge's guaranteed delivery
+    error DESTINATION_AMOUNT_NOT_BOUND();
+    /// @notice The destination action token is not the token the bridge delivers
+    error DESTINATION_TOKEN_NOT_BOUND();
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -131,13 +147,24 @@ abstract contract SuperVaultCapBridgeCommon {
 
     /// @dev Full runtime enforcement, called from the concrete hook's `_preExecute` AFTER it has
     ///      decoded the transport tuple: adapter allowlist -> typed destination action -> account
-    ///      binding -> cap check -> reservation record. Reverting here aborts the whole
-    ///      executeHooks batch.
+    ///      binding -> token/amount binding (R2-B1) -> cap check -> reservation record. Reverting
+    ///      here aborts the whole executeHooks batch.
+    /// @param minDeliveredAmount The MINIMUM amount the bridge guarantees to deliver on the
+    ///        destination (Across outputAmount / deBridge takeAmount / Stargate minAmountLD,
+    ///        prev-hook-scaled where the parent scales it). The destination action must consume
+    ///        exactly this: a smaller independently-encoded deposit would leave a bridged
+    ///        remainder idle while the full reservation later settles (R2-B1 trace).
+    /// @param expectedDstToken The bridge's destination-side output token when the hub knows it
+    ///        (Across outputToken / deBridge takeToken); address(0) when the destination token
+    ///        address is not hub-derivable (Stargate OFT) — the executor's balance attestation
+    ///        over dstTokens[0] is then the arrival binding.
     function _enforceCrossChainCap(
         address account,
         uint64 chainId,
         address transportAdapter,
         uint256 amount,
+        uint256 minDeliveredAmount,
+        address expectedDstToken,
         bytes memory destinationMessage
     )
         internal
@@ -145,16 +172,29 @@ abstract contract SuperVaultCapBridgeCommon {
         ICrossChainPositionCapGuard guard = _capGuard();
         if (!guard.isApprovedAdapter(chainId, transportAdapter)) revert TRANSPORT_ADAPTER_NOT_APPROVED();
 
-        (, address destinationVault, address dstAccount) = _decodeDestinationAction(destinationMessage, chainId, guard);
+        DestinationAction memory action = _decodeDestinationAction(destinationMessage, chainId, guard);
 
         // The destination account IS the hub strategy account (deterministic same-address account
         // across chains) — the only hub-verifiable "hub-controlled destination account" binding.
         // Runtime-only: `inspect` cannot know the executing account.
-        if (dstAccount != account) revert DESTINATION_ACCOUNT_NOT_VALID();
+        if (action.dstAccount != account) revert DESTINATION_ACCOUNT_NOT_VALID();
 
-        guard.validateAllocation(account, chainId, destinationVault, amount);
+        // R2-B1: the destination action must consume the full guaranteed delivery — the intent
+        // (executor balance attestation) and, for deposits, the approve/deposit amount all equal
+        // the bridge minimum. Any residual is then bounded by (actual fill − guaranteed minimum),
+        // i.e. slippage dust, never an independently-chosen smaller deposit.
+        if (minDeliveredAmount == 0 || action.actionAmount != minDeliveredAmount) {
+            revert DESTINATION_AMOUNT_NOT_BOUND();
+        }
+        // R2-B1: the token whose arrival the executor attests (and which the action approves)
+        // must be the token the bridge actually delivers, whenever the hub can derive it.
+        if (expectedDstToken != address(0) && action.dstToken != expectedDstToken) {
+            revert DESTINATION_TOKEN_NOT_BOUND();
+        }
+
+        guard.validateAllocation(account, chainId, action.destinationVault, amount);
         ICrossChainPositionRegistry(SUPER_GOVERNOR.getAddress(CROSS_CHAIN_POSITION_REGISTRY))
-            .recordBridgedOut(account, chainId, destinationVault, amount);
+            .recordBridgedOut(account, chainId, action.destinationVault, amount);
     }
 
     /// @dev Leaf suffix shared by every cap hook's `inspect`: pins the cap guard, the CANONICAL
@@ -171,8 +211,8 @@ abstract contract SuperVaultCapBridgeCommon {
         returns (bytes memory)
     {
         ICrossChainPositionCapGuard guard = _capGuard();
-        (uint8 actionType, address destinationVault,) = _decodeDestinationAction(destinationMessage, chainId, guard);
-        return abi.encodePacked(address(guard), chainId, destinationVault, actionType, usePrevHookAmount);
+        DestinationAction memory action = _decodeDestinationAction(destinationMessage, chainId, guard);
+        return abi.encodePacked(address(guard), chainId, action.destinationVault, action.actionType, usePrevHookAmount);
     }
 
     /// @dev Decode and strictly type the destination action carried by `destinationMessage` (the
@@ -183,8 +223,16 @@ abstract contract SuperVaultCapBridgeCommon {
     ///      - VAULT_DEPOSIT: exactly [approveHook, depositHook] (the governance-pinned pair for the
     ///        chain), the approve spender equal to the deposit target — that target is the
     ///        canonical destination vault.
+    ///      R2-B1 economic bindings enforced here for BOTH shapes:
+    ///      - exactly ONE (dstToken, intentAmount) pair (the executor's arrival attestation);
+    ///      and additionally for VAULT_DEPOSIT:
+    ///      - the approve token equals dstTokens[0] (the action consumes the attested token);
+    ///      - the approve amount equals intentAmounts[0] (one action amount, bound upstream to the
+    ///        bridge's guaranteed delivery);
+    ///      - the deposit MUST use usePrevHookAmount (it consumes the approve amount — no second,
+    ///        independently encoded deposit amount can exist).
     ///      Anything else — a raw transfer (empty message), foreign executor selector, extra or
-    ///      unknown hooks, spender/vault mismatch — reverts.
+    ///      unknown hooks, spender/vault mismatch, token/amount mismatch — reverts.
     function _decodeDestinationAction(
         bytes memory destinationMessage,
         uint64 chainId,
@@ -192,15 +240,24 @@ abstract contract SuperVaultCapBridgeCommon {
     )
         internal
         view
-        returns (uint8 actionType, address destinationVault, address dstAccount)
+        returns (DestinationAction memory action)
     {
         // A capped bridge must always carry a destination action; an empty message would be a raw
         // token transfer to the transport receiver — no deposit, no controlled shares.
         if (destinationMessage.length == 0) revert DESTINATION_ACTION_NOT_VALID();
 
         bytes memory executorCalldata;
-        (, executorCalldata, dstAccount,,) =
+        address[] memory dstTokens;
+        uint256[] memory intentAmounts;
+        (, executorCalldata, action.dstAccount, dstTokens, intentAmounts) =
             abi.decode(destinationMessage, (bytes, bytes, address, address[], uint256[]));
+
+        // R2-B1: canonical one-token shape — the executor attests the arrival of exactly this
+        // (token, amount) on the destination account before executing.
+        if (dstTokens.length != 1 || intentAmounts.length != 1) revert DESTINATION_ACTION_NOT_VALID();
+        action.dstToken = dstTokens[0];
+        action.actionAmount = intentAmounts[0];
+        if (action.dstToken == address(0) || action.actionAmount == 0) revert DESTINATION_ACTION_NOT_VALID();
 
         if (executorCalldata.length < 4 || bytes4(executorCalldata) != ISuperExecutor.execute.selector) {
             revert DESTINATION_ACTION_NOT_VALID();
@@ -212,7 +269,8 @@ abstract contract SuperVaultCapBridgeCommon {
         if (hooksLen != entry.hooksData.length) revert DESTINATION_ACTION_NOT_VALID();
 
         if (hooksLen == 0) {
-            return (ACTION_IDLE_HOLD, address(0), dstAccount);
+            action.actionType = ACTION_IDLE_HOLD;
+            return action;
         }
 
         if (hooksLen != 2) revert DESTINATION_ACTION_NOT_VALID();
@@ -226,14 +284,26 @@ abstract contract SuperVaultCapBridgeCommon {
         if (entry.hooksData[1].length < DST_DEPOSIT_MIN_LENGTH || entry.hooksData[0].length < DST_APPROVE_MIN_LENGTH) {
             revert DESTINATION_ACTION_NOT_VALID();
         }
-        destinationVault = BytesLib.toAddress(entry.hooksData[1], DST_DEPOSIT_VAULT_OFFSET);
-        if (destinationVault == address(0)) revert DESTINATION_ACTION_NOT_VALID();
+        action.destinationVault = BytesLib.toAddress(entry.hooksData[1], DST_DEPOSIT_VAULT_OFFSET);
+        if (action.destinationVault == address(0)) revert DESTINATION_ACTION_NOT_VALID();
         // The approve spender must be the deposit target: no allowance may be granted to any other
         // address on the destination.
-        if (BytesLib.toAddress(entry.hooksData[0], DST_APPROVE_SPENDER_OFFSET) != destinationVault) {
+        if (BytesLib.toAddress(entry.hooksData[0], DST_APPROVE_SPENDER_OFFSET) != action.destinationVault) {
             revert DESTINATION_ACTION_NOT_VALID();
         }
 
-        return (ACTION_VAULT_DEPOSIT, destinationVault, dstAccount);
+        // R2-B1: the approve consumes the attested token, for the attested amount, and the deposit
+        // consumes the approve output (usePrevHookAmount) — one amount, no divergence.
+        if (BytesLib.toAddress(entry.hooksData[0], DST_APPROVE_TOKEN_OFFSET) != action.dstToken) {
+            revert DESTINATION_ACTION_NOT_VALID();
+        }
+        if (BytesLib.toUint256(entry.hooksData[0], DST_APPROVE_AMOUNT_OFFSET) != action.actionAmount) {
+            revert DESTINATION_ACTION_NOT_VALID();
+        }
+        if (uint8(entry.hooksData[1][DST_DEPOSIT_USE_PREV_OFFSET]) != 1) {
+            revert DESTINATION_ACTION_NOT_VALID();
+        }
+
+        action.actionType = ACTION_VAULT_DEPOSIT;
     }
 }
