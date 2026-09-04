@@ -4,12 +4,25 @@
 # Deploy Other Hooks Script
 ###################################################################################
 # Description:
-#   Deploys other hooks (Morpho, Aave V4, HyperCore, Firelight, Algebra Integral, DETH,
-#   Sponsorship, rFLR, WrappedNative) via DeployV2OtherHooks.s.sol across configured networks.
+#   Deploys all other-hook families (Morpho, Aave V3/V4, HyperCore, Firelight, Algebra
+#   Integral, DETH, Sponsorship, rFLR, WrappedNative, Euler, Spectra, Odos V3,
+#   FeeSplitting, ...) via DeployV2OtherHooks.s.sol across configured networks.
+#
+#   SINGLE-DISPATCH: one forge invocation per network, calling the generic run() entrypoint.
+#   Per-family chain gating lives in Solidity (_deployAllHooks) — the single source of truth.
+#   Each family therefore deploys exactly once per network; already-deployed contracts skip
+#   idempotently. On failure, the family being deployed is attributed from the run log.
+#
 #   Sources lib_deploy.sh for shared deployment utilities.
 #
 # Usage:
 #   ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh <environment> <mode> <account> [--slow] [--resume] [--legacy]
+#
+#   Targeted single-family redeploy (uses the explicit run<Family>() entrypoints kept in
+#   DeployV2OtherHooks.s.sol, e.g. runHyperCore/runFirelight/runSponsorship/runFeeSplitting):
+#     TARGET_FAMILY=HyperCore ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh staging deploy v2
+#   Note: a targeted family run executes on every configured network; families with chain
+#   requirements revert (and are reported) on unsupported chains.
 #
 # Arguments:
 #   environment: staging or prod
@@ -38,146 +51,6 @@ load_credentials
 create_output_directories
 
 # ── Hook support check functions ───────────────────────────────────────────────
-
-# Morpho is only deployed on these chains
-MORPHO_SUPPORTED_CHAINS=("1" "8453" "56" "42161")
-
-is_morpho_supported() {
-    local chain_id=$1
-    for supported in "${MORPHO_SUPPORTED_CHAINS[@]}"; do
-        if [ "$supported" = "$chain_id" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-# V2 loan hooks (SUP-20796) deploy wherever any of their provider gates hold:
-# Morpho singleton (1, 10, 56, 4663, 8453, 42161) ∪ Aave V3 pool
-# (1, 10, 56, 100, 137, 146, 8453, 42161, 43114, 59144) ∪ Aave V4 (1).
-# The Solidity entrypoint re-checks each provider gate per chain, so this list only
-# avoids no-op forge runs.
-LOAN_HOOKS_V2_SUPPORTED_CHAINS=("1" "10" "56" "100" "137" "146" "4663" "8453" "42161" "43114" "59144")
-
-is_loan_hooks_v2_supported() {
-    local chain_id=$1
-    for supported in "${LOAN_HOOKS_V2_SUPPORTED_CHAINS[@]}"; do
-        if [ "$supported" = "$chain_id" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-# Euler EVK hooks — Base only for now (Clearstar). EVC/vaults are calldata activation data;
-# this list mirrors the Solidity BASE_CHAIN_ID gate and only avoids no-op forge runs.
-EULER_SUPPORTED_CHAINS=("8453")
-
-is_euler_supported() {
-    local chain_id=$1
-    for supported in "${EULER_SUPPORTED_CHAINS[@]}"; do
-        if [ "$supported" = "$chain_id" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-# Aave V4 is only deployed on Ethereum mainnet
-AAVE_V4_SUPPORTED_CHAINS=("1")
-
-is_aave_v4_supported() {
-    local chain_id=$1
-    for supported in "${AAVE_V4_SUPPORTED_CHAINS[@]}"; do
-        if [ "$supported" = "$chain_id" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-# Firelight is only deployed on Flare
-FIRELIGHT_SUPPORTED_CHAINS=("14")
-
-is_firelight_supported() {
-    local chain_id=$1
-    for supported in "${FIRELIGHT_SUPPORTED_CHAINS[@]}"; do
-        if [ "$supported" = "$chain_id" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-# Algebra Integral (SparkDEX V4) is only deployed on Flare
-ALGEBRA_INTEGRAL_SUPPORTED_CHAINS=("14")
-
-is_algebra_integral_supported() {
-    local chain_id=$1
-    for supported in "${ALGEBRA_INTEGRAL_SUPPORTED_CHAINS[@]}"; do
-        if [ "$supported" = "$chain_id" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-# DETH hooks are only deployed on Ethereum mainnet
-DETH_SUPPORTED_CHAINS=("1")
-
-is_deth_supported() {
-    local chain_id=$1
-    for supported in "${DETH_SUPPORTED_CHAINS[@]}"; do
-        if [ "$supported" = "$chain_id" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-# Sponsorship contracts are deployed on all chains
-is_sponsorship_supported() {
-    return 0
-}
-
-# rFLR hooks are only deployed on Flare
-RFLR_SUPPORTED_CHAINS=("14")
-
-is_rflr_supported() {
-    local chain_id=$1
-    for supported in "${RFLR_SUPPORTED_CHAINS[@]}"; do
-        if [ "$supported" = "$chain_id" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-# WrappedNativeHook is deployed on Ethereum (WETH) and Flare (WFLR)
-WRAPPED_NATIVE_SUPPORTED_CHAINS=("1" "14")
-
-is_wrapped_native_supported() {
-    local chain_id=$1
-    for supported in "${WRAPPED_NATIVE_SUPPORTED_CHAINS[@]}"; do
-        if [ "$supported" = "$chain_id" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-# HyperCore hooks are only deployed on HyperEVM, where CoreWriter exists
-HYPERCORE_SUPPORTED_CHAINS=("999")
-
-is_hypercore_supported() {
-    local chain_id=$1
-    for supported in "${HYPERCORE_SUPPORTED_CHAINS[@]}"; do
-        if [ "$supported" = "$chain_id" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
 
 # ── Other hooks bytecode path ──────────────────────────────────────────────────
 
@@ -582,345 +455,50 @@ for network_def in "${NETWORKS[@]}"; do
     fi
 
     # Deploy Morpho hooks if supported on this chain
-    if is_morpho_supported "$network_id"; then
-        has_hooks=true
-        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
-        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-        echo -e "${YELLOW}   Deploying Morpho hooks...${NC}"
-
-        if forge script "$FORGE_SCRIPT" \
-            --sig 'run(uint256,uint64)' $FORGE_ENV $network_id \
-            --account "$ACCOUNT" \
-            $KEYSTORE_PASSWORD_FLAG \
-            --rpc-url ${!rpc_var} \
-            $local_chain_flag \
-            $local_etherscan_flags \
-            $BROADCAST_FLAG \
-            $local_verify_flag \
-            $SLOW_FLAG \
-            $BATCH_SIZE_FLAG \
-            $RESUME_FLAG \
-            $LEGACY_FLAG \
-            $GAS_PRICE_FLAG \
-            --timeout 300 \
-            -vv; then
-            echo -e "${GREEN}   Morpho hooks deployment completed!${NC}"
-        else
-            echo -e "${RED}   Morpho hooks deployment failed on $network_name, continuing...${NC}"
-            FAILED_HOOK_DEPLOYS+=("Morpho @ $network_name")
-        fi
+    # Deploy ALL hook families via the generic run() entrypoint — single forge invocation.
+    # Family gating lives in Solidity (_deployAllHooks): each family deploys exactly once per
+    # network, gated by chain configuration (Morpho/Aave/HyperCore/Firelight/Algebra/DETH/
+    # Sponsorship/rFLR/Spectra/Odos/Euler/FeeSplitting/...). The explicit run<Family>()
+    # entrypoints remain in DeployV2OtherHooks.s.sol for targeted redeploys: set TARGET_FAMILY
+    # to use one for this whole run (e.g. TARGET_FAMILY=HyperCore ./script/run/deploy/... ).
+    has_hooks=true
+    sig_name="run"
+    if [[ -n "${TARGET_FAMILY:-}" ]]; then
+        sig_name="run${TARGET_FAMILY}"
+        echo -e "${YELLOW}   TARGET_FAMILY set: using ${sig_name}() for this run${NC}"
     fi
+    echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
+    echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+    echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
+    echo -e "${YELLOW}   Deploying hook families via ${sig_name}() (single dispatch)...${NC}"
 
-    # Deploy HyperCore hooks if supported on this chain (HyperEVM only)
-    if is_hypercore_supported "$network_id"; then
-        has_hooks=true
-        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
-        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-        echo -e "${YELLOW}   Deploying HyperCore hooks...${NC}"
-
-        if forge script "$FORGE_SCRIPT" \
-            --sig 'runHyperCore(uint256,uint64)' $FORGE_ENV $network_id \
-            --account "$ACCOUNT" \
-            $KEYSTORE_PASSWORD_FLAG \
-            --rpc-url ${!rpc_var} \
-            $local_chain_flag \
-            $local_etherscan_flags \
-            $BROADCAST_FLAG \
-            $local_verify_flag \
-            $SLOW_FLAG \
-            $BATCH_SIZE_FLAG \
-            $RESUME_FLAG \
-            $LEGACY_FLAG \
-            $GAS_PRICE_FLAG \
-            --timeout 300 \
-            -vv; then
-            echo -e "${GREEN}   HyperCore hooks deployment completed!${NC}"
-        else
-            echo -e "${RED}   HyperCore hooks deployment failed on $network_name, continuing...${NC}"
-            FAILED_HOOK_DEPLOYS+=("HyperCore @ $network_name")
-        fi
+    deploy_log=$(mktemp)
+    forge script "$FORGE_SCRIPT" \
+        --sig "${sig_name}(uint256,uint64)" $FORGE_ENV $network_id \
+        --account "$ACCOUNT" \
+        $KEYSTORE_PASSWORD_FLAG \
+        --rpc-url ${!rpc_var} \
+        $local_chain_flag \
+        $local_etherscan_flags \
+        $BROADCAST_FLAG \
+        $local_verify_flag \
+        $SLOW_FLAG \
+        $BATCH_SIZE_FLAG \
+        $RESUME_FLAG \
+        $LEGACY_FLAG \
+        $GAS_PRICE_FLAG \
+        --timeout 300 \
+        -vv 2>&1 | tee "$deploy_log"
+    if [[ ${PIPESTATUS[0]} -eq 0 ]]; then
+        echo -e "${GREEN}   Hook deployment completed!${NC}"
+    else
+        # Attribute the failure to the family that was mid-deploy when the run aborted:
+        # the Solidity dispatcher logs a "Deploying <Family> ... on chainId" marker per family.
+        failed_family=$(grep -oE "Deploying [A-Za-z0-9 ]+ on chainId" "$deploy_log" | tail -1 | sed -E 's/^Deploying //; s/ on chainId$//')
+        FAILED_HOOK_DEPLOYS+=("${failed_family:-unknown family} @ $network_name")
+        echo -e "${RED}   Hook deployment failed on $network_name (family: ${failed_family:-unknown}), continuing...${NC}"
     fi
-
-    # Deploy Firelight hooks if supported on this chain
-    if is_firelight_supported "$network_id"; then
-        has_hooks=true
-        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
-        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-        echo -e "${YELLOW}   Deploying Firelight hooks...${NC}"
-
-        if forge script "$FORGE_SCRIPT" \
-            --sig 'runFirelight(uint256,uint64)' $FORGE_ENV $network_id \
-            --account "$ACCOUNT" \
-            $KEYSTORE_PASSWORD_FLAG \
-            --rpc-url ${!rpc_var} \
-            $local_chain_flag \
-            $local_etherscan_flags \
-            $BROADCAST_FLAG \
-            $local_verify_flag \
-            $SLOW_FLAG \
-            $BATCH_SIZE_FLAG \
-            $RESUME_FLAG \
-            $LEGACY_FLAG \
-            $GAS_PRICE_FLAG \
-            --timeout 300 \
-            -vv; then
-            echo -e "${GREEN}   Firelight hooks deployment completed!${NC}"
-        else
-            echo -e "${RED}   Firelight hooks deployment failed on $network_name, continuing...${NC}"
-            FAILED_HOOK_DEPLOYS+=("Firelight @ $network_name")
-        fi
-    fi
-
-    # Deploy Algebra Integral hooks if supported on this chain
-    if is_algebra_integral_supported "$network_id"; then
-        has_hooks=true
-        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
-        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-        echo -e "${YELLOW}   Deploying Algebra Integral hooks (SparkDEX V4)...${NC}"
-
-        if forge script "$FORGE_SCRIPT" \
-            --sig 'runAlgebraIntegral(uint256,uint64)' $FORGE_ENV $network_id \
-            --account "$ACCOUNT" \
-            $KEYSTORE_PASSWORD_FLAG \
-            --rpc-url ${!rpc_var} \
-            $local_chain_flag \
-            $local_etherscan_flags \
-            $BROADCAST_FLAG \
-            $local_verify_flag \
-            $SLOW_FLAG \
-            $BATCH_SIZE_FLAG \
-            $RESUME_FLAG \
-            $LEGACY_FLAG \
-            $GAS_PRICE_FLAG \
-            --timeout 300 \
-            -vv; then
-            echo -e "${GREEN}   Algebra Integral hooks deployment completed!${NC}"
-        else
-            echo -e "${RED}   Algebra Integral hooks deployment failed on $network_name, continuing...${NC}"
-            FAILED_HOOK_DEPLOYS+=("AlgebraIntegral @ $network_name")
-        fi
-    fi
-
-    # Deploy DETH hooks if supported on this chain
-    if is_deth_supported "$network_id"; then
-        has_hooks=true
-        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
-        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-        echo -e "${YELLOW}   Deploying DETH hooks...${NC}"
-
-        if forge script "$FORGE_SCRIPT" \
-            --sig 'runDETH(uint256,uint64)' $FORGE_ENV $network_id \
-            --account "$ACCOUNT" \
-            $KEYSTORE_PASSWORD_FLAG \
-            --rpc-url ${!rpc_var} \
-            $local_chain_flag \
-            $local_etherscan_flags \
-            $BROADCAST_FLAG \
-            $local_verify_flag \
-            $SLOW_FLAG \
-            $BATCH_SIZE_FLAG \
-            $RESUME_FLAG \
-            $LEGACY_FLAG \
-            $GAS_PRICE_FLAG \
-            --timeout 300 \
-            -vv; then
-            echo -e "${GREEN}   DETH hooks deployment completed!${NC}"
-        else
-            echo -e "${RED}   DETH hooks deployment failed on $network_name, continuing...${NC}"
-            FAILED_HOOK_DEPLOYS+=("DETH @ $network_name")
-        fi
-    fi
-
-    # Deploy Sponsorship contracts (all chains)
-    if is_sponsorship_supported "$network_id"; then
-        has_hooks=true
-        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
-        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-        echo -e "${YELLOW}   Deploying Sponsorship contracts...${NC}"
-
-        if forge script "$FORGE_SCRIPT" \
-            --sig 'runSponsorship(uint256,uint64)' $FORGE_ENV $network_id \
-            --account "$ACCOUNT" \
-            $KEYSTORE_PASSWORD_FLAG \
-            --rpc-url ${!rpc_var} \
-            $local_chain_flag \
-            $local_etherscan_flags \
-            $BROADCAST_FLAG \
-            $local_verify_flag \
-            $SLOW_FLAG \
-            $BATCH_SIZE_FLAG \
-            $RESUME_FLAG \
-            $LEGACY_FLAG \
-            $GAS_PRICE_FLAG \
-            --timeout 300 \
-            -vv; then
-            echo -e "${GREEN}   Sponsorship contracts deployment completed!${NC}"
-        else
-            echo -e "${RED}   Sponsorship contracts deployment failed on $network_name, continuing...${NC}"
-            FAILED_HOOK_DEPLOYS+=("Sponsorship @ $network_name")
-        fi
-    fi
-
-    # Deploy rFLR hooks if supported on this chain
-    if is_rflr_supported "$network_id"; then
-        has_hooks=true
-        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
-        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-        echo -e "${YELLOW}   Deploying rFLR hooks...${NC}"
-
-        if forge script "$FORGE_SCRIPT" \
-            --sig 'runRFLR(uint256,uint64)' $FORGE_ENV $network_id \
-            --account "$ACCOUNT" \
-            $KEYSTORE_PASSWORD_FLAG \
-            --rpc-url ${!rpc_var} \
-            $local_chain_flag \
-            $local_etherscan_flags \
-            $BROADCAST_FLAG \
-            $local_verify_flag \
-            $SLOW_FLAG \
-            $BATCH_SIZE_FLAG \
-            $RESUME_FLAG \
-            $LEGACY_FLAG \
-            $GAS_PRICE_FLAG \
-            --timeout 300 \
-            -vv; then
-            echo -e "${GREEN}   rFLR hooks deployment completed!${NC}"
-        else
-            echo -e "${RED}   rFLR hooks deployment failed on $network_name, continuing...${NC}"
-            FAILED_HOOK_DEPLOYS+=("rFLR @ $network_name")
-        fi
-    fi
-
-    # Deploy rFLR V2 hooks if supported on this chain
-    if is_rflr_supported "$network_id"; then
-        has_hooks=true
-        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
-        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-        echo -e "${YELLOW}   Deploying rFLR V2 hooks...${NC}"
-
-        if forge script "$FORGE_SCRIPT" \
-            --sig 'runRFLRV2(uint256,uint64)' $FORGE_ENV $network_id \
-            --account "$ACCOUNT" \
-            $KEYSTORE_PASSWORD_FLAG \
-            --rpc-url "${!rpc_var}" \
-            --chain $network_id \
-            $local_etherscan_flags \
-            $BROADCAST_FLAG \
-            $local_verify_flag \
-            $SLOW_FLAG \
-            $BATCH_SIZE_FLAG \
-            $RESUME_FLAG \
-            $LEGACY_FLAG \
-            $GAS_PRICE_FLAG \
-            --timeout 300 \
-            -vv; then
-            echo -e "${GREEN}   rFLR V2 hooks deployment completed!${NC}"
-        else
-            echo -e "${RED}   rFLR V2 hooks deployment failed on $network_name, continuing...${NC}"
-            FAILED_HOOK_DEPLOYS+=("rFLR V2 @ $network_name")
-        fi
-    fi
-
-    # Deploy WrappedNativeHook (with WFLR address) if supported on this chain
-    if is_wrapped_native_supported "$network_id"; then
-        has_hooks=true
-        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
-        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-        echo -e "${YELLOW}   Deploying WrappedNativeHook...${NC}"
-
-        if forge script "$FORGE_SCRIPT" \
-            --sig 'runWrappedNative(uint256,uint64)' $FORGE_ENV $network_id \
-            --account "$ACCOUNT" \
-            $KEYSTORE_PASSWORD_FLAG \
-            --rpc-url "${!rpc_var}" \
-            $local_chain_flag \
-            $local_etherscan_flags \
-            $BROADCAST_FLAG \
-            $local_verify_flag \
-            $SLOW_FLAG \
-            $BATCH_SIZE_FLAG \
-            $RESUME_FLAG \
-            $LEGACY_FLAG \
-            $GAS_PRICE_FLAG \
-            --timeout 300 \
-            -vv; then
-            echo -e "${GREEN}   WrappedNativeHook deployment completed!${NC}"
-        else
-            echo -e "${RED}   WrappedNativeHook deployment failed on $network_name, continuing...${NC}"
-            FAILED_HOOK_DEPLOYS+=("WrappedNative @ $network_name")
-        fi
-    fi
-
-    # Deploy V2 loan hooks if any provider gate holds on this chain (SUP-20796)
-    if is_loan_hooks_v2_supported "$network_id"; then
-        has_hooks=true
-        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
-        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-        echo -e "${YELLOW}   Deploying V2 loan hooks...${NC}"
-
-        if forge script "$FORGE_SCRIPT" \
-            --sig 'runLoanHooksV2(uint256,uint64)' $FORGE_ENV $network_id \
-            --account "$ACCOUNT" \
-            $KEYSTORE_PASSWORD_FLAG \
-            --rpc-url "${!rpc_var}" \
-            $local_chain_flag \
-            $local_etherscan_flags \
-            $BROADCAST_FLAG \
-            $local_verify_flag \
-            $SLOW_FLAG \
-            $BATCH_SIZE_FLAG \
-            $RESUME_FLAG \
-            $LEGACY_FLAG \
-            $GAS_PRICE_FLAG \
-            --timeout 300 \
-            -vv; then
-            echo -e "${GREEN}   V2 loan hooks deployment completed!${NC}"
-        else
-            echo -e "${RED}   V2 loan hooks deployment failed on $network_name, continuing...${NC}"
-            FAILED_HOOK_DEPLOYS+=("LoanHooksV2 @ $network_name")
-        fi
-    fi
-
-    # Deploy Euler EVK hooks if supported on this chain (Base/Clearstar only for now)
-    if is_euler_supported "$network_id"; then
-        has_hooks=true
-        echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
-        echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-        echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
-        echo -e "${YELLOW}   Deploying Euler EVK hooks...${NC}"
-
-        if forge script "$FORGE_SCRIPT" \
-            --sig 'runEulerHooks(uint256,uint64)' $FORGE_ENV $network_id \
-            --account "$ACCOUNT" \
-            $KEYSTORE_PASSWORD_FLAG \
-            --rpc-url "${!rpc_var}" \
-            $local_chain_flag \
-            $local_etherscan_flags \
-            $BROADCAST_FLAG \
-            $local_verify_flag \
-            $SLOW_FLAG \
-            $BATCH_SIZE_FLAG \
-            $RESUME_FLAG \
-            $LEGACY_FLAG \
-            $GAS_PRICE_FLAG \
-            --timeout 300 \
-            -vv; then
-            echo -e "${GREEN}   Euler EVK hooks deployment completed!${NC}"
-        else
-            echo -e "${RED}   Euler EVK hooks deployment failed on $network_name, continuing...${NC}"
-            FAILED_HOOK_DEPLOYS+=("EulerHooks @ $network_name")
-        fi
-    fi
+    rm -f "$deploy_log"
 
     # Restore any entries that the forge script dropped (e.g., Nexus contracts)
     preserve_existing_json_entries "$output_json" "$backup_json"
