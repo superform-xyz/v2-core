@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-09-02T08:10:52Z",
+  "generatedAt": "2026-09-04T09:31:10Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -5173,6 +5173,44 @@
         "across"
       ]
     },
+    "SuperVaultAcrossCapBridgeHook": {
+      "name": "SuperVault Capped Approve and Across Bridge",
+      "description": "Cap-enforced Across bridge for cross-chain SuperVaults: validates the typed destination action and records the reservation before bridging",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "across"
+      ]
+    },
     "AcrossSendFundsAndExecuteOnDstHookV2": {
       "name": "Across Bridge V2",
       "description": "Bridges tokens via Across V2 and executes on destination chain",
@@ -5709,6 +5747,44 @@
         "stargate"
       ]
     },
+    "SuperVaultStargateCapBridgeHook": {
+      "name": "SuperVault Capped Approve and Stargate Bridge",
+      "description": "Cap-enforced Stargate send for cross-chain SuperVaults: validates the typed destination action and records the reservation before bridging",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "stargate"
+      ]
+    },
     "StargateSendHookV2": {
       "name": "Stargate Bridge V2",
       "description": "Bridges tokens via Stargate V2 cross-chain messaging",
@@ -5966,6 +6042,44 @@
           "59144",
           "80094"
         ]
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "debridge"
+      ]
+    },
+    "SuperVaultDeBridgeCapBridgeHook": {
+      "name": "SuperVault Capped deBridge Send Order",
+      "description": "Cap-enforced deBridge order for cross-chain SuperVaults: validates the typed destination action and records the reservation before bridging",
+      "actionTypes": [
+        {
+          "intent": "bridge",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
       },
       "amountMeta": [
         {
