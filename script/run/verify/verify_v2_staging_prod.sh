@@ -489,6 +489,9 @@ generate_constructor_args() {
             local native_fee_sponsorship=$(get_contract_address "$chain_id" "NativeFeeSponsorship")
             echo "$(cast abi-encode "constructor(address)" "$native_fee_sponsorship")"
             ;;
+        "FeeSplittingHook")
+            echo "$(cast abi-encode "constructor(address)" "$native_token")"
+            ;;
         "AaveV4BorrowHook"|"AaveV4RepayAndWithdrawHook"|"AaveV4RepayHook"|"AaveV4SupplyAndBorrowHook"|"AaveV4SupplyHook"|"AaveV4WithdrawHook")
             echo "$(cast abi-encode "constructor()")"
             ;;
@@ -721,6 +724,7 @@ get_contract_source() {
         "SuperSponsorshipPaymaster") echo "src/paymaster/SuperSponsorshipPaymaster.sol" ;;
         "NativeFeeSponsorship") echo "src/sponsorship/NativeFeeSponsorship.sol" ;;
         "FetchNativeFeeHook") echo "src/hooks/sponsorship/FetchNativeFeeHook.sol" ;;
+        "FeeSplittingHook") echo "src/hooks/tokens/FeeSplittingHook.sol" ;;
 
         # Adapters
         "StargateAdapter") echo "src/adapters/StargateAdapter.sol" ;;

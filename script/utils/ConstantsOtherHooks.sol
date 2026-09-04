@@ -39,6 +39,9 @@ abstract contract ConstantsOtherHooks {
     string internal constant NATIVE_FEE_SPONSORSHIP_KEY = "NativeFeeSponsorship";
     string internal constant FETCH_NATIVE_FEE_HOOK_KEY = "FetchNativeFeeHook";
 
+    // Fee splitting hook key
+    string internal constant FEE_SPLITTING_HOOK_KEY = "FeeSplittingHook";
+
     // rFLR hook keys
     string internal constant CLAIM_RFLR_HOOK_KEY = "ClaimRFLRHook";
     string internal constant CLAIM_RFLRV2_HOOK_KEY = "ClaimRFLRV2Hook";
