@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-09-02T08:10:52Z",
+  "generatedAt": "2026-09-04T13:46:33Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -8130,12 +8130,66 @@
       ],
       "legSizing": [],
       "addresses": {
-        "staging": {},
-        "prod": {}
+        "staging": {
+          "1": "0xF97A4e4914faF4a4bF046F84A83098D292Cd6071",
+          "14": "0xF97A4e4914faF4a4bF046F84A83098D292Cd6071",
+          "56": "0xF97A4e4914faF4a4bF046F84A83098D292Cd6071",
+          "999": "0xF97A4e4914faF4a4bF046F84A83098D292Cd6071",
+          "4663": "0xF97A4e4914faF4a4bF046F84A83098D292Cd6071",
+          "8453": "0xF97A4e4914faF4a4bF046F84A83098D292Cd6071",
+          "42161": "0xF97A4e4914faF4a4bF046F84A83098D292Cd6071",
+          "43114": "0xF97A4e4914faF4a4bF046F84A83098D292Cd6071"
+        },
+        "prod": {
+          "1": "0xA27d8C375e4E99a3A2067deE2df0b8848928Be86",
+          "10": "0xA27d8C375e4E99a3A2067deE2df0b8848928Be86",
+          "14": "0xA27d8C375e4E99a3A2067deE2df0b8848928Be86",
+          "56": "0xA27d8C375e4E99a3A2067deE2df0b8848928Be86",
+          "100": "0xA27d8C375e4E99a3A2067deE2df0b8848928Be86",
+          "130": "0xA27d8C375e4E99a3A2067deE2df0b8848928Be86",
+          "137": "0xA27d8C375e4E99a3A2067deE2df0b8848928Be86",
+          "146": "0xA27d8C375e4E99a3A2067deE2df0b8848928Be86",
+          "480": "0xA27d8C375e4E99a3A2067deE2df0b8848928Be86",
+          "988": "0xA27d8C375e4E99a3A2067deE2df0b8848928Be86",
+          "999": "0xA27d8C375e4E99a3A2067deE2df0b8848928Be86",
+          "4663": "0xA27d8C375e4E99a3A2067deE2df0b8848928Be86",
+          "8453": "0xA27d8C375e4E99a3A2067deE2df0b8848928Be86",
+          "42161": "0xA27d8C375e4E99a3A2067deE2df0b8848928Be86",
+          "43114": "0xA27d8C375e4E99a3A2067deE2df0b8848928Be86",
+          "59144": "0xA27d8C375e4E99a3A2067deE2df0b8848928Be86",
+          "80094": "0xA27d8C375e4E99a3A2067deE2df0b8848928Be86"
+        }
       },
       "availableChains": {
-        "staging": [],
-        "prod": []
+        "staging": [
+          "1",
+          "14",
+          "56",
+          "999",
+          "4663",
+          "8453",
+          "42161",
+          "43114"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "14",
+          "56",
+          "100",
+          "130",
+          "137",
+          "146",
+          "480",
+          "988",
+          "999",
+          "4663",
+          "8453",
+          "42161",
+          "43114",
+          "59144",
+          "80094"
+        ]
       },
       "amountMeta": [],
       "sized": false,
