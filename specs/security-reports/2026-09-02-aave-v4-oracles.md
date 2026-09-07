@@ -61,9 +61,9 @@ Added in response (unit suite 37 → 45 tests):
 - **External entry points:** registry `registerReserve` / `proposeDeregisterReserve` / `executeDeregisterReserve` / `cancelDeregisterReserve` (all `MARKET_MANAGER_ROLE`-gated); everything else is view/pure.
 - **Value transfer points:** none — zero token movement in all three contracts.
 - **Oracle dependencies:** none — no price feeds by design; spoke views are live-accrued position state.
-- **Cross-contract interactions:** `spoke.getReserve/getUserDebt/getUserSuppliedAssets/getReserveDebt/getReserveSuppliedAssets` (STATICCALLs to an Aave-governed proxy); `SuperLedgerConfiguration`/`ISuperLedger` on the inherited fee view path only.
+- **Cross-contract interactions:** `spoke.getReserve/getUserDebt/getUserSuppliedAssets/getReserveDebt/getReserveSuppliedAssets` (STATICCALLs to an Aave-governed proxy); no `SuperLedgerConfiguration`/`ISuperLedger` reads on the view path — BOTH oracles override `getAssetOutputWithFees` to bypass the inherited fee view (PR #997 review F1); the ledger would only be reached via future hook wiring.
 - **Upgrade mechanisms:** none in-scope; Aave spokes are TransparentUpgradeableProxies (bindings survive by address; semantics drift mitigated by interface pinning, fork tests, ops monitoring — spec risk table).
-- **Highest-consequence residual (unchanged, triple-anchored):** the debt oracle's `feePercent = 0` operational invariant — full debt taxed as profit if violated on the unguarded `BaseLedger._processOutflow` path; view path is override-protected; inert under current NONACCOUNTING wiring; anchored by NatSpec + runbook + executable tests. Named precedent: Compound Prop 62 (~$80M, wrong-baseline accrual) and Moonwell 2025 ($1.8M, config-not-code).
+- **Highest-consequence residual (triple-anchored):** the `feePercent = 0` operational invariant on **BOTH oracles** (PR #997 review F1 extended it from debt-only) — full position taxed as profit if violated on the unguarded `BaseLedger._processOutflow` path; both view paths are override-protected; inert under current NONACCOUNTING wiring; anchored by NatSpec + runbook + executable tests. Named precedent: Compound Prop 62 (~$80M, wrong-baseline accrual) and Moonwell 2025 ($1.8M, config-not-code).
 
 ## Key External-Research Deltas (folded into code/docs)
 

@@ -90,7 +90,8 @@ contract AaveV4SupplyYieldSourceOracle is AbstractYieldSourceOracle {
 
     /// @notice Deploys the AaveV4SupplyYieldSourceOracle bound to a ledger configuration and reserve registry
     /// @param superLedgerConfiguration_ Address of the SuperLedgerConfiguration contract; must be non-zero
-    ///        (a zero/codeless value would silently disable the inherited fee path forever)
+    ///        (retained for interface parity with a future fee-capable oracle version; this oracle's
+    ///        getAssetOutputWithFees intentionally bypasses the inherited fee path)
     /// @param registry_ Address of the AaveV4ReserveRegistry; must be non-zero
     constructor(
         address superLedgerConfiguration_,

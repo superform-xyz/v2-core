@@ -24,7 +24,7 @@ Scope-defining finding from research: **all loan hooks are `NONACCOUNTING`** —
 ### Non-Functional
 - View-only, immutable, constructor-light oracles; registry is the only writable surface (role-gated).
 - No price feeds anywhere (own-asset denomination; equity trading-hours staleness stays at Aave's layer).
-- feePercent = 0 operational invariant on the debt oracle (NatSpec + runbook + executable test; no on-chain guard, per precedent).
+- feePercent = 0 operational invariant on **BOTH oracles** (REVISED per PR #997 review F1; NatSpec + runbook + executable tests; no on-chain guard, per precedent).
 - Fresh generated + locked-bytecode artifacts (PR #990 R1 lesson); house style per MorphoBlue security-report checklist.
 
 ## Technical Design
@@ -81,7 +81,7 @@ Registry storage: `mapping(address key => ReserveInfo{spoke, reserveId, underlyi
 | Accounting wiring | Standalone oracles; wiring = follow-up ticket | SpecFlow Finding A + precedent |
 | Supply oracle shape | Identity/asset-denominated (forced by hook architecture) | SpecFlow Finding C |
 | Debt fee guard | Operational invariant + Morpho-style view-path override | Cosmin + security review P2-1 precedent |
-| Supply fees | Fee-capable shape; config decides; yield fees await wiring | Cosmin (interview) |
+| Supply fees | REVISED per PR #997 review F1: fee view bypassed on both oracles; feePercent = 0 invariant (config does NOT decide); fee capability = new oracle version + hook wiring | PR #997 review (supersedes interview) |
 | Valuation | Own-asset units, no price feeds | Cosmin (interview) |
 | Chains | All chains with live V4 spokes; Base first | Cosmin (interview) |
 | RWA caveats | Documented risks only; hook-layer | Cosmin (interview) |

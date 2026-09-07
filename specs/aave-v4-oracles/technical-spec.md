@@ -8,7 +8,7 @@
 Aave V4 has no Superform accounting oracle on either side. This spec adds three contracts so SuperLedger-family consumers (monitoring, SuperVaults, periphery, and — after future wiring — the fee pipeline) can price smart-account positions on Aave V4 spokes:
 
 - **`AaveV4DebtOracle`** — debt side, Euler-shaped identity-PPS oracle over `spoke.getUserDebt(reserveId, account)` (drawn + premium).
-- **`AaveV4SupplyYieldSourceOracle`** — supply side, identity-PPS asset-denominated oracle over `spoke.getUserSuppliedAssets(reserveId, account)`, fee-capable in shape.
+- **`AaveV4SupplyYieldSourceOracle`** — supply side, identity-PPS asset-denominated oracle over `spoke.getUserSuppliedAssets(reserveId, account)`, fee view bypassed like the debt oracle (REVISED per PR #997 review F1).
 - **`AaveV4ReserveRegistry`** — maps a hash-derived pseudo-address key to `(spoke, reserveId)`, shared by both oracles (MorphoBlueMarketRegistry model).
 
 Driver: Aave V4 tokenized-equities launch on Base (borrow stables against equity collateral). Execution-side hooks (`AaveV4*HookV2`) already exist and need no changes for new markets.
@@ -23,7 +23,7 @@ Three P0 findings from `research/specflow-analysis.md` shape the scope:
 
 **S1 — These are STANDALONE accounting oracles, exactly like their precedents.** Every loan hook in the repo is `HookType.NONACCOUNTING`; `SuperExecutorBase._updateAccounting` never fires for them, and the deployed `EulerDebtOracle`/`MorphoBlueDebtOracle`/`MorphoBlueYieldSourceOracle` are equally hook-unwired. SUP-20854 delivers the same class of artifact: on-chain view oracles consumed by monitoring/periphery/off-chain accounting. **Live ledger wiring (hook `HookType` changes, two-position publication from bundled hooks) is explicitly OUT of scope** and becomes a follow-up ticket if/when the pod wants on-chain fees for loan positions. This matches the interview note that "oracle work does not block a basic hook-level integration demo" — and conversely, hook execution does not block oracle value.
 
-**S2 — Supply oracle is identity/asset-denominated (Euler-shaped), not shares-PPS.** The research's real-PPS recommendation is architecturally incompatible with the loan-hook family: hooks measure ERC20 wallet deltas (asset units) and V4 has no share token; `BaseLedger._takeSnapshot` treats inflow amounts as shares, which is only unit-safe when hook-reported units and oracle PPS units agree. Identity PPS (shares ≡ assets) keeps every consumer unit-consistent with what hooks can actually report. The oracle stays **fee-capable in shape** (inherited `getAssetOutputWithFees`, no override — interview decision #6): with identity PPS, ledger cost-basis math degenerates to principal-tracking, which under-charges yield fees but never over-charges; real yield-fee capability requires the future wiring work and is documented as such in NatSpec.
+**S2 — Supply oracle is identity/asset-denominated (Euler-shaped), not shares-PPS.** The research's real-PPS recommendation is architecturally incompatible with the loan-hook family: hooks measure ERC20 wallet deltas (asset units) and V4 has no share token; `BaseLedger._takeSnapshot` treats inflow amounts as shares, which is only unit-safe when hook-reported units and oracle PPS units agree. Identity PPS (shares ≡ assets) keeps every consumer unit-consistent with what hooks can actually report. **REVISED per PR #997 review F1 (supersedes interview decision #6's fee-capable-view shape):** the oracle now **overrides `getAssetOutputWithFees` to bypass the fee view**, identically to the debt oracle — with no hook wiring, supply positions never take cost-basis snapshots, so the inherited view would treat the entire principal as profit. **feePercent = 0 is an operational invariant for BOTH oracle ids** (or leave them unregistered) until accounting hooks exist; real yield-fee capability requires a NEW oracle version plus hook-to-ledger wiring, not a configuration change.
 
 **S3 — Implementation gate: confirm Base equity reserves use plain `ISpoke`, not `TokenizationSpoke`.** If equities route through Aave's ERC-4626 `TokenizationSpoke` wrapper, the existing `ERC4626YieldSourceOracle` covers them with zero new code and this spec's deliverable shrinks. Joao-call question #1; do not start implementation before it's answered.
 
@@ -42,7 +42,7 @@ Three P0 findings from `research/specflow-analysis.md` shape the scope:
              ┌──────────▼─────────┐          ┌───────────▼──────────────┐
              │  AaveV4DebtOracle  │          │ AaveV4SupplyYieldSource  │
              │  (identity PPS)    │          │ Oracle (identity PPS,    │
-             │  bal = drawn+prem  │          │  fee-capable shape)      │
+             │  bal = drawn+prem  │          │  fee-bypass view)        │
              │  TVL = reserveDebt │          │  bal = suppliedAssets    │
              └──────────┬─────────┘          └───────────┬──────────────┘
                         └───────────┬────────────────────┘
@@ -91,7 +91,7 @@ Euler shape with the Morpho fee-bypass hardening:
 
 #### `src/accounting/oracles/AaveV4SupplyYieldSourceOracle.sol`
 
-Identity shape, fee-capable:
+Identity shape, fee view bypassed (REVISED per PR #997 review F1):
 
 - `decimals` / `getPricePerShare` / identity passthroughs: as debt oracle.
 - `getBalanceOfOwner(key, owner)` = `getTVLByOwnerOfShares(key, owner)` = `spoke.getUserSuppliedAssets(reserveId, owner)` (asset units; V4 rounds down at source — conservative for claims; NatSpec).
@@ -137,7 +137,7 @@ Identity shape, fee-capable:
 - [ ] `IAaveV4Spoke` extended with `getReserveDebt` + `getReserveSuppliedAssets` (verified against pinned upstream commit).
 - [ ] `AaveV4ReserveRegistry` with hash-derived keys, `computeReserveKey` preview, register-time `getReserve` validation, add-only + 2-day timelocked deregistration, SAFETY INVARIANT NatSpec, typed `RESERVE_NOT_REGISTERED`/`RESERVE_ALREADY_REGISTERED` errors, `isRegistered`/`getReserveInfo` views.
 - [ ] `AaveV4DebtOracle`: identity PPS; balance/TVL-by-owner = drawn + premium; TVL = reserve-level aggregate; `getAssetOutputWithFees` fee-bypass override; feePercent = 0 NatSpec block covering both fee paths; asset-units documentation.
-- [ ] `AaveV4SupplyYieldSourceOracle`: identity PPS; balance/TVL-by-owner = supplied assets; TVL = reserve aggregate; NO fee override; NatSpec covering principal-tracking fee semantics, config-fallthrough, and the future-wiring non-goal.
+- [ ] `AaveV4SupplyYieldSourceOracle`: identity PPS; balance/TVL-by-owner = supplied assets; TVL = reserve aggregate; `getAssetOutputWithFees` fee-bypass override matching the debt oracle (REVISED per PR #997 review F1); NatSpec covering the both-oracles feePercent = 0 invariant and the future-wiring non-goal.
 - [ ] Explicit scope statement in both oracles' NatSpec: standalone accounting oracles; no hook currently drives them through the ledger (S1); wiring is a follow-up.
 
 ### Tests (unit — `test/unit/accounting/oracles/`, reusing `MockAaveV4SpokeV2`; ~Euler/Morpho suite bar)
@@ -147,7 +147,7 @@ Identity shape, fee-capable:
 - [ ] T4: registry lifecycle — duplicate register reverts; deregistration timelock boundary fuzz; post-deregistration reads revert; re-registration restores the identical key (`computeReserveKey` property test).
 - [ ] T5: registry validation — reverting / zero-underlying / codeless-EOA spoke → typed revert.
 - [ ] T6: decimals independence — 6-decimal loan reserve + 18-decimal collateral reserve resolve independently per key.
-- [ ] T7: supply fee math via inherited path — configured fee with identity PPS never over-charges (profit == 0 on principal round-trip); missing config falls through to plain output.
+- [ ] T7 (REVISED per PR #997 review F1 — supersedes the inherited-path criterion): supply fee view bypass — `getAssetOutputWithFees` returns the identity asset output regardless of configured fee, never consulting the ledger.
 - [ ] T8: known-issue test — one reverting key poisons `getPricePerShareMultiple`/`getTVLMultiple` (documented inherited limitation).
 - [ ] T9: hook/oracle consistency — oracle debt read equals `_totalDebt`-style read on the same mock state (anchors Finding C's unit analysis).
 
@@ -160,7 +160,7 @@ Identity shape, fee-capable:
 ### Tooling / deployment
 - [ ] All three contracts appended to `regenerate_bytecode.sh` ORACLE_CONTRACTS; generated + locked-bytecode-dev twins committed fresh (no stale ABI/selectors — PR #990 R1 precedent); prod locked-bytecode only at lock time (`__checkBytecodeExists` guard covers absence).
 - [ ] `*_KEY` constants + versioned salt strings in `script/utils/Constants.sol`; registry-first deploy wiring + verification records in `DeployV2Core.s.sol`; per-chain output JSONs + `DeployV2CoreVerificationRecords.t.sol`.
-- [ ] Ledger-config runbook: debt-oracle id registered with **feePercent = 0** (or left unregistered); supply-side fee per market decision; governance-review checklist line item.
+- [ ] Ledger-config runbook: **BOTH oracle ids registered with feePercent = 0 (or left unregistered)** — supply-side fees are NOT a per-market decision during the standalone phase (REVISED per PR #997 review F1); fee capability requires a new oracle version plus hook wiring; governance-review checklist line item.
 - [ ] Deployment matrix: enumerate chains with live Aave V4 spokes (Ethereum confirmed; Base pending equities spoke address; others per Aave governance) — "all V4 chains day one" scoped to chains where a spoke actually exists.
 - [ ] Security-review report at `specs/security-reports/<date>-aave-v4-oracles.md` (3-agent flow, MorphoBlue precedent).
 

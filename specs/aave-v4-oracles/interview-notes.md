@@ -26,7 +26,7 @@
 | 3 | Linear | **SUP-20854** — link and sync spec. |
 | 4 | Chain scope | **All V4 chains day one** — spec the full deployment matrix wherever Aave V4 spokes exist (Base is the launch driver). |
 | 5 | Debt-oracle fee guard | **Operational invariant only** (NatSpec + config discipline, feePercent = 0), matching Euler/MorphoBlue debt oracle precedent exactly — keeps the three debt oracles identical in shape. No on-chain guard. |
-| 6 | Supply-side fees | **Fee-capable** — normal cost-basis/fee mechanics like `ERC4626YieldSourceOracle`; whether equities markets charge performance fees on Aave supply yield is a `SuperLedgerConfiguration` decision, not a code constraint. |
+| 6 | Supply-side fees | **Fee-capable** — normal cost-basis/fee mechanics like `ERC4626YieldSourceOracle`; whether equities markets charge performance fees on Aave supply yield is a `SuperLedgerConfiguration` decision, not a code constraint. **[SUPERSEDED by PR #997 review F1 — supply oracle now bypasses the fee view; feePercent = 0 invariant on BOTH oracles; see technical-spec S2]** |
 | 7 | Cross-asset valuation | **Own-asset units** (Euler precedent): debt oracle reports in the borrow asset, supply oracle in the reserve underlying; conversion external. No price feeds inside the oracles → no staleness/manipulation surface from equity trading hours. |
 | 8 | Registry governance | **Match MorphoBlueMarketRegistry verbatim** — same role-gating/mutability model, one precedent, one audit story. |
 | 9 | Testing depth | **Unit + Base fork** — mock-spoke unit suite (AaveV4 mock with `setUserDebt(drawn, premium)` already exists from the hooks work) + fork tests against the real Base V4 spoke, including an equities reserve once live. Matches the loan-hooks testing bar. |
