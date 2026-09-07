@@ -67,7 +67,7 @@ jobs:
       - name: "Install node"
         uses: "actions/setup-node@v3"
         with:
-          node-version: "latest"
+          node-version: "22"
 
       - name: Print ulimits
         run: ulimit -Sa && ulimit -Ha
@@ -84,22 +84,22 @@ jobs:
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm@8
+        run: npm install -g pnpm@9.15.9
 
       - name: "Check pnpm version"
         run: pnpm --version
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
-        run: yarn
+        run: yarn --frozen-lockfile
 
       - name: "Build the contracts and print their size"
         run: "FOUNDRY_PROFILE=ci-sizes forge build --sizes"
@@ -127,7 +127,7 @@ jobs:
       - name: "Install node"
         uses: "actions/setup-node@v3"
         with:
-          node-version: "latest"
+          node-version: "22"
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
@@ -138,19 +138,19 @@ jobs:
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm@8
+        run: npm install -g pnpm@9.15.9
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
-        run: yarn
+        run: yarn --frozen-lockfile
 
       - name: "Show the Foundry config"
         run: "forge config"
@@ -209,19 +209,19 @@ jobs:
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm@8
+        run: npm install -g pnpm@9.15.9
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
-        run: yarn
+        run: yarn --frozen-lockfile
 
       - name: "Install Tenderly CLI"
         run: curl https://raw.githubusercontent.com/Tenderly/tenderly-cli/master/scripts/install-linux.sh | sudo sh
@@ -371,19 +371,19 @@ jobs:
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm@8
+        run: npm install -g pnpm@9.15.9
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
-        run: yarn
+        run: yarn --frozen-lockfile
 
       - name: "Make smoke test script executable"
         run: chmod +x ./script/run/test/smoke_test_treasury_config.sh
@@ -444,19 +444,19 @@ jobs:
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm@8
+        run: npm install -g pnpm@9.15.9
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
-        run: yarn
+        run: yarn --frozen-lockfile
 
       - name: "Make deployment smoke test script executable"
         run: chmod +x ./script/run/test/smoke_test_deployment.sh

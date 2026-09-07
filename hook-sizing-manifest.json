@@ -432,6 +432,11 @@
     "pipeMode": "transform"
   },
   {
+    "hookKey": "FEE_SPLITTING_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "passthrough"
+  },
+  {
     "hookKey": "FETCH_NATIVE_FEE_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "passthrough"
