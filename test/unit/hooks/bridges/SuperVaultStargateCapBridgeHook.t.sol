@@ -66,7 +66,10 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         capGuard.setDestinationHooks(DST_CHAIN_ID, dstApproveHook, dstDepositHook);
         capGuard.setDestinationVaultAsset(DST_CHAIN_ID, destVault, inputToken); // R3-RF3
         capGuard.setStargateRoute(address(pool), DST_CHAIN_ID, inputToken); // R3-RF1
-        capGuard.setStargateMinDeliveryBps(9900); // R3-RF1 (MIN_AMOUNT_LD/AMOUNT_LD = 99.5%)
+        // R3-RF1 generic ratio math (MIN_AMOUNT_LD/AMOUNT_LD = 99.5%); production cap routes are
+        // periphery-locked to 10_000 (R4-F3) — see test_FullDeliveryBps_MinMustEqualAmount.
+        capGuard.setStargateMinDeliveryBps(9900);
+        capGuard.setStrategyHubAsset(account, inputToken); // R4: inputToken == hub asset
     }
 
     function _depositMessage() internal view returns (bytes memory) {
@@ -305,6 +308,27 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         hook.preExecute(address(0), account, data);
     }
 
+    /// @notice R4-F3: with the production periphery-locked ratio (10_000 bps), minAmountLD must
+    ///         EQUAL amountLD — full delivery passes, any caller-chosen margin below the amount
+    ///         reverts, so the credited amount can never fall below the action-accounted amount.
+    function test_FullDeliveryBps_MinMustEqualAmount() public {
+        capGuard.setStargateMinDeliveryBps(10_000);
+
+        // min == amount passes and mints the reservation.
+        bytes memory fullDelivery = _encodeWithMin(DST_EID, _toBytes32(adapter), AMOUNT_LD, AMOUNT_LD);
+        vm.prank(account);
+        hook.preExecute(address(0), account, fullDelivery);
+        assertEq(registry.bridgedOut(account), AMOUNT_LD, "full-delivery send must pass at 10_000 bps");
+
+        // min < amount (even by 1 wei) reverts DELIVERY_MARGIN_TOO_WIDE.
+        hook.setExecutionContext(account);
+        bytes memory underDelivery = _encodeWithMin(DST_EID, _toBytes32(adapter), AMOUNT_LD, AMOUNT_LD - 1);
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_MARGIN_TOO_WIDE.selector);
+        hook.preExecute(address(0), account, underDelivery);
+        assertEq(registry.bridgedOut(account), AMOUNT_LD, "no extra reservation below full delivery");
+    }
+
     /// @notice The action token must be the route's pinned destination token — a signed action
     ///         attesting a different token can no longer reach the destination (R3-RF1 token leg).
     function test_RevertIf_ActionTokenNotRouteToken() public {
@@ -316,6 +340,32 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         vm.prank(account);
         vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_TOKEN_NOT_BOUND.selector);
         hook.preExecute(address(0), account, _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, message));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            R4: INPUT TOKEN == GOVERNANCE-PINNED HUB ASSET
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice R4: with no hub asset pinned for the strategy, the cap hook fails closed — an
+    ///         unpinned strategy can never bridge, so no reservation in an unknown unit exists.
+    function test_RevertIf_HubAssetUnpinned() public {
+        capGuard.setStrategyHubAsset(account, address(0));
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.INPUT_TOKEN_NOT_HUB_ASSET.selector);
+        hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), 0, "no reservation without a pinned hub asset");
+    }
+
+    /// @notice R4: an inputToken different from the pinned hub asset is rejected — a cross-token
+    ///         source leg cannot mint a reservation denominated in the wrong unit.
+    function test_RevertIf_InputTokenNotHubAsset() public {
+        capGuard.setStrategyHubAsset(account, makeAddr("otherHubAsset"));
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.INPUT_TOKEN_NOT_HUB_ASSET.selector);
+        hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), 0, "no reservation for a non-hub-asset input token");
     }
 
     /*//////////////////////////////////////////////////////////////

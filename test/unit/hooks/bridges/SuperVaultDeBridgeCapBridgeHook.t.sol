@@ -65,6 +65,7 @@ contract SuperVaultDeBridgeCapBridgeHookTest is Test {
         capGuard.setApprovedAdapter(DST_CHAIN_ID, adapter, true);
         capGuard.setDestinationHooks(DST_CHAIN_ID, dstApproveHook, dstDepositHook);
         capGuard.setDestinationVaultAsset(DST_CHAIN_ID, destVault, takeToken); // R3-RF3
+        capGuard.setStrategyHubAsset(account, giveToken); // R4: giveToken == hub asset
     }
 
     function _depositMessage() internal view returns (bytes memory) {
@@ -403,6 +404,30 @@ contract SuperVaultDeBridgeCapBridgeHookTest is Test {
         vm.prank(account);
         vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_TOKEN_NOT_BOUND.selector);
         hook.preExecute(address(0), account, _encode(p));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            R4: GIVE TOKEN == GOVERNANCE-PINNED HUB ASSET
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice R4: with no hub asset pinned for the strategy, the cap hook fails closed — an
+    ///         unpinned strategy can never bridge, so no reservation in an unknown unit exists.
+    function test_RevertIf_HubAssetUnpinned() public {
+        capGuard.setStrategyHubAsset(account, address(0));
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.INPUT_TOKEN_NOT_HUB_ASSET.selector);
+        hook.preExecute(address(0), account, _encode(_params()));
+        assertEq(registry.bridgedOut(account), 0, "no reservation without a pinned hub asset");
+    }
+
+    /// @notice R4: a giveToken different from the pinned hub asset is rejected — a cross-token
+    ///         source leg cannot mint a reservation denominated in the wrong unit.
+    function test_RevertIf_GiveTokenNotHubAsset() public {
+        capGuard.setStrategyHubAsset(account, makeAddr("otherHubAsset"));
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.INPUT_TOKEN_NOT_HUB_ASSET.selector);
+        hook.preExecute(address(0), account, _encode(_params()));
+        assertEq(registry.bridgedOut(account), 0, "no reservation for a non-hub-asset give token");
     }
 
     /*//////////////////////////////////////////////////////////////

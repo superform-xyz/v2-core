@@ -62,7 +62,9 @@ contract CrossChainSuperVaultDestinationStargateE2E is CrossChainSuperVaultDesti
         capGuard.setEidChainId(DST_EID, chainId);
         capGuard.setApprovedAdapter(chainId, address(adapter), true);
         capGuard.setStargateRoute(address(pool), chainId, address(token)); // R3-RF1
-        capGuard.setStargateMinDeliveryBps(9900); // R3-RF1
+        // R4-F3: cap-enabled Stargate routes are periphery-locked to full delivery (10_000 bps):
+        // the encoded minAmountLD must equal amountLD, so credited == action-accounted amount.
+        capGuard.setStargateMinDeliveryBps(10_000);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -91,6 +93,20 @@ contract CrossChainSuperVaultDestinationStargateE2E is CrossChainSuperVaultDesti
 
         // 4. The position exists as SHARES owned by the hub-controlled account.
         _assertSharesMinted(root, address(adapter));
+
+        // R4-F3: the credited/delivered amount equals the destination action's accounted amount
+        // EXACTLY — with stargateMinDeliveryBps periphery-locked to 10_000, minAmountLD ==
+        // amountLD, so no delivery sliver can exist and every credited token is consumed by the
+        // accounted action. Any surplus over the accounted amount would be unbooked exposure the
+        // reservation/settlement accounting cannot represent.
+        assertEq(
+            token.balanceOf(address(vault)), AMOUNT, "credited amount must equal the action-accounted amount (R4-F3)"
+        );
+        assertEq(
+            token.balanceOf(address(account)) + token.balanceOf(address(adapter)),
+            0,
+            "no credited surplus may remain outside the accounted action (R4-F3)"
+        );
     }
 
     /// @notice Mutating only the vault after signing fails destination signature validation. The

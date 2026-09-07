@@ -68,6 +68,7 @@ contract SuperVaultAcrossCapBridgeHookTest is Test {
         capGuard.setApprovedAdapter(DST_CHAIN_ID, adapter, true);
         capGuard.setDestinationHooks(DST_CHAIN_ID, dstApproveHook, dstDepositHook);
         capGuard.setDestinationVaultAsset(DST_CHAIN_ID, destVault, outputToken); // R3-RF3
+        capGuard.setStrategyHubAsset(account, inputToken); // R4: inputToken == hub asset
     }
 
     function _depositMessage() internal view returns (bytes memory) {
@@ -412,6 +413,32 @@ contract SuperVaultAcrossCapBridgeHookTest is Test {
         vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_ACTION_NOT_VALID.selector);
         hook.preExecute(address(0), account, _encode(DST_CHAIN_ID, INPUT_AMOUNT, false, message));
         hook.setExecutionContext(account); // fresh mutex for the next call in this test
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            R4: INPUT TOKEN == GOVERNANCE-PINNED HUB ASSET
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice R4: with no hub asset pinned for the strategy, the cap hook fails closed — an
+    ///         unpinned strategy can never bridge, so no reservation in an unknown unit exists.
+    function test_RevertIf_HubAssetUnpinned() public {
+        capGuard.setStrategyHubAsset(account, address(0));
+        bytes memory data = _encode(DST_CHAIN_ID, INPUT_AMOUNT, false, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.INPUT_TOKEN_NOT_HUB_ASSET.selector);
+        hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), 0, "no reservation without a pinned hub asset");
+    }
+
+    /// @notice R4: an inputToken different from the pinned hub asset is rejected — a cross-token
+    ///         source leg cannot mint a reservation denominated in the wrong unit.
+    function test_RevertIf_InputTokenNotHubAsset() public {
+        capGuard.setStrategyHubAsset(account, makeAddr("otherHubAsset"));
+        bytes memory data = _encode(DST_CHAIN_ID, INPUT_AMOUNT, false, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.INPUT_TOKEN_NOT_HUB_ASSET.selector);
+        hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), 0, "no reservation for a non-hub-asset input token");
     }
 
     /// @notice R3: the cap-aware hook is unmistakably distinct from its uncapped parent.

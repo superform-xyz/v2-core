@@ -76,6 +76,7 @@ contract SuperVaultStargateCapBridgeHook is ApproveAndStargateSendHook, SuperVau
     /// @dev hookData offsets — mirror the parent (locked) layout; the cap fields are fixed and sit
     ///      before the dynamic extraOptions/composeMsg tail.
     uint256 private constant STARGATE_POOL_OFFSET = 84;
+    uint256 private constant INPUT_TOKEN_OFFSET = 104;
     uint256 private constant DST_EID_OFFSET = 124;
     uint256 private constant TO_OFFSET = 128;
     uint256 private constant AMOUNT_LD_OFFSET = 160;
@@ -205,7 +206,11 @@ contract SuperVaultStargateCapBridgeHook is ApproveAndStargateSendHook, SuperVau
         // delivery surplus (actual credit - action amount) is a governance-bounded sliver, never
         // an arbitrary gap the periphery settlement floor could mistake for a full landing. The
         // ratio is scale-invariant, so the ENCODED pair is checked (the usePrev rescale preserves
-        // it exactly).
+        // it exactly). R4-F3: the hook's ratio math stays generic, but governance's
+        // stargateMinDeliveryBps is periphery-locked to 10_000 for cap routes — the encoded
+        // minAmountLD must equal amountLD, so a fee-charging route reverts at Stargate's own
+        // slippage check rather than under-delivering, and the credited amount can never fall
+        // below the action-accounted amount (any surplus would be unbooked exposure).
         uint256 minBps = _capGuard().stargateMinDeliveryBps();
         if (minBps == 0 || BytesLib.toUint256(data, MIN_AMOUNT_LD_OFFSET) * 10_000 < encodedAmountLD * minBps) {
             revert DELIVERY_MARGIN_TOO_WIDE();
@@ -216,20 +221,30 @@ contract SuperVaultStargateCapBridgeHook is ApproveAndStargateSendHook, SuperVau
         address expectedDstToken = _capGuard().stargateDstToken(BytesLib.toAddress(data, STARGATE_POOL_OFFSET), chainId);
         if (expectedDstToken == address(0)) revert STARGATE_ROUTE_NOT_SET();
 
-        _enforceCrossChainCap(account, chainId, transportAdapter, amount, minDelivered, expectedDstToken, composeMsg);
+        _enforceCrossChainCap(
+            account,
+            chainId,
+            transportAdapter,
+            BytesLib.toAddress(data, INPUT_TOKEN_OFFSET), // R4: must be the strategy's hub asset
+            amount,
+            minDelivered,
+            expectedDstToken,
+            composeMsg
+        );
     }
 
     /// @inheritdoc ApproveAndStargateSendHook
     /// @dev B4/B1 leaf: pins the parent transport fields PLUS the cap dimensions — cap guard,
     ///      CANONICAL destination chain id (translated from the LayerZero EID), economic
     ///      destination vault, destination action type and the amount-source mode — so one
-    ///      approved leaf authorizes exactly one destination configuration.
+    ///      approved leaf authorizes exactly one destination configuration. The R4 hub-asset
+    ///      binding on the (already leaf-pinned) inputToken is runtime-only — see `_capLeafSuffix`.
     function inspect(bytes calldata data) external view override returns (bytes memory) {
         (uint64 chainId, address transportAdapter, bytes memory composeMsg) = _decodeCapFields(data);
 
         return abi.encodePacked(
-            BytesLib.toAddress(data, 84), // stargatePool
-            BytesLib.toAddress(data, 104), // inputToken
+            BytesLib.toAddress(data, STARGATE_POOL_OFFSET), // stargatePool
+            BytesLib.toAddress(data, INPUT_TOKEN_OFFSET), // inputToken
             transportAdapter, // to = destination adapter (transport)
             // cap guard, CANONICAL chain id (not the EID), destination vault, action type,
             // amount-source mode

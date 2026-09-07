@@ -171,7 +171,14 @@ contract SuperVaultDeBridgeCapBridgeHook is DeBridgeSendOrderAndExecuteOnDstHook
         }
 
         _enforceCrossChainCap(
-            account, f.chainId, f.transportAdapter, amount, minDelivered, f.takeToken, f.destinationMessage
+            account,
+            f.chainId,
+            f.transportAdapter,
+            f.giveToken, // R4: must be the strategy's hub asset
+            amount,
+            minDelivered,
+            f.takeToken,
+            f.destinationMessage
         );
     }
 
@@ -184,7 +191,9 @@ contract SuperVaultDeBridgeCapBridgeHook is DeBridgeSendOrderAndExecuteOnDstHook
     ///      allowedCancelBeneficiarySrc fields stay in the leaf for parent-compatibility but are
     ///      RUNTIME-pinned to the hub strategy account by `_preExecute` (the leaf's 20-byte view
     ///      cannot distinguish empty bytes from address(0)), closing cancel-theft, fund-lock and
-    ///      takeAmount patch-down regardless of what a leaf reviewer approves.
+    ///      takeAmount patch-down regardless of what a leaf reviewer approves. The R4 hub-asset
+    ///      binding on the (already leaf-pinned) giveTokenAddress is runtime-only — see
+    ///      `_capLeafSuffix`.
     function inspect(bytes calldata data) external view override returns (bytes memory) {
         (IDlnSource.OrderCreation memory order,,,) = _createOrder(data, "");
         CapFields memory f = _decodeCapFields(data);
@@ -213,6 +222,7 @@ contract SuperVaultDeBridgeCapBridgeHook is DeBridgeSendOrderAndExecuteOnDstHook
         address orderAuthority; // cancel/patch authority on the take chain (P1: pinned to account)
         address cancelBeneficiary; // cancel refund destination on the give chain (P1: pinned to account)
         uint256 orderGiveAmount;
+        address giveToken; // source token the order gives (R4: bound to the strategy's hub asset)
         uint256 takeAmount; // delivery minimum on the destination (R2-B1 amount binding)
         address takeToken; // delivery token on the destination (R2-B1 token binding)
         bytes destinationMessage;
@@ -228,6 +238,8 @@ contract SuperVaultDeBridgeCapBridgeHook is DeBridgeSendOrderAndExecuteOnDstHook
     function _decodeCapFields(bytes calldata data) internal pure returns (CapFields memory f) {
         (IDlnSource.OrderCreation memory order,, bytes memory affiliateFee,) = _createOrder(data, "");
         f.orderGiveAmount = order.giveAmount;
+        // R4: the source token exactly as the parent will send it to createOrder.
+        f.giveToken = order.giveTokenAddress;
 
         // P2: affiliateFee is a give-side skim (beneficiary, amount) deducted from giveAmount on
         // fulfilment — the give-chain twin of the pinned executionFee below. Forbid it entirely:

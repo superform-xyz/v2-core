@@ -29,6 +29,8 @@ interface ICrossChainPositionCapGuard {
 
     function isApprovedAdapter(uint64 chainId, address adapter) external view returns (bool);
 
+    function strategyHubAsset(address strategy) external view returns (address);
+
     function destinationHooks(uint64 chainId) external view returns (address approveHook, address depositHook);
 
     function chainIdForEid(uint32 eid) external view returns (uint64);
@@ -89,7 +91,12 @@ abstract contract SuperVaultCapBridgeCommon {
     ///         route whose delivery minimum passes here is always confirmable there — the
     ///         reservation, the destination action and the confirmation floor share one bound.
     ///         Assumes same-asset routes with equal source/destination decimals (the only routes
-    ///         this hook family supports).
+    ///         this hook family supports). The SOURCE side of that assumption is machine-enforced
+    ///         (R4): `_enforceCrossChainCap` requires the bridged input token to equal the
+    ///         strategy's governance-pinned `strategyHubAsset`. The DESTINATION side (destination
+    ///         asset == the same asset with EQUAL decimals) remains a governance route-activation
+    ///         rule enforced at review time (periphery `setDestinationVaultAsset` /
+    ///         `setStargateRoute` docs).
     uint256 public constant MIN_SOURCE_DELIVERY_BPS = 9000;
 
     /// @dev SuperGovernor address-book keys — identical to the periphery constants so the resolved
@@ -125,6 +132,11 @@ abstract contract SuperVaultCapBridgeCommon {
 
     /// @notice The bridge transport receiver is not an approved destination adapter for the chain
     error TRANSPORT_ADAPTER_NOT_APPROVED();
+    /// @notice The bridged source token is not the strategy's governance-pinned hub asset — fails
+    ///         closed when unpinned — so a cross-token source leg can never mint a reservation
+    ///         denominated in the wrong unit (R4: the hub-verifiable half of the
+    ///         same-asset/equal-decimals route invariant)
+    error INPUT_TOKEN_NOT_HUB_ASSET();
     /// @notice The destination message's account is not the hub strategy account
     error DESTINATION_ACCOUNT_NOT_VALID();
     /// @notice The destination message does not encode a permitted typed destination action
@@ -165,9 +177,14 @@ abstract contract SuperVaultCapBridgeCommon {
     }
 
     /// @dev Full runtime enforcement, called from the concrete hook's `_preExecute` AFTER it has
-    ///      decoded the transport tuple: adapter allowlist -> typed destination action -> account
-    ///      binding -> token/amount binding (R2-B1) -> cap check -> reservation record. Reverting
-    ///      here aborts the whole executeHooks batch.
+    ///      decoded the transport tuple: adapter allowlist -> input-token/hub-asset binding (R4)
+    ///      -> typed destination action -> account binding -> token/amount binding (R2-B1) -> cap
+    ///      check -> reservation record. Reverting here aborts the whole executeHooks batch.
+    /// @param inputToken The SOURCE-side token the bridge send actually spends (Across inputToken /
+    ///        deBridge giveTokenAddress / Stargate encoded inputToken, read exactly where the
+    ///        parent reads it). Must equal the strategy's governance-pinned `strategyHubAsset` —
+    ///        fail closed when unpinned — so the reservation is always denominated in the hub
+    ///        asset's unit (R4).
     /// @param minDeliveredAmount The MINIMUM amount the bridge guarantees to deliver on the
     ///        destination (Across outputAmount / deBridge takeAmount / Stargate minAmountLD,
     ///        prev-hook-scaled where the parent scales it). The destination action must consume
@@ -181,6 +198,7 @@ abstract contract SuperVaultCapBridgeCommon {
         address account,
         uint64 chainId,
         address transportAdapter,
+        address inputToken,
         uint256 amount,
         uint256 minDeliveredAmount,
         address expectedDstToken,
@@ -190,6 +208,14 @@ abstract contract SuperVaultCapBridgeCommon {
     {
         ICrossChainPositionCapGuard guard = _capGuard();
         if (!guard.isApprovedAdapter(chainId, transportAdapter)) revert TRANSPORT_ADAPTER_NOT_APPROVED();
+
+        // R4: the bridged source token must be the strategy's governance-pinned hub denomination
+        // asset (fail closed when unpinned) — a cross-token source leg can never mint a
+        // reservation denominated in the wrong unit. This is the hub-verifiable half of the
+        // same-asset/equal-decimals route invariant; the destination half stays a governance
+        // route-activation rule (see MIN_SOURCE_DELIVERY_BPS).
+        address hubAsset = guard.strategyHubAsset(account);
+        if (hubAsset == address(0) || inputToken != hubAsset) revert INPUT_TOKEN_NOT_HUB_ASSET();
 
         DestinationAction memory action = _decodeDestinationAction(destinationMessage, chainId, guard);
 
@@ -227,7 +253,11 @@ abstract contract SuperVaultCapBridgeCommon {
     /// @dev Leaf suffix shared by every cap hook's `inspect`: pins the cap guard, the CANONICAL
     ///      destination chain id, the economic destination vault, the typed destination action and
     ///      the amount-source mode. Kept as one helper so hook `inspect` overrides stay shallow
-    ///      (no via_ir in the default profile).
+    ///      (no via_ir in the default profile). The R4 input-token/hub-asset binding is
+    ///      deliberately NOT leaf material (the leaf format is unchanged): the `strategyHubAsset`
+    ///      pin is live governance config, so it is runtime-bound in `_enforceCrossChainCap` —
+    ///      rotating the pin fail-closes every in-flight signed root instead of mis-routing,
+    ///      mirroring the destinationHooks precedent above.
     function _capLeafSuffix(
         uint64 chainId,
         bytes memory destinationMessage,

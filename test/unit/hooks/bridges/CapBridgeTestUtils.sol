@@ -11,6 +11,7 @@ interface ICapGuardLike {
 
 contract MockCapGuard is ICapGuardLike {
     mapping(uint64 => mapping(address => bool)) public isApprovedAdapter;
+    mapping(address => address) public strategyHubAsset;
     mapping(uint64 => address) internal _approveHook;
     mapping(uint64 => address) internal _depositHook;
     mapping(uint32 => uint64) public chainIdForEid;
@@ -22,6 +23,10 @@ contract MockCapGuard is ICapGuardLike {
 
     function setApprovedAdapter(uint64 chainId, address adapter, bool ok) external {
         isApprovedAdapter[chainId][adapter] = ok;
+    }
+
+    function setStrategyHubAsset(address strategy, address asset) external {
+        strategyHubAsset[strategy] = asset;
     }
 
     function setDestinationHooks(uint64 chainId, address approveHook_, address depositHook_) external {

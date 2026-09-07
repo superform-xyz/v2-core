@@ -59,6 +59,7 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
     /// @dev hookData offsets — mirror the parent (locked) layout; drift is caught by the
     ///      offset-equivalence unit test, not by the compiler (the parent's constants are private).
     uint256 private constant RECIPIENT_OFFSET = 84;
+    uint256 private constant INPUT_TOKEN_OFFSET = 104;
     uint256 private constant OUTPUT_TOKEN_OFFSET = 124;
     uint256 private constant INPUT_AMOUNT_OFFSET = 144;
     uint256 private constant OUTPUT_AMOUNT_OFFSET = 176;
@@ -145,6 +146,7 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
             account,
             chainId,
             transportAdapter,
+            BytesLib.toAddress(data, INPUT_TOKEN_OFFSET), // R4: must be the strategy's hub asset
             amount,
             minDelivered,
             BytesLib.toAddress(data, OUTPUT_TOKEN_OFFSET),
@@ -157,13 +159,14 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
     ///      canonical destination chain, economic destination vault, destination action type and
     ///      the amount-source mode — so one approved leaf authorizes exactly one destination
     ///      configuration. Mutating only the executor calldata (a different vault) changes the
-    ///      leaf and falls outside the approved root.
+    ///      leaf and falls outside the approved root. The R4 hub-asset binding on the (already
+    ///      leaf-pinned) inputToken is runtime-only — see `_capLeafSuffix`.
     function inspect(bytes calldata data) external view override returns (bytes memory) {
         (uint64 chainId, address transportAdapter, bytes memory destinationMessage) = _decodeCapFields(data);
 
         return abi.encodePacked(
             transportAdapter, // recipient = destination adapter (transport)
-            BytesLib.toAddress(data, 104), // inputToken
+            BytesLib.toAddress(data, INPUT_TOKEN_OFFSET), // inputToken
             BytesLib.toAddress(data, 124), // outputToken
             BytesLib.toAddress(data, 240), // exclusiveRelayer
             // cap guard, canonical chain id, destination vault, action type, amount-source mode

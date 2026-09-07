@@ -22,6 +22,25 @@ import {
     CapMessageLib
 } from "../../unit/hooks/bridges/CapBridgeTestUtils.sol";
 
+/// @dev Stargate V2 quoteOFT surface (not in the vendored IStargate); lets the full-delivery
+///      regression read the pool's CURRENT fee state and assert the correct branch.
+interface IStargateQuoteOFT {
+    struct OFTLimit {
+        uint256 minAmountLD;
+        uint256 maxAmountLD;
+    }
+
+    struct OFTFeeDetail {
+        int256 feeAmountLD;
+        string description;
+    }
+
+    function quoteOFT(IStargate.SendParam calldata sendParam)
+        external
+        view
+        returns (OFTLimit memory, OFTFeeDetail[] memory, IStargate.OFTReceipt memory);
+}
+
 contract MockStargateSignatureStorage {
     function retrieveSignatureData(address) external view returns (bytes memory) {
         uint48 validUntil = uint48(block.timestamp + 3600);
@@ -91,7 +110,10 @@ contract SuperVaultStargateCapBridgeHookFork is Test {
         capGuard.setDestinationHooks(BASE_CHAIN_ID, dstApproveHook, dstDepositHook);
         capGuard.setDestinationVaultAsset(BASE_CHAIN_ID, destVault, USDC_BASE); // R3-RF3
         capGuard.setStargateRoute(STARGATE_USDC_POOL_ETH, BASE_CHAIN_ID, USDC_BASE); // R3-RF1
-        capGuard.setStargateMinDeliveryBps(9900); // R3-RF1 (MIN/AMOUNT = 99%)
+        // R3-RF1 generic ratio mechanics (99%); the production cap config is periphery-locked to
+        // 10_000 (R4-F3) — proven on-fork by test_Fork_FullDeliveryLock_FailsClosedOrCreditsExactly.
+        capGuard.setStargateMinDeliveryBps(9900);
+        capGuard.setStrategyHubAsset(account, USDC_ETH); // R4: input token == hub asset
 
         deal(USDC_ETH, account, AMOUNT_LD);
     }
@@ -173,6 +195,70 @@ contract SuperVaultStargateCapBridgeHookFork is Test {
         vm.selectFork(baseForkId);
         assertGe(IERC20(USDC_BASE).balanceOf(adapter), MIN_AMOUNT_LD, "adapter not filled on Base");
         assertEq(IERC20(USDC_BASE).balanceOf(destVault), 0, "no raw transfer may reach the vault address");
+    }
+
+    /// @notice R4-F3 PRODUCTION setting (the periphery locks stargateMinDeliveryBps to 10_000, so
+    ///         the encoded minAmountLD == amountLD): against the REAL pool, either the current fee
+    ///         state is fee-less and the credited amount EQUALS the action-accounted amount, or
+    ///         the pool charges a fee and the send fails closed at Stargate's own slippage check —
+    ///         no pool state can under-deliver into a settled reservation or leave an unbooked
+    ///         delivery remainder.
+    function test_Fork_FullDeliveryLock_FailsClosedOrCreditsExactly() public {
+        capGuard.setStargateMinDeliveryBps(10_000);
+
+        // Full-delivery encode: min == amount, and the destination action consumes the same amount.
+        bytes memory composeMsg =
+            CapMessageLib.vaultDepositMessage(account, dstApproveHook, dstDepositHook, destVault, USDC_BASE, AMOUNT_LD);
+        bytes memory data = _encode(EID_BASE, _toBytes32(adapter), AMOUNT_LD, AMOUNT_LD, 1, false, 0, composeMsg);
+        Execution[] memory built = hook.build(address(0), account, data);
+        (,,, bytes memory builtCompose) = _decodeSendTokenWithCompose(built[BRIDGE_EXECUTION_INDEX].callData);
+        IStargate.SendParam memory sendParam = IStargate.SendParam({
+            dstEid: EID_BASE,
+            to: _toBytes32(adapter),
+            amountLD: AMOUNT_LD,
+            minAmountLD: AMOUNT_LD,
+            extraOptions: EXTRA_OPTIONS,
+            composeMsg: builtCompose,
+            oftCmd: bytes("")
+        });
+        uint256 fee = IStargate(STARGATE_USDC_POOL_ETH).quoteSend(sendParam, false).nativeFee;
+        data = _encode(EID_BASE, _toBytes32(adapter), AMOUNT_LD, AMOUNT_LD, fee, false, 0, composeMsg);
+        vm.deal(account, fee);
+
+        // The cap hook accepts full delivery at the production ratio and books the exact amount.
+        vm.prank(account);
+        hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), AMOUNT_LD, "reservation must equal the accounted amount");
+
+        // Read the pool's CURRENT delivery quote for this exact send.
+        sendParam.minAmountLD = 0; // the quote itself must not revert on slippage
+        (,, IStargate.OFTReceipt memory receipt) = IStargateQuoteOFT(STARGATE_USDC_POOL_ETH).quoteOFT(sendParam);
+
+        Execution[] memory execs = hook.build(address(0), account, data);
+        vm.recordLogs();
+        vm.startPrank(account);
+        (bool ok0,) = execs[1].target.call(execs[1].callData);
+        (bool ok1,) = execs[2].target.call(execs[2].callData);
+        assertTrue(ok0 && ok1, "approvals must succeed");
+        (bool sent,) = execs[BRIDGE_EXECUTION_INDEX].target.call{ value: execs[BRIDGE_EXECUTION_INDEX].value }(
+            execs[BRIDGE_EXECUTION_INDEX].callData
+        );
+        vm.stopPrank();
+
+        if (receipt.amountReceivedLD < AMOUNT_LD) {
+            // Fee-charging pool state: the full-delivery lock must fail closed at the pool's own
+            // slippage check, and no funds may leave the account.
+            assertFalse(sent, "fee-charging pool must fail closed under the full-delivery lock");
+            assertEq(IERC20(USDC_ETH).balanceOf(account), AMOUNT_LD, "funds must not move on fail-closed");
+        } else {
+            // Fee-less pool state: the send lands and the credited amount EQUALS the accounted
+            // amount — any surplus would be unbooked cross-chain exposure.
+            assertTrue(sent, "fee-less full-delivery send must succeed");
+            assertEq(receipt.amountReceivedLD, AMOUNT_LD, "quote must credit exactly the accounted amount");
+            lzHelper.help(LZ_ENDPOINT_BASE, baseForkId, vm.getRecordedLogs());
+            vm.selectFork(baseForkId);
+            assertEq(IERC20(USDC_BASE).balanceOf(adapter), AMOUNT_LD, "credited must equal accounted");
+        }
     }
 
     /// @notice A cap breach reverts in _preExecute, before any approval/send.
