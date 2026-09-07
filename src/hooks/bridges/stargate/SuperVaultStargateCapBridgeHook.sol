@@ -8,6 +8,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 // Superform
 import { ApproveAndStargateSendHook } from "./ApproveAndStargateSendHook.sol";
 import { SuperVaultCapBridgeCommon } from "../SuperVaultCapBridgeCommon.sol";
+import { IStargate } from "../../../vendor/bridges/stargate/IStargate.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
 /// @title SuperVaultStargateCapBridgeHook
@@ -123,6 +124,18 @@ contract SuperVaultStargateCapBridgeHook is ApproveAndStargateSendHook, SuperVau
     ///         actual credit minus the action amount) must be bounded in code (R3-RF1)
     error DELIVERY_MARGIN_TOO_WIDE();
 
+    /// @notice Thrown when the encoded minAmountLD is not EXACTLY the encoded amountLD — a
+    ///         minimum is a floor, not a maximum, so full delivery is stated as equality and a
+    ///         larger minimum is rejected rather than merely tolerated (R4-P1)
+    error DELIVERY_MINIMUM_NOT_EXACT();
+
+    /// @notice Thrown when the pool's runtime quote for the exact SendParam the parent will submit
+    ///         does not credit precisely the amount sent — a fee state (credit below) AND a Stargate
+    ///         V2 reward state (credit above, FeeLibV1 reward on a route deficit) both fail closed
+    ///         here, before any approval or send, because the destination action is fixed to the
+    ///         amount and any other credit would leave unregistered destination exposure (R4-P1)
+    error DELIVERY_QUOTE_NOT_EXACT();
+
     /// @notice Thrown when the Stargate mode is not taxi — the only mode that delivers composeMsg
     ///         (any other mode strands the bridged amount on the admin-less destination adapter)
     error MODE_NOT_CAPPABLE();
@@ -206,15 +219,18 @@ contract SuperVaultStargateCapBridgeHook is ApproveAndStargateSendHook, SuperVau
         // delivery surplus (actual credit - action amount) is a governance-bounded sliver, never
         // an arbitrary gap the periphery settlement floor could mistake for a full landing. The
         // ratio is scale-invariant, so the ENCODED pair is checked (the usePrev rescale preserves
-        // it exactly). R4-F3: the hook's ratio math stays generic, but governance's
-        // stargateMinDeliveryBps is periphery-locked to 10_000 for cap routes — the encoded
-        // minAmountLD must equal amountLD, so a fee-charging route reverts at Stargate's own
-        // slippage check rather than under-delivering, and the credited amount can never fall
-        // below the action-accounted amount (any surplus would be unbooked exposure).
+        // it exactly). Governance's stargateMinDeliveryBps (periphery-locked to 0 | 10_000) is the
+        // route enable switch; the exactness below is enforced by this hook regardless of it.
         uint256 minBps = _capGuard().stargateMinDeliveryBps();
         if (minBps == 0 || BytesLib.toUint256(data, MIN_AMOUNT_LD_OFFSET) * 10_000 < encodedAmountLD * minBps) {
             revert DELIVERY_MARGIN_TOO_WIDE();
         }
+        // R4-P1: a minimum is a floor, not a maximum — Stargate V2 reward routes credit MORE than
+        // amountSentLD while the destination action stays fixed to the minimum, so the excess
+        // would sit on the account unregistered. Full delivery is therefore stated as EQUALITY
+        // (a larger minimum is rejected, not tolerated) and proven at runtime against the pool's
+        // own quote after the cap check (see _requireExactDelivery below).
+        if (BytesLib.toUint256(data, MIN_AMOUNT_LD_OFFSET) != encodedAmountLD) revert DELIVERY_MINIMUM_NOT_EXACT();
 
         // R3-RF1: the destination token an OFT route delivers is not hub-derivable, so governance
         // pins it per (source pool, canonical chain) and the action token is bound to it.
@@ -231,6 +247,45 @@ contract SuperVaultStargateCapBridgeHook is ApproveAndStargateSendHook, SuperVau
             expectedDstToken,
             composeMsg
         );
+
+        // R4-P1: the pool must credit EXACTLY what is sent for the exact runtime SendParam.
+        _requireExactDelivery(data, composeMsg, amount, minDelivered);
+    }
+
+    /// @dev R4-P1: quote the pool for the exact SendParam the parent will submit — the
+    ///      usePrevHookAmount-adjusted amountLD/minAmountLD, the leaf's dstEid/to/extraOptions and
+    ///      the pre-signature composeMsg (the fee library prices amount, route and mode, never the
+    ///      payload bytes) — and require amountSentLD == amountReceivedLD == amount:
+    ///      - amountSentLD < amount is shared-decimal dust the pool would silently drop (the
+    ///        reservation would exceed what leaves the account);
+    ///      - amountReceivedLD < amountSentLD is a fee state, amountReceivedLD > amountSentLD a
+    ///        Stargate V2 REWARD state — either way the credited amount would differ from the
+    ///        action-accounted amount, so the send fails closed before any approval or transfer.
+    ///      The quote and the send execute inside the same executeHooks transaction, so pool state
+    ///      cannot move between them except through another merkle-authorized hook of the same
+    ///      batch. quoteOFT prices with msg.sender = this hook; FeeLibV1 does not read the sender.
+    function _requireExactDelivery(
+        bytes calldata data,
+        bytes memory composeMsg,
+        uint256 amount,
+        uint256 minAmountLD
+    )
+        internal
+        view
+    {
+        uint256 extraOptionsLength = BytesLib.toUint256(data, EXTRA_OPTIONS_LENGTH_OFFSET);
+        IStargate.SendParam memory sendParam = IStargate.SendParam({
+            dstEid: BytesLib.toUint32(data, DST_EID_OFFSET),
+            to: BytesLib.toBytes32(data, TO_OFFSET),
+            amountLD: amount,
+            minAmountLD: minAmountLD,
+            extraOptions: data[EXTRA_OPTIONS_OFFSET:EXTRA_OPTIONS_OFFSET + extraOptionsLength],
+            composeMsg: composeMsg,
+            oftCmd: bytes("")
+        });
+        (,, IStargate.OFTReceipt memory receipt) =
+            IStargate(BytesLib.toAddress(data, STARGATE_POOL_OFFSET)).quoteOFT(sendParam);
+        if (receipt.amountSentLD != amount || receipt.amountReceivedLD != amount) revert DELIVERY_QUOTE_NOT_EXACT();
     }
 
     /// @inheritdoc ApproveAndStargateSendHook

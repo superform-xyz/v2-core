@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 import { ISuperExecutor } from "../../../../src/interfaces/ISuperExecutor.sol";
+import { IStargate } from "../../../../src/vendor/bridges/stargate/IStargate.sol";
 
 /// @dev Cap guard stand-in for the B1 hook family: view no-op validateAllocation (tuples asserted
 ///      via vm.expectCall) plus the settable destination-transport policy the hooks read.
@@ -115,6 +116,37 @@ contract MockPrevHook {
 
     function getOutAmount(address) external view returns (uint256) {
         return OUT;
+    }
+}
+
+/// @dev Stargate pool stand-in for the source-side cap hook's runtime quote (R4-P1): `quoteOFT`
+///      credits a configurable ratio of the amount sent — below 10_000 models a FEE state, above it
+///      a Stargate V2 REWARD state — and can also model shared-decimal dust on amountSentLD.
+contract MockStargateQuotePool {
+    uint256 public deliveryBps = 10_000;
+    uint256 public sentShortfall;
+
+    function setDeliveryBps(uint256 bps) external {
+        deliveryBps = bps;
+    }
+
+    function setSentShortfall(uint256 shortfall) external {
+        sentShortfall = shortfall;
+    }
+
+    function quoteOFT(IStargate.SendParam calldata p)
+        external
+        view
+        returns (
+            IStargate.OFTLimit memory limit,
+            IStargate.OFTFeeDetail[] memory details,
+            IStargate.OFTReceipt memory receipt
+        )
+    {
+        uint256 sent = p.amountLD - sentShortfall;
+        receipt = IStargate.OFTReceipt({ amountSentLD: sent, amountReceivedLD: sent * deliveryBps / 10_000 });
+        limit = IStargate.OFTLimit({ minAmountLD: 0, maxAmountLD: type(uint256).max });
+        details = new IStargate.OFTFeeDetail[](0);
     }
 }
 

@@ -16,8 +16,10 @@ import {
     MockPositionRegistry,
     MockGovernorAddressBook,
     MockPrevHook,
+    MockStargateQuotePool,
     CapMessageLib
 } from "./CapBridgeTestUtils.sol";
+import { IStargate } from "../../../../src/vendor/bridges/stargate/IStargate.sol";
 
 /// @dev Stargate signature-storage stub (composeMsg gets the signature appended at build).
 contract MockStargateSignatureStorage {
@@ -37,7 +39,7 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
     MockPositionRegistry internal registry;
     MockGovernorAddressBook internal governor;
 
-    address internal pool = makeAddr("stargatePool");
+    MockStargateQuotePool internal pool; // R4-P1: the hook quotes the pool at runtime
     address internal account = makeAddr("strategy");
     address internal adapter = makeAddr("stargateAdapter"); // transport receiver (B1)
     address internal destVault = makeAddr("destinationVault"); // economic destination (B1)
@@ -46,7 +48,8 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
     address internal inputToken = makeAddr("inputToken");
 
     uint256 internal constant AMOUNT_LD = 1000e6;
-    uint256 internal constant MIN_AMOUNT_LD = 995e6;
+    // R4-P1: the cap hook requires minAmountLD == amountLD (full delivery stated as equality).
+    uint256 internal constant MIN_AMOUNT_LD = 1000e6;
     uint256 internal constant NATIVE_FEE = 0.01 ether;
 
     // B4: LayerZero EID vs canonical EVM chain id are DIFFERENT namespaces.
@@ -55,6 +58,7 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
 
     function setUp() public {
         validator = new MockStargateSignatureStorage();
+        pool = new MockStargateQuotePool(); // exact delivery by default
         capGuard = new MockCapGuard();
         registry = new MockPositionRegistry();
         governor = new MockGovernorAddressBook(address(capGuard), address(registry));
@@ -66,9 +70,7 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         capGuard.setDestinationHooks(DST_CHAIN_ID, dstApproveHook, dstDepositHook);
         capGuard.setDestinationVaultAsset(DST_CHAIN_ID, destVault, inputToken); // R3-RF3
         capGuard.setStargateRoute(address(pool), DST_CHAIN_ID, inputToken); // R3-RF1
-        // R3-RF1 generic ratio math (MIN_AMOUNT_LD/AMOUNT_LD = 99.5%); production cap routes are
-        // periphery-locked to 10_000 (R4-F3) — see test_FullDeliveryBps_MinMustEqualAmount.
-        capGuard.setStargateMinDeliveryBps(9900);
+        capGuard.setStargateMinDeliveryBps(10_000); // production: full delivery (R4-F3 / R4-P1)
         capGuard.setStrategyHubAsset(account, inputToken); // R4: inputToken == hub asset
     }
 
@@ -327,6 +329,123 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_MARGIN_TOO_WIDE.selector);
         hook.preExecute(address(0), account, underDelivery);
         assertEq(registry.bridgedOut(account), AMOUNT_LD, "no extra reservation below full delivery");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            R4-P1: RUNTIME EXACT-DELIVERY QUOTE (FEE AND REWARD)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice A minimum is a floor, not a maximum: minAmountLD > amountLD is rejected outright
+    ///         (it passes the >= ratio check, so equality must be stated explicitly).
+    function test_R4P1_RevertIf_MinAboveAmount() public {
+        bytes memory data = _encodeWithMin(DST_EID, _toBytes32(adapter), AMOUNT_LD, AMOUNT_LD + 1);
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_MINIMUM_NOT_EXACT.selector);
+        hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), 0);
+    }
+
+    /// @notice Reviewer trace: input/minimum/action 100, pool in a REWARD state crediting 105.
+    ///         The send must fail closed at the source — no five-unit unregistered balance can
+    ///         ever exist on the destination because nothing is sent or reserved.
+    function test_R4P1_RevertIf_RewardDelivery() public {
+        pool.setDeliveryBps(10_500);
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_QUOTE_NOT_EXACT.selector);
+        hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), 0, "no reservation for a rewarded send");
+    }
+
+    /// @notice Fee state (even 1 bp) fails closed at the source too.
+    function test_R4P1_RevertIf_FeeDelivery() public {
+        pool.setDeliveryBps(9999);
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_QUOTE_NOT_EXACT.selector);
+        hook.preExecute(address(0), account, data);
+    }
+
+    /// @notice Shared-decimal dust: the pool would send less than amountLD, so the reservation
+    ///         would exceed what leaves the account — rejected.
+    function test_R4P1_RevertIf_SentDust() public {
+        pool.setSentShortfall(1);
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_QUOTE_NOT_EXACT.selector);
+        hook.preExecute(address(0), account, data);
+    }
+
+    /// @notice The same approved data/leaf as the route's live state flips fee -> exact -> reward
+    ///         (liquidity dynamics after governance approval): only the exact state executes.
+    function test_R4P1_RouteStateFlip_FeeExactReward() public {
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
+
+        pool.setDeliveryBps(9990); // fee
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_QUOTE_NOT_EXACT.selector);
+        hook.preExecute(address(0), account, data);
+
+        pool.setDeliveryBps(10_000); // exact
+        vm.prank(account);
+        hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), AMOUNT_LD, "exact state executes and reserves");
+
+        pool.setDeliveryBps(10_050); // reward
+        hook.setExecutionContext(account);
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_QUOTE_NOT_EXACT.selector);
+        hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), AMOUNT_LD, "reward state adds no reservation");
+    }
+
+    /// @notice The quoted SendParam is the EXACT runtime tuple the parent submits: static amounts
+    ///         and the usePrevHookAmount-rescaled amounts alike (dstEid, to, amounts, options,
+    ///         pre-signature composeMsg).
+    function test_R4P1_QuotedSendParamMatchesRuntimeSend() public {
+        bytes memory composeMsg = _depositMessage();
+        vm.expectCall(
+            address(pool),
+            abi.encodeCall(
+                IStargate.quoteOFT,
+                (IStargate.SendParam({
+                        dstEid: DST_EID,
+                        to: _toBytes32(adapter),
+                        amountLD: AMOUNT_LD,
+                        minAmountLD: AMOUNT_LD,
+                        extraOptions: bytes(""),
+                        composeMsg: composeMsg,
+                        oftCmd: bytes("")
+                    }))
+            )
+        );
+        vm.prank(account);
+        hook.preExecute(address(0), account, _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, composeMsg));
+
+        // usePrevHookAmount: amountLD = prev.getOutAmount, minAmountLD rescaled to the same value.
+        uint256 prevAmount = 600e6;
+        MockPrevHook prevHook = new MockPrevHook(prevAmount);
+        bytes memory prevCompose = _depositMessageWithAmount(prevAmount);
+        hook.setExecutionContext(account);
+        vm.expectCall(
+            address(pool),
+            abi.encodeCall(
+                IStargate.quoteOFT,
+                (IStargate.SendParam({
+                        dstEid: DST_EID,
+                        to: _toBytes32(adapter),
+                        amountLD: prevAmount,
+                        minAmountLD: prevAmount,
+                        extraOptions: bytes(""),
+                        composeMsg: prevCompose,
+                        oftCmd: bytes("")
+                    }))
+            )
+        );
+        vm.prank(account);
+        hook.preExecute(
+            address(prevHook), account, _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, true, 0, prevCompose)
+        );
     }
 
     /// @notice The action token must be the route's pinned destination token — a signed action

@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 import { StargateAdapter } from "../../../src/adapters/StargateAdapter.sol";
+import { IStargate } from "../../../src/vendor/bridges/stargate/IStargate.sol";
 import {
     SuperVaultStargateCapBridgeHook
 } from "../../../src/hooks/bridges/stargate/SuperVaultStargateCapBridgeHook.sol";
@@ -18,12 +19,27 @@ contract MockTokenMessaging {
     }
 }
 
-/// @dev Minimal Stargate pool stand-in: the adapter only reads `token()` from the verified pool.
+/// @dev Minimal Stargate pool stand-in: the adapter only reads `token()` from the verified pool;
+///      the hub cap hook quotes `quoteOFT` at runtime (R4-P1) — this pool credits exactly.
 contract MockStargatePool {
     address public token;
 
     constructor(address token_) {
         token = token_;
+    }
+
+    function quoteOFT(IStargate.SendParam calldata p)
+        external
+        pure
+        returns (
+            IStargate.OFTLimit memory limit,
+            IStargate.OFTFeeDetail[] memory details,
+            IStargate.OFTReceipt memory receipt
+        )
+    {
+        receipt = IStargate.OFTReceipt({ amountSentLD: p.amountLD, amountReceivedLD: p.amountLD });
+        limit = IStargate.OFTLimit({ minAmountLD: 0, maxAmountLD: type(uint256).max });
+        details = new IStargate.OFTFeeDetail[](0);
     }
 }
 
