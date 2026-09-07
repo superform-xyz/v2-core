@@ -72,6 +72,8 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         capGuard.setStargateRoute(address(pool), DST_CHAIN_ID, inputToken); // R3-RF1
         capGuard.setStargateMinDeliveryBps(10_000); // production: full delivery (R4-F3 / R4-P1)
         capGuard.setStrategyHubAsset(account, inputToken); // R4: inputToken == hub asset
+        capGuard.setStrategyDestinationAsset(account, DST_CHAIN_ID, inputToken); // R5-H: dst asset pin
+        capGuard.setStargateFeeLib(address(pool), pool.feeLib()); // R4-P1: reviewed fee library
     }
 
     function _depositMessage() internal view returns (bytes memory) {
@@ -280,24 +282,22 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
                 R3-RF1: DELIVERY BINDING (review round 3)
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The caller-chosen slippage margin is bounded in code: minAmountLD below the
-    ///         governance ratio of amountLD reverts, so the maximum untracked delivery surplus
-    ///         (actual credit - action amount) is a governance-bounded sliver.
+    /// @notice A caller-chosen slippage margin (minAmountLD below amountLD) is rejected outright:
+    ///         full delivery is stated as EQUALITY, never as a ratio.
     function test_RevertIf_DeliveryMarginTooWide() public {
-        // minAmountLD = 90% of amountLD, below the 99% floor set in setUp.
         bytes memory data = _encodeWithMin(DST_EID, _toBytes32(adapter), AMOUNT_LD, AMOUNT_LD * 9000 / 10_000);
         vm.prank(account);
-        vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_MARGIN_TOO_WIDE.selector);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_MINIMUM_NOT_EXACT.selector);
         hook.preExecute(address(0), account, data);
-        assertEq(registry.bridgedOut(account), 0, "no reservation on an unbounded margin");
+        assertEq(registry.bridgedOut(account), 0, "no reservation on a partial-delivery margin");
     }
 
-    /// @notice An unset ratio fails closed.
+    /// @notice The governance enable switch (stargateMinDeliveryBps == 0) fails closed.
     function test_RevertIf_MinDeliveryBpsUnset() public {
         capGuard.setStargateMinDeliveryBps(0);
         bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
         vm.prank(account);
-        vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_MARGIN_TOO_WIDE.selector);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.STARGATE_ROUTE_DISABLED.selector);
         hook.preExecute(address(0), account, data);
     }
 
@@ -322,11 +322,11 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         hook.preExecute(address(0), account, fullDelivery);
         assertEq(registry.bridgedOut(account), AMOUNT_LD, "full-delivery send must pass at 10_000 bps");
 
-        // min < amount (even by 1 wei) reverts DELIVERY_MARGIN_TOO_WIDE.
+        // min < amount (even by 1 wei) reverts DELIVERY_MINIMUM_NOT_EXACT.
         hook.setExecutionContext(account);
         bytes memory underDelivery = _encodeWithMin(DST_EID, _toBytes32(adapter), AMOUNT_LD, AMOUNT_LD - 1);
         vm.prank(account);
-        vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_MARGIN_TOO_WIDE.selector);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_MINIMUM_NOT_EXACT.selector);
         hook.preExecute(address(0), account, underDelivery);
         assertEq(registry.bridgedOut(account), AMOUNT_LD, "no extra reservation below full delivery");
     }
@@ -364,6 +364,7 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         vm.prank(account);
         vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_QUOTE_NOT_EXACT.selector);
         hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), 0, "no reservation for a fee-charging send");
     }
 
     /// @notice Shared-decimal dust: the pool would send less than amountLD, so the reservation
@@ -374,6 +375,49 @@ contract SuperVaultStargateCapBridgeHookTest is Test {
         vm.prank(account);
         vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_QUOTE_NOT_EXACT.selector);
         hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), 0, "no reservation for a dust-truncated send");
+    }
+
+    /// @notice Reward state under usePrevHookAmount: the quote is taken with the prev-hook-sized
+    ///         amounts and still fails closed.
+    function test_R4P1_RevertIf_RewardDelivery_UsePrev() public {
+        pool.setDeliveryBps(10_500);
+        uint256 prevAmount = 600e6;
+        MockPrevHook prevHook = new MockPrevHook(prevAmount);
+        bytes memory data =
+            _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, true, 0, _depositMessageWithAmount(prevAmount));
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.DELIVERY_QUOTE_NOT_EXACT.selector);
+        hook.preExecute(address(prevHook), account, data);
+        assertEq(registry.bridgedOut(account), 0);
+    }
+
+    /// @notice A paused / reverting quote fails the whole preExecute (fail closed, nothing sent).
+    function test_R4P1_RevertIf_QuoteReverts() public {
+        pool.setRevertQuote(true);
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(bytes("Stargate: paused"));
+        hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), 0);
+    }
+
+    /// @notice The quote/send equivalence is only trusted for the REVIEWED fee library: an unpinned
+    ///         pool, or a pool whose live fee library was rotated away from the pin, fails closed.
+    function test_R4P1_RevertIf_FeeLibUnpinnedOrRotated() public {
+        bytes memory data = _encode(DST_EID, _toBytes32(adapter), AMOUNT_LD, false, 0, _depositMessage());
+
+        capGuard.setStargateFeeLib(address(pool), address(0)); // unpinned
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.STARGATE_FEE_LIB_NOT_PINNED.selector);
+        hook.preExecute(address(0), account, data);
+
+        capGuard.setStargateFeeLib(address(pool), pool.feeLib()); // pinned to the reviewed lib
+        pool.setFeeLib(makeAddr("rotatedFeeLib")); // Stargate governance rotates it
+        vm.prank(account);
+        vm.expectRevert(SuperVaultStargateCapBridgeHook.STARGATE_FEE_LIB_NOT_PINNED.selector);
+        hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), 0, "no reservation under an unreviewed fee library");
     }
 
     /// @notice The same approved data/leaf as the route's live state flips fee -> exact -> reward

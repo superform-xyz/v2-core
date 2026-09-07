@@ -23,9 +23,14 @@ contract MockTokenMessaging {
 ///      the hub cap hook quotes `quoteOFT` at runtime (R4-P1) — this pool credits exactly.
 contract MockStargatePool {
     address public token;
+    address public feeLib = address(0xFEE1);
 
     constructor(address token_) {
         token = token_;
+    }
+
+    function getAddressConfig() external view returns (IStargate.AddressConfig memory c) {
+        c.feeLib = feeLib;
     }
 
     function quoteOFT(IStargate.SendParam calldata p)
@@ -78,6 +83,7 @@ contract CrossChainSuperVaultDestinationStargateE2E is CrossChainSuperVaultDesti
         capGuard.setEidChainId(DST_EID, chainId);
         capGuard.setApprovedAdapter(chainId, address(adapter), true);
         capGuard.setStargateRoute(address(pool), chainId, address(token)); // R3-RF1
+        capGuard.setStargateFeeLib(address(pool), pool.feeLib()); // R4-P1: reviewed fee library
         // R4-F3: cap-enabled Stargate routes are periphery-locked to full delivery (10_000 bps):
         // the encoded minAmountLD must equal amountLD, so credited == action-accounted amount.
         capGuard.setStargateMinDeliveryBps(10_000);

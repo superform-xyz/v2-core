@@ -94,6 +94,7 @@ abstract contract CrossChainSuperVaultDestinationE2EBase is Test {
         capGuard.setDestinationHooks(chainId, address(approveHook), address(depositHook));
         capGuard.setDestinationVaultAsset(chainId, address(vault), address(token)); // R3-RF3
         capGuard.setStrategyHubAsset(address(account), address(token)); // R4: input token == hub asset
+        capGuard.setStrategyDestinationAsset(address(account), chainId, address(token)); // R5-H: dst asset pin
     }
 
     /*//////////////////////////////////////////////////////////////

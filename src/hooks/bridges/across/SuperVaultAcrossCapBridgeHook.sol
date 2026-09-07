@@ -64,6 +64,7 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
     uint256 private constant INPUT_AMOUNT_OFFSET = 144;
     uint256 private constant OUTPUT_AMOUNT_OFFSET = 176;
     uint256 private constant DST_CHAIN_ID_OFFSET = 208;
+    uint256 private constant FILL_DEADLINE_OFFSET = 260;
     uint256 private constant USE_PREV_HOOK_AMOUNT_OFFSET = 268;
     uint256 private constant DESTINATION_MESSAGE_OFFSET = 269;
 
@@ -78,6 +79,12 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
     /// @notice The Across outputToken is address(0) — the SpokePool's "destination equivalent of
     ///         the input token" sentinel, which the cap's destination-token binding cannot verify
     error OUTPUT_TOKEN_NOT_VALID();
+
+    /// @notice Thrown when fillDeadlineOffset exceeds the registry's RESERVATION_TIMEOUT — an
+    ///         Across fill must never be able to land after its reservation could have been
+    ///         permissionlessly released, or a manager could send, wait for the release, send
+    ///         again, and have the first fill land afterwards (cap-headroom recycling, R5-H)
+    error FILL_DEADLINE_EXCEEDS_RESERVATION_TIMEOUT();
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -140,6 +147,13 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
             }
         } else {
             amount = BytesLib.toUint256(data, INPUT_AMOUNT_OFFSET);
+        }
+
+        // R5-H: Across is the only bridge with a native fill deadline, so it is the only cap route
+        // whose reservations may be released permissionlessly — provided no fill can land after
+        // that release. Bound the caller-chosen deadline to the registry's reservation timeout.
+        if (BytesLib.toUint32(data, FILL_DEADLINE_OFFSET) > _reservationTimeout()) {
+            revert FILL_DEADLINE_EXCEEDS_RESERVATION_TIMEOUT();
         }
 
         _enforceCrossChainCap(

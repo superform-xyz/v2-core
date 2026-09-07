@@ -47,6 +47,20 @@ interface IStargate {
         string description;
     }
 
+    /// @notice StargateBase address book (fee library first)
+    struct AddressConfig {
+        address feeLib;
+        address planner;
+        address treasurer;
+        address tokenMessaging;
+        address creditMessaging;
+        address lzToken;
+    }
+
+    /// @notice The pool's live address configuration, including the fee library that prices
+    ///         quoteOFT and send
+    function getAddressConfig() external view returns (AddressConfig memory);
+
     /// @notice Quote the OFT leg of a send: limits, fee/reward breakdown and the receipt the pool
     ///         would produce (amountSentLD after shared-decimal rounding, amountReceivedLD after the
     ///         fee library's fee OR reward)

@@ -30,6 +30,17 @@ contract MockCapGuard is ICapGuardLike {
         strategyHubAsset[strategy] = asset;
     }
 
+    mapping(address => mapping(uint64 => address)) public strategyDestinationAsset;
+    mapping(address => address) public stargateFeeLib;
+
+    function setStrategyDestinationAsset(address strategy, uint64 chainId, address asset) external {
+        strategyDestinationAsset[strategy][chainId] = asset;
+    }
+
+    function setStargateFeeLib(address pool, address feeLib) external {
+        stargateFeeLib[pool] = feeLib;
+    }
+
     function setDestinationHooks(uint64 chainId, address approveHook_, address depositHook_) external {
         _approveHook[chainId] = approveHook_;
         _depositHook[chainId] = depositHook_;
@@ -64,6 +75,10 @@ contract MockPositionRegistry {
     address public lastVault;
     bytes32 public lastReservationId;
     uint256 internal _salt;
+
+    function RESERVATION_TIMEOUT() external pure returns (uint256) {
+        return 2 hours;
+    }
 
     function recordBridgedOut(
         address strategy,
@@ -124,7 +139,9 @@ contract MockPrevHook {
 ///      a Stargate V2 REWARD state — and can also model shared-decimal dust on amountSentLD.
 contract MockStargateQuotePool {
     uint256 public deliveryBps = 10_000;
-    uint256 public sentShortfall;
+    uint256 public sentShortfall; // models shared-decimal truncation (the real pool truncates to SD)
+    address public feeLib = address(0xFEE1);
+    bool public revertQuote;
 
     function setDeliveryBps(uint256 bps) external {
         deliveryBps = bps;
@@ -132,6 +149,18 @@ contract MockStargateQuotePool {
 
     function setSentShortfall(uint256 shortfall) external {
         sentShortfall = shortfall;
+    }
+
+    function setFeeLib(address feeLib_) external {
+        feeLib = feeLib_;
+    }
+
+    function setRevertQuote(bool r) external {
+        revertQuote = r;
+    }
+
+    function getAddressConfig() external view returns (IStargate.AddressConfig memory c) {
+        c.feeLib = feeLib;
     }
 
     function quoteOFT(IStargate.SendParam calldata p)
@@ -143,6 +172,7 @@ contract MockStargateQuotePool {
             IStargate.OFTReceipt memory receipt
         )
     {
+        require(!revertQuote, "Stargate: paused");
         uint256 sent = p.amountLD - sentShortfall;
         receipt = IStargate.OFTReceipt({ amountSentLD: sent, amountReceivedLD: sent * deliveryBps / 10_000 });
         limit = IStargate.OFTLimit({ minAmountLD: 0, maxAmountLD: type(uint256).max });

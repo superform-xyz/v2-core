@@ -31,6 +31,10 @@ interface ICrossChainPositionCapGuard {
 
     function strategyHubAsset(address strategy) external view returns (address);
 
+    function strategyDestinationAsset(address strategy, uint64 chainId) external view returns (address);
+
+    function stargateFeeLib(address pool) external view returns (address);
+
     function destinationHooks(uint64 chainId) external view returns (address approveHook, address depositHook);
 
     function chainIdForEid(uint32 eid) external view returns (uint64);
@@ -54,6 +58,8 @@ interface ICrossChainPositionRegistry {
     )
         external
         returns (bytes32 reservationId);
+
+    function RESERVATION_TIMEOUT() external view returns (uint256);
 }
 
 /// @title SuperVaultCapBridgeCommon
@@ -91,12 +97,12 @@ abstract contract SuperVaultCapBridgeCommon {
     ///         route whose delivery minimum passes here is always confirmable there — the
     ///         reservation, the destination action and the confirmation floor share one bound.
     ///         Assumes same-asset routes with equal source/destination decimals (the only routes
-    ///         this hook family supports). The SOURCE side of that assumption is machine-enforced
-    ///         (R4): `_enforceCrossChainCap` requires the bridged input token to equal the
-    ///         strategy's governance-pinned `strategyHubAsset`. The DESTINATION side (destination
-    ///         asset == the same asset with EQUAL decimals) remains a governance route-activation
-    ///         rule enforced at review time (periphery `setDestinationVaultAsset` /
-    ///         `setStargateRoute` docs).
+    ///         this hook family supports). Both sides of that assumption are now address-level
+    ///         governance facts enforced in `_enforceCrossChainCap`: the bridged input token must
+    ///         equal the strategy's pinned `strategyHubAsset` (R4) and the typed action's token must
+    ///         equal the strategy's pinned `strategyDestinationAsset` for the chain (R5-H). Only the
+    ///         EQUAL-DECIMALS property of that fixed (hub asset, destination asset) pair remains a
+    ///         review-time check when the pins are set.
     uint256 public constant MIN_SOURCE_DELIVERY_BPS = 9000;
 
     /// @dev SuperGovernor address-book keys — identical to the periphery constants so the resolved
@@ -137,6 +143,11 @@ abstract contract SuperVaultCapBridgeCommon {
     ///         denominated in the wrong unit (R4: the hub-verifiable half of the
     ///         same-asset/equal-decimals route invariant)
     error INPUT_TOKEN_NOT_HUB_ASSET();
+    /// @notice The typed destination action's token is not the strategy's governance-pinned
+    ///         destination asset for that chain — fails closed when unpinned — so two strategies
+    ///         with different hub assets can never share a destination route under a global
+    ///         (chain, vault) pin (R5-H: address-level destination half of the same-asset invariant)
+    error DESTINATION_ASSET_NOT_PINNED();
     /// @notice The destination message's account is not the hub strategy account
     error DESTINATION_ACCOUNT_NOT_VALID();
     /// @notice The destination message does not encode a permitted typed destination action
@@ -226,8 +237,8 @@ abstract contract SuperVaultCapBridgeCommon {
 
         // R2-B1: the destination action must consume the full guaranteed delivery — the intent
         // (executor balance attestation) and, for deposits, the approve/deposit amount all equal
-        // the bridge minimum. Any residual is then bounded by (actual fill − guaranteed minimum),
-        // i.e. slippage dust, never an independently-chosen smaller deposit.
+        // the bridge minimum. Across and deBridge fill exactly that amount, and the Stargate hook
+        // proves exact delivery against the pool's own quote (R4-P1), so no residual exists.
         if (minDeliveredAmount == 0 || action.actionAmount != minDeliveredAmount) {
             revert DESTINATION_AMOUNT_NOT_BOUND();
         }
@@ -244,10 +255,26 @@ abstract contract SuperVaultCapBridgeCommon {
         if (expectedDstToken != address(0) && action.dstToken != expectedDstToken) {
             revert DESTINATION_TOKEN_NOT_BOUND();
         }
+        // R5-H: the action's token must ALSO be the strategy's own pinned destination asset for
+        // this chain (fail closed when unpinned). destinationVaultAsset / stargateDstToken are keyed
+        // globally by (chain, vault) / (pool, chain); this per-strategy pin is what stops a strategy
+        // whose hub asset differs from the vault's asset from routing through a shared destination.
+        address strategyDstAsset = guard.strategyDestinationAsset(account, chainId);
+        if (strategyDstAsset == address(0) || action.dstToken != strategyDstAsset) {
+            revert DESTINATION_ASSET_NOT_PINNED();
+        }
 
         guard.validateAllocation(account, chainId, action.destinationVault, amount);
         ICrossChainPositionRegistry(SUPER_GOVERNOR.getAddress(CROSS_CHAIN_POSITION_REGISTRY))
             .recordBridgedOut(account, chainId, action.destinationVault, amount);
+    }
+
+    /// @dev The registry's wall-clock reservation timeout, for hooks that must bound a bridge-native
+    ///      deadline to it (R5-H: a fill must never be able to land after its reservation could
+    ///      have been permissionlessly released).
+    function _reservationTimeout() internal view returns (uint256) {
+        return
+            ICrossChainPositionRegistry(SUPER_GOVERNOR.getAddress(CROSS_CHAIN_POSITION_REGISTRY)).RESERVATION_TIMEOUT();
     }
 
     /// @dev Leaf suffix shared by every cap hook's `inspect`: pins the cap guard, the CANONICAL

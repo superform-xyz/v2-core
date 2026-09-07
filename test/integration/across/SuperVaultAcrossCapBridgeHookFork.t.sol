@@ -111,6 +111,7 @@ contract SuperVaultAcrossCapBridgeHookFork is Test {
         capGuard.setDestinationHooks(BASE_CHAIN_ID, dstApproveHook, dstDepositHook);
         capGuard.setDestinationVaultAsset(BASE_CHAIN_ID, destVault, USDC_BASE); // R3-RF3
         capGuard.setStrategyHubAsset(account, USDC_ETH); // R4: input token == hub asset
+        capGuard.setStrategyDestinationAsset(account, BASE_CHAIN_ID, USDC_BASE); // R5-H: dst asset pin
 
         deal(USDC_ETH, account, INPUT_AMOUNT);
     }

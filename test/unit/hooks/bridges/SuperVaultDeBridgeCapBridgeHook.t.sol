@@ -66,6 +66,7 @@ contract SuperVaultDeBridgeCapBridgeHookTest is Test {
         capGuard.setDestinationHooks(DST_CHAIN_ID, dstApproveHook, dstDepositHook);
         capGuard.setDestinationVaultAsset(DST_CHAIN_ID, destVault, takeToken); // R3-RF3
         capGuard.setStrategyHubAsset(account, giveToken); // R4: giveToken == hub asset
+        capGuard.setStrategyDestinationAsset(account, DST_CHAIN_ID, takeToken); // R5-H: dst asset pin
     }
 
     function _depositMessage() internal view returns (bytes memory) {

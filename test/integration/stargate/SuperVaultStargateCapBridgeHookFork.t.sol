@@ -110,6 +110,9 @@ contract SuperVaultStargateCapBridgeHookFork is Test {
         capGuard.setStargateRoute(STARGATE_USDC_POOL_ETH, BASE_CHAIN_ID, USDC_BASE); // R3-RF1
         capGuard.setStargateMinDeliveryBps(10_000); // production: full delivery (R4-F3 / R4-P1)
         capGuard.setStrategyHubAsset(account, USDC_ETH); // R4: input token == hub asset
+        capGuard.setStrategyDestinationAsset(account, BASE_CHAIN_ID, USDC_BASE); // R5-H: dst asset pin
+        // R4-P1: pin the pool's LIVE fee library as the reviewed one (a rotation would fail closed).
+        capGuard.setStargateFeeLib(STARGATE_USDC_POOL_ETH, IStargate(STARGATE_USDC_POOL_ETH).getAddressConfig().feeLib);
 
         deal(USDC_ETH, account, AMOUNT_LD);
     }

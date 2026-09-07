@@ -69,6 +69,7 @@ contract SuperVaultAcrossCapBridgeHookTest is Test {
         capGuard.setDestinationHooks(DST_CHAIN_ID, dstApproveHook, dstDepositHook);
         capGuard.setDestinationVaultAsset(DST_CHAIN_ID, destVault, outputToken); // R3-RF3
         capGuard.setStrategyHubAsset(account, inputToken); // R4: inputToken == hub asset
+        capGuard.setStrategyDestinationAsset(account, DST_CHAIN_ID, outputToken); // R5-H: dst asset pin
     }
 
     function _depositMessage() internal view returns (bytes memory) {
@@ -672,6 +673,64 @@ contract SuperVaultAcrossCapBridgeHookTest is Test {
             uint32(0), // exclusivityPeriod @264
             usePrevHookAmount, // @268
             destinationMessage // @269+
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+        R5-H: DEADLINE <= RESERVATION TIMEOUT / PER-STRATEGY DST ASSET
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice An Across fill must never be able to land after its reservation could have been
+    ///         permissionlessly released: fillDeadlineOffset above the registry's
+    ///         RESERVATION_TIMEOUT is rejected (cap-headroom recycling through the release window).
+    function test_R5H_RevertIf_FillDeadlineExceedsReservationTimeout() public {
+        uint32 timeout = uint32(registry.RESERVATION_TIMEOUT());
+        bytes memory tooLong = _encodeWithDeadline(timeout + 1, _depositMessage());
+        vm.prank(account);
+        vm.expectRevert(SuperVaultAcrossCapBridgeHook.FILL_DEADLINE_EXCEEDS_RESERVATION_TIMEOUT.selector);
+        hook.preExecute(address(0), account, tooLong);
+        assertEq(registry.bridgedOut(account), 0);
+
+        // Exactly the timeout is the longest permitted deadline.
+        bytes memory atTimeout = _encodeWithDeadline(timeout, _depositMessage());
+        vm.prank(account);
+        hook.preExecute(address(0), account, atTimeout);
+        assertEq(registry.bridgedOut(account), INPUT_AMOUNT);
+    }
+
+    /// @notice The typed action's token must be the STRATEGY's pinned destination asset for the
+    ///         chain — the global (chain, vault) pin alone would let a strategy whose hub asset
+    ///         differs from the vault's asset route through a shared destination.
+    function test_R5H_RevertIf_StrategyDestinationAssetUnpinnedOrMismatch() public {
+        bytes memory data = _encode(DST_CHAIN_ID, INPUT_AMOUNT, false, _depositMessage());
+
+        capGuard.setStrategyDestinationAsset(account, DST_CHAIN_ID, address(0)); // unpinned
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_ASSET_NOT_PINNED.selector);
+        hook.preExecute(address(0), account, data);
+
+        capGuard.setStrategyDestinationAsset(account, DST_CHAIN_ID, makeAddr("otherStrategysAsset"));
+        vm.prank(account);
+        vm.expectRevert(SuperVaultCapBridgeCommon.DESTINATION_ASSET_NOT_PINNED.selector);
+        hook.preExecute(address(0), account, data);
+        assertEq(registry.bridgedOut(account), 0, "no reservation under a mismatched destination asset");
+    }
+
+    /// @dev Same layout as _encode (static amount, canonical chain) with a caller-chosen
+    ///      fillDeadlineOffset.
+    function _encodeWithDeadline(
+        uint32 fillDeadlineOffset,
+        bytes memory destinationMessage
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes memory header = abi.encodePacked(
+            bytes(new bytes(52)), uint256(0), adapter, inputToken, outputToken, INPUT_AMOUNT, OUTPUT_AMOUNT
+        );
+        return abi.encodePacked(
+            header, uint256(DST_CHAIN_ID), address(0), fillDeadlineOffset, uint32(0), false, destinationMessage
         );
     }
 
