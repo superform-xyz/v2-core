@@ -80,13 +80,7 @@ contract ExecutingERC7579Account is IERC7579Account {
         return "superform.test.executing-account.1.0.0";
     }
 
-    function _execute(
-        ModeCode mode,
-        bytes calldata executionCalldata
-    )
-        private
-        returns (bytes[] memory returnData)
-    {
+    function _execute(ModeCode mode, bytes calldata executionCalldata) private returns (bytes[] memory returnData) {
         CallType callType = ModeLib.getCallType(mode);
         if (
             CallType.unwrap(callType) != CallType.unwrap(CALLTYPE_BATCH)
@@ -180,6 +174,7 @@ contract AcrossDestinationExecutionE2ETest is DestinationSimulationTestBase {
         bytes memory sigData = _signatureData(
             address(account),
             executorAddress,
+            validatorAddress,
             _singleAddress(address(token)),
             _singleUint(AMOUNT),
             executorCalldata,

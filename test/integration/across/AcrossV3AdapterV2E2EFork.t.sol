@@ -4,8 +4,9 @@ pragma solidity 0.8.30;
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestinationExecutor.sol";
+import { IAcrossSpokePoolV3 } from "../../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
 import { IAcrossV3Receiver } from "../../../src/vendor/bridges/across/IAcrossV3Receiver.sol";
-import { AcrossV3AdapterV2 } from "../../../src/adapters/AcrossV3AdapterV2.sol";
+import { AcrossV3AdapterV2, IDestinationValidatorSource } from "../../../src/adapters/AcrossV3AdapterV2.sol";
 import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
 import { Vm } from "forge-std/Vm.sol";
 
@@ -39,6 +40,7 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
 
     address public relayer;
     address public dstAccount;
+    address public dstValidator;
 
     /*//////////////////////////////////////////////////////////////
                                  SETUP
@@ -56,6 +58,9 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
         // Deploy V2 adapter
         adapterV2 = new AcrossV3AdapterV2(ACROSS_SPOKE_POOL_BASE, SUPER_DST_EXECUTOR_BASE);
         vm.label(address(adapterV2), "AcrossV3AdapterV2");
+
+        // The validator the deployed executor is wired to — signed intents must name it
+        dstValidator = IDestinationValidatorSource(SUPER_DST_EXECUTOR_BASE).SUPER_DESTINATION_VALIDATOR();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -93,11 +98,8 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
         assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), amount, "dstAccount should have USDC");
         assertEq(IERC20(USDC_BASE).balanceOf(address(adapterV2)), 0, "Adapter should be empty");
 
-        // No failed transfer balance (transfer succeeded)
-        assertEq(adapterV2.failedTransfers(dstAccount, USDC_BASE), 0, "No failed transfers");
-
         // ExecutionFailed emitted (executor rejects bad proof)
-        _assertEventEmitted(vm.getRecordedLogs(), "ExecutionFailed(address)");
+        _assertEventEmitted(vm.getRecordedLogs(), "ExecutionFailed(address,bytes4)");
     }
 
     /// @notice V2: Transfer failure reverts so an actual SpokePool fill rolls back atomically
@@ -115,8 +117,6 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
         IAcrossV3Receiver(address(adapterV2)).handleV3AcrossMessage(USDC_BASE, amount, relayer, message);
 
         vm.clearMockedCalls();
-
-        assertEq(adapterV2.failedTransfers(dstAccount, USDC_BASE), 0, "No claim balance recorded");
     }
 
     /// @notice V2: Zero account → reverts before token transfer
@@ -129,6 +129,56 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
         vm.prank(ACROSS_SPOKE_POOL_BASE);
         vm.expectRevert(AcrossV3AdapterV2.ACCOUNT_NOT_VALID.selector);
         IAcrossV3Receiver(address(adapterV2)).handleV3AcrossMessage(USDC_BASE, amount, relayer, message);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        REAL SPOKEPOOL FILL TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice A genuine relayer fill through the real SpokePool delivers tokens and surfaces the
+    ///         executor's revert selector in ExecutionFailed (empty initData + code-less account
+    ///         → the real executor fails account creation with ACCOUNT_NOT_CREATED)
+    function test_Fork_V2_RealSpokePoolFill_DeliversAndEmitsSelector() public {
+        uint256 amount = 1000e6;
+        IAcrossSpokePoolV3.V3RelayData memory relayData = _relayData(amount);
+        _fundRelayer(amount);
+
+        vm.recordLogs();
+        vm.prank(relayer);
+        IAcrossSpokePoolV3(ACROSS_SPOKE_POOL_BASE).fillV3Relay(relayData, 8453);
+
+        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), amount, "Real fill should deliver USDC to dstAccount");
+        assertEq(IERC20(USDC_BASE).balanceOf(address(adapterV2)), 0, "Adapter should be empty after real fill");
+        assertEq(
+            _findExecutionFailedSelector(vm.getRecordedLogs()),
+            ISuperDestinationExecutor.ACCOUNT_NOT_CREATED.selector,
+            "ExecutionFailed should carry the real executor's revert selector"
+        );
+    }
+
+    /// @notice An adapter revert rolls back the entire real SpokePool fill, which stays fillable:
+    ///         the literal on-chain meaning of atomic-and-retryable destination delivery
+    function test_Fork_V2_RealSpokePoolFill_AtomicRevertAndRetry() public {
+        uint256 amount = 1000e6;
+        IAcrossSpokePoolV3.V3RelayData memory relayData = _relayData(amount);
+        _fundRelayer(amount);
+
+        // Force the adapter→account leg to fail: the whole fill must revert atomically
+        vm.mockCall(USDC_BASE, abi.encodeCall(IERC20.transfer, (dstAccount, amount)), abi.encode(false));
+        vm.prank(relayer);
+        vm.expectRevert(AcrossV3AdapterV2.TRANSFER_FAILED.selector);
+        IAcrossSpokePoolV3(ACROSS_SPOKE_POOL_BASE).fillV3Relay(relayData, 8453);
+        vm.clearMockedCalls();
+
+        assertEq(IERC20(USDC_BASE).balanceOf(relayer), amount, "Relayer keeps funds after reverted fill");
+        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), 0, "No delivery after reverted fill");
+
+        // The identical relay stays fillable — fillStatuses rolled back with the revert
+        vm.prank(relayer);
+        IAcrossSpokePoolV3(ACROSS_SPOKE_POOL_BASE).fillV3Relay(relayData, 8453);
+
+        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), amount, "Retry of the same relay should deliver");
+        assertEq(IERC20(USDC_BASE).balanceOf(address(adapterV2)), 0, "Adapter should be empty after retry");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -170,21 +220,34 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
         new AcrossV3AdapterV2(ACROSS_SPOKE_POOL_BASE, address(0));
     }
 
-    /// @notice Claim with zero amount reverts
-    function test_Fork_V2_ClaimZeroAmount_Reverts() public {
-        vm.prank(dstAccount);
-        vm.expectRevert(AcrossV3AdapterV2.ZERO_AMOUNT.selector);
-        adapterV2.claimFailedTransfer(USDC_BASE, 0);
+    /// @notice A DstProof naming a different executor rolls the fill back atomically
+    function test_Fork_V2_SignedExecutorMismatch_Reverts() public {
+        uint256 amount = 1000e6;
+        deal(USDC_BASE, address(adapterV2), amount);
+
+        bytes memory message =
+            abi.encode(bytes(""), _encodeSigDataWithExecutor(dstAccount, hex"deadbeef", makeAddr("wrongExecutor")));
+
+        vm.prank(ACROSS_SPOKE_POOL_BASE);
+        vm.expectRevert(AcrossV3AdapterV2.EXECUTOR_NOT_VALID.selector);
+        IAcrossV3Receiver(address(adapterV2)).handleV3AcrossMessage(USDC_BASE, amount, relayer, message);
+
+        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), 0, "No tokens delivered on executor mismatch");
     }
 
-    /// @notice Claim by user with no balance reverts
-    function test_Fork_V2_ClaimByUnauthorizedUser_Reverts() public {
+    /// @notice A DstProof naming a different validator rolls the fill back atomically
+    function test_Fork_V2_SignedValidatorMismatch_Reverts() public {
         uint256 amount = 1000e6;
+        deal(USDC_BASE, address(adapterV2), amount);
 
-        address randomUser = makeAddr("random");
-        vm.prank(randomUser);
-        vm.expectRevert(AcrossV3AdapterV2.INSUFFICIENT_FAILED_BALANCE.selector);
-        adapterV2.claimFailedTransfer(USDC_BASE, amount);
+        bytes memory message =
+            abi.encode(bytes(""), _encodeSigDataWithValidator(dstAccount, hex"deadbeef", makeAddr("wrongValidator")));
+
+        vm.prank(ACROSS_SPOKE_POOL_BASE);
+        vm.expectRevert(AcrossV3AdapterV2.VALIDATOR_NOT_VALID.selector);
+        IAcrossV3Receiver(address(adapterV2)).handleV3AcrossMessage(USDC_BASE, amount, relayer, message);
+
+        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), 0, "No tokens delivered on validator mismatch");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -294,12 +357,64 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
         uint64 wrongChainId
     )
         internal
-        pure
+        view
         returns (bytes memory)
     {
         bytes memory initData = bytes("");
         bytes memory sigData = _encodeSigDataForChain(account, executorCalldata, wrongChainId);
         return abi.encode(initData, sigData);
+    }
+
+    /// @dev Encodes SignatureData with a single DstProof for the current chain and a custom executor
+    function _encodeSigDataWithExecutor(
+        address account,
+        bytes memory executorCalldata,
+        address executor
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
+        proofDst[0] = ISuperValidator.DstProof({
+            proof: new bytes32[](0),
+            dstChainId: uint64(block.chainid),
+            info: ISuperValidator.DstInfo({
+                account: account,
+                executor: executor,
+                dstTokens: new address[](0),
+                intentAmounts: new uint256[](0),
+                validator: dstValidator,
+                data: executorCalldata
+            })
+        });
+        return _encodeSigDataWithProofs(proofDst);
+    }
+
+    /// @dev Encodes SignatureData with a single DstProof for the current chain and a custom validator
+    function _encodeSigDataWithValidator(
+        address account,
+        bytes memory executorCalldata,
+        address validator
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
+        proofDst[0] = ISuperValidator.DstProof({
+            proof: new bytes32[](0),
+            dstChainId: uint64(block.chainid),
+            info: ISuperValidator.DstInfo({
+                account: account,
+                executor: SUPER_DST_EXECUTOR_BASE,
+                dstTokens: new address[](0),
+                intentAmounts: new uint256[](0),
+                validator: validator,
+                data: executorCalldata
+            })
+        });
+        return _encodeSigDataWithProofs(proofDst);
     }
 
     /// @dev Encodes SignatureData with a single DstProof for the specified chain
@@ -309,7 +424,7 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
         uint64 chainId
     )
         internal
-        pure
+        view
         returns (bytes memory)
     {
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
@@ -318,10 +433,10 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
             dstChainId: chainId,
             info: ISuperValidator.DstInfo({
                 account: account,
-                executor: address(0xCAFE),
+                executor: SUPER_DST_EXECUTOR_BASE,
                 dstTokens: new address[](0),
                 intentAmounts: new uint256[](0),
-                validator: address(0xFACE),
+                validator: dstValidator,
                 data: executorCalldata
             })
         });
@@ -338,6 +453,42 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
             proofDst,
             hex"abcdef" // signature (dummy)
         );
+    }
+
+    /// @dev Builds relay data for a real SpokePool fill delivering USDC + the V2 message to the adapter
+    function _relayData(uint256 amount) internal view returns (IAcrossSpokePoolV3.V3RelayData memory) {
+        return IAcrossSpokePoolV3.V3RelayData({
+            depositor: dstAccount,
+            recipient: address(adapterV2),
+            exclusiveRelayer: address(0),
+            inputToken: USDC_BASE,
+            outputToken: USDC_BASE,
+            inputAmount: amount,
+            outputAmount: amount,
+            originChainId: 1,
+            depositId: 777_001,
+            fillDeadline: uint32(block.timestamp + 4 hours),
+            exclusivityDeadline: 0,
+            message: _buildV2Message(dstAccount, hex"deadbeef")
+        });
+    }
+
+    /// @dev Funds the relayer with USDC and approves the SpokePool to pull it during the fill
+    function _fundRelayer(uint256 amount) internal {
+        deal(USDC_BASE, relayer, amount);
+        vm.prank(relayer);
+        IERC20(USDC_BASE).approve(ACROSS_SPOKE_POOL_BASE, amount);
+    }
+
+    /// @dev Returns the selector carried by the adapter's ExecutionFailed event in the recorded logs
+    function _findExecutionFailedSelector(Vm.Log[] memory logs) internal view returns (bytes4) {
+        bytes32 topic = keccak256("ExecutionFailed(address,bytes4)");
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].emitter == address(adapterV2) && logs[i].topics.length > 0 && logs[i].topics[0] == topic) {
+                return abi.decode(logs[i].data, (bytes4));
+            }
+        }
+        revert("ExecutionFailed not emitted by adapter");
     }
 
     /// @dev Asserts that an event with the given signature was emitted in the recorded logs
@@ -358,7 +509,7 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
         uint64 chainId
     )
         internal
-        pure
+        view
         returns (ISuperValidator.DstProof memory)
     {
         return ISuperValidator.DstProof({
@@ -366,10 +517,10 @@ contract AcrossV3AdapterV2E2EFork is MerkleTreeHelper {
             dstChainId: chainId,
             info: ISuperValidator.DstInfo({
                 account: account,
-                executor: address(0xCAFE),
+                executor: SUPER_DST_EXECUTOR_BASE,
                 dstTokens: new address[](0),
                 intentAmounts: new uint256[](0),
-                validator: address(0xFACE),
+                validator: dstValidator,
                 data: executorCalldata
             })
         });
