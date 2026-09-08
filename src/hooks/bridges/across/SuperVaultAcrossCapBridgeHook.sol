@@ -45,7 +45,8 @@ import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 ///      REFUND: the parent passes the strategy `account` as the Across depositor, so an unfilled
 ///      deposit refunds principal to the strategy on the origin chain. The in-flight reservation
 ///      recorded here is reconciled 1:1 by the registry: consumed by exactly one position
-///      registration, released on confirmation, or reclaimed after the reservation timeout.
+///      registration and settled on confirmation, or released by governance after the reservation
+///      timeout as a no-fill/refund attestation - never on the wall clock alone (R6).
 ///
 ///      SECURITY INVARIANT (not machine-enforced here): the cap only binds if every fund-exiting
 ///      leaf for a cap-enabled strategy routes through a cap-aware hook. Authorizing any uncapped
@@ -64,6 +65,7 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
     uint256 private constant INPUT_AMOUNT_OFFSET = 144;
     uint256 private constant OUTPUT_AMOUNT_OFFSET = 176;
     uint256 private constant DST_CHAIN_ID_OFFSET = 208;
+    uint256 private constant EXCLUSIVE_RELAYER_OFFSET = 240;
     uint256 private constant FILL_DEADLINE_OFFSET = 260;
     uint256 private constant USE_PREV_HOOK_AMOUNT_OFFSET = 268;
     uint256 private constant DESTINATION_MESSAGE_OFFSET = 269;
@@ -80,10 +82,10 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
     ///         the input token" sentinel, which the cap's destination-token binding cannot verify
     error OUTPUT_TOKEN_NOT_VALID();
 
-    /// @notice Thrown when fillDeadlineOffset exceeds the registry's RESERVATION_TIMEOUT — an
-    ///         Across fill must never be able to land after its reservation could have been
-    ///         permissionlessly released, or a manager could send, wait for the release, send
-    ///         again, and have the first fill land afterwards (cap-headroom recycling, R5-H)
+    /// @notice Thrown when fillDeadlineOffset exceeds the registry's RESERVATION_TIMEOUT — bounds
+    ///         the window in which an Across fill can still land, so that when governance attests
+    ///         "no fill" at release time (R6: releases are governance-only, never a wall clock)
+    ///         that attestation is final: no fill can arrive after the reservation was released
     error FILL_DEADLINE_EXCEEDS_RESERVATION_TIMEOUT();
 
     /*//////////////////////////////////////////////////////////////
@@ -149,9 +151,10 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
             amount = BytesLib.toUint256(data, INPUT_AMOUNT_OFFSET);
         }
 
-        // R5-H: Across is the only bridge with a native fill deadline, so it is the only cap route
-        // whose reservations may be released permissionlessly — provided no fill can land after
-        // that release. Bound the caller-chosen deadline to the registry's reservation timeout.
+        // R5-H/R6: bound the caller-chosen fill deadline to the registry's reservation timeout so
+        // no Across fill can land after the reservation became releasable — governance's no-fill
+        // attestation at release time is then final (the periphery never releases on a wall clock
+        // alone).
         if (BytesLib.toUint32(data, FILL_DEADLINE_OFFSET) > _reservationTimeout()) {
             revert FILL_DEADLINE_EXCEEDS_RESERVATION_TIMEOUT();
         }
@@ -181,8 +184,8 @@ contract SuperVaultAcrossCapBridgeHook is ApproveAndAcrossSendFundsAndExecuteOnD
         return abi.encodePacked(
             transportAdapter, // recipient = destination adapter (transport)
             BytesLib.toAddress(data, INPUT_TOKEN_OFFSET), // inputToken
-            BytesLib.toAddress(data, 124), // outputToken
-            BytesLib.toAddress(data, 240), // exclusiveRelayer
+            BytesLib.toAddress(data, OUTPUT_TOKEN_OFFSET), // outputToken
+            BytesLib.toAddress(data, EXCLUSIVE_RELAYER_OFFSET), // exclusiveRelayer
             // cap guard, canonical chain id, destination vault, action type, amount-source mode
             _capLeafSuffix(chainId, destinationMessage, _decodeBool(data, USE_PREV_HOOK_AMOUNT_OFFSET))
         );

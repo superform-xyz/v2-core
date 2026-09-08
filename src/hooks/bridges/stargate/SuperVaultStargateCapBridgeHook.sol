@@ -207,9 +207,8 @@ contract SuperVaultStargateCapBridgeHook is ApproveAndStargateSendHook, SuperVau
         uint256 encodedAmountLD = BytesLib.toUint256(data, AMOUNT_LD_OFFSET);
         // A cap-hook send must always carry a nonzero encoded amountLD — even under
         // usePrevHookAmount, where the parent would tolerate zero. A zero encoded amount would
-        // skip the parent's minAmountLD rescale AND degenerate the governance ratio check below
-        // to `encodedMin * 10_000 < 0`, silently lowering the caller's delivery floor from the
-        // governance-set bps to the hardcoded MIN_SOURCE_DELIVERY_BPS.
+        // skip the parent's minAmountLD rescale AND make the encoded-equality check below vacuous
+        // (0 == 0), so the runtime amounts would no longer be provably equal.
         if (encodedAmountLD == 0) revert AMOUNT_NOT_VALID();
         if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_OFFSET)) {
             amount = ISuperHookResult(prevHook).getOutAmount(account);

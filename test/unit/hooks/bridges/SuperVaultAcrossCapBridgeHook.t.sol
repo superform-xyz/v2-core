@@ -681,7 +681,7 @@ contract SuperVaultAcrossCapBridgeHookTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice An Across fill must never be able to land after its reservation could have been
-    ///         permissionlessly released: fillDeadlineOffset above the registry's
+    ///         released by governance: fillDeadlineOffset above the registry's
     ///         RESERVATION_TIMEOUT is rejected (cap-headroom recycling through the release window).
     function test_R5H_RevertIf_FillDeadlineExceedsReservationTimeout() public {
         uint32 timeout = uint32(registry.RESERVATION_TIMEOUT());

@@ -222,9 +222,9 @@ abstract contract SuperVaultCapBridgeCommon {
 
         // R4: the bridged source token must be the strategy's governance-pinned hub denomination
         // asset (fail closed when unpinned) — a cross-token source leg can never mint a
-        // reservation denominated in the wrong unit. This is the hub-verifiable half of the
-        // same-asset/equal-decimals route invariant; the destination half stays a governance
-        // route-activation rule (see MIN_SOURCE_DELIVERY_BPS).
+        // reservation denominated in the wrong unit. This is the hub half of the same-asset
+        // invariant; the destination half is pinned per strategy below (strategyDestinationAsset),
+        // leaving only EQUAL DECIMALS of that fixed pair as a review-time check.
         address hubAsset = guard.strategyHubAsset(account);
         if (hubAsset == address(0) || inputToken != hubAsset) revert INPUT_TOKEN_NOT_HUB_ASSET();
 
@@ -269,9 +269,9 @@ abstract contract SuperVaultCapBridgeCommon {
             .recordBridgedOut(account, chainId, action.destinationVault, amount);
     }
 
-    /// @dev The registry's wall-clock reservation timeout, for hooks that must bound a bridge-native
-    ///      deadline to it (R5-H: a fill must never be able to land after its reservation could
-    ///      have been permissionlessly released).
+    /// @dev The registry's reservation timeout, for hooks that must bound a bridge-native deadline
+    ///      to it (R5-H/R6: a fill must never be able to land after its reservation became
+    ///      releasable by governance's no-fill attestation).
     function _reservationTimeout() internal view returns (uint256) {
         return
             ICrossChainPositionRegistry(SUPER_GOVERNOR.getAddress(CROSS_CHAIN_POSITION_REGISTRY)).RESERVATION_TIMEOUT();
