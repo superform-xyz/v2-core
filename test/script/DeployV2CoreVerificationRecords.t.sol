@@ -37,7 +37,7 @@ contract DeployV2CoreVerificationRecordsTest is Test {
     function test_VerificationRecords_PathMatchesExistenceCheck_AllEnvs() public view {
         for (uint256 env = ENV_PROD; env <= ENV_STAGING; env++) {
             DeployV2Core.ContractVerification[] memory records = harness.buildCoreVerificationRecords(env);
-            assertEq(records.length, 14, "unexpected record count");
+            assertEq(records.length, 17, "unexpected record count");
 
             for (uint256 i = 0; i < records.length; i++) {
                 bool exists = harness.checkBytecodeExists(records[i].name, env);
@@ -61,7 +61,13 @@ contract DeployV2CoreVerificationRecordsTest is Test {
     ///         only in locked-bytecode-dev/. Their records must load in dev and staging; before
     ///         the fix the existence check passed and the production-path load reverted.
     function test_VerificationRecords_DevOnlyArtifactsLoadInDevAndStaging() public view {
-        string[2] memory devOnlyContracts = ["MorphoBlueMarketRegistry", "MorphoBlueYieldSourceOracle"];
+        string[5] memory devOnlyContracts = [
+            "MorphoBlueMarketRegistry",
+            "MorphoBlueYieldSourceOracle",
+            "AaveV4ReserveRegistry",
+            "AaveV4DebtOracle",
+            "AaveV4SupplyYieldSourceOracle"
+        ];
 
         for (uint256 c = 0; c < devOnlyContracts.length; c++) {
             for (uint256 env = ENV_DEV; env <= ENV_STAGING; env++) {

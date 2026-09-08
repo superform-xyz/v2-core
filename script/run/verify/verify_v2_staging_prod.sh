@@ -556,6 +556,14 @@ generate_constructor_args() {
             morpho_registry_addr=$(get_contract_address "$chain_id" "MorphoBlueMarketRegistry")
             echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$morpho_registry_addr")"
             ;;
+        "AaveV4ReserveRegistry")
+            echo "$(cast abi-encode "constructor(address)" "$deployer")"
+            ;;
+        "AaveV4DebtOracle"|"AaveV4SupplyYieldSourceOracle")
+            local aave_v4_registry_addr
+            aave_v4_registry_addr=$(get_contract_address "$chain_id" "AaveV4ReserveRegistry")
+            echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$aave_v4_registry_addr")"
+            ;;
         # All other contracts (no constructor args)
         *)
             echo "$(cast abi-encode "constructor()")"
@@ -750,6 +758,9 @@ get_contract_source() {
         "MorphoBlueMarketRegistry") echo "src/accounting/oracles/MorphoBlueMarketRegistry.sol" ;;
         "MorphoBlueYieldSourceOracle") echo "src/accounting/oracles/MorphoBlueYieldSourceOracle.sol" ;;
         "MorphoBlueDebtOracle") echo "src/accounting/oracles/MorphoBlueDebtOracle.sol" ;;
+        "AaveV4ReserveRegistry") echo "src/accounting/oracles/AaveV4ReserveRegistry.sol" ;;
+        "AaveV4DebtOracle") echo "src/accounting/oracles/AaveV4DebtOracle.sol" ;;
+        "AaveV4SupplyYieldSourceOracle") echo "src/accounting/oracles/AaveV4SupplyYieldSourceOracle.sol" ;;
 
         *) echo "src/core/unknown/$contract_name.sol" ;;
     esac

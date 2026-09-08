@@ -97,4 +97,17 @@ interface IAaveV4Spoke {
     /// @param user The address of the user
     /// @return The amount of assets supplied by the user
     function getUserSuppliedAssets(uint256 reserveId, address user) external view returns (uint256);
+
+    /// @notice Returns the reserve-level aggregate debt for a given reserve
+    /// @dev The total reserve debt is the sum of drawn debt and premium debt (the totalBorrows
+    ///      analog used by the Superform debt oracle's getTVL)
+    /// @param reserveId The identifier of the reserve
+    /// @return drawnDebt The aggregate amount of drawn debt
+    /// @return premiumDebt The aggregate amount of premium debt
+    function getReserveDebt(uint256 reserveId) external view returns (uint256, uint256);
+
+    /// @notice Returns the reserve-level aggregate supplied assets for a given reserve
+    /// @param reserveId The identifier of the reserve
+    /// @return The total amount of assets supplied to the reserve
+    function getReserveSuppliedAssets(uint256 reserveId) external view returns (uint256);
 }
