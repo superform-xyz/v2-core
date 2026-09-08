@@ -28,7 +28,8 @@ import {
 /// @dev      signature is retrieved from the validator contract transient storage
 /// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to
 /// sign it
-/// @dev This hook adds approval pattern (approve 0 → approve amount → execute → approve 0) to the bridge operation
+/// @dev This hook adds approval pattern (approve 0 → approve amount → execute → approve 0) to the bridge
+/// operation
 /// @dev For native token transfers, use AcrossSendFundsAndExecuteOnDstHook instead
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
 /// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
@@ -45,7 +46,12 @@ import {
 /// @notice         uint32 exclusivityPeriod = BytesLib.toUint32(data, 264);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 268);
 /// @notice         bytes destinationMessage = BytesLib.slice(data, 269, data.length - 269);
-contract ApproveAndAcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
+contract ApproveAndAcrossSendFundsAndExecuteOnDstHook is
+    BaseHook,
+    ISuperHookContextAware,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+{
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -81,15 +87,14 @@ contract ApproveAndAcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookCon
     }
 
     /// @notice Human-readable name for UI display
-    function name() external pure override returns (string memory) {
+    function name() external pure virtual override returns (string memory) {
         return "Approve and Across Bridge";
     }
 
     /// @notice One-sentence description of what this hook does
-    function description() external pure override returns (string memory) {
+    function description() external pure virtual override returns (string memory) {
         return "Approves and bridges tokens via Across with destination execution";
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -202,9 +207,16 @@ contract ApproveAndAcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookCon
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+    function amountRoles(bytes memory)
+        external
+        pure
+        override
+        returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
+    {
         meta = new ISuperHookInflowOutflow.AmountMeta[](1);
-        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(
+            ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN
+        );
     }
 
     /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
@@ -227,7 +239,9 @@ contract ApproveAndAcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookCon
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+    /// @dev view + virtual so cap-aware subclasses can extend the leaf with governance-resolved
+    ///      cap dimensions (mutability/virtuality only — no behavior change for this hook).
+    function inspect(bytes calldata data) external view virtual override returns (bytes memory) {
         return abi.encodePacked(
             BytesLib.toAddress(data, 84), // recipient
             BytesLib.toAddress(data, 104), // inputToken

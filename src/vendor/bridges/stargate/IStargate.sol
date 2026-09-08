@@ -35,6 +35,41 @@ interface IStargate {
         uint256 amountReceivedLD;
     }
 
+    /// @notice Send-amount bounds reported by quoteOFT
+    struct OFTLimit {
+        uint256 minAmountLD;
+        uint256 maxAmountLD;
+    }
+
+    /// @notice One fee (positive) or reward (negative) line reported by quoteOFT
+    struct OFTFeeDetail {
+        int256 feeAmountLD;
+        string description;
+    }
+
+    /// @notice StargateBase address book (fee library first)
+    struct AddressConfig {
+        address feeLib;
+        address planner;
+        address treasurer;
+        address tokenMessaging;
+        address creditMessaging;
+        address lzToken;
+    }
+
+    /// @notice The pool's live address configuration, including the fee library that prices
+    ///         quoteOFT and send
+    function getAddressConfig() external view returns (AddressConfig memory);
+
+    /// @notice Quote the OFT leg of a send: limits, fee/reward breakdown and the receipt the pool
+    ///         would produce (amountSentLD after shared-decimal rounding, amountReceivedLD after the
+    ///         fee library's fee OR reward)
+    /// @param _sendParam The send parameters
+    function quoteOFT(SendParam calldata _sendParam)
+        external
+        view
+        returns (OFTLimit memory limit, OFTFeeDetail[] memory oftFeeDetails, OFTReceipt memory receipt);
+
     /// @notice Send tokens cross-chain via Stargate/LayerZero V2
     /// @param _sendParam The send parameters
     /// @param _fee The messaging fee
@@ -54,7 +89,10 @@ interface IStargate {
     /// @param _sendParam The send parameters
     /// @param _payInLzToken Whether to pay in LZ token
     /// @return fee The estimated messaging fee
-    function quoteSend(SendParam calldata _sendParam, bool _payInLzToken)
+    function quoteSend(
+        SendParam calldata _sendParam,
+        bool _payInLzToken
+    )
         external
         view
         returns (MessagingFee memory fee);

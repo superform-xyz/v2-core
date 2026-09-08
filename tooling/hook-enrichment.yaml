@@ -114,6 +114,7 @@ compatibleProtocols:
   # Across
   AcrossSendFundsAndExecuteOnDstHook: [across]
   ApproveAndAcrossSendFundsAndExecuteOnDstHook: [across]
+  SuperVaultAcrossCapBridgeHook: [across]
   AcrossSendFundsAndExecuteOnDstHookV2: [across-v2]
   ApproveAndAcrossSendFundsAndExecuteOnDstHookV2: [across-v2]
   # Relay
@@ -122,10 +123,12 @@ compatibleProtocols:
   # Stargate
   StargateSendHook: [stargate]
   ApproveAndStargateSendHook: [stargate]
+  SuperVaultStargateCapBridgeHook: [stargate]
   StargateSendHookV2: [stargate-v2]
   ApproveAndStargateSendHookV2: [stargate-v2]
   # deBridge
   DeBridgeSendOrderAndExecuteOnDstHook: [debridge]
+  SuperVaultDeBridgeCapBridgeHook: [debridge]
   DeBridgeCancelOrderHook: [debridge]
   # CCTP / Circle
   CCTPSendHook: [circle-cctp]

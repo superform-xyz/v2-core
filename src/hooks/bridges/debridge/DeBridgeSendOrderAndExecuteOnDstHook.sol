@@ -78,7 +78,12 @@ import {
 /// @notice         uint32 referralCode = BytesLib.toUint32(data, 520 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
 /// allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength);
-contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
+contract DeBridgeSendOrderAndExecuteOnDstHook is
+    BaseHook,
+    ISuperHookContextAware,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+{
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -96,15 +101,14 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     }
 
     /// @notice Human-readable name for UI display
-    function name() external pure override returns (string memory) {
+    function name() external pure virtual override returns (string memory) {
         return "deBridge Send Order";
     }
 
     /// @notice One-sentence description of what this hook does
-    function description() external pure override returns (string memory) {
+    function description() external pure virtual override returns (string memory) {
         return "Sends a cross-chain order via deBridge with destination execution";
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -167,9 +171,16 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+    function amountRoles(bytes memory)
+        external
+        pure
+        override
+        returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
+    {
         meta = new ISuperHookInflowOutflow.AmountMeta[](1);
-        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(
+            ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN
+        );
     }
 
     /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
@@ -192,7 +203,9 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+    /// @dev view + virtual so cap-aware subclasses can extend the leaf with governance-resolved
+    ///      cap dimensions (mutability/virtuality only — no behavior change for this hook).
+    function inspect(bytes calldata data) external view virtual override returns (bytes memory) {
         (IDlnSource.OrderCreation memory orderCreation,,,) = _createOrder(data, "");
 
         return abi.encodePacked(

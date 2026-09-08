@@ -387,6 +387,10 @@ hooks:
     actionTypes: [{intent: bridge, stage: instant}]
     legSizing: [sized]
 
+  SuperVaultAcrossCapBridgeHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
   AcrossSendFundsAndExecuteOnDstHookV2:
     actionTypes: [{intent: bridge, stage: instant}]
     legSizing: [sized]
@@ -411,6 +415,10 @@ hooks:
     actionTypes: [{intent: bridge, stage: instant}]
     legSizing: [sized]
 
+  SuperVaultStargateCapBridgeHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
   StargateSendHookV2:
     actionTypes: [{intent: bridge, stage: instant}]
     legSizing: [sized]
@@ -420,6 +428,10 @@ hooks:
     legSizing: [sized]
 
   DeBridgeSendOrderAndExecuteOnDstHook:
+    actionTypes: [{intent: bridge, stage: instant}]
+    legSizing: [sized]
+
+  SuperVaultDeBridgeCapBridgeHook:
     actionTypes: [{intent: bridge, stage: instant}]
     legSizing: [sized]
 
