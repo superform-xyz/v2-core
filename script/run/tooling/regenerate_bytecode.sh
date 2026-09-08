@@ -153,6 +153,7 @@ HOOK_CONTRACTS=(
     "MarkRootAsUsedHook"
     "MerklClaimRewardHook"
     "ClaimFailedTransferHook"
+    "FeeSplittingHook"
     "CircleGatewayWalletHook"
     "CircleGatewayMinterHook"
     "CircleGatewayAddDelegateHook"

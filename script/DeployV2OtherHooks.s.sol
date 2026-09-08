@@ -187,6 +187,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    function runFeeSplitting(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying FeeSplittingHook on chainId: ", chainId);
+
+        _deployFeeSplittingHook(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
     function runRFLR(uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
         console2.log("Deploying rFLR Hooks on chainId: ", chainId);
@@ -264,6 +272,9 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
     /// @notice Deploy all applicable hooks for the given chain
     function _deployAllHooks(uint64 chainId, uint256 env) internal {
+        // FeeSplittingHook — chain-agnostic (native-token sentinel constructor arg)
+        _deployFeeSplittingHook(chainId, env);
+
         // Morpho hooks — only on chains where Morpho is deployed
         if (otherHooksConfiguration.morphos[chainId] != address(0)) {
             console2.log("Deploying Morpho Hooks on chainId: ", chainId);
@@ -951,6 +962,24 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         console2.log("All DETH hooks deployed and validated successfully.");
 
         return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    FEE SPLITTING HOOK DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Deploy FeeSplittingHook (takes the canonical native-token sentinel as its only
+    ///         constructor arg; chain-uniform per ConfigCore's nativeTokens mapping)
+    function _deployFeeSplittingHook(uint64 chainId, uint256 env) internal returns (address feeSplittingHook) {
+        feeSplittingHook = __deployContract(
+            FEE_SPLITTING_HOOK_KEY,
+            chainId,
+            __getSalt(FEE_SPLITTING_HOOK_KEY),
+            abi.encodePacked(__getOtherHooksBytecode("FeeSplittingHook", env), abi.encode(NATIVE_TOKEN_DEFAULT))
+        );
+
+        require(feeSplittingHook != address(0), "FeeSplittingHook not assigned");
+        console2.log("FeeSplittingHook deployed:", feeSplittingHook);
     }
 
     /*//////////////////////////////////////////////////////////////
