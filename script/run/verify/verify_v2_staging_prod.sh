@@ -489,6 +489,9 @@ generate_constructor_args() {
             local native_fee_sponsorship=$(get_contract_address "$chain_id" "NativeFeeSponsorship")
             echo "$(cast abi-encode "constructor(address)" "$native_fee_sponsorship")"
             ;;
+        "FeeSplittingHook")
+            echo "$(cast abi-encode "constructor(address)" "$native_token")"
+            ;;
         "AaveV4BorrowHook"|"AaveV4RepayAndWithdrawHook"|"AaveV4RepayHook"|"AaveV4SupplyAndBorrowHook"|"AaveV4SupplyHook"|"AaveV4WithdrawHook")
             echo "$(cast abi-encode "constructor()")"
             ;;
@@ -544,6 +547,14 @@ generate_constructor_args() {
             local univ3_registry_addr
             univ3_registry_addr=$(get_contract_address "$chain_id" "UniV3CLPRegistry")
             echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$univ3_registry_addr")"
+            ;;
+        "MorphoBlueMarketRegistry")
+            echo "$(cast abi-encode "constructor(address)" "$deployer")"
+            ;;
+        "MorphoBlueYieldSourceOracle"|"MorphoBlueDebtOracle")
+            local morpho_registry_addr
+            morpho_registry_addr=$(get_contract_address "$chain_id" "MorphoBlueMarketRegistry")
+            echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$morpho_registry_addr")"
             ;;
         # All other contracts (no constructor args)
         *)
@@ -713,6 +724,7 @@ get_contract_source() {
         "SuperSponsorshipPaymaster") echo "src/paymaster/SuperSponsorshipPaymaster.sol" ;;
         "NativeFeeSponsorship") echo "src/sponsorship/NativeFeeSponsorship.sol" ;;
         "FetchNativeFeeHook") echo "src/hooks/sponsorship/FetchNativeFeeHook.sol" ;;
+        "FeeSplittingHook") echo "src/hooks/tokens/FeeSplittingHook.sol" ;;
 
         # Adapters
         "StargateAdapter") echo "src/adapters/StargateAdapter.sol" ;;
@@ -735,6 +747,9 @@ get_contract_source() {
         "PendlePTAmortizedOracleV2") echo "src/accounting/oracles/PendlePTAmortizedOracleV2.sol" ;;
         "UniV3CLPRegistry") echo "src/accounting/oracles/UniV3CLPRegistry.sol" ;;
         "UniV3CLPYieldSourceOracle") echo "src/accounting/oracles/UniV3CLPYieldSourceOracle.sol" ;;
+        "MorphoBlueMarketRegistry") echo "src/accounting/oracles/MorphoBlueMarketRegistry.sol" ;;
+        "MorphoBlueYieldSourceOracle") echo "src/accounting/oracles/MorphoBlueYieldSourceOracle.sol" ;;
+        "MorphoBlueDebtOracle") echo "src/accounting/oracles/MorphoBlueDebtOracle.sol" ;;
 
         *) echo "src/core/unknown/$contract_name.sol" ;;
     esac

@@ -78,7 +78,10 @@ contract UniswapV4HookIntegrationTest is MinimalBaseIntegrationTest {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public override {
-        blockNumber = 0;
+        // Pinned block: forking latest makes the swap-amount expectations drift with live
+        // pool prices (min-output reverts / flaky ratio checks). Pin to the era the
+        // expectations were written against.
+        blockNumber = 25_800_000;
         super.setUp();
 
         console2.log("Using real V4 deployment");

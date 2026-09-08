@@ -31,7 +31,12 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         address receiver = BytesLib.toAddress(data, 52);
 /// @notice         uint256 requestId = BytesLib.toUint256(data, 72);
-contract ClaimCancelRedeemRequestWithId7540Hook is BaseHook, VaultBankLockableHook, ISuperHookAsyncCancelations, ISuperHookInflowOutflow {
+contract ClaimCancelRedeemRequestWithId7540Hook is
+    BaseHook,
+    VaultBankLockableHook,
+    ISuperHookAsyncCancelations,
+    ISuperHookInflowOutflow
+{
     using HookDataDecoder for bytes;
 
     uint256 private constant RECEIVER_POSITION = 52;
@@ -48,7 +53,6 @@ contract ClaimCancelRedeemRequestWithId7540Hook is BaseHook, VaultBankLockableHo
     function description() external pure override returns (string memory) {
         return "Claims shares from a cancelled redeem request on an ERC-7540 vault using a request ID";
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -101,7 +105,12 @@ contract ClaimCancelRedeemRequestWithId7540Hook is BaseHook, VaultBankLockableHo
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+    function amountRoles(bytes memory)
+        external
+        pure
+        override
+        returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
+    {
         meta = new ISuperHookInflowOutflow.AmountMeta[](0);
     }
 
@@ -111,22 +120,27 @@ contract ClaimCancelRedeemRequestWithId7540Hook is BaseHook, VaultBankLockableHo
         if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
         if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
         return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
-            || interfaceId == type(ISuperHookResult).interfaceId
-            || interfaceId == type(ISuperHookInspector).interfaceId;
+            || interfaceId == type(ISuperHookResult).interfaceId || interfaceId == type(ISuperHookInspector).interfaceId;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        _setOutAmount(_getBalance(account, data), account);
+        // Snapshot the receiver's share balance (not the account's): the claim delivers shares to
+        // `receiver`, so the pre/post delta must be measured on the same address. Measuring
+        // `account` here made the reported amount `receiverBalance + claimed - accountBalance`,
+        // letting a receiver != account inflate its own pre-balance to over-report the claim.
+        address receiver = BytesLib.toAddress(data, RECEIVER_POSITION);
+        _setOutAmount(_getBalance(receiver, data), account);
         spToken = IERC7540(data.extractYieldSource()).share();
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         address receiver = BytesLib.toAddress(data, RECEIVER_POSITION);
         _setOutAmount(_getBalance(receiver, data) - getOutAmount(account), account);
-        _setOutToken(asset, account);
+        // Publish the share token (the claimed output), not the uninitialized inherited `asset`.
+        _setOutToken(spToken, account);
     }
 
     /*//////////////////////////////////////////////////////////////

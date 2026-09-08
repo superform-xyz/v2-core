@@ -99,6 +99,15 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans, ISuperHookInflowOut
         return true;
     }
 
+    /// @dev BaseLoanHook implements ISuperHookLoans; advertised via ERC-165 so integrators can
+    ///      detect loan hooks without an off-chain allowlist. Deployed legacy loan hook addresses
+    ///      keep their old bytecode (no ISuperHookLoans dispatch) until migrated. Virtual so hooks
+    ///      whose layout reserves the collateral fields (making the collateral getters revert) can
+    ///      honestly opt out of the advertisement (see EulerRepayHook).
+    function _supportsLoanInterface() internal pure virtual override returns (bool) {
+        return true;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/

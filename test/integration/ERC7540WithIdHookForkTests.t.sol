@@ -6,22 +6,21 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // WithId hooks
-import { CancelDepositRequestWithId7540Hook } from
-    "../../src/hooks/vaults/7540/CancelDepositRequestWithId7540Hook.sol";
-import { CancelRedeemRequestWithId7540Hook } from
-    "../../src/hooks/vaults/7540/CancelRedeemRequestWithId7540Hook.sol";
-import { ClaimCancelDepositRequestWithId7540Hook } from
-    "../../src/hooks/vaults/7540/ClaimCancelDepositRequestWithId7540Hook.sol";
-import { ClaimCancelRedeemRequestWithId7540Hook } from
-    "../../src/hooks/vaults/7540/ClaimCancelRedeemRequestWithId7540Hook.sol";
+import { CancelDepositRequestWithId7540Hook } from "../../src/hooks/vaults/7540/CancelDepositRequestWithId7540Hook.sol";
+import { CancelRedeemRequestWithId7540Hook } from "../../src/hooks/vaults/7540/CancelRedeemRequestWithId7540Hook.sol";
+import {
+    ClaimCancelDepositRequestWithId7540Hook
+} from "../../src/hooks/vaults/7540/ClaimCancelDepositRequestWithId7540Hook.sol";
+import {
+    ClaimCancelRedeemRequestWithId7540Hook
+} from "../../src/hooks/vaults/7540/ClaimCancelRedeemRequestWithId7540Hook.sol";
 import { RedeemWithId7540VaultHook } from "../../src/hooks/vaults/7540/RedeemWithId7540VaultHook.sol";
 import { WithdrawWithId7540VaultHook } from "../../src/hooks/vaults/7540/WithdrawWithId7540VaultHook.sol";
 
 // Original hooks (for calldata comparison)
 import { CancelDepositRequest7540Hook } from "../../src/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
 import { CancelRedeemRequest7540Hook } from "../../src/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol";
-import { ClaimCancelDepositRequest7540Hook } from
-    "../../src/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
+import { ClaimCancelDepositRequest7540Hook } from "../../src/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
 import { ClaimCancelRedeemRequest7540Hook } from "../../src/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
 import { Redeem7540VaultHook } from "../../src/hooks/vaults/7540/Redeem7540VaultHook.sol";
 import { Withdraw7540VaultHook } from "../../src/hooks/vaults/7540/Withdraw7540VaultHook.sol";
@@ -628,9 +627,7 @@ contract ERC7540WithIdHookForkTests is Test {
         investmentManager.fulfillCancelDepositRequest(
             poolId, trancheId, user, assetId, uint128(depositAmount), uint128(depositAmount)
         );
-        assertGt(
-            investmentManager.claimableCancelDepositRequest(CENTRIFUGE_USDC_VAULT, user), 0, "Nothing claimable"
-        );
+        assertGt(investmentManager.claimableCancelDepositRequest(CENTRIFUGE_USDC_VAULT, user), 0, "Nothing claimable");
 
         // Step 4: Claim via WithId hook
         bytes memory claimData = abi.encodePacked(placeholder, CENTRIFUGE_USDC_VAULT, user, uint256(0));
@@ -678,6 +675,65 @@ contract ERC7540WithIdHookForkTests is Test {
 
         // Final: user gets all shares back
         assertEq(IERC20(vault.share()).balanceOf(user), userShares, "User did not get all shares back");
+    }
+
+    /// @notice Regression (receiver != account): a receiver holding a pre-existing real share
+    ///         balance must not inflate the amount the WithId claim hook reports. Pre-fix the hook
+    ///         snapshotted the account in _preExecute but measured the receiver in _postExecute,
+    ///         publishing `receiverPre + claimed - accountPre`. Post-fix it reports exactly the
+    ///         claimed shares and publishes the share token (not the unset inherited `asset`).
+    function test_fork_ClaimCancelRedeemWithId_ReceiverPreBalanceDoesNotInflateReport() public {
+        address receiver = makeAddr("centrifuge_receiver");
+        _whitelistUser(receiver);
+
+        _fullDepositFlow(1e8);
+        address share = vault.share();
+        uint256 total = IERC20(share).balanceOf(user);
+        uint256 receiverPre = total / 4;
+        assertGt(receiverPre, 0, "need a non-zero receiver pre-balance");
+
+        vm.prank(user);
+        IERC20(share).transfer(receiver, receiverPre);
+        uint256 toRedeem = IERC20(share).balanceOf(user); // == total - receiverPre
+
+        vm.prank(user);
+        vault.requestRedeem(toRedeem, user, user);
+        assertEq(IERC20(share).balanceOf(user), 0, "shares not locked");
+
+        bytes memory cancelData = abi.encodePacked(placeholder, CENTRIFUGE_USDC_VAULT, uint256(0));
+        Execution[] memory cancelExecs = cancelRedeemWithIdHook.build(address(0), user, cancelData);
+        vm.prank(user);
+        (bool sc,) = cancelExecs[1].target.call(cancelExecs[1].callData);
+        assertTrue(sc, "cancel failed");
+
+        vm.prank(ROOT_MANAGER);
+        investmentManager.fulfillCancelRedeemRequest(poolId, trancheId, user, assetId, uint128(toRedeem));
+
+        // claim WithId data layout: placeholder | vault | receiver | requestId
+        bytes memory claimData = abi.encodePacked(placeholder, CENTRIFUGE_USDC_VAULT, receiver, uint256(0));
+        Execution[] memory claimExecs = claimCancelRedeemWithIdHook.build(address(0), user, claimData);
+
+        uint256 receiverBefore = IERC20(share).balanceOf(receiver);
+
+        vm.prank(user);
+        claimCancelRedeemWithIdHook.preExecute(address(0), user, claimData);
+        vm.prank(user);
+        (bool s2,) = claimExecs[1].target.call(claimExecs[1].callData);
+        assertTrue(s2, "claim failed");
+        vm.prank(user);
+        claimCancelRedeemWithIdHook.postExecute(address(0), user, claimData);
+
+        uint256 actuallyClaimed = IERC20(share).balanceOf(receiver) - receiverBefore;
+        assertEq(actuallyClaimed, toRedeem, "sanity: receiver received the claimed shares");
+
+        assertEq(
+            claimCancelRedeemWithIdHook.getOutAmount(user),
+            actuallyClaimed,
+            "reported amount inflated by receiver pre-balance"
+        );
+        assertEq(
+            claimCancelRedeemWithIdHook.getOutToken(user), share, "outToken must be the share token, not unset asset"
+        );
     }
 
     /// @notice Deposit → get shares → request redeem → fulfill → redeem: full outflow lifecycle
@@ -885,7 +941,9 @@ contract ERC7540WithIdHookForkTests is Test {
         assertTrue(s2, "user2 cancel failed");
 
         // Both have pending cancels
-        assertTrue(investmentManager.pendingCancelDepositRequest(CENTRIFUGE_USDC_VAULT, user), "user1 cancel not pending");
+        assertTrue(
+            investmentManager.pendingCancelDepositRequest(CENTRIFUGE_USDC_VAULT, user), "user1 cancel not pending"
+        );
         assertTrue(
             investmentManager.pendingCancelDepositRequest(CENTRIFUGE_USDC_VAULT, user2), "user2 cancel not pending"
         );

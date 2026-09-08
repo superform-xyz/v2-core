@@ -149,9 +149,17 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookInflowOutflow, ISuperHoo
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _postExecute(address, address account, bytes calldata data) internal override {
+    /// @notice Publishes the effective deposited amount and token as this hook's output
+    /// @param prevHook The previous hook in the chain, source of the amount when usePrevHookAmount is set
+    /// @param account The account the deposit was performed for
+    /// @param data Hook calldata containing the token, static amount and usePrevHookAmount flag
+    function _postExecute(address prevHook, address account, bytes calldata data) internal override {
         uint256 amount = BytesLib.toUint256(data, AMOUNT_POSITION);
-        // Set the deposited amount as output
+        // Must mirror the amount resolution in _buildHookExecutions: when usePrevHookAmount is set,
+        // the deposit used the previous hook's output, so the static encoded amount is stale here.
+        if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) {
+            amount = ISuperHookResult(prevHook).getOutAmount(account);
+        }
         _setOutAmount(amount, account);
         _setOutToken(BytesLib.toAddress(data, 52), account);
     }

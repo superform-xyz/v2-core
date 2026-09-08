@@ -14,9 +14,12 @@ import { MarketParamsLib } from "../../vendor/morpho/MarketParamsLib.sol";
 ///         to MarketParams. Enables MorphoBlueYieldSourceOracle to be a singleton that
 ///         supports any registered Morpho Blue market without per-market wrapper deployments.
 /// @dev Market key derivation: `address(uint160(uint256(Id.unwrap(marketId))))` takes the lower
-///      20 bytes of the 32-byte keccak256 Morpho market ID. Collision probability via birthday
-///      paradox is negligible (~2^-80 for 2^20 markets); a collision merely prevents registration
-///      of the second market — it cannot overwrite an existing market's stored data.
+///      20 bytes of the 32-byte keccak256 Morpho market ID. Accidental collision probability is
+///      negligible: by the birthday bound, the chance of any pair colliding among 2^20 markets in
+///      a 2^160 key space is ~2^-121. Deliberately grinding a colliding pair costs ~2^80 work
+///      (birthday attack), and targeting a specific existing key costs ~2^160 — both infeasible.
+///      Either way a collision merely prevents registration of the second market — it cannot
+///      overwrite an existing market's stored data.
 ///
 ///      IRM safety: Only IRMs explicitly approved via `setIrmApproval` can be used in registered
 ///      markets. This prevents a rogue IRM from returning arbitrary `borrowRateView` values that
@@ -270,8 +273,9 @@ contract MorphoBlueMarketRegistry is AccessControl {
     /// @notice Compute the market key for a given set of params without registering
     /// @dev Pure computation matching `registerMarket` key derivation.
     ///      The key is the lower 20 bytes of the 32-byte keccak256 Morpho market ID.
-    ///      Collision probability is negligible (~2^-80 for 2^20 markets) and a collision merely
-    ///      prevents registration of the second market — existing data is never overwritten.
+    ///      Accidental collision probability is negligible (~2^-121 for any pair among 2^20
+    ///      markets; see contract-level docs) and a collision merely prevents registration of
+    ///      the second market — existing data is never overwritten.
     /// @param loanToken_ Loan token address
     /// @param collateralToken_ Collateral token address
     /// @param oracle_ Oracle address

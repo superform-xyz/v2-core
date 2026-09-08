@@ -84,17 +84,20 @@ fi
 # Check if arguments are provided
 if [ $# -lt 2 ]; then
     echo -e "${RED}❌ Error: Missing required arguments${NC}"
-    echo -e "${YELLOW}Usage: $0 <environment> <mode>${NC}"
+    echo -e "${YELLOW}Usage: $0 <environment> <mode> [chain_id]${NC}"
     echo -e "${CYAN}  environment: staging or prod${NC}"
     echo -e "${CYAN}  mode: simulate or configure${NC}"
+    echo -e "${CYAN}  chain_id: (optional) specific chain ID to target${NC}"
     echo -e "${CYAN}Examples:${NC}"
     echo -e "${CYAN}  $0 staging simulate${NC}"
     echo -e "${CYAN}  $0 prod configure${NC}"
+    echo -e "${CYAN}  $0 prod simulate 4663  # RH only${NC}"
     exit 1
 fi
 
 ENVIRONMENT=$1
 MODE=$2
+CHAIN_FILTER=${3:-""}
 
 # Validate environment and source appropriate network configuration
 if [ "$ENVIRONMENT" = "staging" ]; then
@@ -110,6 +113,24 @@ else
 fi
 
 echo -e "${CYAN}✅ Network configuration loaded for $ENVIRONMENT environment${NC}"
+
+# Filter to a specific chain if chain_id argument is provided
+if [ -n "$CHAIN_FILTER" ]; then
+    FILTERED=()
+    for network_def in "${NETWORKS[@]}"; do
+        IFS=':' read -r nid _ _ <<< "$network_def"
+        if [ "$nid" = "$CHAIN_FILTER" ]; then
+            FILTERED+=("$network_def")
+        fi
+    done
+    if [ ${#FILTERED[@]} -eq 0 ]; then
+        echo -e "${RED}❌ Chain ID $CHAIN_FILTER not found in $ENVIRONMENT networks${NC}"
+        exit 1
+    fi
+    NETWORKS=("${FILTERED[@]}")
+    echo -e "${YELLOW}🔍 Filtered to chain ID: $CHAIN_FILTER${NC}"
+fi
+
 print_network_info
 
 # Set environment variable for forge script
@@ -184,12 +205,13 @@ for network_def in "${NETWORKS[@]}"; do
     # Set Fireblocks asset ID for chains not auto-detected
     case $network_id in
         988) export FIREBLOCKS_ASSET_ID="GUSDT_STABLE" ;;
+        4663) export FIREBLOCKS_ASSET_ID="ROBINHOOD" ;;
         *)   unset FIREBLOCKS_ASSET_ID ;;
     esac
 
     # Per-chain sender address and tx type (Fireblocks derives different addresses per chain)
-    local sender_address
-    local tx_type_flag=""
+    sender_address=""
+    tx_type_flag=""
     case $network_id in
         14) # Flare - different Fireblocks address, legacy tx required
             sender_address="0x40a4012A1a154ed58E9BB2f4C63D07f64816b719"

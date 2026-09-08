@@ -196,18 +196,22 @@ interface ISuperHookLoans is ISuperHookContextAware {
     /// @return The address of the collateral token
     function getCollateralTokenAddress(bytes memory data) external view returns (address);
 
-    /// @notice Gets the current loan token balance for an account
-    /// @dev Used to track outstanding loan amounts
-    /// @param account The account to check the loan balance for
-    /// @param data The hook-specific data containing loan parameters
-    /// @return The amount of tokens currently borrowed
+    /// @notice Gets the account's current ERC-20 wallet balance of the loan token
+    /// @dev Returns the plain wallet balance (not the outstanding debt on the lending protocol).
+    ///      Hooks snapshot this before execution and measure the post-execution delta to report
+    ///      actual loan tokens received (borrow) or spent (repay).
+    /// @param account The account to check the wallet balance for
+    /// @param data The hook-specific data containing the loan token address
+    /// @return The account's wallet balance of the loan token
     function getLoanTokenBalance(address account, bytes memory data) external view returns (uint256);
 
-    /// @notice Gets the current collateral token balance for an account
-    /// @dev Used to track collateral positions
-    /// @param account The account to check the collateral balance for
-    /// @param data The hook-specific data containing collateral parameters
-    /// @return The amount of tokens currently used as collateral
+    /// @notice Gets the account's current ERC-20 wallet balance of the collateral token
+    /// @dev Returns the plain wallet balance (not the collateral posted on the lending protocol).
+    ///      Hooks snapshot this before execution and measure the post-execution delta to report
+    ///      actual collateral tokens spent (supply) or received (withdraw).
+    /// @param account The account to check the wallet balance for
+    /// @param data The hook-specific data containing the collateral token address
+    /// @return The account's wallet balance of the collateral token
     function getCollateralTokenBalance(address account, bytes memory data) external view returns (uint256);
 }
 

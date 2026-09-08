@@ -215,6 +215,7 @@ for network_def in "${NETWORKS[@]}"; do
     # Set Fireblocks asset ID for chains not auto-detected
     case $CHAIN_ID in
         988) export FIREBLOCKS_ASSET_ID="GUSDT_STABLE" ;;
+        4663) export FIREBLOCKS_ASSET_ID="ROBINHOOD" ;;
         *)   unset FIREBLOCKS_ASSET_ID ;;
     esac
 
