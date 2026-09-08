@@ -4,12 +4,12 @@ pragma solidity 0.8.30;
 // External Dependencies
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 // Protocol Interfaces
 import { IAcrossV3Receiver } from "../../../src/vendor/bridges/across/IAcrossV3Receiver.sol";
 
 // Superform Interfaces
+import { IDestinationValidatorSource } from "../../../src/adapters/AcrossV3AdapterV2.sol";
 import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestinationExecutor.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 
@@ -20,7 +20,7 @@ import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 ///      with a state override after its constructor-configured immutables are patched.
 ///      The success path mirrors the production V2 adapter, while transfer and destination
 ///      execution failures revert so eth_estimateGas cannot accept a best-effort failure path.
-contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
+contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver {
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
@@ -33,9 +33,8 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
     /// @notice The SuperDestinationExecutor for processing bridged executions
     ISuperDestinationExecutor public immutable SUPER_DESTINATION_EXECUTOR;
 
-    /// @notice Claimable balances for failed token transfers
-    /// @dev Must remain in the same storage position as AcrossV3AdapterV2
-    mapping(address account => mapping(address token => uint256 amount)) public failedTransfers;
+    /// @notice The SuperDestinationValidator the executor is wired to
+    address public immutable SUPER_DESTINATION_VALIDATOR;
 
     /*//////////////////////////////////////////////////////////////
                                  STRUCTS
@@ -44,6 +43,8 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
     /// @dev Holds fields extracted from sigData's destination proof
     struct ExtractedData {
         address account;
+        address executor;
+        address validator;
         bytes executorCalldata;
         address[] dstTokens;
         uint256[] intentAmounts;
@@ -57,19 +58,16 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
     error ADDRESS_NOT_VALID();
     error NO_DST_PROOF_FOR_CHAIN();
     error ACCOUNT_NOT_VALID();
+    error EXECUTOR_NOT_VALID();
+    error VALIDATOR_NOT_VALID();
     error TRANSFER_FAILED();
     error DESTINATION_EXECUTION_FAILED();
-    error INSUFFICIENT_FAILED_BALANCE();
-    error ZERO_AMOUNT();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event TransferSucceeded(address indexed account, address indexed tokenSent, uint256 amount);
-    event TransferFailed(address indexed account, address indexed token, uint256 amount);
-    event ExecutionFailed(address indexed account);
-    event FailedTransferClaimed(address indexed account, address indexed token, uint256 amount);
+    event TransferSucceeded(address indexed account, address indexed token, uint256 amount);
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
@@ -81,6 +79,8 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
         }
         ACROSS_SPOKE_POOL = acrossSpokePool_;
         SUPER_DESTINATION_EXECUTOR = ISuperDestinationExecutor(superDestinationExecutor_);
+        SUPER_DESTINATION_VALIDATOR =
+            IDestinationValidatorSource(superDestinationExecutor_).SUPER_DESTINATION_VALIDATOR();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -88,15 +88,7 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IAcrossV3Receiver
-    function handleV3AcrossMessage(
-        address tokenSent,
-        uint256 amount,
-        address,
-        bytes memory message
-    )
-        external
-        override
-    {
+    function handleV3AcrossMessage(address tokenSent, uint256 amount, address, bytes memory message) external override {
         if (msg.sender != ACROSS_SPOKE_POOL) revert INVALID_SENDER();
 
         (bytes memory initData, bytes memory sigDataRaw) = abi.decode(message, (bytes, bytes));
@@ -104,10 +96,13 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
 
         if (!extracted.found) revert NO_DST_PROOF_FOR_CHAIN();
         if (extracted.account == address(0)) revert ACCOUNT_NOT_VALID();
-        if (!_tryTransfer(tokenSent, extracted.account, amount)) revert TRANSFER_FAILED();
+        if (extracted.executor != address(SUPER_DESTINATION_EXECUTOR)) revert EXECUTOR_NOT_VALID();
+        if (extracted.validator != SUPER_DESTINATION_VALIDATOR) revert VALIDATOR_NOT_VALID();
+        if (!IERC20(tokenSent).trySafeTransfer(extracted.account, amount)) revert TRANSFER_FAILED();
 
         emit TransferSucceeded(extracted.account, tokenSent, amount);
 
+        if (address(SUPER_DESTINATION_EXECUTOR).code.length == 0) revert DESTINATION_EXECUTION_FAILED();
         try SUPER_DESTINATION_EXECUTOR.processBridgedExecution(
             tokenSent,
             extracted.account,
@@ -120,24 +115,6 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
         catch (bytes memory reason) {
             _revert(reason);
         }
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                CLAIM LOGIC
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Claims tokens recorded by the live adapter before the code override
-    /// @dev Included to preserve the production adapter's storage and callable surface
-    function claimFailedTransfer(address token, uint256 amount) external nonReentrant {
-        if (amount == 0) revert ZERO_AMOUNT();
-
-        uint256 available = failedTransfers[msg.sender][token];
-        if (available < amount) revert INSUFFICIENT_FAILED_BALANCE();
-
-        failedTransfers[msg.sender][token] = available - amount;
-        IERC20(token).safeTransfer(msg.sender, amount);
-
-        emit FailedTransferClaimed(msg.sender, token, amount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -154,6 +131,8 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
         for (uint256 i; i < len; ++i) {
             if (proofDst[i].dstChainId == currentChain) {
                 extracted.account = proofDst[i].info.account;
+                extracted.executor = proofDst[i].info.executor;
+                extracted.validator = proofDst[i].info.validator;
                 extracted.executorCalldata = proofDst[i].info.data;
                 extracted.dstTokens = proofDst[i].info.dstTokens;
                 extracted.intentAmounts = proofDst[i].info.intentAmounts;
@@ -161,12 +140,6 @@ contract AcrossV3AdapterV2Simulations is IAcrossV3Receiver, ReentrancyGuard {
                 return extracted;
             }
         }
-    }
-
-    /// @notice Attempts the same low-level ERC20 transfer as AcrossV3AdapterV2
-    function _tryTransfer(address token, address account, uint256 amount) internal returns (bool success) {
-        (bool callSuccess, bytes memory returnData) = token.call(abi.encodeCall(IERC20.transfer, (account, amount)));
-        success = callSuccess && (returnData.length == 0 || abi.decode(returnData, (bool)));
     }
 
     /// @notice Bubbles a destination executor failure without changing its revert selector
