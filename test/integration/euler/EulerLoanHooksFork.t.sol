@@ -653,27 +653,26 @@ contract EulerLoanHooksFork is Helpers, RhinestoneModuleKit, InternalHelpers {
                     9. LEGACY-ADDRESS ERC-165 FALLBACK
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The legacy (pre-20796) Base loan hook deployment does NOT advertise the current
-    ///         ISuperHookLoans interfaceId. The composite Euler hooks do; the standalone repay
-    ///         hook honestly does not (its reserved-zero collateral slot makes the inherited
-    ///         collateral-balance getter revert, so the full surface is not honored).
+    /// @notice ISuperHookLoans is implemented by loan hooks but deliberately not advertised via
+    ///         ERC-165 (advertisement reverted to keep all non-loan hook bytecode identical to the
+    ///         deployed fleet); legacy and current deployments behave identically here.
     function test_Euler_Base_LegacyAddress_ERC165Fallback() external view {
         assertGt(LEGACY_MORPHO_REPAY_HOOK.code.length, 0, "legacy hook deployed at pin block");
         assertFalse(
             IERC165(LEGACY_MORPHO_REPAY_HOOK).supportsInterface(type(ISuperHookLoans).interfaceId),
-            "legacy loan hook must NOT support the current ISuperHookLoans id"
+            "legacy loan hook does not advertise ISuperHookLoans"
         );
-        assertTrue(
+        assertFalse(
             IERC165(address(openHook)).supportsInterface(type(ISuperHookLoans).interfaceId),
-            "Euler open hook supports ISuperHookLoans"
+            "Euler open hook does not advertise ISuperHookLoans"
         );
         assertFalse(
             IERC165(address(repayHook)).supportsInterface(type(ISuperHookLoans).interfaceId),
-            "Euler standalone repay hook must NOT advertise ISuperHookLoans (reserved collateral slot)"
+            "Euler standalone repay hook does not advertise ISuperHookLoans"
         );
-        assertTrue(
+        assertFalse(
             IERC165(address(closeHook)).supportsInterface(type(ISuperHookLoans).interfaceId),
-            "Euler close hook supports ISuperHookLoans"
+            "Euler close hook does not advertise ISuperHookLoans"
         );
     }
 }

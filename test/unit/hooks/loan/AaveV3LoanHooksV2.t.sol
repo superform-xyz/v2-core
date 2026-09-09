@@ -174,15 +174,16 @@ contract AaveV3LoanHooksV2Test is Helpers {
         bytes4 inflowOutflow = type(ISuperHookInflowOutflow).interfaceId;
         bytes4 outflow = type(ISuperHookOutflow).interfaceId;
 
-        assertTrue(openHook.supportsInterface(loans));
+        // ISuperHookLoans is implemented but deliberately not advertised via ERC-165
+        assertFalse(openHook.supportsInterface(loans));
         assertTrue(openHook.supportsInterface(inflowOutflow));
         assertTrue(openHook.supportsInterface(outflow));
 
-        assertTrue(repayHook.supportsInterface(loans));
+        assertFalse(repayHook.supportsInterface(loans));
         assertTrue(repayHook.supportsInterface(inflowOutflow));
         assertTrue(repayHook.supportsInterface(outflow));
 
-        assertTrue(closeHook.supportsInterface(loans));
+        assertFalse(closeHook.supportsInterface(loans));
         assertTrue(closeHook.supportsInterface(inflowOutflow));
         assertTrue(closeHook.supportsInterface(outflow));
     }
