@@ -231,6 +231,25 @@ get_supported_networks() {
     done
 }
 
+
+# Read a 1Password secret with one retry and a same-named environment-variable fallback.
+# Burst reads can transiently fail against the desktop-app integration (authorization race),
+# and `export VAR=$(op read ...)` masks failures (export always exits 0) — so detect emptiness
+# explicitly, retry once, then fall back to an already-exported env var of the same name (.env).
+op_read_rpc() {
+    local item=$1
+    local val
+    val=$(op read "op://5ylebqljbh3x6zomdxi3qd7tsa/${item}/credential" 2>/dev/null | tr -d '\n') || val=""
+    if [[ -z "$val" ]]; then
+        sleep 2
+        val=$(op read "op://5ylebqljbh3x6zomdxi3qd7tsa/${item}/credential" 2>/dev/null | tr -d '\n') || val=""
+    fi
+    if [[ -z "$val" ]]; then
+        val=$(printenv "$item" 2>/dev/null || true)
+    fi
+    printf '%s' "$val"
+}
+
 # Load RPC URLs from environment variables for CI
 load_rpc_urls_ci() {
     echo "Loading production RPC URLs from environment variables..."
@@ -375,89 +394,72 @@ load_rpc_urls() {
     local failed_rpcs=()
 
     echo "  • Loading Ethereum RPC..."
-    if ! export ETH_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHEREUM_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("ETHEREUM_RPC_URL")
-    fi
+    export ETH_MAINNET="$(op_read_rpc ETHEREUM_RPC_URL)"
+        [[ -z "${ETH_MAINNET}" ]] && failed_rpcs+=("ETHEREUM_RPC_URL")
 
     echo "  • Loading Base RPC..."
-    if ! export BASE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("BASE_RPC_URL")
-    fi
+    export BASE_MAINNET="$(op_read_rpc BASE_RPC_URL)"
+        [[ -z "${BASE_MAINNET}" ]] && failed_rpcs+=("BASE_RPC_URL")
 
     echo "  • Loading BSC RPC..."
-    if ! export BSC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BSC_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("BSC_RPC_URL")
-    fi
+    export BSC_MAINNET="$(op_read_rpc BSC_RPC_URL)"
+        [[ -z "${BSC_MAINNET}" ]] && failed_rpcs+=("BSC_RPC_URL")
 
     echo "  • Loading Arbitrum RPC..."
-    if ! export ARBITRUM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ARBITRUM_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("ARBITRUM_RPC_URL")
-    fi
+    export ARBITRUM_MAINNET="$(op_read_rpc ARBITRUM_RPC_URL)"
+        [[ -z "${ARBITRUM_MAINNET}" ]] && failed_rpcs+=("ARBITRUM_RPC_URL")
 
     echo "  • Loading Optimism RPC..."
-    if ! export OPTIMISM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/OPTIMISM_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("OPTIMISM_RPC_URL")
-    fi
+    export OPTIMISM_MAINNET="$(op_read_rpc OPTIMISM_RPC_URL)"
+        [[ -z "${OPTIMISM_MAINNET}" ]] && failed_rpcs+=("OPTIMISM_RPC_URL")
 
     echo "  • Loading Polygon RPC..."
-    if ! export POLYGON_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/POLYGON_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("POLYGON_RPC_URL")
-    fi
+    export POLYGON_MAINNET="$(op_read_rpc POLYGON_RPC_URL)"
+        [[ -z "${POLYGON_MAINNET}" ]] && failed_rpcs+=("POLYGON_RPC_URL")
 
     echo "  • Loading Unichain RPC..."
-    if ! export UNICHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/UNICHAIN_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("UNICHAIN_RPC_URL")
-    fi
+    export UNICHAIN_MAINNET="$(op_read_rpc UNICHAIN_RPC_URL)"
+        [[ -z "${UNICHAIN_MAINNET}" ]] && failed_rpcs+=("UNICHAIN_RPC_URL")
 
     echo "  • Loading Avalanche RPC..."
-    if ! export AVALANCHE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/AVALANCHE_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("AVALANCHE_RPC_URL")
-    fi
+    export AVALANCHE_MAINNET="$(op_read_rpc AVALANCHE_RPC_URL)"
+        [[ -z "${AVALANCHE_MAINNET}" ]] && failed_rpcs+=("AVALANCHE_RPC_URL")
 
     echo "  • Loading Linea RPC..."
-    if ! export LINEA_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/LINEA_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("LINEA_RPC_URL")
-    fi
+    export LINEA_MAINNET="$(op_read_rpc LINEA_RPC_URL)"
+        [[ -z "${LINEA_MAINNET}" ]] && failed_rpcs+=("LINEA_RPC_URL")
 
     echo "  • Loading Berachain RPC..."
-    if ! export BERACHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BERACHAIN_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("BERACHAIN_RPC_URL")
-    fi
+    export BERACHAIN_MAINNET="$(op_read_rpc BERACHAIN_RPC_URL)"
+        [[ -z "${BERACHAIN_MAINNET}" ]] && failed_rpcs+=("BERACHAIN_RPC_URL")
 
     echo "  • Loading Sonic RPC..."
-    if ! export SONIC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/SONIC_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("SONIC_RPC_URL")
-    fi
+    export SONIC_MAINNET="$(op_read_rpc SONIC_RPC_URL)"
+        [[ -z "${SONIC_MAINNET}" ]] && failed_rpcs+=("SONIC_RPC_URL")
 
     echo "  • Loading Gnosis RPC..."
-    if ! export GNOSIS_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/GNOSIS_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("GNOSIS_RPC_URL")
-    fi
+    export GNOSIS_MAINNET="$(op_read_rpc GNOSIS_RPC_URL)"
+        [[ -z "${GNOSIS_MAINNET}" ]] && failed_rpcs+=("GNOSIS_RPC_URL")
 
     echo "  • Loading Worldchain RPC..."
-    if ! export WORLDCHAIN_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/WORLDCHAIN_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("WORLDCHAIN_RPC_URL")
-    fi
+    export WORLDCHAIN_MAINNET="$(op_read_rpc WORLDCHAIN_RPC_URL)"
+        [[ -z "${WORLDCHAIN_MAINNET}" ]] && failed_rpcs+=("WORLDCHAIN_RPC_URL")
 
     echo "  • Loading HyperEVM RPC..."
-    if ! export HYPEREVM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/HYPEREVM_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
-        failed_rpcs+=("HYPEREVM_RPC_URL")
-    fi
+    export HYPEREVM_MAINNET="$(op_read_rpc HYPEREVM_RPC_URL)"
+        [[ -z "${HYPEREVM_MAINNET}" ]] && failed_rpcs+=("HYPEREVM_RPC_URL")
 
     echo "  • Loading Flare RPC..."
-    if ! export FLARE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/FLARE_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
-        failed_rpcs+=("FLARE_RPC_URL")
-    fi
+    export FLARE_MAINNET="$(op_read_rpc FLARE_RPC_URL)"
+        [[ -z "${FLARE_MAINNET}" ]] && failed_rpcs+=("FLARE_RPC_URL")
 
     echo "  • Loading Stable RPC..."
-    if ! export STABLE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/STABLE_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
-        failed_rpcs+=("STABLE_RPC_URL")
-    fi
+    export STABLE_MAINNET="$(op_read_rpc STABLE_RPC_URL)"
+        [[ -z "${STABLE_MAINNET}" ]] && failed_rpcs+=("STABLE_RPC_URL")
 
     echo "  • Loading RH RPC..."
-    if ! export RH_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/RH_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
-        failed_rpcs+=("RH_RPC_URL")
-    fi
+    export RH_MAINNET="$(op_read_rpc RH_RPC_URL)"
+        [[ -z "${RH_MAINNET}" ]] && failed_rpcs+=("RH_RPC_URL")
 
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then
         echo "❌ Failed to load the following RPC URLs from 1Password:"
