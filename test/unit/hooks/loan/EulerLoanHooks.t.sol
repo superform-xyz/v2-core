@@ -443,12 +443,10 @@ contract EulerLoanHooksTest is Helpers {
         bytes4 inflowOutflowId = type(ISuperHookInflowOutflow).interfaceId;
         bytes4 outflowId = type(ISuperHookOutflow).interfaceId;
 
-        assertTrue(openHook.supportsInterface(loansId));
-        // The standalone repay hook reserves the collateral fields as zero, which makes the
-        // inherited getCollateralTokenBalance revert on its data — so it honestly does NOT
-        // advertise the full ISuperHookLoans surface
+        // ISuperHookLoans is implemented but deliberately not advertised via ERC-165
+        assertFalse(openHook.supportsInterface(loansId));
         assertFalse(repayHook.supportsInterface(loansId));
-        assertTrue(closeHook.supportsInterface(loansId));
+        assertFalse(closeHook.supportsInterface(loansId));
 
         assertTrue(openHook.supportsInterface(inflowOutflowId));
         assertTrue(repayHook.supportsInterface(inflowOutflowId));

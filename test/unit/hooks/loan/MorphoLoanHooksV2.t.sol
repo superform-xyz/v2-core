@@ -271,9 +271,10 @@ contract MorphoLoanHooksV2Test is Helpers {
         bytes4 inflowOutflowId = type(ISuperHookInflowOutflow).interfaceId;
         bytes4 outflowId = type(ISuperHookOutflow).interfaceId;
 
-        assertTrue(openHook.supportsInterface(loansId));
-        assertTrue(repayHook.supportsInterface(loansId));
-        assertTrue(closeHook.supportsInterface(loansId));
+        // ISuperHookLoans is implemented but deliberately not advertised via ERC-165
+        assertFalse(openHook.supportsInterface(loansId));
+        assertFalse(repayHook.supportsInterface(loansId));
+        assertFalse(closeHook.supportsInterface(loansId));
 
         assertTrue(openHook.supportsInterface(inflowOutflowId));
         assertTrue(repayHook.supportsInterface(inflowOutflowId));

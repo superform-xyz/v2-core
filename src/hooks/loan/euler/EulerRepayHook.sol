@@ -39,12 +39,10 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 ///      repayment, but publishes outAmount = 0 with outToken = debtAsset: the hook is a terminal
 ///      sink, and a zero output makes any downstream usePrevHookAmount chaining fail closed.
 /// @dev LIMITATION: the inherited non-virtual getCollateralTokenBalance(account, data) reverts for
-///      this hook's data (collateralAsset is the reserved zero address), so this hook does NOT
-///      advertise ISuperHookLoans via ERC-165 (_supportsLoanInterface returns false) — honest
-///      advertisement for interface-driven consumers. The individual loan-token getters remain
-///      directly callable; consumers reading collateral fields must check
-///      getCollateralTokenAddress(data) == address(0) first. The hook's own execution path never
-///      calls the collateral getter (loan-only snapshot).
+///      this hook's data (collateralAsset is the reserved zero address), so the full ISuperHookLoans
+///      surface is not honored. The individual loan-token getters remain directly callable;
+///      consumers reading collateral fields must check getCollateralTokenAddress(data) == address(0)
+///      first. The hook's own execution path never calls the collateral getter (loan-only snapshot).
 contract EulerRepayHook is BaseEulerLoanHook {
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
@@ -122,13 +120,6 @@ contract EulerRepayHook is BaseEulerLoanHook {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-
-    /// @dev The reserved-zero collateral slot makes the inherited getCollateralTokenBalance revert
-    ///      on this hook's data, so the full ISuperHookLoans surface is not honored — do not
-    ///      advertise it via ERC-165
-    function _supportsLoanInterface() internal pure override returns (bool) {
-        return false;
-    }
 
     /// @inheritdoc BaseHook
     /// @dev Re-resolves the cap (identical to build within one transaction — EVK views virtually
