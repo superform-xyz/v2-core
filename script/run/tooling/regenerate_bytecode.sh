@@ -290,6 +290,13 @@ RFLR_HOOK_CONTRACTS=(
     "WrappedNativeHook"
 )
 
+# SuperVault cap-bridge hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
+SUPERVAULT_CAP_BRIDGE_HOOK_CONTRACTS=(
+    "SuperVaultAcrossCapBridgeHook"
+    "SuperVaultDeBridgeCapBridgeHook"
+    "SuperVaultStargateCapBridgeHook"
+)
+
 # Odos V3 hook contracts - now deployed via DeployV2Core (kept here for reference)
 ODOS_V3_HOOK_CONTRACTS=()
 
@@ -418,6 +425,15 @@ else
         fi
     done
 
+    # Copy SuperVault cap-bridge hook contracts
+    log "INFO" "${BLUE}🪝 Copying SuperVault cap-bridge hook contracts...${NC}"
+    failed_capbridge=0
+    for contract in "${SUPERVAULT_CAP_BRIDGE_HOOK_CONTRACTS[@]}"; do
+        if ! copy_contract "$contract"; then
+            failed_capbridge=$((failed_capbridge + 1))
+        fi
+    done
+
     # Copy Odos V3 hook contracts
     log "INFO" "${BLUE}🪝 Copying Odos V3 hook contracts...${NC}"
     failed_odosv3=0
@@ -428,8 +444,8 @@ else
     done
 
     # Summary for all contracts mode
-    total_contracts=$((${#CORE_CONTRACTS[@]} + ${#HOOK_CONTRACTS[@]} + ${#ORACLE_CONTRACTS[@]} + ${#MORPHO_HOOK_CONTRACTS[@]} + ${#AAVE_V4_HOOK_CONTRACTS[@]} + ${#AAVE_V3_HOOK_CONTRACTS[@]} + ${#EULER_HOOK_CONTRACTS[@]} + ${#DETH_HOOK_CONTRACTS[@]} + ${#SPONSORSHIP_CONTRACTS[@]} + ${#RFLR_HOOK_CONTRACTS[@]} + ${#ODOS_V3_HOOK_CONTRACTS[@]}))
-    total_failed=$((failed_core + failed_hooks + failed_oracles + failed_morpho + failed_aavev4 + failed_aavev3 + failed_euler + failed_deth + failed_sponsorship + failed_rflr + failed_odosv3))
+    total_contracts=$((${#CORE_CONTRACTS[@]} + ${#HOOK_CONTRACTS[@]} + ${#ORACLE_CONTRACTS[@]} + ${#MORPHO_HOOK_CONTRACTS[@]} + ${#AAVE_V4_HOOK_CONTRACTS[@]} + ${#AAVE_V3_HOOK_CONTRACTS[@]} + ${#EULER_HOOK_CONTRACTS[@]} + ${#DETH_HOOK_CONTRACTS[@]} + ${#SPONSORSHIP_CONTRACTS[@]} + ${#RFLR_HOOK_CONTRACTS[@]} + ${#SUPERVAULT_CAP_BRIDGE_HOOK_CONTRACTS[@]} + ${#ODOS_V3_HOOK_CONTRACTS[@]}))
+    total_failed=$((failed_core + failed_hooks + failed_oracles + failed_morpho + failed_aavev4 + failed_aavev3 + failed_euler + failed_deth + failed_sponsorship + failed_rflr + failed_capbridge + failed_odosv3))
     total_success=$((total_contracts - total_failed))
 
     log "INFO" "${BLUE}📊 Summary:${NC}"
@@ -473,6 +489,10 @@ else
 
     if [ $failed_rflr -gt 0 ]; then
         log "WARN" "${YELLOW}  ⚠️  Failed rFLR hook contracts: ${failed_rflr}/${#RFLR_HOOK_CONTRACTS[@]}${NC}"
+    fi
+
+    if [ $failed_capbridge -gt 0 ]; then
+        log "WARN" "${YELLOW}  ⚠️  Failed SuperVault cap-bridge hook contracts: ${failed_capbridge}/${#SUPERVAULT_CAP_BRIDGE_HOOK_CONTRACTS[@]}${NC}"
     fi
 
     if [ $failed_odosv3 -gt 0 ]; then

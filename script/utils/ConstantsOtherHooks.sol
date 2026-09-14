@@ -39,6 +39,11 @@ abstract contract ConstantsOtherHooks {
     string internal constant NATIVE_FEE_SPONSORSHIP_KEY = "NativeFeeSponsorship";
     string internal constant FETCH_NATIVE_FEE_HOOK_KEY = "FetchNativeFeeHook";
 
+    // SuperVault cap-bridge hook keys
+    string internal constant SUPERVAULT_ACROSS_CAP_BRIDGE_HOOK_KEY = "SuperVaultAcrossCapBridgeHook";
+    string internal constant SUPERVAULT_DEBRIDGE_CAP_BRIDGE_HOOK_KEY = "SuperVaultDeBridgeCapBridgeHook";
+    string internal constant SUPERVAULT_STARGATE_CAP_BRIDGE_HOOK_KEY = "SuperVaultStargateCapBridgeHook";
+
     // Fee splitting hook key
     string internal constant FEE_SPLITTING_HOOK_KEY = "FeeSplittingHook";
 

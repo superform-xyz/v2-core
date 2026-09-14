@@ -22,6 +22,7 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         mapping(uint64 chainId => address coreWriter) coreWriters;
         mapping(uint64 chainId => address hyperCoreUsdc) hyperCoreUsdcs;
         mapping(uint64 chainId => address hyperCoreUsdcGateway) hyperCoreUsdcGateways;
+        mapping(uint64 chainId => address superVaultGovernor) superVaultGovernors;
     }
 
     OtherHooksData internal otherHooksConfiguration;
@@ -85,5 +86,12 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         otherHooksConfiguration.coreWriters[HYPEREVM_CHAIN_ID] = CORE_WRITER;
         otherHooksConfiguration.hyperCoreUsdcs[HYPEREVM_CHAIN_ID] = HYPERCORE_USDC_HYPEREVM;
         otherHooksConfiguration.hyperCoreUsdcGateways[HYPEREVM_CHAIN_ID] = HYPERCORE_USDC_GATEWAY_HYPEREVM;
+
+        // SuperVault cap-bridge hooks — gated on superVaultGovernors. SuperGovernor is a
+        // v2-periphery deployment that has not reached staging/prod yet, so this table is
+        // deliberately EMPTY and the family is skipped on every chain. To enable a chain:
+        // set its SuperGovernor address here AND populate the bridge endpoints the family
+        // reads (configuration.acrossSpokePoolV3s / debridgeSrcDln / lzEndpointV2s +
+        // stargateTokenMessagings) for that chain from the shared Constants.
     }
 }

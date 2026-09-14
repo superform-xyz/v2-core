@@ -734,6 +734,21 @@
     "track": "deprecate->replaceCalldata"
   },
   {
+    "hookKey": "SUPERVAULT_ACROSS_CAP_BRIDGE_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "SUPERVAULT_DEBRIDGE_CAP_BRIDGE_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "SUPERVAULT_STARGATE_CAP_BRIDGE_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "SWAP_1INCH_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "transform"
