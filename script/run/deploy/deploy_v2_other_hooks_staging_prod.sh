@@ -473,6 +473,10 @@ for network_def in "${NETWORKS[@]}"; do
     echo -e "${YELLOW}   Deploying hook families via ${sig_name}() (single dispatch)...${NC}"
 
     deploy_log=$(mktemp)
+    # Suspend errexit around the forge pipeline: with `set -eo pipefail` a chain failure
+    # (e.g. insufficient native for gas) would abort the whole run before the PIPESTATUS
+    # check below — the loop must move on to the remaining chains instead.
+    set +e
     forge script "$FORGE_SCRIPT" \
         --sig "${sig_name}(uint256,uint64)" $FORGE_ENV $network_id \
         --account "$ACCOUNT" \
@@ -489,7 +493,9 @@ for network_def in "${NETWORKS[@]}"; do
         $GAS_PRICE_FLAG \
         --timeout 300 \
         -vv 2>&1 | tee "$deploy_log"
-    if [[ ${PIPESTATUS[0]} -eq 0 ]]; then
+    forge_status=${PIPESTATUS[0]}
+    set -e
+    if [[ $forge_status -eq 0 ]]; then
         echo -e "${GREEN}   Hook deployment completed!${NC}"
     else
         # Attribute the failure to the family that was mid-deploy when the run aborted:
