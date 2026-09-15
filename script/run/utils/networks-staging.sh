@@ -14,6 +14,7 @@ NETWORKS=(
     "999:HyperEVM:HYPEREVM_MAINNET"
     "14:Flare:FLARE_MAINNET"
     "4663:RH:RH_MAINNET"
+    "7091047534:Plataberget:PLATABERGET_TESTNET"
 )
 
 # Network name mapping function
@@ -43,6 +44,12 @@ get_network_name() {
             ;;
         4663)
             echo "RH"
+            ;;
+        11155111)
+            echo "Sepolia"
+            ;;
+        7091047534)
+            echo "Plataberget"
             ;;
         *)
             echo "ERROR: Unknown staging network ID: $network_id" >&2
@@ -79,6 +86,12 @@ get_rpc_var() {
         4663)
             echo "RH_MAINNET"
             ;;
+        11155111)
+            echo "SEPOLIA_TESTNET"
+            ;;
+        7091047534)
+            echo "PLATABERGET_TESTNET"
+            ;;
         *)
             echo "ERROR: Unknown staging network ID for RPC: $network_id" >&2
             return 1
@@ -113,6 +126,12 @@ get_rpc_url() {
             ;;
         4663)
             echo "$RH_MAINNET"
+            ;;
+        11155111)
+            echo "$SEPOLIA_TESTNET"
+            ;;
+        7091047534)
+            echo "$PLATABERGET_TESTNET"
             ;;
         *)
             echo "ERROR: Unknown staging network ID for RPC: $network_id" >&2
@@ -197,6 +216,14 @@ load_rpc_urls() {
     echo "  • Loading RH RPC..."
     export RH_MAINNET="$(op_read_rpc RH_RPC_URL)"
         [[ -z "${RH_MAINNET}" ]] && failed_rpcs+=("RH_RPC_URL")
+
+    # Testnets (Glamsterdam compatibility) — public endpoints, hardcoded; no 1Password items needed.
+    # An exported SEPOLIA_RPC_URL / PLATABERGET_RPC_URL env var overrides the default.
+    echo "  • Loading Sepolia RPC (public default)..."
+    export SEPOLIA_TESTNET="${SEPOLIA_RPC_URL:-https://ethereum-sepolia-rpc.publicnode.com}"
+
+    echo "  • Loading Plataberget RPC (public default)..."
+    export PLATABERGET_TESTNET="${PLATABERGET_RPC_URL:-https://rpc.plataberget.ethpandaops.io}"
 
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then
         echo "❌ Failed to load the following RPC URLs from 1Password:"

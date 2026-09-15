@@ -23,6 +23,7 @@ abstract contract Constants {
     string internal constant STABLE_KEY = "Stable";
     string internal constant ROBINHOOD_KEY = "RH";
     string internal constant SEPOLIA_KEY = "Sepolia";
+    string internal constant PLATABERGET_KEY = "Plataberget";
     string internal constant ARB_SEPOLIA_KEY = "Arbitrum_Sepolia";
     string internal constant BASE_SEPOLIA_KEY = "Base_Sepolia";
     string internal constant OP_SEPOLIA_KEY = "OP_Sepolia";
@@ -70,6 +71,7 @@ abstract contract Constants {
     uint64 internal constant ROBINHOOD_CHAIN_ID = 4663; // Robinhood Chain (Arbitrum Orbit L2)
     // testnets
     uint64 internal constant SEPOLIA_CHAIN_ID = 11_155_111;
+    uint64 internal constant PLATABERGET_CHAIN_ID = 7_091_047_534; // Glamsterdam devnet-class testnet
     uint64 internal constant ARB_SEPOLIA_CHAIN_ID = 421_613;
     uint64 internal constant BASE_SEPOLIA_CHAIN_ID = 84_532;
     uint64 internal constant OP_SEPOLIA_CHAIN_ID = 11_155_420;

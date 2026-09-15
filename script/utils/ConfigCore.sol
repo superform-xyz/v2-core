@@ -153,6 +153,10 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.permit2s[FLARE_CHAIN_ID] = PERMIT2;
         configuration.permit2s[STABLE_CHAIN_ID] = PERMIT2;
         configuration.permit2s[ROBINHOOD_CHAIN_ID] = PERMIT2;
+        configuration.permit2s[SEPOLIA_CHAIN_ID] = PERMIT2; // canonical Permit2 exists on Sepolia
+        // Plataberget: canonical Permit2 must be replayed via the Arachnid deployer BEFORE the
+        // fleet deploy (permissionless; original mainnet calldata reproduces 0x…BA3 exactly)
+        configuration.permit2s[PLATABERGET_CHAIN_ID] = PERMIT2;
 
         // ===== MERKL DISTRIBUTOR ADDRESSES =====
         configuration.merklDistributors[MAINNET_CHAIN_ID] = MERKL_DISTRIBUTOR;
@@ -354,6 +358,8 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.nativeTokens[FLARE_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[STABLE_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[ROBINHOOD_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
+        configuration.nativeTokens[SEPOLIA_CHAIN_ID] = NATIVE_TOKEN_DEFAULT; // testnet
+        configuration.nativeTokens[PLATABERGET_CHAIN_ID] = NATIVE_TOKEN_DEFAULT; // testnet (no Permit2 on chain)
 
         // ===== UNISWAP V4 POOL MANAGER ADDRESSES =====
         configuration.uniswapV4PoolManagers[MAINNET_CHAIN_ID] = 0x000000000004444c5dc75cB358380D2e3dE08A90;
