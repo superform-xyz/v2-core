@@ -9,6 +9,9 @@ import { ISuperHookInflowOutflow } from "../../../src/interfaces/ISuperHook.sol"
 import { MorphoSupplyAndBorrowHookV2 } from "../../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHookV2.sol";
 import { MorphoRepayHookV2 } from "../../../src/hooks/loan/morpho/MorphoRepayHookV2.sol";
 import { MorphoRepayAndWithdrawHookV2 } from "../../../src/hooks/loan/morpho/MorphoRepayAndWithdrawHookV2.sol";
+import { MorphoSupplyHookV2 } from "../../../src/hooks/loan/morpho/MorphoSupplyHookV2.sol";
+import { MorphoBorrowHookV2 } from "../../../src/hooks/loan/morpho/MorphoBorrowHookV2.sol";
+import { MorphoWithdrawCollateralHookV2 } from "../../../src/hooks/loan/morpho/MorphoWithdrawCollateralHookV2.sol";
 import { BaseAaveV4LoanHookV2 } from "../../../src/hooks/loan/aave-v4/BaseAaveV4LoanHookV2.sol";
 import { AaveV3SupplyAndBorrowHookV2 } from "../../../src/hooks/loan/aave-v3/AaveV3SupplyAndBorrowHookV2.sol";
 import { AaveV3RepayHookV2 } from "../../../src/hooks/loan/aave-v3/AaveV3RepayHookV2.sol";
@@ -34,6 +37,9 @@ contract LoanHooksV2SizingIntegration is Helpers {
     MorphoSupplyAndBorrowHookV2 morphoOpen;
     MorphoRepayHookV2 morphoRepay;
     MorphoRepayAndWithdrawHookV2 morphoClose;
+    MorphoSupplyHookV2 morphoPledge;
+    MorphoBorrowHookV2 morphoBorrow;
+    MorphoWithdrawCollateralHookV2 morphoRelease;
     AaveV3SupplyAndBorrowHookV2 aaveV3Open;
     AaveV3RepayHookV2 aaveV3Repay;
     AaveV3RepayAndWithdrawHookV2 aaveV3Close;
@@ -70,6 +76,9 @@ contract LoanHooksV2SizingIntegration is Helpers {
         morphoOpen = new MorphoSupplyAndBorrowHookV2(MORPHO_BLUE);
         morphoRepay = new MorphoRepayHookV2(MORPHO_BLUE);
         morphoClose = new MorphoRepayAndWithdrawHookV2(MORPHO_BLUE);
+        morphoPledge = new MorphoSupplyHookV2(MORPHO_BLUE);
+        morphoBorrow = new MorphoBorrowHookV2(MORPHO_BLUE);
+        morphoRelease = new MorphoWithdrawCollateralHookV2(MORPHO_BLUE);
         aaveV3Open = new AaveV3SupplyAndBorrowHookV2();
         aaveV3Repay = new AaveV3RepayHookV2();
         aaveV3Close = new AaveV3RepayAndWithdrawHookV2();
@@ -204,6 +213,78 @@ contract LoanHooksV2SizingIntegration is Helpers {
         assertEq(
             morphoClose.build(address(0), address(this), _morphoData(BORROW_AMOUNT, COLLATERAL_AMOUNT, false)).length, 3
         );
+    }
+
+    /// @dev Standalone pledge/borrow/release replace the primary slot only; reserved secondary
+    ///      stays zero and 2-length replace arrays revert
+    function test_Fork_MorphoV2_Standalone_RealMarket_SingleSlot() public {
+        bytes memory data = _morphoData(COLLATERAL_AMOUNT, 0, false);
+
+        assertEq(morphoPledge.decodeAmounts(data).length, 1);
+        assertEq(morphoBorrow.decodeAmounts(data)[0], COLLATERAL_AMOUNT);
+        assertEq(morphoRelease.decodeAmounts(data)[0], COLLATERAL_AMOUNT);
+
+        bytes memory replaced = morphoPledge.replaceCalldataAmounts(data, _singleAmount(3e8));
+        assertEq(morphoPledge.decodeAmounts(replaced)[0], 3e8);
+        assertEq(BytesLib.toUint256(replaced, 164), 0, "reserved secondary must stay zero");
+        assertEq(BytesLib.toAddress(replaced, 92), MORPHO_ORACLE_WBTC, "oracle mismatch");
+
+        vm.expectRevert();
+        morphoPledge.replaceCalldataAmounts(data, _dualAmounts(1, 2));
+        vm.expectRevert();
+        morphoBorrow.replaceCalldataAmounts(data, _dualAmounts(1, 2));
+        vm.expectRevert();
+        morphoRelease.replaceCalldataAmounts(data, _dualAmounts(1, 2));
+    }
+
+    /// @dev Roles: pledge consumes [IN/TOKEN]; borrow and release produce [OUT/TOKEN]
+    function test_Fork_MorphoV2_Standalone_AmountRoles() public view {
+        ISuperHookInflowOutflow.AmountMeta[] memory pledgeMeta = morphoPledge.amountRoles("");
+        assertEq(pledgeMeta.length, 1);
+        assertEq(uint8(pledgeMeta[0].dir), uint8(ISuperHookInflowOutflow.Direction.IN));
+        assertEq(uint8(pledgeMeta[0].denom), uint8(ISuperHookInflowOutflow.Denomination.TOKEN));
+
+        ISuperHookInflowOutflow.AmountMeta[] memory borrowMeta = morphoBorrow.amountRoles("");
+        assertEq(borrowMeta.length, 1);
+        assertEq(uint8(borrowMeta[0].dir), uint8(ISuperHookInflowOutflow.Direction.OUT));
+        assertEq(uint8(borrowMeta[0].denom), uint8(ISuperHookInflowOutflow.Denomination.TOKEN));
+
+        ISuperHookInflowOutflow.AmountMeta[] memory releaseMeta = morphoRelease.amountRoles("");
+        assertEq(releaseMeta.length, 1);
+        assertEq(uint8(releaseMeta[0].dir), uint8(ISuperHookInflowOutflow.Direction.OUT));
+        assertEq(uint8(releaseMeta[0].denom), uint8(ISuperHookInflowOutflow.Denomination.TOKEN));
+    }
+
+    /// @dev Standalone inspects bind the same full real market identity as the composite hooks
+    function test_Fork_MorphoV2_Standalone_Inspect_RealMarket() public view {
+        bytes memory expected =
+            abi.encodePacked(MORPHO_BLUE, USDC, WBTC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV);
+
+        assertEq(morphoPledge.inspect(_morphoData(COLLATERAL_AMOUNT, 0, false)), expected);
+        assertEq(morphoBorrow.inspect(_morphoData(BORROW_AMOUNT, 0, false)), expected);
+        assertEq(morphoRelease.inspect(_morphoData(COLLATERAL_AMOUNT, 0, false)), expected);
+
+        // amounts do not affect the inspected identity
+        assertEq(morphoBorrow.inspect(_morphoData(1, 0, true)), expected);
+    }
+
+    /// @dev Release max sentinel resolves against the REAL singleton's position read: this
+    ///      account has no posted collateral, so the sentinel reverts before any Morpho call
+    function test_Fork_MorphoV2_Release_RealMarket_MaxSentinel_ZeroPositionReverts() public {
+        vm.expectRevert();
+        morphoRelease.build(address(0), address(this), _morphoData(type(uint256).max, 0, false));
+    }
+
+    /// @dev Standalone builds against the real singleton produce the documented execution shapes
+    function test_Fork_MorphoV2_Standalone_RealMarket_Build() public view {
+        // pledge: pre + approve(0) + approve(amount) + supplyCollateral + approve(0) + post
+        assertEq(morphoPledge.build(address(0), address(this), _morphoData(COLLATERAL_AMOUNT, 0, false)).length, 6);
+
+        // borrow: pre + borrow + post
+        assertEq(morphoBorrow.build(address(0), address(this), _morphoData(BORROW_AMOUNT, 0, false)).length, 3);
+
+        // release (exact amount): pre + withdrawCollateral + post
+        assertEq(morphoRelease.build(address(0), address(this), _morphoData(COLLATERAL_AMOUNT, 0, false)).length, 3);
     }
 
     /// @dev Open build against the real singleton produces the documented execution shape
@@ -361,7 +442,8 @@ contract LoanHooksV2SizingIntegration is Helpers {
         assertEq(
             aaveV4Repay.build(
                 address(0), address(this), _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, 0)
-            ).length,
+            )
+            .length,
             2
         );
 
@@ -369,7 +451,8 @@ contract LoanHooksV2SizingIntegration is Helpers {
         assertEq(
             aaveV4Close.build(
                 address(0), address(this), _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, 1e18)
-            ).length,
+            )
+            .length,
             3
         );
     }

@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-09-15T10:08:00Z",
+  "generatedAt": "2026-09-16T11:21:07Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -1768,6 +1768,46 @@
       "erc165": [
         "ISuperHookInflowOutflow",
         "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "morpho"
+      ]
+    },
+    "MorphoWithdrawCollateralHookV2": {
+      "name": "Morpho Withdraw Collateral V2",
+      "description": "Withdraws an exact or full collateral amount from a Morpho market without repaying",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "OUT",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow",
+        "ISuperHookLoans"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -7097,6 +7137,46 @@
         "morpho"
       ]
     },
+    "MorphoSupplyHookV2": {
+      "name": "Morpho Supply Collateral V2",
+      "description": "Supplies an exact collateral amount to a Morpho market without borrowing",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "lend",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow",
+        "ISuperHookLoans"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "morpho"
+      ]
+    },
     "MorphoLendHook": {
       "name": "Morpho Lend",
       "description": "Lends assets to a Morpho market",
@@ -7798,6 +7878,46 @@
       "erc165": [
         "ISuperHookInflowOutflow",
         "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "morpho"
+      ]
+    },
+    "MorphoBorrowHookV2": {
+      "name": "Morpho Borrow V2",
+      "description": "Borrows an exact asset amount from a Morpho market against already-posted collateral",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "borrow",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "OUT",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow",
+        "ISuperHookLoans"
       ],
       "requiresApproval": false,
       "approveVariant": null,

@@ -229,6 +229,9 @@ MORPHO_HOOK_CONTRACTS=(
     "MorphoSupplyAndBorrowHookV2"
     "MorphoRepayHookV2"
     "MorphoRepayAndWithdrawHookV2"
+    "MorphoSupplyHookV2"
+    "MorphoBorrowHookV2"
+    "MorphoWithdrawCollateralHookV2"
 )
 
 # Aave V4 hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)

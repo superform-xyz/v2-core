@@ -43,6 +43,9 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address morphoSupplyAndBorrowHookV2;
         address morphoRepayHookV2;
         address morphoRepayAndWithdrawHookV2;
+        address morphoSupplyHookV2;
+        address morphoBorrowHookV2;
+        address morphoWithdrawCollateralHookV2;
     }
 
     struct AaveV3V2HookAddresses {
@@ -499,7 +502,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         private
         returns (MorphoV2HookAddresses memory hookAddresses)
     {
-        uint256 len = 3;
+        uint256 len = 6;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -518,6 +521,21 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             "",
             abi.encodePacked(__getOtherHooksBytecode("MorphoRepayAndWithdrawHookV2", env), morphoArg)
         );
+        hooks[3] = HookDeployment(
+            MORPHO_SUPPLY_HOOK_V2_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("MorphoSupplyHookV2", env), morphoArg)
+        );
+        hooks[4] = HookDeployment(
+            MORPHO_BORROW_HOOK_V2_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("MorphoBorrowHookV2", env), morphoArg)
+        );
+        hooks[5] = HookDeployment(
+            MORPHO_WITHDRAW_COLLATERAL_HOOK_V2_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("MorphoWithdrawCollateralHookV2", env), morphoArg)
+        );
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
@@ -528,10 +546,18 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         hookAddresses.morphoSupplyAndBorrowHookV2 = addresses[0];
         hookAddresses.morphoRepayHookV2 = addresses[1];
         hookAddresses.morphoRepayAndWithdrawHookV2 = addresses[2];
+        hookAddresses.morphoSupplyHookV2 = addresses[3];
+        hookAddresses.morphoBorrowHookV2 = addresses[4];
+        hookAddresses.morphoWithdrawCollateralHookV2 = addresses[5];
 
         require(hookAddresses.morphoSupplyAndBorrowHookV2 != address(0), "MorphoSupplyAndBorrowHookV2 not assigned");
         require(hookAddresses.morphoRepayHookV2 != address(0), "MorphoRepayHookV2 not assigned");
         require(hookAddresses.morphoRepayAndWithdrawHookV2 != address(0), "MorphoRepayAndWithdrawHookV2 not assigned");
+        require(hookAddresses.morphoSupplyHookV2 != address(0), "MorphoSupplyHookV2 not assigned");
+        require(hookAddresses.morphoBorrowHookV2 != address(0), "MorphoBorrowHookV2 not assigned");
+        require(
+            hookAddresses.morphoWithdrawCollateralHookV2 != address(0), "MorphoWithdrawCollateralHookV2 not assigned"
+        );
 
         console2.log("All Morpho V2 hooks deployed and validated successfully.");
 
