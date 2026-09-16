@@ -213,6 +213,7 @@ ORACLE_CONTRACTS=(
     "UniV3CLPYieldSourceOracle"
     "EulerDebtOracle"
     "MorphoBlueDebtOracle"
+    "ERC20YieldSourceOracle"
 )
 
 # Morpho hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)

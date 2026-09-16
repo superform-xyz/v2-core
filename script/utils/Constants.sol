@@ -390,6 +390,7 @@ abstract contract Constants {
     string internal constant UNIV3_CLP_YIELD_SOURCE_ORACLE_KEY = "UniV3CLPYieldSourceOracle";
     string internal constant EULER_DEBT_ORACLE_KEY = "EulerDebtOracle";
     string internal constant MORPHO_BLUE_DEBT_ORACLE_KEY = "MorphoBlueDebtOracle";
+    string internal constant ERC20_YIELD_SOURCE_ORACLE_KEY = "ERC20YieldSourceOracle";
 
     // SuperLedgerConfigs Salts
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_SALT = "ERC4626YieldSourceOracle_v1.0.1";

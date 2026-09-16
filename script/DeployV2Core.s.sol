@@ -723,7 +723,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Oracles (12 contracts - always check these)
         // NOTE: Order must match _deployOracles array indices for consistency
-        string[20] memory oracleContracts = [
+        string[21] memory oracleContracts = [
             "ERC4626YieldSourceOracle", // [0]
             "ERC5115YieldSourceOracle", // [1]
             "PendlePTYieldSourceOracle", // [2]
@@ -743,7 +743,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "UniV3CLPRegistry", // [16]
             "UniV3CLPYieldSourceOracle", // [17]
             "EulerDebtOracle", // [18]
-            "MorphoBlueDebtOracle" // [19]
+            "MorphoBlueDebtOracle", // [19]
+            "ERC20YieldSourceOracle" // [20]
         ];
 
         for (uint256 i = 0; i < oracleContracts.length; i++) {
@@ -2610,6 +2611,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             );
             __checkContract(
                 EULER_DEBT_ORACLE_KEY, __getSalt(EULER_DEBT_ORACLE_KEY), abi.encode(superLedgerConfig), env
+            );
+            __checkContract(
+                ERC20_YIELD_SOURCE_ORACLE_KEY,
+                __getSalt(ERC20_YIELD_SOURCE_ORACLE_KEY),
+                abi.encode(superLedgerConfig),
+                env
             );
             // DETHYieldSourceOracle (superLedgerConfig + foundation) - only if foundation is configured
             if (configuration.dethFoundation != address(0)) {
@@ -4752,7 +4759,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         uint256 pendlePTAmortizedOracleIndex = 8;
         uint256 pendlePTAmortizedOracleV2Index = 9;
 
-        uint256 len = 20;
+        uint256 len = 21;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         address[] memory oracleAddresses = new address[](len);
 
@@ -4870,6 +4877,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encode(superLedgerConfig, morphoRegistry)
             );
         }
+        // ERC20YieldSourceOracle (superLedgerConfig) — identity oracle for plain ERC20 yield sources
+        oracles[20] = _createSafeOracleDeploymentWithArgs(
+            ERC20_YIELD_SOURCE_ORACLE_KEY, "ERC20YieldSourceOracle", env, abi.encode(superLedgerConfig)
+        );
 
         console2.log("Deploying", len, "oracles with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
