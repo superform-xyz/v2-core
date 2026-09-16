@@ -27,7 +27,10 @@ ftest :; forge test
 # Flare-mainnet fork suites excluded from CI only (their Flare RPC endpoint is unreliable under the
 # parallel fork load and times out). They still run locally via `make ftest`. Re-include once a
 # reliable Flare archive RPC is wired into the FLARE_RPC_URL CI secret.
-FLARE_FORK_TESTS := FirelightHooksE2E|FirelightOracleFork|FlareWrappedNativeHookE2E|FlareRFLRHooksE2E|FlareClaimRFLRV2E2E|AlgebraIntegralFlareE2E|SpectraMetaVaultOracleFlare
+# ERC20YieldSourceOracleBSCFork excluded for the same reason: it falls back to the public
+# rate-limited BSC dataseed node when BSC_RPC_URL is unset. Re-include once a BSC_RPC_URL CI
+# secret exists.
+FLARE_FORK_TESTS := FirelightHooksE2E|FirelightOracleFork|FlareWrappedNativeHookE2E|FlareRFLRHooksE2E|FlareClaimRFLRV2E2E|AlgebraIntegralFlareE2E|SpectraMetaVaultOracleFlare|ERC20YieldSourceOracleBSCFork
 
 ftest-ci :; forge test -vvv --jobs 10 --compute-units-per-second 150 --no-match-contract "$(FLARE_FORK_TESTS)"
 

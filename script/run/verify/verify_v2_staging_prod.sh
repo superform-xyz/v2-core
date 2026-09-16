@@ -551,6 +551,9 @@ generate_constructor_args() {
         "MorphoBlueMarketRegistry")
             echo "$(cast abi-encode "constructor(address)" "$deployer")"
             ;;
+        "ERC20YieldSourceOracle")
+            echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
+            ;;
         "MorphoBlueYieldSourceOracle"|"MorphoBlueDebtOracle")
             local morpho_registry_addr
             morpho_registry_addr=$(get_contract_address "$chain_id" "MorphoBlueMarketRegistry")
@@ -750,6 +753,7 @@ get_contract_source() {
         "MorphoBlueMarketRegistry") echo "src/accounting/oracles/MorphoBlueMarketRegistry.sol" ;;
         "MorphoBlueYieldSourceOracle") echo "src/accounting/oracles/MorphoBlueYieldSourceOracle.sol" ;;
         "MorphoBlueDebtOracle") echo "src/accounting/oracles/MorphoBlueDebtOracle.sol" ;;
+        "ERC20YieldSourceOracle") echo "src/accounting/oracles/ERC20YieldSourceOracle.sol" ;;
 
         *) echo "src/core/unknown/$contract_name.sol" ;;
     esac

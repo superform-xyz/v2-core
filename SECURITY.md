@@ -49,3 +49,22 @@ Relay Protocol deposits (RelaySendFundsAndExecuteOnDstHook / ApproveAndRelaySend
 
 #### 14. RelayAdapter atomic-batch assumption
 The RelayAdapter is permissionless (Relay has no authenticatable destination caller). Its received-funds guard and escrow accounting prevent phantom failed-transfer credits and cross-user escrow sweeps. However, funds parked in the adapter between two separate solver transactions — a deviation from Relay's atomic txs[] batching (allowFailure = false) — are forwardable by any caller presenting a validly-signed message for their own account until the legitimate second leg lands. The SuperBundler must always request fund delivery and the adapter call as one atomic batch.
+#### 15. Identity-PPS oracles must keep feePercent = 0
+
+Identity-PPS yield-source oracles (EulerDebtOracle, ERC20YieldSourceOracle, and family) bypass
+the fee view on-chain, but the ledger accounting path (`BaseLedger._processOutflow`) computes
+fees directly from `SuperLedgerConfiguration` and is not guarded by the oracle. Because no hook
+snapshots cost basis for these positions, any configured fee taxes principal as profit; pairing
+such an oracle with `FlatFeeLedger` fees the full principal on every outflow. Operational
+invariant: these oracle ids are registered with feePercent = 0 or not registered at all, and
+never with FlatFeeLedger. For ERC20YieldSourceOracle specifically, whoever whitelists a token as
+a SuperVault yield source owns its due diligence: single canonical entry point (double-entry
+tokens would be double-counted by off-chain pricing), no rebasing/fee-on-transfer mechanics with
+the corporate-action convention pinned per token and confirmed with the issuer in writing (the
+off-chain price feed must match that convention — balance rebase vs total-return multiplier vs
+airdrops), the token's upgrade surface monitored (BSC B-tokens are BeaconProxies sharing a
+single beacon, so one beacon upgrade swaps balanceOf/decimals semantics for the whole family —
+monitor the beacon's implementation, not the token's EIP-1967 slot, which is empty),
+blocklist/pause semantics understood, donations accounted for (balanceOf includes unsolicited
+transfers; off-chain pricing should reconcile balance deltas against executed flows), decimals
+<= 18, and `getTVL` (global totalSupply) never used as a pricing input.
