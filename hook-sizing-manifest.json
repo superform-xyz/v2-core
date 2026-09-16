@@ -534,6 +534,11 @@
     "track": "deprecate->replaceCalldata"
   },
   {
+    "hookKey": "MORPHO_BORROW_HOOK_V2_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "MORPHO_LEND_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
@@ -582,6 +587,16 @@
     "pipeMode": "transform",
     "amountPosition": 132,
     "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "MORPHO_SUPPLY_HOOK_V2_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "MORPHO_WITHDRAW_COLLATERAL_HOOK_V2_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
   },
   {
     "hookKey": "MORPHO_WITHDRAW_HOOK_KEY",
