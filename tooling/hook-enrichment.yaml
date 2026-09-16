@@ -41,6 +41,9 @@ compatibleProtocols:
   MorphoSupplyAndBorrowHookV2: [morpho]
   MorphoRepayHookV2: [morpho]
   MorphoRepayAndWithdrawHookV2: [morpho]
+  MorphoSupplyHookV2: [morpho]
+  MorphoBorrowHookV2: [morpho]
+  MorphoWithdrawCollateralHookV2: [morpho]
   MetaMorphoReallocateHook: [morpho-metamorpho]
   ForceDeallocateMorphoHook: [morpho-metamorpho]
   # Aave V4
@@ -357,6 +360,8 @@ amountMeta:
   AaveV3RepayAndWithdrawHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   MorphoSupplyAndBorrowHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   MorphoRepayAndWithdrawHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  MorphoBorrowHookV2: [{direction: OUT, denomination: TOKEN}]
+  MorphoWithdrawCollateralHookV2: [{direction: OUT, denomination: TOKEN}]
   AaveV3SupplyAndBorrowHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV3RepayAndWithdrawHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV4SupplyAndBorrowHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
@@ -381,6 +386,11 @@ loanInterfaceHooks:
   - MorphoSupplyAndBorrowHookV2
   - MorphoRepayHookV2
   - MorphoRepayAndWithdrawHookV2
+  # NOTE: MorphoSupplyHookV2 / MorphoBorrowHookV2 / MorphoWithdrawCollateralHookV2 deliberately
+  # omitted — like every loan hook they return false for supportsInterface(ISuperHookLoans)
+  # on-chain (BaseHook.supportsInterface never advertises it; asserted in the unit tests), so the
+  # manifest must not claim the ERC-165 loan interface for them. The three shipped V2 entries
+  # above carry the same on-chain/manifest contradiction and should be cleaned up separately.
   - AaveV3SupplyAndBorrowHookV2
   - AaveV3RepayHookV2
   - AaveV3RepayAndWithdrawHookV2
