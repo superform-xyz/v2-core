@@ -3,7 +3,7 @@ pragma solidity 0.8.30;
 
 // Superform
 import { BaseMorphoLoanHookV2 } from "./BaseMorphoLoanHookV2.sol";
-import { ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/ISuperHook.sol";
 
 /// @title BaseMorphoStandaloneLoanHookV2
 /// @author Superform Labs
@@ -22,6 +22,41 @@ abstract contract BaseMorphoStandaloneLoanHookV2 is BaseMorphoLoanHookV2 {
     /// @param morpho_ Address of the Morpho Blue singleton
     /// @param hookSubtype_ Hook subtype identifier
     constructor(address morpho_, bytes32 hookSubtype_) BaseMorphoLoanHookV2(morpho_, hookSubtype_) { }
+
+    /*//////////////////////////////////////////////////////////////
+                        SIZING-INTERFACE OVERRIDES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    /// @dev Runs the full strict V2 decode (exact 230-byte length, reserved secondary word and
+    ///      reserved byte zero, canonical usePrevHookAmount boolean, nonzero/distinct market
+    ///      addresses) before surfacing the single primary amount. Without this, the inherited
+    ///      one-slot reader would accept malformed payloads that build()/inspect() reject — a
+    ///      strict-parser gap that lets off-chain sizing transform data that later fails
+    ///      execution. Confined to the standalone hooks (does not touch the deployed bases).
+    function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        _decodeMorphoV2(data, true);
+        amounts = new uint256[](1);
+        amounts[0] = _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    /// @dev Strictly validates the canonical V2 layout before replacing the primary word, and
+    ///      preserves the single-element replacement-array requirement. The replaced payload
+    ///      leaves the reserved secondary word and reserved byte untouched, so it still decodes.
+    function replaceCalldataAmounts(
+        bytes memory data,
+        uint256[] memory amounts
+    )
+        external
+        pure
+        override
+        returns (bytes memory)
+    {
+        _decodeMorphoV2(data, true);
+        if (amounts.length != 1) revert INVALID_AMOUNTS_LENGTH();
+        return _replaceCalldataAmount(data, amounts[0], AMOUNT1_OFFSET);
+    }
 
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS

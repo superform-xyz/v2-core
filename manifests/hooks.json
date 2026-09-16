@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-09-16T11:21:07Z",
+  "generatedAt": "2026-09-16T13:11:06Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -1806,8 +1806,7 @@
       "sized": true,
       "erc165": [
         "ISuperHookInflowOutflow",
-        "ISuperHookOutflow",
-        "ISuperHookLoans"
+        "ISuperHookOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -7167,8 +7166,7 @@
       "sized": true,
       "erc165": [
         "ISuperHookInflowOutflow",
-        "ISuperHookOutflow",
-        "ISuperHookLoans"
+        "ISuperHookOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,
@@ -7916,8 +7914,7 @@
       "sized": true,
       "erc165": [
         "ISuperHookInflowOutflow",
-        "ISuperHookOutflow",
-        "ISuperHookLoans"
+        "ISuperHookOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,

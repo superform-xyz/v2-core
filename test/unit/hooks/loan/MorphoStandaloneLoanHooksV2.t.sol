@@ -551,6 +551,42 @@ contract MorphoStandaloneLoanHooksV2Test is Helpers {
         }
     }
 
+    /// @dev The sizing API must reject the SAME malformed V2 payloads that build()/inspect()
+    ///      reject — off-chain sizing can never read or transform a payload that would later fail
+    ///      execution (mirrors the strict decode surface for build).
+    function test_Standalone_SizingApi_RejectsMalformedPayloads() public {
+        bytes memory good = _data(amount1, false);
+        uint256[] memory one = new uint256[](1);
+        one[0] = 9e18;
+
+        // (malformed data, expected revert selector)
+        bytes[] memory bad = new bytes[](5);
+        bytes4[] memory sel = new bytes4[](5);
+        bad[0] = new bytes(229);
+        sel[0] = BaseLoanHookV2.INVALID_DATA_LENGTH.selector;
+        bad[1] = bytes.concat(good, hex"00");
+        sel[1] = BaseLoanHookV2.INVALID_DATA_LENGTH.selector;
+        bad[2] = _encode(loanToken, collateralToken, oracle, irm, amount1, 1, false, lltv); // nonzero secondary
+        sel[2] = BaseLoanHookV2.RESERVED_FIELD_NOT_ZERO.selector;
+        bad[3] = _data(amount1, false);
+        bad[3][196] = 0x02; // noncanonical bool
+        sel[3] = BaseLoanHookV2.INVALID_BOOL_VALUE.selector;
+        bad[4] = _data(amount1, false);
+        bad[4][229] = 0x01; // nonzero reserved byte
+        sel[4] = BaseLoanHookV2.RESERVED_FIELD_NOT_ZERO.selector;
+
+        BaseLoanHookV2[3] memory hooks = _hooks();
+        for (uint256 i; i < hooks.length; ++i) {
+            for (uint256 j; j < bad.length; ++j) {
+                vm.expectRevert(sel[j]);
+                ISuperHookInflowOutflow(address(hooks[i])).decodeAmounts(bad[j]);
+
+                vm.expectRevert(sel[j]);
+                ISuperHookOutflow(address(hooks[i])).replaceCalldataAmounts(bad[j], one);
+            }
+        }
+    }
+
     function test_Standalone_DecodeUsePrevHookAmount() public view {
         BaseLoanHookV2[3] memory hooks = _hooks();
         for (uint256 i; i < hooks.length; ++i) {
