@@ -304,6 +304,9 @@ abstract contract Constants {
     string internal constant MORPHO_SUPPLY_AND_BORROW_HOOK_V2_KEY = "MorphoSupplyAndBorrowHookV2";
     string internal constant MORPHO_REPAY_HOOK_V2_KEY = "MorphoRepayHookV2";
     string internal constant MORPHO_REPAY_AND_WITHDRAW_HOOK_V2_KEY = "MorphoRepayAndWithdrawHookV2";
+    string internal constant MORPHO_SUPPLY_HOOK_V2_KEY = "MorphoSupplyHookV2";
+    string internal constant MORPHO_BORROW_HOOK_V2_KEY = "MorphoBorrowHookV2";
+    string internal constant MORPHO_WITHDRAW_COLLATERAL_HOOK_V2_KEY = "MorphoWithdrawCollateralHookV2";
     string internal constant AAVE_V3_SUPPLY_AND_BORROW_HOOK_V2_KEY = "AaveV3SupplyAndBorrowHookV2";
     string internal constant AAVE_V3_REPAY_HOOK_V2_KEY = "AaveV3RepayHookV2";
     string internal constant AAVE_V3_REPAY_AND_WITHDRAW_HOOK_V2_KEY = "AaveV3RepayAndWithdrawHookV2";

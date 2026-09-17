@@ -1,5 +1,5 @@
 # Hook Classification Manifest
-# Canonical intent x stage classification for all 155 hooks in v2-core
+# Canonical intent x stage classification for all 161 hooks in v2-core
 # CI-linted against on-chain hookType via scripts/lint_hook_manifest.py
 #
 # Design invariants:
@@ -128,6 +128,10 @@ hooks:
   MorphoWithdrawHook:
     actionTypes: [{intent: withdraw, stage: instant}]
     legSizing: [sized, sized]  # dual-slot: assets XOR shares
+
+  MorphoWithdrawCollateralHookV2:
+    actionTypes: [{intent: withdraw, stage: instant}]
+    legSizing: [sized]
 
   AaveV4WithdrawHook:
     actionTypes: [{intent: withdraw, stage: instant}]
@@ -505,6 +509,10 @@ hooks:
     actionTypes: [{intent: lend, stage: instant}]
     legSizing: [sized]
 
+  MorphoSupplyHookV2:
+    actionTypes: [{intent: lend, stage: instant}]
+    legSizing: [sized]
+
   MorphoLendHook:
     actionTypes: [{intent: lend, stage: instant}]
     legSizing: [sized]
@@ -541,6 +549,10 @@ hooks:
   # ============================================================
 
   MorphoBorrowHook:
+    actionTypes: [{intent: borrow, stage: instant}]
+    legSizing: [sized]
+
+  MorphoBorrowHookV2:
     actionTypes: [{intent: borrow, stage: instant}]
     legSizing: [sized]
 

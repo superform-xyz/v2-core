@@ -29,6 +29,9 @@ import { ApproveERC20Hook } from "../../../src/hooks/tokens/erc20/ApproveERC20Ho
 import { MorphoSupplyAndBorrowHookV2 } from "../../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHookV2.sol";
 import { MorphoRepayHookV2 } from "../../../src/hooks/loan/morpho/MorphoRepayHookV2.sol";
 import { MorphoRepayAndWithdrawHookV2 } from "../../../src/hooks/loan/morpho/MorphoRepayAndWithdrawHookV2.sol";
+import { MorphoSupplyHookV2 } from "../../../src/hooks/loan/morpho/MorphoSupplyHookV2.sol";
+import { MorphoBorrowHookV2 } from "../../../src/hooks/loan/morpho/MorphoBorrowHookV2.sol";
+import { MorphoWithdrawCollateralHookV2 } from "../../../src/hooks/loan/morpho/MorphoWithdrawCollateralHookV2.sol";
 
 // Morpho vendor
 import { MarketParamsLib } from "../../../src/vendor/morpho/MarketParamsLib.sol";
@@ -79,6 +82,9 @@ contract MorphoV2BaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHel
     MorphoSupplyAndBorrowHookV2 public openHook;
     MorphoRepayHookV2 public repayHook;
     MorphoRepayAndWithdrawHookV2 public closeHook;
+    MorphoSupplyHookV2 public pledgeHook;
+    MorphoBorrowHookV2 public borrowHook;
+    MorphoWithdrawCollateralHookV2 public releaseHook;
 
     // Market
     address public loanToken; // WETH
@@ -95,11 +101,7 @@ contract MorphoV2BaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHel
         lltv = 860_000_000_000_000_000; // 86%
 
         marketParams = MarketParams({
-            loanToken: loanToken,
-            collateralToken: collateralToken,
-            oracle: MORPHO_ORACLE,
-            irm: MORPHO_IRM,
-            lltv: lltv
+            loanToken: loanToken, collateralToken: collateralToken, oracle: MORPHO_ORACLE, irm: MORPHO_IRM, lltv: lltv
         });
         marketId = marketParams.id();
 
@@ -110,7 +112,9 @@ contract MorphoV2BaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHel
         accountBase = instanceOnBase.account;
 
         superExecutorOnBase = ISuperExecutor(new SuperExecutor(address(ledgerConfig)));
-        instanceOnBase.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorOnBase), data: "" });
+        instanceOnBase.installModule({
+            moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorOnBase), data: ""
+        });
 
         address[] memory allowedExecutors = new address[](1);
         allowedExecutors[0] = address(superExecutorOnBase);
@@ -147,6 +151,9 @@ contract MorphoV2BaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHel
         openHook = new MorphoSupplyAndBorrowHookV2(MORPHO);
         repayHook = new MorphoRepayHookV2(MORPHO);
         closeHook = new MorphoRepayAndWithdrawHookV2(MORPHO);
+        pledgeHook = new MorphoSupplyHookV2(MORPHO);
+        borrowHook = new MorphoBorrowHookV2(MORPHO);
+        releaseHook = new MorphoWithdrawCollateralHookV2(MORPHO);
         superNativePaymaster = ISuperNativePaymaster(new SuperNativePaymaster(IEntryPoint(ENTRYPOINT_ADDR)));
     }
 
@@ -284,7 +291,8 @@ contract MorphoV2BaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHel
         uint256 loanBefore = IERC20(loanToken).balanceOf(accountBase);
 
         address[] memory hooks = new address[](2);
-        hooks[0] = address(approveHook); // position 0: publishes outToken = collateralToken, outAmount = COLLATERAL_USDC
+        // position 0: publishes outToken = collateralToken, outAmount = COLLATERAL_USDC
+        hooks[0] = address(approveHook);
         hooks[1] = address(openHook);
         bytes[] memory data = new bytes[](2);
         data[0] = _createApproveHookData(collateralToken, MORPHO, COLLATERAL_USDC, false);
@@ -478,5 +486,86 @@ contract MorphoV2BaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHel
         uint256 loanBefore = IERC20(loanToken).balanceOf(accountBase);
         _execSingle(address(repayHook), _morphoV2Data(PARTIAL_REPAY_WETH, 0, false));
         assertEq(IERC20(loanToken).balanceOf(accountBase), loanBefore, "loan token untouched");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            8. STANDALONE PLEDGE / BORROW / RELEASE (USDC COLLATERAL)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Pledge exact USDC collateral without borrowing; allowance reset after execution.
+    function test_V2_Base_StandalonePledge_Exact() external {
+        _getTokens(collateralToken, accountBase, COLLATERAL_USDC);
+
+        uint256 collateralBefore = IERC20(collateralToken).balanceOf(accountBase);
+
+        _execSingle(address(pledgeHook), _morphoV2Data(COLLATERAL_USDC, 0, false));
+
+        assertEq(
+            collateralBefore - IERC20(collateralToken).balanceOf(accountBase),
+            COLLATERAL_USDC,
+            "collateral spent must equal exact amount"
+        );
+        (, uint128 borrowShares, uint128 collateral) = _position();
+        assertEq(uint256(collateral), COLLATERAL_USDC, "position collateral == pledged");
+        assertEq(uint256(borrowShares), 0, "no debt created");
+        assertEq(IERC20(collateralToken).allowance(accountBase, MORPHO), 0, "allowance reset to zero");
+    }
+
+    /// @notice Borrow exact WETH against already-posted USDC collateral.
+    function test_V2_Base_StandaloneBorrow_AfterPledge_Exact() external {
+        _getTokens(collateralToken, accountBase, COLLATERAL_USDC);
+        _execSingle(address(pledgeHook), _morphoV2Data(COLLATERAL_USDC, 0, false));
+
+        uint256 loanBefore = IERC20(loanToken).balanceOf(accountBase);
+
+        _execSingle(address(borrowHook), _morphoV2Data(BORROW_WETH, 0, false));
+
+        assertEq(
+            IERC20(loanToken).balanceOf(accountBase) - loanBefore,
+            BORROW_WETH,
+            "loan token received must equal exact borrow amount"
+        );
+        uint256 debt = MorphoBalancesLib.expectedBorrowAssets(IMorpho(MORPHO), marketParams, accountBase);
+        assertGe(debt, BORROW_WETH, "debt covers the borrow");
+    }
+
+    /// @notice Release an exact partial USDC collateral amount; no repay leg.
+    function test_V2_Base_StandaloneRelease_ExactPartial() external {
+        _getTokens(collateralToken, accountBase, COLLATERAL_USDC);
+        _execSingle(address(pledgeHook), _morphoV2Data(COLLATERAL_USDC, 0, false));
+
+        uint256 collateralBefore = IERC20(collateralToken).balanceOf(accountBase);
+
+        _execSingle(address(releaseHook), _morphoV2Data(PARTIAL_WITHDRAW_USDC, 0, false));
+
+        assertEq(
+            IERC20(collateralToken).balanceOf(accountBase) - collateralBefore,
+            PARTIAL_WITHDRAW_USDC,
+            "collateral received must equal exact amount"
+        );
+        (,, uint128 collateral) = _position();
+        assertEq(uint256(collateral), COLLATERAL_USDC - PARTIAL_WITHDRAW_USDC, "position reduced exactly");
+    }
+
+    /// @notice The max sentinel on a debt-free position withdraws all posted USDC collateral;
+    ///         the sentinel on an empty position reverts before any Morpho call.
+    function test_V2_Base_StandaloneRelease_MaxSentinel() external {
+        _getTokens(collateralToken, accountBase, COLLATERAL_USDC);
+        _execSingle(address(pledgeHook), _morphoV2Data(COLLATERAL_USDC, 0, false));
+
+        uint256 collateralBefore = IERC20(collateralToken).balanceOf(accountBase);
+
+        _execSingle(address(releaseHook), _morphoV2Data(type(uint256).max, 0, false));
+
+        assertEq(
+            IERC20(collateralToken).balanceOf(accountBase) - collateralBefore,
+            COLLATERAL_USDC,
+            "full posted collateral received"
+        );
+        (,, uint128 collateral) = _position();
+        assertEq(uint256(collateral), 0, "position fully released");
+
+        // now empty: the sentinel reverts before any Morpho call
+        _execSingleExpectUserOpRevert(address(releaseHook), _morphoV2Data(type(uint256).max, 0, false));
     }
 }
