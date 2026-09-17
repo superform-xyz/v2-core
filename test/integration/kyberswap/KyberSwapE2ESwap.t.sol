@@ -149,7 +149,13 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             uint256 snap = vm.snapshotState();
             deal(USDC, account, inputAmount);
 
-            (bytes memory txData_, uint256 expectedOut) = _getKyberSwapTxData(USDC, WETH, inputAmount);
+            // Live third-party API: retry on non-200 (rate-limit/transient) instead of hard-failing.
+            (, bytes memory txData_, uint256 expectedOut) = _tryGetKyberSwapTxData(USDC, WETH, inputAmount);
+            if (txData_.length == 0) {
+                console2.log("Attempt", attempt, "- KyberSwap API call failed (rate-limit/transient), retrying...");
+                vm.revertToState(snap);
+                continue;
+            }
             console2.log("Attempt", attempt, "- Expected WETH out:", expectedOut);
 
             bytes memory hookData = bytes.concat(
@@ -205,7 +211,15 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             uint256 snap = vm.snapshotState();
             deal(WETH, account, inputAmount);
 
-            (bytes memory txData_, uint256 expectedOut) = _getKyberSwapTxData(WETH, USDC, inputAmount);
+            // Live third-party API: a 429 rate-limit or transient network blip must retry, not
+            // hard-fail the suite (the raw fetch reverts on any non-200 and would escape this loop).
+            // (bool discarded to stay under the stack limit: the helper returns empty txData_ on failure)
+            (, bytes memory txData_, uint256 expectedOut) = _tryGetKyberSwapTxData(WETH, USDC, inputAmount);
+            if (txData_.length == 0) {
+                console2.log("Attempt", attempt, "- KyberSwap API call failed (rate-limit/transient), retrying...");
+                vm.revertToState(snap);
+                continue;
+            }
             console2.log("Attempt", attempt, "- Expected USDC out:", expectedOut);
 
             // Decode approveTarget from txData and pre-approve WETH
@@ -269,7 +283,13 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             uint256 snap = vm.snapshotState();
             deal(LINK, account, inputAmount);
 
-            (bytes memory txData_, uint256 expectedOut) = _getKyberSwapTxData(LINK, USDC, inputAmount);
+            // Live third-party API: retry on non-200 (rate-limit/transient) instead of hard-failing.
+            (, bytes memory txData_, uint256 expectedOut) = _tryGetKyberSwapTxData(LINK, USDC, inputAmount);
+            if (txData_.length == 0) {
+                console2.log("Attempt", attempt, "- KyberSwap API call failed (rate-limit/transient), retrying...");
+                vm.revertToState(snap);
+                continue;
+            }
             console2.log("Attempt", attempt, "- Expected USDC out:", expectedOut);
 
             bytes memory hookData = bytes.concat(
@@ -332,7 +352,13 @@ contract KyberSwapE2ESwap is Test, Constants, KyberSwapAPIParser, OdosAPIParser 
             uint256 snap = vm.snapshotState();
             deal(USDC, account, actualAmount);
 
-            (bytes memory txData_, uint256 expectedOut) = _getKyberSwapTxData(USDC, WETH, quotedAmount);
+            // Live third-party API: retry on non-200 (rate-limit/transient) instead of hard-failing.
+            (, bytes memory txData_, uint256 expectedOut) = _tryGetKyberSwapTxData(USDC, WETH, quotedAmount);
+            if (txData_.length == 0) {
+                console2.log("Attempt", attempt, "- KyberSwap API call failed (rate-limit/transient), retrying...");
+                vm.revertToState(snap);
+                continue;
+            }
             console2.log("Attempt", attempt, "- Expected WETH out (for 1000 USDC):", expectedOut);
 
             bytes memory hookData = bytes.concat(

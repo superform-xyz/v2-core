@@ -528,8 +528,8 @@ contract MorphoBlueMarketFork is Test, Constants {
         );
 
         bytes memory inspected = lendHook.inspect(hookData);
-        // inspect returns abi.encodePacked(loanToken, collateralToken, oracle, irm)
-        assertEq(inspected.length, 80, "inspect should return 4 addresses packed (80 bytes)");
+        // inspect returns abi.encodePacked(yieldSource, loanToken, collateralToken, oracle, irm, lltv)
+        assertEq(inspected.length, 132, "inspect should return 5 addresses + lltv packed (132 bytes)");
     }
 
     function test_fork_morphoWbtcUsdc_withdrawHook_inspect() public view {
@@ -544,7 +544,8 @@ contract MorphoBlueMarketFork is Test, Constants {
         );
 
         bytes memory inspected = withdrawHook.inspect(hookData);
-        assertEq(inspected.length, 80, "inspect should return 4 addresses packed (80 bytes)");
+        // inspect returns abi.encodePacked(yieldSource, loanToken, collateralToken, oracle, irm, lltv)
+        assertEq(inspected.length, 132, "inspect should return 5 addresses + lltv packed (132 bytes)");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1600,7 +1601,8 @@ contract MorphoBlueMarketFork is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            new bytes(52), // 52-byte strategy header (zero-filled placeholder)
+            MORPHO_YS_ORACLE_ID, // 32 bytes, offset 0 (header: Superform Morpho Blue YS oracle id)
+            MORPHO, // 20 bytes, offset 32 (header: yield source = Morpho Blue singleton / call target)
             loanToken, // 20 bytes, offset 52
             collateralToken, // 20 bytes, offset 72
             mOracle, // 20 bytes, offset 92
@@ -1626,7 +1628,8 @@ contract MorphoBlueMarketFork is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            new bytes(52), // 52-byte strategy header (zero-filled placeholder)
+            MORPHO_YS_ORACLE_ID, // 32 bytes, offset 0 (header: Superform Morpho Blue YS oracle id)
+            MORPHO, // 20 bytes, offset 32 (header: yield source = Morpho Blue singleton / call target)
             loanToken, // 20 bytes, offset 52
             collateralToken, // 20 bytes, offset 72
             mOracle, // 20 bytes, offset 92

@@ -164,9 +164,8 @@ contract MorphoLendE2E is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            marketParams.loanToken, // 20 bytes - offset 0 (header: loanToken for getLoanTokenAddress)
-            marketParams.collateralToken, // 20 bytes - offset 20 (header: collateralToken for getCollateralTokenAddress)
-            bytes12(0), // 12 bytes - offset 40 (header padding)
+            MORPHO_YS_ORACLE_ID, // 32 bytes - offset 0 (header: Superform Morpho Blue YS oracle id)
+            MORPHO, // 20 bytes - offset 32 (header: yield source = Morpho Blue singleton / call target)
             marketParams.loanToken, // 20 bytes - offset 52
             marketParams.collateralToken, // 20 bytes - offset 72
             marketParams.oracle, // 20 bytes - offset 92
@@ -188,9 +187,8 @@ contract MorphoLendE2E is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            marketParams.loanToken, // 20 bytes - offset 0 (header: loanToken for getLoanTokenAddress)
-            marketParams.collateralToken, // 20 bytes - offset 20 (header: collateralToken for getCollateralTokenAddress)
-            bytes12(0), // 12 bytes - offset 40 (header padding)
+            MORPHO_YS_ORACLE_ID, // 32 bytes - offset 0 (header: Superform Morpho Blue YS oracle id)
+            MORPHO, // 20 bytes - offset 32 (header: yield source = Morpho Blue singleton / call target)
             marketParams.loanToken, // 20 bytes - offset 52
             marketParams.collateralToken, // 20 bytes - offset 72
             marketParams.oracle, // 20 bytes - offset 92
@@ -551,9 +549,8 @@ contract MorphoLendE2E is Test, Constants {
     /// @notice Test: Revert when loanToken address is zero
     function test_Lend_RevertsWhenAddressZero() public {
         bytes memory hookData = abi.encodePacked(
-            address(0), // header: loanToken = zero (offset 0)
-            marketParams.collateralToken, // header: collateralToken (offset 20)
-            bytes12(0), // header padding (offset 40)
+            MORPHO_YS_ORACLE_ID, // header: oracle id (offset 0)
+            MORPHO, // header: yield source = Morpho (offset 32)
             address(0), // loanToken = zero (offset 52)
             marketParams.collateralToken,
             marketParams.oracle,
