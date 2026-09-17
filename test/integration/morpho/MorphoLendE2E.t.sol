@@ -112,30 +112,20 @@ contract MorphoLendE2E is Test, Constants {
 
         // Mock: hook registration (freshly deployed hooks aren't registered in SuperGovernor)
         vm.mockCall(
-            superGovernor,
-            abi.encodeCall(ISuperGovernor.isHookRegistered, (address(lendHook))),
-            abi.encode(true)
+            superGovernor, abi.encodeCall(ISuperGovernor.isHookRegistered, (address(lendHook))), abi.encode(true)
         );
         vm.mockCall(
-            superGovernor,
-            abi.encodeCall(ISuperGovernor.isHookRegistered, (address(withdrawHook))),
-            abi.encode(true)
+            superGovernor, abi.encodeCall(ISuperGovernor.isHookRegistered, (address(withdrawHook))), abi.encode(true)
         );
 
         // Mock: manager authorization
         vm.mockCall(
-            aggregator,
-            abi.encodeCall(ISuperVaultAggregator.isAnyManager, (MANAGER, STRATEGY)),
-            abi.encode(true)
+            aggregator, abi.encodeCall(ISuperVaultAggregator.isAnyManager, (MANAGER, STRATEGY)), abi.encode(true)
         );
 
         // Mock: hook validation (merkle proof check)
         // Use a broad mock - any call to validateHook on the aggregator returns true
-        vm.mockCall(
-            aggregator,
-            abi.encodeWithSelector(ISuperVaultAggregator.validateHook.selector),
-            abi.encode(true)
-        );
+        vm.mockCall(aggregator, abi.encodeWithSelector(ISuperVaultAggregator.validateHook.selector), abi.encode(true));
 
         // Build market params for WBTC/USDC market
         marketParams = MarketParams({
@@ -143,7 +133,7 @@ contract MorphoLendE2E is Test, Constants {
             collateralToken: CHAIN_1_WBTC,
             oracle: MORPHO_ORACLE_WBTC_USDC,
             irm: MORPHO_IRM_WBTC_USDC,
-            lltv: 860000000000000000 // 86% LLTV
+            lltv: 860_000_000_000_000_000 // 86% LLTV
         });
         marketId = marketParams.id();
     }
@@ -155,17 +145,10 @@ contract MorphoLendE2E is Test, Constants {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Build hook data for MorphoLendHook
-    function _buildLendHookData(
-        uint256 amount,
-        bool usePrevHookAmount
-    )
-        internal
-        view
-        returns (bytes memory)
-    {
+    function _buildLendHookData(uint256 amount, bool usePrevHookAmount) internal view returns (bytes memory) {
         return abi.encodePacked(
             MORPHO_YS_ORACLE_ID, // 32 bytes - offset 0 (header: Superform Morpho Blue YS oracle id)
-            MORPHO, // 20 bytes - offset 32 (header: yield source = Morpho Blue singleton / call target)
+            _marketKey(), // 20 bytes - offset 32 (header: registry market key — SuperLedger / PPS key)
             marketParams.loanToken, // 20 bytes - offset 52
             marketParams.collateralToken, // 20 bytes - offset 72
             marketParams.oracle, // 20 bytes - offset 92
@@ -176,19 +159,18 @@ contract MorphoLendE2E is Test, Constants {
         );
     }
 
+    /// @dev MONEY_MARKET header identity: registry market key of the suite's market (the Morpho
+    ///      singleton is fixed in the hook) == MorphoBlueMarketRegistry.computeMarketKey
+    function _marketKey() internal view returns (address) {
+        return address(uint160(uint256(Id.unwrap(marketParams.id()))));
+    }
+
     /// @notice Build hook data for MorphoWithdrawHook
     /// @dev onBehalf and recipient are always set to account by the hook itself
-    function _buildWithdrawHookData(
-        uint256 assets,
-        uint256 shares
-    )
-        internal
-        view
-        returns (bytes memory)
-    {
+    function _buildWithdrawHookData(uint256 assets, uint256 shares) internal view returns (bytes memory) {
         return abi.encodePacked(
             MORPHO_YS_ORACLE_ID, // 32 bytes - offset 0 (header: Superform Morpho Blue YS oracle id)
-            MORPHO, // 20 bytes - offset 32 (header: yield source = Morpho Blue singleton / call target)
+            _marketKey(), // 20 bytes - offset 32 (header: registry market key — SuperLedger / PPS key)
             marketParams.loanToken, // 20 bytes - offset 52
             marketParams.collateralToken, // 20 bytes - offset 72
             marketParams.oracle, // 20 bytes - offset 92
@@ -359,9 +341,7 @@ contract MorphoLendE2E is Test, Constants {
 
         // Mock hook registration for the mock prev hook too
         vm.mockCall(
-            superGovernor,
-            abi.encodeCall(ISuperGovernor.isHookRegistered, (address(mockPrevHook))),
-            abi.encode(true)
+            superGovernor, abi.encodeCall(ISuperGovernor.isHookRegistered, (address(mockPrevHook))), abi.encode(true)
         );
 
         // Build lend data with usePrevHookAmount = true
@@ -550,7 +530,7 @@ contract MorphoLendE2E is Test, Constants {
     function test_Lend_RevertsWhenAddressZero() public {
         bytes memory hookData = abi.encodePacked(
             MORPHO_YS_ORACLE_ID, // header: oracle id (offset 0)
-            MORPHO, // header: yield source = Morpho (offset 32)
+            _marketKey(), // header: registry market key (offset 32)
             address(0), // loanToken = zero (offset 52)
             marketParams.collateralToken,
             marketParams.oracle,
@@ -580,14 +560,10 @@ contract MockPrevHookForLend {
     function build(address, address account, bytes calldata) external view returns (Execution[] memory executions) {
         executions = new Execution[](2);
         executions[0] = Execution({
-            target: address(this),
-            value: 0,
-            callData: abi.encodeCall(this.preExecute, (address(0), account, ""))
+            target: address(this), value: 0, callData: abi.encodeCall(this.preExecute, (address(0), account, ""))
         });
         executions[1] = Execution({
-            target: address(this),
-            value: 0,
-            callData: abi.encodeCall(this.postExecute, (address(0), account, ""))
+            target: address(this), value: 0, callData: abi.encodeCall(this.postExecute, (address(0), account, ""))
         });
     }
 

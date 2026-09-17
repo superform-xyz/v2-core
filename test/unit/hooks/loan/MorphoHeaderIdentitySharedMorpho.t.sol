@@ -16,6 +16,7 @@ import { Id, MarketParams, Market, Position } from "../../../../src/vendor/morph
 import { MorphoLendHook } from "../../../../src/hooks/loan/morpho/MorphoLendHook.sol";
 import { MorphoWithdrawHook } from "../../../../src/hooks/loan/morpho/MorphoWithdrawHook.sol";
 import { BaseMorphoLoanHook } from "../../../../src/hooks/loan/morpho/BaseMorphoLoanHook.sol";
+import { BaseMorphoMoneyMarketHook } from "../../../../src/hooks/loan/morpho/BaseMorphoMoneyMarketHook.sol";
 // V2 base + leaves
 import { BaseMorphoLoanHookV2 } from "../../../../src/hooks/loan/morpho/BaseMorphoLoanHookV2.sol";
 import { MorphoSupplyAndBorrowHookV2 } from "../../../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHookV2.sol";
@@ -36,7 +37,10 @@ import { MockMorpho, MockIRM } from "./MorphoLoanHooksV2.t.sol";
 ///      introspection rather than on-chain effects:
 ///      (a) inspect() == abi.encodePacked(Morpho, loan, collateral, oracle, irm, lltv);
 ///      (b) every Morpho call in build() targets the header-derived Morpho singleton;
-///      (c) a header pointing at a different Morpho reverts YIELD_SOURCE_MISMATCH.
+///      (c) a header pointing at a different Morpho reverts YIELD_SOURCE_MISMATCH (LOAN hooks);
+///      the MONEY_MARKET lend/withdraw hooks carry the registry MARKET KEY of the body MarketParams
+///      at offset 32 instead (SUP-21024) — the singleton is fixed in the hook — and a header
+///      naming anything else reverts MARKET_KEY_MISMATCH.
 contract MorphoHeaderIdentitySharedMorphoTest is Helpers {
     using MarketParamsLib for MarketParams;
 
@@ -142,8 +146,8 @@ contract MorphoHeaderIdentitySharedMorphoTest is Helpers {
         bytes memory expected =
             abi.encodePacked(address(morpho), loanToken, coll, oracle, irm, lltv);
 
-        assertEq(lendHook.inspect(_lendEnc(address(morpho), coll, oracle, irm, lltv)), expected, "lend inspect");
-        assertEq(withdrawHook.inspect(_withdrawEnc(address(morpho), coll, oracle, irm, lltv)), expected, "withdraw inspect");
+        assertEq(lendHook.inspect(_lendEnc(_key(coll, oracle, irm, lltv), coll, oracle, irm, lltv)), expected, "lend inspect");
+        assertEq(withdrawHook.inspect(_withdrawEnc(_key(coll, oracle, irm, lltv), coll, oracle, irm, lltv)), expected, "withdraw inspect");
         assertEq(openHook.inspect(_v2Enc(address(morpho), coll, oracle, irm, lltv, AMT, AMT)), expected, "open inspect");
         assertEq(repayHook.inspect(_v2Enc(address(morpho), coll, oracle, irm, lltv, AMT, 0)), expected, "repay inspect");
         assertEq(closeHook.inspect(_v2Enc(address(morpho), coll, oracle, irm, lltv, AMT, AMT)), expected, "close inspect");
@@ -155,11 +159,16 @@ contract MorphoHeaderIdentitySharedMorphoTest is Helpers {
     function test_AllOps_RevertIf_HeaderPointsAtDifferentMorpho() public {
         address wrong = address(otherMorpho);
 
-        vm.expectRevert(BaseMorphoLoanHook.YIELD_SOURCE_MISMATCH.selector);
+        // MONEY_MARKET hooks: neither a foreign address nor the singleton is this market's key
+        vm.expectRevert(BaseMorphoMoneyMarketHook.MARKET_KEY_MISMATCH.selector);
         lendHook.build(address(0), address(this), _lendEnc(wrong, collateralA, oracleA, address(irmA), lltvA));
+        vm.expectRevert(BaseMorphoMoneyMarketHook.MARKET_KEY_MISMATCH.selector);
+        lendHook.build(address(0), address(this), _lendEnc(address(morpho), collateralA, oracleA, address(irmA), lltvA));
 
-        vm.expectRevert(BaseMorphoLoanHook.YIELD_SOURCE_MISMATCH.selector);
+        vm.expectRevert(BaseMorphoMoneyMarketHook.MARKET_KEY_MISMATCH.selector);
         withdrawHook.build(address(0), address(this), _withdrawEnc(wrong, collateralA, oracleA, address(irmA), lltvA));
+        vm.expectRevert(BaseMorphoMoneyMarketHook.MARKET_KEY_MISMATCH.selector);
+        withdrawHook.build(address(0), address(this), _withdrawEnc(address(morpho), collateralA, oracleA, address(irmA), lltvA));
 
         vm.expectRevert(BaseMorphoLoanHookV2.YIELD_SOURCE_MISMATCH.selector);
         openHook.build(address(0), address(this), _v2Enc(wrong, collateralA, oracleA, address(irmA), lltvA, AMT, AMT));
@@ -190,8 +199,8 @@ contract MorphoHeaderIdentitySharedMorphoTest is Helpers {
     }
 
     function _assertTargetsAllOps(address coll, address oracle, address irm, uint256 lltv) internal view {
-        _assertMorphoTargeted(lendHook.build(address(0), address(this), _lendEnc(address(morpho), coll, oracle, irm, lltv)), coll, address(lendHook));
-        _assertMorphoTargeted(withdrawHook.build(address(0), address(this), _withdrawEnc(address(morpho), coll, oracle, irm, lltv)), coll, address(withdrawHook));
+        _assertMorphoTargeted(lendHook.build(address(0), address(this), _lendEnc(_key(coll, oracle, irm, lltv), coll, oracle, irm, lltv)), coll, address(lendHook));
+        _assertMorphoTargeted(withdrawHook.build(address(0), address(this), _withdrawEnc(_key(coll, oracle, irm, lltv), coll, oracle, irm, lltv)), coll, address(withdrawHook));
         _assertMorphoTargeted(openHook.build(address(0), address(this), _v2Enc(address(morpho), coll, oracle, irm, lltv, AMT, AMT)), coll, address(openHook));
         _assertMorphoTargeted(repayHook.build(address(0), address(this), _v2Enc(address(morpho), coll, oracle, irm, lltv, AMT, 0)), coll, address(repayHook));
         _assertMorphoTargeted(closeHook.build(address(0), address(this), _v2Enc(address(morpho), coll, oracle, irm, lltv, AMT, AMT)), coll, address(closeHook));
@@ -254,7 +263,7 @@ contract MorphoHeaderIdentitySharedMorphoTest is Helpers {
     function test_MorphoCallbackDataAlwaysEmpty() public view {
         // supply (lend) — signature: supply(MarketParams, uint256, uint256, address, bytes)
         _assertSupplyLikeCallbackEmpty(
-            _firstMorphoCall(lendHook.build(address(0), address(this), _lendEnc(address(morpho), collateralA, oracleA, address(irmA), lltvA)), address(lendHook))
+            _firstMorphoCall(lendHook.build(address(0), address(this), _lendEnc(_key(collateralA, oracleA, address(irmA), lltvA), collateralA, oracleA, address(irmA), lltvA)), address(lendHook))
         );
         // repay — same 5-arg shape (market A has a seeded borrow position)
         _assertSupplyLikeCallbackEmpty(
@@ -297,11 +306,18 @@ contract MorphoHeaderIdentitySharedMorphoTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function _lendEncA(address coll, address oracle, address irm, uint256 lltv, uint256 amt) internal view returns (bytes memory) {
-        return abi.encodePacked(MORPHO_YS_ORACLE_ID, address(morpho), loanToken, coll, oracle, irm, amt, lltv, false);
+        return abi.encodePacked(MORPHO_YS_ORACLE_ID, _key(coll, oracle, irm, lltv), loanToken, coll, oracle, irm, amt, lltv, false);
     }
 
     function _withdrawEncA(address coll, address oracle, address irm, uint256 lltv, uint256 amt) internal view returns (bytes memory) {
-        return abi.encodePacked(MORPHO_YS_ORACLE_ID, address(morpho), loanToken, coll, oracle, irm, lltv, amt, uint256(0));
+        return abi.encodePacked(MORPHO_YS_ORACLE_ID, _key(coll, oracle, irm, lltv), loanToken, coll, oracle, irm, lltv, amt, uint256(0));
+    }
+
+    /// @dev MONEY_MARKET header identity: registry market key of (loanToken, coll, oracle, irm, lltv)
+    function _key(address coll, address oracle, address irm, uint256 lltv) internal view returns (address) {
+        return address(uint160(uint256(Id.unwrap(
+            MarketParams({ loanToken: loanToken, collateralToken: coll, oracle: oracle, irm: irm, lltv: lltv }).id()
+        ))));
     }
 
     function _lendEnc(address ys, address coll, address oracle, address irm, uint256 lltv) internal view returns (bytes memory) {

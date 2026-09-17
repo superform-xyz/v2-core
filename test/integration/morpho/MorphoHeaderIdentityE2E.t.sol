@@ -5,18 +5,25 @@ pragma solidity 0.8.30;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import { UserOpData } from "modulekit/ModuleKit.sol";
+import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
+import { VmSafe } from "forge-std/Vm.sol";
 import { MarketParamsLib } from "../../../src/vendor/morpho/MarketParamsLib.sol";
 import { Id, IMorphoStaticTyping, MarketParams } from "../../../src/vendor/morpho/IMorpho.sol";
 
 // Superform
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
+import { ISuperLedgerConfiguration } from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperNativePaymaster } from "../../../src/interfaces/ISuperNativePaymaster.sol";
 import { SuperNativePaymaster } from "../../../src/paymaster/SuperNativePaymaster.sol";
+import { BaseLedger } from "../../../src/accounting/BaseLedger.sol";
+import { MorphoBlueMarketRegistry } from "../../../src/accounting/oracles/MorphoBlueMarketRegistry.sol";
+import { MorphoBlueYieldSourceOracle } from "../../../src/accounting/oracles/MorphoBlueYieldSourceOracle.sol";
 import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol";
-// V1 lender hooks
+// V1 lender hooks (MONEY_MARKET: INFLOW / OUTFLOW)
 import { MorphoLendHook } from "../../../src/hooks/loan/morpho/MorphoLendHook.sol";
 import { MorphoWithdrawHook } from "../../../src/hooks/loan/morpho/MorphoWithdrawHook.sol";
-// V2 borrower hooks
+import { BaseMorphoMoneyMarketHook } from "../../../src/hooks/loan/morpho/BaseMorphoMoneyMarketHook.sol";
+// V2 borrower hooks (LOAN: NONACCOUNTING)
 import { MorphoSupplyAndBorrowHookV2 } from "../../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHookV2.sol";
 import { MorphoRepayAndWithdrawHookV2 } from "../../../src/hooks/loan/morpho/MorphoRepayAndWithdrawHookV2.sol";
 import { MorphoSupplyHookV2 } from "../../../src/hooks/loan/morpho/MorphoSupplyHookV2.sol";
@@ -25,14 +32,25 @@ import { MorphoBorrowHookV2 } from "../../../src/hooks/loan/morpho/MorphoBorrowH
 import { MorphoRepayHookV2 } from "../../../src/hooks/loan/morpho/MorphoRepayHookV2.sol";
 
 /// @title MorphoHeaderIdentityE2E
-/// @notice SUP-21038 end-to-end proof on a real Ethereum-mainnet fork: with the standardized 52-byte
-///         header (oracleId at offset 0 + Morpho at offset 32), BOTH the V1 lender hooks and the V2 borrower hooks
-///         execute correctly through the real ERC-4337 SuperExecutor + paymaster against the ONE real
-///         Morpho Blue singleton, on TWO distinct real markets sharing that Morpho
-///         (WBTC/USDC and wstETH/WETH). Real on-chain state (supply shares, collateral, borrow
-///         shares, wallet balances) is asserted throughout — no mocks.
+/// @notice End-to-end proof on a real Ethereum-mainnet fork, through the real ERC-4337
+///         SuperExecutor + paymaster against the ONE real Morpho Blue singleton, on TWO distinct real
+///         markets sharing that Morpho (WBTC/USDC and wstETH/WETH). No mocks.
+///
+///         SUP-21038: the standardized 52-byte header (oracleId at offset 0 + Morpho at offset 32)
+///         drives both the V1 lender hooks and the V2 borrower hooks; real on-chain state is asserted.
+///
+///         SUP-21024: the lender hooks are MONEY_MARKET (lend = INFLOW, redeem = OUTFLOW). Their
+///         header offset 32 is the registry MARKET KEY of the body MarketParams (the Morpho singleton
+///         is fixed in the hook), so the unchanged executor posts SuperLedger per market and two
+///         markets on the same Morpho keep DISTINCT cost basis and price-per-share; a header naming
+///         another market fails closed in the hook, an unregistered market at accounting.
 contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
     using MarketParamsLib for MarketParams;
+
+    // SuperLedger event signatures — asserted by scanning the userOp's returned logs (expectEmit binds
+    // to the NEXT external call, which for a userOp is its construction, not its execution).
+    bytes32 internal constant INFLOW_SIG = keccak256("AccountingInflow(address,address,address,uint256,uint256)");
+    bytes32 internal constant OUTFLOW_SIG = keccak256("AccountingOutflow(address,address,address,uint256,uint256)");
 
     MorphoLendHook internal lendHook;
     MorphoWithdrawHook internal withdrawHook;
@@ -44,7 +62,16 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
     MorphoRepayHookV2 internal repayHook;
     ISuperNativePaymaster internal paymaster;
 
+    // Money-market accounting stack (registry + Superform Morpho Blue YS oracle + ledger config)
+    MorphoBlueMarketRegistry internal registry;
+    MorphoBlueYieldSourceOracle internal morphoOracle;
+    bytes32 internal morphoOracleId; // derived config id the header must carry at offset 0
+    address internal feeRecipient;
+    address internal keyA; // registry market key (accounting key) for market A
+    address internal keyB; // registry market key (accounting key) for market B
+
     uint256 internal constant MAX = type(uint256).max;
+    uint256 internal constant FEE_BPS = 100; // 1% of realized profit
 
     // Market A — WBTC/USDC (loan USDC 6dp, collateral WBTC 8dp)
     address internal aLoan; // USDC
@@ -84,6 +111,33 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
         // Both markets must be live on the fork (not just well-formed parameter tuples)
         _assertMarketExists(aId);
         _assertMarketExists(bId);
+        _setUpMoneyMarketAccounting();
+    }
+
+    /// @dev Registers both real markets (same Morpho, same shared IRM) and wires the Superform
+    ///      Morpho Blue YS oracle into SuperLedgerConfiguration. The id the header must carry at
+    ///      offset 0 is the DERIVED config id `keccak256(salt, configSetter)`, not the raw salt.
+    function _setUpMoneyMarketAccounting() internal {
+        registry = new MorphoBlueMarketRegistry(address(this));
+        registry.setIrmApproval(MORPHO_IRM_WBTC_USDC, true);
+        keyA = registry.registerMarket(MORPHO, aLoan, aColl, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, aLltv);
+        keyB = registry.registerMarket(MORPHO, bLoan, bColl, B_ORACLE, MORPHO_IRM_WBTC_USDC, B_LLTV);
+
+        morphoOracle = new MorphoBlueYieldSourceOracle(address(ledgerConfig), address(registry));
+        feeRecipient = makeAddr("feeRecipient");
+
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = MORPHO_YS_ORACLE_ID;
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: address(morphoOracle),
+            feePercent: FEE_BPS,
+            feeRecipient: feeRecipient,
+            ledger: address(ledger)
+        });
+        ledgerConfig.setYieldSourceOracles(salts, configs);
+        morphoOracleId = _getYieldSourceOracleId(MORPHO_YS_ORACLE_ID, address(this));
     }
 
     receive() external payable { }
@@ -126,8 +180,11 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
 
         (uint256 supplySharesAfter,,) = IMorphoStaticTyping(MORPHO).position(id, accountEth);
         assertEq(supplySharesAfter, 0, "withdraw: all supply shares redeemed");
-        assertApproxEqAbs(
-            IERC20(loan).balanceOf(accountEth), loanBefore, 2, "withdraw: loan token returned (<=2wei share rounding)"
+        // Withdraw is OUTFLOW: the executor charges FEE_BPS of realized P&L. Even with no accrual the
+        // ledger's cost basis (shares * pps / 10^decimals, pps truncated at ~1e-6 relative) reads a
+        // <=1e-8 phantom gain, so the principal comes back net of a dust fee (tens of wei on 10k USDC).
+        assertApproxEqRel(
+            IERC20(loan).balanceOf(accountEth), loanBefore, 1e12, "withdraw: principal returned net of dust fee"
         );
     }
 
@@ -305,19 +362,240 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
     }
 
     /*//////////////////////////////////////////////////////////////
-                              EXEC + ENCODERS
+        SUP-21024: MONEY_MARKET ACCOUNTING — INFLOW/OUTFLOW keyed per market
     //////////////////////////////////////////////////////////////*/
 
-    function _execSingle(address hook, bytes memory data) internal {
+    /// @notice Lend posts an INFLOW keyed by the market key (never by the Morpho singleton), and the
+    ///         ledger accumulators reflect the real supply-share position.
+    function test_E2E_Lend_PostsInflow_KeyedByMarketKey() external {
+        uint256 lendAmount = 10_000e6;
+        _getTokens(aLoan, accountEth, lendAmount);
+
+        // Header offset 32 is the market key the hook derives from the body — identical to the
+        // registry's — never the singleton.
+        assertEq(
+            _key(aLoan, aColl, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, aLltv), keyA, "header key == registry key"
+        );
+        assertTrue(keyA != MORPHO, "market key is never the Morpho singleton");
+
+        ExecutionReturnData memory ret = _execSingleReturn(address(lendHook), _lendA(lendAmount));
+        assertTrue(_hasLedgerEvent(ret.logs, INFLOW_SIG, keyA), "AccountingInflow emitted, keyed by the market key");
+        assertFalse(_hasLedgerEvent(ret.logs, INFLOW_SIG, MORPHO), "never keyed by the Morpho singleton");
+
+        (uint256 supplyShares,,) = IMorphoStaticTyping(MORPHO).position(aId, accountEth);
+        BaseLedger l = BaseLedger(address(ledger));
+        assertEq(l.usersAccumulatorShares(accountEth, keyA), supplyShares, "accumulator shares == position");
+        assertApproxEqRel(l.usersAccumulatorCostBasis(accountEth, keyA), lendAmount, 1e15, "cost basis ~= assets lent");
+        assertEq(l.usersAccumulatorShares(accountEth, MORPHO), 0, "singleton never keyed");
+    }
+
+    /// @notice Two markets on the same Morpho keep DISTINCT accounting: different keys, per-market
+    ///         accumulators, per-market oracle decimals/PPS; withdrawing one leaves the other intact.
+    function test_E2E_TwoMarkets_DistinctCostBasis_AndPps() external {
+        uint256 amtA = 10_000e6; // USDC
+        uint256 amtB = 1e18; // WETH
+        _getTokens(aLoan, accountEth, amtA);
+        _getTokens(bLoan, accountEth, amtB);
+
+        assertTrue(keyA != keyB, "distinct market keys");
+        _execSingle(address(lendHook), _lendA(amtA));
+        _execSingle(address(lendHook), _lend(bLoan, bColl, B_ORACLE, MORPHO_IRM_WBTC_USDC, B_LLTV, amtB));
+
+        (uint256 sharesA,,) = IMorphoStaticTyping(MORPHO).position(aId, accountEth);
+        (uint256 sharesB,,) = IMorphoStaticTyping(MORPHO).position(bId, accountEth);
+        BaseLedger l = BaseLedger(address(ledger));
+        assertEq(l.usersAccumulatorShares(accountEth, keyA), sharesA, "A accumulator == A position");
+        assertEq(l.usersAccumulatorShares(accountEth, keyB), sharesB, "B accumulator == B position");
+        assertApproxEqRel(l.usersAccumulatorCostBasis(accountEth, keyA), amtA, 1e15, "A cost basis in USDC");
+        assertApproxEqRel(l.usersAccumulatorCostBasis(accountEth, keyB), amtB, 1e15, "B cost basis in WETH");
+
+        // Per-market oracle identity: decimals = loanDecimals + 6, PPS differ
+        assertEq(morphoOracle.decimals(keyA), 12, "USDC market: 6 + 6");
+        assertEq(morphoOracle.decimals(keyB), 24, "WETH market: 18 + 6");
+        assertTrue(morphoOracle.getPricePerShare(keyA) != morphoOracle.getPricePerShare(keyB), "distinct PPS");
+
+        // Withdraw all of A: A accumulators clear, B untouched
+        _execSingle(
+            address(withdrawHook),
+            _withdrawShares(aLoan, aColl, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, aLltv, sharesA)
+        );
+        assertEq(l.usersAccumulatorShares(accountEth, keyA), 0, "A cleared");
+        assertEq(l.usersAccumulatorCostBasis(accountEth, keyA), 0, "A cost basis cleared");
+        assertEq(l.usersAccumulatorShares(accountEth, keyB), sharesB, "B untouched");
+    }
+
+    /// @notice Withdraw posts an OUTFLOW keyed by the market key; after 30 days of accrual the
+    ///         realized profit is fee'd (1%) in the loan token by the executor, paid to feeRecipient.
+    function test_E2E_Withdraw_PostsOutflow_UsedShares_AndFee() external {
+        uint256 lendAmount = 10_000e6;
+        _getTokens(aLoan, accountEth, lendAmount);
+        _execSingle(address(lendHook), _lendA(lendAmount));
+        (uint256 shares,,) = IMorphoStaticTyping(MORPHO).position(aId, accountEth);
+
+        vm.warp(block.timestamp + 30 days);
+
+        uint256 feeBefore = IERC20(aLoan).balanceOf(feeRecipient);
+        ExecutionReturnData memory ret = _execSingleReturn(
+            address(withdrawHook),
+            _withdrawShares(aLoan, aColl, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, aLltv, shares)
+        );
+        assertTrue(_hasLedgerEvent(ret.logs, OUTFLOW_SIG, keyA), "AccountingOutflow emitted, keyed by the market key");
+
+        BaseLedger l = BaseLedger(address(ledger));
+        assertEq(l.usersAccumulatorShares(accountEth, keyA), 0, "all shares consumed");
+        assertGt(IERC20(aLoan).balanceOf(feeRecipient), feeBefore, "profit fee paid in loan token");
+        assertGt(IERC20(aLoan).balanceOf(accountEth), lendAmount, "account still nets a profit after fee");
+    }
+
+    /// @notice Partial withdraw by ASSETS (no accrual): usedShares = shares actually burned (position
+    ///         diff) reduces the accumulator exactly. With no accrual the only "profit" is the ledger's
+    ///         pps-truncation rounding, so any fee is dust (<= 1e-5 of principal by a wide margin).
+    function test_E2E_PartialWithdrawByAssets_UsedSharesIsPositionDiff_DustFeeOnly() external {
+        uint256 lendAmount = 10_000e6;
+        _getTokens(aLoan, accountEth, lendAmount);
+        _execSingle(address(lendHook), _lendA(lendAmount));
+        (uint256 sharesBefore,,) = IMorphoStaticTyping(MORPHO).position(aId, accountEth);
+
+        uint256 feeBefore = IERC20(aLoan).balanceOf(feeRecipient);
+        _execSingle(
+            address(withdrawHook),
+            _withdrawAssets(aLoan, aColl, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, aLltv, lendAmount / 2)
+        );
+
+        (uint256 sharesAfter,,) = IMorphoStaticTyping(MORPHO).position(aId, accountEth);
+        BaseLedger l = BaseLedger(address(ledger));
+        assertEq(l.usersAccumulatorShares(accountEth, keyA), sharesAfter, "accumulator reduced by burned shares");
+        assertGt(sharesBefore, sharesAfter, "shares burned");
+        assertLt(
+            IERC20(aLoan).balanceOf(feeRecipient) - feeBefore,
+            lendAmount / 1e5,
+            "no accrual => at most a rounding-dust fee"
+        );
+    }
+
+    /// @notice Fail-closed allowlist: a market not registered in MorphoBlueMarketRegistry reverts at
+    ///         accounting (MARKET_NOT_REGISTERED) — the lend cannot execute through the executor.
+    function test_E2E_Lend_RevertIf_MarketNotRegistered() external {
+        registry.proposeDeregisterMarket(keyB);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY() + 1);
+        registry.executeDeregisterMarket(keyB);
+        assertFalse(registry.isRegistered(keyB), "B deregistered");
+
+        _getTokens(bLoan, accountEth, 1e18);
+        _execSingleExpectRevert(
+            address(lendHook),
+            _lend(bLoan, bColl, B_ORACLE, MORPHO_IRM_WBTC_USDC, B_LLTV, 1e18),
+            MorphoBlueMarketRegistry.MARKET_NOT_REGISTERED.selector
+        );
+        (uint256 sharesB,,) = IMorphoStaticTyping(MORPHO).position(bId, accountEth);
+        assertEq(sharesB, 0, "nothing supplied");
+    }
+
+    /// @notice A header carrying ANOTHER market's key (here market B's, on a market-A body) fails
+    ///         closed in the hook itself — before any Morpho call or ledger posting.
+    function test_E2E_Lend_RevertIf_HeaderKeyIsAnotherMarket() external {
+        _getTokens(aLoan, accountEth, 1000e6);
+        _execSingleExpectRevert(
+            address(lendHook),
+            abi.encodePacked(
+                morphoOracleId,
+                keyB,
+                aLoan,
+                aColl,
+                MORPHO_ORACLE_WBTC_USDC,
+                MORPHO_IRM_WBTC_USDC,
+                uint256(1000e6),
+                aLltv,
+                false
+            ),
+            BaseMorphoMoneyMarketHook.MARKET_KEY_MISMATCH.selector
+        );
+        (uint256 sharesA,,) = IMorphoStaticTyping(MORPHO).position(aId, accountEth);
+        assertEq(sharesA, 0, "nothing supplied");
+        assertEq(BaseLedger(address(ledger)).usersAccumulatorShares(accountEth, keyB), 0, "nothing posted");
+    }
+
+    /// @notice The V2 LOAN hooks stay NONACCOUNTING even on a registered market: no ledger posting.
+    function test_E2E_LoanHooks_StayNonAccounting() external {
+        _pledgeReleaseCycle(aLoan, aColl, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, aLltv, aId, 1_000_000);
+
+        BaseLedger l = BaseLedger(address(ledger));
+        assertEq(l.usersAccumulatorShares(accountEth, keyA), 0, "no accounting for LOAN ops");
+        assertEq(l.usersAccumulatorShares(accountEth, MORPHO), 0, "singleton never keyed");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              EXEC HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    function _entry(address hook, bytes memory data) internal pure returns (ISuperExecutor.ExecutorEntry memory) {
         address[] memory hooks = new address[](1);
         hooks[0] = hook;
         bytes[] memory datas = new bytes[](1);
         datas[0] = data;
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: datas });
-        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
-        executeOpsThroughPaymaster(userOpData, paymaster, 1e18);
+        return ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: datas });
     }
+
+    function _execSingle(address hook, bytes memory data) internal {
+        _execSingleReturn(hook, data);
+    }
+
+    function _execSingleReturn(address hook, bytes memory data) internal returns (ExecutionReturnData memory) {
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(_entry(hook, data)));
+        return executeOpsThroughPaymaster(userOpData, paymaster, 1e18);
+    }
+
+    /// @dev True if the ledger emitted `sig` for (accountEth, morphoOracle, yieldSource) in these logs
+    function _hasLedgerEvent(VmSafe.Log[] memory logs, bytes32 sig, address yieldSource) internal view returns (bool) {
+        for (uint256 i; i < logs.length; ++i) {
+            VmSafe.Log memory l = logs[i];
+            if (
+                l.emitter == address(ledger) && l.topics.length == 4 && l.topics[0] == sig
+                    && l.topics[1] == bytes32(uint256(uint160(accountEth)))
+                    && l.topics[2] == bytes32(uint256(uint160(address(morphoOracle))))
+                    && l.topics[3] == bytes32(uint256(uint160(yieldSource)))
+            ) return true;
+        }
+        return false;
+    }
+
+    /// @dev Executes and asserts the account-level execution reverted with the expected custom
+    ///      error (the EntryPoint swallows it and emits UserOperationRevertReason).
+    function _execSingleExpectRevert(address hook, bytes memory data, bytes4 expectedSelector) internal {
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(_entry(hook, data)));
+        ExecutionReturnData memory ret = executeOpsThroughPaymaster(userOpData, paymaster, 1e18);
+
+        bytes32 revertTopic = keccak256("UserOperationRevertReason(bytes32,address,uint256,bytes)");
+        bool found;
+        for (uint256 i; i < ret.logs.length; ++i) {
+            VmSafe.Log memory logEntry = ret.logs[i];
+            if (
+                logEntry.topics.length > 0 && logEntry.topics[0] == revertTopic
+                    && _contains(logEntry.data, expectedSelector)
+            ) {
+                found = true;
+                break;
+            }
+        }
+        assertTrue(found, "expected UserOperationRevertReason carrying the error selector");
+    }
+
+    function _contains(bytes memory haystack, bytes4 needle) internal pure returns (bool) {
+        if (haystack.length < 4) return false;
+        for (uint256 i; i + 4 <= haystack.length; ++i) {
+            if (
+                bytes4(
+                        (bytes32(haystack[i]) >> 0) | (bytes32(haystack[i + 1]) >> 8) | (bytes32(haystack[i + 2]) >> 16)
+                            | (bytes32(haystack[i + 3]) >> 24)
+                    ) == needle
+            ) return true;
+        }
+        return false;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              ENCODERS
+    //////////////////////////////////////////////////////////////*/
 
     function _params(
         address loan,
@@ -333,6 +611,14 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
         return MarketParams({ loanToken: loan, collateralToken: coll, oracle: oracle, irm: irm, lltv: lltv });
     }
 
+    function _lendA(uint256 amount) internal view returns (bytes memory) {
+        return _lend(aLoan, aColl, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, aLltv, amount);
+    }
+
+    /// @dev Lender hooks are INFLOW/OUTFLOW: the executor looks the header oracle id up, so it must
+    ///      be the DERIVED config id (morphoOracleId), and offset 32 the registry MARKET KEY of the
+    ///      body MarketParams (the executor posts SuperLedger against it; the Morpho singleton is
+    ///      fixed in the hook).
     function _lend(
         address loan,
         address coll,
@@ -342,10 +628,12 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
         uint256 amount
     )
         internal
-        pure
+        view
         returns (bytes memory)
     {
-        return abi.encodePacked(MORPHO_YS_ORACLE_ID, MORPHO, loan, coll, oracle, irm, amount, lltv, false);
+        return abi.encodePacked(
+            morphoOracleId, _key(loan, coll, oracle, irm, lltv), loan, coll, oracle, irm, amount, lltv, false
+        );
     }
 
     function _withdrawShares(
@@ -357,13 +645,49 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
         uint256 shares
     )
         internal
-        pure
+        view
         returns (bytes memory)
     {
-        // withdraw layout: header + market + lltv@132 + assets@164 (0) + shares@196
-        return abi.encodePacked(MORPHO_YS_ORACLE_ID, MORPHO, loan, coll, oracle, irm, lltv, uint256(0), shares);
+        // withdraw layout: header + market + lltv at 132 + assets at 164 (0) + shares at 196
+        return abi.encodePacked(
+            morphoOracleId, _key(loan, coll, oracle, irm, lltv), loan, coll, oracle, irm, lltv, uint256(0), shares
+        );
     }
 
+    function _withdrawAssets(
+        address loan,
+        address coll,
+        address oracle,
+        address irm,
+        uint256 lltv,
+        uint256 assets
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            morphoOracleId, _key(loan, coll, oracle, irm, lltv), loan, coll, oracle, irm, lltv, assets, uint256(0)
+        );
+    }
+
+    /// @dev Registry market key of a market == MorphoBlueMarketRegistry.computeMarketKey
+    function _key(
+        address loan,
+        address coll,
+        address oracle,
+        address irm,
+        uint256 lltv
+    )
+        internal
+        pure
+        returns (address)
+    {
+        return address(uint160(uint256(Id.unwrap(_params(loan, coll, oracle, irm, lltv).id()))));
+    }
+
+    /// @dev V2 LOAN hooks are NONACCOUNTING: the executor never looks the oracle id up, so the raw
+    ///      salt constant is fine here (it only needs to be nonzero for the hook's own checks).
     function _v2(
         address loan,
         address coll,

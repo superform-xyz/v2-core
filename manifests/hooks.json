@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-09-17T07:06:43Z",
+  "generatedAt": "2026-09-17T15:59:49Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -1776,7 +1776,7 @@
     "MorphoWithdrawHook": {
       "name": "Morpho Withdraw",
       "description": "Withdraws supplied assets from a Morpho market",
-      "hookType": "NONACCOUNTING",
+      "hookType": "OUTFLOW",
       "subtype": "LOAN",
       "actionTypes": [
         {
@@ -3708,6 +3708,7 @@
     "SwapUniswapV4Hook": {
       "name": "Swap Uniswap V4",
       "description": "Swaps tokens via Uniswap V4",
+      "hookType": "NONACCOUNTING",
       "subtype": "SWAP",
       "actionTypes": [
         {
@@ -7338,7 +7339,7 @@
     "MorphoLendHook": {
       "name": "Morpho Lend",
       "description": "Lends assets to a Morpho market",
-      "hookType": "NONACCOUNTING",
+      "hookType": "INFLOW",
       "subtype": "LOAN",
       "actionTypes": [
         {

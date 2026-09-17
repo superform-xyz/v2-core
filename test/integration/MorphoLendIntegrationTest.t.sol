@@ -14,6 +14,9 @@ import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
 import { MorphoLendHook } from "../../src/hooks/loan/morpho/MorphoLendHook.sol";
 import { MorphoWithdrawHook } from "../../src/hooks/loan/morpho/MorphoWithdrawHook.sol";
+import { ISuperLedgerConfiguration } from "../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { MorphoBlueMarketRegistry } from "../../src/accounting/oracles/MorphoBlueMarketRegistry.sol";
+import { MorphoBlueYieldSourceOracle } from "../../src/accounting/oracles/MorphoBlueYieldSourceOracle.sol";
 import { ISuperNativePaymaster } from "../../src/interfaces/ISuperNativePaymaster.sol";
 import { SuperNativePaymaster } from "../../src/paymaster/SuperNativePaymaster.sol";
 
@@ -32,6 +35,7 @@ contract MorphoLendIntegrationTest is MinimalBaseIntegrationTest {
 
     uint256 public constant LEND_AMOUNT = 10_000e6; // 10,000 USDC
     uint256 public lltv;
+    bytes32 internal morphoOracleId; // derived SuperLedgerConfiguration id carried at header offset 0
 
     function setUp() public override {
         blockNumber = ETH_BLOCK;
@@ -51,6 +55,28 @@ contract MorphoLendIntegrationTest is MinimalBaseIntegrationTest {
             lltv: lltv
         });
         marketId = marketParams.id();
+
+        // SUP-21024: lend/withdraw are INFLOW/OUTFLOW, so the executor looks the header oracle id up
+        // and posts SuperLedger keyed by the registry market key. Register the market and wire the
+        // Superform Morpho Blue YS oracle; headers must carry the DERIVED config id.
+        MorphoBlueMarketRegistry registry = new MorphoBlueMarketRegistry(address(this));
+        registry.setIrmApproval(MORPHO_IRM_WBTC_USDC, true);
+        registry.registerMarket(MORPHO, CHAIN_1_USDC, CHAIN_1_WBTC, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, lltv);
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = MORPHO_YS_ORACLE_ID;
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: address(new MorphoBlueYieldSourceOracle(address(ledgerConfig), address(registry))),
+            // Zero fee: this suite asserts exact lend/withdraw round-trips. Withdraw is now OUTFLOW and a
+            // nonzero fee would skim a rounding-dust "profit" (pps truncation) even with no accrual.
+            // Fee behaviour is covered in MorphoHeaderIdentityE2E.
+            feePercent: 0,
+            feeRecipient: makeAddr("feeRecipient"),
+            ledger: address(ledger)
+        });
+        ledgerConfig.setYieldSourceOracles(salts, configs);
+        morphoOracleId = _getYieldSourceOracleId(MORPHO_YS_ORACLE_ID, address(this));
 
         // Fund account with USDC for lending
         _getTokens(CHAIN_1_USDC, accountEth, LEND_AMOUNT);
@@ -72,10 +98,22 @@ contract MorphoLendIntegrationTest is MinimalBaseIntegrationTest {
         bool usePrevHookAmount
     )
         internal
-        pure
+        view
         returns (bytes memory)
     {
-        return abi.encodePacked(MORPHO_YS_ORACLE_ID, MORPHO, loanToken, collateralToken, oracle, irm, amount, _lltv, usePrevHookAmount);
+        // Offset 32 = registry market key of the body MarketParams (the SuperLedger / PPS key);
+        // the Morpho singleton is fixed in the hook, not carried in the header.
+        return abi.encodePacked(
+            morphoOracleId,
+            _marketKey(loanToken, collateralToken, oracle, irm, _lltv),
+            loanToken,
+            collateralToken,
+            oracle,
+            irm,
+            amount,
+            _lltv,
+            usePrevHookAmount
+        );
     }
 
     function _createMorphoWithdrawHookData(
@@ -88,10 +126,49 @@ contract MorphoLendIntegrationTest is MinimalBaseIntegrationTest {
         uint256 shares
     )
         internal
-        pure
+        view
         returns (bytes memory)
     {
-        return abi.encodePacked(MORPHO_YS_ORACLE_ID, MORPHO, loanToken, collateralToken, oracle, irm, _lltv, assets, shares);
+        return abi.encodePacked(
+            morphoOracleId,
+            _marketKey(loanToken, collateralToken, oracle, irm, _lltv),
+            loanToken,
+            collateralToken,
+            oracle,
+            irm,
+            _lltv,
+            assets,
+            shares
+        );
+    }
+
+    /// @dev == MorphoBlueMarketRegistry.computeMarketKey
+    function _marketKey(
+        address loanToken,
+        address collateralToken,
+        address oracle,
+        address irm,
+        uint256 _lltv
+    )
+        internal
+        pure
+        returns (address)
+    {
+        return address(
+            uint160(
+                uint256(
+                    Id.unwrap(
+                        MarketParams({
+                                loanToken: loanToken,
+                                collateralToken: collateralToken,
+                                oracle: oracle,
+                                irm: irm,
+                                lltv: _lltv
+                            }).id()
+                    )
+                )
+            )
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

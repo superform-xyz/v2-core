@@ -11,6 +11,7 @@ import { Id, IMorphoBase, IMorphoStaticTyping, MarketParams } from "../../../src
 import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol";
 // V1 leaves — lender ops + the (freeze-lifted) borrower ops, all header-aware
 import { BaseMorphoLoanHook } from "../../../src/hooks/loan/morpho/BaseMorphoLoanHook.sol";
+import { BaseMorphoMoneyMarketHook } from "../../../src/hooks/loan/morpho/BaseMorphoMoneyMarketHook.sol";
 import { MorphoLendHook } from "../../../src/hooks/loan/morpho/MorphoLendHook.sol";
 import { MorphoWithdrawHook } from "../../../src/hooks/loan/morpho/MorphoWithdrawHook.sol";
 import { MorphoSupplyHook } from "../../../src/hooks/loan/morpho/MorphoSupplyHook.sol";
@@ -30,7 +31,10 @@ import { MorphoWithdrawCollateralHookV2 } from "../../../src/hooks/loan/morpho/M
 ///         across EVERY Morpho hook for TWO real markets (both verified to exist on the fork) that
 ///         share the ONE real Morpho Blue singleton but differ in loan/collateral/oracle/lltv
 ///         (body = MarketParams filter only). For each (market, op) it asserts:
-///         (a) header yieldSource (offset 32) == real Morpho singleton (a wrong Morpho reverts);
+///         (a) header yieldSource (offset 32): the real Morpho singleton for the LOAN hooks (a wrong
+///             Morpho reverts YIELD_SOURCE_MISMATCH); the registry MARKET KEY of the body MarketParams
+///             for the MONEY_MARKET lend/withdraw hooks (a wrong key reverts MARKET_KEY_MISMATCH),
+///             whose call target is the singleton fixed in the hook;
 ///         (b) every Morpho call and approve spender in build() targets the header Morpho — for ALL
 ///             eight ops, including the debt-bearing REPAY / CLOSE paths, which read a real seeded
 ///             borrow position for the test account on each market;
@@ -116,6 +120,11 @@ contract MorphoHeaderIdentityForkTest is MinimalBaseIntegrationTest {
         return MarketParams({ loanToken: m.loan, collateralToken: m.coll, oracle: m.oracle, irm: m.irm, lltv: m.lltv });
     }
 
+    /// @dev Registry market key = MarketParams.id() truncated to an address (== computeMarketKey)
+    function _key(Mkt memory m) internal pure returns (address) {
+        return address(uint160(uint256(Id.unwrap(_params(m).id()))));
+    }
+
     function _assertMarketExists(Mkt memory m) internal view {
         (,,,, uint128 lastUpdate,) = IMorphoStaticTyping(MORPHO).market(_params(m).id());
         assertGt(uint256(lastUpdate), 0, "market must exist on the fork");
@@ -142,8 +151,8 @@ contract MorphoHeaderIdentityForkTest is MinimalBaseIntegrationTest {
 
     function _assertInspect(Mkt memory m) internal view {
         bytes memory expected = abi.encodePacked(MORPHO, m.loan, m.coll, m.oracle, m.irm, m.lltv);
-        assertEq(lendHook.inspect(_lend(MORPHO, m)), expected, "lend");
-        assertEq(withdrawHook.inspect(_withdraw(MORPHO, m)), expected, "withdraw");
+        assertEq(lendHook.inspect(_lend(_key(m), m)), expected, "lend");
+        assertEq(withdrawHook.inspect(_withdraw(_key(m), m)), expected, "withdraw");
         assertEq(v1PledgeHook.inspect(_v1Supply(MORPHO, m)), expected, "v1 pledge");
         assertEq(v1BorrowHook.inspect(_v1Borrow(MORPHO, m)), expected, "v1 borrow");
         assertEq(v1RepayHook.inspect(_v1Repay(MORPHO, m)), expected, "v1 repay");
@@ -167,8 +176,8 @@ contract MorphoHeaderIdentityForkTest is MinimalBaseIntegrationTest {
     function _assertTargets(Mkt memory m) internal view {
         address me = address(this);
         // lender ops
-        _assertMorphoTargeted(lendHook.build(address(0), me, _lend(MORPHO, m)), m, address(lendHook));
-        _assertMorphoTargeted(withdrawHook.build(address(0), me, _withdraw(MORPHO, m)), m, address(withdrawHook));
+        _assertMorphoTargeted(lendHook.build(address(0), me, _lend(_key(m), m)), m, address(lendHook));
+        _assertMorphoTargeted(withdrawHook.build(address(0), me, _withdraw(_key(m), m)), m, address(withdrawHook));
         // V1 borrower ops (repay resolves against the seeded debt)
         _assertMorphoTargeted(v1PledgeHook.build(address(0), me, _v1Supply(MORPHO, m)), m, address(v1PledgeHook));
         _assertMorphoTargeted(v1BorrowHook.build(address(0), me, _v1Borrow(MORPHO, m)), m, address(v1BorrowHook));
@@ -214,13 +223,25 @@ contract MorphoHeaderIdentityForkTest is MinimalBaseIntegrationTest {
     function test_Fork_HeaderPointingAtWrongMorpho_Reverts_AllOps() public {
         address wrong = address(0xdEADbeEF00000000000000000000000000000001);
         address me = address(this);
+        bytes4 mm = BaseMorphoMoneyMarketHook.MARKET_KEY_MISMATCH.selector;
         bytes4 v1 = BaseMorphoLoanHook.YIELD_SOURCE_MISMATCH.selector;
         bytes4 v2 = BaseMorphoLoanHookV2.YIELD_SOURCE_MISMATCH.selector;
 
-        vm.expectRevert(v1);
+        // MONEY_MARKET hooks: offset 32 must be THIS market's key — a foreign address, the Morpho
+        // singleton itself, or the OTHER real market's key all fail closed
+        vm.expectRevert(mm);
         lendHook.build(address(0), me, _lend(wrong, A));
-        vm.expectRevert(v1);
+        vm.expectRevert(mm);
         withdrawHook.build(address(0), me, _withdraw(wrong, B));
+        vm.expectRevert(mm);
+        lendHook.build(address(0), me, _lend(MORPHO, A));
+        vm.expectRevert(mm);
+        withdrawHook.build(address(0), me, _withdraw(MORPHO, B));
+        vm.expectRevert(mm);
+        lendHook.build(address(0), me, _lend(_key(B), A));
+        vm.expectRevert(mm);
+        withdrawHook.build(address(0), me, _withdraw(_key(A), B));
+        // LOAN hooks: offset 32 must be the singleton
         vm.expectRevert(v1);
         v1PledgeHook.build(address(0), me, _v1Supply(wrong, A));
         vm.expectRevert(v1);
@@ -245,12 +266,12 @@ contract MorphoHeaderIdentityForkTest is MinimalBaseIntegrationTest {
                               ENCODERS
     //////////////////////////////////////////////////////////////*/
 
-    // V1 lend (197): header + market + amount@132 + lltv@164 + usePrev@196
+    // V1 lend (197): header (oracle id + MARKET KEY) + market + amount@132 + lltv@164 + usePrev@196
     function _lend(address ys, Mkt memory m) internal pure returns (bytes memory) {
         return abi.encodePacked(MORPHO_YS_ORACLE_ID, ys, m.loan, m.coll, m.oracle, m.irm, AMT, m.lltv, false);
     }
 
-    // V1 withdraw (228): header + market + lltv@132 + assets@164 + shares@196
+    // V1 withdraw (228): header (oracle id + MARKET KEY) + market + lltv@132 + assets@164 + shares@196
     function _withdraw(address ys, Mkt memory m) internal pure returns (bytes memory) {
         return abi.encodePacked(MORPHO_YS_ORACLE_ID, ys, m.loan, m.coll, m.oracle, m.irm, m.lltv, AMT, uint256(0));
     }
