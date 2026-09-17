@@ -7,7 +7,14 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SharesMathLib } from "../../../vendor/morpho/SharesMathLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
-import { IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id, Market } from "../../../vendor/morpho/IMorpho.sol";
+import {
+    IMorpho,
+    IMorphoBase,
+    IMorphoStaticTyping,
+    MarketParams,
+    Id,
+    Market
+} from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -18,8 +25,8 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 /// @title MorphoRepayAndWithdrawHook
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
-/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
+/// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Morpho Blue YS id
+/// @notice         address yieldSource = data.extractYieldSource(); // Morpho Blue singleton (call target)
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address oracle = BytesLib.toAddress(data, 92);
@@ -72,7 +79,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         return "Repays borrowed assets and withdraws collateral from a Morpho market";
     }
 
-
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -89,16 +95,19 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         returns (Execution[] memory executions)
     {
         BuildHookLocalVars memory vars = _decodeHookData(data);
+        _requireYieldSourceIsMorpho(vars.yieldSource);
 
         BuildExecutionContext memory ctx;
         ctx.marketParams = _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
         ctx.id = ctx.marketParams.id();
 
         executions = new Execution[](5);
-        executions[0] =
-            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
-        executions[3] =
-            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+        executions[0] = Execution({
+            target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.yieldSource, 0))
+        });
+        executions[3] = Execution({
+            target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.yieldSource, 0))
+        });
 
         if (vars.isFullRepayment) {
             ctx.borrowBalance = deriveShareBalance(ctx.id, account);
@@ -108,15 +117,15 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
             executions[1] = Execution({
                 target: vars.loanToken,
                 value: 0,
-                callData: abi.encodeCall(IERC20.approve, (morpho, deriveLoanAmount(ctx.id, account)))
+                callData: abi.encodeCall(IERC20.approve, (vars.yieldSource, deriveLoanAmount(ctx.id, account)))
             });
             executions[2] = Execution({
-                target: morpho,
+                target: vars.yieldSource,
                 value: 0,
                 callData: abi.encodeCall(IMorphoBase.repay, (ctx.marketParams, 0, ctx.shareBalance, account, ""))
             });
             executions[4] = Execution({
-                target: morpho,
+                target: vars.yieldSource,
                 value: 0,
                 callData: abi.encodeCall(
                     IMorphoBase.withdrawCollateral, (ctx.marketParams, ctx.collateralForWithdraw, account, account)
@@ -135,15 +144,15 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
             executions[1] = Execution({
                 target: vars.loanToken,
                 value: 0,
-                callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
+                callData: abi.encodeCall(IERC20.approve, (vars.yieldSource, vars.amount))
             });
             executions[2] = Execution({
-                target: morpho,
+                target: vars.yieldSource,
                 value: 0,
                 callData: abi.encodeCall(IMorphoBase.repay, (ctx.marketParams, vars.amount, 0, account, ""))
             });
             executions[4] = Execution({
-                target: morpho,
+                target: vars.yieldSource,
                 value: 0,
                 callData: abi.encodeCall(
                     IMorphoBase.withdrawCollateral, (ctx.marketParams, ctx.collateralForWithdraw, account, account)
@@ -160,7 +169,12 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
         return abi.encodePacked(
-            marketParams.loanToken, marketParams.collateralToken, marketParams.oracle, marketParams.irm
+            vars.yieldSource,
+            marketParams.loanToken,
+            marketParams.collateralToken,
+            marketParams.oracle,
+            marketParams.irm,
+            marketParams.lltv
         );
     }
 
@@ -249,6 +263,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     /// @inheritdoc BaseHook
     function _preExecute(address, address account, bytes calldata data) internal override {
         BuildHookLocalVars memory vars = _decodeHookData(data);
+        _requireYieldSourceIsMorpho(vars.yieldSource);
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
         IMorpho(morpho).accrueInterest(marketParams);

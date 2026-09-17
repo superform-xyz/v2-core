@@ -21,6 +21,8 @@ import { MorphoSupplyAndBorrowHookV2 } from "../../../src/hooks/loan/morpho/Morp
 import { MorphoRepayAndWithdrawHookV2 } from "../../../src/hooks/loan/morpho/MorphoRepayAndWithdrawHookV2.sol";
 import { MorphoSupplyHookV2 } from "../../../src/hooks/loan/morpho/MorphoSupplyHookV2.sol";
 import { MorphoWithdrawCollateralHookV2 } from "../../../src/hooks/loan/morpho/MorphoWithdrawCollateralHookV2.sol";
+import { MorphoBorrowHookV2 } from "../../../src/hooks/loan/morpho/MorphoBorrowHookV2.sol";
+import { MorphoRepayHookV2 } from "../../../src/hooks/loan/morpho/MorphoRepayHookV2.sol";
 
 /// @title MorphoHeaderIdentityE2E
 /// @notice SUP-21038 end-to-end proof on a real Ethereum-mainnet fork: with the standardized 52-byte
@@ -38,6 +40,8 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
     MorphoRepayAndWithdrawHookV2 internal closeHook;
     MorphoSupplyHookV2 internal pledgeHook;
     MorphoWithdrawCollateralHookV2 internal releaseHook;
+    MorphoBorrowHookV2 internal borrowHook;
+    MorphoRepayHookV2 internal repayHook;
     ISuperNativePaymaster internal paymaster;
 
     uint256 internal constant MAX = type(uint256).max;
@@ -73,7 +77,13 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
         closeHook = new MorphoRepayAndWithdrawHookV2(MORPHO);
         pledgeHook = new MorphoSupplyHookV2(MORPHO);
         releaseHook = new MorphoWithdrawCollateralHookV2(MORPHO);
+        borrowHook = new MorphoBorrowHookV2(MORPHO);
+        repayHook = new MorphoRepayHookV2(MORPHO);
         paymaster = ISuperNativePaymaster(new SuperNativePaymaster(IEntryPoint(ENTRYPOINT_ADDR)));
+
+        // Both markets must be live on the fork (not just well-formed parameter tuples)
+        _assertMarketExists(aId);
+        _assertMarketExists(bId);
     }
 
     receive() external payable { }
@@ -177,7 +187,8 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
 
         // OPEN
         _execSingle(
-            address(openHook), _v2(aLoan, aColl, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, aLltv, collAmount, borrowAmount)
+            address(openHook),
+            _v2(aLoan, aColl, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, aLltv, collAmount, borrowAmount)
         );
 
         (, uint128 borrowShares, uint128 collateral) = IMorphoStaticTyping(MORPHO).position(aId, accountEth);
@@ -195,6 +206,102 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
         (, uint128 borrowSharesAfter, uint128 collateralAfter) = IMorphoStaticTyping(MORPHO).position(aId, accountEth);
         assertEq(uint256(borrowSharesAfter), 0, "close: debt fully repaid");
         assertEq(uint256(collateralAfter), 0, "close: collateral fully withdrawn");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+        V2 DEBT LIFECYCLE ON BOTH MARKETS: open -> borrow -> repay -> close, isolated per market
+    //////////////////////////////////////////////////////////////*/
+
+    struct Mkt {
+        address loan;
+        address coll;
+        address oracle;
+        address irm;
+        uint256 lltv;
+        Id id;
+        uint256 collAmount;
+        uint256 borrowAmount; // open leg
+        uint256 extraBorrow; // standalone BORROW leg
+        uint256 partialRepay; // standalone REPAY cap
+    }
+
+    function _mktA() internal view returns (Mkt memory) {
+        return
+            Mkt(aLoan, aColl, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, aLltv, aId, 1_000_000, 400e6, 100e6, 50e6);
+    }
+
+    function _mktB() internal view returns (Mkt memory) {
+        return Mkt(bLoan, bColl, B_ORACLE, MORPHO_IRM_WBTC_USDC, B_LLTV, bId, 1e18, 0.3e18, 0.1e18, 0.05e18);
+    }
+
+    /// @notice Every debt-bearing op executed for real on the SECOND market (wstETH/WETH), with the
+    ///         first market's position provably untouched throughout.
+    function test_E2E_V2_DebtLifecycle_MarketB_IsolatedFromA() external {
+        _debtLifecycleIsolated(_mktB(), _mktA());
+    }
+
+    /// @notice Same lifecycle on the first market, isolated from the second.
+    function test_E2E_V2_DebtLifecycle_MarketA_IsolatedFromB() external {
+        _debtLifecycleIsolated(_mktA(), _mktB());
+    }
+
+    /// @dev open (pledge+borrow) -> standalone borrow -> standalone partial repay -> close (repay
+    ///      all + withdraw all), asserting real provider state on `m` and no change on `other`.
+    function _debtLifecycleIsolated(Mkt memory m, Mkt memory other) internal {
+        // Give `other` a real position too, so "unchanged" is a meaningful assertion
+        _getTokens(other.coll, accountEth, other.collAmount);
+        _execSingle(address(openHook), _v2m(other, other.collAmount, other.borrowAmount));
+        (uint256 oS, uint128 oB, uint128 oC) = IMorphoStaticTyping(MORPHO).position(other.id, accountEth);
+        assertGt(uint256(oB), 0, "other: seeded debt");
+
+        _getTokens(m.coll, accountEth, m.collAmount);
+        uint256 loanBefore = IERC20(m.loan).balanceOf(accountEth);
+
+        // OPEN
+        _execSingle(address(openHook), _v2m(m, m.collAmount, m.borrowAmount));
+        (, uint128 sharesOpen, uint128 coll) = IMorphoStaticTyping(MORPHO).position(m.id, accountEth);
+        assertEq(uint256(coll), m.collAmount, "open: collateral");
+        assertGt(uint256(sharesOpen), 0, "open: debt");
+        assertEq(IERC20(m.loan).balanceOf(accountEth) - loanBefore, m.borrowAmount, "open: exact borrow");
+
+        // BORROW (standalone)
+        _execSingle(address(borrowHook), _v2m(m, m.extraBorrow, 0));
+        (, uint128 sharesBorrow,) = IMorphoStaticTyping(MORPHO).position(m.id, accountEth);
+        assertGt(uint256(sharesBorrow), uint256(sharesOpen), "borrow: debt increased");
+        assertEq(IERC20(m.loan).balanceOf(accountEth) - loanBefore, m.borrowAmount + m.extraBorrow, "borrow: exact");
+
+        // REPAY (standalone, partial cap)
+        _execSingle(address(repayHook), _v2m(m, m.partialRepay, 0));
+        (, uint128 sharesRepay,) = IMorphoStaticTyping(MORPHO).position(m.id, accountEth);
+        assertLt(uint256(sharesRepay), uint256(sharesBorrow), "repay: debt reduced");
+        assertGt(uint256(sharesRepay), 0, "repay: residual debt");
+        assertEq(
+            IERC20(m.loan).balanceOf(accountEth) - loanBefore,
+            m.borrowAmount + m.extraBorrow - m.partialRepay,
+            "repay: exact"
+        );
+
+        // CLOSE (repay all + withdraw all) — keep the borrowed balance, add an interest buffer
+        _getTokens(m.loan, accountEth, IERC20(m.loan).balanceOf(accountEth) + m.partialRepay);
+        _execSingle(address(closeHook), _v2m(m, MAX, MAX));
+        (, uint128 sharesClose, uint128 collClose) = IMorphoStaticTyping(MORPHO).position(m.id, accountEth);
+        assertEq(uint256(sharesClose), 0, "close: debt cleared");
+        assertEq(uint256(collClose), 0, "close: collateral withdrawn");
+
+        // ISOLATION: the other market's position is byte-for-byte unchanged
+        (uint256 oS2, uint128 oB2, uint128 oC2) = IMorphoStaticTyping(MORPHO).position(other.id, accountEth);
+        assertEq(oS2, oS, "other: supply shares unchanged");
+        assertEq(uint256(oB2), uint256(oB), "other: borrow shares unchanged");
+        assertEq(uint256(oC2), uint256(oC), "other: collateral unchanged");
+    }
+
+    function _assertMarketExists(Id id) internal view {
+        (,,,, uint128 lastUpdate,) = IMorphoStaticTyping(MORPHO).market(id);
+        assertGt(uint256(lastUpdate), 0, "market must exist on the fork");
+    }
+
+    function _v2m(Mkt memory m, uint256 a1, uint256 a2) internal pure returns (bytes memory) {
+        return _v2(m.loan, m.coll, m.oracle, m.irm, m.lltv, a1, a2);
     }
 
     /*//////////////////////////////////////////////////////////////

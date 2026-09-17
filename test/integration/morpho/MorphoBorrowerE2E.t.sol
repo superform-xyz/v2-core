@@ -175,9 +175,8 @@ contract MorphoBorrowerE2E is Test, Constants {
     /// @notice Build hook data for MorphoSupplyHook
     function _buildSupplyHookData(uint256 amount, bool usePrevHookAmount) internal view returns (bytes memory) {
         return abi.encodePacked(
-            marketParams.loanToken,
-            marketParams.collateralToken,
-            bytes12(0),
+            MORPHO_YS_ORACLE_ID, // header: Superform Morpho Blue YS oracle id (offset 0)
+            MORPHO, // header: yield source = Morpho Blue singleton (offset 32)
             marketParams.loanToken,
             marketParams.collateralToken,
             marketParams.oracle,
@@ -191,9 +190,8 @@ contract MorphoBorrowerE2E is Test, Constants {
     /// @notice Build hook data for MorphoBorrowHook
     function _buildBorrowHookData(uint256 amount, bool usePrevHookAmount) internal view returns (bytes memory) {
         return abi.encodePacked(
-            marketParams.loanToken,
-            marketParams.collateralToken,
-            bytes12(0),
+            MORPHO_YS_ORACLE_ID, // header: Superform Morpho Blue YS oracle id (offset 0)
+            MORPHO, // header: yield source = Morpho Blue singleton (offset 32)
             marketParams.loanToken,
             marketParams.collateralToken,
             marketParams.oracle,
@@ -217,9 +215,8 @@ contract MorphoBorrowerE2E is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            marketParams.loanToken,
-            marketParams.collateralToken,
-            bytes12(0),
+            MORPHO_YS_ORACLE_ID, // header: Superform Morpho Blue YS oracle id (offset 0)
+            MORPHO, // header: yield source = Morpho Blue singleton (offset 32)
             marketParams.loanToken,
             marketParams.collateralToken,
             marketParams.oracle,
@@ -618,9 +615,8 @@ contract MorphoBorrowerE2E is Test, Constants {
     /// @notice Test: Revert when supply address is zero
     function test_Supply_RevertsWhenAddressZero() public {
         bytes memory hookData = abi.encodePacked(
-            address(0), // header: loanToken = zero (offset 0)
-            marketParams.collateralToken, // header: collateralToken (offset 20)
-            bytes12(0), // header padding (offset 40)
+            MORPHO_YS_ORACLE_ID, // header: oracle id (offset 0)
+            MORPHO, // header: yield source = Morpho (offset 32)
             address(0), // loanToken = zero (offset 52)
             marketParams.collateralToken,
             marketParams.oracle,

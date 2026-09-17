@@ -8,6 +8,7 @@ import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
 
 // superform
 import { BaseLoanHook } from "../BaseLoanHook.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title BaseMorphoLoanHook
 /// @author Superform Labs
@@ -16,16 +17,17 @@ import { BaseLoanHook } from "../BaseLoanHook.sol";
 ///      and provides shared data decoding and market parameter generation utilities.
 ///      The 52-byte strategy header carries the same identity as the ERC-4626 hooks: the Superform
 ///      yield-source oracle id at offset 0 and the yield source (the Morpho Blue singleton — the
-///      call target) at offset 32. The header-aware children (MorphoLendHook, MorphoWithdrawHook)
-///      decode the yield source and pin it to the `morpho` immutable via `_requireYieldSourceIsMorpho`
-///      before using it as a call target. The frozen V1 borrower leaves (MorphoSupplyHook,
-///      MorphoBorrowHook, MorphoRepayHook, and the V1 composites) intentionally do NOT decode the
-///      header — they keep targeting the `morpho` immutable directly and are superseded by the V2
-///      hooks for new roots.
+///      call target) at offset 32. The shared decoders below extract the yield source (reverting on
+///      zero) and every child pins it to the `morpho` immutable via `_requireYieldSourceIsMorpho`
+///      on each build and preExecute path before using it as a call target or approve spender. This
+///      applies to the whole V1 family — lend/withdraw and the borrower leaves alike (the earlier
+///      address freeze on the borrower leaves was lifted; they remain available at their old
+///      addresses for already-signed roots).
 ///      SECURITY INVARIANT: All Morpho calls MUST use empty callback data ("") to prevent reentrancy
 ///      through Morpho's callback mechanism (onMorphoSupply, onMorphoRepay, etc.).
 abstract contract BaseMorphoLoanHook is BaseLoanHook {
     using MarketParamsLib for MarketParams;
+    using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
@@ -68,6 +70,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     //////////////////////////////////////////////////////////////*/
 
     struct BuildHookLocalVars {
+        address yieldSource; // header offset 32 — Morpho Blue singleton (call target)
         address loanToken;
         address collateralToken;
         address oracle;
@@ -79,6 +82,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     }
 
     struct BorrowHookLocalVars {
+        address yieldSource; // header offset 32 — Morpho Blue singleton (call target)
         address loanToken;
         address collateralToken;
         address oracle;
@@ -134,18 +138,33 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
         if (yieldSource != morpho) revert YIELD_SOURCE_MISMATCH();
     }
 
+    /// @dev Convenience pin for paths that do not decode a full struct (e.g. a preExecute that only
+    ///      snapshots balances): extracts the header yield source, rejects zero the same way the
+    ///      decoders do (ADDRESS_NOT_VALID), then applies the Morpho pin — so every entry point
+    ///      reports a zero header identically.
+    /// @param data The hook data
+    function _requireHeaderMorpho(bytes memory data) internal view {
+        address yieldSource = data.extractYieldSource();
+        if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
+        _requireYieldSourceIsMorpho(yieldSource);
+    }
+
     /// @dev Decodes the hook data for repay operations (146-byte layout)
     /// @param data The hook data
     /// @return vars The decoded hook data
     function _decodeHookData(bytes memory data) internal pure returns (BuildHookLocalVars memory vars) {
         if (data.length < REPAY_MIN_DATA_LENGTH) revert INVALID_DATA_LENGTH();
 
+        address yieldSource = data.extractYieldSource();
         address loanToken = BytesLib.toAddress(data, LOAN_TOKEN_OFFSET);
         address collateralToken = BytesLib.toAddress(data, COLLATERAL_TOKEN_OFFSET);
         address oracle = BytesLib.toAddress(data, ORACLE_OFFSET);
         address irm = BytesLib.toAddress(data, IRM_OFFSET);
 
-        if (loanToken == address(0) || collateralToken == address(0) || oracle == address(0) || irm == address(0)) {
+        if (
+            yieldSource == address(0) || loanToken == address(0) || collateralToken == address(0)
+                || oracle == address(0) || irm == address(0)
+        ) {
             revert ADDRESS_NOT_VALID();
         }
 
@@ -155,6 +174,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
         bool isFullRepayment = _decodeBool(data, IS_FULL_REPAYMENT_OFFSET);
 
         vars = BuildHookLocalVars({
+            yieldSource: yieldSource,
             loanToken: loanToken,
             collateralToken: collateralToken,
             oracle: oracle,
@@ -172,12 +192,16 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     function _decodeBorrowHookData(bytes memory data) internal pure returns (BorrowHookLocalVars memory vars) {
         if (data.length < BORROW_MIN_DATA_LENGTH) revert INVALID_DATA_LENGTH();
 
+        address yieldSource = data.extractYieldSource();
         address loanToken = BytesLib.toAddress(data, LOAN_TOKEN_OFFSET);
         address collateralToken = BytesLib.toAddress(data, COLLATERAL_TOKEN_OFFSET);
         address oracle = BytesLib.toAddress(data, ORACLE_OFFSET);
         address irm = BytesLib.toAddress(data, IRM_OFFSET);
 
-        if (loanToken == address(0) || collateralToken == address(0) || oracle == address(0) || irm == address(0)) {
+        if (
+            yieldSource == address(0) || loanToken == address(0) || collateralToken == address(0)
+                || oracle == address(0) || irm == address(0)
+        ) {
             revert ADDRESS_NOT_VALID();
         }
 
@@ -187,6 +211,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
         uint256 lltv = BytesLib.toUint256(data, BORROW_LLTV_OFFSET);
 
         return BorrowHookLocalVars({
+            yieldSource: yieldSource,
             loanToken: loanToken,
             collateralToken: collateralToken,
             oracle: oracle,
@@ -216,12 +241,9 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
         pure
         returns (MarketParams memory)
     {
-        return MarketParams({
-            loanToken: loanToken,
-            collateralToken: collateralToken,
-            oracle: oracle,
-            irm: irm,
-            lltv: lltv
-        });
+        return
+            MarketParams({
+                loanToken: loanToken, collateralToken: collateralToken, oracle: oracle, irm: irm, lltv: lltv
+            });
     }
 }

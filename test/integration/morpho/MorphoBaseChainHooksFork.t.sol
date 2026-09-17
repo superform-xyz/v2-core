@@ -166,7 +166,7 @@ contract MorphoBaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHelpe
     // Supply and Lend share the same data layout (supply-collateral vs supply-loan differ only by hook).
     function _supplyData(uint256 amount) internal view returns (bytes memory) {
         return abi.encodePacked(
-            loanToken, collateralToken, bytes12(0), loanToken, collateralToken, MORPHO_ORACLE, MORPHO_IRM, amount, lltv, false
+            MORPHO_YS_ORACLE_ID, MORPHO, loanToken, collateralToken, MORPHO_ORACLE, MORPHO_IRM, amount, lltv, false
         );
     }
 
