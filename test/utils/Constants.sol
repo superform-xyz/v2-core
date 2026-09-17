@@ -208,6 +208,10 @@ abstract contract Constants {
     string public constant MORPHO_KEY = "Morpho";
     address public constant MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
 
+    /// @dev Superform Morpho Blue yield-source oracle id carried in the 52-byte hook header (offset 0).
+    ///      The yield source (offset 32) is the Morpho Blue singleton `MORPHO`.
+    bytes32 public constant MORPHO_YS_ORACLE_ID = keccak256("SUPERFORM_MORPHO_BLUE_YS");
+
     // Base USDC-WETH Market Constants
     address public constant MORPHO_IRM = 0x46415998764C29aB2a25CbeA6254146D50D22687;
     address public constant MORPHO_ORACLE = 0xD09048c8B568Dbf5f189302beA26c9edABFC4858;

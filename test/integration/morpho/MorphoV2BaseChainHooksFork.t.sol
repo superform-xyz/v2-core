@@ -164,7 +164,7 @@ contract MorphoV2BaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHel
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Canonical 230-byte Morpho V2 layout:
-    ///      52-byte strategy header (bytes32(0) + address(0)), then loanToken (offset 52),
+    ///      52-byte strategy header (MORPHO_YS_ORACLE_ID at offset 0 + Morpho singleton at offset 32), then loanToken (offset 52),
     ///      collateralToken (72), oracle (92), irm (112), amount1 (132), amount2 (164),
     ///      usePrevHookAmount (196), lltv (197), reserved zero byte (229).
     function _morphoV2Data(
@@ -177,8 +177,8 @@ contract MorphoV2BaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHel
         returns (bytes memory data)
     {
         data = abi.encodePacked(
-            bytes32(0),
-            address(0),
+            MORPHO_YS_ORACLE_ID,
+            MORPHO,
             loanToken,
             collateralToken,
             MORPHO_ORACLE,

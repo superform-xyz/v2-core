@@ -75,7 +75,7 @@ contract MorphoLendIntegrationTest is MinimalBaseIntegrationTest {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(loanToken, collateralToken, bytes12(0), loanToken, collateralToken, oracle, irm, amount, _lltv, usePrevHookAmount);
+        return abi.encodePacked(MORPHO_YS_ORACLE_ID, MORPHO, loanToken, collateralToken, oracle, irm, amount, _lltv, usePrevHookAmount);
     }
 
     function _createMorphoWithdrawHookData(
@@ -91,7 +91,7 @@ contract MorphoLendIntegrationTest is MinimalBaseIntegrationTest {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(loanToken, collateralToken, bytes12(0), loanToken, collateralToken, oracle, irm, _lltv, assets, shares);
+        return abi.encodePacked(MORPHO_YS_ORACLE_ID, MORPHO, loanToken, collateralToken, oracle, irm, _lltv, assets, shares);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -94,8 +94,8 @@ contract LoanHooksV2SizingIntegration is Helpers {
     /// @dev Morpho V2 layout — exact 230 bytes
     function _morphoData(uint256 a1, uint256 a2, bool usePrev) internal pure returns (bytes memory data) {
         data = abi.encodePacked(
-            bytes32(0),
-            address(0),
+            MORPHO_YS_ORACLE_ID,
+            MORPHO_BLUE,
             USDC,
             WBTC,
             MORPHO_ORACLE_WBTC,

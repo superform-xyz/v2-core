@@ -144,7 +144,7 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
         returns (bytes memory data)
     {
         data = abi.encodePacked(
-            bytes32(0), address(0), loanT, collT, oracle, irm, a1, a2, usePrev, MORPHO_LLTV, reservedByte
+            MORPHO_YS_ORACLE_ID, MORPHO_BLUE, loanT, collT, oracle, irm, a1, a2, usePrev, MORPHO_LLTV, reservedByte
         );
         assertEq(data.length, 230);
     }

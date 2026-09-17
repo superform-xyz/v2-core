@@ -15,8 +15,8 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 /// @title MorphoRepayAndWithdrawHookV2
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
-/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
+/// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Morpho Blue YS id
+/// @notice         address yieldSource = data.extractYieldSource(); // Morpho Blue singleton (call target)
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address oracle = BytesLib.toAddress(data, 92);
@@ -74,6 +74,7 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHookV2 {
         returns (Execution[] memory executions)
     {
         MorphoV2Vars memory vars = _decodeMorphoV2(data, false);
+        _requireYieldSourceIsMorpho(vars.yieldSource);
         MarketParams memory marketParams = _marketParams(vars);
         (uint256 repayAssets, uint256 borrowShares, bool fullRepay) =
             _resolveRepayLeg(prevHook, account, vars, marketParams);
@@ -84,22 +85,22 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHookV2 {
         uint256 i;
         if (repayAssets != 0) {
             executions[i++] =
-                Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+                Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.yieldSource, 0)) });
             executions[i++] = Execution({
-                target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, repayAssets))
+                target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.yieldSource, repayAssets))
             });
             executions[i++] = Execution({
-                target: morpho,
+                target: vars.yieldSource,
                 value: 0,
                 callData: fullRepay
                     ? abi.encodeCall(IMorphoBase.repay, (marketParams, 0, borrowShares, account, ""))
                     : abi.encodeCall(IMorphoBase.repay, (marketParams, repayAssets, 0, account, ""))
             });
             executions[i++] =
-                Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+                Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.yieldSource, 0)) });
         }
         executions[i] = Execution({
-            target: morpho,
+            target: vars.yieldSource,
             value: 0,
             callData: abi.encodeCall(IMorphoBase.withdrawCollateral, (marketParams, withdrawAmount, account, account))
         });
@@ -134,7 +135,7 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHookV2 {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view override returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return _inspectMorphoV2(_decodeMorphoV2(data, false));
     }
 
@@ -167,6 +168,7 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHookV2 {
     /// @dev Accrues interest, then stores the exact expected legs and snapshots wallet balances
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         MorphoV2Vars memory vars = _decodeMorphoV2(data, false);
+        _requireYieldSourceIsMorpho(vars.yieldSource);
         _accrueInterest(vars);
 
         MarketParams memory marketParams = _marketParams(vars);

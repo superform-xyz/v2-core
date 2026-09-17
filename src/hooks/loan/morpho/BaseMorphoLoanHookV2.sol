@@ -10,30 +10,40 @@ import { IMorpho, IMorphoStaticTyping, MarketParams } from "../../../vendor/morp
 // Superform
 import { BaseLoanHook } from "../BaseLoanHook.sol";
 import { BaseLoanHookV2 } from "../BaseLoanHookV2.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title BaseMorphoLoanHookV2
 /// @author Superform Labs
 /// @notice Base abstract hook for the V2 Morpho Blue loan hooks (open / close / standalone repay)
-/// @dev One canonical 230-byte layout is shared by all three Morpho V2 hooks
-///      (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
-/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
+/// @dev One canonical 230-byte layout is shared by all Morpho V2 hooks. The 52-byte strategy
+///      header carries the same identity as the ERC-4626 hooks: the Superform yield-source oracle
+///      id at offset 0 and the yield source (the Morpho Blue singleton — the call target) at
+///      offset 32. The body is a Morpho MarketParams FILTER only; Morpho itself is NOT a
+///      MarketParams field and is NOT a separate inspect address.
+/// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Morpho Blue YS id
+/// @notice         address yieldSource = data.extractYieldSource(); // Morpho Blue singleton (call target)
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
-/// @notice         address oracle = BytesLib.toAddress(data, 92); // market identity only — never priced
+/// @notice         address oracle = BytesLib.toAddress(data, 92); // Morpho IOracle — identity only, never priced
 /// @notice         address irm = BytesLib.toAddress(data, 112);
 /// @notice         uint256 amount1 = BytesLib.toUint256(data, 132); // open: collateral; close/repay: repay CAP
 /// @notice         uint256 amount2 = BytesLib.toUint256(data, 164); // open: borrow; close: withdraw; repay: 0
 /// @notice         bool usePrevHookAmount = _decodeStrictBool(data, 196); // canonical 0x00/0x01
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 197); // market identity
 /// @notice         byte reserved = data[229]; // must be 0x00
-/// @dev Standalone repay reserves the amount2 word as zero, keeping one canonical provider layout
+/// @dev Every Morpho call (approve/supply/borrow/repay/withdraw*/accrueInterest) targets the
+///      header-derived yieldSource (offset 32), not an immutable. Because the target is calldata-
+///      derived, the `morpho` immutable is the PRIMARY call-target pin: `_requireYieldSourceIsMorpho`
+///      asserts the header target equals the Morpho this hook was deployed for on every build and
+///      preExecute path, so a crafted header can never redirect a call / approve elsewhere.
+///      Standalone repay reserves the amount2 word as zero, keeping one canonical provider layout
 ///      without advertising a second active leg.
 ///      SECURITY INVARIANT: All Morpho calls MUST use empty callback data ("") to prevent
 ///      reentrancy through Morpho's callback mechanism (onMorphoSupply, onMorphoRepay, etc.).
 ///      No amount is ever derived from the oracle or an LTV ratio inside the hook.
 abstract contract BaseMorphoLoanHookV2 is BaseLoanHookV2 {
     using MarketParamsLib for MarketParams;
+    using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
@@ -65,10 +75,19 @@ abstract contract BaseMorphoLoanHookV2 is BaseLoanHookV2 {
     IMorphoStaticTyping public immutable morphoStaticTyping;
 
     /*//////////////////////////////////////////////////////////////
+                               ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Thrown when the header yield source (offset 32) does not equal the Morpho this hook was
+    ///         deployed for
+    error YIELD_SOURCE_MISMATCH();
+
+    /*//////////////////////////////////////////////////////////////
                                STRUCTS
     //////////////////////////////////////////////////////////////*/
 
     struct MorphoV2Vars {
+        address yieldSource; // header offset 32 — Morpho Blue singleton (call target)
         address loanToken;
         address collateralToken;
         address oracle;
@@ -125,14 +144,19 @@ abstract contract BaseMorphoLoanHookV2 is BaseLoanHookV2 {
     {
         if (data.length != MORPHO_V2_DATA_LENGTH) revert INVALID_DATA_LENGTH();
 
+        // Header identity (same as ERC-4626): yieldSource @32 is the Morpho Blue singleton (call
+        // target). The morpho == yieldSource pin is asserted in the execution path via
+        // _requireYieldSourceIsMorpho (this decode stays pure so the sizing views can reuse it).
+        vars.yieldSource = data.extractYieldSource();
+
         vars.loanToken = BytesLib.toAddress(data, LOAN_TOKEN_OFFSET);
         vars.collateralToken = BytesLib.toAddress(data, COLLATERAL_TOKEN_OFFSET);
         vars.oracle = BytesLib.toAddress(data, ORACLE_OFFSET);
         vars.irm = BytesLib.toAddress(data, IRM_OFFSET);
 
         if (
-            vars.loanToken == address(0) || vars.collateralToken == address(0) || vars.oracle == address(0)
-                || vars.irm == address(0)
+            vars.yieldSource == address(0) || vars.loanToken == address(0) || vars.collateralToken == address(0)
+                || vars.oracle == address(0) || vars.irm == address(0)
         ) {
             revert ADDRESS_NOT_VALID();
         }
@@ -146,6 +170,16 @@ abstract contract BaseMorphoLoanHookV2 is BaseLoanHookV2 {
 
         // Reuse the already-decoded word instead of re-reading it
         if (secondaryReserved && vars.amount2 != 0) revert RESERVED_FIELD_NOT_ZERO();
+    }
+
+    /// @dev Primary call-target pin: the header-derived yield source (offset 32) IS the Morpho call
+    ///      target, so this equality check is the control that keeps a crafted header from redirecting
+    ///      a Morpho call / approve to an arbitrary address. MUST run on every path (build AND
+    ///      preExecute) before `yieldSource` is used as a target. Kept separate from `_decodeMorphoV2`
+    ///      so decode stays `pure` for the sizing views (`decodeAmounts`/`replaceCalldataAmounts`).
+    /// @param yieldSource The header-derived Morpho Blue singleton address
+    function _requireYieldSourceIsMorpho(address yieldSource) internal view {
+        if (yieldSource != morpho) revert YIELD_SOURCE_MISMATCH();
     }
 
     /// @dev Generates the Morpho Blue market params from decoded vars
@@ -173,7 +207,8 @@ abstract contract BaseMorphoLoanHookV2 is BaseLoanHookV2 {
 
     /// @dev Accrues interest on the market (call from _preExecute before resolving expected amounts)
     function _accrueInterest(MorphoV2Vars memory vars) internal {
-        IMorpho(morpho).accrueInterest(_marketParams(vars));
+        // Header-derived target (pinned == morpho by the caller's _requireYieldSourceIsMorpho)
+        IMorpho(vars.yieldSource).accrueInterest(_marketParams(vars));
     }
 
     /// @dev Resolves the repay leg shared by MorphoRepayHookV2 and MorphoRepayAndWithdrawHookV2.
@@ -212,12 +247,14 @@ abstract contract BaseMorphoLoanHookV2 is BaseLoanHookV2 {
             _resolveRepayCap(prevHook, account, vars.loanToken, vars.amount1, vars.usePrevHookAmount, debt);
     }
 
-    /// @dev Full market-identity inspector payload: Morpho singleton, loan token, collateral
-    ///      token, oracle, IRM and LLTV. Amount fields, usePrevHookAmount and the strategy header
-    ///      are intentionally excluded.
+    /// @dev Full market-identity inspector payload: the header-derived Morpho singleton
+    ///      (yieldSource offset 32), loan token, collateral token, Morpho IOracle, IRM and LLTV. Amount
+    ///      fields, usePrevHookAmount and the strategy header are intentionally excluded. Morpho is
+    ///      NOT packed as a separate immutable field — it is the header yieldSource.
     /// @param vars The decoded hook parameters
     /// @return The packed inspector payload
-    function _inspectMorphoV2(MorphoV2Vars memory vars) internal view returns (bytes memory) {
-        return abi.encodePacked(morpho, vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+    function _inspectMorphoV2(MorphoV2Vars memory vars) internal pure returns (bytes memory) {
+        return
+            abi.encodePacked(vars.yieldSource, vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
     }
 }

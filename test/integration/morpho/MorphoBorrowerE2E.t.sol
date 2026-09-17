@@ -242,9 +242,8 @@ contract MorphoBorrowerE2E is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            marketParams.loanToken,
-            marketParams.collateralToken,
-            bytes12(0),
+            MORPHO_YS_ORACLE_ID,
+            MORPHO,
             marketParams.loanToken,
             marketParams.collateralToken,
             marketParams.oracle,

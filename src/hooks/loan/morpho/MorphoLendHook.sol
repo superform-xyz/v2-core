@@ -12,13 +12,14 @@ import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoLendHook
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
-/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
+/// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Morpho Blue YS id
+/// @notice         address yieldSource = data.extractYieldSource(); // Morpho Blue singleton (call target)
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address oracle = BytesLib.toAddress(data, 92);
@@ -26,18 +27,26 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 /// @notice         uint256 amount = BytesLib.toUint256(data, 132);
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 164);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 196);
+/// @dev The 52-byte header carries the same identity as the ERC-4626 hooks: the Superform
+///      yield-source oracle id at offset 0 and the yield source (the Morpho Blue singleton — the
+///      call target) at offset 32. Every Morpho call targets the header-derived yieldSource; the
+///      `morpho` immutable is the primary call-target pin, asserted at build/preExecute before use.
+///      inspect() packs the header yieldSource plus the full MarketParams (loan, collateral,
+///      oracle, irm, lltv).
 /// @dev WARNING: outAmount is Morpho supply shares (not assets). Unlike ERC-4626 vault shares,
 ///      Morpho shares are non-transferable internal accounting units. Downstream hooks using
 ///      usePrevHookAmount will receive a share count, not a token amount. The bundler MUST NOT
 ///      chain this hook into asset-denominated downstream hooks without conversion.
 contract MorphoLendHook is BaseMorphoLoanHook {
     using MarketParamsLib for MarketParams;
+    using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
                                STRUCTS
     //////////////////////////////////////////////////////////////*/
 
     struct LendHookLocalVars {
+        address yieldSource;
         address loanToken;
         address collateralToken;
         address oracle;
@@ -81,6 +90,7 @@ contract MorphoLendHook is BaseMorphoLoanHook {
         returns (Execution[] memory executions)
     {
         LendHookLocalVars memory vars = _decodeLendHookData(data);
+        _requireYieldSourceIsMorpho(vars.yieldSource);
 
         if (vars.usePrevHookAmount) {
             vars.amount = ISuperHookResult(prevHook).getOutAmount(account);
@@ -93,23 +103,29 @@ contract MorphoLendHook is BaseMorphoLoanHook {
 
         executions = new Execution[](4);
         // 1. Reset approval (handles USDT)
-        executions[0] =
-            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+        executions[0] = Execution({
+            target: vars.loanToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (vars.yieldSource, 0))
+        });
         // 2. Set approval for supply amount
         executions[1] = Execution({
             target: vars.loanToken,
             value: 0,
-            callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
+            callData: abi.encodeCall(IERC20.approve, (vars.yieldSource, vars.amount))
         });
         // 3. Supply to Morpho Blue as lender (supply loanToken, earn interest)
         executions[2] = Execution({
-            target: morpho,
+            target: vars.yieldSource,
             value: 0,
             callData: abi.encodeCall(IMorphoBase.supply, (marketParams, vars.amount, 0, account, ""))
         });
         // 4. P1-1: Reset approval after supply to prevent dangling allowance
-        executions[3] =
-            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+        executions[3] = Execution({
+            target: vars.loanToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (vars.yieldSource, 0))
+        });
     }
 
     /// @inheritdoc ISuperHookInspector
@@ -120,7 +136,12 @@ contract MorphoLendHook is BaseMorphoLoanHook {
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
         return abi.encodePacked(
-            marketParams.loanToken, marketParams.collateralToken, marketParams.oracle, marketParams.irm
+            vars.yieldSource,
+            marketParams.loanToken,
+            marketParams.collateralToken,
+            marketParams.oracle,
+            marketParams.irm,
+            marketParams.lltv
         );
     }
 
@@ -134,12 +155,16 @@ contract MorphoLendHook is BaseMorphoLoanHook {
     function _decodeLendHookData(bytes memory data) internal pure returns (LendHookLocalVars memory vars) {
         if (data.length < SUPPLY_MIN_DATA_LENGTH) revert INVALID_DATA_LENGTH();
 
+        address yieldSource = data.extractYieldSource();
         address loanToken = BytesLib.toAddress(data, LOAN_TOKEN_OFFSET);
         address collateralToken = BytesLib.toAddress(data, COLLATERAL_TOKEN_OFFSET);
         address oracle = BytesLib.toAddress(data, ORACLE_OFFSET);
         address irm = BytesLib.toAddress(data, IRM_OFFSET);
 
-        if (loanToken == address(0) || collateralToken == address(0) || oracle == address(0) || irm == address(0)) {
+        if (
+            yieldSource == address(0) || loanToken == address(0) || collateralToken == address(0)
+                || oracle == address(0) || irm == address(0)
+        ) {
             revert ADDRESS_NOT_VALID();
         }
 
@@ -148,6 +173,7 @@ contract MorphoLendHook is BaseMorphoLoanHook {
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         return LendHookLocalVars({
+            yieldSource: yieldSource,
             loanToken: loanToken,
             collateralToken: collateralToken,
             oracle: oracle,
@@ -162,7 +188,10 @@ contract MorphoLendHook is BaseMorphoLoanHook {
     /// @param account The smart account whose position is tracked
     /// @param data Encoded hook calldata containing market parameters
     function _preExecute(address, address account, bytes calldata data) internal override {
-        _setOutAmount(_getSupplyShares(account, data), account);
+        // Decode once: pin the header yield source and compute supply shares from the same vars.
+        LendHookLocalVars memory vars = _decodeLendHookData(data);
+        _requireYieldSourceIsMorpho(vars.yieldSource);
+        _setOutAmount(_getSupplyShares(vars, account), account);
     }
 
     /// @notice Computes supply shares received (always positive) and sets as outAmount
@@ -178,7 +207,21 @@ contract MorphoLendHook is BaseMorphoLoanHook {
     /// @param data Encoded hook calldata containing market parameters
     /// @return supplyShares The account's supply shares in the Morpho market
     function _getSupplyShares(address account, bytes memory data) internal view returns (uint256 supplyShares) {
-        LendHookLocalVars memory vars = _decodeLendHookData(data);
+        return _getSupplyShares(_decodeLendHookData(data), account);
+    }
+
+    /// @notice Overload that reuses already-decoded vars to avoid a second decode
+    /// @param vars Decoded lend hook parameters
+    /// @param account The account to query
+    /// @return supplyShares The account's supply shares in the Morpho market
+    function _getSupplyShares(
+        LendHookLocalVars memory vars,
+        address account
+    )
+        internal
+        view
+        returns (uint256 supplyShares)
+    {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
         (supplyShares,,) = IMorphoStaticTyping(morpho).position(marketParams.id(), account);

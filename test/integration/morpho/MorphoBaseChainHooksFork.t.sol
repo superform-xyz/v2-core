@@ -172,13 +172,13 @@ contract MorphoBaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHelpe
 
     function _lendData(uint256 amount) internal view returns (bytes memory) {
         return abi.encodePacked(
-            loanToken, collateralToken, bytes12(0), loanToken, collateralToken, MORPHO_ORACLE, MORPHO_IRM, amount, lltv, false
+            MORPHO_YS_ORACLE_ID, MORPHO, loanToken, collateralToken, MORPHO_ORACLE, MORPHO_IRM, amount, lltv, false
         );
     }
 
     function _withdrawData(uint256 assets, uint256 shares) internal view returns (bytes memory) {
         return abi.encodePacked(
-            loanToken, collateralToken, bytes12(0), loanToken, collateralToken, MORPHO_ORACLE, MORPHO_IRM, lltv, assets, shares
+            MORPHO_YS_ORACLE_ID, MORPHO, loanToken, collateralToken, MORPHO_ORACLE, MORPHO_IRM, lltv, assets, shares
         );
     }
 

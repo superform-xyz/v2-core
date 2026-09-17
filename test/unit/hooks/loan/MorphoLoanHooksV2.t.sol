@@ -10,6 +10,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 import { BaseLoanHookV2 } from "../../../../src/hooks/loan/BaseLoanHookV2.sol";
+import { BaseMorphoLoanHookV2 } from "../../../../src/hooks/loan/morpho/BaseMorphoLoanHookV2.sol";
 import { HookSubTypes } from "../../../../src/libraries/HookSubTypes.sol";
 import {
     ISuperHook,
@@ -148,6 +149,7 @@ contract MorphoLoanHooksV2Test is Helpers {
 
     address public constant BURN = address(0xdead);
 
+
     function setUp() public {
         mockMorpho = new MockMorpho();
         mockIRM = new MockIRM();
@@ -211,12 +213,12 @@ contract MorphoLoanHooksV2Test is Helpers {
         uint256 lltv_
     )
         internal
-        pure
+        view
         returns (bytes memory)
     {
         return abi.encodePacked(
-            bytes32(0),
-            address(0),
+            MORPHO_YS_ORACLE_ID,
+            address(mockMorpho),
             loanToken_,
             collateralToken_,
             oracle_,
@@ -394,6 +396,56 @@ contract MorphoLoanHooksV2Test is Helpers {
         // The amount2 word is reserved (must be zero) for the standalone repay hook
         vm.expectRevert(BaseLoanHookV2.RESERVED_FIELD_NOT_ZERO.selector);
         repayHook.build(address(0), address(this), _data(amount1, 1, false));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        3b. HEADER YIELD-SOURCE IDENTITY
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Encodes the canonical layout with an explicit header yield source (offset 32)
+    function _encodeHeaderYieldSource(address yieldSource_) internal view returns (bytes memory) {
+        return abi.encodePacked(
+            MORPHO_YS_ORACLE_ID,
+            yieldSource_,
+            loanToken,
+            collateralToken,
+            oracle,
+            irm,
+            amount1,
+            amount2,
+            false,
+            lltv,
+            uint8(0)
+        );
+    }
+
+    function test_Build_RevertIf_ZeroYieldSource() public {
+        bytes memory data = _encodeHeaderYieldSource(address(0));
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        openHook.build(address(0), address(this), data);
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        openHook.preExecute(address(0), address(this), data);
+    }
+
+    function test_Build_RevertIf_YieldSourceMismatch() public {
+        // A well-formed header pointing at a DIFFERENT Morpho than the one this hook was deployed for
+        address otherMorpho = address(new MockMorpho());
+        bytes memory data = _encodeHeaderYieldSource(otherMorpho);
+
+        vm.expectRevert(BaseMorphoLoanHookV2.YIELD_SOURCE_MISMATCH.selector);
+        openHook.build(address(0), address(this), data);
+
+        vm.expectRevert(BaseMorphoLoanHookV2.YIELD_SOURCE_MISMATCH.selector);
+        openHook.preExecute(address(0), address(this), data);
+    }
+
+    function test_Inspect_PacksHeaderYieldSource() public view {
+        // inspect must pack the header-derived yield source as the first field
+        bytes memory expected =
+            abi.encodePacked(address(mockMorpho), loanToken, collateralToken, oracle, irm, lltv);
+        assertEq(openHook.inspect(_encodeHeaderYieldSource(address(mockMorpho))), expected);
     }
 
     /*//////////////////////////////////////////////////////////////

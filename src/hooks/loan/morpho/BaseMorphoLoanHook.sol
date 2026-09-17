@@ -14,6 +14,14 @@ import { BaseLoanHook } from "../BaseLoanHook.sol";
 /// @notice Base abstract hook for Morpho Blue lending protocol integrations
 /// @dev All Morpho hooks inherit from this contract. It stores the Morpho Blue protocol address
 ///      and provides shared data decoding and market parameter generation utilities.
+///      The 52-byte strategy header carries the same identity as the ERC-4626 hooks: the Superform
+///      yield-source oracle id at offset 0 and the yield source (the Morpho Blue singleton — the
+///      call target) at offset 32. The header-aware children (MorphoLendHook, MorphoWithdrawHook)
+///      decode the yield source and pin it to the `morpho` immutable via `_requireYieldSourceIsMorpho`
+///      before using it as a call target. The frozen V1 borrower leaves (MorphoSupplyHook,
+///      MorphoBorrowHook, MorphoRepayHook, and the V1 composites) intentionally do NOT decode the
+///      header — they keep targeting the `morpho` immutable directly and are superseded by the V2
+///      hooks for new roots.
 ///      SECURITY INVARIANT: All Morpho calls MUST use empty callback data ("") to prevent reentrancy
 ///      through Morpho's callback mechanism (onMorphoSupply, onMorphoRepay, etc.).
 abstract contract BaseMorphoLoanHook is BaseLoanHook {
@@ -28,9 +36,9 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     uint256 internal constant COLLATERAL_TOKEN_OFFSET = 72;
     uint256 internal constant ORACLE_OFFSET = 92;
     uint256 internal constant IRM_OFFSET = 112;
-    // AMOUNT_POSITION = 80 inherited from BaseLoanHook
+    // AMOUNT_POSITION = 132 inherited from BaseLoanHook
     uint256 internal constant LLTV_OFFSET = 164;
-    // USE_PREV_HOOK_AMOUNT_POSITION = 144 inherited from BaseLoanHook
+    // USE_PREV_HOOK_AMOUNT_POSITION = 196 inherited from BaseLoanHook
     uint256 internal constant IS_FULL_REPAYMENT_OFFSET = 197;
 
     /// @notice Byte offset for LLTV in borrow hook data (178-byte layout)
@@ -97,6 +105,10 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     /// @notice Thrown when the oracle returns a zero price
     error ORACLE_PRICE_NOT_VALID();
 
+    /// @notice Thrown when the header yield source (offset 32) does not equal the Morpho this hook
+    ///         was deployed for
+    error YIELD_SOURCE_MISMATCH();
+
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -111,6 +123,16 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @dev Primary call-target pin: the header-derived yield source (offset 32) IS the Morpho call
+    ///      target for the header-aware leaves, so this equality check is the control that keeps a
+    ///      crafted header from redirecting a Morpho call / approve to an arbitrary address — it must
+    ///      run on every path before `yieldSource` is used as a target. Kept as a separate view helper
+    ///      because it reads the `morpho` immutable and so cannot live inside a pure decode path.
+    /// @param yieldSource The header-derived Morpho Blue singleton address
+    function _requireYieldSourceIsMorpho(address yieldSource) internal view {
+        if (yieldSource != morpho) revert YIELD_SOURCE_MISMATCH();
+    }
 
     /// @dev Decodes the hook data for repay operations (146-byte layout)
     /// @param data The hook data

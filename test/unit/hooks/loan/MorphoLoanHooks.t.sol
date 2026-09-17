@@ -127,6 +127,11 @@ contract MorphoLoanHooksTest is Helpers {
     MockERC20 public mockLoanToken;
     MockERC20 public mockCollateralToken;
 
+    /// @dev Canonical 52-byte strategy header for lend/withdraw: oracleId at offset 0 + yieldSource (Morpho) at offset 32
+    function _header() internal view returns (bytes memory) {
+        return abi.encodePacked(MORPHO_YS_ORACLE_ID, address(mockMorpho));
+    }
+
     function setUp() public {
         mockMorpho = new MockMorpho();
         mockIRM = new MockIRM();
@@ -247,13 +252,33 @@ contract MorphoLoanHooksTest is Helpers {
         assertGt(argsEncoded.length, 0);
     }
 
+    function test_LendHook_Inspector_PacksHeaderYieldSourceAndLltv() public view {
+        bytes memory data = _encodeLendData(false);
+        bytes memory expected = abi.encodePacked(
+            address(mockMorpho), loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv
+        );
+        assertEq(lendHook.inspect(data), expected);
+    }
+
+    function test_LendHook_Build_RevertIf_YieldSourceMismatch() public {
+        address otherMorpho = address(new MockMorpho());
+        bytes memory data = abi.encodePacked(
+            MORPHO_YS_ORACLE_ID, otherMorpho, // header points at a different Morpho
+            loanToken, collateralToken, address(mockOracle), address(mockIRM), amount, lltv, false
+        );
+        vm.expectRevert(BaseMorphoLoanHook.YIELD_SOURCE_MISMATCH.selector);
+        lendHook.build(address(0), address(this), data);
+        vm.expectRevert(BaseMorphoLoanHook.YIELD_SOURCE_MISMATCH.selector);
+        lendHook.preExecute(address(0), address(this), data);
+    }
+
     function test_LendHook_Build_RevertIf_InvalidAmount() public {
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         lendHook.build(
             address(0),
             address(this),
             abi.encodePacked(
-                bytes(new bytes(52)), address(loanToken),
+                _header(), address(loanToken),
                 address(collateralToken),
                 address(mockOracle),
                 address(mockIRM),
@@ -270,7 +295,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                bytes(new bytes(52)), address(0), address(collateralToken), address(mockOracle), address(mockIRM), amount, lltv, false
+                _header(), address(0), address(collateralToken), address(mockOracle), address(mockIRM), amount, lltv, false
             )
         );
     }
@@ -281,7 +306,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                bytes(new bytes(52)), address(loanToken), address(0), address(mockOracle), address(mockIRM), amount, lltv, false
+                _header(), address(loanToken), address(0), address(mockOracle), address(mockIRM), amount, lltv, false
             )
         );
     }
@@ -292,7 +317,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                bytes(new bytes(52)), address(loanToken), address(collateralToken), address(0), address(mockIRM), amount, lltv, false
+                _header(), address(loanToken), address(collateralToken), address(0), address(mockIRM), amount, lltv, false
             )
         );
     }
@@ -303,7 +328,7 @@ contract MorphoLoanHooksTest is Helpers {
             address(0),
             address(this),
             abi.encodePacked(
-                bytes(new bytes(52)), address(loanToken), address(collateralToken), address(mockOracle), address(0), amount, lltv, false
+                _header(), address(loanToken), address(collateralToken), address(mockOracle), address(0), amount, lltv, false
             )
         );
     }
@@ -1187,6 +1212,27 @@ contract MorphoLoanHooksTest is Helpers {
         assertGt(argsEncoded.length, 0);
     }
 
+    function test_WithdrawHook_Inspector_PacksHeaderYieldSourceAndLltv() public view {
+        bytes memory data =
+            _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, 0);
+        bytes memory expected = abi.encodePacked(
+            address(mockMorpho), loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv
+        );
+        assertEq(withdrawHook.inspect(data), expected);
+    }
+
+    function test_WithdrawHook_Build_RevertIf_YieldSourceMismatch() public {
+        address otherMorpho = address(new MockMorpho());
+        bytes memory data = abi.encodePacked(
+            MORPHO_YS_ORACLE_ID, otherMorpho, // header points at a different Morpho
+            loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, uint256(0)
+        );
+        vm.expectRevert(BaseMorphoLoanHook.YIELD_SOURCE_MISMATCH.selector);
+        withdrawHook.build(address(0), address(this), data);
+        vm.expectRevert(BaseMorphoLoanHook.YIELD_SOURCE_MISMATCH.selector);
+        withdrawHook.preExecute(address(0), address(this), data);
+    }
+
     function test_WithdrawHook_PrePostExecute() public {
         bytes memory data = _encodeWithdrawData(
             loanToken,
@@ -1425,7 +1471,7 @@ contract MorphoLoanHooksTest is Helpers {
     function test_LendHook_Inspector_RevertIf_InvalidAddresses() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         lendHook.inspect(
-            abi.encodePacked(bytes(new bytes(52)), address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltv, false)
+            abi.encodePacked(_header(), address(0), collateralToken, address(mockOracle), address(mockIRM), amount, lltv, false)
         );
     }
 
@@ -1717,11 +1763,11 @@ contract MorphoLoanHooksTest is Helpers {
         uint256 _shares
     )
         internal
-        pure
+        view
         returns (bytes memory)
     {
         return abi.encodePacked(
-            address(_loanToken), address(_collateralToken), bytes12(0), // 52-byte header
+            _header(), // 52-byte header: oracleId @0 + yieldSource (Morpho) @32
             _loanToken, _collateralToken, _oracle, _irm, _lltv, _assets, _shares
         );
     }
@@ -1735,7 +1781,7 @@ contract MorphoLoanHooksTest is Helpers {
 
     function _encodeLendData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(
-            address(loanToken), address(collateralToken), bytes12(0), // 52-byte header
+            _header(), // 52-byte header: oracleId @0 + yieldSource (Morpho) @32
             loanToken, collateralToken, address(mockOracle), address(mockIRM), amount, lltv, usePrevHook
         );
     }

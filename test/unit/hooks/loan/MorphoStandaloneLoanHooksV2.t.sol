@@ -10,6 +10,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 import { BaseLoanHookV2 } from "../../../../src/hooks/loan/BaseLoanHookV2.sol";
+import { BaseMorphoLoanHookV2 } from "../../../../src/hooks/loan/morpho/BaseMorphoLoanHookV2.sol";
 import { HookSubTypes } from "../../../../src/libraries/HookSubTypes.sol";
 import {
     ISuperHook,
@@ -121,12 +122,12 @@ contract MorphoStandaloneLoanHooksV2Test is Helpers {
         uint256 lltv_
     )
         internal
-        pure
+        view
         returns (bytes memory)
     {
         return abi.encodePacked(
-            bytes32(0),
-            address(0),
+            MORPHO_YS_ORACLE_ID,
+            address(mockMorpho),
             loanToken_,
             collateralToken_,
             oracle_,
@@ -279,6 +280,46 @@ contract MorphoStandaloneLoanHooksV2Test is Helpers {
                     address(this),
                     _encode(loanToken, collateralToken, oracle, address(0), amount1, 0, false, lltv)
                 );
+        }
+    }
+
+    /// @dev Encodes the canonical standalone layout with an explicit header yield source (offset 32)
+    function _encodeHeaderYieldSource(address yieldSource_) internal view returns (bytes memory) {
+        return abi.encodePacked(
+            MORPHO_YS_ORACLE_ID,
+            yieldSource_,
+            loanToken,
+            collateralToken,
+            oracle,
+            irm,
+            amount1,
+            uint256(0),
+            false,
+            lltv,
+            uint8(0)
+        );
+    }
+
+    function test_Standalone_Build_RevertIf_ZeroYieldSource() public {
+        bytes memory data = _encodeHeaderYieldSource(address(0));
+        BaseLoanHookV2[3] memory hooks = _hooks();
+        for (uint256 i; i < hooks.length; ++i) {
+            vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+            ISuperHook(address(hooks[i])).build(address(0), address(this), data);
+            vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+            ISuperHook(address(hooks[i])).preExecute(address(0), address(this), data);
+        }
+    }
+
+    function test_Standalone_Build_RevertIf_YieldSourceMismatch() public {
+        address otherMorpho = address(new MockMorpho());
+        bytes memory data = _encodeHeaderYieldSource(otherMorpho);
+        BaseLoanHookV2[3] memory hooks = _hooks();
+        for (uint256 i; i < hooks.length; ++i) {
+            vm.expectRevert(BaseMorphoLoanHookV2.YIELD_SOURCE_MISMATCH.selector);
+            ISuperHook(address(hooks[i])).build(address(0), address(this), data);
+            vm.expectRevert(BaseMorphoLoanHookV2.YIELD_SOURCE_MISMATCH.selector);
+            ISuperHook(address(hooks[i])).preExecute(address(0), address(this), data);
         }
     }
 
