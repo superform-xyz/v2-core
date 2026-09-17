@@ -101,6 +101,7 @@ abstract contract ConfigBase is Constants {
         chainNames[FLARE_CHAIN_ID] = FLARE_KEY;
         chainNames[STABLE_CHAIN_ID] = STABLE_KEY;
         chainNames[ROBINHOOD_CHAIN_ID] = ROBINHOOD_KEY;
+        chainNames[ARC_CHAIN_ID] = ARC_KEY; // Circle Arc L1 (chain 5042)
         chainNames[SEPOLIA_CHAIN_ID] = SEPOLIA_KEY; // testnet (Glamsterdam compatibility)
         chainNames[PLATABERGET_CHAIN_ID] = PLATABERGET_KEY; // Glamsterdam testnet (live post-fork rules)
 

@@ -213,9 +213,12 @@ for network_def in "${NETWORKS[@]}"; do
     export FIREBLOCKS_CHAIN_ID="$CHAIN_ID"
 
     # Set Fireblocks asset ID for chains not auto-detected
+    # Arc mainnet (5042) is not in the fireblocks-web3-provider chainId map (only ARC_TEST=5042002);
+    # set it explicitly or signing fails with "assetId was null or undefined". Mainnet asset = "ARC".
     case $CHAIN_ID in
         988) export FIREBLOCKS_ASSET_ID="GUSDT_STABLE" ;;
         4663) export FIREBLOCKS_ASSET_ID="ROBINHOOD" ;;
+        5042) export FIREBLOCKS_ASSET_ID="${ARC_FIREBLOCKS_ASSET_ID:-ARC}" ;;
         *)   unset FIREBLOCKS_ASSET_ID ;;
     esac
 

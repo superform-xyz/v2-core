@@ -14,6 +14,7 @@ NETWORKS=(
     "999:HyperEVM:HYPEREVM_MAINNET"
     "14:Flare:FLARE_MAINNET"
     "4663:RH:RH_MAINNET"
+    "5042:Arc:ARC_MAINNET"
     "7091047534:Plataberget:PLATABERGET_TESTNET"
 )
 
@@ -44,6 +45,9 @@ get_network_name() {
             ;;
         4663)
             echo "RH"
+            ;;
+        5042)
+            echo "Arc"
             ;;
         11155111)
             echo "Sepolia"
@@ -86,6 +90,9 @@ get_rpc_var() {
         4663)
             echo "RH_MAINNET"
             ;;
+        5042)
+            echo "ARC_MAINNET"
+            ;;
         11155111)
             echo "SEPOLIA_TESTNET"
             ;;
@@ -126,6 +133,9 @@ get_rpc_url() {
             ;;
         4663)
             echo "$RH_MAINNET"
+            ;;
+        5042)
+            echo "$ARC_MAINNET"
             ;;
         11155111)
             echo "$SEPOLIA_TESTNET"
@@ -216,6 +226,10 @@ load_rpc_urls() {
     echo "  • Loading RH RPC..."
     export RH_MAINNET="$(op_read_rpc RH_RPC_URL)"
         [[ -z "${RH_MAINNET}" ]] && failed_rpcs+=("RH_RPC_URL")
+
+    echo "  • Loading Arc RPC..."
+    export ARC_MAINNET="$(op_read_rpc ARC_RPC_URL)"
+        [[ -z "${ARC_MAINNET}" ]] && failed_rpcs+=("ARC_RPC_URL")
 
     # Testnets (Glamsterdam compatibility) — public endpoints, hardcoded; no 1Password items needed.
     # An exported SEPOLIA_RPC_URL / PLATABERGET_RPC_URL env var overrides the default.

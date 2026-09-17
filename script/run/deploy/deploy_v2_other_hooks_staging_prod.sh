@@ -426,7 +426,7 @@ for network_def in "${NETWORKS[@]}"; do
     local_verify_flag="$VERIFY_FLAG"
     local_chain_flag="--chain $network_id"
     case $network_id in
-        14|999|988) # Flare, HyperEVM, Stable - no Etherscan support or rate-limited
+        14|999|988|5042) # Flare, HyperEVM, Stable, Arc - no Etherscan support or rate-limited
             local_verify_flag=""
             echo -e "${CYAN}   Verification: ${WHITE}Skipped (explorer not supported)${NC}"
             ;;
@@ -442,7 +442,7 @@ for network_def in "${NETWORKS[@]}"; do
             ;;
     esac
     case $network_id in
-        988) # Stable chain not in forge's chain registry
+        988|5042) # Stable, Arc — not in forge's chain registry
             local_chain_flag=""
             ;;
     esac

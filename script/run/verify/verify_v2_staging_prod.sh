@@ -321,6 +321,14 @@ generate_constructor_args() {
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
+        "5042") # Circle Arc (USDC-native L1) — mirrors ConfigCore Arc entries
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router="" # 1inch not deployed on Arc
+            odos_router="" # Odos not deployed on Arc
+            across_spoke_pool_v3="" # Across not deployed on Arc
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
     esac
 
     # Generate constructor arguments based on contract type
@@ -816,6 +824,18 @@ verify_contract() {
                 --etherscan-api-key "$ETHERSCANV2_API_KEY" \
                 --verifier etherscan \
                 --verifier-url "https://api.etherscan.io/v2/api?chainid=${chain_id}"
+            verify_exit_code=$?
+            ;;
+        "5042")
+            # Circle Arc: not on Etherscan V2. The exploreme.pro explorer exposes a legacy
+            # Etherscan-compatible /api endpoint (Blockscout v2 REST is absent). Best-effort —
+            # confirm the explorer accepts contract-verification submissions; if not, verify
+            # manually. Set ARC_VERIFIER_URL to override the endpoint.
+            forge verify-contract "$contract_address" "$source_file:$contract_name" \
+                --constructor-args "$constructor_args" \
+                --verifier etherscan \
+                --verifier-url "${ARC_VERIFIER_URL:-https://arc.exploreme.pro/api}" \
+                --skip-is-verified-check
             verify_exit_code=$?
             ;;
         *)
