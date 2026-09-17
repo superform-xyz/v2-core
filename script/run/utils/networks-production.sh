@@ -23,6 +23,7 @@ NETWORKS=(
     "14:Flare:FLARE_MAINNET"
     "988:Stable:STABLE_MAINNET"
     "4663:RH:RH_MAINNET"
+    "5042:Arc:ARC_MAINNET"
 )
 
 # Network name mapping function
@@ -79,6 +80,9 @@ get_network_name() {
             ;;
         4663)
             echo "RH"
+            ;;
+        5042)
+            echo "Arc"
             ;;
         *)
             echo "ERROR: Unknown production network ID: $network_id" >&2
@@ -142,6 +146,9 @@ get_rpc_var() {
         4663)
             echo "RH_MAINNET"
             ;;
+        5042)
+            echo "ARC_MAINNET"
+            ;;
         *)
             echo "ERROR: Unknown production network ID for RPC: $network_id" >&2
             return 1
@@ -203,6 +210,9 @@ get_rpc_url() {
             ;;
         4663)
             echo "$RH_MAINNET"
+            ;;
+        5042)
+            echo "$ARC_MAINNET"
             ;;
         *)
             echo "ERROR: Unknown production network ID for RPC: $network_id" >&2
@@ -375,6 +385,13 @@ load_rpc_urls_ci() {
         failed_rpcs+=("RH_RPC_URL")
     fi
 
+    echo "  • Loading Arc RPC..."
+    if [[ -n "${ARC_RPC_URL:-}" ]]; then
+        export ARC_MAINNET="$ARC_RPC_URL"
+    else
+        failed_rpcs+=("ARC_RPC_URL")
+    fi
+
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then
         echo "❌ Failed to load the following RPC URLs from environment:"
         for failed_rpc in "${failed_rpcs[@]}"; do
@@ -460,6 +477,10 @@ load_rpc_urls() {
     echo "  • Loading RH RPC..."
     export RH_MAINNET="$(op_read_rpc RH_RPC_URL)"
         [[ -z "${RH_MAINNET}" ]] && failed_rpcs+=("RH_RPC_URL")
+
+    echo "  • Loading Arc RPC..."
+    export ARC_MAINNET="$(op_read_rpc ARC_RPC_URL)"
+        [[ -z "${ARC_MAINNET}" ]] && failed_rpcs+=("ARC_RPC_URL")
 
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then
         echo "❌ Failed to load the following RPC URLs from 1Password:"

@@ -42,7 +42,7 @@ deployed_networks=0
 skipped_networks=0
 
 # Chains where forge doesn't support --chain (not in forge's internal registry)
-FORGE_UNSUPPORTED_CHAINS=("988" "7091047534")
+FORGE_UNSUPPORTED_CHAINS=("988" "7091047534" "5042")
 
 # Cached deployer address (populated after keystore password is provided)
 DEPLOYER_ADDRESS=""
@@ -1059,7 +1059,7 @@ deploy_to_network() {
     local chain_verify_flag="$VERIFY_FLAG"
     local chain_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan --verifier-url https://api.etherscan.io/v2/api?chainid=$network_id"
     case $network_id in
-        14|999|988|7091047534) # Flare, HyperEVM, Stable, Plataberget - no etherscan support or rate limiting
+        14|999|988|7091047534|5042) # Flare, HyperEVM, Stable, Plataberget, Arc - no etherscan support or rate limiting
             chain_verify_flag=""
             chain_etherscan_flags=""
             echo -e "${CYAN}   Verification: ${WHITE}Skipped (rate-limited explorer, use verify script separately)${NC}"
