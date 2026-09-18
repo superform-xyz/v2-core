@@ -17,6 +17,7 @@ import { MorphoWithdrawHook } from "../../../src/hooks/loan/morpho/MorphoWithdra
 import { MorphoSupplyHook } from "../../../src/hooks/loan/morpho/MorphoSupplyHook.sol";
 import { MorphoBorrowHook } from "../../../src/hooks/loan/morpho/MorphoBorrowHook.sol";
 import { MorphoRepayHook } from "../../../src/hooks/loan/morpho/MorphoRepayHook.sol";
+import { MorphoRepayAndWithdrawHook } from "../../../src/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
 // V2 base + leaves (six borrower ops)
 import { BaseMorphoLoanHookV2 } from "../../../src/hooks/loan/morpho/BaseMorphoLoanHookV2.sol";
 import { MorphoSupplyAndBorrowHookV2 } from "../../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHookV2.sol";
@@ -61,6 +62,7 @@ contract MorphoHeaderIdentityForkTest is MinimalBaseIntegrationTest {
     MorphoSupplyHook internal v1PledgeHook;
     MorphoBorrowHook internal v1BorrowHook;
     MorphoRepayHook internal v1RepayHook;
+    MorphoRepayAndWithdrawHook internal v1CloseHook;
     // V2 borrower ops
     MorphoSupplyAndBorrowHookV2 internal openHook;
     MorphoRepayHookV2 internal repayHook;
@@ -95,6 +97,7 @@ contract MorphoHeaderIdentityForkTest is MinimalBaseIntegrationTest {
         v1PledgeHook = new MorphoSupplyHook(MORPHO);
         v1BorrowHook = new MorphoBorrowHook(MORPHO);
         v1RepayHook = new MorphoRepayHook(MORPHO);
+        v1CloseHook = new MorphoRepayAndWithdrawHook(MORPHO);
         openHook = new MorphoSupplyAndBorrowHookV2(MORPHO);
         repayHook = new MorphoRepayHookV2(MORPHO);
         closeHook = new MorphoRepayAndWithdrawHookV2(MORPHO);
@@ -125,6 +128,11 @@ contract MorphoHeaderIdentityForkTest is MinimalBaseIntegrationTest {
         return address(uint160(uint256(Id.unwrap(_params(m).id()))));
     }
 
+    /// @dev == SuperVaultAggregator._createLeaf (v2-periphery)
+    function _leaf(address hook, bytes memory args) internal pure returns (bytes32) {
+        return keccak256(bytes.concat(keccak256(abi.encode(hook, args))));
+    }
+
     function _assertMarketExists(Mkt memory m) internal view {
         (,,,, uint128 lastUpdate,) = IMorphoStaticTyping(MORPHO).market(_params(m).id());
         assertGt(uint256(lastUpdate), 0, "market must exist on the fork");
@@ -151,8 +159,15 @@ contract MorphoHeaderIdentityForkTest is MinimalBaseIntegrationTest {
 
     function _assertInspect(Mkt memory m) internal view {
         bytes memory expected = abi.encodePacked(MORPHO, m.loan, m.coll, m.oracle, m.irm, m.lltv);
-        assertEq(lendHook.inspect(_lend(_key(m), m)), expected, "lend");
-        assertEq(withdrawHook.inspect(_withdraw(_key(m), m)), expected, "withdraw");
+        // MONEY_MARKET hooks: yield source = MARKET KEY first (the ledger key the leaf must carry)
+        bytes memory mmExpected = abi.encodePacked(_key(m), m.loan, m.coll, m.oracle, m.irm, m.lltv);
+        assertEq(lendHook.inspect(_lend(_key(m), m)), mmExpected, "lend");
+        assertEq(withdrawHook.inspect(_withdraw(_key(m), m)), mmExpected, "withdraw");
+        // SuperVaultAggregator leaf over the raw inspect bytes == leaf over the SUP-21025 encoding
+        assertEq(_leaf(address(lendHook), lendHook.inspect(_lend(_key(m), m))), _leaf(address(lendHook), mmExpected));
+        assertTrue(
+            _leaf(address(lendHook), mmExpected) != _leaf(address(lendHook), expected), "singleton-first differs"
+        );
         assertEq(v1PledgeHook.inspect(_v1Supply(MORPHO, m)), expected, "v1 pledge");
         assertEq(v1BorrowHook.inspect(_v1Borrow(MORPHO, m)), expected, "v1 borrow");
         assertEq(v1RepayHook.inspect(_v1Repay(MORPHO, m)), expected, "v1 repay");
@@ -214,6 +229,44 @@ contract MorphoHeaderIdentityForkTest is MinimalBaseIntegrationTest {
         for (uint256 i; i < out.length; ++i) {
             out[i] = cd[i + 4];
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+          Reentrancy invariant: every Morpho supply / repay carries EMPTY callback data
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Morpho only invokes onMorphoSupply / onMorphoRepay when the trailing `data` is
+    ///         non-empty. Every hook that can reach those entry points (lend + the V1 repay hooks,
+    ///         against the real seeded debt on both markets) must pass "".
+    function test_Fork_CallbackDataAlwaysEmpty_LendAndV1RepayHooks() public view {
+        _assertCallbackEmpty(A);
+        _assertCallbackEmpty(B);
+    }
+
+    function _assertCallbackEmpty(Mkt memory m) internal view {
+        address me = address(this);
+        _assertMorphoCallbackEmpty(
+            lendHook.build(address(0), me, _lend(_key(m), m)), IMorphoBase.supply.selector, "lend"
+        );
+        _assertMorphoCallbackEmpty(
+            v1RepayHook.build(address(0), me, _v1Repay(MORPHO, m)), IMorphoBase.repay.selector, "v1 repay"
+        );
+        _assertMorphoCallbackEmpty(
+            v1CloseHook.build(address(0), me, _v1Repay(MORPHO, m)), IMorphoBase.repay.selector, "v1 close"
+        );
+    }
+
+    /// @dev supply(MarketParams,uint256,uint256,address,bytes) and repay(...) share the same ABI shape
+    function _assertMorphoCallbackEmpty(Execution[] memory execs, bytes4 selector, string memory label) internal pure {
+        bool seen;
+        for (uint256 i; i < execs.length; ++i) {
+            if (execs[i].target != MORPHO || bytes4(execs[i].callData) != selector) continue;
+            (,,,, bytes memory cb) =
+                abi.decode(_args(execs[i].callData), (MarketParams, uint256, uint256, address, bytes));
+            assertEq(cb.length, 0, string(abi.encodePacked(label, ": callback data must be empty")));
+            seen = true;
+        }
+        assertTrue(seen, string(abi.encodePacked(label, ": Morpho call expected")));
     }
 
     /*//////////////////////////////////////////////////////////////

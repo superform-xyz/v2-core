@@ -30,8 +30,9 @@ import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 ///      MarketParams. It is derived on-chain from the body and asserted against the header on every
 ///      build / preExecute path (MARKET_KEY_MISMATCH), so a header cannot name a different market
 ///      than the one it acts on. The Morpho Blue singleton is the `morpho` immutable: the sole call
-///      target and approve spender. inspect() packs the singleton plus the MarketParams filter, the
-///      same 6-field identity as the rest of the family.
+///      target and approve spender. inspect() packs the header market key (the yield source) plus
+///      the MarketParams filter — the same 6-field, yield-source-first identity as the rest of the
+///      family, so Merkle leaves hashed over the raw inspect bytes carry the ledger key.
 ///
 ///      FAIL-CLOSED ALLOWLIST: the oracle resolves the market key through
 ///      `MorphoBlueMarketRegistry.getMarketInfo`, which reverts `MARKET_NOT_REGISTERED` for an

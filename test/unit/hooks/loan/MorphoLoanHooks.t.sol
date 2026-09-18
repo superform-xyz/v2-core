@@ -303,12 +303,19 @@ contract MorphoLoanHooksTest is Helpers {
         assertGt(argsEncoded.length, 0);
     }
 
+    /// @dev MONEY_MARKET identity is yield-source-first: the header market key, then MarketParams
     function test_LendHook_Inspector_PacksHeaderYieldSourceAndLltv() public view {
         bytes memory data = _encodeLendData(false);
         bytes memory expected = abi.encodePacked(
-            address(mockMorpho), loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv
+            _mmKey(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv),
+            loanToken,
+            collateralToken,
+            address(mockOracle),
+            address(mockIRM),
+            lltv
         );
         assertEq(lendHook.inspect(data), expected);
+        assertEq(lendHook.inspect(data).length, 132);
     }
 
     /// @dev MONEY_MARKET header: offset 32 is the market key, so the singleton itself is a mismatch
@@ -1331,13 +1338,20 @@ contract MorphoLoanHooksTest is Helpers {
         assertGt(argsEncoded.length, 0);
     }
 
+    /// @dev MONEY_MARKET identity is yield-source-first: the header market key, then MarketParams
     function test_WithdrawHook_Inspector_PacksHeaderYieldSourceAndLltv() public view {
         bytes memory data =
             _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, 0);
         bytes memory expected = abi.encodePacked(
-            address(mockMorpho), loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv
+            _mmKey(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv),
+            loanToken,
+            collateralToken,
+            address(mockOracle),
+            address(mockIRM),
+            lltv
         );
         assertEq(withdrawHook.inspect(data), expected);
+        assertEq(withdrawHook.inspect(data).length, 132);
     }
 
     /// @dev MONEY_MARKET header: offset 32 is the market key, so the singleton itself is a mismatch
@@ -2168,6 +2182,104 @@ contract MorphoLoanHooksTest is Helpers {
         withdrawHook.inspect(w);
         vm.expectRevert(sel);
         withdrawHook.preExecute(address(0), address(this), w);
+    }
+
+    /// @dev PR #1010 review F1: SuperVaultAggregator hashes the RAW inspect bytes into the Merkle
+    ///      leaf, so a SUP-21025 leaf (market key first) must equal the on-chain leaf. Also pins
+    ///      header-key sensitivity, per-MarketParams-field sensitivity and amount invariance.
+    function test_MoneyMarket_Inspect_KeyFirst_AggregatorLeafParity() public view {
+        address key = _mmKey(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv);
+        bytes memory lendData = _encodeLendData(false);
+        bytes memory wdData =
+            _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, amount, 0);
+        bytes memory required =
+            abi.encodePacked(key, loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv);
+        bytes memory singletonFirst = abi.encodePacked(
+            address(mockMorpho), loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv
+        );
+
+        // leaf parity with the aggregator's exact formula
+        assertEq(_leaf(address(lendHook), lendHook.inspect(lendData)), _leaf(address(lendHook), required), "lend leaf");
+        assertEq(
+            _leaf(address(withdrawHook), withdrawHook.inspect(wdData)),
+            _leaf(address(withdrawHook), required),
+            "wd leaf"
+        );
+        assertTrue(
+            _leaf(address(lendHook), required) != _leaf(address(lendHook), singletonFirst),
+            "singleton-first leaf differs"
+        );
+
+        // header-key sensitivity: only field 0 moves
+        bytes memory other = lendHook.inspect(_withYieldSource(lendData, address(0xBEEF)));
+        assertEq(BytesLib.toAddress(other, 0), address(0xBEEF));
+        assertEq(BytesLib.toAddress(other, 20), loanToken);
+
+        // amount invariance
+        assertEq(lendHook.inspect(_withAmount(lendData, amount * 3)), lendHook.inspect(lendData), "amount ignored");
+        assertEq(
+            withdrawHook.inspect(
+                _encodeWithdrawData(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv, 0, 5e18)
+            ),
+            withdrawHook.inspect(wdData),
+            "assets/shares ignored"
+        );
+
+        // every MarketParams field is part of the identity (loan token varied via a fresh header key)
+        bytes memory h = lendHook.inspect(lendData);
+        assertTrue(
+            keccak256(
+                    lendHook.inspect(_lendWith(loanToken, address(0xC011), address(mockOracle), address(mockIRM), lltv))
+                ) != keccak256(h),
+            "collateral"
+        );
+        assertTrue(
+            keccak256(lendHook.inspect(_lendWith(loanToken, collateralToken, address(0x0AC1), address(mockIRM), lltv)))
+                != keccak256(h),
+            "oracle"
+        );
+        assertTrue(
+            keccak256(
+                    lendHook.inspect(_lendWith(loanToken, collateralToken, address(mockOracle), address(0x1AB), lltv))
+                ) != keccak256(h),
+            "irm"
+        );
+        assertTrue(
+            keccak256(
+                lendHook.inspect(_lendWith(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv + 1))
+            ) != keccak256(h),
+            "lltv"
+        );
+    }
+
+    /// @dev == SuperVaultAggregator._createLeaf (v2-periphery): keccak256(bytes.concat(keccak256(abi.encode(hook,
+    /// args))))
+    function _leaf(address hook, bytes memory args) internal pure returns (bytes32) {
+        return keccak256(bytes.concat(keccak256(abi.encode(hook, args))));
+    }
+
+    function _withAmount(bytes memory d, uint256 a) internal pure returns (bytes memory) {
+        bytes32 w = bytes32(a);
+        for (uint256 i; i < 32; ++i) {
+            d[132 + i] = w[i];
+        }
+        return d;
+    }
+
+    /// @dev Lend payload for arbitrary MarketParams with a matching header key
+    function _lendWith(
+        address loan,
+        address coll,
+        address oracle,
+        address irm,
+        uint256 lltv_
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        return
+            abi.encodePacked(_mmHeader(loan, coll, oracle, irm, lltv_), loan, coll, oracle, irm, amount, lltv_, false);
     }
 
     /// @dev OUTFLOW correctness: usedShares = supply shares actually burned (position diff), asset =

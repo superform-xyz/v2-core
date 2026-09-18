@@ -146,8 +146,10 @@ contract MorphoHeaderIdentitySharedMorphoTest is Helpers {
         bytes memory expected =
             abi.encodePacked(address(morpho), loanToken, coll, oracle, irm, lltv);
 
-        assertEq(lendHook.inspect(_lendEnc(_key(coll, oracle, irm, lltv), coll, oracle, irm, lltv)), expected, "lend inspect");
-        assertEq(withdrawHook.inspect(_withdrawEnc(_key(coll, oracle, irm, lltv), coll, oracle, irm, lltv)), expected, "withdraw inspect");
+        // MONEY_MARKET hooks: yield-source-first identity where the yield source is the MARKET KEY
+        bytes memory mmExpected = abi.encodePacked(_key(coll, oracle, irm, lltv), loanToken, coll, oracle, irm, lltv);
+        assertEq(lendHook.inspect(_lendEnc(_key(coll, oracle, irm, lltv), coll, oracle, irm, lltv)), mmExpected, "lend inspect");
+        assertEq(withdrawHook.inspect(_withdrawEnc(_key(coll, oracle, irm, lltv), coll, oracle, irm, lltv)), mmExpected, "withdraw inspect");
         assertEq(openHook.inspect(_v2Enc(address(morpho), coll, oracle, irm, lltv, AMT, AMT)), expected, "open inspect");
         assertEq(repayHook.inspect(_v2Enc(address(morpho), coll, oracle, irm, lltv, AMT, 0)), expected, "repay inspect");
         assertEq(closeHook.inspect(_v2Enc(address(morpho), coll, oracle, irm, lltv, AMT, AMT)), expected, "close inspect");

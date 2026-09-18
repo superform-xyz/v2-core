@@ -4,11 +4,12 @@ pragma solidity 0.8.30;
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import { UserOpData } from "modulekit/ModuleKit.sol";
+import { UserOpData, AccountInstance, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
+import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
 import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 import { VmSafe } from "forge-std/Vm.sol";
 import { MarketParamsLib } from "../../../src/vendor/morpho/MarketParamsLib.sol";
-import { Id, IMorphoStaticTyping, MarketParams } from "../../../src/vendor/morpho/IMorpho.sol";
+import { Id, IMorphoBase, IMorphoStaticTyping, MarketParams } from "../../../src/vendor/morpho/IMorpho.sol";
 
 // Superform
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
@@ -46,6 +47,7 @@ import { MorphoRepayHookV2 } from "../../../src/hooks/loan/morpho/MorphoRepayHoo
 ///         another market fails closed in the hook, an unregistered market at accounting.
 contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
     using MarketParamsLib for MarketParams;
+    using ModuleKitHelpers for AccountInstance;
 
     // SuperLedger event signatures — asserted by scanning the userOp's returned logs (expectEmit binds
     // to the NEXT external call, which for a userOp is its construction, not its execution).
@@ -525,6 +527,139 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
     }
 
     /*//////////////////////////////////////////////////////////////
+        SECURITY-REVIEW FOLLOW-UPS: ordering / transient isolation, donated shares
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Three money-market hooks in ONE userOp on one account — Lend(A) -> Lend(B) ->
+    ///         Withdraw(A by assets). Each hook's transient outAmount / usedShares / asset is
+    ///         set-before-read per hook, so every posting equals the on-chain position delta and the
+    ///         markets never bleed into each other.
+    function test_E2E_Ordering_LendA_LendB_WithdrawA_OneUserOp() external {
+        uint256 amtA = 10_000e6;
+        uint256 amtB = 1e18;
+        _getTokens(aLoan, accountEth, amtA);
+        _getTokens(bLoan, accountEth, amtB);
+
+        address[] memory hooks = new address[](3);
+        bytes[] memory datas = new bytes[](3);
+        hooks[0] = address(lendHook);
+        datas[0] = _lendA(amtA);
+        hooks[1] = address(lendHook);
+        datas[1] = _lend(bLoan, bColl, B_ORACLE, MORPHO_IRM_WBTC_USDC, B_LLTV, amtB);
+        hooks[2] = address(withdrawHook);
+        datas[2] = _withdrawAssets(aLoan, aColl, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, aLltv, amtA / 2);
+
+        UserOpData memory userOpData = _getExecOps(
+            instanceOnEth,
+            superExecutorOnEth,
+            abi.encode(ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: datas }))
+        );
+        ExecutionReturnData memory ret = executeOpsThroughPaymaster(userOpData, paymaster, 1e18);
+
+        assertTrue(_hasLedgerEvent(ret.logs, INFLOW_SIG, keyA), "inflow A");
+        assertTrue(_hasLedgerEvent(ret.logs, INFLOW_SIG, keyB), "inflow B");
+        assertTrue(_hasLedgerEvent(ret.logs, OUTFLOW_SIG, keyA), "outflow A");
+        assertFalse(_hasLedgerEvent(ret.logs, OUTFLOW_SIG, keyB), "no outflow B");
+
+        (uint256 sharesA,,) = IMorphoStaticTyping(MORPHO).position(aId, accountEth);
+        (uint256 sharesB,,) = IMorphoStaticTyping(MORPHO).position(bId, accountEth);
+        BaseLedger l = BaseLedger(address(ledger));
+        assertGt(sharesA, 0, "A partially withdrawn");
+        assertEq(
+            l.usersAccumulatorShares(accountEth, keyA), sharesA, "A accumulator == A position after partial withdraw"
+        );
+        assertEq(l.usersAccumulatorShares(accountEth, keyB), sharesB, "B accumulator == B position (untouched)");
+        assertApproxEqAbs(IERC20(aLoan).balanceOf(accountEth), amtA / 2, amtA / 1e5, "half of A back (minus dust fee)");
+    }
+
+    /// @notice Two accounts sharing the same hook contracts, alternating userOps inside ONE test
+    ///         transaction (transient state persists across the userOps exactly as inside a
+    ///         bundle): acct1 Lend(A), acct2 Lend(B), acct1 Withdraw(A), acct2 Withdraw(B).
+    ///         Each account's postings equal its own position deltas; nothing leaks across accounts.
+    function test_E2E_Ordering_TwoAccounts_SameHooks_Bundle() external {
+        AccountInstance memory acc2 = instanceOnEth2;
+        acc2.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorOnEth), data: "" });
+        address account2 = acc2.account;
+        uint256 amtA = 10_000e6;
+        uint256 amtB = 1e18;
+        _getTokens(aLoan, accountEth, amtA);
+        _getTokens(bLoan, account2, amtB);
+
+        _execEntryFor(instanceOnEth, _entry(address(lendHook), _lendA(amtA)));
+        _execEntryFor(
+            acc2, _entry(address(lendHook), _lend(bLoan, bColl, B_ORACLE, MORPHO_IRM_WBTC_USDC, B_LLTV, amtB))
+        );
+
+        (uint256 sharesA1,,) = IMorphoStaticTyping(MORPHO).position(aId, accountEth);
+        (uint256 sharesB2,,) = IMorphoStaticTyping(MORPHO).position(bId, account2);
+        BaseLedger l = BaseLedger(address(ledger));
+        assertEq(l.usersAccumulatorShares(accountEth, keyA), sharesA1, "acct1 A");
+        assertEq(l.usersAccumulatorShares(account2, keyB), sharesB2, "acct2 B");
+        assertEq(l.usersAccumulatorShares(accountEth, keyB), 0, "acct1 never touched B");
+        assertEq(l.usersAccumulatorShares(account2, keyA), 0, "acct2 never touched A");
+
+        _execEntryFor(
+            instanceOnEth,
+            _entry(
+                address(withdrawHook),
+                _withdrawShares(aLoan, aColl, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, aLltv, sharesA1)
+            )
+        );
+        _execEntryFor(
+            acc2,
+            _entry(
+                address(withdrawHook), _withdrawShares(bLoan, bColl, B_ORACLE, MORPHO_IRM_WBTC_USDC, B_LLTV, sharesB2)
+            )
+        );
+
+        assertEq(l.usersAccumulatorShares(accountEth, keyA), 0, "acct1 A cleared");
+        assertEq(l.usersAccumulatorShares(account2, keyB), 0, "acct2 B cleared");
+        assertApproxEqAbs(IERC20(aLoan).balanceOf(accountEth), amtA, amtA / 1e5, "acct1 got A back");
+        assertApproxEqAbs(IERC20(bLoan).balanceOf(account2), amtB, amtB / 1e5, "acct2 got B back");
+    }
+
+    /// @notice Untracked shares (a third party supplying `onBehalf` of the account directly on
+    ///         Morpho) are withdrawn with the tracked ones: the ledger caps usedShares to the
+    ///         tracked accumulator, so the excess is fee-free — never treated as 100% profit.
+    function test_E2E_DonatedShares_FeeOnlyOnTrackedShares() external {
+        uint256 lendAmount = 10_000e6;
+        _getTokens(aLoan, accountEth, lendAmount);
+        _execSingle(address(lendHook), _lendA(lendAmount));
+        (uint256 tracked,,) = IMorphoStaticTyping(MORPHO).position(aId, accountEth);
+
+        // donor supplies the same amount on behalf of the account, outside Superform
+        address donor = makeAddr("donor");
+        _getTokens(aLoan, donor, lendAmount);
+        vm.startPrank(donor);
+        IERC20(aLoan).approve(MORPHO, lendAmount);
+        IMorphoBase(MORPHO)
+            .supply(
+                _params(aLoan, aColl, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, aLltv),
+                lendAmount,
+                0,
+                accountEth,
+                ""
+            );
+        vm.stopPrank();
+        (uint256 total,,) = IMorphoStaticTyping(MORPHO).position(aId, accountEth);
+        assertGt(total, tracked, "donated shares landed");
+
+        uint256 feeBefore = IERC20(aLoan).balanceOf(feeRecipient);
+        _execSingle(
+            address(withdrawHook),
+            _withdrawShares(aLoan, aColl, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, aLltv, total)
+        );
+
+        assertApproxEqAbs(IERC20(aLoan).balanceOf(accountEth), 2 * lendAmount, lendAmount / 1e5, "both halves returned");
+        assertLt(
+            IERC20(aLoan).balanceOf(feeRecipient) - feeBefore,
+            lendAmount / 1e5,
+            "untracked excess is not fee'd as profit"
+        );
+        assertEq(BaseLedger(address(ledger)).usersAccumulatorShares(accountEth, keyA), 0, "tracked accumulator cleared");
+    }
+
+    /*//////////////////////////////////////////////////////////////
                               EXEC HELPERS
     //////////////////////////////////////////////////////////////*/
 
@@ -538,6 +673,11 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
 
     function _execSingle(address hook, bytes memory data) internal {
         _execSingleReturn(hook, data);
+    }
+
+    function _execEntryFor(AccountInstance memory inst, ISuperExecutor.ExecutorEntry memory entry) internal {
+        UserOpData memory userOpData = _getExecOps(inst, superExecutorOnEth, abi.encode(entry));
+        executeOpsThroughPaymaster(userOpData, paymaster, 1e18);
     }
 
     function _execSingleReturn(address hook, bytes memory data) internal returns (ExecutionReturnData memory) {

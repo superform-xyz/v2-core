@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 // external
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
@@ -36,8 +37,9 @@ import {
 ///      (`MorphoBlueMarketRegistry.computeMarketKey`) — the address SuperExecutor posts this hook's
 ///      OUTFLOW against and the Morpho yield-source oracle prices. It is asserted against the body
 ///      on build and preExecute (MARKET_KEY_MISMATCH). The Morpho Blue singleton is the `morpho`
-///      immutable: the only call target. inspect() packs the singleton plus the full MarketParams
-///      (loan, collateral, oracle, irm, lltv). See BaseMorphoMoneyMarketHook.
+///      immutable: the only call target. inspect() packs the header market key (the yield source)
+///      plus the full MarketParams (loan, collateral, oracle, irm, lltv). See
+///      BaseMorphoMoneyMarketHook.
 /// @dev NOTE: This hook has no usePrevHookAmount field. The inherited decodeUsePrevHookAmount
 ///      is overridden to return false — offset 196 is the shares uint256, not a bool.
 /// @dev Both onBehalf and receiver are always set to account (consistent with all other Morpho hooks)
@@ -129,13 +131,16 @@ contract MorphoWithdrawHook is BaseMorphoMoneyMarketHook {
     }
 
     /// @inheritdoc ISuperHookInspector
-    /// @dev Identity = Morpho singleton + MarketParams filter; the header market key is a pure
-    ///      function of those fields and is therefore not packed separately.
-    function inspect(bytes calldata data) external view override returns (bytes memory) {
+    /// @dev Identity = header yield source (the registry MARKET KEY, offset 32) + the MarketParams
+    ///      filter — 132 bytes, the same shape as every other Morpho hook with the yield source
+    ///      first. Leaves are hashed over these raw bytes, so the first field is the key the ledger
+    ///      is keyed by (SUP-21024 / SUP-21025), not the singleton. Changes when the key or any
+    ///      MarketParams field changes; unchanged when only amount fields change.
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         WithdrawHookVars memory vars = _decodeWithdrawData(data);
 
         return abi.encodePacked(
-            morpho,
+            vars.marketKey,
             vars.marketParams.loanToken,
             vars.marketParams.collateralToken,
             vars.marketParams.oracle,
@@ -203,7 +208,7 @@ contract MorphoWithdrawHook is BaseMorphoMoneyMarketHook {
         WithdrawHookVars memory vars = _decodeWithdrawData(data);
         _requireHeaderIsMarketKey(vars.marketKey, vars.marketParams);
         asset = vars.marketParams.loanToken;
-        _setOutAmount(getLoanTokenBalance(account, data), account);
+        _setOutAmount(IERC20(vars.marketParams.loanToken).balanceOf(account), account);
         usedShares = _supplyShares(vars.marketParams, account);
     }
 
@@ -211,15 +216,18 @@ contract MorphoWithdrawHook is BaseMorphoMoneyMarketHook {
     /// @dev outAmount = loan token received (post - pre); usedShares = supply shares actually
     ///      burned (position diff), which covers withdraw-by-assets and withdraw-by-shares alike.
     function _postExecute(address, address account, bytes calldata data) internal override {
-        _setOutAmount(getLoanTokenBalance(account, data) - getOutAmount(account), account);
-        _setOutToken(getLoanTokenAddress(data), account);
-        usedShares -= _supplyShares(_decodeWithdrawData(data).marketParams, account);
+        // Decode once: the same payload was validated + pinned in _preExecute.
+        MarketParams memory marketParams = _decodeWithdrawData(data).marketParams;
+        _setOutAmount(IERC20(marketParams.loanToken).balanceOf(account) - getOutAmount(account), account);
+        _setOutToken(marketParams.loanToken, account);
+        usedShares -= _supplyShares(marketParams, account);
     }
 
-    /// @dev Decodes the hook data for withdraw operations
-    /// @param data The calldata containing withdraw parameters
+    /// @dev Decodes the hook data for withdraw operations. Takes `memory` so the payload is copied
+    ///      once per decode (every BytesLib / HookDataDecoder callee takes `bytes memory`).
+    /// @param data The hook data containing withdraw parameters
     /// @return vars The decoded withdraw hook parameters
-    function _decodeWithdrawData(bytes calldata data) internal pure returns (WithdrawHookVars memory vars) {
+    function _decodeWithdrawData(bytes memory data) internal pure returns (WithdrawHookVars memory vars) {
         if (data.length < MIN_DATA_LENGTH) revert INVALID_DATA_LENGTH();
         _requireOracleId(data);
 

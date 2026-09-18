@@ -5,8 +5,7 @@ pragma solidity 0.8.30;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IMorphoBase, IMorphoStaticTyping, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
-import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
+import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -31,14 +30,14 @@ import { ISuperHook, ISuperHookResult, ISuperHookInspector } from "../../../inte
 ///      (`MorphoBlueMarketRegistry.computeMarketKey`) — the address SuperExecutor posts this hook's
 ///      INFLOW against and the Morpho yield-source oracle prices. It is asserted against the body
 ///      on build and preExecute (MARKET_KEY_MISMATCH). The Morpho Blue singleton is the `morpho`
-///      immutable: the only call target and approve spender. inspect() packs the singleton plus
-///      the full MarketParams (loan, collateral, oracle, irm, lltv). See BaseMorphoMoneyMarketHook.
+///      immutable: the only call target and approve spender. inspect() packs the header market key
+///      (the yield source) plus the full MarketParams (loan, collateral, oracle, irm, lltv). See
+///      BaseMorphoMoneyMarketHook.
 /// @dev WARNING: outAmount is Morpho supply shares (not assets). Unlike ERC-4626 vault shares,
 ///      Morpho shares are non-transferable internal accounting units. Downstream hooks using
 ///      usePrevHookAmount will receive a share count, not a token amount. The bundler MUST NOT
 ///      chain this hook into asset-denominated downstream hooks without conversion.
 contract MorphoLendHook is BaseMorphoMoneyMarketHook {
-    using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -121,16 +120,19 @@ contract MorphoLendHook is BaseMorphoMoneyMarketHook {
     }
 
     /// @inheritdoc ISuperHookInspector
-    /// @dev Identity = Morpho singleton + MarketParams filter; the header market key is a pure
-    ///      function of those fields and is therefore not packed separately.
-    function inspect(bytes calldata data) external view override returns (bytes memory) {
+    /// @dev Identity = header yield source (the registry MARKET KEY, offset 32) + the MarketParams
+    ///      filter — 132 bytes, the same shape as every other Morpho hook with the yield source
+    ///      first. Leaves are hashed over these raw bytes, so the first field is the key the ledger
+    ///      is keyed by (SUP-21024 / SUP-21025), not the singleton. Changes when the key or any
+    ///      MarketParams field changes; unchanged when only amount fields change.
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         LendHookLocalVars memory vars = _decodeLendHookData(data);
 
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
         return abi.encodePacked(
-            morpho,
+            vars.marketKey,
             marketParams.loanToken,
             marketParams.collateralToken,
             marketParams.oracle,
@@ -143,7 +145,7 @@ contract MorphoLendHook is BaseMorphoMoneyMarketHook {
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Decodes packed calldata into LendHookLocalVars
+    /// @dev Decodes packed calldata into LendHookLocalVars
     /// @param data The packed calldata (minimum 197 bytes)
     /// @return vars Decoded parameters for the lending operation
     function _decodeLendHookData(bytes memory data) internal pure returns (LendHookLocalVars memory vars) {
@@ -179,9 +181,9 @@ contract MorphoLendHook is BaseMorphoMoneyMarketHook {
         });
     }
 
-    /// @notice Stores the current Morpho supply shares before execution
-    /// @param account The smart account whose position is tracked
-    /// @param data Encoded hook calldata containing market parameters
+    /// @inheritdoc BaseHook
+    /// @dev Pins the header market key, records the fee asset (loan token) and snapshots the
+    ///      current Morpho supply shares (outAmount baseline).
     function _preExecute(address, address account, bytes calldata data) internal override {
         // Decode once: pin the header market key and read the supply shares from the same vars.
         LendHookLocalVars memory vars = _decodeLendHookData(data);
@@ -192,22 +194,14 @@ contract MorphoLendHook is BaseMorphoMoneyMarketHook {
         _setOutAmount(_supplyShares(marketParams, account), account);
     }
 
-    /// @notice Computes supply shares received (always positive) and sets as outAmount
-    /// @param account The smart account whose position is tracked
-    /// @param data Encoded hook calldata containing market parameters
+    /// @inheritdoc BaseHook
+    /// @dev outAmount = supply shares received (position after - before). Decodes once; the same
+    ///      payload was validated + pinned in _preExecute.
     function _postExecute(address, address account, bytes calldata data) internal override {
-        _setOutAmount(_getSupplyShares(account, data) - getOutAmount(account), account);
-        _setOutToken(getLoanTokenAddress(data), account);
-    }
-
-    /// @notice Queries the account's current Morpho supply shares for the market
-    /// @param account The account to query
-    /// @param data Encoded hook calldata containing market parameters
-    /// @return supplyShares The account's supply shares in the Morpho market
-    function _getSupplyShares(address account, bytes memory data) internal view returns (uint256 supplyShares) {
         LendHookLocalVars memory vars = _decodeLendHookData(data);
-        return _supplyShares(
-            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv), account
-        );
+        MarketParams memory marketParams =
+            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+        _setOutAmount(_supplyShares(marketParams, account) - getOutAmount(account), account);
+        _setOutToken(vars.loanToken, account);
     }
 }
