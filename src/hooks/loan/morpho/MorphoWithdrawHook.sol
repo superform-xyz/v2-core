@@ -2,16 +2,21 @@
 pragma solidity 0.8.30;
 
 // external
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
-import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { BaseMorphoMoneyMarketHook } from "./BaseMorphoMoneyMarketHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoWithdrawHook
 /// @author Superform Labs
@@ -19,7 +24,7 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 ///      To withdraw posted collateral use MorphoRepayAndWithdrawHook (IMorphoBase.withdrawCollateral).
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
 /// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Morpho Blue YS id
-/// @notice         address yieldSource = data.extractYieldSource(); // Morpho Blue singleton (call target)
+/// @notice         address yieldSource = data.extractYieldSource(); // registry market key of the body MarketParams
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address oracle = BytesLib.toAddress(data, 92);
@@ -27,15 +32,18 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 132);
 /// @notice         uint256 assets = BytesLib.toUint256(data, 164);
 /// @notice         uint256 shares = BytesLib.toUint256(data, 196);
-/// @dev The 52-byte header carries the Superform yield-source oracle id at offset 0 and the yield
-///      source (the Morpho Blue singleton — the call target) at offset 32. The Morpho call targets
-///      the header-derived yieldSource; the `morpho` immutable is the primary call-target pin,
-///      asserted at build/preExecute before use. inspect() packs the header yieldSource
-///      plus the full MarketParams (loan, collateral, oracle, irm, lltv).
+/// @dev MONEY_MARKET / OUTFLOW. The 52-byte header carries the Superform yield-source oracle id at
+///      offset 0 and, at offset 32, the REGISTRY MARKET KEY of the body MarketParams
+///      (`MorphoBlueMarketRegistry.computeMarketKey`) — the address SuperExecutor posts this hook's
+///      OUTFLOW against and the Morpho yield-source oracle prices. It is asserted against the body
+///      on build and preExecute (MARKET_KEY_MISMATCH). The Morpho Blue singleton is the `morpho`
+///      immutable: the only call target. inspect() packs the header market key (the yield source)
+///      plus the full MarketParams (loan, collateral, oracle, irm, lltv). See
+///      BaseMorphoMoneyMarketHook.
 /// @dev NOTE: This hook has no usePrevHookAmount field. The inherited decodeUsePrevHookAmount
-///      is overridden to return false — offset 144 is the shares uint256, not a bool.
+///      is overridden to return false — offset 196 is the shares uint256, not a bool.
 /// @dev Both onBehalf and receiver are always set to account (consistent with all other Morpho hooks)
-contract MorphoWithdrawHook is BaseMorphoLoanHook {
+contract MorphoWithdrawHook is BaseMorphoMoneyMarketHook {
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -60,7 +68,7 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
     //////////////////////////////////////////////////////////////*/
 
     struct WithdrawHookVars {
-        address yieldSource;
+        address marketKey; // header offset 32 — registry market key (accounting / PPS key)
         MarketParams marketParams;
         uint256 assets;
         uint256 shares;
@@ -70,8 +78,11 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    /// @param morpho_ Address of the Morpho Blue protocol
-    constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN) { }
+    /// @param morpho_ Address of the Morpho Blue singleton (call target)
+    /// @dev OUTFLOW: SuperExecutor posts outAmount (loan token received) and `usedShares` (Morpho
+    ///      supply shares burned) to SuperLedger keyed by the header market key, and charges any
+    ///      realized-profit fee in `asset` (the loan token).
+    constructor(address morpho_) BaseMorphoMoneyMarketHook(morpho_, ISuperHook.HookType.OUTFLOW) { }
 
     /// @notice Human-readable name for UI display
     function name() external pure override returns (string memory) {
@@ -83,12 +94,11 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
         return "Withdraws supplied assets from a Morpho market";
     }
 
-    /// @notice This hook has no usePrevHookAmount field — offset 144 is the shares uint256.
+    /// @notice This hook has no usePrevHookAmount field — offset 196 is the shares uint256.
     /// @dev Override to prevent the inherited function from misreading shares[0] as a boolean.
     function decodeUsePrevHookAmount(bytes memory) external pure override returns (bool) {
         return false;
     }
-
 
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
@@ -106,24 +116,31 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
         returns (Execution[] memory executions)
     {
         WithdrawHookVars memory vars = _decodeWithdrawData(data);
-        _requireYieldSourceIsMorpho(vars.yieldSource);
+        _requireHeaderIsMarketKey(vars.marketKey, vars.marketParams);
         if (vars.assets == 0 && vars.shares == 0) revert AMOUNT_NOT_VALID();
         if (vars.assets != 0 && vars.shares != 0) revert AMOUNT_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
-            target: vars.yieldSource,
+            target: morpho,
             value: 0,
-            callData: abi.encodeCall(IMorphoBase.withdraw, (vars.marketParams, vars.assets, vars.shares, account, account))
+            callData: abi.encodeCall(
+                IMorphoBase.withdraw, (vars.marketParams, vars.assets, vars.shares, account, account)
+            )
         });
     }
 
     /// @inheritdoc ISuperHookInspector
+    /// @dev Identity = header yield source (the registry MARKET KEY, offset 32) + the MarketParams
+    ///      filter — 132 bytes, the same shape as every other Morpho hook with the yield source
+    ///      first. Leaves are hashed over these raw bytes, so the first field is the key the ledger
+    ///      is keyed by (SUP-21024 / SUP-21025), not the singleton. Changes when the key or any
+    ///      MarketParams field changes; unchanged when only amount fields change.
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         WithdrawHookVars memory vars = _decodeWithdrawData(data);
 
         return abi.encodePacked(
-            vars.yieldSource,
+            vars.marketKey,
             vars.marketParams.loanToken,
             vars.marketParams.collateralToken,
             vars.marketParams.oracle,
@@ -143,10 +160,19 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
     /// @inheritdoc ISuperHookInflowOutflow
     /// @dev Slot 0 = assets (IN, ASSETS), Slot 1 = shares (IN, SHARES)
     ///      OMS picks the slot matching the intent's denomination
-    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+    function amountRoles(bytes memory)
+        external
+        pure
+        override
+        returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
+    {
         meta = new ISuperHookInflowOutflow.AmountMeta[](2);
-        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.ASSETS);
-        meta[1] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.SHARES);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(
+            ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.ASSETS
+        );
+        meta[1] = ISuperHookInflowOutflow.AmountMeta(
+            ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.SHARES
+        );
     }
 
     /// @inheritdoc ISuperHookOutflow
@@ -176,26 +202,36 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc BaseHook
-    /// @dev Stores account's loanToken balance before Morpho withdraw executes
+    /// @dev Pins the header market key, records the fee asset (loan token), snapshots the loan
+    ///      token balance (outAmount baseline) and the supply-share position (usedShares baseline).
     function _preExecute(address, address account, bytes calldata data) internal override {
-        _requireYieldSourceIsMorpho(_decodeWithdrawData(data).yieldSource);
-        _setOutAmount(getLoanTokenBalance(account, data), account);
+        WithdrawHookVars memory vars = _decodeWithdrawData(data);
+        _requireHeaderIsMarketKey(vars.marketKey, vars.marketParams);
+        asset = vars.marketParams.loanToken;
+        _setOutAmount(IERC20(vars.marketParams.loanToken).balanceOf(account), account);
+        usedShares = _supplyShares(vars.marketParams, account);
     }
 
     /// @inheritdoc BaseHook
-    /// @dev Computes loanToken received by account (post - pre) and sets as outAmount
+    /// @dev outAmount = loan token received (post - pre); usedShares = supply shares actually
+    ///      burned (position diff), which covers withdraw-by-assets and withdraw-by-shares alike.
     function _postExecute(address, address account, bytes calldata data) internal override {
-        _setOutAmount(getLoanTokenBalance(account, data) - getOutAmount(account), account);
-        _setOutToken(getLoanTokenAddress(data), account);
+        // Decode once: the same payload was validated + pinned in _preExecute.
+        MarketParams memory marketParams = _decodeWithdrawData(data).marketParams;
+        _setOutAmount(IERC20(marketParams.loanToken).balanceOf(account) - getOutAmount(account), account);
+        _setOutToken(marketParams.loanToken, account);
+        usedShares -= _supplyShares(marketParams, account);
     }
 
-    /// @dev Decodes the hook data for withdraw operations
-    /// @param data The calldata containing withdraw parameters
+    /// @dev Decodes the hook data for withdraw operations. Takes `memory` so the payload is copied
+    ///      once per decode (every BytesLib / HookDataDecoder callee takes `bytes memory`).
+    /// @param data The hook data containing withdraw parameters
     /// @return vars The decoded withdraw hook parameters
-    function _decodeWithdrawData(bytes calldata data) internal pure returns (WithdrawHookVars memory vars) {
+    function _decodeWithdrawData(bytes memory data) internal pure returns (WithdrawHookVars memory vars) {
         if (data.length < MIN_DATA_LENGTH) revert INVALID_DATA_LENGTH();
+        _requireOracleId(data);
 
-        address yieldSource = data.extractYieldSource();
+        address marketKey = data.extractYieldSource();
         address loanToken = BytesLib.toAddress(data, LOAN_TOKEN_OFFSET);
         address collateralToken = BytesLib.toAddress(data, COLLATERAL_TOKEN_OFFSET);
         address oracle = BytesLib.toAddress(data, ORACLE_OFFSET);
@@ -205,19 +241,14 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
         uint256 shares = BytesLib.toUint256(data, SHARES_OFFSET);
 
         if (
-            yieldSource == address(0) || loanToken == address(0) || collateralToken == address(0)
-                || oracle == address(0) || irm == address(0)
+            marketKey == address(0) || loanToken == address(0) || collateralToken == address(0) || oracle == address(0)
+                || irm == address(0)
         ) {
             revert ADDRESS_NOT_VALID();
         }
 
         MarketParams memory marketParams = _generateMarketParams(loanToken, collateralToken, oracle, irm, lltv);
 
-        vars = WithdrawHookVars({
-            yieldSource: yieldSource,
-            marketParams: marketParams,
-            assets: assets,
-            shares: shares
-        });
+        vars = WithdrawHookVars({ marketKey: marketKey, marketParams: marketParams, assets: assets, shares: shares });
     }
 }

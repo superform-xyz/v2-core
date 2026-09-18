@@ -53,7 +53,7 @@ P2_RULES: dict[tuple[str, str], set[str]] = {
     ("stake", "instant"): {"NONACCOUNTING"},
     ("unstake", "instant"): {"NONACCOUNTING"},
     # lending
-    ("lend", "instant"): {"NONACCOUNTING"},
+    ("lend", "instant"): {"NONACCOUNTING", "INFLOW"},  # MorphoLendHook is INFLOW (money-market lend side, SUP-21024)
     ("borrow", "instant"): {"NONACCOUNTING"},
     ("repay", "instant"): {"NONACCOUNTING"},
     # transfer

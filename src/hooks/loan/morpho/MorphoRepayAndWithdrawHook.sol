@@ -266,7 +266,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         _requireYieldSourceIsMorpho(vars.yieldSource);
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
-        IMorpho(morpho).accrueInterest(marketParams);
+        IMorpho(vars.yieldSource).accrueInterest(marketParams);
 
         // store current balance
         _setOutAmount(getCollateralTokenBalance(account, data), account);

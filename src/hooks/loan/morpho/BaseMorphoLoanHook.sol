@@ -6,7 +6,7 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
 
-// superform
+// Superform
 import { BaseLoanHook } from "../BaseLoanHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
@@ -15,14 +15,17 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice Base abstract hook for Morpho Blue lending protocol integrations
 /// @dev All Morpho hooks inherit from this contract. It stores the Morpho Blue protocol address
 ///      and provides shared data decoding and market parameter generation utilities.
-///      The 52-byte strategy header carries the same identity as the ERC-4626 hooks: the Superform
-///      yield-source oracle id at offset 0 and the yield source (the Morpho Blue singleton — the
-///      call target) at offset 32. The shared decoders below extract the yield source (reverting on
-///      zero) and every child pins it to the `morpho` immutable via `_requireYieldSourceIsMorpho`
-///      on each build and preExecute path before using it as a call target or approve spender. This
-///      applies to the whole V1 family — lend/withdraw and the borrower leaves alike (the earlier
-///      address freeze on the borrower leaves was lifted; they remain available at their old
-///      addresses for already-signed roots).
+///      The 52-byte strategy header carries the Superform yield-source oracle id at offset 0 and
+///      the yield source at offset 32. For the BORROWER leaves (supply / borrow / repay /
+///      supply-and-borrow / repay-and-withdraw) offset 32 is the Morpho Blue singleton — the call
+///      target: the shared decoders below extract it (reverting on zero) and each leaf pins it to
+///      the `morpho` immutable via `_requireYieldSourceIsMorpho` on every build and preExecute path
+///      before using it as a call target or approve spender (their earlier address freeze was
+///      lifted; they remain available at their old addresses for already-signed roots).
+///      The MONEY_MARKET leaves (MorphoLendHook, MorphoWithdrawHook) inherit through
+///      BaseMorphoMoneyMarketHook and deviate: offset 32 carries the registry MARKET KEY of the body
+///      MarketParams (the SuperLedger / PPS key) and the singleton is the `morpho` immutable — see
+///      that base.
 ///      SECURITY INVARIANT: All Morpho calls MUST use empty callback data ("") to prevent reentrancy
 ///      through Morpho's callback mechanism (onMorphoSupply, onMorphoRepay, etc.).
 abstract contract BaseMorphoLoanHook is BaseLoanHook {
@@ -33,7 +36,8 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Common data layout byte offsets (shared across all Morpho hooks)
+    /// @notice Common data layout byte offsets (borrower + lend layouts; MorphoWithdrawHook keeps its
+    ///         own lltv/assets/shares offsets)
     uint256 internal constant LOAN_TOKEN_OFFSET = 52;
     uint256 internal constant COLLATERAL_TOKEN_OFFSET = 72;
     uint256 internal constant ORACLE_OFFSET = 92;
@@ -43,19 +47,19 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     // USE_PREV_HOOK_AMOUNT_POSITION = 196 inherited from BaseLoanHook
     uint256 internal constant IS_FULL_REPAYMENT_OFFSET = 197;
 
-    /// @notice Byte offset for LLTV in borrow hook data (178-byte layout)
+    /// @notice Byte offset for LLTV in borrow hook data (230-byte layout)
     /// @dev Same numeric offset as IS_FULL_REPAYMENT_OFFSET but different semantic meaning:
-    ///      - Repay layout (146 bytes): byte 145 = isFullRepayment (bool)
-    ///      - Borrow layout (178 bytes): byte 145 = lltv (uint256, 32 bytes)
+    ///      - Repay layout (198 bytes): byte 197 = isFullRepayment (bool)
+    ///      - Borrow layout (230 bytes): bytes 197..228 = lltv (uint256, 32 bytes)
     uint256 internal constant BORROW_LLTV_OFFSET = 197;
 
-    /// @notice Minimum data length for repay hooks (146 bytes)
+    /// @notice Minimum data length for repay hooks (198 bytes)
     uint256 internal constant REPAY_MIN_DATA_LENGTH = 198;
 
-    /// @notice Minimum data length for borrow hooks (178 bytes)
+    /// @notice Minimum data length for borrow hooks (230 bytes)
     uint256 internal constant BORROW_MIN_DATA_LENGTH = 230;
 
-    /// @notice Minimum data length for supply/lend hooks (145 bytes)
+    /// @notice Minimum data length for supply/lend hooks (197 bytes)
     uint256 internal constant SUPPLY_MIN_DATA_LENGTH = 197;
 
     /*//////////////////////////////////////////////////////////////
@@ -149,7 +153,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
         _requireYieldSourceIsMorpho(yieldSource);
     }
 
-    /// @dev Decodes the hook data for repay operations (146-byte layout)
+    /// @dev Decodes the hook data for repay operations (198-byte layout)
     /// @param data The hook data
     /// @return vars The decoded hook data
     function _decodeHookData(bytes memory data) internal pure returns (BuildHookLocalVars memory vars) {
@@ -186,7 +190,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
         });
     }
 
-    /// @dev Decodes the hook data for borrow operations (178-byte layout)
+    /// @dev Decodes the hook data for borrow operations (230-byte layout)
     /// @param data The hook data
     /// @return vars The decoded borrow hook parameters
     function _decodeBorrowHookData(bytes memory data) internal pure returns (BorrowHookLocalVars memory vars) {

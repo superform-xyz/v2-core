@@ -121,39 +121,25 @@ contract MorphoBorrowerE2E is Test, Constants {
 
         // Mock: hook registration
         vm.mockCall(
-            superGovernor,
-            abi.encodeCall(ISuperGovernor.isHookRegistered, (address(supplyHook))),
-            abi.encode(true)
+            superGovernor, abi.encodeCall(ISuperGovernor.isHookRegistered, (address(supplyHook))), abi.encode(true)
         );
         vm.mockCall(
-            superGovernor,
-            abi.encodeCall(ISuperGovernor.isHookRegistered, (address(borrowHook))),
-            abi.encode(true)
+            superGovernor, abi.encodeCall(ISuperGovernor.isHookRegistered, (address(borrowHook))), abi.encode(true)
         );
         vm.mockCall(
-            superGovernor,
-            abi.encodeCall(ISuperGovernor.isHookRegistered, (address(repayHook))),
-            abi.encode(true)
+            superGovernor, abi.encodeCall(ISuperGovernor.isHookRegistered, (address(repayHook))), abi.encode(true)
         );
         vm.mockCall(
-            superGovernor,
-            abi.encodeCall(ISuperGovernor.isHookRegistered, (address(withdrawHook))),
-            abi.encode(true)
+            superGovernor, abi.encodeCall(ISuperGovernor.isHookRegistered, (address(withdrawHook))), abi.encode(true)
         );
 
         // Mock: manager authorization
         vm.mockCall(
-            aggregator,
-            abi.encodeCall(ISuperVaultAggregator.isAnyManager, (MANAGER, STRATEGY)),
-            abi.encode(true)
+            aggregator, abi.encodeCall(ISuperVaultAggregator.isAnyManager, (MANAGER, STRATEGY)), abi.encode(true)
         );
 
         // Mock: hook validation (merkle proof check)
-        vm.mockCall(
-            aggregator,
-            abi.encodeWithSelector(ISuperVaultAggregator.validateHook.selector),
-            abi.encode(true)
-        );
+        vm.mockCall(aggregator, abi.encodeWithSelector(ISuperVaultAggregator.validateHook.selector), abi.encode(true));
 
         // Build market params
         marketParams = MarketParams({
@@ -230,17 +216,11 @@ contract MorphoBorrowerE2E is Test, Constants {
 
     /// @notice Build hook data for MorphoWithdrawHook
     /// @dev onBehalf and recipient are always set to account by the hook itself
-    function _buildWithdrawHookData(
-        uint256 assets,
-        uint256 shares
-    )
-        internal
-        view
-        returns (bytes memory)
-    {
+    function _buildWithdrawHookData(uint256 assets, uint256 shares) internal view returns (bytes memory) {
+        // MONEY_MARKET hook: offset 32 = registry market key (SuperLedger / PPS key), not the singleton
         return abi.encodePacked(
             MORPHO_YS_ORACLE_ID,
-            MORPHO,
+            address(uint160(uint256(Id.unwrap(marketParams.id())))),
             marketParams.loanToken,
             marketParams.collateralToken,
             marketParams.oracle,
@@ -436,8 +416,7 @@ contract MorphoBorrowerE2E is Test, Constants {
         // Full repay
         _executeRepay(0, true);
 
-        (, uint128 borrowSharesAfter, uint128 collateral) =
-            IMorphoStaticTyping(MORPHO).position(marketId, STRATEGY);
+        (, uint128 borrowSharesAfter, uint128 collateral) = IMorphoStaticTyping(MORPHO).position(marketId, STRATEGY);
 
         assertEq(uint256(borrowSharesAfter), 0, "Should have no borrow shares after full repay");
         assertEq(uint256(collateral), COLLATERAL_AMOUNT, "Collateral should remain (repay doesn't withdraw)");
@@ -471,8 +450,7 @@ contract MorphoBorrowerE2E is Test, Constants {
         deal(CHAIN_1_USDC, STRATEGY, borrowed + 50e6);
         _executeRepay(0, true);
 
-        (, uint128 borrowShares5, uint128 collateral5) =
-            IMorphoStaticTyping(MORPHO).position(marketId, STRATEGY);
+        (, uint128 borrowShares5, uint128 collateral5) = IMorphoStaticTyping(MORPHO).position(marketId, STRATEGY);
 
         assertEq(uint256(borrowShares5), 0, "Step 5: No borrow shares");
         assertEq(uint256(collateral5), COLLATERAL_AMOUNT, "Step 5: Collateral intact");

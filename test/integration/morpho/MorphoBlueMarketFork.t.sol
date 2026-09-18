@@ -1602,7 +1602,7 @@ contract MorphoBlueMarketFork is Test, Constants {
     {
         return abi.encodePacked(
             MORPHO_YS_ORACLE_ID, // 32 bytes, offset 0 (header: Superform Morpho Blue YS oracle id)
-            MORPHO, // 20 bytes, offset 32 (header: yield source = Morpho Blue singleton / call target)
+            _marketKeyOf(loanToken, collateralToken, mOracle, mIrm, lltv), // 20 bytes, offset 32 (header: registry market key)
             loanToken, // 20 bytes, offset 52
             collateralToken, // 20 bytes, offset 72
             mOracle, // 20 bytes, offset 92
@@ -1629,7 +1629,7 @@ contract MorphoBlueMarketFork is Test, Constants {
     {
         return abi.encodePacked(
             MORPHO_YS_ORACLE_ID, // 32 bytes, offset 0 (header: Superform Morpho Blue YS oracle id)
-            MORPHO, // 20 bytes, offset 32 (header: yield source = Morpho Blue singleton / call target)
+            _marketKeyOf(loanToken, collateralToken, mOracle, mIrm, lltv), // 20 bytes, offset 32 (header: registry market key)
             loanToken, // 20 bytes, offset 52
             collateralToken, // 20 bytes, offset 72
             mOracle, // 20 bytes, offset 92
@@ -1637,6 +1637,35 @@ contract MorphoBlueMarketFork is Test, Constants {
             lltv, // 32 bytes, offset 132
             assets, // 32 bytes, offset 164
             shares // 32 bytes, offset 196
+        );
+    }
+
+    /// @dev MONEY_MARKET header identity: registry market key == MorphoBlueMarketRegistry.computeMarketKey
+    function _marketKeyOf(
+        address loanToken,
+        address collateralToken,
+        address mOracle,
+        address mIrm,
+        uint256 lltv
+    )
+        internal
+        pure
+        returns (address)
+    {
+        return address(
+            uint160(
+                uint256(
+                    Id.unwrap(
+                        MarketParams({
+                            loanToken: loanToken,
+                            collateralToken: collateralToken,
+                            oracle: mOracle,
+                            irm: mIrm,
+                            lltv: lltv
+                        }).id()
+                    )
+                )
+            )
         );
     }
 

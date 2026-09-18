@@ -108,8 +108,17 @@ def parse_hook_source(path: Path) -> dict:
     # Extract hookType from constructor — check direct BaseHook call or inheritance
     # Direct: BaseHook(HookType.INFLOW, HookSubTypes.ERC4626)
     hook_type_match = re.search(r'BaseHook\(HookType\.(\w+)', content)
+    # Explicit type passed to an intermediate base from the CONSTRUCTOR's base-call list, e.g. the
+    # money-market lend side:  constructor(address morpho_) BaseMorphoMoneyMarketHook(morpho_,
+    # ISuperHook.HookType.INFLOW) { }   (SUP-21024). Scoped to the constructor header so incidental
+    # HookType.* mentions elsewhere in a file (comparisons, comments) never reclassify a hook.
+    explicit_type_match = re.search(
+        r"constructor\s*\([^{]*?\bHookType\.(NONACCOUNTING|INFLOW|OUTFLOW)\b", content
+    )
     if hook_type_match:
         result["hookType"] = hook_type_match.group(1)
+    elif explicit_type_match:
+        result["hookType"] = explicit_type_match.group(1)
     else:
         # Check if it extends BaseLoanHook (always NONACCOUNTING)
         if "BaseLoanHook" in content or "BaseAaveV4LoanHook" in content or "BaseMorphoLoanHook" in content:
@@ -132,6 +141,10 @@ def parse_hook_source(path: Path) -> dict:
             break
     if "BaseAerodromeUniversalRouterHook" in content:
         result["subtype"] = "SWAP"
+    # Money-market lend/redeem leaves inherit HookSubTypes.LOAN from BaseMorphoMoneyMarketHook and
+    # no longer reference HookSubTypes themselves (SUP-21024)
+    if "subtype" not in result and "BaseMorphoMoneyMarketHook" in content:
+        result["subtype"] = "LOAN"
 
     return result
 
