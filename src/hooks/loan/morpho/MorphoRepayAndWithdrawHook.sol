@@ -26,7 +26,7 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
 /// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Morpho Blue YS id
-/// @notice         address yieldSource = data.extractYieldSource(); // Morpho Blue singleton (call target)
+/// @notice         address yieldSource = data.extractYieldSource(); // registry market key of the body MarketParams
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address oracle = BytesLib.toAddress(data, 92);
@@ -95,19 +95,17 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         returns (Execution[] memory executions)
     {
         BuildHookLocalVars memory vars = _decodeHookData(data);
-        _requireYieldSourceIsMorpho(vars.yieldSource);
 
         BuildExecutionContext memory ctx;
         ctx.marketParams = _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+        _requireHeaderIsMarketKey(vars.marketKey, ctx.marketParams);
         ctx.id = ctx.marketParams.id();
 
         executions = new Execution[](5);
-        executions[0] = Execution({
-            target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.yieldSource, 0))
-        });
-        executions[3] = Execution({
-            target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.yieldSource, 0))
-        });
+        executions[0] =
+            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+        executions[3] =
+            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
 
         if (vars.isFullRepayment) {
             ctx.borrowBalance = deriveShareBalance(ctx.id, account);
@@ -117,15 +115,15 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
             executions[1] = Execution({
                 target: vars.loanToken,
                 value: 0,
-                callData: abi.encodeCall(IERC20.approve, (vars.yieldSource, deriveLoanAmount(ctx.id, account)))
+                callData: abi.encodeCall(IERC20.approve, (morpho, deriveLoanAmount(ctx.id, account)))
             });
             executions[2] = Execution({
-                target: vars.yieldSource,
+                target: morpho,
                 value: 0,
                 callData: abi.encodeCall(IMorphoBase.repay, (ctx.marketParams, 0, ctx.shareBalance, account, ""))
             });
             executions[4] = Execution({
-                target: vars.yieldSource,
+                target: morpho,
                 value: 0,
                 callData: abi.encodeCall(
                     IMorphoBase.withdrawCollateral, (ctx.marketParams, ctx.collateralForWithdraw, account, account)
@@ -142,17 +140,15 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
                 deriveCollateralForPartialRepayment(ctx.id, account, vars.amount, ctx.fullCollateral);
 
             executions[1] = Execution({
-                target: vars.loanToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (vars.yieldSource, vars.amount))
+                target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
             });
             executions[2] = Execution({
-                target: vars.yieldSource,
+                target: morpho,
                 value: 0,
                 callData: abi.encodeCall(IMorphoBase.repay, (ctx.marketParams, vars.amount, 0, account, ""))
             });
             executions[4] = Execution({
-                target: vars.yieldSource,
+                target: morpho,
                 value: 0,
                 callData: abi.encodeCall(
                     IMorphoBase.withdrawCollateral, (ctx.marketParams, ctx.collateralForWithdraw, account, account)
@@ -169,7 +165,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
         return abi.encodePacked(
-            vars.yieldSource,
+            vars.marketKey,
             marketParams.loanToken,
             marketParams.collateralToken,
             marketParams.oracle,
@@ -263,10 +259,10 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     /// @inheritdoc BaseHook
     function _preExecute(address, address account, bytes calldata data) internal override {
         BuildHookLocalVars memory vars = _decodeHookData(data);
-        _requireYieldSourceIsMorpho(vars.yieldSource);
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
-        IMorpho(vars.yieldSource).accrueInterest(marketParams);
+        _requireHeaderIsMarketKey(vars.marketKey, marketParams);
+        IMorpho(morpho).accrueInterest(marketParams);
 
         // store current balance
         _setOutAmount(getCollateralTokenBalance(account, data), account);

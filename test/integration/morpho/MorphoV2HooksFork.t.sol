@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 // external
 import { MarketParamsLib } from "../../../src/vendor/morpho/MarketParamsLib.sol";
 import { MorphoBalancesLib } from "../../../src/vendor/morpho/MorphoBalancesLib.sol";
+import { morphoMarketKey } from "../../utils/MorphoMarketKey.sol";
 import { Id, IMorpho, IMorphoStaticTyping, MarketParams } from "../../../src/vendor/morpho/IMorpho.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
@@ -90,8 +91,8 @@ contract MorphoV2HooksFork is MinimalBaseIntegrationTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Canonical 230-byte Morpho V2 layout:
-    ///      52-byte strategy header (MORPHO_YS_ORACLE_ID at offset 0 + Morpho singleton at offset 32), then loanToken (offset 52),
-    ///      collateralToken (72), oracle (92), irm (112), amount1 (132), amount2 (164),
+    ///      52-byte strategy header (MORPHO_YS_ORACLE_ID at offset 0 + Morpho singleton at offset 32), then loanToken
+    /// (offset 52), collateralToken (72), oracle (92), irm (112), amount1 (132), amount2 (164),
     ///      usePrevHookAmount (196), lltv (197), reserved zero byte (229).
     function _morphoV2Data(
         uint256 amount1,
@@ -104,7 +105,7 @@ contract MorphoV2HooksFork is MinimalBaseIntegrationTest {
     {
         data = abi.encodePacked(
             MORPHO_YS_ORACLE_ID,
-            MORPHO,
+            morphoMarketKey(loanToken, collateralToken, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, lltv),
             loanToken,
             collateralToken,
             MORPHO_ORACLE_WBTC_USDC,

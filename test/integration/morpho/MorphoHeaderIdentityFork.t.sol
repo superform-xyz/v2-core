@@ -158,25 +158,25 @@ contract MorphoHeaderIdentityForkTest is MinimalBaseIntegrationTest {
     }
 
     function _assertInspect(Mkt memory m) internal view {
-        bytes memory expected = abi.encodePacked(MORPHO, m.loan, m.coll, m.oracle, m.irm, m.lltv);
-        // MONEY_MARKET hooks: yield source = MARKET KEY first (the ledger key the leaf must carry)
-        bytes memory mmExpected = abi.encodePacked(_key(m), m.loan, m.coll, m.oracle, m.irm, m.lltv);
-        assertEq(lendHook.inspect(_lend(_key(m), m)), mmExpected, "lend");
-        assertEq(withdrawHook.inspect(_withdraw(_key(m), m)), mmExpected, "withdraw");
+        // ONE identity for the whole Morpho family: market key first, then the MarketParams filter
+        bytes memory expected = abi.encodePacked(_key(m), m.loan, m.coll, m.oracle, m.irm, m.lltv);
+        bytes memory singletonFirst = abi.encodePacked(MORPHO, m.loan, m.coll, m.oracle, m.irm, m.lltv);
+        assertEq(lendHook.inspect(_lend(_key(m), m)), expected, "lend");
+        assertEq(withdrawHook.inspect(_withdraw(_key(m), m)), expected, "withdraw");
         // SuperVaultAggregator leaf over the raw inspect bytes == leaf over the SUP-21025 encoding
-        assertEq(_leaf(address(lendHook), lendHook.inspect(_lend(_key(m), m))), _leaf(address(lendHook), mmExpected));
+        assertEq(_leaf(address(lendHook), lendHook.inspect(_lend(_key(m), m))), _leaf(address(lendHook), expected));
         assertTrue(
-            _leaf(address(lendHook), mmExpected) != _leaf(address(lendHook), expected), "singleton-first differs"
+            _leaf(address(lendHook), expected) != _leaf(address(lendHook), singletonFirst), "singleton-first differs"
         );
-        assertEq(v1PledgeHook.inspect(_v1Supply(MORPHO, m)), expected, "v1 pledge");
-        assertEq(v1BorrowHook.inspect(_v1Borrow(MORPHO, m)), expected, "v1 borrow");
-        assertEq(v1RepayHook.inspect(_v1Repay(MORPHO, m)), expected, "v1 repay");
-        assertEq(openHook.inspect(_v2(MORPHO, m, AMT, AMT)), expected, "open");
-        assertEq(repayHook.inspect(_v2(MORPHO, m, AMT, 0)), expected, "repay");
-        assertEq(closeHook.inspect(_v2(MORPHO, m, AMT, AMT)), expected, "close");
-        assertEq(pledgeHook.inspect(_v2(MORPHO, m, AMT, 0)), expected, "pledge");
-        assertEq(borrowHook.inspect(_v2(MORPHO, m, AMT, 0)), expected, "borrow");
-        assertEq(releaseHook.inspect(_v2(MORPHO, m, AMT, 0)), expected, "release");
+        assertEq(v1PledgeHook.inspect(_v1Supply(_key(m), m)), expected, "v1 pledge");
+        assertEq(v1BorrowHook.inspect(_v1Borrow(_key(m), m)), expected, "v1 borrow");
+        assertEq(v1RepayHook.inspect(_v1Repay(_key(m), m)), expected, "v1 repay");
+        assertEq(openHook.inspect(_v2(_key(m), m, AMT, AMT)), expected, "open");
+        assertEq(repayHook.inspect(_v2(_key(m), m, AMT, 0)), expected, "repay");
+        assertEq(closeHook.inspect(_v2(_key(m), m, AMT, AMT)), expected, "close");
+        assertEq(pledgeHook.inspect(_v2(_key(m), m, AMT, 0)), expected, "pledge");
+        assertEq(borrowHook.inspect(_v2(_key(m), m, AMT, 0)), expected, "borrow");
+        assertEq(releaseHook.inspect(_v2(_key(m), m, AMT, 0)), expected, "release");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -194,16 +194,16 @@ contract MorphoHeaderIdentityForkTest is MinimalBaseIntegrationTest {
         _assertMorphoTargeted(lendHook.build(address(0), me, _lend(_key(m), m)), m, address(lendHook));
         _assertMorphoTargeted(withdrawHook.build(address(0), me, _withdraw(_key(m), m)), m, address(withdrawHook));
         // V1 borrower ops (repay resolves against the seeded debt)
-        _assertMorphoTargeted(v1PledgeHook.build(address(0), me, _v1Supply(MORPHO, m)), m, address(v1PledgeHook));
-        _assertMorphoTargeted(v1BorrowHook.build(address(0), me, _v1Borrow(MORPHO, m)), m, address(v1BorrowHook));
-        _assertMorphoTargeted(v1RepayHook.build(address(0), me, _v1Repay(MORPHO, m)), m, address(v1RepayHook));
+        _assertMorphoTargeted(v1PledgeHook.build(address(0), me, _v1Supply(_key(m), m)), m, address(v1PledgeHook));
+        _assertMorphoTargeted(v1BorrowHook.build(address(0), me, _v1Borrow(_key(m), m)), m, address(v1BorrowHook));
+        _assertMorphoTargeted(v1RepayHook.build(address(0), me, _v1Repay(_key(m), m)), m, address(v1RepayHook));
         // V2 borrower ops — REPAY / CLOSE are non-empty because the account holds real debt
-        _assertMorphoTargeted(openHook.build(address(0), me, _v2(MORPHO, m, AMT, AMT)), m, address(openHook));
-        _assertMorphoTargeted(repayHook.build(address(0), me, _v2(MORPHO, m, AMT, 0)), m, address(repayHook));
-        _assertMorphoTargeted(closeHook.build(address(0), me, _v2(MORPHO, m, AMT, 1)), m, address(closeHook));
-        _assertMorphoTargeted(pledgeHook.build(address(0), me, _v2(MORPHO, m, AMT, 0)), m, address(pledgeHook));
-        _assertMorphoTargeted(borrowHook.build(address(0), me, _v2(MORPHO, m, AMT, 0)), m, address(borrowHook));
-        _assertMorphoTargeted(releaseHook.build(address(0), me, _v2(MORPHO, m, 1, 0)), m, address(releaseHook));
+        _assertMorphoTargeted(openHook.build(address(0), me, _v2(_key(m), m, AMT, AMT)), m, address(openHook));
+        _assertMorphoTargeted(repayHook.build(address(0), me, _v2(_key(m), m, AMT, 0)), m, address(repayHook));
+        _assertMorphoTargeted(closeHook.build(address(0), me, _v2(_key(m), m, AMT, 1)), m, address(closeHook));
+        _assertMorphoTargeted(pledgeHook.build(address(0), me, _v2(_key(m), m, AMT, 0)), m, address(pledgeHook));
+        _assertMorphoTargeted(borrowHook.build(address(0), me, _v2(_key(m), m, AMT, 0)), m, address(borrowHook));
+        _assertMorphoTargeted(releaseHook.build(address(0), me, _v2(_key(m), m, 1, 0)), m, address(releaseHook));
     }
 
     /// @dev Every execution that is not a token approve (loan/collateral target) nor a pre/postExecute
@@ -249,10 +249,10 @@ contract MorphoHeaderIdentityForkTest is MinimalBaseIntegrationTest {
             lendHook.build(address(0), me, _lend(_key(m), m)), IMorphoBase.supply.selector, "lend"
         );
         _assertMorphoCallbackEmpty(
-            v1RepayHook.build(address(0), me, _v1Repay(MORPHO, m)), IMorphoBase.repay.selector, "v1 repay"
+            v1RepayHook.build(address(0), me, _v1Repay(_key(m), m)), IMorphoBase.repay.selector, "v1 repay"
         );
         _assertMorphoCallbackEmpty(
-            v1CloseHook.build(address(0), me, _v1Repay(MORPHO, m)), IMorphoBase.repay.selector, "v1 close"
+            v1CloseHook.build(address(0), me, _v1Repay(_key(m), m)), IMorphoBase.repay.selector, "v1 close"
         );
     }
 
@@ -276,9 +276,9 @@ contract MorphoHeaderIdentityForkTest is MinimalBaseIntegrationTest {
     function test_Fork_HeaderPointingAtWrongMorpho_Reverts_AllOps() public {
         address wrong = address(0xdEADbeEF00000000000000000000000000000001);
         address me = address(this);
-        bytes4 mm = BaseMorphoMoneyMarketHook.MARKET_KEY_MISMATCH.selector;
-        bytes4 v1 = BaseMorphoLoanHook.YIELD_SOURCE_MISMATCH.selector;
-        bytes4 v2 = BaseMorphoLoanHookV2.YIELD_SOURCE_MISMATCH.selector;
+        bytes4 mm = BaseMorphoLoanHook.MARKET_KEY_MISMATCH.selector;
+        bytes4 v1 = BaseMorphoLoanHook.MARKET_KEY_MISMATCH.selector;
+        bytes4 v2 = BaseMorphoLoanHookV2.MARKET_KEY_MISMATCH.selector;
 
         // MONEY_MARKET hooks: offset 32 must be THIS market's key — a foreign address, the Morpho
         // singleton itself, or the OTHER real market's key all fail closed

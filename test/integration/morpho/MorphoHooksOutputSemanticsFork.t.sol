@@ -635,29 +635,27 @@ contract MorphoHooksOutputSemanticsForkTest is MinimalBaseIntegrationTest {
 
     // LOAN V1 pledge (197): header (oracle id + SINGLETON) + market + amount@132 + lltv@164 + usePrev@196
     function _v1Supply(Mkt memory m, uint256 amount) internal pure returns (bytes memory) {
-        return abi.encodePacked(MORPHO_YS_ORACLE_ID, MORPHO, m.loan, m.coll, m.oracle, m.irm, amount, m.lltv, false);
+        return abi.encodePacked(MORPHO_YS_ORACLE_ID, m.key, m.loan, m.coll, m.oracle, m.irm, amount, m.lltv, false);
     }
 
     // LOAN V1 borrow / supply-and-borrow (230): + amount@132 + ltvRatio@164 + usePrev@196 + lltv@197 + reserved
     function _v1Borrow(Mkt memory m, uint256 amount) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            MORPHO_YS_ORACLE_ID, MORPHO, m.loan, m.coll, m.oracle, m.irm, amount, LTV_RATIO, false, m.lltv, false
+            MORPHO_YS_ORACLE_ID, m.key, m.loan, m.coll, m.oracle, m.irm, amount, LTV_RATIO, false, m.lltv, false
         );
     }
 
     // LOAN V1 repay / repay-and-withdraw (198): + amount@132 + lltv@164 + usePrev@196 + isFullRepayment@197
     function _v1Repay(Mkt memory m, uint256 amount, bool isFull) internal pure returns (bytes memory) {
         return
-            abi.encodePacked(
-                MORPHO_YS_ORACLE_ID, MORPHO, m.loan, m.coll, m.oracle, m.irm, amount, m.lltv, false, isFull
-            );
+            abi.encodePacked(MORPHO_YS_ORACLE_ID, m.key, m.loan, m.coll, m.oracle, m.irm, amount, m.lltv, false, isFull);
     }
 
     // LOAN V2 (230): header (oracle id + SINGLETON) + market + amount1@132 + amount2@164 + usePrev@196 + lltv@197 +
     // reserved
     function _v2(Mkt memory m, uint256 a1, uint256 a2) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            MORPHO_YS_ORACLE_ID, MORPHO, m.loan, m.coll, m.oracle, m.irm, a1, a2, false, m.lltv, uint8(0)
+            MORPHO_YS_ORACLE_ID, m.key, m.loan, m.coll, m.oracle, m.irm, a1, a2, false, m.lltv, uint8(0)
         );
     }
 

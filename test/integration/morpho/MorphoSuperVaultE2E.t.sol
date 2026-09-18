@@ -17,6 +17,7 @@ import { MorphoRepayHook } from "../../../src/hooks/loan/morpho/MorphoRepayHook.
 import { MorphoSupplyAndBorrowHook } from "../../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
 import { MorphoRepayAndWithdrawHook } from "../../../src/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
 import { Constants } from "../../utils/Constants.sol";
+import { morphoMarketKey } from "../../utils/MorphoMarketKey.sol";
 
 /// @notice Minimal interface for the real deployed SuperVaultStrategy.executeHooks
 interface ISuperVaultStrategyExecute {
@@ -80,6 +81,11 @@ contract MorphoSuperVaultE2E is Test, Constants {
     address public constant ORACLE = MORPHO_ORACLE_WBTC_USDC;
     address public constant IRM = MORPHO_IRM_WBTC_USDC;
     uint256 public constant LLTV = 860_000_000_000_000_000; // 86%
+
+    /// @dev Registry market key this suite's fixed market carries at header offset 32
+    function _mktKey() internal pure returns (address) {
+        return morphoMarketKey(LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, LLTV);
+    }
     uint256 public constant LTV_RATIO = 660_000_000_000_000_000; // 66%
 
     uint256 public constant COLLATERAL_AMOUNT = 1_000_000; // 0.01 WBTC (8 decimals)
@@ -120,11 +126,7 @@ contract MorphoSuperVaultE2E is Test, Constants {
         _mockHookRegistered(address(repayAndWithdrawHook));
 
         // Mock: Aggregator.validateHook → always true (skip Merkle proof validation)
-        vm.mockCall(
-            AGGREGATOR,
-            abi.encodeWithSelector(ISuperVaultAggregator.validateHook.selector),
-            abi.encode(true)
-        );
+        vm.mockCall(AGGREGATOR, abi.encodeWithSelector(ISuperVaultAggregator.validateHook.selector), abi.encode(true));
 
         // Mock: Aggregator.isAnyManager → true for MANAGER
         vm.mockCall(
@@ -142,9 +144,7 @@ contract MorphoSuperVaultE2E is Test, Constants {
 
     function _mockHookRegistered(address hook) internal {
         vm.mockCall(
-            SUPER_GOVERNOR,
-            abi.encodeWithSelector(ISuperGovernor.isHookRegistered.selector, hook),
-            abi.encode(true)
+            SUPER_GOVERNOR, abi.encodeWithSelector(ISuperGovernor.isHookRegistered.selector, hook), abi.encode(true)
         );
     }
 
@@ -154,11 +154,7 @@ contract MorphoSuperVaultE2E is Test, Constants {
 
     function _getMarketParams() internal pure returns (MarketParams memory) {
         return MarketParams({
-            loanToken: LOAN_TOKEN,
-            collateralToken: COLLATERAL_TOKEN,
-            oracle: ORACLE,
-            irm: IRM,
-            lltv: LLTV
+            loanToken: LOAN_TOKEN, collateralToken: COLLATERAL_TOKEN, oracle: ORACLE, irm: IRM, lltv: LLTV
         });
     }
 
@@ -176,7 +172,9 @@ contract MorphoSuperVaultE2E is Test, Constants {
 
     /// @dev Encode data for MorphoSupplyHook
     function _createSupplyHookData(uint256 amount, bool usePrevHookAmount) internal pure returns (bytes memory) {
-        return abi.encodePacked(MORPHO_YS_ORACLE_ID, MORPHO, LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, amount, LLTV, usePrevHookAmount);
+        return abi.encodePacked(
+            MORPHO_YS_ORACLE_ID, _mktKey(), LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, amount, LLTV, usePrevHookAmount
+        );
     }
 
     /// @dev Encode data for MorphoSupplyAndBorrowHook
@@ -190,7 +188,17 @@ contract MorphoSuperVaultE2E is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            MORPHO_YS_ORACLE_ID, MORPHO, LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, amount, ltvRatio, usePrevHookAmount, LLTV, false
+            MORPHO_YS_ORACLE_ID,
+            _mktKey(),
+            LOAN_TOKEN,
+            COLLATERAL_TOKEN,
+            ORACLE,
+            IRM,
+            amount,
+            ltvRatio,
+            usePrevHookAmount,
+            LLTV,
+            false
         );
     }
 
@@ -205,7 +213,16 @@ contract MorphoSuperVaultE2E is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            MORPHO_YS_ORACLE_ID, MORPHO, LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, amount, LLTV, usePrevHookAmount, isFullRepayment
+            MORPHO_YS_ORACLE_ID,
+            _mktKey(),
+            LOAN_TOKEN,
+            COLLATERAL_TOKEN,
+            ORACLE,
+            IRM,
+            amount,
+            LLTV,
+            usePrevHookAmount,
+            isFullRepayment
         );
     }
 
@@ -220,7 +237,16 @@ contract MorphoSuperVaultE2E is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            MORPHO_YS_ORACLE_ID, MORPHO, LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, amount, LLTV, usePrevHookAmount, isFullRepayment
+            MORPHO_YS_ORACLE_ID,
+            _mktKey(),
+            LOAN_TOKEN,
+            COLLATERAL_TOKEN,
+            ORACLE,
+            IRM,
+            amount,
+            LLTV,
+            usePrevHookAmount,
+            isFullRepayment
         );
     }
 
@@ -316,14 +342,24 @@ contract MorphoSuperVaultE2E is Test, Constants {
         vm.prank(MANAGER);
         strategy.executeHooks(_buildArgs(address(supplyHook), _createSupplyHookData(COLLATERAL_AMOUNT, false)));
 
-        (, , uint128 collateralAfterSupply) = _getPosition(STRATEGY);
+        (,, uint128 collateralAfterSupply) = _getPosition(STRATEGY);
         assertEq(uint256(collateralAfterSupply), COLLATERAL_AMOUNT, "Collateral should match supplied amount");
 
         // Step 2: Borrow USDC
         uint256 borrowAmount = supplyAndBorrowHook.deriveLoanAmount(COLLATERAL_AMOUNT, LTV_RATIO, LLTV, ORACLE);
 
         bytes memory borrowData = abi.encodePacked(
-            MORPHO_YS_ORACLE_ID, MORPHO, LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, borrowAmount, LTV_RATIO, false, LLTV, false
+            MORPHO_YS_ORACLE_ID,
+            _mktKey(),
+            LOAN_TOKEN,
+            COLLATERAL_TOKEN,
+            ORACLE,
+            IRM,
+            borrowAmount,
+            LTV_RATIO,
+            false,
+            LLTV,
+            false
         );
 
         vm.prank(MANAGER);
@@ -441,7 +477,7 @@ contract MorphoSuperVaultE2E is Test, Constants {
         vm.prank(MANAGER);
         strategy.executeHooks(_buildArgs(address(supplyHook), _createSupplyHookData(COLLATERAL_AMOUNT, false)));
 
-        (, , uint128 collateralStep1) = _getPosition(STRATEGY);
+        (,, uint128 collateralStep1) = _getPosition(STRATEGY);
         assertEq(uint256(collateralStep1), COLLATERAL_AMOUNT, "Step 1: collateral supplied");
         console2.log("Collateral after supply:", collateralStep1);
 
@@ -450,14 +486,24 @@ contract MorphoSuperVaultE2E is Test, Constants {
         uint256 borrowAmount = supplyAndBorrowHook.deriveLoanAmount(COLLATERAL_AMOUNT, LTV_RATIO, LLTV, ORACLE);
 
         bytes memory borrowData = abi.encodePacked(
-            MORPHO_YS_ORACLE_ID, MORPHO, LOAN_TOKEN, COLLATERAL_TOKEN, ORACLE, IRM, borrowAmount, LTV_RATIO, false, LLTV, false
+            MORPHO_YS_ORACLE_ID,
+            _mktKey(),
+            LOAN_TOKEN,
+            COLLATERAL_TOKEN,
+            ORACLE,
+            IRM,
+            borrowAmount,
+            LTV_RATIO,
+            false,
+            LLTV,
+            false
         );
 
         vm.prank(MANAGER);
         strategy.executeHooks(_buildArgs(address(borrowHook), borrowData));
 
         uint256 usdcAfterBorrow = IERC20(LOAN_TOKEN).balanceOf(STRATEGY);
-        (, uint128 borrowSharesStep2, ) = _getPosition(STRATEGY);
+        (, uint128 borrowSharesStep2,) = _getPosition(STRATEGY);
         assertGt(borrowSharesStep2, 0, "Step 2: should have borrow shares");
         assertGt(usdcAfterBorrow, 0, "Step 2: should have USDC from borrow");
         console2.log("USDC borrowed:", usdcAfterBorrow);
@@ -467,12 +513,7 @@ contract MorphoSuperVaultE2E is Test, Constants {
         deal(LOAN_TOKEN, STRATEGY, usdcAfterBorrow * 110 / 100);
 
         vm.prank(MANAGER);
-        strategy.executeHooks(
-            _buildArgs(
-                address(repayAndWithdrawHook),
-                _createRepayAndWithdrawData(0, false, true)
-            )
-        );
+        strategy.executeHooks(_buildArgs(address(repayAndWithdrawHook), _createRepayAndWithdrawData(0, false, true)));
 
         (, uint128 borrowSharesFinal, uint128 collateralFinal) = _getPosition(STRATEGY);
         assertEq(collateralFinal, 0, "All collateral withdrawn");
