@@ -11,6 +11,7 @@ import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../src/interfa
 import { Deposit4626VaultHook } from "../../../src/hooks/vaults/4626/Deposit4626VaultHook.sol";
 import { Redeem4626VaultHook } from "../../../src/hooks/vaults/4626/Redeem4626VaultHook.sol";
 import { MorphoSupplyHook } from "../../../src/hooks/loan/morpho/MorphoSupplyHook.sol";
+import { MorphoLendHook } from "../../../src/hooks/loan/morpho/MorphoLendHook.sol";
 import { MorphoWithdrawHook } from "../../../src/hooks/loan/morpho/MorphoWithdrawHook.sol";
 import {
     AcrossSendFundsAndExecuteOnDstHookV2
@@ -29,6 +30,7 @@ contract HookSizingInterfaceIntegration is Helpers {
     Deposit4626VaultHook deposit4626;
     Redeem4626VaultHook redeem4626;
     MorphoSupplyHook morphoSupply;
+    MorphoLendHook morphoLend;
     MorphoWithdrawHook morphoWithdraw;
     AcrossSendFundsAndExecuteOnDstHookV2 acrossV2;
     SwapUniswapV3Hook swapUniV3;
@@ -60,6 +62,7 @@ contract HookSizingInterfaceIntegration is Helpers {
         deposit4626 = new Deposit4626VaultHook();
         redeem4626 = new Redeem4626VaultHook();
         morphoSupply = new MorphoSupplyHook(MORPHO_BLUE);
+        morphoLend = new MorphoLendHook(MORPHO_BLUE);
         morphoWithdraw = new MorphoWithdrawHook(MORPHO_BLUE);
         acrossV2 = new AcrossSendFundsAndExecuteOnDstHookV2(SPOKE_POOL, DST_VALIDATOR);
         swapUniV3 = new SwapUniswapV3Hook(UNI_V3_ROUTER);
@@ -159,6 +162,31 @@ contract HookSizingInterfaceIntegration is Helpers {
               MORPHO INTEGRATION: Withdraw (XOR invariant)
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev SUP-21005: MONEY_MARKET lend sizes as ONE IN/ASSETS slot at offset 132 (loan-token assets
+    ///      supplied); the pure sizing API is header-agnostic, so a zero header is fine here.
+    function test_Fork_MorphoLend_RealMarket_AmountRolesAssets() public view {
+        ISuperHookInflowOutflow.AmountMeta[] memory meta = morphoLend.amountRoles("");
+        assertEq(meta.length, 1, "single slot");
+        assertEq(uint256(meta[0].dir), uint256(ISuperHookInflowOutflow.Direction.IN));
+        assertEq(uint256(meta[0].denom), uint256(ISuperHookInflowOutflow.Denomination.ASSETS));
+
+        // MorphoLend: header(52) + loanToken@52 + collateralToken@72 + oracle@92 + irm@112 + amount@132 + lltv@164 + usePrev@196
+        uint256 assets = 1000e6;
+        bytes memory data = abi.encodePacked(bytes32(0), address(0), USDC, WBTC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, assets, MORPHO_LLTV, false);
+        assertEq(data.length, 197);
+        uint256[] memory decoded = morphoLend.decodeAmounts(data);
+        assertEq(decoded.length, 1);
+        assertEq(decoded[0], assets);
+
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 2500e6;
+        bytes memory replaced = morphoLend.replaceCalldataAmounts(data, amounts);
+        assertEq(morphoLend.decodeAmounts(replaced)[0], 2500e6);
+        assertEq(BytesLib.toAddress(replaced, 52), USDC);
+        assertEq(BytesLib.toUint256(replaced, 164), MORPHO_LLTV, "lltv untouched");
+        assertEq(replaced.length, 197);
+    }
+
     /// @dev MorphoWithdraw with real market — verify XOR invariant with real data layout
     function test_Fork_MorphoWithdraw_RealMarket_XOR() public view {
         // MorphoWithdraw: header(52) + loanToken@52(20) + collateralToken@72(20) + oracle@92(20) + irm@112(20) + lltv@132(32) + assets@164(32) + shares@196(32)
@@ -170,6 +198,14 @@ contract HookSizingInterfaceIntegration is Helpers {
         assertEq(decoded.length, 2);
         assertEq(decoded[0], assets);
         assertEq(decoded[1], 0);
+
+        // SUP-21005: MONEY_MARKET withdraw main is sized on slot 1 (SHARES), like 4626 redeem;
+        // slot 0 (ASSETS) stays for the Morpho XOR. Sizing the MM slot writes shares, zeroes assets.
+        ISuperHookInflowOutflow.AmountMeta[] memory meta = morphoWithdraw.amountRoles("");
+        assertEq(meta.length, 2);
+        assertEq(uint256(meta[0].denom), uint256(ISuperHookInflowOutflow.Denomination.ASSETS));
+        assertEq(uint256(meta[1].denom), uint256(ISuperHookInflowOutflow.Denomination.SHARES));
+        assertEq(uint256(meta[1].dir), uint256(ISuperHookInflowOutflow.Direction.IN));
 
         // Replace with shares instead of assets
         uint256 shares = 500e18;

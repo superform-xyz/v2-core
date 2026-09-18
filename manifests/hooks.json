@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-09-17T15:59:49Z",
+  "generatedAt": "2026-09-18T07:01:40Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -7387,7 +7387,7 @@
       "amountMeta": [
         {
           "direction": "IN",
-          "denomination": "TOKEN"
+          "denomination": "ASSETS"
         }
       ],
       "sized": true,

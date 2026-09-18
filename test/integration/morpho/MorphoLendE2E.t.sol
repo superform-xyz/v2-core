@@ -97,7 +97,7 @@ contract MorphoLendE2E is Test, Constants {
 
     function setUp() public {
         // Fork mainnet
-        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY));
+        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), ETH_BLOCK_SUPERVAULT);
 
         // Deploy hooks
         lendHook = new MorphoLendHook(MORPHO);
