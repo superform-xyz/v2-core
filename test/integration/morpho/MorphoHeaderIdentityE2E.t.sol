@@ -24,6 +24,7 @@ import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol"
 import { MorphoLendHook } from "../../../src/hooks/loan/morpho/MorphoLendHook.sol";
 import { MorphoWithdrawHook } from "../../../src/hooks/loan/morpho/MorphoWithdrawHook.sol";
 import { BaseMorphoMoneyMarketHook } from "../../../src/hooks/loan/morpho/BaseMorphoMoneyMarketHook.sol";
+import { BaseLoanHookV2 } from "../../../src/hooks/loan/BaseLoanHookV2.sol";
 // V2 borrower hooks (LOAN: NONACCOUNTING)
 import { MorphoSupplyAndBorrowHookV2 } from "../../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHookV2.sol";
 import { MorphoRepayAndWithdrawHookV2 } from "../../../src/hooks/loan/morpho/MorphoRepayAndWithdrawHookV2.sol";
@@ -363,6 +364,11 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
         return _v2(m.loan, m.coll, m.oracle, m.irm, m.lltv, a1, a2);
     }
 
+    /// @dev Same as _v2m with usePrevHookAmount = true (byte 196): the hook sizes from PREV output
+    function _v2mPrev(Mkt memory m, uint256 a1, uint256 a2) internal pure returns (bytes memory) {
+        return _v2Full(m.loan, m.coll, m.oracle, m.irm, m.lltv, a1, a2, true);
+    }
+
     /*//////////////////////////////////////////////////////////////
         SUP-21024: MONEY_MARKET ACCOUNTING — INFLOW/OUTFLOW keyed per market
     //////////////////////////////////////////////////////////////*/
@@ -389,6 +395,40 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
         assertEq(l.usersAccumulatorShares(accountEth, keyA), supplyShares, "accumulator shares == position");
         assertApproxEqRel(l.usersAccumulatorCostBasis(accountEth, keyA), lendAmount, 1e15, "cost basis ~= assets lent");
         assertEq(l.usersAccumulatorShares(accountEth, MORPHO), 0, "singleton never keyed");
+        // SUP-21005: the executor received the supply-share delta as outAmount, not the USDC spend
+        assertTrue(supplyShares != lendAmount, "outAmount is shares, not loan-token spend");
+    }
+
+    /// @notice SUP-21005: PREV from lend into a loan-token (USDC) TOKEN hop must fail the previous-
+    ///         output token check inside the real executor — lend's outToken is the market key,
+    ///         not USDC, so a V2 repay sized from lend's PREV reverts PREV_TOKEN_MISMATCH.
+    ///         Positive control: the same pair without usePrevHookAmount executes.
+    function test_E2E_Lend_PrevIntoLoanTokenRepayHop_RevertsTokenMismatch() external {
+        Mkt memory m = _mktA();
+        // Real debt on A so the repay hop actually consults PREV (a zero-debt repay short-circuits)
+        _getTokens(m.coll, accountEth, m.collAmount);
+        _execSingle(address(openHook), _v2m(m, m.collAmount, m.borrowAmount));
+        (, uint128 debtBefore,) = IMorphoStaticTyping(MORPHO).position(m.id, accountEth);
+        assertGt(uint256(debtBefore), 0, "seeded debt");
+
+        uint256 lendAmount = 1000e6;
+        _getTokens(aLoan, accountEth, IERC20(aLoan).balanceOf(accountEth) + lendAmount);
+
+        // lend -> repay(usePrevHookAmount = true): fails closed on the token check
+        _execEntryExpectRevert(
+            _entry2(address(lendHook), _lendA(lendAmount), address(repayHook), _v2mPrev(m, m.partialRepay, 0)),
+            BaseLoanHookV2.PREV_TOKEN_MISMATCH.selector
+        );
+        (, uint128 debtAfterRevert,) = IMorphoStaticTyping(MORPHO).position(m.id, accountEth);
+        assertEq(uint256(debtAfterRevert), uint256(debtBefore), "nothing repaid");
+
+        // positive control: lend -> repay(cap, no PREV) executes and reduces debt
+        _execEntryFor(
+            instanceOnEth,
+            _entry2(address(lendHook), _lendA(lendAmount), address(repayHook), _v2m(m, m.partialRepay, 0))
+        );
+        (, uint128 debtAfter,) = IMorphoStaticTyping(MORPHO).position(m.id, accountEth);
+        assertLt(uint256(debtAfter), uint256(debtBefore), "control: repay executed");
     }
 
     /// @notice Two markets on the same Morpho keep DISTINCT accounting: different keys, per-market
@@ -702,7 +742,30 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
     /// @dev Executes and asserts the account-level execution reverted with the expected custom
     ///      error (the EntryPoint swallows it and emits UserOperationRevertReason).
     function _execSingleExpectRevert(address hook, bytes memory data, bytes4 expectedSelector) internal {
-        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(_entry(hook, data)));
+        _execEntryExpectRevert(_entry(hook, data), expectedSelector);
+    }
+
+    function _entry2(
+        address hookA,
+        bytes memory dataA,
+        address hookB,
+        bytes memory dataB
+    )
+        internal
+        pure
+        returns (ISuperExecutor.ExecutorEntry memory)
+    {
+        address[] memory hooks = new address[](2);
+        hooks[0] = hookA;
+        hooks[1] = hookB;
+        bytes[] memory datas = new bytes[](2);
+        datas[0] = dataA;
+        datas[1] = dataB;
+        return ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: datas });
+    }
+
+    function _execEntryExpectRevert(ISuperExecutor.ExecutorEntry memory entry, bytes4 expectedSelector) internal {
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
         ExecutionReturnData memory ret = executeOpsThroughPaymaster(userOpData, paymaster, 1e18);
 
         bytes32 revertTopic = keccak256("UserOperationRevertReason(bytes32,address,uint256,bytes)");
@@ -841,6 +904,25 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(MORPHO_YS_ORACLE_ID, MORPHO, loan, coll, oracle, irm, a1, a2, false, lltv, uint8(0));
+        return _v2Full(loan, coll, oracle, irm, lltv, a1, a2, false);
+    }
+
+    /// @dev Single spelling of the 230-byte V2 layout: header + market + a1@132 + a2@164 + usePrev@196 + lltv@197 +
+    /// reserved
+    function _v2Full(
+        address loan,
+        address coll,
+        address oracle,
+        address irm,
+        uint256 lltv,
+        uint256 a1,
+        uint256 a2,
+        bool usePrev
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(MORPHO_YS_ORACLE_ID, MORPHO, loan, coll, oracle, irm, a1, a2, usePrev, lltv, uint8(0));
     }
 }

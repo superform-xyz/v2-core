@@ -11,7 +11,12 @@ import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseMorphoMoneyMarketHook } from "./BaseMorphoMoneyMarketHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInspector,
+    ISuperHookInflowOutflow
+} from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoLendHook
 /// @author Superform Labs
@@ -33,10 +38,15 @@ import { ISuperHook, ISuperHookResult, ISuperHookInspector } from "../../../inte
 ///      immutable: the only call target and approve spender. inspect() packs the header market key
 ///      (the yield source) plus the full MarketParams (loan, collateral, oracle, irm, lltv). See
 ///      BaseMorphoMoneyMarketHook.
-/// @dev WARNING: outAmount is Morpho supply shares (not assets). Unlike ERC-4626 vault shares,
-///      Morpho shares are non-transferable internal accounting units. Downstream hooks using
-///      usePrevHookAmount will receive a share count, not a token amount. The bundler MUST NOT
-///      chain this hook into asset-denominated downstream hooks without conversion.
+/// @dev OMS sizing: `amountRoles` is a single IN / ASSETS slot at `AMOUNT_POSITION` (loan-token
+///      assets supplied) — the same value-flow as the ERC-4626 deposit hook. Morpho `supply` takes
+///      assets, so there is no SHARES input slot; the share side is the measured outAmount.
+/// @dev WARNING: this hook emits the same (yieldSource, shares) output pair as an ERC-4626 deposit
+///      hook — outAmount = Morpho supply shares, outToken = the header market key — but Morpho shares
+///      are non-transferable internal units, not an ERC-20, and the key has no code. outToken is
+///      never the loan token, so downstream hooks that verify the previous output token fail closed;
+///      legacy usePrevHookAmount consumers without a token check would receive a share count, so the
+///      bundler MUST NOT chain this hook into asset-denominated downstream hooks without conversion.
 contract MorphoLendHook is BaseMorphoMoneyMarketHook {
     using HookDataDecoder for bytes;
 
@@ -141,6 +151,21 @@ contract MorphoLendHook is BaseMorphoMoneyMarketHook {
         );
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    /// @dev One IN / ASSETS slot at `AMOUNT_POSITION` (see contract @dev). Overridden on this leaf
+    ///      only: BaseLoanHook keeps IN / TOKEN for the borrower family.
+    function amountRoles(bytes memory)
+        external
+        pure
+        override
+        returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
+    {
+        meta = new ISuperHookInflowOutflow.AmountMeta[](1);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(
+            ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.ASSETS
+        );
+    }
+
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -195,13 +220,13 @@ contract MorphoLendHook is BaseMorphoMoneyMarketHook {
     }
 
     /// @inheritdoc BaseHook
-    /// @dev outAmount = supply shares received (position after - before). Decodes once; the same
-    ///      payload was validated + pinned in _preExecute.
+    /// @dev outAmount = supply shares received (position after - before); outToken = the header
+    ///      market key pinned in _preExecute (see contract WARNING). Decodes once.
     function _postExecute(address, address account, bytes calldata data) internal override {
         LendHookLocalVars memory vars = _decodeLendHookData(data);
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
         _setOutAmount(_supplyShares(marketParams, account) - getOutAmount(account), account);
-        _setOutToken(vars.loanToken, account);
+        _setOutToken(vars.marketKey, account);
     }
 }

@@ -270,6 +270,32 @@ contract MorphoHeaderIdentityForkTest is MinimalBaseIntegrationTest {
     }
 
     /*//////////////////////////////////////////////////////////////
+        SUP-21005: lend outToken = market key (per market), never the loan token (roles: unit sizing suite)
+    //////////////////////////////////////////////////////////////*/
+
+    // One pre/post cycle per test: BaseHook's mutex forbids a second preExecute in the same context
+    function test_Fork_Lend_OutTokenIsMarketKey_MarketA() public {
+        _assertLendOutToken(A);
+    }
+
+    function test_Fork_Lend_OutTokenIsMarketKey_MarketB() public {
+        _assertLendOutToken(B);
+    }
+
+    /// @dev pre/post without a supply in between: outAmount (share delta) is 0, and outToken is the
+    ///      header market key of THIS market — read against the real Morpho position.
+    function _assertLendOutToken(Mkt memory m) internal {
+        bytes memory d = _lend(_key(m), m);
+        lendHook.preExecute(address(0), address(this), d);
+        lendHook.postExecute(address(0), address(this), d);
+        address out = lendHook.getOutToken(address(this));
+        assertEq(out, _key(m), "outToken == header market key");
+        assertTrue(out != m.loan, "outToken != loan token");
+        assertTrue(out != MORPHO, "outToken != singleton");
+        assertEq(lendHook.getOutAmount(address(this)), 0, "no supply => zero share delta");
+    }
+
+    /*//////////////////////////////////////////////////////////////
                    (a) wrong Morpho header reverts on every op
     //////////////////////////////////////////////////////////////*/
 
