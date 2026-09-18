@@ -356,6 +356,8 @@ jobs:
   treasury-config-smoke-test:
     runs-on: SuperformCore3
     needs: ["test"]
+    # Informational: a failure here must be VISIBLE on the job (red) but must not fail the run.
+    continue-on-error: true
     steps:
       - name: "Check out the repo"
         uses: "actions/checkout@v4"
@@ -396,7 +398,7 @@ jobs:
           
           # Run the smoke test and capture output
           set +e
-          ./script/run/test/smoke_test_treasury_config.sh > treasury_test_output.log 2>&1
+          ./script/run/test/smoke_test_treasury_config.sh prod > treasury_test_output.log 2>&1
           EXIT_CODE=$?
           set -e
           
@@ -407,9 +409,7 @@ jobs:
           if [ $EXIT_CODE -eq 0 ]; then
             echo "✅ **All networks passed treasury configuration validation**" >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️  **Some networks failed treasury configuration validation**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "This is expected for networks where treasury configuration is not yet complete." >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Treasury configuration smoke test FAILED (exit $EXIT_CODE)** — see the job log. This job is informational (continue-on-error), so the run is not blocked, but the failure is real." >> $GITHUB_STEP_SUMMARY
           fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -418,17 +418,14 @@ jobs:
           tail -20 treasury_test_output.log >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           
-          # Don't fail the CI for this - it's informational
-          exit 0
-
-      - name: "Add treasury test summary"
-        run: |
-          echo "## Treasury Configuration Test" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Smoke test completed (informational)" >> $GITHUB_STEP_SUMMARY
+          # Propagate the real result: the job goes red on failure (continue-on-error keeps the run green).
+          exit $EXIT_CODE
 
   deployment-smoke-test:
     runs-on: SuperformCore3
     needs: ["test"]
+    # Informational: a failure here must be VISIBLE on the job (red) but must not fail the run.
+    continue-on-error: true
     steps:
       - name: "Check out the repo"
         uses: "actions/checkout@v4"
@@ -480,9 +477,7 @@ jobs:
           if [ $EXIT_CODE -eq 0 ]; then
             echo "✅ **All contracts verified on-chain**" >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️  **Some contracts missing on-chain**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "This may be expected for networks with partial deployments." >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Deployment smoke test FAILED (exit $EXIT_CODE)** — see the job log. This job is informational (continue-on-error), so the run is not blocked, but the failure is real." >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -491,10 +486,5 @@ jobs:
           tail -30 deployment_test_output.log >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
-          # Don't fail the CI for this - it's informational
-          exit 0
-
-      - name: "Add deployment test summary"
-        run: |
-          echo "## Deployment Verification" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Smoke test completed (informational)" >> $GITHUB_STEP_SUMMARY
+          # Propagate the real result: the job goes red on failure (continue-on-error keeps the run green).
+          exit $EXIT_CODE

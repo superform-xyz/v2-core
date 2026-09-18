@@ -4,16 +4,18 @@
 # Verifies all contracts listed in deployment JSON files are actually deployed on-chain
 #
 # Usage:
-#   ./script/run/smoke_test_deployment.sh prod              # Test all production networks
-#   ./script/run/smoke_test_deployment.sh staging            # Test all staging networks
-#   ./script/run/smoke_test_deployment.sh prod -n 56         # Test only BSC (prod)
-#   ./script/run/smoke_test_deployment.sh prod --verbose     # Verbose output
+#   ./script/run/test/smoke_test_deployment.sh prod              # Test all production networks
+#   ./script/run/test/smoke_test_deployment.sh staging           # Test all staging networks
+#   ./script/run/test/smoke_test_deployment.sh prod -n 56        # Test only BSC (prod)
+#   ./script/run/test/smoke_test_deployment.sh prod --verbose    # Verbose output
 
 set -e
 
-# Get the directory where this script is located
+# Get the directory where this script is located (script/run/test), the shared utils dir
+# (script/run/utils, where the networks-*.sh files live) and the repo root.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+UTILS_DIR="$(cd "$SCRIPT_DIR/../utils" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 # Default values
 ENVIRONMENT="prod"
@@ -62,11 +64,11 @@ parse_args() {
     case "$ENVIRONMENT" in
         prod)
             FORGE_ENV=0
-            source "$SCRIPT_DIR/networks-production.sh"
+            source "$UTILS_DIR/networks-production.sh"
             ;;
         staging)
             FORGE_ENV=2
-            source "$SCRIPT_DIR/networks-staging.sh"
+            source "$UTILS_DIR/networks-staging.sh"
             ;;
         *)
             echo "Invalid environment: $ENVIRONMENT (must be 'staging' or 'prod')"
@@ -128,21 +130,25 @@ run_network_test() {
 
     log "INFO" "Testing $network_name (Chain ID: $network_id)"
 
-    if [[ -z "$rpc_url" ]]; then
+    # Dry runs do not load RPC URLs, so only enforce the RPC presence when actually executing
+    if [[ -z "$rpc_url" && "$DRY_RUN" != "true" ]]; then
         log "ERROR" "No RPC URL configured for $network_name"
         return 1
     fi
 
-    local forge_cmd="forge script script/SmokeTestDeployment.s.sol:SmokeTestDeployment"
-    forge_cmd="$forge_cmd --sig \"run(uint256,uint64)\" $FORGE_ENV $network_id"
-    forge_cmd="$forge_cmd --rpc-url \"$rpc_url\""
+    # Build forge command as an array (safer than eval on a string)
+    local forge_cmd=(
+        forge script script/SmokeTestDeployment.s.sol:SmokeTestDeployment
+        --sig "run(uint256,uint64)" "$FORGE_ENV" "$network_id"
+        --rpc-url "$rpc_url"
+    )
 
     if [[ "$VERBOSE" == "true" ]]; then
-        forge_cmd="$forge_cmd -vv"
+        forge_cmd+=(-vv)
     fi
 
     if [[ "$DRY_RUN" == "true" ]]; then
-        log "INFO" "Would run: $forge_cmd"
+        log "INFO" "Would run: ${forge_cmd[*]}"
         return 0
     fi
 
@@ -150,7 +156,7 @@ run_network_test() {
 
     set +e
     local output
-    output=$(eval "$forge_cmd" 2>&1)
+    output=$("${forge_cmd[@]}" 2>&1)
     local forge_exit_code=$?
     set -e
 

@@ -1,7 +1,7 @@
 # Security Analysis Report
 
 ## Metadata
-- **Target:** PR #1010 — SUP-21024 "MorphoLend/Withdraw as MONEY_MARKET with per-market ledger keying" (`feat/sup-21024-morpho-lend-withdraw-money-market` @ `e9602466`, base `dev` @ `c4480ce4`)
+- **Target:** PR #1010 — SUP-21024 "MorphoLend/Withdraw as MONEY_MARKET with per-market ledger keying" (`feat/sup-21024-morpho-lend-withdraw-money-market` @ `15b8ff93` — final head, squash-merged into `dev` as `355aa1fa`; base `dev` @ `c4480ce4`). Initial review ran at `e9602466`; the report was re-aligned after the review follow-ups landed in `15b8ff93` (round-2 nit T1.2).
 - **Mode:** review
 - **Date:** 2026-09-18
 - **Contract Types Detected:** lending-market integration hooks (stateless, ERC-7579 executor context); vault-style share accounting via SuperLedger + registry-resolved yield-source oracle
@@ -50,6 +50,7 @@ None found.
 Security: none found.
 
 ### [P2-Q1] `MorphoWithdrawHook._decodeWithdrawData` copies calldata to memory nine times per decode
+**Applied in `15b8ff93`:** `_decodeWithdrawData(bytes memory)`.
 - **File:** `src/hooks/loan/morpho/MorphoWithdrawHook.sol:222-233`
 - **SWC:** N/A · **Category:** Gas
 - **Description:** The decoder takes `bytes calldata` but every callee (`_requireOracleId`, `extractYieldSource`, 4× `BytesLib.toAddress`, 3× `BytesLib.toUint256`) takes `bytes memory`, so each call copies the 228-byte payload — on all four call paths (build, inspect, preExecute, postExecute). `MorphoLendHook._decodeLendHookData` and both base decoders already take `memory` (one copy).
@@ -57,6 +58,7 @@ Security: none found.
 - **Reference:** coding-rules "thorough gas optimization"; vulnerabilities.md §13
 
 ### [P2-Q2] `_postExecute` re-decodes and re-reads the loan token (both money-market hooks)
+**Applied in `15b8ff93`:** single decode in both `_postExecute` paths; lend wrapper + unused imports removed.
 - **File:** `src/hooks/loan/morpho/MorphoWithdrawHook.sol:213-217`; `src/hooks/loan/morpho/MorphoLendHook.sol:198-212`
 - **Category:** Gas
 - **Description:** Withdraw `_postExecute` calls `getLoanTokenBalance(account, data)`, `getLoanTokenAddress(data)` and `_decodeWithdrawData(data)` — three copies/reads plus a full re-validation the executor already ran in `_preExecute` on identical calldata. Lend `_postExecute` goes through the `_getSupplyShares(address, bytes)` wrapper (second full decode) and then `getLoanTokenAddress(data)` (third read of offset 52).
@@ -64,6 +66,7 @@ Security: none found.
 - **Reference:** vulnerabilities.md §13, §15.4
 
 ### [P2-Q3] `BaseMorphoLoanHook` contract NatSpec now misdescribes the money-market leaves
+**Applied in `15b8ff93`:** NatSpec scoped to the borrower leaves with a pointer to `BaseMorphoMoneyMarketHook`; stale byte counts corrected (comment-only, borrower hooks byte-identical).
 - **File:** `src/hooks/loan/morpho/BaseMorphoLoanHook.sol:18-25`
 - **Category:** Documentation (security-assumption text)
 - **Description:** The paragraph labelled as the family's security invariant says offset 32 is "the Morpho Blue singleton — the call target", that "every child pins it via `_requireYieldSourceIsMorpho`", and that this "applies to the whole V1 family — lend/withdraw and the borrower leaves alike". After this PR `MorphoLendHook`/`MorphoWithdrawHook` carry the registry market key at offset 32, never call `_requireYieldSourceIsMorpho`, and target the immutable — contradicting `BaseMorphoMoneyMarketHook.sol:23-34`.
@@ -119,14 +122,14 @@ Security: none found.
 ## Coding Standards Findings
 - P2-Q1, P2-Q2, P2-Q3 above.
 - **P3 nits (grouped):** unused `IMorphoStaticTyping`/`MarketParamsLib` import + dead `using MarketParamsLib for MarketParams;` in `MorphoLendHook.sol:8-9,41`; stale legacy byte counts in `BaseMorphoLoanHook.sol` comments (146/178/145 vs constants 198/230/197; "shared across all Morpho hooks" no longer true for the withdraw layout); "MONEY_MARKET" reads like a `HookSubTypes` constant but `SUB_TYPE` stays `HookSubTypes.LOAN` — reword or add the subtype (author's call); `LendHookLocalVars` stores five raw fields and rebuilds `MarketParams` at four sites whereas `WithdrawHookVars` stores the struct — align; `@inheritdoc BaseHook` for `_preExecute`/`_postExecute` and `@dev` for internals per house style; `decodeUsePrevHookAmount` override lacks `@inheritdoc`; optional `if ((assets == 0) == (shares == 0)) revert` for the XOR.
-- **Checked, no finding:** custom errors everywhere; visibility and `pure`/`view` correct (the `inspect` pure→view change is required because it reads the `morpho` immutable); import grouping; no `@N` doc tags; no events needed (transient-only state, `hookType` written once); the `IMorpho(vars.yieldSource).accrueInterest` change in both repay hooks is semantically identical after the pin and consistent with the rest of those builders.
+- **Checked, no finding:** custom errors everywhere; visibility and `pure`/`view` correct (`inspect` is `pure` on both money-market hooks since F1 — it packs the header market key and no longer reads the `morpho` immutable); import grouping; no `@N` doc tags; no events needed (transient-only state, `hookType` written once); the `IMorpho(vars.yieldSource).accrueInterest` change in both repay hooks is semantically identical after the pin and consistent with the rest of those builders.
 
 ## Recommended tests (from the review)
-- [ ] Ordering / transient-isolation: one userOp `Lend(A) → Lend(B) → Withdraw(A)` on one account, and a bundle of two accounts alternating — each posted INFLOW/OUTFLOW equals the on-chain position delta. (`usedShares`/`asset` are `transient` on `BaseHook`, set-before-read on every path; the test pins that invariant against refactors.)
-- [ ] Callback-data invariant: decode the built `supply`/`repay` calldata and assert the trailing `bytes` is empty for every Morpho hook (lend + repay V1/V2). `test_MorphoCallbackDataAlwaysEmpty` covers lend + repay V2; extend to V1 repay hooks.
-- [ ] Donated shares: third-party `supply(onBehalf = account)` then Superform withdraw — fee only on the tracked accumulator (ledger cap path), never on the untracked excess.
-- [ ] Zero-accrual round trip across 6/8/18-decimal loan tokens and a near-empty market: `feeAmount` is dust-bounded (≤ (A in whole tokens) wei × feePercent).
-- [ ] Differential pps: `oracle.getPricePerShare` vs `MorphoBalancesLib.expectedSupplyAssets`-derived pps after warps of 1 s / 30 d / 400 d (the 365-day cap and `feeAmount ≥ totalSupplyAssets` guard are the only deliberate deviations).
+- [x] (added in `15b8ff93`: `test_E2E_Ordering_LendA_LendB_WithdrawA_OneUserOp`, `test_E2E_Ordering_TwoAccounts_SameHooks_Bundle`) Ordering / transient-isolation: one userOp `Lend(A) → Lend(B) → Withdraw(A)` on one account, and a bundle of two accounts alternating — each posted INFLOW/OUTFLOW equals the on-chain position delta. (`usedShares`/`asset` are `transient` on `BaseHook`, set-before-read on every path; the test pins that invariant against refactors.)
+- [x] (added in `15b8ff93`: `test_Fork_CallbackDataAlwaysEmpty_LendAndV1RepayHooks`) Callback-data invariant: decode the built `supply`/`repay` calldata and assert the trailing `bytes` is empty for every Morpho hook (lend + repay V1/V2). `test_MorphoCallbackDataAlwaysEmpty` covers lend + repay V2; extend to V1 repay hooks.
+- [x] (added in `15b8ff93`: `test_E2E_DonatedShares_FeeOnlyOnTrackedShares`) Donated shares: third-party `supply(onBehalf = account)` then Superform withdraw — fee only on the tracked accumulator (ledger cap path), never on the untracked excess.
+- [ ] (open — follow-up) Zero-accrual round trip across 6/8/18-decimal loan tokens and a near-empty market: `feeAmount` is dust-bounded (≤ (A in whole tokens) wei × feePercent).
+- [ ] (open — follow-up) Differential pps: `oracle.getPricePerShare` vs `MorphoBalancesLib.expectedSupplyAssets`-derived pps after warps of 1 s / 30 d / 400 d (the 365-day cap and `feeAmount ≥ totalSupplyAssets` guard are the only deliberate deviations).
 
 ## Security Knowledge Sources
 - **vulnerabilities.md sections referenced:** 1, 3.3, 9, 10, 13, 14.3, 15.4, 22.3, 28, 36

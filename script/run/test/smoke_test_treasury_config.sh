@@ -37,7 +37,13 @@ usage() {
     echo "  $0 staging --verbose          # Test staging with verbose output"
     echo ""
     echo "SUPPORTED NETWORKS:"
-    print_network_info
+    # print_network_info comes from the networks-*.sh file, which is only sourced once an
+    # environment has been parsed; usage() is also reached before that (missing/invalid args).
+    if type print_network_info &>/dev/null; then
+        print_network_info
+    else
+        echo "  (pass 'staging' or 'prod' to list the networks of that environment)"
+    fi
 }
 
 # Parse command line arguments
@@ -147,7 +153,8 @@ run_network_test() {
 
     log "INFO" "Testing $network_name (Chain ID: $network_id)"
 
-    if [[ -z "$rpc_url" ]]; then
+    # Dry runs do not load RPC URLs, so only enforce the RPC presence when actually executing
+    if [[ -z "$rpc_url" && "$DRY_RUN" != "true" ]]; then
         log "ERROR" "No RPC URL configured for $network_name"
         return 1
     fi
