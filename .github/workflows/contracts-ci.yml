@@ -25,16 +25,15 @@ env:
   SONIC_RPC_URL: ${{ secrets.SONIC_RPC_URL }} 
   GNOSIS_RPC_URL: ${{ secrets.GNOSIS_RPC_URL }} 
   WORLDCHAIN_RPC_URL: ${{ secrets.WORLDCHAIN_RPC_URL }} 
-  # Prod networks used by the smoke tests; unset secrets are reported as SKIPPED, not failed
   # Smoke-test skip list (reported as SKIPPED in the job summary, never hidden). Berachain (80094) and
   # Gnosis (100): configured RPC secrets are unreachable ("error sending request for url") — remove
   # each id once its secret is repaired.
   SMOKE_SKIP_NETWORKS: "80094,100"
-  LINEA_RPC_URL: ${{ secrets.LINEA_RPC_URL }}
-  HYPEREVM_RPC_URL: ${{ secrets.HYPEREVM_RPC_URL }}
-  STABLE_RPC_URL: ${{ secrets.STABLE_RPC_URL }}
-  RH_RPC_URL: ${{ secrets.RH_RPC_URL }}
-  ARC_RPC_URL: ${{ secrets.ARC_RPC_URL }}
+  # Prod networks NOT yet configured (Linea, HyperEVM, Stable, RH, Arc): do NOT reference their secrets
+  # here until they exist — a missing secret yields an EMPTY variable, which breaks fork suites that
+  # default on an unset var (HyperCoreHooksFork: vm.createFork(envOr("HYPEREVM_RPC_URL", <public>))).
+  # The smoke tests report networks without an RPC var as SKIPPED. When a secret is added, add its
+  # `<NAME>_RPC_URL: ${{ secrets.<NAME>_RPC_URL }}` line here.
   TENDERLY_ACCESS_KEY: ${{ secrets.TENDERLY_ACCESS_KEY }}
   TENDERLY_PROJECT_SLUG: "v2"
   TENDERLY_ACCOUNT_ID: "superform"
