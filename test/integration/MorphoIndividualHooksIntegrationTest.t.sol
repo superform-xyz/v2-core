@@ -12,6 +12,7 @@ import "forge-std/console2.sol";
 // Superform
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
+import { morphoMarketKey } from "../utils/MorphoMarketKey.sol";
 import { MorphoSupplyHook } from "../../src/hooks/loan/morpho/MorphoSupplyHook.sol";
 import { MorphoBorrowHook } from "../../src/hooks/loan/morpho/MorphoBorrowHook.sol";
 import { MorphoRepayHook } from "../../src/hooks/loan/morpho/MorphoRepayHook.sol";
@@ -72,7 +73,8 @@ contract MorphoIndividualHooksIntegrationTest is MinimalBaseIntegrationTest {
 
     function _createSupplyHookData(uint256 amount, bool usePrevHookAmount) internal view returns (bytes memory) {
         return abi.encodePacked(
-            MORPHO_YS_ORACLE_ID, MORPHO,
+            MORPHO_YS_ORACLE_ID,
+            morphoMarketKey(CHAIN_1_USDC, CHAIN_1_WBTC, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, lltv),
             CHAIN_1_USDC, CHAIN_1_WBTC, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, amount, lltv, usePrevHookAmount
         );
     }
@@ -111,7 +113,8 @@ contract MorphoIndividualHooksIntegrationTest is MinimalBaseIntegrationTest {
         // For borrower-side collateral withdrawal, we use MorphoRepayAndWithdrawHook.
         // But for completeness, this encodes the withdraw hook data format.
         return abi.encodePacked(
-            MORPHO_YS_ORACLE_ID, MORPHO,
+            MORPHO_YS_ORACLE_ID,
+            morphoMarketKey(CHAIN_1_USDC, CHAIN_1_WBTC, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, lltv),
             CHAIN_1_USDC, CHAIN_1_WBTC, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, onBehalf, recipient, lltv, assets, shares
         );
     }

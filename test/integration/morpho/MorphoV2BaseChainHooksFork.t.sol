@@ -3,6 +3,7 @@ pragma solidity >=0.8.30;
 
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { morphoMarketKey } from "../../utils/MorphoMarketKey.sol";
 import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
 import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance } from "modulekit/ModuleKit.sol";
@@ -164,8 +165,8 @@ contract MorphoV2BaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHel
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Canonical 230-byte Morpho V2 layout:
-    ///      52-byte strategy header (MORPHO_YS_ORACLE_ID at offset 0 + Morpho singleton at offset 32), then loanToken (offset 52),
-    ///      collateralToken (72), oracle (92), irm (112), amount1 (132), amount2 (164),
+    ///      52-byte strategy header (MORPHO_YS_ORACLE_ID at offset 0 + Morpho singleton at offset 32), then loanToken
+    /// (offset 52), collateralToken (72), oracle (92), irm (112), amount1 (132), amount2 (164),
     ///      usePrevHookAmount (196), lltv (197), reserved zero byte (229).
     function _morphoV2Data(
         uint256 amount1,
@@ -178,7 +179,7 @@ contract MorphoV2BaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHel
     {
         data = abi.encodePacked(
             MORPHO_YS_ORACLE_ID,
-            MORPHO,
+            morphoMarketKey(loanToken, collateralToken, MORPHO_ORACLE, MORPHO_IRM, lltv),
             loanToken,
             collateralToken,
             MORPHO_ORACLE,

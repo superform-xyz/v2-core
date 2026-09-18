@@ -15,7 +15,7 @@ import { ISuperHookInspector, ISuperHookInflowOutflow } from "../../../interface
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
 /// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Morpho Blue YS id
-/// @notice         address yieldSource = data.extractYieldSource(); // Morpho Blue singleton (call target)
+/// @notice         address yieldSource = data.extractYieldSource(); // registry market key of the body MarketParams
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address oracle = BytesLib.toAddress(data, 92);
@@ -68,14 +68,14 @@ contract MorphoBorrowHookV2 is BaseMorphoStandaloneLoanHookV2 {
         returns (Execution[] memory executions)
     {
         MorphoV2Vars memory vars = _decodeMorphoV2(data, true);
-        _requireYieldSourceIsMorpho(vars.yieldSource);
+        _requireHeaderIsMarketKey(vars.marketKey, _marketParams(vars));
         uint256 amount = _resolveExactPrimary(prevHook, account, vars.loanToken, vars.amount1, vars.usePrevHookAmount);
 
         MarketParams memory marketParams = _marketParams(vars);
 
         executions = new Execution[](1);
         executions[0] = Execution({
-            target: vars.yieldSource,
+            target: morpho,
             value: 0,
             callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, amount, 0, account, account))
         });
@@ -105,7 +105,7 @@ contract MorphoBorrowHookV2 is BaseMorphoStandaloneLoanHookV2 {
     /// @inheritdoc BaseHook
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         MorphoV2Vars memory vars = _decodeMorphoV2(data, true);
-        _requireYieldSourceIsMorpho(vars.yieldSource);
+        _requireHeaderIsMarketKey(vars.marketKey, _marketParams(vars));
 
         expectedPrimaryAmount =
             _resolveExactPrimary(prevHook, account, vars.loanToken, vars.amount1, vars.usePrevHookAmount);

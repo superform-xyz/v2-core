@@ -24,6 +24,7 @@ import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol"
 import { MorphoLendHook } from "../../../src/hooks/loan/morpho/MorphoLendHook.sol";
 import { MorphoWithdrawHook } from "../../../src/hooks/loan/morpho/MorphoWithdrawHook.sol";
 import { BaseMorphoMoneyMarketHook } from "../../../src/hooks/loan/morpho/BaseMorphoMoneyMarketHook.sol";
+import { BaseMorphoLoanHook } from "../../../src/hooks/loan/morpho/BaseMorphoLoanHook.sol";
 import { BaseLoanHookV2 } from "../../../src/hooks/loan/BaseLoanHookV2.sol";
 // V2 borrower hooks (LOAN: NONACCOUNTING)
 import { MorphoSupplyAndBorrowHookV2 } from "../../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHookV2.sol";
@@ -551,7 +552,7 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
                 aLltv,
                 false
             ),
-            BaseMorphoMoneyMarketHook.MARKET_KEY_MISMATCH.selector
+            BaseMorphoLoanHook.MARKET_KEY_MISMATCH.selector
         );
         (uint256 sharesA,,) = IMorphoStaticTyping(MORPHO).position(aId, accountEth);
         assertEq(sharesA, 0, "nothing supplied");
@@ -924,6 +925,18 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(MORPHO_YS_ORACLE_ID, MORPHO, loan, coll, oracle, irm, a1, a2, usePrev, lltv, uint8(0));
+        return abi.encodePacked(
+            MORPHO_YS_ORACLE_ID,
+            _key(loan, coll, oracle, irm, lltv),
+            loan,
+            coll,
+            oracle,
+            irm,
+            a1,
+            a2,
+            usePrev,
+            lltv,
+            uint8(0)
+        );
     }
 }

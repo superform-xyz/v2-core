@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import { morphoMarketKey } from "../../utils/MorphoMarketKey.sol";
+
 import { Helpers } from "../../utils/Helpers.sol";
 import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 import { ISuperHookInflowOutflow } from "../../../src/interfaces/ISuperHook.sol";
@@ -95,7 +97,7 @@ contract LoanHooksV2SizingIntegration is Helpers {
     function _morphoData(uint256 a1, uint256 a2, bool usePrev) internal pure returns (bytes memory data) {
         data = abi.encodePacked(
             MORPHO_YS_ORACLE_ID,
-            MORPHO_BLUE,
+            morphoMarketKey(USDC, WBTC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV),
             USDC,
             WBTC,
             MORPHO_ORACLE_WBTC,
@@ -193,7 +195,7 @@ contract LoanHooksV2SizingIntegration is Helpers {
     /// @dev Inspect binds the full real market identity and ignores amount changes
     function test_Fork_MorphoV2_Inspect_RealMarket() public view {
         bytes memory expected =
-            abi.encodePacked(MORPHO_BLUE, USDC, WBTC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV);
+            abi.encodePacked(morphoMarketKey(USDC, WBTC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV), USDC, WBTC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV);
 
         assertEq(morphoOpen.inspect(_morphoData(COLLATERAL_AMOUNT, BORROW_AMOUNT, false)), expected);
         assertEq(morphoRepay.inspect(_morphoData(BORROW_AMOUNT, 0, false)), expected);
@@ -258,7 +260,7 @@ contract LoanHooksV2SizingIntegration is Helpers {
     /// @dev Standalone inspects bind the same full real market identity as the composite hooks
     function test_Fork_MorphoV2_Standalone_Inspect_RealMarket() public view {
         bytes memory expected =
-            abi.encodePacked(MORPHO_BLUE, USDC, WBTC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV);
+            abi.encodePacked(morphoMarketKey(USDC, WBTC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV), USDC, WBTC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV);
 
         assertEq(morphoPledge.inspect(_morphoData(COLLATERAL_AMOUNT, 0, false)), expected);
         assertEq(morphoBorrow.inspect(_morphoData(BORROW_AMOUNT, 0, false)), expected);
