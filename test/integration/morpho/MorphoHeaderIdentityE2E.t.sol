@@ -419,8 +419,9 @@ contract MorphoHeaderIdentityE2ETest is MinimalBaseIntegrationTest {
             _entry2(address(lendHook), _lendA(lendAmount), address(repayHook), _v2mPrev(m, m.partialRepay, 0)),
             BaseLoanHookV2.PREV_TOKEN_MISMATCH.selector
         );
-        (, uint128 debtAfterRevert,) = IMorphoStaticTyping(MORPHO).position(m.id, accountEth);
+        (uint256 supplyAfterRevert, uint128 debtAfterRevert,) = IMorphoStaticTyping(MORPHO).position(m.id, accountEth);
         assertEq(uint256(debtAfterRevert), uint256(debtBefore), "nothing repaid");
+        assertEq(supplyAfterRevert, 0, "the lend in the same userOp was rolled back too (atomic)");
 
         // positive control: lend -> repay(cap, no PREV) executes and reduces debt
         _execEntryFor(

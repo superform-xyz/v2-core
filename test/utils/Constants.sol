@@ -39,6 +39,8 @@ abstract contract Constants {
     uint64 public constant BASE = 8453;
 
     uint256 public constant ETH_BLOCK = 21_929_476;
+    /// @dev Pin for suites that exercise the LIVE SuperUSDC strategy / aggregator (deployed after ETH_BLOCK)
+    uint256 public constant ETH_BLOCK_SUPERVAULT = 26_000_000;
     uint256 public constant OP_BLOCK = 132_481_010;
     uint256 public constant BASE_BLOCK = 26_885_730;
 

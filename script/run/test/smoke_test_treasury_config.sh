@@ -12,6 +12,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/../utils/lib_deploy.sh"
 ENVIRONMENT="prod"
 FORGE_ENV=0
 SPECIFIC_NETWORK=""
+SKIP_NETWORKS="${SMOKE_SKIP_NETWORKS:-}" # comma-separated chain ids, reported as SKIPPED
 VERBOSE=false
 DRY_RUN=false
 
@@ -26,6 +27,7 @@ usage() {
     echo ""
     echo "OPTIONS:"
     echo "  -n, --network CHAIN_ID  Test specific network only (optional)"
+    echo "  -s, --skip IDS          Comma-separated chain ids to report as SKIPPED (or env SMOKE_SKIP_NETWORKS)"
     echo "  -v, --verbose          Enable verbose output"
     echo "  -d, --dry-run          Show what would be tested without running"
     echo "  -h, --help             Show this help message"
@@ -89,6 +91,10 @@ parse_smoke_args() {
                 SPECIFIC_NETWORK="$2"
                 shift 2
                 ;;
+            -s|--skip)
+                SKIP_NETWORKS="$2"
+                shift 2
+                ;;
             -v|--verbose)
                 VERBOSE=true
                 shift
@@ -149,12 +155,25 @@ log() {
 run_network_test() {
     local network_id=$1
     local network_name=$(get_network_name "$network_id")
+
+    # Explicit skip list (CI keeps known-broken RPC endpoints here; still reported, never hidden)
+    if [[ -n "$SKIP_NETWORKS" && ",$SKIP_NETWORKS," == *",$network_id,"* ]]; then
+        log "WARNING" "SKIPPED $network_name (Chain ID: $network_id) — in the skip list"
+        return 2
+    fi
+
     local rpc_url=$(get_rpc_url "$network_id")
 
     log "INFO" "Testing $network_name (Chain ID: $network_id)"
 
-    # Dry runs do not load RPC URLs, so only enforce the RPC presence when actually executing
+    # Dry runs do not load RPC URLs, so only enforce the RPC presence when actually executing.
+    # In CI the RPC set comes from repository secrets; a network whose secret is not configured is
+    # reported as SKIPPED (exit code 2) rather than FAILED, so the job only goes red for real failures.
     if [[ -z "$rpc_url" && "$DRY_RUN" != "true" ]]; then
+        if [[ "${CI:-}" == "true" ]]; then
+            log "WARNING" "SKIPPED $network_name — no RPC URL secret configured in CI"
+            return 2
+        fi
         log "ERROR" "No RPC URL configured for $network_name"
         return 1
     fi
@@ -258,12 +277,21 @@ main() {
     local total_networks=${#networks_to_test[@]}
     local passed_tests=0
     local failed_tests=0
+    local skipped_tests=0
     local failed_networks=()
+    local skipped_networks=()
 
     for network_id in "${networks_to_test[@]}"; do
         print_separator
-        if run_network_test "$network_id"; then
+        set +e
+        run_network_test "$network_id"
+        local rc=$?
+        set -e
+        if [[ $rc -eq 0 ]]; then
             passed_tests=$((passed_tests + 1))
+        elif [[ $rc -eq 2 ]]; then
+            skipped_tests=$((skipped_tests + 1))
+            skipped_networks+=("$(get_network_name "$network_id") (ID: $network_id)")
         else
             failed_tests=$((failed_tests + 1))
             failed_networks+=("$(get_network_name "$network_id") (ID: $network_id)")
@@ -277,6 +305,12 @@ main() {
     print_separator
     echo -e "${CYAN}   Total Networks: ${WHITE}$total_networks${NC}"
     echo -e "${CYAN}   Passed:         ${GREEN}$passed_tests${NC}"
+    if [[ $skipped_tests -gt 0 ]]; then
+        echo -e "${CYAN}   Skipped:        ${YELLOW}$skipped_tests${NC} (no RPC secret in CI or in the skip list)"
+        for skipped_network in "${skipped_networks[@]}"; do
+            echo -e "${YELLOW}     - $skipped_network${NC}"
+        done
+    fi
 
     if [[ $failed_tests -gt 0 ]]; then
         echo -e "${CYAN}   Failed:         ${RED}$failed_tests${NC}"

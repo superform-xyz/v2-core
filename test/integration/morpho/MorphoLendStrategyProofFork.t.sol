@@ -76,7 +76,7 @@ contract MorphoLendStrategyProofForkTest is Test, Constants {
     address public marketKey;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY));
+        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), ETH_BLOCK_SUPERVAULT);
 
         lendHook = new MorphoLendHook(MORPHO);
         withdrawHook = new MorphoWithdrawHook(MORPHO);

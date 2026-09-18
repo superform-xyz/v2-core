@@ -152,8 +152,8 @@ contract MorphoLendHook is BaseMorphoMoneyMarketHook {
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    /// @dev One IN / ASSETS slot at `AMOUNT_POSITION` (see contract @dev). Overridden on this leaf
-    ///      only: BaseLoanHook keeps IN / TOKEN for the borrower family.
+    /// @dev One IN / ASSETS slot at `AMOUNT_POSITION` (see contract @dev). Overrides BaseLoanHook's
+    ///      IN / TOKEN default, which the borrower family keeps.
     function amountRoles(bytes memory)
         external
         pure

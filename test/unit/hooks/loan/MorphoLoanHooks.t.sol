@@ -24,6 +24,16 @@ import { MorphoSupplyHook } from "../../../../src/hooks/loan/morpho/MorphoSupply
 import { MorphoLendHook } from "../../../../src/hooks/loan/morpho/MorphoLendHook.sol";
 import { MorphoBorrowHookV2 } from "../../../../src/hooks/loan/morpho/MorphoBorrowHookV2.sol";
 import { BaseLoanHookV2 } from "../../../../src/hooks/loan/BaseLoanHookV2.sol";
+import { ApproveERC20Hook } from "../../../../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import { FeeSplittingHook } from "../../../../src/hooks/tokens/FeeSplittingHook.sol";
+import {
+    SwapAerodromeUniversalRouterHook
+} from "../../../../src/hooks/swappers/aerodrome/SwapAerodromeUniversalRouterHook.sol";
+import {
+    BaseAerodromeUniversalRouterHook
+} from "../../../../src/hooks/swappers/aerodrome/BaseAerodromeUniversalRouterHook.sol";
+import { MockAerodromeUniversalRouter } from "../../../mocks/MockAerodromeUniversalRouter.sol";
+import { ISuperHookSwap } from "../../../../src/interfaces/ISuperHookSwap.sol";
 import { BaseMorphoLoanHook } from "../../../../src/hooks/loan/morpho/BaseMorphoLoanHook.sol";
 import { BaseMorphoMoneyMarketHook } from "../../../../src/hooks/loan/morpho/BaseMorphoMoneyMarketHook.sol";
 import { MorphoBlueMarketRegistry } from "../../../../src/accounting/oracles/MorphoBlueMarketRegistry.sol";
@@ -2231,8 +2241,8 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory h = lendHook.inspect(lendData);
         assertTrue(
             keccak256(
-                    lendHook.inspect(_lendWith(loanToken, address(0xC011), address(mockOracle), address(mockIRM), lltv))
-                ) != keccak256(h),
+                lendHook.inspect(_lendWith(loanToken, address(0xC011), address(mockOracle), address(mockIRM), lltv))
+            ) != keccak256(h),
             "collateral"
         );
         assertTrue(
@@ -2416,6 +2426,104 @@ contract MorphoLoanHooksTest is Helpers {
         assertEq(
             uint256(supplyMeta[0].denom), uint256(ISuperHookInflowOutflow.Denomination.TOKEN), "supply stays TOKEN"
         );
+    }
+
+    /// @dev SUP-21005: a PASSTHROUGH hook after lend forwards the pair unchanged — (marketKey, shares) —
+    ///      so the identity survives intermediate approve/mark hops and still fails closed downstream.
+    function test_LendHook_PassthroughForwardsMarketKeyAndShares() public {
+        ApproveERC20Hook approve = new ApproveERC20Hook();
+        bytes memory data = _encodeLendData(false);
+        lendHook.preExecute(address(0), address(this), data);
+        mockMorpho.setPosition(
+            marketParams.id(),
+            address(this),
+            MockMorpho.Position({ supplyShares: 200e18, borrowShares: 100e18, collateral: 1e18 })
+        );
+        lendHook.postExecute(address(0), address(this), data); // outAmount = 100e18 shares
+
+        // ApproveERC20Hook (125 bytes): header + token@52 + spender@72 + amount@92 + usePrev@124
+        bytes memory approveData =
+            abi.encodePacked(bytes32(0), address(0), loanToken, address(0xBEEF), uint256(0), true);
+        approve.preExecute(address(lendHook), address(this), approveData);
+
+        assertEq(approve.getOutAmount(address(this)), 100e18, "shares forwarded unchanged");
+        assertEq(
+            approve.getOutToken(address(this)),
+            _mmKey(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv),
+            "market key forwarded (never the loan token)"
+        );
+        assertTrue(approve.getOutToken(address(this)) != loanToken);
+    }
+
+    /// @dev SUP-21005: FeeSplittingHook (PASSTHROUGH with fee reconciliation) after lend forwards the
+    ///      (marketKey, shares) pair unchanged — a fee leg paid in the LOAN token is not the flow token
+    ///      any more, so it is no longer subtracted from the share count (the pre-SUP-21005 unit bug),
+    ///      and the codeless key is not mistaken for native ETH.
+    function test_LendHook_FeeSplittingAfterLend_ForwardsUnchanged_LoanTokenFeeNotSubtracted() public {
+        FeeSplittingHook fee = new FeeSplittingHook(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        bytes memory data = _encodeLendData(false);
+        lendHook.preExecute(address(0), address(this), data);
+        mockMorpho.setPosition(
+            marketParams.id(),
+            address(this),
+            MockMorpho.Position({ supplyShares: 200e18, borrowShares: 100e18, collateral: 1e18 })
+        );
+        lendHook.postExecute(address(0), address(this), data); // outAmount = 100e18 shares
+
+        // one fee leg: 5 loan tokens to a recipient
+        address recipient = makeAddr("feeRecipient");
+        address[] memory tokens = new address[](1);
+        uint256[] memory amounts = new uint256[](1);
+        address[] memory receivers = new address[](1);
+        tokens[0] = loanToken;
+        amounts[0] = 5e18;
+        receivers[0] = recipient;
+        bytes memory feeData = abi.encodePacked(bytes(new bytes(52)), abi.encode(tokens, amounts, receivers));
+        MockERC20(loanToken).mint(address(this), 5e18);
+
+        fee.setExecutionContext(address(this));
+        fee.preExecute(address(lendHook), address(this), feeData);
+        MockERC20(loanToken).transfer(recipient, 5e18); // the executor would run this leg
+        fee.postExecute(address(lendHook), address(this), feeData);
+
+        assertEq(
+            fee.getOutAmount(address(this)), 100e18, "shares forwarded unchanged (loan-token fee is not the flow token)"
+        );
+        assertEq(
+            fee.getOutToken(address(this)),
+            _mmKey(loanToken, collateralToken, address(mockOracle), address(mockIRM), lltv),
+            "market key forwarded"
+        );
+    }
+
+    /// @dev SUP-21005: a swap hook that verifies the previous output token (Aerodrome) sized from lend
+    ///      with usePrevHookAmount fails closed — the market key is never the swap's input token.
+    function test_LendHook_PrevIntoAerodromeSwap_RevertsTokenMismatch() public {
+        SwapAerodromeUniversalRouterHook swap =
+            new SwapAerodromeUniversalRouterHook(address(new MockAerodromeUniversalRouter()));
+        bytes memory data = _encodeLendData(false);
+        lendHook.preExecute(address(0), address(this), data);
+        mockMorpho.setPosition(
+            marketParams.id(),
+            address(this),
+            MockMorpho.Position({ supplyShares: 200e18, borrowShares: 100e18, collateral: 1e18 })
+        );
+        lendHook.postExecute(address(0), address(this), data);
+
+        // classic route (kind 0), deadline in the future, path loanToken -> collateralToken
+        bytes memory swapData = swap.encodeSwapData(
+            ISuperHookSwap.SwapHeader({
+                inputToken: loanToken,
+                outputToken: collateralToken,
+                inputAmount: 1000,
+                outputQuote: 950,
+                outputMin: 900,
+                usePrevHookAmount: true
+            }),
+            abi.encode(uint8(0), uint256(10_000), abi.encodePacked(loanToken, bytes1(0), collateralToken))
+        );
+        vm.expectRevert(BaseAerodromeUniversalRouterHook.PREV_HOOK_TOKEN_MISMATCH.selector);
+        swap.build(address(lendHook), address(this), swapData);
     }
 
     /// @dev SUP-21005: PREV from lend into a loan-token hop must fail the previous-output token
