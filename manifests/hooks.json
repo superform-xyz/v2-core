@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-09-18T07:01:40Z",
+  "generatedAt": "2026-09-21T09:49:58Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -1790,19 +1790,19 @@
       ],
       "addresses": {
         "staging": {
-          "1": "0x2d42C41AEBDa5f6699Bc12869564edECD93ce704",
-          "56": "0xd454875545fCDEf9686586A4F77923Abb0C92695",
-          "4663": "0x2464bFa418Db726F6da558C8265ba664d6e60406",
-          "8453": "0x2d42C41AEBDa5f6699Bc12869564edECD93ce704",
-          "42161": "0xbCB310Cb388ab6aa8CCF17dE9B3f107b00fAe88C"
+          "1": "0x3B6207AA5c0ECEf9e2f424B228cb5F8758c21Cf3",
+          "56": "0x1751930D0c3c850F141F43BA1EDc75641dD78CB4",
+          "4663": "0x305A44ee10F457dd12DF5B58A9522bBdc9cB58d4",
+          "8453": "0x3B6207AA5c0ECEf9e2f424B228cb5F8758c21Cf3",
+          "42161": "0xB1CDa3e8D0d54522Fac4494b37BD1B7293F9B94D"
         },
         "prod": {
-          "1": "0xC6988018b78E2E54A1E0f97Bb513Ad92e30FDaD5",
-          "10": "0x5d6f6Aa85388cCA9cCE1310E051B3018f6d9F762",
-          "56": "0x9D2f45f1a8B68722fDe7B39c7b28Bdc5299D7bC1",
-          "4663": "0xd54D2a0B4756E0184d575D14d0D77FD2B5f04C35",
-          "8453": "0xC6988018b78E2E54A1E0f97Bb513Ad92e30FDaD5",
-          "42161": "0x4c05EeC0bc2B9B8Fc1E3E40eaa2A203800B12dd9"
+          "1": "0xc673c0BcD43e3fD782607e5ca5Eae928BAc312eA",
+          "10": "0xaB5B6d00efe4320532c1b68BF7F2874915EFCE14",
+          "56": "0x9DF7A45eCFBd18cd4BE0472B09080Ab3364D0b7a",
+          "4663": "0x69610FdEC500aac2b883400ede77B38C0d282871",
+          "8453": "0xc673c0BcD43e3fD782607e5ca5Eae928BAc312eA",
+          "42161": "0x35149F97d9B022fC91f48e2D7F659DF9C9316765"
         }
       },
       "availableChains": {
@@ -1858,12 +1858,38 @@
         "sized"
       ],
       "addresses": {
-        "staging": {},
-        "prod": {}
+        "staging": {
+          "1": "0xAD0A95086dE0f513dd5817E456594b435BB07188",
+          "56": "0x3C355ED682Bf245C5996023d91bE71E30db05f25",
+          "4663": "0x117Fb08B8e2fB11D2cf6Eb0213f5a2a339f9d90e",
+          "8453": "0xAD0A95086dE0f513dd5817E456594b435BB07188",
+          "42161": "0x0AB939d9C822f51179247844dD18B6ad0882D01A"
+        },
+        "prod": {
+          "1": "0xC8a1163EEb6850a08691ef511118d358402779Ee",
+          "10": "0x9d4380B99Aa19ca81A749B1103118164Bb1d3419",
+          "56": "0x8585A476ca7f52b0Ed24B272f063674877e4d40a",
+          "4663": "0xedc339EE7E1fBe1aC76c5c445135ba75f0f9424d",
+          "8453": "0xC8a1163EEb6850a08691ef511118d358402779Ee",
+          "42161": "0x63F495d18b8dA693854653CccB3E8bd0da68C3d0"
+        }
       },
       "availableChains": {
-        "staging": [],
-        "prod": []
+        "staging": [
+          "1",
+          "56",
+          "4663",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "4663",
+          "8453",
+          "42161"
+        ]
       },
       "amountMeta": [
         {
@@ -7247,19 +7273,19 @@
       ],
       "addresses": {
         "staging": {
-          "1": "0xC7655EE4DCfbf94F5E80636403d7C2560fCD8d5a",
-          "56": "0x811db627d155D2EBCc85FeF5dE31062Fe5dEb253",
-          "4663": "0xB0Ad9Afa5e9Df39623b7a848FC7F9C3703796F8c",
-          "8453": "0xC7655EE4DCfbf94F5E80636403d7C2560fCD8d5a",
-          "42161": "0x111980B771Bea8851d665ecf88938820BB5b8219"
+          "1": "0xE288E5b90F39c481c0216E50940ba659754745D2",
+          "56": "0x2C72C8fFB31cb9aA34B96fE12bc114b824feC897",
+          "4663": "0x8Fc8E793BDB92B45f0c9b8F383132ee607F81EbC",
+          "8453": "0xE288E5b90F39c481c0216E50940ba659754745D2",
+          "42161": "0x66153201499322F9d19A6911796e1CFDc94fFe61"
         },
         "prod": {
-          "1": "0x37fd99fDca734EcD9bEa8a8B4709346991f3412f",
-          "10": "0x3781f694CBAAD14B3855DB5BD4fEdfE2613435Db",
-          "56": "0x7730e9B8639324C4c2a33dec17Cd04Af8151Bb55",
-          "4663": "0xE851E4203ABe209B95A741F4a84DB05b7D875A86",
-          "8453": "0x37fd99fDca734EcD9bEa8a8B4709346991f3412f",
-          "42161": "0x999fc73B98c293698E471d56c3D4553f604Ae79A"
+          "1": "0xF01299564Ee5ba1B9EB48EE9049E5834083265B1",
+          "10": "0xEC5dB3Fc23A9AD9CE805dc1d4a4D8c57Fb774275",
+          "56": "0x527C3DaF34ae0c00809161f6c87DE04f1383550c",
+          "4663": "0x363F2c624220870B11FbAA4D2d1e24A065c760Ad",
+          "8453": "0xF01299564Ee5ba1B9EB48EE9049E5834083265B1",
+          "42161": "0xe90bc6BD4e20186552bDF72F1ADDf76c4c8B61A9"
         }
       },
       "availableChains": {
@@ -7311,12 +7337,38 @@
         "sized"
       ],
       "addresses": {
-        "staging": {},
-        "prod": {}
+        "staging": {
+          "1": "0xb5515306eA2dB8d431Afc894BD6fc08048586bd7",
+          "56": "0x96Fd784506E4AB775bD05823f3fdE448117C67e5",
+          "4663": "0x07795314117F0E8DEe3596052dAc60cb78f636C7",
+          "8453": "0xb5515306eA2dB8d431Afc894BD6fc08048586bd7",
+          "42161": "0xd434Ef20301fCCE013b685B5E6b32a2773D05c8E"
+        },
+        "prod": {
+          "1": "0x5ADcCE5F323AB29c6AFEa9569496Cb3C46b21ce2",
+          "10": "0x8b8752181BEd310Ed0465b3682eF0011c5F61ad2",
+          "56": "0xAe00b3847AC28471e2e2cC01A448f264D3dfd7f9",
+          "4663": "0x507fe06FeD5657169163F599a5f1192Da54dB31e",
+          "8453": "0x5ADcCE5F323AB29c6AFEa9569496Cb3C46b21ce2",
+          "42161": "0x299e8897DD512035176B2a4FB1d517A416902544"
+        }
       },
       "availableChains": {
-        "staging": [],
-        "prod": []
+        "staging": [
+          "1",
+          "56",
+          "4663",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "4663",
+          "8453",
+          "42161"
+        ]
       },
       "amountMeta": [
         {
@@ -7352,19 +7404,19 @@
       ],
       "addresses": {
         "staging": {
-          "1": "0xAe775080da7360031425A1D1f8880aeCcd1f8917",
-          "56": "0x25044E125450a2FDbE0557B04924D8C64943F56a",
-          "4663": "0x8A92cd270B99d820657FFC36bff07945fe59B20e",
-          "8453": "0xAe775080da7360031425A1D1f8880aeCcd1f8917",
-          "42161": "0x0A547fd71b9Db982AE79835499d208077c9D65D5"
+          "1": "0xb3fbD82e681B95F49568E3F2B16Ed6104f25286c",
+          "56": "0xe499Ba02824411247e113eFd87d48041b5491444",
+          "4663": "0x57De5566bda2258F128B991E3737380daB474B8f",
+          "8453": "0xb3fbD82e681B95F49568E3F2B16Ed6104f25286c",
+          "42161": "0x3d2F0087bAa171deae21f0B0e445E9A2226ea9fb"
         },
         "prod": {
-          "1": "0xf312c7010924769AcE2a2948196656e43634DA7b",
-          "10": "0x55A5a9AdCd15a5F91cD3e5B36A35c7a9D47EB085",
-          "56": "0xa92b359f2B5EDbcdce2EFcd2C5268e19BaAeE8b6",
-          "4663": "0xFC9153851080093023B483B0d1Ecf9C293C53C60",
-          "8453": "0xf312c7010924769AcE2a2948196656e43634DA7b",
-          "42161": "0x0F695603F52B9889bC45e8Cb538c22009a1fc6f7"
+          "1": "0xAE31c480077311Da19572A05bDdE030261f832C2",
+          "10": "0x7B0298fa15784643a344Ea831D2FAC35A200E729",
+          "56": "0xe4c0feF645BE49F38a9AB02463314C79744dd666",
+          "4663": "0xd08e98d07F03B46750E700F2c4bf77268aA88591",
+          "8453": "0xAE31c480077311Da19572A05bDdE030261f832C2",
+          "42161": "0x8ef82F281ceBE50BA724c5BB309A32F347c1B27D"
         }
       },
       "availableChains": {
@@ -7995,19 +8047,19 @@
       ],
       "addresses": {
         "staging": {
-          "1": "0x1F1dF2370C38434e39fBC99D08e792A666510823",
-          "56": "0xEE274d36DdE436A0150d2CA76e643fD81aeCc18C",
-          "4663": "0x590935e26E02fb52358efFDf1e2a3dA41Bb7f339",
-          "8453": "0x1F1dF2370C38434e39fBC99D08e792A666510823",
-          "42161": "0x8C2A9376351CD5a7b99B408912A10C00877984f7"
+          "1": "0x7Be5A213dC366CD7dfe16bcfF91c660c3086B377",
+          "56": "0xF1788B483d27850a377F54DF24E12d6B1e379444",
+          "4663": "0xE0b930DcB522926FB3c33b83Ac23070da0e6C65D",
+          "8453": "0x7Be5A213dC366CD7dfe16bcfF91c660c3086B377",
+          "42161": "0xf732b58415AEC58D128430C7DbB88bf740241201"
         },
         "prod": {
-          "1": "0x4CB2712b7f27D05660397aF7E262e0a7fF6c8E78",
-          "10": "0xc11AD920648b7d1d62eAa2662AdC6864154aafb7",
-          "56": "0xB27839f3142f4ddF057Bd164E9b8307b06b8e32F",
-          "4663": "0xB2875217FB0a5D1118120c1367DD7e5f4777085C",
-          "8453": "0x4CB2712b7f27D05660397aF7E262e0a7fF6c8E78",
-          "42161": "0x444EF05BDd90515a6c61F163D9dD446165C9D9F4"
+          "1": "0x9e66124f542708761D2e67fac7cD444d3031a97e",
+          "10": "0x7e4cBF82605a43aD4f3a8fBd722f17914eC4f671",
+          "56": "0xE99d6ae9603fa7226FEE33E1EC521C2d418fcb80",
+          "4663": "0xF9Dd451003cDA8ccfE424c1E8Ec78F65cE2122B8",
+          "8453": "0x9e66124f542708761D2e67fac7cD444d3031a97e",
+          "42161": "0xa41572a0c45cDEa8250Ebb98DB8592391aE1Bd79"
         }
       },
       "availableChains": {
@@ -8059,12 +8111,38 @@
         "sized"
       ],
       "addresses": {
-        "staging": {},
-        "prod": {}
+        "staging": {
+          "1": "0xFfEC644C7F67020720C26065a373d3F481da5406",
+          "56": "0xd4Ed91e90b26fe8Ed41c9A7cE421e3ea58CFcEC1",
+          "4663": "0xA84C206c0ecBc067C3115bea0400f13df5824E98",
+          "8453": "0xFfEC644C7F67020720C26065a373d3F481da5406",
+          "42161": "0x8174c0C89227081306683874e60EDD9e3B68ffF6"
+        },
+        "prod": {
+          "1": "0x83133725a1a830f6461a01217De01Ece7bFc483E",
+          "10": "0x34E60d74Dc9Fe5A044Cf1FAFF7135eF7a61556Dd",
+          "56": "0x8F8Cc804bB0f6afFBD319B5034c4bc2F7cd67Bf9",
+          "4663": "0x85704c0Fa0940E24B5D4d67dc53c0bc43bdA2Ce0",
+          "8453": "0x83133725a1a830f6461a01217De01Ece7bFc483E",
+          "42161": "0x9664637203Cb1d349996FF995b1230eEDC3856ec"
+        }
       },
       "availableChains": {
-        "staging": [],
-        "prod": []
+        "staging": [
+          "1",
+          "56",
+          "4663",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "4663",
+          "8453",
+          "42161"
+        ]
       },
       "amountMeta": [
         {
@@ -8148,19 +8226,19 @@
       ],
       "addresses": {
         "staging": {
-          "1": "0x58938A6C38835Cff379972c56Bdbc75dC1bb8597",
-          "56": "0x81B09b3541FB4f0a5eDEB5FA341c290e93E28334",
-          "4663": "0x47BDf50bA8F1F9DB080178D3E25d1a961d1e3Ef4",
-          "8453": "0x58938A6C38835Cff379972c56Bdbc75dC1bb8597",
-          "42161": "0x8eD355662BEcC6e287dA7EE13c7602E9912e9D63"
+          "1": "0xD9cD5545871b83463c818E3C977F28ed98c30ceE",
+          "56": "0xA20e0b8731fa07Dd2a789cF2AbfEfe20e1E75E1d",
+          "4663": "0x1D154945cb4145dFFcC7135b8bd934c2C5796c30",
+          "8453": "0xD9cD5545871b83463c818E3C977F28ed98c30ceE",
+          "42161": "0xcF73c8A834F85dDD23d789C34A22bB5e8dae77d7"
         },
         "prod": {
-          "1": "0x5e5F648A3d47B4D032Bc5AE8d78b3c39d549d619",
-          "10": "0x0D0a644963E70896Fed8FE6B7A30F266C4eb12ea",
-          "56": "0x9a9221683AAcBA19f0F4524C9198464949921466",
-          "4663": "0x51E5B071259c9A2514881F29687b928F84e3F3E3",
-          "8453": "0x5e5F648A3d47B4D032Bc5AE8d78b3c39d549d619",
-          "42161": "0xcDEcBFC766d191c45FEd0ac25704F871a8DA7Ed3"
+          "1": "0x372C50067Cd3B79339571B7ee5e167Aabb7a652d",
+          "10": "0x40AB1557e7e68D6C4FC7f9610b442CDA24097088",
+          "56": "0x4Dc9d5e76193aa2532BcBcc20C24188295cB79ab",
+          "4663": "0x404695d9abAC8b947d3223f21789f127A181dA80",
+          "8453": "0x372C50067Cd3B79339571B7ee5e167Aabb7a652d",
+          "42161": "0x6B900776CD2912d1a58E5091d927f230A1e3af41"
         }
       },
       "availableChains": {
@@ -8262,19 +8340,19 @@
       ],
       "addresses": {
         "staging": {
-          "1": "0x66616B1B28C9a0eF294933847E6B7803A5a1699a",
-          "56": "0x4f57CE8BE5403dA07274F4110Ebf5abCb5D761c7",
-          "4663": "0xB9653c58f6EA21dBecf962a2813740da468B2615",
-          "8453": "0x66616B1B28C9a0eF294933847E6B7803A5a1699a",
-          "42161": "0x12066c8BA54D64e7953779FCF754a54f0dFE8fC4"
+          "1": "0xcfBc68646EEd1d6485C759E6BD5B069798bed119",
+          "56": "0x5efF0E674190F04644744aE7B379389508436b98",
+          "4663": "0x33a4df31b3a6Db52789B68ad9F9f9D97EDe0E824",
+          "8453": "0xcfBc68646EEd1d6485C759E6BD5B069798bed119",
+          "42161": "0xe3d9111b004D18Eb0e362fD51F32F1DDd77558D0"
         },
         "prod": {
-          "1": "0x3A8CD3c62De017a60ea345C13dB4Ea6248e2466f",
-          "10": "0x11107ac92dAa77F1F9d8936933e1f33b5034f8bc",
-          "56": "0xc36978791C72f76050112a83252049d6e56e07f3",
-          "4663": "0xDdc0A23650B925a175174b3E9d283397472A8ebE",
-          "8453": "0x3A8CD3c62De017a60ea345C13dB4Ea6248e2466f",
-          "42161": "0xbE1DD4d26b0a1E4Ca25A2125119C32F233FEF666"
+          "1": "0x35526Df5eFcAf16cD2e7943C60beee69C39F8307",
+          "10": "0xaaAA17723e6314fe682e9EBB6dFd9D2A0f79048D",
+          "56": "0x8FDD51A6baFe34002a80582E22f90baB54Bd2c0f",
+          "4663": "0xe1cfe003199d7b6Bd52aF17a4C2Cae8D6F326565",
+          "8453": "0x35526Df5eFcAf16cD2e7943C60beee69C39F8307",
+          "42161": "0xC547B4fec1C68e35704572fE3eE25BA226a850C5"
         }
       },
       "availableChains": {
@@ -10650,19 +10728,19 @@
       ],
       "addresses": {
         "staging": {
-          "1": "0x775B4b7341B1D46C8189f5F24D3202b4B1238d57",
-          "56": "0x9F3F9753D232B2691DC9c00D909EC4625f40461F",
-          "4663": "0xE871D4748D17be3559554EA25BF3e0F390930351",
-          "8453": "0x775B4b7341B1D46C8189f5F24D3202b4B1238d57",
-          "42161": "0xa6D437cd1a291920Be35FF00A5b753FD9102927e"
+          "1": "0x62268eaF0Cb2632723B3972e667552513Ea2F46f",
+          "56": "0xfb905594e73285acEB7975539B9b16c4F8a3f03f",
+          "4663": "0x36c69b5d7bc54Bd9E42F3a18F6Afe4EC64FbC1B4",
+          "8453": "0x62268eaF0Cb2632723B3972e667552513Ea2F46f",
+          "42161": "0x9A62673cdb73E233A79950DAf23c08307405012F"
         },
         "prod": {
-          "1": "0x3159751c40C58c0408421e82e36299b4Bc461472",
-          "10": "0x411C7d7D55D1d795daa55fc025e01081893050E5",
-          "56": "0xb2C3c6E197EE79E2378DfA13c17838fBdFa5dF24",
-          "4663": "0xB1d7B52B26ED92F2d9B473B5f806C60A398951cC",
-          "8453": "0x3159751c40C58c0408421e82e36299b4Bc461472",
-          "42161": "0xFabc86d0E6CF2e0ff7853a9BBD4B637d3f1b8AcE"
+          "1": "0x369F6AC3E5e65976964d5eFD2B9D350b3Ef6947C",
+          "10": "0xc5F18353Ab137fDc55deCAd9a1d7753D80F28395",
+          "56": "0x1C6eCc5fc2Db50f675a891e15b8CDED021f78279",
+          "4663": "0xD2e84f42AfE6988dD9281edDF5B73565C446028C",
+          "8453": "0x369F6AC3E5e65976964d5eFD2B9D350b3Ef6947C",
+          "42161": "0x71bc136Cf5130C9BdC9ffA727E34a6a9DC905941"
         }
       },
       "availableChains": {
@@ -10782,19 +10860,19 @@
       ],
       "addresses": {
         "staging": {
-          "1": "0xF72DD689e0E75Cae6e98Cb6Ab9C3E9Ab3fb71794",
-          "56": "0xa99E18BB39287F6fE9Cf3CF928a04f16463C108A",
-          "4663": "0x84b627797b15D8dCe008d81292fCF53D8b3d5Bb2",
-          "8453": "0xF72DD689e0E75Cae6e98Cb6Ab9C3E9Ab3fb71794",
-          "42161": "0x06F8ccD87d811b463F4EE1e59e40173582956781"
+          "1": "0x998ad07CE6CFc851f3dDAc3Abe6Af885d97e5930",
+          "56": "0x04638dA74e5E966dD140241B811C17C2000930b8",
+          "4663": "0x6F217d9B139a86F916A50A9669b1B04F9d4b1122",
+          "8453": "0x998ad07CE6CFc851f3dDAc3Abe6Af885d97e5930",
+          "42161": "0x2b9C45a874a83a84A58AD4890728EEBF479d0cbe"
         },
         "prod": {
-          "1": "0xE8a70d597CCe82875A78Eb53cDf1A761061a84E9",
-          "10": "0xBbC753a1723555485d1190573D35fdE63c44199b",
-          "56": "0xAaB73c786B3198843476d6cD8C9D0E236C523f77",
-          "4663": "0x788Fd4261Ee929d5Ca2002566eafd5aCd8AF45d0",
-          "8453": "0xE8a70d597CCe82875A78Eb53cDf1A761061a84E9",
-          "42161": "0x76159E82c9349d6620c03e9f5E84ffa0e9B4ccbf"
+          "1": "0xFb7eEde01cCfd74cBfB756Be8379C064BA7B37F0",
+          "10": "0x29ac133B73B731fAa269e0154F16EBd1c95a9C80",
+          "56": "0x1bE51Ad8A4a034F5a77Df9e2aE3cF2CE508aac69",
+          "4663": "0x97D6ec7CD56dF9A3521d29a25B656E8Abb42bE89",
+          "8453": "0xFb7eEde01cCfd74cBfB756Be8379C064BA7B37F0",
+          "42161": "0x9f7163DA5317Dd13c400bE0398F42F14890b6831"
         }
       },
       "availableChains": {
@@ -10914,19 +10992,19 @@
       ],
       "addresses": {
         "staging": {
-          "1": "0x936FcAb5827d19edC43B0aCfADF5DED4829124c5",
-          "56": "0xA78574C5FF35005203dE9e149EaA1ED49BE4952c",
-          "4663": "0x1e1c5Ea9E10c702344aF071604F5aa1793cD938D",
-          "8453": "0x936FcAb5827d19edC43B0aCfADF5DED4829124c5",
-          "42161": "0x16781d29bAD9541bAE5b93862133D3Db2EA49232"
+          "1": "0xCF4ab24910F8965A8a24F52ef677aE9243F15023",
+          "56": "0xFE06D6dD6D5E31Ec90e343104604E6BecE220E4b",
+          "4663": "0xaCcE4F145cE700d21D029FEF4EFBcA9F374Aa2E1",
+          "8453": "0xCF4ab24910F8965A8a24F52ef677aE9243F15023",
+          "42161": "0x1839dC427Cc650B71e85F0994b5b094c691D734b"
         },
         "prod": {
-          "1": "0x7821A0dF3Eb24EDB5B87304eDB7EbA19fDf0819e",
-          "10": "0x2C0D29EA804fb6ED6D1596d3944133e8810A20A6",
-          "56": "0xa3887d9c3D29165895E740259BC36ba5590D1f4C",
-          "4663": "0x3f76C34F602014B515E874e3A0837895Be5A6C4f",
-          "8453": "0x7821A0dF3Eb24EDB5B87304eDB7EbA19fDf0819e",
-          "42161": "0x6C79CDc1069dAbFc99F231Ba4616C771053DED1a"
+          "1": "0x334f1b0Aa3eFb69861A561B675ED1832fCeF44Ff",
+          "10": "0xd97587FF4889CD80D343B545471e5f4B797A0f18",
+          "56": "0x200d89A4cAca0d7efDD6164109e2b08F523a0686",
+          "4663": "0x60Fadb50374A2ddA4b1FF2106f678aFE32695D5f",
+          "8453": "0x334f1b0Aa3eFb69861A561B675ED1832fCeF44Ff",
+          "42161": "0x182Ee5777c8233d7883De727e7357A1962BC9EB2"
         }
       },
       "availableChains": {
@@ -11131,19 +11209,19 @@
       ],
       "addresses": {
         "staging": {
-          "1": "0x8A000D21D27B586fdf741E78587124A3CfF3129B",
-          "56": "0x47A2eb50514014e1481f31EF377aBf29240Ac6da",
-          "4663": "0xd38AE75b211E9782427Dd7e576A2A9DF12cba5B1",
-          "8453": "0x8A000D21D27B586fdf741E78587124A3CfF3129B",
-          "42161": "0xDA540c02394FeDdaeD9c758e4a645a9AaFE2C125"
+          "1": "0x7932E6CC455AE6f6966a41F137034E447E501080",
+          "56": "0x220695704013dDb13316958faAb4a15c919EE120",
+          "4663": "0x117003f0a87cB66253b4d7E6e1A857BbB327C5e8",
+          "8453": "0x7932E6CC455AE6f6966a41F137034E447E501080",
+          "42161": "0xDD75861A78460CDe0bbfbaDB61492fE088a343b0"
         },
         "prod": {
-          "1": "0x2d4958f68E0876aaFDb1443Bf118eb1Ed527134E",
-          "10": "0x7EAC92ae4c95972Ba75745FE8739e1B8B18D3b40",
-          "56": "0x43FA9b660F533bBee0a645E5f930348B1057d2fb",
-          "4663": "0x0BFDFf1827f7421b76Bf1D03321d3E66EAAca2eF",
-          "8453": "0x2d4958f68E0876aaFDb1443Bf118eb1Ed527134E",
-          "42161": "0xEAdb71B9C042cB6b64467f7f3e34F10763e8c607"
+          "1": "0x5C5E5c8Df86eF3c3C5073e15eA4789F2877f4Edc",
+          "10": "0xdA2Be9B0196493b89C12f79E74A22938d2e1be97",
+          "56": "0xe3d1c7aeeb73EA578A85F0D6c93A2b2D3658EB69",
+          "4663": "0x3C619585a20Cc4A66C81082c7952D4da9a43A29E",
+          "8453": "0x5C5E5c8Df86eF3c3C5073e15eA4789F2877f4Edc",
+          "42161": "0x7c114B3d0772e62210f11431ed88073Bec095a12"
         }
       },
       "availableChains": {
