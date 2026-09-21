@@ -2,7 +2,7 @@
 pragma solidity 0.8.30;
 
 // external
-import { Id, IMorphoStaticTyping, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
+import { IMorphoStaticTyping, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
 
 // Superform
@@ -20,19 +20,14 @@ import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 ///      change. `hookType` is plain storage on BaseHook, so this base reassigns it after
 ///      construction — INFLOW for lend, OUTFLOW for redeem — with zero impact on any sibling.
 ///
-///      HEADER IDENTITY (differs from the LOAN hooks). SuperExecutorBase posts INFLOW / OUTFLOW to
-///      SuperLedger keyed by the header yield source (offset 32), and MorphoBlueYieldSourceOracle
-///      resolves that same address through MorphoBlueMarketRegistry. Morpho Blue is ONE singleton
-///      hosting MANY markets, so the singleton cannot be the accounting key: every market's cost
-///      basis and price-per-share would collapse onto one address and the oracle could not resolve
-///      it. Offset 32 therefore carries the REGISTRY MARKET KEY — `MarketParams.id()` truncated to
-///      an address, identical to `MorphoBlueMarketRegistry.computeMarketKey` — of the body
-///      MarketParams. It is derived on-chain from the body and asserted against the header on every
-///      build / preExecute path (MARKET_KEY_MISMATCH), so a header cannot name a different market
-///      than the one it acts on. The Morpho Blue singleton is the `morpho` immutable: the sole call
-///      target and approve spender. inspect() packs the header market key (the yield source) plus
-///      the MarketParams filter — the same 6-field, yield-source-first identity as the rest of the
-///      family, so Merkle leaves hashed over the raw inspect bytes carry the ledger key.
+///      HEADER IDENTITY: inherited unchanged from BaseMorphoLoanHook — offset 32 is the registry
+///      MARKET KEY of the body MarketParams, pinned by `_requireHeaderIsMarketKey`, and the Morpho
+///      Blue singleton is the `morpho` immutable. What is SPECIFIC to the money-market side is that
+///      the key is also load-bearing on-chain: SuperExecutorBase posts INFLOW / OUTFLOW to
+///      SuperLedger keyed by the header yield source, and MorphoBlueYieldSourceOracle resolves that
+///      same address through MorphoBlueMarketRegistry. Keying by the singleton would collapse every
+///      market's cost basis and price-per-share onto one address and the oracle could not resolve
+///      it at all.
 ///
 ///      FAIL-CLOSED ALLOWLIST: the oracle resolves the market key through
 ///      `MorphoBlueMarketRegistry.getMarketInfo`, which reverts `MARKET_NOT_REGISTERED` for an
@@ -50,10 +45,6 @@ abstract contract BaseMorphoMoneyMarketHook is BaseMorphoLoanHook {
     /// @notice Thrown when the header yield-source oracle id (offset 0) is zero
     error ORACLE_ID_NOT_VALID();
 
-    /// @notice Thrown when the header yield source (offset 32) is not the registry market key of
-    ///         the body MarketParams
-    error MARKET_KEY_MISMATCH();
-
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -69,23 +60,6 @@ abstract contract BaseMorphoMoneyMarketHook is BaseMorphoLoanHook {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-
-    /// @dev The registry market key for a market: the Morpho market id truncated to an address.
-    ///      Must stay identical to `MorphoBlueMarketRegistry.computeMarketKey`.
-    /// @param marketParams The body MarketParams (loan, collateral, oracle, irm, lltv)
-    /// @return The address SuperLedger and the Morpho yield-source oracle are keyed by
-    function _marketKey(MarketParams memory marketParams) internal pure returns (address) {
-        return address(uint160(uint256(Id.unwrap(marketParams.id()))));
-    }
-
-    /// @dev Primary header pin for the money-market hooks: the header yield source (offset 32) —
-    ///      the address the executor posts accounting against — must equal the market key derived
-    ///      from the body MarketParams. Runs on every build and preExecute path.
-    /// @param headerKey The header-derived yield source (offset 32)
-    /// @param marketParams The body MarketParams
-    function _requireHeaderIsMarketKey(address headerKey, MarketParams memory marketParams) internal pure {
-        if (headerKey != _marketKey(marketParams)) revert MARKET_KEY_MISMATCH();
-    }
 
     /// @dev The account's current Morpho supply shares in a market, read from the singleton
     /// @param marketParams The body MarketParams

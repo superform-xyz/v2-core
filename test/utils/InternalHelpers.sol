@@ -21,6 +21,7 @@ import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { ISuperNativePaymaster } from "../../src/interfaces/ISuperNativePaymaster.sol";
 
 import { MORPHO_BLUE, MORPHO_BLUE_YS_ORACLE_ID } from "./Constants.sol";
+import { morphoMarketKey } from "./MorphoMarketKey.sol";
 
 abstract contract InternalHelpers is Test {
     using ModuleKitHelpers for *;
@@ -723,7 +724,7 @@ abstract contract InternalHelpers is Test {
     {
         return abi.encodePacked(
             MORPHO_BLUE_YS_ORACLE_ID,
-            MORPHO_BLUE,
+            morphoMarketKey(loanToken, collateralToken, oracle, irm, lltv),
             loanToken,
             collateralToken,
             oracle,
@@ -752,7 +753,7 @@ abstract contract InternalHelpers is Test {
     {
         return abi.encodePacked(
             MORPHO_BLUE_YS_ORACLE_ID,
-            MORPHO_BLUE,
+            morphoMarketKey(loanToken, collateralToken, oracle, irm, lltv),
             loanToken,
             collateralToken,
             oracle,
@@ -781,7 +782,7 @@ abstract contract InternalHelpers is Test {
     {
         return abi.encodePacked(
             MORPHO_BLUE_YS_ORACLE_ID,
-            MORPHO_BLUE,
+            morphoMarketKey(loanToken, collateralToken, oracle, irm, lltv),
             loanToken,
             collateralToken,
             oracle,
@@ -809,7 +810,7 @@ abstract contract InternalHelpers is Test {
     {
         return abi.encodePacked(
             MORPHO_BLUE_YS_ORACLE_ID,
-            MORPHO_BLUE,
+            morphoMarketKey(loanToken, collateralToken, oracle, irm, lltv),
             loanToken,
             collateralToken,
             oracle,

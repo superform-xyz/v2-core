@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 // external
 import { Helpers } from "../../../utils/Helpers.sol";
+import { morphoMarketKey } from "../../../utils/MorphoMarketKey.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -127,7 +128,7 @@ contract MorphoStandaloneLoanHooksV2Test is Helpers {
     {
         return abi.encodePacked(
             MORPHO_YS_ORACLE_ID,
-            address(mockMorpho),
+            morphoMarketKey(loanToken_, collateralToken_, oracle_, irm_, lltv_),
             loanToken_,
             collateralToken_,
             oracle_,
@@ -316,9 +317,9 @@ contract MorphoStandaloneLoanHooksV2Test is Helpers {
         bytes memory data = _encodeHeaderYieldSource(otherMorpho);
         BaseLoanHookV2[3] memory hooks = _hooks();
         for (uint256 i; i < hooks.length; ++i) {
-            vm.expectRevert(BaseMorphoLoanHookV2.YIELD_SOURCE_MISMATCH.selector);
+            vm.expectRevert(BaseMorphoLoanHookV2.MARKET_KEY_MISMATCH.selector);
             ISuperHook(address(hooks[i])).build(address(0), address(this), data);
-            vm.expectRevert(BaseMorphoLoanHookV2.YIELD_SOURCE_MISMATCH.selector);
+            vm.expectRevert(BaseMorphoLoanHookV2.MARKET_KEY_MISMATCH.selector);
             ISuperHook(address(hooks[i])).preExecute(address(0), address(this), data);
         }
     }
@@ -641,7 +642,14 @@ contract MorphoStandaloneLoanHooksV2Test is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_Standalone_Inspect_MarketIdentityOnly() public view {
-        bytes memory expected = abi.encodePacked(address(mockMorpho), loanToken, collateralToken, oracle, irm, lltv);
+        bytes memory expected = abi.encodePacked(
+            morphoMarketKey(loanToken, collateralToken, oracle, irm, lltv),
+            loanToken,
+            collateralToken,
+            oracle,
+            irm,
+            lltv
+        );
 
         BaseLoanHookV2[3] memory hooks = _hooks();
         for (uint256 i; i < hooks.length; ++i) {

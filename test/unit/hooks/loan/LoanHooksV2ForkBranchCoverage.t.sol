@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import { morphoMarketKey } from "../../../utils/MorphoMarketKey.sol";
+
 import { Helpers } from "../../../utils/Helpers.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -144,7 +146,17 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
         returns (bytes memory data)
     {
         data = abi.encodePacked(
-            MORPHO_YS_ORACLE_ID, MORPHO_BLUE, loanT, collT, oracle, irm, a1, a2, usePrev, MORPHO_LLTV, reservedByte
+            MORPHO_YS_ORACLE_ID,
+            morphoMarketKey(loanT, collT, oracle, irm, MORPHO_LLTV),
+            loanT,
+            collT,
+            oracle,
+            irm,
+            a1,
+            a2,
+            usePrev,
+            MORPHO_LLTV,
+            reservedByte
         );
         assertEq(data.length, 230);
     }
@@ -204,11 +216,7 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
 
     function _mp() internal pure returns (MarketParams memory) {
         return MarketParams({
-            loanToken: USDC,
-            collateralToken: WBTC,
-            oracle: MORPHO_ORACLE_WBTC,
-            irm: MORPHO_IRM_WBTC,
-            lltv: MORPHO_LLTV
+            loanToken: USDC, collateralToken: WBTC, oracle: MORPHO_ORACLE_WBTC, irm: MORPHO_IRM_WBTC, lltv: MORPHO_LLTV
         });
     }
 
@@ -311,8 +319,7 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
     }
 
     function test_Fork_AaveV4V2_Decode_InvalidBoolValue() public {
-        bytes memory data =
-            _aaveV4Raw(USDC, WETH, AAVE_V4_SPOKE, WETH_RESERVE_ID, USDC_RESERVE_ID, 1e18, 750e6, 0x02);
+        bytes memory data = _aaveV4Raw(USDC, WETH, AAVE_V4_SPOKE, WETH_RESERVE_ID, USDC_RESERVE_ID, 1e18, 750e6, 0x02);
         vm.expectRevert(BaseLoanHookV2.INVALID_BOOL_VALUE.selector);
         aaveV4Open.build(address(0), address(this), data);
     }
@@ -417,7 +424,9 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
     function test_Fork_LoanHooksV2_Decode_IdenticalTokensReverts() public {
         vm.expectRevert(BaseLoanHookV2.IDENTICAL_TOKENS.selector);
         morphoOpen.build(
-            address(0), address(this), _morphoRaw(USDC, USDC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, 1e8, 750e6, 0x00, 0x00)
+            address(0),
+            address(this),
+            _morphoRaw(USDC, USDC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, 1e8, 750e6, 0x00, 0x00)
         );
 
         vm.expectRevert(BaseLoanHookV2.IDENTICAL_TOKENS.selector);
@@ -561,17 +570,14 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
     ///      amount, not the calldata amount
     function test_Fork_MorphoV2_Open_PrevHappyPath() public {
         prevStub.set(WBTC, 777e4);
-        Execution[] memory execs =
-            morphoOpen.build(address(prevStub), address(this), _morphoData(1e8, 750e6, true));
+        Execution[] memory execs = morphoOpen.build(address(prevStub), address(this), _morphoData(1e8, 750e6, true));
 
         // pre + approve(0) + approve(prev) + supplyCollateral(prev) + borrow + approve(0) + post
         assertEq(execs.length, 7);
         assertEq(execs[2].target, WBTC);
         assertEq(execs[2].callData, abi.encodeCall(IERC20.approve, (MORPHO_BLUE, 777e4)));
         assertEq(execs[3].target, MORPHO_BLUE);
-        assertEq(
-            execs[3].callData, abi.encodeCall(IMorphoBase.supplyCollateral, (_mp(), 777e4, address(this), ""))
-        );
+        assertEq(execs[3].callData, abi.encodeCall(IMorphoBase.supplyCollateral, (_mp(), 777e4, address(this), "")));
     }
 
     /// @dev Happy PREV path on the repay leg (non-sentinel, usePrev=true) with real debt: the
@@ -579,8 +585,7 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
     function test_Fork_MorphoV2_Repay_PrevHappyPath() public {
         _openMorphoPosition();
         prevStub.set(USDC, 123e6);
-        Execution[] memory execs =
-            morphoRepay.build(address(prevStub), address(this), _morphoData(1e6, 0, true));
+        Execution[] memory execs = morphoRepay.build(address(prevStub), address(this), _morphoData(1e6, 0, true));
 
         // pre + approve(0) + approve(prev) + repay(prev assets) + approve(0) + post
         assertEq(execs.length, 6);
@@ -782,9 +787,7 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
 
         // Checklist 11: debt > 0 (USDC) but zero aWBTC balance under the max sentinel
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
-        aaveV3Close.build(
-            address(0), address(this), _aaveV3Raw(USDC, WBTC, AAVE_V3_POOL, 2, 100e6, MAX, 0x00)
-        );
+        aaveV3Close.build(address(0), address(this), _aaveV3Raw(USDC, WBTC, AAVE_V3_POOL, 2, 100e6, MAX, 0x00));
 
         // Positive sentinel: max passes through to the pool withdraw (Aave resolves it natively)
         Execution[] memory execs = aaveV3Close.build(address(0), address(this), _aaveV3Data(100e6, MAX, false));
@@ -825,27 +828,21 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
     function test_Fork_MorphoV2_Repay_FullRepayBuild() public {
         _openMorphoPosition();
 
-        uint256 expectedAssets =
-            MorphoBalancesLib.expectedBorrowAssets(IMorpho(MORPHO_BLUE), _mp(), address(this));
+        uint256 expectedAssets = MorphoBalancesLib.expectedBorrowAssets(IMorpho(MORPHO_BLUE), _mp(), address(this));
         (, uint128 shares,) = IMorphoStaticTyping(MORPHO_BLUE).position(_mp().id(), address(this));
         assertGt(shares, 0);
 
         Execution[] memory execs = morphoRepay.build(address(0), address(this), _morphoData(MAX, 0, false));
         assertEq(execs.length, 6);
         assertEq(execs[2].callData, abi.encodeCall(IERC20.approve, (MORPHO_BLUE, expectedAssets)));
-        assertEq(
-            execs[3].callData,
-            abi.encodeCall(IMorphoBase.repay, (_mp(), 0, uint256(shares), address(this), ""))
-        );
+        assertEq(execs[3].callData, abi.encodeCall(IMorphoBase.repay, (_mp(), 0, uint256(shares), address(this), "")));
 
         // Same full-repay branch via the shared _resolveRepayLeg in the close hook
-        Execution[] memory closeExecs =
-            morphoClose.build(address(0), address(this), _morphoData(MAX, 1e6, false));
+        Execution[] memory closeExecs = morphoClose.build(address(0), address(this), _morphoData(MAX, 1e6, false));
         assertEq(closeExecs.length, 7);
         assertEq(closeExecs[2].callData, abi.encodeCall(IERC20.approve, (MORPHO_BLUE, expectedAssets)));
         assertEq(
-            closeExecs[3].callData,
-            abi.encodeCall(IMorphoBase.repay, (_mp(), 0, uint256(shares), address(this), ""))
+            closeExecs[3].callData, abi.encodeCall(IMorphoBase.repay, (_mp(), 0, uint256(shares), address(this), ""))
         );
     }
 
@@ -864,8 +861,7 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
         assertEq(execs[3].callData, abi.encodeCall(IPool.repay, (USDC, MAX, 2, address(this))));
 
         // Same branch in the close hook's own copy
-        Execution[] memory closeExecs =
-            aaveV3Close.build(address(0), address(this), _aaveV3Data(MAX, 1e18, false));
+        Execution[] memory closeExecs = aaveV3Close.build(address(0), address(this), _aaveV3Data(MAX, 1e18, false));
         assertEq(closeExecs.length, 7);
         assertEq(closeExecs[2].callData, abi.encodeCall(IERC20.approve, (AAVE_V3_POOL, debt)));
         assertEq(closeExecs[3].callData, abi.encodeCall(IPool.repay, (USDC, MAX, 2, address(this))));
@@ -886,8 +882,7 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
         assertEq(execs[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (USDC_RESERVE_ID, MAX, address(this))));
 
         // Same branch in the close hook's own copy
-        Execution[] memory closeExecs =
-            aaveV4Close.build(address(0), address(this), _aaveV4Data(MAX, 1e18, false));
+        Execution[] memory closeExecs = aaveV4Close.build(address(0), address(this), _aaveV4Data(MAX, 1e18, false));
         assertEq(closeExecs.length, 7);
         assertEq(closeExecs[2].callData, abi.encodeCall(IERC20.approve, (AAVE_V4_SPOKE, debt)));
         assertEq(closeExecs[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (USDC_RESERVE_ID, MAX, address(this))));

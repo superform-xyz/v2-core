@@ -16,7 +16,7 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
 /// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Morpho Blue YS id
-/// @notice         address yieldSource = data.extractYieldSource(); // Morpho Blue singleton (call target)
+/// @notice         address yieldSource = data.extractYieldSource(); // registry market key of the body MarketParams
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address oracle = BytesLib.toAddress(data, 92);
@@ -65,7 +65,7 @@ contract MorphoSupplyAndBorrowHookV2 is BaseMorphoLoanHookV2 {
         returns (Execution[] memory executions)
     {
         MorphoV2Vars memory vars = _decodeMorphoV2(data, false);
-        _requireYieldSourceIsMorpho(vars.yieldSource);
+        _requireHeaderIsMarketKey(vars.marketKey, _marketParams(vars));
         vars.amount1 = _resolveOpenAmount1(
             prevHook, account, vars.collateralToken, vars.amount1, vars.amount2, vars.usePrevHookAmount
         );
@@ -74,26 +74,24 @@ contract MorphoSupplyAndBorrowHookV2 is BaseMorphoLoanHookV2 {
 
         executions = new Execution[](5);
         executions[0] = Execution({
-            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.yieldSource, 0))
+            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0))
         });
         executions[1] = Execution({
-            target: vars.collateralToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (vars.yieldSource, vars.amount1))
+            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount1))
         });
         executions[2] = Execution({
-            target: vars.yieldSource,
+            target: morpho,
             value: 0,
             callData: abi.encodeCall(IMorphoBase.supplyCollateral, (marketParams, vars.amount1, account, ""))
         });
         executions[3] = Execution({
-            target: vars.yieldSource,
+            target: morpho,
             value: 0,
             callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, vars.amount2, 0, account, account))
         });
         // Reset approval after supply to prevent dangling allowance
         executions[4] = Execution({
-            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (vars.yieldSource, 0))
+            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0))
         });
     }
 
@@ -137,7 +135,7 @@ contract MorphoSupplyAndBorrowHookV2 is BaseMorphoLoanHookV2 {
     /// @inheritdoc BaseHook
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         MorphoV2Vars memory vars = _decodeMorphoV2(data, false);
-        _requireYieldSourceIsMorpho(vars.yieldSource);
+        _requireHeaderIsMarketKey(vars.marketKey, _marketParams(vars));
         vars.amount1 = _resolveOpenAmount1(
             prevHook, account, vars.collateralToken, vars.amount1, vars.amount2, vars.usePrevHookAmount
         );
