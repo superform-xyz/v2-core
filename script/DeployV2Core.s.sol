@@ -829,43 +829,58 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
         if (!availability.relayAdapterV2) {
             console2.log("SKIPPED RelayAdapterV2: Relay depository not configured for chain", chainId);
-            return;
-        }
-
-        // Reuse the already-deployed executor from this chain's output rather than redeploying anything.
-        CoreContracts memory coreContracts;
-        _populateCoreContractsFromStatus(chainId, coreContracts);
-
-        address superDestExecutor = coreContracts.superDestinationExecutor;
-        require(superDestExecutor != address(0), "RELAY_ADAPTER_V2_DEST_EXECUTOR_NOT_DEPLOYED");
-
-        if (check) {
-            __checkContract(
-                RELAY_ADAPTER_V2_KEY, __getSalt(RELAY_ADAPTER_V2_KEY), abi.encode(superDestExecutor), env
+            // lib_deploy.sh parses this exact line; "0 out of 0" makes a configured skip read as
+            // "nothing to do" rather than as a failed check.
+            console2.log(
+                "=====> On this chain we have", uint256(0), "contracts already deployed out of", uint256(0)
             );
             return;
         }
 
-        coreContracts.relayAdapterV2 = __deployContractIfNeeded(
+        // The deployment-status map is only populated by __checkContract, and this entrypoint deliberately
+        // checks nothing but the adapter — so the executor is read from this chain's output JSON (same
+        // pattern as runAcrossV2Avalanche) rather than re-derived by checking the whole core set.
+        string memory existing = _readCoreContractsFromOutput(chainId, env);
+        address superDestExecutor =
+            _safeParseJsonAddress(existing, string.concat(".", SUPER_DESTINATION_EXECUTOR_KEY));
+        require(superDestExecutor != address(0), "RELAY_ADAPTER_V2_DEST_EXECUTOR_NOT_IN_OUTPUT");
+        require(superDestExecutor.code.length > 0, "RELAY_ADAPTER_V2_DEST_EXECUTOR_NO_CODE");
+        require(__checkBytecodeExists("RelayAdapterV2", env), "RELAY_ADAPTER_V2_BYTECODE_MISSING");
+
+        // Records status + address for the summary, the counters and the exported JSON.
+        __checkContract(RELAY_ADAPTER_V2_KEY, __getSalt(RELAY_ADAPTER_V2_KEY), abi.encode(superDestExecutor), env);
+
+        _logDeploymentSummary(chainId);
+        console2.log(
+            "=====> On this chain we have",
+            _countDeployedContracts(chainId),
+            "contracts already deployed out of",
+            _getAllContractNames(chainId).length
+        );
+        if (check) return;
+
+        address relayAdapterV2 = __deployContractIfNeeded(
             RELAY_ADAPTER_V2_KEY,
             chainId,
             __getSalt(RELAY_ADAPTER_V2_KEY),
             abi.encodePacked(__getBytecode("RelayAdapterV2", env), abi.encode(superDestExecutor))
         );
 
-        require(coreContracts.relayAdapterV2 != address(0), "RELAY_ADAPTER_V2_DEPLOYMENT_FAILED");
-        require(coreContracts.relayAdapterV2.code.length > 0, "RELAY_ADAPTER_V2_NO_CODE");
+        require(relayAdapterV2 != address(0), "RELAY_ADAPTER_V2_DEPLOYMENT_FAILED");
+        require(relayAdapterV2.code.length > 0, "RELAY_ADAPTER_V2_NO_CODE");
         require(
-            address(RelayAdapterV2(payable(coreContracts.relayAdapterV2)).SUPER_DESTINATION_EXECUTOR())
-                == superDestExecutor,
+            address(RelayAdapterV2(payable(relayAdapterV2)).SUPER_DESTINATION_EXECUTOR()) == superDestExecutor,
             "RELAY_ADAPTER_V2_EXECUTOR_MISMATCH"
         );
         require(
-            RelayAdapterV2(payable(coreContracts.relayAdapterV2)).SUPER_DESTINATION_VALIDATOR() != address(0),
+            RelayAdapterV2(payable(relayAdapterV2)).SUPER_DESTINATION_VALIDATOR() != address(0),
             "RELAY_ADAPTER_V2_VALIDATOR_NOT_CACHED"
         );
 
-        console2.log(" RelayAdapterV2 deployed and validated:", coreContracts.relayAdapterV2);
+        // Merges the new address into the existing <chain>-latest.json (keys already present are kept).
+        _writeExportedContracts(chainId);
+
+        console2.log(" RelayAdapterV2 deployed and validated:", relayAdapterV2);
     }
 
     function runAcrossV2Avalanche(bool check, uint256 env, uint64 chainId) public {
