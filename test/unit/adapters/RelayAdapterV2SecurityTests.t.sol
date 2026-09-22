@@ -793,9 +793,8 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
 
     /// @notice CONTROL (review F1, partial fill): the adapter does not gate on the minimum at all — a
     ///         below-minimum delivery is forwarded and it is the EXECUTOR's balance gate that declines to
-    ///         execute (pinned with the real executor in RelayAdapterV2RealExecutorE2E). Together with the
-    ///         one-shot flag this means a top-up cannot come through this adapter under the same root; it
-    ///         must be delivered to the account directly.
+    ///         execute (pinned with the real executor in RelayAdapterV2RealExecutorE2E). A later top-up
+    ///         under the same root goes through this adapter too.
     function test_F1_PartialFillBelowMinimum_DeliveredNotGatedHere() public {
         token.mint(address(adapter), 98e18);
         bytes memory intent = _validMessageForAmount(account, 100e18);
@@ -804,45 +803,75 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
         assertEq(token.balanceOf(account), 98e18, "partial fill delivered by the adapter");
 
         token.mint(address(adapter), 2e18);
-        vm.expectRevert(RelayAdapterV2.INTENT_ALREADY_DELIVERED.selector);
         adapter.processRelayExecution(address(token), 2e18, intent);
+        assertEq(token.balanceOf(account), 100e18, "top-up under the same root delivered");
     }
 
     /*//////////////////////////////////////////////////////////////
-                    ONE DELIVERY PER SIGNED INTENT
+            R2-F1: NO DELIVERY SLOT — DUST CANNOT BLOCK THE REAL FILL
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice A signed intent can be delivered against exactly once — replay to absorb resting funds
-    ///         is rejected, regardless of how the executor behaved the first time.
-    function test_OneShot_SameIntentCannotBeReplayed() public {
+    /// @notice REGRESSION (review R2-F1): an earlier revision marked a per-root one-shot flag before the
+    ///         transfer, so an unrelated caller could permanently consume a public intent's slot with a
+    ///         1-wei fill and the honest solver's atomic fill reverted. Now the dust lands, the real fill
+    ///         lands, and unrelated escrow is untouched.
+    function test_R2F1_StrangerDustDoesNotBlockTheRealFill_ERC20() public {
+        // unrelated escrow that must stay isolated
+        address nonPayable = address(new NoReceive());
+        vm.prank(nonPayable);
+        validator.onInstall(abi.encode(owner));
+        vm.deal(address(adapter), 1 ether);
+        adapter.processRelayExecution(address(0), 1 ether, _validMessageNative(nonPayable));
+        assertEq(adapter.failedTransfers(nonPayable, address(0)), 1 ether, "escrow set up");
+
+        bytes memory intent = _validMessageForAmount(account, 100e18); // public: it rides in the source userOp
+
+        // 1. a stranger funds 1 wei and presents the victim's message
+        token.mint(address(adapter), 1);
+        vm.prank(makeAddr("griefer"));
+        adapter.processRelayExecution(address(token), 1, intent);
+        assertEq(token.balanceOf(account), 1, "dust delivered to the named account");
+
+        // 2. the honest solver's full atomic fill still completes
+        token.mint(address(adapter), 100e18);
+        adapter.processRelayExecution(address(token), 100e18, intent);
+
+        assertEq(token.balanceOf(account), 100e18 + 1, "real fill landed after the dust");
+        assertEq(token.balanceOf(address(adapter)), 0, "nothing resting");
+        assertEq(adapter.failedTransfers(nonPayable, address(0)), 1 ether, "unrelated escrow untouched");
+        assertEq(adapter.totalEscrowed(address(token)), 0, "no ERC20 escrow created");
+    }
+
+    /// @notice REGRESSION (review R2-F1), native: 1 wei of griefing, then the real 1 ether fill.
+    function test_R2F1_StrangerDustDoesNotBlockTheRealFill_Native() public {
+        bytes memory intent =
+            _messageForTok(account, address(0), 1 ether, address(executor), address(validator), validUntil);
+
+        vm.deal(address(adapter), 1);
+        vm.prank(makeAddr("griefer"));
+        adapter.processRelayExecution(address(0), 1, intent);
+        assertEq(account.balance, 1, "dust delivered");
+
+        vm.deal(address(adapter), 1 ether);
+        adapter.processRelayExecution(address(0), 1 ether, intent);
+        assertEq(account.balance, 1 ether + 1, "real native fill landed after the dust");
+        assertEq(address(adapter).balance, 0, "nothing resting");
+    }
+
+    /// @notice A replayed signed intent can only ever pay the account it names — the pool exposure the
+    ///         contract NatSpec documents, not a redirect. (No per-root slot: see R2-F1 above.)
+    function test_Replay_SameIntentPaysOnlyTheNamedAccount() public {
         token.mint(address(adapter), 1000e18);
         bytes memory intent = _validMessage(account);
 
         adapter.processRelayExecution(address(token), 400e18, intent);
-        assertEq(token.balanceOf(account), 400e18, "first delivery");
-
-        vm.expectRevert(RelayAdapterV2.INTENT_ALREADY_DELIVERED.selector);
-        adapter.processRelayExecution(address(token), 400e18, intent);
-        assertEq(token.balanceOf(address(adapter)), 600e18, "replay moved nothing");
+        adapter.processRelayExecution(address(token), 400e18, intent); // replay
+        assertEq(token.balanceOf(account), 800e18, "both deliveries went to the named account");
+        assertEq(token.balanceOf(address(adapter)), 200e18, "remainder still resting");
     }
 
-    /// @notice Replay is still rejected when the executor REVERTED on the first delivery (the case that
-    ///         leaves the executor's own merkle-root guard rolled back).
-    function test_OneShot_HoldsEvenWhenExecutorReverted() public {
-        token.mint(address(adapter), 1000e18);
-        executor.setShouldRevert(true);
-        bytes memory intent = _validMessage(account);
-
-        adapter.processRelayExecution(address(token), 400e18, intent); // transfer lands, execution fails
-        assertEq(token.balanceOf(account), 400e18, "funds delivered despite executor revert");
-
-        vm.expectRevert(RelayAdapterV2.INTENT_ALREADY_DELIVERED.selector);
-        adapter.processRelayExecution(address(token), 400e18, intent);
-    }
-
-    /// @notice The one-shot flag is written BEFORE the transfer but inside the same frame, so a later
-    ///         revert (gas floor) unwinds it and the intent remains usable with adequate gas.
-    function test_OneShot_FlagUnwindsWithARevert() public {
+    /// @notice A gas-floor revert unwinds everything; the intent remains usable with adequate gas.
+    function test_GasFloor_RevertLeavesIntentUsable() public {
         token.mint(address(adapter), 100e18);
         bytes memory intent = _validMessage(account);
 

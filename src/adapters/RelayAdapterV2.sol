@@ -63,13 +63,13 @@ interface IDestinationValidatorSource {
 /// This is pinned by `test_Residual_RestingFundsAreConsumedByADifferentValidIntent`.
 ///
 /// V2 therefore narrows the V1 exposure from "any fabricated byte string with an EMPTY signature can
-/// sweep resting funds" to "only the holder of a genuinely signed intent can, only ever to the account
-/// that intent names, and only once per signed intent". That is a reduction in FORGEABILITY. It is
-/// not a protection of resting funds, and the checks must not be read as one:
+/// sweep resting funds" to "only the holder of a genuinely signed intent can, and only ever to the
+/// account that intent names". That is a reduction in FORGEABILITY. It is not a protection of resting
+/// funds, and the checks must not be read as one:
 ///
-///   - Nothing here establishes a transfer BUDGET. The token-binding check asks whether the intent
-///     names the delivered token; the one-shot flag limits each signed root to a single delivery;
-///     neither bounds `amount`, which within that delivery is limited only by the spendable balance.
+///   - Nothing here establishes a transfer BUDGET or a delivery slot. The token-binding check asks
+///     whether the intent names the delivered token; it does not bound `amount`, which is limited only
+///     by the spendable balance.
 ///     `intentAmounts` is the MINIMUM acceptable fill (ISuperValidator.DstInfo,
 ///     SuperDestinationExecutor._validateBalances, technical-spec.md:123) and is deliberately NOT used
 ///     as a maximum — an earlier revision did, and it rejected every normal fill above the slippage
@@ -85,17 +85,17 @@ interface IDestinationValidatorSource {
 ///     is DETECTION of a violated requirement, not prevention; under correct operation it is never
 ///     emitted.
 ///
-/// Why the one-shot flag (`intentDelivered`, keyed by the intent's merkle root) lives in this adapter
-/// even though the executor has its own root guard: the executor marks `usedMerkleRoots` only
-/// immediately before `_execute`, so an execution revert rolls that mark back while this adapter's
-/// transfer stays committed — leaving one signature able to draw resting funds indefinitely. A Relay
-/// fill is a single atomic delivery per intent, and the recovery path for a failed second leg is a
-/// direct, permissionless `processBridgedExecution` call (the funds are already at the account), so a
-/// SECOND adapter delivery against the same root is never part of a legitimate flow. A below-minimum
-/// partial fill is delivered by this adapter and left unexecuted by the executor's balance gate; any
-/// top-up must reach the account directly, not through this adapter (pinned in
-/// RelayAdapterV2RealExecutorE2E). If Relay ever introduces multi-delivery fills for one intent, this
-/// flag — not the executor — is what would need a delivery-level redesign.
+/// A destination signature is REUSABLE at this adapter. The executor marks `usedMerkleRoots` only
+/// immediately before `_execute`, and a revert there rolls that mark back while this adapter's
+/// transfer stays committed, so the same message can be presented again. An earlier revision added a
+/// per-(account, root) one-shot flag here to stop that. It was REMOVED (review R2-F1): a replay can only
+/// pay the account the intent itself names, so it grants an attacker nothing that a fresh self-signed
+/// root does not already grant against resting funds — while the flag let ANY third party permanently
+/// consume a public intent's delivery slot with a 1-wei fill, reverting the honest solver's subsequent
+/// atomic fill. Without it, an under-minimum delivery is simply forwarded (the executor's balance gate
+/// declines to execute and the root stays unused) and later deliveries under the same root — a top-up,
+/// or the real fill after a dust-griefing attempt — land and execute normally. Replay protection for
+/// EXECUTION is, and remains, the executor's root guard; this adapter guards delivery authenticity only.
 ///
 /// ## Custody model: pushed delivery retained; pull-based delivery is feasible but out of scope
 ///
@@ -177,18 +177,6 @@ contract RelayAdapterV2 is ReentrancyGuard {
     /// @notice Total amount per token currently escrowed in failedTransfers
     mapping(address token => uint256 amount) public totalEscrowed;
 
-    /// @notice Whether a signed intent has already been delivered against: account => merkleRoot => delivered
-    /// @dev A destination signature is REUSABLE — the executor only marks `usedMerkleRoots` right before
-    ///      `_execute`, and a revert there rolls that write back while this adapter's transfer stays
-    ///      committed. Without this flag one signed intent could be replayed to absorb the resting
-    ///      balance indefinitely. The merkle root is unique per signed intent, so one delivery per
-    ///      (account, root) bounds replay to exactly one shot per signature.
-    /// @dev This is a one-shot flag, NOT an amount cap: `intentAmounts` is the MINIMUM acceptable fill
-    ///      (spec technical-spec.md:123; SuperDestinationExecutor._validateBalances), so it cannot bound
-    ///      how much a legitimate fill delivers. An earlier revision capped at it and would have reverted
-    ///      every normal fill delivered above the slippage floor (found by review).
-    mapping(address account => mapping(bytes32 merkleRoot => bool delivered)) public intentDelivered;
-
     /*//////////////////////////////////////////////////////////////
                                  STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -229,9 +217,6 @@ contract RelayAdapterV2 is ReentrancyGuard {
     /// @dev This is the V2 guard: it fires BEFORE any funds move.
     error INVALID_SIGNATURE();
 
-    /// @notice Thrown when a signed intent is presented again after it has already been delivered against
-    error INTENT_ALREADY_DELIVERED();
-
     /// @notice Thrown when the signed intent does not name `tokenSent` with a non-zero minimum
     /// @dev Binds the delivery token to the intent. Without it a self-signed intent with an empty
     ///      dstTokens list could be paid in ANY token resting here (found by review).
@@ -241,7 +226,7 @@ contract RelayAdapterV2 is ReentrancyGuard {
     /// @dev Fires BEFORE any transfer. A mismatched pair is never legitimate — the executor rejects it
     ///      with ARRAY_LENGTH_MISMATCH — but the executor runs AFTER the transfer, inside a swallowed
     ///      try/catch. Without this check a signer could sign a deliberately mismatched pair to make
-    ///      the token-binding and one-shot checks below be skipped (found by CI review).
+    ///      the token-binding check below be skipped (found by CI review).
     error ARRAY_LENGTH_MISMATCH();
 
     /// @notice Thrown when the target account does not exist and could not be created
@@ -398,12 +383,9 @@ contract RelayAdapterV2 is ReentrancyGuard {
         // The intent must actually name the token being delivered, with a non-zero minimum. A signed
         // intent whose dstTokens is empty (or names other tokens) is not an intent to receive THIS token
         // and must not be able to pull it. `intentAmounts` is a MINIMUM, so it is deliberately NOT used
-        // as a maximum here — see the note on `intentDelivered`.
+        // as a maximum here (see the contract NatSpec). There is deliberately no per-root delivery slot
+        // either: one would let a stranger consume it with a 1-wei fill (review R2-F1).
         if (!_intentNamesToken(extracted, tokenSent)) revert TOKEN_NOT_IN_SIGNED_INTENT();
-
-        // One delivery per signed intent. Set BEFORE the transfer (checks-effects-interactions).
-        if (intentDelivered[extracted.account][extracted.merkleRoot]) revert INTENT_ALREADY_DELIVERED();
-        intentDelivered[extracted.account][extracted.merkleRoot] = true;
 
         // Balance guard retained from V1: the claimed amount must actually be held, excluding escrow.
         uint256 balance =

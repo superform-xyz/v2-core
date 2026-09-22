@@ -45,9 +45,9 @@ contract TogglableTarget {
 ///         SuperDestinationExecutor + SuperDestinationValidator, with real owner signatures:
 ///         `intentAmounts` is the MINIMUM acceptable fill, so fills at or above it must deliver in full
 ///         AND execute, a fill below it is delivered but not executed (executor balance gate), and a
-///         correctly matched fill leaves no unassigned surplus. Also pins the one-shot trade-off: a
-///         top-up for the same root cannot come through the adapter; the direct executor path is the
-///         recovery route.
+///         correctly matched fill leaves no unassigned surplus. Also pins review R2-F1: there is no
+///         per-root delivery slot, so a stranger's dust delivery cannot block the honest fill, and a
+///         top-up under the same root completes through the adapter.
 /// @dev Same fixture as AcrossV3AdapterV2ValidSigE2E (ExecutingERC7579Account with both modules
 ///      installed). No spoke-pool prank: `processRelayExecution` is permissionless.
 contract RelayAdapterV2RealExecutorE2E is MerkleTreeHelper {
@@ -177,19 +177,61 @@ contract RelayAdapterV2RealExecutorE2E is MerkleTreeHelper {
         assertTrue(executor.isMerkleRootUsed(address(account), root), "root consumed by the direct retry");
     }
 
-    /// @notice ONE-SHOT TRADE-OFF, pinned: after a partial fill, a top-up THROUGH THE ADAPTER under the
-    ///         same signed root is rejected. This is deliberate (a replayed signature must not be able to
-    ///         drain resting funds after an execution revert rolled the executor's root mark back) and
-    ///         the direct path above is the supported recovery.
-    function test_RealExec_TopUpThroughAdapterSameRoot_IsRejected() public {
-        (bytes memory message,) = _signed(address(token), 100e18);
+    /// @notice After a partial fill, a top-up THROUGH THE ADAPTER under the same signed root completes
+    ///         and executes (review R2-F1 removed the per-root slot that used to reject it).
+    function test_RealExec_TopUpThroughAdapterSameRoot_CompletesAndExecutes() public {
+        (bytes memory message, bytes32 root) = _signed(address(token), 100e18);
         token.mint(address(adapter), 98e18);
         adapter.processRelayExecution(address(token), 98e18, message);
+        assertEq(lifecycleTarget.callCount(), 0, "under-minimum: not executed");
 
         token.mint(address(adapter), 2e18);
-        vm.expectRevert(RelayAdapterV2.INTENT_ALREADY_DELIVERED.selector);
         adapter.processRelayExecution(address(token), 2e18, message);
-        assertEq(token.balanceOf(address(adapter)), 2e18, "top-up not moved by the adapter");
+        assertEq(token.balanceOf(address(account)), 100e18, "top-up delivered");
+        assertEq(lifecycleTarget.callCount(), 1, "executed once the minimum is met");
+        assertTrue(executor.isMerkleRootUsed(address(account), root), "root consumed");
+        assertEq(token.balanceOf(address(adapter)), 0, "nothing resting");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                R2-F1: STRANGER DUST CANNOT BLOCK THE HONEST FILL
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice REGRESSION (review R2-F1), real stack: an unrelated caller delivers 1 wei with the victim's
+    ///         public intent (delivered, not executed, root unused); the honest solver's full atomic fill
+    ///         then completes and executes. Earlier the second call reverted INTENT_ALREADY_DELIVERED.
+    function test_RealExec_R2F1_StrangerDustThenHonestFill_Executes_ERC20() public {
+        (bytes memory message, bytes32 root) = _signed(address(token), 100e18);
+
+        token.mint(address(adapter), 1);
+        vm.prank(makeAddr("griefer"));
+        adapter.processRelayExecution(address(token), 1, message);
+        assertEq(token.balanceOf(address(account)), 1, "dust delivered");
+        assertEq(lifecycleTarget.callCount(), 0, "not executed");
+        assertFalse(executor.isMerkleRootUsed(address(account), root), "root unused");
+
+        token.mint(address(adapter), 100e18);
+        adapter.processRelayExecution(address(token), 100e18, message);
+        assertEq(token.balanceOf(address(account)), 100e18 + 1, "honest fill delivered");
+        assertEq(lifecycleTarget.callCount(), 1, "executed");
+        assertTrue(executor.isMerkleRootUsed(address(account), root), "root consumed");
+        assertEq(token.balanceOf(address(adapter)), 0, "nothing resting");
+    }
+
+    /// @notice REGRESSION (review R2-F1), native.
+    function test_RealExec_R2F1_StrangerDustThenHonestFill_Executes_Native() public {
+        (bytes memory message, bytes32 root) = _signed(address(0), 1 ether);
+
+        vm.deal(address(adapter), 1);
+        vm.prank(makeAddr("griefer"));
+        adapter.processRelayExecution(address(0), 1, message);
+        assertEq(lifecycleTarget.callCount(), 0, "not executed");
+
+        vm.deal(address(adapter), 1 ether);
+        adapter.processRelayExecution(address(0), 1 ether, message);
+        assertEq(address(account).balance, 1 ether + 1, "honest native fill delivered");
+        assertEq(lifecycleTarget.callCount(), 1, "executed");
+        assertTrue(executor.isMerkleRootUsed(address(account), root), "root consumed");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -235,8 +277,8 @@ contract RelayAdapterV2RealExecutorE2E is MerkleTreeHelper {
     /// @notice Review S1, reproduced against the real stack: a victim's fill rests in the adapter (the
     ///         solver's second leg never came). An unrelated party needs no victim key, no origin deposit
     ///         and no solver role — they sign a fresh intent for their OWN account and are paid the
-    ///         victim's funds, with hooks executing for them. A second fresh root drains again: the
-    ///         one-shot flag bounds each SIGNATURE, not the pool.
+    ///         victim's funds, with hooks executing for them. Replaying the same root or signing a fresh
+    ///         one drains again — nothing at this adapter bounds the pool.
     function test_RealExec_S1_AttackerSelfSignedIntentDrainsRestingFunds() public {
         token.mint(address(adapter), 100e18); // victim's fill, resting
 
@@ -247,27 +289,29 @@ contract RelayAdapterV2RealExecutorE2E is MerkleTreeHelper {
         assertTrue(executor.isMerkleRootUsed(address(attackerAccount), root1), "and executed for the attacker");
         assertEq(token.balanceOf(address(adapter)), 0, "pool drained");
 
-        // replay of the same root is the only thing the one-shot flag stops...
+        // replaying the same root drains again (executor no-ops on the used root; funds still move)...
         token.mint(address(adapter), 50e18); // another victim
-        vm.expectRevert(RelayAdapterV2.INTENT_ALREADY_DELIVERED.selector);
         adapter.processRelayExecution(address(token), 50e18, attack1);
+        assertEq(token.balanceOf(address(attackerAccount)), 150e18, "drained again by replay");
 
-        // ...a fresh self-signed root is a fresh shot
+        // ...and so does a fresh self-signed root
+        token.mint(address(adapter), 25e18);
         (bytes memory attack2,) = _signedFor(attackerAccount, attackerPk, address(token), 1);
-        adapter.processRelayExecution(address(token), 50e18, attack2);
-        assertEq(token.balanceOf(address(attackerAccount)), 150e18, "drained again with a new root");
+        adapter.processRelayExecution(address(token), 25e18, attack2);
+        assertEq(token.balanceOf(address(attackerAccount)), 175e18, "drained again with a new root");
     }
 
     /*//////////////////////////////////////////////////////////////
-                    EXECUTOR REVERT: WHY THE ONE-SHOT FLAG IS HERE
+                EXECUTOR REVERT: TRANSFER STAYS, ROOT ROLLS BACK
     //////////////////////////////////////////////////////////////*/
 
     /// @notice The executor marks the root only right before `_execute`, so a hook revert rolls that mark
-    ///         back while the adapter's transfer stays committed. Without the adapter-level flag the same
-    ///         signature could draw resting funds again; with it, replay is rejected and — once the hook
-    ///         works — a direct `processBridgedExecution` completes the intent (funds already at the
-    ///         account).
-    function test_RealExec_ExecutorRevert_TransferStays_RootRolledBack_ReplayRejected_DirectRetryWorks() public {
+    ///         back while the adapter's transfer stays committed. The same message can then be presented
+    ///         again and moves resting funds — to the SAME account (the documented pool exposure; the
+    ///         per-root slot that used to block this was removed in review R2-F1 because it was a
+    ///         dust-griefing vector). Once the hook works, a direct `processBridgedExecution` completes
+    ///         the intent with the funds already at the account.
+    function test_RealExec_ExecutorRevert_TransferStays_RootRolledBack_DirectRetryWorks() public {
         bytes memory cd = _executorCalldataFor(address(togglableHook));
         bytes32 root = _root(cd, address(token), 100e18);
         bytes memory message = _message(cd, address(token), 100e18, root);
@@ -282,10 +326,11 @@ contract RelayAdapterV2RealExecutorE2E is MerkleTreeHelper {
         assertFalse(executor.isMerkleRootUsed(address(account), root), "executor's root mark rolled back");
         assertEq(togglable.callCount(), 0, "hook did not run");
 
-        // replay through the adapter is rejected even though the executor would accept the root again
+        // a replay moves resting funds again — only ever to the named account — and still cannot execute
         token.mint(address(adapter), 100e18); // someone else's resting funds
-        vm.expectRevert(RelayAdapterV2.INTENT_ALREADY_DELIVERED.selector);
         adapter.processRelayExecution(address(token), 100e18, message);
+        assertEq(token.balanceOf(address(account)), 200e18, "replay paid the same account");
+        assertFalse(executor.isMerkleRootUsed(address(account), root), "still not executed");
 
         // recovery: fix the hook, drive the executor directly
         togglable.setShouldRevert(false);
@@ -326,16 +371,13 @@ contract RelayAdapterV2RealExecutorE2E is MerkleTreeHelper {
     }
 
     /*//////////////////////////////////////////////////////////////
-                DOCUMENTED LIMITATION: ONE ADAPTER DELIVERY PER INTENT
+                MULTI-TOKEN INTENT: TWO ADAPTER FILLS UNDER ONE ROOT
     //////////////////////////////////////////////////////////////*/
 
     /// @notice An intent naming TWO destination tokens, both delivered through THIS adapter under the same
-    ///         root: the first delivery lands (not executed — the second token is still short), the second
-    ///         is rejected by the one-shot flag. Recovery is direct delivery of the second token plus a
-    ///         direct `processBridgedExecution`. Relay quotes are single-output, so two Relay fills for one
-    ///         intent is not an expected flow — but if it ever is, this flag is what needs a
-    ///         delivery-level redesign (see the contract NatSpec).
-    function test_RealExec_Limitation_TwoAdapterFillsForOneMultiTokenIntent_SecondRejected() public {
+    ///         root: the first lands unexecuted (second token still short, root preserved), the second
+    ///         lands and executes. Multi-delivery per intent is supported at the adapter (R2-F1).
+    function test_RealExec_MultiTokenIntent_TwoAdapterFills_SecondExecutes() public {
         bytes memory cd = _executorCalldata();
         address[] memory toks = new address[](2);
         toks[0] = address(token);
@@ -354,20 +396,8 @@ contract RelayAdapterV2RealExecutorE2E is MerkleTreeHelper {
         assertFalse(executor.isMerkleRootUsed(address(account), root), "root preserved");
 
         token2.mint(address(adapter), 50e18);
-        vm.expectRevert(RelayAdapterV2.INTENT_ALREADY_DELIVERED.selector);
         adapter.processRelayExecution(address(token2), 50e18, message);
-
-        // recovery: second token reaches the account directly; executor driven directly
-        token2.mint(address(account), 50e18);
-        executor.processBridgedExecution(
-            address(token),
-            address(account),
-            toks,
-            mins,
-            bytes(""),
-            cd,
-            _sigData(_dstProofsFor(account, cd, toks, mins), root, _sign(root))
-        );
+        assertEq(token2.balanceOf(address(account)), 50e18, "second token delivered");
         assertEq(lifecycleTarget.callCount(), 1, "executed once both minimums are met");
         assertTrue(executor.isMerkleRootUsed(address(account), root), "root consumed");
     }
