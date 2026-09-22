@@ -7,6 +7,7 @@ import { ConfigCore } from "./utils/ConfigCore.sol";
 import { ISuperLedgerConfiguration } from "../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { AcrossV3AdapterV2 } from "../src/adapters/AcrossV3AdapterV2.sol";
 import { RelayAdapter } from "../src/adapters/RelayAdapter.sol";
+import { RelayAdapterV2 } from "../src/adapters/RelayAdapterV2.sol";
 import {
     AcrossSendFundsAndExecuteOnDstHookV2
 } from "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHookV2.sol";
@@ -27,6 +28,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address superExecutor;
         address acrossV3AdapterV2;
         address relayAdapter;
+        address relayAdapterV2;
         address debridgeAdapter;
         address stargateAdapter;
         address stargateAdapterV2;
@@ -278,6 +280,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     struct ContractAvailability {
         bool acrossV3AdapterV2;
         bool relayAdapter;
+        bool relayAdapterV2;
         bool debridgeAdapter;
         bool stargateAdapter;
         bool stargateAdapterV2;
@@ -351,8 +354,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         string[] memory potentialSkips = new string[](46);
         uint256 skipCount = 0;
         // Adapter contracts (5 contracts - conditionally deployed)
-        string[5] memory adapterContracts =
-            ["AcrossV3AdapterV2", "RelayAdapter", "DebridgeAdapter", "StargateAdapter", "StargateAdapterV2"];
+        string[6] memory adapterContracts = [
+            "AcrossV3AdapterV2",
+            "RelayAdapter",
+            "RelayAdapterV2",
+            "DebridgeAdapter",
+            "StargateAdapter",
+            "StargateAdapterV2"
+        ];
 
         // Start with all adapters, then decrement for missing configurations
         uint256 expectedAdapters = adapterContracts.length;
@@ -371,6 +380,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         } else {
             expectedAdapters -= 1;
             potentialSkips[skipCount++] = "RelayAdapter";
+        }
+
+        // RelayAdapterV2 — same gate as V1. V2 is deployed ALONGSIDE V1, not as a replacement: V1 is
+        // live on 17 chains with locked bytecode and keeps serving in-flight fills and any escrowed
+        // failedTransfers, which cannot be migrated. See RelayAdapterV2 NatSpec.
+        if (configuration.relayDepositories[chainId] != address(0)) {
+            availability.relayAdapterV2 = true;
+        } else {
+            expectedAdapters -= 1;
+            potentialSkips[skipCount++] = "RelayAdapterV2";
         }
 
         // DebridgeAdapter
@@ -793,6 +812,62 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     }
 
     /// @notice Check or deploy only the Across V2 contracts required on Avalanche.
+    /// @notice Deploy (or check) ONLY RelayAdapterV2 on this chain.
+    /// @dev Scoped entrypoint for the V2 rollout: RelayAdapterV2 ships ALONGSIDE the existing
+    ///      RelayAdapter, which is live on 17 chains with locked bytecode and must keep serving
+    ///      in-flight fills plus any escrowed failedTransfers (those cannot be migrated). Running the
+    ///      full `run()` would be idempotent but touches every core contract; this keeps the blast
+    ///      radius to the one new adapter.
+    /// @param check true = verification only (no broadcast), false = deploy
+    /// @param env 0 = prod, 1 = dev, 2 = staging
+    /// @param chainId must equal block.chainid
+    function runRelayAdapterV2(bool check, uint256 env, uint64 chainId) public broadcast(env) {
+        require(block.chainid == chainId, "RELAY_ADAPTER_V2_CHAIN_ID_MISMATCH");
+
+        _setConfiguration(env, "");
+
+        ContractAvailability memory availability = _getContractAvailability(chainId, env);
+        if (!availability.relayAdapterV2) {
+            console2.log("SKIPPED RelayAdapterV2: Relay depository not configured for chain", chainId);
+            return;
+        }
+
+        // Reuse the already-deployed executor from this chain's output rather than redeploying anything.
+        CoreContracts memory coreContracts;
+        _populateCoreContractsFromStatus(chainId, coreContracts);
+
+        address superDestExecutor = coreContracts.superDestinationExecutor;
+        require(superDestExecutor != address(0), "RELAY_ADAPTER_V2_DEST_EXECUTOR_NOT_DEPLOYED");
+
+        if (check) {
+            __checkContract(
+                RELAY_ADAPTER_V2_KEY, __getSalt(RELAY_ADAPTER_V2_KEY), abi.encode(superDestExecutor), env
+            );
+            return;
+        }
+
+        coreContracts.relayAdapterV2 = __deployContractIfNeeded(
+            RELAY_ADAPTER_V2_KEY,
+            chainId,
+            __getSalt(RELAY_ADAPTER_V2_KEY),
+            abi.encodePacked(__getBytecode("RelayAdapterV2", env), abi.encode(superDestExecutor))
+        );
+
+        require(coreContracts.relayAdapterV2 != address(0), "RELAY_ADAPTER_V2_DEPLOYMENT_FAILED");
+        require(coreContracts.relayAdapterV2.code.length > 0, "RELAY_ADAPTER_V2_NO_CODE");
+        require(
+            address(RelayAdapterV2(payable(coreContracts.relayAdapterV2)).SUPER_DESTINATION_EXECUTOR())
+                == superDestExecutor,
+            "RELAY_ADAPTER_V2_EXECUTOR_MISMATCH"
+        );
+        require(
+            RelayAdapterV2(payable(coreContracts.relayAdapterV2)).SUPER_DESTINATION_VALIDATOR() != address(0),
+            "RELAY_ADAPTER_V2_VALIDATOR_NOT_CACHED"
+        );
+
+        console2.log(" RelayAdapterV2 deployed and validated:", coreContracts.relayAdapterV2);
+    }
+
     function runAcrossV2Avalanche(bool check, uint256 env, uint64 chainId) public {
         require(env == 0 || env == 2, "ACROSS_V2_AVALANCHE_INVALID_ENV");
         require(chainId == AVALANCHE_CHAIN_ID, "ACROSS_V2_AVALANCHE_INVALID_CHAIN");
@@ -1828,6 +1903,17 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             revert("ACROSS_V3_ADAPTER_V2_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
         }
 
+        // RelayAdapterV2 (same constructor shape as V1: executor only)
+        if (availability.relayAdapterV2 && superDestExecutor != address(0)) {
+            __checkContract(
+                RELAY_ADAPTER_V2_KEY, __getSalt(RELAY_ADAPTER_V2_KEY), abi.encode(superDestExecutor), env
+            );
+        } else if (!availability.relayAdapterV2) {
+            console2.log("SKIPPED RelayAdapterV2: Relay depository not configured for chain", chainId);
+        } else {
+            revert("RELAY_ADAPTER_V2_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
+        }
+
         // RelayAdapter (permissionless destination adapter — constructor takes only the executor)
         if (availability.relayAdapter && superDestExecutor != address(0)) {
             __checkContract(RELAY_ADAPTER_KEY, __getSalt(RELAY_ADAPTER_KEY), abi.encode(superDestExecutor), env);
@@ -2716,6 +2802,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         status = _getContractStatus(chainId, RELAY_ADAPTER_KEY);
         if (status.isDeployed) coreContracts.relayAdapter = status.contractAddress;
 
+        status = _getContractStatus(chainId, RELAY_ADAPTER_V2_KEY);
+        if (status.isDeployed) coreContracts.relayAdapterV2 = status.contractAddress;
+
         status = _getContractStatus(chainId, DEBRIDGE_ADAPTER_KEY);
         if (status.isDeployed) coreContracts.debridgeAdapter = status.contractAddress;
 
@@ -2971,6 +3060,36 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" AcrossV3AdapterV2 deployed and validated");
         } else {
             console2.log(" SKIPPED AcrossV3AdapterV2 deployment: Not available on chain", chainId);
+        }
+
+        // Deploy RelayAdapterV2 only if the Relay depository is enabled on this chain
+        if (availability.relayAdapterV2) {
+            require(configuration.relayDepositories[chainId] != address(0), "RELAY_ADAPTER_V2_DEPOSITORY_PARAM_ZERO");
+            require(coreContracts.superDestinationExecutor != address(0), "RELAY_ADAPTER_V2_DEST_EXECUTOR_PARAM_ZERO");
+
+            coreContracts.relayAdapterV2 = __deployContractIfNeeded(
+                RELAY_ADAPTER_V2_KEY,
+                chainId,
+                __getSalt(RELAY_ADAPTER_V2_KEY),
+                abi.encodePacked(
+                    __getBytecode("RelayAdapterV2", env), abi.encode(coreContracts.superDestinationExecutor)
+                )
+            );
+
+            // Validate RelayAdapterV2 was deployed
+            require(coreContracts.relayAdapterV2 != address(0), "RELAY_ADAPTER_V2_DEPLOYMENT_FAILED");
+            require(coreContracts.relayAdapterV2.code.length > 0, "RELAY_ADAPTER_V2_NO_CODE");
+            require(
+                address(RelayAdapterV2(payable(coreContracts.relayAdapterV2)).SUPER_DESTINATION_EXECUTOR())
+                    == coreContracts.superDestinationExecutor,
+                "RELAY_ADAPTER_V2_EXECUTOR_MISMATCH"
+            );
+            // V2 caches the validator from the executor at construction — verify the wiring took.
+            require(
+                RelayAdapterV2(payable(coreContracts.relayAdapterV2)).SUPER_DESTINATION_VALIDATOR() != address(0),
+                "RELAY_ADAPTER_V2_VALIDATOR_NOT_CACHED"
+            );
+            console2.log(" RelayAdapterV2 deployed and validated");
         }
 
         // Deploy RelayAdapter only if the Relay depository is enabled on this chain
