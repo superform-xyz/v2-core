@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
+import { Vm } from "forge-std/Vm.sol";
 import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 
@@ -26,8 +27,13 @@ contract MockExecutor {
     bool public shouldRevert;
     bool public shouldReturnbomb;
 
-    function setShouldRevert(bool v) external { shouldRevert = v; }
-    function setShouldReturnbomb(bool v) external { shouldReturnbomb = v; }
+    function setShouldRevert(bool v) external {
+        shouldRevert = v;
+    }
+
+    function setShouldReturnbomb(bool v) external {
+        shouldReturnbomb = v;
+    }
 
     function processBridgedExecution(
         address,
@@ -37,7 +43,9 @@ contract MockExecutor {
         bytes memory,
         bytes memory,
         bytes memory
-    ) external {
+    )
+        external
+    {
         if (shouldReturnbomb) {
             // 100KB of revert data: a `catch (bytes memory)` would OOG copying it; a bare catch must not.
             assembly {
@@ -185,7 +193,12 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
     }
 
     /// @dev Backwards-compatible wrapper used by the expiry / mismatch / initData tests.
-    function _messageFor(address acct, address proofExecutor, address proofValidator, uint48 until)
+    function _messageFor(
+        address acct,
+        address proofExecutor,
+        address proofValidator,
+        uint48 until
+    )
         internal
         view
         returns (bytes memory)
@@ -228,7 +241,14 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
     {
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _createDestinationValidatorLeaf(
-            bytes(""), uint64(block.chainid), acct, address(executor), dstTokens, intentAmounts, until, address(validator)
+            bytes(""),
+            uint64(block.chainid),
+            acct,
+            address(executor),
+            dstTokens,
+            intentAmounts,
+            until,
+            address(validator)
         );
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -247,9 +267,8 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
         });
         uint64[] memory chains = new uint64[](1);
         chains[0] = uint64(block.chainid);
-        return abi.encode(
-            bytes(""), abi.encode(chains, until, uint48(0), root, new bytes32[](0), proofDst, _sign(root))
-        );
+        return
+            abi.encode(bytes(""), abi.encode(chains, until, uint48(0), root, new bytes32[](0), proofDst, _sign(root)));
     }
 
     /// @dev The V1-style forged message: fabricated proof, EMPTY signature.
@@ -379,7 +398,11 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
 
     /// @dev initData layout consumed by _validateOrCreateAccount:
     ///      [0:20] senderCreator, [20:40] factory, [40:] factory calldata
-    function _initData(address senderCreator, address factory, bytes memory factoryCall)
+    function _initData(
+        address senderCreator,
+        address factory,
+        bytes memory factoryCall
+    )
         internal
         pure
         returns (bytes memory)
@@ -389,7 +412,8 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
 
     /// @dev Rebuilds a signed message carrying `initData`, for an account that does not exist yet.
     function _messageWithInitData(address acct, bytes memory initData) internal view returns (bytes memory) {
-        (, bytes memory sigData) = abi.decode(_messageFor(acct, address(executor), address(validator), validUntil), (bytes, bytes));
+        (, bytes memory sigData) =
+            abi.decode(_messageFor(acct, address(executor), address(validator), validUntil), (bytes, bytes));
         return abi.encode(initData, sigData);
     }
 
@@ -406,8 +430,7 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
         validator.onInstall(abi.encode(owner));
         vm.etch(predicted, hex""); // remove it again: the account must NOT exist yet
 
-        bytes memory initData =
-            _initData(address(creator), address(factory), abi.encodeCall(AccountFactory.deploy, ()));
+        bytes memory initData = _initData(address(creator), address(factory), abi.encodeCall(AccountFactory.deploy, ()));
 
         token.mint(address(adapter), 100e18);
         adapter.processRelayExecution(address(token), 100e18, _messageWithInitData(predicted, initData));
@@ -519,8 +542,7 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
             })
         });
 
-        bytes memory message =
-            abi.encode(initData, abi.encode(chains, until, after_, root, proofSrc, two, sig));
+        bytes memory message = abi.encode(initData, abi.encode(chains, until, after_, root, proofSrc, two, sig));
 
         adapter.processRelayExecution(address(token), 100e18, message);
 
@@ -586,9 +608,7 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
 
         // Transfer-failure path: the call SUCCEEDS and the amount becomes claimable by the account.
         bytes memory valid = _validMessage(account);
-        vm.mockCall(
-            address(token), abi.encodeWithSelector(IERC20.transfer.selector, account), abi.encode(false)
-        );
+        vm.mockCall(address(token), abi.encodeWithSelector(IERC20.transfer.selector, account), abi.encode(false));
         adapter.processRelayExecution(address(token), 100e18, valid);
         vm.clearMockedCalls();
 
@@ -661,8 +681,14 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
 
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _createDestinationValidatorLeaf(
-            bytes(""), uint64(block.chainid), attackerAccount, address(executor),
-            dstTokens, intentAmounts, validUntil, address(validator)
+            bytes(""),
+            uint64(block.chainid),
+            attackerAccount,
+            address(executor),
+            dstTokens,
+            intentAmounts,
+            validUntil,
+            address(validator)
         );
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -671,9 +697,12 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
             proof: proof[0],
             dstChainId: uint64(block.chainid),
             info: ISuperValidator.DstInfo({
-                account: attackerAccount, executor: address(executor),
-                dstTokens: dstTokens, intentAmounts: intentAmounts,
-                validator: address(validator), data: bytes("")
+                account: attackerAccount,
+                executor: address(executor),
+                dstTokens: dstTokens,
+                intentAmounts: intentAmounts,
+                validator: address(validator),
+                data: bytes("")
             })
         });
         uint64[] memory chains = new uint64[](1);
@@ -715,6 +744,68 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
 
         assertEq(token.balanceOf(account), 100e18, "fill above the signed minimum is delivered in full");
         assertEq(token.balanceOf(address(adapter)), 0, "nothing left resting");
+    }
+
+    /// @notice REGRESSION (review F1, native): the same minimum-output semantics on the native path.
+    function test_F1_NativeFillAboveSignedMinimumSucceeds() public {
+        vm.deal(address(adapter), 1 ether);
+        bytes memory intent =
+            _messageForTok(account, address(0), 0.99 ether, address(executor), address(validator), validUntil);
+
+        adapter.processRelayExecution(address(0), 1 ether, intent);
+
+        assertEq(account.balance, 1 ether, "native fill above the signed minimum delivered in full");
+        assertEq(address(adapter).balance, 0, "nothing left resting");
+    }
+
+    /// @notice CONTROL (review F1): a fill exactly at the signed minimum succeeds — ERC20 and native.
+    function test_F1_ExactMinimumSucceeds() public {
+        token.mint(address(adapter), 99e18);
+        adapter.processRelayExecution(address(token), 99e18, _validMessageForAmount(account, 99e18));
+        assertEq(token.balanceOf(account), 99e18, "exact-minimum ERC20 fill delivered");
+
+        // native leg for the same account: a different token => a different leaf/root, so no one-shot collision
+        vm.deal(address(adapter), 0.99 ether);
+        adapter.processRelayExecution(
+            address(0),
+            0.99 ether,
+            _messageForTok(account, address(0), 0.99 ether, address(executor), address(validator), validUntil)
+        );
+        assertEq(account.balance, 0.99 ether, "exact-minimum native fill delivered");
+    }
+
+    /// @notice CONTROL (review F1): a matched fill (delivered == requested) leaves no unassigned surplus
+    ///         and emits no `SpendableBalanceRetained`.
+    function test_F1_MatchedFillLeavesNoSurplus() public {
+        token.mint(address(adapter), 100e18);
+        bytes memory intent = _validMessageForAmount(account, 99e18);
+
+        vm.recordLogs();
+        adapter.processRelayExecution(address(token), 100e18, intent);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 topic = keccak256("SpendableBalanceRetained(address,uint256)");
+        for (uint256 i; i < logs.length; ++i) {
+            assertTrue(!(logs[i].emitter == address(adapter) && logs[i].topics[0] == topic), "no surplus surfaced");
+        }
+        assertEq(token.balanceOf(address(adapter)), 0, "no unassigned surplus");
+    }
+
+    /// @notice CONTROL (review F1, partial fill): the adapter does not gate on the minimum at all — a
+    ///         below-minimum delivery is forwarded and it is the EXECUTOR's balance gate that declines to
+    ///         execute (pinned with the real executor in RelayAdapterV2RealExecutorE2E). Together with the
+    ///         one-shot flag this means a top-up cannot come through this adapter under the same root; it
+    ///         must be delivered to the account directly.
+    function test_F1_PartialFillBelowMinimum_DeliveredNotGatedHere() public {
+        token.mint(address(adapter), 98e18);
+        bytes memory intent = _validMessageForAmount(account, 100e18);
+
+        adapter.processRelayExecution(address(token), 98e18, intent);
+        assertEq(token.balanceOf(account), 98e18, "partial fill delivered by the adapter");
+
+        token.mint(address(adapter), 2e18);
+        vm.expectRevert(RelayAdapterV2.INTENT_ALREADY_DELIVERED.selector);
+        adapter.processRelayExecution(address(token), 2e18, intent);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -921,13 +1012,10 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
             bytes32[] memory proofSrc,
             ISuperValidator.DstProof[] memory proofDst,
             bytes memory sig
-        ) = abi.decode(
-            sigData, (uint64[], uint48, uint48, bytes32, bytes32[], ISuperValidator.DstProof[], bytes)
-        );
+        ) = abi.decode(sigData, (uint64[], uint48, uint48, bytes32, bytes32[], ISuperValidator.DstProof[], bytes));
         proofDst[0].info.account = attackerAccount; // redirect
 
-        bytes memory tampered =
-            abi.encode(initData, abi.encode(chains, until, after_, root, proofSrc, proofDst, sig));
+        bytes memory tampered = abi.encode(initData, abi.encode(chains, until, after_, root, proofSrc, proofDst, sig));
 
         vm.prank(attacker);
         vm.expectRevert(); // validator rejects the redirected leaf (INVALID_PROOF)
@@ -983,9 +1071,8 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
                 data: bytes("")
             })
         });
-        bytes memory sigData = abi.encode(
-            new uint64[](0), validUntil, uint48(0), bytes32(0), new bytes32[](0), proofDst, bytes("")
-        );
+        bytes memory sigData =
+            abi.encode(new uint64[](0), validUntil, uint48(0), bytes32(0), new bytes32[](0), proofDst, bytes(""));
 
         vm.expectRevert(RelayAdapterV2.NO_DST_PROOF_FOR_CHAIN.selector);
         adapter.processRelayExecution(address(token), 1000e18, abi.encode(bytes(""), sigData));
@@ -994,9 +1081,7 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
     /// @notice The escrow guard is retained: escrowed funds stay excluded from the spendable balance.
     function test_Edge_EscrowStillExcludedFromSpendableBalance() public {
         token.mint(address(adapter), 1000e18);
-        vm.mockCall(
-            address(token), abi.encodeWithSelector(IERC20.transfer.selector, account), abi.encode(false)
-        );
+        vm.mockCall(address(token), abi.encodeWithSelector(IERC20.transfer.selector, account), abi.encode(false));
 
         adapter.processRelayExecution(address(token), 1000e18, _validMessage(account));
 

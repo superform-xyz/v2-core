@@ -64,36 +64,69 @@ interface IDestinationValidatorSource {
 ///
 /// V2 therefore narrows the V1 exposure from "any fabricated byte string with an EMPTY signature can
 /// sweep resting funds" to "only the holder of a genuinely signed intent can, only ever to the account
-/// that intent names, and only once per signed intent". That is a large
-/// reduction, not an elimination.
+/// that intent names, and only once per signed intent". That is a reduction in FORGEABILITY. It is
+/// not a protection of resting funds, and the checks must not be read as one:
 ///
-/// The last of those three bounds is ONE DELIVERY PER SIGNED INTENT (`intentDelivered`, keyed by the
-/// intent's merkle root), plus the requirement that the intent actually names the delivered token.
-/// It is deliberately not an amount cap: `intentAmounts` is the MINIMUM acceptable fill, so a
-/// legitimate fill may deliver more than it, and capping at it would revert normal operation. Within
-/// that one delivery, `amount` is bounded only by the spendable balance — the signature authenticates
-/// WHO is paid and THAT this token was intended, and limits each signature to a single shot.
+///   - Nothing here establishes a transfer BUDGET. The token-binding check asks whether the intent
+///     names the delivered token; the one-shot flag limits each signed root to a single delivery;
+///     neither bounds `amount`, which within that delivery is limited only by the spendable balance.
+///     `intentAmounts` is the MINIMUM acceptable fill (ISuperValidator.DstInfo,
+///     SuperDestinationExecutor._validateBalances, technical-spec.md:123) and is deliberately NOT used
+///     as a maximum — an earlier revision did, and it rejected every normal fill above the slippage
+///     floor (review F1).
+///   - An attacker needs no victim key, no origin deposit and no solver role. They sign a fresh
+///     intent for their OWN account — every new root is a new shot — and are paid from whatever is
+///     resting. Restricting payment to the signer's own account does not protect pooled victim funds,
+///     because the attacker's own account is exactly where they want them. Rejecting empty or
+///     mismatched token lists removes a shortcut, not the exposure.
+///   - Resting funds are therefore NOT safe in V2. Their safety rests entirely on the accepted
+///     operating requirements: one atomic delivery per call, `amount` matched to the delivered funds,
+///     supported (non-rebasing, non-fee) tokens, and no unassigned residual. `SpendableBalanceRetained`
+///     is DETECTION of a violated requirement, not prevention; under correct operation it is never
+///     emitted.
 ///
-/// A non-zero `SpendableBalanceRetained` event means funds are resting and a later valid intent could
-/// absorb them — under correct operation (atomic batch, matched amounts) it is never emitted.
+/// Why the one-shot flag (`intentDelivered`, keyed by the intent's merkle root) lives in this adapter
+/// even though the executor has its own root guard: the executor marks `usedMerkleRoots` only
+/// immediately before `_execute`, so an execution revert rolls that mark back while this adapter's
+/// transfer stays committed — leaving one signature able to draw resting funds indefinitely. A Relay
+/// fill is a single atomic delivery per intent, and the recovery path for a failed second leg is a
+/// direct, permissionless `processBridgedExecution` call (the funds are already at the account), so a
+/// SECOND adapter delivery against the same root is never part of a legitimate flow. A below-minimum
+/// partial fill is delivered by this adapter and left unexecuted by the executor's balance gate; any
+/// top-up must reach the account directly, not through this adapter (pinned in
+/// RelayAdapterV2RealExecutorE2E). If Relay ever introduces multi-delivery fills for one intent, this
+/// flag — not the executor — is what would need a delivery-level redesign.
 ///
-/// ## Why attribution cannot be fixed on-chain here (pull-based delivery was considered and rejected)
+/// ## Custody model: pushed delivery retained; pull-based delivery is feasible but out of scope
 ///
-/// The obvious fix is to stop accepting pushed funds and pull them instead — `transferFrom(msg.sender,
-/// ...)` inside the same call that executes the intent, so nothing ever rests and the payer is known.
-/// **This does not work for Relay**, for a reason specific to its architecture: `msg.sender` at this
-/// contract is **Relay's Router/Multicaller**, not the solver and not the party funding the fill (see
-/// specs/relay-bridge-integration/interview-notes.md:10). Pulling from `msg.sender` would attempt to
-/// draw from the Router, which we neither control nor can require to hold tokens or grant an
-/// allowance. We can only inject calls into the quote's `txs[]`, and an `approve` there grants a
-/// Router→adapter allowance that is only useful if the Router is itself the token holder mid-batch —
-/// an internal property of Relay, not something this contract can assume or enforce.
+/// The way to attribute funds on-chain is to stop accepting pushed balances and pull them instead —
+/// `transferFrom(msg.sender, ...)` (or `msg.value` for native) inside the same call that executes the
+/// intent, forwarding only the measured delta, so nothing ever rests and the payer is known.
 ///
-/// Every other adapter escapes this because something outside the message binds funds to it: a trusted
-/// caller that vouches for `amount` (Across/Stargate/deBridge) or an attested message carrying the
-/// payer's identity (CCTP's `messageSender`, which is why CCTPAdapter CAN escrow to the attested
-/// burner). Relay's fill carries no source-chain message at all — the deposit events exist only on the
-/// origin chain — so there is no on-chain fact linking a delivery to an intent.
+/// Relay's own documentation describes exactly that shape for destination calls: output funds are
+/// delivered to the Router within the same multicall BEFORE `txs[]` execute, an in-`txs[]` `approve`
+/// is executed BY the Router over the Router's balance, and Relay's Call Execution Integration Guide
+/// (EXACT_INPUT with proxy contracts) recommends a proxy that pulls the approved balance from the
+/// caller that initiated execution — the Router. The repository's own Relay research records the same
+/// (specs/relay-bridge-integration/research/framework-docs.md, "Fund delivery relative to the calls").
+/// Pull-based delivery is therefore NOT architecturally impossible for Relay; an earlier revision of
+/// this note claimed it was, and that claim is withdrawn.
+///
+/// This PR nevertheless retains pushed custody, deliberately and with a narrow claim: it fixes the
+/// authentication ordering (the V1 vulnerability) and keeps the atomic-batch assumption for
+/// attribution that the integration already documents and accepts (spec.md:73). Moving to pull is a
+/// separate delivery-level design that has not been done here and must not be assumed safe from this
+/// note alone. It requires, at minimum: (a) verifying per route which Router/Multicaller version fills
+/// go through and that it holds the output tokens while executing `txs[]` (simple bridges bypass the
+/// Router entirely); (b) binding the forwarded amount to the actually-pulled delta — and native value
+/// to `msg.value` of the same call — never to a caller-supplied `amount`; (c) a live Relay
+/// quote/integration test. None of that is exercised in this repository today: the pigeon E2E
+/// simulates the solver leg, not Relay's Router.
+///
+/// Every other adapter avoids the question because something outside the message binds funds to it: a
+/// trusted caller that vouches for `amount` (Across/Stargate/deBridge) or an attested message carrying
+/// the payer's identity (CCTP's `messageSender`). Relay's fill carries no source-chain message at all,
+/// so until a pull-based design lands, the solver's atomicity is the only binding.
 ///
 /// ## The residual, stated plainly
 ///
@@ -103,10 +136,6 @@ interface IDestinationValidatorSource {
 /// primary integration is the solver delivering funds directly to the account and calling
 /// `SuperDestinationExecutor.processBridgedExecution` (spec.md:33), where no adapter ever takes
 /// custody and this residual does not arise.
-///
-/// If pull-based delivery is ever revisited, the question to answer FIRST — with Relay, not from this
-/// repo — is whether the Router holds the output tokens while executing `txs[]`. If it does, pull
-/// becomes viable; if not, it is permanently out of reach and this note should stand.
 ///
 /// @dev PERMISSIONLESS by design: anyone may call `processRelayExecution`. Safe against forged
 ///      messages without any atomicity assumption, because an attacker cannot produce a signature over
