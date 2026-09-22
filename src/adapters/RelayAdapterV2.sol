@@ -64,13 +64,15 @@ interface IDestinationValidatorSource {
 ///
 /// V2 therefore narrows the V1 exposure from "any fabricated byte string with an EMPTY signature can
 /// sweep resting funds" to "only the holder of a genuinely signed intent can, only ever to the account
-/// that intent names, and only up to the amount that intent was signed for". That is a large
+/// that intent names, and only once per signed intent". That is a large
 /// reduction, not an elimination.
 ///
-/// The last of those three bounds comes from capping the transfer at the signed `intentAmounts` entry
-/// for the token (see `_signedAmountFor`). Without it the signature would authenticate WHO is paid but
-/// not HOW MUCH, since `amount` is a caller-supplied parameter outside the signed leaf. Where the
-/// intent names no amount for the token, no cap is derivable and the call stays unconstrained.
+/// The last of those three bounds is ONE DELIVERY PER SIGNED INTENT (`intentDelivered`, keyed by the
+/// intent's merkle root), plus the requirement that the intent actually names the delivered token.
+/// It is deliberately not an amount cap: `intentAmounts` is the MINIMUM acceptable fill, so a
+/// legitimate fill may deliver more than it, and capping at it would revert normal operation. Within
+/// that one delivery, `amount` is bounded only by the spendable balance — the signature authenticates
+/// WHO is paid and THAT this token was intended, and limits each signature to a single shot.
 ///
 /// A non-zero `SpendableBalanceRetained` event means funds are resting and a later valid intent could
 /// absorb them — under correct operation (atomic batch, matched amounts) it is never emitted.
@@ -146,6 +148,18 @@ contract RelayAdapterV2 is ReentrancyGuard {
     /// @notice Total amount per token currently escrowed in failedTransfers
     mapping(address token => uint256 amount) public totalEscrowed;
 
+    /// @notice Whether a signed intent has already been delivered against: account => merkleRoot => delivered
+    /// @dev A destination signature is REUSABLE — the executor only marks `usedMerkleRoots` right before
+    ///      `_execute`, and a revert there rolls that write back while this adapter's transfer stays
+    ///      committed. Without this flag one signed intent could be replayed to absorb the resting
+    ///      balance indefinitely. The merkle root is unique per signed intent, so one delivery per
+    ///      (account, root) bounds replay to exactly one shot per signature.
+    /// @dev This is a one-shot flag, NOT an amount cap: `intentAmounts` is the MINIMUM acceptable fill
+    ///      (spec technical-spec.md:123; SuperDestinationExecutor._validateBalances), so it cannot bound
+    ///      how much a legitimate fill delivers. An earlier revision capped at it and would have reverted
+    ///      every normal fill delivered above the slippage floor (found by review).
+    mapping(address account => mapping(bytes32 merkleRoot => bool delivered)) public intentDelivered;
+
     /*//////////////////////////////////////////////////////////////
                                  STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -155,6 +169,7 @@ contract RelayAdapterV2 is ReentrancyGuard {
         address account;
         address executor;
         address validator;
+        bytes32 merkleRoot;
         bytes executorCalldata;
         address[] dstTokens;
         uint256[] intentAmounts;
@@ -185,8 +200,20 @@ contract RelayAdapterV2 is ReentrancyGuard {
     /// @dev This is the V2 guard: it fires BEFORE any funds move.
     error INVALID_SIGNATURE();
 
-    /// @notice Thrown when `amount` exceeds the amount the signed intent commits to for this token
-    error AMOUNT_EXCEEDS_SIGNED_INTENT();
+    /// @notice Thrown when a signed intent is presented again after it has already been delivered against
+    error INTENT_ALREADY_DELIVERED();
+
+    /// @notice Thrown when the signed intent does not name `tokenSent` with a non-zero minimum
+    /// @dev Binds the delivery token to the intent. Without it a self-signed intent with an empty
+    ///      dstTokens list could be paid in ANY token resting here (found by review).
+    error TOKEN_NOT_IN_SIGNED_INTENT();
+
+    /// @notice Thrown when the signed intent's dstTokens and intentAmounts differ in length
+    /// @dev Fires BEFORE any transfer. A mismatched pair is never legitimate — the executor rejects it
+    ///      with ARRAY_LENGTH_MISMATCH — but the executor runs AFTER the transfer, inside a swallowed
+    ///      try/catch. Without this check a signer could sign a deliberately mismatched pair to make
+    ///      the token-binding and one-shot checks below be skipped (found by CI review).
+    error ARRAY_LENGTH_MISMATCH();
 
     /// @notice Thrown when the target account does not exist and could not be created
     error ACCOUNT_NOT_CREATED();
@@ -333,24 +360,30 @@ contract RelayAdapterV2 is ReentrancyGuard {
         _validateOrCreateAccount(extracted.account, initData);
         _validateDestinationSignature(extracted, sigDataRaw);
 
-        // Cap the transfer at what the SIGNED intent commits to for this token.
-        //
-        // `amount` is a caller-supplied parameter and is NOT part of the signed leaf, so without this
-        // the signature would authenticate WHO is paid but not HOW MUCH: an intent signed for 1 token
-        // could move an arbitrarily large resting balance to its account. `intentAmounts` IS signed
-        // (it is part of the leaf alongside `dstTokens`), so it can bound the transfer at no cost to
-        // the validator or the SDK.
-        //
-        // If the intent names no amount for this token the cap cannot be derived, and the call is
-        // left unconstrained exactly as before — `intentAmounts` is a MINIMUM-balance requirement for
-        // the executor, so an intent may legitimately omit it. That case is unchanged, not worsened.
-        uint256 cap = _signedAmountFor(extracted, tokenSent);
-        if (cap != 0 && amount > cap) revert AMOUNT_EXCEEDS_SIGNED_INTENT();
+        // A mismatched (dstTokens, intentAmounts) pair is never legitimate, and it must be rejected HERE
+        // rather than left to the executor: the executor's own check runs after the transfer inside a
+        // swallowed try/catch, so a signer could otherwise sign a mismatched pair to defeat the checks
+        // below.
+        if (extracted.dstTokens.length != extracted.intentAmounts.length) revert ARRAY_LENGTH_MISMATCH();
+
+        // The intent must actually name the token being delivered, with a non-zero minimum. A signed
+        // intent whose dstTokens is empty (or names other tokens) is not an intent to receive THIS token
+        // and must not be able to pull it. `intentAmounts` is a MINIMUM, so it is deliberately NOT used
+        // as a maximum here — see the note on `intentDelivered`.
+        if (!_intentNamesToken(extracted, tokenSent)) revert TOKEN_NOT_IN_SIGNED_INTENT();
+
+        // One delivery per signed intent. Set BEFORE the transfer (checks-effects-interactions).
+        if (intentDelivered[extracted.account][extracted.merkleRoot]) revert INTENT_ALREADY_DELIVERED();
+        intentDelivered[extracted.account][extracted.merkleRoot] = true;
 
         // Balance guard retained from V1: the claimed amount must actually be held, excluding escrow.
         uint256 balance =
             tokenSent == address(0) ? address(this).balance : IERC20(tokenSent).balanceOf(address(this));
-        uint256 spendable = balance - totalEscrowed[tokenSent];
+        // Saturating: a negative-rebasing token (or a transfer that moved funds but reported failure)
+        // can leave the live balance below the escrow ledger. A checked subtraction would then panic
+        // on every call for that token; failing cleanly with INSUFFICIENT_FUNDS_RECEIVED does not.
+        uint256 escrowed = totalEscrowed[tokenSent];
+        uint256 spendable = balance > escrowed ? balance - escrowed : 0;
         if (spendable < amount) revert INSUFFICIENT_FUNDS_RECEIVED();
 
         // Surface any balance left over after this relay. Zero under correct operation; non-zero means
@@ -459,26 +492,38 @@ contract RelayAdapterV2 is ReentrancyGuard {
         } else {
             (bool callSuccess, bytes memory returnData) =
                 token.call(abi.encodeCall(IERC20.transfer, (account, amount)));
-            success =
-                callSuccess && (returnData.length == 0 || (returnData.length >= 32 && abi.decode(returnData, (bool))));
+            // NOT abi.decode(returnData,(bool)): the ABI decoder PANICS on a 32-byte word that is not 0 or
+            // 1, so a length guard alone cannot keep this helper from reverting. Read the raw word instead;
+            // any non-`1` payload simply reads as failure and escrows, which is this helper's contract.
+            success = callSuccess && (returnData.length == 0 || (returnData.length >= 32 && _isTrueWord(returnData)));
         }
     }
 
-    /// @notice The amount the signed intent commits to for `tokenSent`, or 0 when it names none.
-    /// @dev `dstTokens`/`intentAmounts` are both inside the signed leaf, so this bound is authenticated.
-    function _signedAmountFor(ExtractedData memory extracted, address tokenSent) internal pure returns (uint256) {
-        uint256 len = extracted.dstTokens.length;
-        if (len != extracted.intentAmounts.length) return 0;
-        for (uint256 i; i < len; ++i) {
-            if (extracted.dstTokens[i] == tokenSent) return extracted.intentAmounts[i];
+    /// @dev Reads the first return word without abi.decode, so a non-boolean word yields false, never a panic.
+    function _isTrueWord(bytes memory data) private pure returns (bool isTrue) {
+        bytes32 word;
+        assembly {
+            word := mload(add(data, 32))
         }
-        return 0;
+        return word == bytes32(uint256(1));
+    }
+
+    /// @notice Whether the signed intent names `tokenSent` with a non-zero minimum amount.
+    /// @dev `dstTokens`/`intentAmounts` are inside the signed leaf, so this binding is authenticated.
+    ///      Caller has already rejected a length mismatch, so indexing intentAmounts by i is safe.
+    function _intentNamesToken(ExtractedData memory extracted, address tokenSent) internal pure returns (bool) {
+        uint256 len = extracted.dstTokens.length;
+        for (uint256 i; i < len; ++i) {
+            if (extracted.dstTokens[i] == tokenSent && extracted.intentAmounts[i] != 0) return true;
+        }
+        return false;
     }
 
     /// @notice Extract the DstProof entry matching this chain.
     function _extractFromSigData(bytes memory sigDataRaw) internal view returns (ExtractedData memory extracted) {
-        (,,,,, ISuperValidator.DstProof[] memory proofDst,) =
+        (,,, bytes32 merkleRoot,, ISuperValidator.DstProof[] memory proofDst,) =
             abi.decode(sigDataRaw, (uint64[], uint48, uint48, bytes32, bytes32[], ISuperValidator.DstProof[], bytes));
+        extracted.merkleRoot = merkleRoot;
 
         uint64 currentChain = uint64(block.chainid);
         uint256 len = proofDst.length;

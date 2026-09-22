@@ -115,8 +115,8 @@ contract RelayAdapterV2PigeonE2E is RelayFillHelper, MerkleTreeHelper {
             uint64(block.chainid),
             acct,
             address(executor),
-            new address[](0),
-            new uint256[](0),
+            _tokens(),
+            _mins(),
             validUntil,
             address(validator)
         );
@@ -143,12 +143,23 @@ contract RelayAdapterV2PigeonE2E is RelayFillHelper, MerkleTreeHelper {
             info: ISuperValidator.DstInfo({
                 account: acct,
                 executor: address(executor),
-                dstTokens: new address[](0),
-                intentAmounts: new uint256[](0),
+                dstTokens: _tokens(),
+                intentAmounts: _mins(),
                 validator: address(validator),
                 data: bytes("")
             })
         });
+    }
+
+    /// @dev The intent must name the delivered token (USDC on Base) with a non-zero MINIMUM.
+    function _tokens() private pure returns (address[] memory a) {
+        a = new address[](1);
+        a[0] = USDC_BASE;
+    }
+
+    function _mins() private pure returns (uint256[] memory m) {
+        m = new uint256[](1);
+        m[0] = 1;
     }
 
     function _chains() private view returns (uint64[] memory c) {

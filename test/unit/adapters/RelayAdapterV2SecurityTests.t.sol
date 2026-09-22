@@ -23,6 +23,12 @@ contract MockExecutor {
         SUPER_DESTINATION_VALIDATOR = validator_;
     }
 
+    bool public shouldRevert;
+    bool public shouldReturnbomb;
+
+    function setShouldRevert(bool v) external { shouldRevert = v; }
+    function setShouldReturnbomb(bool v) external { shouldReturnbomb = v; }
+
     function processBridgedExecution(
         address,
         address account,
@@ -32,10 +38,20 @@ contract MockExecutor {
         bytes memory,
         bytes memory
     ) external {
+        if (shouldReturnbomb) {
+            // 100KB of revert data: a `catch (bytes memory)` would OOG copying it; a bare catch must not.
+            assembly {
+                revert(0, 102400)
+            }
+        }
+        if (shouldRevert) revert("executor reverted");
         ++callCount;
         lastAccount = account;
     }
 }
+
+/// @notice A contract that cannot receive ETH.
+contract NoReceive { }
 
 /// @notice Minimal code so `account.code.length > 0` passes the account existence check.
 contract AccountStub {
@@ -58,6 +74,20 @@ contract ShortReturnToken {
             mstore(0, 1)
             return(0, 1) // 1 byte: non-empty but undecodable as bool
         }
+    }
+}
+
+/// @notice A token whose `transfer` returns a 32-byte word that is NOT a valid bool (here `2`).
+/// @dev `abi.decode(bytes,(bool))` PANICS on this; a length guard alone does not help.
+contract NonBoolWordToken {
+    mapping(address => uint256) public balanceOf;
+
+    function mint(address to, uint256 amt) external {
+        balanceOf[to] += amt;
+    }
+
+    function transfer(address, uint256) external pure returns (uint256) {
+        return 2;
     }
 }
 
@@ -132,13 +162,42 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
         return abi.encodePacked(r, s, v);
     }
 
-    /// @dev Builds a genuinely valid message for `acct` — real leaf, real merkle root, real signature.
+    /// @dev Builds a genuinely valid message for `acct`, signed for ERC20 `token` — real leaf, real merkle
+    ///      root, real signature. The intent names the token with a non-zero MINIMUM (1 wei), which is all
+    ///      the adapter requires; `intentAmounts` is a floor, not a cap.
     function _validMessage(address acct) internal view returns (bytes memory) {
-        return _messageFor(acct, address(executor), address(validator), validUntil);
+        return _validMessageForToken(acct, address(token));
     }
 
-    function _messageFor(
+    /// @dev Same, signed for native ETH (dstTokens entry address(0)).
+    function _validMessageNative(address acct) internal view returns (bytes memory) {
+        return _validMessageForToken(acct, address(0));
+    }
+
+    /// @dev Same, signed for an arbitrary token.
+    function _validMessageForToken(address acct, address tok) internal view returns (bytes memory) {
+        return _messageForTok(acct, tok, 1, address(executor), address(validator), validUntil);
+    }
+
+    /// @dev Same, signed for a specific MINIMUM amount of `token`.
+    function _validMessageForAmount(address acct, uint256 signedMinimum) internal view returns (bytes memory) {
+        return _messageForTok(acct, address(token), signedMinimum, address(executor), address(validator), validUntil);
+    }
+
+    /// @dev Backwards-compatible wrapper used by the expiry / mismatch / initData tests.
+    function _messageFor(address acct, address proofExecutor, address proofValidator, uint48 until)
+        internal
+        view
+        returns (bytes memory)
+    {
+        return _messageForTok(acct, address(token), 1, proofExecutor, proofValidator, until);
+    }
+
+    /// @dev The single real-signature builder every helper above routes through.
+    function _messageForTok(
         address acct,
+        address tok,
+        uint256 minAmount,
         address proofExecutor,
         address proofValidator,
         uint48 until
@@ -147,20 +206,29 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
         view
         returns (bytes memory)
     {
-        address[] memory dstTokens = new address[](0);
-        uint256[] memory intentAmounts = new uint256[](0);
-        bytes memory executorCalldata = bytes("");
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = tok;
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = minAmount;
+        return _messageWithArrays(acct, dstTokens, intentAmounts, proofExecutor, proofValidator, until);
+    }
 
+    /// @dev Lowest-level builder: caller supplies the exact (dstTokens, intentAmounts) pair to sign.
+    function _messageWithArrays(
+        address acct,
+        address[] memory dstTokens,
+        uint256[] memory intentAmounts,
+        address proofExecutor,
+        address proofValidator,
+        uint48 until
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _createDestinationValidatorLeaf(
-            executorCalldata,
-            uint64(block.chainid),
-            acct,
-            address(executor),
-            dstTokens,
-            intentAmounts,
-            until,
-            address(validator)
+            bytes(""), uint64(block.chainid), acct, address(executor), dstTokens, intentAmounts, until, address(validator)
         );
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -174,62 +242,13 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
                 dstTokens: dstTokens,
                 intentAmounts: intentAmounts,
                 validator: proofValidator,
-                data: executorCalldata
-            })
-        });
-
-        uint64[] memory chains = new uint64[](1);
-        chains[0] = uint64(block.chainid);
-
-        bytes memory sigData =
-            abi.encode(chains, until, uint48(0), root, new bytes32[](0), proofDst, _sign(root));
-        return abi.encode(bytes(""), sigData);
-    }
-
-    /// @dev A valid message whose signed intent is for `signedIntentAmount` of `token`.
-    function _validMessageForAmount(address acct, uint256 signedIntentAmount)
-        internal
-        view
-        returns (bytes memory)
-    {
-        address[] memory dstTokens = new address[](1);
-        dstTokens[0] = address(token);
-        uint256[] memory intentAmounts = new uint256[](1);
-        intentAmounts[0] = signedIntentAmount;
-
-        bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createDestinationValidatorLeaf(
-            bytes(""),
-            uint64(block.chainid),
-            acct,
-            address(executor),
-            dstTokens,
-            intentAmounts,
-            validUntil,
-            address(validator)
-        );
-        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
-
-        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
-        proofDst[0] = ISuperValidator.DstProof({
-            proof: proof[0],
-            dstChainId: uint64(block.chainid),
-            info: ISuperValidator.DstInfo({
-                account: acct,
-                executor: address(executor),
-                dstTokens: dstTokens,
-                intentAmounts: intentAmounts,
-                validator: address(validator),
                 data: bytes("")
             })
         });
-
         uint64[] memory chains = new uint64[](1);
         chains[0] = uint64(block.chainid);
-
         return abi.encode(
-            bytes(""),
-            abi.encode(chains, validUntil, uint48(0), root, new bytes32[](0), proofDst, _sign(root))
+            bytes(""), abi.encode(chains, until, uint48(0), root, new bytes32[](0), proofDst, _sign(root))
         );
     }
 
@@ -349,7 +368,7 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
     function test_Legit_NativeDelivery() public {
         vm.deal(address(adapter), 1 ether);
 
-        adapter.processRelayExecution(address(0), 1 ether, _validMessage(account));
+        adapter.processRelayExecution(address(0), 1 ether, _validMessageNative(account));
 
         assertEq(account.balance, 1 ether, "native delivered");
     }
@@ -459,7 +478,7 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
         ShortReturnToken weird = new ShortReturnToken();
         weird.mint(address(adapter), 100e18);
 
-        adapter.processRelayExecution(address(weird), 100e18, _validMessage(account));
+        adapter.processRelayExecution(address(weird), 100e18, _validMessageForToken(account, address(weird)));
 
         assertEq(adapter.failedTransfers(account, address(weird)), 100e18, "escrowed, not panicked");
         assertEq(adapter.totalEscrowed(address(weird)), 100e18, "escrow accounted");
@@ -617,54 +636,6 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
         assertEq(token.balanceOf(account), 0, "the intended recipient got nothing");
     }
 
-    /// @notice The transfer is now capped at the amount the SIGNED intent commits to for this token.
-    /// @dev `amount` is caller-supplied and not in the signed leaf, so without this cap the signature
-    ///      would authenticate WHO is paid but not HOW MUCH — a 1-token intent could move an entire
-    ///      resting balance. `intentAmounts` is signed, so it bounds the transfer for free.
-    function test_Capped_SignedIntentBoundsTheTransfer() public {
-        token.mint(address(adapter), 1000e18); // large resting balance
-
-        bytes memory smallIntent = _validMessageForAmount(attackerAccount, 1e18);
-
-        vm.prank(attacker);
-        vm.expectRevert(RelayAdapterV2.AMOUNT_EXCEEDS_SIGNED_INTENT.selector);
-        adapter.processRelayExecution(address(token), 1000e18, smallIntent);
-
-        assertEq(token.balanceOf(attackerAccount), 0, "cannot exceed the signed amount");
-        assertEq(token.balanceOf(address(adapter)), 1000e18, "resting balance untouched");
-    }
-
-    /// @notice Claiming exactly the signed amount still works.
-    function test_Capped_ExactSignedAmountIsAllowed() public {
-        token.mint(address(adapter), 1000e18);
-        bytes memory intent = _validMessageForAmount(account, 250e18);
-
-        adapter.processRelayExecution(address(token), 250e18, intent);
-
-        assertEq(token.balanceOf(account), 250e18, "exact signed amount delivered");
-        assertEq(token.balanceOf(address(adapter)), 750e18, "the rest stays put");
-    }
-
-    /// @notice Claiming less than the signed amount is allowed (under-delivery by the solver).
-    function test_Capped_LessThanSignedAmountIsAllowed() public {
-        token.mint(address(adapter), 1000e18);
-        bytes memory intent = _validMessageForAmount(account, 250e18);
-
-        adapter.processRelayExecution(address(token), 100e18, intent);
-        assertEq(token.balanceOf(account), 100e18, "partial delivery permitted");
-    }
-
-    /// @notice An intent naming no amount for this token is left unconstrained — unchanged behaviour.
-    /// @dev `intentAmounts` is a MINIMUM-balance requirement for the executor, so an intent may
-    ///      legitimately omit it. The cap is derived only when it exists; this case is not worsened.
-    function test_Capped_NoSignedAmountForTokenLeavesItUnconstrained() public {
-        token.mint(address(adapter), 1000e18);
-
-        // _validMessage uses empty dstTokens/intentAmounts, so no cap is derivable.
-        adapter.processRelayExecution(address(token), 1000e18, _validMessage(account));
-        assertEq(token.balanceOf(account), 1000e18, "unconstrained when the intent names no amount");
-    }
-
     /// @notice A leftover spendable balance is surfaced for monitoring.
     function test_Capped_RetainedBalanceIsEmitted() public {
         token.mint(address(adapter), 1000e18);
@@ -673,6 +644,262 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
         vm.expectEmit(true, false, false, true);
         emit RelayAdapterV2.SpendableBalanceRetained(address(token), 100e18);
         adapter.processRelayExecution(address(token), 900e18, intent);
+    }
+
+    /// @notice REGRESSION (found by CI review): a signer could DISABLE the amount cap by signing a
+    ///         deliberately length-mismatched (dstTokens, intentAmounts) pair — `_signedAmountFor`
+    ///         returned 0 and the caller treated that as "no cap". The signature check only proves the
+    ///         pair is what was signed, not that lengths agree, and the executor's own length check
+    ///         runs AFTER the transfer inside a swallowed try/catch. Now rejected before any transfer.
+    function test_Capped_LengthMismatchRejectedBeforeTransfer() public {
+        token.mint(address(adapter), 1000e18); // large resting balance
+
+        // Signed intent: dstTokens names the token but intentAmounts is EMPTY (mismatched lengths).
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(token);
+        uint256[] memory intentAmounts = new uint256[](0);
+
+        bytes32[] memory leaves = new bytes32[](1);
+        leaves[0] = _createDestinationValidatorLeaf(
+            bytes(""), uint64(block.chainid), attackerAccount, address(executor),
+            dstTokens, intentAmounts, validUntil, address(validator)
+        );
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
+        proofDst[0] = ISuperValidator.DstProof({
+            proof: proof[0],
+            dstChainId: uint64(block.chainid),
+            info: ISuperValidator.DstInfo({
+                account: attackerAccount, executor: address(executor),
+                dstTokens: dstTokens, intentAmounts: intentAmounts,
+                validator: address(validator), data: bytes("")
+            })
+        });
+        uint64[] memory chains = new uint64[](1);
+        chains[0] = uint64(block.chainid);
+        bytes memory message = abi.encode(
+            bytes(""), abi.encode(chains, validUntil, uint48(0), root, new bytes32[](0), proofDst, _sign(root))
+        );
+
+        vm.prank(attacker);
+        vm.expectRevert(RelayAdapterV2.ARRAY_LENGTH_MISMATCH.selector);
+        adapter.processRelayExecution(address(token), 1000e18, message);
+
+        assertEq(token.balanceOf(attackerAccount), 0, "mismatched pair cannot move funds");
+        assertEq(token.balanceOf(address(adapter)), 1000e18, "resting balance untouched");
+    }
+
+    /// @notice REGRESSION (CI review #3): a 32-byte non-boolean return word must escrow, not panic.
+    function test_Regression_NonBoolReturnWordEscrowsInsteadOfPanicking() public {
+        NonBoolWordToken weird = new NonBoolWordToken();
+        weird.mint(address(adapter), 100e18);
+
+        adapter.processRelayExecution(address(weird), 100e18, _validMessageForToken(account, address(weird)));
+
+        assertEq(adapter.failedTransfers(account, address(weird)), 100e18, "escrowed, not panicked");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              REVIEW REGRESSIONS: intentAmounts IS A MINIMUM
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice REGRESSION (review F1): `intentAmounts` is the MINIMUM acceptable fill, so a fill delivered
+    ///         ABOVE it must succeed. An earlier revision capped the transfer at it and would have
+    ///         reverted every normal fill above the slippage floor, unwinding the solver's whole batch.
+    function test_F1_FillAboveSignedMinimumSucceeds() public {
+        token.mint(address(adapter), 100e18);
+        bytes memory intent = _validMessageForAmount(account, 99e18); // quote output minus fees/slippage
+
+        adapter.processRelayExecution(address(token), 100e18, intent); // solver delivers 100
+
+        assertEq(token.balanceOf(account), 100e18, "fill above the signed minimum is delivered in full");
+        assertEq(token.balanceOf(address(adapter)), 0, "nothing left resting");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    ONE DELIVERY PER SIGNED INTENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice A signed intent can be delivered against exactly once — replay to absorb resting funds
+    ///         is rejected, regardless of how the executor behaved the first time.
+    function test_OneShot_SameIntentCannotBeReplayed() public {
+        token.mint(address(adapter), 1000e18);
+        bytes memory intent = _validMessage(account);
+
+        adapter.processRelayExecution(address(token), 400e18, intent);
+        assertEq(token.balanceOf(account), 400e18, "first delivery");
+
+        vm.expectRevert(RelayAdapterV2.INTENT_ALREADY_DELIVERED.selector);
+        adapter.processRelayExecution(address(token), 400e18, intent);
+        assertEq(token.balanceOf(address(adapter)), 600e18, "replay moved nothing");
+    }
+
+    /// @notice Replay is still rejected when the executor REVERTED on the first delivery (the case that
+    ///         leaves the executor's own merkle-root guard rolled back).
+    function test_OneShot_HoldsEvenWhenExecutorReverted() public {
+        token.mint(address(adapter), 1000e18);
+        executor.setShouldRevert(true);
+        bytes memory intent = _validMessage(account);
+
+        adapter.processRelayExecution(address(token), 400e18, intent); // transfer lands, execution fails
+        assertEq(token.balanceOf(account), 400e18, "funds delivered despite executor revert");
+
+        vm.expectRevert(RelayAdapterV2.INTENT_ALREADY_DELIVERED.selector);
+        adapter.processRelayExecution(address(token), 400e18, intent);
+    }
+
+    /// @notice The one-shot flag is written BEFORE the transfer but inside the same frame, so a later
+    ///         revert (gas floor) unwinds it and the intent remains usable with adequate gas.
+    function test_OneShot_FlagUnwindsWithARevert() public {
+        token.mint(address(adapter), 100e18);
+        bytes memory intent = _validMessage(account);
+
+        vm.expectRevert(RelayAdapterV2.INSUFFICIENT_GAS.selector);
+        adapter.processRelayExecution{ gas: 400_000 }(address(token), 100e18, intent);
+
+        adapter.processRelayExecution(address(token), 100e18, intent); // same intent, full gas
+        assertEq(token.balanceOf(account), 100e18, "intent still usable after the unwound attempt");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                  TOKEN BINDING: intent must name tokenSent
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice REGRESSION (review F2): a self-signed intent with EMPTY dstTokens cannot be paid in any
+    ///         token resting here.
+    function test_TokenBinding_EmptyDstTokensRejected() public {
+        token.mint(address(adapter), 1000e18);
+        bytes memory intent = _messageWithArrays(
+            attackerAccount, new address[](0), new uint256[](0), address(executor), address(validator), validUntil
+        );
+
+        vm.prank(attacker);
+        vm.expectRevert(RelayAdapterV2.TOKEN_NOT_IN_SIGNED_INTENT.selector);
+        adapter.processRelayExecution(address(token), 1000e18, intent);
+        assertEq(token.balanceOf(attackerAccount), 0, "nothing moved");
+    }
+
+    /// @notice An intent signed for one token cannot pull a different token.
+    function test_TokenBinding_WrongTokenRejected() public {
+        MockERC20 other = new MockERC20("Other", "OTH", 18);
+        other.mint(address(adapter), 1000e18);
+
+        bytes memory signedForToken = _validMessage(account); // hoisted: builder makes an external call
+        vm.expectRevert(RelayAdapterV2.TOKEN_NOT_IN_SIGNED_INTENT.selector);
+        adapter.processRelayExecution(address(other), 1000e18, signedForToken); // signed for `token`
+    }
+
+    /// @notice A zero minimum for the token is not a real intent to receive it.
+    function test_TokenBinding_ZeroMinimumRejected() public {
+        token.mint(address(adapter), 1000e18);
+        bytes memory intent = _validMessageForAmount(account, 0);
+
+        vm.expectRevert(RelayAdapterV2.TOKEN_NOT_IN_SIGNED_INTENT.selector);
+        adapter.processRelayExecution(address(token), 1000e18, intent);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                  ESCROW LEDGER ABOVE LIVE BALANCE (F6)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice REGRESSION (review F6): if the live balance drops below the escrow ledger (negative rebase),
+    ///         the spendable subtraction must fail cleanly, not Panic(0x11) on every call for that token.
+    function test_F6_EscrowAboveBalanceFailsCleanlyNotPanic() public {
+        token.mint(address(adapter), 100e18);
+        vm.mockCall(address(token), abi.encodeWithSelector(IERC20.transfer.selector, account), abi.encode(false));
+        adapter.processRelayExecution(address(token), 100e18, _validMessage(account)); // escrows 100
+        vm.clearMockedCalls();
+        assertEq(adapter.totalEscrowed(address(token)), 100e18, "escrowed");
+
+        deal(address(token), address(adapter), 50e18); // simulate a negative rebase below the ledger
+
+        bytes memory fresh = _validMessageForAmount(account, 2); // hoisted: builder makes an external call
+        vm.expectRevert(RelayAdapterV2.INSUFFICIENT_FUNDS_RECEIVED.selector); // NOT a panic
+        adapter.processRelayExecution(address(token), 1, fresh);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+              PORTED FROM V1 SUITE (review F10: no V2 counterparts)
+    //////////////////////////////////////////////////////////////*/
+
+    function test_Claim_ZeroAmountReverts() public {
+        vm.prank(account);
+        vm.expectRevert(RelayAdapterV2.ZERO_AMOUNT.selector);
+        adapter.claimFailedTransfer(address(token), 0);
+    }
+
+    function test_Claim_OverClaimReverts() public {
+        token.mint(address(adapter), 100e18);
+        vm.mockCall(address(token), abi.encodeWithSelector(IERC20.transfer.selector, account), abi.encode(false));
+        adapter.processRelayExecution(address(token), 100e18, _validMessage(account));
+        vm.clearMockedCalls();
+
+        vm.prank(account);
+        vm.expectRevert(RelayAdapterV2.INSUFFICIENT_FAILED_BALANCE.selector);
+        adapter.claimFailedTransfer(address(token), 100e18 + 1);
+    }
+
+    /// @notice Escrow is keyed per account: one account can never claim another's.
+    function test_Claim_IsolatedPerAccount() public {
+        token.mint(address(adapter), 100e18);
+        vm.mockCall(address(token), abi.encodeWithSelector(IERC20.transfer.selector, account), abi.encode(false));
+        adapter.processRelayExecution(address(token), 100e18, _validMessage(account));
+        vm.clearMockedCalls();
+
+        vm.prank(attackerAccount);
+        vm.expectRevert(RelayAdapterV2.INSUFFICIENT_FAILED_BALANCE.selector);
+        adapter.claimFailedTransfer(address(token), 100e18);
+
+        vm.prank(account);
+        adapter.claimFailedTransfer(address(token), 100e18);
+        assertEq(token.balanceOf(account), 100e18, "only the rightful account can claim");
+    }
+
+    /// @notice A native delivery to a non-payable account escrows rather than reverting the relay.
+    function test_Native_NonPayableAccountEscrows() public {
+        address nonPayable = address(new NoReceive());
+        vm.prank(nonPayable);
+        validator.onInstall(abi.encode(owner));
+        vm.deal(address(adapter), 1 ether);
+
+        adapter.processRelayExecution(address(0), 1 ether, _validMessageNative(nonPayable));
+
+        assertEq(adapter.failedTransfers(nonPayable, address(0)), 1 ether, "escrowed for the account");
+        assertEq(address(adapter).balance, 1 ether, "held pending claim");
+    }
+
+    /// @notice A non-payable claimer cannot withdraw native escrow; the ledger is left intact.
+    function test_Claim_NonPayableNativeClaimerReverts() public {
+        address nonPayable = address(new NoReceive());
+        vm.prank(nonPayable);
+        validator.onInstall(abi.encode(owner));
+        vm.deal(address(adapter), 1 ether);
+        adapter.processRelayExecution(address(0), 1 ether, _validMessageNative(nonPayable));
+
+        vm.prank(nonPayable);
+        vm.expectRevert(RelayAdapterV2.ETH_TRANSFER_FAILED.selector);
+        adapter.claimFailedTransfer(address(0), 1 ether);
+        assertEq(adapter.failedTransfers(nonPayable, address(0)), 1 ether, "ledger untouched");
+    }
+
+    /// @notice A returnbombing executor cannot OOG the relay: the bare catch never copies revert data.
+    function test_Executor_ReturnbombContained() public {
+        token.mint(address(adapter), 100e18);
+        executor.setShouldReturnbomb(true);
+
+        adapter.processRelayExecution{ gas: 3_000_000 }(address(token), 100e18, _validMessage(account));
+        assertEq(token.balanceOf(account), 100e18, "funds delivered despite a 100KB revert payload");
+    }
+
+    /// @notice Garbage messages never move funds — they fail to decode before any transfer.
+    function testFuzz_GarbageMessageNeverMovesFunds(bytes calldata garbage) public {
+        token.mint(address(adapter), 100e18);
+        vm.assume(garbage.length < 4096);
+
+        vm.expectRevert();
+        adapter.processRelayExecution(address(token), 100e18, garbage);
+        assertEq(token.balanceOf(address(adapter)), 100e18, "resting balance untouched");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -778,8 +1005,8 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
 
         vm.clearMockedCalls();
 
-        // Even a VALID intent cannot spend the escrowed balance.
-        bytes memory valid = _validMessage(account);
+        // Even a VALID (and distinct — different root) intent cannot spend the escrowed balance.
+        bytes memory valid = _validMessageForAmount(account, 2);
         vm.expectRevert(RelayAdapterV2.INSUFFICIENT_FUNDS_RECEIVED.selector);
         adapter.processRelayExecution(address(token), 1000e18, valid);
 
@@ -788,25 +1015,6 @@ contract RelayAdapterV2SecurityTests is MerkleTreeHelper {
         adapter.claimFailedTransfer(address(token), 1000e18);
         assertEq(token.balanceOf(account), 1000e18, "claimed");
         assertEq(adapter.totalEscrowed(address(token)), 0, "accounting cleared");
-    }
-
-    /// @notice A valid signature is reusable, so the balance guard is what bounds how much it can move.
-    /// @dev Documents an intentional property: the merkle-root replay guard lives in the executor, not
-    ///      here. A second call only succeeds if the adapter still holds unescrowed funds — i.e. the
-    ///      holder of a signed intent can sweep their OWN additional resting fills, never anyone else's.
-    function test_Edge_ValidSignatureReusableBoundedByBalance() public {
-        token.mint(address(adapter), 1000e18);
-
-        adapter.processRelayExecution(address(token), 600e18, _validMessage(account));
-        assertEq(token.balanceOf(account), 600e18, "first delivery");
-
-        adapter.processRelayExecution(address(token), 400e18, _validMessage(account));
-        assertEq(token.balanceOf(account), 1000e18, "second delivery drained the rest");
-
-        // Nothing left: the guard stops a third.
-        bytes memory valid = _validMessage(account);
-        vm.expectRevert(RelayAdapterV2.INSUFFICIENT_FUNDS_RECEIVED.selector);
-        adapter.processRelayExecution(address(token), 1, valid);
     }
 
     /// @notice Zero amount and stray msg.value are rejected.
