@@ -179,3 +179,16 @@ See: [research/](./research/) — repo-analysis · framework-docs · evm-securit
 ## Next Steps
 Run Phase 0 (payload-size gate) before approving scope. Then:
 `/superform:work specs/cctp-destination-adapter/technical-spec.md`
+
+## SuperVault guardrail (from PR #1015 review, G1)
+
+`CCTPSendHook.inspect()` returns only `(burnToken, mintRecipient)`. With `mintRecipient = CCTPAdapter` that pins
+**nothing** about the beneficiary: the adapter forwards to `hookData.account`, and neither that field nor
+`destinationCaller` is inspected. A manager holding an allow-listed `(USDC, CCTPAdapter)` leaf could name their
+own account as the beneficiary, or strand the funds with a third-party `destinationCaller`.
+
+Activation rules:
+1. **Never allow-list the plain CCTP send hooks with `mintRecipient = CCTPAdapter`** in any global or strategy root.
+2. Before CCTP carries SuperVault allocations (e.g. Arc spokes), add a `SuperVaultCCTPCapBridgeHook` in v2-periphery
+   that requires `destinationCaller == mintRecipient == an approved adapter` and binds `account` and the typed
+   destination action, as the existing Across/deBridge/Stargate cap hooks do.

@@ -154,3 +154,24 @@ exercise the USDC branch through the real registry. A real non-USDC mint E2E on 
   for the canonical pair (`CCTP_DOMAIN_ETHEREUM = 0` / `CCTP_DOMAIN_BASE = 6` in Constants.sol) so a wrong
   local-USDC config cannot deploy an adapter that escrows every intent.
 - NatSpec: `checkDestinationTargets` mismatch semantics; `ExecutionFailed` executor event names.
+
+## Real-executor E2E (2026-09-23)
+`test/integration/cctp/CCTPAdapterRealExecutorE2E.t.sol` — the CCTP counterpart of `RelayAdapterV2RealExecutorE2E`:
+real burn/attestation through the real executor + validator (6 tests; see the security report addendum).
+Gotcha: `setUp` ends on the Ethereum fork; anything that reads a Base-side contract (e.g. `validator.namespace()`
+while signing) must `vm.selectFork(baseFork)` first.
+
+## Round 7 (2026-09-23): PR #1015 review — F1/F2/I1/I2 in code, T1 tests, runbook
+
+- `destinationCaller = 0` is accepted (F1) and a burn pinned to the adapter but minting elsewhere is passed
+  through (F2); both emit `MisconfiguredMessageRelayed(kind)` — alert on it, it means the SDK produced a message
+  it never should have. `ExecutionFailed` now carries the bounded 4-byte revert selector (I2).
+- **Runbook — execution failed / gas-starved relay:** the USDC is already at the account and the root is unused.
+  Re-drive directly: `SuperDestinationExecutor.processBridgedExecution(USDC, account, dstTokens, intentAmounts,
+  "", executorCalldata, sigData)` with the payload decoded from the attested message (public). Permissionless;
+  valid until the signature's `validUntil`. Pinned by `test_Real_ExecutorRevert_ReDriveDirectlyOnExecutor`.
+- **Runbook — SDK sizing:** fast transfers mint `amount − feeExecuted`; size `intentAmounts` against
+  `amount − maxFee` or the intent silently no-ops (`test_Real_FastTransferFee_*`).
+- **Runbook — HyperEVM:** a relay needs 2M gas + `receiveMessage` overhead — above the small-block limit; relayers
+  must use big blocks. Arc (5042) is not in the CCTP config block yet: verify Circle's Arc addresses against the
+  deploy `require`s before enabling.

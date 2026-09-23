@@ -514,3 +514,30 @@ mints are handled by delta measurement.
 CCTP unit 49 · size-gate 6 · integration 46 · script 6 (incl. parity) — green. Bytecode regenerated
 (NatSpec-only; deployed 9021 B). Generic orchestrator already acts as the scoped deploy for CCTP (all other
 core contracts are deployed), so no `runCCTPAdapter` entrypoint is needed.
+
+## Addendum (2026-09-23): real-executor coverage
+Every CCTP suite drove a mock executor until now. `test/integration/cctp/CCTPAdapterRealExecutorE2E.t.sol`
+(6 tests) runs a real Ethereum burn → real attestation → `CCTPAdapter` → the REAL `SuperDestinationExecutor`
++ `SuperDestinationValidator` on a Base fork with a real owner signature: valid intent executes hooks and
+consumes the root; DstProof naming another executor → delivered, skipped, root untouched; tampered
+`intentAmounts` → delivered, the real validator's `INVALID_PROOF` is caught, root preserved; undecodable
+hookData and account-0 → escrow to the attested burner (`depositor`), who claims on Base; a REAL Base USDC
+blacklist (via `blacklister()`) turns delivery into escrow that clears on `unBlacklist`. CCTP integration: 52.
+
+---
+
+# Round 7 — Response to PR #1015 review (2026-09-23, reviewer round 1)
+
+| ID | Finding | Disposition |
+|---|---|---|
+| F1 (P3) | Rejecting `destinationCaller = 0` cannot stop a direct transmitter call (the transmitter enforces the field only when non-zero) but removes the one saving outcome — the honest relayer arriving first. | **FIXED** — zero accepted alongside `self`; any other value still `DESTINATION_CALLER_MISMATCH`. Flagged by `MisconfiguredMessageRelayed(kind = 1)`. Tests: `test_F1_DestinationCallerZero_AcceptedAndDelivered`, `test_F1_DestinationCallerThirdParty_Rejected`. |
+| F2 (P3) | `destinationCaller = adapter` + `mintRecipient ≠ adapter`: only the adapter can ever relay it and it reverted → stranded forever; realistic via a half-migrated SDK (old `mintRecipient = account`, new caller). | **FIXED** — pass-through: `receiveMessage` is called and Circle mints straight to `mintRecipient`; adapter balances untouched; `MisconfiguredMessageRelayed(kind = 2)`. A message minting elsewhere that is NOT pinned to us stays `MINT_RECIPIENT_MISMATCH`. Tests: `test_F2_PinnedButMintsElsewhere_PassedThrough`, `test_F2_MintsElsewhere_NotPinned_Rejected`. |
+| G1 (guardrail) | Plain CCTP send hooks `inspect()` only `(burnToken, mintRecipient)`; with `mintRecipient = CCTPAdapter` the beneficiary (`hookData.account`) and `destinationCaller` are unbound, so an allow-listed leaf pins nothing for SuperVault managers. | **ACCEPTED as activation rule** (spec § "SuperVault guardrail"): never allow-list the plain CCTP send hooks with `mintRecipient = CCTPAdapter` in any global/strategy root; a `SuperVaultCCTPCapBridgeHook` (requires `destinationCaller == mintRecipient == approved adapter`, binds `account` + typed action) is required before CCTP carries SuperVault allocations. Periphery work, not this PR. |
+| T1 (P3) | No E2E through the real executor + validator. | **FIXED** — `CCTPAdapterRealExecutorE2E` (10): valid intent executes + root consumed; DstProof mismatch → deliver/skip; tampered intent → real `INVALID_PROOF` caught, root preserved; undecodable hookData / account 0 → escrow → claim; real Base USDC blacklist → escrow → unblacklist → claim; **first-time account created via `initData` through the real `SuperSenderCreator`, then executes**; **real fast-transfer fee** (`feeExecuted` stamped, Circle mints `amount − fee`): intent sized against `amount − maxFee` executes, intent sized at `amount` silently no-ops (root unused); **failed execution re-driven directly on the executor**. |
+| I1 (info) | Gas-floor NatSpec overstated "one-shot": starvation past the floor is recoverable by a direct, permissionless `processBridgedExecution` (funds at the account, root unused, payload public). | **FIXED** (NatSpec) + runbook entry in IMPLEMENTATION-NOTES. Residual: intents needing > ~1.97M gas are griefable into a *delayed* execution. |
+| I2 (info) | Bare catch drops the revert reason (31 Aug Across incident). | **FIXED** — `ExecutionFailed(address account, bytes4 selector)`: bounded 4-byte `returndatacopy` inside the bare catch (AcrossV3AdapterV2 pattern); unlike Across, an empty reason does not revert the relay. |
+| I3 (info) | Arc (5042) absent from the CCTP config block; HyperEVM needs big blocks for a 2M-gas relay. | **DEFERRED / documented.** Arc's CCTP V2 addresses could not be verified from this environment (no Arc RPC configured); the deploy `require`s (`localMessageTransmitter`, minter, USDC pair) fail loudly if a chain is enabled with wrong config. HyperEVM note added to the runbook. |
+| I4 (info) | Early-execution race for pre-funded accounts during the finality window (root consumed early, bridged USDC lands idle). | **ACCEPTED** — inherited V2 "root-processed marking can be front-run" item; CCTP widens the window. |
+| I5 (info) | Escrow to `messageSender` is claimable only if that address is controllable on the destination (deterministic Superform accounts: yes; a Safe/hub strategy without a destination twin: no; no admin rescue by design). | **ACCEPTED / documented**; `ClaimFailedTransferHook` works with this adapter (same selector). |
+
+Status after Round 7: unit 45 · size-gate 6 · integration 56 · script parity 1 — green. Bytecode regenerated.

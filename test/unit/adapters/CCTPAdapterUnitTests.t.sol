@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { CCTPAdapter } from "../../../src/adapters/CCTPAdapter.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
@@ -184,6 +185,7 @@ contract CCTPAdapterUnitTests is Test {
 
     event TransferFailed(address indexed account, address indexed token, uint256 amount);
     event NonUsdcMintEscrowed(address indexed messageSender, address indexed token, uint256 amount);
+    event MisconfiguredMessageRelayed(uint8 indexed kind, bytes32 mintRecipient);
 
     address internal account = makeAddr("account");
 
@@ -199,6 +201,15 @@ contract CCTPAdapterUnitTests is Test {
     /// @dev A messenger wired to `transmitter_` and to a fresh minter whose every lookup resolves to `defaultToken`.
     function _newMessenger(address defaultToken, address transmitter_) internal returns (MockTokenMessengerV2) {
         return new MockTokenMessengerV2(address(new MockTokenMinterV2(defaultToken)), transmitter_);
+    }
+
+    /// @dev Re-stamps the header destinationCaller (offset 108).
+    function _withDestinationCaller(bytes memory message, address caller) internal pure returns (bytes memory) {
+        bytes32 c = bytes32(uint256(uint160(caller)));
+        for (uint256 i; i < 32; ++i) {
+            message[DESTINATION_CALLER_OFFSET + i] = c[i];
+        }
+        return message;
     }
 
     /// @dev Re-stamps the header recipient (offset 76) for adapters wired to an ad-hoc messenger.
@@ -371,9 +382,31 @@ contract CCTPAdapterUnitTests is Test {
         adapter.receiveAndExecute(new bytes(HOOKDATA_OFFSET - 1), "");
     }
 
-    function test_Revert_MintRecipientMismatch() public {
-        bytes memory message = _message(makeAddr("notAdapter"), account, 1e6);
+    /// @notice REGRESSION (review F2): pinned to this adapter (only we can relay it) but minting elsewhere —
+    ///         passed through so Circle mints to its own recipient; nothing forwarded, no execution.
+    function test_F2_PinnedButMintsElsewhere_PassedThrough() public {
+        address other = makeAddr("notAdapter");
+        // builder sets destinationCaller = mintRecipient; pin the caller back to this adapter
+        bytes memory message = _withDestinationCaller(_message(other, account, 1e6), address(adapter));
+        transmitter.setMintAmount(0); // the mock mints to msg.sender; a real transmitter mints to `other`
+
+        vm.expectEmit(true, false, false, true, address(adapter));
+        emit MisconfiguredMessageRelayed(2, bytes32(uint256(uint160(other))));
+        adapter.receiveAndExecute(message, "");
+
+        assertEq(transmitter.calls(), 1, "message consumed through the transmitter");
+        assertEq(executor.callCount(), 0, "no execution");
+        assertEq(adapter.failedTransfers(account, address(usdc)), 0, "nothing escrowed");
+    }
+
+    /// @notice Minting elsewhere WITHOUT being pinned to us is not ours to relay.
+    function test_F2_MintsElsewhere_NotPinned_Rejected() public {
+        bytes memory message = _withDestinationCaller(_message(makeAddr("notAdapter"), account, 1e6), address(0));
         vm.expectRevert(CCTPAdapter.MINT_RECIPIENT_MISMATCH.selector);
+        adapter.receiveAndExecute(message, "");
+        // ...and neither is one pinned to some third party
+        message = _withDestinationCaller(_message(makeAddr("notAdapter"), account, 1e6), makeAddr("someoneElse"));
+        vm.expectRevert(CCTPAdapter.DESTINATION_CALLER_MISMATCH.selector);
         adapter.receiveAndExecute(message, "");
     }
 
@@ -423,7 +456,7 @@ contract CCTPAdapterUnitTests is Test {
         bytes memory message = _message(address(adapter), account, 1000e6);
 
         vm.expectEmit(true, false, false, false);
-        emit CCTPAdapter.ExecutionFailed(account);
+        emit CCTPAdapter.ExecutionFailed(account, bytes4(keccak256("Error(string)")));
         adapter.receiveAndExecute(message, "");
 
         assertEq(usdc.balanceOf(account), 1000e6, "funds delivered despite executor revert");
@@ -450,7 +483,7 @@ contract CCTPAdapterUnitTests is Test {
 
         // Reentry into receiveAndExecute hits nonReentrant → reverts → caught → ExecutionFailed.
         vm.expectEmit(true, false, false, false);
-        emit CCTPAdapter.ExecutionFailed(account);
+        emit CCTPAdapter.ExecutionFailed(account, ReentrancyGuard.ReentrancyGuardReentrantCall.selector);
         adapter.receiveAndExecute(message, "");
         assertEq(usdc.balanceOf(account), 1000e6, "funds still delivered");
     }
@@ -738,15 +771,26 @@ contract CCTPAdapterUnitTests is Test {
     /// @dev MessageTransmitterV2 enforces the field only when non-zero, and CCTPSendHook:123 checks only
     ///      mintRecipient, so a zero destinationCaller would let ANY caller receive the message straight
     ///      through the transmitter and strand the mint in this adapter.
-    function test_Revert_DestinationCallerZero() public {
+    function test_F1_DestinationCallerZero_AcceptedAndDelivered() public {
         transmitter.setMintAmount(500e6);
-        bytes memory message = _message(address(adapter), account, 500e6);
-        for (uint256 i; i < 32; ++i) {
-            message[DESTINATION_CALLER_OFFSET + i] = bytes1(0);
-        }
+        bytes memory message = _withDestinationCaller(_message(address(adapter), account, 500e6), address(0));
 
+        vm.expectEmit(true, false, false, true, address(adapter));
+        emit MisconfiguredMessageRelayed(1, bytes32(uint256(uint160(address(adapter)))));
+        adapter.receiveAndExecute(message, "");
+
+        assertEq(usdc.balanceOf(account), 500e6, "delivered when the honest relayer is first");
+        assertEq(executor.callCount(), 1, "executed");
+    }
+
+    /// @notice A third-party destinationCaller is not ours to relay and is still rejected.
+    function test_F1_DestinationCallerThirdParty_Rejected() public {
+        transmitter.setMintAmount(500e6);
+        bytes memory message =
+            _withDestinationCaller(_message(address(adapter), account, 500e6), makeAddr("thirdPartyCaller"));
         vm.expectRevert(CCTPAdapter.DESTINATION_CALLER_MISMATCH.selector);
         adapter.receiveAndExecute(message, "");
+        assertEq(transmitter.calls(), 0, "transmitter never called");
     }
 
     /// @notice Backstop: a USDC-resolved message whose mint left the USDC delta at zero must revert so the

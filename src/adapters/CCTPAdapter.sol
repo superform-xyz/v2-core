@@ -125,10 +125,12 @@ contract CCTPAdapter is ReentrancyGuard {
     /// @dev Minimum gas that must remain before the executor call.
     /// @dev `receiveAndExecute()` is permissionless, so the caller chooses the gas limit. Without a floor a griefer
     ///      can supply just enough gas for `receiveMessage` + the transfer to succeed while starving the
-    ///      executor call under EIP-150's 63/64 rule, forcing the `catch` branch. That is worse for CCTP
-    ///      than for other bridges: the CCTP nonce is consumed on success, so the message can never be
-    ///      re-relayed. Reverting here instead unwinds the mint entirely, leaving the message retriable
-    ///      by a caller who supplies enough gas.
+    ///      executor call under EIP-150's 63/64 rule, forcing the `catch` branch. Reverting here instead
+    ///      unwinds the mint entirely, leaving the message retriable by a caller who supplies enough gas.
+    ///      NOTE (review I1): starvation past the floor is NOT a loss. The USDC is already at the account, the
+    ///      merkle root stays unused on revert and the payload is public in the attested message, so anyone
+    ///      can re-drive `SuperDestinationExecutor.processBridgedExecution` directly (it is permissionless)
+    ///      until the signature's validUntil. The floor is defense-in-depth against a DELAYED execution.
     /// @dev Deliberately a floor and NOT a `{gas: N}` stipend — a stipend would cap legitimate long hook
     ///      chains. All remaining gas is forwarded; the floor only guarantees there is enough to forward.
     /// @dev Measured basis: a real cap-validated SuperVault destination deposit costs ~660k gas
@@ -140,10 +142,17 @@ contract CCTPAdapter is ReentrancyGuard {
     ///      is not "floor rejects" (that reverts and unwinds, leaving the nonce unspent and the message
     ///      retriable) but "floor passes yet gas is still short": the executor then reverts into the
     ///      catch, the OUTER transaction SUCCEEDS, and the CCTP nonce is consumed with hooks
-    ///      unexecuted — the exact one-shot outcome this floor exists to prevent. A conservatively high
-    ///      floor costs relayers only a higher gas LIMIT (unused gas is refunded), so there is no
+    ///      unexecuted — recoverable only by the direct re-drive above, i.e. a delay this floor exists to avoid. A
+    /// conservatively high floor costs relayers only a higher gas LIMIT (unused gas is refunded), so there is no
     ///      reason to keep it tight.
     uint256 private constant MIN_EXECUTION_GAS = 2_000_000;
+
+    /// @dev `MisconfiguredMessageRelayed.kind`: the message had `destinationCaller = 0` (any caller could have
+    ///      minted it straight into this adapter); it was relayed and delivered normally.
+    uint8 private constant MISCONFIG_UNPINNED = 1;
+    /// @dev `MisconfiguredMessageRelayed.kind`: the message was pinned to this adapter but minted elsewhere;
+    ///      it was passed through to the transmitter and Circle minted to its own `mintRecipient`.
+    uint8 private constant MISCONFIG_MINT_ELSEWHERE = 2;
 
     /// @dev Returned by `checkDestinationTargets` when the DstProof for this chain targets this
     ///      deployment, or when no DstProof names this chain at all.
@@ -210,7 +219,8 @@ contract CCTPAdapter is ReentrancyGuard {
     /// @notice Thrown when the message is too short to contain a BurnMessageV2 + hookData
     error MESSAGE_TOO_SHORT();
 
-    /// @notice Thrown when the message's mintRecipient is not this adapter
+    /// @notice Thrown when the message mints elsewhere AND is not pinned to this adapter (not ours to relay)
+    /// @dev A message minting elsewhere that IS pinned to this adapter is passed through instead (review F2).
     error MINT_RECIPIENT_MISMATCH();
 
     /// @notice Thrown when MessageTransmitterV2.receiveMessage returns false
@@ -228,7 +238,9 @@ contract CCTPAdapter is ReentrancyGuard {
     /// @notice Thrown when the BurnMessageV2 body version is not CCTP V2
     error UNSUPPORTED_BODY_VERSION();
 
-    /// @notice Thrown when the message's destinationCaller is not this adapter
+    /// @notice Thrown when the message's destinationCaller is neither this adapter nor zero
+    /// @dev Zero is accepted (review F1): rejecting it cannot prevent a direct transmitter call and would only
+    ///      remove the honest relayer's chance to deliver first.
     error DESTINATION_CALLER_MISMATCH();
 
     /// @notice Thrown when the message's header recipient is not the wired TokenMessengerV2
@@ -266,6 +278,11 @@ contract CCTPAdapter is ReentrancyGuard {
     event TransferFailed(address indexed account, address indexed token, uint256 amount);
 
     /// @notice Emitted when tokens were delivered but the executor call reverted
+    /// @param account The intent account (funds are already delivered or escrowed to it)
+    /// @param selector First 4 bytes of the revert data, or zero when the executor reverted with no data (OOG)
+    /// @dev Only the bounded 4-byte selector is ever copied out of returndata (returnbomb-safe), mirroring
+    ///      AcrossV3AdapterV2. Unlike Across, an empty reason does NOT revert the relay: the funds are already at
+    ///      the account and the execution can be re-driven directly on the permissionless executor.
     /// @dev A normal (non-reverting) return from `processBridgedExecution` is NOT proof of execution:
     ///      it returns normally on three silent no-op paths — insufficient balance, an already-used
     ///      merkle root, and empty hook calldata — none of which emit this event. Each of those emits
@@ -273,7 +290,7 @@ contract CCTPAdapter is ReentrancyGuard {
     ///      ...ReceivedButRootUsedAlready / ...ReceivedButNoHooks vs SuperDestinationExecutorExecuted). An
     ///      indexer distinguishing
     ///      "executed" from "silently no-opped" must watch those, not just this adapter's events.
-    event ExecutionFailed(address indexed account);
+    event ExecutionFailed(address indexed account, bytes4 selector);
 
     /// @notice Emitted when the hookData tail could not be turned into a usable payload.
     /// @dev Covers three cases: the 6-tuple does not decode, `account == address(0)`, and
@@ -297,6 +314,12 @@ contract CCTPAdapter is ReentrancyGuard {
     /// @param token The local token that was minted
     /// @param amount The escrowed amount
     event NonUsdcMintEscrowed(address indexed messageSender, address indexed token, uint256 amount);
+
+    /// @notice Emitted when a message the SDK should never have produced was still relayed safely.
+    /// @dev Monitoring hook for SDK/backend regressions: kind MISCONFIG_UNPINNED (1) or MISCONFIG_MINT_ELSEWHERE (2).
+    /// @param kind Which misconfiguration was observed
+    /// @param mintRecipient The message's mintRecipient (this adapter for kind 1, the real recipient for kind 2)
+    event MisconfiguredMessageRelayed(uint8 indexed kind, bytes32 mintRecipient);
 
     /// @notice Emitted when a recipient claims a previously failed transfer
     event FailedTransferClaimed(address indexed account, address indexed token, uint256 amount);
@@ -355,26 +378,37 @@ contract CCTPAdapter is ReentrancyGuard {
         if (uint32(bytes4(message[BODY_VERSION_OFFSET:BODY_VERSION_OFFSET + 4])) != SUPPORTED_BODY_VERSION) {
             revert UNSUPPORTED_BODY_VERSION();
         }
-        bytes32 mintRecipient = bytes32(message[MINT_RECIPIENT_OFFSET:MINT_RECIPIENT_OFFSET + 32]);
-        bytes32 selfWord = bytes32(uint256(uint160(address(this))));
-        if (mintRecipient != selfWord) revert MINT_RECIPIENT_MISMATCH();
-
-        // `destinationCaller` MUST pin to this adapter. MessageTransmitterV2 enforces it only when the
-        // field is non-zero, and neither CCTP send hook requires that (CCTPSendHook.sol:123 checks only
-        // mintRecipient), so a message built with destinationCaller = 0 could be received by ANY caller
-        // straight through the transmitter — minting into this adapter, consuming the nonce, and leaving
-        // the funds unreachable because `receiveAndExecute` never ran.
-        // NOTE: this check cannot prevent that bypass (it happens without touching this contract). It
-        // fails fast on such a message and documents the invariant; the real enforcement is the SDK
-        // setting destinationCaller = this adapter. See the SDK checklist in the spec.
-        if (bytes32(message[DESTINATION_CALLER_OFFSET:DESTINATION_CALLER_OFFSET + 32]) != selfWord) {
-            revert DESTINATION_CALLER_MISMATCH();
+        {
+            bytes32 selfWord = bytes32(uint256(uint160(address(this))));
+            bytes32 destinationCaller = bytes32(message[DESTINATION_CALLER_OFFSET:DESTINATION_CALLER_OFFSET + 32]);
+            // `destinationCaller` SHOULD pin to this adapter and the SDK must set it so (CCTPSendHook.sol:123
+            // validates only mintRecipient). MessageTransmitterV2 enforces it only when non-zero, so a
+            // zero-caller message can be received by ANY caller straight through the transmitter — minting
+            // into this adapter with nothing forwarded (delta-only accounting, no sweep). Rejecting such a
+            // message here cannot stop that bypass; it only removes the one outcome that saves the funds:
+            // the honest relayer arriving first. So zero is ACCEPTED (review F1) and flagged by event; any
+            // other third-party caller value is not ours to relay and is rejected.
+            if (destinationCaller != selfWord && destinationCaller != bytes32(0)) revert DESTINATION_CALLER_MISMATCH();
+            // The body is only a trustworthy BurnMessageV2 if Circle's TokenMessengerV2 is the one receiving it.
+            if (
+                bytes32(message[RECIPIENT_OFFSET:RECIPIENT_OFFSET + 32])
+                    != bytes32(uint256(uint160(address(TOKEN_MESSENGER))))
+            ) revert RECIPIENT_MISMATCH();
+            bytes32 mintRecipient = bytes32(message[MINT_RECIPIENT_OFFSET:MINT_RECIPIENT_OFFSET + 32]);
+            if (mintRecipient != selfWord) {
+                // A burn minting elsewhere is not ours to relay — unless it is PINNED to us, in which case
+                // nobody else can ever relay it (every direct `receiveMessage` reverts "Invalid caller") and
+                // re-attestation cannot change `destinationCaller`. Pass it through: Circle mints straight to
+                // `mintRecipient`, this adapter's balances are untouched, and the burn is not stranded
+                // (review F2; the realistic trigger is a half-migrated SDK path keeping the old
+                // mintRecipient = account with the new destinationCaller = adapter).
+                if (destinationCaller != selfWord) revert MINT_RECIPIENT_MISMATCH();
+                if (!MESSAGE_TRANSMITTER.receiveMessage(message, attestation)) revert RECEIVE_MESSAGE_FAILED();
+                emit MisconfiguredMessageRelayed(MISCONFIG_MINT_ELSEWHERE, mintRecipient);
+                return;
+            }
+            if (destinationCaller == bytes32(0)) emit MisconfiguredMessageRelayed(MISCONFIG_UNPINNED, mintRecipient);
         }
-        // The body is only a trustworthy BurnMessageV2 if Circle's TokenMessengerV2 is the one receiving it.
-        if (
-            bytes32(message[RECIPIENT_OFFSET:RECIPIENT_OFFSET + 32])
-                != bytes32(uint256(uint160(address(TOKEN_MESSENGER))))
-        ) revert RECIPIENT_MISMATCH();
 
         // Read from the FIXED body before touching the tail — available even if hookData is garbage.
         address messageSender =
@@ -501,13 +535,22 @@ contract CCTPAdapter is ReentrancyGuard {
 
         if (gasleft() < MIN_EXECUTION_GAS) revert INSUFFICIENT_GAS();
 
-        // Bare catch → revert returndata is never copied (returnbomb-safe); a reverting hook set
-        // cannot unwind the already-delivered USDC.
+        // Bare catch → the full revert returndata is never copied (returnbomb-safe); only the 4-byte selector
+        // is read for observability. A reverting hook set cannot unwind the already-delivered USDC, and the
+        // execution stays re-drivable directly on the executor (root unused, payload public).
         try SUPER_DESTINATION_EXECUTOR.processBridgedExecution(
             address(USDC), account, p.dstTokens, p.intentAmounts, p.initData, p.executorCalldata, p.sigData
         ) { }
         catch {
-            emit ExecutionFailed(account);
+            bytes4 selector;
+            assembly ("memory-safe") {
+                if gt(returndatasize(), 3) {
+                    mstore(0, 0)
+                    returndatacopy(0, 0, 4)
+                    selector := mload(0)
+                }
+            }
+            emit ExecutionFailed(account, selector);
         }
     }
 

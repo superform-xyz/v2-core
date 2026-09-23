@@ -84,57 +84,44 @@ contract DeployV2CoreRelayAdapterV2ScopedTest is Test {
         vm.removeDir(root, true);
     }
 
-    /// @notice R2-F2 + R2-F3: a fresh instance's check pass resolves the executor from the output JSON and
-    ///         records exactly one checked, not-yet-deployed contract; it writes nothing.
-    function test_Scoped_Check_FreshInstance_ResolvesExecutorAndCountsOneContract() public {
-        _useRoot("check");
+    /// @notice R2-F2 / R2-F3 / R2-F4 in ONE sequential test. `vm.setEnv` is process-global, so separate tests
+    ///         sharing SUPERFORM_PROJECT_ROOT race each other under forge's parallel runner (observed: the deploy
+    ///         test reading the check test's fixture root). Sequencing the scenarios removes the race.
+    function test_Scoped_FreshInstances_Check_Skip_Deploy_Recheck() public {
+        _useRoot("scoped");
         string memory before = vm.readFile(outputPath);
 
-        ScopedHarness h = new ScopedHarness();
-        h.runRelayAdapterV2(true, ENV_STAGING, BASE);
-
-        (bool deployed, address expected) = h.status(BASE, "RelayAdapterV2");
-        assertFalse(deployed, "not deployed yet");
-        assertTrue(expected != address(0), "CREATE2 address computed");
-        assertEq(h.checkedNames(BASE), 1, "exactly one contract checked -> '0 out of 1' summary");
-        assertEq(vm.readFile(outputPath), before, "check pass does not touch the output JSON");
-        tearDown();
-    }
-
-    /// @notice R2-F3: an unconfigured chain is a clean skip, not a revert, with zero checked contracts
-    ///         ('0 out of 0' summary).
-    function test_Scoped_Check_UnconfiguredChain_SkipsCleanly() public {
-        _useRoot("skip");
-        vm.chainId(FLARE);
-        ScopedHarness h = new ScopedHarness();
-        h.runRelayAdapterV2(true, ENV_STAGING, FLARE);
-        assertEq(h.checkedNames(FLARE), 0, "nothing checked on a skipped chain");
-        tearDown();
-    }
-
-    /// @notice R2-F2 + R2-F4: a fresh instance's deploy pass deploys the adapter at the checked address,
-    ///         wires it to the executor from the output JSON, and writes the V2 key into the output JSON
-    ///         while retaining the executor and V1 adapter keys. A further fresh check then sees it deployed.
-    function test_Scoped_Deploy_FreshInstance_DeploysAndWritesOutput() public {
-        _useRoot("deploy");
+        // 1. check pass from a fresh instance: executor resolved from the output JSON, exactly one contract
+        //    checked (-> "0 out of 1"), nothing written
         ScopedHarness check = new ScopedHarness();
         check.runRelayAdapterV2(true, ENV_STAGING, BASE);
-        (, address expected) = check.status(BASE, "RelayAdapterV2");
+        (bool deployed, address expected) = check.status(BASE, "RelayAdapterV2");
+        assertFalse(deployed, "not deployed yet");
+        assertTrue(expected != address(0), "CREATE2 address computed");
+        assertEq(check.checkedNames(BASE), 1, "exactly one contract checked");
+        assertEq(vm.readFile(outputPath), before, "check pass does not touch the output JSON");
 
+        // 2. unconfigured chain: clean skip, zero checked (-> "0 out of 0")
+        vm.chainId(FLARE);
+        ScopedHarness skip = new ScopedHarness();
+        skip.runRelayAdapterV2(true, ENV_STAGING, FLARE);
+        assertEq(skip.checkedNames(FLARE), 0, "nothing checked on a skipped chain");
+        vm.chainId(BASE);
+
+        // 3. deploy pass from a fresh instance: lands at the checked address, writes the V2 key, keeps the rest
         ScopedHarness deployer = new ScopedHarness();
         deployer.runRelayAdapterV2(false, ENV_STAGING, BASE);
-
         assertGt(expected.code.length, 0, "adapter deployed at the checked CREATE2 address");
-
         string memory json = vm.readFile(outputPath);
         assertEq(vm.parseJsonAddress(json, ".RelayAdapterV2"), expected, "V2 key written");
         assertEq(vm.parseJsonAddress(json, ".SuperDestinationExecutor"), EXECUTOR, "executor key retained");
         assertEq(vm.parseJsonAddress(json, ".RelayAdapter"), RELAY_ADAPTER_V1, "V1 adapter key retained");
 
+        // 4. a further fresh check sees the deployment (-> "1 out of 1")
         ScopedHarness recheck = new ScopedHarness();
         recheck.runRelayAdapterV2(true, ENV_STAGING, BASE);
-        (bool deployed,) = recheck.status(BASE, "RelayAdapterV2");
-        assertTrue(deployed, "fresh check sees the deployment -> '1 out of 1' summary");
+        (deployed,) = recheck.status(BASE, "RelayAdapterV2");
+        assertTrue(deployed, "fresh check sees the deployment");
         tearDown();
     }
 }
