@@ -357,6 +357,9 @@ abstract contract Constants {
 
     // CCTP V2 Token Messenger (same address on all EVM chains via CREATE2)
     address internal constant CCTP_V2_TOKEN_MESSENGER = 0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d;
+    /// @dev Circle CCTP domain ids (NOT EVM chain ids) for the canonical USDC pairs the deploy sanity check uses
+    uint32 internal constant CCTP_DOMAIN_ETHEREUM = 0;
+    uint32 internal constant CCTP_DOMAIN_BASE = 6;
 
     // CCTP V2 Message Transmitter (same address on all EVM chains via CREATE2)
     address internal constant CCTP_V2_MESSAGE_TRANSMITTER = 0x81D40F21F12A8F0E3252Bccb954D722d4c464B64;

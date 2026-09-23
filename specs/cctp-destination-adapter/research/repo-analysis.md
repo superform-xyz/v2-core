@@ -1,363 +1,307 @@
-# CCTP Destination Adapter — Repo Analysis
+# Repository Pattern Analysis — `src/adapters/CCTPAdapter.sol`
 
-Research to inform building `CCTPAdapter` (CCTP V2 destination-side receiver) for Superform v2-core.
-All file paths are absolute-from-repo-root under `/Users/cosming/1.Coding/Superform/v2-core`.
+## 1. Existing adapter anatomy
 
----
+**`AcrossV3Adapter.sol` (legacy V1, deregistered)**
+Immutables `ACROSS_SPOKE_POOL`, `SUPER_DESTINATION_EXECUTOR` (`:24-25`), zero-checked in ctor (`:33-39`)
+against `ADDRESS_NOT_VALID()` (`:31`). Entrypoint `handleV3AcrossMessage` (`:46-54`), gated inline by
+`if (msg.sender != ACROSS_SPOKE_POOL) revert INVALID_SENDER();` (`:56-58`). Decodes the **6-tuple**
+(`:63-70`). Unconditional `safeTransfer` (`:76`), single unguarded executor call (`:79-87`) — no
+try/catch, no events, no claim path, no `ReentrancyGuard`. **Absent from `DeployV2Core.s.sol`'s
+`adapterContracts` array (`:354-355`)** — frozen/legacy, kept only for its locked artifact.
 
-## 1. Existing adapter pattern
+**`AcrossV3AdapterV2.sol` (current preferred Across pattern)**
+Adds `SUPER_DESTINATION_VALIDATOR`, cached via a **local minimal interface**
+`IDestinationValidatorSource` (`:18-20, 45, 127-135`) — deliberately not folded into the shared
+`ISuperDestinationExecutor`, because that interface is compiled into already-deployed locked bytecode
+(NatSpec `:15-17`). Decodes the **compact 2-tuple** (`:157`) then `_extractFromSigData` (`:236-256`).
 
-All adapters live in `src/adapters/` and share one job: receive bridged funds + payload, push funds to the
-intent `account`, then call `SUPER_DESTINATION_EXECUTOR.processBridgedExecution(...)`. There are two generations:
+Validation order: proof found (`NO_DST_PROOF_FOR_CHAIN`, `:165-167`) → account non-zero
+(`:171-173`) → `executor == SUPER_DESTINATION_EXECUTOR` (`EXECUTOR_NOT_VALID`, `:178-180`) →
+`validator == SUPER_DESTINATION_VALIDATOR` (`VALIDATOR_NOT_VALID`, `:185-187`). **The only adapter
+that binds executor+validator identity into its own reverts** — the stricter, newer style.
 
-- **V1 (simple, revert-on-failure):** `AcrossV3Adapter.sol`, `DebridgeAdapter.sol`
-- **V2 (hardened, best-effort, failed-transfer escrow + self-claim):** `AcrossV3AdapterV2.sol`, `RelayAdapter.sol`,
-  `StargateAdapter.sol` — **these are the templates to copy for the new `CCTPAdapter`.**
+Transfer via `trySafeTransfer`, **reverts** the whole fill on failure (`:191-193`) — safe because
+Across fills are independent (NatSpec `:76-79`). Executor call in try/catch with a `code.length == 0`
+guard (`:200`) and a **bounded 4-byte selector copy in assembly** inside catch (`:210-222`) — never
+copies full returndata.
 
-### Common signature/style facts
-- SPDX `Apache-2.0`, `pragma solidity 0.8.30;` (all adapters).
-- `using SafeERC20 for IERC20;` in every adapter (`DebridgeAdapter.sol:18`, `AcrossV3Adapter.sol:19`,
-  `AcrossV3AdapterV2.sol:25`, `RelayAdapter.sol:36`, `StargateAdapter.sol:30`).
-- Immutable `ISuperDestinationExecutor public immutable SUPER_DESTINATION_EXECUTOR;` set in constructor, always
-  zero-checked with `error ADDRESS_NOT_VALID();` (e.g. `AcrossV3Adapter.sol:31-38`, `RelayAdapter.sol:72,128-133`).
-- `@author Superform Labs` NatSpec, `/*//// STORAGE / ERRORS / EVENTS / CONSTRUCTOR ////*/` banner comments.
+**`DebridgeAdapter.sol`**
+Immutables `SUPER_DESTINATION_EXECUTOR`, `DLN_DESTINATION` (`:23-24`); the ctor additionally reads
+`IDlnDestination(dlnDestination).externalCallAdapter()` and zero-checks it (`:38-41`) — the only
+adapter validating itself against a live read of the bridge's own config. Uses a **named modifier**
+`onlyExternalCallAdapter` (`:45-48`) rather than an inline check.
 
-### Constructor args per adapter
-- `AcrossV3Adapter(address acrossSpokePool_, address superDestinationExecutor_)` — `AcrossV3Adapter.sol:33`.
-- `AcrossV3AdapterV2(address acrossSpokePool_, address superDestinationExecutor_)` — `AcrossV3AdapterV2.sol:105`.
-- `DebridgeAdapter(address dlnDestination, address superDestinationExecutor_)` — `DebridgeAdapter.sol:33`; also reads
-  `IDlnDestination(dlnDestination).externalCallAdapter()` and stores `DLN_DESTINATION`.
-- `RelayAdapter(address superDestinationExecutor_)` — **single arg** (permissionless), `RelayAdapter.sol:128`.
-- `StargateAdapter(address lzEndpoint_, address tokenMessaging_, address superDestinationExecutor_)` —
-  `StargateAdapter.sol:140`.
+Two entrypoints, `onEtherReceived` / `onERC20Received` (`:54-63, 87-96`), both decoding the **same
+6-tuple** via private `_decodeMessage` (`:145-159`) — **the exact shape `CCTPSendHook` produces.**
+Native uses `.call{value: balance}` (`:77-78`); ERC20 uses `safeTransfer(account, _transferredAmount)`
+(`:111`) — the trusted callback param, **not** balance. No try/catch, no events, no claim path.
 
-> For `CCTPAdapter` the natural constructor is
-> `CCTPAdapter(address messageTransmitterV2_, address superDestinationExecutor_)` — analogous to Across
-> `(spokePool, executor)` and Debridge `(dlnDestination, executor)`.
+**`RelayAdapter.sol` (newest "no bridge-native callback" pattern — closest analogue to CCTP)**
+Single immutable `SUPER_DESTINATION_EXECUTOR` (`:43`). Uses `ReentrancyGuard`, `nonReentrant` on
+**both** external functions (`:35, 156, 222`). **Permissionless** entrypoint `processRelayExecution`
+(`:149-157`), documented safe (NatSpec `:15-34`) via the executor's own signature+balance validation
+plus two adapter-local guards unique to this file: `INSUFFICIENT_FUNDS_RECEIVED` — claimed `amount`
+must actually be held, **excluding escrow** (`:180-186`) — and a `totalEscrowed` mapping excluded from
+spendable balance so a caller cannot redirect other users' escrowed funds (`:27-28, 49-52`).
 
-### Trust / `onlyX` gating (how each authenticates the caller)
-- **Across (V1 & V2):** `if (msg.sender != ACROSS_SPOKE_POOL) revert INVALID_SENDER();`
-  (`AcrossV3Adapter.sol:56`, `AcrossV3AdapterV2.sol:128`). `INVALID_SENDER` comes from `IAcrossV3Receiver`.
-- **Debridge:** `modifier onlyExternalCallAdapter` checks `msg.sender ==
-  IDlnDestination(DLN_DESTINATION).externalCallAdapter()` (`DebridgeAdapter.sol:45-48`), applied to both entrypoints.
-- **Stargate:** `if (msg.sender != LZ_ENDPOINT) revert INVALID_SENDER();` (`StargateAdapter.sol:179`) **plus** a
-  second authenticity check that `_from` is a registered pool via `TOKEN_MESSAGING.assetIds(_from) != 0`
-  (`StargateAdapter.sol:193`).
-- **Relay:** **permissionless** — `processRelayExecution` has no sender check by design
-  (`RelayAdapter.sol:24-34,149`); safety is anchored by the executor's signed-intent + balance validation plus two
-  adapter-local guards (`INSUFFICIENT_FUNDS_RECEIVED` balance check `RelayAdapter.sol:182-186`, and `totalEscrowed`
-  exclusion `RelayAdapter.sol:52,184`).
+2-tuple + `_extractFromSigData`, but its `ExtractedData` struct (`:58-65`) **omits**
+`executor`/`validator`. `_tryTransfer` (`:280-289`); on failure **credits `failedTransfers` /
+`totalEscrowed` instead of reverting** (`:189-197`). Executor try/catch with a **fully empty catch**
+(`catch { }`, `:201-211`) — stricter returnbomb-safety than AcrossV3AdapterV2's selector capture.
+`claimFailedTransfer` (`:222-239`) is the canonical claim shape.
 
-> For `CCTPAdapter`, the trust anchor is the **CCTP `destinationCaller` = adapter** mechanism. Because
-> `IMessageTransmitterV2.receiveMessage` mints USDC to `mintRecipient` (= adapter) and CCTP itself enforces that
-> only `destinationCaller` (= adapter) can relay when set, the adapter self-authenticates by being the required
-> caller. `receiveAndExecute` itself can be permissionless (anyone can submit the attestation), Relay-style — the
-> mint is gated by CCTP, and downstream execution is gated by the signed intent in the executor.
+**`StargateAdapter.sol` / `StargateAdapterV2.sol` (LayerZero compose)**
+`lzCompose` (`V2:203-213`) gated on `msg.sender == LZ_ENDPOINT` (`:215`) **plus** a registered-pool
+check `TOKEN_MESSAGING.assetIds(_from) != 0` (V1 `:193`; V2 adds an `allowedOFTs` bypass for non-pool
+OFTs like USDT0, `:57-63, 181-184, 224`) — needed because LZ V2's `sendCompose` is permissionless.
 
-### How each receives funds + payload
-- **Across V1 (`handleV3AcrossMessage`, `AcrossV3Adapter.sol:46-88`):** SpokePool has already delivered `tokenSent`
-  to the adapter; `message` is the 6-field tuple; `safeTransfer(account, amount)` then executor call.
-- **Across V2 (`AcrossV3AdapterV2.sol:118-174`):** SpokePool delivers tokens; `message` is compact 2-field
-  `abi.encode(initData, sigData)`; account/executorCalldata/dstTokens/intentAmounts are **extracted from `sigData`**
-  (see §2 `_extractFromSigData`).
-- **Debridge (`DebridgeAdapter.sol:54-117`):** two entrypoints `onEtherReceived` (native) and `onERC20Received`
-  (ERC20). Debridge passes token+amount as call args; payload in `_payload` (6-field tuple).
-- **Stargate (`lzCompose`, `StargateAdapter.sol:167-223`):** token delivered in a **separate prior tx** (`lzReceive`);
-  `amountLD` parsed from the OFTComposeMsgCodec header (bytes 12-44), inner payload after the 76-byte header.
-- **Relay (`processRelayExecution`, `RelayAdapter.sol:149-212`):** `payable`; funds either pre-delivered to adapter
-  or arrive as `msg.value`; `message` is compact 2-field format.
+**MUST NOT revert** after the sender check (a revert blocks the ordered LZ compose queue for all
+subsequent composes from that source) — hence the `this.handleCompose(...)` self-call wrapped in
+try/catch purely to absorb `abi.decode` panics, with an empty catch emitting `ComposeDecodeFailed`
+(`V2:239-247`). Amount comes from the OFTComposeMsgCodec header (`amountLD` bytes 12-44,
+`COMPOSE_MSG_OFFSET = 76`, `:37, 230-233`) — **not adapter balance.** V1 decodes the 6-tuple
+(`:243-250`); V2 the 2-tuple (`:270-275`). `failedTransfers` credited only if `preBalance >= amountLD`
+snapshotted *before* any transfer attempt (`V2:310-333`). V2 treats a missing `DstProof` as a
+**graceful non-revert** (`NoDstProofForChain`, `:279-288`) — the only adapter that does so, because of
+the queue constraint. `lzCompose` itself is **not** `nonReentrant`; only `claimFailedTransfer` is.
 
-> For `CCTPAdapter`, funds are **minted to the adapter by `receiveMessage`** inside the same call, then the adapter
-> reads its own USDC balance delta (or the burn-message amount) and `safeTransfer`s to `account`. The payload
-> (`hookData`) is **sliced out of the attested CCTP message itself**, not passed as a separate arg — this is the key
-> structural difference from every existing adapter.
+## 2. Canonical adapter skeleton
 
-### How each calls `processBridgedExecution`
-Identical 7-arg call in all adapters (`tokenSent, account, dstTokens, intentAmounts, initData, executorCalldata,
-sigData`):
-- Across V1: `AcrossV3Adapter.sol:79-87` (direct, reverts propagate).
-- Debridge: routed through private `_handleMessageReceived(...)` → `DebridgeAdapter.sol:122-143` (direct).
-- Across V2: wrapped in `try/catch { emit ExecutionFailed(...) }` `AcrossV3AdapterV2.sol:163-173`.
-- Relay: `try/catch` `RelayAdapter.sol:201-211` (catch binds no var → returnbomb-safe).
-- Stargate: `try/catch` `StargateAdapter.sol:299-304`.
+1. `SPDX-License-Identifier: Apache-2.0`, `pragma solidity 0.8.30;` (exact pin).
+2. Import grouping: `// External Dependencies` (OZ) → `// Vendor Interfaces`
+   (`../vendor/bridges/<bridge>/`) → `// Superform Interfaces`.
+3. Section banners: `STORAGE` → `STRUCTS` (only to dodge stack-too-deep) → `ERRORS` → `EVENTS` →
+   `CONSTRUCTOR` → feature logic → `CLAIM LOGIC` → `INTERNAL`.
+4. **Errors**: `SCREAMING_SNAKE_CASE` custom errors, never revert strings. `ADDRESS_NOT_VALID()` for
+   every zero-address ctor arg, checked before assignment.
+5. **NatSpec**: `@title` / `@author Superform Labs` / `@notice` at contract level; `@dev` records *why*
+   (trust assumptions, revert-vs-emit rationale) — RelayAdapter spends ~20 lines justifying its
+   permissionless design (`:15-34`).
+6. `using SafeERC20 for IERC20;` everywhere. `safeTransfer`/`trySafeTransfer` for
+   must-succeed-or-revert adapters; hand-rolled `_tryTransfer` for must-degrade-to-escrow adapters.
+7. **`_tryTransfer`** — byte-identical across `RelayAdapter:280-289`, `StargateAdapter:345-354`,
+   `StargateAdapterV2:424-433` (copy-pasted, no shared base): native via `.call{value:}`, ERC20 via
+   low-level `token.call(abi.encodeCall(IERC20.transfer,...))` with
+   `success = callSuccess && (returnData.length == 0 || abi.decode(returnData,(bool)))`.
+8. **`_extractFromSigData`** — only in the 2-tuple adapters (`AcrossV3AdapterV2:236-256`,
+   `RelayAdapter:250-272`, `StargateAdapterV2:394-416`): decode the 7-field `SignatureData`,
+   linear-scan `DstProof[]` for `dstChainId == block.chainid`.
+9. **Numbered inline comments** in the entrypoint (`// 1. Validate Sender`, `// 2. Decode…`):
+   sender check → decode → extract/validate → transfer → best-effort execute. Keep this.
 
-### Event / error conventions
-- V1 adapters carry almost no events (rely on executor events). Errors: `ADDRESS_NOT_VALID`, `INVALID_SENDER`
-  (from interface), Debridge adds `ON_ETHER_RECEIVED_FAILED`, `ONLY_EXTERNAL_CALL_ADAPTER`.
-- V2 adapters define a **standard event set** (copy these names): `TransferSucceeded`, `TransferFailed`,
-  `ExecutionFailed`, `FailedTransferClaimed` (`AcrossV3AdapterV2.sol:83-99`, `RelayAdapter.sol:106-122`,
-  `StargateAdapter.sol:90-131` adds `guid`-indexed variants + decode-failure events).
-- V2 error set: `ADDRESS_NOT_VALID`, `ACCOUNT_NOT_VALID`, `INSUFFICIENT_FAILED_BALANCE`, `ZERO_AMOUNT`,
-  `ETH_TRANSFER_FAILED` (native), plus adapter-specific (`NO_DST_PROOF_FOR_CHAIN`, `INSUFFICIENT_FUNDS_RECEIVED`,
-  `MSG_VALUE_NOT_ALLOWED`).
+**Which divergence to follow for CCTP:**
+- Revert posture: StargateAdapterV2 must never revert (ordered queue); Relay/Across may. CCTP messages
+  are independent → **may revert**, like Relay.
+- RelayAdapter's `INSUFFICIENT_FUNDS_RECEIVED` + `totalEscrowed` guard exists because its `amount` is
+  **caller-supplied**. CCTP's amount is derived from the adapter's own balance delta after it calls
+  `receiveMessage` itself, so that specific guard is unnecessary — **but the escrow accounting still
+  is**, since `claimFailedTransfer` implies a ledger that full-balance forwarding would raid.
+- Reentrancy: adapters with permissionless entrypoints (Relay) use `ReentrancyGuard`; bridge-gated
+  ones (Across, deBridge) do not. CCTP's `relay()` is permissionless → **use it**.
 
-### ReentrancyGuard
-- V1 (`AcrossV3Adapter`, `Debridge`): **no** ReentrancyGuard.
-- V2 (`AcrossV3AdapterV2`, `RelayAdapter`, `StargateAdapter`): **inherit `ReentrancyGuard`** from
-  `@openzeppelin/contracts/utils/ReentrancyGuard.sol` and mark `claimFailedTransfer` (and Relay's
-  `processRelayExecution`) `nonReentrant` (`AcrossV3AdapterV2.sol:7,24,184`; `RelayAdapter.sol:7,35,156,222`;
-  `StargateAdapter.sol:7,29,315`).
+## 3. Message format reconciliation — the pivotal section
 
-### SafeERC20 + non-standard token handling
-- Straight `IERC20(token).safeTransfer(account, amount)` in V1 (`AcrossV3Adapter.sol:76`, `DebridgeAdapter.sol:111`).
-- V2 adds a `_tryTransfer` internal that uses a **low-level `token.call(abi.encodeCall(IERC20.transfer, ...))`** so
-  non-standard ERC20s (USDT) that don't return a bool don't revert the whole flow
-  (`AcrossV3AdapterV2.sol:236-241`, `RelayAdapter.sol:280-289`, `StargateAdapter.sol:345-354`). USDC returns a bool
-  so a plain `safeTransfer` is also fine, but reusing `_tryTransfer` keeps the best-effort semantics.
+**Path A — 6-tuple direct** (`AcrossV3Adapter` legacy, `DebridgeAdapter`):
+```solidity
+abi.decode(message, (bytes initData, bytes executorCalldata, address account,
+                     address[] dstTokens, uint256[] intentAmounts, bytes sigData))
+```
+(`DebridgeAdapter:145-159`). `sigData` is the entire raw `SignatureData` blob, forwarded byte-identical
+into `processBridgedExecution`'s last argument. `account`, `dstTokens`, `intentAmounts`,
+`executorCalldata` are carried **redundantly** in plaintext alongside `sigData`.
 
-### `_handleMessageReceived` / `_decodeMessage` shape
-- **Debridge** is the cleanest reference for the private-helper split: `_decodeMessage(bytes) →
-  (initData, executorCalldata, account, dstTokens, intentAmounts, sigData)` via
-  `abi.decode(message,(bytes,bytes,address,address[],uint256[],bytes))` (`DebridgeAdapter.sol:145-159`), and
-  `_handleMessageReceived(tokenSent, ...)` that just forwards to the executor (`DebridgeAdapter.sol:122-143`).
-- V2 adapters replace `_decodeMessage` with `_extractFromSigData` (§2).
+`CCTPSendHook._buildHookExecutions` produces **exactly this shape** (`:150-158`): it decodes the SDK's
+5-tuple, fetches the signature from transient storage, and re-encodes as the 6-tuple. Confirmed
+byte-identical — same fields, order, types. `dstTokens`/`intentAmounts` come from the hook's own
+encoded input, not derived from `sigData`.
 
----
+**Path B — compact 2-tuple** (`AcrossV3AdapterV2`, `StargateAdapterV2`, `RelayAdapter`):
+`abi.decode(message, (bytes initData, bytes sigDataRaw))`, then `_extractFromSigData` walks
+`sigData.proofDst[]` for `dstChainId == block.chainid`, pulling `account`, `executor`, `validator`,
+`data`(→executorCalldata), `dstTokens`, `intentAmounts` from `DstProof.info`
+(`ISuperValidator.sol:17-24`). Saves 1.5–5.5 KB per message (`StargateAdapterV2:21-23`) — but it is a
+**hook+adapter co-design**: the source hook must already omit those fields.
 
-## 2. The exact payload contract
+**CCTPAdapter must use Path A.** Dictated, not stylistic: the CCTP hooks are already deployed as
+locked bytecode, and a V2 hook was explicitly rejected in scope. A 2-tuple adapter would decode the
+wrong tuple arity against what the live hooks emit.
 
-### Source encoding — `CCTPSendHook` (`src/hooks/bridges/cctp/CCTPSendHook.sol`)
-- Data layout is a fixed 52-byte strategy header + hook fields, documented at `CCTPSendHook.sol:32-43`. Relevant
-  offsets: `burnToken@52`, `amount@72`, `destinationDomain@104`, `mintRecipient@108`, `destinationCaller@140`,
-  `maxFee@172`, `minFinalityThreshold@204`, `usePrevHookAmount@208`, `hookCallData@209+`.
-- The hook receives `hookCallData` pre-encoded as **5 fields**
-  `abi.decode(hookCallData,(bytes,bytes,address,address[],uint256[]))` =
-  `(initData, executorCalldata, account, dstTokens, intentAmounts)` (`CCTPSendHook.sol:150-156`).
-- It fetches the destination signature from the validator's transient storage
-  `ISuperSignatureStorage(VALIDATOR).retrieveSignatureData(account)` (`CCTPSendHook.sol:148`) and **re-encodes to
-  6 fields** appending the signature:
-  `abi.encode(initData, executorCalldata, _account, dstTokens, intentAmounts, signature)` (`CCTPSendHook.sol:158`).
-  This 6-field blob is passed as CCTP `hookData` into
-  `ITokenMessengerV2.depositForBurnWithHook(amount, destinationDomain, mintRecipient, burnToken, destinationCaller,
-  maxFee, minFinalityThreshold, hookData)` (`CCTPSendHook.sol:168-181`; interface at
-  `src/vendor/bridges/cctp/ITokenMessengerV2.sol:18-27`).
+**The structural wrinkle no existing adapter has:** every other bridge delivers the payload as a plain
+function argument via a **push** callback. CCTP's `receiveMessage(message, attestation)` is a **pull**
+call the adapter must make itself; it verifies and mints, then stops. So CCTPAdapter must expose
+`relay(bytes message, bytes attestation)`, call `receiveMessage` itself, then parse `hookData` from
+the same `message` bytes.
 
-> **Therefore `CCTPAdapter` must decode the sliced `hookData` as the 6-field tuple**
-> `(bytes initData, bytes executorCalldata, address account, address[] dstTokens, uint256[] intentAmounts,
-> bytes signature)` — identical to Debridge/AcrossV1's `_decodeMessage`
-> (`DebridgeAdapter.sol:157-158`, `AcrossV3Adapter.sol:63-70`). This is the **6-field V1 shape**, not the compact
-> 2-field V2 shape — because the CCTP hook packs all fields into `hookData` rather than relying on `sigData`
-> extraction. `signature` here is the raw `userSignatureData` passed as the 7th arg to `processBridgedExecution`.
+**Net: CCTPAdapter is a hybrid no single existing file matches** — `DebridgeAdapter` for decoding,
+`RelayAdapter`/`StargateAdapterV2` for failure handling.
 
-### Consumption — `ISuperDestinationExecutor.processBridgedExecution`
-Interface: `src/interfaces/ISuperDestinationExecutor.sol:108-117`. Arg order:
-`(address tokenSent, address targetAccount, address[] dstTokens, uint256[] intentAmounts, bytes initData,
-bytes executorCalldata, bytes userSignatureData)`.
+## 4. `SuperDestinationExecutor.processBridgedExecution`
 
-Implementation: `src/executors/SuperDestinationExecutor.sol:94-144`. Key behaviors:
-1. `tokenSent` (1st arg) is **ignored** in the impl (`function processBridgedExecution(address, ...)` —
-   `SuperDestinationExecutor.sol:95`). Balance is checked on-chain against `dstTokens`/`intentAmounts`.
-2. `dstTokens.length == intentAmounts.length` else `revert ARRAY_LENGTH_MISMATCH` (`:107`).
-3. `_validateOrCreateAccount(account, initData)` — creates the account from initData if code-less
-   (`:109,164-171,216-226`).
-4. Signature validation: builds
-   `destinationData = abi.encode(executorCalldata, uint64(block.chainid), account, address(this), dstTokens,
-   intentAmounts)` (`:115-116`) and calls
-   `ISuperDestinationValidator.isValidDestinationSignature(account, abi.encode(userSignatureData, destinationData))`;
-   must equal magic `0x5c2ec0f3` else `revert INVALID_SIGNATURE` (`:40,119-123`).
-5. **Funds must be pre-transferred to the account.** `_validateBalances(account, dstTokens, intentAmounts)` reads
-   `IERC20(_token).balanceOf(account)` (`:180-214`); if any balance `< intentAmount` it **emits
-   `SuperDestinationExecutorReceivedButNotEnoughBalance` and `return`s (no revert)** (`:125,199-209`). Zero
-   `intentAmount` → emits `SuperDestinationExecutorInvalidIntentAmount` and returns (`:193-195`).
-6. Replay: if `usedMerkleRoots[account][merkleRoot]` → emit `...RootUsedAlready` and return (no revert) (`:127-130`);
-   otherwise marks used (`:132`). Root is decoded from `userSignatureData` field 4 via
-   `_decodeMerkleRoot` = `abi.decode(sig,(uint64[],uint48,uint48,bytes32,bytes32[],DstProof[],bytes))` (`:173-178`).
-7. Empty-hooks guard: `_shouldSkipCalldata` (selector != `execute` or length ≤ `EMPTY_EXECUTION_LENGTH`=228) → emit
-   `SuperDestinationExecutorReceivedButNoHooks` and return (`:134-137,158-162`).
-8. Success path: wraps `executorCalldata` in a single self-`Execution`, calls `_execute`, emits
-   `SuperDestinationExecutorExecuted` (`:139-143`).
+Signature at `src/executors/SuperDestinationExecutor.sol:94-105`. **No access control** — `external`,
+no modifier. The unused first parameter (`tokenSent`) is never read; safety is entirely
+signature+balance based, never caller-based.
 
-> **Non-reverting design:** insufficient balance / used root / no hooks all emit-and-return. This is exactly why the
-> V2 adapters wrap the call in `try/catch` only to catch the *signature-revert* path (`INVALID_SIGNATURE`,
-> `ARRAY_LENGTH_MISMATCH`, `ACCOUNT_NOT_CREATED`) — the funds must already be at the account before the call so the
-> balance check passes. `CCTPAdapter` MUST transfer minted USDC to `account` **before** calling
-> `processBridgedExecution`, matching every existing adapter.
+Order:
+1. `dstTokens.length == intentAmounts.length` else `ARRAY_LENGTH_MISMATCH` (`:106-107`).
+2. `_validateOrCreateAccount` (`:109`, impl `:164-171`) — creates via `SuperSenderCreator` if
+   `initData.length > 0` and no code; requires result == `account` else `INVALID_ACCOUNT`; requires
+   `account.code.length > 0` else `ACCOUNT_NOT_CREATED`. **The adapter does no account creation.**
+3. `_decodeMerkleRoot(userSignatureData)` (`:173-178`).
+4. **The only hard revert past this point**: rebuild
+   `destinationData = abi.encode(executorCalldata, uint64(block.chainid), account, address(this), dstTokens, intentAmounts)`
+   — note `tokenSent` is **never** in the signed payload, and the **adapter's address is never bound
+   into it either**, only the executor's — then `isValidDestinationSignature` must return `0x5c2ec0f3`
+   else `INVALID_SIGNATURE()` (`:112-123`).
+5. `_validateBalances` (`:125`, impl `:180-214`): zero `intentAmount` or insufficient balance emits an
+   event and **returns false → early return, no revert.** This is why every adapter transfers before
+   calling the executor, and why the fee-reconciliation decision needs no adapter-side math.
+6. Merkle replay: already-used root emits and **returns** (no revert, `:127-130`); else mark used
+   (`:132`) — after signature+balance validation, before execution.
+7. `_shouldSkipCalldata` (`:134`, impl `:158-162`) — leading selector must be
+   `ISuperExecutor.execute.selector` and length > `EMPTY_EXECUTION_LENGTH` (228); else emit and return.
+8. Wrap in one `Execution`, call `_execute`, emit `SuperDestinationExecutorExecuted`.
 
----
+**Adapter must pre-satisfy:** tokens already at `account` (the executor only checks, never moves);
+`userSignatureData` byte-unmodified; `dstTokens`/`intentAmounts` matching what was signed. **The
+adapter's identity is never bound on-chain** — it is enforced out-of-band via `destinationCaller`.
 
-## 3. Vendor interface conventions
+## 5. Deployment + bytecode locking
 
-- CCTP interfaces live at `src/vendor/bridges/cctp/`. Currently only `ITokenMessengerV2.sol` (source/burn side).
-  A new **`IMessageTransmitterV2.sol`** (destination/mint side) belongs in this same folder.
-- Vendor interface style (see `ITokenMessengerV2.sol:1-28`, `IAcrossV3Receiver.sol:1-27`,
-  `src/vendor/bridges/debridge/IExternalCallExecutor.sol`, `src/vendor/bridges/stargate/*`):
-  - SPDX header — **mixed in repo**: `ITokenMessengerV2.sol` uses `Apache-2.0`; `IAcrossV3Receiver.sol:1` uses
-    `UNLICENSED`. Recommend `Apache-2.0` to match the sibling CCTP file.
-  - `pragma solidity 0.8.30;` for repo-authored vendor interfaces (`ITokenMessengerV2.sol:2`,
-    `IAcrossV3Receiver.sol:2`). (The pigeon copy uses `>=0.8.0`.)
-  - Rich `@notice`/`@param`/`@return` NatSpec per function; link to `https://developers.circle.com/cctp`.
-- **Reference implementation already in-repo (do not import, but mirror the signature):**
-  `lib/pigeon/src/cctp/interfaces/IMessageTransmitterV2.sol:6-27` defines
-  `receiveMessage(bytes calldata message, bytes calldata attestation) external returns (bool);` plus
-  `attesterManager()`, `enableAttester`, `isEnabledAttester`, etc. The adapter only needs `receiveMessage`; keep the
-  vendor interface minimal (just `receiveMessage`, optionally `usedNonces`) to match `ITokenMessengerV2`'s minimalism.
-- The canonical **MessageTransmitterV2 address** (same on all mainnet EVM chains via CREATE2) is
-  `0x81D40F21F12A8F0E3252Bccb954D722d4c464B64` (`lib/pigeon/src/cctp/CctpV2Helper.sol:15`). The TokenMessengerV2
-  address `0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d` is already a repo constant
-  (`script/utils/Constants.sol:334-335`, `CCTP_V2_TOKEN_MESSENGER`). A matching `CCTP_V2_MESSAGE_TRANSMITTER`
-  constant does **not yet exist** and must be added.
+- `CoreContracts` struct (`DeployV2Core.s.sol:28-32`) — add a `cctpAdapter` field.
+- `string[5] memory adapterContracts = ["AcrossV3AdapterV2","RelayAdapter","DebridgeAdapter","StargateAdapter","StargateAdapterV2"]`
+  (`:353-355`) → bump to `string[6]` with `"CCTPAdapter"` (also bumps `expectedAdapters` at `:358`).
+  `AcrossV3Adapter` v1 is intentionally absent — adapters are additive, never removed.
+- Add `CCTP_ADAPTER_KEY = "CCTPAdapter"` in `script/utils/Constants.sol` (next to `:36-40`). This string
+  is simultaneously the tracking key, the locked-artifact filename stem, and the CREATE2 salt seed.
+- **CREATE2 salt**: `keccak256(abi.encodePacked("SuperformV2", saltNamespace, name, "v2.0"))`
+  (`DeployV2Base.s.sol:391-395`) — same address on every chain within a namespace, provided constructor
+  args are identical.
+- **Bytecode**: `script/locked-bytecode/{name}.json` (prod) or `-dev/` (dev/staging) via `vm.getCode`
+  (`:401-410`); `__checkBytecodeExists` soft-fails (`:431-443`). Two-stage, non-automated:
+  `script/run/tooling/regenerate_bytecode.sh:82-98` copies `out/` → `script/generated-bytecode/` for a
+  fixed `CORE_CONTRACTS` allowlist (currently `DebridgeAdapter, StargateAdapter, StargateAdapterV2,
+  AcrossV3AdapterV2, RelayAdapter` — **not** `AcrossV3Adapter`) — `CCTPAdapter` must be added. There is
+  **no automated copy into `locked-bytecode(-dev)/`**; that is a manual, reviewed step (consistent with
+  `specs/stargate-compose-adapter/technical-spec.md:356`'s single unelaborated line).
+- **`MessageTransmitterV2` config**: does not exist in the repo today. Precedent is
+  `CCTP_V2_TOKEN_MESSENGER` — a **flat `address` constant**, not a per-chain map
+  (`Constants.sol:358`), used for both hooks (`DeployV2Core.s.sol:4230, 4236`). Add
+  `CCTP_V2_MESSAGE_TRANSMITTER` beside it; do not thread it through `ConfigCore`'s per-chain maps
+  (contrast Across's genuinely per-chain `acrossSpokePoolV3s[chainId]`).
+- **⚠️ Availability-gating inconsistency worth fixing:** the 5 existing adapters deploy *conditionally*
+  via `availability.xAdapter` gated on a per-chain config address
+  (`_getContractAvailability:341-397`; deploy `:2953-3040+`; verify `_checkAdapterContracts:1755-1838`).
+  The **CCTP hooks deploy unconditionally** (`:4223-4238`, outside any `if`) even though CCTP is not on
+  every Superform chain. `CCTPAdapter` should follow the **conditional** adapter pattern (gate on
+  `MessageTransmitterV2.code.length > 0`), not the hooks' unconditional one.
+- `_buildCoreVerificationRecords` (asserted `length == 14` in
+  `test/script/DeployV2CoreVerificationRecords.t.sol:40`) covers only ledger/oracle/registry — adapters
+  use `_checkAdapterContracts`, so **no change to the 14-record list or its regression test.**
+- Prod outputs `script/output/prod/{chainId}/{Chain}-latest.json` are written automatically by
+  `_exportContract`/`_writeExportedContracts` (`DeployV2Base.s.sol:449-509`) — no manual edit.
+- **No hook-side deploy changes**: CCTP's hooks are pure burn hooks with no combined "send+execute"
+  variant to rewire (unlike `AcrossSendFundsAndExecuteOnDstHookV2`, gated on adapter availability at
+  `:2266-2287`) — confirming adapter-only is deploy-script-consistent.
 
----
+## 6. Test conventions
 
-## 4. Deployment wiring (`script/DeployV2Core.s.sol`)
+**Base class:** adapter unit tests use the lighter `test/utils/Helpers.sol` (`Test` + `Constants`), not
+the full `test/BaseTest.t.sol`. Legacy `test/unit/adapters/AdaptersUnitTests.sol` (no `.t.sol` suffix)
+covers the three 6-tuple adapters together; newer adapters get their own files.
 
-### How adapters are declared
-- Deployed-address struct fields: `acrossV3AdapterV2`, `relayAdapter`, `debridgeAdapter`, `stargateAdapter`,
-  `stargateAdapterV2` (`DeployV2Core.s.sol:28-32`).
-- Availability booleans mirror them (`:279-283`) plus `uint256 expectedAdapters` (`:303`).
-- Adapter name list + counting: `adapterContracts = ["AcrossV3AdapterV2","RelayAdapter","DebridgeAdapter",
-  "StargateAdapter","StargateAdapterV2"]` (`:353-358`), decremented per unavailable chain (`:360-397`).
+**Mocks:** the destination executor is **always mocked**, via `vm.mockCall`
+(`AdaptersUnitTests.sol:75-84`) or a purpose-built mock with failure modes — `AcrossV3AdapterV2`'s
+`ExecutionMode` enum (`Success/EmptyRevert/CustomError/ReturnBomb/OutOfGas/ShortRevert`) for
+returnbomb-safety, `RelayAdapterUnitTests.t.sol`'s `MockDestinationExecutor` (`:11-52`) with
+`shouldRevert`/`shouldReturnbomb` toggles. A shared DRY variant exists:
+`test/unit/simulationHelpers/DestinationSimulationTestBase.sol` (`RecordingDestinationExecutor` +
+`_signatureData(...)`). **No `MockMessageTransmitterV2` exists** — must be created, modeled on
+`lib/pigeon/src/cctp/interfaces/IMessageTransmitterV2.sol:6-26`.
 
-### Per-chain config addresses (`configuration.*`)
-Config is a big struct of `mapping(uint64 chainId => address)` in `script/utils/ConfigBase.sol:15-45`:
-`acrossSpokePoolV3s` (`:17`), `relayDepositories` (`:18`), `debridgeDstDln` (`:20`), `lzEndpointV2s` (`:40`), etc.
-Populated per chain in `script/utils/ConfigCore.sol` (e.g. `acrossSpokePoolV3s` `:19-35`, `relayDepositories`
-`:41-57`, `debridgeDstDln` `:79+`). **There is no `messageTransmitterV2s` mapping yet** — but note CCTP uses the same
-address on all EVM chains, so a single `Constants.sol` constant (like `CCTP_V2_TOKEN_MESSENGER`) is the established
-pattern rather than a per-chain mapping.
+**Fixtures:** the 2-tuple adapters build `SignatureData`/`DstProof[]` with a dummy `hex"abcdef"`
+signature. **Unnecessary for CCTP** — the relevant precedent is `AdaptersUnitTests._buildDestinationData()`
+(`:88-101`), building the flat 6-tuple directly with a fake `sigData`.
 
-### Availability gating pattern (copy for CCTP)
-Each adapter gates on its config address being non-zero, e.g. AcrossV3AdapterV2:
-`if (configuration.acrossSpokePoolV3s[chainId] != address(0)) { availability.acrossV3AdapterV2 = true; } else {
-expectedAdapters -= 1; potentialSkips[...] = "AcrossV3AdapterV2"; }` (`:360-397`). Stargate requires **two** addresses
-(`lzEndpointV2s` && `tokenMessaging`) (`:384-396`). RelayAdapter keys on `relayDepositories` even though its
-constructor only takes the executor (`:368-373`).
+**Naming:** `test_<Feature>`, `test_<Feature>_<Condition>`, `testFuzz_<Feature>` with `bound(...)`;
+section banners matching contract style; `vm.expectRevert(Contract.ERROR.selector)` inline.
 
-> For CCTP: since MessageTransmitterV2 is a fixed constant present on every supported chain, availability is
-> effectively always-true (like a core contract) — or gate on a new per-chain `cctpMessageTransmitters` mapping if
-> you want per-chain opt-out. Simplest: mirror `CCTP_V2_TOKEN_MESSENGER` with a `CCTP_V2_MESSAGE_TRANSMITTER`
-> constant and treat availability as unconditional.
+**Fork/E2E:** `test/integration/{bridge}/{Adapter}E2EFork.t.sol`, extending `MerkleTreeHelper`, two-fork
+pattern with RPC keys from `test/utils/Constants.sol:53,55`. These deploy a **local adapter instance**
+against the **real deployed** `SuperDestinationExecutor`, `deal()` funds, `vm.prank` as the bridge, and
+assert "transfer succeeds, execution best-effort fails" with an intentionally invalid signature.
 
-### Deploy / check / validate blocks (three places to add CCTP wiring)
-1. **Deploy** (CREATE2 via `__deployContractIfNeeded`): RelayAdapter is the closest template —
-   `RELAY_ADAPTER_KEY`, salt, `abi.encodePacked(__getBytecode("RelayAdapter", env),
-   abi.encode(coreContracts.superDestinationExecutor))`, then post-deploy `require(... SUPER_DESTINATION_EXECUTOR()
-   == ...)` (`:2958-2982`). AcrossV3AdapterV2 shows the 2-arg constructor packing
-   (`:872-882`, `abi.encode(spokePool, superDestinationExecutor)`).
-2. **Check** (`_checkAdapterContracts`, `:1752-1834`): each adapter calls
-   `__checkContract(KEY, __getSalt(KEY), abi.encode(<ctor args>), env)` with a SKIPPED log branch. Relay:
-   `__checkContract(RELAY_ADAPTER_KEY, __getSalt(RELAY_ADAPTER_KEY), abi.encode(superDestExecutor), env)` (`:1830`).
-3. **Contract-key constants** live in `script/utils/Constants.sol:34-38` (`RELAY_ADAPTER_KEY`,
-   `STARGATE_ADAPTER_KEY`, etc.). Add `CCTP_ADAPTER_KEY = "CCTPAdapter"` there. CCTP hook keys already exist at
-   `Constants.sol:330-332`.
+### The CCTP test precedent already in-repo — resolves the attestation question
+`test/integration/cctp/CCTPHooksFork.t.sol` (1229 lines) contains `CCTPHooksForkE2E` (`:882-1229`),
+a working real-attestation cross-fork suite built on the **already-vendored**
+`lib/pigeon/src/cctp/CctpV2Helper.sol`:
+- Hardcodes `MESSAGE_TRANSMITTER_V2 = 0x81D40F21F12A8F0E3252Bccb954D722d4c464B64` (`:15`).
+- `help(destDomain, forkId, logs)` filters source-fork `MessageSent(bytes)` logs, switches fork,
+  **pranks the real `attesterManager()` to `enableAttester` its own test key and
+  `setSignatureThreshold(1)`** (`:107-120`) — this is the answer to "a valid attester signature cannot
+  be produced against forked state."
+- Signs with the test key (`:125-129`), patches `finalityThresholdExecuted` via assembly (`:131-145`),
+  clears `usedNonces` via `vm.store` slot 29 (`:149-153`), and calls the **real** `receiveMessage`
+  (`:100`), pranking as `destinationCaller` when set (`:95-98`).
+- `test_Fork_E2E_BurnAndRelay_EthToBase` (`:933-959`) already burns on an Ethereum fork and asserts
+  real USDC minted on a Base fork — **but mints to a plain EOA and never exercises hookData**, exactly
+  as expected given no adapter exists.
 
-### Locked-bytecode + manifest + hook-sizing — adapters are NOT hooks
-- **Confirmed: adapters do NOT appear in `hook-sizing-manifest.json`.** That manifest is keyed by `hookKey` and
-  contains only hooks (`grep -i adapter hook-sizing-manifest.json` → no matches; 136 `hookKey` entries; CCTP entries
-  present as `CCTP_SEND_HOOK_KEY`/`APPROVE_AND_CCTP_SEND_HOOK_KEY`). The hook-sizing/amount-replacement machinery
-  (`tooling/generate-hook-sizing-manifest.ts`, `_supportsSizingInterface`) is a **hook-only** concern — an adapter
-  implements no `ISuperHookInflowOutflow`, so it is correctly absent.
-- Adapters **do** participate in the **locked-bytecode / deterministic-CREATE2** system: they get a
-  `<Name>.json` bytecode artifact under `script/generated-bytecode/`, `script/locked-bytecode/`, and
-  `script/locked-bytecode-dev/` (same treatment the PendlePTHook change in the current branch shows), are fetched via
-  `__getBytecode("CCTPAdapter", env)` / `__checkBytecodeExists(...)`, deployed by CREATE2 salt, and surface only in
-  the deployment output JSON (via `_getContractStatus` / `coreContracts.*`, e.g. `:2698-2699` for Relay). So:
-  **CCTPAdapter needs a locked-bytecode artifact + Constants key + DeployV2Core deploy/check/validate wiring, but no
-  hook-sizing-manifest entry.**
+**Closest templates:** unit → `RelayAdapterUnitTests.t.sol` (failure containment + claim path; Relay is
+the closest analogue since it also has no push callback) with the decode half swapped for
+`AdaptersUnitTests._buildDestinationData()`. Fork → extend `CCTPHooksForkE2E` directly: point
+`mintRecipient`/`destinationCaller` at the adapter and call `adapter.relay(message, attestation)` in
+place of the helper's internal `receiveMessage`.
 
----
+⚠️ `CCTPHooksFork.t.sol`'s `MockCCTPForkSignatureStorage.retrieveSignatureData` (`:20-28`) returns a
+`proofDst` array of **length 0** — that fixture fails every destination signature check. The adapter
+suite needs a real `SignatureData` fixture with a populated `DstProof`; see `test/BaseTest.t.sol:552`
+and `test/unit/simulationHelpers/CrossChainSuperVaultDestinationDeBridgeE2E.t.sol`.
 
-## 5. Test conventions for adapters
+## 7. Prior CCTP work
 
-### Locations
-- Unit: `test/unit/adapters/` — `AdaptersUnitTests.sol`, `RelayAdapterUnitTests.t.sol`.
-- Integration/fork: `test/integration/across/AcrossV3AdapterV2E2EFork.t.sol`,
-  `test/integration/relay/RelayAdapterE2EFork.t.sol`,
-  `test/integration/stargate/StargateAdapter*Fork.t.sol`.
-- CCTP existing: `test/unit/hooks/bridges/CCTPHooks.t.sol`, `test/integration/cctp/CCTPHooksFork.t.sol` (these test
-  the *send* hook, not a destination adapter — new adapter tests go in `test/integration/cctp/`).
+**`specs/cctp-bridge-hooks/`** (PR #885, `65f8b5ab`, SUP-19679/SUP-19617) — source-side only. Shipped
+decisions: the no-approval / approve-reset-approve pair; the `hookCallData` signature-append via
+transient storage (dodging the circular "merkle root signs data containing its own signature"
+dependency); `usePrevHookAmount` scaling `maxFee` via `Math.mulDiv`.
 
-### Fork-test skeleton (copy `RelayAdapterE2EFork.t.sol`)
-- `pragma solidity 0.8.30;`, SPDX `MIT` for tests (`RelayAdapterE2EFork.t.sol:1`,
-  `AcrossV3AdapterV2E2EFork.t.sol` header, `CCTPHooksFork.t.sol:1`).
-- Inherit `MerkleTreeHelper` (which extends `Helpers`) — `RelayAdapterE2EFork.t.sol:17`,
-  `AcrossV3AdapterV2E2EFork.t.sol:19`.
-- Hardcode real chain constants: `USDC_BASE = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`, deployed
-  `SUPER_DST_EXECUTOR_BASE = 0x6ac58e854798D4aae5989B18ad5a1C0fF17817EF`
-  (`RelayAdapterE2EFork.t.sol:23,26`).
-- `setUp`: `vm.createFork(vm.envString(BASE_RPC_URL_KEY))`, deploy a **local** adapter against the on-chain deployed
-  executor, `vm.label(...)` (`RelayAdapterE2EFork.t.sol:41-49`).
-- Simulate delivery with `deal(USDC_BASE, address(adapter), amount)` then call the adapter
-  (`RelayAdapterE2EFork.t.sol:57-68`).
+**The root cause of the gap**, stated plainly at `interview-notes.md:28-33`:
+> *"Send-side hooks only — no receive hook needed. Circle's attestation service + off-chain relayers
+> handle the receive side (calling receiveMessage on MessageTransmitter)."*
 
-### Attester / mock patterns for CCTP specifically
-- **Pigeon `CctpV2Helper`** (`lib/pigeon/src/cctp/CctpV2Helper.sol`, imported in `CCTPHooksFork.t.sol:16` as
-  `@pigeon/cctp/CctpV2Helper.sol`) is the canonical CCTP test tool:
-  - Constructor takes a test attester PK (default key `0x1`) (`:30-33`).
-  - `_setupTestAttester()` replaces production attesters via `attesterManager()`/`enableAttester`
-    (`:107-120`); signs the message with the test key `_signMessage → abi.encodePacked(r,s,v)` (`:122-128`).
-  - `help(destDomain, forkId, logs)` scans `MessageSent(bytes)` logs, patches `finalityThresholdExecuted`, and calls
-    `IMessageTransmitterV2(0x81D4...).receiveMessage(message, attestation)`, pranking `destinationCaller` when set
-    (`:46-104`). MessageTransmitterV2 addr `0x81D40F21F12A8F0E3252Bccb954D722d4c464B64` (`:15`).
-  - So an end-to-end `CCTPAdapter` fork test can: run the send hook to emit `MessageSent`, then drive the mint on the
-    destination fork through the adapter's `receiveAndExecute` (adapter is `destinationCaller`), using this helper's
-    attestation signing.
-- **Mock signature storage:** `CCTPHooksFork.t.sol:18-29` (`MockCCTPForkSignatureStorage.retrieveSignatureData`)
-  returns an `abi.encode(uint64[], validUntil, 0, merkleRoot, proofSrc, DstProof[], signature)` blob — the exact
-  `SignatureData` shape the executor decodes.
+**This is incorrect** — `receiveMessage` only verifies and mints; it never executes `hookData`. The
+same error is compounded at `research/framework-docs.md:83` (*"If hookData provided … hook is
+executed"*), stated without citation. **That single wrong assumption is why the hook shipped with a
+wire format nobody was ever built to consume.**
 
-### How `SuperDestinationValidator` signatures are produced in tests
-- Real signing lives in unit tests: `test/unit/validators/SuperDestinationValidator.t.sol`. Pattern:
-  build leaves with `_createDestinationValidatorLeaf(...)` (`:198-228`), build merkle root, then
-  `destinationDataRaw = abi.encode(callData, chainId, sender, executor, dstTokens, intentAmounts)`
-  (`:441-444`, mirrors `SuperDestinationExecutor.sol:115-116`), hash with
-  `MessageHashUtils.toEthSignedMessageHash`, `(v,r,s) = vm.sign(privateKey, hash)`,
-  `signature = abi.encodePacked(r,s,v)` (`:408-410`), then
-  `validator.isValidDestinationSignature(signer, abi.encode(sigDataRaw, destinationDataRaw))` (`:398`).
-  Helper `_createDestinationValidatorLeaf` / `_createValidatorMerkleTree` are in
-  `test/utils/MerkleTreeHelper.sol:59,91`.
-- **Adapter fork tests deliberately use dummy signatures.** They assert the fund-forwarding path works and that the
-  executor rejects the fake proof, verifying the try/catch: e.g. `RelayAdapterE2EFork.t.sol:71-92` builds a message
-  with `hex"deadbeef"` calldata and asserts `ExecutionFailed(address)` is emitted while the USDC still reaches the
-  account. `_assertEventEmitted(logs, "ExecutionFailed(address)")` is the idiom. This is the recommended coverage
-  level for the adapter's own tests — full valid-signature E2E belongs in a higher-level flow test.
+**Layout note:** `technical-spec.md:124-141` proposed offsets starting at `burnToken@20`; the shipped
+code prepends a 52-byte strategy header, shifting everything +52 (`CCTPSendHook.sol:32-43, 113-127`).
+The old spec is **obsolete** — anyone building an SDK encoder from it produces garbage.
 
----
+**`specs/stargate-compose-adapter/`** — the direct architectural precedent, framed identically
+("completing the destination-side flow…", `spec.md:12`). Transferable: adapter receives all tokens then
+forwards; **no source hook changes** — "Bundler is responsible for setting `to = adapter address`"
+(`interview-notes.md:45-48`), the same SDK trust assumption CCTP makes for
+`mintRecipient`/`destinationCaller`; and sender validation **started endpoint-only in V1 and was
+hardened in V2 after security review** — a precedent suggesting CCTPAdapter's posture may similarly get
+hardened in a V2 once in production.
 
-## 6. Naming / style conventions to match
+**Generalizable lessons:** (1) the delivery→execution gap is an accepted bounded risk across all
+adapters; (2) the trend is toward **more** defense-in-depth (`ReentrancyGuard` added in Relay/StargateV2
+despite earlier research judging it unnecessary); (3) try/catch-around-decode is only *required* where
+the entrypoint has a hard liveness constraint (LZ's ordered queue) — CCTP has none, so it is optional
+hardening rather than a requirement.
 
-- SPDX: adapters/interfaces `Apache-2.0`; hooks `Apache-2.0`; tests `MIT`.
-- `pragma solidity 0.8.30;` everywhere (repo pins exact — `foundry.toml`, CLAUDE.md).
-- `@title` + `@author Superform Labs` on every contract.
-- Section banner comments: `/*////...//// STORAGE ////...////*/` (STORAGE, STRUCTS, ERRORS, EVENTS, CONSTRUCTOR,
-  and logic-section banners).
-- **Custom errors only**, SCREAMING_SNAKE_CASE: `ADDRESS_NOT_VALID`, `INVALID_SENDER`, `ACCOUNT_NOT_VALID`,
-  `ZERO_AMOUNT`, `INSUFFICIENT_FAILED_BALANCE`, `ETH_TRANSFER_FAILED`. No revert strings in contracts (deploy
-  scripts do use `require("STRING")`).
-- Immutables SCREAMING_SNAKE_CASE: `SUPER_DESTINATION_EXECUTOR`, `ACROSS_SPOKE_POOL`, `TOKEN_MESSENGER`.
-- Events PascalCase with indexed `account`/`token`: `TransferSucceeded`, `TransferFailed`, `ExecutionFailed`,
-  `FailedTransferClaimed`.
-- NatSpec `@notice`/`@dev`/`@param`/`@return` on all external/public functions and the contract header (extensive
-  `@dev` trust-assumption blocks in V2 adapters — see `RelayAdapter.sol:15-34`, `StargateAdapter.sol:17-28`).
-- Checks-Effects-Interactions; state before external calls; returnbomb-safe `catch { }` (no bound variable).
-- CLAUDE.md hard rule: **hook features must be planned by `superform-hook-master` first.** An *adapter* is not a hook
-  (no `BaseHook`, not in hook-sizing-manifest), so this gate is about the CCTP *send hook*, not this destination
-  adapter — but the plan-first workflow (`.claude/sessions/context_session_x.md`) still applies.
+## Key artifact paths
 
----
-
-## Concrete recommendations for `CCTPAdapter`
-
-1. **File:** `src/adapters/CCTPAdapter.sol`, SPDX `Apache-2.0`, pragma `0.8.30`, `is ReentrancyGuard` (V2 tier).
-2. **Constructor:** `(address messageTransmitterV2_, address superDestinationExecutor_)`, both zero-checked with
-   `ADDRESS_NOT_VALID`. Store as immutables `MESSAGE_TRANSMITTER`, `SUPER_DESTINATION_EXECUTOR`.
-3. **Vendor interface:** add `src/vendor/bridges/cctp/IMessageTransmitterV2.sol` with (minimally)
-   `receiveMessage(bytes,bytes) returns (bool)`, mirroring `ITokenMessengerV2.sol` style. Mirror pigeon's signature
-   at `lib/pigeon/src/cctp/interfaces/IMessageTransmitterV2.sol:8`.
-4. **`receiveAndExecute(bytes message, bytes attestation)`** (permissionless, Relay-style): snapshot USDC balance →
-   `MESSAGE_TRANSMITTER.receiveMessage(message, attestation)` (mints to adapter; CCTP enforces `destinationCaller` =
-   adapter) → compute minted `amount` (post-pre balance) → slice `hookData` from the BurnMessageV2 body →
-   `abi.decode(hookData,(bytes,bytes,address,address[],uint256[],bytes))` (6-field, §2) → `_tryTransfer` USDC to
-   `account` (emit `TransferSucceeded`/`TransferFailed` + escrow) → `try SUPER_DESTINATION_EXECUTOR
-   .processBridgedExecution(USDC, account, dstTokens, intentAmounts, initData, executorCalldata, signature) { }
-   catch { emit ExecutionFailed(account); }`.
-5. **Reuse V2 boilerplate verbatim:** `failedTransfers` mapping, `claimFailedTransfer(token, amount) nonReentrant`,
-   `_tryTransfer` low-level-call helper, the standard event/error set. USDC-only means the native-ETH branches of
-   `RelayAdapter`/`StargateAdapter` can be dropped.
-6. **Deployment:** add `CCTP_ADAPTER_KEY = "CCTPAdapter"` + `CCTP_V2_MESSAGE_TRANSMITTER =
-   0x81D40F21F12A8F0E3252Bccb954D722d4c464B64` to `script/utils/Constants.sol`; wire deploy/check/validate in
-   `DeployV2Core.s.sol` mirroring the RelayAdapter blocks (`:1828-1834`, `:2958-2982`); generate a locked-bytecode
-   artifact. **Do not** add to `hook-sizing-manifest.json`.
-7. **Tests:** `test/integration/cctp/CCTPAdapterE2EFork.t.sol` inheriting `MerkleTreeHelper`, using
-   `@pigeon/cctp/CctpV2Helper.sol` for attestation signing and a dummy-signature `ExecutionFailed` assertion for the
-   fund-forwarding path.
+- New contract: `src/adapters/CCTPAdapter.sol`
+- New vendor interface: `src/vendor/bridges/cctp/IMessageTransmitterV2.sol` — model on
+  `lib/pigeon/src/cctp/interfaces/IMessageTransmitterV2.sol` and the existing `ITokenMessengerV2.sol`
+- Constants: `CCTP_ADAPTER_KEY`, `CCTP_V2_MESSAGE_TRANSMITTER` in `script/utils/Constants.sol`
+- Deploy: `DeployV2Core.s.sol` — `CoreContracts` struct, `adapterContracts` (`:353-355`), availability
+  gating, `_checkAdapterContracts` (`:1755-1838`), deploy block (pattern at `:2953-3040`)
+- Bytecode: add `"CCTPAdapter"` to `regenerate_bytecode.sh:82-98`; create
+  `script/locked-bytecode{,-dev}/CCTPAdapter.json`
+- Tests: `test/unit/adapters/RelayAdapterUnitTests.t.sol` + `AdaptersUnitTests.sol` (unit),
+  `test/integration/cctp/CCTPHooksFork.t.sol:882-1229` (fork extension point)
+- Reusable infra: `lib/pigeon/src/cctp/CctpV2Helper.sol` (already proven against mainnet-fork state)

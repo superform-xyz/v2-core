@@ -20,11 +20,25 @@ interface ITokenMessengerV2Call {
         uint256 maxFee,
         uint32 minFinalityThreshold,
         bytes calldata hookData
-    ) external;
+    )
+        external;
 }
 
 /// @dev Executor stand-in on the destination fork — records the call the adapter makes.
+/// @dev Thin harness exposing the adapter's internal token resolver so it can be driven against the REAL
+///      Ethereum TokenMessengerV2 → TokenMinterV2 registry without a live attestation.
+contract ResolverHarness is CCTPAdapter {
+    constructor(address t, address m, address u, address e) CCTPAdapter(t, m, u, e) { }
+
+    function resolve(bytes calldata message) external view returns (address) {
+        return _resolveLocalToken(message);
+    }
+}
+
 contract MockDestinationExecutor {
+    /// @dev CCTPAdapter caches this at construction, mirroring AcrossV3AdapterV2
+    address public SUPER_DESTINATION_VALIDATOR = address(0xDA11D);
+
     uint256 public callCount;
     address public lastAccount;
     address public lastTokenSent;
@@ -56,6 +70,11 @@ contract CCTPAdapterE2EFork is Test {
     address constant MESSAGE_TRANSMITTER_V2 = 0x81D40F21F12A8F0E3252Bccb954D722d4c464B64;
     address constant USDC_ETH = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address constant USDC_BASE = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+    address constant EURC_ETH = 0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c;
+    // USYC: the one non-USDC token linked in Ethereum's TokenMinterV2 today (from BNB, CCTP domain 17)
+    address constant USYC_ETH = 0x136471a34f6ef19fE571EFFC1CA711fdb8E49f2b;
+    address constant USYC_BNB = 0x8D0fA28f221eB5735BC71d3a0Da67EE5bC821311;
+    uint32 constant DOMAIN_BNB = 17;
     uint32 constant DOMAIN_BASE = 6;
     bytes32 constant MESSAGE_SENT_TOPIC = keccak256("MessageSent(bytes)");
 
@@ -73,7 +92,7 @@ contract CCTPAdapterE2EFork is Test {
     function setUp() public {
         baseFork = vm.createSelectFork(vm.envString("BASE_RPC_URL"));
         executor = new MockDestinationExecutor();
-        adapter = new CCTPAdapter(MESSAGE_TRANSMITTER_V2, USDC_BASE, address(executor));
+        adapter = new CCTPAdapter(MESSAGE_TRANSMITTER_V2, TOKEN_MESSENGER_V2, USDC_BASE, address(executor));
 
         ethFork = vm.createSelectFork(vm.envString("ETHEREUM_RPC_URL"));
     }
@@ -114,6 +133,74 @@ contract CCTPAdapterE2EFork is Test {
         adapter.receiveAndExecute(message, abi.encodePacked(r, s, v));
     }
 
+    /// @notice The (sourceDomain, burnToken) lookup runs against the REAL TokenMessengerV2 -> TokenMinterV2
+    ///         on Base. Ethereum EURC is not registered on the mainnet minter (verified live:
+    ///         getLocalToken(0, EURC_ETH) == 0 — Circle routes EURC through a separate CrossChainTokenService,
+    ///         never through TokenMinterV2), so such a message must be rejected BEFORE the transmitter
+    ///         is touched. Ordering is what this proves: if the lookup did not run first, the tampered
+    ///         message would fail attestation ("Invalid signature") instead.
+    function test_Fork_UnregisteredBurnToken_RejectedBeforeTransmitter() public {
+        (bytes memory message, bytes memory attestation) = _bridgeToBase(1000e6);
+
+        bytes32 eurc = bytes32(uint256(uint160(EURC_ETH)));
+        for (uint256 i; i < 32; ++i) {
+            message[152 + i] = eurc[i]; // BurnMessageV2.burnToken (148 + 4)
+        }
+        vm.expectRevert(CCTPAdapter.UNSUPPORTED_BURN_TOKEN.selector);
+        adapter.receiveAndExecute(message, attestation);
+    }
+
+    /// @notice A real attested burn whose header recipient is rewritten to a non-TokenMessenger address is
+    ///         rejected by the adapter's recipient pin BEFORE the transmitter (which would otherwise fail
+    ///         attestation on the tampered bytes). Ordering is what this proves.
+    function test_Fork_RecipientNotTokenMessenger_RejectedBeforeTransmitter() public {
+        (bytes memory message, bytes memory attestation) = _bridgeToBase(1000e6);
+
+        bytes32 other = bytes32(uint256(uint160(makeAddr("notTheMessenger"))));
+        for (uint256 i; i < 32; ++i) {
+            message[76 + i] = other[i]; // MessageV2.recipient
+        }
+        vm.expectRevert(CCTPAdapter.RECIPIENT_MISMATCH.selector);
+        adapter.receiveAndExecute(message, attestation);
+    }
+
+    /// @notice Against the REAL Ethereum registry: a message burning USYC on BNB (domain 17) resolves to
+    ///         Ethereum USYC — i.e. the non-USDC escrow branch is the path taken today, not forward-protection —
+    ///         while the USDC pair resolves to USDC and an unlinked pair (EURC, which Circle routes through a
+    ///         separate CrossChainTokenService) is rejected.
+    function test_Fork_Ethereum_RealRegistry_RoutesUsycToNonUsdcBranch() public {
+        vm.selectFork(ethFork);
+        // the fixture executor lives on the Base fork; the harness needs one on this fork for its constructor
+        MockDestinationExecutor ethExecutor = new MockDestinationExecutor();
+        ResolverHarness h =
+            new ResolverHarness(MESSAGE_TRANSMITTER_V2, TOKEN_MESSENGER_V2, USDC_ETH, address(ethExecutor));
+
+        assertEq(h.resolve(_headerFor(h, DOMAIN_BNB, USYC_BNB)), USYC_ETH, "USYC from BNB -> Ethereum USYC");
+        assertEq(h.resolve(_headerFor(h, DOMAIN_BASE, USDC_BASE)), USDC_ETH, "USDC from Base -> Ethereum USDC");
+        vm.expectRevert(CCTPAdapter.UNSUPPORTED_BURN_TOKEN.selector);
+        h.resolve(_headerFor(h, DOMAIN_BASE, EURC_ETH));
+    }
+
+    /// @dev Minimal wire-shaped message: versions, sourceDomain, header recipient = TokenMessengerV2, and burnToken.
+    function _headerFor(CCTPAdapter a, uint32 sourceDomain, address burnToken) internal pure returns (bytes memory m) {
+        m = new bytes(376);
+        m[3] = bytes1(uint8(1)); // header version
+        m[151] = bytes1(uint8(1)); // body version
+        bytes4 d = bytes4(sourceDomain);
+        for (uint256 i; i < 4; ++i) {
+            m[4 + i] = d[i];
+        }
+        bytes32 recipient = bytes32(uint256(uint160(TOKEN_MESSENGER_V2)));
+        bytes32 self = bytes32(uint256(uint160(address(a))));
+        bytes32 bt = bytes32(uint256(uint160(burnToken)));
+        for (uint256 i; i < 32; ++i) {
+            m[76 + i] = recipient[i];
+            m[108 + i] = self[i]; // destinationCaller
+            m[152 + i] = bt[i]; // burnToken
+            m[184 + i] = self[i]; // mintRecipient
+        }
+    }
+
     function test_Fork_TamperedHookData_Reverts() public {
         (bytes memory message, bytes memory attestation) = _bridgeToBase(1000e6);
 
@@ -138,16 +225,17 @@ contract CCTPAdapterE2EFork is Test {
 
         vm.recordLogs();
         vm.prank(depositor);
-        ITokenMessengerV2Call(TOKEN_MESSENGER_V2).depositForBurnWithHook(
-            amount,
-            DOMAIN_BASE,
-            adapterB32, // mintRecipient = adapter
-            USDC_ETH,
-            adapterB32, // destinationCaller = adapter
-            0, // maxFee (finalized)
-            2000, // minFinalityThreshold = finalized
-            hookData
-        );
+        ITokenMessengerV2Call(TOKEN_MESSENGER_V2)
+            .depositForBurnWithHook(
+                amount,
+                DOMAIN_BASE,
+                adapterB32, // mintRecipient = adapter
+                USDC_ETH,
+                adapterB32, // destinationCaller = adapter
+                0, // maxFee (finalized)
+                2000, // minFinalityThreshold = finalized
+                hookData
+            );
 
         message = _extractMessageSent(vm.getRecordedLogs());
         assertGt(message.length, 376, "message carries hookData tail");
@@ -210,7 +298,10 @@ contract CCTPAdapterE2EFork is Test {
             let minFinality := shr(224, mload(add(message, 172))) // 32 (skip len) + 140
             let word := mload(add(message, 176)) // 32 + 144
             // clear top 4 bytes then OR in minFinality
-            word := or(and(word, 0x00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff), shl(224, minFinality))
+            word := or(
+                and(word, 0x00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff),
+                shl(224, minFinality)
+            )
             mstore(add(message, 176), word)
         }
     }

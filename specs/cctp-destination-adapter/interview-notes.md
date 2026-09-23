@@ -1,34 +1,114 @@
 # CCTP Destination Adapter — Interview Notes
 
-**Date:** 2026-08-13
-**Security mode:** auto-enabled (on-chain, cross-chain feature)
+**Date:** 2026-09-21
+**Feature:** `src/adapters/CCTPAdapter.sol` — destination-side adapter completing the CCTP V2 cross-chain flow
+**Security mode:** auto-enabled (cross-chain, on-chain, token custody)
 
-## Feature summary
-Build the destination-side `CCTPAdapter` that completes Superform's CCTP V2 cross-chain flow. The source side already exists: `CCTPSendHook` / `ApproveAndCCTPSendHook` call `TokenMessengerV2.depositForBurnWithHook` and pack `abi.encode(initData, executorCalldata, account, dstTokens, intentAmounts, signature)` into `hookData`. The missing piece is a destination contract that mints the USDC, extracts the payload, and drives `SuperDestinationExecutor.processBridgedExecution` — mirroring `AcrossV3Adapter` / `DebridgeAdapter` / `RelayAdapter`.
+## Origin Question: Was the CCTP destination path deliberately skipped?
 
-**Key structural difference vs existing adapters:** CCTP has **no push callback**. `MessageTransmitterV2.receiveMessage` only mints USDC to `mintRecipient`; it never forwards `hookData`. So the adapter must **actively pull**: a relayer calls `receiveAndExecute(bytes message, bytes attestation)`, the adapter calls `receiveMessage` itself, then acts on the payload. (Closest in spirit to `RelayAdapter`, which is solver-driven, but the adapter itself invokes the mint.)
+**Answer: No — incidental, not deliberate.** Evidence gathered before the interview:
 
-## Decisions (interview round 1 — design)
-1. **hookData source → parse from the attested message.** The adapter slices `hookData` from the raw `message` bytes it just verified via `receiveMessage`, using `BurnMessageV2` offsets. Trustless — the attestation authenticates those bytes; the relayer supplies nothing extra beyond `(message, attestation)`.
-2. **destinationCaller → enforce = adapter.** Backend sets both `mintRecipient` and `destinationCaller` to the adapter (bytes32-left-padded). Only the adapter can call `receiveMessage`, so mint + hook execution are atomic in one tx; prevents a griefer minting USDC to the adapter without triggering execution (which would strand funds).
-3. **Minted token → USDC-only, immutable.** Adapter holds an immutable USDC address per chain; measures its USDC balance delta from `receiveMessage` and forwards that to the account. Matches the USDC-centric CCTP hooks. (Generic Circle-token support via TokenMinter deferred.)
-4. **Failure mode → leave in account, non-reverting.** Same as `DebridgeAdapter`: transfer USDC to the account first, then call `processBridgedExecution`, which emits events (`...ReceivedButNotEnoughBalance`, `...RootUsedAlready`, `...ReceivedButNoHooks`) instead of reverting. Funds sit safely in the SCA, recoverable via a later intent. Reverting is not viable anyway — `receiveMessage` consumes the CCTP nonce.
+1. `CCTPSendHook._buildHookExecutions` already builds `hookCallData` as
+   `abi.encode(initData, executorCalldata, account, dstTokens, intentAmounts, signature)`
+   (`src/hooks/bridges/cctp/CCTPSendHook.sol`), which is byte-identical to the 6-tuple
+   `DebridgeAdapter._decodeMessage` decodes at `src/adapters/DebridgeAdapter.sol:158`.
+   The destination message format was designed for an adapter that was never written.
+2. Shipped in PR #885 (`65f8b5ab`, SUP-19679 / SUP-19617) as a source-side-only milestone.
+   `specs/cctp-bridge-hooks/interview-notes.md:14-16` explicitly planned destination execution
+   ("append validator signature to composeMsg for executing operations on the destination chain").
+3. All CCTP tests are burn-side only — `test/integration/cctp/CCTPHooksFork.t.sol` asserts build +
+   burn, never destination receipt. No destination test exists.
+4. Direct precedent: `specs/stargate-compose-adapter/spec.md` was a follow-up spec "completing the
+   destination-side flow for the existing StargateSendHook". CCTP is the same pattern, never followed up.
+5. Hooks are live in prod (Ethereum, Base, and others per `script/output/prod/*/`) with no adapter,
+   so a CCTP transfer carrying `hookCallData` today has nothing to execute it.
 
-## Decisions (interview round 2 — security/ops/testing)
-5. **Relayer access → permissionless.** Anyone can call `receiveAndExecute` with a valid `(message, attestation)`. Security is Circle's attestation + the executor's EIP-1271 signature and Merkle-root replay checks; `destinationCaller = adapter` already scopes the mint to this contract. No relayer allowlist to maintain.
-6. **Reentrancy → stateless + `nonReentrant` guard.** Hold no mutable storage (like `DebridgeAdapter`) AND add a `ReentrancyGuard` on `receiveAndExecute`, since the executor runs arbitrary destination hooks. CEI ordering: mint → fund account → execute.
-7. **Deployment → DeployV2Core adapters + config.** Add `CCTPAdapter` alongside `AcrossV3Adapter`/`DebridgeAdapter`, constructor `(messageTransmitterV2[chain], usdc[chain], superDestinationExecutor[chain])`, gated on CCTP availability. Locked bytecode + manifest like the others.
-8. **Testing → fork + real transmitter, mocked attester.** Mainnet fork with the real `MessageTransmitterV2`; craft a valid CCTP V2 message with `hookData` and sign it with a controlled attester key (override the attester set via `vm`) so `receiveMessage` succeeds. Assert the full path: mint → fund account → `processBridgedExecution` runs the destination hooks + Merkle/replay behaviour. Plus unit tests for `_sliceHookData` offset correctness.
+## Controlling Mechanic
 
-## Confirmed facts (from research this session)
-- Send hook is CCTP **V2** (`ITokenMessengerV2.depositForBurnWithHook`), `src/hooks/bridges/cctp/CCTPSendHook.sol`. Signature is pulled from validator transient storage (`ISuperSignatureStorage.retrieveSignatureData`).
-- `BurnMessageV2` body layout (offsets into `messageBody`): version[0:4], burnToken[4:36], mintRecipient[36:68], amount[68:100], messageSender[100:132], maxFee[132:164], expirationBlock[164:196], feeExecuted[196:228], hookDataLength[228:260], hookData[260:...].
-- Destination handler interface `IMessageHandlerV2.handleReceiveFinalizedMessage/Unfinalized(sourceDomain, sender, finalityThresholdExecuted, messageBody)` is implemented by TokenMessengerV2 (mints); it does NOT forward hookData to mintRecipient.
-- Executor entry: `ISuperDestinationExecutor.processBridgedExecution(tokenSent, targetAccount, dstTokens[], intentAmounts[], initData, executorCalldata, userSignatureData)`; `DebridgeAdapter` transfers funds to `account` BEFORE calling it.
-- Finality: `minFinalityThreshold >= 2000` finalized, `< 2000` fast (fee via `maxFee`); adapter is agnostic.
+CCTP V2 does **not** auto-execute `hookData`. `MessageTransmitterV2.receiveMessage` verifies the
+attestation and mints to `mintRecipient`, then stops. Whoever relays the message is responsible for
+running the hook. Consequence: the adapter must be the `mintRecipient` (it needs custody to forward
+funds) and must pull the message in itself — there is no push callback like Across's
+`handleV3AcrossMessage` or Stargate's `lzCompose`.
 
-## Open items to resolve during implementation
-- Pin the exact CCTP V2 **message header** length/offsets (to locate `messageBody`) against Circle's vendored `MessageV2.sol` (body offsets confirmed; header reconstructed from memory).
-- Confirm `IMessageTransmitterV2.receiveMessage(bytes,bytes) returns (bool)` signature and that it reverts (not returns false) on bad attestation — needed for the adapter's error handling.
-- Per-chain addresses: `MessageTransmitterV2`, local USDC, `SuperDestinationExecutor`; and CCTP V2 chain-availability set (must match where the send hook is enabled).
-- Backend/OMS must fill `mintRecipient` and `destinationCaller` with the destination adapter address (config-only; no hook Solidity change).
+*To be verified in Phase 3 research against Circle's `evm-cctp-contracts` (`examples/CCTPHookWrapper.sol`).*
+
+## Key Decisions
+
+### Scope
+**Adapter only.** Build `src/adapters/CCTPAdapter.sol` against the existing `CCTPSendHook` payload
+format (6-tuple, same as `DebridgeAdapter`). The SDK sets `mintRecipient` and `destinationCaller` to
+the destination adapter address. No hook changes, no redeploy of live hooks, no new bytecode lock on
+existing contracts.
+
+Rejected: `CCTPSendHookV2` enforcing `mintRecipient == dstAdapter` on-chain (removes SDK trust but
+adds a new hook + bytecode lock + deployment index); Circle Gateway destination path (separate milestone).
+
+### Entrypoint
+**`relay(message, attestation)` — wrapper pattern**, mirroring Circle's own `CCTPHookWrapper` example.
+The adapter calls `MessageTransmitterV2.receiveMessage` itself, then parses `hookData` from the same
+attested message bytes in the same transaction. Rationale: the hookData provably matches what Circle
+attested, and the mint + execution are atomic.
+
+Rejected: two-step `execute(message)` after a third-party relay (adapter cannot trust unattested
+message bytes without re-verifying).
+
+### Failure Handling
+**Match `StargateAdapterV2` / `RelayAdapter`.** `try/catch` around
+`SUPER_DESTINATION_EXECUTOR.processBridgedExecution`; transfer tokens to the target account regardless;
+expose `claimFailedTransfer()` for stranded funds. Precedent: `StargateAdapterV2.sol:357`,
+`RelayAdapter.sol:222`.
+
+Rationale: the CCTP burn is already irreversible on the source chain, so reverting the relay strands
+value rather than protecting it.
+
+### Relay Trust
+**`destinationCaller` restricted to the adapter address.** Guarantees the hook runs — no third party
+can mint to the adapter without executing. `relay()` itself stays permissionless, so anyone can still
+submit. Cost: the SDK must know each chain's adapter address at signing time.
+
+Rejected: `bytes32(0)` permissionless receive (a third party could mint to the adapter without
+executing the hook, stranding funds until rescue).
+
+### Amount Forwarding
+**Full adapter token balance**, consistent with `StargateAdapterV2` and `RelayAdapter`. Covers the
+CCTP fee delta automatically. Accepted quirk: a direct USDC donation to the adapter is swept into the
+next relay — identical to existing adapter behavior.
+
+### Fee Reconciliation
+CCTP deducts `maxFee` from the transferred amount, so the account receives less than the burn amount.
+**Forward the actual received balance** and let `SuperDestinationExecutor`'s existing `intentAmounts`
+check decide. The SDK sets `intentAmounts` net of `maxFee`. Same contract as every other adapter.
+
+### Version & Chain Scope
+**CCTP V2 only** (V1 carries no `hookData`). Deploy on every chain where `CCTPSendHook` is already
+live — Ethereum, Base, Arbitrum, Optimism, Polygon, and remaining supported chains.
+
+### Testing Strategy
+**Mock transmitter + fork.** Unit tests against a `MockMessageTransmitterV2` covering the full adapter
+surface (decode, forward, executor success, executor failure, claim path). Plus a fork test that
+overrides the attester set (or impersonates) to exercise the real `MessageTransmitterV2` on mainnet
+state. A valid Circle attester signature cannot be produced against forked mainnet state otherwise.
+
+## Security Notes Carried Forward
+
+- Replay protection: handled inside `MessageTransmitterV2` via nonces — adapter adds none.
+  Merkle-root replay is handled by `SuperDestinationExecutor.isMerkleRootUsed`.
+- Trust model: Circle is the sole attestation root (accepted centralization, documented in
+  `specs/cctp-bridge-hooks/research/evm-security.md:9`).
+- Token: USDC only — no fee-on-transfer, rebasing, or missing-return-value concerns, but `SafeERC20`
+  still applies for the blocklist/pausable case.
+- Custody window: the adapter holds USDC for the duration of one transaction only (mint → forward).
+- Donation sweeping: accepted, matches existing adapters.
+- Open: whether `destinationCaller` restriction plus permissionless `relay()` introduces any griefing
+  vector (e.g. relaying with a gas limit that forces the executor `try/catch` into the failure path).
+
+## Open Questions for Research
+
+1. Confirm CCTP V2 hook execution semantics against Circle's `evm-cctp-contracts` — is
+   `CCTPHookWrapper.sol` the canonical pattern, and what exactly does it verify?
+2. Exact byte offsets of `hookData` within the attested CCTP V2 message (message header + `BurnMessageV2` body).
+3. `MessageTransmitterV2` address per chain — canonical/deterministic like `TokenMessengerV2`
+   (`0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d`)?
+4. Whether `receiveMessage` returns enough information to avoid re-parsing the message body.
+5. Griefing analysis on the permissionless `relay()` + `try/catch` combination (gas-limit forced failure).

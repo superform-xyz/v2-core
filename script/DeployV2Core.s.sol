@@ -7,7 +7,8 @@ import { ConfigCore } from "./utils/ConfigCore.sol";
 import { ISuperLedgerConfiguration } from "../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { AcrossV3AdapterV2 } from "../src/adapters/AcrossV3AdapterV2.sol";
 import { RelayAdapter } from "../src/adapters/RelayAdapter.sol";
-import { CCTPAdapter } from "../src/adapters/CCTPAdapter.sol";
+import { CCTPAdapter, ITokenMessengerV2MinterSource } from "../src/adapters/CCTPAdapter.sol";
+import { ITokenMinterV2 } from "../src/vendor/bridges/cctp/ITokenMinterV2.sol";
 import {
     AcrossSendFundsAndExecuteOnDstHookV2
 } from "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHookV2.sol";
@@ -1853,7 +1854,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             __checkContract(
                 CCTP_ADAPTER_KEY,
                 __getSalt(CCTP_ADAPTER_KEY),
-                abi.encode(configuration.messageTransmittersV2[chainId], configuration.usdcs[chainId], superDestExecutor),
+                abi.encode(
+                    configuration.messageTransmittersV2[chainId],
+                    CCTP_V2_TOKEN_MESSENGER,
+                    configuration.usdcs[chainId],
+                    superDestExecutor
+                ),
                 env
             );
         } else if (!availability.cctpAdapter) {
@@ -3044,6 +3050,23 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         if (availability.cctpAdapter) {
             require(configuration.messageTransmittersV2[chainId] != address(0), "CCTP_ADAPTER_TRANSMITTER_PARAM_ZERO");
             require(configuration.usdcs[chainId] != address(0), "CCTP_ADAPTER_USDC_PARAM_ZERO");
+            require(CCTP_V2_TOKEN_MESSENGER.code.length > 0, "CCTP_ADAPTER_TOKEN_MESSENGER_NOT_DEPLOYED");
+            // The adapter routes every message through TokenMinterV2.getLocalToken(sourceDomain, burnToken) and
+            // treats anything that does not resolve to `USDC` as a non-USDC mint (escrowed, never executed). A
+            // wrong `configuration.usdcs[chainId]` would therefore silently park every USDC intent in escrow.
+            // Pin it to what Circle's registry actually mints for the canonical remote USDC pair.
+            {
+                (uint32 remoteDomain, address remoteUsdc) = chainId == MAINNET_CHAIN_ID
+                    ? (CCTP_DOMAIN_BASE, configuration.usdcs[BASE_CHAIN_ID])
+                    : (CCTP_DOMAIN_ETHEREUM, configuration.usdcs[MAINNET_CHAIN_ID]);
+                address minter = ITokenMessengerV2MinterSource(CCTP_V2_TOKEN_MESSENGER).localMinter();
+                require(minter != address(0), "CCTP_ADAPTER_MINTER_NOT_SET");
+                require(
+                    ITokenMinterV2(minter).getLocalToken(remoteDomain, bytes32(uint256(uint160(remoteUsdc))))
+                        == configuration.usdcs[chainId],
+                    "CCTP_ADAPTER_USDC_NOT_MINTER_LOCAL_TOKEN"
+                );
+            }
             require(coreContracts.superDestinationExecutor != address(0), "CCTP_ADAPTER_DEST_EXECUTOR_PARAM_ZERO");
 
             coreContracts.cctpAdapter = __deployContractIfNeeded(
@@ -3054,6 +3077,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                     __getBytecode("CCTPAdapter", env),
                     abi.encode(
                         configuration.messageTransmittersV2[chainId],
+                        CCTP_V2_TOKEN_MESSENGER,
                         configuration.usdcs[chainId],
                         coreContracts.superDestinationExecutor
                     )
@@ -3076,6 +3100,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             require(
                 address(CCTPAdapter(coreContracts.cctpAdapter).USDC()) == configuration.usdcs[chainId],
                 "CCTP_ADAPTER_USDC_MISMATCH"
+            );
+            require(
+                address(CCTPAdapter(coreContracts.cctpAdapter).TOKEN_MESSENGER()) == CCTP_V2_TOKEN_MESSENGER,
+                "CCTP_ADAPTER_TOKEN_MESSENGER_MISMATCH"
             );
             console2.log(" CCTPAdapter deployed and validated");
         } else {

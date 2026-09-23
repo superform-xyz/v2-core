@@ -2,96 +2,164 @@
 
 ## Metadata
 - Project: Superform v2-core
-- Milestone: Cross-chain bridge adapters
+- Milestone: CCTP V2 Integration (Destination Side)
 - Linear Issue: N/A
-- Interview Date: 2026-08-13
+- Interview Date: 2026-09-21
 - Status: [x] Draft / [ ] Ready for Review / [ ] Approved
 
 ## Summary
-The CCTP V2 send side is already shipped (`CCTPSendHook`/`ApproveAndCCTPSendHook` → `TokenMessengerV2.depositForBurnWithHook`, packing the executor payload into `hookData`), but there is no destination adapter — so CCTP can only deliver USDC, not run Superform's destination hooks (deposit-after-bridge). This spec adds `CCTPAdapter`, the destination receiver, mirroring the V2 adapter template (`RelayAdapter`/`AcrossV3AdapterV2`).
 
-The one structural difference from every existing adapter: **CCTP has no push callback.** `MessageTransmitterV2.receiveMessage` only mints to `mintRecipient`; it never forwards `hookData`. So the adapter is *pull-driven* — a permissionless relayer calls `receiveAndExecute(message, attestation)`, the adapter calls `receiveMessage` itself, slices `hookData` from the attested message, funds the account with the exact mint delta, and calls `SuperDestinationExecutor.processBridgedExecution` (the identical terminal call all adapters make).
+`src/adapters/` has adapters for Across, deBridge, Relay, and Stargate — but none for CCTP, even
+though the CCTP source hooks are live in prod on every chain. The gap is not deliberate. The original
+CCTP spec assumed *"Circle's attestation service + off-chain relayers handle the receive side"*
+(`specs/cctp-bridge-hooks/interview-notes.md:28-33`), which is wrong:
+`MessageTransmitterV2.receiveMessage` verifies and mints, then stops — it never reads `hookData`.
+Whoever relays the message must execute the hook. The result is already shipped: `CCTPSendHook` emits
+the exact 6-tuple `DebridgeAdapter` decodes, and nothing consumes it. Any CCTP transfer carrying
+`hookCallData` today delivers USDC and silently does nothing else.
+
+This spec builds `CCTPAdapter`: set as both `mintRecipient` and `destinationCaller` on the source burn,
+it exposes a permissionless `relay(message, attestation)` that calls `receiveMessage` itself, takes
+custody of the minted USDC, parses `hookData` from the same attested bytes, forwards the exact minted
+amount to the target account, and calls `processBridgedExecution`. No changes to the deployed hooks.
+
+Two findings from research changed the design and one threatens the scope. **(1)** Full-balance
+forwarding — chosen in interview on a precedent that turned out to be false — is a drain vector here,
+and was replaced with balance-delta accounting. **(2)** `MessageTransmitterV2.maxMessageBodySize` is
+**8192 bytes** (measured live), capping `hookData` at 7964. The 6-tuple is the fat format, and Stargate
+already had to abandon it under LayerZero's *looser* 10 KB limit. Phase 0 gates the whole project on
+measuring real intents.
 
 ## Requirements
 
 ### Functional
-1. `receiveAndExecute(bytes message, bytes attestation)` — permissionless, `nonReentrant`: fail-fast checks → `receiveMessage` (mint) → forward mint **delta** to the decoded `account` → `try/catch` `processBridgedExecution` with the 6-field payload.
-2. Decode `hookData = message[376:]` as `(bytes initData, bytes executorCalldata, address account, address[] dstTokens, uint256[] intentAmounts, bytes signature)`.
-3. `claimFailedTransfer(account, token)` escrow path for recipients that reject the USDC transfer (blacklist/pause).
-4. New vendor interface `IMessageTransmitterV2.receiveMessage(bytes,bytes) returns (bool)`.
-5. Backend sets the send hook's `mintRecipient` **and** `destinationCaller` to the destination adapter (config-only; no hook change).
+1. Permissionless `relay(bytes message, bytes attestation)` calling `MessageTransmitterV2.receiveMessage`
+2. Reject non-V2 messages (`uint32` at offset 0 must be `1`)
+3. Parse `hookData` at absolute offset 376 and decode the 6-tuple, matching `DebridgeAdapter:158`
+4. Assert `executor` / `validator` from `sigData.proofDst[]`, mirroring `AcrossV3AdapterV2:176-187`
+5. Forward the balance delta measured around `receiveMessage`, cross-checked against
+   `amount@216 - feeExecuted@312`; forward the smaller
+6. Call `processBridgedExecution` best-effort in try/catch with an unbound catch
+7. Escrow failed forwards in `failedTransfers` / `totalEscrowed`; expose `claimFailedTransfer`
+8. Emit `Relayed` unconditionally so off-chain can distinguish silent no-ops from real execution
 
 ### Non-Functional
-- Trust-minimized: verification fully delegated to Circle's transmitter + the executor's EIP-1271 signature/Merkle-root replay checks; no home-grown verification, no approvals, no arbitrary calls from adapter context.
-- Donation-proof accounting: forward `balanceOf(this)` **delta** only; adapter net balance returns to baseline each call.
-- Matches repo conventions (Apache-2.0, pragma 0.8.30, custom errors, SafeERC20, ReentrancyGuard, NatSpec).
+- Constructor strictly `(messageTransmitterV2, superDestinationExecutor)` — both chain-invariant, which
+  yields **one CREATE2 address on every chain** and makes `destinationCaller` pinning cheap for the SDK
+- `nonReentrant` on `relay()` and `claimFailedTransfer()`
+- `MIN_EXECUTION_GAS` floor plus a `{gas: G}` stipend on the executor call
+- Self-call isolation for `abi.decode` panics
+- CCTP V2 only; deployed conditionally on `MessageTransmitterV2.code.length > 0`
+- No hook changes, no governance surface, no admin rescue
 
 ## Technical Design
 
 ### Architecture
 ```
-source: CCTPSendHook → TokenMessengerV2.depositForBurnWithHook
-        (mintRecipient = destinationCaller = CCTPAdapter; hookData = executor payload)
-Circle attests
-dest:   relayer → CCTPAdapter.receiveAndExecute(message, attestation)
-          require(len>=376); require(mintRecipient==this)
-          pre = USDC.balanceOf(this); receiveMessage(...) [mints amount-fee]; minted = post-pre
-          decode message[376:]; _tryTransfer(account, minted)  → escrow on failure
-          try SuperDestinationExecutor.processBridgedExecution(USDC, account, dstTokens, intentAmounts, initData, executorCalldata, sig) catch { emit ExecutionFailed }
+Source chain                        Destination chain
+
+CCTPSendHook                        CCTPAdapter  (mintRecipient AND destinationCaller)
+ depositForBurnWithHook(              relay(message, attestation)   [permissionless, nonReentrant]
+   mintRecipient     = dstAdapter      │ 1. version == 1
+   destinationCaller = dstAdapter      │ 2. decode hookData (self-call isolated)
+   hookData = 6-tuple)                 │ 3. preBalance → receiveMessage → postBalance
+ │                                     │ 4. amount = min(delta, amount - feeExecuted)
+ └─── Circle attestation ─────────►    │ 5. _tryTransfer → escrow on failure
+                                       │ 6. gas floor → try processBridgedExecution catch { }
 ```
 
+Because the adapter calls `receiveMessage` from inside `relay()`, `msg.sender` seen by the transmitter
+is the **adapter**, not the EOA — that is what lets `relay()` stay permissionless while
+`destinationCaller` still guarantees the mint can only happen alongside hook execution.
+
 ### Data Model
-- Immutables: `MESSAGE_TRANSMITTER`, `USDC`, `SUPER_DESTINATION_EXECUTOR`.
-- Storage: `mapping(account => mapping(token => uint256)) failedTransfers` (escrow only).
-- Offset constants: header 148, `mintRecipient` @184, hookData @376.
+No storage beyond `failedTransfers[account][token]` and `totalEscrowed[token]`. Message offsets:
+`version@0`, `destinationCaller@108`, body@148, `mintRecipient@184`, `amount@216`, `maxFee@280`,
+`feeExecuted@312`, `expirationBlock@344`, **`hookData@376`**.
 
 ### API Changes
-- New: `src/adapters/CCTPAdapter.sol`, `src/vendor/bridges/cctp/IMessageTransmitterV2.sol`.
-- `DeployV2Core.s.sol`: adapter struct field + availability bool + `configuration.messageTransmittersV2[chain]` (+ per-chain USDC + executor), CREATE2 deploy, `_checkAdapterContracts`, `Constants.sol` key, locked-bytecode artifact. Not in `hook-sizing-manifest.json` (adapters aren't hooks).
+New external surface: `relay(bytes,bytes)`, `claimFailedTransfer(address,uint256)`,
+`decodeHookData(bytes)` (external only to enable the self-call). No changes to any existing contract.
 
 ## Implementation Plan
 
-### Phase 1: Contract + interface
-- [ ] Vendor `IMessageTransmitterV2` (cross-check vs `lib/pigeon`).
-- [ ] `CCTPAdapter` on the `RelayAdapter`/`AcrossV3AdapterV2` template (guard, SafeERC20, `_tryTransfer`, `failedTransfers`, `try/catch`).
-- [ ] Assert offsets (184/216/312/376) against Circle `MessageV2`/`BurnMessageV2`.
+### Phase 0: Payload-size gate (BLOCKING)
+- [ ] Encode the 2–3 most complex intended CCTP intents with realistic `SignatureData`
+- [ ] Assert `hookData.length <= 7964`
+- [ ] If it fits: proceed + add an SDK pre-flight assertion and a documented hook-count cap
+- [ ] If not: **escalate** — `CCTPSendHookV2` becomes mandatory and adapter-only scope is void
+
+### Phase 1: Contract
+- [ ] `src/vendor/bridges/cctp/IMessageTransmitterV2.sol`
+- [ ] `src/adapters/CCTPAdapter.sol`
+- [ ] NatSpec documenting the deliberate divergence from Circle's `onlyOwner` wrapper
+- [ ] Tune `MIN_EXECUTION_GAS`
 
 ### Phase 2: Tests
-- [ ] `CCTPAdapterE2EFork.t.sol` using `lib/pigeon` `CctpV2Helper` (attester mock) — happy path (mint delta forwarded + vault deposit runs).
-- [ ] 17 negative/fuzz cases + offset unit test + 6 invariants.
+- [ ] `MockMessageTransmitterV2` (none exists today)
+- [ ] Unit suite per `RelayAdapterUnitTests.t.sol` + `AdaptersUnitTests._buildDestinationData()`
+- [ ] Adversarial suite — self-funding drain test first
+- [ ] Fork suite extending `CCTPHooksForkE2E:882-1229`; `CctpV2Helper` variant returning
+      `(message, attestation)`; replace the empty-`proofDst` fixture at `:20-28`
 
-### Phase 3: Deploy wiring
-- [ ] `DeployV2Core` struct/availability/config/check + `Constants.sol` key + locked bytecode.
-- [ ] Coordinate OMS to set `mintRecipient`/`destinationCaller` = adapter per destination chain.
+### Phase 3: Deployment
+- [ ] Deploy-script wiring + conditional availability gating + constants
+- [ ] Bytecode regeneration and locked artifacts
+- [ ] Verify one CREATE2 address across chains
 
 ## Test Plan
-- [ ] Unit tests for: byte-offset slicing, `_tryTransfer` fallback, `claimFailedTransfer`, constructor zero-checks.
-- [ ] Integration (fork) tests for: full mint→fund→execute path; used-root no-op; executor-revert → `ExecutionFailed`; blacklisted recipient → escrow+claim.
-- [ ] Fuzz/invariant: donation-proof delta (INV-2), baseline balance (INV-1), exact delivery = `amount−feeExecuted` (INV-3), replayed message reverts (INV-5), used root delivers-but-no-ops (INV-6).
+- [ ] Unit: version rejection, 6-tuple decode, delta accounting, cross-check, executor/validator
+      assertions, transfer failure → escrow, claim path, gas floor, malformed hookData
+- [ ] Adversarial: self-funding drain, two messages in one tx, reentrant relay, gas-griefed relay,
+      blacklisted account, `destinationCaller` bypass
+- [ ] Invariants: forwarded ≤ mint delta; post-relay balance == escrow total; funds only ever reach the
+      account named in the attested message; no cross-account claim; a poisoned message never blocks the
+      next relay
+- [ ] Fork: full burn→attest→relay→execute against the real mainnet `MessageTransmitterV2`
 
 ## Risks & Mitigations
+
 | Risk | Category | Likelihood | Impact | Mitigation | Precedent |
-|------|----------|------------|--------|------------|-----------|
-| Donated/pre-seeded USDC swept to attacker account | Vault Accounting | Med | High | Forward measured `post−pre` delta only; INV-2 | deBridge/Across sweep class |
-| Blacklisted/reverting `account` strands the burn | Token Behavior | Med | Med | `_tryTransfer` → `failedTransfers` escrow + `claimFailedTransfer` | USDC blocklist DoS (10.5) |
-| Malformed/truncated hookData | Business Logic | Low | Med | `require(len>=376)`; bounds-checked `abi.decode` | — |
-| Cross-transport intent replay | Cross-Chain | Low | High | executor `usedMerkleRoots` (complements CCTP nonce) | SECURITY.md cross-bridge replay |
-| Same-message replay | Cross-Chain | Low | Med | CCTP `usedNonces` (reverts); check bool return | Nomad 2022 - $190M |
-| Griefer front-runs relay / redirects funds | MEV/Operational | Low | Low | `account` inside attested body; griefer only pays gas | — |
-| Destination hook set reverts | Business Logic | Med | Low | returnbomb-safe `try/catch`; delivery not unwound | LZ compose failures |
-| Leftover approvals / arbitrary calls | Access Control | Low | High | zero approvals; no arbitrary calls from adapter | LI.FI/Socket 2024 |
+|---|---|---|---|---|---|
+| hookData exceeds the 7964-byte ceiling | Business Logic | Medium | **High** — voids scope | Phase 0 gate; fallback `CCTPSendHookV2` | Stargate hit LZ's looser 10 KB limit |
+| Full-balance drain (**resolved in design**) | Vault Accounting | High if built as first specified | Critical | Delta + parsed cross-check | Sonne Finance — $20M |
+| hookData accepted from a side channel | Cross-Chain | Low | Critical | Parse only from the attested message; never add `execute(hookData)` | CrossCurve/Axelar — $3M |
+| SDK sets `destinationCaller = 0` | Cross-Chain | Medium | High — stranded | SDK checklist; pre-flight assert | — |
+| SDK omits `chainsWithDestinationExecution` | Cross-Chain | Medium | Medium — forwarded, never executed | SDK checklist #9 | — |
+| Gas-limit griefing forces the catch branch | Operational | Medium | Low-Med — one-shot, no loss | Gas floor; permissionless re-drive of `processBridgedExecution` | Circle's own warning on their wrapper |
+| Silent no-op misread as success | Operational | High | Medium | `Relayed` event + off-chain correlation | — |
+| Adapter USDC-blacklisted | Token Behavior | Very low | High — permanently unmintable | Accepted; `mintRecipient` can't be re-attested | — |
+| Circle attester compromise | Cross-Chain | Very low | Critical | Accepted centralization | KelpDAO $292M; Ronin $624M |
+| Reentrancy via the hook chain | Reentrancy | Low | Medium | `nonReentrant` + per-frame delta | — |
+| BurnMessageV2 offset drift | Cross-Chain | Low | High | Fork tests against real bytecode | — |
 
 ## Open Questions (Resolved)
+
 | Question | Answer | Decided By |
-|----------|--------|------------|
-| hookData source | Parse from attested message (trustless) | Interview |
-| destinationCaller | Enforce = adapter (atomic mint+execute) | Interview |
-| Minted token | USDC-only, immutable | Interview |
-| Failure mode | Non-reverting; funds to account; escrow for rejected transfers | Interview + security |
-| Relayer access | Permissionless | Interview |
-| Reentrancy | Stateless + `nonReentrant` | Interview |
-| Deployment | `DeployV2Core` adapters + config | Interview |
-| Testing | Fork + real transmitter, `lib/pigeon` attester mock | Interview + repo |
+|---|---|---|
+| Was the destination path deliberately skipped? | No — an incorrect assumption that CCTP auto-executes hooks | Investigation |
+| Does CCTP auto-execute hookData? | **No.** `receiveMessage` verifies and mints, then stops | Circle source + docs |
+| Is `CCTPHookWrapper` canonical? | Yes in shape, but its `relay()` is `onlyOwner` and its hookData convention (`target‖calldata`, packed) differs from ours — do not reuse its parsing | Circle source |
+| Exact `hookData` offset | **376** (148 header + 228 body prefix) | Circle source, corroborated by `CctpV2Helper` |
+| Is `MessageTransmitterV2` deterministic? | Yes — `0x81D40F21F12A8F0E3252Bccb954D722d4c464B64`, verified live on 6 chains | `eth_getCode` |
+| Can `receiveMessage` give the minted amount? | No — returns `bool`. Use a balance delta | Circle source |
+| 6-tuple or 2-tuple? | 6-tuple, dictated by the deployed locked hooks | Repo analysis |
+| Amount forwarding | **Revised:** delta + parsed cross-check, not full balance | Security research |
+| Permissionless `relay()` safe? | Yes, given `destinationCaller` pinning + gas floor; divergence from Circle documented | Security research |
+| Which token to measure? | `dstTokens[0]` from the attested hookData; the delta is the guard | Design |
+| Is the SDK-trust model an exception? | No — Across/Stargate/deBridge all trust the SDK for the destination recipient | Hook analysis |
+| Is `intentAmounts` rescaled on chained amounts? | No, and Across/Stargate share the limitation. SDK must set a slippage-floored intent | Hook analysis |
+
+## Corrections to Prior Specs
+1. `specs/cctp-bridge-hooks/interview-notes.md:28-33` — the "no receive hook needed" assumption is
+   **wrong** and is the root cause of this gap.
+2. `specs/cctp-bridge-hooks/research/framework-docs.md:83` — *"If hookData provided … hook is
+   executed"* is **wrong**, stated without citation.
+3. `specs/cctp-bridge-hooks/spec.md:47-58` and `technical-spec.md:131-141` — the hook data layout is
+   **obsolete** (missing the 52-byte strategy header, invents `hookCallDataLength`). Canonical source is
+   `src/hooks/bridges/cctp/CCTPSendHook.sol:32-43`.
+4. `specs/stargate-compose-adapter/spec.md` — "Transfer full adapter token balance" does not describe
+   the shipped code (`StargateAdapterV2:324` forwards `amountLD`).
 
 ## Interview Notes
 See: [interview-notes.md](./interview-notes.md)
@@ -100,7 +168,7 @@ See: [interview-notes.md](./interview-notes.md)
 See: [technical-spec.md](./technical-spec.md)
 
 ## Research
-See: [research/](./research/) — repo-analysis, framework-docs, evm-security, specflow-analysis
+See: [research/](./research/) — repo-analysis · framework-docs · evm-security · hook-master-plan
 
 ---
 
@@ -109,4 +177,5 @@ See: [research/](./research/) — repo-analysis, framework-docs, evm-security, s
 - Approved date: ___
 
 ## Next Steps
-After approval, run: `/superform:work specs/cctp-destination-adapter/technical-spec.md`
+Run Phase 0 (payload-size gate) before approving scope. Then:
+`/superform:work specs/cctp-destination-adapter/technical-spec.md`
